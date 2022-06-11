@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -44,8 +44,18 @@ them at boot time.
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/paths.h>
 
 #define _(string) gettext(string)
+
+#define WINDOW_TITLE			_("File systems")
+#define MOUNT_POINT				_("Mount point:")
+#define MOUNT_AUTOMATICALLY		_("Mount automatically at boot")
+#define UNSAVED_CHANGES			_("Unsaved changes")
+#define QUIT_WITHOUT_WRITE		_("Quit without writing changes?")
+#define QUIT					_("Quit")
+#define CANCEL					_("Cancel")
+#define SAVE					_("Save")
 
 static int readOnly = 1;
 static int processId = 0;
@@ -57,6 +67,7 @@ static variableList mountConfig;
 static int changesPending = 0;
 static objectKey window = NULL;
 static objectKey diskList = NULL;
+static objectKey mountPointLabel = NULL;
 static objectKey mountPointField = NULL;
 static objectKey autoMountCheckbox = NULL;
 static objectKey saveButton = NULL;
@@ -79,10 +90,10 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -98,7 +109,7 @@ static void quit(int status, const char *message, ...)
 
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, message);
 	vsnprintf(output, MAXSTRINGLENGTH, message, list);
 	va_end(list);
@@ -185,10 +196,11 @@ static int saveMountConfig(void)
 static int getAutoMount(int diskNumber)
 {
 	char variable[128];
-	char value[128];
+	const char *value = NULL;
 
 	snprintf(variable, 128, "%s.automount", diskInfo[diskNumber].name);
-	if (variableListGet(&mountConfig, variable, value, 128) < 0)
+	value = variableListGet(&mountConfig, variable);
+	if (!value)
 		return (0);
 
 	if (!strncmp(value, "yes", 128))
@@ -213,9 +225,14 @@ static void setAutoMount(int diskNumber, int autoMount)
 static void getMountPoint(int diskNumber, char *mountPoint)
 {
 	char variable[128];
+	const char *value = NULL;
 
 	snprintf(variable, 128, "%s.mountpoint", diskInfo[diskNumber].name);
-	if (variableListGet(&mountConfig, variable, mountPoint, MAX_PATH_LENGTH) < 0)
+	value = variableListGet(&mountConfig, variable);
+
+	if (value)
+		strncpy(mountPoint, value, MAX_PATH_LENGTH);
+	else
 		mountPoint[0] = '\0';
 }
 
@@ -223,13 +240,14 @@ static void getMountPoint(int diskNumber, char *mountPoint)
 static void setMountPoint(int diskNumber, char *mountPoint)
 {
 	char variable[128];
-	char value[128];
+	const char *value = NULL;
 	int makeAutoMount = 0;
 
 	snprintf(variable, 128, "%s.mountpoint", diskInfo[diskNumber].name);
+	value = variableListGet(&mountConfig, variable);
 
 	// If there's nothing for this disk currently, also add an automount entry
-	if (variableListGet(&mountConfig, variable, value, 128) < 0)
+	if (!value)
 		makeAutoMount = 1;
 
 	variableListSet(&mountConfig, variable, mountPoint);
@@ -252,25 +270,58 @@ static void select(int diskNumber)
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("filesys");
+
+	// Refresh the 'mount point' label
+	windowComponentSetData(mountPointLabel, MOUNT_POINT, strlen(MOUNT_POINT));
+
+	// Refresh the 'mount automatically' checkbox
+	windowComponentSetData(autoMountCheckbox, MOUNT_AUTOMATICALLY,
+		strlen(MOUNT_AUTOMATICALLY));
+
+	// Refresh the 'save' button
+	windowComponentSetData(saveButton, SAVE, strlen(SAVE));
+
+	// Refresh the 'quit' button
+	windowComponentSetData(quitButton, QUIT, strlen(QUIT));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int selectedDisk = 0;
 	int selected = 0;
 	char mountPoint[MAX_PATH_LENGTH];
 
-	// Check for the window being closed by a GUI event.
-	if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-	((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+	// Check for window events.
+	if (key == window)
 	{
-		if (changesPending &&
-			windowNewChoiceDialog(window, _("Unsaved changes"),
-				_("Quit without writing changes?"),
-				(char *[]){ _("Quit"), _("Cancel") }, 2, 0))
-		{
-			return;
-		}
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
 
-		windowGuiStop();
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+		{
+			if (changesPending &&
+				windowNewChoiceDialog(window, UNSAVED_CHANGES,
+					QUIT_WITHOUT_WRITE, (char *[]){ QUIT, CANCEL }, 2, 0))
+			{
+				return;
+			}
+
+			windowGuiStop();
+		}
 	}
 
 	else if ((key == diskList) && ((event->type & EVENT_MOUSE_DOWN) ||
@@ -309,6 +360,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		saveMountConfig();
 	}
+
+	else if ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	{
+		if (changesPending &&
+			windowNewChoiceDialog(window, UNSAVED_CHANGES, QUIT_WITHOUT_WRITE,
+				(char *[]){ QUIT, CANCEL }, 2, 0))
+		{
+			return;
+		}
+
+		windowGuiStop();
+	}
+
 }
 
 
@@ -326,7 +390,7 @@ static void constructWindow(void)
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
 
-	window = windowNew(processId, _("File systems"));
+	window = windowNew(processId, WINDOW_TITLE);
 
 	numRows = numberDisks;
 	numRows = min(numRows, 10);
@@ -340,7 +404,7 @@ static void constructWindow(void)
 
 	params.gridY += 1;
 	params.padTop = 5;
-	windowNewTextLabel(window, _("Mount point:"), &params);
+	mountPointLabel = windowNewTextLabel(window, MOUNT_POINT, &params);
 
 	// Make a text field for the mount point.
 	params.gridY += 1;
@@ -353,8 +417,8 @@ static void constructWindow(void)
 	// Make a checkbox for automounting.
 	params.gridY += 1;
 	params.padTop = 5;
-	autoMountCheckbox =
-	windowNewCheckbox(window, _("Mount automatically at boot"), &params);
+	autoMountCheckbox = windowNewCheckbox(window, MOUNT_AUTOMATICALLY,
+		&params);
 	windowRegisterEventHandler(autoMountCheckbox, &eventHandler);
 	if (privilege || readOnly)
 		windowComponentSetEnabled(autoMountCheckbox, 0);
@@ -365,13 +429,13 @@ static void constructWindow(void)
 	params.padBottom = 5;
 	params.orientationX = orient_right;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	saveButton = windowNewButton(window, _("Save"), NULL, &params);
+	saveButton = windowNewButton(window, SAVE, NULL, &params);
 	windowRegisterEventHandler(saveButton, &eventHandler);
 	windowComponentSetEnabled(saveButton, 0);
 
 	params.gridX += 1;
 	params.orientationX = orient_left;
-	quitButton = windowNewButton(window, _("Quit"), NULL, &params);
+	quitButton = windowNewButton(window, QUIT, NULL, &params);
 	windowRegisterEventHandler(quitButton, &eventHandler);
 
 	// Select the first disk
@@ -388,13 +452,9 @@ static void constructWindow(void)
 int main(int argc __attribute__((unused)), char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	disk sysDisk;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("filesys");
 
 	// Only work in graphics mode
@@ -407,7 +467,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
 	// Find out whether we are currently running on a read-only filesystem
 	bzero(&sysDisk, sizeof(disk));
-	if (!fileGetDisk("/system", &sysDisk))
+	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
 	processId = multitaskerGetCurrentProcessId();
@@ -430,3 +490,4 @@ int main(int argc __attribute__((unused)), char *argv[])
 	freeMemory();
 	return (status = 0);
 }
+

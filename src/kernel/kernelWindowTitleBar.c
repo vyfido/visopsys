@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -26,6 +26,7 @@
 #include "kernelError.h"
 #include "kernelFont.h"
 #include "kernelGraphic.h"
+#include "kernelImage.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelWindowEventStream.h"
@@ -61,7 +62,7 @@ static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
 static void createImages(int width, int height)
 {
 	// Create some standard, shared images for close buttons, etc.
-	
+
 	kernelGraphicBuffer graphicBuffer;
 	image tmpImage;
 	color greenColor;
@@ -132,12 +133,12 @@ static void minimizeWindow(kernelWindow *window, windowEvent *event)
 
 	// Minimize the window
 	kernelWindowSetMinimized(window, 1);
-		
+
 	// Transfer this event into the window's event stream, so the application
 	// can find out about it.
 	event->type = EVENT_WINDOW_MINIMIZE;
 	kernelWindowEventStreamWrite(&(window->events), event);
-	
+
 	return;
 }
 
@@ -196,7 +197,7 @@ static int draw(kernelWindowComponent *component)
 		component->height, shade_fromtop);
 
 	// Put the title on the title bar
-	
+
 	if (component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
 	{
 		// Use user-supplied colors
@@ -277,7 +278,7 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 	return (0);
 }
 
- 
+
 static int resize(kernelWindowComponent *component, int width, int height)
 {
 	kernelWindowTitleBar *titleBar = component->data;
@@ -372,6 +373,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			// Save a copy of the dragging event
 			kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
 		}
+
 		else
 		{
 			// The move is finished
@@ -381,7 +383,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			newWindowY = component->window->yCoord;
 			component->window->xCoord = oldWindowX;
 			component->window->yCoord = oldWindowY;
-	
+
 			component->window->xCoord = newWindowX;
 			component->window->yCoord = newWindowY;
 
@@ -400,6 +402,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 		return (status = 0);
 	}
+
 	else if (titleBar->minimizeButton &&
 		isMouseInButton(event, titleBar->minimizeButton))
 	{
@@ -410,9 +413,10 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		// Minimize the window
 		if (event->type == EVENT_MOUSE_LEFTUP)
 			minimizeWindow(component->window, event);
-	
+
 		return (status = 0);
 	}
+
 	else if (titleBar->closeButton &&
 		isMouseInButton(event, titleBar->closeButton))
 	{
@@ -423,9 +427,10 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		// Close the window
 		if (event->type == EVENT_MOUSE_LEFTUP)
 			closeWindow(component->window, event);
-	
+
 		return (status = 0);
 	}
+
 	else if (event->type == EVENT_MOUSE_DRAG)
 	{
 		if (component->window->flags & WINFLAG_MOVABLE)
@@ -440,7 +445,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			kernelWindowRedrawArea(component->window->xCoord,
 				component->window->yCoord, component->window->buffer.width,
 				component->window->buffer.height);
-		
+
 			// Draw an xor'ed outline
 			kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
 				draw_xor, component->window->xCoord,
@@ -465,7 +470,7 @@ static int destroy(kernelWindowComponent *component)
 
 	if (component->window)
 	{
-		kernelDebug(debug_gui, "Destroying \"%s\" title bar",
+		kernelDebug(debug_gui, "WindowTitleBar destroying \"%s\" title bar",
 			component->window->title);
 
 		component->window->titleBar = NULL;
@@ -507,11 +512,11 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	kernelWindowTitleBar *titleBar = NULL;
 	int titleBarHeight = windowVariables->titleBar.height;
 	componentParameters buttonParams;
-	
+
 	// Check parameters
-	if ((window == NULL) || (params == NULL))
+	if (!window || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 

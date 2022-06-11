@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -53,18 +53,23 @@ Options:
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/vsh.h>
 #include <sys/api.h>
+#include <sys/vsh.h>
+
+#define _(string) gettext(string)
 
 
 static void usage(char *name)
 {
-	printf("usage:\n");
-	printf("%s [-f] <font file> <font name>\n", name);
+	printf("%s", _("usage:\n"));
+	printf(_("%s [-f] <font file> <font name>\n"), name);
 	return;
 }
 
@@ -77,10 +82,14 @@ int main(int argc, char *argv[])
 	int fixedWidth = 0;
 	objectKey font;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("loadfont");
+
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			argv[0]);
 		errno = ERR_NOTINITIALIZED;
 		return (status = errno);
 	}
@@ -95,7 +104,7 @@ int main(int argc, char *argv[])
 		errno = ERR_ARGUMENTCOUNT;
 		return (status = errno);
 	}
-	
+
 	fileName = argv[argc - 2];
 	fontName = argv[argc - 1];
 
@@ -114,3 +123,4 @@ int main(int argc, char *argv[])
 	errno = status;
 	return (status);
 }
+

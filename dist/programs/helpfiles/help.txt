@@ -13,6 +13,7 @@ copy-mbr          Write a Visopsys MBR sector
 cp (or copy)      Copy a file
 date              Show the date
 defrag            Defragment a filesystem
+deluser           Delete a user account from the system
 disks             Show the disk volumes in the system
 domainname        Prints or sets the system's network domain name.
 fdisk             Manage hard disks (must be user "admin")
@@ -51,7 +52,6 @@ rmdir             Remove a directory
 shutdown          Stops the computer
 snake             A 'snake' game like the one found on mobile phones
 sync              Synchronize all filesystems on disk
-sysdiag           Perform diagnostics on hardware such as RAM or hard disks
 touch             Update a file or create a new (empty) file
 umount            Unmount a filesystem
 uname             Prints system information

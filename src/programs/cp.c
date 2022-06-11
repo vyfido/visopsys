@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -49,15 +49,20 @@ directories then the flag has no effect.
 */
 
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 
 static void usage(char *name)
 {
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "%s [-R] <source1> [source2] ... <destination>\n", name);
+	fprintf(stderr, "%s", _("usage:\n"));
+	fprintf(stderr, _("%s [-R] <source1> [source2] ... <destination>\n"), name);
 	return;
 }
 
@@ -68,6 +73,9 @@ int main(int argc, char *argv[])
 	char opt;
 	int recurse = 0;
 	int count;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("cp");
 
 	// There need to be at least a source and destination name
 	if (argc < 3)
@@ -87,7 +95,7 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				fprintf(stderr, "Unknown option '%c'\n", optopt);
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
 				usage(argv[0]);
 				return (status = ERR_INVALID);
 		}
@@ -110,3 +118,4 @@ int main(int argc, char *argv[])
 
 	return (status);
 }
+

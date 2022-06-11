@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -112,7 +112,7 @@ static int pollStatus(int diskNum, unsigned char mask, int onOff)
 
 	for (count = 0; count < timeout; count ++)
 	{
-		// Get the contents of the status register for the channel of the 
+		// Get the contents of the status register for the channel of the
 		// selected disk.
 		kernelProcessorInPort8(DISK_CHAN(diskNum).ports.altComStat, data);
 
@@ -123,7 +123,7 @@ static int pollStatus(int diskNum, unsigned char mask, int onOff)
 		}
 
 		if ((onOff && ((data & mask) == mask)) ||
-			(!onOff && ((data & mask) == 0)))
+			(!onOff && !(data & mask)))
 		{
 			return (0);
 		}
@@ -212,7 +212,7 @@ static int select(int diskNum)
 	return (status = 0);
 }
 
-		
+
 static void lbaSetup(int diskNum, uquad_t logicalSector, uquad_t numSectors)
 {
 	// This routine is strictly internal, and is used to set up the disk
@@ -248,7 +248,7 @@ static void lbaSetup(int diskNum, uquad_t logicalSector, uquad_t numSectors)
 		// Bits 40-47 of the address
 		kernelProcessorOutPort8(DISK_CHAN(diskNum).ports.lbaHigh, 0);
 	}
-	else 
+	else
 	{
 		// If numSectors is 256, we need to change it to zero.
 		if (numSectors == 256)
@@ -286,7 +286,7 @@ static void lbaSetup(int diskNum, uquad_t logicalSector, uquad_t numSectors)
 static int evaluateError(int diskNum)
 {
 	// This routine will check the error status on the disk controller
-	// of the selected disk.  It evaluates the returned byte and matches 
+	// of the selected disk.  It evaluates the returned byte and matches
 	// conditions to error codes and error messages
 
 	int errorCode = 0;
@@ -512,7 +512,7 @@ static int sendAtapiPacket(int diskNum, unsigned byteCount,
 	status = pollStatus(diskNum, (ATA_STAT_BSY | ATA_STAT_DRQ), 0);
 	if (status < 0)
 		return (status);
-	
+
 	expectInterrupt(diskNum);
 
 	kernelProcessorOutPort8(DISK_CHAN(diskNum).ports.featErr, 0);
@@ -727,7 +727,7 @@ static int atapiStartStop(int diskNum, int start)
 
 		// If there's no disk, the number of sectors will be illegal.	Set
 		// to the maximum value and quit
-		if ((DISK(diskNum).physical.numSectors == 0) ||
+		if (!DISK(diskNum).physical.numSectors ||
 			(DISK(diskNum).physical.numSectors == 0xFFFFFFFF))
 		{
 			DISK(diskNum).physical.numSectors = 0xFFFFFFFF;
@@ -739,7 +739,7 @@ static int atapiStartStop(int diskNum, int start)
 
 		DISK(diskNum).physical.logical[0].numSectors =
 			DISK(diskNum).physical.numSectors;
-			
+
 		// Read the TOC (Table Of Contents)
 		kernelDebug(debug_io, "IDE disk %02x ATAPI read TOC", diskNum);
 		status = sendAtapiPacket(diskNum, 12, ATAPI_PACKET_READTOC);
@@ -870,7 +870,7 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 	physicalAddress =
 		kernelPageGetPhysical((((unsigned) address < KERNEL_VIRTUAL_ADDRESS)?
 			 kernelCurrentProcess->processId : KERNELPROCID), address);
-	if (physicalAddress == NULL)
+	if (!physicalAddress)
 	{
 		kernelError(kernel_error, "Couldn't get buffer physical address for "
 			"%p", address);
@@ -927,7 +927,7 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 		kernelDebug(debug_io, "IDE disk %02x set up PRD for address %p, "
 			"bytes %u", diskNum, DISK_CHAN(diskNum).prd[count].physicalAddress,
 			doBytes);
-			
+
 		physicalAddress += doBytes;
 		bytes -= doBytes;
 		*doneBytes += doBytes;
@@ -996,7 +996,7 @@ static int dmaCheckStatus(int diskNum)
 static int reset(int diskNum)
 {
 	// Does a software reset of the requested disk controller.
-	
+
 	int status = 0;
 	int master = (diskNum & ~1);
 	unsigned char data[4];
@@ -1200,7 +1200,7 @@ static int identify(int diskNum, unsigned short *buffer)
 	kernelDebug(debug_io, "IDE disk %02x read identify data", diskNum);
 
 	ackInterrupt(diskNum);
- 
+
 	return (status);
 }
 
@@ -1255,7 +1255,7 @@ static int readWriteAtapi(int diskNum, uquad_t logicalSector,
 		return (status);
 
 	pollStatus(diskNum, ATA_STAT_DRQ, 1);
-	
+
 	// (Possible) interrupt at the beginning says data is ready
 	ackInterrupt(diskNum);
 
@@ -1538,7 +1538,7 @@ static int readWritePio(int diskNum, uquad_t logicalSector, uquad_t numSectors,
 			{
 				// Wait for DRQ
 				while (pollStatus(diskNum, ATA_STAT_DRQ, 1));
-				
+
 				kernelDebug(debug_io, "IDE transfer out %d sectors",
 					sectorsPerInt);
 				kernelProcessorRepOutPort16(DISK_CHAN(diskNum).ports.data,
@@ -1615,7 +1615,7 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	status = kernelLockGet(&DISK_CHAN(diskNum).lock);
 	if (status < 0)
 		return (status);
-	
+
 	// Select the disk
 	status = select(diskNum);
 	if (status < 0)
@@ -1684,7 +1684,7 @@ static int atapiReset(int diskNum)
 
 	// Do ATAPI reset
 	kernelProcessorOutPort8(DISK_CHAN(diskNum).ports.comStat, ATA_ATAPIRESET);
-	
+
 	// Wait for it...
 	kernelSysTimerWaitTicks(1);
 
@@ -1786,7 +1786,7 @@ static void pciIdeInterrupt(void)
 
 	kernelDebug(debug_io, "IDE PCI interrupt");
 
-	// Loop through the controllers to find the one that uses this interrupt 
+	// Loop through the controllers to find the one that uses this interrupt
 	for (count1 = 0; (count1 < numControllers) && !serviced ; count1 ++)
 	{
 		if (controllers[count1].pciInterrupt == interruptNum)
@@ -1868,7 +1868,7 @@ static void primaryIdeInterrupt(void)
 
 	kernelDebug(debug_io, "IDE primary interrupt");
 
-	// Loop through the controllers to find the one that uses this interrupt 
+	// Loop through the controllers to find the one that uses this interrupt
 	for (count = 0; count < numControllers; count ++)
 	{
 		if (CHANNEL(count, 0).interrupt == interruptNum)
@@ -1939,7 +1939,7 @@ static void secondaryIdeInterrupt(void)
 
 	kernelDebug(debug_io, "IDE secondary interrupt");
 
-	// Loop through the controllers to find the one that uses this interrupt 
+	// Loop through the controllers to find the one that uses this interrupt
 	for (count = 0; count < numControllers; count ++)
 	{
 		if (CHANNEL(count, 1).interrupt == interruptNum)
@@ -2085,7 +2085,7 @@ out:
 		DISK(diskNum).physical.multiSectors = 1;
 		status = ERR_INVALID;
 	}
-	
+
 	return (status);
 }
 
@@ -2167,7 +2167,7 @@ static int testDma(int diskNum)
 	testSecs = max((DISK(diskNum).physical.multiSectors + 1), DMATESTSECS);
 
 	buffer = kernelMalloc(testSecs * DISK(diskNum).physical.sectorSize);
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	status = readWriteDma(diskNum, 0, testSecs, buffer, 1);
@@ -2197,7 +2197,7 @@ static int driverSetLockState(int diskNum, int lockState)
 	status = kernelLockGet(&DISK_CHAN(diskNum).lock);
 	if (status < 0)
 		return (status);
-	
+
 	// Select the disk
 	status = select(diskNum);
 	if (status < 0)
@@ -2241,7 +2241,7 @@ static int driverSetDoorState(int diskNum, int open)
 	status = kernelLockGet(&DISK_CHAN(diskNum).lock);
 	if (status < 0)
 		return (status);
-	
+
 	// Select the disk
 	status = select(diskNum);
 	if (status < 0)
@@ -2275,7 +2275,7 @@ static int driverMediaPresent(int diskNum)
 	// Wait for a lock on the controller
 	if (kernelLockGet(&DISK_CHAN(diskNum).lock) < 0)
 		return (present = 0);
-	
+
 	// Select the disk
 	if (select(diskNum) < 0)
 		goto out;
@@ -2316,7 +2316,7 @@ static int driverMediaPresent(int diskNum)
 	}
 
 	kernelDebug(debug_io, "IDE media %spresent", (present? "" : "not "));
-	
+
 out:
 	kernelLockRelease(&DISK_CHAN(diskNum).lock);
 	return (present);
@@ -2362,7 +2362,7 @@ static int driverFlush(int diskNum)
 	status = kernelLockGet(&DISK_CHAN(diskNum).lock);
 	if (status < 0)
 		return (status);
-	
+
 	// Select the disk and wait for it to be ready
 	if ((select(diskNum) < 0) || (pollStatus(diskNum, ATA_STAT_BSY, 0) < 0))
 	{
@@ -2392,7 +2392,7 @@ static int driverFlush(int diskNum)
 out:
 	// Unlock the controller
 	kernelLockRelease(&DISK_CHAN(diskNum).lock);
-	
+
 	return (status);
 }
 
@@ -2407,6 +2407,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 	int numPciTargets = 0;
 	int deviceCount = 0;
 	pciDeviceInfo pciDevInfo;
+	unsigned prdMemorySize = 0;
 	int count;
 
 	// See if there are any IDE controllers on the PCI bus.  This obviously
@@ -2423,9 +2424,9 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 	for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
 	{
 		// If it's not an IDE or SATA controller, skip it
-		if ((pciTargets[deviceCount].class == NULL) ||
+		if (!pciTargets[deviceCount].class ||
 			(pciTargets[deviceCount].class->class != DEVICECLASS_DISKCTRL) ||
-			(pciTargets[deviceCount].subClass == NULL) ||
+			!pciTargets[deviceCount].subClass ||
 			((pciTargets[deviceCount].subClass->class !=
 				DEVICESUBCLASS_DISKCTRL_IDE) &&
 			(pciTargets[deviceCount].subClass->class !=
@@ -2495,7 +2496,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 		// (Re)allocate memory for the controllers
 		controllers = kernelRealloc((void *) controllers,
 			((numControllers + 1) *	sizeof(ideController)));
-		if (controllers == NULL)
+		if (!controllers)
 			return (status = ERR_MEMORY);
 
 		// Print the registers
@@ -2579,7 +2580,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 		// Get the PCI IDE controller IO address
 		controllers[numControllers].busMasterIo =
 			(pciDevInfo.device.nonBridge.baseAddress[4] & 0xFFFFFFFE);
-		if (controllers[numControllers].busMasterIo == NULL)
+		if (!controllers[numControllers].busMasterIo)
 		{
 			kernelDebugError("Unknown bus master I/O address");
 			continue;
@@ -2616,26 +2617,30 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 		{
 			// 65K max per PRD, max 65K 512-byte sectors per command equals
 			// maximum 512 PRDs.
+
 			CHANNEL(numControllers, count).prdEntries = 512;
+
+			prdMemorySize = (CHANNEL(numControllers, count).prdEntries *
+				sizeof(idePrd));
+
 			CHANNEL(numControllers, count).prdPhysical =
-				kernelMemoryGetPhysical(CHANNEL(numControllers, count)
-					.prdEntries * sizeof(idePrd),
-					DISK_CACHE_ALIGN, "ide prd entries");
-			if (CHANNEL(numControllers, count).prdPhysical == NULL)
+				kernelMemoryGetPhysical(prdMemorySize, DISK_CACHE_ALIGN,
+					"ide prd entries");
+			if (!CHANNEL(numControllers, count).prdPhysical)
 			{
 				status = ERR_MEMORY;
 				break;
 			}
 
+			// Map the physical memory into virtual memory
 			status = kernelPageMapToFree(KERNELPROCID,
 				CHANNEL(numControllers, count).prdPhysical,
-				(void **) &CHANNEL(numControllers, count).prd,
-				(CHANNEL(numControllers, count).prdEntries * sizeof(idePrd)));
+				(void **) &CHANNEL(numControllers, count).prd, prdMemorySize);
 			if (status < 0)
 				break;
 
-			if (((unsigned)CHANNEL(numControllers, count).prd % 4) ||
-				((unsigned)CHANNEL(numControllers, count).prdPhysical %
+			if (((unsigned) CHANNEL(numControllers, count).prd % 4) ||
+				((unsigned) CHANNEL(numControllers, count).prdPhysical %
 					0x10000))
 			{
 				kernelError(kernel_warn, "PRD or PRD physical not correctly "
@@ -2644,11 +2649,17 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 				break;
 			}
 
+			// Make it non-cacheable
+			status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
+				PAGEFLAG_CACHEDISABLE,
+				(void *) CHANNEL(numControllers, count).prd, prdMemorySize);
+			if (status < 0)
+				break;
+
 			// Clear it out, since the kernelMemoryGetPhysical() routine
 			// doesn't do it for us
 			kernelMemClear((void *) CHANNEL(numControllers, count).prd,
-				 (CHANNEL(numControllers, count).prdEntries *
-					sizeof(idePrd)));
+				 prdMemorySize);
 
 			status = 0;
 		}
@@ -2732,7 +2743,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		// Allocate memory for the controller
 		controllers = kernelMalloc(sizeof(ideController));
-		if (controllers == NULL)
+		if (!controllers)
 		{
 			status = ERR_MEMORY;
 			goto out;
@@ -2803,7 +2814,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 			kernelDebug(debug_io, "IDE turn on interrupt %d",
 				controllers[controllerCount].pciInterrupt);
-		
+
 			// Just in case there's an outstanding interrupt
 			expectInterrupt(controllerCount << 4);
 
@@ -2825,7 +2836,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 					"handler for primary IDE int %d",
 					CHANNEL(controllerCount, 0).interrupt);
 			}
- 
+
 			status =
 				kernelInterruptHook(CHANNEL(controllerCount, 0).interrupt,
 					&primaryIdeInterrupt);
@@ -2839,7 +2850,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			expectInterrupt(controllerCount << 4);
 
 			kernelPicMask(CHANNEL(controllerCount, 0).interrupt, 1);
-	
+
 			// Ack any outstanding interrupt
 			ackInterrupt(controllerCount << 4);
 
@@ -2887,7 +2898,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			DISK(diskNum).physical.description = "Unknown IDE disk";
 			DISK(diskNum).physical.deviceNumber = diskNum;
 			DISK(diskNum).physical.driver = driver;
-	
+
 			// Wait for a lock on the controller
 			status = kernelLockGet(&DISK_CHAN(diskNum).lock);
 			if (status < 0)
@@ -2946,12 +2957,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 			}
 
 			// Is it regular ATA?
-			if ((buffer[0] & 0x8000) == 0)
+			if (!(buffer[0] & 0x8000))
 			{
 				// This is an ATA hard disk device
 				kernelLog("IDE: Disk %d:%d is an IDE hard disk",
 					controllerCount, diskCount);
-				
+
 				DISK(diskNum).physical.description = "IDE/ATA hard disk";
 				DISK(diskNum).physical.type =
 					(DISKTYPE_PHYSICAL | DISKTYPE_FIXED | DISKTYPE_IDEDISK);
@@ -3086,7 +3097,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 	// Allocate memory for the disk device(s)
 	devices = kernelMalloc(numberIdeDisks * sizeof(kernelDevice));
-	if (devices == NULL)
+	if (!devices)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -3125,7 +3136,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 				}
 
 				// Log the ATA/ATAPI standard level
-				if ((buffer[80] == 0x0000) || (buffer[80] == 0xFFFF))
+				if (!buffer[80] || (buffer[80] == 0xFFFF))
 				{
 					kernelLog("IDE: Disk %d:%d no ATA/ATAPI version reported",
 						controllerCount, diskCount);
@@ -3348,10 +3359,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 					if (DISKISWCACHE(diskNum))
 						strcat(value, ",wcache");
-			
+
 					if (DISKIS48(diskNum))
 						strcat(value, ",48-bit");
-			
+
 					kernelVariableListSet(&devices[deviceCount].device.attrs,
 						"disk.features", value);
 				}
@@ -3401,3 +3412,4 @@ void kernelIdeDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

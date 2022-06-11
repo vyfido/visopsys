@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -21,15 +21,19 @@
 
 // This is the UNIX-style command for telnetting to another network host
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
 #include <sys/network.h>
 #include <sys/telnet.h>
+
+#define _(string) gettext(string)
 
 static objectKey connection = NULL;
 static int stop = 0;
@@ -37,7 +41,7 @@ static int stop = 0;
 
 static void usage(char *name)
 {
-	printf("usage:\n%s <address | hostname>\n", name);
+	printf(_("usage:\n%s <address | hostname>\n"), name);
 	return;
 }
 
@@ -58,67 +62,67 @@ static void printCommand(unsigned char commandCode)
 	switch (commandCode)
 	{
 		case TELNET_COMMAND_SE:
-			printf("SE\n");
+			printf("%s", _("SE\n"));
 			break;
 
 		case TELNET_COMMAND_NOP:
-			printf("NOP\n");
+			printf("%s", _("NOP\n"));
 			break;
 
 		case TELNET_COMMAND_DM:
-			printf("Data Mark\n");
+			printf("%s", _("Data Mark\n"));
 			break;
 
 		case TELNET_COMMAND_BRK:
-			printf("Break\n");
+			printf("%s", _("Break\n"));
 			break;
 
 		case TELNET_COMMAND_IP:
-			printf("Interrupt Process\n");
+			printf("%s", _("Interrupt Process\n"));
 			break;
 
 		case TELNET_COMMAND_AO:
-			printf("Abort output\n");
+			printf("%s", _("Abort output\n"));
 			break;
 
 		case TELNET_COMMAND_AYT:
-			printf("Are You There\n");
+			printf("%s", _("Are You There\n"));
 			break;
 
 		case TELNET_COMMAND_EC:
-			printf("Erase character\n");
+			printf("%s", _("Erase character\n"));
 			break;
 
 		case TELNET_COMMAND_EL:
-			printf("Erase Line\n");
+			printf("%s", _("Erase Line\n"));
 			break;
 
 		case TELNET_COMMAND_GA:
-			printf("Go ahead\n");
+			printf("%s", _("Go ahead\n"));
 			break;
 
 		case TELNET_COMMAND_GSB:
-			printf("SB\n");
+			printf("%s", _("SB\n"));
 			break;
 
 		case TELNET_COMMAND_WILL:
-			printf("WILL ");
+			printf("%s", _("WILL "));
 			break;
 
 		case TELNET_COMMAND_WONT:
-			printf("WON'T ");
+			printf("%s", _("WON'T "));
 			break;
 
 		case TELNET_COMMAND_DO:
-			printf("DO ");
+			printf("%s", _("DO "));
 			break;
 
 		case TELNET_COMMAND_DONT:
-			printf("DON'T ");
+			printf("%s", _("DON'T "));
 			break;
 
 		default:
-			printf("unknown code %d\n", commandCode);
+			printf(_("unknown code %d\n"), commandCode);
 			break;
 	}
 }
@@ -129,51 +133,51 @@ static void printOption(unsigned char optionCode)
 	switch (optionCode)
 	{
 		case TELNET_OPTION_ECHO:
-			printf("echo\n");
+			printf("%s", _("echo\n"));
 			break;
 
 		case TELNET_OPTION_SUPGA:
-			printf("suppress go ahead\n");
+			printf("%s", _("suppress go ahead\n"));
 			break;
 
 		case TELNET_OPTION_STATUS:
-			printf("status\n");
+			printf("%s", _("status\n"));
 			break;
 
 		case TELNET_OPTION_TMARK:
-			printf("timing mark\n");
+			printf("%s", _("timing mark\n"));
 			break;
 
 		case TELNET_OPTION_TTYPE:
-			printf("terminal type\n");
+			printf("%s", _("terminal type\n"));
 			break;
 
 		case TELNET_OPTION_WINSZ:
-			printf("window size\n");
+			printf("%s", _("window size\n"));
 			break;
 
 		case TELNET_OPTION_TSPEED:
-			printf("terminal speed\n");
+			printf("%s", _("terminal speed\n"));
 			break;
 
 		case TELNET_OPTION_REMFC:
-			printf("remote flow control\n");
+			printf("%s", _("remote flow control\n"));
 			break;
 
 		case TELNET_OPTION_LMODE:
-			printf("linemode\n");
+			printf("%s", _("linemode\n"));
 			break;
 
 		case TELNET_OPTION_ENVAR:
-			printf("environment variables\n");
+			printf("%s", _("environment variables\n"));
 			break;
 
 		case TELNET_OPTION_ENVOPT:
-			printf("environment variables\n");
+			printf("%s", _("environment variables\n"));
 			break;
 
 		default:
-			printf("unknown option %d\n", optionCode);
+			printf(_("unknown option %d\n"), optionCode);
 			break;
 	}
 }
@@ -183,7 +187,7 @@ static int sendCommand(unsigned char commandCode, unsigned char optionCode)
 {
 	unsigned char buffer[4];
 	int bytes = 0;
-	
+
 	buffer[bytes++] = TELNET_COMMAND_IAC;
 	buffer[bytes++] = commandCode;
 
@@ -209,6 +213,9 @@ int main(int argc, char *argv[])
 	networkFilter filter;
 	unsigned char *buffer = NULL;
 	int count, bytes;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("telnet");
 
 	if (argc != 2)
 	{
@@ -340,3 +347,4 @@ int main(int argc, char *argv[])
 
 	return (status = 0);
 }
+

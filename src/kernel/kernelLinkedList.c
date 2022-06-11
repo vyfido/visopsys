@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -80,7 +80,7 @@ int kernelLinkedListRemove(kernelLinkedList *list, void *data)
 
 	int status = 0;
 	kernelLinkedListItem *iter = NULL;
-  
+
 	if ((list == NULL) || (data == NULL))
 		return (status = ERR_NULLPARAMETER);
 
@@ -109,7 +109,7 @@ int kernelLinkedListRemove(kernelLinkedList *list, void *data)
 			kernelLockRelease(&list->lock);
 			return (status = 0);
 		}
-      
+
 		iter = iter->next;
 	}
 
@@ -157,9 +157,9 @@ void *kernelLinkedListIterStart(kernelLinkedList *list,
 	// the first item, if applicable.
 
 	// Check params
-	if ((list == NULL) || (iter == NULL))
+	if (!list || !iter)
 	{
-		kernelError(kernel_error, "List or iterator pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (NULL);
 	}
 
@@ -178,9 +178,9 @@ void *kernelLinkedListIterNext(kernelLinkedList *list,
 	// Returns the data value from the next item in the list, if applicable.
 
 	// Check params
-	if ((list == NULL) || (iter == NULL))
+	if (!list || !iter)
 	{
-		kernelError(kernel_error, "List or iterator pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (NULL);
 	}
 

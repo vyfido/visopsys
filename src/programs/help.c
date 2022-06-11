@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -38,6 +38,7 @@ copy-mbr          Write a Visopsys MBR sector
 cp (or copy)      Copy a file
 date              Show the date
 defrag            Defragment a filesystem
+deluser           Delete a user account from the system
 disks             Show the disk volumes in the system
 domainname        Prints or sets the system's network domain name.
 fdisk             Manage hard disks (must be user "admin")
@@ -76,7 +77,6 @@ rmdir             Remove a directory
 shutdown          Stops the computer
 snake             A 'snake' game like the one found on mobile phones
 sync              Synchronize all filesystems on disk
-sysdiag           Perform diagnostics on hardware such as RAM or hard disks
 touch             Update a file or create a new (empty) file
 umount            Unmount a filesystem
 uname             Prints system information
@@ -107,12 +107,15 @@ wallpaper         Load a new background wallpaper image
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <sys/api.h>
+#include <sys/paths.h>
 
-#define HELPFILES_DIR  "/programs/helpfiles"
+#define _(string) gettext(string)
 
 
 int main(int argc, char *argv[])
@@ -121,27 +124,32 @@ int main(int argc, char *argv[])
 	char command[MAX_PATH_NAME_LENGTH];
 	int count;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("help");
+
 	if (argc < 2)
 		// If there are no arguments, print the general help file
-		status = system("/programs/more " HELPFILES_DIR "/help.txt");
+		status = system(PATH_PROGRAMS "/more " PATH_PROGRAMS_HELPFILES
+			"/help.txt");
 
 	else
 	{
 		for (count = 1; count < argc; count ++)
 		{
 			// See if there is a help file for the argument
-			sprintf(command, "%s/%s.txt", HELPFILES_DIR, argv[count]);
+			sprintf(command, "%s/%s.txt", PATH_PROGRAMS_HELPFILES, argv[count]);
 			status = fileFind(command, NULL);
 			if (status < 0)
 			{
 				// No help file
-				printf("There is no help available for \"%s\"\n", argv[count]);
+				printf(_("There is no help available for \"%s\"\n"),
+					argv[count]);
 				return (status = ERR_NOSUCHFILE);
 			}
 
 			// For each argument, look for a help file whose name matches
-			sprintf(command, "/programs/more %s/%s.txt", HELPFILES_DIR,
-				argv[count]);
+			sprintf(command, PATH_PROGRAMS "/more %s/%s.txt",
+				PATH_PROGRAMS_HELPFILES, argv[count]);
 
 			// Search
 			status = system(command);
@@ -152,3 +160,4 @@ int main(int argc, char *argv[])
 
 	return (status);
 }
+

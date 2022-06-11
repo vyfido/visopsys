@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -30,7 +30,7 @@
 int vsprintf(char *output, const char *format, va_list list)
 {
 	int len = 0;
-	
+
 	// Fill out the output line
 	len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 

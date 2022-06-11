@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -51,14 +51,19 @@ filebrowse will attempt to execute it -- etc.
 #include <string.h>
 #include <sys/api.h>
 #include <sys/lock.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
 
-#define EXECPROG_VIEW      "/programs/view"
-#define EXECPROG_KEYMAP    "/programs/keymap"
-#define EXECPROG_CONFEDIT  "/programs/confedit"
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
+
+#define WINDOW_TITLE		_("File Browser")
+#define FILE_MENU			_("File")
+#define VIEW_MENU			_("View")
+#define EXECPROG_VIEW		PATH_PROGRAMS "/view"
+#define EXECPROG_KEYMAP		PATH_PROGRAMS "/keymap"
+#define EXECPROG_CONFEDIT	PATH_PROGRAMS "/confedit"
 
 #define FILEMENU_QUIT 0
 windowMenuContents fileMenuContents = {
@@ -96,18 +101,19 @@ static unsigned cwdModifiedDate = 0;
 static unsigned cwdModifiedTime = 0;
 static int stop = 0;
 
+
 __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code
-	
+
 	va_list list;
 	char *output = NULL;
 
 	output = malloc(MAXSTRINGLENGTH);
-	if (output == NULL)
+	if (!output)
 		return;
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -122,7 +128,7 @@ static void changeDir(file *theFile, char *fullName)
 	file cwdFile;
 
 	while (lockGet(&dirStackLock) < 0)
-	multitaskerYield();
+		multitaskerYield();
 
 	if (!strcmp(theFile->name, ".."))
 	{
@@ -165,13 +171,10 @@ static void changeDir(file *theFile, char *fullName)
 
 static void execProgram(int argc, char *argv[])
 {
-	windowSwitchPointer(window, "busy");
-
 	// Exec the command, no block
 	if (argc == 2)
 		loaderLoadAndExec(argv[1], privilege, 0);
 
-	windowSwitchPointer(window, "default");
 	multitaskerTerminate(0);
 }
 
@@ -180,6 +183,7 @@ static void doFileSelection(file *theFile, char *fullName,
 	loaderFileClass *loaderClass)
 {
 	char command[MAX_PATH_NAME_LENGTH];
+	int pid = 0;
 
 	switch (theFile->type)
 	{
@@ -212,13 +216,19 @@ static void doFileSelection(file *theFile, char *fullName,
 			}
 			else
 				return;
-			
-			// Exec the command, no block
-			if (multitaskerSpawn(&execProgram, "exec program", 1,
-				(void *[]){ command } ) < 0)
-			{
+
+			windowSwitchPointer(window, "busy");
+
+			// Run a thread to execute the command
+			pid = multitaskerSpawn(&execProgram, "exec program", 1,
+				(void *[]){ command } );
+			if (pid < 0)
 				error(_("Couldn't execute command \"%s\""), command);
-			}
+			else
+				while (multitaskerProcessIsAlive(pid));
+
+			windowSwitchPointer(window, "default");
+
 			break;
 		}
 
@@ -237,36 +247,80 @@ static void doFileSelection(file *theFile, char *fullName,
 }
 
 
+static void initMenuContents(windowMenuContents *contents)
+{
+	int count;
+
+	for (count = 0; count < contents->numItems; count ++)
+	{
+		strncpy(contents->items[count].text, _(contents->items[count].text),
+			WINDOW_MAX_LABEL_LENGTH);
+		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
+	}
+}
+
+
+static void refreshMenuContents(windowMenuContents *contents)
+{
+	int count;
+
+	initMenuContents(contents);
+
+	for (count = 0; count < contents->numItems; count ++)
+		windowComponentSetData(contents->items[count].key,
+			contents->items[count].text, strlen(contents->items[count].text));
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("filebrowse");
+
+	// Refresh the 'file' menu
+	refreshMenuContents(&fileMenuContents);
+	windowSetTitle(fileMenu, FILE_MENU);
+
+	// Refresh the 'view' menu
+	refreshMenuContents(&viewMenuContents);
+	windowSetTitle(viewMenu, VIEW_MENU);
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	objectKey selectedItem = 0;
-
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+	// Check for window events.
+	if (key == window)
 	{
-		stop = 1;
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			stop = 1;
 	}
 
-	else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
+	// Check for 'file' menu events
+	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
 	{
-		windowComponentGetData(fileMenu, &selectedItem, 1);
-		if (selectedItem)
-		{
-			// Check for the window being closed.
-			if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
-				stop = 1;
-		}
+		if (event->type & EVENT_SELECTION)
+			stop = 1;
 	}
 
-	else if ((key == viewMenu) && (event->type & EVENT_SELECTION))
+	// Check for 'view' menu events
+	else if (key == viewMenuContents.items[VIEWMENU_REFRESH].key)
 	{
-		windowComponentGetData(viewMenu, &selectedItem, 1);
-		if (selectedItem)
-		{
-			// Check for manual refresh requests
-			if (selectedItem == viewMenuContents.items[VIEWMENU_REFRESH].key)
-				fileList->update(fileList);
-		}
+		if (event->type & EVENT_SELECTION)
+			// Manual refresh request
+			fileList->update(fileList);
 	}
 
 	// Check for events to be passed to the file list widget
@@ -281,16 +335,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
-static void initMenuContents(windowMenuContents *contents)
+static void handleMenuEvents(windowMenuContents *contents)
 {
 	int count;
 
 	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-	}
+		windowRegisterEventHandler(contents->items[count].key, &eventHandler);
 }
 
 
@@ -300,22 +350,26 @@ static int constructWindow(const char *directory)
 	componentParameters params;
 
 	// Create a new window, with small, arbitrary size and location
-	window = windowNew(processId, _("File Browser"));
-	if (window == NULL)
+	window = windowNew(processId, WINDOW_TITLE);
+	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
 	bzero(&params, sizeof(componentParameters));
 
 	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
-	// The 'file' menu
+
+	// Create the top 'file' menu
 	initMenuContents(&fileMenuContents);
-	fileMenu = windowNewMenu(menuBar, _("File"), &fileMenuContents, &params);
-	windowRegisterEventHandler(fileMenu, &eventHandler);
-	// The 'view' menu
+	fileMenu = windowNewMenu(window, menuBar, FILE_MENU, &fileMenuContents,
+		&params);
+	handleMenuEvents(&fileMenuContents);
+
+	// Create the top 'view' menu
 	initMenuContents(&viewMenuContents);
-	viewMenu = windowNewMenu(menuBar, _("View"), &viewMenuContents, &params);
-	windowRegisterEventHandler(viewMenu, &eventHandler);
+	viewMenu = windowNewMenu(window, menuBar, VIEW_MENU, &viewMenuContents,
+		&params);
+	handleMenuEvents(&viewMenuContents);
 
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -331,13 +385,13 @@ static int constructWindow(const char *directory)
 	windowRegisterEventHandler(locationField, &eventHandler);
 	windowComponentSetEnabled(locationField, 0); // For now
 
-	// Create a window list to hold the icons
+	// Create the file list widget
 	params.gridY += 1;
 	params.padBottom = 5;
 	fileList = windowNewFileList(window, windowlist_icononly, 4, 5, directory,
 		WINFILEBROWSE_ALL, doFileSelection, &params);
 	windowRegisterEventHandler(fileList->key, &eventHandler);
-	windowComponentFocus(fileList->key);  
+	windowComponentFocus(fileList->key);
 
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
@@ -351,14 +405,10 @@ static int constructWindow(const char *directory)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	int guiThreadPid = 0;
 	file cwdFile;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("filebrowse");
 
 	// Only work in graphics mode
@@ -376,32 +426,32 @@ int main(int argc, char *argv[])
 	privilege = multitaskerGetProcessPrivilege(processId);
 
 	dirStack = malloc(MAX_PATH_LENGTH * sizeof(dirRecord));
-	if (dirStack == NULL)
+	if (!dirStack)
 	{
 		error("%s", _("Memory allocation error"));
 		status = ERR_MEMORY;
 		goto out;
 	}
 
-	// Get the starting current directory.  If one was specified on the command
-	// line, try to use that.
+	// Set the starting directory.  If one was specified on the command line,
+	// try to use that.  Otherwise, default to '/'
 
+	strcpy(dirStack[dirStackCurr].name, "/");
 	if (argc > 1)
-	{
-		status = multitaskerSetCurrentDirectory(argv[argc - 1]);
-		if (status < 0)
-		{
-			error(_("Can't change to directory \"%s\""), argv[argc - 1]);
-			goto out;
-		}
-	}
+		strncpy(dirStack[dirStackCurr].name, argv[argc - 1], MAX_PATH_LENGTH);
 
-	status = multitaskerGetCurrentDirectory(dirStack[dirStackCurr].name,
-		MAX_PATH_LENGTH);
+	status = multitaskerSetCurrentDirectory(dirStack[dirStackCurr].name);
 	if (status < 0)
 	{
-		error("%s", _("Can't determine current directory"));
-		goto out;
+		error(_("Can't change to directory \"%s\""), argv[argc - 1]);
+
+		status = multitaskerGetCurrentDirectory(dirStack[dirStackCurr].name,
+			MAX_PATH_LENGTH);
+		if (status < 0)
+		{
+			error("%s", _("Can't determine current directory"));
+			goto out;
+		}
 	}
 
 	status = constructWindow(dirStack[dirStackCurr].name);
@@ -466,3 +516,4 @@ out:
 
 	return (status);
 }
+

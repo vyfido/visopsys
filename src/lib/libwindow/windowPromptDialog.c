@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -114,8 +114,8 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
 	windowSetVisible(dialogWindow, 1);
-	
-	while(1)
+
+	while (1)
 	{
 		// Check for the OK button
 		status = windowComponentEventGet(okButton, &event);
@@ -137,7 +137,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 			status = 0;
 			break;
 		}
-		
+
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
 		if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
@@ -181,7 +181,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 _X_ int windowNewPromptDialog(objectKey parentWindow, const char *title, const char *message, int rows, int columns, char *buffer)
 {
 	// Desc: Create a 'prompt' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single text field for the user to enter data.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
-	return(dialog(promptDialog, parentWindow, title, message, rows, columns,
+	return (dialog(promptDialog, parentWindow, title, message, rows, columns,
 		buffer));
 }
 
@@ -189,6 +189,7 @@ _X_ int windowNewPromptDialog(objectKey parentWindow, const char *title, const c
 _X_ int windowNewPasswordDialog(objectKey parentWindow, const char *title, const char *message, int columns, char *buffer)
 {
 	// Desc: Create a 'password' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single password field.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
-	return(dialog(passwordDialog, parentWindow, title, message, 1, columns,
+	return (dialog(passwordDialog, parentWindow, title, message, 1, columns,
 		buffer));
 }
+

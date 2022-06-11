@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -26,9 +26,10 @@
 
 #include <sys/file.h>
 #include <sys/guid.h>
+#include <sys/paths.h>
 #include <sys/types.h>
 
-#define DISK_MOUNT_CONFIG			"/system/config/mount.conf"
+#define DISK_MOUNT_CONFIG			PATH_SYSTEM_CONFIG "/mount.conf"
 #define DISK_MAXDEVICES				32
 #define DISK_MAX_NAMELENGTH			16
 #define DISK_MAX_MODELLENGTH		40
@@ -140,3 +141,4 @@ typedef struct {
 
 #define _DISK_H
 #endif
+

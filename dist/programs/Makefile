@@ -1,20 +1,20 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
-BUILDDIR	= ../../build/programs
+BUILDDIR = ../../build/programs
 
 all:
-	mkdir -p ${BUILDDIR}
-	make -C helpfiles
-	make -C mines.dir
-	make -C snake.dir
+	${MAKE} -C helpfiles
+	${MAKE} -C mines.dir
+	${MAKE} -C snake.dir
 
 clean:
+	${MAKE} -C helpfiles clean
+	${MAKE} -C mines.dir clean
+	${MAKE} -C snake.dir clean
 	rm -f *~ core
-	make -C helpfiles clean
-	make -C mines.dir clean
-	make -C snake.dir clean
+

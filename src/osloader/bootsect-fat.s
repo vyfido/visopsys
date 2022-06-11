@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -57,7 +57,7 @@ main:
 	jmp short bootCode			; 00 - 01 Jump instruction
 	nop					; 02 - 02 No op
 
-	%include "bootsect-fatBPB.s"	
+	%include "bootsect-fatBPB.s"
 
 bootCode:
 
@@ -76,7 +76,7 @@ bootCode:
 	;; 0000h:7C00h.
 	jmp (0):.adjCsIp
 	.adjCsIp:
-	
+
 	sti
 
 	;; The MBR or bootloader code will pass the boot device number to us
@@ -95,8 +95,8 @@ bootCode:
 	mov DI, PARTENTRY
 	mov CX, 16
 	cld
-	rep movsb 
-	
+	rep movsb
+
 	.noOffset:
 
 	;; Get disk parameters
@@ -112,7 +112,7 @@ bootCode:
 	mov DL, byte [DISK]
 	mov EBX, dword [BOOTSECTSIG]
 	mov SI, PARTENTRY
-	
+
 	jmp (LDRCODESEGMENTLOCATION / 16):0
 
 
@@ -134,7 +134,7 @@ BOOTSECTSIG		dd 0
 ;; the loader, and number of sectors to read, here.
 LOADERSTARTSECTOR	dd 0
 LOADERNUMSECTORS	dd 0
-	
+
 ;; This puts the value AA55h in the last two bytes of the boot
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the

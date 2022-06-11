@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -21,16 +21,17 @@
 
 // This is the standard "isupper" function, as found in standard C libraries
 
-// These functions check whether c, which must have the value of an
-// unsigned char or EOF, falls into a certain character class according
-// to the current locale.  Ok, right now they don't look at the current
-// locale.
-
 #include <ctype.h>
 
 
 int isupper(int c)
 {
-	// checks for an uppercase letter.
-	return ((c >= 'A') && (c <= 'Z'));
+	// Checks for an uppercase letter.
+
+	// We use the ISO-8859-15 character set for this determination.
+	return (((c >= 'A') && (c <= 'Z')) ||
+		(c == 166) || (c == 180) || (c == 188) || (c == 190) || (c == 223) ||
+		((c >= 192) && (c <= 214)) ||
+		((c >= 216) && (c <= 223)));
 }
+

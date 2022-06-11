@@ -1,75 +1,86 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
-# This makefile builds all the MBRs, boot sectors, and the OS loader.
+# Builds all the MBRs, boot sectors, and the OS loader.
 
-ROOT		= ../..
-BOOTBUILDDIR	= ${ROOT}/build/system/boot
-LOADERBUILDDIR	= ${ROOT}/build
+ROOT = ../..
+LOADBUILDDIR = ${ROOT}/build
+BOOTBUILDDIR = ${LOADBUILDDIR}/system/boot
 
 include ${ROOT}/Makefile.include
 
-WARN		= -w+orphan-labels
-SECTOPTS	= -f bin ${WARN}
-LDROPTS		= -f elf ${WARN}
-LINKOPTS	= -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
-STDDEPS		= loader.h Makefile
-BOOTDEPS	= bootsect-fatBPB.s bootsect-diskparms.s bootsect-print.s \
-		bootsect-error.s bootsect-read.s 
-OBJS		= obj/loaderMain.o \
-		obj/loaderA20.o \
-		obj/loaderVideo.o \
-		obj/loaderDetectHardware.o \
-		obj/loaderLoadFile.o \
-		obj/loaderLoadKernel.o \
-		obj/loaderDiskError.o \
-		obj/loaderPrintRoutines.o
+WARN = -w+orphan-labels
+BOOTOPTS = -f bin ${WARN}
+LOADOPTS = -f elf ${WARN}
+LINKOPTS = -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
+STDDEPS = loader.h Makefile
 
-all: target-dirs bootsectors ${LOADERBUILDDIR}/vloader
+BOOTNAMES = mbr.simple \
+	mbr.bootmenu \
+	bootmenu \
+	bootsect.fat \
+	bootsect.fat32 \
+	bootsect.fatnoboot \
+	bootsect.fatnoboot32
+
+BOOTSECTS = $(addprefix ${BOOTBUILDDIR}/, ${BOOTNAMES})
+
+LOADNAMES = loaderMain \
+	loaderA20 \
+	loaderVideo \
+	loaderDetectHardware \
+	loaderLoadFile \
+	loaderLoadKernel \
+	loaderDiskError \
+	loaderPrintRoutines
+
+LOADOBJS = $(addprefix obj/, $(addsuffix .o, ${LOADNAMES}))
+
+all: target-dirs bootsectors ${LOADBUILDDIR}/vloader
 
 target-dirs:
-	mkdir -p obj ${BOOTBUILDDIR} ${LOADERBUILDDIR}
+	mkdir -p obj ${BOOTBUILDDIR} ${LOADBUILDDIR}
 
-bootsectors: ${BOOTBUILDDIR}/mbr.simple ${BOOTBUILDDIR}/mbr.bootmenu ${BOOTBUILDDIR}/bootmenu ${BOOTBUILDDIR}/bootsect.fat ${BOOTBUILDDIR}/bootsect.fat32 ${BOOTBUILDDIR}/bootsect.fatnoboot ${BOOTBUILDDIR}/bootsect.fatnoboot32
+bootsectors: ${BOOTSECTS}
 
 #
 # MBRs and Boot sectors
 #
 
-${BOOTBUILDDIR}/mbr.simple: mbr-simple.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} $< -o $@
+${BOOTBUILDDIR}/mbr.simple: mbr-simple.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/mbr.bootmenu: mbr-bootmenu.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} $< -o $@
+${BOOTBUILDDIR}/mbr.bootmenu: mbr-bootmenu.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootmenu: bootmenu.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} $< -o $@
+${BOOTBUILDDIR}/bootmenu: bootmenu.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fat: bootsect-fat.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} $< -o $@
+${BOOTBUILDDIR}/bootsect.fat: bootsect-fat.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fat32: bootsect-fat.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} -DFAT32 $< -o $@
+${BOOTBUILDDIR}/bootsect.fat32: bootsect-fat.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} -DFAT32 $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} $< -o $@
+${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s ${BOOTDEPS} ${STDDEPS}
-	${NASM} ${SECTOPTS} -DFAT32 $< -o $@
+${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s ${STDDEPS}
+	${NASM} ${BOOTOPTS} -DFAT32 $< -o $@
 
 #
 # Loader files
 #
 
-${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPS}
-	${CC} -nodefaultlibs -nostartfiles ${OPT} ${LINKOPTS} ${OBJS} -o $@
+${LOADBUILDDIR}/vloader: ${LOADOBJS} ${STDDEPS}
+	${CC} -nodefaultlibs -nostartfiles ${LINKOPTS} ${LOADOBJS} -o $@
 
 obj/%.o: %.s ${STDDEPS}
-	${NASM} ${LDROPTS} $< -o $@
+	${NASM} ${LOADOPTS} $< -o $@
 
 #
 # Miscellany
@@ -77,4 +88,5 @@ obj/%.o: %.s ${STDDEPS}
 
 clean:
 	rm -Rf *~ *.o core obj
-	rm -Rf ${BOOTBUILDDIR} ${LOADERBUILDDIR}/vloader
+	rm -Rf ${BOOTBUILDDIR} ${LOADBUILDDIR}/vloader
+

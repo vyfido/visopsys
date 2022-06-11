@@ -1,7 +1,7 @@
-// 
+//
 //	Visopsys
 //	Copyright (C) 1998-2014 J. Andrew McLaughlin
-//	
+//
 //	This library is free software; you can redistribute it and/or modify it
 //	under the terms of the GNU Lesser General Public License as published by
 //	the Free Software Foundation; either version 2.1 of the License, or (at
@@ -323,8 +323,8 @@ extern int visopsys_in_kernel;
 #define _fnum_windowProcessEvent				12027
 #define _fnum_windowComponentEventGet			12028
 #define _fnum_windowSetBackgroundColor			12029
-#define _fnum_windowTileBackground				12030
-#define _fnum_windowCenterBackground			12031
+#define _fnum_windowShellTileBackground			12030
+#define _fnum_windowShellCenterBackground		12031
 #define _fnum_windowScreenShot					12032
 #define _fnum_windowSaveScreenShot				12033
 #define _fnum_windowSetTextOutput				12034
@@ -333,55 +333,58 @@ extern int visopsys_in_kernel;
 #define _fnum_windowContextAdd					12037
 #define _fnum_windowContextSet					12038
 #define _fnum_windowSwitchPointer				12039
-#define _fnum_windowComponentDestroy			12040
-#define _fnum_windowComponentSetVisible			12041
-#define _fnum_windowComponentSetEnabled			12042
-#define _fnum_windowComponentGetWidth			12043
-#define _fnum_windowComponentSetWidth			12044
-#define _fnum_windowComponentGetHeight			12045
-#define _fnum_windowComponentSetHeight			12046
-#define _fnum_windowComponentFocus				12047
-#define _fnum_windowComponentUnfocus			12048
-#define _fnum_windowComponentDraw				12049
-#define _fnum_windowComponentGetData			12050
-#define _fnum_windowComponentSetData			12051
-#define _fnum_windowComponentGetSelected		12052
-#define _fnum_windowComponentSetSelected		12053
-#define _fnum_windowNewButton					12054
-#define _fnum_windowNewCanvas					12055
-#define _fnum_windowNewCheckbox					12056
-#define _fnum_windowNewContainer				12057
-#define _fnum_windowNewDivider					12058
-#define _fnum_windowNewIcon						12059
-#define _fnum_windowNewImage					12060
-#define _fnum_windowNewList						12061
-#define _fnum_windowNewListItem					12062
-#define _fnum_windowNewMenu						12063
-#define _fnum_windowNewMenuBar					12064
-#define _fnum_windowNewMenuItem					12065
-#define _fnum_windowNewPasswordField			12066
-#define _fnum_windowNewProgressBar				12067
-#define _fnum_windowNewRadioButton				12068
-#define _fnum_windowNewScrollBar				12069
-#define _fnum_windowNewSlider					12070
-#define _fnum_windowNewTextArea					12071
-#define _fnum_windowNewTextField				12072
-#define _fnum_windowNewTextLabel				12073
+#define _fnum_windowRefresh						12040
+#define _fnum_windowComponentDestroy			12041
+#define _fnum_windowComponentSetVisible			12042
+#define _fnum_windowComponentSetEnabled			12043
+#define _fnum_windowComponentGetWidth			12044
+#define _fnum_windowComponentSetWidth			12045
+#define _fnum_windowComponentGetHeight			12046
+#define _fnum_windowComponentSetHeight			12047
+#define _fnum_windowComponentFocus				12048
+#define _fnum_windowComponentUnfocus			12049
+#define _fnum_windowComponentDraw				12050
+#define _fnum_windowComponentGetData			12051
+#define _fnum_windowComponentSetData			12052
+#define _fnum_windowComponentGetSelected		12053
+#define _fnum_windowComponentSetSelected		12054
+#define _fnum_windowNewButton					12055
+#define _fnum_windowNewCanvas					12056
+#define _fnum_windowNewCheckbox					12057
+#define _fnum_windowNewContainer				12058
+#define _fnum_windowNewDivider					12059
+#define _fnum_windowNewIcon						12060
+#define _fnum_windowNewImage					12061
+#define _fnum_windowNewList						12062
+#define _fnum_windowNewListItem					12063
+#define _fnum_windowNewMenu						12064
+#define _fnum_windowNewMenuBar					12065
+#define _fnum_windowNewMenuItem					12066
+#define _fnum_windowNewPasswordField			12067
+#define _fnum_windowNewProgressBar				12068
+#define _fnum_windowNewRadioButton				12069
+#define _fnum_windowNewScrollBar				12070
+#define _fnum_windowNewSlider					12071
+#define _fnum_windowNewTextArea					12072
+#define _fnum_windowNewTextField				12073
+#define _fnum_windowNewTextLabel				12074
 
 // User functions.	All are in the 13000-13999 range
 #define _fnum_userAuthenticate					13000
 #define _fnum_userLogin							13001
 #define _fnum_userLogout						13002
-#define _fnum_userGetNames						13003
-#define _fnum_userAdd							13004
-#define _fnum_userDelete						13005
-#define _fnum_userSetPassword					13006
-#define _fnum_userGetPrivilege					13007
-#define _fnum_userGetPid						13008
-#define _fnum_userSetPid						13009
-#define _fnum_userFileAdd						13010
-#define _fnum_userFileDelete					13011
-#define _fnum_userFileSetPassword				13012
+#define _fnum_userExists						13003
+#define _fnum_userGetNames						13004
+#define _fnum_userAdd							13005
+#define _fnum_userDelete						13006
+#define _fnum_userSetPassword					13007
+#define _fnum_userGetCurrent					13008
+#define _fnum_userGetPrivilege					13009
+#define _fnum_userGetPid						13010
+#define _fnum_userSetPid						13011
+#define _fnum_userFileAdd						13012
+#define _fnum_userFileDelete					13013
+#define _fnum_userFileSetPassword				13014
 
 // Network functions.	All are in the 14000-14999 range
 #define _fnum_networkDeviceGetCount				14000
@@ -422,25 +425,26 @@ extern int visopsys_in_kernel;
 #define _fnum_lockVerify						99018
 #define _fnum_variableListCreate				99019
 #define _fnum_variableListDestroy				99020
-#define _fnum_variableListGet					99021
-#define _fnum_variableListSet					99022
-#define _fnum_variableListUnset					99023
-#define _fnum_configRead						99024
-#define _fnum_configWrite						99025
-#define _fnum_configGet							99026
-#define _fnum_configSet							99027
-#define _fnum_configUnset						99028
-#define _fnum_guidGenerate						99029
-#define _fnum_crc32								99030
-#define _fnum_keyboardGetMap					99031
-#define _fnum_keyboardSetMap					99032
-#define _fnum_deviceTreeGetCount				99033
-#define _fnum_deviceTreeGetRoot					99034
-#define _fnum_deviceTreeGetChild				99035
-#define _fnum_deviceTreeGetNext					99036
-#define _fnum_mouseLoadPointer					99037
-#define _fnum_pageGetPhysical					99038
-#define _fnum_setLicensed						99039
+#define _fnum_variableListGetVariable			99021
+#define _fnum_variableListGet					99022
+#define _fnum_variableListSet					99023
+#define _fnum_variableListUnset					99024
+#define _fnum_configRead						99025
+#define _fnum_configWrite						99026
+#define _fnum_configGet							99027
+#define _fnum_configSet							99028
+#define _fnum_configUnset						99029
+#define _fnum_guidGenerate						99030
+#define _fnum_crc32								99031
+#define _fnum_keyboardGetMap					99032
+#define _fnum_keyboardSetMap					99033
+#define _fnum_deviceTreeGetCount				99034
+#define _fnum_deviceTreeGetRoot					99035
+#define _fnum_deviceTreeGetChild				99036
+#define _fnum_deviceTreeGetNext					99037
+#define _fnum_mouseLoadPointer					99038
+#define _fnum_pageGetPhysical					99039
+#define _fnum_setLicensed						99040
 
 
 //
@@ -502,7 +506,7 @@ int textInputRemoveAll(void);
 void textInputStreamSetEcho(objectKey, int);
 void textInputSetEcho(int);
 
-// 
+//
 // Disk functions
 //
 int diskReadPartitions(const char *);
@@ -733,8 +737,8 @@ void windowResetColors(void);
 void windowProcessEvent(objectKey);
 int windowComponentEventGet(objectKey, windowEvent *);
 int windowSetBackgroundColor(objectKey, color *);
-int windowTileBackground(const char *);
-int windowCenterBackground(const char *);
+int windowShellTileBackground(const char *);
+int windowShellCenterBackground(const char *);
 int windowScreenShot(image *);
 int windowSaveScreenShot(const char *);
 int windowSetTextOutput(objectKey);
@@ -743,6 +747,7 @@ void windowDebugLayout(objectKey);
 int windowContextAdd(objectKey, windowMenuContents *);
 int windowContextSet(objectKey, objectKey);
 int windowSwitchPointer(objectKey, const char *);
+int windowRefresh(void);
 void windowComponentDestroy(objectKey);
 int windowComponentSetVisible(objectKey, int);
 int windowComponentSetEnabled(objectKey, int);
@@ -770,8 +775,8 @@ objectKey windowNewList(objectKey, windowListType, int, int, int,
 	listItemParameters *, int, componentParameters *);
 objectKey windowNewListItem(objectKey, windowListType, listItemParameters *,
 	componentParameters *);
-objectKey windowNewMenu(objectKey, const char *, windowMenuContents *,
-	componentParameters *);
+objectKey windowNewMenu(objectKey, objectKey,
+	const char *, windowMenuContents *, componentParameters *);
 objectKey windowNewMenuBar(objectKey, componentParameters *);
 objectKey windowNewMenuItem(objectKey, const char *, componentParameters *);
 objectKey windowNewPasswordField(objectKey, int, componentParameters *);
@@ -792,17 +797,18 @@ objectKey windowNewTextLabel(objectKey, const char *, componentParameters *);
 int userAuthenticate(const char *, const char *);
 int userLogin(const char *, const char *);
 int userLogout(const char *);
+int userExists(const char *);
 int userGetNames(char *, unsigned);
 int userAdd(const char *, const char *);
 int userDelete(const char *);
 int userSetPassword(const char *, const char *, const char *);
+int userGetCurrent(char *, unsigned);
 int userGetPrivilege(const char *);
 int userGetPid(void);
 int userSetPid(const char *, int);
 int userFileAdd(const char *, const char *, const char *);
 int userFileDelete(const char *, const char *);
-int userFileSetPassword(const char *, const char *, const char *,
-	const char *);
+int userFileSetPassword(const char *, const char *, const char *, const char *);
 
 //
 // Network functions
@@ -847,7 +853,8 @@ int lockRelease(lock *);
 int lockVerify(lock *);
 int variableListCreate(variableList *);
 int variableListDestroy(variableList *);
-int variableListGet(variableList *, const char *, char *, unsigned);
+const char *variableListGetVariable(variableList *, int);
+const char *variableListGet(variableList *, const char *);
 int variableListSet(variableList *, const char *, const char *);
 int variableListUnset(variableList *, const char *);
 int configRead(const char *, variableList *);
@@ -869,3 +876,4 @@ void setLicensed(int);
 
 #define _API_H
 #endif
+

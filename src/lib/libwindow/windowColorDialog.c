@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -99,7 +99,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	windowEvent event;
 	color tmpColor;
 	scrollBarState scrollState;
-	
+
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
@@ -227,7 +227,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	// Draw the current color on the canvas
 	drawColor(&tmpColor);
 
-	while(1)
+	while (1)
 	{
 		// Check for sliders
 		status = windowComponentEventGet(redSlider, &event);
@@ -268,7 +268,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 			break;
-		
+
 		// Check for window events
 		status = windowComponentEventGet(dialogWindow, &event);
 		if (status > 0)
@@ -282,7 +282,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		// Done
 		multitaskerYield();
 	}
-		
+
 	windowDestroy(dialogWindow);
 	return (status = 0);
 }
+

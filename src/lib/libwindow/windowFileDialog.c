@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -39,6 +39,7 @@ static char cwd[MAX_PATH_LENGTH];
 static int doImageThumbs = 0;
 static objectKey dialogWindow = NULL;
 static objectKey thumbImage = NULL;
+static objectKey locationField = NULL;
 static objectKey textField = NULL;
 
 
@@ -67,7 +68,10 @@ static void doFileSelection(file *theFile, char *fullName,
 
 	// Did we change directory?
 	if (theFile->type == dirT)
+	{
 		strncpy(cwd, fullName, MAX_PATH_LENGTH);
+		windowComponentSetData(locationField, cwd, strlen(cwd));
+	}
 }
 
 
@@ -97,10 +101,10 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (message == NULL)|| (fileName == NULL))
+	if (!title || !message || !fileName)
 		return (status = ERR_NULLPARAMETER);
 
-	if (startDir != NULL)
+	if (startDir)
 		strncpy(cwd, startDir, MAX_PATH_LENGTH);
 	else
 		multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
@@ -126,7 +130,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		params.flags |= WINDOW_COMPFLAG_HASBORDER;
 		thumbImage = windowNewThumbImage(dialogWindow, NULL, MAX_IMAGE_DIMENSION,
 			 MAX_IMAGE_DIMENSION, &params);
-		if (thumbImage == NULL)
+		if (!thumbImage)
 			return (status = ERR_NOCREATE);
 
 		doImageThumbs = 1;
@@ -139,18 +143,29 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.orientationY = orient_top;
 	params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
 	textLabel = windowNewTextLabel(dialogWindow, message, &params);
-	if (textLabel == NULL)
+	if (!textLabel)
 	{
 		status = ERR_NOCREATE;
 		goto out;
 	}
+
+	// Create the location text field
+	params.gridY += 1;
+	locationField = windowNewTextField(dialogWindow, 30, &params);
+	if (!locationField)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+	windowComponentSetData(locationField, cwd, strlen(cwd));
+	windowComponentSetEnabled(locationField, 0); // For now
 
 	// Create the file list widget
 	params.gridY += 1;
 	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
 	fileList = windowNewFileList(dialogWindow, windowlist_icononly, 3, 4,
 		cwd, WINFILEBROWSE_CAN_CD, doFileSelection, &params);
-	if (fileList == NULL)
+	if (!fileList)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -161,7 +176,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.gridY += 1;
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
 	textField = windowNewTextField(dialogWindow, 30, &params);
-	if (textField == NULL)
+	if (!textField)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -174,7 +189,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 			windowComponentSetData(textField, baseName, MAX_PATH_LENGTH);
 			free(baseName);
 		}
-	}    
+	}
 
 	// Create the OK button
 	params.gridY += 1;
@@ -185,7 +200,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.orientationX = orient_right;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
 	okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
-	if (okButton == NULL)
+	if (!okButton)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -197,7 +212,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.padRight = 0;
 	params.orientationX = orient_left;
 	cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
-	if (cancelButton == NULL)
+	if (!cancelButton)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -206,8 +221,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
 	windowSetVisible(dialogWindow, 1);
-	
-	while(1)
+
+	while (1)
 	{
 		// Check for events to be passed to the file list widget
 		if (windowComponentEventGet(fileList->key, &event) > 0)
@@ -267,3 +282,4 @@ out:
 
 	return (status);
 }
+

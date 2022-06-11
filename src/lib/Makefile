@@ -1,35 +1,39 @@
-## 
+##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-##  
+##
 ##  Makefile
 ##
 
-BUILDDIR	= ../../build/system/libraries
+BUILDDIR = ../../build/system/libraries
 
-ifneq (${PLUS},)
-	LIBLIC		= make -C liblic
-	LICCLEAN	= make -C liblic clean
+ifdef PLUS
+	LIBLIC = ${MAKE} -C liblic
+	LICCLEAN = ${LIBLIC} clean
 endif
 
 all:
 	mkdir -p ${BUILDDIR}
-	make -C libc
-	make -C libdl
-	make -C libintl
-	${LIBLIC}
-	make -C ../../ports/ntfsprogs -f Makefile.visopsys
-	make -C libvsh
-	make -C libwindow
+	${MAKE} -C libc DEBUG=${DEBUG}
+	${MAKE} -C libdl DEBUG=${DEBUG}
+	${MAKE} -C libintl DEBUG=${DEBUG}
+	${LIBLIC} DEBUG=${DEBUG}
+	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys DEBUG=${DEBUG}
+	${MAKE} -C libvsh DEBUG=${DEBUG}
+	${MAKE} -C libwindow DEBUG=${DEBUG}
+
+debug:
+	${MAKE} all DEBUG=1
 
 clean:
-	rm -f *~ *.o core
-	make -C libc clean
-	make -C libdl clean
-	make -C libintl clean
+	${MAKE} -C libc clean
+	${MAKE} -C libdl clean
+	${MAKE} -C libintl clean
 	${LICCLEAN}
-	make -C ../../ports/ntfsprogs -f Makefile.visopsys clean
-	make -C libvsh clean
-	make -C libwindow clean
-	make -C shared clean
+	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys clean
+	${MAKE} -C libvsh clean
+	${MAKE} -C libwindow clean
+	${MAKE} -C shared clean
+	rm -f *~ *.o core
 	rm -Rf ${BUILDDIR}
+

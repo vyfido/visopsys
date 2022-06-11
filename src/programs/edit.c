@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -47,15 +47,18 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/font.h>
+#include <sys/paths.h>
 #include <sys/text.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
-#define UNTITLED_FILENAME _("Untitled")
-#define DISCARDQUESTION _("File has been modified.  Discard changes?")
-#define FILENAMEQUESTION _("Please enter the name of the file to edit:")
+#define WINDOW_TITLE		_("Edit")
+#define FILE_MENU			_("File")
+#define UNTITLED_FILENAME	_("Untitled")
+#define DISCARDQUESTION		_("File has been modified.  Discard changes?")
+#define FILENAMEQUESTION	_("Please enter the name of the file to edit:")
 
 typedef struct {
 	unsigned filePos;
@@ -114,10 +117,10 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -174,7 +177,7 @@ static void updateStatus(void)
 static void countLines(void)
 {
 	// Sets the 'numLines' variable to the number of lines in the file
-	
+
 	unsigned count;
 
 	numLines = 0;
@@ -213,7 +216,7 @@ static void printLine(int lineNum)
 		if (character == (char) 9)
 		{
 			textTab();
-			
+
 			screenLines[lineNum].screenLength +=
 			(TEXT_DEFAULT_TAB - (screenLines[lineNum].screenLength %
 				TEXT_DEFAULT_TAB));
@@ -708,7 +711,7 @@ static int expandBuffer(unsigned length)
 
 	buffer = tmpBuffer;
 	bufferSize = tmpBufferSize;
-	
+
 	return (status = 0);
 }
 
@@ -778,7 +781,7 @@ static int insertChars(char *string, unsigned length)
 	textSetColumn(0);
 	oldRows = screenLines[screenLine].screenRows;
 	printLine(screenLine);
-	
+
 	// If the line now occupies more screen lines, redraw the lines below it.
 	if (screenLines[screenLine].screenRows != oldRows)
 	{
@@ -842,7 +845,7 @@ static int edit(void)
 	char character = '\0';
 	int oldRow = 0;
 	int endLine = 0;
-	
+
 	while (!stop)
 	{
 		if (!textInputCount())
@@ -877,15 +880,18 @@ static int edit(void)
 			case (char) ASCII_BACKSPACE:
 				// BACKSPACE key
 				oldRow = screenLines[screenLine].screenStartRow;
-				cursorLeft();
-				deleteChars(1);
-				// If we were at the beginning of a line...
-				if (screenLines[screenLine].screenStartRow != oldRow)
+				if (oldRow || cursorColumn)
 				{
-					numLines -= 1;
-					showScreen();
+					cursorLeft();
+					deleteChars(1);
+					// If we were at the beginning of a line...
+					if (screenLines[screenLine].screenStartRow != oldRow)
+					{
+						numLines -= 1;
+						showScreen();
+					}
+					setCursorColumn(cursorColumn);
 				}
-				setCursorColumn(cursorColumn);
 				break;
 
 			case (char) ASCII_DEL:
@@ -1018,83 +1024,6 @@ static void quit(void)
 }
 
 
-static void eventHandler(objectKey key, windowEvent *event)
-{
-	int status = 0;
-	objectKey selectedItem = NULL;
-	int oldScreenLine = 0;
-	int newColumn = 0;
-	int newRow = 0;
-	int count;
-
-	// Look for window close
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		quit();
-
-	// Look for window resize
-	else if ((key == window) && (event->type == EVENT_WINDOW_RESIZE))
-	{
-		screenColumns = textGetNumColumns();
-		screenRows = textGetNumRows();
-		showScreen();
-	}
-
-	// Look for menu events
-
-	else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
-	{
-		windowComponentGetData(fileMenu, &selectedItem, 1);
-		if (selectedItem)
-		{
-			if (selectedItem == fileMenuContents.items[FILEMENU_OPEN].key)
-			{
-				if (!modified || askDiscardChanges())
-				{
-					if (multitaskerSpawn(&openFileThread, "open file", 0, NULL)
-						< 0)
-					error("%s", _("Unable to launch file dialog"));
-				}
-			}
-			else if (selectedItem == fileMenuContents.items[FILEMENU_SAVE].key)
-			{
-				status = saveFile();
-				if (status < 0)
-					error(_("Error %d saving file"), status);
-			}
-			else if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
-				quit();
-		}
-	}
-
-	// Look for cursor movements caused by clicking in the text area
-
-	else if ((key == textArea) && (event->type & EVENT_CURSOR_MOVE))
-	{
-		// The user clicked to move the cursor, which is a pain.  We need to
-		// try to figure out the new screen line.
-
-		oldScreenLine = screenLine;
-		newRow = textGetRow();
-
-		for (count = 0; count < numScreenLines; count ++)
-		{
-			if ((newRow >= screenLines[count].screenStartRow) &&
-				(newRow <= screenLines[count].screenEndRow))
-			{
-				screenLine = count;
-				cursorLineFilePos = screenLines[count].filePos;
-				line += (screenLine - oldScreenLine);
-				newColumn = (((newRow - screenLines[count].screenStartRow) *
-					screenColumns) + textGetColumn());
-				setCursorColumn(calcCursorColumn(newColumn));
-				updateStatus();
-				break;
-			}
-		}
-	}
-}
-
-
 static void initMenuContents(windowMenuContents *contents)
 {
 	int count;
@@ -1108,6 +1037,138 @@ static void initMenuContents(windowMenuContents *contents)
 }
 
 
+static void refreshMenuContents(void)
+{
+	int count;
+
+	initMenuContents(&fileMenuContents);
+
+	for (count = 0; count < fileMenuContents.numItems; count ++)
+		windowComponentSetData(fileMenuContents.items[count].key,
+			fileMenuContents.items[count].text,
+			strlen(fileMenuContents.items[count].text));
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("edit");
+
+	// Refresh all the menu contents
+	refreshMenuContents();
+
+	// Refresh the 'file' menu
+	windowSetTitle(fileMenu, FILE_MENU);
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+	int status = 0;
+	int oldScreenLine = 0;
+	int newColumn = 0;
+	int newRow = 0;
+	int count;
+
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for window resize
+		else if (event->type == EVENT_WINDOW_RESIZE)
+		{
+			screenColumns = textGetNumColumns();
+			screenRows = textGetNumRows();
+			showScreen();
+		}
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			quit();
+	}
+
+	// Look for file menu events
+
+	else if (key == fileMenuContents.items[FILEMENU_OPEN].key)
+	{
+		if (event->type & EVENT_SELECTION)
+		{
+			if (!modified || askDiscardChanges())
+			{
+				if (multitaskerSpawn(&openFileThread, "open file", 0, NULL) < 0)
+					error("%s", _("Unable to launch file dialog"));
+			}
+		}
+	}
+
+	else if (key == fileMenuContents.items[FILEMENU_SAVE].key)
+	{
+		if (event->type & EVENT_SELECTION)
+		{
+			status = saveFile();
+			if (status < 0)
+				error(_("Error %d saving file"), status);
+		}
+	}
+
+	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
+	{
+		if (event->type & EVENT_SELECTION)
+			quit();
+	}
+
+	// Look for cursor movements caused by clicking in the text area
+
+	else if (key == textArea)
+	{
+	 	if (event->type & EVENT_CURSOR_MOVE)
+		{
+			// The user clicked to move the cursor, which is a pain.  We need to
+			// try to figure out the new screen line.
+
+			oldScreenLine = screenLine;
+			newRow = textGetRow();
+
+			for (count = 0; count < numScreenLines; count ++)
+			{
+				if ((newRow >= screenLines[count].screenStartRow) &&
+					(newRow <= screenLines[count].screenEndRow))
+				{
+					screenLine = count;
+					cursorLineFilePos = screenLines[count].filePos;
+					line += (screenLine - oldScreenLine);
+					newColumn = (((newRow - screenLines[count].screenStartRow) *
+						screenColumns) + textGetColumn());
+					setCursorColumn(calcCursorColumn(newColumn));
+					updateStatus();
+					break;
+				}
+			}
+		}
+	}
+}
+
+
+static void handleMenuEvents(windowMenuContents *contents)
+{
+	int count;
+
+	for (count = 0; count < contents->numItems; count ++)
+		windowRegisterEventHandler(contents->items[count].key, &eventHandler);
+}
+
+
 static void constructWindow(void)
 {
 	int status = 0;
@@ -1115,15 +1176,18 @@ static void constructWindow(void)
 	componentParameters params;
 
 	// Create a new window
-	window = windowNew(processId, _("Edit"));
+	window = windowNew(processId, WINDOW_TITLE);
 
 	bzero(&params, sizeof(componentParameters));
 
-	// Create the top 'file' menu
+	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
+
+	// Create the top 'file' menu
 	initMenuContents(&fileMenuContents);
-	fileMenu = windowNewMenu(menuBar, _("File"), &fileMenuContents, &params);
-	windowRegisterEventHandler(fileMenu, &eventHandler);
+	fileMenu = windowNewMenu(window, menuBar, FILE_MENU, &fileMenuContents,
+		&params);
+	handleMenuEvents(&fileMenuContents);
 
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -1135,14 +1199,14 @@ static void constructWindow(void)
 
 	// Set up the font for our main text area
 	fontGetDefault(&font);
-	status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
+	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
 		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &font, 1);
 	if (status < 0)
 		// We'll be using the system font we guess.  The system font can
 		// comfortably show more rows
 		rows = 40;
-	
+
 	// Put a text area in the window
 	params.flags |=
 		(WINDOW_COMPFLAG_STICKYFOCUS | WINDOW_COMPFLAG_CLICKABLECURSOR);
@@ -1158,7 +1222,7 @@ static void constructWindow(void)
 	params.flags &= ~WINDOW_COMPFLAG_STICKYFOCUS;
 	params.gridY += 1;
 	params.padBottom = 1;
-	if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
 		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 1);
 	statusLabel = windowNewTextLabel(window, "", &params);
 	windowComponentSetWidth(statusLabel, windowComponentGetWidth(textArea));
@@ -1177,15 +1241,11 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	char opt;
 	char *fileName = NULL;
-	textScreen screen;  
+	textScreen screen;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("edit");
 
 	processId = multitaskerGetCurrentProcessId();
@@ -1278,3 +1338,4 @@ out:
 	// Return success
 	return (status);
 }
+

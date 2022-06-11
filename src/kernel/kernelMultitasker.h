@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -94,7 +94,7 @@ typedef volatile struct {
 	unsigned LDTSelector;
 	unsigned short pad;
 	unsigned short IOMapBase;
-	unsigned char IOMap[PORTS_BYTES];  
+	unsigned char IOMap[PORTS_BYTES];
 
 } __attribute__((packed)) kernelTSS;
 
@@ -127,15 +127,16 @@ typedef volatile struct {
 	kernelSelector tssSelector;
 	kernelTSS taskStateSegment;
 	char currentDirectory[MAX_PATH_LENGTH];
-	variableList environment;
+	variableList *environment;
 	kernelTextInputStream *textInputStream;
+	kernelTextInputStreamAttrs oldInputAttrs;
 	kernelTextOutputStream *textOutputStream;
 	unsigned signalMask;
 	stream signalStream;
 	unsigned char fpuState[FPU_STATE_LEN];
 	int fpuStateSaved;
 	loaderSymbolTable *symbols;
-  
+
 } kernelProcess;
 
 // When in system calls, processes will be allowed to access information
@@ -161,6 +162,8 @@ int kernelMultitaskerProcessIsAlive(int);
 int kernelMultitaskerGetProcessPriority(int);
 int kernelMultitaskerSetProcessPriority(int, int);
 int kernelMultitaskerGetProcessPrivilege(int);
+int kernelMultitaskerGetProcessParent(int);
+int kernelMultitaskerSetProcessParent(int, int);
 int kernelMultitaskerGetCurrentDirectory(char *, int);
 int kernelMultitaskerSetCurrentDirectory(const char *);
 kernelTextInputStream *kernelMultitaskerGetTextInput(void);
@@ -186,6 +189,8 @@ kernelPageDirectory *kernelMultitaskerGetPageDir(int);
 loaderSymbolTable *kernelMultitaskerGetSymbols(int);
 int kernelMultitaskerSetSymbols(int, loaderSymbolTable *);
 int kernelMultitaskerStackTrace(int);
+int kernelMultitaskerPropagateEnvironment(const char *);
 
 #define _KERNELMULTITASKER_H
 #endif
+

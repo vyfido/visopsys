@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -48,18 +48,18 @@ int strncasecmp(const char *s1, const char *s2, size_t length)
 			// We call it a match
 			continue;
 		}
-		
+
 		// Is the ascii code an uppercase alphabet character?
 		else if ((s1[result] >= (char) 65) &&
 			(s1[result] <= (char) 90) &&
 			(s2[result] == (s1[result] + (char) 32)))
-		{		
+		{
 			// We call it a match
 			continue;
 		}
 		else if (s1[result] != s2[result])
 		{
-			if (result == 0) 
+			if (result == 0)
 				return (result = -1);
 
 			else

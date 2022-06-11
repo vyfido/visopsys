@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -58,7 +58,7 @@
 %define	IOERR			(NEWCODELOCATION + (DATA_IOERR - main))
 %define	PART_TABLE		(NEWCODELOCATION + (DATA_PART_TABLE - main))
 
-		
+
 main:
 	;; A jump is expected at the start of a boot sector, sometimes.
 	jmp short .bootCode			; 00 - 01 Jump instruction
@@ -80,11 +80,11 @@ main:
 	;; 0000h:7C00h.
 	jmp (0):.adjCsIp
 	.adjCsIp:
-	
+
 	sti
 
 	pusha
-	
+
 	;; Relocate our code, so we can copy the chosen boot sector over
 	;; top of ourselves
 	mov SI, main
@@ -97,7 +97,7 @@ main:
 	jmp (NEWCODELOCATION + (jmpTarget - main))
 
 jmpTarget:
-		
+
 	;; The BIOS will pass the boot device number to us in the DL
 	;; register.
 	mov byte [DISK], DL
@@ -120,7 +120,7 @@ jmpTarget:
 
 	;; Move the pointer to the start of the partiton table into SI
 	mov SI, PART_TABLE
-	
+
 	;; Move the boot disk device number into DL
 	mov DL, byte [DISK]
 
@@ -131,7 +131,7 @@ jmpTarget:
 	%include "bootsect-print.s"
 	%include "bootsect-error.s"
 	%include "bootsect-read.s"
-	
+
 
 ;; Static data follows.  We don't refer to it by any of these symbol names;
 ;; after relocation these are not so meaningful
@@ -147,13 +147,13 @@ DATA_DISKSIG	dd 0
 
 ;; NULLs
 DATA_NULLS	dw 0
-	
+
 ;; Here's where the partition table goes
 DATA_PART_TABLE	times 16	db 0
 		times 16	db 0
 		times 16	db 0
 		times 16	db 0
-		
+
 ;; This puts the value AA55h in the last two bytes of the boot
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the

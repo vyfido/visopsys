@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -34,12 +34,19 @@ Usage:
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/paths.h>
 
+#define _(string) gettext(string)
+
+#define WINDOW_TITLE		_("Snake")
+#define CHANGE_DIRECTION	_("Use cursor keys to change direction")
 #define SCREENWIDTH			20
 #define SCREENHEIGHT		9
 #define SPEED				3
@@ -47,7 +54,7 @@ Usage:
 #define TREAT_TIMER			20
 #define TREAT_BASESCORE		30
 #define NUM_IMAGES			16
-#define SNAKE_DIR			"/programs/snake.dir/"
+#define SNAKE_DIR			PATH_PROGRAMS "/snake.dir/"
 
 typedef enum { empty, snake, food, treat } objectType;
 typedef enum { north = 0, south = 1, east = 2, west = 3 } direction;
@@ -100,6 +107,7 @@ static objectKey scoreLabel = NULL;
 static objectKey treatImage = NULL;
 static objectKey treatLabel = NULL;
 static objectKey canvas = NULL;
+static objectKey changeDirLabel = NULL;
 
 
 static inline objectType getGrid(coord *c)
@@ -468,6 +476,7 @@ static int moveSnake(void)
 		textSetColumn(snakeArray[0].x + 1);
 		textSetRow(snakeArray[0].y + 2);
 	}
+
 	switch(snakeArray[0].dir)
 	{
 		case north:
@@ -531,51 +540,51 @@ static int moveSnake(void)
 		{
 			if (snakeArray[1].dir == east)
 			{
-			if (graphics)
-				putImage(&snakeArray[1], image_corner_se);
-			else
-				textPutc(187);
+				if (graphics)
+					putImage(&snakeArray[1], image_corner_se);
+				else
+					textPutc(187);
 			}
 			else if (snakeArray[1].dir == west)
 			{
-			if (graphics)
-				putImage(&snakeArray[1], image_corner_sw);
-			else
-				textPutc(201);
+				if (graphics)
+					putImage(&snakeArray[1], image_corner_sw);
+				else
+					textPutc(201);
 			}
 		}
 		else if (snakeArray[0].dir == east)
 		{
 			if (snakeArray[1].dir == north)
 			{
-			if (graphics)
-				putImage(&snakeArray[1], image_corner_sw);
-			else
-				textPutc(201);
+				if (graphics)
+					putImage(&snakeArray[1], image_corner_sw);
+				else
+					textPutc(201);
 			}
 			else if (snakeArray[1].dir == south)
 			{
-			if (graphics)
-				putImage(&snakeArray[1], image_corner_nw);
-			else
-				textPutc(200);
+				if (graphics)
+					putImage(&snakeArray[1], image_corner_nw);
+				else
+					textPutc(200);
 			}
 		}
 		else if (snakeArray[0].dir == west)
 		{
 			if (snakeArray[1].dir == north)
 			{
-			if (graphics)
-				putImage(&snakeArray[1], image_corner_se);
-			else
-				textPutc(187);
+				if (graphics)
+					putImage(&snakeArray[1], image_corner_se);
+				else
+					textPutc(187);
 			}
 			else if (snakeArray[1].dir == south)
 			{
-			if (graphics)
-				putImage(&snakeArray[1], image_corner_ne);
-			else
-				textPutc(188);
+				if (graphics)
+					putImage(&snakeArray[1], image_corner_ne);
+				else
+					textPutc(188);
 			}
 		}
 	}
@@ -646,16 +655,42 @@ static void drawScreen(void)
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("snake");
+
+	// Refresh the 'change direction' label
+	windowComponentSetData(changeDirLabel, CHANGE_DIRECTION,
+		strlen(CHANGE_DIRECTION));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+	// Check for window events.
+	if (key == window)
 	{
-		run = 0;
-		windowGuiStop();
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+		{
+			run = 0;
+			windowGuiStop();
+		}
 	}
 
-	if ((key == canvas) && (event->type == EVENT_KEY_DOWN))
+	else if ((key == canvas) && (event->type == EVENT_KEY_DOWN))
 	{
 		switch (event->key)
 		{
@@ -687,8 +722,6 @@ static void eventHandler(objectKey key, windowEvent *event)
 				break;
 		}
 	}
-
-	return;
 }
 
 
@@ -715,7 +748,7 @@ static int constructWindow(void)
 	}
 
 	// Create a new window
-	window = windowNew(multitaskerGetCurrentProcessId(), "Snake");
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 	if (window == NULL)
 		return (status = ERR_NOTINITIALIZED);
 
@@ -762,7 +795,7 @@ static int constructWindow(void)
 	params.orientationX = orient_left;
 	params.flags &= ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND |
 		WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CANFOCUS);
-	windowNewTextLabel(window, "Use cursor keys to change direction", &params);
+	changeDirLabel = windowNewTextLabel(window, CHANGE_DIRECTION, &params);
 
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
@@ -852,9 +885,12 @@ int main(int argc, char *argv[])
 	char tmpChar[80];
 	int count;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("snake");
+
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
-	
+
 	while (strchr("T", (opt = getopt(argc, argv, "T"))))
 	{
 		// Force text mode?
@@ -876,18 +912,18 @@ int main(int argc, char *argv[])
 
 	grid = malloc(screenWidth * screenHeight * sizeof(objectType));
 	snakeArray = malloc(((screenWidth * screenHeight) + 1) * sizeof(coord));
-	if ((grid == NULL) || (snakeArray == NULL))
+	if (!grid || !snakeArray)
 		return (ERR_MEMORY);
-	
+
 	status = play();
 
-	sprintf(tmpChar, "%s\nScore %d.\n", ((status > 0)? "You WIN!" : "Dead."),
-		score);
+	sprintf(tmpChar, _("%s\nScore %d.\n"),
+		((status > 0)? _("You WIN!") : _("Dead.")), score);
 
 	if (graphics)
 	{
 		if (status)
-			windowNewInfoDialog(window, "Game over", tmpChar);
+			windowNewInfoDialog(window, _("Game over"), tmpChar);
 		windowDestroy(window);
 	}
 	else
@@ -908,3 +944,4 @@ int main(int argc, char *argv[])
 
 	return (status = 0);
 }
+

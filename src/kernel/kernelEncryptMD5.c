@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -65,7 +65,7 @@ static unsigned T[64] = {
 	0xA3014314, /* 59 */  0x4E0811A1, /* 60 */
 	0xF7537E82, /* 61 */  0xBD3AF235, /* 62 */
 	0x2AD7D2BB, /* 63 */  0xEB86D391, /* 64 */
-}; 
+};
 
 #define F(X, Y, Z) (((X) & (Y)) | ((~X) & (Z)))
 #define G(X, Y, Z) (((X) & (Z)) | ((Y) & (~Z)))
@@ -107,13 +107,13 @@ int kernelEncryptMD5(const char *input, char *output)
 	bits = (strlen(input) * 8);
 	if ((bits % 512) >= 448)
 		padBits = (960 - (bits % 512));
-	else 
+	else
 		padBits = (448 - (bits % 512));
 
 	// Calculate the length needed for the padding and the length quad-word.
 	bytes = ((bits + padBits + 64) / 8);
 	blocks = (bytes / 64);
-	
+
 	// Get a work area
 	buff = kernelMalloc(bytes);
 	if (buff == NULL)
@@ -126,7 +126,7 @@ int kernelEncryptMD5(const char *input, char *output)
 	strcpy(cBuff, input);
 	kernelMemClear((cBuff + strlen(input)), (bytes - strlen(input)));
 	cBuff[strlen(input)] = 0x80;
-	
+
 	// Append 64-bit length value.  Really only 32-bits in a 64-bit field.
 	uBuff[(bytes / 4) - 2] = bits;
 

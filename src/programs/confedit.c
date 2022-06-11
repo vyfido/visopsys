@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -54,10 +54,19 @@ kernel.conf, and the window manager configuration, window.conf.
 #include <sys/api.h>
 #include <sys/ascii.h>
 #include <sys/font.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
+
+#define WINDOW_TITLE		_("Configuration Editor")
+#define FILE_MENU			_("File")
+#define SAVE				gettext_noop("Save")
+#define QUIT				gettext_noop("Quit")
+#define ADD_VARIABLE		_("Add variable")
+#define CHANGE_VARIABLE		_("Change variable")
+#define DELETE_VARIABLE		_("Delete variable")
 
 static int processId = 0;
 static int privilege = 0;
@@ -78,8 +87,8 @@ static objectKey deleteVariableButton = NULL;
 windowMenuContents fileMenuContents = {
 	2,
 	{
-		{ gettext_noop("Save"), NULL },
-		{ gettext_noop("Quit"), NULL }
+		{ SAVE, NULL },
+		{ QUIT, NULL }
 	}
 };
 
@@ -88,10 +97,10 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code
-	
+
 	va_list args;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(args, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, args);
 	va_end(args);
@@ -136,10 +145,11 @@ static int writeConfigFile(void)
 
 static void fillList(void)
 {
+	const char *variable = NULL;
 	int count;
 
 	if (listItemParams)
-	free(listItemParams);
+		free(listItemParams);
 
 	listItemParams = NULL;
 
@@ -148,8 +158,11 @@ static void fillList(void)
 		listItemParams = malloc(list.numVariables * sizeof(listItemParameters));
 
 		for (count = 0; count < list.numVariables; count ++)
+		{
+			variable = variableListGetVariable(&list, count);
 			snprintf(listItemParams[count].text, WINDOW_MAX_LABEL_LENGTH,
-				"%s=%s", list.variables[count], list.values[count]);
+				"%s=%s", variable, variableListGet(&list, variable));
+		}
 	}
 	else
 	{
@@ -181,7 +194,8 @@ static void setVariableDialog(char *variable)
 	objectKey okButton = NULL;
 	objectKey cancelButton = NULL;
 	char variableBuff[128];
-	char value[128];
+	const char *readValue = NULL;
+	char writeValue[128];
 	int okay = 0;
 	windowEvent event;
 	int count;
@@ -212,8 +226,8 @@ static void setVariableDialog(char *variable)
 
 	if (variable)
 	{
-		variableListGet(&list, variable, value, 128);
-		fieldWidth = max(strlen(variable), strlen(value)) + 1;
+		readValue = variableListGet(&list, variable);
+		fieldWidth = max(strlen(variable), strlen(readValue)) + 1;
 		fieldWidth = max(fieldWidth, 30);
 	}
 
@@ -239,7 +253,7 @@ static void setVariableDialog(char *variable)
 	valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
 	if (variable)
 	{
-		windowComponentSetData(valueField, value, 128);
+		windowComponentSetData(valueField, (void *) readValue, 128);
 		windowComponentFocus(valueField);
 	}
 
@@ -260,8 +274,8 @@ static void setVariableDialog(char *variable)
 
 	windowCenterDialog(window, dialogWindow);
 	windowSetVisible(dialogWindow, 1);
-	
-	while(1)
+
+	while (1)
 	{
 		// Check for the OK button
 		status = windowComponentEventGet(okButton, &event);
@@ -288,7 +302,7 @@ static void setVariableDialog(char *variable)
 
 		if (okay)
 		{
-			windowComponentGetData(valueField, value, 128);
+			windowComponentGetData(valueField, writeValue, 128);
 
 			if (!variable)
 			{
@@ -298,7 +312,7 @@ static void setVariableDialog(char *variable)
 
 			if (variable[0] != '\0')
 			{
-				variableListSet(&list, variable, value);
+				variableListSet(&list, variable, writeValue);
 				changesPending += 1;
 
 				fillList();
@@ -308,7 +322,8 @@ static void setVariableDialog(char *variable)
 				// Select the one we just added/changed
 				for (count = 0; count < list.numVariables; count ++)
 				{
-					if (!strcmp(variable, list.variables[count]))
+					if (!strcmp(variable,
+						variableListGetVariable(&list, count)))
 					{
 						windowComponentSetSelected(listList, count);
 						break;
@@ -323,7 +338,7 @@ static void setVariableDialog(char *variable)
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 			break;
-		
+
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
 		if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
@@ -332,7 +347,7 @@ static void setVariableDialog(char *variable)
 		// Done
 		multitaskerYield();
 	}
-	
+
 	windowDestroy(dialogWindow);
 	return;
 }
@@ -360,60 +375,125 @@ static void quit(void)
 }
 
 
+static void initMenuContents(void)
+{
+	strncpy(fileMenuContents.items[FILEMENU_SAVE].text, gettext(SAVE),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(fileMenuContents.items[FILEMENU_QUIT].text, gettext(QUIT),
+		WINDOW_MAX_LABEL_LENGTH);
+}
+
+
+static void refreshMenuContents(void)
+{
+	int count;
+
+	initMenuContents();
+
+	for (count = 0; count < fileMenuContents.numItems; count ++)
+		windowComponentSetData(fileMenuContents.items[count].key,
+			fileMenuContents.items[count].text,
+			strlen(fileMenuContents.items[count].text));
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("confedit");
+
+	// Refresh all the menu contents
+	refreshMenuContents();
+
+	// Refresh the 'file' menu
+	windowSetTitle(fileMenu, FILE_MENU);
+
+	// Refresh the 'add' button
+	windowComponentSetData(addVariableButton, ADD_VARIABLE,
+		strlen(ADD_VARIABLE));
+
+	// Refresh the 'change' button
+	windowComponentSetData(changeVariableButton, CHANGE_VARIABLE,
+		strlen(CHANGE_VARIABLE));
+
+	// Refresh the 'delete' button
+	windowComponentSetData(deleteVariableButton, DELETE_VARIABLE,
+		strlen(DELETE_VARIABLE));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int selected = -1;
-	objectKey selectedItem = NULL;
 
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		quit();
-
-	// Check for menu events
-	else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
+	// Check for window events.
+	if (key == window)
 	{
-		windowComponentGetData(fileMenu, &selectedItem, 1);
-		if (selectedItem)
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			quit();
+	}
+
+	// Check for file menu events
+
+	else if (key == fileMenuContents.items[FILEMENU_SAVE].key)
+	{
+		if (event->type & EVENT_SELECTION)
+			writeConfigFile();
+	}
+
+	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
+	{
+		if (event->type & EVENT_SELECTION)
+			quit();
+	}
+
+	else if (key == addVariableButton)
+	{
+		if (event->type == EVENT_MOUSE_LEFTUP)
+			setVariableDialog(NULL);
+	}
+
+	else if (key == changeVariableButton)
+	{
+		if (event->type == EVENT_MOUSE_LEFTUP)
 		{
-			if (selectedItem == fileMenuContents.items[FILEMENU_SAVE].key)
-				writeConfigFile();
-			else if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
-				quit();
+			windowComponentGetSelected(listList, &selected);
+			setVariableDialog((char *) variableListGetVariable(&list, selected));
 		}
 	}
 
-	else if ((key == addVariableButton) && (event->type == EVENT_MOUSE_LEFTUP))
-		setVariableDialog(NULL);
-
-	else if ((key == changeVariableButton) &&
-		(event->type == EVENT_MOUSE_LEFTUP))
+	else if (key == deleteVariableButton)
 	{
-		windowComponentGetSelected(listList, &selected);
-		setVariableDialog(list.variables[selected]);
-	}
-
-	else if ((key == deleteVariableButton) &&
-		(event->type == EVENT_MOUSE_LEFTUP))
-	{
-		windowComponentGetSelected(listList, &selected);
-		variableListUnset(&list, list.variables[selected]);
-		changesPending += 1;
-		fillList();
-		windowComponentSetData(listList, listItemParams, list.numVariables);
+		if (event->type == EVENT_MOUSE_LEFTUP)
+		{
+			windowComponentGetSelected(listList, &selected);
+			variableListUnset(&list, variableListGetVariable(&list, selected));
+			changesPending += 1;
+			fillList();
+			windowComponentSetData(listList, listItemParams, list.numVariables);
+		}
 	}
 }
 
 
-static void initMenuContents(windowMenuContents *contents)
+static void handleMenuEvents(windowMenuContents *contents)
 {
 	int count;
 
 	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-	}
+		windowRegisterEventHandler(contents->items[count].key, &eventHandler);
 }
 
 
@@ -426,17 +506,21 @@ static void constructWindow(void)
 	objectKey buttonContainer = NULL;
 
 	// Create a new window
-	window = windowNew(processId, _("Configuration Editor"));
+	window = windowNew(processId, WINDOW_TITLE);
 	if (window == NULL)
 		return;
 
 	bzero(&params, sizeof(componentParameters));
 
-	// Create the top 'file' menu
+	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
-	initMenuContents(&fileMenuContents);
-	fileMenu = windowNewMenu(menuBar, _("File"), &fileMenuContents, &params);
-	windowRegisterEventHandler(fileMenu, &eventHandler);
+
+	initMenuContents();
+
+	// Create the top 'file' menu
+	fileMenu = windowNewMenu(window, menuBar, FILE_MENU, &fileMenuContents,
+		&params);
+	handleMenuEvents(&fileMenuContents);
 	if (privilege || readOnly)
 		windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key, 0);
 
@@ -449,7 +533,7 @@ static void constructWindow(void)
 	params.orientationY = orient_middle;
 
 	params.orientationX = orient_center;
-	if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
 		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
 	listList =
 		windowNewList(window, windowlist_textonly, min(10, list.numVariables),
@@ -474,21 +558,21 @@ static void constructWindow(void)
 	params.padBottom = 0;
 	params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
 	addVariableButton =
-		windowNewButton(buttonContainer, _("Add variable"), NULL, &params);
+		windowNewButton(buttonContainer, ADD_VARIABLE, NULL, &params);
 	windowRegisterEventHandler(addVariableButton, &eventHandler);
 
 	// Create a 'change variable' button
 	params.gridY += 1;
 	params.padTop = 5;
 	changeVariableButton =
-	windowNewButton(buttonContainer, _("Change variable"), NULL, &params);
+	windowNewButton(buttonContainer, CHANGE_VARIABLE, NULL, &params);
 	windowRegisterEventHandler(changeVariableButton, &eventHandler);
 	windowComponentSetEnabled(changeVariableButton, list.numVariables);
-	
+
 	// Create a 'delete variable' button
 	params.gridY += 1;
 	deleteVariableButton =
-		windowNewButton(buttonContainer, _("Delete variable"), NULL, &params);
+		windowNewButton(buttonContainer, DELETE_VARIABLE, NULL, &params);
 	windowRegisterEventHandler(deleteVariableButton, &eventHandler);
 	windowComponentSetEnabled(deleteVariableButton, list.numVariables);
 
@@ -504,14 +588,10 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	disk theDisk;
 	file tmpFile;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("confedit");
 
 	// Only work in graphics mode
@@ -528,15 +608,14 @@ int main(int argc, char *argv[])
 	if (argc < 2)
 	{
 		// Start in the config dir by default
-		status =
-			windowNewFileDialog(NULL, _("Enter filename"),
-				_("Please enter a configuration file to edit:"),
-				"/system/config", fileName, MAX_PATH_NAME_LENGTH, 0);
+		status = windowNewFileDialog(NULL, _("Enter filename"),
+			_("Please enter a configuration file to edit:"),
+			PATH_SYSTEM_CONFIG, fileName, MAX_PATH_NAME_LENGTH, 0);
 		if (status != 1)
 		{
 			if (status != 0)
 				perror(argv[0]);
-			
+
 			return (status);
 		}
 	}
@@ -575,9 +654,10 @@ int main(int argc, char *argv[])
 	windowGuiRun();
 
 	windowDestroy(window);
-	
+
 	variableListDestroy(&list);
 
 	// Done
 	return (status = 0);
 }
+

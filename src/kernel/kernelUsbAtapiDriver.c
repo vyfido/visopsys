@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -54,17 +54,17 @@ static inline void debugInquiry(scsiInquiryData *inquiryData)
 	productRev[4] = '\0';
 
 	kernelDebug(debug_usb, "USB ATAPI debug inquiry data:\n"
-		"    qual/devType=%02x\n"
-		"    removable=%02x\n"
-		"    version=%02x\n"
-		"    normACA/hiSup/format=%02x\n"
-		"    addlLength=%02x\n"
-		"    byte5Flags=%02x\n"
-		"    byte6Flags=%02x\n"
-		"    relAddr=%02x\n"
-		"    vendorId=%s\n"
-		"    productId=%s\n"
-		"    productRev=%s", inquiryData->byte0.periQual,
+		"  qual/devType=%02x\n"
+		"  removable=%02x\n"
+		"  version=%02x\n"
+		"  normACA/hiSup/format=%02x\n"
+		"  addlLength=%02x\n"
+		"  byte5Flags=%02x\n"
+		"  byte6Flags=%02x\n"
+		"  relAddr=%02x\n"
+		"  vendorId=%s\n"
+		"  productId=%s\n"
+		"  productRev=%s", inquiryData->byte0.periQual,
 		inquiryData->byte1.removable, inquiryData->byte2.ansiVersion,
 		inquiryData->byte3.dataFormat, inquiryData->byte4.addlLength,
 		inquiryData->byte5, inquiryData->byte6,
@@ -74,15 +74,15 @@ static inline void debugInquiry(scsiInquiryData *inquiryData)
 static inline void debugSense(atapiSenseData *senseData)
 {
 	kernelDebug(debug_usb, "USB ATAPI debug sense data:\n"
-		"    error=0x%02x\n"
-		"    segNum=%d\n"
-		"    senseKey=0x%02x\n"
-		"    info=0x%08x\n"
-		"    addlLength=%d\n"
-		"    commandSpecInfo=0x%08x\n"
-		"    addlSenseCode=0x%02x\n"
-		"    addlSenseCodeQual=0x%02x\n"
-		"    unitCode=0x%02x", senseData->error, senseData->segNum,
+		"  error=0x%02x\n"
+		"  segNum=%d\n"
+		"  senseKey=0x%02x\n"
+		"  info=0x%08x\n"
+		"  addlLength=%d\n"
+		"  commandSpecInfo=0x%08x\n"
+		"  addlSenseCode=0x%02x\n"
+		"  addlSenseCodeQual=0x%02x\n"
+		"  unitCode=0x%02x", senseData->error, senseData->segNum,
 		senseData->senseKey, senseData->info, senseData->addlLength,
 		senseData->commandSpecInfo, senseData->addlSenseCode,
 		senseData->addlSenseCodeQual, senseData->unitCode);
@@ -119,7 +119,7 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 {
 	// Wrap a SCSI/ATAPI command in a USB command block wrapper and send it to
 	// the device.
-  
+
 	int status = 0;
 	usbCmdBlockWrapper cmdWrapper;
 	usbCmdStatusWrapper statusWrapper;
@@ -208,7 +208,7 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 			kernelError(kernel_error, "Data transaction - no data error");
 			return (status = ERR_NODATA);
 		}
-      
+
 		if (bytes)
 			*bytes = (unsigned) dataTrans->bytes;
 	}
@@ -684,9 +684,9 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	kernelUsbAtapiDisk *dsk = NULL;
 
 	// Check params
-	if (buffer == NULL)
+	if (!buffer)
 	{
-		kernelError(kernel_error, "NULL buffer parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -932,7 +932,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 		physical->type |= DISKTYPE_REMOVABLE;
 	else
 		physical->type |= DISKTYPE_FIXED;
-	
+
 	// Set up the vendor and product ID strings
 
 	strncpy(dsk->vendorId, inquiryData.vendorId, 8);
@@ -1019,7 +1019,7 @@ err_out:
 static kernelPhysicalDisk *findBusTarget(kernelBusType busType, int target)
 {
 	// Try to find a disk in our list.
-  
+
 	kernelUsbAtapiDisk *dsk = NULL;
 	int count;
 
@@ -1103,7 +1103,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			// believe we have an ATAPI device
 			if ((usbDev.classCode != 0x08) || (usbDev.subClassCode != 0x02))
 				continue;
-  
+
 			kernelDebug(debug_usb, "USB ATAPI found USB ATAPI device");
 			detectTarget(usbDev.controller->dev, busTargets[deviceCount].id,
 				driver);
@@ -1180,7 +1180,7 @@ static int driverHotplug(void *parent, int busType __attribute__((unused)),
 
 			if (dsk->busTarget)
 				kernelFree(dsk->busTarget);
-		
+
 			kernelFree(dsk);
 		}
 

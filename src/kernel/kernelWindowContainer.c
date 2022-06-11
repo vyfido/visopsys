@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -64,7 +64,7 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
 		component = container->components[count1];
-		
+
 		componentSize = (component->minWidth + component->params.padLeft +
 			component->params.padRight);
 		if (component->params.gridWidth > 0)
@@ -93,7 +93,7 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 			componentSize /= component->params.gridHeight;
 			for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
 			{
-				if (componentSize > 
+				if (componentSize >
 					rowHeight[component->params.gridY + count2])
 					rowHeight[component->params.gridY + count2] =
 						componentSize;
@@ -127,7 +127,7 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 		else
 			columnStartX[count1] =
 			(columnStartX[count1 - 1] + columnWidth[count1 - 1]);
-		
+
 		if (columnWidth[count1] && expandableX[count1])
 			columnWidth[count1] += extraWidth;
 	}
@@ -142,10 +142,13 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 			rowStartY[count1] = containerComponent->yCoord;
 		else
 			rowStartY[count1] = (rowStartY[count1 - 1] + rowHeight[count1 - 1]);
-		
+
 		if (rowHeight[count1] && expandableY[count1])
 			rowHeight[count1] += extraHeight;
 	}
+
+	kernelFree(expandableY);
+	kernelFree(expandableX);
 }
 
 
@@ -191,7 +194,7 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
 		// Resize the component
-		
+
 		component = container->components[count1];
 
 		tmpWidth = 0;
@@ -252,7 +255,7 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 					 component->params.padRight);
 			break;
 		}
-		
+
 		tmpY = rowStartY[component->params.gridY];
 		tmpHeight = 0;
 		for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
@@ -275,7 +278,7 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		{
 			if (component->move)
 				component->move(component, tmpX, tmpY);
-		
+
 			component->xCoord = tmpX;
 			component->yCoord = tmpY;
 		}
@@ -323,9 +326,9 @@ static int add(kernelWindowComponent *containerComponent,
 	int count;
 
 	// Check params
-	if ((containerComponent == NULL) || (component == NULL))
+	if (!containerComponent || !component)
 	{
-		kernelError(kernel_error, "NULL container or component");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -334,7 +337,7 @@ static int add(kernelWindowComponent *containerComponent,
 		kernelError(kernel_error, "Component is not a container");
 		return (status = ERR_INVALID);
 	}
-	
+
 	// Make sure there's room for more components
 	if (container->numComponents >= container->maxComponents)
 	{
@@ -378,16 +381,16 @@ static int remove(kernelWindowComponent *containerComponent,
 	// Check params
 	if ((containerComponent == NULL) || (component == NULL))
 	{
-		kernelError(kernel_error, "NULL container or component");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
-	
+
 	if (containerComponent->type != containerComponentType)
 	{
 		kernelError(kernel_error, "Component is not a container");
 		return (status = ERR_INVALID);
 	}
-	
+
 	for (count = 0; count < container->numComponents; count ++)
 	{
 		if (container->components[count] == component)
@@ -427,7 +430,7 @@ static int numComps(kernelWindowComponent *component)
 	for (count = 0; count < container->numComponents; count ++)
 	{
 		item = container->components[count];
-		
+
 		if (item->numComps)
 			numComponents += item->numComps(item);
 	}
@@ -479,9 +482,9 @@ static int layout(kernelWindowComponent *containerComponent)
 	int count1, count2;
 
 	// Check params
-	if (containerComponent == NULL)
+	if (!containerComponent)
 	{
-		kernelError(kernel_error, "NULL container for layout");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -490,7 +493,7 @@ static int layout(kernelWindowComponent *containerComponent)
 		kernelError(kernel_error, "Component is not a container");
 		return (status = ERR_INVALID);
 	}
-	
+
 	// For any components that are containers, have them do their layouts first
 	// so we know their sizes.
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
@@ -508,7 +511,7 @@ static int layout(kernelWindowComponent *containerComponent)
 	containerComponent->width = 0;
 	containerComponent->height = 0;
 	containerComponent->minWidth = 0;
-	containerComponent->minHeight = 0; 
+	containerComponent->minHeight = 0;
 
 	// Call our 'layoutSize' function to do the layout, but don't specify
 	// any extra size since we want 'minimum' sizes for now
@@ -517,7 +520,7 @@ static int layout(kernelWindowComponent *containerComponent)
 		return (status);
 
 	containerComponent->minWidth = containerComponent->width;
-	containerComponent->minHeight = containerComponent->height; 
+	containerComponent->minHeight = containerComponent->height;
 
 	// Loop through the container's components, checking to see whether
 	// each overlaps any others, and if so, decrement their levels
@@ -557,8 +560,8 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 	kernelWindowComponent *item = NULL;
 	int count;
 
-	kernelDebug(debug_gui, "Window \"%s\" container \"%s\" get component",
-		component->window->title, container->name);
+	kernelDebug(debug_gui, "WindowContainer \"%s\" container \"%s\" get "
+		"component", component->window->title, container->name);
 
 	for (count = 0; count < container->numComponents; count ++)
 	{
@@ -575,8 +578,8 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 		if (isPointInside(event->xPosition, event->yPosition,
 			makeComponentScreenArea(item)))
 		{
-			kernelDebug(debug_gui, "Window \"%s\" container \"%s\" found "
-				"component", component->window->title, container->name);
+			kernelDebug(debug_gui, "WindowContainer \"%s\" container \"%s\" "
+				"found component", component->window->title, container->name);
 
 			// The coordinates are inside this component.  Does it want to
 			// specify a subcomponent?
@@ -603,9 +606,9 @@ static int setBuffer(kernelWindowComponent *containerComponent,
 	int count;
 
 	// Check params
-	if (containerComponent == NULL)
+	if (!containerComponent)
 	{
-		kernelError(kernel_error, "NULL parameter for setting buffer");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -654,7 +657,7 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 	int differenceX = (xCoord - component->xCoord);
 	int differenceY = (yCoord - component->yCoord);
 
-	kernelDebug(debug_gui, "Container %s move components %s%d, %s%d",
+	kernelDebug(debug_gui, "WindowContainer %s move components %s%d, %s%d",
 		container->name, ((differenceX >= 0)? "+" : ""), differenceX,
 		((differenceY >= 0)? "+" : ""), differenceY);
 
@@ -663,7 +666,7 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 		for (count = 0; count < container->numComponents; count ++)
 		{
 			itemComponent = container->components[count];
-			
+
 			if (itemComponent->move)
 			{
 				status =
@@ -673,7 +676,7 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 				if (status < 0)
 					return (status);
 			}
-			
+
 			itemComponent->xCoord += differenceX;
 			itemComponent->yCoord += differenceY;
 		}
@@ -733,7 +736,7 @@ static void drawGrid(kernelWindowComponent *containerComponent)
 		kernelError(kernel_error, "Component is not a container");
 		return;
 	}
-	
+
 	columnWidth = kernelMalloc(container->maxComponents * sizeof(int));
 	columnStartX = kernelMalloc(container->maxComponents * sizeof(int));
 	rowHeight = kernelMalloc(container->maxComponents * sizeof(int));
@@ -804,9 +807,9 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 	kernelWindowContainer *container = NULL;
 
 	// Check parameters.
-	if ((parent == NULL) || (name == NULL) || (params == NULL))
+	if (!parent || !name || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -819,7 +822,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 	component->flags |= WINFLAG_RESIZABLE;
 
 	// Set the functions
-	component->add = &add;
+	component->add = (int (*)(kernelWindowComponent *, objectKey)) &add;
 	component->remove = &remove;
 	component->numComps = &numComps;
 	component->flatten = &flatten;
@@ -830,7 +833,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 	component->move = &move;
 	component->resize = &resize;
 	component->destroy = &destroy;
-	
+
 	// Get memory for this container component
 	container = kernelMalloc(sizeof(kernelWindowContainer));
 	if (container == NULL)

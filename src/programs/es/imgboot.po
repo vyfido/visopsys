@@ -1,0 +1,168 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Jens Leon Wagner
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: adduser 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"PO-Revision-Date: 2014-01-22 17:27-0400\n"
+"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.5.4\n"
+
+#: imgboot.c:56
+#, c-format
+msgid "Welcome to %s"
+msgstr "Bienvenido a %s"
+
+#: imgboot.c:57
+msgid "Copyright (C) 1998-2014 J. Andrew McLaughlin"
+msgstr "Copyright (C) 1998-2014 J. Andrew McLaughlin"
+
+#: imgboot.c:59
+msgid ""
+"  This program is free software; you can redistribute it and/or modify it  \n"
+"  under the terms of the GNU General Public License as published by the\n"
+"  Free Software Foundation; either version 2 of the License, or (at your\n"
+"  option) any later version.\n"
+"\n"
+"  This program is distributed in the hope that it will be useful, but\n"
+"  WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n"
+"  the file "
+msgstr ""
+"  This program is free software; you can redistribute it and/or modify it  \n"
+"  under the terms of the GNU General Public License as published by the\n"
+"  Free Software Foundation; either version 2 of the License, or (at your\n"
+"  option) any later version.\n"
+"\n"
+"  This program is distributed in the hope that it will be useful, but\n"
+"  WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n"
+"  the file /system/COPYING.txt for more details."
+
+#: imgboot.c:67
+msgid ""
+"Would you like to install Visopsys?\n"
+"(Choose continue to skip installing)"
+msgstr ""
+"Desea instalar Visopsys?\n"
+"(Seleccione Continuar si No)"
+
+#: imgboot.c:69
+msgid "Install"
+msgstr "Instalar"
+
+#: imgboot.c:70 imgboot.c:154
+msgid "Continue"
+msgstr "Continuar"
+
+#: imgboot.c:71
+msgid "Language"
+msgstr ""
+
+#: imgboot.c:72
+msgid "Don't ask me this again"
+msgstr "No preguntar de nuevo"
+
+#: imgboot.c:80
+msgid "Would you like to reboot now?"
+msgstr "Desea reiniciar el equipo ahora?"
+
+#: imgboot.c:81
+msgid ""
+"Using the administrator account 'admin'.\n"
+"There is no password set."
+msgstr ""
+"Use la cuenta del administardor 'admin'.\n"
+"Sin contraseña configurada."
+
+#: imgboot.c:110
+msgid "Error"
+msgstr "Error"
+
+#: imgboot.c:112
+#, c-format
+msgid ""
+"\n"
+"\n"
+"ERROR: %s\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"ERROR: %s\n"
+"\n"
+
+#: imgboot.c:135
+#, c-format
+msgid "%s  Quitting."
+msgstr "%s Cerrando."
+
+#: imgboot.c:153
+msgid "Reboot?"
+msgstr "Reiniciar?"
+
+#: imgboot.c:154
+msgid "Reboot"
+msgstr "Reiniciar"
+
+#: imgboot.c:162
+#, c-format
+msgid ""
+"\n"
+"%s (y/n): "
+msgstr ""
+"\n"
+"%s (y/n): "
+
+#: imgboot.c:177
+msgid "Yes\n"
+msgstr "Sí\n"
+
+#: imgboot.c:183
+msgid "No\n"
+msgstr "No\n"
+
+#: imgboot.c:356
+msgid "Can't create window!"
+msgstr "No se puede crear la ventana!"
+
+#: imgboot.c:446
+msgid "o Install                    "
+msgstr "o Instalar                   "
+
+#: imgboot.c:447
+msgid "o Continue                   "
+msgstr "o Continuar                  "
+
+#: imgboot.c:448
+msgid "o Always continue (never ask)"
+msgstr "o Continuar siempre (no preguntar más)"
+
+#: imgboot.c:462
+msgid ""
+"This program can only be run as a privileged user.\n"
+"(Try logging in as user \"admin\")."
+msgstr ""
+"Necesita derechos especiales para usar este comando.\n"
+"(Intente ingresar como \"admin\")"
+
+#: imgboot.c:499
+msgid "Administrator account"
+msgstr "Cuenta de administrador"
+
+#: imgboot.c:531
+msgid ""
+"\n"
+"Please select from the following options"
+msgstr ""
+"\n"
+"Por favor, seleccione una de las opciones siguientes"

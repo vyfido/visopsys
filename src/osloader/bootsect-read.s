@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -27,14 +27,14 @@ read:
 	;; Proto: int read(dword logical, word seg, word offset, word count);
 
 	pusha
-	
+
 	;; Save the stack pointer
 	mov BP, SP
 
 	;; Determine whether int13 extensions are available
 	cmp byte [DISK], 80h
 	jb .noExtended
-	
+
 	mov AX, 4100h
 	mov BX, 55AAh
 	mov DL, byte [DISK]
@@ -79,7 +79,7 @@ read:
 	div EBX
 	mov byte [SECTOR], DL		; The remainder
 	add byte [SECTOR], 1		; Sectors start at 1
-	
+
 	;; Now the head and track
 	xor EDX, EDX			; Don't need the remainder anymore
 	xor EBX, EBX
@@ -106,10 +106,10 @@ read:
 	pop AX				; Increment the counter
 	inc AX
 	push AX
-	cmp AX, word [SS:(BP + 26)]	; Check whether we're finished 
+	cmp AX, word [SS:(BP + 26)]	; Check whether we're finished
 	jb .readSector
 	pop AX
-			
-	.done:	
+
+	.done:
 	popa
 	ret

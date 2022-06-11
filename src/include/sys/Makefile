@@ -1,11 +1,11 @@
-## 
+##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-##  
+##
 ##  Makefile
 ##
 
-BUILDDIR	= ../../../build/system/headers/sys
+BUILDDIR = ../../../build/system/headers/sys
 
 all:
 	mkdir -p ${BUILDDIR}
@@ -14,3 +14,4 @@ all:
 clean:
 	rm -f *~
 	rm -Rf ${BUILDDIR}
+

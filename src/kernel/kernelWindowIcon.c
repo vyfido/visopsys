@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -24,6 +24,7 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelFont.h"
+#include "kernelImage.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include <stdlib.h>
@@ -122,7 +123,7 @@ static void setLabel(kernelWindowIcon *icon, const char *label,
 			}
 		}
 	}
-	
+
 	count1 = kernelFontGetPrintedWidth(font, (char *) icon->label[0]);
 	count2 = kernelFontGetPrintedWidth(font, (char *) icon->label[1]);
 	icon->labelWidth = max(count1, count2);
@@ -206,6 +207,28 @@ static int focus(kernelWindowComponent *component, int gotFocus)
 }
 
 
+static int setData(kernelWindowComponent *component, void *label,
+	int length __attribute__((unused)))
+{
+	// Set the icon label
+
+	kernelWindowIcon *icon = component->data;
+
+	if (component->params.font)
+		setLabel(icon, label, (asciiFont *) component->params.font);
+
+	// Re-draw
+	if (component->draw)
+		draw(component);
+
+	component->window
+		->update(component->window, component->xCoord, component->yCoord,
+			component->width, component->height);
+
+	return (0);
+}
+
+
 static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	// Launch a thread to load and run the program
@@ -225,8 +248,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			kernelWindowRedrawArea((component->window->xCoord +
 				component->xCoord),
 				(component->window->yCoord + component->yCoord),
-					component->width, component->height);	
-				
+					component->width, component->height);
+
 			// Set the new position
 			component->xCoord += (event->xPosition - dragEvent.xPosition);
 			component->yCoord += (event->yPosition - dragEvent.yPosition);
@@ -285,7 +308,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 			dragging = 0;
 		}
-			
+
 		// Redraw the mouse
 		kernelMouseDraw();
 	}
@@ -293,7 +316,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	else if (event->type == EVENT_MOUSE_DRAG)
 	{
 		// The icon has started moving
-				
+
 		// Don't show it while it's moving
 		component->flags &= ~WINFLAG_VISIBLE;
 
@@ -337,7 +360,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		component->window->update(component->window, IMAGEX, component->yCoord,
 			icon->iconImage.width, icon->iconImage.height);
 	}
-	
+
 	return (0);
 }
 
@@ -399,11 +422,10 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 	pixel *pix = NULL;
 	unsigned count;
 
-	// Check parameters
-	if ((parent == NULL) || (imageCopy == NULL) || (label == NULL) ||
-		(params == NULL))
+	// Check params
+	if (!parent || !imageCopy || !label || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -419,11 +441,11 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 		return (component);
 
 	component->type = iconComponentType;
-	//component->flags |= WINFLAG_CANFOCUS;
 
 	// Set the functions
 	component->draw = &draw;
 	component->focus = &focus;
+	component->setData = &setData;
 	component->mouseEvent = &mouseEvent;
 	component->keyEvent = &keyEvent;
 	component->destroy = &destroy;
@@ -503,9 +525,10 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 	if (component->params.font)
 		component->height += (((asciiFont *) component->params.font)->charHeight *
 			icon->labelLines);
-	
+
 	component->minWidth = component->width;
 	component->minHeight = component->height;
 
 	return (component);
 }
+

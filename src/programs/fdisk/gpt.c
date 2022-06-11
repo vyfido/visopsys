@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -81,7 +81,7 @@ static gptHeader *readHeader(const disk *theDisk)
 		return (header = NULL);
 	}
 
-	// Check for the GPT signature 
+	// Check for the GPT signature
 	if (memcmp(header->signature, GPT_SIG, 8))
 	{
 		// No signature.
@@ -103,7 +103,7 @@ static int writeHeader(const disk *theDisk, gptHeader *header)
 {
 	// Given a file descriptor for the open disk and a GPT header structure,
 	// write the header to disk.
-	 
+
 	int status = 0;
 	gptHeader *headerCopy = NULL;
 
@@ -160,7 +160,7 @@ static unsigned entriesChecksum(gptEntry *entries, unsigned bytes)
 static gptEntry *readEntries(const disk *theDisk, gptHeader *header)
 {
 	// Given a GPT header, return a malloc-ed array of partition entries.
-	 
+
 	int status = 0;
 	unsigned entryBytes = 0;
 	unsigned entrySectors = 0;
@@ -203,7 +203,7 @@ static int writeEntries(const disk *theDisk, gptHeader *header,
 	gptEntry *entries)
 {
 	// Given a GPT header and entries, write the partition entries to disk.
-	 
+
 	int status = 0;
 	unsigned entryBytes = 0;
 	unsigned entrySectors = 0;
@@ -231,7 +231,7 @@ static int writeEntries(const disk *theDisk, gptHeader *header,
 		return (status);
 	}
 
-	// Update the entries checksum in the header 
+	// Update the entries checksum in the header
 	header->partEntriesCRC32 = entriesChecksum(entries, entryBytes);
 
 	return (0);
@@ -241,7 +241,7 @@ static int writeEntries(const disk *theDisk, gptHeader *header,
 static inline int isEntryUsed(guid *g)
 {
 	// A GPT entry is empty if the partition type GUID is all NULLs
-	 
+
 	if (memcmp(g, &GUID_UNUSED, sizeof(guid)))
 		return (1);
 	else
@@ -297,7 +297,7 @@ static int detect(const disk *theDisk)
 		return (isGpt = 0);
 	}
 
-	// Read the header 
+	// Read the header
 	header = readHeader(theDisk);
 	if (header)
 	{
@@ -329,7 +329,7 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 	if (entries == NULL)
 		return (status = ERR_INVALID);
 
-	// Fill in the partition entries 
+	// Fill in the partition entries
 	for (count = 0; ((count < DISK_MAX_PARTITIONS) &&
 		(count < header->numPartEntries)); count ++)
 	{
@@ -355,7 +355,7 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 			slices[*numSlices].geom.startSector =
 				(((entries[count].startingLBA % CYLSECTS(theDisk)) %
 					theDisk->sectorsPerCylinder) + 1);
-			slices[*numSlices].geom.endCylinder = 
+			slices[*numSlices].geom.endCylinder =
 				(entries[count].endingLBA / CYLSECTS(theDisk));
 			slices[*numSlices].geom.endHead =
 				((entries[count].endingLBA % CYLSECTS(theDisk)) /
@@ -406,7 +406,7 @@ static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 	// Clear the partition entries
 	bzero(entries, (header->numPartEntries * header->partEntryBytes));
 
-	// Fill in the partition entries 
+	// Fill in the partition entries
 	for (count = 0; ((count < DISK_MAX_PARTITIONS) && (count < numSlices));
 		count ++)
 	{
@@ -498,7 +498,7 @@ static int getTypes(listItemParameters **typeListParams)
 
 	for (count = 0; isEntryUsed(&types[count].typeGuid); count ++)
 		numberTypes += 1;
-	
+
 	// Make an array of list item parameters
 
 	*typeListParams = malloc(numberTypes * sizeof(listItemParameters));

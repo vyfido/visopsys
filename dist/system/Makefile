@@ -1,29 +1,34 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
-BUILDDIR	= ../../build/system
+BUILDDIR = ../../build/system
+FILES = visopsys.jpg install-files.* password.blank
+DESTFILES = $(addprefix ${BUILDDIR}/, ${FILES})
 
 all:
 	mkdir -p ${BUILDDIR}
-	cp *.jpg install-files.* password.blank ${BUILDDIR}
-	mkdir -p ${BUILDDIR}/config
-	cp config/*.conf ${BUILDDIR}/config
-	mkdir -p ${BUILDDIR}/icons 
-	cp icons/*.bmp icons/*.ico ${BUILDDIR}/icons
-	mkdir -p ${BUILDDIR}/fonts
-	cp fonts/*.vbf ${BUILDDIR}/fonts
-	mkdir -p ${BUILDDIR}/keymaps
-	cp keymaps/*.map ${BUILDDIR}/keymaps
-	mkdir -p ${BUILDDIR}/mouse
-	cp mouse/*.bmp ${BUILDDIR}/mouse
-	mkdir -p ${BUILDDIR}/wallpaper
-	cp wallpaper/*.jpg ${BUILDDIR}/wallpaper
+	cp ${FILES} ${BUILDDIR}
+	${MAKE} -C config
+	${MAKE} -C fonts
+	${MAKE} -C icons
+	${MAKE} -C keymaps
+	${MAKE} -C locale
+	${MAKE} -C mouse
+	${MAKE} -C wallpaper
+
 
 clean:
-	make -C config clean
+	${MAKE} -C config clean
+	${MAKE} -C fonts clean
+	${MAKE} -C icons clean
+	${MAKE} -C keymaps clean
+	${MAKE} -C locale clean
+	${MAKE} -C mouse clean
+	${MAKE} -C wallpaper clean
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}/config ${BUILDDIR}/icons ${BUILDDIR}/fonts ${BUILDDIR}/keymaps ${BUILDDIR}/mouse ${BUILDDIR}/wallpaper ${BUILDDIR}/*.jpg ${BUILDDIR}/install-files.* ${BUILDDIR}/password.blank
+	rm -f ${DESTFILES}
+

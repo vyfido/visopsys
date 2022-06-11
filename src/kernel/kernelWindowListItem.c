@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -169,7 +169,7 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 	kernelWindowListItem *item = component->data;
 	int iconXCoord = 0;
 
-	kernelDebug(debug_gui, "Move window list item to (%d, %d)", xCoord, yCoord);
+	kernelDebug(debug_gui, "WindowListItem move to (%d,%d)", xCoord, yCoord);
 
 	if (item->icon)
 	{
@@ -183,6 +183,57 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 		item->icon->xCoord = iconXCoord;
 		item->icon->yCoord = (yCoord + 1);
 	}
+
+	return (0);
+}
+
+
+static int setData(kernelWindowComponent *component, void *itemParams,
+	int length __attribute__((unused)))
+{
+	// (Re-) configure the list item according to the supplied parameters
+
+	kernelWindowListItem *listItem = component->data;
+
+	kernelMemCopy((listItemParameters *) itemParams,
+		(listItemParameters *) &listItem->params, sizeof(listItemParameters));
+
+	if (listItem->type == windowlist_textonly)
+	{
+		component->width = 2;
+		if (component->params.font)
+			component->width +=
+				kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+					(char *) listItem->params.text);
+
+		component->height = 2;
+		if (component->params.font)
+			component->height +=
+				((asciiFont *) component->params.font)->charHeight;
+	}
+
+	else if (listItem->type == windowlist_icononly)
+	{
+		if (listItem->icon)
+			kernelWindowComponentDestroy(listItem->icon);
+
+		listItem->icon =
+			kernelWindowNewIcon(listItem->parent,
+				(image *) &listItem->params.iconImage,
+				(char *) listItem->params.text,
+				(componentParameters *) &component->params);
+		if (!listItem->icon)
+			return (ERR_NOCREATE);
+
+		// Remove the icon from the parent container
+		removeFromContainer(listItem->icon);
+
+		component->width = (listItem->icon->width + 2);
+		component->height = (listItem->icon->height + 2);
+	}
+
+	component->minWidth = component->width;
+	component->minHeight = component->height;
 
 	return (0);
 }
@@ -202,8 +253,8 @@ static int setSelected(kernelWindowComponent *component, int selected)
 
 	item->selected = selected;
 
-	kernelDebug(debug_gui, "listItem \"%s\" %sselected", item->params.text,
-		(selected? "" : "de"));
+	kernelDebug(debug_gui, "WindowListItem \"%s\" %sselected",
+		item->params.text, (selected? "" : "de"));
 
 	if (item->icon)
 		((kernelWindowIcon *) item->icon->data)->selected = selected;
@@ -213,15 +264,14 @@ static int setSelected(kernelWindowComponent *component, int selected)
 		if (component->draw)
 			component->draw(component);
 
-		// List items are also menu items, and menu items have their own buffers,
-		// so only render the buffer here if we're using the normal window buffer
+		// Menu items are also list items, and menu items have their own
+		// buffers, so only render the buffer here if we're using the normal
+		// window buffer
 		if (component->buffer == &component->window->buffer)
 		{
 			component->window
 				->update(component->window, component->xCoord,
 					component->yCoord, component->width, component->height);
-			//kernelDebug(debug_gui, "listItem \"%s\" window->update()",
-			//	item->params.text);
 		}
 	}
 
@@ -234,12 +284,12 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	// When mouse down events happen to list item components, we reverse the
 	// 'selected' value
 
-	kernelDebug(debug_gui, "listItem \"%s\" mouse event",
+	kernelDebug(debug_gui, "WindowListItem \"%s\" mouse event",
 		((kernelWindowListItem *) component->data)->params.text);
 
 	if (event->type & EVENT_MOUSE_DOWN)
 		setSelected(component, 1);
-	 
+
 	return (0);
 }
 
@@ -272,17 +322,18 @@ static int destroy(kernelWindowComponent *component)
 
 
 kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
-	windowListType type, listItemParameters *item, componentParameters *params)
+	windowListType type, listItemParameters *itemParams,
+	componentParameters *params)
 {
 	// Formats a kernelWindowComponent as a kernelWindowListItem
 
 	kernelWindowComponent *component = NULL;
 	kernelWindowListItem *listItem = NULL;
 
-	// Check parameters.
-	if ((parent == NULL) || (item == NULL) || (params == NULL))
+	// Check params
+	if (!parent || !itemParams || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -299,6 +350,7 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 	component->setBuffer = &setBuffer;
 	component->draw = &draw;
 	component->move = &move;
+	component->setData = &setData;
 	component->getSelected = &getSelected;
 	component->setSelected = &setSelected;
 	component->mouseEvent = &mouseEvent;
@@ -323,46 +375,15 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 	}
 
 	component->data = (void *) listItem;
-
 	listItem->type = type;
-	kernelMemCopy(item, (listItemParameters *) &listItem->params,
-		sizeof(listItemParameters));
+	listItem->parent = parent;
 
-	if (listItem->type == windowlist_textonly)
+	if (setData(component, itemParams, sizeof(listItemParameters)) < 0)
 	{
-		component->width = 2;
-		if (component->params.font)
-			component->width += 
-				kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-					(char *) listItem->params.text);
-
-		component->height = 2;
-		if (component->params.font)
-			component->height +=
-				((asciiFont *) component->params.font)->charHeight;
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
 	}
-
-	else if (listItem->type == windowlist_icononly)
-	{
-		listItem->icon =
-			kernelWindowNewIcon(parent, (image *) &listItem->params.iconImage,
-				(char *) listItem->params.text,
-				(componentParameters *) &component->params);
-		if (listItem->icon == NULL)
-		{
-			kernelWindowComponentDestroy(component);
-			return (component = NULL);
-		}
-
-		// Remove the icon from the parent container
-		removeFromContainer(listItem->icon);
-
-		component->width = (listItem->icon->width + 2);
-		component->height = (listItem->icon->height + 2);
-	}
-
-	component->minWidth = component->width;
-	component->minHeight = component->height;
 
 	return (component);
 }
+

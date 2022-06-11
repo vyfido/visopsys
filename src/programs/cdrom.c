@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -32,7 +32,7 @@ This command can be used to control operations of CD-ROM devices.
 Usage:
   cdrom [disk_name] [operation]
 
-    where 'operation' is one of: open, eject, close, lock, unlock 
+    where 'operation' is one of: open, eject, close, lock, unlock
 
 The first (optional) parameter is the name of a CD-ROM disk.  If no disk
 name is specified, the cdrom command will attempt to guess the most likely
@@ -46,11 +46,15 @@ command to print out the names of all disks.
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 static int numberDisks = 0;
 static disk *diskInfo = NULL;
@@ -118,7 +122,7 @@ static void printDisks(void)
 	// Print disk info
 
 	int count;
-	
+
 	for (count = 0; count < numberDisks; count ++)
 		printf("%s\n", diskInfo[count].name);
 }
@@ -129,11 +133,14 @@ int main(int argc, char *argv[])
 	int status = 0;
 	int count;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("cdrom");
+
 	// Gather the disk info
 	status = scanDisks();
 	if (status < 0)
 	{
-		printf("\n\nProblem getting CD-ROM info\n\n");
+		printf("%s", _("\n\nProblem getting CD-ROM info\n\n"));
 		goto out;
 	}
 
@@ -147,7 +154,7 @@ int main(int argc, char *argv[])
 	// There needs to be at least one CD-ROM to continue
 	if (numberDisks < 1)
 	{
-		printf("\n\nNo CD-ROMS registered\n\n");
+		printf("%s", _("\n\nNo CD-ROMS registered\n\n"));
 		status = ERR_NOSUCHENTRY;
 		goto out;
 	}
@@ -188,7 +195,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		printf("\n\nUnknown command \"%s\"\n\n", argv[argc - 1]);
+		printf(_("\n\nUnknown command \"%s\"\n\n"), argv[argc - 1]);
 		status = ERR_INVALID;
 	}
 
@@ -196,3 +203,4 @@ out:
 	free(diskInfo);
 	return (status);
 }
+

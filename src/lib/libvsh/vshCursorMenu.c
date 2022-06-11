@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -32,94 +32,98 @@
 
 _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defaultSelection)
 {
-  // Desc: This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
+	// Desc: This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 
-  int itemWidth = 0;
-  char *buffer = NULL;
-  int selectedOption = defaultSelection;
-  textAttrs attrs;
-  char c = '\0';
-  int count1, count2;
+	int itemWidth = 0;
+	char *buffer = NULL;
+	int selectedOption = defaultSelection;
+	textAttrs attrs;
+	char c = '\0';
+	int count1, count2;
 
-  // Check params
-  if ((prompt == NULL) || (items == NULL))
-    return (errno = ERR_NULLPARAMETER);
+	// Check params
+	if ((prompt == NULL) || (items == NULL))
+		return (errno = ERR_NULLPARAMETER);
 
-  bzero(&attrs, sizeof(textAttrs));
+	bzero(&attrs, sizeof(textAttrs));
 
-  // Get the width of the widest item and set our item width
-  for (count1 = 0; count1 < numItems; count1 ++)
-    if ((int) strlen(items[count1]) > itemWidth)
-      itemWidth = strlen(items[count1]);
-  itemWidth = min(itemWidth, textGetNumColumns());
+	// Get the width of the widest item and set our item width
+	for (count1 = 0; count1 < numItems; count1 ++)
+		if ((int) strlen(items[count1]) > itemWidth)
+			itemWidth = strlen(items[count1]);
+	itemWidth = min(itemWidth, textGetNumColumns());
 
-  buffer = malloc(itemWidth + 1);
-  if (buffer == NULL)
-    return (errno = ERR_MEMORY);
+	buffer = malloc(itemWidth + 1);
+	if (buffer == NULL)
+		return (errno = ERR_MEMORY);
 
-  // Print prompt message
-  printf("\n%s\n", prompt);
+	// Print prompt message
+	printf("\n%s\n", prompt);
 
-  // Now, print 'numItems' newlines before calculating the current row so
-  // that we don't get messed up if the screen scrolls
-  for (count1 = 0; count1 < (numItems + 3); count1 ++)
-    printf("\n");
+	// Now, print 'numItems' newlines before calculating the current row so
+	// that we don't get messed up if the screen scrolls
+	for (count1 = 0; count1 < (numItems + 3); count1 ++)
+		printf("\n");
 
-  int row = (textGetRow() - (numItems + 3));
+	int row = (textGetRow() - (numItems + 3));
 
-  while(1)
-    {
-      textSetColumn(0);
-      textSetRow(row);
-      textSetCursor(0);
-      
-      for (count1 = 0; count1 < numItems; count1 ++)
+	while (1)
 	{
-	  printf(" ");
+		textSetColumn(0);
+		textSetRow(row);
+		textSetCursor(0);
 
-	  sprintf(buffer, " %s ", items[count1]);
-	  for (count2 = 0;
-	       count2 < (itemWidth - (int) strlen(items[count1])); count2 ++)
-	    strcat(buffer, " ");
-	  if (selectedOption == count1)
-	    attrs.flags = TEXT_ATTRS_REVERSE;
-	  else
-	    attrs.flags = 0;
-	  textPrintAttrs(&attrs, buffer);
-	  printf("\n");
+		for (count1 = 0; count1 < numItems; count1 ++)
+		{
+			printf(" ");
+
+			sprintf(buffer, " %s ", items[count1]);
+			for (count2 = 0;
+				 count2 < (itemWidth - (int) strlen(items[count1])); count2 ++)
+			{
+				strcat(buffer, " ");
+			}
+
+			if (selectedOption == count1)
+				attrs.flags = TEXT_ATTRS_REVERSE;
+			else
+				attrs.flags = 0;
+
+			textPrintAttrs(&attrs, buffer);
+			printf("\n");
+		}
+
+		printf("\n  [Cursor up/down to change, Enter to select, 'Q' to quit]\n");
+		textInputSetEcho(0);
+		c = getchar();
+		textInputSetEcho(1);
+
+		switch(c)
+		{
+			case (char) ASCII_CRSRUP:
+				// Cursor up.
+				if (selectedOption > 0)
+					selectedOption -= 1;
+				break;
+
+			case (char) ASCII_CRSRDOWN:
+				// Cursor down.
+				if (selectedOption < (numItems - 1))
+					selectedOption += 1;
+				break;
+
+			case (char) ASCII_ENTER:
+				// Enter
+				textSetCursor(1);
+				free(buffer);
+				return (selectedOption);
+
+			case 'Q':
+			case 'q':
+				// Cancel
+				textSetCursor(1);
+				free(buffer);
+				return (errno = ERR_CANCELLED);
+		}
 	}
-
-      printf("\n  [Cursor up/down to change, Enter to select, 'Q' to quit]\n");
-      textInputSetEcho(0);
-      c = getchar();
-      textInputSetEcho(1);
-
-      switch(c)
-	{
-	case (char) ASCII_CRSRUP:
-	  // Cursor up.
-	  if (selectedOption > 0)
-	    selectedOption -= 1;
-	  break;
-
-	case (char) ASCII_CRSRDOWN:
-	  // Cursor down.
-	  if (selectedOption < (numItems - 1))
-	    selectedOption += 1;
-	  break;
-
-	case (char) ASCII_ENTER:
-	  // Enter
-	  textSetCursor(1);
-	  free(buffer);
-	  return (selectedOption);
-
-	case 'Q':
-	case 'q':
-	  // Cancel
-	  textSetCursor(1);
-	  free(buffer);
-	  return (errno = ERR_CANCELLED);
-	}
-    }
 }

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -20,7 +20,6 @@
 //
 
 // This is the Visopsys version of the standard header file float.h
-
 
 #if !defined(_FLOAT_H)
 
@@ -65,7 +64,8 @@
 #define LDBL_MIN        3.362103143112093506262677817321752603E-4932L
                                          // <long double rvalue <= 10^(-37)>
 #define LDBL_MIN_10_EXP 4931             // <integer rvalue <= -37>
-#define LDBL_MIN_EXP    -16381           // <integer rvalue> 
+#define LDBL_MIN_EXP    -16381           // <integer rvalue>
 
 #define _FLOAT_H
 #endif
+

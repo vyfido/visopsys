@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -85,11 +85,11 @@ main:
 	;; 0000h:7C00h.
 	jmp (0):.adjCsIp
 	.adjCsIp:
-	
+
 	sti
 
 	pusha
-	
+
 	;; Relocate our code, so we can copy the chosen boot sector over
 	;; top of ourselves
 	mov SI, main
@@ -121,7 +121,7 @@ jmpTarget:
 	call print
 	int 18h
 	.fatalErrorLoop: jmp .fatalErrorLoop
-	
+
 	.gotEntry:
 	;; Got an active boot partition
 	mov word [BOOTPARTITION], SI
@@ -169,13 +169,13 @@ DATA_DISKSIG	dd 0
 
 ;; NULLs
 DATA_NULLS	dw 0
-	
+
 ;; Here's where the partition table goes
 DATA_PART_TABLE	times 16	db 0
 		times 16	db 0
 		times 16	db 0
 		times 16	db 0
-		
+
 ;; This puts the value AA55h in the last two bytes of the boot
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the

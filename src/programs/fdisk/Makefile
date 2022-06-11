@@ -1,47 +1,42 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
-ROOT		= ../../..
-UTILSDIR	= ${ROOT}/utils
-BUILDDIR	= ${ROOT}/build/programs
-INCDIR		= ../../include
-LIBDIR		= ${ROOT}/build/system/libraries
-MSGDIR		= ${ROOT}/build/system/locale
+ROOT = ../../..
+BUILDDIR = ${ROOT}/build/programs
+INCDIR = ../../include
+LIBDIR = ${ROOT}/build/system/libraries
 
 include ${ROOT}/Makefile.include
 
-ifneq (${BUILDLANG},)
-	DEFLANG		= -DBUILDLANG=\"${BUILDLANG}\"
-	MAKEMSGS	= ${UTILSDIR}/makemsgs.sh de ${MSGDIR}
+STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h \
+	*.h ${LIBDIR}/crt0.o
+INCLUDE = -nostdinc -I${INCDIR}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} ${PARTLOGIC} \
+	${PLUS}
+LFLAGS = -L${LIBDIR} -nostdlib \
+	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
+
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
+	STRIP = strip -s ${FDISK}
 endif
 
-STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
-		${INCDIR}/sys/*.h *.h ${LIBDIR}/crt0.o
-INCLUDE		= -nostdinc -I${INCDIR}
-DEBUG		= # -DDEBUG # Uncomment to turn on debugging
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
-		${PARTLOGIC} ${DEFLANG} ${PLUS}
-LFLAGS		= -L${LIBDIR} -nostdlib \
-		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
+NAMES = fdisk \
+	gpt \
+	msdos
 
-ifeq (${DEBUG},)
-	STRIP = strip -s ${FDISK}
-endif 
-
-NAMES	= fdisk \
-		gpt \
-		msdos
-
-OBJS	= $(addprefix obj/, $(addsuffix .o, ${NAMES}))
-FDISK	= ${BUILDDIR}/fdisk
+OBJS = $(addprefix obj/, $(addsuffix .o, ${NAMES}))
+FDISK = ${BUILDDIR}/fdisk
 
 # Targets
 
-all: target-dirs ${FDISK} strip messages
+all: target-dirs ${FDISK} strip
+	${MAKE} -C de
 
 target-dirs:
 	mkdir -p obj
@@ -53,12 +48,10 @@ ${FDISK}: ${OBJS}
 strip: ${FDISK}
 	${STRIP}
 
-messages: ${OBJS}
-	${MAKEMSGS}
-
 obj/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
 
 clean:
+	${MAKE} -C de clean
 	rm -Rf *~ *.o core obj ${FDISK}
-	${shell if [ -d ${MSGDIR} ] ; then find ${MSGDIR} -name fdisk.mo -exec rm {} \; ; fi }
+

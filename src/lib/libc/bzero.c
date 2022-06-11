@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -29,6 +29,6 @@ void bzero(void *string, size_t number)
 	// The description from the GNU man page reads as follows:
 	// The bzero() function sets the first n bytes of the byte string to zero.
 	// The bzero() function returns no value.
-	memset(string, 0, number);  
+	memset(string, 0, number);
 	return;
 }

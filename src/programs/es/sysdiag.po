@@ -1,0 +1,183 @@
+# Visopsys
+# Copyright (C) 1998-2014 J. Andrew McLaughlin
+#
+# Spanish Translation - 2013 - marianopbernacki@gmail.com
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: sysdiag.c:53
+msgid "System Diagnostics"
+msgstr "Diagnostico de sistema"
+
+#: sysdiag.c:54 sysdiag.c:1031
+msgid "Disk test"
+msgstr "Prueba de disco"
+
+#: sysdiag.c:55 sysdiag.c:1032
+msgid "Memory test"
+msgstr "Prueba de memoria"
+
+#: sysdiag.c:56 sysdiag.c:1036
+msgid "Read-only"
+msgstr "Solo lectura"
+
+#: sysdiag.c:57 sysdiag.c:1037
+msgid "Read-write"
+msgstr "Lectoescritura"
+
+#: sysdiag.c:58
+msgid "Test"
+msgstr "Prueba"
+
+#: sysdiag.c:59 sysdiag.c:229
+msgid "Quit"
+msgstr "Salir"
+
+#: sysdiag.c:60
+msgid ""
+"You must be a privileged user to use this command.\n"
+"(Try logging in as user \"admin\")"
+msgstr ""
+"Debe tener privilegios para usar ese comando.\n"
+"(Inicie sesion con el usuario \"admin\")"
+
+#: sysdiag.c:63
+msgid ""
+"Do you want to do a read-only test, or a read-write test?\n"
+"A read-only test is faster and guaranteed to be data-safe,\n"
+"however it is less thorough.  A read-write test takes\n"
+"longer and is more thorough, but can potentially cause\n"
+"some data loss if your disk is failing."
+msgstr ""
+"Quiere realizar una prueba de solo lectura, o lectoescritura?\n"
+"La prueba de lectura es rapida y sin riesgos para la informacion,\n"
+"Una prueba de lectoescritura es mas lenta y mucho mas profunda\n"
+"sin embargo existe el riesgo de que cause perdidas de datos si su\n"
+"disco esta fallando."
+
+#: sysdiag.c:68
+#, c-format
+msgid "Performing %s test on disk %s"
+msgstr "Realizando prueba %s en el disco %s"
+
+#: sysdiag.c:69
+#, c-format
+msgid "Performing memory test of %uMB - %uMB in use"
+msgstr "Prueba de memoria de %uMB - %uMB en uso"
+
+#: sysdiag.c:70
+msgid "Test cancelled"
+msgstr "Prueba cancelada"
+
+#: sysdiag.c:71
+msgid "Test completed"
+msgstr "Prueba completada"
+
+#: sysdiag.c:72
+msgid "Error performing test"
+msgstr "Error al probar"
+
+#: sysdiag.c:73
+#, c-format
+msgid "%d errors"
+msgstr "%d errores"
+
+#: sysdiag.c:127
+#, c-format
+msgid ""
+"\n"
+"Press any key to continue%s"
+msgstr ""
+"\n"
+"Presione cualquier tecla para continuar%s"
+
+#: sysdiag.c:127
+msgid ", or 'q' to quit"
+msgstr ", o 'q' para salir"
+
+#: sysdiag.c:150
+msgid "Error"
+msgstr "Error"
+
+#: sysdiag.c:164
+#, c-format
+msgid ""
+"%s\n"
+"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+msgstr ""
+"%s\n"
+"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+
+#: sysdiag.c:217
+msgid "Please choose the disk to test:"
+msgstr "Por favor elija el disco a probar:"
+
+#: sysdiag.c:228
+msgid "View results"
+msgstr "Ver resultados"
+
+#: sysdiag.c:269
+msgid "Do you want to view the results?\n"
+msgstr "Desea ver los resultados?\n"
+
+#: sysdiag.c:281
+msgid "Test results"
+msgstr "Resultados"
+
+#: sysdiag.c:314
+#, c-format
+msgid "Disk read error at sector %llu\n"
+msgstr "Error de lectura en sector %llu\n"
+
+#: sysdiag.c:318
+#, c-format
+msgid "Disk write error at sector %llu\n"
+msgstr "Error de escritura en sector %llu\n"
+
+#: sysdiag.c:322
+#, c-format
+msgid "Memory error at %llu\n"
+msgstr "Error de memoria en %llu\n"
+
+#: sysdiag.c:413 sysdiag.c:424
+msgid "read-write"
+msgstr "lectoescritura"
+
+#: sysdiag.c:413 sysdiag.c:424
+msgid "read-only"
+msgstr "solo lectura"
+
+#: sysdiag.c:415 sysdiag.c:655
+msgid ""
+"\n"
+"[ Press 'Q' to cancel ]\n"
+msgstr ""
+"\n"
+"[ Presione 'Q' para cancelar ]\n"
+
+#: sysdiag.c:529
+#, c-format
+msgid "Testing disk sectors %llu/%llu"
+msgstr "Probando los sectores %llu/%llu"
+
+#: sysdiag.c:738
+#, c-format
+msgid "Testing memory MB %llu/%llu"
+msgstr "Probando memoria %llu/%llu MB"
+
+#: sysdiag.c:1081
+msgid "Do you want to do a disk test, or a memory test?\n"
+msgstr "Quiere realizar una prueba de memoria o de disco?\n"
+
+#~ msgid "lectoescritura"
+#~ msgstr "Lesen-Schreiben"

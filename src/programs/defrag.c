@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -47,13 +47,17 @@ Options:
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+
+#define _(string) gettext(string)
 
 static int graphics = 0;
 static int processId = 0;
@@ -67,16 +71,16 @@ static int yesOrNo(char *question)
 	char character;
 
 	if (graphics)
-		return (windowNewQueryDialog(NULL, "Confirmation", question));
+		return (windowNewQueryDialog(NULL, _("Confirmation"), question));
 	else
 	{
 		printf("\n%s (y/n): ", question);
 		textInputSetEcho(0);
-		
-		while(1)
+
+		while (1)
 		{
 			character = getchar();
-			
+
 			if ((character == 'y') || (character == 'Y'))
 			{
 				printf("Yes\n");
@@ -96,7 +100,7 @@ static int yesOrNo(char *question)
 
 static void pause(void)
 {
-	printf("\nPress any key to continue. ");
+	printf("%s", _("\nPress any key to continue. "));
 	getchar();
 	printf("\n");
 }
@@ -106,19 +110,19 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
 
 	if (silentMode)
 		return;
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
 
 	if (graphics)
-		windowNewErrorDialog(NULL, "Error", output);
+		windowNewErrorDialog(NULL, _("Error"), output);
 	else
 	{
 		printf("\n\n%s\n", output);
@@ -143,7 +147,7 @@ static int chooseDisk(void)
 	windowEvent event;
 	int count;
 
-	#define CHOOSEDISK_STRING "Please choose the disk to defragment:"
+	#define CHOOSEDISK_STRING _("Please choose the disk to defragment:")
 
 	bzero(&params, sizeof(componentParameters));
 	params.gridX = 0;
@@ -160,10 +164,10 @@ static int chooseDisk(void)
 	for (count = 0; count < numberDisks; count ++)
 		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
 			diskInfo[count].name, diskInfo[count].partType);
-	
+
 	if (graphics)
 	{
-		chooseWindow = windowNew(processId, "Choose Disk");
+		chooseWindow = windowNew(processId, _("Choose Disk"));
 		windowNewTextLabel(chooseWindow, CHOOSEDISK_STRING, &params);
 
 		// Make a window list with all the disk choices
@@ -178,11 +182,12 @@ static int chooseDisk(void)
 		params.padBottom = 5;
 		params.orientationX = orient_right;
 		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-		okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
+		okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
 
 		params.gridX = 1;
 		params.orientationX = orient_left;
-		cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
+		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL,
+			&params);
 
 		// Make the window visible
 		windowRemoveMinimizeButton(chooseWindow);
@@ -190,7 +195,7 @@ static int chooseDisk(void)
 		windowSetResizable(chooseWindow, 0);
 		windowSetVisible(chooseWindow, 1);
 
-		while(1)
+		while (1)
 		{
 			// Check for our OK button
 			status = windowComponentEventGet(okButton, &event);
@@ -243,38 +248,38 @@ static int mountedCheck(disk *theDisk)
 	else if (silentMode)
 		return (status = ERR_CANCELLED);
 
-	sprintf(tmpChar, "The disk is mounted as %s.  It is STRONGLY "
-		"recommended\nthat you unmount before continuing",
+	sprintf(tmpChar, _("The disk is mounted as %s.  It is STRONGLY "
+		"recommended\nthat you unmount before continuing"),
 		theDisk->mountPoint);
 
 	if (graphics)
 		choice =
-			windowNewChoiceDialog(NULL, "Disk is mounted", tmpChar,
-				(char *[]) { "Ignore", "Unmount", "Cancel" }, 3, 1);
+			windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
+				(char *[]) { _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
 	else
 	{
-		printf("\n%s (I)gnore/(U)nmount/(C)ancel?: ", tmpChar);
+		printf(_("\n%s (I)gnore/(U)nmount/(C)ancel?: "), tmpChar);
 		textInputSetEcho(0);
 
-		while(1)
+		while (1)
 		{
 			character = getchar();
-		
+
 			if ((character == 'i') || (character == 'I'))
 			{
-				printf("Ignore\n");
+				printf("%s", _("Ignore\n"));
 				choice = 0;
 				break;
 			}
 			else if ((character == 'u') || (character == 'U'))
 			{
-				printf("Unmount\n");
+				printf("%s", _("Unmount\n"));
 				choice = 1;
 				break;
 			}
 			else if ((character == 'c') || (character == 'C'))
 			{
-				printf("Cancel\n");
+				printf("%s", _("Cancel\n"));
 				choice = 2;
 				break;
 			}
@@ -293,11 +298,11 @@ static int mountedCheck(disk *theDisk)
 		status = filesystemUnmount(theDisk->mountPoint);
 		if (status < 0)
 		{
-			error("Unable to unmount %s", theDisk->mountPoint);
+			error(_("Unable to unmount %s"), theDisk->mountPoint);
 			return (status);
 		}
 	}
-	
+
 	return (status = 0);
 }
 
@@ -311,6 +316,9 @@ int main(int argc, char *argv[])
 	objectKey progressDialog = NULL;
 	char tmpChar[240];
 	int count;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("defrag");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
@@ -334,14 +342,14 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		// Eek.  Problem getting disk info
-		error("Error getting disks info");
+		error("%s", _("Error getting disks info"));
 		return (errno = status);
 	}
 
 	if (!graphics && !silentMode)
 		// Print a message
-		printf("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2014 J. Andrew "
-			"McLaughlin\n");
+		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2014 J. "
+			"Andrew McLaughlin\n"));
 
 	if (argc > 1)
 	{
@@ -362,8 +370,8 @@ int main(int argc, char *argv[])
 	// Check privilege level
 	if (multitaskerGetProcessPrivilege(processId) != 0)
 	{
-		error("You must be a privileged user to use this command.\n(Try "
-			"logging in as user \"admin\")");
+		error("%s", _("You must be a privileged user to use this command.\n"
+			"(Try logging in as user \"admin\")"));
 		return (errno = ERR_PERMISSION);
 	}
 
@@ -389,7 +397,7 @@ int main(int argc, char *argv[])
 			diskInfo[diskNumber].fsType, FSTYPE_MAX_NAMELENGTH);
 		if ((status < 0) || !strcmp(diskInfo[diskNumber].fsType, "unknown"))
 		{
-			error("Unknown filesystem type on disk \"%s\"",
+			error(_("Unknown filesystem type on disk \"%s\""),
 				diskInfo[diskNumber].name);
 			return (errno = ERR_NOTIMPLEMENTED);
 		}
@@ -399,7 +407,8 @@ int main(int argc, char *argv[])
 	status = diskGet(diskInfo[diskNumber].name, &diskInfo[diskNumber]);
 	if (status < 0)
 	{
-		error("Error getting info for disk \"%s\"", diskInfo[diskNumber].name);
+		error(_("Error getting info for disk \"%s\""),
+			diskInfo[diskNumber].name);
 		return (errno = status);
 	}
 
@@ -407,18 +416,18 @@ int main(int argc, char *argv[])
 	// disk
 	if (!(diskInfo[diskNumber].opFlags & FS_OP_DEFRAG))
 	{
-		error("Defragmenting the filesystem type \"%s\" is not supported",
+		error(_("Defragmenting the filesystem type \"%s\" is not supported"),
 			diskInfo[diskNumber].fsType);
 		return (errno = ERR_NOTIMPLEMENTED);
 	}
 
 	if (!silentMode)
 	{
-		sprintf(tmpChar, "Defragmenting disk %s.  Are you sure?",
+		sprintf(tmpChar, _("Defragmenting disk %s.  Are you sure?"),
 			diskInfo[diskNumber].name);
 		if (!yesOrNo(tmpChar))
 		{
-			printf("\nQuitting.\n");
+			printf("%s", _("\nQuitting.\n"));
 			return (status = 0);
 		}
 	}
@@ -430,7 +439,8 @@ int main(int argc, char *argv[])
 
 	bzero((void *) &prog, sizeof(progress));
 	if (graphics)
-		progressDialog = windowNewProgressDialog(NULL, "Defragmenting...", &prog);
+		progressDialog = windowNewProgressDialog(NULL, _("Defragmenting..."),
+			&prog);
 	else
 		vshProgressBar(&prog);
 
@@ -441,9 +451,9 @@ int main(int argc, char *argv[])
 
 	if ((status >= 0) && !silentMode)
 	{
-		sprintf(tmpChar, "Defragmentation complete");
+		sprintf(tmpChar, "%s", _("Defragmentation complete"));
 		if (graphics)
-			windowNewInfoDialog(NULL, "Success", tmpChar);
+			windowNewInfoDialog(NULL, _("Success"), tmpChar);
 		else
 			printf("\n%s\n", tmpChar);
 	}
@@ -453,3 +463,4 @@ int main(int argc, char *argv[])
 
 	return (errno = status);
 }
+

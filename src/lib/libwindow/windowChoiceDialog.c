@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -53,7 +53,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 	windowEvent event;
 	int choice = ERR_INVALID;
 	int count;
-	
+
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
@@ -114,7 +114,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		windowDestroy(dialogWindow);
 		return (status = ERR_NOCREATE);
 	}
-	
+
 	// Create the buttons
 	params.gridY = 0;
 	params.padTop = 0;
@@ -137,8 +137,8 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
 	windowSetVisible(dialogWindow, 1);
-	
-	while(1)
+
+	while (1)
 	{
 		// Check for our buttons
 		for (count = 0; count < numChoices; count ++)
@@ -164,3 +164,4 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		multitaskerYield();
 	}
 }
+

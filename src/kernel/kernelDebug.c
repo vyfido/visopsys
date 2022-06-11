@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -45,7 +45,7 @@ static int showFunction = 0;
 static int isCategory(debug_category category)
 {
 	// Returns 1 if we're debugging a particular category
-  
+
 	int count;
 
 	for (count = 0; count < numDebugCategories; count ++)
@@ -60,7 +60,7 @@ static int isCategory(debug_category category)
 static int isFileName(const char *fileName)
 {
 	// Returns 1 if we're debugging a particular file
-  
+
 	int count;
 
 	for (count = 0; count < numDebugFileNames; count ++)
@@ -272,7 +272,7 @@ void kernelDebugHexDwords(void *ptr, unsigned length)
 			sprintf((debugText + strlen(debugText)),
 				"%08x ", buff[(count1 * 4) + count2]);
 		}
-      
+
 		kernelTextStreamPrintLine(console, debugText);
 	}
 

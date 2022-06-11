@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -28,17 +28,18 @@
 
 _X_ int vshMoveFile(const char *srcFile, const char *destFile)
 {
-  // Desc: Move (rename) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames -- beginning with '/' -- and must be within the same filesystem.
+	// Desc: Move (rename) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames -- beginning with '/' -- and must be within the same filesystem.
 
-  int status = 0;
-  
-  // Make sure filename arguments aren't NULL
-  if ((srcFile == NULL) || (destFile == NULL))
-    return (errno = ERR_NULLPARAMETER);
-   
-  // Attempt to rename the file
-  status = fileMove(srcFile, destFile);
-  if (status < 0)
-    errno = status;
-  return (status);
+	int status = 0;
+
+	// Make sure filename arguments aren't NULL
+	if ((srcFile == NULL) || (destFile == NULL))
+		return (errno = ERR_NULLPARAMETER);
+
+	// Attempt to rename the file
+	status = fileMove(srcFile, destFile);
+	if (status < 0)
+		errno = status;
+
+	return (status);
 }

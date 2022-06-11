@@ -1,0 +1,87 @@
+#
+#  Visopsys
+#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#
+#  This German translation provided by Proxma AG - www.proxma.com
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: filesys.c:51
+msgid "File systems"
+msgstr "Dateisysteme"
+
+#: filesys.c:52
+msgid "Mount point:"
+msgstr "Verbindungspunkt:"
+
+#: filesys.c:53
+msgid "Mount automatically at boot"
+msgstr "Beim Start automatisch verbinden"
+
+#: filesys.c:54
+msgid "Unsaved changes"
+msgstr "Ungespeicherte Änderungen"
+
+#: filesys.c:55
+msgid "Quit without writing changes?"
+msgstr "Beenden ohne Übernahme der Änderungen?"
+
+#: filesys.c:56
+msgid "Quit"
+msgstr "Beenden"
+
+#: filesys.c:57
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: filesys.c:58
+msgid "Save"
+msgstr "Speichern"
+
+#: filesys.c:101 filesys.c:119
+msgid "Error"
+msgstr "Fehler"
+
+#: filesys.c:116
+msgid "  Quitting."
+msgstr "  Wird beendet."
+
+#: filesys.c:142
+msgid "No disks to work with."
+msgstr "Keine Disks mit der gearbeitet werden kann."
+
+#: filesys.c:147
+msgid "Memory allocation error."
+msgstr "Fehler bei der Speicheraufteilung."
+
+#: filesys.c:152
+msgid "Unable to get disk information."
+msgstr "Informationen zu der Disk nicht verfügbar."
+
+#: filesys.c:173
+msgid "Can't read/create the mount configuration"
+msgstr "Die Konfiguration der Verbindung kann nicht gelesen/erstellt werden"
+
+#: filesys.c:185
+msgid "Can't write the mount configuration"
+msgstr "Die Konfiguration der Verbindung kann nicht geschrieben werden"
+
+#: filesys.c:463
+#, c-format
+msgid ""
+"\n"
+"The \"%s\" command only works in graphics mode\n"
+msgstr ""
+"\n"
+"Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"

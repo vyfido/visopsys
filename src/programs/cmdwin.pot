@@ -8,26 +8,26 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-05-13 01:12+0100\n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: cmdwin.c:87
+#: cmdwin.c:55
+msgid "Command Window"
+msgstr ""
+
+#: cmdwin.c:109
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: cmdwin.c:106
-msgid "Command Window"
-msgstr ""
-
-#: cmdwin.c:100
-#, c-format
+#: cmdwin.c:122
 msgid "Unable to load shell\n"
 msgstr ""

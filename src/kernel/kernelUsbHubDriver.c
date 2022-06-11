@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -39,12 +39,12 @@
 static void debugHubDesc(volatile usbHubDesc *hubDesc)
 {
 	kernelDebug(debug_usb, "USB HUB descriptor:\n"
-		"    descLength=%d\n"
-		"    descType=%x\n"
-		"    numPorts=%d\n"
-		"    hubAttrs=%04x\n"
-		"    pwrOn2PwrGood=%d\n"
-		"    maxPower=%d", hubDesc->descLength, hubDesc->descType,
+		"  descLength=%d\n"
+		"  descType=%x\n"
+		"  numPorts=%d\n"
+		"  hubAttrs=%04x\n"
+		"  pwrOn2PwrGood=%d\n"
+		"  maxPower=%d", hubDesc->descLength, hubDesc->descType,
 		hubDesc->numPorts, hubDesc->hubAttrs, hubDesc->pwrOn2PwrGood,
 		hubDesc->maxPower);
 }
@@ -425,9 +425,9 @@ static void detectDevices(usbHub *hub, int hotplug)
 		hotplug);
 
 	// Check params
-	if (hub == NULL)
+	if (!hub)
 	{
-		kernelError(kernel_error, "NULL hub pointer");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -461,9 +461,9 @@ static void threadCall(usbHub *hub)
 	// we want.
 
 	// Check params
-	if (hub == NULL)
+	if (!hub)
 	{
-		kernelError(kernel_error, "NULL hub pointer");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -695,7 +695,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	numBusTargets = kernelBusGetTargets(bus_usb, &busTargets);
 	if (numBusTargets <= 0)
 		return (status = 0);
-      
+
 	// Search the bus targets for USB hub devices
 	for (deviceCount = 0; deviceCount < numBusTargets; deviceCount ++)
 	{
@@ -707,7 +707,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		if ((tmpDev.classCode != 0x09) || (tmpDev.subClassCode != 0x00))
 			continue;
-  
+
 		found += 1;
 
 		usbDev = kernelUsbGetDevice(busTargets[deviceCount].id);

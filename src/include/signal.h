@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -45,7 +45,7 @@
 // A type for a signal handler
 typedef void (*sighandler_t)(int);
 
-// Built-in signal handing macros. 
+// Built-in signal handing macros.
 #define SIG_DFL ((sighandler_t) 0)  // Do the default action.
 #define SIG_ERR ((sighandler_t) 1)  // Signal handling error.
 #define SIG_IGN ((sighandler_t) 2)  // Ignore this signal.
@@ -55,3 +55,4 @@ sighandler_t signal(int, sighandler_t);
 
 #define _SIGNAL_H
 #endif
+

@@ -1,24 +1,24 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelLoaderElf.c
 //
-	
+
 // This file contains loader functions for dealing with ELF format executables
 // and object files.
 
@@ -104,7 +104,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(Elf32Header))
 		return (0);
-	
+
 	// Look for the ELF magic number (0x7F + E + L + F)
 	if (*magic == 0x464C457F)
 	{
@@ -197,7 +197,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
 	symbolTableHeader = getSectionHeader(data, ".symtab");
 	// String table
 	stringTableHeader = getSectionHeader(data, ".strtab");
-	
+
 	if (!symbolTableHeader || !stringTableHeader)
 	{
 		// Symbol table
@@ -260,7 +260,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
 		else if (ELF32_ST_TYPE(symbols[count].st_info) == ELFSTT_SECTION)
 			symTable->symbols[count - 1].type = LOADERSYMBOLTYPE_SECTION;
 		else if (ELF32_ST_TYPE(symbols[count].st_info) == ELFSTT_FILE)
-			symTable->symbols[count - 1].type = LOADERSYMBOLTYPE_FILE;      
+			symTable->symbols[count - 1].type = LOADERSYMBOLTYPE_FILE;
 	}
 
 	return (symTable);
@@ -316,11 +316,22 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 				}
 
 				execImage->virtualAddress = programHeader[count].p_vaddr;
+
+				if (execImage->virtualAddress >=
+					(void *) KERNEL_VIRTUAL_ADDRESS)
+				{
+					// Bogus.  Someone is probably trying to run the kernel
+					// executable in user space
+					kernelError(kernel_error, "Program virtual address "
+						"(%p) cannot be in kernel space",
+						execImage->virtualAddress);
+					return (status = ERR_INVALID);
+				}
 			}
 
 			// Check the alignment.  Must be the same as our page size
 			if (programHeader[count].p_align &&
-			(programHeader[count].p_align != MEMORY_PAGE_SIZE))
+				(programHeader[count].p_align != MEMORY_PAGE_SIZE))
 			{
 				kernelError(kernel_error, "Illegal ELF program segment "
 					"alignment (%d != %d)", programHeader[count].p_align,
@@ -344,8 +355,8 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 
 	// Calculate our image's memory size (rounded up to MEMORY_PAGE_SIZE).
 	// It's OK for the code virtual address to be zero.
-	imageSize =
-		kernelPageRoundUp(virtualLimit - (unsigned) execImage->virtualAddress);
+	imageSize = kernelPageRoundUp(virtualLimit -
+		(unsigned) execImage->virtualAddress);
 
 	kernelDebug(debug_loader, "ELF image size=%u", imageSize);
 
@@ -359,9 +370,9 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 		kernelError(kernel_error, "Error getting memory for ELF image");
 		return (status = ERR_MEMORY);
 	}
-	
-	kernelDebug(debug_loader, "ELF image memory=%p size %u (%08x)", imageMemory,
-		imageSize, imageSize);
+
+	kernelDebug(debug_loader, "ELF image memory=%p size %u (0x%08x)",
+		imageMemory, imageSize, imageSize);
 
 	// Do layout for loadable program segments; the code and data segments
 	for (count = 0; count < header->e_phnum; count ++)
@@ -372,9 +383,9 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 			void *destAddr = (imageMemory + (programHeader[count].p_vaddr -
 				execImage->virtualAddress));
 
-			kernelDebug(debug_loader, "ELF srcAddr=%p+%08x", loadAddress,
+			kernelDebug(debug_loader, "ELF srcAddr=%p+0x%08x", loadAddress,
 				programHeader[count].p_offset);
-			kernelDebug(debug_loader, "ELF destAddr=%p+(%p-%p=%08x)",
+			kernelDebug(debug_loader, "ELF destAddr=%p+(%p-%p=0x%08x)",
 				imageMemory, programHeader[count].p_vaddr,
 				execImage->virtualAddress, (programHeader[count].p_vaddr -
 					execImage->virtualAddress));
@@ -671,7 +682,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 
 		symArray = (Elf32Symbol *)
 			(loadAddress + relocSection[count1].symbolHeader->sh_offset);
-		
+
 		for (count2 = 0; count2 < relocSection[count1].numRelocs; count2 ++)
 		{
 			table->relocations[table->numRelocs].offset =
@@ -699,7 +710,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 						break;
 					}
 				}
-	
+
 				if (table->relocations[table->numRelocs].symbolName == NULL)
 				{
 					kernelError(kernel_error, "Unrecognized symbol name %s in "
@@ -935,7 +946,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 {
 	// Load the named dynamic library, augment the supplied symbol table with
 	// the symbols from the library, and return a pointer to the library
-	
+
 	int status = 0;
 	unsigned dataOffset = 0;
 	void *dataMem = NULL;
@@ -970,7 +981,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 
 	kernelDebug(debug_loader, "ELF got libraryDataPhysical=%p dataOffset=%u",
 		libraryDataPhysical, dataOffset);
-	
+
 	kernelDebug(debug_loader, "ELF copy data from %p to %p (%p + %u) size %u",
 		library->data, (dataMem + dataOffset), dataMem, dataOffset,
 		library->dataSize);
@@ -1058,7 +1069,7 @@ static int resolveLibraryDependencies(int processId,
 	kernelDynamicLibrary *library = NULL;
 	int count;
 
-	// For each library in our list, 
+	// For each library in our list,
 	for (count = 0; count < libArray->numLibraries; count ++)
 	{
 		library = &(libArray->libraries[count]);
@@ -1167,14 +1178,14 @@ static int link(int processId, void *loadAddress, processImage *execImage,
 static int hotLink(kernelDynamicLibrary *library)
 {
 	// This function allows a running program to link in a new library
-	
+
 	int status = 0;
 	elfLibraryArray libArray;
 	loaderSymbolTable *symbols = NULL;
 
 	libArray.numLibraries = 1;
 	libArray.libraries = library;
-	
+
 	// Get the current symbol table
 	symbols = kernelMultitaskerGetSymbols(kernelCurrentProcess->processId);
 	if (symbols == NULL)

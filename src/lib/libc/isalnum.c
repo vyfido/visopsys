@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -21,18 +21,14 @@
 
 // This is the standard "isalnum" function, as found in standard C libraries
 
-// These functions check whether c, which must have the value of an
-// unsigned char or EOF, falls into a certain character class according
-// to the current locale.  Ok, right now they don't look at the current
-// locale.
-
 #include <ctype.h>
 
 
 int isalnum(int c)
 {
-	// checks for an alphanumeric character; it is equivalent to
+	// Checks for an alphanumeric character, which is equivalent to
 	// (isalpha(c) || isdigit(c)).
-	return (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) ||
-		((c >= '0') && (c <= '9')));
+
+	return (isalpha(c) || isdigit(c));
 }
+

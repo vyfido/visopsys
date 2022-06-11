@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -23,37 +23,40 @@
 
 #if !defined(_MESSAGE_H)
 
+#include <locale.h>
 #include <sys/file.h>
 
-#define MESSAGE_MAGIC    0x950412DE
-#define MESSAGE_VERSION  0
+#define MESSAGE_MAGIC		0x950412DE
+#define MESSAGE_VERSION		0
 
 typedef struct {
-  int length;
-  unsigned offset;
+	int length;
+	unsigned offset;
 
 } __attribute__((packed)) messageStringEntry;
 
 typedef struct {
-  unsigned magic;
-  int version;
-  int numStrings;
-  unsigned origTableOffset;
-  unsigned transTableOffset;
-  unsigned hashTableSize;
-  unsigned hashTableOffset;
+	unsigned magic;
+	int version;
+	int numStrings;
+	unsigned origTableOffset;
+	unsigned transTableOffset;
+	unsigned hashTableSize;
+	unsigned hashTableOffset;
 
 } __attribute__((packed)) messageFileHeader;
 
 // A structure for storing and referencing a message file
 typedef struct {
-  char path[MAX_PATH_NAME_LENGTH];
-  void *buffer;
-  messageFileHeader *header;
-  messageStringEntry *origTable;
-  messageStringEntry *transTable;
+	char domain[MAX_NAME_LENGTH + 1];
+	char locale[LOCALE_MAX_NAMELEN + 1];
+	void *buffer;
+	messageFileHeader *header;
+	messageStringEntry *origTable;
+	messageStringEntry *transTable;
 
 } messages;
 
 #define _MESSAGE_H
 #endif
+

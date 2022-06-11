@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -27,13 +27,13 @@
 
 _X_ void vshPrintTime(char *buffer, unsigned unformattedTime)
 {
-  // Desc: Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- into 'buffer' in a (for now, arbitrary) human-readable format to standard output.
+	// Desc: Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- into 'buffer' in a (for now, arbitrary) human-readable format to standard output.
 
-  int seconds = (unformattedTime & 0x0000003F);
-  int minutes = ((unformattedTime & 0x00000FC0) >> 6);
-  int hours = ((unformattedTime & 0x0003F000) >> 12);
+	int seconds = (unformattedTime & 0x0000003F);
+	int minutes = ((unformattedTime & 0x00000FC0) >> 6);
+	int hours = ((unformattedTime & 0x0003F000) >> 12);
 
-  sprintf(buffer, "%02u:%02u:%02u", hours, minutes, seconds);
+	sprintf(buffer, "%02u:%02u:%02u", hours, minutes, seconds);
 
-  return;
+	return;
 }

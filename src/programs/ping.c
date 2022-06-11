@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -51,10 +51,12 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
-#include <sys/font.h>
 #include <sys/network.h>
+#include <sys/paths.h>
 
 #define _(string) gettext(string)
+
+#define WINDOW_TITLE	_("Ping")
 
 static int graphics = 0;
 static char pingWhom[80];
@@ -73,10 +75,10 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -175,14 +177,36 @@ static void responseThread(void)
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("ping");
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		quit(0);
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			quit(0);
+	}
+
 	else if ((key == stopButton) && (event->type == EVENT_MOUSE_LEFTUP))
 		stop = 1;
-	return;
 }
 
 
@@ -191,7 +215,7 @@ static void constructWindow(void)
 	componentParameters params;
 
 	// Create a new window
-	window = windowNew(multitaskerGetCurrentProcessId(), _("Ping"));
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 	if (window == NULL)
 		return;
 
@@ -207,7 +231,7 @@ static void constructWindow(void)
 	params.orientationY = orient_middle;
 	windowNewTextLabel(window, pingWhom, &params);
 
-	if (fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL) >= 0)
+	if (fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL) >= 0)
 		fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
 
 	// Create a text area to show our ping activity
@@ -216,7 +240,7 @@ static void constructWindow(void)
 	windowSetTextOutput(textArea);
 	textSetCursor(0);
 	textInputSetEcho(0);
-	
+
 	// Create a 'Stop' button
 	params.gridY = 2;
 	params.padBottom = 5;
@@ -239,7 +263,6 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	char opt;
 	int length = 0;
 	char addressBuffer[18];
@@ -250,10 +273,7 @@ int main(int argc, char *argv[])
 	unsigned tmpTime = 0;
 	int count;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("ping");
 
 	// Are graphics enabled?
@@ -409,3 +429,4 @@ int main(int argc, char *argv[])
 	// Compiler happy
 	return (0);
 }
+

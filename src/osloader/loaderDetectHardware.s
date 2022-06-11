@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -34,7 +34,7 @@
 	EXTERN DRIVENUMBER
 	EXTERN CYLINDERS
 	EXTERN PARTENTRY
-	
+
 	SEGMENT .text
 	BITS 16
 	ALIGN 4
@@ -45,21 +45,21 @@
 loaderDetectHardware:
 	;; This routine is called by the main program.  It is the master
 	;; routine for detecting hardware, and is responsible for filling
-	;; out the data structure which contains all of the information 
-	;; about the hardware detected, which in turn gets passed to 
-	;; the kernel.  
-	
-	;; The routine is also responsible for stopping the boot process 
+	;; out the data structure which contains all of the information
+	;; about the hardware detected, which in turn gets passed to
+	;; the kernel.
+
+	;; The routine is also responsible for stopping the boot process
 	;; in the event that the system does not meet hardware requirements.
 	;; The function returns a single value representing the number of
 	;; fatal errors encountered during this process.
 
 	;; Save regs
 	pusha
-	
+
 	;; Detect the processor
 	call detectProcessor
-		
+
 	;; Detect the memory
 	call detectMemory
 
@@ -82,7 +82,7 @@ loaderDetectHardware:
 	.skipVideo:
 	;; Check for CD-ROM emulation stuffs
 	call detectCdEmul
-	
+
 	;; Detect floppy drives, if any
 	call detectFloppies
 
@@ -121,8 +121,8 @@ loaderDetectHardware:
 	mov AL, byte [FATALERROR]
 
 	ret
-	
-	
+
+
 detectProcessor:
 	;; We're going to attempt to get a basic idea of the CPU
 	;; type we're running on.  (We don't need to be really, really
@@ -137,26 +137,26 @@ detectProcessor:
 	;; Bochs hack
 	;; mov byte [INVALIDOPCODE], 1
 	;; jmp .goodCPU
-	
+
 	;; Try an opcode which is only good on 486+
 	mov word [ISRRETURNADDR], .return1
 	xadd DX, DX
 
 	;; Now try an opcode which is only good on a pentium+
-	.return1:	
+	.return1:
 	mov word [ISRRETURNADDR], .return2
 	mov EAX, dword [0000h]
 	not EAX
 	cmpxchg8b [0000h]
 
 	;; We know we're OK, but let's check for Pentium Pro+
-	.return2:	
+	.return2:
 	mov word [ISRRETURNADDR], .return3
 	cmovne AX, BX
 
 	;; Now we have to compare the number of 'invalid opcodes'
 	;; generated
-	.return3:	
+	.return3:
 	mov AL, byte [INVALIDOPCODE]
 
 	cmp AL, 3
@@ -173,7 +173,7 @@ detectProcessor:
 	;; It's a 486
 	mov dword [CPUTYPE], i486
 	jmp .detectMMX
-	
+
 	.checkPentium:
 	cmp AL, 1
 	jb .pentiumPro
@@ -184,10 +184,10 @@ detectProcessor:
 	.pentiumPro:
 	;; Pentium pro CPU
 	mov dword [CPUTYPE], PENTIUMPRO
-	
+
 	.detectMMX:
 	;; Are MMX or 3DNow! extensions supported by the processor?
-	
+
 	mov dword [MMXEXT], 0
 	mov byte [INVALIDOPCODE], 0
 
@@ -202,14 +202,14 @@ detectProcessor:
 	jnz .print
 
 	mov dword [MMXEXT], 1
-	
+
 	.print:
 	;; Done.  Print information about what we found
 	cmp word [PRINTINFO], 1
 	jne .unhook6
 	call printCpuInfo
 	jmp .unhook6
-		
+
 	.badCPU:
 	;; Print out the fatal message that we're not running an
 	;; adequate processor
@@ -245,20 +245,20 @@ detectProcessor:
 	;; Unhook the 'invalid opcode' interrupt
 	call int6_restore
 
-	.done:	
+	.done:
 	;; Restore regs
 	popa
 	ret
-	
 
-detectMemory:	
+
+detectMemory:
 	;; Determine the amount of extended memory
 
 	;; Save regs
 	pusha
-	
+
 	mov dword [EXTENDEDMEMORY], 0
-	
+
 	;; This BIOS function will give us the amount of extended memory
 	;; (even greater than 64M), but it is not found in old BIOSes.  We'll
 	;; have to assume that if the function is not available, the
@@ -274,12 +274,12 @@ detectMemory:
 	add EAX, EBX
 	mov dword [EXTENDEDMEMORY], EAX
 
-	jmp .printMemory	
-	
+	jmp .printMemory
+
 	.noE801:
 	;; We will use this as a last-resort method for getting memory
 	;; size.  We just grab the 16-bit value from CMOS
-	
+
 	mov AL, 17h	;; Select the address we need to get the data
 	out 70h, AL	;; from
 
@@ -297,7 +297,7 @@ detectMemory:
 	jne .noPrint
 	call printMemoryInfo
 	.noPrint:
-	
+
 	;; Now, can the system supply us with a memory map?  If it can,
 	;; this will allow us to supply a list of unusable memory to the
 	;; kernel (which will improve reliability, we hope).  Try to call
@@ -305,7 +305,7 @@ detectMemory:
 
 	;; This function might dink with ES
 	push ES
-	
+
 	xor EBX, EBX		; Continuation counter
 	mov DI, MEMORYMAP	; The buffer
 
@@ -317,7 +317,7 @@ detectMemory:
 
 	;; Call successful?
 	jc .doneSmap
-	
+
 	;; Function supported?
 	cmp EAX, 534D4150h	; ('SMAP')
 	jne .doneSmap
@@ -342,19 +342,19 @@ detectMemory:
 
 detectCdEmul:
 	;; This routine will detect CD-ROM emulation stuffs
-	
+
 	;; Save regs
 	pusha
 
 	cmp word [DRIVENUMBER], 80h
 	jae .notEmul
-	
+
 	mov AX, 4B01h
 	mov DX, word [DRIVENUMBER]
 	mov SI, EMUL_SAVE
 	int 13h
 	jnc .emulCheck
-	
+
 	;; Couldn't check for CD-ROM emulation.  This might cause CD-ROM
 	;; booting to fail on this system.  *However*, it appers that in
 	;; some of these cases, the number of cylinders will be
@@ -382,7 +382,7 @@ detectCdEmul:
 
 	.isEmul:
 	mov dword [BOOTCD], 1
-	
+
 	.notEmul:
 	popa
 	ret
@@ -394,7 +394,7 @@ detectFloppies:
 
 	;; Save regs
 	pusha
-	
+
 	;; Initialize 'number of floppies' value
 	mov dword [FLOPPYDISKS], 0
 
@@ -414,7 +414,7 @@ detectFloppies:
 	mov AX, DX
 	inc AX
 	push AX
-	
+
 	;; My Toshiba laptop reports the 'fake' floppy from bootable
 	;; CD-ROM emulations as a real one, indistinguishable from real
 	;; ones.  So, if the emulation disk number is the same as this one,
@@ -428,7 +428,7 @@ detectFloppies:
 	;; Any more to do?
 	cmp DX, 2
 	jae .print
-	
+
 	;; Guards againt BIOS bugs, apparently
 	push word 0
 	pop ES
@@ -479,14 +479,14 @@ detectFloppies:
 	add SI, fddInfoBlock_size
 
 	jmp .floppyLoop
-	
+
 	.print:
 	sti	; Buggy BIOSes can apparently leave ints disabled
 	pop AX	; Loop control
 	pop ES
 	cmp word [PRINTINFO], 1
 	jne .done
-	
+
 	;; Print message about the disk scan
 
 	mov DL, 02h		; Use green color
@@ -507,7 +507,7 @@ detectFloppies:
 	;; Print information about the disk.  EBX contains the pointer...
 	mov EBX, FD0
 	call printFddInfo
-	
+
 	cmp dword [FLOPPYDISKS], 2
 	jb .done
 	;; Print information about the disk.  EBX contains the pointer...
@@ -519,10 +519,10 @@ detectFloppies:
 	popa
 
 	ret
-	
-	
+
+
 detectHardDisks:
-	;; This routine will detect the number, types, and sizes of 
+	;; This routine will detect the number, types, and sizes of
 	;; hard disk drives on board
 
 	;; Save regs
@@ -530,14 +530,14 @@ detectHardDisks:
 
 	;; Initialize
 	mov dword [HARDDISKS], 0
-	
+
 	;; Call the BIOS int13h function with the number of the first
 	;; disk drive.  Doesn't matter if it's actually present -- all
 	;; we want to do is find out how many drives there are
 
 	;; This interrupt call will destroy ES, so save it
 	push ES
-	
+
 	;; Guards againt BIOS bugs, apparently
 	push word 0
 	pop ES
@@ -577,8 +577,8 @@ detectHardDisks:
 	mov SI, DISKCHECK
 	call loaderPrint
 	call loaderPrintNewline
-	.noPrint1:	
-	
+	.noPrint1:
+
 	;; Attempt to determine information about the drives
 
 	;; Start with drive 0
@@ -597,7 +597,7 @@ detectHardDisks:
 	push ECX		; Save this first
 	push EDI
 	push ES
-	
+
 	;; Guards againt BIOS bugs, apparently
 	push word 0
 	pop ES
@@ -660,8 +660,8 @@ detectHardDisks:
 	;; Print information about the disk.  EBX contains the pointer...
 	mov EBX, EDI
 	call printHddInfo
-	.noPrint2:	
-	
+	.noPrint2:
+
 	;; Reset/specify/recalibrate the disk and controller
 	push ECX
 	mov AX, 0D00h
@@ -670,7 +670,7 @@ detectHardDisks:
 	int 13h
 	pop ECX
 
-	.nextDisk:	
+	.nextDisk:
 	;; Prepare for the next disk.  Counter is checked at the beginning
 	;; of the loop.
 	inc ECX
@@ -691,7 +691,7 @@ detectSerial:
 
 	push 0040h
 	pop ES
-	
+
 	mov AX, word [ES:00h]
 	mov dword [SERIAL + serialInfoBlock.port1], EAX
 	mov AX, word [ES:02h]
@@ -724,7 +724,7 @@ diskSize:
 	add DL, 80h
 	mov SI, HDDINFO
 	int 13h
-	
+
 	;; Function call successful?
 	jc .noEBIOS
 
@@ -742,16 +742,16 @@ diskSize:
 	xor EDX, EDX
 	mov EAX, dword [EDI + hddInfoBlock.totalSectors]
 	div ECX
-	mov dword [EDI + hddInfoBlock.cylinders], EAX	; new cyls value 
-	
+	mov dword [EDI + hddInfoBlock.cylinders], EAX	; new cyls value
+
 	jmp .done
-		
+
 	.noEBIOS:
 	pop EDI
 	mov EAX, dword [EDI]				; heads
 	mul dword [EDI + hddInfoBlock.cylinders]	; cylinders
 	mul dword [EDI + hddInfoBlock.sectors]		; sectors per cyl
-	
+
 	mov dword [EDI + hddInfoBlock.totalSectors], EAX
 
 	.done:
@@ -763,7 +763,7 @@ printCpuInfo:
 	;; Takes no parameter, and prints info about the CPU that was
 	;; detected
 
-	pusha		
+	pusha
 
 	mov DL, 02h		; Use green color
 	mov SI, HAPPY
@@ -773,27 +773,27 @@ printCpuInfo:
 
 	;; Switch to foreground color
 	mov DL, FOREGROUNDCOLOR
-	
+
 	;; What type of CPU was it?
 	mov EAX, dword [CPUTYPE]
-	
+
 	cmp EAX, PENTIUMPRO
 	jne .notPPro
 	;; Say we found a pentium pro CPU
 	mov SI, CPUPPRO
 	jmp .printType
-	
+
 	.notPPro:
 	cmp EAX, PENTIUM
 	jne .notPentium
 	;; Say we found a Pentium CPU
 	mov SI, CPUPENTIUM
 	jmp .printType
-	
+
 	.notPentium:
 	;; Say we found a 486 CPU
 	mov SI, CPU486
-	
+
 	.printType:
 	call loaderPrint
 
@@ -801,17 +801,17 @@ printCpuInfo:
 	;; information using the cpuid instruction
 	cmp dword [CPUTYPE], i486
 	je .noCPUID
-	
+
 	mov EAX, 0
 	cpuid
-	
+
 	;; Now, EBX:EDX:ECX should contain the vendor "string".  This might
 	;; be, for example "AuthenticAMD" or "GenuineIntel"
 	mov dword [CPUVEND], EBX
 	mov dword [(CPUVEND + 4)], EDX
 	mov dword [(CPUVEND + 8)], ECX
 	;; There are already 4 bytes of NULLs at the end of this
-	
+
 	;; Print the CPU vendor string
 	mov SI, CPUVEND
 	mov DL, FOREGROUNDCOLOR
@@ -819,26 +819,26 @@ printCpuInfo:
 	mov SI, CLOSEBRACKETS
 	call loaderPrint
 	.noCPUID:
-	
+
 	;; Do we have MMX?
 	cmp dword [MMXEXT], 1
 	jne .noMMX
 	mov SI, MMX			;; Say we found MMX
 	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
-	.noMMX:	
-	
+	.noMMX:
+
 	call loaderPrintNewline
 
 	popa
 	ret
 
-	
+
 printMemoryInfo:
 	;;  Takes no parameters and prints out the amount of memory detected
 
 	pusha
-	
+
 	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
@@ -854,9 +854,9 @@ printMemoryInfo:
 
 	popa
 	ret
-	
-	
-printFddInfo:	
+
+
+printFddInfo:
 	;; This takes a pointer to the disk data in EBX, and prints
 	;; disk info to the console
 
@@ -867,21 +867,21 @@ printFddInfo:
 	mov DL, 02h
 	mov SI, BLANK
 	call loaderPrint
-	
+
 	mov EAX, dword [EBX + fddInfoBlock.heads]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, HEADS
 	call loaderPrint
-				
+
 	mov EAX, dword [EBX + fddInfoBlock.tracks]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, TRACKS
 	call loaderPrint
-				
+
 	mov EAX, dword [EBX + fddInfoBlock.sectors]
 	call loaderPrintNumber
 
@@ -889,14 +889,14 @@ printFddInfo:
 	mov SI, SECTS
 	call loaderPrint
 	call loaderPrintNewline
-				
+
 	;; Restore regs
 	popa
 
 	ret
 
-	
-printHddInfo:	
+
+printHddInfo:
 	;; This takes a pointer to the disk data in EBX, and prints
 	;; disk info to the console
 
@@ -914,14 +914,14 @@ printHddInfo:
 	mov DL, FOREGROUNDCOLOR
 	mov SI, HEADS
 	call loaderPrint
-				
+
 	mov EAX, dword [EBX + hddInfoBlock.cylinders]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, CYLS
 	call loaderPrint
-				
+
 	mov EAX, dword [EBX + hddInfoBlock.sectors]
 	call loaderPrintNumber
 
@@ -939,12 +939,12 @@ printHddInfo:
 	mov EAX, dword [EBX + hddInfoBlock.totalSectors]
 	shr EAX, 11		; Turn (assumed) 512-byte sectors to MB
 	call loaderPrintNumber
-	
+
 	mov DL, FOREGROUNDCOLOR
 	mov SI, MEGA
 	call loaderPrint
 	call loaderPrintNewline
-				
+
 	;; Restore regs
 	popa
 	ret
@@ -987,7 +987,7 @@ int6_hook:
 
 	popa
 	ret
-	
+
 
 int6_handler:
 	;; This is our int 6 interrupt handler, to determine
@@ -1017,7 +1017,7 @@ int6_handler:
 
 	iret
 
-	
+
 int6_restore:
 	;; This unhooks interrupt 6 (we'll let the kernel handle
 	;; interrupts in its own way later)
@@ -1072,7 +1072,7 @@ HARDWAREINFO:
 	CPUVEND		dd 0, 0, 0, 0 ;; CPU vendor string, if supported
 	MMXEXT		dd 0	;; Boolean; 1 or zero
 	EXTENDEDMEMORY	dd 0	;; In Kbytes
-	
+
 	;; Info returned by int 15h function E820h
 	MEMORYMAP:
 	times (MEMORYMAPSIZE * memoryInfoBlock_size) db 0
@@ -1081,7 +1081,7 @@ HARDWAREINFO:
 	VIDEO: ISTRUC graphicsInfoBlock
 	times graphicsInfoBlock_size db 0
 	IEND
-	
+
 	;; This is the info about the boot device and booted sector
 	BOOTSECT	dd 0	;; Boot sector LBA
 	BOOTSECTSIG	dd 0	;; Boot sector signature
@@ -1097,13 +1097,13 @@ HARDWAREINFO:
 	FD1: ISTRUC fddInfoBlock
 	times fddInfoBlock_size db 0
 	IEND
-	
+
 	;; Info about the serial ports
 	SERIAL: ISTRUC serialInfoBlock
 	times serialInfoBlock_size db 0
 	IEND
-	
-;; 
+
+;;
 ;; These are general messages related to hardware detection
 ;;
 

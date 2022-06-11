@@ -29,7 +29,7 @@ document, but changing it is not allowed.
 [This is the first released version of the Lesser GPL.  It also counts as the
 successor of the GNU Library Public License, version 2, hence the version
 number 2.1.]
- 
+
 
 PREAMBLE
 
@@ -126,7 +126,7 @@ follow. Pay close attention to the difference between a "work based on the
 library" and a "work that uses the library". The former contains code
 derived from the library, whereas the latter must be combined with the
 library in order to run.
- 
+
 
 TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
@@ -454,7 +454,7 @@ TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
 YOU OR THIRD PARTIES OR A FAILURE OF THE LIBRARY TO OPERATE WITH ANY OTHER
 SOFTWARE), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
- 
+
 
 END OF TERMS AND CONDITIONS
 
@@ -501,6 +501,6 @@ necessary. Here is a sample; alter the names:
 
 	signature of Ty Coon, 1 April 1990
 	Ty Coon, President of Vice
-     
 
-That's all there is to it! 
+
+That's all there is to it!

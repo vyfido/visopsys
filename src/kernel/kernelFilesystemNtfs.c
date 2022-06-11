@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -42,19 +42,19 @@ static inline void debugBootFile(ntfsBootFile *bootFile)
 	oemName[8] = '\0';
 
 	kernelDebug(debug_fs, "NTFS debug $Boot file:\n"
-		"    oemName=\"%s\"\n"
-		"    bytesPerSect=%d\n"
-		"    sectsPerClust=%d\n"
-		"    media=%02x\n"
-		"    sectsPerTrack=%d\n"
-		"    numHeads=%d\n"
-		"    biosDriveNum=%04x\n"
-		"    sectsPerVolume=%llu\n"
-		"    mftStart=%llu\n"
-		"    mftMirrStart=%llu\n"
-		"    clustersPerMftRec=%u\n"
-		"    clustersPerIndexRec=%u\n"
-		"    volSerial=%llu",
+		"  oemName=\"%s\"\n"
+		"  bytesPerSect=%d\n"
+		"  sectsPerClust=%d\n"
+		"  media=%02x\n"
+		"  sectsPerTrack=%d\n"
+		"  numHeads=%d\n"
+		"  biosDriveNum=%04x\n"
+		"  sectsPerVolume=%llu\n"
+		"  mftStart=%llu\n"
+		"  mftMirrStart=%llu\n"
+		"  clustersPerMftRec=%u\n"
+		"  clustersPerIndexRec=%u\n"
+		"  volSerial=%llu",
 		oemName, bootFile->bytesPerSect, bootFile->sectsPerClust,
 		bootFile->media, bootFile->sectsPerTrack, bootFile->numHeads,
 		bootFile->biosDriveNum, bootFile->sectsPerVolume, bootFile->mftStart,
@@ -86,7 +86,7 @@ static int readBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 		return (status = ERR_INVALID);
 	}
 
-	sectors = ((sizeof(ntfsBootFile) / physicalDisk->sectorSize) + 
+	sectors = ((sizeof(ntfsBootFile) / physicalDisk->sectorSize) +
 		((sizeof(ntfsBootFile) % physicalDisk->sectorSize)? 1 : 0));
 
 	// Read the $Boot file
@@ -115,7 +115,7 @@ static int writeBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 		return (status = ERR_INVALID);
 	}
 
-	sectors = ((sizeof(ntfsBootFile) / physicalDisk->sectorSize) + 
+	sectors = ((sizeof(ntfsBootFile) / physicalDisk->sectorSize) +
 		((sizeof(ntfsBootFile) % physicalDisk->sectorSize)? 1 : 0));
 
 	// Write the $Boot file
@@ -139,9 +139,9 @@ static int detect(kernelDisk *theDisk)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -187,9 +187,9 @@ static int clobber(kernelDisk *theDisk)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -324,7 +324,7 @@ static int mount(kernelDisk *theDisk)
 					 attrHeader->res.yes.attributeOffset);
 
 				/*
-				kernelDebug(debug_fs, "    filename: ");
+				kernelDebug(debug_fs, "  filename: ");
 				for (count3 = 0; count3 < filenameAttribute->filenameLength;
 			 		count3 ++)
 					kernelDebug(debug_fs, "%c",
@@ -392,7 +392,7 @@ int kernelFilesystemNtfsInitialize(void)
 	// Initialize the driver
 
 	int status = 0;
-	
+
 	// Register our driver
 	status = kernelSoftwareDriverRegister(ntfsDriver, &defaultNtfsDriver);
 

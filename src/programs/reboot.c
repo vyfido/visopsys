@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -45,9 +45,14 @@ Options:
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 static disk sysDisk;
 
@@ -56,10 +61,10 @@ static void doEject(void)
 {
 	int status = 0;
 
-	printf("\nEjecting, please wait... ");
+	printf("%s", _("\nEjecting, please wait... "));
 
 	if (diskSetLockState(sysDisk.name, 0) < 0)
-		printf("\n\nUnable to unlock the media door\n");
+		printf("%s", _("\n\nUnable to unlock the media door\n"));
 	else
 	{
 		status = diskSetDoorState(sysDisk.name, 1);
@@ -69,8 +74,8 @@ static void doEject(void)
 			status = diskSetDoorState(sysDisk.name, 1);
 
 			if (status < 0)
-				printf("\n\nCan't seem to eject.  Try pushing the 'eject' "
-					"button now.\n");
+				printf("%s", _("\n\nCan't seem to eject.  Try pushing the 'eject' "
+					"button now.\n"));
 		}
 		else
 			printf("\n");
@@ -86,6 +91,9 @@ int main(int argc, char *argv[])
 	char opt;
 	int eject = 0;
 	int force = 0;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("reboot");
 
 	while (strchr("ef", (opt = getopt(argc, argv, "ef"))))
 	{
@@ -109,10 +117,11 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		if (!force)
-			printf("Use \"%s -f\" to force.\n", argv[0]);
+			printf(_("Use \"%s -f\" to force.\n"), argv[0]);
 		return (status);
 	}
 
 	// Wait for death
-	while(1);
+	while (1);
 }
+

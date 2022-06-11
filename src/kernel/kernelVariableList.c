@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -24,6 +24,7 @@
 // variables, as well as the contents of configuration files, for example
 
 #include "kernelVariableList.h"
+#include "kernelDebug.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
 #include "kernelLock.h"
@@ -36,38 +37,41 @@ static int expandList(variableList *list)
 	// Takes the variable list and expands it.
 
 	int status = 0;
+	unsigned *oldVariables, *oldValues, *oldData;
 	void *memory = NULL;
-	char **variables = NULL;
-	char **values = NULL;
-	void *data = NULL;
-	int count;
+	unsigned *newVariables, *newValues, *newData;
 
+	kernelDebug(debug_misc, "VariableList expand list");
+
+	// Remember where the old data is
+	oldVariables = list->memory;
+	oldValues = (list->memory + (list->maxVariables * sizeof(unsigned)));
+	oldData = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
+
+	// Double the list size
 	list->maxVariables *= 2;
 	list->maxData *= 2;
 	list->memorySize =
-		((list->maxVariables * sizeof(char *) * 2) + list->maxData);
+		((list->maxVariables * sizeof(unsigned) * 2) + list->maxData);
 
+	// Get new memory
 	memory = kernelMemoryGet(list->memorySize, "variable list");
-	if (memory == NULL)
+	if (!memory)
 		return (status = ERR_MEMORY);
 
-	// Set the pointers
-	variables = memory;
-	values = ((void *) variables + (list->maxVariables * sizeof(char *)));
-	data = ((void *) values + (list->maxVariables * sizeof(char *)));
+	kernelMemClear(memory, list->memorySize);
 
-	for (count = 0; count < (int) list->numVariables; count ++)
-	{
-		variables[count] = (data + (list->variables[count] - list->data));
-		values[count] = (data + (list->values[count] - list->data));
-	}
+	// Figure out where the new data will go
+	newVariables = (unsigned *) memory;
+	newValues = (memory + (list->maxVariables * sizeof(unsigned)));
+	newData = (memory + (list->maxVariables * 2 * sizeof(unsigned)));
 
 	// Copy the data
-	kernelMemCopy(list->data, data, list->usedData);
-
-	list->variables = variables;
-	list->values = values;
-	list->data = data;
+	kernelMemCopy(oldVariables, newVariables,
+		(list->numVariables * sizeof(unsigned)));
+	kernelMemCopy(oldValues, newValues,
+		(list->numVariables * sizeof(unsigned)));
+	kernelMemCopy(oldData, newData, list->usedData);
 
 	kernelMemoryRelease(list->memory);
 	list->memory = memory;
@@ -83,21 +87,27 @@ static int findVariable(variableList *list, const char *variable)
 	// it returns negative.
 
 	int slot = ERR_NOSUCHENTRY;
+	unsigned *variables = list->memory;
+	char *data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
 	int count;
 
-	if ((list == NULL) || (variable == NULL))
-		kernelError(kernel_error, "NULL PARAMETER");
+	kernelDebug(debug_misc, "VariableList find variable %s", variable);
 
 	// Search through the list of variables in the supplied list for the one
 	// requested by the caller
 	for (count = 0; count < list->numVariables; count ++)
 	{
-		if (!strcmp(list->variables[count], variable))
+		if (!strcmp((data + variables[count]), variable))
 		{
 			slot = count;
 			break;
 		}
 	}
+
+	if (slot >= 0)
+		kernelDebug(debug_misc, "VariableList return slot=%d", slot);
+	else
+		kernelDebug(debug_misc, "VariableList not found");
 
 	return (slot);
 }
@@ -111,8 +121,13 @@ static int unsetVariable(variableList *list, const char *variable)
 
 	int status = 0;
 	int slot = 0;
+	unsigned *variables = list->memory;
+	unsigned *values = (list->memory + (list->maxVariables * sizeof(unsigned)));
+	char *data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
 	int subtract = 0;
 	int count;
+
+	kernelDebug(debug_misc, "VariableList unset %s", variable);
 
 	// Search the list of variables for the requested one.
 	slot = findVariable(list, variable);
@@ -123,28 +138,25 @@ static int unsetVariable(variableList *list, const char *variable)
 	// Found it.  The amount of data to subtract from the data is equal to the
 	// sum of the lengths of the variable name and its value (plus one for
 	// each NULL character)
-	subtract = ((strlen(list->variables[slot]) + 1) +
-		(strlen(list->values[slot]) + 1));
+	subtract = ((strlen(data + variables[slot]) + 1) +
+		(strlen(data + values[slot]) + 1));
 
 	// Any more data after this?
 	if (list->numVariables > 1)
 	{
 		// Starting from where the variable name starts, shift the whole
 		// contents of the data forward by 'subtract' bytes
-		kernelMemCopy((void *) (list->variables[slot] + subtract),
-			(void *) list->variables[slot],
-			(list->usedData - (list->variables[slot] - list->data) -
-				subtract));
+		kernelMemCopy((void *)((data + variables[slot]) + subtract),
+			(void *)(data + variables[slot]),
+			((list->usedData - variables[slot]) - subtract));
 
-		// Now remove the 'variable' and 'value' pointers, and shift all
-		// subsequent pointers in the lists forward by one, adjusting each
+		// Now remove the 'variable' and 'value' offsets, and shift all
+		// subsequent offsets in the lists forward by one, adjusting each
 		// by the number of bytes we subtracted from the data
 		for (count = slot; count < (list->numVariables - 1); count ++)
 		{
-			list->variables[count] = list->variables[count + 1];
-			list->variables[count] -= subtract;
-			list->values[count] = list->values[count + 1];
-			list->values[count] -= subtract;
+			variables[count] = (variables[count + 1] - subtract);
+			values[count] = (values[count + 1] - subtract);
 		}
 	}
 
@@ -153,6 +165,8 @@ static int unsetVariable(variableList *list, const char *variable)
 
 	// Adjust the number of bytes used
 	list->usedData -= subtract;
+
+	kernelDebug(debug_misc, "VariableList finished unsetting");
 
 	// Return success
 	return (status = 0);
@@ -165,7 +179,11 @@ static int setVariable(variableList *list, const char *variable,
 	// Does the work of setting a variable
 
 	int status = 0;
-  
+	unsigned *variables, *values;
+	char *data;
+
+	kernelDebug(debug_misc, "VariableList set %s", variable);
+
 	// Check to see whether the variable currently has a value
 	if (findVariable(list, variable) >= 0)
 	{
@@ -177,10 +195,10 @@ static int setVariable(variableList *list, const char *variable,
 	}
 
 	// Make sure we're not exceeding the maximum number of variables, and
-	// make sure we now have enough room to store the variable name and value
-	if ((list->numVariables >= list->maxVariables) ||
-		((list->usedData + (strlen(variable) + 1) + (strlen(value) + 1)) > 
-			(unsigned) list->maxData))
+	// make sure we'll have enough room to store the variable name and value
+	while ((list->numVariables >= list->maxVariables) ||
+		((list->usedData + (strlen(variable) + strlen(value) + 2)) >
+			list->maxData))
 	{
 		status = expandList(list);
 		if (status < 0)
@@ -189,24 +207,28 @@ static int setVariable(variableList *list, const char *variable,
 
 	// Okay, we're setting the variable
 
-	// The new variable goes at the end of the usedData
-	list->variables[list->numVariables] = (list->data + list->usedData);
+	variables = list->memory;
+	values = (list->memory + (list->maxVariables * sizeof(unsigned)));
+	data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
+
+	// The new variable goes at the end of the used data
+	variables[list->numVariables] = list->usedData;
 
 	// Copy the variable name
-	strcpy(list->variables[list->numVariables], variable);
+	strcpy((data + variables[list->numVariables]), variable);
+	list->usedData += (strlen(variable) + 1);
 
-	// The variable's value will come after the variable name in memory
-	list->values[list->numVariables] =
-		(list->variables[list->numVariables] + (strlen(variable) + 1));
+	// The variable's value will come after the variable name
+	values[list->numVariables] = list->usedData;
 
 	// Copy the variable value
-	strcpy(list->values[list->numVariables], value);
+	strcpy((data + values[list->numVariables]), value);
+	list->usedData += (strlen(value) + 1);
 
 	// We now have one more variable
 	list->numVariables++;
 
-	// Indicate the new used data total
-	list->usedData += (strlen(variable) + 1) + (strlen(value) + 1);
+	kernelDebug(debug_misc, "VariableList finished setting");
 
 	// Return success
 	return (status = 0);
@@ -228,10 +250,12 @@ int kernelVariableListCreate(variableList *list)
 
 	int status = 0;
 
+	kernelDebug(debug_misc, "VariableList create list");
+
 	// Check params
-	if (list == NULL)
+	if (!list)
 	{
-		kernelError(kernel_error, "NULL variable list parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -247,15 +271,6 @@ int kernelVariableListCreate(variableList *list)
 	if (list->memory == NULL)
 		return (status = ERR_MEMORY);
 
-	list->variables = list->memory;
-
-	// Set the first value pointer to be at the end of the variable pointers
-	list->values =
-		((void *) list->variables + (sizeof(char *) * list->maxVariables));
-
-	// Set the data pointer to be at the end of the value pointers
-	list->data = ((void *) list->values + (sizeof(char *) * list->maxVariables));
-
 	// Return success
 	return (status = 0);
 }
@@ -267,10 +282,12 @@ int kernelVariableListDestroy(variableList *list)
 
 	int status = 0;
 
+	kernelDebug(debug_misc, "VariableList destroy list");
+
 	// Check params
-	if (list == NULL)
+	if (!list)
 	{
-		kernelError(kernel_error, "NULL variable list parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -283,46 +300,82 @@ int kernelVariableListDestroy(variableList *list)
 }
 
 
-int kernelVariableListGet(variableList *list, const char *variable,
-	char *buffer, unsigned buffSize)
+const char *kernelVariableListGetVariable(variableList *list, int slot)
 {
-	// Get a variable's value from the variable list
+	// Get the numbered variable from the list
 
-	int status = 0;
-	int slot = 0;
+	unsigned *variables = NULL;
+	char *data = NULL;
 
-	if (buffer != NULL)
-		buffer[0] = '\0';
+	kernelDebug(debug_misc, "VariableList get variable %d", slot);
 
-	// Make sure none of our pointers are NULL
-	if ((list == NULL) || (variable == NULL) || (buffer == NULL) ||
-		(buffSize == 0))
+	// Check params
+	if (!list)
 	{
-		return (status = ERR_NULLPARAMETER);
+		kernelError(kernel_error, "NULL parameter");
+		return (data = NULL);
+	}
+
+	if (slot >= list->numVariables)
+	{
+		kernelError(kernel_error, "No such variable");
+		return (data = NULL);
 	}
 
 	// Lock the list while we're working with it
-	status = kernelLockGet(&(list->listLock));
-	if (status < 0)
-		return (status = ERR_NOLOCK);
+	if (kernelLockGet(&(list->listLock)) < 0)
+		return (data = NULL);
+
+	variables = list->memory;
+	data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
+
+	kernelLockRelease(&(list->listLock));
+
+	kernelDebug(debug_misc, "VariableList return variable %s",
+		(data + variables[slot]));
+
+	return (data + variables[slot]);
+}
+
+
+const char *kernelVariableListGet(variableList *list, const char *variable)
+{
+	// Get a variable's value from the list
+
+	int slot = 0;
+	unsigned *values = NULL;
+	char *data = NULL;
+
+	// Check params
+	if (!list || !variable)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (data = NULL);
+	}
+
+	kernelDebug(debug_misc, "VariableList get %s", variable);
+
+	// Lock the list while we're working with it
+	if (kernelLockGet(&(list->listLock)) < 0)
+		return (data = NULL);
 
 	slot = findVariable(list, variable);
-
 	if (slot < 0)
 	{
 		// No such variable
 		kernelLockRelease(&(list->listLock));
-		return (status = slot);
+		return (data = NULL);
 	}
 
-	// Copy the variable's value into the buffer supplied
-	strncpy(buffer, list->values[slot], buffSize);
-	buffer[buffSize - 1] = '\0';
+	values = (list->memory + (list->maxVariables * sizeof(unsigned)));
+	data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
 
 	kernelLockRelease(&(list->listLock));
 
-	// Return success
-	return (status = 0);
+	kernelDebug(debug_misc, "VariableList return value %s",
+		(data + values[slot]));
+
+	return (data + values[slot]);
 }
 
 
@@ -332,10 +385,15 @@ int kernelVariableListSet(variableList *list, const char *variable,
 	// A wrapper function for setVariable
 
 	int status = 0;
-  
-	// Make sure none of our pointers are NULL
-	if ((list == NULL) || (variable == NULL) || (value == NULL))
+
+	// Check params
+	if (!list || !variable || !value)
+	{
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
+	}
+
+	kernelDebug(debug_misc, "VariableList set %s=%s", variable, value);
 
 	// Lock the list while we're working with it
 	status = kernelLockGet(&(list->listLock));
@@ -355,11 +413,16 @@ int kernelVariableListUnset(variableList *list, const char *variable)
 	// A wrapper function for unsetVariable
 
 	int status = 0;
-  
-	// Make sure our pointers aren't NULL
-	if ((list == NULL) || (variable == NULL))
+
+	// Check params
+	if (!list || !variable)
+	{
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
-  
+  	}
+
+	kernelDebug(debug_misc, "VariableList unset %s", variable);
+
 	// Lock the list while we're working with it
 	status = kernelLockGet(&(list->listLock));
 	if (status < 0)
@@ -371,3 +434,33 @@ int kernelVariableListUnset(variableList *list, const char *variable)
 
 	return (status);
 }
+
+
+int kernelVariableListClear(variableList *list)
+{
+	// Removes all the variables from the list.
+
+	int status = 0;
+
+	// Check params
+	if (!list)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+  	}
+
+	kernelDebug(debug_misc, "VariableList clear list");
+
+	// Lock the list while we're working with it
+	status = kernelLockGet(&(list->listLock));
+	if (status < 0)
+		return (status = ERR_NOLOCK);
+
+	list->numVariables = 0;
+	list->usedData = 0;
+
+	kernelLockRelease(&(list->listLock));
+
+	return (status = 0);
+}
+

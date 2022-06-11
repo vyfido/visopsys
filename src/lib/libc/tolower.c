@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -31,8 +31,23 @@ int tolower(int c)
 	// corresponding lower-case letter.  All other arguments are returned
 	// unchanged.
 
-	if ((c >= 65) && (c <= 90))
-		return (c + 32);
+	// We use the ISO-8859-15 character set for this conversion.
+	if (isupper(c))
+	{
+		if (c == 166)
+			return (c = 168);
+		else if (c == 180)
+			return (c = 184);
+		else if (c == 188)
+			return (c = 189);
+		else if (c == 190)
+			return (c = 255);
+		else if (c == 223)
+			return (c = 223);
+		else
+			return (c + 32);
+	}
 	else
 		return (c);
 }
+

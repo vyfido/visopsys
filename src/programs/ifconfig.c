@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -46,11 +46,18 @@ Options:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/paths.h>
 
 #define _(string) gettext(string)
 
-#define KERNELCONF	"/system/config/kernel.conf"
-#define NODEVS		_("No supported network devices.")
+#define WINDOW_TITLE		_("Network Devices")
+#define ENABLED_STARTUP		_("Enabled at startup")
+#define HOST_NAME			_("Host name")
+#define DOMAIN_NAME			_("Domain name")
+#define OK					_("OK")
+#define CANCEL				_("Cancel")
+#define NO_DEVICES			_("No supported network devices.")
+#define KERNELCONF			PATH_SYSTEM_CONFIG "/kernel.conf"
 
 static int graphics = 0;
 static int numDevices = 0;
@@ -73,10 +80,10 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -93,7 +100,7 @@ static int devString(char *name, char *buffer)
 	int status = 0;
 	networkDevice dev;
 	char *link = NULL;
-	
+
 	status = networkDeviceGet(name, &dev);
 	if (status < 0)
 	{
@@ -111,7 +118,7 @@ static int devString(char *name, char *buffer)
 			break;
 	}
 
-	sprintf(buffer, 
+	sprintf(buffer,
 		_("%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
 		"       inet addr:%d.%d.%d.%d  Bcast:%d.%d.%d.%d  Mask:%d.%d.%d."
 		"%d\n"
@@ -145,7 +152,7 @@ static int printDevices(char *arg)
 	char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
 	char buffer[MAXSTRINGLENGTH];
 	int count;
-	
+
 	// Did the user specify a list of device names?
 	if (arg)
 	{
@@ -164,7 +171,7 @@ static int printDevices(char *arg)
 			for (count = 0; count < numDevices; count ++)
 			{
 				sprintf(name, "net%d", count);
-	
+
 				// Get the device information
 				status = devString(name, buffer);
 				if (status < 0)
@@ -174,7 +181,7 @@ static int printDevices(char *arg)
 			}
 		}
 		else
-			printf("%s\n\n", NODEVS);
+			printf("%s\n\n", NO_DEVICES);
 	}
 
 	return (status = 0);
@@ -223,50 +230,71 @@ static void updateHostName(void)
 {
 	char hostName[NETWORK_MAX_HOSTNAMELENGTH];
 	char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
+	const char *value = NULL;
 	variableList kernelConf;
 
 	if (networkEnabled)
 	{
 		if (networkGetHostName(hostName, NETWORK_MAX_HOSTNAMELENGTH) >= 0)
-		{
 			windowComponentSetData(hostField, hostName,
 				NETWORK_MAX_HOSTNAMELENGTH);
-		}
 
 		if (networkGetDomainName(domainName, NETWORK_MAX_DOMAINNAMELENGTH) >= 0)
-		{
 			windowComponentSetData(domainField, domainName,
 				NETWORK_MAX_DOMAINNAMELENGTH);
-		}
 	}
 	else
 	{
 		if (configRead(KERNELCONF, &kernelConf) >= 0)
 		{
-			bzero(hostName, NETWORK_MAX_HOSTNAMELENGTH);
-			bzero(domainName, NETWORK_MAX_DOMAINNAMELENGTH);
-
-			variableListGet(&kernelConf, "network.hostname", hostName,
-				NETWORK_MAX_HOSTNAMELENGTH);
-			if (hostName[0])
-			{
-				windowComponentSetData(hostField, hostName,
+			value = variableListGet(&kernelConf, "network.hostname");
+			if (value)
+				windowComponentSetData(hostField, (void *) value,
 					NETWORK_MAX_HOSTNAMELENGTH);
-			}
 
-			variableListGet(&kernelConf, "network.domainname", domainName,
-				NETWORK_MAX_DOMAINNAMELENGTH);
-			if (domainName[0])
-			{
-				windowComponentSetData(domainField, domainName,
+			value = variableListGet(&kernelConf, "network.domainname");
+			if (value)
+				windowComponentSetData(domainField, (void *) value,
 					NETWORK_MAX_DOMAINNAMELENGTH);
-			}
 
 			variableListDestroy(&kernelConf);
 		}
 	}
 
 	return;
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("ifconfig");
+
+	// Refresh the 'networking enabled' label, button, and device strings
+	updateEnabled();
+
+	// Refresh the 'enabled at startup' checkbox
+	windowComponentSetData(enableCheckbox, ENABLED_STARTUP,
+		strlen(ENABLED_STARTUP));
+
+	// Refresh the 'host name' label
+	windowComponentSetData(hostLabel, HOST_NAME, strlen(HOST_NAME));
+
+	// Refresh the 'domain name' label
+	windowComponentSetData(domainLabel, DOMAIN_NAME, strlen(DOMAIN_NAME));
+
+	// Refresh the 'ok' button
+	windowComponentSetData(okButton, OK, strlen(OK));
+
+	// Refresh the 'cancel' button
+	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
 }
 
 
@@ -278,22 +306,28 @@ static void eventHandler(objectKey key, windowEvent *event)
 	char hostName[NETWORK_MAX_HOSTNAMELENGTH];
 	char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
 
-	// Check for the window being closed by a GUI event.
-	if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-		((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+	// Check for window events.
+	if (key == window)
 	{
-		windowGuiStop();
-		windowDestroy(window);
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+		{
+			windowGuiStop();
+			windowDestroy(window);
+		}
 	}
 
 	// Check for the user clicking the enable/disable networking button
-	if ((key == enableButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == enableButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
 		// The user wants to enable or disable networking button.  Make a little
 		// dialog while we're doing this because enabling can take a few seconds
-		enableDialog =
-			windowNewBannerDialog(window,
-				(networkEnabled? _("Shutting down networking") :
+		enableDialog = windowNewBannerDialog(window,
+			(networkEnabled? _("Shutting down networking") :
 				_("Initializing networking")), _("One moment please..."));
 
 		if (networkEnabled)
@@ -308,8 +342,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		updateHostName();
 	}
 
-	// Check for the user clicking the 'OK' buttom
-	if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	// Check for the user clicking the 'OK' button
+	else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(enableCheckbox, &selected);
 		windowComponentGetData(hostField, hostName, NETWORK_MAX_HOSTNAMELENGTH);
@@ -334,6 +368,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowDestroy(window);
 	}
 
+	// Check for the user clicking the 'cancel' button
+	else if ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	{
+		windowGuiStop();
+		windowDestroy(window);
+	}
+
 	return;
 }
 
@@ -349,7 +390,7 @@ static int constructWindow(char *arg)
 	int count;
 
 	// Create a new window
-	window = windowNew(multitaskerGetCurrentProcessId(), _("Network Devices"));
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 	if (window == NULL)
 		return (status = ERR_NOTINITIALIZED);
 
@@ -380,7 +421,7 @@ static int constructWindow(char *arg)
 
 	// Make a checkbox so the user can choose to always enable/disable
 	params.gridX = 2;
-	enableCheckbox = windowNewCheckbox(container, _("Enabled at startup"),
+	enableCheckbox = windowNewCheckbox(container, ENABLED_STARTUP,
 		&params);
 	params.gridY += 1;
 
@@ -392,7 +433,7 @@ static int constructWindow(char *arg)
 		else
 			windowComponentSetSelected(enableCheckbox, 0);
 	}
-	
+
 	if (readOnly)
 		windowComponentSetEnabled(enableCheckbox, 0);
 
@@ -406,11 +447,11 @@ static int constructWindow(char *arg)
 	container = windowNewContainer(window, "hostname", &params);
 
 	params.gridWidth = 1;
-	hostLabel = windowNewTextLabel(container, _("Host name"), &params);
+	hostLabel = windowNewTextLabel(container, HOST_NAME, &params);
 
 	params.gridX = 1;
 	params.padTop = 0;
-	domainLabel = windowNewTextLabel(container, _("Domain name"), &params);
+	domainLabel = windowNewTextLabel(container, DOMAIN_NAME, &params);
 	params.gridY += 1;
 
 	params.gridX = 0;
@@ -459,7 +500,7 @@ static int constructWindow(char *arg)
 			for (count = 0; count < numDevices; count ++)
 			{
 				sprintf(name, "net%d", count);
-	
+
 				// Get the device information
 				status = devString(name, buffer);
 				if (status < 0)
@@ -475,26 +516,26 @@ static int constructWindow(char *arg)
 		}
 		else
 		{
-			windowNewTextLabel(window, NODEVS, &params);
+			windowNewTextLabel(window, NO_DEVICES, &params);
 			params.gridY += 1;
 		}
 	}
 
 	free(buffer);
-	
+
 	// Create an 'OK' button
 	params.gridWidth = 1;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	okButton = windowNewButton(window, _("OK"), NULL, &params);
+	okButton = windowNewButton(window, OK, NULL, &params);
 	windowRegisterEventHandler(okButton, &eventHandler);
 	windowComponentFocus(okButton);
 
 	// Create a 'Cancel' button
 	params.gridX = 1;
 	params.orientationX = orient_left;
-	cancelButton = windowNewButton(window, _("Cancel"), NULL, &params);
+	cancelButton = windowNewButton(window, CANCEL, NULL, &params);
 	windowRegisterEventHandler(cancelButton, &eventHandler);
 
 	// Register an event handler to catch window close events
@@ -509,15 +550,11 @@ static int constructWindow(char *arg)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	char *arg = NULL;
 	char opt;
 	disk sysDisk;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("ifconfig");
 
 	// Are graphics enabled?
@@ -559,3 +596,4 @@ int main(int argc, char *argv[])
 
 	return (status);
 }
+

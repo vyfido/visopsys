@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -31,7 +31,7 @@
 
 	EXTERN KERNELSIZE
 	EXTERN FILEDATABUFFER
-	
+
 	SEGMENT .text
 	BITS 16
 	ALIGN 4
@@ -63,7 +63,7 @@ getElfHeaderInfo:
 	mov EAX, dword [FILEDATABUFFER]
 	shr EAX, 4
 	mov ES, EAX
-	
+
 	;; Make sure it's an ELF file (check the magic number)
 	mov ESI, 0
 	mov EAX, dword [ES:ESI]
@@ -85,7 +85,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	mov word [SS:(BP + 16)], -1
 	jmp .done
-	
+
 	.isElf:
 
 	;; It's an ELF binary.  We will skip doing exhaustive checks, as we
@@ -140,14 +140,14 @@ getElfHeaderInfo:
 	je .codeCheckFlags
 	add ESI, 32
 	jmp .codeFind
-	
+
 	.codeCheckFlags:
 	mov EAX, [ES:ESI + 24]
 	cmp EAX, 05h		; 04h=read 01h=execute
 	je .codeFound
 	add ESI, 32
 	jmp .codeFind
-	
+
 	.codeFound:
 	;; Get the code offset
 	mov EAX, dword [ES:ESI + 4]
@@ -182,7 +182,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	mov word [SS:(BP + 16)], -3
 	jmp .done
-	
+
 	.codeCheckAlign:
 	;; Check the alignment.  Must be 4096 (page size)
 	mov EAX, dword [ES:ESI + 28]
@@ -217,7 +217,7 @@ getElfHeaderInfo:
 	je .dataCheckFlags
 	add ESI, 32
 	jmp .dataFind
-	
+
 	.dataCheckFlags:
 	mov EAX, [ES:ESI + 24]
 	cmp EAX, 06h		; 04h=read 02h=write
@@ -241,7 +241,7 @@ getElfHeaderInfo:
 	;; Get the data size in memory
 	mov EAX, dword [ES:ESI + 20]
 	mov dword [DATA_SIZEINMEM], EAX
-	
+
 	;; Check the alignment.  Must be 4096 (page size)
 	mov EAX, dword [ES:ESI + 28]
 	cmp EAX, 4096
@@ -267,7 +267,7 @@ getElfHeaderInfo:
 	.success:
 	;; Make 0 be our return code
 	mov word [SS:(BP + 16)], 0
-	
+
 	.done:
 	pop ES
 	popa
@@ -301,13 +301,13 @@ layoutKernel:
 	mov ESI, KERNELLOADADDRESS
 	add ESI, dword [CODE_OFFSET]
 	mov EDI, KERNELLOADADDRESS
-	
+
 	push ECX
 	push EDI
 	push ESI
 	call loaderMemCopy
 	add SP, 12
-	
+
 	;; We do the same operation for the data segment, except we have to
 	;; first make sure that the difference between the code and data's
 	;; virtual address is the same as the difference between the offsets
@@ -335,7 +335,7 @@ layoutKernel:
 	push ESI
 	call loaderMemCopy
 	add SP, 12
-	
+
 	.okDataOffset:
 	;; We need to zero out the memory that makes up the difference
 	;; between the data's file size and its size in memory.
@@ -350,10 +350,10 @@ layoutKernel:
 	push word 0
 	call loaderMemSet
 	add SP, 10
-	
+
 	popa
 	ret
-	
+
 
 evaluateLoadError:
 	;; This function takes an error code as its only parameter, and
@@ -373,7 +373,7 @@ evaluateLoadError:
 
 	;; Get the error code
 	mov AX, word [SS:(BP + 18)]
-	
+
 	;; Was there an error loading the directory?
 	cmp AX, -1
 	jne .errorFIND
@@ -428,7 +428,7 @@ evaluateLoadError:
 	;; Was there an error loading the kernel file itself?
 	cmp AX, -4
 	jne .errorUNKNOWN
-	
+
 	mov SI, THEFILE
 	call loaderPrint
 	call loaderPrintNewline
@@ -448,7 +448,7 @@ evaluateLoadError:
 	mov SI, UNKNOWN
 	call loaderPrint
 	call loaderPrintNewline
-	
+
 	.done:
 	popa
 	ret
@@ -468,7 +468,7 @@ loaderLoadKernel:
 
 	;; Save a word on the stack for our return value
 	push word 0
-	
+
 	;; Save regs
 	pusha
 
@@ -488,15 +488,15 @@ loaderLoadKernel:
 
 	;; We failed to load the kernel.  The following call will determine
 	;; the type of error encountered while loading the kernel, and print
-	;; a helpful error message about the reason.	
+	;; a helpful error message about the reason.
 	push AX
 	call evaluateLoadError
 	add SP, 2
-	
+
 	;; Quit
 	mov word [SS:(BP + 16)], -1
 	jmp .done
-	
+
 	.okLoad:
 	;; We were successful.  The kernel's size is in AX.  Ignore it.
 
@@ -516,7 +516,7 @@ loaderLoadKernel:
 	;; OK, call the routine to create the proper layout for the kernel
 	;; based on the ELF information we gathered
 	call layoutKernel
-		
+
 	;; Set the size of the kernel image, which is the combined memory
 	;; size of the code and data segments.  Return 0
 	mov EAX, dword [CODE_SIZEINFILE]
@@ -541,7 +541,7 @@ loaderLoadKernel:
 
 	SEGMENT .data
 	ALIGN 4
-	
+
 KERNELENTRY	dd 0
 PROGHEADERS	dd 0
 CODE_OFFSET	dd 0

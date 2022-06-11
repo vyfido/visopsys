@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -31,6 +31,7 @@
 
 typedef enum {
 	infoDialog, errorDialog
+
 } dialogType;
 
 extern int libwindow_initialized;
@@ -50,7 +51,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 	objectKey okButton = NULL;
 	componentParameters params;
 	windowEvent event;
-	
+
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
@@ -127,7 +128,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 		// Done
 		multitaskerYield();
 	}
-		
+
 	windowDestroy(dialogWindow);
 
 	return (status = 0);
@@ -146,12 +147,13 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 _X_ int windowNewInfoDialog(objectKey parentWindow, const char *title, const char *message)
 {
 	// Desc: Create an 'info' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single 'OK' button for the user to acknowledge.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
-	return(okDialog(infoDialog, parentWindow, title, message));
+	return (okDialog(infoDialog, parentWindow, title, message));
 }
 
 
 _X_ int windowNewErrorDialog(objectKey parentWindow, const char *title, const char *message)
 {
 	// Desc: Create an 'error' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single 'OK' button for the user to acknowledge.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
-	return(okDialog(errorDialog, parentWindow, title, message));
+	return (okDialog(errorDialog, parentWindow, title, message));
 }
+

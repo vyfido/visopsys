@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -42,16 +42,20 @@ To see a list of running processes, use the 'ps' command.
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 
 static void usage(char *name)
 {
-	printf("usage:\n");
-	printf("%s <priority> <process1> [process2] [...]\n", name);
+	printf("%s", _("usage:\n"));
+	printf(_("%s <priority> <process1> [process2] [...]\n"), name);
 	return;
 }
 
@@ -60,11 +64,14 @@ int main(int argc, char *argv[])
 {
 	// This command will prompt the multitasker to set the priority of the
 	// process with the supplied process id
-	
+
 	int status = 0;
 	int processId = 0;
 	int newPriority = 0;
 	int count;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("renice");
 
 	if (argc < 3)
 	{
@@ -74,7 +81,7 @@ int main(int argc, char *argv[])
 
 	// What is the requested priority
 	newPriority = atoi(argv[1]);
-	
+
 	// OK?
 	if (errno)
 	{
@@ -95,7 +102,7 @@ int main(int argc, char *argv[])
 			usage(argv[0]);
 			return (status = errno);
 		}
-		
+
 		// Set the process
 		status = multitaskerSetProcessPriority(processId, newPriority);
 		if (status < 0)
@@ -104,9 +111,10 @@ int main(int argc, char *argv[])
 			perror(argv[0]);
 		}
 		else
-			printf("%d changed\n", processId);
+			printf(_("%d changed\n"), processId);
 	}
-	
+
 	// Return success
 	return (status = 0);
 }
+

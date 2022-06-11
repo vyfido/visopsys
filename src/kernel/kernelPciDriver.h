@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -24,104 +24,104 @@
 
 #if !defined(_KERNELPCIDRIVER_H)
 
-#define PCI_CONFIG_PORT              0x0CF8
-#define PCI_DATA_PORT                0x0CFC
+#define PCI_CONFIG_PORT				0x0CF8
+#define PCI_DATA_PORT				0x0CFC
 
-#define PCI_MAX_BUSES                256
-#define PCI_MAX_DEVICES              32
-#define PCI_MAX_FUNCTIONS            8
-#define PCI_CONFIGHEADER_SIZE        256
+#define PCI_MAX_BUSES				256
+#define PCI_MAX_DEVICES				32
+#define PCI_MAX_FUNCTIONS			8
+#define PCI_CONFIGHEADER_SIZE		256
 
-#define PCI_INVALID_CLASSCODE        -1
-#define PCI_INVALID_SUBCLASSCODE     -2
+#define PCI_INVALID_CLASSCODE		-1
+#define PCI_INVALID_SUBCLASSCODE	-2
 
 // PCI device info header types
-#define PCI_HEADERTYPE_NORMAL        0x00
-#define PCI_HEADERTYPE_BRIDGE        0x01
-#define PCI_HEADERTYPE_CARDBUS       0x02
-#define PCI_HEADERTYPE_MULTIFUNC     0x80
+#define PCI_HEADERTYPE_NORMAL		0x00
+#define PCI_HEADERTYPE_BRIDGE		0x01
+#define PCI_HEADERTYPE_CARDBUS		0x02
+#define PCI_HEADERTYPE_MULTIFUNC	0x80
 
 // PCI configuration register numbers.  Note that the registers are numbered
 // according to their bit widths.  For example, the command register is
 // a 16-bit word, so the register number is counted in words.  Base address
 // registers are 32-bit dwords, so they're counted in dwords.
-#define PCI_CONFREG_VENDORID_16      0
-#define PCI_CONFREG_DEVICEID_16      1
-#define PCI_CONFREG_COMMAND_16       2
-#define PCI_CONFREG_STATUS_16        3
-#define PCI_CONFREG_REVISIONID_8     8
-#define PCI_CONFREG_PROGIF_8         9
-#define PCI_CONFREG_SUBCLASSCODE_8   10
-#define PCI_CONFREG_CLASSCODE_8      11
-#define PCI_CONFREG_CACHELINESIZE_8  12
-#define PCI_CONFREG_LATENCY_8        13
-#define PCI_CONFREG_HEADERTYPE_8     14
-#define PCI_CONFREG_BIST_8           15
-#define PCI_CONFREG_CLASSREG_32      2
-#define PCI_CONFREG_BASEADDRESS0_32  4
-#define PCI_CONFREG_BASEADDRESS1_32  5
-#define PCI_CONFREG_BASEADDRESS2_32  6
-#define PCI_CONFREG_BASEADDRESS3_32  7
-#define PCI_CONFREG_BASEADDRESS4_32  8
-#define PCI_CONFREG_BASEADDRESS5_32  9
-#define PCI_CONFREG_INTLINE_8        60
+#define PCI_CONFREG_VENDORID_16		0
+#define PCI_CONFREG_DEVICEID_16		1
+#define PCI_CONFREG_COMMAND_16		2
+#define PCI_CONFREG_STATUS_16		3
+#define PCI_CONFREG_REVISIONID_8	8
+#define PCI_CONFREG_PROGIF_8		9
+#define PCI_CONFREG_SUBCLASSCODE_8	10
+#define PCI_CONFREG_CLASSCODE_8		11
+#define PCI_CONFREG_CACHELINESIZE_8	12
+#define PCI_CONFREG_LATENCY_8		13
+#define PCI_CONFREG_HEADERTYPE_8	14
+#define PCI_CONFREG_BIST_8			15
+#define PCI_CONFREG_CLASSREG_32		2
+#define PCI_CONFREG_BASEADDRESS0_32	4
+#define PCI_CONFREG_BASEADDRESS1_32	5
+#define PCI_CONFREG_BASEADDRESS2_32	6
+#define PCI_CONFREG_BASEADDRESS3_32	7
+#define PCI_CONFREG_BASEADDRESS4_32	8
+#define PCI_CONFREG_BASEADDRESS5_32	9
+#define PCI_CONFREG_INTLINE_8		60
 
 // PCI device command bits
-#define PCI_COMMAND_FASTBACK2BACK    0x0200
-#define PCI_COMMAND_SYSTEMERROR      0x0100
-#define PCI_COMMAND_WAITCYCLE        0x0080
-#define PCI_COMMAND_PARITYERROR      0x0040
-#define PCI_COMMAND_VGAPALSNOOP      0x0020
-#define PCI_COMMAND_MEMWRITEINV      0x0010
-#define PCI_COMMAND_SPECIALCYCLE     0x0008
-#define PCI_COMMAND_MASTERENABLE     0x0004
-#define PCI_COMMAND_MEMORYENABLE     0x0002
-#define PCI_COMMAND_IOENABLE         0x0001
+#define PCI_COMMAND_FASTBACK2BACK	0x0200
+#define PCI_COMMAND_SYSTEMERROR		0x0100
+#define PCI_COMMAND_WAITCYCLE		0x0080
+#define PCI_COMMAND_PARITYERROR		0x0040
+#define PCI_COMMAND_VGAPALSNOOP		0x0020
+#define PCI_COMMAND_MEMWRITEINV		0x0010
+#define PCI_COMMAND_SPECIALCYCLE	0x0008
+#define PCI_COMMAND_MASTERENABLE	0x0004
+#define PCI_COMMAND_MEMORYENABLE	0x0002
+#define PCI_COMMAND_IOENABLE		0x0001
 
 // PCI device status bits
-#define PCI_STATUS_DETPARTIYERROR    0x8000
-#define PCI_STATUS_SIGSYSTEMERROR    0x4000
-#define PCI_STATUS_RECVMASTERABRT    0x2000
-#define PCI_STATUS_RECVTARGETABRT    0x1000
-#define PCI_STATUS_SIGTARGETABRT     0x0800
-#define PCI_STATUS_DEVSEL_SLOW       0x0400
-#define PCI_STATUS_DEVSEL_MEDIUM     0x0200
-#define PCI_STATUS_DEVSEL_FAST       0x0000
-#define PCI_STATUS_DATAPARITYERROR   0x0100
-#define PCI_STATUS_FASTBACK2BACK     0x0080
-#define PCI_STATUS_66MHZ             0x0020
-#define PCI_STATUS_CAPSLIST          0x0010
+#define PCI_STATUS_DETPARTIYERROR	0x8000
+#define PCI_STATUS_SIGSYSTEMERROR	0x4000
+#define PCI_STATUS_RECVMASTERABRT	0x2000
+#define PCI_STATUS_RECVTARGETABRT	0x1000
+#define PCI_STATUS_SIGTARGETABRT	0x0800
+#define PCI_STATUS_DEVSEL_SLOW		0x0400
+#define PCI_STATUS_DEVSEL_MEDIUM	0x0200
+#define PCI_STATUS_DEVSEL_FAST		0x0000
+#define PCI_STATUS_DATAPARITYERROR	0x0100
+#define PCI_STATUS_FASTBACK2BACK	0x0080
+#define PCI_STATUS_66MHZ			0x0020
+#define PCI_STATUS_CAPSLIST			0x0010
 
 // PCI 2.2 capability IDs
-#define PCI_CAPABILITY_PMI           0x01  // Power Management Interface
-#define PCI_CAPABILITY_AGP           0x02  // Accelerated Graphics Port
-#define PCI_CAPABILITY_VPD           0x03  // Vital Product Data
-#define PCI_CAPABILITY_SLOTID        0x04  // Expansion slot identification
-#define PCI_CAPABILITY_MSI           0x05  // Message Signaled Interrupts
-#define PCI_CAPABILITY_CPHS          0x06  // CompactPCI Hot Swapping
+#define PCI_CAPABILITY_PMI			0x01  // Power Management Interface
+#define PCI_CAPABILITY_AGP			0x02  // Accelerated Graphics Port
+#define PCI_CAPABILITY_VPD			0x03  // Vital Product Data
+#define PCI_CAPABILITY_SLOTID		0x04  // Expansion slot identification
+#define PCI_CAPABILITY_MSI			0x05  // Message Signaled Interrupts
+#define PCI_CAPABILITY_CPHS			0x06  // CompactPCI Hot Swapping
 // PCI 3.0 capability IDs
-#define PCI_CAPABILITY_PCIX          0x07  // PCI-X 
-#define PCI_CAPABILITY_HYPERTRANS    0x08  // Hypertransport 
-#define PCI_CAPABILITY_VENDORSPEC    0x09  // Vendor-specific
-#define PCI_CAPABILITY_DEBUGPORT     0x0A  // Debug port
-#define PCI_CAPABILITY_CPCIRESCONT   0x0B  // CompactPCI cent. resource control
-#define PCI_CAPABILITY_PCIHOTPLUG    0x0C  // PCI hot-plug
-#define PCI_CAPABILITY_AGP8X         0x0E  // AGP 8x (?)
-#define PCI_CAPABILITY_SECUREDEVICE  0x0F  // Secure device 
-#define PCI_CAPABILITY_PCIEXPRESS    0x10  // PCI Express
-#define PCI_CAPABILITY_MSIX          0x11  // MSI-X
+#define PCI_CAPABILITY_PCIX			0x07  // PCI-X
+#define PCI_CAPABILITY_HYPERTRANS	0x08  // Hypertransport
+#define PCI_CAPABILITY_VENDORSPEC	0x09  // Vendor-specific
+#define PCI_CAPABILITY_DEBUGPORT	0x0A  // Debug port
+#define PCI_CAPABILITY_CPCIRESCONT	0x0B  // CompactPCI cent. resource control
+#define PCI_CAPABILITY_PCIHOTPLUG	0x0C  // PCI hot-plug
+#define PCI_CAPABILITY_AGP8X		0x0E  // AGP 8x (?)
+#define PCI_CAPABILITY_SECUREDEVICE	0x0F  // Secure device
+#define PCI_CAPABILITY_PCIEXPRESS	0x10  // PCI Express
+#define PCI_CAPABILITY_MSIX			0x11  // MSI-X
 
 // MSI message control bitfields
-#define PCI_MSI_MSGCTRL_64BIT        0x0080
-#define PCI_MSI_MSGCTRL_MULTIMSGEN   0x0070
-#define PCI_MSI_MSGCTRL_MULTIMSGCAP  0x00E0
-#define PCI_MSI_MSGCTRL_MSIENABLE    0x0001
+#define PCI_MSI_MSGCTRL_64BIT		0x0080
+#define PCI_MSI_MSGCTRL_MULTIMSGEN	0x0070
+#define PCI_MSI_MSGCTRL_MULTIMSGCAP	0x00E0
+#define PCI_MSI_MSGCTRL_MSIENABLE	0x0001
 
 // MSI-X message control bitfields
-#define PCI_MSIX_MSGCTRL_MSIXEN      0x8000
-#define PCI_MSIX_MSGCTRL_TABLESIZE   0x07FF
+#define PCI_MSIX_MSGCTRL_MSIXEN		0x8000
+#define PCI_MSIX_MSGCTRL_TABLESIZE	0x07FF
 
-#define PCI_IRQ_ROUTINGTABLE_SIG     "$PIR"
+#define PCI_IRQ_ROUTINGTABLE_SIG	"$PIR"
 
 // This structure is adapted from Ralf Brown's CPI configuration data dumper.
 typedef union {

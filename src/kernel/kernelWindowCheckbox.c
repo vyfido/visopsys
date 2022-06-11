@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -21,7 +21,6 @@
 
 // This code is for managing kernelWindowCheckbox objects.
 
-
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelFont.h"
@@ -30,6 +29,30 @@
 #include <stdlib.h>
 
 extern kernelWindowVariables *windowVariables;
+
+
+static void setSize(kernelWindowComponent *component)
+{
+	kernelWindowCheckbox *checkbox = component->data;
+
+	// The width of the checkbox is the width of the checkbox, plus a bit
+	// of padding, plus the printed width of the text
+	component->width = (windowVariables->checkbox.size + 3);
+	if (component->params.font)
+		component->width +=
+			kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+				checkbox->text);
+
+	// The height of the checkbox is the height of the font, or the height
+	// of the checkbox, whichever is greater
+	component->height = windowVariables->checkbox.size;
+	if (component->params.font)
+		component->height = max(((asciiFont *) component->params.font)
+			->charHeight, windowVariables->checkbox.size);
+
+	component->minWidth = component->width;
+	component->minHeight = component->height;
+}
 
 
 static int draw(kernelWindowComponent *component)
@@ -82,7 +105,7 @@ static int draw(kernelWindowComponent *component)
 
 	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
 		component->drawBorder(component, 1);
-	
+
 	return (status = 0);
 }
 
@@ -93,6 +116,36 @@ static int focus(kernelWindowComponent *component, int yesNo)
 	component->window->update(component->window, (component->xCoord - 2),
 		(component->yCoord - 2), (component->width + 4),
 		(component->height + 4));
+	return (0);
+}
+
+
+static int setData(kernelWindowComponent *component, void *text, int length)
+{
+	// Set the checkbox text
+
+	kernelWindowCheckbox *checkbox = component->data;
+
+	if (checkbox->text)
+		kernelFree(checkbox->text);
+
+	checkbox->text = kernelMalloc(length + 1);
+	if (!checkbox->text)
+		return (ERR_MEMORY);
+
+	strncpy(checkbox->text, text, length);
+
+	// Set the new size
+	setSize(component);
+
+	// Re-draw
+	if (component->draw)
+		draw(component);
+
+	component->window
+		->update(component->window, component->xCoord, component->yCoord,
+			component->width, component->height);
+
 	return (0);
 }
 
@@ -114,7 +167,7 @@ static int setSelected(kernelWindowComponent *component, int selected)
 	// Re-draw
 	if (component->draw)
 		component->draw(component);
-	
+
 	component->window
 		->update(component->window, component->xCoord, component->yCoord,
 		 	component->width, component->height);
@@ -130,7 +183,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 	int status = 0;
 	kernelWindowCheckbox *checkbox = component->data;
-	
+
 	if (event->type == EVENT_MOUSE_LEFTDOWN)
 	{
 		if (checkbox->selected)
@@ -179,7 +232,7 @@ static int destroy(kernelWindowComponent *component)
 			kernelFree((void *) checkbox->text);
 			checkbox->text = NULL;
 		}
-		
+
 		kernelFree(component->data);
 		component->data = NULL;
 	}
@@ -205,10 +258,10 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowCheckbox *checkbox = NULL;
 
-	// Check parameters.
-	if ((parent == NULL) || (text == NULL) || (params == NULL))
+	// Check params
+	if (!parent || !text || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -223,6 +276,7 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 	// Set the functions
 	component->draw = &draw;
 	component->focus = &focus;
+	component->setData = &setData;
 	component->getSelected = &getSelected;
 	component->setSelected = &setSelected;
 	component->mouseEvent = &mouseEvent;
@@ -250,25 +304,11 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
 	}
+
 	strcpy(checkbox->text, text);
 
-	// The width of the checkbox is the width of the checkbox, plus a bit
-	// of padding, plus the printed width of the text
-	component->width = (windowVariables->checkbox.size + 3);
-	if (component->params.font)
-		component->width += 
-			kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				checkbox->text);
-
-	// The height of the checkbox is the height of the font, or the height
-	// of the checkbox, whichever is greater
-	component->height = windowVariables->checkbox.size;
-	if (component->params.font)
-		component->height = max(((asciiFont *) component->params.font)
-			->charHeight, windowVariables->checkbox.size);
-	
-	component->minWidth = component->width;
-	component->minHeight = component->height;
+	// Set the component size
+	setSize(component);
 
 	return (component);
 }

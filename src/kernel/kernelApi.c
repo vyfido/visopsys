@@ -1,24 +1,24 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelApi.c
 //
-	
+
 // This is the part of the kernel's API that sorts out which functions
 // get called from external locations.
 
@@ -32,6 +32,7 @@
 #include "kernelFileStream.h"
 #include "kernelFilesystem.h"
 #include "kernelFont.h"
+#include "kernelImage.h"
 #include "kernelKeyboard.h"
 #include "kernelLoader.h"
 #include "kernelMemory.h"
@@ -391,7 +392,7 @@ static kernelArgInfo args_filesystemCheck[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+		{ 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_filesystemDefragment[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -750,7 +751,7 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_multitaskerSetTextOutput, type_val },
 	{ _fnum_multitaskerDuplicateIO, kernelMultitaskerDuplicateIO,
 		PRIVILEGE_USER, 3, args_multitaskerDuplicateIO, type_val },
-	{ _fnum_multitaskerGetProcessorTime, kernelMultitaskerGetProcessorTime, 
+	{ _fnum_multitaskerGetProcessorTime, kernelMultitaskerGetProcessorTime,
 		PRIVILEGE_USER, 1, args_multitaskerGetProcessorTime, type_val },
 	{ _fnum_multitaskerYield, kernelMultitaskerYield,
 		PRIVILEGE_USER, 0, NULL, type_void },
@@ -1145,9 +1146,9 @@ static kernelArgInfo args_windowComponentEventGet[] =
 static kernelArgInfo args_windowSetBackgroundColor[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_USERPTR } };
-static kernelArgInfo args_windowTileBackground[] =
+static kernelArgInfo args_windowShellTileBackground[] =
 	{ { 1, type_ptr, API_ARG_USERPTR } };
-static kernelArgInfo args_windowCenterBackground[] =
+static kernelArgInfo args_windowShellCenterBackground[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowScreenShot[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -1253,9 +1254,10 @@ static kernelArgInfo args_windowNewListItem[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowNewMenu[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+	{ { 1, type_ptr, API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowNewMenuBar[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
@@ -1366,13 +1368,13 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_windowComponentEventGet, type_val },
 	{ _fnum_windowSetBackgroundColor, kernelWindowSetBackgroundColor,
 		PRIVILEGE_USER, 2, args_windowSetBackgroundColor, type_val },
-	{ _fnum_windowTileBackground, kernelWindowTileBackground,
-		PRIVILEGE_USER, 1, args_windowTileBackground, type_val },
-	{ _fnum_windowCenterBackground, kernelWindowCenterBackground,
-		PRIVILEGE_USER, 1, args_windowCenterBackground, type_val },
+	{ _fnum_windowShellTileBackground, kernelWindowShellTileBackground,
+		PRIVILEGE_USER, 1, args_windowShellTileBackground, type_val },
+	{ _fnum_windowShellCenterBackground, kernelWindowShellCenterBackground,
+		PRIVILEGE_USER, 1, args_windowShellCenterBackground, type_val },
 	{ _fnum_windowScreenShot, kernelWindowScreenShot,
 		PRIVILEGE_USER, 1, args_windowScreenShot, type_val },
-	{ _fnum_windowSaveScreenShot, kernelWindowSaveScreenShot, 
+	{ _fnum_windowSaveScreenShot, kernelWindowSaveScreenShot,
 		PRIVILEGE_USER, 1, args_windowSaveScreenShot, type_val },
 	{ _fnum_windowSetTextOutput, kernelWindowSetTextOutput,
 		PRIVILEGE_USER, 1, args_windowSetTextOutput, type_val },
@@ -1386,6 +1388,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_windowContextSet, type_val },
 	{ _fnum_windowSwitchPointer, kernelWindowSwitchPointer,
 		PRIVILEGE_USER, 2, args_windowSwitchPointer, type_val },
+	{ _fnum_windowRefresh, kernelWindowRefresh,
+		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_windowComponentDestroy, kernelWindowComponentDestroy,
 		PRIVILEGE_USER, 1, args_windowComponentDestroy, type_val },
 	{ _fnum_windowComponentSetVisible, kernelWindowComponentSetVisible,
@@ -1433,7 +1437,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 	{ _fnum_windowNewListItem, kernelWindowNewListItem,
 		PRIVILEGE_USER, 3, args_windowNewListItem, type_ptr },
 	{ _fnum_windowNewMenu, kernelWindowNewMenu,
-		PRIVILEGE_USER, 4, args_windowNewMenu, type_ptr },
+		PRIVILEGE_USER, 5, args_windowNewMenu, type_ptr },
 	{ _fnum_windowNewMenuBar, kernelWindowNewMenuBar,
 		PRIVILEGE_USER, 2, args_windowNewMenuBar, type_ptr },
 	{ _fnum_windowNewMenuItem, kernelWindowNewMenuItem,
@@ -1466,6 +1470,8 @@ static kernelArgInfo args_userLogin[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_userLogout[] =
 	{ { 1, type_ptr, API_ARG_USERPTR } };
+static kernelArgInfo args_userExists[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_userGetNames[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
@@ -1478,6 +1484,9 @@ static kernelArgInfo args_userSetPassword[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_userGetCurrent[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
 static kernelArgInfo args_userGetPrivilege[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_userSetPid[] =
@@ -1503,6 +1512,8 @@ static kernelFunctionIndex userFunctionIndex[] = {
 		PRIVILEGE_SUPERVISOR, 2, args_userLogin, type_val },
 	{ _fnum_userLogout, kernelUserLogout,
 		PRIVILEGE_USER, 1, args_userLogout, type_val },
+	{ _fnum_userExists, kernelUserExists,
+		PRIVILEGE_USER, 1, args_userExists, type_val },
 	{ _fnum_userGetNames, kernelUserGetNames,
 		PRIVILEGE_USER, 2, args_userGetNames, type_val },
 	{ _fnum_userAdd, kernelUserAdd,
@@ -1511,6 +1522,8 @@ static kernelFunctionIndex userFunctionIndex[] = {
 		PRIVILEGE_SUPERVISOR, 1, args_userDelete, type_val },
 	{ _fnum_userSetPassword, kernelUserSetPassword,
 		PRIVILEGE_USER, 3, args_userSetPassword, type_val },
+	{ _fnum_userGetCurrent, kernelUserGetCurrent,
+		PRIVILEGE_USER, 2, args_userGetCurrent, type_val },
 	{ _fnum_userGetPrivilege, kernelUserGetPrivilege,
 		PRIVILEGE_USER, 1, args_userGetPrivilege, type_val },
 	{ _fnum_userGetPid, kernelUserGetPid,
@@ -1658,11 +1671,12 @@ static kernelArgInfo args_variableListCreate[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_variableListDestroy[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_variableListGetVariable[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
 static kernelArgInfo args_variableListGet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_variableListSet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
@@ -1759,8 +1773,10 @@ static kernelFunctionIndex miscFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_variableListCreate, type_val },
 	{ _fnum_variableListDestroy, kernelVariableListDestroy,
 		PRIVILEGE_USER, 1, args_variableListDestroy, type_val },
+	{ _fnum_variableListGetVariable, kernelVariableListGetVariable,
+		PRIVILEGE_USER, 2, args_variableListGetVariable, type_ptr },
 	{ _fnum_variableListGet, kernelVariableListGet,
-		PRIVILEGE_USER, 4, args_variableListGet, type_val },
+		PRIVILEGE_USER, 2, args_variableListGet, type_ptr },
 	{ _fnum_variableListSet, kernelVariableListSet,
 		PRIVILEGE_USER, 3, args_variableListSet, type_val },
 	{ _fnum_variableListUnset, kernelVariableListUnset,

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -449,7 +449,7 @@ _X_ void textInputSetEcho(int onOff)
 }
 
 
-// 
+//
 // Disk functions
 //
 
@@ -1560,7 +1560,7 @@ _X_ int graphicClearArea(objectKey buffer, color *background _U_, int xCoord _U_
 
 _X_ int graphicRenderBuffer(objectKey buffer, int drawX _U_, int drawY _U_, int clipX _U_, int clipY _U_, int clipWidth _U_, int clipHeight _U_)
 {
-	// Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int, int); 
+	// Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int, int);
 	// Desc : Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
 	return (_syscall(_fnum_graphicRenderBuffer, &buffer));
 }
@@ -1695,7 +1695,7 @@ _X_ int windowRemoveMinimizeButton(objectKey window)
 	// Proto: int kernelWindowRemoveMinimizeButton(kernelWindow *);
 	// Desc : Tells the windowing system not to draw a minimize button on the title bar of the window 'window'.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
 	return (_syscall(_fnum_windowRemoveMinimizeButton, &window));
-}  
+}
 
 _X_ int windowRemoveCloseButton(objectKey window)
 {
@@ -1781,18 +1781,18 @@ _X_ int windowSetBackgroundColor(objectKey window, color *background _U_)
 	return (_syscall(_fnum_windowSetBackgroundColor, &window));
 }
 
-_X_ int windowTileBackground(const char *theFile)
+_X_ int windowShellTileBackground(const char *theFile)
 {
-	// Proto: int kernelWindowTileBackground(const char *);
+	// Proto: int kernelWindowShellTileBackground(const char *);
 	// Desc : Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
-	return (_syscall(_fnum_windowTileBackground, &theFile));
+	return (_syscall(_fnum_windowShellTileBackground, &theFile));
 }
 
-_X_ int windowCenterBackground(const char *theFile)
+_X_ int windowShellCenterBackground(const char *theFile)
 {
-	// Proto: int kernelWindowCenterBackground(const char *);
+	// Proto: int kernelWindowShellCenterBackground(const char *);
 	// Desc : Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
-	return (_syscall(_fnum_windowCenterBackground, &theFile));
+	return (_syscall(_fnum_windowShellCenterBackground, &theFile));
 }
 
 _X_ int windowScreenShot(image *saveImage)
@@ -1846,9 +1846,16 @@ _X_ int windowContextSet(objectKey parent, objectKey menu _U_)
 
 _X_ int windowSwitchPointer(objectKey parent, const char *pointerName _U_)
 {
-	// Proto: int kernelWinowSwitchPointer(objectKey, const char *)
+	// Proto: int kernelWinowSwitchPointer(objectKey, const char *);
 	// Desc : Switch the mouse pointer for the parent window or component object 'parent' to the pointer represented by the name 'pointerName'.  Examples of pointer names are "default" and "busy".
 	return (_syscall(_fnum_windowSwitchPointer, &parent));
+}
+
+_X_ int windowRefresh(void)
+{
+	// Proto: int kernelWindowRefresh(void);
+	// Desk : Tell the window system to do a global refresh, sending 'refresh' events to all the windows.
+	return (_syscall(_fnum_windowRefresh, NULL));
 }
 
 _X_ void windowComponentDestroy(objectKey component)
@@ -2012,10 +2019,10 @@ _X_ objectKey windowNewListItem(objectKey parent, windowListType type _U_, listI
 	return ((objectKey)(long) _syscall(_fnum_windowNewListItem, &parent));
 }
 
-_X_ objectKey windowNewMenu(objectKey parent, const char *name _U_, windowMenuContents *contents _U_, componentParameters *params _U_)
+_X_ objectKey windowNewMenu(objectKey parent, objectKey menuBar _U_, const char *name _U_, windowMenuContents *contents _U_, componentParameters *params _U_)
 {
-	// Proto: kernelWindowComponent *kernelWindowNewMenu(objectKey, const char *, windowMenuContents *, componentParameters *);
-	// Desc : Get a new menu component to be placed inside the parent object 'parent', using the name 'name' (which will be the header of the menu in a menu bar, for example), the menu contents structure 'contents', and the component parameters 'params'.  A menu component is an instance of a container, typically contains menu item components, and is typically added to a menu bar component.
+	// Proto: kernelWindow *kernelWindowNewMenu(kernelWindow *, kernelWindowComponent *, const char *, windowMenuContents *, componentParameters *);
+	// Desc : Get a new menu to be associated with the parent object 'parent', in the (optional) menu bar 'menuBar', using the name 'name' (which will be the header of the menu in any menu bar, for example), the menu contents structure 'contents', and the component parameters 'params'.  A menu is a type of window, typically contains menu item components, and is often added to a menu bar component.
 	return ((objectKey)(long) _syscall(_fnum_windowNewMenu, &parent));
 }
 
@@ -2115,6 +2122,13 @@ _X_ int userLogout(const char *name)
 	return (_syscall(_fnum_userLogout, &name));
 }
 
+_X_ int userExists(const char *name)
+{
+	// Proto: int kernelUserExists(const char *);
+	// Desc : Returns 1 if the user 'name' exists in the sytem, 0 otherwise.
+	return (_syscall(_fnum_userExists, &name));
+}
+
 _X_ int userGetNames(char *buffer, unsigned bufferSize _U_)
 {
 	// Proto: int kernelUserGetNames(char *, unsigned);
@@ -2141,6 +2155,13 @@ _X_ int userSetPassword(const char *name, const char *oldPass _U_, const char *n
 	// Proto: int kernelUserSetPassword(const char *, const char *, const char *);
 	// Desc : Set the password of user 'name'.  If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'.  The new password is supplied in 'newPass'.
 	return (_syscall(_fnum_userSetPassword, &name));
+}
+
+_X_ int userGetCurrent(char *buffer, unsigned bufferSize _U_)
+{
+	// Proto: int kernelUserGetCurrent(char *, unsigned);
+	// Desc : Returns the name of the currently logged-in (if any) user in 'buffer', up to 'bufferSize' bytes.
+	return (_syscall(_fnum_userGetCurrent, &buffer));
 }
 
 _X_ int userGetPrivilege(const char *name)
@@ -2270,7 +2291,7 @@ _X_ int networkPing(objectKey connection, int seqNum _U_, unsigned char *buffer 
 _X_ int networkGetHostName(char *buffer, int bufferSize _U_)
 {
 	// Proto: int kernelNetworkGetHostName(char *, int);
-	// Desc: Returns up to 'bufferSize' bytes of the system's network hostname in 'buffer' 
+	// Desc: Returns up to 'bufferSize' bytes of the system's network hostname in 'buffer'
 	return (_syscall(_fnum_networkGetHostName, &buffer));
 }
 
@@ -2284,7 +2305,7 @@ _X_ int networkSetHostName(const char *buffer, int bufferSize _U_)
 _X_ int networkGetDomainName(char *buffer, int bufferSize _U_)
 {
 	// Proto: int kernelNetworkGetDomainName(char *, int);
-	// Desc: Returns up to 'bufferSize' bytes of the system's network domain name in 'buffer' 
+	// Desc: Returns up to 'bufferSize' bytes of the system's network domain name in 'buffer'
 	return (_syscall(_fnum_networkGetDomainName, &buffer));
 }
 
@@ -2439,7 +2460,7 @@ _X_ int variableListCreate(variableList *list)
 	// Desc : Set up a new variable list structure.
 	return (_syscall(_fnum_variableListCreate, &list));
 }
-  
+
 _X_ int variableListDestroy(variableList *list)
 {
 	// Proto: int kernelVariableListDestroy(variableList *);
@@ -2447,11 +2468,18 @@ _X_ int variableListDestroy(variableList *list)
 	return (_syscall(_fnum_variableListDestroy, &list));
 }
 
-_X_ int variableListGet(variableList *list, const char *var _U_, char *buffer _U_, unsigned buffSize _U_)
+_X_ const char *variableListGetVariable(variableList *list, int num _U_)
 {
-	// Proto: int kernelVariableListGet(variableList *, const char *, char *, unsigned);
-	// Desc : Get the value of the variable 'var' from the variable list 'list' in the buffer 'buffer', up to 'buffSize' bytes.
-	return (_syscall(_fnum_variableListGet, &list));
+	// Proto: const char *kernelVariableListGetVariable(variableList *, int);
+	// Desc : Return a pointer to the name of the 'num'th variable from the variable list 'list'.
+	return ((const char *)(long) _syscall(_fnum_variableListGetVariable, &list));
+}
+
+_X_ const char *variableListGet(variableList *list, const char *var _U_)
+{
+	// Proto: const char *kernelVariableListGet(variableList *, const char *);
+	// Desc : Return a pointer to the value of the variable 'var' from the variable list 'list'.
+	return ((const char *)(long) _syscall(_fnum_variableListGet, &list));
 }
 
 _X_ int variableListSet(variableList *list, const char *var _U_, const char *value _U_)

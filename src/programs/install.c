@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -42,18 +42,36 @@ Options:
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/paths.h>
+#include <sys/user.h>
 #include <sys/vsh.h>
 
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
+
+#define WINDOW_TITLE		_("Install")
+#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2014 " \
+	"J. Andrew McLaughlin")
+#define INSTALL_DISK		_("[ Installing on disk %s ]")
+#define BASIC_INSTALL		_("Basic install")
+#define FULL_INSTALL		_("Full install")
+#define FORMAT_DISK			_("Format %s (erases all data!)")
+#define CHOOSE_FILESYSTEM	_("Choose filesystem type")
+#define LANGUAGE			_("Language")
+#define INSTALL				_("Install")
+#define QUIT				_("Quit")
 #define MOUNTPOINT			"/tmp_install"
-#define BASICINSTALL		"/system/install-files.basic"
-#define FULLINSTALL			"/system/install-files.full"
+#define BASICINSTALL		PATH_SYSTEM "/install-files.basic"
+#define FULLINSTALL			PATH_SYSTEM "/install-files.full"
 
 typedef enum { install_basic, install_full } install_type;
 
@@ -62,14 +80,12 @@ static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *titleString =
-	"Visopsys Installer\nCopyright (C) 1998-2014 J. Andrew McLaughlin";
 static char *chooseVolumeString =
-	"Please choose the volume on which to install:";
+	gettext_noop("Please choose the volume on which to install:");
 static char *setPasswordString =
-	"Please choose a password for the 'admin' account";
-static char *partitionString = "Partition disks...";
-static char *cancelString = "Installation cancelled.";
+	gettext_noop("Please choose a password for the 'admin' account");
+static char *partitionString = gettext_noop("Partition disks...");
+static char *cancelString = gettext_noop("Installation cancelled.");
 static install_type installType;
 static unsigned bytesToCopy = 0;
 static unsigned bytesCopied = 0;
@@ -77,23 +93,29 @@ static progress prog;
 static int doFormat = 1;
 static int chooseFsType = 0;
 static char formatFsType[16];
+static char installLanguage[6];
 static textScreen screen;
 
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
+static objectKey titleLabel = NULL;
+static objectKey installDiskLabel = NULL;
 static objectKey installTypeRadio = NULL;
 static objectKey formatCheckbox = NULL;
 static objectKey fsTypeCheckbox = NULL;
+static objectKey langImage = NULL;
+static objectKey langButton = NULL;
 static objectKey statusLabel = NULL;
 static objectKey progressBar = NULL;
 static objectKey installButton = NULL;
 static objectKey quitButton = NULL;
+static image flagImage;
 
 
 static void pause(void)
 {
-	printf("\nPress any key to continue. ");
+	printf("%s", _("\nPress any key to continue. "));
 	getchar();
 	printf("\n");
 }
@@ -103,18 +125,18 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
 
 	if (graphics)
-		windowNewErrorDialog(window, "Error", output);
+		windowNewErrorDialog(window, _("Error"), output);
 	else
-		printf("\n\nERROR: %s\n\n", output);
+		printf(_("\n\nERROR: %s\n\n"), output);
 }
 
 
@@ -125,7 +147,7 @@ static void quit(int status, const char *message, ...)
 
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	if (message != NULL)
 	{
 		va_start(list, message);
@@ -141,11 +163,11 @@ static void quit(int status, const char *message, ...)
 	if (message != NULL)
 	{
 		if (status < 0)
-			error("%s  Quitting.", output);
+			error(_("%s  Quitting."), output);
 		else
 		{
 			if (graphics)
-				windowNewInfoDialog(window, "Complete", output);
+				windowNewInfoDialog(window, _("Complete"), output);
 			else
 				printf("\n%s\n", output);
 		}
@@ -177,12 +199,12 @@ static void makeDiskList(void)
 
 	tmpDiskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
 	if (tmpDiskInfo == NULL)
-		quit(status, "Memory allocation error.");
+		quit(status, "%s", _("Memory allocation error."));
 
 	status = diskGetAll(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
 	if (status < 0)
 		// Eek.  Problem getting disk info
-		quit(status, "Unable to get disk information.");
+		quit(status, "%s", _("Unable to get disk information."));
 
 	// Loop through the list we got.  Copy any valid disks (disks to which
 	// we might be able to install) into the main array
@@ -205,13 +227,96 @@ static void makeDiskList(void)
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	char tmp[40];
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("install");
+
+	// Refresh the 'title' label
+	windowComponentSetData(titleLabel, TITLE_STRING, strlen(TITLE_STRING));
+
+	// Refresh the 'install disk' label
+	sprintf(tmp, INSTALL_DISK, diskName);
+	windowComponentSetData(installDiskLabel, tmp, strlen(tmp));
+
+	// Refresh the 'install type' radio
+	windowComponentSetData(installTypeRadio,
+		(char *[])	{ BASIC_INSTALL, FULL_INSTALL }, 2);
+
+	// Refresh the 'format disk' checkbox
+	sprintf(tmp, FORMAT_DISK, diskName);
+	windowComponentSetData(formatCheckbox, tmp, strlen(tmp));
+
+	// Refresh the 'choose filesystem' checkbox
+	windowComponentSetData(fsTypeCheckbox, CHOOSE_FILESYSTEM,
+		strlen(CHOOSE_FILESYSTEM));
+
+	// Refresh the 'install' button
+	windowComponentSetData(installButton, INSTALL, strlen(INSTALL));
+
+	// Refresh the 'quit' button
+	windowComponentSetData(quitButton, QUIT, strlen(QUIT));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
+static int loadFlagImage(const char *lang, image *img)
+{
+	int status = 0;
+	char path[MAX_PATH_LENGTH];
+	file f;
+
+	sprintf(path, "%s/flag-%s.bmp", PATH_SYSTEM_LOCALE, lang);
+
+	status = fileFind(path, &f);
+	if (status < 0)
+		return (status);
+
+	status = imageLoad(path, 30, 20, img);
+
+	return (status);
+}
+
+
+static void chooseLanguage(void)
+{
+	char pickedLanguage[sizeof(installLanguage)];
+
+	if (windowNewLanguageDialog(window, pickedLanguage) >= 0)
+	{
+		strncpy(installLanguage, pickedLanguage,
+			(sizeof(installLanguage - 1)));
+
+		if (flagImage.data)
+			imageFree(&flagImage);
+
+		if (loadFlagImage(installLanguage, &flagImage) >= 0)
+			windowComponentSetData(langImage, &flagImage, sizeof(image));
+	}
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for the window being closed, or pressing of the 'Quit' button.
-	if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-		((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+
+	// Check for window events.
+	if (key == window)
 	{
-		quit(0, NULL);
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			quit(0, NULL);
 	}
 
 	else if ((key == formatCheckbox) && (event->type & EVENT_SELECTION))
@@ -223,14 +328,20 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	else if ((key == fsTypeCheckbox) && (event->type & EVENT_SELECTION))
-	{
 		windowComponentGetSelected(fsTypeCheckbox, &chooseFsType);
-	}
 
-	// Check for the 'Install' button
+	// Check the the 'language' button
+	else if ((key == langButton) && (event->type == EVENT_MOUSE_LEFTUP))
+		chooseLanguage();
+
+	// Check for the 'install' button
 	else if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
 		// Stop the GUI here and the installation will commence
 		windowGuiStop();
+
+	// Check for the 'quit' button
+	else if ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP))
+		quit(0, NULL);
 }
 
 
@@ -239,52 +350,76 @@ static void constructWindow(void)
 	// If we are in graphics mode, make a window rather than operating on the
 	// command line.
 
+	objectKey container1 = NULL;
+	file langDir;
 	componentParameters params;
-	objectKey textLabel = NULL;
 	char tmp[40];
 
-	// Create a new window, with small, arbitrary size and location
-	window = windowNew(processId, "Install");
+	// Create a new window
+	window = windowNew(processId, WINDOW_TITLE);
 	if (window == NULL)
-		quit(ERR_NOCREATE, "Can't create window!");
+		quit(ERR_NOCREATE, "%s", _("Can't create window!"));
 
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 2;
 	params.gridHeight = 1;
-	params.padTop = 5;
-	params.padLeft = 5;
-	params.padRight = 5;
+	params.padTop = params.padLeft = params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
-	textLabel = windowNewTextLabel(window, titleString, &params);
-	
+	titleLabel = windowNewTextLabel(window, TITLE_STRING, &params);
+
 	params.gridY++;
-	sprintf(tmp, "[ Installing on disk %s ]", diskName);
-	windowNewTextLabel(window, tmp, &params);
+	sprintf(tmp, INSTALL_DISK, diskName);
+	installDiskLabel = windowNewTextLabel(window, tmp, &params);
 
 	params.gridY++;
 	installTypeRadio = windowNewRadioButton(window, 2, 1, (char *[])
-		{ "Basic install", "Full install" }, 2 , &params);
+		{ BASIC_INSTALL, FULL_INSTALL }, 2 , &params);
 	windowComponentSetEnabled(installTypeRadio, 0);
 
 	params.gridY++;
-	sprintf(tmp, "Format %s (erases all data!)", diskName);
+	sprintf(tmp, FORMAT_DISK, diskName);
 	formatCheckbox = windowNewCheckbox(window, tmp, &params);
 	windowComponentSetSelected(formatCheckbox, 1);
 	windowComponentSetEnabled(formatCheckbox, 0);
 	windowRegisterEventHandler(formatCheckbox, &eventHandler);
 
 	params.gridY++;
-	fsTypeCheckbox =
-	windowNewCheckbox(window, "Choose filesystem type", &params);
+	fsTypeCheckbox = windowNewCheckbox(window, CHOOSE_FILESYSTEM, &params);
 	windowComponentSetEnabled(fsTypeCheckbox, 0);
 	windowRegisterEventHandler(fsTypeCheckbox, &eventHandler);
 
 	params.gridY++;
+	container1 = windowNewContainer(window, "container1", &params);
+	if (container1)
+	{
+		params.gridWidth = 1;
+		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		if (loadFlagImage(installLanguage, &flagImage) >= 0)
+			langImage = windowNewImage(container1, &flagImage, draw_normal,
+				&params);
+
+		params.gridX++;
+		langButton = windowNewButton(container1, LANGUAGE, NULL, &params);
+		windowRegisterEventHandler(langButton, &eventHandler);
+
+		if (fileFind(PATH_SYSTEM_LOCALE, &langDir) < 0)
+		{
+			if (langImage)
+				windowComponentSetEnabled(langImage, 0);
+			windowComponentSetEnabled(langButton, 0);
+		}
+	}
+
+	params.gridX = 0;
+	params.gridY++;
+	params.gridWidth = 2;
+	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
 	statusLabel = windowNewTextLabel(window, "", &params);
-	windowComponentSetWidth(statusLabel, windowComponentGetWidth(textLabel));
+	windowComponentSetWidth(statusLabel, windowComponentGetWidth(titleLabel));
 
 	params.gridY++;
+	params.orientationX = orient_center;
 	progressBar = windowNewProgressBar(window, &params);
 
 	params.gridY++;
@@ -292,13 +427,13 @@ static void constructWindow(void)
 	params.padBottom = 5;
 	params.orientationX = orient_right;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	installButton = windowNewButton(window, "Install", NULL, &params);
+	installButton = windowNewButton(window, INSTALL, NULL, &params);
 	windowRegisterEventHandler(installButton, &eventHandler);
 	windowComponentSetEnabled(installButton, 0);
 
 	params.gridX++;
 	params.orientationX = orient_left;
-	quitButton = windowNewButton(window, "Quit", NULL, &params);
+	quitButton = windowNewButton(window, QUIT, NULL, &params);
 	windowRegisterEventHandler(quitButton, &eventHandler);
 	windowComponentSetEnabled(quitButton, 0);
 
@@ -314,7 +449,7 @@ static void printBanner(void)
 {
 	// Print a message
 	textScreenClear();
-	printf("\n%s\n\n", titleString);
+	printf("\n%s\n\n", _(TITLE_STRING));
 }
 
 
@@ -323,26 +458,26 @@ static int yesOrNo(char *question)
 	char character;
 
 	if (graphics)
-		return (windowNewQueryDialog(window, "Confirmation", question));
+		return (windowNewQueryDialog(window, _("Confirmation"), question));
 
 	else
 	{
-		printf("\n%s (y/n): ", question);
+		printf(_("\n%s (y/n): "), question);
 		textInputSetEcho(0);
 
-		while(1)
+		while (1)
 		{
 			character = getchar();
 
 			if ((character == 'y') || (character == 'Y'))
 			{
-				printf("Yes\n");
+				printf("%s", _("Yes\n"));
 				textInputSetEcho(1);
 				return (1);
 			}
 			else if ((character == 'n') || (character == 'N'))
 			{
-				printf("No\n");
+				printf("%s", _("No\n"));
 				textInputSetEcho(1);
 				return (0);
 			}
@@ -389,8 +524,8 @@ start:
 
 	if (graphics)
 	{
-		chooseWindow = windowNew(processId, "Choose Installation Disk");
-		windowNewTextLabel(chooseWindow, chooseVolumeString, &params);
+		chooseWindow = windowNew(processId, _("Choose Installation Disk"));
+		windowNewTextLabel(chooseWindow, _(chooseVolumeString), &params);
 
 		// Make a window list with all the disk choices
 		params.gridY = 1;
@@ -404,18 +539,18 @@ start:
 		params.padBottom = 5;
 		params.padRight = 0;
 		params.orientationX = orient_right;
-		okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
+		okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
 
 		params.gridX = 1;
 		params.padRight = 5;
 		params.orientationX = orient_center;
-		partButton = windowNewButton(chooseWindow, partitionString, NULL,
-						 &params);
+		partButton = windowNewButton(chooseWindow, _(partitionString), NULL,
+			&params);
 
 		params.gridX = 2;
 		params.padLeft = 0;
 		params.orientationX = orient_left;
-		cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
+		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL, &params);
 
 		// Make the window visible
 		windowRemoveMinimizeButton(chooseWindow);
@@ -423,7 +558,7 @@ start:
 		windowSetResizable(chooseWindow, 0);
 		windowSetVisible(chooseWindow, 1);
 
-		while(1)
+		while (1)
 		{
 			// Check for our OK button
 			status = windowComponentEventGet(okButton, &event);
@@ -445,7 +580,7 @@ start:
 				chooseWindow = NULL;
 
 				// Privilege zero, no args, block
-				loaderLoadAndExec("/programs/fdisk", 0, 1);
+				loaderLoadAndExec(PATH_PROGRAMS "/fdisk", 0, 1);
 
 				// Remake our disk list
 				makeDiskList();
@@ -473,8 +608,8 @@ start:
 	{
 		for (count = 0; count < numberDisks; count ++)
 			diskStrings[count] = diskListParams[count].text;
-		diskStrings[numberDisks] = partitionString;
-		diskNumber = vshCursorMenu(chooseVolumeString, diskStrings,
+		diskStrings[numberDisks] = _(partitionString);
+		diskNumber = vshCursorMenu(_(chooseVolumeString), diskStrings,
 			(numberDisks + 1), 0);
 		if (diskNumber == numberDisks)
 		{
@@ -482,7 +617,7 @@ start:
 			// manager, and start again
 
 			// Privilege zero, no args, block
-			loaderLoadAndExec("/programs/fdisk", 0, 1);
+			loaderLoadAndExec(PATH_PROGRAMS "/fdisk", 0, 1);
 
 			// Remake our disk list
 			makeDiskList();
@@ -543,10 +678,10 @@ static unsigned getInstallSize(const char *installFileName)
 		{
 			// Use the line of data as the name of a file.  We try to find the
 			// file and add its size to the number of bytes
-			status = fileFind(buffer, &theFile);
+			status = fileFind(strtok(buffer, "="), &theFile);
 			if (status < 0)
 			{
-				error("Can't open source file \"%s\"", buffer);
+				error(_("Can't open source file \"%s\""), buffer);
 				continue;
 			}
 
@@ -567,19 +702,19 @@ static int askFsType(void)
 
 	int status = 0;
 	int selectedType = 0;
-	char *fsTypes[] = { "Default", "FAT12", "FAT16", "FAT32" };
+	char *fsTypes[] = { _("Default"), _("FAT12"), _("FAT16"), _("FAT32") };
 
 	if (graphics)
-		selectedType = windowNewRadioDialog(window, "Choose Filesystem Type",
-			"Supported types:", fsTypes, 4, 0);
+		selectedType = windowNewRadioDialog(window, _("Choose Filesystem Type"),
+			_("Supported types:"), fsTypes, 4, 0);
 	else
-		selectedType = vshCursorMenu("Choose the filesystem type:", fsTypes,
-			4, 0);
+		selectedType = vshCursorMenu(_("Choose the filesystem type:"),
+			fsTypes, 4, 0);
 
 	if (selectedType < 0)
 		return (status = selectedType);
 
-	if (!strcasecmp(fsTypes[selectedType], "Default"))
+	if (!strcasecmp(fsTypes[selectedType], _("Default")))
 		strcpy(formatFsType, "fat");
 	else
 		strcpy(formatFsType, fsTypes[selectedType]);
@@ -591,7 +726,7 @@ static int askFsType(void)
 static void updateStatus(const char *message)
 {
 	// Updates progress messages.
-	
+
 	int statusLength = 0;
 
 	if (lockGet(&prog.progLock) >= 0)
@@ -633,8 +768,8 @@ static int mountedCheck(disk *theDisk)
 	if (!(theDisk->mounted))
 		return (status = 0);
 
-	sprintf(tmpChar, "The disk is mounted as %s.  It must be unmounted\n"
-		"before continuing.  Unmount?",
+	sprintf(tmpChar, _("The disk is mounted as %s.  It must be unmounted\n"
+		"before continuing.  Unmount?"),
 		theDisk->mountPoint);
 
 	if (!yesOrNo(tmpChar))
@@ -644,10 +779,10 @@ static int mountedCheck(disk *theDisk)
 	status = filesystemUnmount(theDisk->mountPoint);
 	if (status < 0)
 	{
-		error("Unable to unmount %s", theDisk->mountPoint);
+		error(_("Unable to unmount %s"), theDisk->mountPoint);
 		return (status);
 	}
-	
+
 	return (status = 0);
 }
 
@@ -661,14 +796,14 @@ static int copyBootSector(disk *theDisk)
 	char bootSectFilename[MAX_PATH_NAME_LENGTH];
 	char command[MAX_PATH_NAME_LENGTH];
 
-	updateStatus("Copying boot sector...  ");
+	updateStatus(_("Copying boot sector...  "));
 
 	// Make sure we know the filesystem type
 	status = diskGetFilesystemType(theDisk->name, theDisk->fsType,
 		FSTYPE_MAX_NAMELENGTH);
 	if (status < 0)
 	{
-		error("Unable to determine the filesystem type on disk \"%s\"",
+		error(_("Unable to determine the filesystem type on disk \"%s\""),
 			theDisk->name);
 		return (status);
 	}
@@ -676,12 +811,12 @@ static int copyBootSector(disk *theDisk)
 	// Determine which boot sector we should be using
 	if (strncmp(theDisk->fsType, "fat", 3))
 	{
-		error("Can't install a boot sector for filesystem type \"%s\"",
+		error(_("Can't install a boot sector for filesystem type \"%s\""),
 			theDisk->fsType);
 		return (status = ERR_INVALID);
 	}
 
-	strcpy(bootSectFilename, "/system/boot/bootsect.fat");
+	strcpy(bootSectFilename, PATH_SYSTEM_BOOT "/bootsect.fat");
 	if (!strcasecmp(theDisk->fsType, "fat32"))
 		strcat(bootSectFilename, "32");
 
@@ -689,12 +824,12 @@ static int copyBootSector(disk *theDisk)
 	status = fileFind(bootSectFilename, NULL);
 	if (status < 0)
 	{
-		error("Unable to find the boot sector file \"%s\"", bootSectFilename);
+		error(_("Unable to find the boot sector file \"%s\""), bootSectFilename);
 		return (status);
 	}
 
 	// Use our companion program to do the work
-	sprintf(command, "/programs/copy-boot %s %s", bootSectFilename,
+	sprintf(command, PATH_PROGRAMS "/copy-boot %s %s", bootSectFilename,
 		theDisk->name);
 	status = system(command);
 
@@ -702,12 +837,12 @@ static int copyBootSector(disk *theDisk)
 
 	if (status < 0)
 	{
-		error("Error %d copying boot sector \"%s\" to disk %s", status,
+		error(_("Error %d copying boot sector \"%s\" to disk %s"), status,
 			bootSectFilename, theDisk->name);
 		return (status);
 	}
 
-	updateStatus("Done\n");
+	updateStatus(_("Done\n"));
 
 	return (status = 0);
 }
@@ -722,6 +857,8 @@ static int copyFiles(const char *installFileName)
 	file theFile;
 	unsigned percent = 0;
 	char buffer[BUFFSIZE];
+	char *srcFile = NULL;
+	char *destFile = NULL;
 	char tmpFileName[128];
 
 	// Clear stack data
@@ -734,12 +871,12 @@ static int copyFiles(const char *installFileName)
 	status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
 	if (status < 0)
 	{
-		error("Can't open install file \"%s\"",  installFileName);
+		error(_("Can't open install file \"%s\""),  installFileName);
 		return (status);
 	}
 
-	sprintf(buffer, "Copying %s files...  ",
-		(!strcmp(installFileName, BASICINSTALL)? "basic" : "extra"));
+	sprintf(buffer, _("Copying %s files...  "),
+		(!strcmp(installFileName, BASICINSTALL)? _("basic") : _("extra")));
 	updateStatus(buffer);
 
 	// Read it line by line
@@ -754,19 +891,27 @@ static int copyFiles(const char *installFileName)
 			// Ignore blank lines and comments
 			continue;
 
-		// Use the line of data as the name of a file.  We try to find the
-		// file and add its size to the number of bytes
-		status = fileFind(buffer, &theFile);
+		// Get the source filename, and the destination filename if it
+		// follows (separated by an '=')
+
+		srcFile = strtok(buffer, "=");
+		destFile = strtok(NULL, "=");
+		if (!destFile)
+			destFile = srcFile;
+
+		// Find the source file
+		status = fileFind(srcFile, &theFile);
 		if (status < 0)
 		{
 			// Later we should do something here to make a message listing
 			// the names of any missing files
-			error("Missing file \"%s\"", buffer);
+			error(_("Missing file \"%s\""), buffer);
 			continue;
 		}
 
 		strcpy(tmpFileName, MOUNTPOINT);
-		strcat(tmpFileName, buffer);
+		strcat(tmpFileName, destFile);
+
 
 		if (theFile.type == dirT)
 		{
@@ -774,10 +919,9 @@ static int copyFiles(const char *installFileName)
 			if (fileFind(tmpFileName, NULL) < 0)
 				status = fileMakeDir(tmpFileName);
 		}
-
 		else
 			// It's a file.  Copy it to the destination.
-			status = fileCopy(buffer, tmpFileName);
+			status = fileCopy(srcFile, tmpFileName);
 
 		if (status < 0)
 			goto done;
@@ -791,7 +935,9 @@ static int copyFiles(const char *installFileName)
 		percent = ((bytesCopied * 100) / bytesToCopy);
 
 		if (graphics)
+		{
 			windowComponentSetData(progressBar, (void *) percent, 1);
+		}
 		else if (lockGet(&prog.progLock) >= 0)
 		{
 			prog.percentFinished = percent;
@@ -806,7 +952,7 @@ done:
 
 	diskSyncAll();
 
-	updateStatus("Done\n");
+	updateStatus(_("Done\n"));
 
 	return (status);
 }
@@ -825,13 +971,13 @@ static void setAdminPassword(void)
 	objectKey okButton = NULL;
 	objectKey cancelButton = NULL;
 	windowEvent event;
-	char confirmPassword[17];
-	char newPassword[17];
+	char confirmPassword[USER_MAX_PASSWDLENGTH + 1];
+	char newPassword[USER_MAX_PASSWDLENGTH + 1];
 
 	if (graphics)
 	{
 		// Create the dialog
-		dialogWindow = windowNewDialog(window, "Set Administrator Password");
+		dialogWindow = windowNewDialog(window, _("Set Administrator Password"));
 
 		bzero(&params, sizeof(componentParameters));
 		params.gridWidth = 2;
@@ -841,39 +987,41 @@ static void setAdminPassword(void)
 		params.padTop = 5;
 		params.orientationX = orient_center;
 		params.orientationY = orient_middle;
-		windowNewTextLabel(dialogWindow, setPasswordString, &params);
-			
+		windowNewTextLabel(dialogWindow, _(setPasswordString), &params);
+
 		params.gridY = 1;
 		params.gridWidth = 1;
 		params.padRight = 0;
 		params.orientationX = orient_right;
-		windowNewTextLabel(dialogWindow, "New password:", &params);
+		windowNewTextLabel(dialogWindow, _("New password:"), &params);
 
 		params.gridX = 1;
 		params.padRight = 5;
 		params.orientationX = orient_left;
-		passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
+		passwordField1 = windowNewPasswordField(dialogWindow,
+			(USER_MAX_PASSWDLENGTH + 1), &params);
 		windowComponentFocus(passwordField1);
-		
+
 		params.gridX = 0;
 		params.gridY = 2;
 		params.padRight = 0;
 		params.orientationX = orient_right;
-		windowNewTextLabel(dialogWindow, "Confirm password:", &params);
+		windowNewTextLabel(dialogWindow, _("Confirm password:"), &params);
 
 		params.gridX = 1;
 		params.orientationX = orient_left;
 		params.padRight = 5;
-		passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
-			
+		passwordField2 = windowNewPasswordField(dialogWindow,
+			(USER_MAX_PASSWDLENGTH + 1), &params);
+
 		params.gridX = 0;
 		params.gridY = 3;
 		params.gridWidth = 2;
 		params.orientationX = orient_center;
-		noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
-			"match", &params);
+		noMatchLabel = windowNewTextLabel(dialogWindow, _("Passwords do not "
+			"match"), &params);
 		windowComponentSetVisible(noMatchLabel, 0);
-		
+
 		// Create the OK button
 		params.gridY = 4;
 		params.gridWidth = 1;
@@ -881,45 +1029,45 @@ static void setAdminPassword(void)
 		params.padRight = 0;
 		params.orientationX = orient_right;
 		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-		okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
-		
+		okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
+
 		// Create the Cancel button
 		params.gridX = 1;
 		params.padRight = 5;
 		params.orientationX = orient_left;
-		cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
+		cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
 
 		windowCenterDialog(window, dialogWindow);
 		windowSetVisible(dialogWindow, 1);
 
 		graphicsRestart:
-		while(1)
+		while (1)
 		{
 			// Check for window close events
 			status = windowComponentEventGet(dialogWindow, &event);
 			if ((status < 0) || ((status > 0) &&
 				(event.type == EVENT_WINDOW_CLOSE)))
 			{
-				error("No password set.  It will be blank.");
+				error("%s", _("No password set.  It will be blank."));
 				windowDestroy(dialogWindow);
 				return;
 			}
-			
+
 			// Check for the OK button
 			status = windowComponentEventGet(okButton, &event);
 			if ((status >= 0) && (event.type == EVENT_MOUSE_LEFTUP))
 				break;
-			
+
 			// Check for the Cancel button
 			status = windowComponentEventGet(cancelButton, &event);
 			if ((status < 0) || ((status > 0) &&
 				(event.type == EVENT_MOUSE_LEFTUP)))
 			{
-				error("No password set.  It will be blank.");
+				error("%s", _("No password set.  It will be blank."));
 				windowDestroy(dialogWindow);
 				return;
 			}
-			
+
 			if (((windowComponentEventGet(passwordField1, &event) > 0) &&
 					(event.type == EVENT_KEY_DOWN)) ||
 				((windowComponentEventGet(passwordField2, &event) > 0) &&
@@ -930,9 +1078,12 @@ static void setAdminPassword(void)
 
 				else
 				{
-					windowComponentGetData(passwordField1, newPassword, 16);
-					windowComponentGetData(passwordField2, confirmPassword, 16);
-					if (strncmp(newPassword, confirmPassword, 16))
+					windowComponentGetData(passwordField1, newPassword,
+						USER_MAX_PASSWDLENGTH);
+					windowComponentGetData(passwordField2, confirmPassword,
+						USER_MAX_PASSWDLENGTH);
+					if (strncmp(newPassword, confirmPassword,
+						USER_MAX_PASSWDLENGTH))
 					{
 						windowComponentSetVisible(noMatchLabel, 1);
 						windowComponentSetEnabled(okButton, 0);
@@ -944,30 +1095,32 @@ static void setAdminPassword(void)
 					}
 				}
 			}
-			
+
 			// Done
 			multitaskerYield();
 		}
-		
-		windowComponentGetData(passwordField1, newPassword, 16);
-		windowComponentGetData(passwordField2, confirmPassword, 16);
+
+		windowComponentGetData(passwordField1, newPassword,
+			USER_MAX_PASSWDLENGTH);
+		windowComponentGetData(passwordField2, confirmPassword,
+			USER_MAX_PASSWDLENGTH);
 	}
 	else
 	{
 		textRestart:
-		printf("\n%s\n", setPasswordString);
+		printf("\n%s\n", _(setPasswordString));
 
 		// Turn keyboard echo off
 		textInputSetEcho(0);
-		
-		vshPasswordPrompt("New password: ", newPassword);
-		vshPasswordPrompt("Confirm password: ", confirmPassword);
+
+		vshPasswordPrompt(_("New password: "), newPassword);
+		vshPasswordPrompt(_("Confirm password: "), confirmPassword);
 	}
 
 	// Make sure the new password and confirm passwords match
-	if (strncmp(newPassword, confirmPassword, 16))
+	if (strncmp(newPassword, confirmPassword, USER_MAX_PASSWDLENGTH))
 	{
-		error("Passwords do not match");
+		error("%s", _("Passwords do not match"));
 		if (graphics)
 		{
 			windowComponentSetData(passwordField1, "", 0);
@@ -985,22 +1138,22 @@ static void setAdminPassword(void)
 
 	// We have a password.  Copy the blank password file for the new system
 	// password file
-	status = fileCopy(MOUNTPOINT "/system/password.blank",
-		MOUNTPOINT "/system/password");
+	status = fileCopy(MOUNTPOINT PATH_SYSTEM "/password.blank",
+		MOUNTPOINT PATH_SYSTEM "/password");
 	if (status < 0)
 	{
-		error("Unable to create the password file");
+		error("%s", _("Unable to create the password file"));
 		return;
 	}
 
-	status = userFileSetPassword(MOUNTPOINT "/system/password", "admin", "",
+	status = userFileSetPassword(MOUNTPOINT PATH_SYSTEM "/password", "admin", "",
 		newPassword);
 	if (status < 0)
 	{
-		error("Unable to set the \"admin\" password");
+		error("%s", _("Unable to set the \"admin\" password"));
 		return;
 	}
-	
+
 	return;
 }
 
@@ -1018,7 +1171,16 @@ int main(int argc, char *argv[])
 	int selected = 0;
 	int count;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("install");
+
 	bzero((void *) &prog, sizeof(progress));
+
+	// Set English as the default install language, unless some language is
+	// currently set
+	strcpy(installLanguage, "en");
+	if (getenv("LANG"))
+		strcpy(installLanguage, getenv("LANG"));
 
 	processId = multitaskerGetCurrentProcessId();
 
@@ -1031,14 +1193,14 @@ int main(int argc, char *argv[])
 
 	// Check privilege level
 	if (multitaskerGetProcessPrivilege(processId) != 0)
-		quit(ERR_PERMISSION, "You must be a privileged user to use this command."
-			"\n(Try logging in as user \"admin\").");
+		quit(ERR_PERMISSION, "%s", _("You must be a privileged user to use "
+			"this command.\n(Try logging in as user \"admin\")."));
 
 	// Get the root disk
 	status = diskGetBoot(rootDisk);
 	if (status < 0)
 		// Couldn't get the root disk name
-		quit(status, "Can't determine the root disk.");
+		quit(status, "%s", _("Can't determine the root disk."));
 
 	makeDiskList();
 
@@ -1078,7 +1240,7 @@ int main(int argc, char *argv[])
 	// Make sure the disk isn't mounted
 	status = mountedCheck(&diskInfo[diskNumber]);
 	if (status < 0)
-		quit(0, "%s", cancelString);
+		quit(0, "%s", _(cancelString));
 
 	// Calculate the number of bytes that will be consumed by the various
 	// types of install
@@ -1091,8 +1253,8 @@ int main(int argc, char *argv[])
 
 	// Make sure there's at least room for a basic install
 	if (diskSize < basicInstallSize)
-		quit((status = ERR_NOFREE), "Disk %s is too small (%dK) to install "
-			"Visopsys\n(%dK required)", diskInfo[diskNumber].name,
+		quit((status = ERR_NOFREE), _("Disk %s is too small (%dK) to install "
+			"Visopsys\n(%dK required)"), diskInfo[diskNumber].name,
 			(diskSize / 1024), (basicInstallSize / 1024));
 
 	// Show basic/full install choices based on whether there's enough space
@@ -1125,6 +1287,7 @@ int main(int argc, char *argv[])
 		windowComponentSetEnabled(installTypeRadio, 0);
 		windowComponentSetEnabled(formatCheckbox, 0);
 		windowComponentSetEnabled(fsTypeCheckbox, 0);
+		windowComponentSetEnabled(langButton, 0);
 	}
 
 	// Find out what type of installation to do
@@ -1138,8 +1301,8 @@ int main(int argc, char *argv[])
 	else if (fullInstallSize &&
 		((basicInstallSize + fullInstallSize) < diskSize))
 	{
-		status = vshCursorMenu("Please choose the install type:",
-			(char *[]) { "Basic", "Full" }, 2, 1);
+		status = vshCursorMenu(_("Please choose the install type:"),
+			(char *[]) { _("Basic"), _("Full") }, 2, 1);
 		if (status < 0)
 		{
 			textScreenRestore(&screen);
@@ -1154,9 +1317,9 @@ int main(int argc, char *argv[])
 	if (installType == install_full)
 		bytesToCopy += fullInstallSize;
 
-	sprintf(tmpChar, "Installing on disk %s.  Are you SURE?", diskName);
+	sprintf(tmpChar, _("Installing on disk %s.  Are you SURE?"), diskName);
 	if (!yesOrNo(tmpChar))
-		quit(0, "%s", cancelString);
+		quit(0, "%s", _(cancelString));
 
 	// Default filesystem formatting type is optimal/default FAT.
 	strcpy(formatFsType, "fat");
@@ -1172,15 +1335,16 @@ int main(int argc, char *argv[])
 	{
 		if (!graphics || chooseFsType)
 			if (askFsType() < 0)
-				quit(0, "%s", cancelString);
+				quit(0, "%s", _(cancelString));
 
-		updateStatus("Formatting... ");
+		updateStatus(_("Formatting... "));
 
 		if (graphics)
-			progressDialog = windowNewProgressDialog(NULL, "Formatting...", &prog);
+			progressDialog = windowNewProgressDialog(NULL, _("Formatting..."),
+				&prog);
 		else
 		{
-			printf("\nFormatting...\n");
+			printf("%s", _("\nFormatting...\n"));
 			vshProgressBar(&prog);
 		}
 
@@ -1192,33 +1356,33 @@ int main(int argc, char *argv[])
 			vshProgressBarDestroy(&prog);
 
 		if (status < 0)
-			quit(status, "Errors during format.");
+			quit(status, "%s", _("Errors during format."));
 
 		// Rescan the disk info so we get the new filesystem type, etc.
 		status = diskGet(diskName, &diskInfo[diskNumber]);
 		if (status < 0)
-			quit(status, "Error rescanning disk after format.");
+			quit(status, "%s", _("Error rescanning disk after format."));
 
-		updateStatus("Done\n");
+		updateStatus(_("Done\n"));
 		bzero((void *) &prog, sizeof(progress));
 	}
 
 	// Copy the boot sector to the destination disk
 	status = copyBootSector(&diskInfo[diskNumber]);
 	if (status < 0)
-		quit(status, "Couldn't copy the boot sector.");
+		quit(status, "%s", _("Couldn't copy the boot sector."));
 
 	// Mount the target filesystem
-	updateStatus("Mounting target disk...  ");
+	updateStatus(_("Mounting target disk...  "));
 	status = filesystemMount(diskName, MOUNTPOINT);
 	if (status < 0)
-		quit(status, "Unable to mount the target disk.");
-	updateStatus("Done\n");
+		quit(status, "%s", _("Unable to mount the target disk."));
+	updateStatus(_("Done\n"));
 
 	// Rescan the disk info so we get the available free space, etc.
 	status = diskGet(diskName, &diskInfo[diskNumber]);
 	if (status < 0)
-		quit(status, "Error rescanning disk after mount.");
+		quit(status, "%s", _("Error rescanning disk after mount."));
 
 	// Try to make sure the filesystem contains enough free space
 	if (diskInfo[diskNumber].freeBytes < bytesToCopy)
@@ -1227,23 +1391,23 @@ int main(int argc, char *argv[])
 		{
 			// We formatted, so we're pretty sure we won't succeed here.
 			if (filesystemUnmount(MOUNTPOINT) < 0)
-				error("Unable to unmount the target disk.");
-			quit((status = ERR_NOFREE), "The filesystem on disk %s is too small "
+				error("%s", _("Unable to unmount the target disk."));
+			quit((status = ERR_NOFREE), _("The filesystem on disk %s is too small "
 				"(%lluK) for\nthe selected Visopsys installation (%uK "
-				"required).", diskName, (diskInfo[diskNumber].freeBytes / 1024),
+				"required)."), diskName, (diskInfo[diskNumber].freeBytes / 1024),
 			 (bytesToCopy / 1024));
 		}
 		else
 		{
-			sprintf(tmpChar, "There MAY not be enough free space on disk %s "
+			sprintf(tmpChar, _("There MAY not be enough free space on disk %s "
 				"(%lluK) for the\nselected Visopsys installation (%uK "
-				"required).  Continue?", diskName,
+				"required).  Continue?"), diskName,
 				(diskInfo[diskNumber].freeBytes / 1024), (bytesToCopy / 1024));
 			if (!yesOrNo(tmpChar))
 			{
 				if (filesystemUnmount(MOUNTPOINT) < 0)
-					error("Unable to unmount the target disk.");
-				quit(0, "%s", cancelString);
+					error("%s", _("Unable to unmount the target disk."));
+				quit(0, "%s", _(cancelString));
 			}
 		}
 	}
@@ -1251,7 +1415,7 @@ int main(int argc, char *argv[])
 	if (!graphics)
 	{
 		bzero((void *) &prog, sizeof(progress));
-		printf("\nInstalling...\n");
+		printf("%s", _("\nInstalling...\n"));
 		vshProgressBar(&prog);
 	}
 
@@ -1268,23 +1432,27 @@ int main(int argc, char *argv[])
 	{
 		// Set the start program of the target installation to be the login
 		// program
-		configSet(MOUNTPOINT "/system/config/kernel.conf", "start.program",
-			"/programs/login");
+		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/kernel.conf", "start.program",
+			PATH_PROGRAMS "/login");
+
+		// Set the system language variable
+		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/environment.conf", "LANG",
+			installLanguage);
 
 		// Prompt the user to set the admin password
 		setAdminPassword();
 	}
 
 	// Unmount the target filesystem
-	updateStatus("Unmounting target disk...  ");
+	updateStatus(_("Unmounting target disk...  "));
 	if (filesystemUnmount(MOUNTPOINT) < 0)
-		error("Unable to unmount the target disk.");
-	updateStatus("Done\n");
+		error("%s", _("Unable to unmount the target disk."));
+	updateStatus(_("Done\n"));
 
 	if (status < 0)
 	{
 		// Couldn't copy the files
-		message = "Unable to copy files.";
+		message = _("Unable to copy files.");
 		if (graphics)
 			quit(status, "%s", message);
 		else
@@ -1292,7 +1460,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		message = "Installation successful.";
+		message = _("Installation successful.");
 		if (graphics)
 			quit(status, "%s", message);
 		else
@@ -1306,3 +1474,4 @@ int main(int argc, char *argv[])
 	// Make the compiler happy
 	return (status);
 }
+

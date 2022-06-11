@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -33,11 +33,13 @@
 typedef enum {
 	proc_running, proc_ready, proc_ioready, proc_waiting, proc_sleeping,
 	proc_stopped, proc_finished, proc_zombie
+
 } processState;
 
 // An enumeration listing possible process types
 typedef enum {
 	proc_normal, proc_thread
+
 } processType;
 
 typedef struct {
@@ -70,3 +72,4 @@ typedef struct {
 
 #define _PROCESS_H
 #endif
+

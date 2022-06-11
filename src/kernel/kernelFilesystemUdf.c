@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -123,8 +123,8 @@ static int readEntry(udfInternalData *udfData, unsigned icbLogical,
 		kernelError(kernel_warn, "File %s has alloc desc length %u not %u",
 			entry->name, udfEntry->allocDescsLength, sizeof(udfShortAllocDesc));
 		kernelDebug(debug_fs, "UDF: FileEntry\n"
-			"     tag %u maxEntries %u linkCount %u recordLength %u\n"
-			"     length %llu blocks %llu",
+			"  tag %u maxEntries %u linkCount %u recordLength %u\n"
+			"  length %llu blocks %llu",
 			udfEntry->tag.tagId, udfEntry->icbTag.maxEntries,
 			udfEntry->linkCount, udfEntry->recordLength,
 			udfEntry->length, udfEntry->blocks);
@@ -303,7 +303,7 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 	}
 
 	kernelFree(buffer);
-	
+
 	// Read the file set descriptor
 	buffer = kernelMalloc(theDisk->physical->sectorSize);
 	if (buffer == NULL)
@@ -514,11 +514,11 @@ static int detect(kernelDisk *theDisk)
 	unsigned count;
 
 	kernelDebug(debug_fs, "UDF: attempt detection");
-	
+
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -585,13 +585,13 @@ static int detect(kernelDisk *theDisk)
 	}
 
 	kernelFree(buffer);
-	
+
 	strcpy((char *) theDisk->fsType, FSNAME_UDF);
 
 	theDisk->filesystem.blockSize = theDisk->physical->sectorSize;
 	theDisk->filesystem.minSectors = 0;
 	theDisk->filesystem.maxSectors = 0;
-	
+
 	return (status = 1);
 }
 
@@ -606,11 +606,11 @@ static int mount(kernelDisk *theDisk)
 	int status = 0;
 	udfInternalData *udfData = NULL;
 	udfFileEntry *udfEntry = NULL;
-	
+
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -663,14 +663,14 @@ static int unmount(kernelDisk *theDisk)
 	// filesystem.
 
 	int status = 0;
-	
+
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
-	
+
 	// Free the filesystem data
 	if (theDisk->filesystem.filesystemData)
 		status = kernelFree(theDisk->filesystem.filesystemData);
@@ -689,9 +689,9 @@ static int newEntry(kernelFileEntry *entry)
 	int status = 0;
 
 	// Check params
-	if (entry == NULL)
+	if (!entry)
 	{
-		kernelError(kernel_error, "NULL file entry");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -730,11 +730,11 @@ static int inactiveEntry(kernelFileEntry *entry)
 	// to deallocate our filesystem-specific data from the file entry
 
 	int status = 0;
-	
+
 	// Check params
-	if (entry == NULL)
+	if (!entry)
 	{
-		kernelError(kernel_error, "NULL file entry");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -765,9 +765,9 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	int status = 0;
 
 	// Check params
-	if (linkEntry == NULL)
+	if (!linkEntry)
 	{
-		kernelError(kernel_error, "Link entry is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -786,9 +786,9 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 	udfFileData *dirRec = NULL;
 
 	// Check params
-	if ((theFile == NULL) || (buffer == NULL))
+	if (!theFile || !buffer)
 	{
-		kernelError(kernel_error, "Null file or buffer parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -822,11 +822,11 @@ static int readDir(kernelFileEntry *directory)
 
 	int status = 0;
 	udfInternalData *udfData = NULL;
-	
+
 	// Check params
-	if (directory == NULL)
+	if (!directory)
 	{
-		kernelError(kernel_error, "Directory parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 

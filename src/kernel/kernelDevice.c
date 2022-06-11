@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -168,7 +168,7 @@ static int isDevInTree(kernelDevice *root, kernelDevice *dev)
 	{
 		if (root == dev)
 			return (1);
-      
+
 		if (root->device.firstChild)
 		{
 			if (isDevInTree(root->device.firstChild, dev) == 1)
@@ -215,12 +215,13 @@ static void device2user(kernelDevice *kernel, device *user)
 {
 	// Convert a kernelDevice structure to the user version
 
+	const char *variable = NULL;
 	int count;
 
 	// Check params
-	if ((kernel == NULL) || (user == NULL))
+	if (!kernel || !user)
 	{
-		kernelError(kernel_error, "Device pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -243,9 +244,12 @@ static void device2user(kernelDevice *kernel, device *user)
 
 	kernelVariableListCreate(&user->attrs);
 	for (count = 0; count < kernel->device.attrs.numVariables; count ++)
-		kernelVariableListSet(&user->attrs,
-			kernel->device.attrs.variables[count],
-			kernel->device.attrs.values[count]);
+	{
+		variable = kernelVariableListGetVariable(&kernel->device.attrs, count);
+		if (variable)
+			kernelVariableListSet(&user->attrs, variable,
+				kernelVariableListGet(&kernel->device.attrs, variable));
+	}
 
 	user->parent = kernel->device.parent;
 	user->firstChild = kernel->device.firstChild;
@@ -489,16 +493,16 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
 	int status = 0;
 	kernelDevice *listPointer = NULL;
-	char vendor[64];
-	char model[64];
+	const char *vendor = NULL;
+	const char *model = NULL;
 	char driverString[128];
 
 	kernelDebug(debug_device, "Device add %p parent=%p", new, parent);
 
 	// Check params
-	if (new == NULL)
+	if (!new)
 	{
-		kernelError(kernel_error, "Device to add is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -517,19 +521,15 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
 	driverString[0] = '\0';
 
-	vendor[0] = '\0';
-	model[0] = '\0';
-	kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_VENDOR, vendor,
-		64);
-	kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_MODEL, model,
-		64);
-	if (vendor[0] || model[0])
+	vendor = kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_VENDOR);
+	model = kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_MODEL);
+	if (vendor || model)
 	{
-		if (vendor[0] && model[0])
+		if (vendor && model)
 			sprintf(driverString, "\"%s %s\" ", vendor, model);
-		else if (vendor[0])
+		else if (vendor)
 			sprintf(driverString, "\"%s\" ", vendor);
-		else if (model[0])
+		else if (model)
 			sprintf(driverString, "\"%s\" ", model);
 	}
 
@@ -577,9 +577,9 @@ int kernelDeviceRemove(kernelDevice *old)
 	kernelDebug(debug_device, "Device remove %p", old);
 
 	// Check params
-	if (old == NULL)
+	if (!old)
 	{
-		kernelError(kernel_error, "Device to remove is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -589,11 +589,11 @@ int kernelDeviceRemove(kernelDevice *old)
 		kernelError(kernel_error, "Cannot remove devices that have children");
 		return (status = ERR_NULLPARAMETER);
 	}
-  
+
 	parent = old->device.parent;
 	previous = old->device.previous;
 	next = old->device.next;
-  
+
 	// If this is the parent's first child, substitute the next device pointer
 	// (whether or not it's NULL)
 	if (parent && (parent->device.firstChild == old))
@@ -628,9 +628,9 @@ int kernelDeviceTreeGetRoot(device *rootDev)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (rootDev == NULL)
+	if (!rootDev)
 	{
-		kernelError(kernel_error, "Device pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -651,12 +651,12 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((parentDev == NULL) || (childDev == NULL))
+	if (!parentDev || !childDev)
 	{
-		kernelError(kernel_error, "Device pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
-  
+
 	if ((parentDev->firstChild == NULL) ||
 		!isDevInTree(deviceTree, parentDev->firstChild))
 	{
@@ -680,9 +680,9 @@ int kernelDeviceTreeGetNext(device *dev)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "Device pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 

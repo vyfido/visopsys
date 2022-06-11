@@ -1,34 +1,31 @@
-## 
+##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-##  
+##
 ##  Makefile
 ##
 
-ROOT		= ../../..
-BUILDDIR	= ${ROOT}/build/system/libraries
-INCDIR		= ../include/ntfs/
-PROGDIR		= ../ntfsprogs
-SYSINCDIR	= ${ROOT}/src/include
+ROOT = ../../..
+BUILDDIR = ${ROOT}/build/system/libraries
+INCDIR 	= ../include/ntfs/
+PROGDIR 	= ../ntfsprogs
+SYSINCDIR = ${ROOT}/src/include
 
 include ${ROOT}/Makefile.include
 
-ifneq (${BUILDLANG},)
-	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
+STDDEPS = ${ROOT}/Makefile.include Makefile.visopsys ${INCDIR}/*.h \
+	${SYSINCDIR}/*.h ${SYSINCDIR}/sys/*.h
+INCLUDE = -nostdinc -I${INCDIR} -I${SYSINCDIR}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DHAVE_CONFIG_H ${DEBUG}
+LFLAGS = -nostdlib
+
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
+	STRIP = strip -s ${SHAREDLIB}
 endif
 
-STDDEPS		= ${ROOT}/Makefile.include Makefile.visopsys ${INCDIR}/*.h \
-		${SYSINCDIR}/*.h ${SYSINCDIR}/sys/*.h
-INCLUDE		= -nostdinc -I${INCDIR} -I${SYSINCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG} \
-		-DHAVE_CONFIG_H #-DDEBUG
-LFLAGS		= -nostdlib
-
-ifeq (${DEBUG},)
-	STRIP = strip -s ${SHAREDLIB}
-endif 
-
-NAMES	= attrib \
+NAMES = attrib \
 	attrdef \
 	attrlist \
 	bitmap \
@@ -55,13 +52,13 @@ NAMES	= attrib \
 	upcase \
 	volume
 
-OBJDIR		= obj
-OBJS		= $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
-PICOBJDIR 	= picobj
-PICOBJS		= $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
-LIBRARY		= ${BUILDDIR}/libntfs.a
-SONAME		= libntfs.so
-SHAREDLIB	= ${BUILDDIR}/${SONAME}
+OBJDIR = obj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
+PICOBJDIR = picobj
+PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
+LIBRARY = ${BUILDDIR}/libntfs.a
+SONAME = libntfs.so
+SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
@@ -85,47 +82,18 @@ ${OBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
 ${PICOBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
-${OBJDIR}/attrdef.o: ${PROGDIR}/attrdef.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
-
-${PICOBJDIR}/attrdef.o: ${PROGDIR}/attrdef.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
-
-${OBJDIR}/boot.o: ${PROGDIR}/boot.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
-
-${PICOBJDIR}/boot.o: ${PROGDIR}/boot.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
-
-${OBJDIR}/mkntfs.o: ${PROGDIR}/mkntfs.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
-
-${PICOBJDIR}/mkntfs.o: ${PROGDIR}/mkntfs.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
-
-${OBJDIR}/ntfsresize.o: ${PROGDIR}/ntfsresize.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
-
-${PICOBJDIR}/ntfsresize.o: ${PROGDIR}/ntfsresize.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
-
-${OBJDIR}/sd.o: ${PROGDIR}/sd.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
-
-${PICOBJDIR}/sd.o: ${PROGDIR}/sd.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
-
-${OBJDIR}/upcase.o: ${PROGDIR}/upcase.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
-
-${PICOBJDIR}/upcase.o: ${PROGDIR}/upcase.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
-
 ${OBJDIR}/%.o: %.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${OBJDIR}/%.o: ${PROGDIR}/%.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
 
 ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
+${PICOBJDIR}/%.o: ${PROGDIR}/%.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
 clean:
 	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}
+

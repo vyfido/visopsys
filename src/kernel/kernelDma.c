@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -45,9 +45,9 @@ int kernelDmaInitialize(kernelDevice *dev)
 
 	int status = 0;
 
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "The DMA device is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NOTINITIALIZED);
 	}
 
@@ -67,8 +67,8 @@ int kernelDmaInitialize(kernelDevice *dev)
 
 int kernelDmaOpenChannel(int channelNumber, void *address, int count, int mode)
 {
-	// This function is used to set up a DMA channel and prepare it to 
-	// read or write data.  It is a generic routine which calls the 
+	// This function is used to set up a DMA channel and prepare it to
+	// read or write data.  It is a generic routine which calls the
 	// specific associated device driver function.
 
 	int status = 0;
@@ -92,7 +92,7 @@ int kernelDmaOpenChannel(int channelNumber, void *address, int count, int mode)
 int kernelDmaCloseChannel(int channelNumber)
 {
 	// This function is used to close a DMA channel after the desired
-	// "read" or "write" operation has been completed.  It is a generic 
+	// "read" or "write" operation has been completed.  It is a generic
 	// routine which calls the specific associated device driver function.
 
 	int status = 0;

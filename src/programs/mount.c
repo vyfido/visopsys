@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -51,19 +51,23 @@ example above will fail if there is already a file or directory called /cdrom.
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+
+#define _(string) gettext(string)
 
 #define MAX_VARIABLE_LEN	128
 
 
 static void usage(char *name)
 {
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "%s <disk> [mount point]\n", name);
+	fprintf(stderr, "%s", _("usage:\n"));
+	fprintf(stderr, _("%s <disk> [mount point]\n"), name);
 	return;
 }
 
@@ -145,7 +149,10 @@ int main(int argc, char *argv[])
 	char *diskName = NULL;
 	char *mountPoint = NULL;
 	disk *theDisk = NULL;
-	
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("mount");
+
 	if (argc < 2)
 	{
 		usage(argv[0]);
@@ -167,8 +174,8 @@ int main(int argc, char *argv[])
 		status = getMountPoint(diskName, mountPoint);
 		if (status < 0)
 		{
-			fprintf(stderr, "No mount point specified for %s in %s\n", diskName,
-				DISK_MOUNT_CONFIG);
+			fprintf(stderr, _("No mount point specified for %s in %s\n"),
+				diskName, DISK_MOUNT_CONFIG);
 			usage(argv[0]);
 			status = ERR_ARGUMENTCOUNT;
 			goto out;
@@ -193,7 +200,7 @@ int main(int argc, char *argv[])
 		if ((theDisk->type & DISKTYPE_REMOVABLE) &&
 			!diskMediaPresent(theDisk->name))
 		{
-			fprintf(stderr, "No media in disk %s\n", theDisk->name);
+			fprintf(stderr, _("No media in disk %s\n"), theDisk->name);
 			status = ERR_INVALID;
 			goto out;
 		}
@@ -210,7 +217,7 @@ int main(int argc, char *argv[])
 	// Should we save the mount point in the mount.conf file?
 	if ((argc >= 3) && (getMountPoint(diskName, mountPoint) < 0))
 		setMountPoint(diskName, mountPoint);
-	 
+
 	// Finished
 	status = 0;
 
@@ -222,3 +229,4 @@ out:
 
 	return (status);
 }
+

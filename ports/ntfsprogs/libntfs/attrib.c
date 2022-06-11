@@ -85,9 +85,9 @@ s64 ntfs_get_attribute_value_length(const ATTR_RECORD *a)
 
 /**
  * ntfs_get_attribute_value - Get a copy of an attribute
- * @vol:	
- * @a:	
- * @b:	
+ * @vol:
+ * @a:
+ * @b:
  *
  * Description...
  *
@@ -4998,7 +4998,7 @@ int ntfs_attr_truncate(ntfs_attr *na, const s64 newsize)
 		ntfs_inode_update_time(na->ni);
 	return ret;
 }
-	
+
 #ifndef __VISOPSYS__
 /**
  * ntfs_attr_readall - read the entire data from an ntfs attribute
@@ -5006,14 +5006,14 @@ int ntfs_attr_truncate(ntfs_attr *na, const s64 newsize)
  * @type:	attribute type
  * @name:	attribute name in little endian Unicode or AT_UNNAMED or NULL
  * @name_len:	length of attribute @name in Unicode characters (if @name given)
- * @data_size:	if non-NULL then store here the data size 
+ * @data_size:	if non-NULL then store here the data size
  *
  * This function will read the entire content of an ntfs attribute.
  * If @name is AT_UNNAMED then look specifically for an unnamed attribute.
- * If @name is NULL then the attribute could be either named or not. 
+ * If @name is NULL then the attribute could be either named or not.
  * In both those cases @name_len is not used at all.
  *
- * On success a buffer is allocated with the content of the attribute 
+ * On success a buffer is allocated with the content of the attribute
  * and which needs to be freed when it's not needed anymore. If the
  * @data_size parameter is non-NULL then the data size is set there.
  *
@@ -5025,7 +5025,7 @@ void *ntfs_attr_readall(ntfs_inode *ni, const ATTR_TYPES type,
 	ntfs_attr *na;
 	void *data, *ret = NULL;
 	s64 size;
-	
+
 	na = ntfs_attr_open(ni, type, name, name_len);
 	if (!na) {
 		ntfs_log_perror("ntfs_attr_open failed");

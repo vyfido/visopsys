@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -109,6 +109,67 @@ static int focus(kernelWindowComponent *component, int yesNo)
 }
 
 
+static int setData(kernelWindowComponent *component, void *data, int numItems)
+{
+	// Set the radio button text labels
+
+	kernelWindowRadioButton *radio = component->data;
+	const char **items = data;
+	int textMemorySize = 0;
+	char *tmp = NULL;
+	int count;
+
+	// If no items, nothing to do
+	if (numItems == 0)
+		return (ERR_NODATA);
+
+	// Calculate how much memory we need for our text data
+	for (count = 0; count < numItems; count ++)
+		textMemorySize += (strlen(items[count]) + 1);
+
+	// Free any old memory
+	if (radio->text)
+		kernelFree(radio->text);
+	radio->numItems = 0;
+
+	// Try to get memory
+	radio->text = kernelMalloc(textMemorySize);
+	if (radio->text == NULL)
+		return (ERR_MEMORY);
+
+	// Loop through the strings (items) and add them to our text memory
+	tmp = radio->text;
+	for (count = 0; count < numItems; count ++)
+	{
+		strcpy(tmp, items[count]);
+		tmp += (strlen(items[count]) + 1);
+
+		if (component->params.font &&
+			((kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+				items[count]) + windowVariables->radioButton.size + 3) >
+			component->width))
+		{
+			component->width =
+				(kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+					items[count]) +	windowVariables->radioButton.size + 3);
+		}
+
+		radio->numItems += 1;
+	}
+
+	// The height of the radio button is the height of the font times the number
+	// of items.
+	if (component->params.font)
+		component->height =
+			(numItems * ((asciiFont *) component->params.font)->charHeight);
+
+	component->minWidth = component->width;
+	component->minHeight = component->height;
+
+	return (0);
+}
+
+
 static int getSelected(kernelWindowComponent *component, int *selection)
 {
 	kernelWindowRadioButton *radio = component->data;
@@ -148,7 +209,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 	kernelWindowRadioButton *radio = component->data;
 	int clickedItem = 0;
-	
+
 	if (radio->numItems && (event->type == EVENT_MOUSE_LEFTDOWN))
 	{
 		// Figure out which item was clicked based on the coordinates of the
@@ -256,14 +317,11 @@ kernelWindowComponent *kernelWindowNewRadioButton(objectKey parent,
 
 	kernelWindowComponent *component = NULL;
 	kernelWindowRadioButton *radioButton = NULL;
-	int textMemorySize = 0;
-	char *tmp = NULL;
-	int count;
 
 	// Check parameters.
-	if ((parent == NULL) || (items == NULL) || (params == NULL))
+	if (!parent || !items || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -282,6 +340,7 @@ kernelWindowComponent *kernelWindowNewRadioButton(objectKey parent,
 	// Set the functions
 	component->draw = &draw;
 	component->focus = &focus;
+	component->setData = &setData;
 	component->getSelected = &getSelected;
 	component->setSelected = &setSelected;
 	component->mouseEvent = &mouseEvent;
@@ -304,50 +363,13 @@ kernelWindowComponent *kernelWindowNewRadioButton(objectKey parent,
 
 	radioButton->selectedItem = 0;
 
-	// If no items, nothing to do
-	if (numItems == 0)
-		return (component);
-
-	// Calculate how much memory we need for our text data
-	for (count = 0; count < numItems; count ++)
-		textMemorySize += (strlen(items[count]) + 1);
-
-	// Try to get memory
-	radioButton->text = kernelMalloc(textMemorySize);
-	if (radioButton->text == NULL)
+	// Set the data
+	if (setData(component, items, numItems) < 0)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
 	}
 
-	// Loop through the strings (items) and add them to our text memory
-	tmp = radioButton->text;
-	for (count = 0; count < numItems; count ++)
-	{
-		strcpy(tmp, items[count]);
-		tmp += (strlen(items[count]) + 1);
-
-		if (component->params.font &&
-			((kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				items[count]) + windowVariables->radioButton.size + 3) >
-			component->width))
-		{
-			component->width = 
-				(kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-					items[count]) +	windowVariables->radioButton.size + 3);
-		}
-
-		radioButton->numItems += 1;
-	}
-
-	// The height of the radio button is the height of the font times the number
-	// of items.
-	if (component->params.font)
-		component->height =
-			(numItems * ((asciiFont *) component->params.font)->charHeight);
-	
-	component->minWidth = component->width;
-	component->minHeight = component->height;
-
 	return (component);
 }
+

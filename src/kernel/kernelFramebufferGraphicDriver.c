@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,12 +40,12 @@ static kernelGraphicBuffer wholeScreen;
 static int driverClearScreen(color *background)
 {
 	// Resets the whole screen to the background color
-	
+
 	int status = 0;
 	int pixels = (adapter->xRes * adapter->yRes);
 	short pix = 0;
 	int count;
-	
+
 	// Set everything to the background color
 
 	if (adapter->bitsPerPixel == 32)
@@ -100,7 +100,7 @@ static int driverDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Make sure the pixel is in the buffer
@@ -116,7 +116,7 @@ static int driverDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
 	// Draw the pixel using the supplied color
 	framebufferPointer = buffer->data +
 		(((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
-	
+
 	if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 	{
 		if (mode == draw_normal)
@@ -182,12 +182,12 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Is it a horizontal line?
 	if (startY == endY)
-	{     
+	{
 		// This is an easy line to draw.
 
 		// If the Y location is off the buffer, skip it
@@ -209,7 +209,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 		// Nothing to do?
 		if (lineLength <= 0)
 			return (status = 0);
-		
+
 		// How many bytes in the line?
 		lineBytes = (adapter->bytesPerPixel * lineLength);
 
@@ -303,11 +303,11 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 		if (endY >= buffer->height)
 			endY = (buffer->height - 1);
 		lineLength = ((endY - startY) + 1);
-		
+
 		// Nothing to do?
 		if (lineLength <= 0)
 			return (status = 0);
-		
+
 		framebufferPointer = buffer->data +
 			(((buffer->width * startY) + startX) * adapter->bytesPerPixel);
 
@@ -336,7 +336,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 					framebufferPointer[1] ^= foreground->green;
 					framebufferPointer[2] ^= foreground->red;
 				}
-	
+
 				framebufferPointer +=
 					((buffer->width * adapter->bitsPerPixel) / 8);
 			}
@@ -365,7 +365,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 					*((short *) framebufferPointer) |= pix;
 				else if (mode == draw_xor)
 					*((short *) framebufferPointer) ^= pix;
-	
+
 				framebufferPointer += (buffer->width * adapter->bytesPerPixel);
 			}
 		}
@@ -418,7 +418,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 			}
 		}
 	}
-	
+
 	return (status = 0);
 }
 
@@ -440,7 +440,7 @@ static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Out of the buffer entirely?
@@ -467,7 +467,7 @@ static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 		// Off the bottom of the buffer?
 		if ((yCoord + height) >= buffer->height)
 			height = (buffer->height - yCoord);
-	
+
 		// Re-set these values
 		endX = (xCoord + (width - 1));
 		endY = (yCoord + (height - 1));
@@ -484,12 +484,12 @@ static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 		else
 		{
 			// Draw the box manually
-	
+
 			lineBytes = (width * adapter->bytesPerPixel);
 
 			// Make one line of the buffer
 			lineBuffer = kernelMalloc(lineBytes);
-			if (lineBuffer == NULL)
+			if (!lineBuffer)
 				return (status = ERR_MEMORY);
 
 			// Do a loop through the line, copying the color values
@@ -522,7 +522,7 @@ static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 						((foreground->green >> 3) << 5) |
 						(foreground->blue >> 3));
 				}
-	
+
 				for (count = 0; count < width; count ++)
 					((short *) lineBuffer)[count] = pix;
 			}
@@ -530,7 +530,7 @@ static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 			// Point to the starting place
 			framebufferPointer = buffer->data +
 				(((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
-	
+
 			// Copy the line 'height' times
 			for (count = 0; count < height; count ++)
 			{
@@ -590,7 +590,7 @@ static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// For now, we only support circles
@@ -602,7 +602,7 @@ static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 	}
 
 	outerBitmap = kernelMalloc((outerRadius + 1) * sizeof(int));
-	if (outerBitmap == NULL)
+	if (!outerBitmap)
 		return (status = ERR_MEMORY);
 
 	if ((thickness > 1) && !fill)
@@ -612,7 +612,7 @@ static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 		innerY = innerRadius;
 
 		innerBitmap = kernelMalloc((innerRadius + 1) * sizeof(int));
-		if (innerBitmap == NULL)
+		if (!innerBitmap)
 			return (status = ERR_MEMORY);
 	}
 
@@ -637,12 +637,12 @@ static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 			driverDrawPixel(buffer, foreground, mode,
 				(centerX - outerY), (centerY - outerX));
 		}
-		
+
 		if (outerY > outerBitmap[outerX])
 			outerBitmap[outerX] = outerY;
 		if (outerX > outerBitmap[outerY])
 			outerBitmap[outerY] = outerX;
-		
+
 		if (outerD < 0)
 			outerD += ((outerX << 2) + 6);
 		else
@@ -727,7 +727,7 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Check params
@@ -754,7 +754,7 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 		numberLines = drawImage->height;
 	else
 		numberLines = (buffer->height - yCoord);
-	
+
 	// images are lovely little data structures that give us image
 	// data in the most convenient form we can imagine.
 
@@ -852,7 +852,7 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 		// Move to the next line in the framebuffer
 		framebufferPointer += (buffer->width * adapter->bytesPerPixel);
-		
+
 		// Are we skipping any because it's off the buffer?
 		if (drawImage->width > lineLength)
 			pixelCounter += (drawImage->width - lineLength);
@@ -894,7 +894,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// If the image is outside the buffer entirely, skip it
@@ -952,14 +952,14 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 	imageData = (pixel *)
 		(drawImage->data + (((yOffset * drawImage->width) + xOffset) * 3));
-	
+
 	// Loop for each line
 
 	for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
 	{
 		// Do a loop through the line, copying the color values from the
 		// image into the framebuffer
-		
+
 		if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 		{
 			for (count = 0; count < lineBytes; )
@@ -1026,7 +1026,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 		// Move to the next line in the framebuffer
 		framebufferPointer += (buffer->width * adapter->bytesPerPixel);
-		
+
 		// Are we skipping any of this line because it's off the buffer?
 		if (drawImage->width > lineLength)
 			pixelCounter += (drawImage->width - lineLength);
@@ -1054,7 +1054,7 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
 
 	// If the supplied kernelGraphicBuffer is NULL, we read directly from the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Check params
@@ -1075,7 +1075,7 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
 		numberLines = height;
 	else
 		numberLines = (buffer->height - yCoord);
-	
+
 	// Get an image
 	status = kernelImageNew(theImage, lineLength, numberLines);
 	if (status < 0)
@@ -1107,7 +1107,7 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
 				imageData[pixelCounter].red = framebufferPointer[count++];
 				if (adapter->bitsPerPixel == 32)
 					count++;
-	
+
 				pixelCounter += 1;
 			}
 		}
@@ -1117,7 +1117,7 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
 			for (count = 0; count < lineLength; count ++)
 			{
 				short pix = ((short *) framebufferPointer)[count];
-	
+
 				if (adapter->bitsPerPixel == 16)
 				{
 					imageData[pixelCounter].red = (unsigned char)
@@ -1161,7 +1161,7 @@ static int driverCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Make sure we're not going outside the buffer
@@ -1225,7 +1225,7 @@ static int driverRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
 
 	// This function is the single instance where a NULL buffer is not
 	// allowed, since we are drawing the buffer to the screen this time
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	// Not allowed to specify a clip that is not fully inside the buffer
@@ -1283,7 +1283,7 @@ static int driverFilter(kernelGraphicBuffer *buffer, color *filterColor,
 	int xCoord, int yCoord, int width, int height)
 {
 	// Take an area of a buffer and average it with the supplied color
-	
+
 	int status = 0;
 	int lineBytes = 0;
 	unsigned char *framebufferPointer = NULL;
@@ -1292,7 +1292,7 @@ static int driverFilter(kernelGraphicBuffer *buffer, color *filterColor,
 
 	// If the supplied kernelGraphicBuffer is NULL, we draw directly to the
 	// whole screen
-	if (buffer == NULL)
+	if (!buffer)
 		buffer = &wholeScreen;
 
 	// Out of the buffer entirely?
@@ -1389,7 +1389,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelGraphicAdapter));
-	if (dev == NULL)
+	if (!dev)
 		return (status = 0);
 
 	adapter = ((void *) dev + sizeof(kernelDevice));
@@ -1414,7 +1414,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		kernelDeviceGetClass(DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER);
 	dev->driver = driver;
 	dev->data = adapter;
-	
+
 	// If we are in a graphics mode, initialize the graphics functions
 	if (adapter->mode != 0)
 	{

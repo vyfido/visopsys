@@ -1,0 +1,135 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: telnet.c:44
+#, c-format
+msgid ""
+"usage:\n"
+"%s <address | hostname>\n"
+msgstr ""
+
+#: telnet.c:65
+msgid "SE\n"
+msgstr ""
+
+#: telnet.c:69
+msgid "NOP\n"
+msgstr ""
+
+#: telnet.c:73
+msgid "Data Mark\n"
+msgstr ""
+
+#: telnet.c:77
+msgid "Break\n"
+msgstr ""
+
+#: telnet.c:81
+msgid "Interrupt Process\n"
+msgstr ""
+
+#: telnet.c:85
+msgid "Abort output\n"
+msgstr ""
+
+#: telnet.c:89
+msgid "Are You There\n"
+msgstr ""
+
+#: telnet.c:93
+msgid "Erase character\n"
+msgstr ""
+
+#: telnet.c:97
+msgid "Erase Line\n"
+msgstr ""
+
+#: telnet.c:101
+msgid "Go ahead\n"
+msgstr ""
+
+#: telnet.c:105
+msgid "SB\n"
+msgstr ""
+
+#: telnet.c:109
+msgid "WILL "
+msgstr ""
+
+#: telnet.c:113
+msgid "WON'T "
+msgstr ""
+
+#: telnet.c:117
+msgid "DO "
+msgstr ""
+
+#: telnet.c:121
+msgid "DON'T "
+msgstr ""
+
+#: telnet.c:125
+#, c-format
+msgid "unknown code %d\n"
+msgstr ""
+
+#: telnet.c:136
+msgid "echo\n"
+msgstr ""
+
+#: telnet.c:140
+msgid "suppress go ahead\n"
+msgstr ""
+
+#: telnet.c:144
+msgid "status\n"
+msgstr ""
+
+#: telnet.c:148
+msgid "timing mark\n"
+msgstr ""
+
+#: telnet.c:152
+msgid "terminal type\n"
+msgstr ""
+
+#: telnet.c:156
+msgid "window size\n"
+msgstr ""
+
+#: telnet.c:160
+msgid "terminal speed\n"
+msgstr ""
+
+#: telnet.c:164
+msgid "remote flow control\n"
+msgstr ""
+
+#: telnet.c:168
+msgid "linemode\n"
+msgstr ""
+
+#: telnet.c:172 telnet.c:176
+msgid "environment variables\n"
+msgstr ""
+
+#: telnet.c:180
+#, c-format
+msgid "unknown option %d\n"
+msgstr ""

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -48,7 +48,7 @@ int remove(const char *pathname)
 		return (-1);
 	}
 
-	// Now we should have some info about the file.  Is it a file or a 
+	// Now we should have some info about the file.  Is it a file or a
 	// directory?
 	if (f.type == fileT)
 		// This is a regular file.

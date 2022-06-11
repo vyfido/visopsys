@@ -1,6 +1,6 @@
 THE VISOPSYS SHELL LIBRARY (Version 0.7)
 
-The shell library is a small set of functions created for the Visopsys shell, /programs/vsh, and provided as a library for other programs to use. 
+The shell library is a small set of functions created for the Visopsys shell, /programs/vsh, and provided as a library for other programs to use.
 
 The functions are defined in the header file <sys/vsh.h> and the code is contained in libvsh.a (link with '-lvsh'). This code also requires a C library to link correctly (link with '-lc').
 

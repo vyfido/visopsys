@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -35,7 +35,7 @@ char *strncat(char *destString, const char *sourceString, size_t maxLength)
 	unsigned count1, count2;
 	int endFlag = 0;
 	char sourceChar;
-	
+
 	// Find the end of the first String
 	for (count1 = 0; count1 < MAXSTRINGLENGTH; )
 	{
@@ -63,7 +63,7 @@ char *strncat(char *destString, const char *sourceString, size_t maxLength)
 			endFlag = 1;
 			sourceChar = (char) NULL;
 		}
-		
+
 		else
 			sourceChar = sourceString[count2];
 

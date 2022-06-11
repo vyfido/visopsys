@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -26,6 +26,7 @@
 #include "kernelError.h"
 #include "kernelFileStream.h"
 #include "kernelFilesystem.h"
+#include "kernelImage.h"
 #include "kernelInterrupt.h"
 #include "kernelKeyboard.h"
 #include "kernelLocale.h"
@@ -46,6 +47,7 @@
 #include "kernelWindow.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/paths.h>
 
 #define _(string) kernelGetText(string)
 
@@ -65,7 +67,7 @@ static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 	for (count = 0; count < chars; count ++)
 		buffer[count] = screen[count * bytesPerChar];
 
-	if (kernelFileStreamOpen("/system/vloader.log",
+	if (kernelFileStreamOpen(PATH_SYSTEM "/vloader.log",
 		(OPENMODE_WRITE | OPENMODE_CREATE | OPENMODE_TRUNCATE),
 		&tmpFile) < 0)
 	{
@@ -204,8 +206,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	static char rootDiskName[DISK_MAX_NAMELENGTH];
 	char tmpRootDiskName[DISK_MAX_NAMELENGTH];
 	kernelDisk *rootDisk = NULL;
-	char value[128];
-	char splashName[128];
+	const char *value = NULL;
+	const char *splashName = NULL;
 	image splashImage;
 	int networking = 0;
 	int count;
@@ -320,6 +322,14 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		return (status);
 	}
 
+	// Initialize keyboard operations
+	status = kernelKeyboardInitialize();
+	if (status < 0)
+	{
+		kernelError(kernel_error, "Keyboard initialization failed");
+		return (status);
+	}
+
 	// Initialize USB bus functions
 	status = kernelUsbInitialize();
 	if (status < 0)
@@ -367,7 +377,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	status = kernelFileInitialize();
 	if (status < 0)
 	{
-		kernelError(kernel_error, "Files functions initialization failed");
+		kernelError(kernel_error, "File functions initialization failed");
 		return (status);
 	}
 
@@ -401,7 +411,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		}
 	}
 
-	kernelDebug(debug_misc, "Mounted rootdisk %s", rootDiskName);
+	kernelDebug(debug_misc, "Mounted root disk %s", rootDiskName);
 
 	rootDisk = kernelDiskGetByName(rootDiskName);
 	if (rootDisk == NULL)
@@ -413,6 +423,11 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	// See whether any other disks should be auto-mounted.
 	kernelDiskAutoMountAll();
 
+	// Try to read the default system environment.conf for the kernel's
+	// environment.
+	kernelConfigRead(PATH_SYSTEM_CONFIG "/environment.conf",
+		kernelCurrentProcess->environment);
+
 	// Are we in a graphics mode?
 	graphics = kernelGraphicsAreEnabled();
 
@@ -421,69 +436,74 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	if (status < 0)
 		kernelVariables = NULL;
 
-	if (kernelVariables != NULL)
+	if (kernelVariables)
 	{
 		// Get the keyboard mapping
-		kernelVariableListGet(kernelVariables, "keyboard.map", value, 128);
-		if (value[0] != '\0')
+		value = kernelVariableListGet(kernelVariables, "keyboard.map");
+		if (value)
 			kernelKeyboardSetMap(value);
 
 		// Get the messages locale
-		kernelVariableListGet(kernelVariables, "locale.messages", value, 128);
-		if (value[0] != '\0')
+		value = kernelVariableListGet(kernelVariables, "locale.messages");
+		if (value)
 			kernelSetLocale(LC_ALL, value);
 
 		if (graphics)
 		{
 			// Get the default color values, if they're set in this file
-			kernelVariableListGet(kernelVariables, "color.foreground.red",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.foreground.red");
+			if (value)
 				kernelDefaultForeground.red = atoi(value);
-			kernelVariableListGet(kernelVariables, "color.foreground.green",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.foreground.green");
+			if (value)
 				kernelDefaultForeground.green = atoi(value);
-			kernelVariableListGet(kernelVariables, "color.foreground.blue",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.foreground.blue");
+			if (value)
 				kernelDefaultForeground.blue = atoi(value);
 
-			kernelVariableListGet(kernelVariables, "color.background.red",
-				value, 128);
-			if (value[0] != '\0')
+			value = kernelVariableListGet(kernelVariables,
+				"color.background.red");
+			if (value)
 				kernelDefaultBackground.red = atoi(value);
-			kernelVariableListGet(kernelVariables, "color.background.green",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.background.green");
+			if (value)
 				kernelDefaultBackground.green = atoi(value);
-			kernelVariableListGet(kernelVariables, "color.background.blue",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.background.blue");
+			if (value)
 				kernelDefaultBackground.blue = atoi(value);
 
-			kernelVariableListGet(kernelVariables, "color.desktop.red",
-				value, 128);
-			if (value[0] != '\0')
+			value = kernelVariableListGet(kernelVariables,
+				"color.desktop.red");
+			if (value)
 				kernelDefaultDesktop.red = atoi(value);
-			kernelVariableListGet(kernelVariables, "color.desktop.green",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.desktop.green");
+			if (value)
 				kernelDefaultDesktop.green = atoi(value);
-			kernelVariableListGet(kernelVariables, "color.desktop.blue",
-				value, 128);
-			if (value[0] != '\0')
+
+			value = kernelVariableListGet(kernelVariables,
+				"color.desktop.blue");
+			if (value)
 				kernelDefaultDesktop.blue = atoi(value);
 
 			// Get the name of the splash image (used only if we are in
 			// graphics mode)
-			kernelMemClear(splashName, 128);
-			kernelVariableListGet(kernelVariables, "splash.image",
-				splashName, 128);
+			splashName = kernelVariableListGet(kernelVariables, "splash.image");
 		}
 
-		kernelVariableListGet(kernelVariables, "network", value, 128);
-		if (!strncmp(value, "yes", 128))
+		value = kernelVariableListGet(kernelVariables, "network");
+		if (value && !strcmp(value, "yes"))
 			networking = 1;
 	}
 
@@ -493,7 +513,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		kernelGraphicClearScreen(&kernelDefaultDesktop);
 		kernelMemClear(&splashImage, sizeof(image));
 
-		if ((splashName[0] != '\0') && !kernelFileFind(splashName, NULL))
+		if (splashName && !kernelFileFind(splashName, NULL))
 		{
 			// Try to load the default splash image to use when starting/
 			// restarting
@@ -501,7 +521,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 			if (splashImage.data)
 			{
 				// Loaded successfully.  Put it in the middle of the screen.
-				kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
+				kernelGraphicDrawImage(NULL, &splashImage, draw_normal,
 					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
 					((kernelGraphicGetScreenHeight() - splashImage.height) / 2),
 					0, 0, 0, 0);

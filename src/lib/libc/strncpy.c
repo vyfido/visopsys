@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -47,7 +47,7 @@ char *strncpy(char *destString, const char *sourceString, size_t maxLength)
 	for (count = 0; count < maxLength; count ++)
 	{
 		destString[count] = sourceString[count];
-		
+
 		if (sourceString[count] == '\0')
 			break;
 	}

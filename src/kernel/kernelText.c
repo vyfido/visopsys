@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -83,11 +83,11 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 
 	// We always use currentInput and currentOutput.  This keeps the compiler
 	// happy
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	// Check for a few special scenarios
-	
+
 	// Check for CTRL-C
 	if (byte == 3)
 	{
@@ -111,7 +111,7 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 		kernelTextStreamScroll(currentOutput, 1);
 		return (status = 0);
 	}
-	else if (currentInput->echo)
+	else if (currentInput->attrs.echo)
 	{
 		// Check for BACKSPACE
 		if (byte == 8)
@@ -131,7 +131,7 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 	// console stream.  If the current console input is different, we need to
 	// put it into that stream instead.  We just ignore the stream told to
 	// us by our caller.
-	
+
 	// Call the original stream append function
 	status = currentInput->s.intercept(&(currentInput->s), byte);
 
@@ -167,7 +167,7 @@ int kernelTextInitialize(int columns, int rows)
 	// Check our arguments
 	if ((columns == 0) || (rows == 0))
 		return (status = ERR_INVALID);
-	
+
 	// Initialize text mode output
 
 	// Set the initial rows and columns
@@ -178,7 +178,7 @@ int kernelTextInitialize(int columns, int rows)
 	consoleArea.bufferData = (unsigned char *)
 		kernelMalloc((rows + TEXT_DEFAULT_SCROLLBACKLINES) * columns *
 			consoleArea.bytesPerChar);
-	if (consoleArea.bufferData == NULL)
+	if (!consoleArea.bufferData)
 		return (status = ERR_MEMORY);
 	consoleArea.maxBufferLines = (rows + TEXT_DEFAULT_SCROLLBACKLINES);
 
@@ -227,7 +227,7 @@ int kernelTextInitialize(int columns, int rows)
 	// though
 	consoleInput->s.intercept = consoleInput->s.append;
 	consoleInput->s.append = (int (*) (stream *, ...)) &currentInputIntercept;
-	consoleInput->echo = 1;
+	consoleInput->attrs.echo = 1;
 
 	consoleArea.inputStream = consoleInput;
 
@@ -257,8 +257,8 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 		return (area = NULL);
 
 	area = kernelMalloc(sizeof(kernelTextArea));
-	if (area == NULL)
-		return (area);
+	if (!area)
+		return (area = NULL);
 
 	// All values not listed are NULL
 	area->columns = columns;
@@ -269,8 +269,7 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 
 	// An input stream
 	area->inputStream = kernelMalloc(sizeof(kernelTextInputStream));
-	if ((area->inputStream == NULL) ||
-		kernelTextNewInputStream(area->inputStream))
+	if (!area->inputStream || kernelTextNewInputStream(area->inputStream))
 	{
 		kernelTextAreaDestroy(area);
 		return (area = NULL);
@@ -278,20 +277,19 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 
 	// An output stream
 	area->outputStream = kernelMalloc(sizeof(kernelTextOutputStream));
-	if ((area->outputStream == NULL) ||
-		kernelTextNewOutputStream(area->outputStream))
+	if (!area->outputStream || kernelTextNewOutputStream(area->outputStream))
 	{
 		kernelTextAreaDestroy(area);
 		return (area = NULL);
 	}
-	
+
 	// Assign the area to the output stream
 	((kernelTextOutputStream *) area->outputStream)->textArea = area;
 
 	// The big buffer
 	area->bufferData =
 		kernelMalloc(columns * area->maxBufferLines * bytesPerChar);
-	if (area->bufferData == NULL)
+	if (!area->bufferData)
 	{
 		kernelTextAreaDestroy(area);
 		return (area = NULL);
@@ -299,12 +297,12 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 
 	// The buffer for the visible part
 	area->visibleData = kernelMalloc(columns * rows * bytesPerChar);
-	if (area->visibleData == NULL)
+	if (!area->visibleData)
 	{
 		kernelTextAreaDestroy(area);
 		return (area = NULL);
 	}
-	
+
 	return (area);
 }
 
@@ -317,7 +315,7 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params
-	if (area == NULL)
+	if (!area)
 		return;
 
 	inputStream = (kernelTextInputStream *) area->inputStream;
@@ -347,7 +345,6 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 {
 	// Given an existing text area, resize it.
 
-	int status = 0;
 	int newBufferLines = 0;
 	unsigned char *newVisibleData = NULL;
 	unsigned char *newBufferData = NULL;
@@ -362,8 +359,8 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 	// Get a new main buffer, and a new buffer for the visible part
 	newBufferData = kernelMalloc(columns * newBufferLines * area->bytesPerChar);
 	newVisibleData = kernelMalloc(columns * rows * area->bytesPerChar);
-	if ((newBufferData == NULL) || (newVisibleData == NULL))
-		return (status = ERR_MEMORY);
+	if (!newBufferData || !newVisibleData)
+		return (ERR_MEMORY);
 
 	copyColumns = min(area->columns, columns);
 
@@ -412,10 +409,10 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 
 	// Update the visible bit.  Not sure this is really necessary since in most
 	// cases the screenDraw() function will be called next.
-	kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData, 
+	kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
 		(columns * rows * area->bytesPerChar));
 
-	return (status = 0);
+	return (0);
 }
 
 
@@ -427,22 +424,20 @@ int kernelTextSwitchToGraphics(kernelTextArea *area)
 	// of the text screen to the supplied text area, if any, and associate that
 	// text area with the console output stream
 
-	int status = 0;
-
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// For now, don't allow area to be NULL
-	if (area == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!area)
+		return (ERR_NULLPARAMETER);
 
 	// Assign the text area to the console output stream
 	consoleOutput->textArea = area;
 	consoleOutput->outputDriver = kernelSoftwareDriverGet(graphicConsoleDriver);
 
 	// Done
-	return (status = 0);
+	return (0);
 }
 
 
@@ -463,19 +458,17 @@ int kernelTextSetConsoleInput(kernelTextInputStream *newInput)
 	// Sets the console input to be something else.  We copy the data from
 	// the supplied stream to the static one upstairs
 
-	int status = 0;
-	
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// If the input stream is NULL, use our default area
-	if (newInput == NULL)
+	if (!newInput)
 		consoleInput = consoleArea.inputStream;
 	else
 		consoleInput = newInput;
 
-	return (status = 0);
+	return (0);
 }
 
 
@@ -496,19 +489,17 @@ int kernelTextSetConsoleOutput(kernelTextOutputStream *newOutput)
 	// Sets the console output to be something else.  We copy the data from
 	// the supplied stream to the static one upstairs
 
-	int status = 0;
-	
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// If the output stream is NULL, use our default area
-	if (newOutput == NULL)
+	if (!newOutput)
 		consoleOutput = consoleArea.outputStream;
 	else
 		consoleOutput = newOutput;
 
-	return (status = 0);
+	return (0);
 }
 
 
@@ -530,14 +521,14 @@ int kernelTextSetCurrentInput(kernelTextInputStream *newInput)
 	// the supplied stream to the static one upstairs
 
 	int status = 0;
-	
+
 	// Don't do anything unless we've been initialized
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
 	// The input stream is allowed to be NULL.  This can happen if the current
 	// current input stream is going away
-	if (newInput == NULL)
+	if (!newInput)
 		newInput = consoleInput;
 
 	currentInput = newInput;
@@ -566,20 +557,18 @@ int kernelTextSetCurrentOutput(kernelTextOutputStream *newOutput)
 	// Sets the current output to be something else.  We copy the data from
 	// the supplied stream to the static one upstairs
 
-	int status = 0;
-	
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// The output stream is allowed to be NULL.  This can happen if the current
 	// current output stream is going away
-	if (newOutput == NULL)
+	if (!newOutput)
 		newOutput = consoleOutput;
 
 	currentOutput = newOutput;
 
-	return (status = 0);
+	return (0);
 }
 
 
@@ -593,7 +582,7 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if (newStream == NULL)
+	if (!newStream)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelStreamNew(&(newStream->s), TEXT_STREAMSIZE, itemsize_byte);
@@ -604,7 +593,7 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
 	// stream, so we can catch keyboard interrupts and such.
 	newStream->s.intercept = newStream->s.append;
 	newStream->s.append = (int (*) (stream *, ...)) &currentInputIntercept;
-	newStream->echo = 1;
+	newStream->attrs.echo = 1;
 
 	return (status = 0);
 }
@@ -614,43 +603,40 @@ int kernelTextNewOutputStream(kernelTextOutputStream *newStream)
 {
 	// Create a new kernelTextOutputStream.
 
-	int status = 0;
-
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
-	if (newStream == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!newStream)
+		return (ERR_NULLPARAMETER);
 
 	newStream->outputDriver = kernelSoftwareDriverGet(graphicConsoleDriver);
 	newStream->textArea = NULL;
 
-	return (status = 0);
+	return (0);
 }
 
 
 int kernelTextGetForeground(color *foreground)
 {
-	int status = 0;
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (foreground == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!foreground)
+		return (ERR_NULLPARAMETER);
 
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
-	if (outputStream == NULL)
-		return (status = ERR_INVALID);
+	if (!outputStream)
+		return (ERR_INVALID);
 
 	kernelMemCopy((color *) &(outputStream->textArea->foreground), foreground,
 		sizeof(color));
-	return (status = 0);
+	return (0);
 }
 
 
@@ -666,12 +652,12 @@ int kernelTextSetForeground(color *foreground)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (foreground == NULL)
+	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
-	if (outputStream == NULL)
+	if (!outputStream)
 		return (status = ERR_INVALID);
 
 	if (outputStream->outputDriver->setForeground)
@@ -687,25 +673,24 @@ int kernelTextSetForeground(color *foreground)
 
 int kernelTextGetBackground(color *background)
 {
-	int status = 0;
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (background == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!background)
+		return (ERR_NULLPARAMETER);
 
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
-	if (outputStream == NULL)
-		return (status = ERR_INVALID);
+	if (!outputStream)
+		return (ERR_INVALID);
 
 	kernelMemCopy((color *) &(outputStream->textArea->background), background,
 		sizeof(color));
-	return (status = 0);
+	return (0);
 }
 
 
@@ -721,12 +706,12 @@ int kernelTextSetBackground(color *background)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (background == NULL)
+	if (!background)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
-	if (outputStream == NULL)
+	if (!outputStream)
 		return (status = ERR_INVALID);
 
 	// Set it in the text output driver
@@ -749,7 +734,7 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return (status = ERR_NULLPARAMETER);
 
 	theChar[0] = (char) ascii;
@@ -762,7 +747,7 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
 			theChar, NULL);
 	else
 		status = ERR_NOSUCHFUNCTION;
-	
+
 	// Return success
 	return (status);
 }
@@ -792,10 +777,10 @@ int kernelTextStreamPrint(kernelTextOutputStream *outputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((outputStream == NULL) || (output == NULL))
+	if (!outputStream || !output)
 		return (status = ERR_NULLPARAMETER);
 
-	// We will call the text stream output driver routine with the 
+	// We will call the text stream output driver routine with the
 	// characters we were passed
 	if (outputStream->outputDriver->print)
 		status = outputStream->outputDriver
@@ -810,17 +795,16 @@ int kernelTextStreamPrint(kernelTextOutputStream *outputStream,
 int kernelTextPrint(const char *format, ...)
 {
 	// Determines the current target of character output, then makes calls
-	// to output the text (without a newline).  Returns 0 if successful, 
+	// to output the text (without a newline).  Returns 0 if successful,
 	// negative otherwise.
 
-	int status = 0;
 	va_list list;
 	char output[MAXSTRINGLENGTH];
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params
-	if (format == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!format)
+		return (ERR_NULLPARAMETER);
 
 	// Initialize the argument list
 	va_start(list, format);
@@ -838,7 +822,7 @@ int kernelTextPrint(const char *format, ...)
 
 
 int kernelTextStreamPrintAttrs(kernelTextOutputStream *outputStream,
-			 textAttrs *attrs, const char *output)
+	textAttrs *attrs, const char *output)
 {
 	int status = 0;
 
@@ -847,10 +831,10 @@ int kernelTextStreamPrintAttrs(kernelTextOutputStream *outputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params.  It's pointless for 'attrs' to be NULL, but it's allowed
-	if ((outputStream == NULL) || (output == NULL))
+	if (!outputStream || !output)
 		return (status = ERR_NULLPARAMETER);
 
-	// We will call the text stream output driver routine with the 
+	// We will call the text stream output driver routine with the
 	// characters we were passed
 	if (outputStream->outputDriver->print)
 		status = outputStream->outputDriver
@@ -865,17 +849,16 @@ int kernelTextStreamPrintAttrs(kernelTextOutputStream *outputStream,
 int kernelTextPrintAttrs(textAttrs *attrs, const char *format, ...)
 {
 	// Determines the current target of character output, then makes calls
-	// to output the text (without a newline).  Returns 0 if successful, 
+	// to output the text (without a newline).  Returns 0 if successful,
 	// negative otherwise.
 
-	int status = 0;
 	va_list list;
 	char output[MAXSTRINGLENGTH];
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params
-	if (format == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!format)
+		return (ERR_NULLPARAMETER);
 
 	// Initialize the argument list
 	va_start(list, format);
@@ -897,7 +880,7 @@ int kernelTextPrintAttrs(textAttrs *attrs, const char *format, ...)
 
 
 int kernelTextStreamPrintLine(kernelTextOutputStream *outputStream,
-			const char *output)
+	const char *output)
 {
 	int status = 0;
 
@@ -906,10 +889,10 @@ int kernelTextStreamPrintLine(kernelTextOutputStream *outputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((outputStream == NULL) || (output == NULL))
+	if (!outputStream || !output)
 		return (status = ERR_NULLPARAMETER);
 
-	// We will call the text stream output driver routine with the 
+	// We will call the text stream output driver routine with the
 	// characters we were passed
 	if (outputStream->outputDriver->print)
 	{
@@ -928,16 +911,15 @@ int kernelTextStreamPrintLine(kernelTextOutputStream *outputStream,
 int kernelTextPrintLine(const char *format, ...)
 {
 	// Determines the current target of character output, then makes calls
-	// to output the text (with a newline).  Returns 0 if successful, 
+	// to output the text (with a newline).  Returns 0 if successful,
 	// negative otherwise.
 
-	int status = 0;
 	va_list list;
 	char output[MAXSTRINGLENGTH];
 	kernelTextOutputStream *outputStream = NULL;
 
-	if (format == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!format)
+		return (ERR_NULLPARAMETER);
 
 	// Initialize the argument list
 	va_start(list, format);
@@ -960,7 +942,7 @@ void kernelTextStreamNewline(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// Call the text stream output driver routine to print the newline
@@ -994,7 +976,7 @@ void kernelTextStreamBackSpace(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// We will call the text stream output driver routines to make the
@@ -1047,7 +1029,7 @@ void kernelTextStreamTab(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// Figure out how many characters the tab should be
@@ -1092,11 +1074,11 @@ void kernelTextStreamCursorUp(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// We will call the text stream output driver routines to make the
-	// cursor move up one row 
+	// cursor move up one row
 	if ((outputStream->textArea->cursorRow > 0) &&
 		outputStream->outputDriver->setCursorAddress)
 	{
@@ -1130,7 +1112,7 @@ void kernelTextStreamCursorDown(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// We will call the text stream output driver routines to make the
@@ -1171,7 +1153,7 @@ void kernelTextStreamCursorLeft(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// We will call the text stream output driver routines to make the
@@ -1220,7 +1202,7 @@ void kernelTextStreamCursorRight(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// We will call the text stream output driver routines to make the
@@ -1268,21 +1250,19 @@ int kernelTextStreamEnableScroll(kernelTextOutputStream *outputStream,
 {
 	// Enable or disable screen scrolling for the supplied text output stream
 
-	int status = 0;
-
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
-	if (outputStream == NULL)
-		return (status = ERR_NULLPARAMETER);
+	if (!outputStream)
+		return (ERR_NULLPARAMETER);
 
 	if (enable)
 		outputStream->textArea->noScroll = 0;
 	else
 		outputStream->textArea->noScroll = 1;
-	
-	return (status = 0);
+
+	return (0);
 }
 
 
@@ -1307,9 +1287,9 @@ void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
-	
+
 	if ((upDown < 0) && (outputStream->textArea->scrolledBackLines <
 		outputStream->textArea->scrollBackLines))
 	{
@@ -1341,7 +1321,7 @@ void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 void kernelTextScroll(int upDown)
 {
 	// Scroll the text area up (-1) or down (+1);
-	
+
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Get the text output stream for the current process
@@ -1354,16 +1334,14 @@ void kernelTextScroll(int upDown)
 
 int kernelTextStreamGetNumColumns(kernelTextOutputStream *outputStream)
 {
-	int status = 0;
-
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (outputStream == NULL)
-		return (status = ERR_NULLPARAMETER);
-		
+	if (!outputStream)
+		return (ERR_NULLPARAMETER);
+
 	return (outputStream->textArea->columns);
 }
 
@@ -1383,16 +1361,14 @@ int kernelTextGetNumColumns(void)
 
 int kernelTextStreamGetNumRows(kernelTextOutputStream *outputStream)
 {
-	int status = 0;
-
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (outputStream == NULL)
-		return (status = ERR_NULLPARAMETER);
-		
+	if (!outputStream)
+		return (ERR_NULLPARAMETER);
+
 	return (outputStream->textArea->rows);
 }
 
@@ -1416,7 +1392,7 @@ int kernelTextStreamGetColumn(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return (0);
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return (0);
 
 	return (outputStream->textArea->cursorColumn);
@@ -1432,7 +1408,7 @@ int kernelTextGetColumn(void)
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
 
-	return(kernelTextStreamGetColumn(outputStream));
+	return (kernelTextStreamGetColumn(outputStream));
 }
 
 
@@ -1443,7 +1419,7 @@ void kernelTextStreamSetColumn(kernelTextOutputStream *outputStream,
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	if (outputStream->outputDriver->setCursorAddress)
@@ -1476,7 +1452,7 @@ int kernelTextStreamGetRow(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return (0);
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return (0);
 
 	return (outputStream->textArea->cursorRow);
@@ -1492,7 +1468,7 @@ int kernelTextGetRow(void)
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
 
-	return(kernelTextStreamGetRow(outputStream));
+	return (kernelTextStreamGetRow(outputStream));
 }
 
 
@@ -1502,7 +1478,7 @@ void kernelTextStreamSetRow(kernelTextOutputStream *outputStream, int newRow)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	if (outputStream->outputDriver->setCursorAddress)
@@ -1535,7 +1511,7 @@ void kernelTextStreamSetCursor(kernelTextOutputStream *outputStream, int on)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// Call the text stream output driver routine to clear the screen
@@ -1564,7 +1540,7 @@ void kernelTextStreamScreenClear(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
-	if (outputStream == NULL)
+	if (!outputStream)
 		return;
 
 	// Call the text stream output driver routine to clear the screen
@@ -1599,12 +1575,14 @@ int kernelTextScreenSave(textScreen *screen)
 		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (screen == NULL)
+	if (!screen)
 		return (ERR_NULLPARAMETER);
 
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
-	
+	if (!outputStream)
+		return (ERR_NOSUCHENTRY);
+
 	textArea = outputStream->textArea;
 
 	if (outputStream->outputDriver->screenSave)
@@ -1626,12 +1604,14 @@ int kernelTextScreenRestore(textScreen *screen)
 		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (screen == NULL)
+	if (!screen)
 		return (ERR_NULLPARAMETER);
 
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
-	
+	if (!outputStream)
+		return (ERR_NOSUCHENTRY);
+
 	textArea = outputStream->textArea;
 
 	if (outputStream->outputDriver->screenRestore)
@@ -1650,10 +1630,14 @@ int kernelTextInputStreamCount(kernelTextInputStream *inputStream)
 
 	// Don't do anything unless we've been initialized
 	if (!initialized)
-		return (numberChars = ERR_NOTINITIALIZED);
+		return (ERR_NOTINITIALIZED);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (ERR_NOSUCHENTRY);
+	}
 
 	// Get the number of characters in the stream
 	numberChars = inputStream->s.count;
@@ -1681,25 +1665,19 @@ int kernelTextInputStreamGetc(kernelTextInputStream *inputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (returnChar == NULL)
+	if (!returnChar)
 		return (status = ERR_NULLPARAMETER);
 
-	while (1)
+	if (!inputStream)
 	{
-		// Wait for something to be there.
-		if (inputStream == NULL)
-		{
-			if (kernelMultitaskerGetTextInput()->s.count)
-			{
-				inputStream = kernelMultitaskerGetTextInput();
-				break;
-			}
-		}
-		else if (inputStream->s.count)
-			break;
-
-		kernelMultitaskerYield();
+		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
 	}
+
+	// Wait for something to be there.
+	while (!inputStream->s.count)
+		kernelMultitaskerYield();
 
 	// Call the 'pop' function for this stream
 	status = inputStream->s.pop(&(inputStream->s), returnChar);
@@ -1727,11 +1705,15 @@ int kernelTextInputStreamPeek(kernelTextInputStream *inputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (returnChar == NULL)
+	if (!returnChar)
 		return (status = ERR_NULLPARAMETER);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'pop' function for this stream
 	status = inputStream->s.pop(&(inputStream->s), returnChar);
@@ -1755,7 +1737,7 @@ int kernelTextInputPeek(char *returnChar)
 int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
 			 int numberRequested, char *returnChars)
 {
-	// Gets the requested number of characters from the keyboard buffer, 
+	// Gets the requested number of characters from the keyboard buffer,
 	// and puts them in the string supplied.
 
 	int status = 0;
@@ -1765,15 +1747,19 @@ int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure returnChars isn't NULL
-	if (returnChars == NULL)
+	if (!returnChars)
 		return (status = ERR_NULLPARAMETER);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'popN' function for this stream
-	status =
-		inputStream->s.popN(&(inputStream->s), numberRequested, returnChars);
+	status = inputStream->s.popN(&(inputStream->s), numberRequested,
+		returnChars);
 
 	// Return the status from the call
 	return (status);
@@ -1799,17 +1785,20 @@ int kernelTextInputStreamReadAll(kernelTextInputStream *inputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure returnChars isn't NULL
-	if (returnChars == NULL)
+	if (!returnChars)
 		return (status = ERR_NULLPARAMETER);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Get all of the characters in the stream.  Call the 'popN' function
 	// for this stream
-	status =
-		inputStream->s.popN(&(inputStream->s), inputStream->s.count,
-			returnChars);
+	status = inputStream->s.popN(&(inputStream->s), inputStream->s.count,
+		returnChars);
 
 	// Return the status from the call
 	return (status);
@@ -1832,8 +1821,12 @@ int kernelTextInputStreamAppend(kernelTextInputStream *inputStream, int ascii)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'append' function for this stream
 	status = inputStream->s.append(&(inputStream->s), (unsigned char) ascii);
@@ -1861,11 +1854,15 @@ int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure addCharacters isn't NULL
-	if (addCharacters == NULL)
+	if (!addCharacters)
 		return (status = ERR_NULLPARAMETER);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'appendN' function for this stream
 	status =
@@ -1894,8 +1891,12 @@ int kernelTextInputStreamRemove(kernelTextInputStream *inputStream)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'pop' function for this stream, and discard the char we
 	// get back.
@@ -1924,8 +1925,12 @@ int kernelTextInputStreamRemoveN(kernelTextInputStream *inputStream,
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'popN' function for this stream, and discard the chars we
 	// get back.
@@ -1952,8 +1957,12 @@ int kernelTextInputStreamRemoveAll(kernelTextInputStream *inputStream)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Call the 'clear' function for this stream
 	status = inputStream->s.clear(&(inputStream->s));
@@ -1973,15 +1982,19 @@ void kernelTextInputStreamSetEcho(kernelTextInputStream *inputStream,
 				int onOff)
 {
 	// Turn input echoing on or off
-	
+
 	// Don't do anything unless we've been initialized
 	if (!initialized)
 		return;
 
-	if (inputStream == NULL)
+	if (!inputStream)
+	{
 		inputStream = kernelMultitaskerGetTextInput();
+		if (!inputStream)
+			return;
+	}
 
-	inputStream->echo = onOff;
+	inputStream->attrs.echo = onOff;
 	return;
 }
 

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -29,16 +29,14 @@
 typedef struct {
 	int numVariables;
 	int maxVariables;
-	int usedData;
-	int maxData;
+	unsigned usedData;
+	unsigned maxData;
 	void *memory;
 	unsigned memorySize;
-	char **variables;
-	char **values;
-	char *data;
 	lock listLock;
 
 } variableList;
 
 #define _VARIABLE_H
 #endif
+

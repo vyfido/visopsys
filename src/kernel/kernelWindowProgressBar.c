@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -20,7 +20,6 @@
 //
 
 // This code is for managing kernelWindowProgressBar objects.
-
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
@@ -60,7 +59,7 @@ static int draw(kernelWindowComponent *component)
 		progressBar->progressPercent) / 100);
 	if (progressBar->sliderWidth < (thickness * 2))
 		progressBar->sliderWidth = (thickness * 2);
-	
+
 	kernelGraphicDrawGradientBorder(component->buffer,
 		(component->xCoord + thickness), (component->yCoord + thickness),
 		progressBar->sliderWidth, (component->height - (thickness * 2)),
@@ -146,10 +145,10 @@ kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowProgressBar *progressBar = NULL;
 
-	// Check parameters
-	if ((parent == NULL) || (params == NULL))
+	// Check params
+	if (!parent || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -184,6 +183,6 @@ kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 	component->data = (void *) progressBar;
 
 	progressBar->progressPercent = 0;
-	
+
 	return (component);
 }

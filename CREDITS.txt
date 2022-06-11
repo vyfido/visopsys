@@ -6,6 +6,15 @@ Unless otherwise stated, all aspects of Visopsys are created/authored by
 Andy McLaughlin.  Other contributions are as follows (please notify me
 <andy@visopsys.org> if you believe I've missed anything):
 
+- Spanish translation by ap0r <marianopbernacki@gmail.com> and Jens Leon
+Wagner <jenswagner20@ovi.com>.  See the directory contrib/ap0r-jens-spanish.
+
+- German translation by Jens Leon Wagner <jenswagner20@ovi.com> and
+Proxma AG - www.proxma.com.  See the directory contrib/jens-german.
+
+- ap0r <marianopbernacki@gmail.com> from the Visopsys forums added password
+length checking to the 'Users' program.  See the directory contrib/ap0r-users
+
 - espectalll123 <espectalll123@yahoo.es> from the Visopsys forums fixed up
 the Spanish keyboard map.
 
@@ -44,7 +53,7 @@ to the multitasker.  See the directory contrib/greg-fpu.
 http://www.carlitus.net
 
 - Some of the descriptions in fcntl.h are Copyright (C) 1997 The Open Group
-from http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html  
+from http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html
 
 - The values float.h are intelligent guesses based on reconciling the float.h
 files from Linux and Solaris on i386 machines, and based on the 'Standard C'

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -41,19 +41,41 @@ Options:
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/api.h>
 
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
 
-static char *weekDay[] = { 
-	"Mo", "Tu", "We", "Th", "Fr",  "Sa", "Su"
+#define WINDOW_TITLE	_("Calendar")
+
+static const char *weekDay[] = {
+	gettext_noop("Mo"),
+	gettext_noop("Tu"),
+	gettext_noop("We"),
+	gettext_noop("Th"),
+	gettext_noop("Fr"),
+	gettext_noop("Sa"),
+	gettext_noop("Su")
 };
 
-static char *monthName[] = {
-	"January", "February", "March", "April", "May", "June", "July",
-	"August", "September", "October", "November", "December"
+static const char *monthName[] = {
+	gettext_noop("January"),
+	gettext_noop("February"),
+	gettext_noop("March"),
+	gettext_noop("April"),
+	gettext_noop("May"),
+	gettext_noop("June"),
+	gettext_noop("July"),
+	gettext_noop("August"),
+	gettext_noop("September"),
+	gettext_noop("October"),
+	gettext_noop("November"),
+	gettext_noop("December")
 };
 
 static int monthDays[12] = {
@@ -85,7 +107,7 @@ static int leapYear(int y)
 	// There is a leap year in every year divisible by 4 except for years which
 	// are both divisible by 100 and not by 400.  Got it?
 	if (!(y % 4) && ((y % 100) || !(y % 400)))
-		return(1);
+		return (1);
 	else
 		return (0);
 }
@@ -100,30 +122,30 @@ static int getDays(int m, int y)
 		else
 			return (28);
 	}
-		
-	return monthDays[m];
+
+	return (monthDays[m]);
 }
 
 
 static void textCalendar(void)
-{    
+{
 	int days = getDays((month - 1), year);
-	int firstDay  = rtcDayOfWeek(1, month, year);    
-	int spaceSkip = (10 - (strlen(monthName[month - 1]) + 5) / 2);
-	int count;    
+	int firstDay  = rtcDayOfWeek(1, month, year);
+	int spaceSkip = (10 - (strlen(_(monthName[month - 1])) + 5) / 2);
+	int count;
 
 	for (count = 0; count < spaceSkip; count++)
 		printf(" ");
-	printf("%s %i", monthName[month - 1], year);    
-	
+	printf("%s %i", _(monthName[month - 1]), year);
+
 	printf("\n");
 	for (count = 0; count < 7; count++)
-		printf("%s ", weekDay[count]);
-	
+		printf("%s ", _(weekDay[count]));
+
 	printf("\n");
 	for (count = 0; count < firstDay; count++)
 		printf("   ");
-		
+
 	for (count = 1; count <= days; count++)
 	{
 		dayOfWeek = rtcDayOfWeek(count, month, year);
@@ -134,7 +156,7 @@ static void textCalendar(void)
 	}
 	if (dayOfWeek != 6)
 		printf("\n");
-		
+
 	return;
 }
 
@@ -145,11 +167,11 @@ static void initCalListParams(void)
 	int firstDay  = rtcDayOfWeek(1, month, year);
 	int count;
 
-	for(count = 0; count < 49; count++)
+	for (count = 0; count < 49; count++)
 		sprintf(calListParams[count].text, "  ");
 
 	for (count = 0; count < 7; count++)
-		sprintf(calListParams[count].text, "%s", weekDay[count]);
+		sprintf(calListParams[count].text, "%s", _(weekDay[count]));
 
 	for (count = 1; count <= days; count++)
 		sprintf(calListParams[count + 6 + firstDay].text, "%2i", count);
@@ -164,26 +186,54 @@ static void getUpdate(void)
 
 	itoa(year, yearString);
 	windowComponentSetData(calList, calListParams, 49);
-	windowComponentSetData(monthLabel, monthName[month-1], 10);
+	windowComponentSetData(monthLabel, _(monthName[month - 1]), 10);
 	windowComponentSetData(yearLabel, yearString, 4);
 }
 
 
-static void eventHandler(objectKey key, windowEvent *event)
-{    
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		windowGuiStop();
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
 
-	if (event->type == EVENT_MOUSE_LEFTUP)
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("cal");
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+
+	// Refresh the contents
+	getUpdate();
+}
+
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			windowGuiStop();
+	}
+
+	else if (event->type == EVENT_MOUSE_LEFTUP)
 	{
 		if (key == minusMonthButton)
 			month = ((month > 1)? (month - 1) : 12);
-		if (key == plusMonthButton)
+
+		else if (key == plusMonthButton)
 			month = ((month < 12)? (month + 1) : 1);
 
-		if (key == minusYearButton)
+		else if (key == minusYearButton)
 			year = ((year >= 1900)? (year - 1) : 1900);
-		if (key == plusYearButton)
+
+		else if (key == plusYearButton)
 			year = ((year <= 3000)? (year + 1) : 3000);
 
 		if ((key == minusMonthButton) || (key == plusMonthButton) ||
@@ -200,12 +250,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 static void constructWindow(void)
 {
 	componentParameters params;
-	struct tm theTime;    
-		
-	window = windowNew(multitaskerGetCurrentProcessId(), "Calendar");
+	struct tm theTime;
+
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 	if (window == NULL)
 		exit(ERR_NOTINITIALIZED);
-		
+
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -218,23 +268,23 @@ static void constructWindow(void)
 
 	minusMonthButton = windowNewButton(window, "<", NULL, &params);
 	windowRegisterEventHandler(minusMonthButton, &eventHandler);
-		
-	params.gridX = 1;
+
+	params.gridX += 1;
 	plusMonthButton = windowNewButton(window, ">", NULL, &params);
 	windowRegisterEventHandler(plusMonthButton, &eventHandler);
 
-	params.gridX = 2;
+	params.gridX += 1;
 	monthLabel = windowNewTextLabel(window, "", &params);
 	windowComponentSetWidth(monthLabel, 80);
-		
-	params.gridX = 3;
+
+	params.gridX += 1;
 	yearLabel = windowNewTextLabel(window, "", &params);
 
-	params.gridX = 4;
+	params.gridX += 1;
 	minusYearButton = windowNewButton(window, "<", NULL, &params);
 	windowRegisterEventHandler(minusYearButton, &eventHandler);
-		
-	params.gridX = 5;
+
+	params.gridX += 1;
 	plusYearButton = windowNewButton(window, ">", NULL, &params);
 	windowRegisterEventHandler(plusYearButton, &eventHandler);
 
@@ -243,17 +293,17 @@ static void constructWindow(void)
 	params.gridWidth = 6;
 	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
 	initCalListParams();
-	calList = windowNewList(window, windowlist_textonly, 7, 7, 0, calListParams,
-		49, &params);
+	calList = windowNewList(window, windowlist_textonly, 7, 7, 0,
+		calListParams, 49, &params);
 	getUpdate();
-		
+
 	bzero(&theTime, sizeof(struct tm));
 	rtcDateTime(&theTime);
 	windowComponentSetSelected(calList, rtcDayOfWeek(1, month, year) + 6 +
 		theTime.tm_mday);
-	windowComponentFocus(calList);    
+	windowComponentFocus(calList);
 	windowRegisterEventHandler(window, &eventHandler);
-		
+
 	// Make the window visible
 	windowSetResizable(window, 0);
 	windowSetVisible(window, 1);
@@ -263,28 +313,31 @@ static void constructWindow(void)
 
 
 static void graphCalendar(void)
-{   
+{
 	calListParams = malloc(49 * sizeof(listItemParameters));
 	if (calListParams == NULL)
 		exit(ERR_MEMORY);
-		 
+
 	constructWindow();
 	windowGuiRun();
 	windowDestroy(window);
 	free(calListParams);
-		
-	return;    
+
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-	int status = 0;    
+	int status = 0;
 	char opt;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("cal");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
-		
+
 	while (strchr("T", (opt = getopt(argc, argv, "T"))))
 	{
 		// Force text mode?
@@ -303,3 +356,4 @@ int main(int argc, char *argv[])
 
 	return (status);
 }
+

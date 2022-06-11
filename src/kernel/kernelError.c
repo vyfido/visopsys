@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -20,6 +20,7 @@
 //
 
 #include "kernelError.h"
+#include "kernelImage.h"
 #include "kernelInterrupt.h"
 #include "kernelLog.h"
 #include "kernelMisc.h"
@@ -89,7 +90,7 @@ static int errorDialogDetails(kernelWindow *parent, const char *details)
 	kernelWindowComponentFocus(okButton);
 	kernelWindowSetVisible(dialog, 1);
 
-	while(1)
+	while (1)
 	{
 		// Check for our OK button
 		status = kernelWindowComponentEventGet((objectKey) okButton, &event);
@@ -223,7 +224,7 @@ static void errorDialogThread(int argc, void *argv[])
 	kernelWindowComponentFocus(okButton);
 	kernelWindowSetVisible(window, 1);
 
-	while(1)
+	while (1)
 	{
 		// Check for our OK button
 		status = kernelWindowComponentEventGet((objectKey) okButton, &event);
@@ -315,7 +316,7 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
 	if (printErrors)
 		// Output the context of the message to the screen
 		kernelTextPrintLine("%s", errorText);
-  
+
 	// Initialize the argument list
 	va_start(list, message);
 
@@ -355,3 +356,4 @@ void kernelErrorDialog(const char *title, const char *message,
 		ERRORDIALOG_THREADNAME, 3, args);
 	return;
 }
+

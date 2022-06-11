@@ -1,24 +1,24 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelLoader.c
 //
-	
+
 // This file contains the functions belonging to the kernel's executable
 // program loader.
 
@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/paths.h>
 
 // This is the static list of file class registration functions.  If you
 // add any to this, remember to update the LOADER_NUM_FILECLASSES value
@@ -106,7 +107,7 @@ static void parseCommand(char *commandLine, int *argc, char *argv[])
 		{
 			// Discard the "
 			commandLine += 1;
-  
+
 			argv[*argc] = commandLine;
 
 			// Accept characters  until we hit another double-quote (or the
@@ -136,10 +137,10 @@ static void *load(const char *filename, file *theFile, int kernel)
 	int status = 0;
 	void *fileData = NULL;
 
-	// Make sure the filename and theFile isn't NULL
-	if ((filename == NULL) || (theFile == NULL))
+	// Check params
+	if (!filename || !theFile)
 	{
-		kernelError(kernel_error, "NULL filename or file structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (fileData = NULL);
 	}
 
@@ -257,7 +258,7 @@ static void populateFileClassList(void)
 		fileClassList[numFileClasses++] = classRegFns[count]();
 }
 
-  
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -273,10 +274,10 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
 	// a pointer to the memory.  The caller must deallocate the memory when
 	// finished with the data
 
-	// Make sure the filename and theFile isn't NULL
-	if ((filename == NULL) || (theFile == NULL))
+	// Check params
+	if (!filename || !theFile)
 	{
-		kernelError(kernel_error, "NULL filename or file structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (NULL);
 	}
 
@@ -308,7 +309,7 @@ kernelFileClass *kernelLoaderGetFileClass(const char *className)
 
 
 kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
-	unsigned size, loaderFileClass *class)
+	unsigned size, loaderFileClass *fileClass)
 {
 	// Given some file data, try to determine whether it is one of our known
 	// file classes.
@@ -316,11 +317,11 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
 	int count;
 
 	// Check params.  fileData and size can be NULL.
-	if ((fileName == NULL) || (class == NULL))
+	if (!fileName || !fileClass)
 		return (NULL);
 
 	kernelDebug(debug_loader, "Classifying file %s fileData=%p size=%u class=%p",
-		fileName, fileData, size, class);
+		fileName, fileData, size, fileClass);
 
 	// Has our list of file classes been initialized?
 	if (!numFileClasses)
@@ -330,9 +331,9 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
 	if ((fileData == NULL) || !size)
 	{
 		kernelDebug(debug_loader, "File is empty");
-		strcpy(class->className, FILECLASS_NAME_EMPTY);
-		class->class = LOADERFILECLASS_NONE;
-		class->subClass = LOADERFILESUBCLASS_NONE;
+		strcpy(fileClass->className, FILECLASS_NAME_EMPTY);
+		fileClass->class = LOADERFILECLASS_NONE;
+		fileClass->subClass = LOADERFILESUBCLASS_NONE;
 		return (&emptyFileClass);
 	}
 	else
@@ -343,7 +344,7 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
 	{
 		kernelDebug(debug_loader, "Detecting %s",
 			fileClassList[count]->className);
-		if (fileClassList[count]->detect(fileName, fileData, size, class))
+		if (fileClassList[count]->detect(fileName, fileData, size, fileClass))
 			return (fileClassList[count]);
 	}
 
@@ -353,7 +354,7 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
 
 
 kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
-	loaderFileClass *loaderClass)
+	loaderFileClass *fileClass)
 {
 	// This is a wrapper for the function above, and just temporarily loads
 	// the first sectors of the file in order to classify it.
@@ -366,7 +367,7 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 	#define PREVIEW_READBLOCKS 4
 
 	// Check params
-	if ((fileName == NULL) || (loaderClass == NULL))
+	if (!fileName || !fileClass)
 		return (class = NULL);
 
 	// Initialize the file structure we're going to use
@@ -397,7 +398,7 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 	}
 
 	class = kernelLoaderClassify(fileName, fileData,
-		min(theFile.size, (readBlocks * theFile.blockSize)), loaderClass);
+		min(theFile.size, (readBlocks * theFile.blockSize)), fileClass);
 
 	if (fileData)
 		kernelFree(fileData);
@@ -414,12 +415,12 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName)
 	void *loadAddress = NULL;
 	file theFile;
 	kernelFileClass *fileClassDriver = NULL;
-	loaderFileClass class;
+	loaderFileClass fileClass;
 
 	// Check params
-	if (fileName == NULL)
+	if (!fileName)
 	{
-		kernelError(kernel_error, "File name is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (symTable = NULL);
 	}
 
@@ -430,8 +431,8 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName)
 		return (symTable = NULL);
 
 	// Try to determine what kind of executable format we're dealing with.
-	fileClassDriver =
-		kernelLoaderClassify(fileName, loadAddress, theFile.size, &class);
+	fileClassDriver = kernelLoaderClassify(fileName, loadAddress, theFile.size,
+		&fileClass);
 	if (fileClassDriver == NULL)
 	{
 		kernelFree(loadAddress);
@@ -491,9 +492,9 @@ int kernelLoaderCheckCommand(const char *command)
 	processImage checkImage;
 
 	// Check params
-	if (command == NULL)
+	if (!command)
 	{
-		kernelError(kernel_error, "Command line to check is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -522,16 +523,16 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	file theFile;
 	void *loadAddress = NULL;
 	kernelFileClass *fileClassDriver = NULL;
-	loaderFileClass class;
+	loaderFileClass fileClass;
 	char procName[MAX_NAME_LENGTH];
 	char tmp[MAX_PATH_NAME_LENGTH];
 	int newProcId = 0;
 	loaderSymbolTable *symTable = NULL;
 
 	// Check params
-	if (command == NULL)
+	if (!command)
 	{
-		kernelError(kernel_error, "Command line to load is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -552,7 +553,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 
 	// Try to determine what kind of executable format we're dealing with.
 	fileClassDriver = kernelLoaderClassify(execImage.argv[0], loadAddress,
-		theFile.size, &class);
+		theFile.size, &fileClass);
 	if (fileClassDriver == NULL)
 	{
 		kernelMemoryRelease(loadAddress);
@@ -560,7 +561,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	}
 
 	// Make sure it's an executable
-	if (!(class.class & LOADERFILECLASS_EXEC))
+	if (!(fileClass.class & LOADERFILECLASS_EXEC))
 	{
 		kernelError(kernel_error, "File \"%s\" is not an executable program",
 			command);
@@ -586,7 +587,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	if (status < 0)
 		strncpy(procName, command, MAX_NAME_LENGTH);
 
-	// Set up and run the user program as a process in the multitasker
+	// Create the user program as a process in the multitasker
 	newProcId = kernelMultitaskerCreateProcess(procName, privilege, &execImage);
 	if (newProcId < 0)
 	{
@@ -596,7 +597,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 		return (newProcId);
 	}
 
-	if (class.subClass & LOADERFILESUBCLASS_DYNAMIC)
+	if (fileClass.subClass & LOADERFILESUBCLASS_DYNAMIC)
 	{
 		// It's a dynamically-linked program, so we need to link in the required
 		// libraries
@@ -642,15 +643,15 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 	file theFile;
 	void *loadAddress = NULL;
 	kernelFileClass *fileClassDriver = NULL;
-	loaderFileClass class;
+	loaderFileClass fileClass;
 	processImage libImage;
 	kernelDynamicLibrary *library = NULL;
 	char tmp[MAX_PATH_NAME_LENGTH];
 
 	// Check params
-	if (libraryName == NULL)
+	if (!libraryName)
 	{
-		kernelError(kernel_error, "Library name to load is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -664,8 +665,8 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 		return (status = ERR_INVALID);
 
 	// Try to determine what kind of executable format we're dealing with.
-	fileClassDriver =
-		kernelLoaderClassify(libraryName, loadAddress, theFile.size, &class);
+	fileClassDriver = kernelLoaderClassify(libraryName, loadAddress,
+		theFile.size, &fileClass);
 	if (fileClassDriver == NULL)
 	{
 		kernelFree(loadAddress);
@@ -673,8 +674,8 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 	}
 
 	// Make sure it's a dynamic library
-	if (!(class.class & LOADERFILECLASS_LIB) ||
-		!(class.subClass & LOADERFILESUBCLASS_DYNAMIC))
+	if (!(fileClass.class & LOADERFILECLASS_LIB) ||
+		!(fileClass.subClass & LOADERFILESUBCLASS_DYNAMIC))
 	{
 		kernelError(kernel_error, "File \"%s\" is not a shared library",
 			libraryName);
@@ -736,9 +737,9 @@ kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
 	int count;
 
 	// Check params
-	if (libraryName == NULL)
+	if (!libraryName)
 	{
-		kernelError(kernel_error, "Library name is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (library = NULL);
 	}
 
@@ -758,7 +759,7 @@ kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
 		}
 
 		// If we fall through, it wasn't found.  Try to load it.
-		sprintf(tmp, "/system/libraries/%s", shortName);
+		sprintf(tmp, PATH_SYSTEM_LIBRARIES "/%s", shortName);
 		if (kernelFileFind(tmp, NULL) < 0)
 			return (library = NULL);
 
@@ -786,9 +787,9 @@ kernelDynamicLibrary *kernelLoaderLinkLibrary(const char *libraryName)
 	kernelDynamicLibrary library;
 
 	// Check params
-	if (libraryName == NULL)
+	if (!libraryName)
 	{
-		kernelError(kernel_error, "Library name is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (NULL);
 	}
 
@@ -827,9 +828,9 @@ void *kernelLoaderGetSymbol(const char *symbolName)
 	void *value = NULL;
 
 	// Check params
-	if (symbolName == NULL)
+	if (!symbolName)
 	{
-		kernelError(kernel_error, "Symbol name is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (value = NULL);
 	}
 
@@ -853,9 +854,9 @@ int kernelLoaderExecProgram(int processId, int block)
 	// easily accomplish this stuff by talking to the multitasker.  If
 	// blocking is requested, the exit code of the program is returned to
 	// the caller.
-	
+
 	int status = 0;
-	
+
 	// Start user program's process
 	status = kernelMultitaskerSetProcessState(processId, proc_ready);
 	if (status < 0)
@@ -897,3 +898,4 @@ int kernelLoaderLoadAndExec(const char *command, int privilege, int block)
 	// All set
 	return (status);
 }
+

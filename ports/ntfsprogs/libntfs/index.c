@@ -942,7 +942,7 @@ INDEX_ENTRY * ntfs_ie_remove_name(INDEX_ENTRY *ie)
 /**
  * ntfs_index_root_get - read the index root of an attribute
  * @ni:		open ntfs inode in which the ntfs attribute resides
- * @attr:	attribute for which we want its index root 
+ * @attr:	attribute for which we want its index root
  *
  * This function will read the related index root an ntfs attribute.
  *
@@ -964,22 +964,22 @@ INDEX_ROOT *ntfs_index_root_get(ntfs_inode *ni, ATTR_RECORD *attr)
 		ntfs_log_perror("ntfs_get_search_ctx failed");
 		return NULL;
 	}
-	
+
 	if (ntfs_attr_lookup(AT_INDEX_ROOT, name, attr->name_length, 0, 0, NULL,
 			     0, ctx)) {
 		ntfs_log_perror("ntfs_attr_lookup failed");
 		goto out;
 	}
-	
+
 	root = malloc(sizeof(INDEX_ROOT));
 	if (!root) {
 		ntfs_log_perror("malloc failed");
 		goto out;
 	}
-	
+
 	*root = *((INDEX_ROOT *)((u8 *)ctx->attr +
 				le16_to_cpu(ctx->attr->value_offset)));
-out:	
+out:
 	ntfs_attr_put_search_ctx(ctx);
 	return root;
 }

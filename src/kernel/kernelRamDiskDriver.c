@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -127,11 +127,11 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	start = (logicalSector * RAMDISK_SECTOR_SIZE);
 	length = (numSectors * RAMDISK_SECTOR_SIZE);
 
-	// Wait for a lock 
+	// Wait for a lock
 	status = kernelLockGet(&physical->lock);
 	if (status < 0)
 		return (status);
-	  
+
 	// read/write
 
 	if (read)
@@ -141,9 +141,9 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 
 	// We are finished.  The data should be transferred.
 
-	// Unlock 
+	// Unlock
 	kernelLockRelease(&physical->lock);
-	  
+
 	return (status = 0);
 }
 
@@ -223,7 +223,7 @@ int kernelDiskRamDiskCreate(unsigned size, char *name)
 	int diskNum = 0;
 
 	// Check params.  It's okay for 'name' to be NULL.
-	if (size == 0)
+	if (!size)
 	{
 		kernelError(kernel_error, "Disk size is NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -254,7 +254,7 @@ int kernelDiskRamDiskCreate(unsigned size, char *name)
 	physical->numSectors = physical->sectorsPerCylinder;
 	physical->sectorSize = RAMDISK_SECTOR_SIZE;
 
-	physical->driverData = ramDisk;      
+	physical->driverData = ramDisk;
 	physical->driver = ramDiskDriver;
 
 	// Get memory for the data
@@ -308,9 +308,9 @@ int kernelDiskRamDiskDestroy(const char *name)
 	int count;
 
 	// Check params
-	if (name == NULL)
+	if (!name)
 	{
-		kernelError(kernel_error, "RAM disk name is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -337,7 +337,7 @@ int kernelDiskRamDiskDestroy(const char *name)
 		for (count = 0; count < numDisks; count ++)
 			if ((disks[count] == physical) && (count < (numDisks - 1)))
 				disks[count] = disks[numDisks - 1];
-	
+
 	numDisks -= 1;
 
 	// Wait for a lock on the disk

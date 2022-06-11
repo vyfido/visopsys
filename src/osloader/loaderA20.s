@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -47,32 +47,32 @@ biosMethod:
 	mov word [SS:(BP + 16)], -1
 
 	;; Do the 'enable' call.
-	mov AX, 2401h	
+	mov AX, 2401h
 	int 15h
 	jc .done
-	
+
 	;; Check
 	mov AX, 2402h
 	int 15h
 	jc .done
-	
+
 	;; On?
 	cmp AL, 01h
 	jne .done
-	
+
 	;; The BIOS did it for us.
 	mov word [SS:(BP + 16)], 0
 
 	.done:
 	popa
-	pop AX	
+	pop AX
 	ret
 
 
 port92Method:
 	;; This method attempts the second easiest thing, which is to try
 	;; writing a bit to port 92h
-	
+
 	;; Save space on the stack for the return code
 	sub SP, 2
 	pusha
@@ -86,7 +86,7 @@ port92Method:
 	;; Read port 92h
 	xor AX, AX
 	in AL, 92h
-	
+
 	;; Already set?
 	bt AX, 1
 	jnc .continue
@@ -107,12 +107,12 @@ port92Method:
 
 	;; A20 is on
 	mov word [SS:(BP + 16)], 0
-	
+
 	.done:
 	popa
-	pop AX	
+	pop AX
 	ret
-	
+
 
 keyboardCommandWait:
 	;; Wait for the keyboard controller to be ready for a command
@@ -123,7 +123,7 @@ keyboardCommandWait:
 	ret
 
 
-keyboardDataWait:	
+keyboardDataWait:
 	;; Wait for the controller to be ready with a byte of data
 	xor AX, AX
 	in AL, 64h
@@ -131,7 +131,7 @@ keyboardDataWait:
 	jnc keyboardDataWait
 	ret
 
-	
+
 delay:
 	;; Delay
 	jcxz $+2
@@ -158,22 +158,22 @@ keyboardRead60:
 	xor AX, AX
 	in AL, 60h
 	ret
-	
+
 
 keyboardWrite60:
 	;; Save AX on the stack for the moment
 	push AX
-	
+
 	;; Wait for the controller to be ready for a command
 	call keyboardCommandWait
 
 	;; Tell the controller we want to write the status byte
 	mov AL, 0D1h
-	out 64h, AL	
+	out 64h, AL
 
 	;; Delay
 	call delay
-	
+
 	;; Wait for the controller to be ready for a command
 	call keyboardCommandWait
 
@@ -181,8 +181,8 @@ keyboardWrite60:
 	;; on the stack
 	pop AX
 	out 60h, AL
-	ret	
-	
+	ret
+
 
 keyboardMethod:
 	;; Save space on the stack for the return code
@@ -204,7 +204,7 @@ keyboardMethod:
 	;; Turn on the A20 enable bit and write it.
 	or AL, 2
 	call keyboardWrite60
-	
+
 	;; Read back the A20 status to ensure it was enabled.
 	call keyboardRead60
 
@@ -218,14 +218,14 @@ keyboardMethod:
 	.done:
 	sti
 	popa
-	pop AX	
+	pop AX
 	ret
 
 
 altKeyboardMethod:
 	;; This is alternate way to set A20 using the keyboard (which is
 	;; supposedly not supported on many chipsets).
-	
+
 	;; Save space on the stack for the return code
 	sub SP, 2
 	pusha
@@ -258,11 +258,11 @@ altKeyboardMethod:
 
 	;; A20 is on
 	mov word [SS:(BP + 16)], 0
-		
+
 	.done:
 	sti
 	popa
-	pop AX	
+	pop AX
 	ret
 
 
@@ -299,7 +299,7 @@ loaderEnableA20:
 	;; when laptops have external keyboards attached
 
 	;; Print an error message, make a fatal error, and finish
-	
+
 	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, A20BAD1
@@ -322,6 +322,6 @@ loaderEnableA20:
 
 	SEGMENT .data
 	ALIGN 4
-	
+
 A20BAD1		db 'Could not enable the A20 address line, which would cause serious memory', 0
 A20BAD2		db 'problems for the kernel.  This is often associated with keyboard errors.', 0

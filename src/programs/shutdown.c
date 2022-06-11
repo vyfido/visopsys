@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -61,10 +61,15 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/paths.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 
+#define REBOOT			_("Reboot")
+#define SHUTDOWN		_("Shut down")
+#define EJECT			_("Eject CD-ROM")
+#define WINDOW_TITLE	SHUTDOWN
 #define EJECT_MESS		_("Ejecting, please wait...")
 #define NOUNLOCK_MESS	_("Unable to unlock the media door")
 #define NOEJECT_MESS	_("Can't seem to eject.  Try pushing\nthe 'eject' " \
@@ -96,7 +101,7 @@ static void doEject(void)
 		{
 			if (bannerDialog)
 				windowDestroy(bannerDialog);
-		
+
 			windowNewErrorDialog(window, _("Error"), NOUNLOCK_MESS);
 		}
 		else
@@ -137,20 +142,52 @@ static void doEject(void)
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("shutdown");
+
+	// Refresh the 'reboot' icon
+	windowComponentSetData(rebootIcon, REBOOT, strlen(REBOOT));
+
+	// Refresh the 'shutdown' icon
+	windowComponentSetData(shutdownIcon, SHUTDOWN, strlen(SHUTDOWN));
+
+	if (ejectCheckbox)
+		// Refresh the 'eject' checkbox
+		windowComponentSetData(ejectCheckbox, EJECT, strlen(EJECT));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int selected = 0;
 
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+	// Check for window events.
+	if (key == window)
 	{
-		windowGuiStop();
-		windowDestroy(window);
-		exit(0);
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+		{
+			windowGuiStop();
+			windowDestroy(window);
+			exit(0);
+		}
 	}
 
-	if (((key == rebootIcon) || (key == shutdownIcon)) &&
-	(event->type == EVENT_MOUSE_LEFTUP))
+	else if (((key == rebootIcon) || (key == shutdownIcon)) &&
+		(event->type == EVENT_MOUSE_LEFTUP))
 	{
 		windowGuiStop();
 
@@ -165,7 +202,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowDestroy(window);
 
 		shutdown((key == rebootIcon), 0);
-		while(1);
+		while (1);
 	}
 }
 
@@ -179,8 +216,8 @@ static void constructWindow(void)
 	image iconImage;
 
 	// Create a new window, with small, arbitrary size and location
-	window = windowNew(multitaskerGetCurrentProcessId(), _("Shut down"));
-	if (window == NULL)
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
+	if (!window)
 		return;
 
 	bzero(&params, sizeof(componentParameters));
@@ -203,20 +240,20 @@ static void constructWindow(void)
 
 	// Create a reboot icon
 	bzero(&iconImage, sizeof(image));
-	if (imageLoad("/system/icons/rebticon.bmp", 0, 0, &iconImage) >= 0)
+	if (imageLoad(PATH_SYSTEM_ICONS "/rebticon.bmp", 0, 0, &iconImage) >= 0)
 	{
-		rebootIcon = windowNewIcon(window, &iconImage, _("Reboot"), &params);
+		rebootIcon = windowNewIcon(window, &iconImage, REBOOT, &params);
 		windowRegisterEventHandler(rebootIcon, &eventHandler);
 		imageFree(&iconImage);
 	}
 
 	// Create a shut down icon
 	bzero(&iconImage, sizeof(image));
-	if (imageLoad("/system/icons/shuticon.bmp", 0, 0, &iconImage) >= 0)
+	if (imageLoad(PATH_SYSTEM_ICONS "/shuticon.bmp", 0, 0, &iconImage) >= 0)
 	{
 		params.gridX = 1;
 		shutdownIcon =
-			windowNewIcon(window, &iconImage, _("Shut down"), &params);
+			windowNewIcon(window, &iconImage, SHUTDOWN, &params);
 		windowRegisterEventHandler(shutdownIcon, &eventHandler);
 		imageFree(&iconImage);
 	}
@@ -229,7 +266,7 @@ static void constructWindow(void)
 		params.gridY = 1;
 		params.gridWidth = 2;
 		params.padTop = 0;
-		ejectCheckbox = windowNewCheckbox(window, _("Eject CD-ROM"), &params);
+		ejectCheckbox = windowNewCheckbox(window, EJECT, &params);
 	}
 
 	// Register an event handler to catch window close events
@@ -245,14 +282,10 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	char opt;
 	int force = 0;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("shutdown");
 
 	// Are graphics enabled?
@@ -308,8 +341,9 @@ int main(int argc, char *argv[])
 		}
 
 		// Wait for death
-		while(1);
+		while (1);
 	}
 
 	return (status = 0);
 }
+

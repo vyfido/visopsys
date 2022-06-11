@@ -1,42 +1,36 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
-ROOT		= ../..
-UTILSDIR	= ${ROOT}/utils
-BUILDDIR	= ${ROOT}/build/programs
-INCDIR		= ../include
-LIBDIR		= ${ROOT}/build/system/libraries
-MSGDIR		= ${ROOT}/build/system/locale
+ROOT = ../..
+BUILDDIR = ${ROOT}/build/programs
+INCDIR = ../include
+LIBDIR = ${ROOT}/build/system/libraries
 
 include ${ROOT}/Makefile.include
 
-ifneq (${PLUS},)
-	PLUSNAMES	= sysdiag
-endif
-ifneq (${BUILDLANG},)
-	DEFLANG		= -DBUILDLANG=\"${BUILDLANG}\"
-	MAKEMSGS	= ${UTILSDIR}/makemsgs.sh ${BUILDLANG} ${MSGDIR}
-endif
+STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
+	${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
+INCLUDE = -nostdinc -I${INCDIR} -I${INCDIR}/c++
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
+C++FLAGS = ${OPT} ${ARCH} ${C++CODEGEN} ${C++WARN} ${INCLUDE} ${DEBUG}
+LFLAGS = -L${LIBDIR} -nostdlib \
+	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 
-STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
-		${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
-INCLUDE		= -nostdinc -I${INCDIR} -I${INCDIR}/c++
-DEBUG		= # -DDEBUG # Uncomment to turn on debugging
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
-		${DEFLANG}
-C++FLAGS	= ${OPT} ${ARCH} ${C++CODEGEN} ${C++WARN} ${INCLUDE}
-LFLAGS		= -L${LIBDIR} -nostdlib \
-		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
-
-ifeq (${DEBUG},)
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
 	STRIP = strip -s ${COBJS} ${C++OBJS}
-endif 
+endif
 
-CNAMES	= adduser \
+ifdef PLUS
+	PLUSNAMES = sysdiag
+endif
+
+CNAMES = adduser \
 	bootmenu \
 	cal \
 	calc \
@@ -53,6 +47,7 @@ CNAMES	= adduser \
 	cp \
 	date \
 	defrag \
+	deluser \
 	disks \
 	disprops \
 	domainname \
@@ -110,13 +105,15 @@ CNAMES	= adduser \
 	wallpaper \
 	${PLUSNAMES}
 
-COBJS	= $(addprefix ${BUILDDIR}/, ${CNAMES})
-C++OBJS	= $(addprefix ${BUILDDIR}/, ${C++NAMES})
+COBJS = $(addprefix ${BUILDDIR}/, ${CNAMES})
+C++OBJS = $(addprefix ${BUILDDIR}/, ${C++NAMES})
 
 # Targets
 
-all: target-dirs strip messages
-	make -C fdisk
+all: target-dirs strip
+	${MAKE} -C fdisk
+	${MAKE} -C de
+	${MAKE} -C es
 
 target-dirs:
 	mkdir -p ${BUILDDIR}
@@ -130,17 +127,17 @@ ${BUILDDIR}/%: %.cpp ${STDDEPS}
 strip: ${COBJS} ${C++OBJS}
 	${STRIP}
 
-messages: ${OBJS}
-	${MAKEMSGS}
-
 clean:
+	${MAKE} -C fdisk clean
+	${MAKE} -C de clean
+	${MAKE} -C es clean
 	rm -Rf *~ *.o core ${COBJS} ${C++OBJS}
-	make -C fdisk clean
 
 # Object files with explicit rules
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lintl -lc -o $@
 
 ${BUILDDIR}/format: format.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lntfs -lwindow -lintl -lvsh -lc -o $@
+

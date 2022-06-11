@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -61,7 +61,7 @@
 
 	%include "loader.h"
 
-	
+
 loaderMain:
 	;; This is the main OS loader driver code.  It calls a number
 	;; of other routines for the puposes of detecting hardware,
@@ -78,7 +78,7 @@ loaderMain:
 	mov FS, EAX
 	mov GS, EAX
 
-	;; Now ensure the stack segment and stack pointer are set to 
+	;; Now ensure the stack segment and stack pointer are set to
 	;; something more appropriate for the loader
 	mov EAX, (LDRSTCKSEGMENTLOCATION / 16)
 	mov SS, EAX
@@ -132,7 +132,7 @@ loaderMain:
 	;; Calculate values that will help us deal with the filesystem
 	;; volume correctly
 	call loaderCalcVolInfo
-	
+
 	;; Before we print any other info, determine whether the user wants
 	;; to see any hardware info messages.  If the BOOTINFO file exists,
 	;; then we print the messages
@@ -145,7 +145,7 @@ loaderMain:
 	cmp word [PRINTINFO], 1
 	jne .noPrint1
 	call printBootDevice
-	.noPrint1:	
+	.noPrint1:
 
 	;; Call the routine to do the hardware detection
 	call loaderDetectHardware
@@ -165,9 +165,9 @@ loaderMain:
 	;; Make sure the kernel load was successful
 	cmp AX, 0
 	jge .okLoad
-	
+
 	add byte [FATALERROR], 1
-	
+
 	.okLoad:
 	;; Enable the A20 address line so that we will have access to the
 	;; entire extended memory space.
@@ -236,15 +236,15 @@ loaderMain:
 	add EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
 	add EAX, (KERNELSTACKSIZE - 4)
 	mov ESP, EAX
-	
-	;; Pass the kernel arguments.  
-	
+
+	;; Pass the kernel arguments.
+
 	;; First the hardware structure
 	push dword (LDRCODESEGMENTLOCATION + HARDWAREINFO)
 
 	;; Next the kernel stack size
 	push dword KERNELSTACKSIZE
-	
+
 	;; Next the kernel stack location
 	mov EAX, KERNELVIRTUALADDRESS
 	add EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
@@ -271,7 +271,7 @@ loaderMain:
 
 	;;--------------------------------------------------------------
 
-	
+
 bootDevice:
 	;; This function will gather some needed information about the
 	;; boot device (and print messages about what it finds)
@@ -288,7 +288,7 @@ bootDevice:
 	push word 0
 	pop ES
 	xor DI, DI
-	
+
 	mov AX, 0800h
 	xor BX, BX
 	xor CX, CX
@@ -305,7 +305,7 @@ bootDevice:
 
 	;; Change to the error color
 	mov DL, ERRORCOLOR
-	
+
 	mov SI, SAD
 	call loaderPrint
 	mov SI, BOOTDEV1
@@ -340,13 +340,13 @@ bootDevice:
 	mov AL, CH		; Rest of the cylinder bits
 	inc AX			; Number is 0-based
 	mov dword [CYLINDERS], EAX
-	
+
 	;; sectors
 	xor EAX, EAX
 	mov AL, CL		; Bits 0-5
 	and AL, 00111111b	; Mask it
 	mov dword [SECPERTRACK], EAX
-	
+
 	;; Determine whether we can use an extended BIOS function to give
 	;; us the number of sectors
 
@@ -355,7 +355,7 @@ bootDevice:
 	mov DX, word [DRIVENUMBER]
 	mov SI, HDDINFO
 	int 13h
-		
+
 	;; Function call successful?
 	jc .done
 
@@ -366,7 +366,7 @@ bootDevice:
 	;; Recalculate the number of cylinders
 	mov EAX, dword [HEADS]		; heads
 	mul dword [SECPERTRACK]		; sectors per cyl
-	mov ECX, EAX			; total secs per cyl 
+	mov ECX, EAX			; total secs per cyl
 	xor EDX, EDX
 	mov EAX, dword [TOTALSECS]
 	div ECX
@@ -385,11 +385,11 @@ fatInfo:
 	;; The boot sector is loaded at location 7C00h and starts with
 	;; some info about the filesystem.  Grab the info we need and store
 	;; it in some more convenient locations
-	
+
 	push FS
 	xor AX, AX
 	mov FS, AX
-	
+
 	mov AL, byte [FS:7C0Dh]
 	mov word [SECPERCLUST], AX
 	mov AL, byte [FS:7C10h]
@@ -426,18 +426,18 @@ fatInfo:
 	jmp .done
 	.unknown:
 	mov word [FSTYPE], FS_UNKNOWN
-	
+
 	.done:
 	pop FS
 	popa
 	ret
-	
+
 
 printBootDevice:
 	;; Prints info about the boot device
 
 	pusha
-	
+
 	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
@@ -450,7 +450,7 @@ printBootDevice:
 	cmp AX, 80h
 	jb .notHdd
 	mov SI, BOOTHDD
-	call loaderPrint 
+	call loaderPrint
 	sub AX, 80h
 	jmp .prtDiskNum
 	.notHdd:
@@ -460,17 +460,17 @@ printBootDevice:
 	call loaderPrintNumber
 	mov SI, BOOTDEV2
 	call loaderPrint
-	
+
 	mov EAX, dword [HEADS]
 	call loaderPrintNumber
 	mov SI, BOOTHEADS
 	call loaderPrint
-	
+
 	mov EAX, dword [CYLINDERS]
 	call loaderPrintNumber
 	mov SI, BOOTCYLS
 	call loaderPrint
-	
+
 	mov EAX, dword [SECPERTRACK]
 	call loaderPrintNumber
 	mov SI, BOOTSECTS
@@ -491,7 +491,7 @@ printBootDevice:
 	call loaderPrint
 	call loaderPrintNewline
 	jmp .done
-	
+
 	.fat12:
 	;; Print FAT12
 	mov SI, FAT12MES
@@ -515,10 +515,10 @@ printBootDevice:
 	call loaderPrint
 	call loaderPrintNewline
 
-	.done:	
+	.done:
 	popa
 	ret
-		
+
 
 fatalErrorCheck:
 	xor AX, AX
@@ -553,7 +553,7 @@ fatalErrorCheck:
 	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
-	
+
 	;; Print the message indicating system halt/reboot
 	mov SI, PRESSREBOOT
 	mov DL, FOREGROUNDCOLOR
@@ -582,12 +582,12 @@ pagingSetup:
 	;; This will setup a simple paging environment for the kernel and
 	;; enable it.  This involves making a master page directory plus
 	;; one page table, and enabling paging.  The kernel can make its own
-	;; tables at startup, so this only needs to be temporary.  This 
+	;; tables at startup, so this only needs to be temporary.  This
 	;; function takes no arguments and returns nothing.  Called only
 	;; after protected mode has been entered.
-	
+
 	BITS 32
-	
+
 	pusha
 
 	;; Interrupts should already be disabled
@@ -596,17 +596,17 @@ pagingSetup:
 	;; space
 	mov EAX, PRIV_DATASELECTOR
 	mov ES, AX
-		
+
 	;; Create a page table to identity-map the first 4 megabytes of
 	;; the system's memory.  This is so that the loader can operate
-	;; normally after paging has been enabled.  This is 1024 entries, 
+	;; normally after paging has been enabled.  This is 1024 entries,
 	;; each one representing 4Kb of real memory.  We will start the table
 	;; at the address (LDRPAGINGDATA + 1000h)
-	
+
 	mov EBX, 0		; Location we're mapping
 	mov ECX, 1024		; 1024 entries
 	mov EDI, (LDRPAGINGDATA + 1000h)
-	
+
 	.entryLoop1:
 	;; Make one page table entry.
 	mov EAX, EBX
@@ -625,7 +625,7 @@ pagingSetup:
 	mov EBX, KERNELLOADADDRESS		; Location we're mapping
 	mov ECX, 1024				; 1024 entries
 	mov EDI, (LDRPAGINGDATA + 2000h)	; location in LDRPAGINGDATA
-	
+
 	.entryLoop2:
 	;; Make one page table entry.
 	mov EAX, EBX
@@ -661,7 +661,7 @@ pagingSetup:
 	;; Put it in the first entry
 	mov EDI, LDRPAGINGDATA
 	stosd
-	
+
 	;; We make the second entry based on the virtual address of the
 	;; kernel.
 	;; The address of the second table
@@ -678,7 +678,7 @@ pagingSetup:
 	;; Add the offset of the table
 	add EDI, LDRPAGINGDATA
 	stosd
-	
+
 	;; Move the base address of the master page directory into CR3
 	xor EAX, EAX		; CR3 supposed to be zeroed
 	or AL, 00001000b	; Set the page write-through bit
@@ -692,13 +692,13 @@ pagingSetup:
 	mov EAX, CR0
 	and EAX, 9FFFFFFFh	; Clear CD (30) and NW (29)
 	mov CR0, EAX
-	
+
 	;; Clear out the page cache before we turn on paging, since if
 	;; we don't, rebooting from Windows or other OSes can cause us to
 	;; crash
 	wbinvd
 	invd
-		
+
 	;; Here we go.  Turn on paging in the processor.
 	or EAX, 80000000h
 	mov CR0, EAX
@@ -712,21 +712,21 @@ pagingSetup:
 	mov EAX, CR4
 	or EAX, 00000080h
 	mov CR4, EAX
-		
-	.done:	
+
+	.done:
 	;; Done
 	popa
 	ret
 
 	BITS 16
-	
+
 
 loaderMemCopy:
 	;; Tries to use real mode interrupt 15h:87h to move data in extended
 	;; memory.  If that doesn't work it tries a 'big real mode' method.
 	;; Proto:
 	;;   word loaderMemCopy(dword *src, dword *dest, dword size);
-	
+
 	;; Save a word for our return code
 	push word 0
 
@@ -744,7 +744,7 @@ loaderMemCopy:
 
 	;; Using this method we can only transfer 64K at a time.
 	.copyLoop:
-	
+
 	mov ECX, dword [SS:(BP + 28)]		; Size in bytes
 	cmp ECX, 10000h
 	jb .noReduce
@@ -782,10 +782,10 @@ loaderMemCopy:
 	;; Failed
 	mov word [SS:(BP + 16)], -1
 	jmp .out
-	
+
 	.success:
 	;; Success.  Any more to do?
-	add dword [SS:(BP + 20)], ECX	; Adjust src address 
+	add dword [SS:(BP + 20)], ECX	; Adjust src address
 	add dword [SS:(BP + 24)], ECX	; Adjust dest address
 	sub dword [SS:(BP + 28)], ECX	; Adjust count
 	jnz .copyLoop
@@ -802,7 +802,7 @@ loaderMemSet:
 	;; Uses a 'big real mode' method for initializing a memory region.
 	;; Proto:
 	;;   void loaderMemSet(word byte_value, dword *dest, dword size);
-	
+
 	pusha
 
 	;; Save the stack pointer
@@ -826,7 +826,7 @@ loaderMemSet:
 	cli				; Disable ints
 	push ES				; Preserve ES
 	mov EAX, (LDRDATABUFFER / 16)	; Segment
-	mov ES, EAX			; 
+	mov ES, EAX			;
 	mov DI, (LDRDATABUFFER % 16)	; Offset
 	mov CX, BX			; Count
 	mov AX, word [SS:(BP + 18)]	; Value in AL
@@ -856,7 +856,7 @@ loaderMemSet:
 
 	popa
 	ret
-	
+
 
 ;;
 ;; The data segment
@@ -864,11 +864,11 @@ loaderMemSet:
 
 	SEGMENT .data
 	ALIGN 4
-	
+
 ;;
 ;; Things generated internally
 ;;
-	
+
 KERNELSIZE	dd 0
 PRINTINFO	dw 0	;; Show hardware information messages?
 FATALERROR	db 0 	;; Fatal error encountered?
@@ -891,7 +891,7 @@ SECPERTRACK	dd 0
 SECPERCLUST	dw 0
 FATS		dw 0
 DRIVENUMBER	dw 0
-	
+
 ;;
 ;; Tables, desciptors, etc., used for protected mode
 ;;
@@ -953,7 +953,7 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.73' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.74' , 0
 LOADMSG2	db 'Copyright (C) 1998-2014 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0

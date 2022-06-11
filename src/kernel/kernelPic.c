@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -39,79 +39,81 @@ static kernelPicOps *ops = NULL;
 
 int kernelPicInitialize(kernelDevice *dev)
 {
-  int status = 0;
+	int status = 0;
 
-  if (dev == NULL)
-    {
-      kernelError(kernel_error, "The PIC device is NULL");
-      return (status = ERR_NOTINITIALIZED);
-    }
+	// Check params
+	if (!dev)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NOTINITIALIZED);
+	}
 
-  systemPic = dev;
+	systemPic = dev;
 
-  if ((systemPic->driver == NULL) || (systemPic->driver->ops == NULL))
-    {
-      kernelError(kernel_error, "The PIC driver or ops are NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	if ((systemPic->driver == NULL) || (systemPic->driver->ops == NULL))
+	{
+		kernelError(kernel_error, "The PIC driver or ops are NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  ops = systemPic->driver->ops;
+	ops = systemPic->driver->ops;
 
-  // Enable interrupts now.
-  kernelProcessorEnableInts();
+	// Enable interrupts now.
+	kernelProcessorEnableInts();
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 int kernelPicEndOfInterrupt(int interruptNumber)
 {
-  // This instructs the PIC to end the current interrupt.  Note that the
-  // interrupt number parameter is merely so that the driver can determine
-  // which controller(s) to send the command to.
+	// This instructs the PIC to end the current interrupt.  Note that the
+	// interrupt number parameter is merely so that the driver can determine
+	// which controller(s) to send the command to.
 
-  int status = 0;
+	int status = 0;
 
-  if (systemPic == NULL)
-    return (status = ERR_NOTINITIALIZED);
+	if (systemPic == NULL)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Ok, now we can call the routine.
-  if (ops->driverEndOfInterrupt)
-    status = ops->driverEndOfInterrupt(interruptNumber);
+	// Ok, now we can call the routine.
+	if (ops->driverEndOfInterrupt)
+		status = ops->driverEndOfInterrupt(interruptNumber);
 
-  return (status);
+	return (status);
 }
 
 
 int kernelPicMask(int interruptNumber, int on)
 {
-  // This instructs the PIC to enable (on) or mask the interrupt.
+	// This instructs the PIC to enable (on) or mask the interrupt.
 
-  int status = 0;
+	int status = 0;
 
-  if (systemPic == NULL)
-    return (status = ERR_NOTINITIALIZED);
+	if (systemPic == NULL)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Ok, now we can call the routine.
-  if (ops->driverMask)
-    status = ops->driverMask(interruptNumber, on);
+	// Ok, now we can call the routine.
+	if (ops->driverMask)
+		status = ops->driverMask(interruptNumber, on);
 
-  return (status);
+	return (status);
 }
 
 
 int kernelPicGetActive(void)
 {
-  // This asks the PIC for the currently-active interrupt
+	// This asks the PIC for the currently-active interrupt
 
-  int interruptNum = 0;
+	int interruptNum = 0;
 
-  if (systemPic == NULL)
-    return (interruptNum = ERR_NOTINITIALIZED);
+	if (systemPic == NULL)
+		return (interruptNum = ERR_NOTINITIALIZED);
 
-  // Ok, now we can call the routine.
-  if (ops->driverGetActive)
-    interruptNum = ops->driverGetActive();
+	// Ok, now we can call the routine.
+	if (ops->driverGetActive)
+		interruptNum = ops->driverGetActive();
 
-  return (interruptNum);
+	return (interruptNum);
 }
+

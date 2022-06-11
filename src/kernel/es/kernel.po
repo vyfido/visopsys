@@ -1,0 +1,136 @@
+# Visopsys
+# Copyright (C) 1998-2014 J. Andrew McLaughlin
+#
+# Spanish Translation - 2013 - marianopbernacki@gmail.com
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-04-07 18:11+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: kernelFilesystemFat.c:3870
+#, c-format
+msgid "Defragmenting %llu/%llu: %s"
+msgstr "Defragmentando %llu/%llu: %s"
+
+#: kernelFilesystemFat.c:4000 kernelFilesystemFatPlus.c:309
+msgid "Reading filesystem info"
+msgstr "Leyendo informacion del sistema de archivos"
+
+#: kernelFilesystemFat.c:4033
+msgid "Analyzing"
+msgstr "Analizando"
+
+#: kernelFilesystemFat.c:4047
+#, c-format
+msgid "%llu files need defragmentation"
+msgstr "%llu archivos necesitan defragmentacion"
+
+#: kernelFilesystemFatPlus.c:280
+msgid "Checking constraints"
+msgstr "Chequeando limites"
+
+#: kernelFilesystemFatPlus.c:290
+msgid "Error getting resizing constraints"
+msgstr "Error al buscar los límites de cambio de tamaño"
+
+#: kernelFilesystemFatPlus.c:297
+#, c-format
+msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
+msgstr ""
+"El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El minimo "
+"es %llu)"
+
+#: kernelFilesystemFatPlus.c:300
+#, c-format
+msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
+msgstr ""
+"El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El maximo "
+"es %llu)"
+
+#: kernelFilesystemFatPlus.c:317 kernelFilesystemFatPlus.c:341
+msgid "Error reading filesystem info"
+msgstr "Error al leer la informacion del sistema de archivos"
+
+#: kernelFilesystemFatPlus.c:333
+msgid "Error defragmenting filesystem"
+msgstr "Error al defragmentar"
+
+#: kernelFilesystemFatPlus.c:352
+#, c-format
+msgid "Data exists outside the new size (%u >= %llu)"
+msgstr "Aún existe informacion fuera del nuevo tamaño (%u >= %llu)"
+
+#: kernelFilesystemFatPlus.c:398
+msgid "Error moving data"
+msgstr "Error moviendo datos"
+
+#: kernelFilesystemFatPlus.c:409
+msgid "Clearing new FAT sectors"
+msgstr "Limpiando nuevos sectores FAT"
+
+#: kernelFilesystemFatPlus.c:416
+msgid "Error getting memory"
+msgstr "Error ubicando memoria"
+
+#: kernelFilesystemFatPlus.c:436
+msgid "Error clearing new FAT sectors"
+msgstr "Error limpiando sectores FAT"
+
+#: kernelFilesystemFatPlus.c:450
+msgid "Error synching FAT copies"
+msgstr "Error al sincronizar las copias FAT"
+
+#: kernelFilesystemFatPlus.c:461
+msgid "Updating filesystem info"
+msgstr "Actualizando informacion del sistema de archivos"
+
+#: kernelFilesystemFatPlus.c:476 kernelFilesystemFatPlus.c:485
+msgid "Error updating filesystem info"
+msgstr "Error actualizando informacion del sistema de archivos"
+
+#: kernelShutdown.c:43
+msgid "Shutting down Visopsys, please wait..."
+msgstr "Apagando Visopsys, espere por favor..."
+
+#: kernelShutdown.c:44
+msgid "[ Wait for \"OK to power off\" message ]"
+msgstr "[ Espere por el mensaje \"Ya Puede Apagar\" ]"
+
+#: kernelShutdown.c:45
+msgid "Rebooting."
+msgstr "Reiniciando."
+
+#: kernelShutdown.c:46
+msgid "OK to power off now."
+msgstr "Ya puede apagar"
+
+#: kernelShutdown.c:155
+msgid "Shutting down"
+msgstr "Apagando"
+
+#: kernelShutdown.c:323
+#, c-format
+msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
+msgstr "SISTEMA DETENIDO: Panico en %s:%s(%d)"
+
+#: kernelUsbDriver.c:500
+#, fuzzy
+msgid ""
+"\n"
+" *** Unable to initialize interrupt handling for your USB controller.\n"
+" *** You may be able to temporarily disable the 'plug and play OS' setting\n"
+" *** in your BIOS setup.\n"
+msgstr ""
+"\n"
+" *** Su disco de arranque está utilizando el modo SATA nativo.\n"
+" *** Este modo no es soportado actualmente, pero usted deberia poder "
+"habilitar\n"
+" *** el modo ATA o IDE en la configuracion de su BIOS.\n"

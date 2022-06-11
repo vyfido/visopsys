@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -44,11 +44,11 @@ static inline void debugEhciCapRegs(usbController *controller)
 	usbEhciData *ehciData = controller->data;
 
 	kernelDebug(debug_usb, "EHCI capability registers:\n"
-		"    capslen=0x%02x\n"
-		"    hciver=0x%04x\n"
-		"    hcsparams=0x%08x\n"
-		"    hccparams=0x%08x\n"
-		"    hcsp_portroute=0x%llx (%svalid)",
+		"  capslen=0x%02x\n"
+		"  hciver=0x%04x\n"
+		"  hcsparams=0x%08x\n"
+		"  hccparams=0x%08x\n"
+		"  hcsp_portroute=0x%llx (%svalid)",
 		ehciData->capRegs->capslen, ehciData->capRegs->hciver,
 		ehciData->capRegs->hcsparams, ehciData->capRegs->hccparams,
 		ehciData->capRegs->hcsp_portroute,
@@ -61,13 +61,13 @@ static inline void debugEhciHcsParams(usbController *controller)
 	usbEhciData *ehciData = controller->data;
 
 	kernelDebug(debug_usb, "EHCI HCSParams register:\n"
-		"    debug port=%d\n"
-		"    port indicators=%d\n"
-		"    num companion controllers=%d\n"
-		"    ports per companion=%d\n"
-		"    port routing rules=%d\n"
-		"    port power control=%d\n"
-		"    num ports=%d",
+		"  debug port=%d\n"
+		"  port indicators=%d\n"
+		"  num companion controllers=%d\n"
+		"  ports per companion=%d\n"
+		"  port routing rules=%d\n"
+		"  port power control=%d\n"
+		"  num ports=%d",
 		((ehciData->capRegs->hcsparams &
 			USBEHCI_HCSP_DEBUGPORT) >> 20),
 		((ehciData->capRegs->hcsparams &
@@ -88,11 +88,11 @@ static inline void debugEhciHccParams(usbController *controller)
 	usbEhciData *ehciData = controller->data;
 
 	kernelDebug(debug_usb, "EHCI HCCParams register:\n"
-		"    extended caps ptr=0x%02x\n"
-		"    isoc schedule threshold=0x%x\n"
-		"    async schedule park=%d\n"
-		"    programmable frame list=%d\n"
-		"    64-bit addressing=%d",
+		"  extended caps ptr=0x%02x\n"
+		"  isoc schedule threshold=0x%x\n"
+		"  async schedule park=%d\n"
+		"  programmable frame list=%d\n"
+		"  64-bit addressing=%d",
 		((ehciData->capRegs->hccparams &
 			USBEHCI_HCCP_EXTCAPPTR) >> 8),
 		((ehciData->capRegs->hccparams &
@@ -115,19 +115,19 @@ static void debugEhciOpRegs(usbController *controller)
 	portsStatCtl[0] = '\0';
 	for (count = 0; count < numPorts; count ++)
 	{
-		sprintf((portsStatCtl + strlen(portsStatCtl)), "\n    portsc%d=0x%08x",
+		sprintf((portsStatCtl + strlen(portsStatCtl)), "\n  portsc%d=0x%08x",
 			(count + 1), ehciData->opRegs->portsc[count]);
 	}
 
 	kernelDebug(debug_usb, "EHCI operational registers:\n"
-		"    cmd=0x%08x\n"
-		"    stat=0x%08x\n"
-		"    intr=0x%08x\n"
-		"    frindex=0x%08x\n"
-		"    ctrldsseg=0x%08x\n"
-		"    perlstbase=0x%08x\n"
-		"    asynclstaddr=0x%08x\n"
-		"    configflag=0x%08x%s",
+		"  cmd=0x%08x\n"
+		"  stat=0x%08x\n"
+		"  intr=0x%08x\n"
+		"  frindex=0x%08x\n"
+		"  ctrldsseg=0x%08x\n"
+		"  perlstbase=0x%08x\n"
+		"  asynclstaddr=0x%08x\n"
+		"  configflag=0x%08x%s",
 		ehciData->opRegs->cmd, ehciData->opRegs->stat,
 		ehciData->opRegs->intr, ehciData->opRegs->frindex,
 		ehciData->opRegs->ctrldsseg, ehciData->opRegs->perlstbase,
@@ -146,21 +146,21 @@ static inline void debugPortStatus(usbController *controller, int portNum)
 static inline void debugQtd(ehciQtd *qtd)
 {
 	kernelDebug(debug_usb, "EHCI qTD (%p):\n"
-		"    nextQtd=0x%08x\n"
-		"    altNextQtd=0x%08x\n"
-		"    token=0x%08x\n"
-		"        dataToggle=%d\n"
-		"        totalBytes=%d\n"
-		"        interruptOnComplete=%d\n"
-		"        currentPage=%d\n"
-		"        errorCounter=%d\n"
-		"        pidCode=%d\n"
-		"        status=0x%02x\n"
-		"    buffer0=0x%08x\n"
-		"    buffer1=0x%08x\n"
-		"    buffer2=0x%08x\n"
-		"    buffer3=0x%08x\n"
-		"    buffer4=0x%08x",
+		"  nextQtd=0x%08x\n"
+		"  altNextQtd=0x%08x\n"
+		"  token=0x%08x\n"
+		"    dataToggle=%d\n"
+		"    totalBytes=%d\n"
+		"    interruptOnComplete=%d\n"
+		"    currentPage=%d\n"
+		"    errorCounter=%d\n"
+		"    pidCode=%d\n"
+		"    status=0x%02x\n"
+		"  buffer0=0x%08x\n"
+		"  buffer1=0x%08x\n"
+		"  buffer2=0x%08x\n"
+		"  buffer3=0x%08x\n"
+		"  buffer4=0x%08x",
 		kernelPageGetPhysical((((unsigned) qtd < KERNEL_VIRTUAL_ADDRESS)?
 			kernelCurrentProcess->processId :
 				KERNELPROCID), (void *) qtd),
@@ -179,24 +179,24 @@ static inline void debugQtd(ehciQtd *qtd)
 static inline void debugQueueHead(ehciQueueHead *queueHead)
 {
 	kernelDebug(debug_usb, "EHCI queue head (%p):\n"
-		"    horizLink=0x%08x\n"
-		"    endpointChars=0x%08x\n"
-		"        nakCountReload=%d\n"
-		"        controlEndpoint=%d\n"
-		"        maxPacketLen=%d\n"
-		"        reclListHead=%d\n"
-		"        dataToggleCntl=%d\n"
-		"        endpointSpeed=%d\n"
-		"        endpointNum=%02x\n"
-		"        inactivateOnNext=%d\n"
-		"        deviceAddress=%d\n"
-		"    endpointCaps=0x%08x\n"
-		"        hiBandMult=%d\n"
-		"        portNumber=%d\n"
-		"        hubAddress=%d\n"
-		"        splitCompMask=0x%02x\n"
-		"        intSchedMask=0x%02x\n"
-		"    currentQtd=%08x",
+		"  horizLink=0x%08x\n"
+		"  endpointChars=0x%08x\n"
+		"    nakCountReload=%d\n"
+		"    controlEndpoint=%d\n"
+		"    maxPacketLen=%d\n"
+		"    reclListHead=%d\n"
+		"    dataToggleCntl=%d\n"
+		"    endpointSpeed=%d\n"
+		"    endpointNum=%02x\n"
+		"    inactivateOnNext=%d\n"
+		"    deviceAddress=%d\n"
+		"  endpointCaps=0x%08x\n"
+		"    hiBandMult=%d\n"
+		"    portNumber=%d\n"
+		"    hubAddress=%d\n"
+		"    splitCompMask=0x%02x\n"
+		"    intSchedMask=0x%02x\n"
+		"  currentQtd=%08x",
 		kernelPageGetPhysical((((unsigned) queueHead <
 			KERNEL_VIRTUAL_ADDRESS)?
 				kernelCurrentProcess->processId :
@@ -216,7 +216,7 @@ static inline void debugQueueHead(ehciQueueHead *queueHead)
 		((queueHead->endpointCaps & USBEHCI_QHDW2_PORTNUMBER) >> 23),
 		((queueHead->endpointCaps & USBEHCI_QHDW2_HUBADDRESS) >> 16),
 		((queueHead->endpointCaps & USBEHCI_QHDW2_SPLTCOMPMASK) >> 8),
-		(queueHead->endpointCaps & USBEHCI_QHDW2_INTSCHEDMASK),	       
+		(queueHead->endpointCaps & USBEHCI_QHDW2_INTSCHEDMASK),
 		queueHead->currentQtd);
 	debugQtd(&(queueHead->overlay));
 }
@@ -348,7 +348,7 @@ static int allocIoMem(unsigned size, unsigned alignment, void **virtual,
 
 	// Request memory for an aligned array of TRBs
 	*physical = kernelMemoryGetPhysical(size, alignment, "usb i/o memory");
-	if (*physical == NULL)
+	if (!*physical)
 	{
 		status = ERR_MEMORY;
 		goto err_out;
@@ -357,7 +357,7 @@ static int allocIoMem(unsigned size, unsigned alignment, void **virtual,
 	// Map the physical memory into virtual memory
 	status = kernelPageMapToFree(KERNELPROCID, *physical, virtual, size);
 	if (status < 0)
-		goto err_out; 
+		goto err_out;
 
 	// Make it non-cacheable
 	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
@@ -410,7 +410,7 @@ static int allocQueueHeads(kernelLinkedList *freeList)
 
 	// Get memory for ehciQueueHeadItem structures
 	queueHeadItems = kernelMalloc(numQueueHeads * sizeof(ehciQueueHeadItem));
-	if (queueHeadItems == NULL)
+	if (!queueHeadItems)
 	{
 		status = ERR_MEMORY;
 		goto err_out;
@@ -472,12 +472,12 @@ static int setQueueHeadEndpointState(usbDevice *usbDev,
 
 	// Figure out the maximum number of bytes per transfer, depending on the
 	// endpoint we're addressing.
-	if ((endpointNum == 0) && !usbDev->numEndpoints)
+	if (!endpointNum && !usbDev->numEndpoints)
 		maxPacketLen = usbDev->deviceDesc.maxPacketSize0;
 	else
 	{
 		endpointDesc = kernelUsbGetEndpointDesc(usbDev, endpointNum);
-		if (endpointDesc == NULL)
+		if (!endpointDesc)
 		{
 			kernelError(kernel_error, "No such endpoint %02x", endpointNum);
 			return (status = ERR_NOSUCHFUNCTION);
@@ -706,7 +706,7 @@ static ehciQueueHeadItem *allocQueueHead(usbController *controller,
 
 	// Grab the first item in the free list
 	queueHeadItem = kernelLinkedListIterStart(freeList, &iter);
-	if (queueHeadItem == NULL)
+	if (!queueHeadItem)
 	{
 		kernelError(kernel_error, "Couldn't get a list item for a new Queue "
 			"Head");
@@ -865,7 +865,7 @@ static int removeAsyncQueueHead(usbController *controller,
 	{
 		kernelError(kernel_error, "Controller did not set async advance bit");
 		return (status = ERR_TIMEOUT);
-	}	
+	}
 
 	// Clear it
 	setStatusBits(controller, USBEHCI_STAT_ASYNCADVANCE);
@@ -888,7 +888,7 @@ static ehciQueueHeadItem *allocAsyncQueueHead(usbController *controller,
 	ehciQueueHeadItem *queueHeadItem = NULL;
 
 	queueHeadItem = allocQueueHead(controller, usbDev, endpoint);
-	if (queueHeadItem == NULL)
+	if (!queueHeadItem)
 	{
 		kernelError(kernel_error, "Couldn't allocate asynchronous queue head");
 		goto err_out;
@@ -939,7 +939,7 @@ static ehciQueueHeadItem *allocIntrQueueHead(usbController *controller,
 	ehciQueueHeadItem *queueHeadItem = NULL;
 
 	queueHeadItem = allocQueueHead(controller, usbDev, endpoint);
-	if (queueHeadItem == NULL)
+	if (!queueHeadItem)
 	{
 		kernelError(kernel_error, "Couldn't allocate interrupt queue head");
 		goto err_out;
@@ -1006,7 +1006,7 @@ static int allocQtds(kernelLinkedList *freeList)
 
 	// Get memory for ehciQtdItem structures
 	qtdItems = kernelMalloc(numQtds * sizeof(ehciQtdItem));
-	if (qtdItems == NULL)
+	if (!qtdItems)
 	{
 		status = ERR_MEMORY;
 		goto err_out;
@@ -1083,7 +1083,7 @@ static ehciQtdItem **getQtds(usbController *controller, int numQtds)
 
 	// Get memory for our list of ehciQtdItem pointers
 	qtdItems = kernelMalloc(numQtds * sizeof(ehciQtdItem *));
-	if (qtdItems == NULL)
+	if (!qtdItems)
 		goto err_out;
 
 	for (count = 0; count < numQtds; count ++)
@@ -1101,7 +1101,7 @@ static ehciQtdItem **getQtds(usbController *controller, int numQtds)
 
 		// Grab the first one from the free list
 		qtdItems[count] = kernelLinkedListIterStart(freeList, &iter);
-		if (qtdItems[count] == NULL)
+		if (!qtdItems[count])
 		{
 			kernelError(kernel_error, "Couldn't get a list item for a new qTD");
 			goto err_out;
@@ -1196,7 +1196,7 @@ static int allocQtdBuffer(ehciQtdItem *qtdItem, unsigned buffSize)
 	// Get the memory from kernelMalloc(), so that the caller can easily
 	// kernelFree() it when finished.
 	qtdItem->buffer = kernelMalloc(buffSize);
-	if (qtdItem->buffer == NULL)
+	if (!qtdItem->buffer)
 	{
 		kernelDebugError("Can't alloc trans desc buffer size %u", buffSize);
 		return (status = ERR_MEMORY);
@@ -1204,7 +1204,7 @@ static int allocQtdBuffer(ehciQtdItem *qtdItem, unsigned buffSize)
 
 	// Get the physical address of this memory
 	buffPhysical = kernelPageGetPhysical(KERNELPROCID, qtdItem->buffer);
-	if (buffPhysical == NULL)
+	if (!buffPhysical)
 	{
 		kernelDebugError("Can't get buffer physical address");
 		kernelFree(qtdItem->buffer);
@@ -1337,7 +1337,7 @@ static int dequeueTransaction(ehciTransQueue *transQueue)
 
 	kernelDebug(debug_usb, "EHCI remove transaction from queue head");
 
-	if (transQueue->queueHeadItem == NULL)
+	if (!transQueue->queueHeadItem)
 		return (status = ERR_NOTINITIALIZED);
 
 	if (transQueue->queueHeadItem->firstQtdItem == transQueue->qtdItems[0])
@@ -1357,7 +1357,7 @@ static int dequeueTransaction(ehciTransQueue *transQueue)
 	{
 		// There's something else in the queue.  Walk it to find the qTD that
 		// links to our first one, and replace its 'next' qTD pointers with
-		// the 'next' pointers from our last qTD (which might be 
+		// the 'next' pointers from our last qTD (which might be
 		// NULL/terminating)
 
 		kernelDebug(debug_usb, "EHCI unlink from chained qTDs");
@@ -1366,7 +1366,7 @@ static int dequeueTransaction(ehciTransQueue *transQueue)
 		while (qtdItem && (qtdItem->nextQtdItem != transQueue->qtdItems[0]))
 			qtdItem = qtdItem->nextQtdItem;
 
-		if (qtdItem == NULL)
+		if (!qtdItem)
 		{
 			// Not found!
 			kernelError(kernel_error, "Transaction to de-queue was not found");
@@ -1493,15 +1493,16 @@ static int queue(usbController *controller, usbDevice *usbDev,
 	kernelDebug(debug_usb, "EHCI queue %d transaction%s", numTrans,
 		((numTrans > 1)? "s" : ""));
 
-	if ((controller == NULL) || (usbDev == NULL) || (trans == NULL))
+	// Check params
+	if (!controller || !usbDev || !trans)
 	{
-		kernelError(kernel_error, "NULL hub, device, or transaction");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
 	// Get memory for pointers to the transaction queues
 	transQueues = kernelMalloc(numTrans * sizeof(ehciTransQueue));
-	if (transQueues == NULL)
+	if (!transQueues)
 		return (status = ERR_MEMORY);
 
 	// Loop to set up each transaction
@@ -1539,7 +1540,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 			transQueues[transCount].queueHeadItem =
 				allocAsyncQueueHead(controller, usbDev,
 					trans[transCount].endpoint);
-			if (transQueues[transCount].queueHeadItem == NULL)
+			if (!transQueues[transCount].queueHeadItem)
 			{
 				kernelError(kernel_error, "Couldn't allocate endpoint queue "
 					"head");
@@ -1606,7 +1607,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		// Allocate the qTDs we need for this transaction
 		transQueues[transCount].qtdItems =
 			getQtds(controller, transQueues[transCount].numQtds);
-		if (transQueues[transCount].qtdItems == NULL)
+		if (!transQueues[transCount].qtdItems)
 		{
 			kernelError(kernel_error, "Couldn't get qTDs for transaction");
 			status = ERR_NOFREE;
@@ -1614,9 +1615,9 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		}
 
 		// Get the data toggle for the endpoint
-		dataToggle =
-			kernelUsbGetEndpointDataToggle(usbDev, trans[transCount].endpoint);
-		if (dataToggle == NULL)
+		dataToggle = kernelUsbGetEndpointDataToggle(usbDev,
+			trans[transCount].endpoint);
+		if (!dataToggle)
 		{
 			kernelError(kernel_error, "No data toggle for endpoint %02x",
 				trans[transCount].endpoint);
@@ -1675,7 +1676,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 					KERNEL_VIRTUAL_ADDRESS)?
 						kernelCurrentProcess->processId :
 							KERNELPROCID), buffPtr);
-				if (bufferPhysical == NULL)
+				if (!bufferPhysical)
 				{
 					kernelDebugError("Can't get physical address for buffer "
 						"fragment at %p", buffPtr);
@@ -1802,9 +1803,9 @@ static int unschedInterrupt(usbController *controller, usbDevice *usbDev)
 	int count;
 
 	// Check params
-	if ((controller == NULL) || (usbDev == NULL))
+	if (!controller || !usbDev)
 	{
-		kernelError(kernel_error, "NULL hub, device, or callback");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1904,9 +1905,9 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	int count;
 
 	// Check params
-	if ((controller == NULL) || (usbDev == NULL) || (callback == NULL))
+	if (!controller || !usbDev || !callback)
 	{
-		kernelError(kernel_error, "NULL hub, device, or callback");
+		kernelError(kernel_error, "NULL parameter");
 		status = ERR_NULLPARAMETER;
 		goto out;
 	}
@@ -1926,7 +1927,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 
 	// Get memory to hold info about the interrupt
 	intrReg = kernelMalloc(sizeof(usbEhciInterruptReg));
-	if (intrReg == NULL)
+	if (!intrReg)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -1940,7 +1941,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	// Get a queue head for the interrupt endpoint.
 	intrReg->transQueue.queueHeadItem =
 		allocIntrQueueHead(controller, usbDev, endpoint);
-	if (intrReg->transQueue.queueHeadItem == NULL)
+	if (!intrReg->transQueue.queueHeadItem)
 	{
 		kernelError(kernel_error, "Couldn't retrieve endpoint queue head");
 		status = ERR_BUG;
@@ -1950,7 +1951,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	// Get a qTD for it.
 	intrReg->transQueue.numQtds = intrReg->transQueue.numDataQtds = 1;
 	intrReg->transQueue.qtdItems = getQtds(controller, 1);
-	if (intrReg->transQueue.qtdItems == NULL)
+	if (!intrReg->transQueue.qtdItems)
 	{
 		kernelError(kernel_error, "Couldn't get qTD for interrupt");
 		status = ERR_BUG;
@@ -2009,7 +2010,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 
 	kernelDebug(debug_usb, "EHCI interrupt interval at %d frames, "
 		"s-mask=0x%02x", intrReg->interval, sMask);
- 
+
 	intrReg->transQueue.queueHeadItem->queueHead->endpointCaps |=
 		(sMask & USBEHCI_QHDW2_INTSCHEDMASK);
 
@@ -2236,9 +2237,9 @@ static int reset(usbController *controller)
 	int count;
 
 	// Check params
-	if (controller == NULL)
+	if (!controller)
 	{
-		kernelError(kernel_error, "NULL controller");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -2500,7 +2501,7 @@ static int setup(usbController *controller)
 		// 'reclaim' (asynchronous) queue
 		ehciData->reclaimHead = allocQueueHead(controller, NULL /* no device */,
 			0 /* no endpoint */);
-		if (ehciData->reclaimHead == NULL)
+		if (!ehciData->reclaimHead)
 			return (status = ERR_NOTINITIALIZED);
 	}
 
@@ -2939,12 +2940,6 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 	usbEhciData *ehciData = controller->data;
 	int count;
 
-	if (controller == NULL)
-	{
-		kernelError(kernel_error, "Hub controller is NULL");
-		return;
-	}
-
 	// Check to see whether any of the ports are showing a connection change
 	for (count = 0; count < ehciData->numPorts; count ++)
 	{
@@ -2972,9 +2967,9 @@ static void detectDevices(usbHub *hub, int hotplug)
 		hotplug);
 
 	// Check params
-	if (hub == NULL)
+	if (!hub)
 	{
-		kernelError(kernel_error, "NULL hub pointer");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -2994,9 +2989,9 @@ static void threadCall(usbHub *hub)
 	usbEhciData *ehciData = NULL;
 
 	// Check params
-	if (hub == NULL)
+	if (!hub)
 	{
-		kernelError(kernel_error, "NULL hub pointer");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -3006,7 +3001,7 @@ static void threadCall(usbHub *hub)
 		return;
 
 	controller = hub->controller;
-	if (controller == NULL)
+	if (!controller)
 	{
 		kernelError(kernel_error, "Hub controller is NULL");
 		return;
@@ -3098,7 +3093,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 
 	// Allocate memory for the controller
 	controller = kernelMalloc(sizeof(usbController));
-	if (controller == NULL)
+	if (!controller)
 		goto err_out;
 
 	// Get the USB version number
@@ -3113,7 +3108,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 
 	// Allocate memory for the EHCI data
 	controller->data = kernelMalloc(sizeof(usbEhciData));
-	if (controller->data == NULL)
+	if (!controller->data)
 		goto err_out;
 
 	ehciData = controller->data;
@@ -3194,7 +3189,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	kernelDebug(debug_usb, "EHCI debug port=%d", ehciData->debugPort);
 
 	// If the extended capabilities registers are implemented, perform an
-	// orderly ownership transfer from the BIOS. 
+	// orderly ownership transfer from the BIOS.
 	status = handoff(controller, busTarget, &pciDevInfo);
 	if (status < 0)
 		goto err_out;
@@ -3243,7 +3238,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 
 	// Allocate memory for the kernel device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		goto err_out;
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
@@ -3269,7 +3264,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	status = kernelDeviceAdd(busTarget->bus->dev, dev);
 	if (status < 0)
 		goto err_out;
-	else 
+	else
 		return (dev);
 
 err_out:
@@ -3285,3 +3280,4 @@ err_out:
 
 	return (dev = NULL);
 }
+

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -30,8 +30,8 @@
 
 _X_ int vshSearchPath(const char *orig, char *new)
 {
-  // Desc: Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in 'orig', and place the complete, absolete pathname result in 'new'.  If a match is found, the function returns zero.  Otherwise, it returns a negative error code.  'new' must be large enough to hold the complete absolute filename of any match found.
+	// Desc: Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in 'orig', and place the complete, absolete pathname result in 'new'.  If a match is found, the function returns zero.  Otherwise, it returns a negative error code.  'new' must be large enough to hold the complete absolute filename of any match found.
 
-  // Use shared code
-  #include "../shared/srchpath.c"
+	// Use shared code
+	#include "../shared/srchpath.c"
 }

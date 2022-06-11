@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -28,9 +28,11 @@
 #include "kernelFont.h"
 #include "kernelMalloc.h"
 
-static int (*saveMenuFocus)(kernelWindowComponent *, int) = NULL;
-static int (*saveMenuMouseEvent)(kernelWindowComponent *, windowEvent *) = NULL;
-static int (*saveMenuKeyEvent)(kernelWindowComponent *, windowEvent *) = NULL;
+static void (*saveMenuFocus)(kernelWindow *, int) = NULL;
+static int (*saveMenuMouseEvent)(kernelWindow *, kernelWindowComponent *,
+	windowEvent *) = NULL;
+static int (*saveMenuKeyEvent)(kernelWindow *, kernelWindowComponent *,
+	windowEvent *) = NULL;
 
 extern kernelWindowVariables *windowVariables;
 
@@ -39,15 +41,12 @@ static inline int menuTitleWidth(kernelWindowComponent *component, int num)
 {
 	kernelWindowMenuBar *menuBar = component->data;
 	asciiFont *font = (asciiFont *) component->params.font;
-	kernelWindowContainer *menuBarContainer = menuBar->container->data;
-	kernelWindowComponent *menuComponent = menuBarContainer->components[num];
-	kernelWindowMenu *menu = menuComponent->data;
-	kernelWindowContainer *container = menu->container->data;
+	kernelWindow *menu = menuBar->menu[num];
 
 	int width = (windowVariables->border.thickness * 2);
 
 	if (font)
-		width += kernelFontGetPrintedWidth(font, (const char *) container->name);
+		width += kernelFontGetPrintedWidth(font, (char *) menu->title);
 
 	return (width);
 }
@@ -66,21 +65,9 @@ static inline int menuTitleHeight(kernelWindowComponent *component)
 }
 
 
-static int menuXCoord(kernelWindowComponent *component, int num)
-{
-	int xCoord = 0;
-	int count;
-
-	for (count = 0; count < num; count ++)
-		xCoord += menuTitleWidth(component, count);
-
-	return (xCoord);
-}
-
-
 static void changedVisible(kernelWindowComponent *component)
 {
-	kernelDebug(debug_gui, "menuBar changed visible title");
+	kernelDebug(debug_gui, "WindowMenuBar changed visible title");
 
 	if (component->draw)
 		component->draw(component);
@@ -91,273 +78,207 @@ static void changedVisible(kernelWindowComponent *component)
 }
 
 
-static int menuFocus(kernelWindowComponent *component, int focus)
+static void menuFocus(kernelWindow *menu, int focus)
 {
 	// We just want to know when the menu has lost focus, so we can
 	// un-highlight the appropriate menu bar header
 
-	kernelWindowComponent *containerComponent = component->container;
-	kernelWindowComponent *menuBarComponent = containerComponent->container;
-	kernelWindowMenuBar *menuBar = menuBarComponent->data;
+	kernelWindowComponent *menuBarComponent = menu->parentWindow->menuBar;
 
-	kernelDebug(debug_gui, "menuBar menu %s focus", (focus? "got" : "lost"));
+	kernelDebug(debug_gui, "WindowMenuBar menu %s focus",
+		(focus? "got" : "lost"));
 
 	if (saveMenuFocus)
 		// Pass the event on.
-		saveMenuFocus(component, focus);
+		saveMenuFocus(menu, focus);
 
-	if (!focus && (component == menuBar->visibleMenu))
+	if (!focus)
 		// No longer visible
 		changedVisible(menuBarComponent);
-
-	return (0);
 }
 
 
-static int menuMouseEvent(kernelWindowComponent *component, windowEvent *event)
+static int menuMouseEvent(kernelWindow *menu,
+	kernelWindowComponent *itemComponent, windowEvent *event)
 {
-	kernelWindowComponent *containerComponent = component->container;
-	kernelWindowComponent *menuBarComponent = containerComponent->container;
+	int status = 0;
+	kernelWindowComponent *menuBarComponent = menu->parentWindow->menuBar;
 	kernelWindowMenuBar *menuBar = menuBarComponent->data;
-	
-	kernelDebug(debug_gui, "menuBar menu mouse event");
+
+	kernelDebug(debug_gui, "WindowMenuBar menu mouse event");
 
 	if (saveMenuMouseEvent)
 		// Pass the event on.
-		saveMenuMouseEvent(component, event);
+		status = saveMenuMouseEvent(menu, itemComponent, event);
 
-	// Now determine whether the menu goes away
-	if ((event->type & EVENT_MOUSE_LEFTUP) &&
-		(component == menuBar->visibleMenu))
-	{
-		// No longer visible
-		menuBar->visibleMenu = NULL;
-		changedVisible(menuBarComponent);
-	}
+	// Now determine whether the menu went away
+	if (!(menu->flags & WINFLAG_HASFOCUS))
+		menuBar->raisedMenu = NULL;
 
-	return (0);
+	return (status);
 }
 
 
-static int menuKeyEvent(kernelWindowComponent *component, windowEvent *event)
+static int menuKeyEvent(kernelWindow *menu,
+	kernelWindowComponent *itemComponent, windowEvent *event)
 {
-	kernelWindowComponent *containerComponent = component->container;
-	kernelWindowComponent *menuBarComponent = containerComponent->container;
+	int status = 0;
+	kernelWindowComponent *menuBarComponent = menu->parentWindow->menuBar;
 	kernelWindowMenuBar *menuBar = menuBarComponent->data;
-	kernelWindowContainer *menuBarContainer = menuBar->container->data;
 	int menuNumber = -1;
-	kernelWindowComponent *menuComponent = NULL;
+	kernelWindow *newMenu = NULL;
+	kernelWindowContainer *menuContainer = NULL;
 	int count;
 
-	kernelDebug(debug_gui, "menuBar menu key event");
+	kernelDebug(debug_gui, "WindowMenuBar menu key event");
 
 	if (saveMenuKeyEvent)
 		// Pass the event on.
-		saveMenuKeyEvent(component, event);
+		status = saveMenuKeyEvent(menu, itemComponent, event);
+
+	// Now determine whether the menu went away
+	if (!(menu->flags & WINFLAG_HASFOCUS))
+	{
+		menuBar->raisedMenu = NULL;
+		return (status);
+	}
+
+	if (event->type != EVENT_KEY_DOWN)
+		// Not interested
+		return (status);
 
 	// If the user has pressed the left or right cursor keys, that means they
 	// want to switch menus
-	if ((event->type == EVENT_KEY_DOWN) &&
-		((event->key == ASCII_CRSRLEFT) || (event->key == ASCII_CRSRRIGHT)))
+	if ((event->key == ASCII_CRSRLEFT) || (event->key == ASCII_CRSRRIGHT))
 	{
-		if (menuBar->visibleMenu)
+		// Find out where the menu is in our list
+		for (count = 0; count < menuBar->numMenus; count ++)
 		{
-			for (count = 0; count < menuBarContainer->numComponents; count ++)
+			if (menuBar->menu[count] == menu)
 			{
-				if (menuBarContainer->components[count] == menuBar->visibleMenu)
-				{
-					menuNumber = count;
-					break;
-				}
+				menuNumber = count;
+				break;
 			}
+		}
 
-			if (event->key == ASCII_CRSRLEFT)
+		if (event->key == ASCII_CRSRLEFT)
+		{
+			// Cursor left
+			if (menuNumber > 0)
+				menuNumber -= 1;
+		}
+		else
+		{
+			// Cursor right
+			if (menuNumber < (menuBar->numMenus - 1))
+				menuNumber += 1;
+		}
+
+		newMenu = menuBar->menu[menuNumber];
+
+		if (newMenu != menu)
+		{
+			menuContainer = newMenu->mainContainer->data;
+
+			if (menuContainer->numComponents)
 			{
-				// Cursor left
-				if (menuNumber > 0)
-				{
-					menuNumber -= 1;
-					menuComponent = menuBarContainer->components[menuNumber];
-				}
-			}
-			else
-			{
-				// Cursor right
-				if (menuNumber < (menuBarContainer->numComponents - 1))
-				{
-					menuNumber += 1;
-					menuComponent = menuBarContainer->components[menuNumber];
-				}
-			}
+				kernelDebug(debug_gui, "WindowMenuBar show new menu %s",
+					newMenu->title);
 
-			if (menuComponent && (menuComponent != menuBar->visibleMenu))
-			{
-				kernelDebug(debug_gui, "menuBar show new menu");
+				// Old one is no longer visible
+				kernelWindowSetVisible(menu, 0);
 
-				menuComponent->xCoord =
-					(menuBarComponent->xCoord +
-					 menuXCoord(menuBarComponent, menuNumber));
-				menuComponent->yCoord =
-					(menuBarComponent->yCoord + menuTitleHeight(menuBarComponent));
+				newMenu->xCoord = (menu->parentWindow->xCoord +
+					menuBarComponent->xCoord +
+					menuBar->menuXCoord[menuNumber]);
+				newMenu->yCoord = (menu->parentWindow->yCoord +
+					menuBarComponent->yCoord +
+					menuTitleHeight(menuBarComponent));
 
-				if (menuBar->visibleMenu)
-					kernelWindowComponentUnfocus(menuBar->visibleMenu);
+				// Set the new one visible
+				kernelWindowSetVisible(newMenu, 1);
+				menuBar->raisedMenu = menu;
 
-				kernelWindowComponentSetVisible(menuComponent, 1);
-				menuBar->visibleMenu = menuComponent;
 				changedVisible(menuBarComponent);
 			}
 		}
 	}
 
+	return (status);
+}
+
+
+static int add(kernelWindowComponent *menuBarComponent, objectKey menuObj)
+{
+	// Add the supplied menu to the menu bar.
+
+	kernelWindow *menu = menuObj;
+	kernelWindowMenuBar *menuBar = menuBarComponent->data;
+
+	// If we don't have the menu's focus(), mouseEvent(), and keyEvent()
+	// function pointers saved, save them now
+	if (!saveMenuFocus)
+		saveMenuFocus = menu->focus;
+	if (!saveMenuMouseEvent)
+		saveMenuMouseEvent = menu->mouseEvent;
+	if (!saveMenuKeyEvent)
+		saveMenuKeyEvent = menu->keyEvent;
+
+	menu->focus = &menuFocus;
+	menu->mouseEvent = &menuMouseEvent;
+	menu->keyEvent = &menuKeyEvent;
+
+	menuBar->menu[menuBar->numMenus++] = menu;
+
 	return (0);
 }
 
 
-static int add(kernelWindowComponent *menuBarComponent,
-	kernelWindowComponent *component)
-{
-	// Add the supplied component to the menu bar.
-
-	int status = 0;
-	kernelWindowMenuBar *menuBar = menuBarComponent->data;
-	
-	if (menuBar->container && menuBar->container->add)
-		status = menuBar->container->add(menuBar->container, component);
-
-	return (status);
-}
-
-
-static int numComps(kernelWindowComponent *component)
-{
-	int numItems = 0;
-	kernelWindowMenuBar *menuBar = component->data;
-
-	if (menuBar->container && menuBar->container->numComps)
-		// Count our container's components
-		numItems = menuBar->container->numComps(menuBar->container);
-
-	return (numItems);
-}
-
-
-static int flatten(kernelWindowComponent *component,
-	kernelWindowComponent **array, int *numItems, unsigned flags)
-{
-	int status = 0;
-	kernelWindowMenuBar *menuBar = component->data;
-
-	if (menuBar->container && menuBar->container->flatten)
-		// Flatten our container
-		status =
-			menuBar->container->flatten(menuBar->container, array, numItems, flags);
-
-	return (status);
-}
-
-
-static int layout(kernelWindowComponent *menuBarComponent)
+static int layout(kernelWindowComponent *component)
 {
 	// Do layout for the menu bar.
 
 	int status = 0;
-	kernelWindowMenuBar *menuBar = menuBarComponent->data;
-	kernelWindowContainer *container = menuBar->container->data;
-	kernelWindowComponent *menuComponent = NULL;
-	int xCoord = 0;
+	kernelWindowMenuBar *menuBar = component->data;
+	int width = 0;
 	int count;
 
-	kernelDebug(debug_gui, "menuBar layout");
+	kernelDebug(debug_gui, "WindowMenuBar layout");
 
-	// Set the menu locations, etc.
-	for (count = 0; count < container->numComponents; count ++)
+	for (count = 0; count < menuBar->numMenus; count ++)
 	{
-		menuComponent = container->components[count];
+		if (count)
+			menuBar->menuXCoord[count] = (menuBar->menuXCoord[count - 1] +
+				menuBar->menuTitleWidth[count - 1]);
 
-		// Make sure it's a menu (container) component
-		if (menuComponent->type != menuComponentType)
-		{
-			kernelError(kernel_error, "Menu component is not a menu!");
-			return (status = ERR_INVALID);
-		}
+		menuBar->menuTitleWidth[count] = menuTitleWidth(component, count);
 
-		menuComponent->flags &= ~WINFLAG_VISIBLE;
-
-		if (menuComponent->move)
-			menuComponent
-				->move(menuComponent, (menuBarComponent->xCoord + xCoord),
-					(menuBarComponent->yCoord + menuBarComponent->height));
-
-		menuComponent->xCoord = (menuBarComponent->xCoord + xCoord);
-		menuComponent->yCoord =
-			(menuBarComponent->yCoord + menuBarComponent->height);
-
-		// If we don't have the menu component's focus() function pointer
-		// saved, save it now
-		if ((saveMenuFocus == NULL) && (menuComponent->focus != NULL))
-			saveMenuFocus = menuComponent->focus;
-		menuComponent->focus = menuFocus;
-
-		// Likewise for the menu component's mouseEvent() function pointer
-		if ((saveMenuMouseEvent == NULL) && (menuComponent->mouseEvent != NULL))
-			saveMenuMouseEvent = menuComponent->mouseEvent;
-		menuComponent->mouseEvent = menuMouseEvent;
-
-		// Likewise for the menu component's keyEvent() function pointer
-		if ((saveMenuKeyEvent == NULL) && (menuComponent->keyEvent != NULL))
-			saveMenuKeyEvent = menuComponent->keyEvent;
-		menuComponent->keyEvent = menuKeyEvent;
-
-		// Do the layout for the menu itself.
-		if (!menuComponent->doneLayout && menuComponent->layout)
-			menuComponent->layout(menuComponent);
-
-		xCoord +=	menuTitleWidth(menuBarComponent, count);
+		width += menuBar->menuTitleWidth[count];
 	}
 
-	menuBarComponent->width = xCoord;
-	menuBarComponent->minWidth = menuBarComponent->width;
-	
-	menuBarComponent->doneLayout = 1;
+	component->width = component->window->buffer.width;
+	component->minWidth = width;
+
+	component->doneLayout = 1;
 
 	return (status = 0);
 }
 
 
-static int setBuffer(kernelWindowComponent *component,
-	kernelGraphicBuffer *buffer)
-{
-	// Set the graphics buffer for the component's subcomponents.
-
-	int status = 0;
-	kernelWindowMenuBar *menuBar = component->data;
-
-	if (menuBar->container && menuBar->container->setBuffer)
-	{
-		// Do our container
-		status = menuBar->container->setBuffer(menuBar->container, buffer);
-		menuBar->container->buffer = buffer;
-	}
-
-	return (status);
-}
-
-
 static int draw(kernelWindowComponent *component)
 {
-	// Draw the menu bar component 
+	// Draw the menu bar component
 
 	int status = 0;
 	kernelWindowMenuBar *menuBar = component->data;
-	kernelWindowContainer *menuBarContainer = menuBar->container->data;
-	kernelWindowComponent *menuComponent = NULL;
-	kernelWindowMenu *menu = NULL;
-	kernelWindowContainer *container = NULL;
+	kernelWindow *menu = NULL;
 	int xCoord = 0, titleWidth = 0, titleHeight = 0;
 	int count;
 
-	kernelDebug(debug_gui, "menuBar \"%s\" draw", component->window->title);
+	kernelDebug(debug_gui, "WindowMenuBar draw '%s' menu bar",
+		component->window->title);
+
+	layout(component);
 
 	// Draw the background of the menu bar
 	kernelGraphicDrawRect(component->buffer,
@@ -365,50 +286,58 @@ static int draw(kernelWindowComponent *component)
 		component->xCoord, component->yCoord, component->width,
 		component->height, 1, 1);
 
-	// Loop through all the menu components and draw their names on the menu bar
-	for (count = 0; count < menuBarContainer->numComponents; count ++)
+	// Loop through all the menus and draw their names on the menu bar
+	for (count = 0; count < menuBar->numMenus; count ++)
 	{
-		menuComponent = menuBarContainer->components[count];
-		menu = menuComponent->data;
-		container = menu->container->data;
-
-		xCoord = menuXCoord(component, count);
-		titleWidth = menuTitleWidth(component, count);
+		menu = menuBar->menu[count];
+		xCoord = menuBar->menuXCoord[count];
+		titleWidth = menuBar->menuTitleWidth[count];
 		titleHeight = menuTitleHeight(component);
 
-		if ((menuComponent == menuBar->visibleMenu) &&
-			(menuComponent->flags & WINFLAG_VISIBLE))
+		if (menu->flags & WINFLAG_VISIBLE)
 		{
-			kernelDebug(debug_gui, "menuBar title %d \"%s\" is visible", count,
-				container->name);
+			kernelDebug(debug_gui, "WindowMenuBar title %d '%s' is visible",
+				count, menu->title);
 			kernelGraphicDrawGradientBorder(component->buffer,
 				(component->xCoord + xCoord), component->yCoord, titleWidth,
 				titleHeight, windowVariables->border.thickness,
-				(color *) &(menuComponent->params.background),
+				(color *) &(component->params.background),
 				windowVariables->border.shadingIncrement, draw_normal,
 				border_all);
 		}
 
 		if (component->params.font)
+		{
 			kernelGraphicDrawText(component->buffer,
 				(color *) &(component->params.foreground),
 				(color *) &(component->params.background),
 				(asciiFont *) component->params.font,
-				(const char *) container->name, draw_normal,
+				(char *) menu->title, draw_normal,
 				(component->xCoord + xCoord +
 					windowVariables->border.thickness),
 				(component->yCoord + windowVariables->border.thickness));
+		}
 	}
 
 	return (status);
 }
 
 
-static int resize(kernelWindowComponent *component __attribute__((unused)),
-	int width __attribute__((unused)), int height __attribute__((unused)))
+static int focus(kernelWindowComponent *component, int got)
 {
-	// Nothing to do, but we want the upper layers to treat us as resizable
-	// without defaulting to the regular container resize function
+	// We just want to know if we lost the focus, because in that case,
+	// any raised menu will have gone away.
+
+	kernelWindowMenuBar *menuBar = component->data;
+
+	kernelDebug(debug_gui, "WindowMenuBar %s focus", (got? "got" : "lost"));
+
+	if (!got)
+	{
+		menuBar->raisedMenu = NULL;
+		changedVisible(component);
+	}
+
 	return (0);
 }
 
@@ -416,58 +345,63 @@ static int resize(kernelWindowComponent *component __attribute__((unused)),
 static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	kernelWindowMenuBar *menuBar = component->data;
-	kernelWindowContainer *menuBarContainer = menuBar->container->data;
-	kernelWindowComponent *menuComponent = NULL;
+	kernelWindow *menu = NULL;
+	kernelWindowContainer *menuContainer = NULL;
 	int xCoord = 0, width = 0;
 	int count;
 
 	// If there are no menu components, quit here
-	if (!(menuBarContainer->numComponents))
+	if (!menuBar->numMenus)
 		return (0);
 
 	// Events other than left mouse down are not interesting
 	if (event->type != EVENT_MOUSE_LEFTDOWN)
 		return (0);
 
-	kernelDebug(debug_gui, "menuBar mouse event");
+	kernelDebug(debug_gui, "WindowMenuBar mouse event");
 
 	// Determine whether to set a menu visible now by figuring out whether a
 	// menu title was clicked.
-	for (count = 0; count < menuBarContainer->numComponents; count ++)
+	for (count = 0; count < menuBar->numMenus; count ++)
 	{
-		menuComponent = menuBarContainer->components[count];
+		menu = menuBar->menu[count];
+		menuContainer = menu->mainContainer->data;
 
-		xCoord = (component->xCoord + menuXCoord(component, count));
-		width = menuTitleWidth(component, count);
+		xCoord = (component->window->xCoord + component->xCoord +
+			menuBar->menuXCoord[count]);
+		width = menuBar->menuTitleWidth[count];
 
-		if ((event->xPosition >= (component->window->xCoord + xCoord)) &&
-			(event->xPosition < (component->window->xCoord + xCoord + width)))
+		if ((event->xPosition >= xCoord) &&
+			(event->xPosition < (xCoord + width)))
 		{
-			if ((menuComponent != menuBar->visibleMenu) ||
-				!(menuComponent->flags & WINFLAG_VISIBLE))
+			if (menu != menuBar->raisedMenu)
 			{
-				// The menu was not previously visible, so we will show it.
-				kernelDebug(debug_gui, "menuBar show menu %d", count);
+				// The menu was not previously raised, so we will show it.
+				kernelDebug(debug_gui, "WindowMenuBar show menu %d '%s'",
+					count, menu->title);
 
-				menuComponent->xCoord = xCoord;
-				menuComponent->yCoord =
-					(component->yCoord + menuTitleHeight(component));
+				menu->xCoord = xCoord;
+				menu->yCoord = (component->window->yCoord + component->yCoord +
+					menuTitleHeight(component));
 
-				kernelWindowComponentSetVisible(menuComponent, 1);
-				menuBar->visibleMenu = menuComponent;
+				if (menuContainer->numComponents)
+					kernelWindowSetVisible(menu, 1);
+
+				menuBar->raisedMenu = menu;
 			}
 			else
 			{
-				// The menu was previously visible, so we will hide it.
-				kernelDebug(debug_gui, "menuBar hide menu %d", count);
-				kernelWindowComponentUnfocus(menuComponent);
-				menuBar->visibleMenu = NULL;
+				// The menu was previously visible, so we won't re-show it.
+				kernelDebug(debug_gui, "WindowMenuBar menu %d '%s' re-clicked",
+					count, menu->title);
+
+				menuBar->raisedMenu = NULL;
 			}
+
+			changedVisible(component);
+			break;
 		}
 	}
-
-	// We have either hidden a menu or made one visible
-	changedVisible(component);
 
 	return (0);
 }
@@ -477,7 +411,7 @@ static int destroy(kernelWindowComponent *component)
 {
 	kernelWindowMenuBar *menuBar = component->data;
 
-	kernelDebug(debug_gui, "windowMenuBar destroy");
+	kernelDebug(debug_gui, "WindowMenuBar destroy");
 
 	if (component->window && (component->window->menuBar == component))
 		component->window->menuBar = NULL;
@@ -485,9 +419,6 @@ static int destroy(kernelWindowComponent *component)
 	// Release all our memory
 	if (menuBar)
 	{
-		if (menuBar->container)
-			kernelWindowComponentDestroy(menuBar->container);
-		
 		kernelFree(component->data);
 		component->data = NULL;
 	}
@@ -513,10 +444,10 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 	kernelWindowComponent *component = NULL;
 	kernelWindowMenuBar *menuBar = NULL;
 
-	// Check parameters
-	if ((window == NULL) || (params == NULL))
+	// Check params
+	if (!window || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -538,12 +469,9 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 
 	// Set the functions
 	component->add = &add;
-	component->numComps = &numComps;
-	component->flatten = &flatten;
 	component->layout = &layout;
-	component->setBuffer = &setBuffer;
 	component->draw = &draw;
-	component->resize = &resize;
+	component->focus = &focus;
 	component->mouseEvent = &mouseEvent;
 	component->destroy = &destroy;
 
@@ -568,15 +496,8 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 	component->minWidth = component->width;
 	component->minHeight = component->height;
 
-	// Get our container component
-	menuBar->container = kernelWindowNewContainer(component, "menuBar", params);
-	if (menuBar->container == NULL)
-	{
-		kernelWindowComponentDestroy(component);
-		return (component = NULL);
-	}
-
 	window->menuBar = component;
 
 	return (component);
 }
+

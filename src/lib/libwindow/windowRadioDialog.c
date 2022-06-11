@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -57,7 +57,7 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 	componentParameters params;
 	windowEvent event;
 	int choice = ERR_INVALID;
-	
+
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
@@ -154,15 +154,15 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 		windowDestroy(dialogWindow);
 		return (status = ERR_NOCREATE);
 	}
-	
+
 	if ((defaultChoice >= 0) && (defaultChoice < numChoices))
 		windowComponentSetSelected(radioButton, defaultChoice);
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
 	windowSetVisible(dialogWindow, 1);
-	
-	while(1)
+
+	while (1)
 	{
 		// Check for the OK button
 		if ((windowComponentEventGet(okButton, &event) > 0) &&
@@ -173,7 +173,7 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 				choice = status;
 			break;
 		}
-	
+
 		// Check for our Cancel button or window close events
 		if (((windowComponentEventGet(dialogWindow, &event) > 0) &&
 				(event.type == EVENT_WINDOW_CLOSE)) ||
@@ -183,7 +183,7 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 			choice = ERR_CANCELLED;
 			break;
 		}
-		
+
 		// Done
 		multitaskerYield();
 	}
@@ -191,3 +191,4 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 	windowDestroy(dialogWindow);
 	return (choice);
 }
+

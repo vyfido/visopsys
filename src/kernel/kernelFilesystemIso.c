@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -49,7 +49,7 @@ static int readPrimaryVolDesc(isoInternalData *isoData)
 			(isoPrimaryDescriptor *) &(isoData->volDesc));
 	if (status < 0)
 		return (status);
-	
+
 	// The sector size must be non-zero
 	if (physicalDisk->sectorSize == 0)
 	{
@@ -241,7 +241,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 	}
 
 	// Make sure it's not zero-length
-	if ((dirEntry->blocks == 0) || (isoData->volDesc.blockSize == 0))
+	if (!dirEntry->blocks || !isoData->volDesc.blockSize)
 	{
 		kernelError(kernel_error, "Directory or blocksize is NULL");
 		return (status = ERR_NODATA);
@@ -285,7 +285,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 	}
 
 	// Loop through the contents
-	ptr = buffer; 
+	ptr = buffer;
 	while (ptr < (buffer + bufferSize))
 	{
 		if (!((unsigned char *) ptr)[0])
@@ -357,11 +357,11 @@ static int detect(kernelDisk *theDisk)
 
 	int status = 0;
 	isoInternalData isoData;
-	
+
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -390,7 +390,7 @@ static int detect(kernelDisk *theDisk)
 	theDisk->filesystem.blockSize = isoData.volDesc.blockSize;
 	theDisk->filesystem.minSectors = 0;
 	theDisk->filesystem.maxSectors = 0;
-	
+
 	return (status = 1);
 }
 
@@ -404,11 +404,11 @@ static int mount(kernelDisk *theDisk)
 
 	int status = 0;
 	isoInternalData *isoData = NULL;
-	
+
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -446,14 +446,14 @@ static int unmount(kernelDisk *theDisk)
 	// filesystem.
 
 	int status = 0;
-	
+
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
-	
+
 	// Free the filesystem data
 	if (theDisk->filesystem.filesystemData)
 		status = kernelFree(theDisk->filesystem.filesystemData);
@@ -472,9 +472,9 @@ static int newEntry(kernelFileEntry *entry)
 	int status = 0;
 
 	// Check params
-	if (entry == NULL)
+	if (!entry)
 	{
-		kernelError(kernel_error, "NULL file entry");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -513,11 +513,11 @@ static int inactiveEntry(kernelFileEntry *entry)
 	// to deallocate our ISO-specific data from the file entry
 
 	int status = 0;
-	
+
 	// Check params
-	if (entry == NULL)
+	if (!entry)
 	{
-		kernelError(kernel_error, "NULL file entry");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -548,9 +548,9 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	int status = 0;
 
 	// Check params
-	if (linkEntry == NULL)
+	if (!linkEntry)
 	{
-		kernelError(kernel_error, "Link entry is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -569,9 +569,9 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 	isoFileData *dirRec = NULL;
 
 	// Check params
-	if ((theFile == NULL) || (buffer == NULL))
+	if (!theFile || !buffer)
 	{
-		kernelError(kernel_error, "Null file or buffer parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -605,11 +605,11 @@ static int readDir(kernelFileEntry *directory)
 
 	int status = 0;
 	isoInternalData *isoData = NULL;
-	
+
 	// Check params
-	if (directory == NULL)
+	if (!directory)
 	{
-		kernelError(kernel_error, "Directory parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 

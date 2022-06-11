@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -38,12 +38,17 @@ privilege level, priority level, CPU utilization and other statistics.
 */
 
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
 
+#define _(string) gettext(string)
+
 #define SHOW_MAX_PROCESSES	100
+
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
@@ -56,7 +61,10 @@ int main(int argc __attribute__((unused)), char *argv[])
 	process *tmpProcess;
 	char lineBuffer[160];
 	int count;
-	
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("ps");
+
 	bufferSize = (SHOW_MAX_PROCESSES * sizeof(process));
 
 	processes = malloc(bufferSize);
@@ -75,13 +83,13 @@ int main(int argc __attribute__((unused)), char *argv[])
 		return (numProcesses);
 	}
 
-	printf("Process list:\n");
+	printf("%s", _("Process list:\n"));
 	for (count = 0; count < numProcesses; count ++)
 	{
 		tmpProcess = &processes[count];
-			
-		snprintf(lineBuffer, 160, "\"%s\"  PID=%d UID=%d priority=%d "
-			"priv=%d parent=%d\n        %d%% CPU State=",
+
+		snprintf(lineBuffer, 160, _("\"%s\"  PID=%d UID=%d priority=%d "
+			"priv=%d parent=%d\n        %d%% CPU State="),
 			tmpProcess->name, tmpProcess->processId, tmpProcess->userId,
 			tmpProcess->priority, tmpProcess->privilege,
 			tmpProcess->parentProcessId, tmpProcess->cpuPercent);
@@ -90,29 +98,29 @@ int main(int argc __attribute__((unused)), char *argv[])
 		switch(tmpProcess->state)
 		{
 			case proc_running:
-				strcat(lineBuffer, "running");
+				strcat(lineBuffer, _("running"));
 				break;
 			case proc_ready:
 			case proc_ioready:
-				strcat(lineBuffer, "ready");
+				strcat(lineBuffer, _("ready"));
 				break;
 			case proc_waiting:
-				strcat(lineBuffer, "waiting");
+				strcat(lineBuffer, _("waiting"));
 				break;
 			case proc_sleeping:
-				strcat(lineBuffer, "sleeping");
+				strcat(lineBuffer, _("sleeping"));
 				break;
 			case proc_stopped:
-				strcat(lineBuffer, "stopped");
+				strcat(lineBuffer, _("stopped"));
 				break;
 			case proc_finished:
-				strcat(lineBuffer, "finished");
+				strcat(lineBuffer, _("finished"));
 				break;
 			case proc_zombie:
-				strcat(lineBuffer, "zombie");
+				strcat(lineBuffer, _("zombie"));
 				break;
 			default:
-				strcat(lineBuffer, "unknown");
+				strcat(lineBuffer, _("unknown"));
 				break;
 		}
 
@@ -124,3 +132,4 @@ int main(int argc __attribute__((unused)), char *argv[])
 	// Return success
 	return (0);
 }
+

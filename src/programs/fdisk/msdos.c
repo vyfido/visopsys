@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -148,7 +148,7 @@ static int doReadTable(const disk *theDisk, unsigned sector,
 			(unsigned) (table->entries[count].startCylSect & 0x3F);
 
 		// End cylinder.
-		slices[*numSlices].geom.endCylinder = 
+		slices[*numSlices].geom.endCylinder =
 			(unsigned) table->entries[count].endCyl;
 		slices[*numSlices].geom.endCylinder |=
 			(((unsigned) table->entries[count].endCylSect & 0xC0) << 2);
@@ -552,7 +552,7 @@ static sliceType canCreate(slice *slices, int numSlices, int sliceNumber)
 		// If logical is possible, then logical it will be
 		if (numLogical && (returnType == partition_any))
 			returnType = partition_logical;
-		else	
+		else
 			// Can't do logical, and the main table is full of entries
 			returnType = ERR_NOFREE;
 	}
@@ -616,7 +616,7 @@ static int getTypes(listItemParameters **typeListParams)
 
 	for (count = 0; (types[count].tag != 0); count ++)
 		numberTypes += 1;
-	
+
 	// Make an array of list item parameters
 
 	*typeListParams = malloc(numberTypes * sizeof(listItemParameters));

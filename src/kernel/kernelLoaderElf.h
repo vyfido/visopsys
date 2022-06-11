@@ -1,24 +1,24 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelLoaderElf.h
 //
-	
+
 // This file defines things used by kernelLoaderElf.c for dealing with ELF
 // format executables and object files.  Much of the information here comes
 // straight from the Tools Interface Standard (TIS) Portable Formats
@@ -150,64 +150,64 @@ typedef int				Elf32_Word;
 
 // The ELF header
 typedef struct {
-	Elf32_Byte    e_magic[4];
-	Elf32_Byte    e_class;
-	Elf32_Byte    e_byteorder;
-	Elf32_Byte    e_hversion;
-	Elf32_Byte    e_pad[9];
-	Elf32_Half    e_type;
-	Elf32_Half    e_machine;
-	Elf32_Word    e_version;
-	Elf32_Addr    e_entry;
-	Elf32_Off     e_phoff;
-	Elf32_Off     e_shoff;
-	Elf32_Word    e_flags;
-	Elf32_Half    e_ehsize;
-	Elf32_Half    e_phentsize;
-	Elf32_Half    e_phnum;
-	Elf32_Half    e_shentsize;
-	Elf32_Half    e_shnum;
-	Elf32_Half    e_shstrndx;
+	Elf32_Byte e_magic[4];
+	Elf32_Byte e_class;
+	Elf32_Byte e_byteorder;
+	Elf32_Byte e_hversion;
+	Elf32_Byte e_pad[9];
+	Elf32_Half e_type;
+	Elf32_Half e_machine;
+	Elf32_Word e_version;
+	Elf32_Addr e_entry;
+	Elf32_Off e_phoff;
+	Elf32_Off e_shoff;
+	Elf32_Word e_flags;
+	Elf32_Half e_ehsize;
+	Elf32_Half e_phentsize;
+	Elf32_Half e_phnum;
+	Elf32_Half e_shentsize;
+	Elf32_Half e_shnum;
+	Elf32_Half e_shstrndx;
 
 } __attribute__((packed)) Elf32Header;
 
 // ELF section header
 typedef struct {
-	Elf32_Word  sh_name;
-	Elf32_Word  sh_type;
-	Elf32_Word  sh_flags;
-	Elf32_Addr  sh_addr;
-	Elf32_Off   sh_offset;
-	Elf32_Word  sh_size;
-	Elf32_Word  sh_link;
-	Elf32_Word  sh_info;
-	Elf32_Word  sh_addralign;
-	Elf32_Word  sh_entsize;
+	Elf32_Word sh_name;
+	Elf32_Word sh_type;
+	Elf32_Word sh_flags;
+	Elf32_Addr sh_addr;
+	Elf32_Off sh_offset;
+	Elf32_Word sh_size;
+	Elf32_Word sh_link;
+	Elf32_Word sh_info;
+	Elf32_Word sh_addralign;
+	Elf32_Word sh_entsize;
 
 } __attribute__((packed)) Elf32SectionHeader;
 
 // ELF symbol table entry
 typedef struct {
-	Elf32_Word  st_name;
-	Elf32_Addr  st_value;
-	Elf32_Word  st_size;
-	Elf32_Byte  st_info;
-	Elf32_Byte  st_other;
-	Elf32_Half  st_shndx;
+	Elf32_Word st_name;
+	Elf32_Addr st_value;
+	Elf32_Word st_size;
+	Elf32_Byte st_info;
+	Elf32_Byte st_other;
+	Elf32_Half st_shndx;
 
 } __attribute__((packed)) Elf32Symbol;
 
 // ELF relocation entry
 typedef struct {
-	Elf32_Addr  r_offset;
-	Elf32_Word  r_info;
+	Elf32_Addr r_offset;
+	Elf32_Word r_info;
 
 } __attribute__((packed)) Elf32Rel;
 
 // ELF relocation entry with explicit addend
 typedef struct {
-	Elf32_Addr  r_offset;
-	Elf32_Word  r_info;
+	Elf32_Addr r_offset;
+	Elf32_Word r_info;
 	Elf32_Sword r_addend;
 
 } __attribute__((packed)) Elf32Rela;
@@ -224,14 +224,14 @@ typedef struct {
 
 // ELF program header
 typedef struct {
-	Elf32_Word  p_type;
-	Elf32_Off   p_offset;
-	Elf32_Addr  p_vaddr;
-	Elf32_Addr  p_paddr;
-	Elf32_Word  p_filesz;
-	Elf32_Word  p_memsz;
-	Elf32_Word  p_flags;
-	Elf32_Word  p_align;
+	Elf32_Word p_type;
+	Elf32_Off p_offset;
+	Elf32_Addr p_vaddr;
+	Elf32_Addr p_paddr;
+	Elf32_Word p_filesz;
+	Elf32_Word p_memsz;
+	Elf32_Word p_flags;
+	Elf32_Word p_align;
 
 } __attribute__((packed)) Elf32ProgramHeader;
 

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -62,9 +62,9 @@ int kernelBusRegister(kernelBus *bus)
 	int status = 0;
 
 	// Check params
-	if (bus == NULL)
+	if (!bus)
 	{
-		kernelError(kernel_error, "Bus pointer parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -104,9 +104,9 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 	}
 
 	// Check params
-	if (pointer == NULL)
+	if (!pointer)
 	{
-		kernelError(kernel_error, "Bus target pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -217,9 +217,9 @@ int kernelBusGetTargetInfo(kernelBusTarget *target, void *pointer)
 	}
 
 	// Check params
-	if ((target == NULL) || (pointer == NULL))
+	if (!target || !pointer)
 	{
-		kernelError(kernel_error, "Bus target pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -257,14 +257,14 @@ unsigned kernelBusReadRegister(kernelBusTarget *target, int reg, int bitWidth)
 		return (0);
 	}
 
-	// Check params and whatnot
-	if (target == NULL)
+	// Check params
+	if (!target)
 	{
-		kernelError(kernel_error, "Bus target pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (contents = 0);
 	}
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));
@@ -298,13 +298,13 @@ int kernelBusWriteRegister(kernelBusTarget *target, int reg, int bitWidth,
 	}
 
 	// Check params
-	if (target == NULL)
+	if (!target)
 	{
-		kernelError(kernel_error, "Bus target pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));
@@ -338,9 +338,9 @@ void kernelBusDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 	}
 
 	// Check params
-	if ((target == NULL) || (driver == NULL))
+	if (!target || !driver)
 	{
-		kernelError(kernel_error, "Bus target pointer or driver is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -377,13 +377,13 @@ int kernelBusDeviceEnable(kernelBusTarget *target, int enable)
 	}
 
 	// Check params
-	if (target == NULL)
+	if (!target)
 	{
-		kernelError(kernel_error, "Bus target pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
- 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));
@@ -416,9 +416,9 @@ int kernelBusSetMaster(kernelBusTarget *target, int master)
 	}
 
 	// Check params
-	if (target == NULL)
+	if (!target)
 	{
-		kernelError(kernel_error, "Bus target pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -455,13 +455,13 @@ int kernelBusRead(kernelBusTarget *target, unsigned size, void *buffer)
 	}
 
 	// Check params
-	if ((target == NULL) || (buffer == NULL))
+	if (!target || !buffer)
 	{
-		kernelError(kernel_error, "Bus target pointer or buffer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));
@@ -493,13 +493,13 @@ int kernelBusWrite(kernelBusTarget *target, unsigned size, void *buffer)
 	}
 
 	// Check params
-	if ((target == NULL) || (buffer == NULL))
+	if (!target || !buffer)
 	{
-		kernelError(kernel_error, "Bus target pointer or buffer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));

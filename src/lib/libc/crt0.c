@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -47,7 +47,7 @@ void _start(void)
 	// NO AUTOMATIC (STACK) VARIABLE DECLARATIONS.
 
 	static int _exit_status = 0;
-	 
+
 	// Our return address should be sitting near the current top of our stack
 	// after any stack frame allocated by the compiler.  We don't want the
 	// stack frame or return address (we never do a return), since we want to

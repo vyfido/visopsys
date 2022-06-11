@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -47,15 +47,21 @@ The currently-supported file formats are:
 */
 
 #include <libgen.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
 #include <sys/font.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
 
-#define WINDOW_TITLE  "View \"%s\""
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
+
+#define WINDOW_TITLE  _("View \"%s\"")
 
 // Right-click menu for images
 #define IMAGEMENU_ZOOMIN		0
@@ -64,9 +70,9 @@ The currently-supported file formats are:
 static windowMenuContents imageMenuContents = {
 	3,
 	{
-		{ "Zoom in", NULL },
-		{ "Zoom out", NULL },
-		{ "Actual size", NULL },
+		{ gettext_noop("Zoom in"), NULL },
+		{ gettext_noop("Zoom out"), NULL },
+		{ gettext_noop("Actual size"), NULL },
 	}
 };
 
@@ -86,25 +92,25 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
 
 	if (graphics)
-		windowNewErrorDialog(NULL, "Error", output);
+		windowNewErrorDialog(NULL, _("Error"), output);
 	else
-		printf("ERROR: %s\n", output);
+		printf(_("ERROR: %s\n"), output);
 }
 
 
 static int countTextLines(int columns, char *data, int size)
 {
 	// Count the lines of text
-	
+
 	int lines = 1;
 	int columnCount = 0;
 	int count;
@@ -123,7 +129,7 @@ static int countTextLines(int columns, char *data, int size)
 		else
 			columnCount += 1;
 	}
-	
+
 	return (lines);
 }
 
@@ -188,7 +194,8 @@ static int resizeImage(double scale)
 
 	windowLayout(window);
 
-	sprintf(windowTitle, WINDOW_TITLE " (%d%%)", shortName,
+	sprintf(windowTitle, WINDOW_TITLE, shortName);
+	sprintf((windowTitle + strlen(windowTitle)), " (%d%%)",
 		(int)(imageScale * 100));
 	windowSetTitle(window, windowTitle);
 
@@ -200,27 +207,30 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	// Handle GUI events.
 
-	objectKey selectedItem = 0;
-
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		windowGuiStop();
+	if (key == window)
+	{
+		if (event->type == EVENT_WINDOW_CLOSE)
+			windowGuiStop();
+	}
 
 	// Check for right-click events in our image menu.
-	else if ((key == imageMenu) && (event->type & EVENT_SELECTION))
+
+	else if (key == imageMenuContents.items[IMAGEMENU_ZOOMIN].key)
 	{
-		windowComponentGetData(imageMenu, &selectedItem, 1);
-		if (selectedItem)
-		{
-			if (selectedItem == imageMenuContents.items[IMAGEMENU_ZOOMIN].key)
-				resizeImage(imageScale * 1.25);
-			else if (selectedItem ==
-				 imageMenuContents.items[IMAGEMENU_ZOOMOUT].key)
+		if (event->type & EVENT_SELECTION)
+			resizeImage(imageScale * 1.25);
+	}
+
+	else if (key == imageMenuContents.items[IMAGEMENU_ZOOMOUT].key)
+	{
+		if (event->type & EVENT_SELECTION)
 			resizeImage(imageScale * 0.75);
-	
-			else if (selectedItem ==
-				 imageMenuContents.items[IMAGEMENU_ACTUAL].key)
+	}
+
+	else if (key == imageMenuContents.items[IMAGEMENU_ACTUAL].key)
+	{
+		if (event->type & EVENT_SELECTION)
 			resizeImage(1.0);
-		}
 	}
 }
 
@@ -233,21 +243,23 @@ static int viewImage(void)
 	double xScale = 0, yScale = 0;
 	objectKey bannerDialog = NULL;
 	componentParameters params;
+	int count;
 
 	bzero(&origImage, sizeof(image));
 	bzero(&showImage, sizeof(image));
 
-	bannerDialog = windowNewBannerDialog(NULL, "Loading", "Loading image...");
+	bannerDialog = windowNewBannerDialog(NULL, _("Loading"),
+		_("Loading image..."));
 
 	// Try to load the image file
 	status = imageLoad(fileName, 0, 0, &origImage);
 	if (status < 0)
 	{
 		if (origImage.data)
-			error("Error loading the image \"%s\"\n", fileName);
+			error(_("Error loading the image \"%s\"\n"), fileName);
 		else
 		{
-			error("Unable to load the image \"%s\"\n", fileName);
+			error(_("Unable to load the image \"%s\"\n"), fileName);
 			return (status);
 		}
 	}
@@ -267,8 +279,13 @@ static int viewImage(void)
 
 	windowImage = windowNewImage(window, &showImage, draw_normal, &params);
 
-	imageMenu = windowNewMenu(window, "Image", &imageMenuContents, &params);
-	windowRegisterEventHandler(imageMenu, &eventHandler);
+	imageMenu = windowNewMenu(window, NULL, _("Image"), &imageMenuContents,
+		&params);
+
+	for (count = 0; count < imageMenuContents.numItems; count ++)
+		windowRegisterEventHandler(imageMenuContents.items[count].key,
+			&eventHandler);
+
 	windowContextSet(windowImage, imageMenu);
 
 	// If the image is big, shrink it by default, to 2/3 of the screen.
@@ -301,7 +318,7 @@ static int viewText(void)
 	textData = loaderLoad(fileName, &showFile);
 	if (textData == NULL)
 	{
-		error("Unable to load the file \"%s\"\n", fileName);
+		error(_("Unable to load the file \"%s\"\n"), fileName);
 		return (status = ERR_IO);
 	}
 
@@ -313,7 +330,7 @@ static int viewText(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
+	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
 		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 1);
@@ -332,7 +349,7 @@ static int viewText(void)
 	textSetCursor(0);
 	textInputSetEcho(0);
 	printTextLines(textData, showFile.size);
-	 
+
 	// Scroll back to the very top
 	textScroll(-(textLines / rows));
 
@@ -347,12 +364,16 @@ int main(int argc, char *argv[])
 	int processId = 0;
 	loaderFileClass class;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("view");
+
 	graphics = graphicsAreEnabled();
 
 	// Only work in graphics mode
 	if (!graphics)
 	{
-		printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			argv[0]);
 		return (status = ERR_NOTINITIALIZED);
 	}
 
@@ -369,14 +390,14 @@ int main(int argc, char *argv[])
 
 	if (argc < 2)
 	{
-		status =
-			windowNewFileDialog(NULL, "Enter filename", "Please choose the file "
-				"to view:", NULL, fileName, MAX_PATH_NAME_LENGTH, 1);
+		status = windowNewFileDialog(NULL, _("Enter filename"),
+			_("Please choose the file to view:"), NULL, fileName,
+			MAX_PATH_NAME_LENGTH, 1);
 		if (status != 1)
 		{
 			if (status != 0)
 				perror(argv[0]);
-	
+
 			goto deallocate;
 		}
 	}
@@ -386,7 +407,7 @@ int main(int argc, char *argv[])
 	// Make sure the file exists
 	if (fileFind(fileName, NULL) < 0)
 	{
-		error("The file \"%s\" was not found", fileName);
+		error(_("The file \"%s\" was not found"), fileName);
 		goto deallocate;
 	}
 
@@ -395,14 +416,14 @@ int main(int argc, char *argv[])
 	// Get the classification of the file.
 	if (loaderClassifyFile(fileName, &class) == NULL)
 	{
-		error("Unable to classify the file \"%s\"", fileName);
+		error(_("Unable to classify the file \"%s\""), fileName);
 		goto deallocate;
 	}
 
 	if (!(class.class & LOADERFILECLASS_IMAGE) &&
 		!(class.class & LOADERFILECLASS_TEXT))
 	{
-		error("Can't display the file type of \"%s\" (%s)", fileName,
+		error(_("Can't display the file type of \"%s\" (%s)"), fileName,
 		class.className);
 		goto deallocate;
 	}
@@ -445,3 +466,4 @@ deallocate:
 
 	return (status);
 }
+

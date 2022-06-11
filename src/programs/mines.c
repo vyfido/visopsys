@@ -1,17 +1,17 @@
-// 
+//
 //  Mines
 //  Copyright (C) 2004 Graeme McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -35,12 +35,19 @@ Usage:
 </help>
 */
 
-#include <stdio.h>
 #include <errno.h>
-#include <sys/window.h>
+#include <libintl.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/api.h>
+#include <sys/paths.h>
+#include <sys/window.h>
 
-#define MINE_IMAGE		"/programs/mines.dir/mine.bmp"
+#define _(string) gettext(string)
+
+#define WINDOW_TITLE	_("Mines")
+#define MINE_IMAGE		PATH_PROGRAMS "/mines.dir/mine.bmp"
 #define NUM_MINES		10
 #define GRID_DIM		8
 
@@ -91,8 +98,8 @@ static void clickEmpties(int x, int y)
 
 			if ((x >= 1) && (y >= 1) && (mineField[x - 1][y - 1] != 9))
 				clickEmpties((x - 1), (y - 1));
-		
-			if ((y >= 1) && (mineField[x][y - 1] != 9)) 
+
+			if ((y >= 1) && (mineField[x][y - 1] != 9))
 				clickEmpties(x, (y - 1));
 
 			if ((x < (GRID_DIM - 1)) && (y >= 1) &&
@@ -101,18 +108,18 @@ static void clickEmpties(int x, int y)
 				clickEmpties((x + 1), (y - 1));
 			}
 
-			if ((x < (GRID_DIM - 1)) &&	(mineField[x + 1][y] != 9)) 
+			if ((x < (GRID_DIM - 1)) &&	(mineField[x + 1][y] != 9))
 				clickEmpties((x + 1), y);
-		
+
 			if ((x < (GRID_DIM - 1)) && (y < (GRID_DIM - 1)) &&
 				(mineField[x + 1][y + 1] != 9))
 			{
 				clickEmpties((x + 1), (y + 1));
 			}
 
-			if ((y < (GRID_DIM - 1)) &&	(mineField[x][y + 1] != 9)) 
+			if ((y < (GRID_DIM - 1)) &&	(mineField[x][y + 1] != 9))
 				clickEmpties(x, (y + 1));
-		
+
 			if ((x >= 1) && (y < (GRID_DIM - 1)) &&
 				(mineField[x - 1][y + 1] != 9))
 			{
@@ -132,9 +139,24 @@ static void gameOver(int win)
 {
 	uncoverAll();
 
-	windowNewInfoDialog(window, "Game over", (win? "You win!" : "You lose."));
+	windowNewInfoDialog(window, _("Game over"),
+		(win? _("You win!") : _("You lose.")));
 
 	return;
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("mines");
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
 }
 
 
@@ -143,9 +165,18 @@ static void eventHandler(objectKey key, windowEvent *event)
 	int x = 0;
 	int y = 0;
 
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		windowGuiStop();
-		 
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			windowGuiStop();
+	}
+
 	// Only go through the array of buttons if the event was a mouse click
 	else if (event->type == EVENT_MOUSE_LEFTUP)
 	{
@@ -169,7 +200,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 						else
 						{
 							uncover(x, y);
-								
+
 							if (numUncovered >=
 								((GRID_DIM * GRID_DIM) - NUM_MINES))
 							{
@@ -177,8 +208,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 							}
 						}
 					}
-				
-					return;  
+
+					return;
 				}
 			}
 		}
@@ -198,12 +229,12 @@ static void initialize(void)
 	int mineCount = 0;  // Holds the running total of surrounding mines
 	componentParameters params;
 	char tmpChar[2];
-	 
+
 	// First, let's zero it out
 	for (x = 0; x < GRID_DIM; x++)
 		for (y = 0; y < GRID_DIM; y++)
 			mineField[x][y] = -1;
-	
+
 	// Now we randomly scatter the mines
 	for (x = 0; x < NUM_MINES; )
 	{
@@ -217,7 +248,7 @@ static void initialize(void)
 		mineField[randomX][randomY] = 9;
 		x += 1;
 	}
-	
+
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -247,17 +278,17 @@ static void initialize(void)
 
 			// Ok, we'll go clockwise starting from the mine to the immediate
 			// left
-			if (((y - 1) >= 0) && (mineField[x][y - 1] == 9))   
+			if (((y - 1) >= 0) && (mineField[x][y - 1] == 9))
 			mineCount++;
 			if (((x - 1) >= 0) && ((y - 1) >= 0) &&
-				(mineField[x - 1][y - 1] == 9))  
+				(mineField[x - 1][y - 1] == 9))
 			mineCount++;
-			if (((x - 1) >= 0) && (mineField[x - 1][y] == 9))  
+			if (((x - 1) >= 0) && (mineField[x - 1][y] == 9))
 			mineCount++;
 			if (((x - 1) >= 0) && ((y + 1) <= 7) &&
 				(mineField[x - 1][y + 1] == 9))
 			mineCount++;
-			if (((y + 1) <= 7) && (mineField[x][y + 1] == 9))  
+			if (((y + 1) <= 7) && (mineField[x][y + 1] == 9))
 			mineCount++;
 			if (((x + 1) <= 7) && ((y + 1) <= 7) &&
 				(mineField[x + 1][y + 1] == 9))
@@ -275,7 +306,7 @@ static void initialize(void)
 				windowNewTextLabel(window, tmpChar, &params);
 				windowComponentSetVisible(gridOtherStuff[x][y], 0);
 			}
-			
+
 			// Finally, we can assign a value to the current position
 			if (mineCount != 0)
 			mineField[x][y] = mineCount;
@@ -302,43 +333,47 @@ static void initialize(void)
 int main(int argc __attribute__((unused)), char *argv[])
 {
 	int status = 0;
-	 
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("mines");
+
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			argv[0]);
 		return (errno = ERR_NOTINITIALIZED);
-	}   
-	 
+	}
+
 	// Load our images
 	status = imageLoad(MINE_IMAGE, 0, 0, &mineImage);
 	if (status < 0)
 	{
-		printf("\nCan't load %s\n", MINE_IMAGE);
+		printf(_("\nCan't load %s\n"), MINE_IMAGE);
 		return (errno = status);
 	}
 	mineImage.transColor.green = 255;
 
 	// Create a new window
-	window = windowNew(multitaskerGetCurrentProcessId(), "Mines");
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 
 	// Register an event handler to catch window events.
 	windowRegisterEventHandler(window, &eventHandler);
-	
+
 	// Generate mine field
 	initialize();
-	 
+
 	// Go live.
 	windowSetVisible(window, 1);
-	
+
 	// Run the GUI
 	windowGuiRun();
-	 
+
 	// Destroy the window
 	windowDestroy(window);
 
 	imageFree(&mineImage);
-	 
+
 	// Done
 	return (0);
 }

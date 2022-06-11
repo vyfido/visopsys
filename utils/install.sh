@@ -2,13 +2,13 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  install.sh
 ##
 
 # Installs the Visopsys system on the requested device.  Suitable for use
 # only with Visopsys SOURCE distribution.  Note that the device must have
-# permissions which allow direct writes by the invoking user. 
+# permissions which allow direct writes by the invoking user.
 
 BUILDDIR=../build
 BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat
@@ -73,7 +73,7 @@ if [ -b "$DEVICE" ] ; then
 	echo -n "Formatting...  "
 	# Format the disk.  Stop if the command fails.
 	/sbin/mkdosfs -n Visopsys -v $DEVICE > $MKDOSFSLOG 2>&1
-	RET=$? 
+	RET=$?
 	if [ $RET -ne 0 ] ; then
 		if [ `grep -c "too large" $MKDOSFSLOG` -ne 0 ] ; then
 			# Wait, will specifying FAT32 work?
@@ -148,19 +148,23 @@ if [ "$INSTTYPE" = "isoboot" ] ; then
 	done
 else
 	for FILE in `cat $BASICFILES | grep -v ^#` ; do
-		if [ -d "$BUILDDIR""$FILE" ] ; then
-			mkdir -p "$MOUNTDIR""$FILE"
-		elif [ -f "$BUILDDIR""$FILE" ] ; then
-			cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
+		SRCFILE=`echo $FILE | cut -f1 -d=`
+		DESTFILE=`echo $FILE | cut -f2 -d=`
+		if [ -d "$BUILDDIR""$SRCFILE" ] ; then
+			mkdir -p "$MOUNTDIR""$DESTFILE"
+		elif [ -f "$BUILDDIR""$SRCFILE" ] ; then
+			cp "$BUILDDIR""$SRCFILE" "$MOUNTDIR""$DESTFILE"
 		fi
 	done
 
 	if [ "$INSTTYPE" != "basic" ] ; then
 		for FILE in `cat $FULLFILES | grep -v ^#` ; do
-			if [ -d "$BUILDDIR""$FILE" ] ; then
-				mkdir -p "$MOUNTDIR""$FILE"
-			elif [ -f "$BUILDDIR""$FILE" ] ; then
-				cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
+			SRCFILE=`echo $FILE | cut -f1 -d=`
+			DESTFILE=`echo $FILE | cut -f2 -d=`
+			if [ -d "$BUILDDIR""$SRCFILE" ] ; then
+				mkdir -p "$MOUNTDIR""$DESTFILE"
+			elif [ -f "$BUILDDIR""$SRCFILE" ] ; then
+				cp "$BUILDDIR""$SRCFILE" "$MOUNTDIR""$DESTFILE"
 			fi
 		done
 	fi
@@ -193,3 +197,4 @@ if [ -d tmp_mnt ] ; then
 fi
 
 exit 0
+

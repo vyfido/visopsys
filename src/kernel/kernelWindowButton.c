@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -24,25 +24,30 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelFont.h"
+#include "kernelImage.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
+#include <stdlib.h>
 #include <string.h>
 
 extern kernelWindowVariables *windowVariables;
 
 
-static void setText(kernelWindowComponent *component, char *label, int length)
+static void setText(kernelWindowComponent *component, const char *label,
+	int length)
 {
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
 	asciiFont *labelFont = (asciiFont *) component->params.font;
 	int borderThickness = windowVariables->border.thickness;
 
-	strncpy((char *) button->label, label, length);
+	strncpy((char *) button->label, label,
+		min(length, WINDOW_MAX_LABEL_LENGTH));
+	button->label[length] = '\0';
 
 	int tmp = ((borderThickness * 2) + 6);
 	if (labelFont)
-		tmp += kernelFontGetPrintedWidth(labelFont, (const char *) button->label);
+		tmp += kernelFontGetPrintedWidth(labelFont, (char *) button->label);
 
 	if (tmp > component->width)
 		component->width = tmp;
@@ -53,6 +58,32 @@ static void setText(kernelWindowComponent *component, char *label, int length)
 
 	if (tmp > component->height)
 		component->height = tmp;
+}
+
+
+static int setImage(kernelWindowComponent *component, image *img)
+{
+	int status = 0;
+	kernelWindowButton *button = (kernelWindowButton *) component->data;
+
+	status = kernelImageCopyToKernel(img, (image *) &(button->buttonImage));
+	if (status < 0)
+		return (status);
+
+	// Button images use pure green as the transparency color
+	button->buttonImage.transColor.blue = 0;
+	button->buttonImage.transColor.green = 255;
+	button->buttonImage.transColor.red = 0;
+
+	int tmp = ((windowVariables->border.thickness * 2) + 6 + img->width);
+	if (tmp > component->width)
+		component->width = tmp;
+
+	tmp = ((windowVariables->border.thickness * 2) + 6 + img->height);
+	if (tmp > component->height)
+		component->height = tmp;
+
+	return (status = 0);
 }
 
 
@@ -99,17 +130,17 @@ static int draw(kernelWindowComponent *component)
 			shade_fromtop);
 
 	// If there is a label on the button, draw it
-	if (button->label[0] && labelFont)
+	if (button->label[0])
 	{
 		kernelGraphicDrawText(component->buffer,
-				(color *) &(component->params.foreground),
-				(color *) &(component->params.background),
-				labelFont, (const char *) button->label, draw_translucent,
-				(component->xCoord + ((component->width -
-					kernelFontGetPrintedWidth(labelFont,
-						(const char *) button->label)) / 2)),
-				(component->yCoord + ((component->height -
-					labelFont->charHeight) / 2)));
+			(color *) &(component->params.foreground),
+			(color *) &(component->params.background),
+			labelFont, (const char *) button->label, draw_translucent,
+			(component->xCoord + ((component->width -
+				kernelFontGetPrintedWidth(labelFont,
+					(const char *) button->label)) / 2)),
+			(component->yCoord + ((component->height -
+				labelFont->charHeight) / 2)));
 	}
 
 	// If there is an image on the button, draw it centered on the button
@@ -120,7 +151,7 @@ static int draw(kernelWindowComponent *component)
 			((component->width - button->buttonImage.width) / 2);
 		tmpY = component->yCoord +
 			((component->height - button->buttonImage.height) / 2);
-		
+
 		if (button->buttonImage.width > (unsigned) component->width)
 			tmpXoff = -((button->buttonImage.width - component->width) / 2);
 		if (button->buttonImage.height > (unsigned) component->height)
@@ -147,14 +178,19 @@ static int focus(kernelWindowComponent *component, int yesNo)
 }
 
 
-static int setData(kernelWindowComponent *component, void *text, int length)
+static int setData(kernelWindowComponent *component, void *data, int length)
 {
 	// Set the button text
 
-	setText(component, text, length);
+	kernelWindowButton *button = (kernelWindowButton *) component->data;
+
+	if (button->label[0])
+		setText(component, data, length);
+	else
+		setImage(component, data);
 
 	if (component->draw)
-		draw(component);
+		component->draw(component);
 
 	component->window
 		->update(component->window, component->xCoord, component->yCoord,
@@ -259,10 +295,10 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowButton *button = NULL;
 
-	// Check parameters.  It's okay for the image or label to be NULL
-	if ((parent == NULL) || (params == NULL))
+	// Check params.  It's okay for the image or label to be NULL
+	if (!parent || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -297,49 +333,21 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 
 	// If the button has a label, copy it
 	if (label)
-	{
-		strncpy((char *) button->label, label, WINDOW_MAX_LABEL_LENGTH);
-
-		int tmp = ((windowVariables->border.thickness * 2) + 6);
-		if (component->params.font)
-			tmp += kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				(const char *) button->label);
-		if (tmp > component->width)
-			component->width = tmp;
-
-		tmp = ((windowVariables->border.thickness * 2) + 6);
-		if (component->params.font)
-			tmp += ((asciiFont *) component->params.font)->charHeight;
-		if (tmp > component->height)
-			component->height = tmp;
-	}
+		setText(component, label, strlen(label));
 
 	// If the button has an image, copy it
 	if (buttonImage && buttonImage->data)
 	{
-		kernelMemCopy(buttonImage, (void *) &(button->buttonImage),
-			sizeof(image));
-
-		// Button images use pure green as the transparency color
-		button->buttonImage.transColor.blue = 0;
-		button->buttonImage.transColor.green = 255;
-		button->buttonImage.transColor.red = 0;
-		
-		button->buttonImage.data = kernelMalloc(button->buttonImage.dataLength);
-		if (button->buttonImage.data == NULL)
+		if (setImage(component, buttonImage) < 0)
 		{
 			kernelWindowComponentDestroy(component);
 			return (component = NULL);
 		}
-
-		kernelMemCopy(buttonImage->data, button->buttonImage.data,
-			button->buttonImage.dataLength);
 	}
-	else
-		button->buttonImage.data = NULL;
 
 	component->minWidth = component->width;
 	component->minHeight = component->height;
 
 	return (component);
 }
+

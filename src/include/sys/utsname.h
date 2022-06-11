@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -26,20 +26,20 @@
 
 #include <sys/network.h>
 
-#define UTSNAME_MAX_SYSNAME_LENGTH  16
-#define UTSNAME_MAX_RELEASE_LENGTH  16
-#define UTSNAME_MAX_VERSION_LENGTH  32
-#define UTSNAME_MAX_MACHINE_LENGTH  16
+#define UTSNAME_MAX_SYSNAME_LENGTH	16
+#define UTSNAME_MAX_RELEASE_LENGTH	16
+#define UTSNAME_MAX_VERSION_LENGTH	32
+#define UTSNAME_MAX_MACHINE_LENGTH	16
 
 struct utsname {
-  char sysname[UTSNAME_MAX_SYSNAME_LENGTH];
-  char nodename[NETWORK_MAX_HOSTNAMELENGTH];
-  char release[UTSNAME_MAX_RELEASE_LENGTH];
-  char version[UTSNAME_MAX_VERSION_LENGTH];
-  char machine[UTSNAME_MAX_MACHINE_LENGTH];
-  char domainname[NETWORK_MAX_DOMAINNAMELENGTH];
-
+	char sysname[UTSNAME_MAX_SYSNAME_LENGTH];
+	char nodename[NETWORK_MAX_HOSTNAMELENGTH];
+	char release[UTSNAME_MAX_RELEASE_LENGTH];
+	char version[UTSNAME_MAX_VERSION_LENGTH];
+	char machine[UTSNAME_MAX_MACHINE_LENGTH];
+	char domainname[NETWORK_MAX_DOMAINNAMELENGTH];
 };
 
 #define _UTSNAME_H
 #endif
+

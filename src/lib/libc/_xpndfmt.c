@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -36,7 +36,7 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	int formatLen = 0;
 	int zeroPad = 0;
 	int leftJust = 0;
-	int fieldWidth = 0; 
+	int fieldWidth = 0;
 	int isLong = 0;
 	long long intArg = 0;
 	double doubleArg; // Don't initialize unnecessarily
@@ -103,7 +103,7 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 		if ((format[inCount] >= '1') && (format[inCount] <= '9'))
 		{
 			fieldWidth = atoi(format + inCount);
-			while ((format[inCount] >= '0') && (format[inCount] <= '9'))   
+			while ((format[inCount] >= '0') && (format[inCount] <= '9'))
 				inCount++;
 		}
 		else

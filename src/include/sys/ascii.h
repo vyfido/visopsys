@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -23,17 +23,32 @@
 
 // ASCII codes with special names
 #define ASCII_NULL			0
+#define ASCII_SOH			1
+#define ASCII_STX			2
+#define ASCII_ETX			3
 #define ASCII_ENDOFFILE		4
+#define ASCII_ENQ			5
+#define ASCII_ACK			6
+#define ASCII_BEL			7
 #define ASCII_BACKSPACE		8
 #define ASCII_TAB			9
 #define ASCII_ENTER			10
 #define ASCII_VERTTAB		11
 #define ASCII_FORMFEED		12
 #define ASCII_CRGRET		13
+#define ASCII_SHIFTOUT		14
+#define ASCII_SHIFTIN		15
+#define ASCII_DLE			16
 #define ASCII_DEVCONT1		17
 #define ASCII_DEVCONT2		18
 #define ASCII_DEVCONT3		19
 #define ASCII_DEVCONT4		20
+#define ASCII_NAK			21
+#define ASCII_SYN			22
+#define ASCII_ETB			23
+#define ASCII_CAN			24
+#define ASCII_EOM			25
+#define ASCII_SUB			26
 #define ASCII_ESC			27
 #define ASCII_SPACE			32
 #define ASCII_DEL			127
@@ -123,3 +138,4 @@
 
 #define _ASCII_H
 #endif
+

@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -20,7 +20,7 @@
 ;;
 
 	EXTERN CURRENTGMODE
-	
+
 	GLOBAL loaderGetCursorAddress
 	GLOBAL loaderSetCursorAddress
 	GLOBAL loaderPrint
@@ -32,7 +32,7 @@
 	SEGMENT .text
 	BITS 16
 	ALIGN 4
-	
+
 	%include "loader.h"
 
 
@@ -69,7 +69,7 @@ loaderGetCursorAddress:
 	pop DX
 	ret
 
-	
+
 loaderSetCursorAddress:
 	;; This routine takes a new cursor address offset in AX
 	pusha
@@ -144,7 +144,7 @@ loaderPrint:
 	push DS
 	mov EAX, (LDRCODESEGMENTLOCATION / 16)
 	mov DS, AX
-	
+
 	;; Get the color (DX) from the stack into AL (AX)
 	mov AX, word [SS:(BP + 2)]
 	xor AH, AH
@@ -174,7 +174,7 @@ loaderPrint:
 	popa
 	ret
 
-	
+
 loaderPrintNewline:
 
 	pusha
@@ -191,8 +191,8 @@ loaderPrintNewline:
 
 	;; Get the current cursor position
 	call loaderGetCursorAddress
-		
-	.noScroll:	
+
+	.noScroll:
 	;; Now we must round the offset up to the next multiple of
 	;; COLUMNS
 	xor BX, BX
@@ -264,19 +264,19 @@ loaderPrintNumber:
 	popa
 	ret
 
-	
-scrollLine:	
+
+scrollLine:
 	;; This routine will scroll the contents of the text console
 	;; screen
 	pusha
 
 	;; Disable interrupts while we do this
 	cli
-	
+
 	;; Save DS and ES, since we will modify them
 	push DS
 	push ES
-	
+
 	mov AX, (SCREENSTART / 16)
 	mov DS, AX
 	mov ES, AX
@@ -302,7 +302,7 @@ scrollLine:
 
 	;; Reenable interrupts
 	sti
-	
+
 	;; Make the cursor maintain its position in relation to the
 	;; most recent text
 	call loaderGetCursorAddress
@@ -323,9 +323,9 @@ scrollLine:
 
 	SEGMENT .data
 	ALIGN 4
-		
+
 REMAINDER	dd 0	;; For number printing
 CURSORPOS	dw 0
-TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0, 
+TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0,
 		db '7', 0, '8', 0, '9', 0
 LEADZERO	db 0	;; In number generation

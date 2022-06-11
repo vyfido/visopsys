@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -38,7 +38,7 @@ void exit(int status)
 	// Shut down
 	multitaskerTerminate(status);
 
-	 out:
+out:
 	// Now, there's nothing else we can do except wait to be killed
-	while(1);
+	while (1);
 }

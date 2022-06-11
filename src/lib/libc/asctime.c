@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -34,7 +34,7 @@ char *asctime(const struct tm *timePtr)
 	// The  return  value points to a statically allocated string
 	// which might be overwritten by subsequent calls to  any  of
 	// the date and time functions.
-	
+
 	// ctime() time format:
 	// "Wed Jun 30 21:49:08 1993\n"
 
@@ -49,7 +49,7 @@ char *asctime(const struct tm *timePtr)
 		errno = ERR_NULLPARAMETER;
 		return (NULL);
 	}
-	
+
 	// Create the string
 	sprintf(timeString, "%s %s %d %02d:%02d:%02d %d", weekDay[timePtr->tm_wday],
 		month[timePtr->tm_mon], timePtr->tm_mday, timePtr->tm_hour,

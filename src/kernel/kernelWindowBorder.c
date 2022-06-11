@@ -1,17 +1,17 @@
 //
 //	Visopsys
 //	Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //	This program is free software; you can redistribute it and/or modify it
 //	under the terms of the GNU General Public License as published by the Free
 //	Software Foundation; either version 2 of the License, or (at your option)
 //	any later version.
-// 
+//
 //	This program is distributed in the hope that it will be useful, but
 //	WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //	or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //	for more details.
-//	
+//
 //	You should have received a copy of the GNU General Public License along
 //	with this program; if not, write to the Free Software Foundation, Inc.,
 //	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -21,7 +21,6 @@
 
 // This code is for managing kernelWindowBorder objects.
 // These are just images that appear inside windows and buttons, etc
-
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
@@ -54,7 +53,7 @@ static void resizeWindow(kernelWindowComponent *component, windowEvent *event)
 		kernelWindowSetSize(component->window, newWindowWidth, newWindowHeight);
 
 		kernelWindowSetVisible(component->window, 1);
-			
+
 		// Transfer this event into the window's event stream
 		kernelWindowEventStreamWrite(&component->window->events, event);
 	}
@@ -70,7 +69,7 @@ static int draw(kernelWindowComponent *component)
 
 	kernelWindowBorder *border = (kernelWindowBorder *) component->data;
 
-	kernelDebug(debug_gui, "border \"%s\" draw", component->window->title);
+	kernelDebug(debug_gui, "WindowBorder \"%s\" draw", component->window->title);
 
 	kernelGraphicDrawGradientBorder(component->buffer, 0, 0,
 		component->window->buffer.width, component->window->buffer.height,
@@ -96,7 +95,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	int tmpWindowHeight = newWindowHeight;
 	static int dragging = 0;
 
-	kernelDebug(debug_gui, "border \"%s\" mouse event",
+	kernelDebug(debug_gui, "WindowBorder \"%s\" mouse event",
 		component->window->title);
 
 	if (dragging)
@@ -104,7 +103,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		if (event->type == EVENT_MOUSE_DRAG)
 		{
 			// The window is still being resized
-			
+
 			// Erase the xor'ed outline
 			kernelWindowRedrawArea(newWindowX, newWindowY, newWindowWidth, 1);
 			kernelWindowRedrawArea(newWindowX, newWindowY, 1, newWindowHeight);
@@ -166,8 +165,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		else
 		{
 			// The resize is finished
-			
-			kernelDebug(debug_gui, "border \"%s\" drag finished",
+
+			kernelDebug(debug_gui, "WindowBorder \"%s\" drag finished",
 				component->window->title);
 
 			// Erase the xor'ed outline
@@ -189,7 +188,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	{
 		// The user has started to drag the border, to resize the window.
 
-		kernelDebug(debug_gui, "border \"%s\" drag start",
+		kernelDebug(debug_gui, "WindowBorder \"%s\" drag start",
 			component->window->title);
 
 		// Don't show it while it's being resized
@@ -200,7 +199,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			draw_xor, component->window->xCoord, component->window->yCoord,
 			component->window->buffer.width, component->window->buffer.height,
 			1, 0);
-		
+
 		newWindowX = component->window->xCoord;
 		newWindowY = component->window->yCoord;
 		newWindowWidth = component->window->buffer.width;
@@ -254,9 +253,9 @@ kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 	kernelWindow *window = NULL;
 
 	// Check parameters
-	if ((parent == NULL) || (params == NULL))
+	if (!parent || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 

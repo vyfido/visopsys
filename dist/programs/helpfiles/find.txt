@@ -13,5 +13,5 @@ current directory will be used.
 This command is very limited at the moment, and has no filtering ability,
 execution ability, or anything really.  It will be developed more fully in
 the future, but was added at the present time to facilitate the development
-of filesystem drivers (as a testing mechanism) 
+of filesystem drivers (as a testing mechanism)
 

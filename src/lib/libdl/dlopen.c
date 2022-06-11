@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -36,45 +36,46 @@ static int dlopenMaxHandles = 0;
 
 void *dlopen(const char *fileName, int flags __attribute__((unused)))
 {
-  // Excerpted from the GNU man page:
-  //
-  // The function dlopen() loads the dynamic library file named by the null-
-  // terminated string 'filename' and  returns an opaque "handle" for the
-  // dynamic library.  If filename is NULL, then the returned handle is for
-  // the main program.  If filename contains a slash ("/"), then it is
-  // interpreted as a (relative  or  absolute) pathname.
-  //
-  // If there's no slash, the /system/libraries/ directory will be searched.
+	// Excerpted from the GNU man page:
+	//
+	// The function dlopen() loads the dynamic library file named by the null-
+	// terminated string 'filename' and  returns an opaque "handle" for the
+	// dynamic library.  If filename is NULL, then the returned handle is for
+	// the main program.  If filename contains a slash ("/"), then it is
+	// interpreted as a (relative  or  absolute) pathname.
+	//
+	// If there's no slash, the /system/libraries/ directory will be searched.
 
-  void *handle = NULL;
+	void *handle = NULL;
 
-  // Make sure we've got room in our array to store the handle we get.
-  if ((dlopenHandles == NULL) || (dlopenNumHandles >= dlopenMaxHandles))
-    {
-      dlopenMaxHandles += 16;
-
-      if (dlopenHandles == NULL)
-	dlopenHandles = malloc(dlopenMaxHandles * sizeof(void *));
-      else
-	dlopenHandles =
-	  realloc(dlopenHandles, (dlopenMaxHandles * sizeof(void *)));
-
-      if (dlopenHandles == NULL)
+	// Make sure we've got room in our array to store the handle we get.
+	if ((dlopenHandles == NULL) || (dlopenNumHandles >= dlopenMaxHandles))
 	{
-	  errno = ERR_MEMORY;
-	  dlerrorMessage = strerror(errno);
-	  return (NULL);
+		dlopenMaxHandles += 16;
+
+		if (dlopenHandles == NULL)
+			dlopenHandles = malloc(dlopenMaxHandles * sizeof(void *));
+		else
+			dlopenHandles =
+				realloc(dlopenHandles, (dlopenMaxHandles * sizeof(void *)));
+
+		if (dlopenHandles == NULL)
+		{
+			errno = ERR_MEMORY;
+			dlerrorMessage = strerror(errno);
+			return (NULL);
+		}
 	}
-    }
 
-  handle = loaderLinkLibrary(fileName);
-  if (handle == NULL)
-    {
-      errno = ERR_NOSUCHENTRY;
-      dlerrorMessage = strerror(errno);
-    }
-  else
-    dlopenHandles[dlopenNumHandles++] = handle;
+	handle = loaderLinkLibrary(fileName);
+	if (handle == NULL)
+	{
+		errno = ERR_NOSUCHENTRY;
+		dlerrorMessage = strerror(errno);
+	}
+	else
+		dlopenHandles[dlopenNumHandles++] = handle;
 
-  return (handle);
+	return (handle);
 }
+

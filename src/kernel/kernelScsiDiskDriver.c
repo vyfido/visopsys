@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -54,17 +54,17 @@ static inline void debugInquiry(scsiInquiryData *inquiryData)
 	productRev[4] = '\0';
 
 	kernelDebug(debug_scsi, "SCSI debug inquiry data:\n"
-		"    qual/devType=%02x\n"
-		"    removable=%02x\n"
-		"    version=%02x\n"
-		"    normACA/hiSup/format=%02x\n"
-		"    addlLength=%02x\n"
-		"    byte5Flags=%02x\n"
-		"    byte6Flags=%02x\n"
-		"    relAddr=%02x\n"
-		"    vendorId=%s\n"
-		"    productId=%s\n"
-		"    productRev=%s", inquiryData->byte0.periQual,
+		"  qual/devType=%02x\n"
+		"  removable=%02x\n"
+		"  version=%02x\n"
+		"  normACA/hiSup/format=%02x\n"
+		"  addlLength=%02x\n"
+		"  byte5Flags=%02x\n"
+		"  byte6Flags=%02x\n"
+		"  relAddr=%02x\n"
+		"  vendorId=%s\n"
+		"  productId=%s\n"
+		"  productRev=%s", inquiryData->byte0.periQual,
 		inquiryData->byte1.removable, inquiryData->byte2.ansiVersion,
 		inquiryData->byte3.dataFormat, inquiryData->byte4.addlLength,
 		inquiryData->byte5, inquiryData->byte6,
@@ -74,14 +74,14 @@ static inline void debugInquiry(scsiInquiryData *inquiryData)
 static inline void debugSense(scsiSenseData *senseData)
 {
 	kernelDebug(debug_scsi, "SCSI debug sense data:\n"
-		"    validErrCode=0x%02x\n"
-		"    segment=%d\n"
-		"    flagsKey=0x%02x\n"
-		"    info=0x%08x\n"
-		"    addlLength=%d\n"
-		"    cmdSpecific=0x%08x\n"
-		"    addlCode=0x%02x\n"
-		"    addlCodeQual=0x%02x", senseData->validErrCode,
+		"  validErrCode=0x%02x\n"
+		"  segment=%d\n"
+		"  flagsKey=0x%02x\n"
+		"  info=0x%08x\n"
+		"  addlLength=%d\n"
+		"  cmdSpecific=0x%08x\n"
+		"  addlCode=0x%02x\n"
+		"  addlCodeQual=0x%02x", senseData->validErrCode,
 		senseData->segment, senseData->flagsKey, senseData->info,
 		senseData->addlLength, senseData->cmdSpecific, senseData->addlCode,
 		senseData->addlCodeQual);
@@ -162,7 +162,7 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun,
 {
 	// Wrap a SCSI command in a USB command block wrapper and send it to
 	// the device.
-  
+
 	int status = 0;
 	usbCmdBlockWrapper cmdWrapper;
 	usbCmdStatusWrapper statusWrapper;
@@ -259,7 +259,7 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun,
 				"error");
 			return (status = ERR_NODATA);
 		}
-      
+
 		if (bytes)
 			*bytes = (unsigned) dataTrans->bytes;
 	}
@@ -847,7 +847,7 @@ err_out:
 static kernelPhysicalDisk *findBusTarget(kernelBusType busType, int target)
 {
 	// Try to find a disk in our list.
-  
+
 	kernelScsiDisk *dsk = NULL;
 	int count;
 
@@ -925,9 +925,9 @@ static int readWriteSectors(int driveNum, uquad_t logicalSector,
 	kernelScsiDisk *dsk = NULL;
 
 	// Check params
-	if (buffer == NULL)
+	if (!buffer)
 	{
-		kernelError(kernel_error, "NULL buffer parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1009,7 +1009,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			{
 				continue;
 			}
-  
+
 			kernelDebug(debug_scsi, "SCSI found USB mass storage device");
 			detectTarget(usbDev.controller->dev, bus_usb,
 				busTargets[deviceCount].id, driver);

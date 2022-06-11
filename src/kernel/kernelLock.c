@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -19,7 +19,7 @@
 //  kernelLock.c
 //
 
-// This header file contains source code for the kernel's standard 
+// This header file contains source code for the kernel's standard
 // locking facilities.  These facilities can be used for locking any
 // desired resource (i.e. it is not specific to devices, or anything
 // in particular).
@@ -53,10 +53,10 @@ int kernelLockGet(lock *getLock)
 	// lock on the same resource.  If there is no such lock, a lock structure
 	// is filled and the lock is granted.
 
-	// If a lock is already held by another process at the time of the 
+	// If a lock is already held by another process at the time of the
 	// request, this routine will add the requesting process' id to the list
 	// of 'waiters' in the lock structure, and go into a multitasker yield()
-	// loop until the lock can be obtained -- on a first come, first served 
+	// loop until the lock can be obtained -- on a first come, first served
 	// basis for the time being.  Waiters wait in a queue.
 
 	// As a safeguard, this loop will make sure that the holding process is
@@ -90,7 +90,7 @@ int kernelLockGet(lock *getLock)
 	if (getLock->processId == currentProcId)
 		return (status = 0);
 
-	while(1)
+	while (1)
 	{
 		// This is the loop of death, where the requesting process will live
 		// until it is allowed to use the resource
@@ -125,9 +125,9 @@ int kernelLockGet(lock *getLock)
 			// We can't grant this lock to the interrupt service routine
 			return (status = ERR_BUSY);
 
-		// This process will now have to continue waiting until the lock has 
+		// This process will now have to continue waiting until the lock has
 		// been released or becomes invalid
-      
+
 		// Yield this time slice back to the scheduler while the process
 		// waits for the lock
 		kernelMultitaskerYield();
@@ -141,12 +141,12 @@ int kernelLockGet(lock *getLock)
 
 int kernelLockRelease(lock *relLock)
 {
-	// This function corresponds to the lock function.  It enables a 
+	// This function corresponds to the lock function.  It enables a
 	// process to release a resource that it had previously locked.
 
 	int status = 0;
 	int currentProcId = 0;
-  
+
 	// Make sure the pointer we were given is not NULL
 	if (relLock == NULL)
 		return (status = ERR_NULLPARAMETER);
@@ -157,7 +157,7 @@ int kernelLockRelease(lock *relLock)
 	// Make sure it's a valid process Id
 	if (currentProcId < 0)
 		return (currentProcId);
-  
+
 	// Make sure that the current lock, if any, really belongs to this process.
 
 	if (relLock->processId == currentProcId)
@@ -181,7 +181,7 @@ int kernelLockVerify(lock *verLock)
 
 	int status = 0;
 	processState tmpState;
-  
+
 	// Make sure the pointer we were given is not NULL
 	if (verLock == NULL)
 		return (status = ERR_NULLPARAMETER);
@@ -192,9 +192,9 @@ int kernelLockVerify(lock *verLock)
 
 	// Get the current state of the owning process
 	status = kernelMultitaskerGetProcessState(verLock->processId, &tmpState);
-      
+
 	// Is the process that holds the lock still valid?
-	if ((status < 0) || 
+	if ((status < 0) ||
 		(tmpState == proc_sleeping) || (tmpState == proc_stopped) ||
 		(tmpState == proc_finished) || (tmpState == proc_zombie))
 	{

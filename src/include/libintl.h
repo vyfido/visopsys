@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -21,15 +21,17 @@
 
 // This is the Visopsys version of the GNU gettext header file libintl.h
 
-
 #if !defined(_LIBINTL_H)
 
-#define GETTEXT_LOCALEDIR_PREFIX  "/system/locale"
-#define GETTEXT_DEFAULT_DOMAIN    "messages"
+#include <sys/paths.h>
+
+#define GETTEXT_LOCALEDIR_PREFIX	PATH_SYSTEM_LOCALE
+#define GETTEXT_DEFAULT_DOMAIN		"messages"
 
 char *bindtextdomain(const char *, const char *);
 char *gettext(const char *);
 char *textdomain(const char *);
-      
+
 #define _LIBINTL_H
 #endif
+

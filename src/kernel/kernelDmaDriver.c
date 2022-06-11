@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -41,7 +41,7 @@ static struct {
 	int writeMaskReg;
 
 } controllerPorts[] = {
-	{ 0x08, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0D, 0x0E, 0x0F },   
+	{ 0x08, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0D, 0x0E, 0x0F },
 	{ 0xD0, 0xD0, 0xD2, 0xD4, 0xD6, 0xD8, 0xDA, 0xDA, 0xDC, 0xDE }
 };
 
@@ -71,7 +71,7 @@ static inline void enableController(int controller)
 	kernelProcessorOutPort8(controllerPorts[controller].commandReg, 0x00);
 	kernelProcessorDelay();
 	return;
-}	
+}
 
 
 static inline void disableController(int controller)
@@ -146,7 +146,7 @@ static int driverOpenChannel(int channel, void *address, int count, int mode)
 	kernelProcessorDelay();
 
 	// 3. Do channel setup.
-	 
+
 	// Reset the byte flip-flop before the following actions, as they each
 	// require two consecutive port writes.  Value is unimportant.
 	kernelProcessorOutPort8(controllerPorts[controller].clearReg, 0x01);
@@ -182,7 +182,7 @@ static int driverOpenChannel(int channel, void *address, int count, int mode)
 static int driverCloseChannel(int channel)
 {
 	// This routine disables the selected DMA channel by setting the
-	// appropriate mask bit.  
+	// appropriate mask bit.
 
 	int status = 0;
 	int controller = 0;
@@ -241,7 +241,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	return (status = kernelDeviceAdd(parent, dev));
 }
 
-	
+
 static kernelDmaOps dmaOps = {
 	driverOpenChannel,
 	driverCloseChannel

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -45,22 +45,39 @@ the background wallpaper, and the base colors used by the window manager.
 #include <string.h>
 #include <sys/api.h>
 #include <sys/image.h>
+#include <sys/paths.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 
-#define KERNEL_CONFIG			"/system/config/kernel.conf"
-#define WINDOW_CONFIG			"/system/config/window.conf"
-#define DESKTOP_CONFIG			"/system/config/desktop.conf"
+#define WINDOW_TITLE			_("Display Settings")
+#define SCREEN_RESOLUTION		_("Screen resolution:")
+#define COLORS					_("Colors:")
+#define FOREGROUND				_("Foreground")
+#define BACKGROUND				_("Background")
+#define DESKTOP					_("Desktop")
+#define CHANGE					_("Change")
+#define BACKGROUND_WALLPAPER	_("Background wallpaper:")
+#define CHOOSE					_("Choose")
+#define USE_WALLPAPER			_("Use background wallpaper")
+#define MISCELLANEOUS			_("Miscellaneous:")
+#define BOOT_GRAPHICS			_("Boot in graphics mode")
+#define SHOW_CLOCK				_("Show a clock on the desktop")
+#define OK						_("OK")
+#define CANCEL					_("Cancel")
+#define KERNEL_CONFIG			PATH_SYSTEM_CONFIG "/kernel.conf"
+#define WINDOW_CONFIG			PATH_SYSTEM_CONFIG "/window.conf"
+#define DESKTOP_CONFIG			PATH_SYSTEM_CONFIG "/desktop.conf"
 #define CLOCK_VARIABLE			"program.clock"
 #define WALLPAPER_VARIABLE		"background.image"
-#define CLOCK_PROGRAM			"/programs/clock"
-#define WALLPAPER_PROGRAM		"/programs/wallpaper"
+#define CLOCK_PROGRAM			PATH_PROGRAMS "/clock"
+#define WALLPAPER_PROGRAM		PATH_PROGRAMS "/wallpaper"
 #define MAX_IMAGE_DIMENSION		128
 
 typedef struct {
 	char description[32];
-	videoMode mode; 
+	videoMode mode;
+
 } modeInfo;
 
 static int processId = 0;
@@ -72,18 +89,21 @@ static videoMode currentMode;
 static videoMode videoModes[MAXVIDEOMODES];
 static listItemParameters *listItemParams = NULL;
 static objectKey window = NULL;
+static objectKey resolutionLabel = NULL;
 static objectKey modeList = NULL;
-static objectKey bootGraphicsCheckbox = NULL;
-static objectKey showClockCheckbox = NULL;
-static objectKey wallpaperCheckbox = NULL;
-static objectKey wallpaperButton = NULL;
-static objectKey wallpaperImage = NULL;
+static objectKey colorsLabel = NULL;
 static objectKey colorsRadio = NULL;
 static objectKey canvas = NULL;
 static objectKey changeColorsButton = NULL;
+static objectKey wallpaperLabel;
+static objectKey wallpaperImage = NULL;
+static objectKey wallpaperButton = NULL;
+static objectKey wallpaperCheckbox = NULL;
+static objectKey miscLabel = NULL;
+static objectKey bootGraphicsCheckbox = NULL;
+static objectKey showClockCheckbox = NULL;
 static objectKey okButton = NULL;
 static objectKey cancelButton = NULL;
-
 static color foreground = { 230, 60, 35 };
 static color background = { 230, 60, 35 };
 static color desktop = { 230, 60, 35 };
@@ -125,29 +145,29 @@ static void getColors(void)
 	// Get the current color scheme from the kernel configuration.
 
 	variableList list;
-	char value[128];
+	const char *value = NULL;
 
 	configRead(KERNEL_CONFIG, &list);
 
 	if (list.memory)
 	{
-		if (variableListGet(&list, "foreground.color.red", value, 128) >= 0)
+		if ((value = variableListGet(&list, "foreground.color.red")))
 			foreground.red = atoi(value);
-		if (variableListGet(&list, "foreground.color.green", value, 128) >= 0)
+		if ((value = variableListGet(&list, "foreground.color.green")))
 			foreground.green = atoi(value);
-		if (variableListGet(&list, "foreground.color.blue", value, 128) >= 0)
+		if ((value = variableListGet(&list, "foreground.color.blue")))
 			foreground.blue = atoi(value);
-		if (variableListGet(&list, "background.color.red", value, 128) >= 0)
+		if ((value = variableListGet(&list, "background.color.red")))
 			background.red = atoi(value);
-		if (variableListGet(&list, "background.color.green", value, 128) >= 0)
+		if ((value = variableListGet(&list, "background.color.green")))
 			background.green = atoi(value);
-		if (variableListGet(&list, "background.color.blue", value, 128) >= 0)
+		if ((value = variableListGet(&list, "background.color.blue")))
 			background.blue = atoi(value);
-		if (variableListGet(&list, "desktop.color.red", value, 128) >= 0)
+		if ((value = variableListGet(&list, "desktop.color.red")))
 			desktop.red = atoi(value);
-		if (variableListGet(&list, "desktop.color.green", value, 128) >= 0)
+		if ((value = variableListGet(&list, "desktop.color.green")))
 			desktop.green = atoi(value);
-		if (variableListGet(&list, "desktop.color.blue", value, 128) >= 0)
+		if ((value = variableListGet(&list, "desktop.color.blue")))
 			desktop.blue = atoi(value);
 
 		variableListDestroy(&list);
@@ -160,17 +180,72 @@ static color *getSelectedColor(void)
 	int selected = 0;
 
 	windowComponentGetSelected(colorsRadio, &selected);
-	
+
 	switch (selected)
 	{
 		case 0:
 		default:
 			return (&foreground);
 		case 1:
-			return(&background);
+			return (&background);
 		case 2:
-			return(&desktop);
+			return (&desktop);
 	}
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("disprops");
+
+	// Refresh the 'screen resolution' label
+	windowComponentSetData(resolutionLabel, SCREEN_RESOLUTION,
+		strlen(SCREEN_RESOLUTION));
+
+	// Refresh the 'colors' label
+	windowComponentSetData(colorsLabel, COLORS,	strlen(COLORS));
+
+	// Refresh the 'colors' radio button
+	windowComponentSetData(colorsRadio,
+		(char *[]) { FOREGROUND, BACKGROUND, DESKTOP }, 3);
+
+	// Refresh the 'change color' button
+	windowComponentSetData(changeColorsButton, CHANGE, strlen(CHANGE));
+
+	// Refresh the 'background wallpaper' label
+	windowComponentSetData(wallpaperLabel, BACKGROUND_WALLPAPER,
+		strlen(BACKGROUND_WALLPAPER));
+
+	// Refresh the 'choose wallpaper' button
+	windowComponentSetData(wallpaperButton, CHOOSE,	strlen(CHOOSE));
+
+	// Refresh the 'use wallpaper' checkbox
+	windowComponentSetData(wallpaperCheckbox, USE_WALLPAPER,
+		strlen(USE_WALLPAPER));
+
+	// Refresh the 'miscellaneous items' label
+	windowComponentSetData(miscLabel, MISCELLANEOUS, strlen(MISCELLANEOUS));
+
+	// Refresh the 'boot in graphics mode' checkbox
+	windowComponentSetData(bootGraphicsCheckbox, BOOT_GRAPHICS,
+		strlen(BOOT_GRAPHICS));
+
+	// Refresh the 'show a clock' checkbox
+	windowComponentSetData(showClockCheckbox, SHOW_CLOCK, strlen(SHOW_CLOCK));
+
+	// Refresh the 'ok' button
+	windowComponentSetData(okButton, OK, strlen(OK));
+
+	// Refresh the 'cancel' button
+	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
 }
 
 
@@ -205,16 +280,21 @@ static void eventHandler(objectKey key, windowEvent *event)
 	int selected = 0;
 	file tmp;
 
+	// Check for window events.
 	if (key == window)
 	{
-		// Check for the window being closed by a GUI event.
-		if (event->type == EVENT_WINDOW_CLOSE)
-			windowGuiStop();
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
 
 		// Check for window resize
-		if (event->type == EVENT_WINDOW_RESIZE)
+		else if (event->type == EVENT_WINDOW_RESIZE)
 			// Redraw the canvas
 			drawColor(selectedColor);
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			windowGuiStop();
 	}
 
 	else if ((key == wallpaperCheckbox) && (event->type == EVENT_MOUSE_LEFTUP))
@@ -273,7 +353,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 			{
 				// Run the clock program now.  No block.
 				loaderLoadAndExec(CLOCK_PROGRAM, privilege, 0);
-	
+
 				if (!readOnly)
 					// Set the variable for the clock
 					configSet(DESKTOP_CONFIG, CLOCK_VARIABLE, CLOCK_PROGRAM);
@@ -343,7 +423,7 @@ static void constructWindow(void)
 	int count;
 
 	// Create a new window, with small, arbitrary size and location
-	window = windowNew(processId, _("Display Settings"));
+	window = windowNew(processId, WINDOW_TITLE);
 	if (window == NULL)
 		return;
 
@@ -362,7 +442,8 @@ static void constructWindow(void)
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
-	windowNewTextLabel(container, _("Screen resolution:"), &params);
+	resolutionLabel = windowNewTextLabel(container, SCREEN_RESOLUTION,
+		&params);
 
 	// Make a list with all the available graphics modes
 	params.gridY++;
@@ -386,7 +467,7 @@ static void constructWindow(void)
 	params.gridY++;
 	params.padTop = 10;
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
-	windowNewTextLabel(container, _("Colors:"), &params);
+	colorsLabel = windowNewTextLabel(container, COLORS, &params);
 
 	// Create the colors radio button
 	params.gridY++;
@@ -394,8 +475,8 @@ static void constructWindow(void)
 	params.gridHeight = 2;
 	params.padTop = 5;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	colorsRadio = windowNewRadioButton(container, 3, 1, (char *[])
-		{ _("Foreground"), _("Background"), _("Desktop") }, 3 , &params);
+	colorsRadio = windowNewRadioButton(container, 3, 1,
+		(char *[]) { FOREGROUND, BACKGROUND, DESKTOP }, 3 , &params);
 	windowRegisterEventHandler(colorsRadio, &eventHandler);
 
 	// The canvas to show the current color
@@ -408,7 +489,7 @@ static void constructWindow(void)
 	// Create the change color button
 	params.gridY++;
 	params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
-	changeColorsButton = windowNewButton(container, _("Change"), NULL, &params);
+	changeColorsButton = windowNewButton(container, CHANGE, NULL, &params);
 	windowRegisterEventHandler(changeColorsButton, &eventHandler);
 
 	// Adjust the canvas width so that it matches the width of the button.
@@ -436,7 +517,8 @@ static void constructWindow(void)
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
-	windowNewTextLabel(container, _("Background wallpaper:"), &params);
+	wallpaperLabel = windowNewTextLabel(container, BACKGROUND_WALLPAPER,
+		&params);
 
 	// Create the thumbnail image for the background wallpaper.  Start with a
 	// blank one and update it in a minute.
@@ -449,13 +531,12 @@ static void constructWindow(void)
 	params.gridY++;
 	params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	wallpaperButton = windowNewButton(container, _("Choose"), NULL, &params);
+	wallpaperButton = windowNewButton(container, CHOOSE, NULL, &params);
 	windowRegisterEventHandler(wallpaperButton, &eventHandler);
 
 	// Create the checkbox for whether to use background wallpaper
 	params.gridY++;
-	wallpaperCheckbox =
-		windowNewCheckbox(container, _("Use background wallpaper"), &params);
+	wallpaperCheckbox = windowNewCheckbox(container, USE_WALLPAPER, &params);
 	windowComponentSetSelected(wallpaperCheckbox, 1);
 	windowRegisterEventHandler(wallpaperCheckbox, &eventHandler);
 
@@ -483,20 +564,19 @@ static void constructWindow(void)
 	// A label for the miscellaneous stuff
 	params.gridY++;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	windowNewTextLabel(container, _("Miscellaneous:"), &params);
+	miscLabel = windowNewTextLabel(container, MISCELLANEOUS, &params);
 
 	// Make a checkbox for whether to boot in graphics mode
 	params.gridY++;
-	bootGraphicsCheckbox =
-		windowNewCheckbox(container, _("Boot in graphics mode"), &params);
+	bootGraphicsCheckbox = windowNewCheckbox(container, BOOT_GRAPHICS,
+		&params);
 	windowComponentSetSelected(bootGraphicsCheckbox, 1);
 	if (readOnly)
 		windowComponentSetEnabled(bootGraphicsCheckbox, 0);
 
 	// Make a checkbox for whether to show the clock on the desktop
 	params.gridY++;
-	showClockCheckbox =
-		windowNewCheckbox(container, _("Show a clock on the desktop"), &params);
+	showClockCheckbox = windowNewCheckbox(container, SHOW_CLOCK, &params);
 
 	// Are we currently set to show one?
 	bzero(&tmpProc, sizeof(process));
@@ -528,19 +608,19 @@ static void constructWindow(void)
 	params.padRight = 5;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	okButton = windowNewButton(container, _("OK"), NULL, &params);
+	okButton = windowNewButton(container, OK, NULL, &params);
 	windowRegisterEventHandler(okButton, &eventHandler);
 
 	// Create the Cancel button
 	params.gridX++;
 	params.orientationX = orient_left;
-	cancelButton = windowNewButton(container, _("Cancel"), NULL, &params);
+	cancelButton = windowNewButton(container, CANCEL, NULL, &params);
 	windowRegisterEventHandler(cancelButton, &eventHandler);
 	windowComponentFocus(cancelButton);
 
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
-	
+
 	windowSetVisible(window, 1);
 
 	// Get the current colors we're interested in
@@ -557,13 +637,9 @@ static void constructWindow(void)
 int main(int argc __attribute__((unused)), char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	disk sysDisk;
 
-#ifdef BUILDLANG
-	language=BUILDLANG;
-#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("disprops");
 
 	// Only work in graphics mode
@@ -574,7 +650,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	}
 
 	// Find out whether we are currently running on a read-only filesystem
-	if (!fileGetDisk("/system", &sysDisk))
+	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
 	// We need our process ID and privilege to create the windows
@@ -601,3 +677,4 @@ int main(int argc __attribute__((unused)), char *argv[])
 
 	return (status);
 }
+

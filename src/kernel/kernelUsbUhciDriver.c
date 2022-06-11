@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -70,14 +70,14 @@ static inline void debugUhciRegs(usbController *controller)
 		portsc2);
 
 	kernelDebug(debug_usb, "UHCI registers:\n"
-		"    cmd=%04x\n"
-		"    stat=%04x\n"
-		"    intr=%04x\n"
-		"    frnum=%04x\n"
-		"    flbase=%08x\n"
-		"    sof=%02x\n"
-		"    portsc1=%04x\n"
-		"    portsc2=%04x\n", cmd, stat, intr, frnum, flbase, sof,
+		"  cmd=%04x\n"
+		"  stat=%04x\n"
+		"  intr=%04x\n"
+		"  frnum=%04x\n"
+		"  flbase=%08x\n"
+		"  sof=%02x\n"
+		"  portsc1=%04x\n"
+		"  portsc2=%04x\n", cmd, stat, intr, frnum, flbase, sof,
 		portsc1, portsc2);
 }
 
@@ -85,11 +85,11 @@ static inline void debugUhciRegs(usbController *controller)
 static inline void debugDeviceReq(usbDeviceRequest *req)
 {
 	kernelDebug(debug_usb, "UHCI device request:\n"
-		"    requestType=%02x\n"
-		"    request=%02x\n"
-		"    value=%04x\n"
-		"    index=%04x\n"
-		"    length=%04x", req->requestType, req->request, req->value,
+		"  requestType=%02x\n"
+		"  request=%02x\n"
+		"  value=%04x\n"
+		"  index=%04x\n"
+		"  length=%04x", req->requestType, req->request, req->value,
 		req->index, req->length);
 }
 
@@ -97,10 +97,10 @@ static inline void debugDeviceReq(usbDeviceRequest *req)
 static inline void debugQueueHead(usbUhciQueueHead *queueHead)
 {
 	kernelDebug(debug_usb, "UHCI queue head:\n"
-		"    linkPointer=%04x\n"
-		"    element=%04x\n"
-		"    saveElement=%04x\n"
-		"    transDescs=%p", queueHead->linkPointer,
+		"  linkPointer=%04x\n"
+		"  element=%04x\n"
+		"  saveElement=%04x\n"
+		"  transDescs=%p", queueHead->linkPointer,
 		queueHead->element, queueHead->saveElement,
 		queueHead->transDescs);
 }
@@ -109,22 +109,22 @@ static inline void debugQueueHead(usbUhciQueueHead *queueHead)
 static inline void debugTransDesc(usbUhciTransDesc *desc)
 {
 	kernelDebug(debug_usb, "UHCI transfer descriptor:\n"
-		"    linkPointer=%08x\n"
-		"    contStatus=%08x\n"
-		"        spd=%d\n"
-		"        errcount=%d\n"
-		"        lowspeed=%d\n"
-		"        isochronous=%d\n"
-		"        interrupt=%d\n"
-		"        status=%02x\n"
-		"        actlen=%d (%03x)\n"
-		"    tdToken=%08x\n"
-		"        maxlen=%d (%03x)\n"
-		"        datatoggle=%d\n"
-		"        endpoint=%02x\n"
-		"        address=%d\n"
-		"        pid=%02x\n"
-		"    buffer=%08x", desc->linkPointer, desc->contStatus,
+		"  linkPointer=%08x\n"
+		"  contStatus=%08x\n"
+		"    spd=%d\n"
+		"    errcount=%d\n"
+		"    lowspeed=%d\n"
+		"    isochronous=%d\n"
+		"    interrupt=%d\n"
+		"    status=%02x\n"
+		"    actlen=%d (%03x)\n"
+		"  tdToken=%08x\n"
+		"    maxlen=%d (%03x)\n"
+		"    datatoggle=%d\n"
+		"    endpoint=%02x\n"
+		"    address=%d\n"
+		"    pid=%02x\n"
+		"  buffer=%08x", desc->linkPointer, desc->contStatus,
 		((desc->contStatus & USBUHCI_TDCONTSTAT_SPD) >> 29),
 		((desc->contStatus & USBUHCI_TDCONTSTAT_ERRCNT) >> 27),
 		((desc->contStatus & USBUHCI_TDCONTSTAT_LSPEED) >> 26),
@@ -371,7 +371,7 @@ static inline unsigned short readPortStatus(usbController *controller, int num)
 	unsigned portOffset = 0;
 	unsigned short status = 0;
 
-	if (num == 0)
+	if (!num)
 		portOffset = USBUHCI_PORTOFFSET_PORTSC1;
 	else if (num == 1)
 		portOffset = USBUHCI_PORTOFFSET_PORTSC2;
@@ -390,7 +390,7 @@ static inline void writePortStatus(usbController *controller, int num,
 	usbUhciData *uhciData = controller->data;
 	unsigned portOffset = 0;
 
-	if (num == 0)
+	if (!num)
 		portOffset = USBUHCI_PORTOFFSET_PORTSC1;
 	else if (num == 1)
 		portOffset = USBUHCI_PORTOFFSET_PORTSC2;
@@ -460,7 +460,7 @@ static void portReset(usbController *controller, int num)
 
 	if (!(status & USBUHCI_PORT_RESET))
 		kernelError(kernel_error, "Couldn't set port reset bit");
-  
+
 	kernelDebug(debug_usb, "UHCI after reset asserted");
 	printPortStatus(controller);
 
@@ -512,7 +512,7 @@ static int allocTransDescs(unsigned numDescs, void **physical,
 	// Allocate an array of USB transfer descriptors, page-aligned.
 
 	int status = 0;
-	unsigned memSize = 0; 
+	unsigned memSize = 0;
 	unsigned count;
 
 	memSize = (numDescs * sizeof(usbUhciTransDesc));
@@ -521,7 +521,7 @@ static int allocTransDescs(unsigned numDescs, void **physical,
 	*physical = kernelMemoryGetPhysical(memSize, MEMORY_PAGE_SIZE,
 		"usb xfer descriptors");
 
-	if ((*physical == NULL) || ((unsigned) *physical & 0x0F))
+	if (!*physical || ((unsigned) *physical & 0x0F))
 	{
 		kernelError(kernel_error, "Unable to get USB transfer descriptor "
 			"memory");
@@ -529,12 +529,22 @@ static int allocTransDescs(unsigned numDescs, void **physical,
 	}
 
 	// Map it to a virtual address
-	status =
-		kernelPageMapToFree(KERNELPROCID, *physical, (void **) descs, memSize);
+	status = kernelPageMapToFree(KERNELPROCID, *physical, (void **) descs,
+		memSize);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Unable to map USB transfer descriptor "
 			"memory");
+		kernelMemoryReleasePhysical(*physical);
+		return (status);
+	}
+
+	// Make it non-cacheable
+	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
+		PAGEFLAG_CACHEDISABLE, (void *) *descs, memSize);
+	if (status < 0)
+	{
+		kernelError(kernel_error, "Error setting page attrs");
 		kernelMemoryReleasePhysical(*physical);
 		return (status);
 	}
@@ -558,7 +568,7 @@ static int allocTransDescs(unsigned numDescs, void **physical,
 static void deallocTransDescs(usbUhciTransDesc *descs, int numDescs)
 {
 	void *transDescsPhysical = NULL;
-  
+
 	transDescsPhysical =
 		(void *) kernelPageGetPhysical(KERNELPROCID, (void *) descs);
 	kernelPageUnmap(KERNELPROCID, (void *) descs,
@@ -576,8 +586,8 @@ static void deallocUhciMemory(usbController *controller)
 	if (uhciData)
 	{
 		if (uhciData->frameList)
-		kernelPageUnmap(KERNELPROCID, uhciData->frameList,
-			USBUHCI_FRAMELIST_MEMSIZE);
+			kernelPageUnmap(KERNELPROCID, uhciData->frameList,
+				USBUHCI_FRAMELIST_MEMSIZE);
 
 		if (uhciData->frameListPhysical)
 			kernelMemoryReleasePhysical(uhciData->frameListPhysical);
@@ -622,7 +632,7 @@ static int allocUhciMemory(usbController *controller)
 	uhciData->frameListPhysical =
 		kernelMemoryGetPhysical(USBUHCI_FRAMELIST_MEMSIZE, MEMORY_PAGE_SIZE,
 			"usb frame list");
-	if ((uhciData->frameListPhysical == NULL) ||
+	if (!uhciData->frameListPhysical ||
 		((unsigned) uhciData->frameListPhysical & 0x0FFF))
 	{
 		kernelError(kernel_error, "Unable to get USB frame list memory");
@@ -651,7 +661,7 @@ static int allocUhciMemory(usbController *controller)
 	queueHeadsPhysical =
 		kernelMemoryGetPhysical(USBUHCI_QUEUEHEADS_MEMSIZE, MEMORY_PAGE_SIZE,
 			"usb queue heads");
-	if ((queueHeadsPhysical == NULL) || ((unsigned) queueHeadsPhysical & 0x0F))
+	if (!queueHeadsPhysical || ((unsigned) queueHeadsPhysical & 0x0F))
 	{
 		kernelError(kernel_error, "Unable to get USB queue heads memory");
 		status = ERR_MEMORY;
@@ -706,9 +716,10 @@ static int queueDescriptors(usbController *controller,
 	unsigned firstPhysical = NULL;
 	unsigned count;
 
-	if ((controller == NULL) || (queueHead == NULL) || (descs == NULL))
+	// Check params
+	if (!controller || !queueHead || !descs)
 	{
-		kernelError(kernel_error, "NULL hub, queue head, or descriptors");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -727,7 +738,7 @@ static int queueDescriptors(usbController *controller,
 		// Get the physical address of the TD
 		descPhysical = (unsigned)
 		kernelPageGetPhysical(KERNELPROCID, (void *) &(descs[count]));
-		if (descPhysical == NULL)
+		if (!descPhysical)
 		{
 			kernelError(kernel_error, "Can't get xfer descriptor physical "
 				"address");
@@ -818,7 +829,7 @@ static int deQueueDescriptors(usbController *controller,
 			queueHead->saveElement = queueHead->element;
 			queueHead->transDescs = NULL;
 		}
-    }
+	}
 	else
 	{
 		if (descs[numDescs - 1].next)
@@ -931,7 +942,7 @@ static int allocTransDescBuffer(usbUhciTransDesc *desc, unsigned buffSize)
 	int status = 0;
 
 	desc->buffVirtual = kernelMalloc(buffSize);
-	if (desc->buffVirtual == NULL)
+	if (!desc->buffVirtual)
 	{
 		kernelDebugError("Can't alloc trans desc buffer size %u", buffSize);
 		return (status = ERR_MEMORY);
@@ -939,7 +950,7 @@ static int allocTransDescBuffer(usbUhciTransDesc *desc, unsigned buffSize)
 
 	// Get the physical address of this memory
 	desc->buffer = kernelPageGetPhysical(KERNELPROCID, desc->buffVirtual);
-	if (desc->buffer == NULL)
+	if (!desc->buffer)
 	{
 		kernelDebugError("Can't get buffer physical address");
 		kernelFree(desc->buffVirtual);
@@ -1033,9 +1044,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 	int descCount = 0;
 	int count;
 
-	if ((controller == NULL) || (usbDev == NULL) || (trans == NULL))
+	// Check params
+	if (!controller || !usbDev || !trans)
 	{
-		kernelError(kernel_error, "NULL hub, device, or transaction");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1051,13 +1063,13 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		{
 			// Figure out the maximum number of bytes per transfer, depending on
 			// the endpoint we're addressing.
-			if ((trans[count].endpoint == 0) && !usbDev->numEndpoints)
+			if (!trans[count].endpoint && !usbDev->numEndpoints)
 				bytesPerTransfer = usbDev->deviceDesc.maxPacketSize0;
 			else
 			{
-				endpoint =
-					kernelUsbGetEndpointDesc(usbDev, trans[count].endpoint);
-				if (endpoint == NULL)
+				endpoint = kernelUsbGetEndpointDesc(usbDev,
+					trans[count].endpoint);
+				if (!endpoint)
 				{
 					kernelError(kernel_error, "No such endpoint %02x",
 						trans[count].endpoint);
@@ -1107,7 +1119,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		// Get the data toggle for the endpoint
 		dataToggle =
 			kernelUsbGetEndpointDataToggle(usbDev, trans[count].endpoint);
-		if (dataToggle == NULL)
+		if (!dataToggle)
 		{
 			kernelError(kernel_error, "No data toggle for endpoint %02x",
 				trans[count].endpoint);
@@ -1168,7 +1180,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 					KERNEL_VIRTUAL_ADDRESS)?
 						kernelCurrentProcess->processId :
 						KERNELPROCID), dataDesc->buffVirtual);
-				if (dataDesc->buffer == NULL)
+				if (!dataDesc->buffer)
 				{
 					kernelDebugError("Can't get physical address for buffer "
 						"fragment at %p", dataDesc->buffVirtual);
@@ -1184,10 +1196,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 						usbDev->speed, *dataToggle, trans[count].pid);
 				if (status < 0)
 					goto out;
-	  
+
 				// Data toggle
 				*dataToggle ^= 1;
-	  
+
 				buffer += doBytes;
 				bytesToTransfer -= doBytes;
 				trans[count].bytes += doBytes; // Do this here?
@@ -1263,7 +1275,7 @@ static usbUhciQueueHead *findIntQueueHead(usbController *controller,
 	for (count = 0; count < 8; count ++)
 		if (queues[count] <= interval)
 			return (uhciData->queueHeads[count]);
-  
+
 	// Should never fall through
 	return (NULL);
 }
@@ -1281,9 +1293,9 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	void *descPhysical = NULL;
 
 	// Check params
-	if ((controller == NULL) || (usbDev == NULL) || (callback == NULL))
+	if (!controller || !usbDev || !callback)
 	{
-		kernelError(kernel_error, "NULL hub, device, or callback");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1294,14 +1306,14 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 
 	// Get memory to hold info about the interrupt
 	intrReg = kernelMalloc(sizeof(usbUhciInterruptReg));
-	if (intrReg == NULL)
+	if (!intrReg)
 		return (status = ERR_MEMORY);
 
 	intrReg->usbDev = usbDev;
 
 	// Find the appropriate interrupt queue head
 	intrReg->queueHead = findIntQueueHead(controller, interval);
-	if (intrReg->queueHead == NULL)
+	if (!intrReg->queueHead)
 	{
 		kernelDebugError("Couldn't find QH for interrupt interval %d", interval);
 		kernelFree(intrReg);
@@ -1370,9 +1382,9 @@ static int unschedInterrupt(usbController *controller, usbDevice *usbDev)
 	usbUhciInterruptReg *intrReg = NULL;
 
 	// Check params
-	if ((controller == NULL) || (usbDev == NULL))
+	if (!controller || !usbDev)
 	{
-		kernelError(kernel_error, "NULL hub or device");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1454,13 +1466,13 @@ static int setup(usbController *controller)
 			// for bandwidth reclamation.
 			uhciData->queueHeads[count]->linkPointer =
 				uhciData->queueHeads[USBUHCI_QH_CONTROL - 1]->linkPointer;
-		}					      
+		}
 	}
 
 	// Attach the terminating transfer descriptor to the terminating queue head
 	uhciData->queueHeads[USBUHCI_QH_TERM]->element = (unsigned)
 		kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->termTransDesc);
-	uhciData->queueHeads[USBUHCI_QH_TERM]->saveElement = 
+	uhciData->queueHeads[USBUHCI_QH_TERM]->saveElement =
 		uhciData->queueHeads[USBUHCI_QH_TERM]->element;
 	uhciData->termTransDesc->linkPointer = USBUHCI_LINKPTR_TERM;
 
@@ -1610,12 +1622,6 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 
 	//kernelDebug(debug_usb, "UHCI detect devices");
 
-	if (controller == NULL)
-	{
-		kernelError(kernel_error, "Hub controller is NULL");
-		return;
-	}
-
 	for (count = 0; count < 2; count ++)
 	{
 		status = readPortStatus(controller, count);
@@ -1676,9 +1682,9 @@ static void detectDevices(usbHub *hub, int hotplug)
 		hotplug);
 
 	// Check params
-	if (hub == NULL)
+	if (!hub)
 	{
-		kernelError(kernel_error, "NULL hub pointer");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -1695,9 +1701,9 @@ static void threadCall(usbHub *hub)
 	// we want.
 
 	// Check params
-	if (hub == NULL)
+	if (!hub)
 	{
-		kernelError(kernel_error, "NULL hub pointer");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -1761,7 +1767,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 
 	// Allocate memory for the controller
 	controller = kernelMalloc(sizeof(usbController));
-	if (controller == NULL)
+	if (!controller)
 		goto err_out;
 
 	// Get the USB version number
@@ -1775,7 +1781,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 
 	// Allocate our private driver data
 	controller->data = kernelMalloc(sizeof(usbUhciData));
-	if (controller->data == NULL)
+	if (!controller->data)
 		goto err_out;
 
 	uhciData = controller->data;
@@ -1785,7 +1791,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 	uhciData->ioAddress =
 		(void *)(kernelBusReadRegister(busTarget, 0x08, 32) & 0xFFFFFFE0);
 
-	if (uhciData->ioAddress == NULL)
+	if (!uhciData->ioAddress)
 	{
 		kernelDebugError("Unknown USB controller I/O address");
 		goto err_out;
@@ -1815,7 +1821,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 
 	// Allocate memory for the kernel device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		goto err_out;
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
@@ -1851,3 +1857,4 @@ err_out:
 
 	return (dev = NULL);
 }
+

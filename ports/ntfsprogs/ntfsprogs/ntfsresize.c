@@ -855,7 +855,7 @@ static int collect_relocation_info(ntfs_resize_t *resize, runlist *rl)
 
 	if (inode == FILE_Bitmap && resize->ctx->attr->type == AT_DATA)
 		return (0);
-	
+
 	//start = lcn;
 	len = lcn_length;
 
@@ -1073,7 +1073,7 @@ static int compare_bitmaps(ntfs_resize_t *resize, ntfs_volume *vol, struct bitma
 			    free(bm);
 			    return (0);
 			  }
-	
+
 			if (a->size <= pos)
 				goto done;
 
@@ -2374,7 +2374,7 @@ static int check_bad_sectors(ntfs_resize_t *resize, ntfs_volume *vol)
 			 "%s", NTFS_DEV_LIST);
 		return (-1);
 	  }
-	/* 
+	/*
 	 * FIXME: The below would be partial for non-base records in the
 	 * not yet supported multi-record case. Alternatively use audited
 	 * ntfs_attr_truncate after an umount & mount.
@@ -2795,7 +2795,7 @@ static int get_minblocks(ntfs_resize_t *resize, disk *theDisk,
 			 uquad_t *minBlocks)
 {
 	s64 new_b;
-  
+
 	/* Take the next supported cluster (free or relocatable)
 	   plus reserve a cluster for the backup boot sector */
 	resize->last_unsupp += 2;
@@ -2851,7 +2851,7 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 	  s64 bytes;         // Number of bytes to resize to
 	  char *volume;      // Disk name
 	*/
-	
+
 	bzero(&opt, sizeof(opt));
 
 	opt.force++;

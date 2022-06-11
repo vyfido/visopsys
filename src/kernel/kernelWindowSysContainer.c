@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -121,13 +121,13 @@ static int layout(kernelWindowComponent *containerComponent)
 	// Does the window have a menu bar?
 	if (window->menuBar)
 	{
-		kernelDebug(debug_gui, "sysContainer layout: do menu bar");
+		kernelDebug(debug_gui, "WindowSysContainer layout: do menu bar");
 
 		// Do menu bar layout
 		if (window->menuBar->layout)
 			window->menuBar->layout(window->menuBar);
 
-		kernelDebug(debug_gui, "sysContainer layout: resize menu bar");
+		kernelDebug(debug_gui, "WindowSysContainer layout: resize menu bar");
 
 		// Resize the menu bar
 		if (window->menuBar->resize)
@@ -136,7 +136,7 @@ static int layout(kernelWindowComponent *containerComponent)
 
 		window->menuBar->width = clientAreaWidth;
 
-		kernelDebug(debug_gui, "sysContainer layout: move menu bar");
+		kernelDebug(debug_gui, "WindowSysContainer layout: move menu bar");
 		// Move the menu bar
 		if (window->menuBar->move)
 			window->menuBar->move(window->menuBar, clientAreaX, clientAreaY);
@@ -150,7 +150,7 @@ static int layout(kernelWindowComponent *containerComponent)
 
 	if (window->mainContainer)
 	{
-		kernelDebug(debug_gui, "sysContainer layout: move main container");
+		kernelDebug(debug_gui, "WindowSysContainer layout: move main container");
 		// Move the window's main container
 		if (window->mainContainer->move)
 			window->mainContainer->move(window->mainContainer, clientAreaX,
@@ -205,14 +205,14 @@ kernelWindowComponent *kernelWindowNewSysContainer(kernelWindow *window,
 	kernelWindowComponent *component = NULL;
 
 	// Check parameters.
-	if ((window == NULL) || (params == NULL))
+	if (!window || !params)
 		return (component = NULL);
 
 	// Get the underlying kernelWindowContainer
 
 	// Get the basic component structure
 	component = kernelWindowNewContainer(window, "sysContainer", params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	// Now populate the component
@@ -224,3 +224,4 @@ kernelWindowComponent *kernelWindowNewSysContainer(kernelWindow *window,
 
 	return (component);
 }
+

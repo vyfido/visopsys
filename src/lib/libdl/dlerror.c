@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -30,19 +30,19 @@ char *dlerrorMessage = NULL;
 
 char *dlerror(void)
 {
-  // Excerpted from the GNU man page:
-  //
-  // The function dlerror() returns a human readable string describing the
-  // most recent error that occurred from dlopen(), dlsym() or dlclose()
-  // since the last call to dlerror().  It returns NULL if no errors have
-  // occurred since initialization or since it was last called.
+	// Excerpted from the GNU man page:
+	//
+	// The function dlerror() returns a human readable string describing the
+	// most recent error that occurred from dlopen(), dlsym() or dlclose()
+	// since the last call to dlerror().  It returns NULL if no errors have
+	// occurred since initialization or since it was last called.
 
-  char *message = NULL;
+	char *message = NULL;
 
-  if (dlerrorMessage == NULL)
-    return (NULL);
+	if (dlerrorMessage == NULL)
+		return (NULL);
 
-  message = dlerrorMessage;
-  dlerrorMessage = NULL;
-  return (message);
+	message = dlerrorMessage;
+	dlerrorMessage = NULL;
+	return (message);
 }

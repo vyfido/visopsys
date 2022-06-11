@@ -8,107 +8,113 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-05-24 03:25+0100\n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: bootmenu.c:793
-#, c-format
-msgid ""
-"\n"
-"  [Cursor up/down to select, 'e' edit, '*' default\n"
-"   'd' delete, Enter to accept, 'Q' to quit]"
-msgstr ""
-
-#: bootmenu.c:749
-msgid ""
-"\n"
-"There are no chain-loadable operating systems on this disk.\n"
-"\n"
-msgstr ""
-
-#: bootmenu.c:734
-#, c-format
-msgid "\"%s\" [Filesystem: %s]"
-msgstr ""
-
-#: bootmenu.c:559
-msgid "Automatically boot default selection after (seconds)"
-msgstr ""
-
-#: bootmenu.c:498
+#: bootmenu.c:61
 msgid "Boot Menu Installer"
 msgstr ""
 
-#: bootmenu.c:67
-msgid "Boot menu written."
-msgstr ""
-
-#: bootmenu.c:392
-msgid "Can't get buffer memory\n"
-msgstr ""
-
-#: bootmenu.c:691
-#, c-format
-msgid "Can't get disk %s\n"
-msgstr ""
-
-#: bootmenu.c:349
-msgid "Can't get memory for the logical disk list"
-msgstr ""
-
-#: bootmenu.c:708
-msgid "Can't get the list of logical disks"
-msgstr ""
-
-#: bootmenu.c:356
-msgid "Can't get the logical disk list\n"
-msgstr ""
-
-#: bootmenu.c:385
-#, c-format
-msgid "Can't open %s file\n"
-msgstr ""
-
-#: bootmenu.c:399
-#, c-format
-msgid "Can't read %s file\n"
-msgstr ""
-
-#: bootmenu.c:638
-#, c-format
-msgid "Can't write MBR %s to %s\n"
-msgstr ""
-
-#: bootmenu.c:626
-msgid "Can't write boot menu\n"
-msgstr ""
-
-#: bootmenu.c:861
-msgid "Can't write boot menu or MBR\n"
-msgstr ""
-
-#: bootmenu.c:230 bootmenu.c:587
-msgid "Cancel"
-msgstr ""
-
 #: bootmenu.c:66
+msgid ""
+"Visopsys Boot Menu Installer\n"
+"Copyright (C) 1998-2014 J. Andrew McLaughlin"
+msgstr ""
+
+#: bootmenu.c:68
+msgid ""
+"You must be a privileged user to use this command.\n"
+"(Try logging in as user \"admin\")"
+msgstr ""
+
+#: bootmenu.c:70
+msgid "Partitions on the disk:"
+msgstr ""
+
+#: bootmenu.c:71
 msgid "Chain-loadable entries for the boot menu:"
 msgstr ""
 
-#: bootmenu.c:542
+#: bootmenu.c:72
+msgid "Edit"
+msgstr ""
+
+#: bootmenu.c:73
 msgid "Default"
 msgstr ""
 
-#: bootmenu.c:546
+#: bootmenu.c:74
 msgid "Delete"
 msgstr ""
 
-#: bootmenu.c:434
+#: bootmenu.c:75
+msgid "Automatically boot default selection after (seconds)"
+msgstr ""
+
+#: bootmenu.c:77
+msgid "OK"
+msgstr ""
+
+#: bootmenu.c:78
+msgid "Cancel"
+msgstr ""
+
+#: bootmenu.c:79
+msgid "Boot menu written."
+msgstr ""
+
+#: bootmenu.c:120
+#, c-format
+msgid ""
+"usage:\n"
+"%s <disk name>\n"
+msgstr ""
+
+#: bootmenu.c:138
+msgid "Error"
+msgstr ""
+
+#: bootmenu.c:215
+msgid "Edit entry label"
+msgstr ""
+
+#: bootmenu.c:286
+#, c-format
+msgid ""
+"Enter new label (%d characters max.):\n"
+" [%s]\n"
+" ["
+msgstr ""
+
+#: bootmenu.c:367
+msgid "Can't get memory for the logical disk list"
+msgstr ""
+
+#: bootmenu.c:374
+msgid "Can't get the logical disk list"
+msgstr ""
+
+#: bootmenu.c:405
+#, c-format
+msgid "Can't open %s file"
+msgstr ""
+
+#: bootmenu.c:412
+msgid "Can't get buffer memory"
+msgstr ""
+
+#: bootmenu.c:419
+#, c-format
+msgid "Can't read %s file"
+msgstr ""
+
+#: bootmenu.c:489
 #, c-format
 msgid ""
 "Disk %s\n"
@@ -118,70 +124,61 @@ msgid ""
 "\n"
 msgstr ""
 
-#: bootmenu.c:700
-#, c-format
-msgid "Disk %s is not a physical hard disk device\n"
+#: bootmenu.c:492
+msgid "yes"
 msgstr ""
 
-#: bootmenu.c:869
-msgid "Done"
-msgstr ""
-
-#: bootmenu.c:538
-msgid "Edit"
-msgstr ""
-
-#: bootmenu.c:198
-msgid "Edit entry label"
-msgstr ""
-
-#: bootmenu.c:266
-#, c-format
-msgid ""
-"Enter new label (%d characters max.):\n"
-" [%s]\n"
-" ["
-msgstr ""
-
-#: bootmenu.c:121
-msgid "Error"
-msgstr ""
-
-#: bootmenu.c:224 bootmenu.c:582
-msgid "OK"
-msgstr ""
-
-#: bootmenu.c:65
-msgid "Partitions on the disk:"
-msgstr ""
-
-#: bootmenu.c:680
-msgid "Permission Denied"
-msgstr ""
-
-#: bootmenu.c:61
-msgid ""
-"Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin"
-msgstr ""
-
-#: bootmenu.c:63
-msgid ""
-"You must be a privileged user to use this command.\n"
-"(Try logging in as user \"admin\")"
-msgstr ""
-
-#: bootmenu.c:437
+#: bootmenu.c:492
 msgid "no"
 msgstr ""
 
-#: bootmenu.c:103
-#, c-format
-msgid ""
-"usage:\n"
-"%s <disk name>\n"
+#: bootmenu.c:737
+msgid "Can't write boot menu"
 msgstr ""
 
-#: bootmenu.c:437
-msgid "yes"
+#: bootmenu.c:749
+#, c-format
+msgid "Can't write MBR %s to %s"
+msgstr ""
+
+#: bootmenu.c:790
+msgid "Permission Denied"
+msgstr ""
+
+#: bootmenu.c:801
+#, c-format
+msgid "Can't get disk %s"
+msgstr ""
+
+#: bootmenu.c:810
+#, c-format
+msgid "Disk %s is not a physical hard disk device"
+msgstr ""
+
+#: bootmenu.c:818
+msgid "Can't get the list of logical disks"
+msgstr ""
+
+#: bootmenu.c:870
+#, c-format
+msgid "\"%s\" [Filesystem: %s]"
+msgstr ""
+
+#: bootmenu.c:893
+msgid "There are no chain-loadable operating systems on this disk."
+msgstr ""
+
+#: bootmenu.c:937
+msgid ""
+"\n"
+"  [Cursor up/down to select, 'e' edit, '*' default\n"
+"   'd' delete, Enter to accept, 'Q' to quit]"
+msgstr ""
+
+#: bootmenu.c:1004
+msgid "Can't write boot menu or MBR"
+msgstr ""
+
+#: bootmenu.c:1012
+msgid "Done"
 msgstr ""

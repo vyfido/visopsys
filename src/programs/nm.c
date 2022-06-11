@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -42,17 +42,36 @@ items are shown, along with their bindings (such as 'local', 'global', or
 </help>
 */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
+
+char *bindings[] = {
+	gettext_noop("local"),
+	gettext_noop("global"),
+	gettext_noop("weak")
+};
+
+char *types[] = {
+	gettext_noop("none"),
+	gettext_noop("object"),
+	gettext_noop("function"),
+	gettext_noop("section"),
+	gettext_noop("file")
+};
 
 
 static void usage(char *name)
 {
-	printf("usage:\n%s <file1> [file2] [...]\n", name);
+	printf(_("usage:\n%s <file1> [file2] [...]\n"), name);
 	return;
 }
 
@@ -65,12 +84,8 @@ int main(int argc, char *argv[])
 	loaderSymbolTable *symTable = NULL;
 	int count1, count2;
 
-	static char *bindings[] = {
-		"local", "global", "weak"
-	};
-	static char *types[] = {
-		"none", "object", "function", "section", "file"
-	};
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("nm");
 
 	// Need at least one argument
 	if (argc < 2)
@@ -92,21 +107,21 @@ int main(int argc, char *argv[])
 		if (fileData == NULL)
 		{
 			errno = ERR_NODATA;
-			printf("Can't load file \"%s\"\n", argv[count1]);
+			printf(_("Can't load file \"%s\"\n"), argv[count1]);
 			continue;
 		}
 
 		// Make sure it's a dynamic library or executable
 		if (loaderClassify(argv[count1], fileData, theFile.size, &class) == NULL)
 		{
-			printf("File type of \"%s\" is unknown\n", argv[count1]);
+			printf(_("File type of \"%s\" is unknown\n"), argv[count1]);
 			continue;
 		}
 		if (!(class.class & (LOADERFILECLASS_EXEC | LOADERFILECLASS_LIB)) ||
 			!(class.subClass & LOADERFILESUBCLASS_DYNAMIC))
 		{
 			errno = ERR_INVALID;
-			printf("\"%s\" is not a dynamic library or executable\n",
+			printf(_("\"%s\" is not a dynamic library or executable\n"),
 				argv[count1]);
 			continue;
 		}
@@ -119,7 +134,8 @@ int main(int argc, char *argv[])
 		symTable = loaderGetSymbols(argv[count1]);
 		if (symTable == NULL)
 		{
-			printf("Unable to get dynamic symbols from \"%s\".\n", argv[count1]);
+			printf(_("Unable to get dynamic symbols from \"%s\".\n"),
+				argv[count1]);
 			continue;
 		}
 
@@ -128,10 +144,11 @@ int main(int argc, char *argv[])
 			if (symTable->symbols[count2].name[0])
 			printf("%08x  %s  %s,%s\n", (unsigned)
 				symTable->symbols[count2].value, symTable->symbols[count2].name,
-				bindings[symTable->symbols[count2].binding],
-				types[symTable->symbols[count2].type]);
+				_(bindings[symTable->symbols[count2].binding]),
+				_(types[symTable->symbols[count2].type]));
 		}
 	}
 
 	return (errno);
 }
+

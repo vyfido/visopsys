@@ -49,12 +49,13 @@
 /system/boot/mbr.simple
 /system/boot/mbr.bootmenu
 /system/config/
-/system/config/administration.conf
+/system/config/administration-basic.conf=/system/config/administration.conf
 /system/config/desktop.conf
+/system/config/environment.conf
 /system/config/filebrowse.conf
 /system/config/kernel.conf
 /system/config/mount.conf
-/system/config/programs.conf
+/system/config/programs-basic.conf=/system/config/programs.conf
 /system/config/window.conf
 /system/fonts/
 /system/fonts/arial-bold-10.vbf
@@ -95,3 +96,4 @@
 /system/wallpaper/
 /system/wallpaper/backgrnd.jpg
 /temp/
+/users/

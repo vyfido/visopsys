@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -34,9 +34,6 @@
 #include "kernelProcessorX86.h"
 #include <string.h>
 
-#if defined(DEBUG)
-	#include "kernelPciCodes.h"
-#endif
 
 static pciSubClass subclass_old[] = {
 	{ 0x00, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
@@ -356,14 +353,14 @@ static void getClass(int classCode, pciClass **class)
 	int count;
 
 	for (count = 0; count < 256; count++)
-	{	
+	{
 		// If no more classcodes are in the list
 		if (pciClassNames[count].classCode == PCI_INVALID_CLASSCODE)
 		{
 			*class = NULL;
 			return;
 		}
-		
+
 		// If valid classcode is found
 		if (pciClassNames[count].classCode == classCode)
 		{
@@ -382,14 +379,14 @@ static void getSubClass(pciClass *class, int subClassCode,
 	int count;
 
 	for (count = 0; count < 256; count++)
-	{	
+	{
 		// If no more subclass codes are in the list
 		if (class->subClasses[count].subClassCode == PCI_INVALID_SUBCLASSCODE)
 		{
 			*subClass = NULL;
 			return;
 		}
-		
+
 		// If valid subclass code is found
 		if (class->subClasses[count].subClassCode == subClassCode)
 		{
@@ -436,54 +433,6 @@ static int getClassName(int classCode, int subClassCode, char **className,
 	*subClassName = (char *) subClass->name;
 	return (status = 0);
 }
-
-
-#if defined(DEBUG)
-static const char *getVendorFromCode(unsigned short vendorCode, int longDesc)
-{
-	const char *vendor = "unknown";
-	unsigned count;
-
-	for (count = 0; count < PCI_VENTABLE_LEN; count ++)
-	{
-		if (PciVenTable[count].VenId == vendorCode)
-		{
-			if (longDesc)
-				vendor = PciVenTable[count].VenFull;
-			else
-				vendor = PciVenTable[count].VenShort;
-
-			break;
-		}
-	}
-
-	return (vendor);
-}
-
-
-static const char *getDeviceFromCode(unsigned short vendorCode,
-	unsigned short deviceCode, int longDesc)
-{
-	const char *dev = "unknown";
-	unsigned count;
-
-	for (count = 0; count < PCI_DEVTABLE_LEN; count ++)
-	{
-		if ((PciDevTable[count].VenId == vendorCode) &&
-			(PciDevTable[count].DevId == deviceCode))
-		{
-			if (longDesc)
-				dev = PciDevTable[count].ChipDesc;
-			else
-				dev = PciDevTable[count].Chip;
-
-			break;
-		}
-	}
-
-	return (dev);
-}
-#endif
 
 
 static void deviceInfo2BusTarget(kernelBus *bus, int busNum, int dev,
@@ -608,7 +557,7 @@ static int driverWriteRegister(kernelBusTarget *target, int reg, int bitWidth,
 
 	int status = 0;
 	int bus, dev, function;
-  
+
 	makeBusDevFunc(target->id, bus, dev, function);
 
 	switch (bitWidth)
@@ -665,7 +614,7 @@ static int driverDeviceEnable(kernelBusTarget *target, int enable)
 
 	// Read the command register
 	readConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, &commandReg);
-  
+
 	if (enable)
 	{
 		if (enable & PCI_COMMAND_IOENABLE)
@@ -752,7 +701,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		for (deviceCount = 0; deviceCount < PCI_MAX_DEVICES; deviceCount ++)
 		{
 			for (functionCount = 0; functionCount < PCI_MAX_FUNCTIONS;
-				functionCount ++) 
+				functionCount ++)
 			{
 				// Just read the first dword of the header to get the device and
 				// vendor IDs
@@ -807,7 +756,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		for (deviceCount = 0; deviceCount < PCI_MAX_DEVICES; deviceCount ++)
 		{
 			for (functionCount = 0; functionCount < PCI_MAX_FUNCTIONS;
-				functionCount ++) 
+				functionCount ++)
 			{
 				// Just read the first dword of the header to get the device
 				// and vendor IDs
@@ -833,16 +782,11 @@ static int driverDetect(void *parent, kernelDriver *driver)
 					subclassName, className, busCount, deviceCount,
 					functionCount, pciDevice.device.vendorID,
 					pciDevice.device.deviceID);
-				kernelLog("     class:0x%02x sub:0x%02x int:0x%02x caps=%s",
+				kernelLog("  class:0x%02x sub:0x%02x int:0x%02x caps=%s",
 					pciDevice.device.classCode, pciDevice.device.subClassCode,
 					pciDevice.device.nonBridge.interruptLine,
 					((pciDevice.device.statusReg & PCI_STATUS_CAPSLIST)?
 						"yes" : "no"));
-
-				kernelDebug(debug_pci, "PCI vendor=\"%s\" device=\"%s\"",
-					getVendorFromCode(pciDevice.device.vendorID, 1),
-					getDeviceFromCode(pciDevice.device.vendorID,
-						pciDevice.device.deviceID, 1));
 
 				deviceInfo2BusTarget(bus, busCount, deviceCount, functionCount,
 					&pciDevice, &targets[numTargets]);
@@ -911,9 +855,9 @@ void kernelPciPrintHeader(pciDeviceInfo *devInfo)
 {
 	// Print out the supplied configuration header
 
-	if (devInfo == NULL)
+	if (!devInfo)
 	{
-		kernelError(kernel_error, "pciDeviceInfo pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -966,7 +910,7 @@ void kernelPciPrintHeader(pciDeviceInfo *devInfo)
 			kernelDebugHex(devInfo->device.nonBridge.deviceSpecific, 192);
 			break;
 
-    	default:
+		default:
 			kernelDebugError("Unsupported header type 0x%02x",
 				(devInfo->device.headerType & ~PCI_HEADERTYPE_MULTIFUNC));
 			break;
@@ -984,9 +928,10 @@ pciCapHeader *kernelPciGetCapability(pciDeviceInfo *devInfo,
 {
 	// Allows the caller to iterate through the capabilities of a device
 
-	if (devInfo == NULL)
+	// Check params
+	if (!devInfo)
 	{
-		kernelError(kernel_error, "pciDeviceInfo pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (capHeader = NULL);
 	}
 
@@ -1026,9 +971,10 @@ void kernelPciPrintCapabilities(pciDeviceInfo *devInfo)
 {
 	// Print out the supplied configuration header
 
-	if (devInfo == NULL)
+	// Check params
+	if (!devInfo)
 	{
-		kernelError(kernel_error, "pciDeviceInfo pointer is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -1043,22 +989,22 @@ void kernelPciPrintCapabilities(pciDeviceInfo *devInfo)
 		kernelDebug(debug_pci, "PCI --- start device capabilities ---");
 
 		capHeader = kernelPciGetCapability(devInfo, capHeader);
-		while(capHeader)
+		while (capHeader)
 		{
-			kernelDebug(debug_pci, "   id=0x%02x next=%d", capHeader->id,
+			kernelDebug(debug_pci, "  id=0x%02x next=%d", capHeader->id,
 				capHeader->next);
 			switch (capHeader->id)
 			{
 				case PCI_CAPABILITY_MSI:
 					msiCap = (pciMsiCap *) capHeader;
-					kernelDebug(debug_pci, "      MSI: msgCtrl=0x%04x "
+					kernelDebug(debug_pci, "  MSI: msgCtrl=0x%04x "
 						"msgAddr=%p msgData=0x%04x", msiCap->msgCtrl,
 						msiCap->msgAddr, msiCap->msgData);
 					break;
 
 				case PCI_CAPABILITY_MSIX:
 					msiXCap = (pciMsiXCap *) capHeader;
-					kernelDebug(debug_pci, "      MSI-X: msgCtrl=0x%04x "
+					kernelDebug(debug_pci, "  MSI-X: msgCtrl=0x%04x "
 						"msgUpperAddr=%p tableOffBir=%08x", msiXCap->msgCtrl,
 						msiXCap->msgUpperAddr, msiXCap->tableOffBir);
 					break;

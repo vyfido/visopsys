@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -53,13 +53,13 @@ struct lconv _c_locale = {
 };
 
 // Locale categories
-char _lc_all[16];
-char _lc_collate[16];
-char _lc_ctype[16];
-char _lc_messages[16];
-char _lc_monetary[16];
-char _lc_numeric[16];
-char _lc_time[16];
+char _lc_all[LOCALE_MAX_NAMELEN + 1];
+char _lc_collate[LOCALE_MAX_NAMELEN + 1];
+char _lc_ctype[LOCALE_MAX_NAMELEN + 1];
+char _lc_messages[LOCALE_MAX_NAMELEN + 1];
+char _lc_monetary[LOCALE_MAX_NAMELEN + 1];
+char _lc_numeric[LOCALE_MAX_NAMELEN + 1];
+char _lc_time[LOCALE_MAX_NAMELEN + 1];
 
 
 char *_getLocaleCategory(int category)
@@ -96,16 +96,16 @@ static char *setCategory(const char *name, char *category, const char *locale)
 		locale = getenv(name);
 		if (locale)
 		{
-			strncpy(category, locale, 15);
+			strncpy(category, locale, LOCALE_MAX_NAMELEN);
 			free((void *) locale);
 		}
 		else
 			strcpy(category, _c_locale_name);
 	}
 	else
-		strncpy(category, locale, 15);
+		strncpy(category, locale, LOCALE_MAX_NAMELEN);
 
-	category[15] = '\0';
+	category[LOCALE_MAX_NAMELEN] = '\0';
 	return (category);
 }
 
@@ -160,3 +160,4 @@ char *setlocale(int category, const char *locale)
 
 	return (returnLocale);
 }
+

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -58,7 +58,7 @@
 // Sub-classes of CPUs
 #define DEVICESUBCLASS_CPU_X86				(DEVICECLASS_CPU | 0x01)
 
-// System device subclasses                 
+// System device subclasses
 #define DEVICESUBCLASS_SYSTEM_BIOS			(DEVICECLASS_SYSTEM | 0x01)
 #define DEVICESUBCLASS_SYSTEM_BIOS32		(DEVICECLASS_SYSTEM | 0x02)
 #define DEVICESUBCLASS_SYSTEM_BIOSPNP		(DEVICECLASS_SYSTEM | 0x03)
@@ -145,3 +145,4 @@ typedef struct {
 
 #define _DEVICE_H
 #endif
+

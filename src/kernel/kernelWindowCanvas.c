@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -25,6 +25,7 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelImage.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
@@ -57,7 +58,7 @@ static int draw(kernelWindowComponent *component)
 
 	int status = 0;
 
-	kernelDebug(debug_gui, "Canvas draw");
+	kernelDebug(debug_gui, "WindowCanvas draw");
 
 	if (saveDraw)
 	{
@@ -79,8 +80,8 @@ static int resize(kernelWindowComponent *component, int width, int height)
 	kernelWindowCanvas *canvas = component->data;
 	image tmpImage;
 
-	kernelDebug(debug_gui, "Canvas resize from %d,%d to %d,%d", component->width,
-		component->height, width, height);
+	kernelDebug(debug_gui, "WindowCanvas resize from %d,%d to %d,%d",
+		component->width, component->height, width, height);
 
 	kernelMemCopy((image *) &canvas->image, &tmpImage, sizeof(image));
 
@@ -102,8 +103,8 @@ static int resize(kernelWindowComponent *component, int width, int height)
 
 static int focus(kernelWindowComponent *component, int yesNo)
 {
-	kernelDebug(debug_gui, "Canvas focus");
-	
+	kernelDebug(debug_gui, "WindowCanvas focus");
+
 	drawFocus(component, yesNo);
 	component->window->update(component->window, (component->xCoord - 1),
 		(component->yCoord - 1), (component->width + 2),
@@ -123,7 +124,7 @@ static int setData(kernelWindowComponent *component, void *data, int size
 	windowDrawParameters *params = data;
 	image tmpImage;
 
-	kernelDebug(debug_gui, "Canvas set data");
+	kernelDebug(debug_gui, "WindowCanvas set data");
 
 	int xCoord1 = component->xCoord + params->xCoord1;
 	int xCoord2 = component->xCoord + params->xCoord2;
@@ -221,10 +222,10 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 
 	// Free our temporary image data
 	kernelImageFree(&tmpImage);
-		
+
 	if (component == NULL)
 		return (component);
-		
+
 	// Now override some bits
 	component->subType = canvasComponentType;
 	component->flags |= WINFLAG_RESIZABLE;
@@ -238,3 +239,4 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 
 	return (component);
 }
+

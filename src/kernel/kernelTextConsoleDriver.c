@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,7 +40,7 @@ static void scrollBuffer(kernelTextArea *area, int lines)
 	if ((area->rows + area->scrollBackLines) < area->maxBufferLines)
 		area->scrollBackLines += min(lines, (area->maxBufferLines -
 			(area->rows + area->scrollBackLines)));
-	
+
 	kernelMemCopy((TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
 		TEXTAREA_FIRSTSCROLLBACK(area),
 		((area->rows + area->scrollBackLines) * (area->columns * 2)));
@@ -113,7 +113,7 @@ static void setCursor(kernelTextArea *area, int onOff)
 static void scrollLine(kernelTextArea *area)
 {
 	// This will scroll the screen by 1 line
-	
+
 	int cursorState = area->cursorState;
 	int lineLength = (area->columns * area->bytesPerChar);
 	char *lastRow = NULL;
@@ -165,7 +165,7 @@ static int screenDraw(kernelTextArea *area)
 	// Copy from the buffer to the visible area, minus any scrollback lines
 	bufferAddress = TEXTAREA_FIRSTVISIBLE(area);
 	bufferAddress -= (area->scrolledBackLines * area->columns * 2);
-	
+
 	kernelMemCopy(bufferAddress, area->visibleData,
 		(area->rows * area->columns * 2));
 
@@ -325,7 +325,7 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 	if (cursorState)
 		// Turn the cursor back on
 		setCursor(area, 1);
-	
+
 	return (0);
 }
 
@@ -421,17 +421,17 @@ static int screenRestore(kernelTextArea *area, textScreen *screen)
 
 	if (screen->data)
 	{
-		kernelMemCopy(screen->data, TEXTAREA_FIRSTVISIBLE(area), 
+		kernelMemCopy(screen->data, TEXTAREA_FIRSTVISIBLE(area),
 			(area->rows * area->columns * 2));
 
 		// Copy to the visible area
-		kernelMemCopy(screen->data, area->visibleData, 
+		kernelMemCopy(screen->data, area->visibleData,
 			(area->rows * area->columns * 2));
 	}
 
 	area->cursorColumn = screen->column;
 	area->cursorRow = screen->row;
-	
+
 	return (0);
 }
 

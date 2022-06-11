@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -49,18 +49,21 @@ usage.  It is a graphical utility combining the same functionalities as the
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
 
-#define SHOW_MAX_PROCESSES		100
-#define PROCESS_STRING_LENGTH	64
+#define WINDOW_TITLE			_("Program Manager")
 #define USEDBLOCKS_STRING		_("Memory blocks: ")
 #define USEDMEM_STRING			_("Used memory: ")
 #define FREEMEM_STRING			_("Free memory: ")
+#define DISKPERF_STRING			_("Disk performance:")
 #define READPERF_STRING			_("Read: ")
 #define WRITEPERF_STRING		_("Write: ")
 #define IORATE_STRING			_("K/tick")
+#define SHOW_MAX_PROCESSES		100
+#define PROCESS_STRING_LENGTH	64
 
 static int processId = 0;
 static int privilege = 0;
@@ -71,6 +74,7 @@ static objectKey window = NULL;
 static objectKey memoryBlocksLabel = NULL;
 static objectKey memoryUsedLabel = NULL;
 static objectKey memoryFreeLabel = NULL;
+static objectKey diskPerfLabel = NULL;
 static objectKey diskReadPerfLabel = NULL;
 static objectKey diskWritePerfLabel = NULL;
 static objectKey processList = NULL;
@@ -86,10 +90,10 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -125,7 +129,7 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 		memcpy(&processes[numProcesses++], &tmpProcessArray[count],
 			sizeof(process));
 		tmpProcessArray[count].name[0] = '\0';
-			
+
 		// Now sort any children behind it.
 		sortChildren(tmpProcessArray, tmpNumProcesses);
 	}
@@ -330,7 +334,7 @@ static void runProgram(void)
 
 	status =
 	windowNewFileDialog(NULL, _("Enter command"),
-		_("Please enter a command to run:"), "/programs", commandLine,
+		_("Please enter a command to run:"), PATH_PROGRAMS, commandLine,
 		MAX_PATH_NAME_LENGTH, 0);
 	if (status != 1)
 		goto out;
@@ -395,7 +399,7 @@ static int setPriority(int whichProcess)
 
 	// Get the process to change
 	changeProcess = &processes[whichProcess];
-	
+
 	newPriority = getNumberDialog(_("Set priority"),
 		_("Please enter the desired priority"));
 	if (newPriority < 0)
@@ -421,7 +425,7 @@ static int killProcess(int whichProcess)
 
 	// Get the process to kill
 	theProcess = &processes[whichProcess];
-	
+
 	status = multitaskerKillProcess(theProcess->processId, 0);
 
 	// Refresh our list of processes
@@ -432,25 +436,51 @@ static int killProcess(int whichProcess)
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("progman");
+
+	// Refresh the 'disk performance' label
+	windowComponentSetData(diskPerfLabel, DISKPERF_STRING,
+		strlen(DISKPERF_STRING));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int processNumber = 0;
 
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+	// Check for window events.
+	if (key == window)
 	{
-		stop = 1;
-		windowGuiStop();
-		windowDestroy(window);
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+		{
+			stop = 1;
+			windowGuiStop();
+			windowDestroy(window);
+		}
 	}
-	
+
 	else if ((key == showThreadsCheckbox) && (event->type & EVENT_SELECTION))
 	{
-		windowComponentGetSelected(showThreadsCheckbox, &showThreads);  
+		windowComponentGetSelected(showThreadsCheckbox, &showThreads);
 		getUpdate();
 		windowComponentSetData(processList, processListParams, numProcesses);
 	}
-	
+
 	else
 	{
 		windowComponentGetSelected(processList, &processNumber);
@@ -488,8 +518,8 @@ static void constructWindow(void)
 	char tmp[80];
 
 	// Create a new window
-	window = windowNew(processId, _("Program Manager"));
-	if (window == NULL)
+	window = windowNew(processId, WINDOW_TITLE);
+	if (!window)
 		return;
 
 	bzero(&params, sizeof(componentParameters));
@@ -512,7 +542,7 @@ static void constructWindow(void)
 	params.gridX += 1;
 	params.gridY = 0;
 	params.padBottom = 0;
-	windowNewTextLabel(window, _("Disk performance:"), &params);
+	diskPerfLabel = windowNewTextLabel(window, DISKPERF_STRING, &params);
 
 	params.gridY += 1;
 	sprintf(tmp, "%s0%s", READPERF_STRING, IORATE_STRING);
@@ -554,7 +584,7 @@ static void constructWindow(void)
 	params.padRight = 5;
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
 	container = windowNewContainer(window, "rightContainer", &params);
-	
+
 	// Create a 'run program' button
 	params.gridX = 0;
 	params.gridY = 0;
@@ -591,13 +621,9 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	int guiThreadPid = 0;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("progman");
 
 	// Only work in graphics mode
@@ -656,3 +682,4 @@ int main(int argc, char *argv[])
 	free(processListParams);
 	return (status = 0);
 }
+

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -57,20 +57,24 @@ Examples:
 */
 
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
 #include <sys/disk.h>
 
+#define _(string) gettext(string)
+
 typedef enum { bytes, kilobytes, megabytes, gigabytes } unit;
 
 
 static void usage(char *name)
 {
-	printf("usage:\n");
-	printf("%s <create> <bytes>[unit]\n-or-\n", name);
-	printf("%s <destroy> <name>\n", name);
+	printf("%s", _("usage:\n"));
+	printf(_("%s <create> <bytes>[unit]\n-or-\n"), name);
+	printf(_("%s <destroy> <name>\n"), name);
 	return;
 }
 
@@ -84,7 +88,10 @@ int main(int argc, char *argv[])
 	unit units = bytes;
 	unsigned size = 0;
 	char name[DISK_MAX_NAMELENGTH];
-	
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("ramdisk");
+
 	// There need to be at least 2 arguments
 	if ((argc < 3) || (argc > 4))
 	{
@@ -96,7 +103,7 @@ int main(int argc, char *argv[])
 	if (!strcasecmp(argv[1], "create"))
 		create = 1;
 	if (!strcasecmp(argv[1], "destroy"))
-		destroy = 1; 
+		destroy = 1;
 
 	if (!create && !destroy)
 	{
@@ -150,11 +157,11 @@ int main(int argc, char *argv[])
 		status = diskRamDiskCreate(size, name);
 		if (status < 0)
 		{
-			fprintf(stderr, "Error creating RAM disk\n");
+			fprintf(stderr, "%s", _("Error creating RAM disk\n"));
 			return (status);
 		}
 		else
-			printf("Created RAM disk %s size %u\n", name, size);
+			printf(_("Created RAM disk %s size %u\n"), name, size);
 	}
 
 	else if (destroy)
@@ -163,13 +170,14 @@ int main(int argc, char *argv[])
 		status = diskRamDiskDestroy(name);
 		if (status < 0)
 		{
-			fprintf(stderr, "Error destroying RAM disk %s\n", name);
+			fprintf(stderr, _("Error destroying RAM disk %s\n"), name);
 			return (status);
 		}
 		else
-			printf("Destroyed RAM disk %s\n", name);
+			printf(_("Destroyed RAM disk %s\n"), name);
 	}
 
-	// Return 
+	// Return
 	return (status = 0);
 }
+

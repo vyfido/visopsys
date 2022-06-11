@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -28,16 +28,16 @@
 
 _X_ int vshDeleteFile(const char *deleteFile)
 {
-  // Desc: Delete the file specified by the name 'deleteFile'.  'deleteFile' must be an absolute pathname, beginning with '/'.
+	// Desc: Delete the file specified by the name 'deleteFile'.  'deleteFile' must be an absolute pathname, beginning with '/'.
 
-  int status = 0;
+	int status = 0;
 
-  // Make sure file name isn't NULL
-  if (deleteFile == NULL)
-    return (errno = ERR_NULLPARAMETER);
-  
-  status = fileDelete(deleteFile);
-  if (status < 0)
-    errno = status;
-  return (status);
+	// Make sure file name isn't NULL
+	if (deleteFile == NULL)
+		return (errno = ERR_NULLPARAMETER);
+
+	status = fileDelete(deleteFile);
+	if (status < 0)
+		errno = status;
+	return (status);
 }

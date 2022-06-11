@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -29,8 +29,8 @@
 
 _X_ void vshMakeAbsolutePath(const char *orig, char *new)
 {
-  // Desc: Turns a filename, specified by 'orig', into an absolute pathname 'new'.  This basically just amounts to prepending the name of the current directory (plus a '/') to the supplied name.  'new' must be a buffer large enough to hold the entire filename.
+	// Desc: Turns a filename, specified by 'orig', into an absolute pathname 'new'.  This basically just amounts to prepending the name of the current directory (plus a '/') to the supplied name.  'new' must be a buffer large enough to hold the entire filename.
 
-  // Use shared code
-  #include "../shared/abspath.c"
+	// Use shared code
+	#include "../shared/abspath.c"
 }

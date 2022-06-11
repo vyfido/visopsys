@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -104,7 +104,7 @@ static inline unsigned getSectorNumber(extInternalData *extData,
 {
 	// Given a filesystem and a block number, calculate the sector number
 	// (which is dependent on filesystem block size)
-	return (blockNum * extData->sectorsPerBlock); 
+	return (blockNum * extData->sectorsPerBlock);
 }
 
 
@@ -226,7 +226,7 @@ static int readInode(extInternalData *extData, unsigned number,
 
 	// Calculate the relevant sector of the inode table
 	inodeTableBlock = (((number % extData->superblock.inodes_per_group) *
-		extData->superblock.inode_size) / extData->blockSize); 
+		extData->superblock.inode_size) / extData->blockSize);
 
 	// Get a new temporary buffer to read the inode table block
 	buffer = kernelMalloc(extData->blockSize);
@@ -339,7 +339,7 @@ static int read(extInternalData *extData, kernelFileEntry *fileEntry,
 	extInode *inode = NULL;
 	void *dataPointer = NULL;
 	int count;
-  
+
 	inode = (extInode *) fileEntry->driverData;
 
 	// If numBlocks is zero, that means read the whole file
@@ -537,7 +537,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 			// Deleted file perhaps?
 			entry += realEntry.rec_len;
 			continue;
-		}      
+		}
 
 		realEntry.name_len = *((unsigned char *)(entry + 6));
 		realEntry.file_type = *((unsigned char *)(entry + 7));
@@ -550,7 +550,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 			kernelFree(buffer);
 			return (status = ERR_NOCREATE);
 		}
-      
+
 		inode = (extInode *) fileEntry->driverData;
 		if (inode == NULL)
 		{
@@ -566,9 +566,9 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 			kernelError(kernel_error, "Unable to read inode for directory "
 				"entry \"%s\"", realEntry.name);
 			kernelFree(buffer);
-			return (status);  
+			return (status);
 		}
-      
+
 		strncpy((char *) fileEntry->name, (char *) realEntry.name,
 			MAX_NAME_LENGTH);
 
@@ -579,7 +579,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 				break;
 			case EXT_S_IFLNK:
 				fileEntry->type = linkT;
-				break; 
+				break;
 			case EXT_S_IFREG:
 			default:
 				fileEntry->type = fileT;
@@ -656,19 +656,19 @@ static int detect(kernelDisk *theDisk)
 	// This function is used to determine whether the data on a disk structure
 	// is using a EXT filesystem.  It uses a simple test or two to determine
 	// simply whether this is a EXT volume.  Any data that it gathers is
-	// discarded when the call terminates.  It returns 1 for true, 0 for false, 
+	// discarded when the call terminates.  It returns 1 for true, 0 for false,
 	// and negative if it encounters an error
 
 	int status = 0;
 	extSuperblock superblock;
-  
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -772,12 +772,12 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params.  It's okay for all other params to be NULL.
-	if ((theDisk == NULL) || (type == NULL))
+	if (!theDisk || !type)
 	{
-		kernelError(kernel_error, "Disk structure or FS type is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
-  
+
 	if (strncasecmp(type, FSNAME_EXT, strlen(FSNAME_EXT)) ||
 		((strlen(type) > strlen(FSNAME_EXT)) &&
 			strcasecmp(type, FSNAME_EXT"2")))
@@ -814,7 +814,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		blockSize = 4096;
 
 	sectsPerBlock = (blockSize / physicalDisk->sectorSize);
- 
+
 	superblock.blocks_count = (theDisk->numSectors / sectsPerBlock);
 	superblock.r_blocks_count = ((superblock.blocks_count / 100) * 5); // 5%
 	superblock.first_data_block = (1024 / blockSize); // Always 1 or 0
@@ -875,7 +875,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	for (count1 = 0; count1 < blockGroups; count1 ++)
 	{
 		unsigned currentBlock = (count1 * superblock.blocks_per_group);
-      
+
 		if (count1 < (blockGroups - 1))
 		{
 			groupDescs[count1].free_blocks_count = superblock.blocks_per_group;
@@ -886,7 +886,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 			groupDescs[count1].free_blocks_count =
 				(superblock.blocks_count -
 					(count1 * superblock.blocks_per_group));
-			groupDescs[count1].free_inodes_count = 
+			groupDescs[count1].free_inodes_count =
 				(superblock.inodes_count -
 					(count1 * superblock.inodes_per_group));
 		}
@@ -937,9 +937,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		if (isSuperGroup(count1))
 		{
 			// Superblock
-	  
+
 			superblock.block_group_nr = count1;
-	  
+
 			if (currentBlock == 0)
 				status =
 					kernelDiskWriteSectors((char *) theDisk->name,
@@ -1166,12 +1166,12 @@ static int clobber(kernelDisk *theDisk)
 	extSuperblock superblock;
 
 	// Check params.
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
-  
+
 	// In the case of EXT, we simply remove the EXT signature from where the
 	// superblock would be.
 	status = readSuperblock(theDisk, &superblock);
@@ -1196,9 +1196,9 @@ static uquad_t getFreeBytes(kernelDisk *theDisk)
 		return (0);
 
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (0);
 	}
 
@@ -1206,7 +1206,7 @@ static uquad_t getFreeBytes(kernelDisk *theDisk)
 	extData = getExtData(theDisk);
 	if (extData == NULL)
 		return (0);
-  
+
 	return (extData->superblock.free_blocks_count * extData->blockSize);
 }
 
@@ -1220,14 +1220,14 @@ static int mount(kernelDisk *theDisk)
 
 	int status = 0;
 	extInternalData *extData = NULL;
-  
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure the disk isn't NULL
-	if (theDisk == NULL)
+	// Check params
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1267,14 +1267,14 @@ static int unmount(kernelDisk *theDisk)
 
 	int status = 0;
 	extInternalData *extData = NULL;
-  
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "NULL disk structure");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1286,7 +1286,7 @@ static int unmount(kernelDisk *theDisk)
 	// Deallocate any global filesystem memory
 	kernelFree(extData->groups);
 	kernelFree((void *) extData);
-  
+
 	// Finally, remove the reference from the filesystem structure
 	theDisk->filesystem.filesystemData = NULL;
 
@@ -1302,14 +1302,14 @@ static int newEntry(kernelFileEntry *entry)
 	// to attach EXT-specific data to the file entry
 
 	int status = 0;
-  
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (entry == NULL)
+	if (!entry)
 	{
-		kernelError(kernel_error, "NULL file entry");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1344,14 +1344,14 @@ static int inactiveEntry(kernelFileEntry *entry)
 	// to deallocate our EXT-specific data from the file entry
 
 	int status = 0;
-  
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (entry == NULL)
+	if (!entry)
 	{
-		kernelError(kernel_error, "NULL file entry");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1394,9 +1394,9 @@ static int resolveLink(kernelFileEntry *linkEntry)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (linkEntry == NULL)
+	if (!linkEntry)
 	{
-		kernelError(kernel_error, "Link entry is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1404,7 +1404,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	extData = getExtData(linkEntry->disk);
 	if (extData == NULL)
 		return (0);
-  
+
 	inode = (extInode *) linkEntry->driverData;
 	if (inode == NULL)
 	{
@@ -1460,7 +1460,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
 		// it's supposed to be relative to the start of the filesystem.
 
 		if (fileName[0] != '/')
-			return (status = ERR_NOSUCHFILE); 
+			return (status = ERR_NOSUCHFILE);
 
 		sprintf(tmpName, "%s/%s", ((kernelDisk *) linkEntry->disk)->
 			filesystem.mountPoint, fileName);
@@ -1493,9 +1493,9 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((theFile == NULL) || (buffer == NULL))
+	if (!theFile || !buffer)
 	{
-		kernelError(kernel_error, "Null file or buffer parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1503,8 +1503,8 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 	extData = getExtData(theFile->disk);
 	if (extData == NULL)
 		return (status = ERR_BADDATA);
- 
-	inode = (extInode *) theFile->driverData; 
+
+	inode = (extInode *) theFile->driverData;
 	if (inode == NULL)
 	{
 		kernelError(kernel_error, "File \"%s\" has no private data",
@@ -1525,14 +1525,14 @@ static int readDir(kernelFileEntry *directory)
 
 	int status = 0;
 	extInternalData *extData = NULL;
-  
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (directory == NULL)
+	if (!directory)
 	{
-		kernelError(kernel_error, "Directory parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1597,7 +1597,7 @@ int kernelFilesystemExtInitialize(void)
 	// Initialize the driver
 
 	int status = 0;
-  
+
 	// Register our driver
 	status = kernelSoftwareDriverRegister(extDriver, &defaultExtDriver);
 

@@ -657,10 +657,10 @@ static time_t mkntfs_time(void)
 static void *ntfs_calloc(size_t nmemb, size_t size)
 {
 	void *p;
-	
+
 	p = calloc(nmemb, size);
 	if (!p)
-		ntfs_log_perror("Failed to calloc() %lld bytes", 
+		ntfs_log_perror("Failed to calloc() %lld bytes",
 				(long long)nmemb * size);
 	return p;
 }
@@ -2993,7 +2993,7 @@ static int initialize_quota(MFT_RECORD *m)
 	INDEX_ENTRY *idx_entry_o, *idx_entry_q1, *idx_entry_q2;
 	QUOTA_O_INDEX_DATA *idx_entry_o_data;
 	QUOTA_CONTROL_ENTRY *idx_entry_q1_data, *idx_entry_q2_data;
-	
+
 	err = 0;
 	/* q index entry num 1 */
 	q1_size = 0x48;
@@ -4075,7 +4075,7 @@ static BOOL mkntfs_initialize_rl_logfile(void)
 			g_logfile_size = (volume_size / 100) &
 					~(g_vol->cluster_size - 1);
 	} else	{
-		/* 
+		/*
 		 * FIXME: The $LogFile size is 64 MiB upwards from 12GiB but
 		 * the "200" divider below apparently approximates "100" or
 		 * some other value as the volume size decreases. For example:

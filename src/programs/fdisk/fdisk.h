@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -23,17 +23,16 @@
 
 #if !defined(_FDISK_H)
 
+#include <sys/color.h>
 #include <sys/disk.h>
 #include <sys/guid.h>
-#include <sys/image.h>
+#include <sys/paths.h>
 #include <sys/progress.h>
 #include <sys/types.h>
 #include <sys/window.h>
 
-#define TEMP_DIR						"/temp"
-#define BOOT_DIR						"/system/boot"
-#define BACKUP_MBR						BOOT_DIR"/backup-%s.mbr"
-#define SIMPLE_MBR_FILE					BOOT_DIR"/mbr.simple"
+#define BACKUP_MBR						PATH_SYSTEM_BOOT "/backup-%s.mbr"
+#define SIMPLE_MBR_FILE					PATH_SYSTEM_BOOT "/mbr.simple"
 
 #define ENTRYOFFSET_DRV_ACTIVE			0
 #define ENTRYOFFSET_START_HEAD			1
@@ -86,7 +85,7 @@ typedef struct {
 	unsigned endHead;
 	unsigned endSector;
 
-} rawGeom;  
+} rawGeom;
 
 // This stucture represents a "raw slice", containing just the information
 // passed between the main program and the disk-label-specific code in,

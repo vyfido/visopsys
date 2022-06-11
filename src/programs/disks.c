@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -48,11 +48,15 @@ hd0.  Logical partitions are specified with letters, in partition table order
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 
 int main(int argc __attribute__((unused)), char *argv[])
@@ -61,6 +65,9 @@ int main(int argc __attribute__((unused)), char *argv[])
 	int availableDisks = 0;
 	disk *diskInfo = NULL;
 	int count;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("disks");
 
 	// Call the kernel to give us the number of available disks
 	availableDisks = diskGetCount();
@@ -82,13 +89,13 @@ int main(int argc __attribute__((unused)), char *argv[])
 		return (status);
 	}
 
-	printf("\nDisk name");
+	printf("%s", _("\nDisk name"));
 	textSetColumn(11);
-	printf("Partition");
+	printf("%s", _("Partition"));
 	textSetColumn(37);
-	printf("Filesystem");
+	printf("%s", _("Filesystem"));
 	textSetColumn(49);
-	printf("Mount\n");
+	printf("%s", _("Mount\n"));
 
 	for (count = 0; count < availableDisks; count ++)
 	{
@@ -113,3 +120,4 @@ int main(int argc __attribute__((unused)), char *argv[])
 	free(diskInfo);
 	return (status = errno);
 }
+

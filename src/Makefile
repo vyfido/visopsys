@@ -1,26 +1,27 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
 # This is the top-level source directories Makefile.
 
-BUILDDIR	= ../build
-
 all:
-	mkdir -p ${BUILDDIR}
-	make -C osloader
-	make -C include
-	make -C lib
-	make -C kernel
-	make -C programs
+	${MAKE} -C osloader
+	${MAKE} -C include
+	${MAKE} -C lib DEBUG=${DEBUG}
+	${MAKE} -C kernel DEBUG=${DEBUG}
+	${MAKE} -C programs DEBUG=${DEBUG}
+
+debug:
+	${MAKE} all DEBUG=1
 
 clean:
-	rm -Rf *~ *.o core
-	make -C osloader clean
-	make -C include clean
-	make -C lib clean
-	make -C kernel clean
-	make -C programs clean
+	${MAKE} -C osloader clean
+	${MAKE} -C include clean
+	${MAKE} -C lib clean
+	${MAKE} -C kernel clean
+	${MAKE} -C programs clean
+	rm -Rf *~ core
+

@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -76,7 +76,7 @@ bootCode:
 	sti
 
 	pusha
-	
+
 	;; The MBR sector will pass the boot device number to us in the DL
 	;; register.
 	mov byte [DISK], DL
@@ -92,14 +92,14 @@ bootCode:
 	push word LOADMSG
 	call print
 	add SP, 2
-	
+
 	;; Get disk parameters
 	%include "bootsect-diskparms.s"
 
 	;; Make sure there's at least one boot target
 	cmp word [NUM_TARGETS], 0
 	jne .okChoices
-	
+
 	push word NOTARGETS
 	call print
 	add SP, 2
@@ -116,12 +116,12 @@ bootCode:
 	mov word [RTCSECONDS], AX
 	mov EAX, dword [TIMEOUT_SECONDS]
 	mov word [TIMEOUTSECS], AX
-	
+
 	;; Disable the cursor
 	mov CX, 2000h
 	mov AH, 01h
 	int 10h
-	
+
 	.showChoices:
 	call display
 
@@ -139,7 +139,7 @@ bootCode:
 	je .noSecond
 	mov word [RTCSECONDS], AX
 	mov AH, 02
-	mov BH, VIDEOPAGE 
+	mov BH, VIDEOPAGE
 	mov DX, word [TIMEOUTSECPOS]
 	int 10h
 	push word [TIMEOUTSECS]
@@ -151,7 +151,7 @@ bootCode:
 	je .bootSelected	; Timer reached zero
 	sub word [TIMEOUTSECS], 1
 	.noSecond:
-	
+
 	;; Check for a key press
 	mov AX, 0100h
 	int 16h
@@ -165,13 +165,13 @@ bootCode:
 	int 16h
 
 	;; If up or down cursor, change selected one appropriately
-	
+
 	cmp AH, 48h		; Up
 	jne .notUp
 	cmp word [SELECTEDTARGET], 0
 	jle .notUp
 	sub word [SELECTEDTARGET], 1
-	
+
 	.notUp:
 	cmp AH, 50h		; Down
 	jne .notDown
@@ -184,7 +184,7 @@ bootCode:
 
 	cmp AH, 1Ch		; Enter
 	je .bootSelected
-	
+
 	jmp .showChoices
 
 	.bootSelected:
@@ -212,18 +212,18 @@ bootCode:
 
 	.foundEntry:
 	mov word [PART_TABLE], SI
-	
+
 	push word BOOTING
 	call print
 	add SP, 2
-	
+
 	;; Re-enable the cursor
 	mov CX, 0607h
 	mov AH, 01h
 	int 10h
 
 	;; Get the selected entry start sector
-	
+
 	;; Load the target bootsector
 	push word 1				; Read 1 sector
 	push word 7C00h				; Offset where we'll move it
@@ -231,11 +231,11 @@ bootCode:
 	push dword [STARTSECTOR]
 	call read
 	add SP, 10
-	
+
 	popa
 
 	mov SI, word [PART_TABLE]
-	
+
 	;; Go
 	jmp 0000:7C00h
 
@@ -263,11 +263,11 @@ display:
 	;; Loop through the targets and print them
 	mov SI, TARGETS
 	xor CX, CX
-	
+
 	.targetLoop:
 	cmp CX, word [SELECTEDTARGET]
 	jne .noReverse
-	
+
 	;; Reverse foreground and background colors
 	mov byte [FGCOLOR], BACKGROUNDCOLOR
 	mov byte [BGCOLOR], FOREGROUNDCOLOR
@@ -281,21 +281,21 @@ display:
 	push SI
 	call print
 	add SP, 2
-	
+
 	push word NEWLINE
 	call print
 	add SP, 2
-	
+
 	add SI, bootTarget_size
 
 	;; Normal colors
 	mov byte [FGCOLOR], FOREGROUNDCOLOR
 	mov byte [BGCOLOR], BACKGROUNDCOLOR
-	
+
 	inc CX
 	cmp CX, word [NUM_TARGETS]
 	jb .targetLoop
-	
+
 	call indent
 	push word STRAIGHTLINE
 	call print
@@ -308,7 +308,7 @@ display:
 	call print
 	;; Get the cursor position
 	mov AH, 03
-	mov BH, VIDEOPAGE 
+	mov BH, VIDEOPAGE
 	int 10h
 	mov word [TIMEOUTSECPOS], DX
 	push word [TIMEOUTSECS]
@@ -317,7 +317,7 @@ display:
 	call print
 	add SP, 6
 	.noTimeout:
-	
+
 	popa
 	ret
 
@@ -342,7 +342,7 @@ setTextMode:
 
 	;; We will try to change text modes to a more attractive 80x50
 	;; mode.  This takes a couple of steps
-	
+
 	;; Change the number of scan lines in the text display
 	mov AX, 1202h		; 400 scan lines
 	mov BX, 0030h		; Change scan lines command
@@ -354,7 +354,7 @@ setTextMode:
 
 	;; The following call messes with ES, so save it
 	push ES
-	
+
 	;; Change the VGA font to match a 80x50 configuration
 	mov AX, 1112h		; 8x8 character set
 	mov BL, 0
@@ -365,12 +365,12 @@ setTextMode:
 
 	popa
 	ret
-	
+
 
 clearScreen:
 
 	pusha
-	
+
         ;; Blank the screen
         mov AX, 0700h
         mov BH, byte [BGCOLOR]
@@ -391,7 +391,7 @@ clearScreen:
 	popa
 	ret
 
-	
+
 readTimer:
 	;; Save a word on the stack for our return value
 	push word 0
@@ -418,32 +418,32 @@ readTimer:
 	;; Re-enable NMI
 	mov AL, 0
 	out 70h, AL
-	
+
 	popa
 	xor EAX, EAX
 	pop AX			; Result
 	ret
 
-	
+
 indent:
 	pusha
 
 	;; Get the cursor position
 	mov AH, 03
-	mov BH, VIDEOPAGE 
+	mov BH, VIDEOPAGE
 	int 10h
 
 	;; Adjust column
 	add DL, 1
 
 	mov AH, 02h
-	mov BH, VIDEOPAGE 
+	mov BH, VIDEOPAGE
 	int 10h
 
 	popa
 	ret
 
-	
+
 print:
 	pusha
 
@@ -452,7 +452,7 @@ print:
 
 	;; Get cursor position in DX
 	mov AH, 03h
-	mov BH, VIDEOPAGE 
+	mov BH, VIDEOPAGE
 	int 10h
 	push DX
 
@@ -478,7 +478,7 @@ print:
 	pop DX
 	mov BP, word [SS:(BP + 18)]
 	int 10h
-	
+
 	popa
 	ret
 
@@ -553,7 +553,7 @@ IOError:
 	.fatalErrorLoop:
 	jmp .fatalErrorLoop
 
-	
+
 	%include "bootsect-read.s"
 
 
@@ -563,7 +563,7 @@ IOError:
 
 	SEGMENT .data
 	ALIGN 4
-	
+
 LOADMSG		db 0Dh, 0Ah, ' Visopsys Boot Menu' , 0Dh, 0Ah
 		db ' Copyright (C) 1998-2014 J. Andrew McLaughlin', 0Dh, 0Ah
 		db 0Dh, 0Ah, 0
@@ -593,7 +593,7 @@ TIMEOUTSECS     dw 0
 ;; For printing numbers
 LEADZERO	db 0
 REMAINDER	dd 0
-TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0, 
+TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0,
 		db '7', 0, '8', 0, '9', 0
 
 ;; For loading

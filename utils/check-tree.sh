@@ -2,7 +2,7 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  check-tree.sh
 ##
 
@@ -28,7 +28,8 @@ fi
 for FILE in `cat $BUILD_FILES` ; do
 	FOUND=0
 	for INSTFILE in $INST_FILES ; do
-		if [ `grep -c $FILE $INSTFILE` -ne 0 ] ; then
+		GREP=`grep $FILE $INSTFILE | cut -f1 -d=`
+		if [ "$GREP" != "" ] ; then
 			FOUND=1
 			break
 		fi
@@ -41,7 +42,7 @@ done
 
 # Make sure each item listed in the install files is in the build tree
 for INSTFILE in $INST_FILES ; do
-	for FILE in `cat $INSTFILE | grep -v ^#` ; do
+	for FILE in `cat $INSTFILE | grep -v ^# | cut -f1 -d=` ; do
 		(cd $BUILD_DIR ; ls .$FILE) > /dev/null 2>&1
 		if [ $? -ne 0 ] ; then
 			echo WARNING: File $FILE not in the build tree
@@ -50,3 +51,4 @@ for INSTFILE in $INST_FILES ; do
 done
 
 rm -f $BUILD_FILES
+

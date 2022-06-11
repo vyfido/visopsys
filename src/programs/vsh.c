@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -45,6 +45,8 @@ double-quotes (").
 
 #include <errno.h>
 #include <libgen.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +55,8 @@ double-quotes (").
 #include <sys/ascii.h>
 #include <sys/file.h>
 #include <sys/vsh.h>
+
+#define _(string) gettext(string)
 
 #define SIMPLESHELLPROMPT	"> "
 #define MAX_ARGS			100
@@ -67,7 +71,7 @@ static int promptCatchup = 0;
 static void showPrompt(void)
 {
 	char *dirName = NULL;
-	
+
 	// If there are characters already in the input buffer, tell the reader
 	// routine to put them after the prompt
 	if (textInputCount())
@@ -133,8 +137,8 @@ static void interpretCommand(char *commandLine)
 		if (numArgs > 1)
 			strcpy(cwd, args[1]);
 		else
-			// No arg means / for now
-			strcpy(cwd, "/");
+			// No arg means the user's home directory
+			environmentGet("HOME", cwd, MAX_PATH_LENGTH);
 
 		// Make it official
 		temp = multitaskerSetCurrentDirectory(cwd);
@@ -186,7 +190,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <file1> [file2] [...]\n", args[0]);
+			printf(_("Usage: %s <file1> [file2] [...]\n"), args[0]);
 		}
 	}
 
@@ -205,7 +209,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <file1> [file2] [...]\n", args[0]);
+			printf(_("Usage: %s <file1> [file2] [...]\n"), args[0]);
 		}
 	}
 
@@ -221,7 +225,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <source file> <destination file>\n", args[0]);
+			printf(_("Usage: %s <source file> <destination file>\n"), args[0]);
 		}
 	}
 
@@ -238,7 +242,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <source file> <destination file>\n", args[0]);
+			printf(_("Usage: %s <source file> <destination file>\n"), args[0]);
 		}
 	}
 
@@ -270,7 +274,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <variable_name>\n", args[0]);
+			printf(_("Usage: %s <variable_name>\n"), args[0]);
 		}
 	}
 
@@ -279,7 +283,7 @@ static void interpretCommand(char *commandLine)
 		if (numArgs == 3)
 		{
 			if (strlen(args[2]) > MAX_ENVVAR_LENGTH)
-				printf("Shouldn't set an env variable that long\n");
+				printf("%s", _("Shouldn't set an env variable that long\n"));
 
 			status = environmentSet(args[1], args[2]);
 			if (status < 0)
@@ -292,7 +296,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <variable_name> <variable_value>\n", args[0]);
+			printf(_("Usage: %s <variable_name> <variable_value>\n"), args[0]);
 		}
 	}
 
@@ -311,7 +315,7 @@ static void interpretCommand(char *commandLine)
 		{
 			errno = ERR_ARGUMENTCOUNT;
 			perror(args[0]);
-			printf("Usage: %s <variable_name>\n", args[0]);
+			printf(_("Usage: %s <variable_name>\n"), args[0]);
 		}
 	}
 
@@ -333,7 +337,7 @@ static void interpretCommand(char *commandLine)
 			block = 0;
 			args[numArgs - 1][strlen(args[numArgs - 1]) - 1] = '\0';
 		}
-		
+
 		// Reconstitute the full command line
 		sprintf(fullCommand, "\"%s\" ", commandName);
 		for (count = 1; count < numArgs; count ++)
@@ -343,7 +347,7 @@ static void interpretCommand(char *commandLine)
 	}
 
 	else
-		printf("Unknown command \"%s\".\n", args[0]);
+		printf(_("Unknown command \"%s\".\n"), args[0]);
 
 out:
 	if (commandName)
@@ -365,7 +369,7 @@ static void simpleShell(void)
 	unsigned char bufferCharacter;
 	static int currentCharacter = 0;
 	int count;
-	
+
 	commandBuffer = malloc(MAXSTRINGLENGTH);
 	char *tmp = malloc(COMMANDHISTORY * MAXSTRINGLENGTH);
 	if ((commandBuffer == NULL) || (tmp == NULL))
@@ -380,7 +384,7 @@ static void simpleShell(void)
 		commandHistory[count] = (tmp + (count * MAXSTRINGLENGTH));
 
 	// This program runs in an infinite loop
-	while(1)
+	while (1)
 	{
 		// There might be nothing to do...  No keyboard input?
 		if (textInputCount() <= 0)
@@ -391,7 +395,7 @@ static void simpleShell(void)
 		// These numbers are ASCII codes.  Some are Visopsys specific ASCII
 		// codes that make use of 'unused' spots.  Specifically the DC1-DC4
 		// codes are used for cursor control
-		
+
 		if (bufferCharacter == (unsigned char) ASCII_CRSRUP)
 		{
 			// This is the UP cursor key, G's addition - bash style press up +
@@ -428,7 +432,7 @@ static void simpleShell(void)
 			// it's as if we've typed it ourselves.
 			currentCharacter = strlen(commandBuffer);
 		}
-	
+
 		else if (bufferCharacter == (unsigned char) ASCII_CRSRDOWN)
 		{
 			// This is the DOWN cursor key, which allows users to cycle forwards
@@ -487,22 +491,22 @@ static void simpleShell(void)
 		else if (bufferCharacter == (unsigned char) ASCII_CRSRLEFT)
 			// This is the LEFT cursor key
 			textCursorLeft();
-	
+
 		else if (bufferCharacter == (unsigned char) ASCII_CRSRRIGHT)
 			// This is the RIGHT cursor key
 			textCursorRight();
 		*/
-	
+
 		else if (bufferCharacter == (unsigned char) ASCII_HOME)
 		{
 			// This is the HOME key, which normally puts the cursor at
 			// the beginning of the line, but we use it to clear the screen
 			textScreenClear();
-	
+
 			// Show a new prompt
 			showPrompt();
 		}
-		
+
 		else if (bufferCharacter == (unsigned char) ASCII_BACKSPACE)
 		{
 			// This is the BACKSPACE key
@@ -523,10 +527,10 @@ static void simpleShell(void)
 		else if (bufferCharacter == (unsigned char) ASCII_TAB)
 		{
 			// This is the TAB key.  Attempt to complete a filename.
-	
+
 			// Get rid of any tab characters printed on the screen
 			textSetColumn(currentCharacter);
-	
+
 			for (count = (strlen(commandBuffer)); count >= 0; count --)
 			if (commandBuffer[count] == '\"')
 			{
@@ -555,7 +559,7 @@ static void simpleShell(void)
 			printf("%s", commandBuffer);
 			currentCharacter = strlen(commandBuffer);
 		}
-		
+
 		else if (bufferCharacter == (unsigned char) ASCII_ENTER)
 		{
 			// This is the ENTER key
@@ -565,7 +569,7 @@ static void simpleShell(void)
 
 			if (promptCatchup)
 				printf("\n");
-	
+
 			// Now we interpret the command
 			if (currentCharacter > 0)
 			{
@@ -620,12 +624,17 @@ static void simpleShell(void)
 			// Show a new prompt
 			showPrompt();
 		}
-		
+
 		else if (bufferCharacter == (unsigned char) ASCII_ENDOFFILE)
 		{
 			// CTRL-D.  Logout
-			printf("logout\n");
+			printf("%s", _("logout\n"));
 			goto logout;
+		}
+
+		else if (bufferCharacter == (unsigned char) ASCII_DEL)
+		{
+			// Do nothing.  Don't print.
 		}
 
 		else
@@ -667,6 +676,9 @@ int main(int argc, char *argv[])
 	char *fullCommand = NULL;
 	int count;
 
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("vsh");
+
 	// What is my process id?
 	myProcId = multitaskerGetCurrentProcessId();
 
@@ -678,7 +690,7 @@ int main(int argc, char *argv[])
 	{
 		// Operating in non-interactive mode.
 
-		// If the command is a RELATIVE pathname, we will try inserting the 
+		// If the command is a RELATIVE pathname, we will try inserting the
 		// pwd before it.  This has the effect of always putting '.' in
 		// the PATH
 		vshMakeAbsolutePath(argv[2], fileName);
@@ -719,13 +731,13 @@ int main(int argc, char *argv[])
 		status = loaderLoadAndExec(fullCommand, myPrivilege, 1);
 
 		free(fullCommand);
-		
+
 		return (status);
 	}
 
 	// Make a message
-	printf("\nVisopsys Shell.\n");
-	printf("Type \"help\" for commands.\n");
+	printf("%s", _("\nVisopsys Shell.\n"));
+	printf("%s", _("Type \"help\" for commands.\n"));
 
 	// Get the starting current directory
 
@@ -736,11 +748,11 @@ int main(int argc, char *argv[])
 		perror(argv[0]);
 		return (errno);
 	}
-	
+
 	status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
 	if (status < 0)
 	{
-		printf("Can't determine current directory\n");
+		printf("%s", _("Can't determine current directory\n"));
 		free(cwd);
 		return (errno = status);
 	}
@@ -753,7 +765,8 @@ int main(int argc, char *argv[])
 
 	// We'll end up here at 'logout'
 
-	printf("exiting.\n");
+	printf("%s", _("exiting.\n"));
 	free(cwd);
 	return (status = 0);
 }
+

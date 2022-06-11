@@ -8,121 +8,121 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-09-07 23:55+0100\n"
+"POT-Creation-Date: 2014-04-07 18:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: kernelInitialize.c:301
-msgid ""
-"\n"
-" *** Your boot disk appears to be running in unsupported native-SATA mode.\n"
-" *** You may be able to temporarily enable ATA or 'legacy' IDE mode in\n"
-" *** your BIOS setup.\n"
-msgstr ""
-
-#: kernelFilesystemFat.c:3949
-#, c-format
-msgid "%llu files need defragmentation"
-msgstr ""
-
-#: kernelFilesystemFat.c:3935
-#, c-format
-msgid "Analyzing"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:281
-msgid "Checking constraints"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:410
-msgid "Clearing new FAT sectors"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:353
-#, c-format
-msgid "Data exists outside the new size (%u >= %llu)"
-msgstr ""
-
-#: kernelFilesystemFat.c:3782
+#: kernelFilesystemFat.c:3870
 #, c-format
 msgid "Defragmenting %llu/%llu: %s"
 msgstr ""
 
-#: kernelFilesystemFatPlus.c:437
-msgid "Error clearing new FAT sectors"
+#: kernelFilesystemFat.c:4000 kernelFilesystemFatPlus.c:309
+msgid "Reading filesystem info"
 msgstr ""
 
-#: kernelFilesystemFatPlus.c:334
-msgid "Error defragmenting filesystem"
+#: kernelFilesystemFat.c:4033
+msgid "Analyzing"
 msgstr ""
 
-#: kernelFilesystemFatPlus.c:417
-msgid "Error getting memory"
+#: kernelFilesystemFat.c:4047
+#, c-format
+msgid "%llu files need defragmentation"
 msgstr ""
 
-#: kernelFilesystemFatPlus.c:291
+#: kernelFilesystemFatPlus.c:280
+msgid "Checking constraints"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:290
 msgid "Error getting resizing constraints"
 msgstr ""
 
-#: kernelFilesystemFatPlus.c:399
-msgid "Error moving data"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:318 kernelFilesystemFatPlus.c:342
-msgid "Error reading filesystem info"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:451
-msgid "Error synching FAT copies"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:476 kernelFilesystemFatPlus.c:485
-msgid "Error updating filesystem info"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:301
-#, c-format
-msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:298
+#: kernelFilesystemFatPlus.c:297
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
 msgstr ""
 
-#: kernelShutdown.c:45
-msgid "OK to power off now."
-msgstr ""
-
-#: kernelFilesystemFat.c:3910 kernelFilesystemFatPlus.c:310
-msgid "Reading filesystem info"
-msgstr ""
-
-#: kernelShutdown.c:44
-msgid "Rebooting."
-msgstr ""
-
-#: kernelShutdown.c:315
+#: kernelFilesystemFatPlus.c:300
 #, c-format
-msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
+msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
 msgstr ""
 
-#: kernelShutdown.c:153
-msgid "Shutting down"
+#: kernelFilesystemFatPlus.c:317 kernelFilesystemFatPlus.c:341
+msgid "Error reading filesystem info"
 msgstr ""
 
-#: kernelShutdown.c:42
-msgid "Shutting down Visopsys, please wait..."
+#: kernelFilesystemFatPlus.c:333
+msgid "Error defragmenting filesystem"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:352
+#, c-format
+msgid "Data exists outside the new size (%u >= %llu)"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:398
+msgid "Error moving data"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:409
+msgid "Clearing new FAT sectors"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:416
+msgid "Error getting memory"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:436
+msgid "Error clearing new FAT sectors"
+msgstr ""
+
+#: kernelFilesystemFatPlus.c:450
+msgid "Error synching FAT copies"
 msgstr ""
 
 #: kernelFilesystemFatPlus.c:461
 msgid "Updating filesystem info"
 msgstr ""
 
+#: kernelFilesystemFatPlus.c:476 kernelFilesystemFatPlus.c:485
+msgid "Error updating filesystem info"
+msgstr ""
+
 #: kernelShutdown.c:43
+msgid "Shutting down Visopsys, please wait..."
+msgstr ""
+
+#: kernelShutdown.c:44
 msgid "[ Wait for \"OK to power off\" message ]"
+msgstr ""
+
+#: kernelShutdown.c:45
+msgid "Rebooting."
+msgstr ""
+
+#: kernelShutdown.c:46
+msgid "OK to power off now."
+msgstr ""
+
+#: kernelShutdown.c:155
+msgid "Shutting down"
+msgstr ""
+
+#: kernelShutdown.c:323
+#, c-format
+msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
+msgstr ""
+
+#: kernelUsbDriver.c:500
+msgid ""
+"\n"
+" *** Unable to initialize interrupt handling for your USB controller.\n"
+" *** You may be able to temporarily disable the 'plug and play OS' setting\n"
+" *** in your BIOS setup.\n"
 msgstr ""

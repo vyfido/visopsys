@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -57,20 +57,20 @@ static inline void debugAhciCapReg(ahciRegs *regs)
 	const char *interfaceSpeed = NULL;
 
 	sprintf(output, "AHCI capability register (0x%08x):\n"
-		"    64bitAddr=%d\n"
-		"    nativeCmdQueue=%d\n", regs->CAP,
+		"  64bitAddr=%d\n"
+		"  nativeCmdQueue=%d\n", regs->CAP,
 		((regs->CAP & AHCI_CAP_S64A) >> 31),
 		((regs->CAP & AHCI_CAP_SNCQ) >> 30));
 
 	if (regs->VS >= AHCI_VERSION_1_1)
-		sprintf((output + strlen(output)), "    sNotificationReg=%d\n",
+		sprintf((output + strlen(output)), "  sNotificationReg=%d\n",
 			((regs->CAP & AHCI_CAP_SSNTF) >> 29));
 
 	if (regs->VS >= AHCI_VERSION_1_1)
-		sprintf((output + strlen(output)), "    mechPresenceSwitch=%d\n",
+		sprintf((output + strlen(output)), "  mechPresenceSwitch=%d\n",
 			((regs->CAP & AHCI_CAP_SMPS) >> 28));
 	else
-		sprintf((output + strlen(output)), "    interlockSwitch=%d\n",
+		sprintf((output + strlen(output)), "  interlockSwitch=%d\n",
 			((regs->CAP & AHCI_CAP_SIS) >> 28));
 
 	switch ((regs->CAP & AHCI_CAP_ISS) >> 20)
@@ -90,11 +90,11 @@ static inline void debugAhciCapReg(ahciRegs *regs)
 	}
 
 	sprintf((output + strlen(output)),
-		"    staggeredSpinup=%d\n"
-		"    aggrLinkPowerMgmt=%d\n"
-		"    activityLed=%d\n"
-		"    cmdListOverride=%d\n"
-		"    interfaceSpeed=%d - %s\n",
+		"  staggeredSpinup=%d\n"
+		"  aggrLinkPowerMgmt=%d\n"
+		"  activityLed=%d\n"
+		"  cmdListOverride=%d\n"
+		"  interfaceSpeed=%d - %s\n",
 		((regs->CAP & AHCI_CAP_SSS) >> 27),
 		((regs->CAP & AHCI_CAP_SALP) >> 26),
 		((regs->CAP & AHCI_CAP_SAL) >> 25),
@@ -102,24 +102,24 @@ static inline void debugAhciCapReg(ahciRegs *regs)
 		((regs->CAP & AHCI_CAP_ISS) >> 20), interfaceSpeed);
 
 	if (regs->VS < AHCI_VERSION_1_2)
-		sprintf((output + strlen(output)), "    nonZeroDmaOffsets=%d\n",
+		sprintf((output + strlen(output)), "  nonZeroDmaOffsets=%d\n",
 			((regs->CAP & AHCI_CAP_SNZO) >> 19));
 
 	sprintf((output + strlen(output)),
-		"    ahciModeOnly=%d\n"
-		"    portMultiplier=%d\n",
+		"  ahciModeOnly=%d\n"
+		"  portMultiplier=%d\n",
 		((regs->CAP & AHCI_CAP_SAM) >> 18),
 		((regs->CAP & AHCI_CAP_SPM) >> 17));
 
 	if (regs->VS >= AHCI_VERSION_1_1)
-		sprintf((output + strlen(output)), "    fisBasedSwitching=%d\n",
+		sprintf((output + strlen(output)), "  fisBasedSwitching=%d\n",
 			((regs->CAP & AHCI_CAP_FBSS) >> 16));
 
 	sprintf((output + strlen(output)),
-		"    pioMultiDrqBlock=%d\n"
-		"    slumberStateCap=%d\n"
-		"    partialStateCap=%d\n"
-		"    numCmdSlots=%d\n",
+		"  pioMultiDrqBlock=%d\n"
+		"  slumberStateCap=%d\n"
+		"  partialStateCap=%d\n"
+		"  numCmdSlots=%d\n",
 		((regs->CAP & AHCI_CAP_PMD) >> 15),
 		((regs->CAP & AHCI_CAP_SSC) >> 14),
 		((regs->CAP & AHCI_CAP_PSC) >> 13),
@@ -128,15 +128,15 @@ static inline void debugAhciCapReg(ahciRegs *regs)
 	if (regs->VS >= AHCI_VERSION_1_1)
 	{
 		sprintf((output + strlen(output)),
-			"    cmdCompCoalescing=%d\n"
-			"    enclosureMgmt=%d\n"
-			"    externalSata=%d\n",
+			"  cmdCompCoalescing=%d\n"
+			"  enclosureMgmt=%d\n"
+			"  externalSata=%d\n",
 			((regs->CAP & AHCI_CAP_CCCS) >> 7),
 			((regs->CAP & AHCI_CAP_EMS) >> 6),
 			((regs->CAP & AHCI_CAP_SXS) >> 5));
 	}
 
-	sprintf((output + strlen(output)), "    numPorts=%d",
+	sprintf((output + strlen(output)), "  numPorts=%d",
 		((regs->CAP & AHCI_CAP_NP) + 1));
 
 	kernelDebug(debug_io, "%s", output);
@@ -145,14 +145,14 @@ static inline void debugAhciCapReg(ahciRegs *regs)
 static inline void debugAhciPortRegs(int portNum, ahciPortRegs *regs)
 {
 	kernelDebug(debug_io, "AHCI port %d registers:\n"
-		"    CLB=0x%08x\tCLBU=0x%08x\n"
-		"    FB=0x%08x\tFBU=0x%08x\n"
-		"    IS=0x%08x\tIE=0x%08x\n"
-		"    CMD=0x%08x\tTFD=0x%08x\n"
-		"    SIG=0x%08x\tSSTS=0x%08x\n"
-		"    SCTL=0x%08x\tSERR=0x%08x\n"
-		"    SACT=0x%08x\tCI=0x%08x\n" 
-		"    SNTF=0x%08x", portNum, regs->CLB, regs->CLBU, regs->FB,
+		"  CLB=0x%08x\tCLBU=0x%08x\n"
+		"  FB=0x%08x\tFBU=0x%08x\n"
+		"  IS=0x%08x\tIE=0x%08x\n"
+		"  CMD=0x%08x\tTFD=0x%08x\n"
+		"  SIG=0x%08x\tSSTS=0x%08x\n"
+		"  SCTL=0x%08x\tSERR=0x%08x\n"
+		"  SACT=0x%08x\tCI=0x%08x\n"
+		"  SNTF=0x%08x", portNum, regs->CLB, regs->CLBU, regs->FB,
 		regs->FBU, regs->IS, regs->IE, regs->CMD, regs->TFD, regs->SIG,
 		regs->SSTS, regs->SCTL, regs->SERR, regs->SACT, regs->CI, regs->SNTF);
 }
@@ -187,9 +187,9 @@ static int detectPciControllers(void)
 	for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
 	{
 		// If it's not an AHCI controller, skip it
-		if ((pciTargets[deviceCount].class == NULL) ||
+		if (!pciTargets[deviceCount].class ||
 			(pciTargets[deviceCount].class->class != DEVICECLASS_DISKCTRL) ||
-			(pciTargets[deviceCount].subClass == NULL) ||
+			!pciTargets[deviceCount].subClass ||
 			(pciTargets[deviceCount].subClass->class !=
 				DEVICESUBCLASS_DISKCTRL_SATA))
 		{
@@ -264,7 +264,7 @@ static int detectPciControllers(void)
 		controllers =
 			kernelRealloc((void *) controllers, ((numControllers + 1) *
 				sizeof(ahciController)));
-		if (controllers == NULL)
+		if (!controllers)
 			return (status = ERR_MEMORY);
 
 		// Set the controller number
@@ -375,7 +375,7 @@ static void spinUpPorts(ahciController *controller)
 		// Port implemented?
 		if (!(controller->regs->PI & (1 << count)))
 			continue;
-	
+
 		portRegs = &(controller->regs->port[count]);
 
 		if (!(portRegs->CMD & AHCI_PXCMD_SUD))
@@ -390,7 +390,7 @@ static void spinUpPorts(ahciController *controller)
 			kernelDebug(debug_io, "AHCI port %d already spinning", count);
 	}
 
-	return; 
+	return;
 }
 
 
@@ -566,9 +566,9 @@ static int allocPortMemory(ahciController *controller, int portNum)
 		kernelMemoryGetPhysical(sizeof(ahciCommandList),
 			max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE),
 			"sata ahci port command list");
-	if (physicalAddress == NULL)
+	if (!physicalAddress)
 	{
-		kernelDebugError("physicalAddress == NULL");
+		kernelDebugError("physicalAddress is NULL");
 		return (status = ERR_MEMORY);
 	}
 
@@ -605,7 +605,7 @@ static int allocPortMemory(ahciController *controller, int portNum)
 
 	// Get physical memory for the port's received FISes.  It is a 256b
 	// structure that needs to reside on a 256b boundary
- 
+
 	if (sizeof(ahciReceivedFises) != AHCI_RECVFIS_SIZE)
 	{
 		kernelDebugError("ahciReceivedFises is not 256b in size");
@@ -616,7 +616,7 @@ static int allocPortMemory(ahciController *controller, int portNum)
 		kernelMemoryGetPhysical(sizeof(ahciReceivedFises),
 			max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE),
 			"sata ahci port received fises");
-	if (physicalAddress == NULL)
+	if (!physicalAddress)
 	{
 		kernelDebugError("kernelMemoryGetPhysical returned NULL");
 		return (status = ERR_MEMORY);
@@ -671,7 +671,7 @@ static int initializePorts(ahciController *controller)
 		// Port implemented?
 		if (!(controller->regs->PI & (1 << count)))
 			continue;
-	
+
 		portRegs = &(controller->regs->port[count]);
 
 		// The spec says that we first have to ensure that all of the
@@ -703,7 +703,7 @@ static int initializePorts(ahciController *controller)
 		portRegs->SERR |= AHCI_PXSERR_ALL;
 	}
 
-	return (status = 0); 
+	return (status = 0);
 }
 
 
@@ -734,7 +734,7 @@ static void interruptHandler(void)
 
 	kernelDebug(debug_io, "AHCI interrupt %d", interruptNum);
 
-	// Loop through the controllers to find the one that uses this interrupt 
+	// Loop through the controllers to find the one that uses this interrupt
 	for (controllerCount = 0; controllerCount < numControllers;
 		controllerCount ++)
 	{
@@ -930,7 +930,7 @@ static int setupController(ahciController *controller)
 		return (status);
 
 	kernelDebug(debug_io, "AHCI Turn on interrupt %d", controller->interrupt);
-	  
+
 	kernelPicMask(controller->interrupt, 1);
 
 	// Enable interrupts in the controller
@@ -1064,7 +1064,7 @@ static unsigned allocCommandTable(int numPrds, void **commandTablePhysical,
 	// Allocate a command table structure physical memory
 	*commandTablePhysical = kernelMemoryGetPhysical(commandTableSize,
 		DISK_CACHE_ALIGN, "ahci command table");
-	if (*commandTablePhysical == NULL)
+	if (!*commandTablePhysical)
 	{
 		kernelError(kernel_error, "Couldn't allocate command table memory");
 		return (commandTableSize = 0);
@@ -1081,7 +1081,7 @@ static unsigned allocCommandTable(int numPrds, void **commandTablePhysical,
 
 	// Make it non-cacheable
 	if (kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-			(void *) *commandTable, commandTableSize) < 0)
+		(void *) *commandTable, commandTableSize) < 0)
 	{
 		kernelDebugError("Error setting page attrs");
 	}
@@ -1143,7 +1143,7 @@ static int setupPrds(ahciPrd *prd, int numPrds, unsigned char *buffer,
 		(((unsigned) buffer < KERNEL_VIRTUAL_ADDRESS)?
 			kernelCurrentProcess->processId : KERNELPROCID), buffer);
 
-	if (bufferPhysical == NULL)
+	if (!bufferPhysical)
 	{
 		kernelError(kernel_error, "Couldn't get buffer physical address");
 		return (status = ERR_MEMORY);
@@ -1401,7 +1401,7 @@ static int issueCommand(ahciController *controller, int portNum,
 		else
 		{
 			// We got an interrupt, but was it the one we were hoping for?
-			if (buffer && (ataCommand == ATA_ATAPIPACKET) && 
+			if (buffer && (ataCommand == ATA_ATAPIPACKET) &&
 				(!(controller->port[portNum].interruptStatus & AHCI_PXIS_PSS) ||
 				!(controller->port[portNum].interruptStatus & AHCI_PXIS_DHRS)))
 			{
@@ -1542,7 +1542,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 		// Allocate memory for the disk structure
 		controller->disk[portNum] = kernelMalloc(sizeof(ahciDisk));
-		if (controller->disk[portNum] == NULL)
+		if (!controller->disk[portNum])
 			continue;
 
 		controller->disk[portNum]->portNum = portNum;
@@ -1576,7 +1576,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 				(identData.field.maxLba48 < 0x0000FFFFFFFFFFFFULL))
 			{
 				physicalDisk->numSectors = identData.field.maxLba48;
-			}			
+			}
 
 			// Try to get the number of cylinders, heads, and sectors per
 			// cylinder from the 'identify device' info
@@ -1679,7 +1679,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 		// Allocate memory for the kernel device
 		diskDevice = kernelMalloc(sizeof(kernelDevice));
-		if (diskDevice == NULL)
+		if (!diskDevice)
 			continue;
 
 		diskDevice->device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
@@ -1699,7 +1699,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			continue;
 
 		// Log the ATA/ATAPI standard level
-		if ((identData.field.majorVersion == 0x0000) ||
+		if (!identData.field.majorVersion ||
 			(identData.field.majorVersion == 0xFFFF))
 		{
 			kernelLog("AHCI: Disk %d:%d no ATA/ATAPI version reported",
@@ -1784,7 +1784,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 							}
 
 							// TODO: Test DMA operation
-							continue;							
+							continue;
 						}
 					}
 					else
@@ -1864,10 +1864,10 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 			if (DISK(diskNum)->featureFlags & ATA_FEATURE_WCACHE)
 				strcat(value, ",wcache");
-			
+
 			if (DISK(diskNum)->featureFlags & ATA_FEATURE_48BIT)
 				strcat(value, ",48-bit");
-			
+
 			kernelVariableListSet(&(diskDevice->device.attrs), "disk.features",
 				value);
 		}
@@ -1883,7 +1883,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	// This routine is used to detect and initialize each device, as well as
 	// registering each one with any higher-level interfaces.  Also does
 	// general driver initialization.
- 
+
 	int status = 0;
 	kernelDevice *controllerDevices = NULL;
 	int count;
@@ -1911,7 +1911,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		((numControllers > 1)? "s" : ""));
 
 	controllerDevices = kernelMalloc(numControllers * sizeof(kernelDevice));
-	if (controllerDevices == NULL)
+	if (!controllerDevices)
 		return (status = ERR_MEMORY);
 
 	// Register each controller device with the kernel
@@ -2031,7 +2031,7 @@ static int atapiStartStop(ahciController *controller, ahciDisk *dsk, int start)
 
 		// If there's no disk, the number of sectors will be illegal.	Set
 		// to the maximum value and quit
-		if ((dsk->physical.numSectors == 0) ||
+		if (!dsk->physical.numSectors ||
 			(dsk->physical.numSectors == 0xFFFFFFFF))
 		{
 			dsk->physical.numSectors = 0xFFFFFFFF;
@@ -2042,7 +2042,7 @@ static int atapiStartStop(ahciController *controller, ahciDisk *dsk, int start)
 		}
 
 		dsk->physical.logical[0].numSectors = dsk->physical.numSectors;
-			
+
 		// Read the TOC (Table Of Contents)
 		kernelDebug(debug_io, "AHCI disk on port %d ATAPI read TOC",
 			dsk->portNum);
@@ -2169,7 +2169,7 @@ static int readWriteDma(ahciController *controller, ahciDisk *dsk,
 
 		kernelDebug(debug_io, "AHCI %d sectors per command", sectorsPerCommand);
 
-		bytesPerCommand = (sectorsPerCommand * dsk->physical.sectorSize); 
+		bytesPerCommand = (sectorsPerCommand * dsk->physical.sectorSize);
 
 		// Issue the command
 		if (dsk->featureFlags & ATA_FEATURE_48BIT)
@@ -2305,7 +2305,7 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
 	if (status < 0)
 		return (status);
-	
+
 	if (dsk->physical.type & DISKTYPE_SATACDROM)
 	{
 		// If it's an ATAPI device
@@ -2358,7 +2358,7 @@ static int driverSetLockState(int diskNum, int locked)
 	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
 	if (status < 0)
 		return (status);
-	
+
 	if (dsk->physical.type & DISKTYPE_SATACDROM)
 	{
 		// It's an ATAPI device
@@ -2401,7 +2401,7 @@ static int driverSetDoorState(int diskNum, int open)
 	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
 	if (status < 0)
 		return (status);
-	
+
 	if (dsk->physical.type & DISKTYPE_SATACDROM)
 	{
 		// It's an ATAPI device
@@ -2525,7 +2525,7 @@ static int driverFlush(int diskNum)
 	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
 	if (status < 0)
 		return (status);
-	
+
 	// Figure out which command we're going to be sending to the controller
 	if (dsk->featureFlags & ATA_FEATURE_48BIT)
 		command = ATA_FLUSHCACHE_EXT;
@@ -2538,7 +2538,7 @@ static int driverFlush(int diskNum)
 
 	// Unlock the port
 	kernelLockRelease(&(controller->port[dsk->portNum].lock));
-	
+
 	return (status);
 }
 
@@ -2573,3 +2573,4 @@ void kernelSataAhciDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

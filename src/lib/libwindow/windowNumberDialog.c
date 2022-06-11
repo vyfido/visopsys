@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -156,9 +156,9 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 		windowCenterDialog(parentWindow, dialogWindow);
 	windowSetVisible(dialogWindow, 1);
 
-	while(1)
+	while (1)
 	{
-		while(1)
+		while (1)
 		{
 			// Check for keyboard events
 			if ((windowComponentEventGet(field, &event) > 0) &&
@@ -169,7 +169,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 					status = 0;
 					break;
 				}
-		
+
 				// See if we can apply a newly-typed number to the slider
 				buffer[0] = '\0';
 				windowComponentGetData(field, buffer, columns);
@@ -242,3 +242,4 @@ out:
 
 	return (status);
 }
+

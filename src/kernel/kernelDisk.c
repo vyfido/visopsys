@@ -1,26 +1,26 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelDisk.c
 //
-	
+
 // This file functions for disk access, and routines for managing the array
-// of disks in the kernel's data structure for such things.  
+// of disks in the kernel's data structure for such things.
 
 #include "kernelDisk.h"
 #include "kernelDebug.h"
@@ -230,7 +230,7 @@ static void debugLockCheck(kernelPhysicalDisk *physicalDisk,
 		kernelError(kernel_error, "%s is not locked by process %d in function "
 			"%s", physicalDisk->name, kernelMultitaskerGetCurrentProcessId(),
 			function);
-		while(1);
+		while (1);
 	}
 }
 #else
@@ -278,7 +278,7 @@ static void diskd(void)
 	// This function will be a thread spawned at inititialization time
 	// to do any required ongoing operations on disks, such as shutting off
 	// floppy and cdrom motors
-	
+
 	kernelPhysicalDisk *physicalDisk = NULL;
 	int count;
 
@@ -286,7 +286,7 @@ static void diskd(void)
 	while (!initialized || (physicalDiskCounter <= 0))
 		kernelMultitaskerWait(60);
 
-	while(1)
+	while (1)
 	{
 		// Loop for each physical disk
 		for (count = 0; count < physicalDiskCounter; count ++)
@@ -325,7 +325,7 @@ static int spawnDiskd(void)
 
 	// Re-nice the disk daemon
 	kernelMultitaskerSetProcessPriority(diskdPID, (PRIORITY_LEVELS - 2));
-	 
+
 	// Success
 	return (diskdPID);
 }
@@ -402,6 +402,8 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 #if (DISK_CACHE)
 
 #define bufferEnd(buffer) (buffer->startSector + buffer->numSectors - 1)
+#define bufferBytes(physicalDisk, buffer) \
+	(buffer->numSectors * physicalDisk->sectorSize)
 
 static inline void cacheMarkDirty(kernelPhysicalDisk *physicalDisk,
 	kernelDiskCacheBuffer *buffer)
@@ -493,7 +495,6 @@ static inline void cachePutBuffer(kernelDiskCacheBuffer *buffer)
 	if (buffer->data)
 		kernelFree(buffer->data);
 
-	kernelMemClear((void *) buffer, sizeof(kernelDiskCacheBuffer));
 	kernelFree((void *) buffer);
 
 	return;
@@ -512,7 +513,7 @@ static int cacheInvalidate(kernelPhysicalDisk *physicalDisk)
 
 	// Try to sync dirty sectors first.
 	cacheSync(physicalDisk);
-	
+
 	if (physicalDisk->cache.dirty)
 		kernelError(kernel_warn, "Invalidating dirty disk cache!");
 
@@ -596,7 +597,7 @@ static unsigned cacheQueryRange(kernelPhysicalDisk *physicalDisk,
 			bufferEnd(buffer), *firstCached, numCached);
 	}
 	else
-		kernelDebug(debug_io, "%s %llu->%llu not found", physicalDisk->name, 
+		kernelDebug(debug_io, "%s %llu->%llu not found", physicalDisk->name,
 			startSector, (startSector + numSectors - 1));
 
 	return (numCached);
@@ -623,7 +624,7 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 	kernelDiskCacheBuffer *buffer = physicalDisk->cache.buffer;
 	uquad_t cacheSize = 0;
 	uquad_t numDirty = 0;
-	
+
 	while (buffer)
 	{
 		if (buffer->next)
@@ -633,7 +634,7 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 				kernelError(kernel_warn, "%s startSector (%llu) >= "
 					"next->startSector (%llu)", physicalDisk->name,
 					buffer->startSector, buffer->next->startSector);
-				cachePrint(physicalDisk); while(1);
+				cachePrint(physicalDisk); while (1);
 			}
 
 			if (bufferEnd(buffer) >= buffer->next->startSector)
@@ -643,27 +644,25 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 					physicalDisk->name, buffer->startSector, buffer->numSectors,
 					(buffer->startSector + buffer->numSectors),
 					buffer->next->startSector);
-				cachePrint(physicalDisk); while(1);
+				cachePrint(physicalDisk); while (1);
 			}
 
-			/*
 			if ((bufferEnd(buffer) == (buffer->next->startSector - 1)) &&
 				(buffer->dirty == buffer->next->dirty))
 			{
-				kernelError(kernel_warn, "%s buffer %llu->%llu should be joined "
-					"with %llu->%llu (%s)", physicalDisk->name,
+				kernelError(kernel_warn, "%s buffer %llu->%llu should be "
+					"joined with %llu->%llu (%s)", physicalDisk->name,
 					buffer->startSector, bufferEnd(buffer),
 					buffer->next->startSector, bufferEnd(buffer->next),
 					(buffer->dirty? "dirty" : "clean"));
-				cachePrint(physicalDisk); while(1);
+				cachePrint(physicalDisk); while (1);
 			}
-			*/
 
 			if (buffer->next->prev != buffer)
 			{
 				kernelError(kernel_warn, "%s buffer->next->prev != buffer",
 					physicalDisk->name);
-				cachePrint(physicalDisk); while(1);
+				cachePrint(physicalDisk); while (1);
 			}
 		}
 
@@ -673,31 +672,31 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 			{
 				kernelError(kernel_warn, "%s buffer->prev->next != buffer",
 					physicalDisk->name);
-				cachePrint(physicalDisk); while(1);
+				cachePrint(physicalDisk); while (1);
 			}
 		}
 
-		cacheSize += (buffer->numSectors * physicalDisk->sectorSize);
+		cacheSize += bufferBytes(physicalDisk, buffer);
 		if (buffer->dirty)
 			numDirty += 1;
 
 		buffer = buffer->next;
 	}
-	
+
 	if (cacheSize != physicalDisk->cache.size)
 	{
-		kernelError(kernel_warn, "%s cacheSize(%llu) != physicalDisk->cache.size"
-			"(%llu)", physicalDisk->name, cacheSize,
+		kernelError(kernel_warn, "%s cacheSize(%llu) != "
+			"physicalDisk->cache.size(%llu)", physicalDisk->name, cacheSize,
 			physicalDisk->cache.size);
-		cachePrint(physicalDisk); while(1);
+		cachePrint(physicalDisk); while (1);
 	}
 
 	if (numDirty != physicalDisk->cache.dirty)
 	{
-		kernelError(kernel_warn, "%s numDirty(%llu) != physicalDisk->cache.dirty"
-			"(%llu)", physicalDisk->name, numDirty,
+		kernelError(kernel_warn, "%s numDirty(%llu) != "
+			"physicalDisk->cache.dirty(%llu)", physicalDisk->name, numDirty,
 			physicalDisk->cache.dirty);
-		cachePrint(physicalDisk); while(1);
+		cachePrint(physicalDisk); while (1);
 	}
 }
 #else
@@ -718,9 +717,8 @@ static void cacheRemove(kernelPhysicalDisk *physicalDisk,
 	if (buffer->next)
 		buffer->next->prev = buffer->prev;
 
-	physicalDisk->cache.size -= (buffer->numSectors * physicalDisk->sectorSize);
+	physicalDisk->cache.size -= bufferBytes(physicalDisk, buffer);
 	cachePutBuffer(buffer);
-	cacheCheck(physicalDisk);
 }
 
 
@@ -825,8 +823,7 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
 	}
 
 	// Copy the data into the cache buffer.
-	kernelMemCopy(data, newBuffer->data,
-		(numSectors * physicalDisk->sectorSize));
+	kernelMemCopy(data, newBuffer->data, bufferBytes(physicalDisk, newBuffer));
 
 	newBuffer->prev = prevBuffer;
 	newBuffer->next = nextBuffer;
@@ -840,11 +837,87 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
 	if (newBuffer->next)
 		newBuffer->next->prev = newBuffer;
 
-	physicalDisk->cache.size += (numSectors * physicalDisk->sectorSize);
-
-	cacheCheck(physicalDisk);
+	physicalDisk->cache.size += bufferBytes(physicalDisk, newBuffer);
 
 	return (newBuffer);
+}
+
+
+static void cacheMerge(kernelPhysicalDisk *physicalDisk)
+{
+	// Check whether we should merge cache entries.  We do this if they are
+	// a) adjacent; and b) their clean/dirty state matches.
+
+	kernelDiskCacheBuffer *currBuffer = NULL;
+	kernelDiskCacheBuffer *nextBuffer = NULL;
+	void *newData = NULL;
+
+	debugLockCheck(physicalDisk, __FUNCTION__);
+
+	currBuffer = physicalDisk->cache.buffer;
+
+	while (currBuffer)
+	{
+		nextBuffer = currBuffer->next;
+
+		if (nextBuffer)
+		{
+			if ((bufferEnd(currBuffer) == (nextBuffer->startSector - 1)) &&
+				(currBuffer->dirty == nextBuffer->dirty))
+			{
+				// Merge the 2 entries by expanding the memory of the first
+				// entry, copying both entries' data into it, and removing the
+				// second entry.
+
+				kernelDebug(debug_io, "%s merge %llu->%llu and %llu->%llu",
+					physicalDisk->name, currBuffer->startSector,
+					bufferEnd(currBuffer), nextBuffer->startSector,
+					bufferEnd(nextBuffer));
+
+				// Get a new cache buffer
+				newData = kernelMalloc(bufferBytes(physicalDisk, currBuffer) +
+					bufferBytes(physicalDisk, nextBuffer));
+				if (!newData)
+				{
+					kernelError(kernel_error, "Couldn't get a new buffer for "
+						"%s's disk cache", physicalDisk->name);
+					return;
+				}
+
+				// Copy the data from each existing entry
+				kernelMemCopy(currBuffer->data, newData,
+					bufferBytes(physicalDisk, currBuffer));
+				kernelMemCopy(nextBuffer->data,
+					(newData + bufferBytes(physicalDisk, currBuffer)),
+					bufferBytes(physicalDisk, nextBuffer));
+
+				// Replace the buffer pointer
+				kernelFree(currBuffer->data);
+				currBuffer->data = newData;
+
+				// Update the first entry's size
+				currBuffer->numSectors += nextBuffer->numSectors;
+
+				// Briefly grow the cache size; removing the 'next' entry will
+				// shrink it back again
+				physicalDisk->cache.size +=
+					bufferBytes(physicalDisk, nextBuffer);
+
+				// Remove the second entry
+				cacheRemove(physicalDisk, nextBuffer);
+
+				if (currBuffer->dirty)
+					physicalDisk->cache.dirty -= 1;
+
+				// Process this one again, since we might want to merge it
+				// with the next one as well.
+				continue;
+			}
+		}
+
+		// Move to the next one
+		currBuffer = nextBuffer;
+	}
 }
 
 
@@ -856,9 +929,10 @@ static int cacheRead(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 	// from disk and put a copy in a new cache buffer.
 
 	int status = 0;
-	uquad_t firstCached = 0;
 	uquad_t numCached = 0;
+	uquad_t firstCached = 0;
 	uquad_t notCached = 0;
+	int added = 0;
 	kernelDiskCacheBuffer *buffer = NULL;
 
 	debugLockCheck(physicalDisk, __FUNCTION__);
@@ -887,7 +961,10 @@ static int cacheRead(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 				// Add the data to the cache.
 				buffer = cacheAdd(physicalDisk, startSector, notCached, data);
 				if (buffer)
+				{
 					buffer->lastAccess = kernelSysTimerRead();
+					added = 1;
+				}
 
 				startSector += notCached;
 				numSectors -= notCached;
@@ -920,16 +997,27 @@ static int cacheRead(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 			// Add the data to the cache.
 			buffer = cacheAdd(physicalDisk, startSector, numSectors, data);
 			if (buffer)
+			{
 				buffer->lastAccess = kernelSysTimerRead();
+				added = 1;
+			}
 
 			break;
 		}
 	}
 
-	// Since we might have added something to the cache above, check whether
-	// we should prune it.
-	if (physicalDisk->cache.size > DISK_MAX_CACHE)
-		cachePrune(physicalDisk);
+	if (added)
+	{
+		// Since we added something to the cache above, check whether we should
+		// prune it.
+		if (physicalDisk->cache.size > DISK_MAX_CACHE)
+			cachePrune(physicalDisk);
+	}
+
+	// Check whether we should merge any entries
+	cacheMerge(physicalDisk);
+
+	cacheCheck(physicalDisk);
 
 	return (status = 0);
 }
@@ -1034,7 +1122,7 @@ static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
 	else
 	{
 		newBuffer->next = buffer->next;
-		
+
 		if (newBuffer->next)
 			newBuffer->next->prev = newBuffer;
 	}
@@ -1043,8 +1131,6 @@ static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
 		cacheMarkClean(physicalDisk, buffer);
 
 	cachePutBuffer(buffer);
-
-	cacheCheck(physicalDisk);
 
 	return (newBuffer);
 }
@@ -1058,17 +1144,18 @@ static int cacheWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 	// new cache buffer for the new data.
 
 	int status = 0;
-	uquad_t firstCached = 0;
 	uquad_t numCached = 0;
+	uquad_t firstCached = 0;
 	uquad_t notCached = 0;
+	int added = 0;
 	kernelDiskCacheBuffer *buffer = NULL;
 
 	debugLockCheck(physicalDisk, __FUNCTION__);
 
 	while (numSectors)
 	{
-		numCached =
-		cacheQueryRange(physicalDisk, startSector, numSectors, &firstCached);
+		numCached = cacheQueryRange(physicalDisk, startSector, numSectors,
+			&firstCached);
 
 		if (numCached)
 		{
@@ -1086,6 +1173,7 @@ static int cacheWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 				{
 					cacheMarkDirty(physicalDisk, buffer);
 					buffer->lastAccess = kernelSysTimerRead();
+					added = 1;
 				}
 
 				startSector += notCached;
@@ -1110,6 +1198,7 @@ static int cacheWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 						physicalDisk->sectorSize)),
 					(numCached * physicalDisk->sectorSize));
 			}
+
 			if (buffer)
 			{
 				cacheMarkDirty(physicalDisk, buffer);
@@ -1128,15 +1217,24 @@ static int cacheWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 			{
 				cacheMarkDirty(physicalDisk, buffer);
 				buffer->lastAccess = kernelSysTimerRead();
+				added = 1;
 			}
 			break;
 		}
 	}
 
-	// Since we might have added something to the cache above, check whether
-	// we should prune it.
-	if (physicalDisk->cache.size > DISK_MAX_CACHE)
-		cachePrune(physicalDisk);
+	if (added)
+	{
+		// Since we added something to the cache above, check whether we should
+		// prune it.
+		if (physicalDisk->cache.size > DISK_MAX_CACHE)
+			cachePrune(physicalDisk);
+	}
+
+	// Check whether we should merge any entries
+	cacheMerge(physicalDisk);
+
+	cacheCheck(physicalDisk);
 
 	return (status = 0);
 }
@@ -1163,7 +1261,7 @@ static int readWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 
 	#if (DISK_CACHE)
 	if (!(physicalDisk->flags & DISKFLAG_NOCACHE) && !(mode & IOMODE_NOCACHE))
-	{  
+	{
 		if (mode & IOMODE_READ)
 			status = cacheRead(physicalDisk, startSector, numSectors, data);
 		else
@@ -1381,7 +1479,7 @@ static int isGptDisk(kernelPhysicalDisk *physicalDisk)
 		return (status);
 	}
 
-	// Check for the GPT signature 
+	// Check for the GPT signature
 	status = checkGptSignature(sectorData);
 
 	kernelFree(sectorData);
@@ -1471,7 +1569,7 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 		kernelFree(sectorData);
 		return (status = ERR_BADDATA);
 	}
-	
+
 	// Calculate the number of sectors we need to read
 	entryBytes = (numEntries * entrySize);
 	entrySectors = ((entryBytes / physicalDisk->sectorSize) +
@@ -1493,7 +1591,7 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 		kernelFree(sectorData);
 		return (status);
 	}
-	
+
 	for (count = 0; ((count < numEntries) &&
 		(physicalDisk->numLogical < DISK_MAX_PARTITIONS)); count ++)
 	{
@@ -1537,7 +1635,7 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 		kernelDebug(debug_io, "%s GPT entry %d startSector=%llu numSectors=%llu",
 			physicalDisk->name, count, logicalDisk->startSector,
 			logicalDisk->numSectors);
-		
+
 		newLogicalDisks[*newLogicalDiskCounter] = logicalDisk;
 		*newLogicalDiskCounter += 1;
 		physicalDisk->numLogical += 1;
@@ -1616,7 +1714,7 @@ static int readDosPartitions(kernelPhysicalDisk *physicalDisk,
 
 			// Now try to figure out the real one.
 			kernelDiskGetMsdosPartType(msdosTag, &msdosType);
-	
+
 			// We will add a logical disk corresponding to the
 			// partition we've discovered
 			sprintf((char *) logicalDisk->name, "%s%c", physicalDisk->name,
@@ -1632,7 +1730,7 @@ static int readDosPartitions(kernelPhysicalDisk *physicalDisk,
 				*((unsigned *)(partitionRecord + 0x0C));
 			if (!extendedStartSector)
 				logicalDisk->primary = 1;
-		
+
 			newLogicalDisks[*newLogicalDiskCounter] = logicalDisk;
 			*newLogicalDiskCounter += 1;
 			physicalDisk->numLogical += 1;
@@ -1673,7 +1771,7 @@ static int readDosPartitions(kernelPhysicalDisk *physicalDisk,
 		if (!extendedStartSector)
 			extendedStartSector = startSector;
 		else
-			startSector += extendedStartSector;	
+			startSector += extendedStartSector;
 
 		if (kernelDiskReadSectors((char *) physicalDisk->name, startSector,	1,
 			sectorData) < 0)
@@ -1852,7 +1950,7 @@ static int identifyBootCd(void)
 
 		// Unlock the disk
 		kernelLockRelease(&physicalDisk->lock);
-	
+
 		if (status < 0)
 		{
 			kernelFree(buffer);
@@ -2003,9 +2101,9 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
 	int count;
 
 	// Check params
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "Disk device structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -2066,7 +2164,7 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
 
 	// Reset the 'last access' and 'last sync' values
 	physicalDisk->lastAccess = kernelSysTimerRead();
-	
+
 	// Unlock the disk
 	kernelLockRelease(&physicalDisk->lock);
 
@@ -2088,9 +2186,9 @@ int kernelDiskRemoveDevice(kernelDevice *dev)
 	int count;
 
 	// Check params
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "Disk device structure is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -2141,13 +2239,13 @@ int kernelDiskRemoveDevice(kernelDevice *dev)
 
 int kernelDiskInitialize(void)
 {
-	// This is the "initialize" routine which invokes  the driver routine 
+	// This is the "initialize" routine which invokes  the driver routine
 	// designed for that function.  Normally it returns zero, unless there
 	// is an error.  If there's an error it returns negative.
-	
+
 	int status = 0;
 
-	// Check whether any disks have been registered.  If not, that's 
+	// Check whether any disks have been registered.  If not, that's
 	// an indication that the hardware enumeration has not been done
 	// properly.  We'll issue an error in this case
 	if (physicalDiskCounter <= 0)
@@ -2190,7 +2288,7 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 	int status = 0;
 	variableList mountConfig;
 	char variable[128];
-	char value[128];
+	const char *value = NULL;
 	char mountPoint[MAX_PATH_LENGTH];
 
 	// Already mounted?
@@ -2204,8 +2302,8 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 
 	// See if a mount point is specified
 	snprintf(variable, 128, "%s.mountpoint", theDisk->name);
-	status = kernelVariableListGet(&mountConfig, variable, value, 128);
-	if (status < 0)
+	value = kernelVariableListGet(&mountConfig, variable);
+	if (!value)
 		goto out;
 
 	status = kernelFileFixupPath(value, mountPoint);
@@ -2214,8 +2312,8 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 
 	// See if we're supposed to automount it.
 	snprintf(variable, 128, "%s.automount", theDisk->name);
-	status = kernelVariableListGet(&mountConfig, variable, value, 128);
-	if (status < 0)
+	value = kernelVariableListGet(&mountConfig, variable);
+	if (!value)
 		goto out;
 
 	if (strcasecmp(value, "yes"))
@@ -2284,9 +2382,9 @@ int kernelDiskInvalidateCache(const char *diskName)
 	}
 
 	status = cacheInvalidate(physicalDisk);
-	
-	kernelLockRelease(&physicalDisk->lock);  
-	
+
+	kernelLockRelease(&physicalDisk->lock);
+
 	if (status < 0)
 		kernelError(kernel_warn, "Error invalidating disk \"%s\" cache",
 			physicalDisk->name);
@@ -2303,7 +2401,7 @@ int kernelDiskShutdown(void)
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
 	int count;
-	
+
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
@@ -2321,7 +2419,7 @@ int kernelDiskShutdown(void)
 		status = kernelLockGet(&physicalDisk->lock);
 		if (status < 0)
 			return (status = ERR_NOLOCK);
-		
+
 		if ((physicalDisk->type & DISKTYPE_REMOVABLE) &&
 			(physicalDisk->flags & DISKFLAG_MOTORON))
 		{
@@ -2404,9 +2502,9 @@ kernelDisk *kernelDiskGetByName(const char *name)
 		return (theDisk = NULL);
 
 	// Check params
-	if (name == NULL)
+	if (!name)
 	{
-		kernelError(kernel_error, "Disk name is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (theDisk = NULL);
 	}
 
@@ -2562,7 +2660,7 @@ int kernelDiskReadPartitions(const char *diskName)
 	for (count = 0; count < logicalDiskCounter; count ++)
 	{
 		logicalDisk = logicalDisks[count];
-		
+
 		if (logicalDisk->physical == physicalDisk)
 		{
 			if (physicalDisk->flags & DISKFLAG_MOTORON)
@@ -2615,7 +2713,7 @@ int kernelDiskReadPartitionsAll(void)
 int kernelDiskSync(const char *diskName)
 {
 	// Synchronize the named physical disk.
-	
+
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
 	kernelDisk *logicalDisk = NULL;
@@ -2672,7 +2770,7 @@ int kernelDiskSync(const char *diskName)
 				physicalDisk->name);
 			errors = status;
 		}
-	}  
+	}
 
 	kernelLockRelease(&physicalDisk->lock);
 
@@ -2715,7 +2813,7 @@ int kernelDiskGetBoot(char *boot)
 	// Check params
 	if (boot == NULL)
 		return (status = ERR_NULLPARAMETER);
-	
+
 	strncpy(boot, bootDisk, DISK_MAX_NAMELENGTH);
 	return (status = 0);
 }
@@ -2762,11 +2860,11 @@ int kernelDiskGet(const char *diskName, disk *userDisk)
 
 	// Try for a logical disk first.
 	if ((logicalDisk = kernelDiskGetByName(diskName)))
-		return(kernelDiskFromLogical(logicalDisk, userDisk));
+		return (kernelDiskFromLogical(logicalDisk, userDisk));
 
 	// Try physical instead
 	else if ((physicalDisk = getPhysicalByName(diskName)))
-		return(diskFromPhysical(physicalDisk, userDisk));
+		return (diskFromPhysical(physicalDisk, userDisk));
 
 	else
 		// No such disk.
@@ -2816,10 +2914,10 @@ int kernelDiskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
 	// Check params
 	if (userDiskArray == NULL)
 		return (status = ERR_NULLPARAMETER);
-	 
+
 	if ((buffSize / sizeof(disk)) < doDisks)
 		doDisks = (buffSize / sizeof(disk));
-	 
+
 	// Loop through the physical disks, filling the array supplied
 	for (count = 0; count < doDisks; count ++)
 		diskFromPhysical(physicalDisks[count], &userDiskArray[count]);
@@ -3014,7 +3112,7 @@ out:
 	return (status);
 }
 
-  
+
 int kernelDiskSetLockState(const char *diskName, int state)
 {
 	// This routine is the user-accessible interface for locking or unlocking
@@ -3051,7 +3149,7 @@ int kernelDiskSetLockState(const char *diskName, int state)
 		kernelError(kernel_error, "Driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
-	
+
 	// Lock the disk
 	status = kernelLockGet(&physicalDisk->lock);
 	if (status < 0)
@@ -3110,7 +3208,7 @@ int kernelDiskSetDoorState(const char *diskName, int state)
 		kernelError(kernel_error, "Driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
-	
+
 	// Lock the disk
 	status = kernelLockGet(&physicalDisk->lock);
 	if (status < 0)
@@ -3196,7 +3294,7 @@ int kernelDiskMediaPresent(const char *diskName)
 	// Unlock the disk
 	kernelLockRelease(&physicalDisk->lock);
 
-	return (present);  
+	return (present);
 }
 
 
@@ -3264,7 +3362,7 @@ int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
 {
 	// This routine is the user-accessible interface to reading data using
 	// the various disk routines in this file.  Basically, it is a gatekeeper
-	// that helps ensure correct use of the "read-write" method.  
+	// that helps ensure correct use of the "read-write" method.
 
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
@@ -3289,7 +3387,7 @@ int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
 
 		// Start at the beginning of the logical volume.
 		logicalSector += theDisk->startSector;
-		
+
 		// Make sure the logical sector number does not exceed the number
 		// of logical sectors on this volume
 		if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
@@ -3324,18 +3422,18 @@ int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
 
 	// Unlock the disk
 	kernelLockRelease(&physicalDisk->lock);
-	
+
 	return (status);
 }
 
 
-int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector, 
+int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector,
 	uquad_t numSectors, const void *data)
 {
 	// This routine is the user-accessible interface to writing data using
 	// the various disk routines in this file.  Basically, it is a gatekeeper
 	// that helps ensure correct use of the "read-write" method.
-	
+
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
 	kernelDisk *theDisk = NULL;
@@ -3359,7 +3457,7 @@ int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector,
 
 		// Start at the beginning of the logical volume.
 		logicalSector += theDisk->startSector;
-		
+
 		// Make sure the logical sector number does not exceed the number
 		// of logical sectors on this volume
 		if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
@@ -3370,7 +3468,7 @@ int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector,
 			kernelError(kernel_error, "Exceeding volume boundary");
 			return (status = ERR_BOUNDS);
 		}
-		
+
 		physicalDisk = theDisk->physical;
 
 		if (physicalDisk == NULL)
@@ -3396,13 +3494,13 @@ int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector,
 }
 
 
-int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector, 
+int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector,
 	uquad_t numSectors, int passes)
 {
 	// This routine synchronously and securely erases disk sectors.  It writes
 	// (passes - 1) successive passes of random data followed by a final pass
 	// of NULLs.
-	
+
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
 	kernelDisk *theDisk = NULL;
@@ -3430,7 +3528,7 @@ int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector,
 
 		// Start at the beginning of the logical volume.
 		logicalSector += theDisk->startSector;
-		
+
 		// Make sure the logical sector number does not exceed the number
 		// of logical sectors on this volume
 		if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
@@ -3441,7 +3539,7 @@ int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector,
 			kernelError(kernel_error, "Exceeding volume boundary");
 			return (status = ERR_BOUNDS);
 		}
-		
+
 		physicalDisk = theDisk->physical;
 	}
 

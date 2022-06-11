@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -43,6 +43,7 @@ in other windows.
 #include <libintl.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/window.h>
@@ -50,28 +51,46 @@ in other windows.
 
 #define _(string) gettext(string)
 
+#define WINDOW_TITLE	_("Console Window")
+
 objectKey window = NULL;
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("console");
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
 
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// This is just to handle a window shutdown event.
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
 
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		windowGuiStop();
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			windowGuiStop();
+	}
 }
 
 
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
-	int processId = 0;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("console");
 
 	// Only work in graphics mode
@@ -83,10 +102,8 @@ int main(int argc, char *argv[])
 		return (status = errno);
 	}
 
-	processId = multitaskerGetCurrentProcessId();
-
 	// Create a new window, with small, arbitrary size and location
-	window = windowNew(processId, _("Console Window"));
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 
 	// Put the console text area in the window
 	status = windowAddConsoleTextArea(window);
@@ -96,7 +113,7 @@ int main(int argc, char *argv[])
 			// There's already a console window open somewhere
 			windowNewErrorDialog(NULL, _("Error"), _("Cannot open more than one "
 				"console window!"));
-		
+
 		else
 			windowNewErrorDialog(NULL, _("Error"), _("Error opening the console "
 				"window!"));
@@ -123,3 +140,4 @@ int main(int argc, char *argv[])
 	// Done
 	return (status);
 }
+

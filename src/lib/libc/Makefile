@@ -1,187 +1,193 @@
-## 
+##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-##  
+##
 ##  Makefile
 ##
 
-ROOT		= ../../..
-UTILSDIR	= ${ROOT}/utils
-BUILDDIR	= ${ROOT}/build/system/libraries
-INCDIR		= ../../include
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
+	STRIP = strip -s ${SHAREDLIB}
+endif
+
+ROOT = ../../..
+BUILDDIR = ${ROOT}/build/system/libraries
+INCDIR = ../../include
 
 include ${ROOT}/Makefile.include
 
-STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
-		${INCDIR}/sys/*.h
-INCLUDE		= -nostdinc -I${INCDIR}
-DEBUG		= # -DDEBUG # Uncomment to turn on debugging
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
-
-ifeq (${DEBUG},)
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
 	STRIP = strip -s ${SHAREDLIB}
-endif 
+endif
 
-CDEFNAMES	= _dbl2str \
-		_digits \
-		_flt2str \
-		_fmtinpt \
-		_kernapi \
-		_ldigits \
-		_lnum2str \
-		_num2str \
-		_str2num \
-		_xpndfmt
+STDDEPS = ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
+	${INCDIR}/sys/*.h
+INCLUDE = -nostdinc -I${INCDIR}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 
-CTYPENAMES	= isalnum \
-		isalpha \
-		isascii \
-		iscntrl \
-		isdigit \
-		isgraph \
-		islower \
-		isprint \
-		ispunct \
-		isspace \
-		isupper \
-		isxdigit \
-		tolower \
-		toupper
+CDEFNAMES = _dbl2str \
+	_digits \
+	_flt2str \
+	_fmtinpt \
+	_kernapi \
+	_ldigits \
+	_lnum2str \
+	_num2str \
+	_str2num \
+	_xpndfmt
 
-FCNTLNAMES	= open
+CTYPENAMES = isalnum \
+	isalpha \
+	isascii \
+	iscntrl \
+	isdigit \
+	isgraph \
+	islower \
+	isprint \
+	ispunct \
+	isspace \
+	isupper \
+	isxdigit \
+	tolower \
+	toupper
 
-LIBGENNAMES	= basename \
-		dirname
+FCNTLNAMES = open
 
-LOCALENAMES	= setlocale
+LIBGENNAMES = basename \
+	dirname
 
-MATHNAMES	= ceil \
-		cos \
-		cosf \
-		fabs \
-		fabsf \
-		floor \
-		floorf \
-		fmod \
-		modf \
-		pow \
-		sin \
-		sinf \
-		sqrt \
-		tan \
-		tanf
+LOCALENAMES = setlocale
 
-SIGNALNAMES	= signal
+MATHNAMES = ceil \
+	cos \
+	cosf \
+	fabs \
+	fabsf \
+	floor \
+	floorf \
+	fmod \
+	modf \
+	pow \
+	sin \
+	sinf \
+	sqrt \
+	tan \
+	tanf
 
-STDIONAMES	= fclose \
-		fflush \
-		fgetpos \
-		fgets \
-		fopen \
-		fprintf \
-		fread \
-		fscanf \
-		fseek \
-		fsetpos \
-		ftell \
-		fwrite \
-		getc \
-		getchar \
-		gets \
-		perror \
-		printf \
-		putc \
-		putchar \
-		puts \
-		remove \
-		rename \
-		rewind \
-		scanf \
-		snprintf \
-		sprintf \
-		sscanf \
-		vfprintf \
-		vfscanf \
-		vprintf \
-		vscanf \
-		vsnprintf \
-		vsprintf \
-		vsscanf
+SIGNALNAMES = signal
 
-STDLIBNAMES	= abort \
-		abs \
-		calloc \
-		exit \
-		getenv \
-		labs \
-		malloc \
-		mbtowc \
-		mbstowcs \
-		rand \
-		realloc \
-		realpath \
-		srand \
-		system \
-		wctomb
+STDIONAMES = fclose \
+	fflush \
+	fgetpos \
+	fgets \
+	fopen \
+	fprintf \
+	fread \
+	fscanf \
+	fseek \
+	fsetpos \
+	ftell \
+	fwrite \
+	getc \
+	getchar \
+	gets \
+	perror \
+	printf \
+	putc \
+	putchar \
+	puts \
+	remove \
+	rename \
+	rewind \
+	scanf \
+	snprintf \
+	sprintf \
+	sscanf \
+	vfprintf \
+	vfscanf \
+	vprintf \
+	vscanf \
+	vsnprintf \
+	vsprintf \
+	vsscanf
 
-STRINGNAMES	= bcopy \
-		bzero \
-		ffs \
-		fls \
-		memcmp \
-		memcpy \
-		memmove \
-		memset \
-		strcasecmp \
-		strcasestr \
-		strcat \
-		strchr \
-		strcmp \
-		strcpy \
-		strdup \
-		strerror \
-		strlen \
-		strncasecmp \
-		strncat \
-		strncmp \
-		strncpy \
-		strnlen \
-		strrchr \
-		strspn \
-		strstr \
-		strtok
+STDLIBNAMES = abort \
+	abs \
+	calloc \
+	exit \
+	getenv \
+	labs \
+	malloc \
+	mbtowc \
+	mbstowcs \
+	rand \
+	realloc \
+	realpath \
+	setenv \
+	srand \
+	system \
+	wctomb
 
-TIMENAMES	= asctime \
-		clock \
-		difftime \
-		time
+STRINGNAMES = bcopy \
+	bzero \
+	ffs \
+	fls \
+	memcmp \
+	memcpy \
+	memmove \
+	memset \
+	strcasecmp \
+	strcasestr \
+	strcat \
+	strchr \
+	strcmp \
+	strcpy \
+	strdup \
+	strerror \
+	strlen \
+	strncasecmp \
+	strncat \
+	strncmp \
+	strncpy \
+	strnlen \
+	strrchr \
+	strspn \
+	strstr \
+	strtok
 
-UNISTDNAMES	= close \
-		ftruncate \
-		getopt \
-		lseek \
-		read \
-		sleep \
-		stat \
-		swab \
-		truncate \
-		write
+TIMENAMES = asctime \
+	clock \
+	difftime \
+	time
 
-MISCNAMES	= readline
+UNISTDNAMES = close \
+	ftruncate \
+	getopt \
+	lseek \
+	read \
+	sleep \
+	stat \
+	swab \
+	truncate \
+	write
 
-ALLNAMES	= ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LIBGENNAMES} \
-		${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} \
-		${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES} \
-		${MISCNAMES}
+MISCNAMES = readline
 
-OBJDIR		= obj
-PICOBJDIR	= picobj
-OBJS		= $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
-PICOBJS		= $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
-CRT0		= ${BUILDDIR}/crt0.o
-LIBRARY		= ${BUILDDIR}/libc.a
-SONAME		= libc.so
-SHAREDLIB	= ${BUILDDIR}/${SONAME}
+ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LIBGENNAMES} \
+	${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} \
+	${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES} ${MISCNAMES}
+
+OBJDIR = obj
+PICOBJDIR = picobj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
+PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
+CRT0 = ${BUILDDIR}/crt0.o
+LIBRARY = ${BUILDDIR}/libc.a
+SONAME = libc.so
+SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
@@ -197,7 +203,8 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${CC} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro ${PICOBJS} -static -lgcc -o $@
+	${CC} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro ${PICOBJS} \
+		-static -lgcc -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}
@@ -209,5 +216,5 @@ ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -fpic -c $< -o $@
 
 clean:
-	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${CRT0} ${LIBRARY} \
-	${SHAREDLIB}
+	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${CRT0} ${LIBRARY} ${SHAREDLIB}
+

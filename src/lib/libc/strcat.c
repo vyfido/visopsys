@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -28,7 +28,7 @@
 char *strcat(char *destString, const char *sourceString)
 {
 	int count1, count2;
-	
+
 	// Find the end of the first String
 	for (count1 = 0; count1 < MAXSTRINGLENGTH; )
 	{
@@ -45,12 +45,12 @@ char *strcat(char *destString, const char *sourceString)
 		return (destString = NULL);
 	}
 
-	// Now copy the source string into the dest until the source is a 
-	// NULL character.  
+	// Now copy the source string into the dest until the source is a
+	// NULL character.
 	for (count2 = 0; count2 < MAXSTRINGLENGTH; )
 	{
 		destString[count1] = sourceString[count2];
-		
+
 		if (sourceString[count2] == (char) NULL)
 			break;
 

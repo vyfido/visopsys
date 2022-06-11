@@ -1,24 +1,24 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelDescriptor.c
 //
-	
+
 // This file contains the C functions belonging to the kernel's descriptor
 // manager.
 
@@ -61,9 +61,9 @@ int kernelDescriptorInitialize(void)
 	int status = 0;
 	int count;
 
-	// We need to reinitialize and take control of the Global Descriptor 
-	// Table, and will serve as the interface to that.  We'll prepare space 
-	// for it, and add all of the new, free descriptors to the free 
+	// We need to reinitialize and take control of the Global Descriptor
+	// Table, and will serve as the interface to that.  We'll prepare space
+	// for it, and add all of the new, free descriptors to the free
 	// descriptors list
 
 	// Initialize the Global Descriptor Table
@@ -78,7 +78,7 @@ int kernelDescriptorInitialize(void)
 	// work for the GDT.  The IDT is mostly just filled once at startup,
 	// but the GDT is much more dynamic in our implementation.
 
-	// Make note of the fact that we are initialized BEFORE we try to call 
+	// Make note of the fact that we are initialized BEFORE we try to call
 	// the SetXXXEntry routines
 	initialized = 1;
 
@@ -97,7 +97,7 @@ int kernelDescriptorInitialize(void)
 		0xA,					// Code, non-conforming, readable
 		1,						// LARGE size granularity
 		1);						// 32-bit code segment
-	
+
 	if (status < 0)
 		// Something went wrong
 		return (status);
@@ -145,7 +145,7 @@ int kernelDescriptorInitialize(void)
 		0xA,					// Code, non-conforming, readable
 		1,						// LARGE size granularity
 		1);						// 32-bit code segment
-	
+
 	if (status < 0)
 		// Something went wrong
 		return (status);
@@ -231,7 +231,7 @@ int kernelDescriptorRequest(volatile kernelSelector *descNumPointer)
 	if (numFreeDescriptors < 1)
 		// Damn.  Out of descriptors
 		return (status = ERR_NOFREE);
-	
+
 	// Make sure the pointer->pointer parameter we were passed isn't NULL
 	if (descNumPointer == NULL)
 		// Oops.
@@ -284,7 +284,7 @@ int kernelDescriptorRelease(kernelSelector selector)
 }
 
 
-int kernelDescriptorSetUnformatted(volatile kernelSelector selector,   
+int kernelDescriptorSetUnformatted(volatile kernelSelector selector,
 	unsigned char segSizeByte1, unsigned char segSizeByte2,
 	unsigned char baseAddress1, unsigned char baseAddress2,
 	unsigned char baseAddress3, unsigned char attributes1,
@@ -297,7 +297,7 @@ int kernelDescriptorSetUnformatted(volatile kernelSelector selector,
 	// of the contents -- it simply assigns them to the corresponding bytes
 	// of the desctriptor.  A function such as this is necessary for doing
 	// things like installing call gates, which do not closely resemble
-	// memory segment descriptors and the like.  Returns 0 on success, 
+	// memory segment descriptors and the like.  Returns 0 on success,
 	// negative otherwise
 
 	int status = 0;
@@ -335,7 +335,7 @@ int kernelDescriptorSet(volatile kernelSelector selector, volatile void *base,
 	int granularity, int bitSize)
 {
 	// This function is mostly internal, and is used to change a descriptor
-	// in a descriptor table.  All of the relevant information should be 
+	// in a descriptor table.  All of the relevant information should be
 	// passed in as parameters, and they will then be added to the table
 
 	int status = 0;
@@ -390,7 +390,7 @@ int kernelDescriptorSet(volatile kernelSelector selector, volatile void *base,
 		kernelError(kernel_error, "Invalid size granularity");
 		return (status = ERR_INVALID);
 	}
-	
+
 	// The bitsize bit should be either 0 or 1
 	if ((bitSize < 0) || (bitSize > 1))
 	{
@@ -401,14 +401,14 @@ int kernelDescriptorSet(volatile kernelSelector selector, volatile void *base,
 	// Initialize the descriptor we're changing
 	kernelMemClear((kernelDescriptor *) &globalDescriptorTable[entryNumber],
 		sizeof(kernelDescriptor));
-	
+
 	// Now we can begin constructing the descriptor.  Start working through
 	// each of the descriptor's bits.
-	
+
 	// The two least-significant segment size bytes
-	globalDescriptorTable[entryNumber].segSizeByte1 = (unsigned char) 
+	globalDescriptorTable[entryNumber].segSizeByte1 = (unsigned char)
 		(size & 0x000000FF);
-	globalDescriptorTable[entryNumber].segSizeByte2 = (unsigned char) 
+	globalDescriptorTable[entryNumber].segSizeByte2 = (unsigned char)
 		((size & 0x0000FF00) >> 8);
 
 	// The three least significant base address bytes
@@ -439,7 +439,7 @@ int kernelDescriptorGet(kernelSelector selector, kernelDescriptor *descriptor)
 {
 	// This function will return the contents of the requested GDT descriptor
 	// to the calling function.  Returns 0 on success, negative otherwise
-	
+
 	int status = 0;
 	int entryNumber = 0;
 
@@ -485,7 +485,7 @@ int kernelDescriptorSetIDTInterruptGate(int number, void *address)
 		// We have not been initialized
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure that the requested interrupt number doesn't exceed the 
+	// Make sure that the requested interrupt number doesn't exceed the
 	// max size of the table (it's allowed to be zero here, however)
 	if (number >= IDT_SIZE)
 	{
@@ -494,25 +494,25 @@ int kernelDescriptorSetIDTInterruptGate(int number, void *address)
 	}
 
 	// Make sure the ISR address isn't NULL
-	if (address == NULL)
+	if (!address)
 	{
-		kernelError(kernel_error, "NULL ISR address");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_BADADDRESS);
 	}
 
 	// Initialize the descriptor we're changing
-	kernelMemClear((kernelDescriptor *) 
+	kernelMemClear((kernelDescriptor *)
 		&interruptDescriptorTable[number], sizeof(kernelDescriptor));
-	
+
 	// Now we can begin constructing the descriptor.  Start working through
 	// each of the descriptor's bytes.
-	interruptDescriptorTable[number].segSizeByte1 = 
+	interruptDescriptorTable[number].segSizeByte1 =
 		(unsigned char)((int)address & 0x000000FF);
-	interruptDescriptorTable[number].segSizeByte2 = 
+	interruptDescriptorTable[number].segSizeByte2 =
 		(unsigned char)(((int)address & 0x0000FF00) >> 8);
-	interruptDescriptorTable[number].baseAddress1 = 
+	interruptDescriptorTable[number].baseAddress1 =
 		(unsigned char)(PRIV_CODE & 0x000000FF);
-	interruptDescriptorTable[number].baseAddress2 = 
+	interruptDescriptorTable[number].baseAddress2 =
 		(unsigned char)((PRIV_CODE & 0x0000FF00) >> 8);
 	interruptDescriptorTable[number].baseAddress3 = (unsigned char) 0;
 	interruptDescriptorTable[number].attributes1 = (unsigned char) 0x8E;
@@ -520,7 +520,7 @@ int kernelDescriptorSetIDTInterruptGate(int number, void *address)
 		(unsigned char)(((int)address & 0x00FF0000) >> 16);
 	interruptDescriptorTable[number].baseAddress4 =
 		(unsigned char)(((int)address & 0xFF000000) >> 24);
-	 
+
 	// There.  We made an interrupt gate descriptor.
 	return (status = 0);
 }
@@ -540,7 +540,7 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
 		// We have not been initialized
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure that the requested interrupt number doesn't exceed the 
+	// Make sure that the requested interrupt number doesn't exceed the
 	// max size of the table (it's allowed to be zero here, however)
 	if (number >= IDT_SIZE)
 	{
@@ -549,22 +549,22 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
 	}
 
 	// Initialize the descriptor we're changing
-	kernelMemClear((kernelDescriptor *) 
+	kernelMemClear((kernelDescriptor *)
 		&interruptDescriptorTable[number], sizeof(kernelDescriptor));
 
 	// Now we can begin constructing the descriptor.  Start working through
 	// each of the descriptor's bytes.
 	interruptDescriptorTable[number].segSizeByte1 = (unsigned char) 0;
 	interruptDescriptorTable[number].segSizeByte2 = (unsigned char) 0;
-	interruptDescriptorTable[number].baseAddress1 = 
+	interruptDescriptorTable[number].baseAddress1 =
 		(unsigned char)(selector & 0x000000FF);
-	interruptDescriptorTable[number].baseAddress2 = 
+	interruptDescriptorTable[number].baseAddress2 =
 		(unsigned char)((selector & 0x0000FF00) >> 8);
 	interruptDescriptorTable[number].baseAddress3 = (unsigned char) 0;
 	interruptDescriptorTable[number].attributes1 = (unsigned char) 0x85;
 	interruptDescriptorTable[number].attributes2 = (unsigned char) 0;
 	interruptDescriptorTable[number].baseAddress4 = (unsigned char) 0;
-	 
+
 	// There.  We made a task gate descriptor.
 	return (status = 0);
 }

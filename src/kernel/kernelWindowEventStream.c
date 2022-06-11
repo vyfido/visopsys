@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -44,10 +44,10 @@ int kernelWindowEventStreamNew(windowEventStream *newStream)
 
 	int status = 0;
 
-	// Check arguments
-	if (newStream == NULL)
+	// Check params
+	if (!newStream)
 	{
-		kernelError(kernel_error, "NULL stream parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -62,7 +62,7 @@ int kernelWindowEventStreamNew(windowEventStream *newStream)
 		return (status);
 	}
 
-	// Yahoo, all set. 
+	// Yahoo, all set.
 	return (status = 0);
 }
 
@@ -74,10 +74,10 @@ int kernelWindowEventStreamPeek(windowEventStream *theStream)
 
 	int type = 0;
 
-	// Check arguments
-	if (theStream == NULL)
+	// Check params
+	if (!theStream)
 	{
-		kernelError(kernel_error, "NULL event stream");
+		kernelError(kernel_error, "NULL parameter");
 		return (ERR_NULLPARAMETER);
 	}
 
@@ -101,10 +101,10 @@ int kernelWindowEventStreamRead(windowEventStream *theStream,
 
 	int status = 0;
 
-	// Check arguments
-	if ((theStream == NULL) || (event == NULL))
+	// Check params
+	if (!theStream || !event)
 	{
-		kernelError(kernel_error, "NULL event stream or event argument");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -127,14 +127,14 @@ int kernelWindowEventStreamWrite(windowEventStream *theStream,
 	windowEvent *event)
 {
 	// This function will write the data from the supplied windowEvent structure
-	// to the window event stream 
+	// to the window event stream
 
 	int status = 0;
 
-	// Check arguments
-	if ((theStream == NULL) || (event == NULL))
+	// Check params
+	if (!theStream || !event)
 	{
-		kernelError(kernel_error, "NULL event stream or event argument");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 

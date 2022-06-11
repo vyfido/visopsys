@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -41,12 +41,12 @@ int getopt(int argc, char *const argv[], const char *optstring)
 	ters of this element (aside from the initial '-') are option charac-
 	ters.  If getopt() is called repeatedly, it returns successively each
 	of the option characters from each of the option elements.
-	
+
 	If getopt() finds another option character, it returns that character,
 	updating the external variable optind and a static variable nextchar so
 	that the next call to getopt() can resume the scan with the following
 	option character or argv-element.
-	
+
 	If there are no more option characters, getopt() returns -1.  Then
 	optind is the index in argv of the first argv-element that is not an
 	option.
@@ -62,7 +62,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 	(The -W option is reserved by POSIX.2 for implementation extensions.)
 	This behaviour is a GNU extension, not available with libraries before
 	GNU libc 2.
-	
+
 	By default, getopt() permutes the contents of argv as it scans, so that
 	eventually all the non-options are at the end.  Two other modes are
 	also implemented.  If the first character of optstring is '+' or the
@@ -91,7 +91,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 	*/
 
 	// So we do that, approximately.  More like the POSIXLY one though.
-	
+
 	static int nextchar = 0;
 	int optstrlength = 0;
 	char option = '\0';
@@ -180,7 +180,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 						optarg = NULL;
 						return ((int) ':');
 					}
-			
+
 					optarg = argv[optind];
 				}
 

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -19,67 +19,24 @@
 //  kernelWindowMenu.c
 //
 
-// This code is for managing kernelWindowMenu objects.  These are subclasses
-// of containers, which are filled with kernelWindowMenuItems
+// This code is for managing kernelWindowMenu objects.  These are a special
+// class of windows, which are filled with kernelWindowMenuItems
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelMalloc.h"
+#include "kernelMisc.h"
 #include "kernelWindowEventStream.h"
-#include <stdlib.h>
-#include <string.h>
+
+static void (*saveFocus)(kernelWindow *, int) = NULL;
 
 extern kernelWindowVariables *windowVariables;
 
 
-static int getGraphicBuffer(kernelWindowComponent *component)
+static int findSelected(kernelWindow *menu)
 {
-	// Gets a new graphic buffer for the menu, appropriate for its size.  Also
-	// deallocates any previous buffer memory, if applicable.
-
-	int status = 0;
-	kernelWindowMenu *menu = NULL;
-
-	if (component->type != menuComponentType)
-	{
-		kernelError(kernel_error, "Component is not a menu");
-		return (status = ERR_INVALID);
-	}
-
-	menu = component->data;
-
-	// Free any existing buffer
-	if (menu->buffer.data)
-	{
-		kernelFree(menu->buffer.data);
-		menu->buffer.data = NULL;
-	}
-	
-	menu->buffer.width = component->width;
-	menu->buffer.height = component->height;
-
-	if (component->width && component->height)
-	{
-		menu->buffer.data =
-			kernelMalloc(kernelGraphicCalculateAreaBytes(menu->buffer.width,
-				menu->buffer.height));
-		if (menu->buffer.data == NULL)
-			return (status = ERR_MEMORY);
-	}
-
-	if (component->setBuffer)
-		component->setBuffer(component, &(menu->buffer));
-	component->buffer = &(menu->buffer);
-
-	return (status = 0);
-}
-
-
-static int findSelected(kernelWindowMenu *menu)
-{
+	kernelWindowContainer *container = menu->mainContainer->data;
 	kernelWindowComponent *menuItemComponent = NULL;
-	kernelWindowContainer *container = menu->container->data;
 	kernelWindowMenuItem *menuItem = NULL;
 	int count;
 
@@ -97,268 +54,51 @@ static int findSelected(kernelWindowMenu *menu)
 }
 
 
-static int add(kernelWindowComponent *menuComponent,
-	kernelWindowComponent *component)
+static void focus(kernelWindow *menu, int got)
 {
-	// Add the supplied component to the menu.
-
-	int status = 0;
-	kernelWindowMenu *menu = menuComponent->data;
-	
-	if (menu->container && menu->container->add)
-		status = menu->container->add(menu->container, component);
-
-	return (status);
-}
-
-
-static int numComps(kernelWindowComponent *component)
-{
-	int numItems = 0;
-	kernelWindowMenu *menu = component->data;
-
-	if (menu->container && menu->container->numComps)
-		// Count our container's components
-		numItems = menu->container->numComps(menu->container);
-
-	return (numItems);
-}
-
-
-static int flatten(kernelWindowComponent *component,
-	kernelWindowComponent **array, int *numItems, unsigned flags)
-{
-	int status = 0;
-	kernelWindowMenu *menu = component->data;
-
-	if (menu->container && menu->container->flatten)
-		// Flatten our container
-		status = menu->container->flatten(menu->container, array, numItems, flags);
-
-	return (status);
-}
-
-
-static int layout(kernelWindowComponent *component)
-{
-	// Do layout for the menu.
-
-	int status = 0;
-	kernelWindowMenu *menu = component->data;
-	kernelWindowContainer *container = menu->container->data;
+	kernelWindowContainer *container = menu->mainContainer->data;
 	kernelWindowComponent *itemComponent = NULL;
-	int xCoord = 0;
-	int yCoord = 0;
-	int count;
-
-	kernelDebug(debug_gui, "Menu layout for \"%s\"", container->name);
-
-	component->width = 0;
-	component->height = 0;
-
-	// Set the parameters of all the menu items
-	for (count = 0; count < container->numComponents; count ++)
-	{
-		itemComponent = container->components[count];
-
-		xCoord = windowVariables->border.thickness;
-		if (count == 0)
-			yCoord = windowVariables->border.thickness;
-		else
-			yCoord = (container->components[count - 1]->yCoord +
-				container->components[count - 1]->height);
-
-		if (itemComponent->move)
-			itemComponent->move(itemComponent, xCoord, yCoord);
-
-		itemComponent->xCoord = xCoord;
-		itemComponent->yCoord = yCoord;
-
-		itemComponent->width = itemComponent->minWidth;
-
-		if (component->width < itemComponent->width)
-			component->width = itemComponent->width;
-		component->height += itemComponent->height;
-	}
-
-	// Set the width of all menu items to the width of the menu
-	for (count = 0; count < container->numComponents; count ++)
-	{
-		itemComponent = container->components[count];
-
-		if (itemComponent->width < component->width)
-			itemComponent->width = component->width;
-	}
-
-	if (container->numComponents)
-	{
-		component->width += (windowVariables->border.thickness * 2);
-		component->height += (windowVariables->border.thickness * 2);
-	}
-
-	component->minWidth = component->width;
-	component->minHeight = component->height;
-
-	// Get a new graphic buffer
-	status = getGraphicBuffer(component);
-	if (status < 0)
-		return (status);
-
-	// Set the flag to indicate layout complete
-	component->doneLayout = 1;
-
-	return (status = 0);
-}
-
-
-static int setBuffer(kernelWindowComponent *component,
-	kernelGraphicBuffer *buffer)
-{
-	// Set the graphics buffer for the component's subcomponents.
-
-	int status = 0;
-	kernelWindowMenu *menu = component->data;
-
-	if (menu->container && menu->container->setBuffer)
-	{
-		// Do our container
-		status = menu->container->setBuffer(menu->container, buffer);
-		menu->container->buffer = buffer;
-	}
-
-	return (status);
-}
-
-
-static int draw(kernelWindowComponent *component)
-{
-	kernelWindowMenu *menu = component->data;
-	kernelWindowContainer *container = menu->container->data;
-	int borderThickness = windowVariables->border.thickness;
 	int selected = 0;
 	int count;
 
-	if (container->numComponents)
-	{
-		kernelDebug(debug_gui, "menu \"%s\" draw", container->name);
+	kernelDebug(debug_gui, "WindowMenu %s focus", (got? "got" : "lost"));
 
-		// De-select any previously-selected menu items
-		selected = findSelected(menu);
-		if (selected >= 0)
+	if (saveFocus)
+		// Pass the event on.
+		saveFocus(menu, got);
+
+	if (got)
+	{
+		// Set the width of all menu items to the width of the menu
+		for (count = 0; count < container->numComponents; count ++)
 		{
-			if (container->components[selected]->setSelected)
-				container->components[selected]
-					->setSelected(container->components[selected], 0);
+			itemComponent = container->components[count];
+
+			if (itemComponent->width != menu->mainContainer->width)
+				kernelWindowComponentSetWidth(itemComponent,
+					menu->mainContainer->width);
+		}
+	}
+	else
+	{
+		// If any menu item is currently selected, de-select it.
+		if ((selected = findSelected(menu)) >= 0)
+		{
+			itemComponent = container->components[selected];
+			if (itemComponent->setSelected)
+				itemComponent->setSelected(itemComponent, 0);
 		}
 
-		// Draw the background of the menu
-		kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->params.background), draw_normal,
-			borderThickness, borderThickness,
-			(component->width - (borderThickness * 2)),
-			(component->height - (borderThickness * 2)), 1, 1);
-
-		kernelGraphicDrawGradientBorder(component->buffer, 0, 0,
-			component->width, component->height, borderThickness,
-				(color *) &(component->params.background),
-				windowVariables->border.shadingIncrement, draw_normal,
-				border_all);
-
-		// Draw all the menu items
-		for (count = 0; count < container->numComponents; count ++)
-			if (container->components[count]->draw)
-				container->components[count]->draw(container->components[count]);
-
-		kernelGraphicRenderBuffer(component->buffer,
-			(component->window->xCoord + component->xCoord),
-			(component->window->yCoord + component->yCoord), 0, 0,
-			component->width, component->height);
+		// No longer visible
+		kernelWindowSetVisible(menu, 0);
 	}
-
-	kernelWindowComponentFocus(component);
-
-	return (0);
 }
 
 
-static int erase(kernelWindowComponent *component)
+static int mouseEvent(kernelWindow *menu, kernelWindowComponent *component,
+	windowEvent *event)
 {
-	kernelWindowRedrawArea((component->window->xCoord + component->xCoord),
-		(component->window->yCoord + component->yCoord), component->width,
-		component->height);
-
-	return (0);
-}
-
-
-static int focus(kernelWindowComponent *component, int yesNo)
-{
-	// We just want to know when we've lost the focus, so we can make the
-	// menu disappear
-
-	kernelWindowMenu *menu = component->data;
-
-	kernelDebug(debug_gui, "menu %s %s focus",
-		((kernelWindowContainer *)((kernelWindowMenu *) component->data)
-			->container->data)->name, (yesNo? "got" : "lost"));
-
-	if (!yesNo)
-	{
-		// This is a little hack to short-circuit an endless loop, since
-		// the following 'set visible' call would end up calling this function
-		component->flags &= ~WINFLAG_HASFOCUS;
-		component->window->focusComponent = NULL;
-		
-		kernelWindowComponentSetVisible(component, 0);
-	}
-
-	menu->selectedItem = -1;
-
-	return (0);
-}
-
-
-static int getData(kernelWindowComponent *component, void *buffer,
-	int size __attribute__((unused)))
-{
-	kernelWindowMenu *menu = component->data;
-	kernelWindowContainer *container = menu->container->data;
-	objectKey *key = buffer;
-	int selected = -1;
-
-	selected = findSelected(menu);
-	if (selected < 0)
-	{
-		*key = NULL;
-		return (selected);
-	}
-
-	*key = container->components[selected];
-
-	return (0);
-}
-
-
-static int getSelected(kernelWindowComponent *component, int *selected)
-{
-	*selected = findSelected(component->data);
-	
-	if (*selected < 0)
-		return (*selected);
-	else
-		return (0);
-}
-
-
-static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
-{
-	// When mouse events happen to menu components, we pass them on to the
-	// appropriate kernelWindowMenuItem component
-
-	kernelWindowMenu *menu = component->data;
-	kernelWindowContainer *container = menu->container->data;
-	kernelWindowComponent *clickedComponent = NULL;
-	int count;
+	windowEvent tmpEvent;
 
 	kernelDebug(debug_gui, "WindowMenu mouseEvent");
 
@@ -366,171 +106,155 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	if (!(event->type & EVENT_MOUSE_LEFT))
 		return (0);
 
-	// Figure out which menu item was clicked based on the coordinates
-	// of the event
-	int tmp = (event->yPosition -
-		(component->window->yCoord + component->yCoord));
+	// We only care about clicks in our menu items
+	if (component->type != listItemComponentType)
+		return (0);
 
-	for (count = 0; count < container->numComponents; count ++)
-	{
-		if ((tmp >= container->components[count]->yCoord) &&
-			(tmp < (container->components[count]->yCoord +
-				container->components[count]->height)))
-		{
-			clickedComponent = container->components[count];
-			menu->selectedItem = count;
-			break;
-		}
-	}
-
-	// Is there an item in this space?
-	if (clickedComponent && (clickedComponent->flags & WINFLAG_VISIBLE) &&
-		(clickedComponent->flags & WINFLAG_ENABLED))
+	if (component && (component->flags & WINFLAG_VISIBLE) &&
+		(component->flags & WINFLAG_ENABLED))
 	{
 		kernelDebug(debug_gui, "WindowMenu clicked item %s",
-			((kernelWindowMenuItem *) clickedComponent->data)->params.text);
-
-		if (clickedComponent->mouseEvent)
-			clickedComponent->mouseEvent(clickedComponent, event);
-
-		kernelGraphicRenderBuffer(component->buffer,
-			(component->window->xCoord + component->xCoord),
-			(component->window->yCoord + component->yCoord), 0, 0,
-			component->width, component->height);
-		kernelMouseDraw();
+			((kernelWindowMenuItem *) component->data)->params.text);
 
 		if (event->type & EVENT_MOUSE_LEFTUP)
-			// Make this also a 'selection' event
-			event->type |= EVENT_SELECTION;
+		{
+			kernelMemCopy(event, &tmpEvent, sizeof(windowEvent));
 
-		// Copy the event into the event stream of the menu item
-		kernelWindowEventStreamWrite(&(clickedComponent->events), event);
+			// Make this also a 'selection' event
+			tmpEvent.type |= EVENT_SELECTION;
+
+			// Adjust to the coordinates of the component
+			tmpEvent.xPosition -= (menu->xCoord + component->xCoord);
+			tmpEvent.yPosition -= (menu->yCoord + component->yCoord);
+
+			// Copy the event into the event stream of the menu item
+			kernelWindowEventStreamWrite(&(component->events), &tmpEvent);
+
+			// Tell the menu item not to show selected any more
+			component->setSelected(component, 0);
+		}
 	}
 
-	if (event->type & EVENT_MOUSE_LEFTUP)
-		kernelWindowComponentUnfocus(component);
+	if (!(event->type & EVENT_MOUSE_DOWN))
+		// No longer visible
+		kernelWindowSetVisible(menu, 0);
 
 	return (0);
 }
 
 
-static int keyEvent(kernelWindowComponent *component, windowEvent *event)
+static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
+	windowEvent *event)
 {
-	// If the user presses the up/down cursor keys when the window is in focus,
+	// If the user presses the up/down cursor keys when the menu is in focus,
 	// we use it to select menu items.
 
-	kernelWindowMenu *menu = component->data;
-	kernelWindowContainer *container = menu->container->data;
-	kernelWindowComponent *itemComponent = NULL;
-	int tmpSelected = menu->selectedItem;
-	int newSelected = menu->selectedItem;
+	kernelWindowContainer *container = menu->mainContainer->data;
+	int oldSelected = findSelected(menu);
+	int tmpSelected = oldSelected;
+	int newSelected = oldSelected;
+	windowEvent tmpEvent;
 	int count;
 
-	kernelDebug(debug_gui, "menu keyEvent");
+	kernelDebug(debug_gui, "WindowMenu keyEvent");
 
-	if (event->type == EVENT_KEY_DOWN)
+	if (event->type != EVENT_KEY_DOWN)
+		// Not interested
+		return (0);
+
+	if ((event->key == ASCII_CRSRUP) || (event->key == ASCII_CRSRDOWN))
 	{
-		if ((event->key == ASCII_CRSRUP) || (event->key == ASCII_CRSRDOWN))
+		// Find the next thing to select.
+		for (count = 0; count < container->numComponents; count ++)
 		{
-			for (count = 0; count < container->numComponents; count ++)
+			if (event->key == ASCII_CRSRUP)
 			{
-				if (event->key == ASCII_CRSRUP)
+				// Cursor up
+				if (tmpSelected == 0)
 				{
-					// Cursor up
-					if (tmpSelected <= 0)
-						tmpSelected = (container->numComponents - 1);
-					else
-						tmpSelected -= 1;
-				}
-				else
-				{
-					// Cursor down
-					if (tmpSelected >= (container->numComponents - 1))
-						tmpSelected = 0;
-					else
-						tmpSelected += 1;
-				}
-
-				itemComponent = container->components[tmpSelected];
-
-				if (itemComponent && (itemComponent->flags & WINFLAG_VISIBLE) &&
-					(itemComponent->flags & WINFLAG_ENABLED))
-				{
-					kernelDebug(debug_gui, "menu selected item %s",
-						((kernelWindowMenuItem *) itemComponent->data)
-							->params.text);
-					newSelected = tmpSelected;
+					newSelected = -1;
 					break;
 				}
+				else if (tmpSelected < 0)
+					tmpSelected = (container->numComponents - 1);
+				else
+					tmpSelected -= 1;
+			}
+			else
+			{
+				// Cursor down
+				if ((tmpSelected < 0) ||
+					(tmpSelected >= (container->numComponents - 1)))
+				{
+					tmpSelected = 0;
+				}
+				else
+					tmpSelected += 1;
 			}
 
-			if (newSelected != menu->selectedItem)
-			{
-				if (menu->selectedItem >= 0)
-				{
-					itemComponent = container->components[menu->selectedItem];
-					if (itemComponent->setSelected)
-						itemComponent->setSelected(itemComponent, 0);
-				}
-				if (newSelected >= 0)
-				{
-					itemComponent = container->components[newSelected];
-					if (itemComponent->setSelected)
-						itemComponent->setSelected(itemComponent, 1);
-				}
+			itemComponent = container->components[tmpSelected];
 
-				kernelGraphicRenderBuffer(component->buffer,
-					(component->window->xCoord + component->xCoord),
-					(component->window->yCoord + component->yCoord), 0, 0,
-					component->width, component->height);
-				kernelMouseDraw();
-				menu->selectedItem = newSelected;
+			if ((itemComponent->flags & WINFLAG_VISIBLE) &&
+				(itemComponent->flags & WINFLAG_ENABLED))
+			{
+				kernelDebug(debug_gui, "WindowMenu selected item %s",
+					((kernelWindowMenuItem *) itemComponent->data)
+						->params.text);
+				newSelected = tmpSelected;
+				break;
 			}
 		}
 
-		else if (event->key == ASCII_ENTER)
+		if (newSelected != oldSelected)
 		{
-			// ENTER.  Is any item currently selected?
-			if (tmpSelected >= 0)
+			if (oldSelected >= 0)
 			{
-				// We will make this also a 'selection' event.
-				event->type |= EVENT_SELECTION;
-
-				itemComponent = container->components[tmpSelected];
-
-				// Copy the event into the event stream of the menu item
-				kernelWindowEventStreamWrite(&(itemComponent->events), event);
+				// De-select the old one
+				itemComponent = container->components[oldSelected];
+				if (itemComponent->setSelected)
+					itemComponent->setSelected(itemComponent, 0);
 			}
 
-			kernelWindowComponentUnfocus(component);
+			if (newSelected >= 0)
+			{
+				// Select the new one
+				itemComponent = container->components[newSelected];
+				if (itemComponent->setSelected)
+					itemComponent->setSelected(itemComponent, 1);
+			}
+		}
+	}
+
+	else if (event->key == ASCII_ENTER)
+	{
+		// ENTER.  Is any item currently selected?
+		if (oldSelected >= 0)
+		{
+			itemComponent = container->components[oldSelected];
+
+			kernelMemCopy(event, &tmpEvent, sizeof(windowEvent));
+
+			// Make this also a 'selection' event
+			tmpEvent.type |= EVENT_SELECTION;
+
+			// Adjust to the coordinates of the component
+			tmpEvent.xPosition -= (menu->xCoord + itemComponent->xCoord);
+			tmpEvent.yPosition -= (menu->yCoord + itemComponent->yCoord);
+
+			// Copy the event into the event stream of the menu item
+			kernelWindowEventStreamWrite(&(itemComponent->events), &tmpEvent);
+
+			// Tell the menu item not to show selected any more
+			itemComponent->setSelected(itemComponent, 0);
 		}
 
-		else if (event->key == ASCII_ESC)
-			// Quit
-			kernelWindowComponentUnfocus(component);
+		// No longer visible
+		kernelWindowSetVisible(menu, 0);
 	}
 
-	return (0);
-}
-
-
-static int destroy(kernelWindowComponent *component)
-{
-	kernelWindowMenu *menu = component->data;
-
-	// Release all our memory
-	if (menu)
-	{
-		if (menu->container)
-			kernelWindowComponentDestroy(menu->container);
-
-		// Free any graphic buffer
-		if (menu->buffer.data)
-			kernelFree(menu->buffer.data);
-
-		kernelFree(component->data);
-		component->data = NULL;
-	}
+	else if (event->key == ASCII_ESC)
+		// No longer visible
+		kernelWindowSetVisible(menu, 0);
 
 	return (0);
 }
@@ -545,65 +269,37 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
+kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
+	kernelWindowComponent *menuBarComponent, const char *name,
 	windowMenuContents *contents, componentParameters *params)
 {
-	// Formats a kernelWindowComponent as a kernelWindowMenu
+	// Formats a kernelWindow as a kernelWindowMenu
 
-	kernelWindowComponent *component = NULL;
-	kernelWindowMenu *menu = NULL;
+	kernelWindow *menu = NULL;
 	int count;
 
-	// Check parameters.  It's okay for 'contents' to be NULL.
-	if ((parent == NULL) || (name == NULL) || (params == NULL))
+	// Check parameters.  It's okay for 'parentWindow', 'menuBarComponent',
+	// or 'contents' to be NULL.
+	if (!name || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
-		return (component = NULL);
+		kernelError(kernel_error, "NULL parameter");
+		return (menu = NULL);
 	}
 
-	// Get the basic component structure
-	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
-		return (component);
-
-	component->type = menuComponentType;
-	component->flags |= WINFLAG_CANFOCUS;
-	// Don't want this resized, and by default it is not visible
-	component->flags &= ~(WINFLAG_RESIZABLE | WINFLAG_VISIBLE);
-
-	// Set the functions
-	component->add = &add;
-	component->numComps = &numComps;
-	component->flatten = &flatten;
-	component->layout = &layout;
-	component->setBuffer = &setBuffer;
-	component->draw = &draw;
-	component->erase = &erase;
-	component->focus = &focus;
-	component->getData = &getData;
-	component->getSelected = &getSelected;
-	component->mouseEvent = &mouseEvent;
-	component->keyEvent = &keyEvent;
-	component->destroy = &destroy;
-
-	// Get memory for this menu component
-	menu = kernelMalloc(sizeof(kernelWindowMenu));
+	// Get the basic child window
+	menu = kernelWindowNewChild(parentWindow, name);
 	if (menu == NULL)
-	{
-		kernelWindowComponentDestroy(component);
-		return (component = NULL);
-	}
+		return (menu);
 
-	component->buffer = &(menu->buffer);
-	component->data = (void *) menu;
+	// Remove title bar
+	kernelWindowSetHasTitleBar(menu, 0);
 
-	// Get our container component
-	menu->container = kernelWindowNewContainer(component, name, params);
-	if (menu->container == NULL)
-	{
-		kernelWindowComponentDestroy(component);
-		return (component = NULL);
-	}
+	// Make it not resizable
+	kernelWindowSetResizable(menu, 0);
+
+	// Any custom colours?
+	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+		kernelWindowSetBackgroundColor(menu, &params->background);
 
 	if (contents)
 	{
@@ -611,17 +307,28 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
 		for (count = 0; count < contents->numItems; count ++)
 		{
 			contents->items[count].key = (objectKey)
-				kernelWindowNewMenuItem(component, contents->items[count].text,
+				kernelWindowNewMenuItem(menu, contents->items[count].text,
 					params);
 			if (contents->items[count].key == NULL)
-			{	 
-				kernelWindowComponentDestroy(component);
-				return (component = NULL);
+			{
+				kernelWindowDestroy(menu);
+				return (menu = NULL);
 			}
 		}
 	}
 
-	menu->selectedItem = -1;
+	// If we don't have the menu's focus() function pointer saved, save it now
+	if (!saveFocus)
+		saveFocus = menu->focus;
 
-	return (component);
+	menu->focus = &focus;
+	menu->mouseEvent = &mouseEvent;
+	menu->keyEvent = &keyEvent;
+
+	// If the menu will be part of a menuBar, add it
+	if (menuBarComponent && menuBarComponent->add)
+		menuBarComponent->add(menuBarComponent, menu);
+
+	return (menu);
 }
+

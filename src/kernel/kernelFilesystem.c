@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -75,7 +75,7 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 	// accounted for) and calls functions to determine its type.  At the
 	// moment there will be a set number of known filesystem types that
 	// will be more-or-less hard-coded into this routine.  Of course this
-	// isn't desirable and should/will be fixed to be more flexible in 
+	// isn't desirable and should/will be fixed to be more flexible in
 	// the future.  The function returns an enumeration value reflecting
 	// the type it found (including possibly "unknown").
 
@@ -143,7 +143,7 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 			}
 		}
 	}
-  
+
 finished:
 	if (driver)
 	{
@@ -214,9 +214,9 @@ int kernelFilesystemScan(kernelDisk *theDisk)
 	kernelPhysicalDisk *physicalDisk = NULL;
 
 	// Check params
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
-		kernelError(kernel_error, "Disk parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -251,7 +251,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 	int status = 0;
 	kernelDisk *theDisk = NULL;
 	kernelFilesystemDriver *theDriver = NULL;
- 
+
 	// Check params
 	if (diskName == NULL)
 		return (status = ERR_NULLPARAMETER);
@@ -347,7 +347,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	int status = 0;
 	kernelDisk *theDisk = NULL;
 	kernelFilesystemDriver *theDriver = NULL;
- 
+
 	// Check params
 	if (diskName == NULL)
 		return (status = ERR_NULLPARAMETER);
@@ -392,7 +392,7 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 {
 	// This function is a wrapper for the filesystem driver's 'defragment'
 	// function, if applicable.
-  
+
 	int status = 0;
 	kernelDisk *theDisk = NULL;
 	kernelFilesystemDriver *theDriver = NULL;
@@ -612,7 +612,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Make sure that the disk hasn't already been mounted 
+	// Make sure that the disk hasn't already been mounted
 	if (theDisk->filesystem.mounted)
 	{
 		kernelError(kernel_error, "The disk is already mounted at %s",
@@ -643,7 +643,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 			"'mount' operation");
 			return (status = ERR_NOSUCHFUNCTION);
 	}
-  
+
 	// Fix up the path of the mount point
 	status = kernelFileFixupPath(path, mountPoint);
 	if (status < 0)
@@ -758,9 +758,9 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
 int kernelFilesystemUnmount(const char *path)
 {
-	// This routine will remove a filesystem structure and its driver from the 
+	// This routine will remove a filesystem structure and its driver from the
 	// lists.  It takes the filesystem mount point name and returns the new
-	// number of filesystems in the array.  If the filesystem doesn't exist, 
+	// number of filesystems in the array.  If the filesystem doesn't exist,
 	// it returns negative
 
 	int status = 0;
@@ -840,7 +840,7 @@ int kernelFilesystemUnmount(const char *path)
 	theDisk->filesystem.filesystemData = NULL;
 	theDisk->filesystem.caseInsensitive = 0;
 	theDisk->filesystem.readOnly = 0;
-  
+
 	// If it's a removable device, clear everything
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 	{

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -42,15 +42,20 @@ Example:
 </help>
 */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
 #include <errno.h>
-#include <sys/stat.h>
+#include <fcntl.h>
+#include <libintl.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
 #include <sys/msdos.h>
+#include <sys/stat.h>
 #include <sys/vsh.h>
+
+#define _(string) gettext(string)
 
 #ifdef DEBUG
 	#define DEBUGMSG(message, arg...) printf(message, ##arg)
@@ -61,7 +66,7 @@ Example:
 
 static void usage(char *name)
 {
-	printf("usage:\n%s <MBR image> <output device>\n", name);
+	printf(_("usage:\n%s <MBR image> <output device>\n"), name);
 	return;
 }
 
@@ -71,7 +76,7 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 	int status = 0;
 	int fd = 0;
 
-	DEBUGMSG("Read MBR sector from %s\n", inputName);
+	DEBUGMSG(_("Read MBR sector from %s\n"), inputName);
 
 	// Is the input source a Visopsys disk name?
 	if (inputName[0] != '/')
@@ -79,7 +84,7 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 		status = diskReadSectors(inputName, 0, 1, mbr);
 		if (status < 0)
 		{
-			DEBUGMSG("Error reading disk %s\n", inputName);
+			DEBUGMSG(_("Error reading disk %s\n"), inputName);
 			return (errno = status);
 		}
 	}
@@ -89,24 +94,25 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 		fd = open(inputName, O_RDONLY);
 		if (fd < 0)
 		{
-			DEBUGMSG("Error opening file %s\n", inputName);
+			DEBUGMSG(_("Error opening file %s\n"), inputName);
 			return (fd);
 		}
-		
+
 		// Read 512 bytes of it
 		status = read(fd, mbr, 512);
-		
+
 		close(fd);
-		
+
 		if (status < 0)
 		{
-			DEBUGMSG("Error reading file %s\n", inputName);
+			DEBUGMSG(_("Error reading file %s\n"), inputName);
 			return (status);
 		}
-		
+
 		if (status < 512)
 		{
-			DEBUGMSG("Could only read %d bytes from %s\n", status, inputName);
+			DEBUGMSG(_("Could only read %d bytes from %s\n"), status,
+				inputName);
 			errno = EIO;
 			return (-1);
 		}
@@ -124,6 +130,9 @@ int main(int argc, char *argv[])
 	msdosMbr oldMbr;
 	msdosMbr newMbr;
 	time_t t = 0;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("copy-mbr");
 
 	if (argc != 3)
 	{
@@ -158,20 +167,20 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		DEBUGMSG("Add disk signature to new MBR\n");
+		DEBUGMSG("%s", _("Add disk signature to new MBR\n"));
 		time(&t);
 		memcpy(&newMbr.diskSig, &t, 4);
 	}
 
-	DEBUGMSG("Copy partition table to new MBR\n");
+	DEBUGMSG("%s", _("Copy partition table to new MBR\n"));
 	memcpy(&newMbr.partTable, &oldMbr.partTable, sizeof(msdosTable));
 
 	// Write the new MBR sector
-	DEBUGMSG("Write MBR sector to %s\n", destName);
+	DEBUGMSG(_("Write MBR sector to %s\n"), destName);
 	status = diskWriteSectors(destName, 0, 1, &newMbr);
 	if (status < 0)
 	{
-		DEBUGMSG("Error writing disk %s\n", destName);
+		DEBUGMSG(_("Error writing disk %s\n"), destName);
 		perror(argv[0]);
 		return (status);
 	}
@@ -179,3 +188,4 @@ int main(int argc, char *argv[])
 	// Return success
 	return (errno = status = 0);
 }
+

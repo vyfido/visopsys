@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -49,21 +49,22 @@ browser window for that filesystem.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/paths.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
-#define DEFAULT_WINDOWTITLE		_("Computer")
+#define WINDOW_TITLE			_("Computer")
 #define DEFAULT_ROWS			4
 #define DEFAULT_COLUMNS			5
 #define MAX_VARIABLE_LEN		128
-#define FLOPPYDISK_ICONFILE		"/system/icons/floppyicon.ico"
-#define HARDDISK_ICONFILE		"/system/icons/diskicon.bmp"
-#define CDROMDISK_ICONFILE		"/system/icons/cdromicon.ico"
-#define FLASHDISK_ICONFILE		"/system/icons/usbthumbicon.bmp"
-#define FILE_BROWSER			"/programs/filebrowse"
-#define FORMAT					"/programs/format"
+#define FLOPPYDISK_ICONFILE		PATH_SYSTEM_ICONS "/floppyicon.ico"
+#define HARDDISK_ICONFILE		PATH_SYSTEM_ICONS "/diskicon.bmp"
+#define CDROMDISK_ICONFILE		PATH_SYSTEM_ICONS "/cdromicon.ico"
+#define FLASHDISK_ICONFILE		PATH_SYSTEM_ICONS "/usbthumbicon.bmp"
+#define FILE_BROWSER			PATH_PROGRAMS "/filebrowse"
+#define FORMAT					PATH_PROGRAMS "/format"
 
 // Right-click menu
 
@@ -99,7 +100,6 @@ static int privilege = 0;
 static int numDisks = 0;
 static disk *disks = NULL;
 static listItemParameters *iconParams = NULL;
-static char windowTitle[WINDOW_MAX_TITLE_LENGTH];
 static objectKey window = NULL;
 static objectKey diskMenu = NULL;
 static objectKey iconList = NULL;
@@ -113,7 +113,7 @@ static void error(const char *format, ...)
 
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -129,6 +129,7 @@ static void deallocateMemory(void)
 		free(disks);
 		disks = NULL;
 	}
+
 	if (iconParams)
 	{
 		free(iconParams);
@@ -511,62 +512,121 @@ out:
 }
 
 
+static void initMenuContents(windowMenuContents *contents)
+{
+	int count;
+
+	for (count = 0; count < contents->numItems; count ++)
+	{
+		strncpy(contents->items[count].text, _(contents->items[count].text),
+			WINDOW_MAX_LABEL_LENGTH);
+		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
+	}
+}
+
+
+static void refreshMenuContents(void)
+{
+	int count;
+
+	initMenuContents(&diskMenuContents);
+
+	for (count = 0; count < diskMenuContents.numItems; count ++)
+		windowComponentSetData(diskMenuContents.items[count].key,
+			diskMenuContents.items[count].text,
+			strlen(diskMenuContents.items[count].text));
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("computer");
+
+	// Refresh the menu contents
+	refreshMenuContents();
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	objectKey selectedItem = NULL;
 	int selectedIndex = -1;
 
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		stop = 1;
-
-	else
+	// Check for window events.
+	if (key == window)
 	{
-		// Check for right-click events in our icon list.
-		if ((key == diskMenu) && (event->type & EVENT_SELECTION))
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			stop = 1;
+	}
+
+	// Check for disk menu events.
+
+	else if (key == diskMenuContents.items[DISKMENU_BROWSE].key)
+	{
+		if (event->type & EVENT_SELECTION)
 		{
-			windowComponentGetData(diskMenu, &selectedItem, 1);
-			if (selectedItem)
+			// Launch the 'browse' thread
+			if (multitaskerSpawn(&browseThread, "browse thread", 0, NULL) < 0)
 			{
-				if (selectedItem == diskMenuContents.items[DISKMENU_BROWSE].key)
-				{
-					// Launch the 'browse' thread
-					if (multitaskerSpawn(&browseThread, "browse thread", 0,
-							 NULL) < 0)
-					error("%s", _("Error spawning browser thread"));
-				}
-
-				else if (selectedItem ==
-					diskMenuContents.items[DISKMENU_MOUNTAS].key)
-				{
-					// Launch the "mount as" thread
-					if (multitaskerSpawn(&mountAsThread, "mount as thread", 0,
-						NULL) < 0)
-					error("%s", _("Error spawning mount as thread"));
-				}
-
-				else if (selectedItem ==
-					diskMenuContents.items[DISKMENU_UNMOUNT].key)
-				{
-					// Launch the 'unmount' thread
-					if (multitaskerSpawn(&unmountThread, "unmount thread", 0,
-						NULL) < 0)
-					error("%s", _("Error spawning unmount thread"));
-				}
-
-				else if (selectedItem ==
-					diskMenuContents.items[DISKMENU_PROPERTIES].key)
-				{
-					// Launch the 'properties' thread
-					if (multitaskerSpawn(&propertiesThread, "properties thread",
-						0, NULL) < 0)
-					error("%s", _("Error spawning properties thread"));
-				}
+				error("%s", _("Error spawning browser thread"));
 			}
 		}
+	}
 
-		// Check for other events in our icon list.
-		else if ((key == iconList) && (event->type & EVENT_SELECTION))
+	else if (key == diskMenuContents.items[DISKMENU_MOUNTAS].key)
+	{
+		if (event->type & EVENT_SELECTION)
+		{
+			// Launch the "mount as" thread
+			if (multitaskerSpawn(&mountAsThread, "mount as thread", 0,
+				NULL) < 0)
+			{
+				error("%s", _("Error spawning mount as thread"));
+			}
+		}
+	}
+
+	else if (key == diskMenuContents.items[DISKMENU_UNMOUNT].key)
+	{
+		if (event->type & EVENT_SELECTION)
+		{
+			// Launch the 'unmount' thread
+			if (multitaskerSpawn(&unmountThread, "unmount thread", 0, NULL) < 0)
+			{
+				error("%s", _("Error spawning unmount thread"));
+			}
+		}
+	}
+
+	else if (key == diskMenuContents.items[DISKMENU_PROPERTIES].key)
+	{
+		if (event->type & EVENT_SELECTION)
+		{
+			// Launch the 'properties' thread
+			if (multitaskerSpawn(&propertiesThread, "properties thread",
+				0, NULL) < 0)
+			{
+				error("%s", _("Error spawning properties thread"));
+			}
+		}
+	}
+
+	// Check for events in our icon list.
+	else if (key == iconList)
+	{
+		if (event->type & EVENT_SELECTION)
 		{
 			// We consider the icon 'clicked' if it is a mouse left-up,
 			// or an ENTER key press
@@ -605,8 +665,6 @@ static void setContextMenus(void)
 	objectKey *listComponents = NULL;
 	int count;
 
-	printf("Set context menu for %d items\n", numDisks);
-
 	// Try to set a the context menu for each icon
 	listComponents = malloc(numDisks * sizeof(objectKey));
 	if (listComponents)
@@ -615,11 +673,7 @@ static void setContextMenus(void)
 			(numDisks * sizeof(objectKey))) >= 0)
 		{
 			for (count = 0; count < numDisks; count ++)
-			{
-				printf("Set context menu for %p %s\n",
-					listComponents[count], disks[count].label);
 				windowContextSet(listComponents[count], diskMenu);
-			}
 		}
 
 		free(listComponents);
@@ -720,16 +774,12 @@ static int scanComputer(void)
 }
 
 
-static void initMenuContents(windowMenuContents *contents)
+static void handleMenuEvents(windowMenuContents *contents)
 {
 	int count;
 
 	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-	}
+		windowRegisterEventHandler(contents->items[count].key, &eventHandler);
 }
 
 
@@ -738,10 +788,8 @@ static int constructWindow(void)
 	int status = 0;
 	componentParameters params;
 
-	strncpy(windowTitle, DEFAULT_WINDOWTITLE, WINDOW_MAX_TITLE_LENGTH);
-
 	// Create a new window, with small, arbitrary size and location
-	window = windowNew(processId, windowTitle);
+	window = windowNew(processId, WINDOW_TITLE);
 	if (window == NULL)
 		return (status = ERR_NOTINITIALIZED);
 
@@ -749,8 +797,9 @@ static int constructWindow(void)
 
 	// Create a context menu for disks
 	initMenuContents(&diskMenuContents);
-	diskMenu = windowNewMenu(window, _("Disk"), &diskMenuContents, &params);
-	windowRegisterEventHandler(diskMenu, &eventHandler);
+	diskMenu = windowNewMenu(window, NULL, _("Disk"), &diskMenuContents,
+		&params);
+	handleMenuEvents(&diskMenuContents);
 
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -780,15 +829,11 @@ static int constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	int guiThreadPid = 0;
 	int seconds = 0;
 	int count;
 
-	#ifdef BUILDLANG
-	language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("computer");
 
 	// Only work in graphics mode
@@ -801,7 +846,7 @@ int main(int argc, char *argv[])
 
 	// What is my process id?
 	processId = multitaskerGetCurrentProcessId();
-	
+
 	// What is my privilege level?
 	privilege = multitaskerGetProcessPrivilege(processId);
 
@@ -863,10 +908,11 @@ out:
 		if (icons[count].iconImage)
 		{
 			if (icons[count].iconImage->data)
-				imageFree(icons[count].iconImage);      
+				imageFree(icons[count].iconImage);
 			free(icons[count].iconImage);
 		}
 	}
 
 	return (status);
 }
+

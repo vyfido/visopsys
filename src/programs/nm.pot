@@ -1,0 +1,77 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: nm.c:58
+msgid "local"
+msgstr ""
+
+#: nm.c:59
+msgid "global"
+msgstr ""
+
+#: nm.c:60
+msgid "weak"
+msgstr ""
+
+#: nm.c:64
+msgid "none"
+msgstr ""
+
+#: nm.c:65
+msgid "object"
+msgstr ""
+
+#: nm.c:66
+msgid "function"
+msgstr ""
+
+#: nm.c:67
+msgid "section"
+msgstr ""
+
+#: nm.c:68
+msgid "file"
+msgstr ""
+
+#: nm.c:74
+#, c-format
+msgid ""
+"usage:\n"
+"%s <file1> [file2] [...]\n"
+msgstr ""
+
+#: nm.c:110
+#, c-format
+msgid "Can't load file \"%s\"\n"
+msgstr ""
+
+#: nm.c:117
+#, c-format
+msgid "File type of \"%s\" is unknown\n"
+msgstr ""
+
+#: nm.c:124
+#, c-format
+msgid "\"%s\" is not a dynamic library or executable\n"
+msgstr ""
+
+#: nm.c:137
+#, c-format
+msgid "Unable to get dynamic symbols from \"%s\".\n"
+msgstr ""

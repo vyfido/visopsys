@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -39,7 +39,7 @@ int sprintf(char *output, const char *format, ...)
 	// Initialize the argument list
 	va_start(list, format);
 
-	// Fill out the output line based on 
+	// Fill out the output line based on
 	len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
 	va_end(list);

@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -25,6 +25,7 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelImage.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include <string.h>
@@ -33,7 +34,7 @@
 static int draw(kernelWindowComponent *component)
 {
 	// Draw the image component
-	
+
 	kernelWindowImage *windowImage = component->data;
 
 	kernelGraphicDrawImage(component->buffer, (image *) &(windowImage->image),
@@ -55,7 +56,7 @@ static int setData(kernelWindowComponent *component, void *buffer,
 	kernelWindowImage *windowImage = component->data;
 	image *setImage = (image *) buffer;
 
-	kernelDebug(debug_gui, "windowImage set data");
+	kernelDebug(debug_gui, "WindowImage set data");
 
 	kernelImageFree((image *) &(windowImage->image));
 
@@ -113,10 +114,10 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
 	kernelWindowComponent *component = NULL;
 	kernelWindowImage *windowImage = NULL;
 
-	// Check parameters
-	if ((parent == NULL) || (imageCopy == NULL) || (params == NULL))
+	// Check params
+	if (!parent || !imageCopy || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 
@@ -159,3 +160,4 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
 
 	return (component);
 }
+

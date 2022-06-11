@@ -1,28 +1,29 @@
-## 
+##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-##  
+##
 ##  Makefile
 ##
 
-ROOT		= ../../..
-UTILSDIR	= ${ROOT}/utils
-BUILDDIR	= ${ROOT}/build/system/libraries
-INCDIR		= ../../include
+ROOT = ../../..
+BUILDDIR = ${ROOT}/build/system/libraries
+INCDIR = ../../include
 
 include ${ROOT}/Makefile.include
 
-STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
-		${INCDIR}/sys/*.h
-INCLUDE		= -nostdinc -I${INCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE}
-LFLAGS		= -nostdlib
+STDDEPS = ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
+	${INCDIR}/sys/*.h
+INCLUDE = -nostdinc -I${INCDIR}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
+LFLAGS = -nostdlib
 
-ifeq (${DEBUG},)
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
 	STRIP = strip -s ${SHAREDLIB}
-endif 
+endif
 
-NAMES	= vshCompleteFilename \
+NAMES = vshCompleteFilename \
 	vshCursorMenu \
 	vshDeleteFile \
 	vshDumpFile \
@@ -36,13 +37,13 @@ NAMES	= vshCompleteFilename \
 	vshMoveFile \
 	vshSearchPath
 
-OBJDIR		= obj
-OBJS		= $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
-PICOBJDIR	= picobj
-PICOBJS		= $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
-LIBRARY		= ${BUILDDIR}/libvsh.a
-SONAME		= libvsh.so
-SHAREDLIB	= ${BUILDDIR}/${SONAME}
+OBJDIR = obj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
+PICOBJDIR = picobj
+PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
+LIBRARY = ${BUILDDIR}/libvsh.a
+SONAME = libvsh.so
+SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
@@ -68,3 +69,4 @@ ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 
 clean:
 	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}
+

@@ -814,7 +814,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 			ntfs_log_perror("Failed to read $MFTMirr");
 		else {
 			ntfs_log_debug("Failed to read $MFTMirr, unexpected "
-				       "length (%d != %lld).\n", 
+				       "length (%d != %lld).\n",
 				       vol->mftmirr_size, l);
 			errno = EIO;
 		}

@@ -490,7 +490,7 @@ File functions
 --------------------------------------
 
 Note that in all of the functions of this section, any reference to pathnames means absolute pathnames, from root. E.g. '/files/myfile', not simply 'myfile'. From the kernel's point of view, 'myfile' might be ambiguous.
-  
+
 int fileFixupPath(const char *origPath, char *newPath)
 
 	Take the absolute pathname in 'origPath' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
@@ -1608,7 +1608,7 @@ int networkPing(objectKey connection, int seqNum, unsigned char *buffer, unsigne
 
 int networkGetHostName(char *buffer, int bufferSize)
 
-	Returns up to 'bufferSize' bytes of the system's network hostname in 'buffer' 
+	Returns up to 'bufferSize' bytes of the system's network hostname in 'buffer'
 
 
 int networkSetHostName(const char *buffer, int bufferSize)
@@ -1618,7 +1618,7 @@ int networkSetHostName(const char *buffer, int bufferSize)
 
 int networkGetDomainName(char *buffer, int bufferSize)
 
-	Returns up to 'bufferSize' bytes of the system's network domain name in 'buffer' 
+	Returns up to 'bufferSize' bytes of the system's network domain name in 'buffer'
 
 
 int networkSetDomainName(const char *buffer, int bufferSize)

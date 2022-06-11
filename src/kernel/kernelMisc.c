@@ -1,24 +1,24 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelMisc.c
 //
-	
+
 // A file for miscellaneous things
 
 #include "kernelMisc.h"
@@ -294,9 +294,10 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	long memoryOffset = 0;
 	const char *symbolName = NULL;
 
-	if (buffer == NULL)
+	// Check params
+	if (!buffer)
 	{
-		kernelError(kernel_error, "Buffer for stack trace is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -306,7 +307,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 			"yet initialized?");
 		return (status = ERR_INVALID);
 	}
-  
+
 	if (traceProcess == NULL)
 		traceProcess = kernelCurrentProcess;
 
@@ -317,7 +318,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 		(kernelCurrentProcess->userId != traceProcess->userId))
 	{
 		kernelError(kernel_error, "Current process does not have supervisor "
-			"privilege and user does not own the process"); 
+			"privilege and user does not own the process");
 		return (status = ERR_PERMISSION);
 	}
 
@@ -350,7 +351,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 				return (status = ERR_BADADDRESS);
 
 			status = kernelPageMapToFree(kernelCurrentProcess->processId,
-				stackPhysical, &stackVirtual, (traceProcess->userStackSize +	   
+				stackPhysical, &stackVirtual, (traceProcess->userStackSize +
 					traceProcess->superStackSize));
 			if (status < 0)
 				return (status);
@@ -408,7 +409,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 void kernelConsoleLogin(void)
 {
 	// This routine will launch a login process on the console.  This should
-	// normally be called by the kernel's kernelMain() routine, above, but 
+	// normally be called by the kernel's kernelMain() routine, above, but
 	// also possibly by the keyboard driver when some hot-key is pressed.
 
 	static int loginPid = 0;
@@ -432,7 +433,7 @@ void kernelConsoleLogin(void)
 		kernelError(kernel_warn, "Couldn't start a login process");
 		return;
 	}
- 
+
 	// Attach the login process to the console text streams
 	kernelMultitaskerDuplicateIO(KERNELPROCID, loginPid, 1); // clear
 
@@ -457,9 +458,9 @@ int kernelConfigRead(const char *fileName, variableList *list)
 	int count;
 
 	// Check params
-	if ((fileName == NULL) || (list == NULL))
+	if (!fileName || !list)
 	{
-		kernelError(kernel_error, "File name or list parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -488,7 +489,7 @@ int kernelConfigRead(const char *fileName, variableList *list)
 	}
 
 	// Read line by line
-	while(1)
+	while (1)
 	{
 		status = kernelFileStreamReadLine(configFile, 256, lineBuffer);
 		if (status < 0)
@@ -543,14 +544,14 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 	fileStream *newFileStream = NULL;
 	char lineBuffer[256];
 	int hasContent = 0;
-	char *variable = NULL;
-	char *value = NULL;
+	const char *variable = NULL;
+	const char *value = NULL;
 	int count1, count2;
 
 	// Check params
-	if ((fileName == NULL) || (list == NULL))
+	if (!fileName || !list)
 	{
-		kernelError(kernel_error, "File name or list parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -647,9 +648,9 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 				}
 			}
 		}
-    
-		variable = list->variables[count1];
-		value = list->values[count1];
+
+		variable = kernelVariableListGetVariable(list, count1);
+		value = kernelVariableListGet(list, variable);
 
 		sprintf(lineBuffer, "%s=%s", variable, value);
 
@@ -699,13 +700,11 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 
 	int status = 0;
 	variableList list;
+	const char *value = NULL;
 
 	// Check params
-	if ((fileName == NULL) || (variable == NULL) || (buffer == NULL) ||
-		!buffSize)
-	{
+	if (!fileName || !variable || !buffer || !buffSize)
 		return (status = ERR_NULLPARAMETER);
-	}
 
 	// Try to read in the config file
 	status = kernelConfigRead(fileName, &list);
@@ -713,7 +712,18 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 		return (status);
 
 	// Try to get the value
-	status = kernelVariableListGet(&list, variable, buffer, buffSize);
+	value = kernelVariableListGet(&list, variable);
+
+	if (value)
+	{
+		strncpy(buffer, value, buffSize);
+		status = 0;
+	}
+	else
+	{
+		buffer[0] = '\0';
+		status = ERR_NOSUCHENTRY;
+	}
 
 	// Deallocate the list.
 	kernelVariableListDestroy(&list);
@@ -748,7 +758,7 @@ int kernelConfigSet(const char *fileName, const char *variable,
 
 	// Try to write the config file
 	status = kernelConfigWrite(fileName, &list);
-  
+
 out:
 	// Deallocate the list.
 	kernelVariableListDestroy(&list);
@@ -781,7 +791,7 @@ int kernelConfigUnset(const char *fileName, const char *variable)
 
 	// Try to write the config file
 	status = kernelConfigWrite(fileName, &list);
-  
+
 out:
 	// Deallocate the list.
 	kernelVariableListDestroy(&list);
@@ -793,7 +803,7 @@ int kernelReadSymbols(void)
 {
 	// This will attempt to read the symbol table from the kernel executable,
 	// and attach it to the kernel process.
-  
+
 	int status = 0;
 	loaderSymbolTable *kernelSymbols = NULL;
 
@@ -910,9 +920,9 @@ int kernelGuidGenerate(guid *g)
 	static int initialized = 0;
 
 	// Check params
-	if (g == NULL)
+	if (!g)
 	{
-		kernelError(kernel_error, "GUID parameter is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 

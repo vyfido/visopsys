@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,7 +40,7 @@ directories.  To remove a directory, use the 'rmdir' command.
 Options:
 -R              : Force recursive deletion, including directories.
 -S[number]      : Securely delete the file by overwriting it with random
-                  data (number minus 1 times) and then NULLs, and then 
+                  data (number minus 1 times) and then NULLs, and then
                   deleting the file.  The default number value is 5 if no
                   value is supplied.
 
@@ -50,17 +50,21 @@ Note the -S option is not allowed if the -R option is used.
 */
 
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
 
+#define _(string) gettext(string)
+
 
 static void usage(char *name)
 {
-	printf("usage:\n");
-	printf("%s [-R] [-S#] <file1> [file2] [...]\n", name);
+	printf("%s", _("usage:\n"));
+	printf(_("%s [-R] [-S#] <file1> [file2] [...]\n"), name);
 	return;
 }
 
@@ -72,6 +76,9 @@ int main(int argc, char *argv[])
 	int recurse = 0;
 	int secure = 0;
 	int count;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("rm");
 
 	if (argc < 2)
 	{
@@ -99,7 +106,7 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				fprintf(stderr, "Unknown option '%c'\n", optopt);
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
 				usage(argv[0]);
 				return (status = ERR_INVALID);
 		}
@@ -108,13 +115,13 @@ int main(int argc, char *argv[])
 	// We can't do a secure recursive delete
 	if (recurse && secure)
 	{
-		fprintf(stderr, "Can't both recursively and securely delete\n");
+		fprintf(stderr, "%s", _("Can't both recursively and securely delete\n"));
 		return (status = ERR_NOTIMPLEMENTED);
 	}
 
 	if (optind >= argc)
 	{
-		fprintf(stderr, "No file names to delete\n");
+		fprintf(stderr, "%s", _("No file names to delete\n"));
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -140,3 +147,4 @@ int main(int argc, char *argv[])
 	// Return success
 	return (status = 0);
 }
+

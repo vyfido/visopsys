@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -37,7 +37,7 @@ This command will set the background wallpaper image from the (optional)
 image file name parameter or, if no image file name is supplied, the program
 will prompt the user.
 
-Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported. 
+Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported.
 
 </help>
 */
@@ -45,10 +45,12 @@ Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported.
 #include <libintl.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/api.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
-#include <sys/api.h>
 
 #define _(string) gettext(string)
 
@@ -56,13 +58,9 @@ Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported.
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	char fileName[MAX_PATH_NAME_LENGTH];
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("wallpaper");
 
 	// Only work in graphics mode
@@ -78,7 +76,7 @@ int main(int argc, char *argv[])
 	{
 		// The user did not specify a file.  We will prompt them.
 		status = windowNewFileDialog(NULL, _("Enter filename"),
-			_("Please choose the background image:"), "/system/wallpaper",
+			_("Please choose the background image:"), PATH_SYSTEM_WALLPAPER,
 			fileName, MAX_PATH_NAME_LENGTH, 1);
 		if (status != 1)
 		{
@@ -102,11 +100,12 @@ int main(int argc, char *argv[])
 			return (status);
 		}
 
-		status = windowTileBackground(fileName);
+		status = windowShellTileBackground(fileName);
 	}
 
 	else
-		status = windowTileBackground(NULL);
+		status = windowShellTileBackground(NULL);
 
 	return (status);
 }
+

@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -33,43 +33,44 @@ char *_gettext_dirname = NULL;
 
 char *_getDirName(void)
 {
-  return (_gettext_dirname);
+	return (_gettext_dirname);
 }
 
 
 char *bindtextdomain(const char *domainname, const char *dirname)
 {
-  // Sets the 'domain' and message file directory for messages.  This means
-  // the filename of the messages file and the directory it can be found in.
+	// Sets the 'domain' and message file directory for messages.  This means
+	// the filename of the messages file and the directory it can be found in.
 
-  if (!domainname || !dirname)
-    {
-      errno = ERR_NULLPARAMETER;
-      return (NULL);
-    }
-
-  // Call our companion function to set the domain name
-  if (!textdomain(domainname))
-    return (NULL);
-
-  // If we previously allocated memory for a dirname, free it.
-  if (_gettext_dirname)
-    {
-      free(_gettext_dirname);
-      _gettext_dirname = NULL;
-    }
-
-  if (strcmp(dirname, ""))
-    {
-      _gettext_dirname = malloc(strlen(dirname) + 1);
-      if (!_gettext_dirname)
+	if (!domainname || !dirname)
 	{
-	  errno = ERR_MEMORY;
-	  return (_gettext_dirname);
+		errno = ERR_NULLPARAMETER;
+		return (NULL);
 	}
 
-      strcpy(_gettext_dirname, dirname);
-    }
+	// Call our companion function to set the domain name
+	if (!textdomain(domainname))
+		return (NULL);
 
-  return (_gettext_dirname);
+	// If we previously allocated memory for a dirname, free it.
+	if (_gettext_dirname)
+	{
+		free(_gettext_dirname);
+		_gettext_dirname = NULL;
+	}
+
+	if (strcmp(dirname, ""))
+	{
+		_gettext_dirname = malloc(strlen(dirname) + 1);
+		if (!_gettext_dirname)
+		{
+			errno = ERR_MEMORY;
+			return (_gettext_dirname);
+		}
+
+		strcpy(_gettext_dirname, dirname);
+	}
+
+	return (_gettext_dirname);
 }
+

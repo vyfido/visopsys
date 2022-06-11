@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -39,59 +39,77 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 */
 
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/font.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 
-#define LOGINPROGRAM	"/programs/login"
-#define INSTALLPROGRAM	"/programs/install"
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
+
+#define WELCOME			_("Welcome to %s")
+#define COPYRIGHT		_("Copyright (C) 1998-2014 J. Andrew McLaughlin")
+#define GPL				_( \
+	"  This program is free software; you can redistribute it and/or modify it  \n" \
+	"  under the terms of the GNU General Public License as published by the\n" \
+	"  Free Software Foundation; either version 2 of the License, or (at your\n" \
+	"  option) any later version.\n\n" \
+	"  This program is distributed in the hope that it will be useful, but\n" \
+	"  WITHOUT ANY WARRANTY; without even the implied warranty of\n" \
+	"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n" \
+	"  the file " PATH_SYSTEM "/COPYING.txt for more details.")
+#define INSTALLQUEST	_("Would you like to install Visopsys?\n" \
+						"(Choose continue to skip installing)")
+#define INSTALL			_("Install")
+#define CONTINUE		_("Continue")
+#define LANGUAGE		_("Language")
+#define DONTASK			_("Don't ask me this again")
+#define LOGINPROGRAM	PATH_PROGRAMS "/login"
+#define INSTALLPROGRAM	PATH_PROGRAMS "/install"
 
 static int processId = 0;
 static int readOnly = 1;
 static int haveInstall = 0;
 static int passwordSet = 0;
-static char *titleString	= "Copyright (C) 1998-2014 J. Andrew McLaughlin";
-static char *gplString		=
-"  This program is free software; you can redistribute it and/or modify it  \n"
-"  under the terms of the GNU General Public License as published by the\n"
-"  Free Software Foundation; either version 2 of the License, or (at your\n"
-"  option) any later version.\n\n"
-"  This program is distributed in the hope that it will be useful, but\n"
-"  WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n"
-"  the file /system/COPYING.txt for more details.";
-static char *rebootQuestion	= "Would you like to reboot now?";
-static char *adminString	= "Using the administrator account 'admin'.\n"
-							"There is no password set.";
+static char *rebootQuestion	= gettext_noop("Would you like to reboot now?");
+static char *adminString	= gettext_noop("Using the administrator account 'admin'.\n"
+	"There is no password set.");
 
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
+static objectKey copyrightLabel = NULL;
+static objectKey gplLabel = NULL;
+static objectKey instLabel = NULL;
 static objectKey instButton = NULL;
 static objectKey contButton = NULL;
+static objectKey langButton = NULL;
 static objectKey goAwayCheckbox = NULL;
+static image flagImage;
 
 
 __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code for either text or graphics modes
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
 
 	if (graphics)
-		windowNewErrorDialog(window, "Error", output);
+		windowNewErrorDialog(window, _("Error"), output);
 	else
-		printf("\n\nERROR: %s\n\n", output);
+		printf(_("\n\nERROR: %s\n\n"), output);
 }
 
 
@@ -102,7 +120,7 @@ static void quit(int status, const char *message, ...)
 
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	if (message)
 	{
 		va_start(list, message);
@@ -114,7 +132,7 @@ static void quit(int status, const char *message, ...)
 		windowGuiStop();
 
 	if (status < 0)
-		error("%s  Quitting.", output);
+		error(_("%s  Quitting."), output);
 
 	if (graphics && window)
 		windowDestroy(window);
@@ -132,8 +150,8 @@ static int rebootNow(void)
 
 	if (graphics)
 	{
-		response = windowNewChoiceDialog(window, "Reboot?", rebootQuestion,
-			(char *[]) { "Reboot", "Continue" }, 2, 0);
+		response = windowNewChoiceDialog(window, _("Reboot?"), _(rebootQuestion),
+			(char *[]) { _("Reboot"), _("Continue") }, 2, 0);
 		if (response == 0)
 			return (1);
 		else
@@ -141,10 +159,10 @@ static int rebootNow(void)
 	}
 	else
 	{
-		printf("\n%s (y/n): ", rebootQuestion);
+		printf(_("\n%s (y/n): "), _(rebootQuestion));
 		textInputSetEcho(0);
 
-		while(1)
+		while (1)
 		{
 			character = getchar();
 			if (errno)
@@ -153,16 +171,16 @@ static int rebootNow(void)
 				textInputSetEcho(1);
 				return (0);
 			}
-		
+
 			if ((character == 'y') || (character == 'Y'))
 			{
-				printf("Yes\n");
+				printf("%s", _("Yes\n"));
 				textInputSetEcho(1);
 				return (1);
 			}
 			else if ((character == 'n') || (character == 'N'))
 			{
-				printf("No\n");
+				printf("%s", _("No\n"));
 				textInputSetEcho(1);
 				return (0);
 			}
@@ -211,10 +229,87 @@ static int runLogin(void)
 }
 
 
+static int loadFlagImage(const char *lang, image *img)
+{
+	int status = 0;
+	char path[MAX_PATH_LENGTH];
+	file f;
+
+	sprintf(path, "%s/flag-%s.bmp", PATH_SYSTEM_LOCALE, lang);
+
+	status = fileFind(path, &f);
+	if (status < 0)
+		return (status);
+
+	status = imageLoad(path, 30, 20, img);
+
+	return (status);
+}
+
+
+static void refreshWindow(void)
+{
+	char versionString[32];
+	char title[80];
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("imgboot");
+
+	// Refresh the 'copyright' label
+	windowComponentSetData(copyrightLabel, COPYRIGHT, strlen(COPYRIGHT));
+
+	// Refresh the 'gpl' label
+	windowComponentSetData(gplLabel, GPL, strlen(GPL));
+
+	if (haveInstall)
+	{
+		// Refresh the 'install' label
+		windowComponentSetData(instLabel, INSTALLQUEST,	strlen(INSTALLQUEST));
+
+		// Refresh the 'install' button
+		windowComponentSetData(instButton, INSTALL, strlen(INSTALL));
+	}
+
+	// Refresh the 'continue' button
+	windowComponentSetData(contButton, CONTINUE, strlen(CONTINUE));
+
+	if (langButton)
+	{
+		// Refresh the 'language' button
+		if (flagImage.data)
+			imageFree(&flagImage);
+		if (loadFlagImage(getenv("LANG"), &flagImage) >= 0)
+			windowComponentSetData(langButton, &flagImage, sizeof(image));
+	}
+
+	// Refresh the 'go away' checkbox
+	windowComponentSetData(goAwayCheckbox, DONTASK, strlen(DONTASK));
+
+	// Refresh the window title
+	getVersion(versionString, sizeof(versionString));
+	sprintf(title, WELCOME, versionString);
+	windowSetTitle(window, title);
+}
+
+
+static void chooseLanguage(void)
+{
+	char pickedLanguage[6];
+
+	if (windowNewLanguageDialog(window, pickedLanguage) >= 0)
+	{
+		setenv("LANG", pickedLanguage, 1);
+		refreshWindow();
+	}
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for the 'Install' button
-	if ((key == instButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	// Check for the 'install' button
+	if (haveInstall && (key == instButton) &&
+		(event->type == EVENT_MOUSE_LEFTUP))
 	{
 		// Stop the GUI here and run the install program
 		windowSetVisible(window, 0);
@@ -231,12 +326,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	// Check for the 'Run' button
+	// Check for the 'continue' button
 	else if ((key == contButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
 		// Stop the GUI here and run the login program
 		if (runLogin() >= 0)
 			windowGuiStop();
+	}
+
+	// Check for the 'language' button
+	else if (langButton && (key == langButton) &&
+		(event->type == EVENT_MOUSE_LEFTUP))
+	{
+		chooseLanguage();
 	}
 }
 
@@ -246,67 +348,90 @@ static void constructWindow(void)
 	// If we are in graphics mode, make a window rather than operating on the
 	// command line.
 
+	int status = 0;
 	char versionString[32];
 	char title[80];
+	objectKey buttonContainer = NULL;
+	file langDir;
 	componentParameters params;
 
-	getVersion(versionString, 32);
-	sprintf(title, "Welcome to %s", versionString);
+	getVersion(versionString, sizeof(versionString));
+	sprintf(title, WELCOME, versionString);
 
-	// Create a new window, with small, arbitrary size and location
+	// Create a new window
 	window = windowNew(processId, title);
 	if (window == NULL)
-		quit(ERR_NOCREATE, "Can't create window!");
+		quit(ERR_NOCREATE, "%s", _("Can't create window!"));
 
 	bzero(&params, sizeof(componentParameters));
-	params.gridWidth = 2;
+	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 5;
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
-	windowNewTextLabel(window, titleString, &params);
+	copyrightLabel = windowNewTextLabel(window, COPYRIGHT, &params);
 
 	params.gridY += 1;
-	if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
 		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
-	windowNewTextLabel(window, gplString, &params);
+	gplLabel = windowNewTextLabel(window, GPL, &params);
 
 	params.orientationX = orient_center;
 	params.font = NULL;
 	if (haveInstall)
 	{
 		params.gridY += 1;
-		windowNewTextLabel(window, "Would you like to install Visopsys?\n"
-			"(Choose continue to skip installing)", &params);
+		instLabel = windowNewTextLabel(window, INSTALLQUEST, &params);
 	}
 
 	params.gridY += 1;
 	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
-	if (haveInstall)
+	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
+	if (buttonContainer)
 	{
-		params.gridWidth = 1;
-		params.orientationX = orient_right;
-		instButton = windowNewButton(window, "Install", NULL, &params);
-		windowRegisterEventHandler(instButton, &eventHandler);
+		if (haveInstall)
+		{
+			params.orientationX = orient_right;
+			instButton = windowNewButton(buttonContainer, INSTALL, NULL,
+				&params);
+			windowRegisterEventHandler(instButton, &eventHandler);
 
-		params.gridX += 1;
-		params.orientationX = orient_left;
+			params.gridX += 1;
+			params.orientationX = orient_middle;
+		}
+		else
+			params.orientationX = orient_right;
+
+		contButton = windowNewButton(buttonContainer, CONTINUE, NULL, &params);
+		windowRegisterEventHandler(contButton, &eventHandler);
+		windowComponentFocus(contButton);
+
+		// Does the 'locale' directory exist?  Anything in it?
+		if (fileFind(PATH_SYSTEM_LOCALE, &langDir) >= 0)
+		{
+			params.gridX += 1;
+			params.orientationX = orient_left;
+			if (getenv("LANG"))
+				status = loadFlagImage(getenv("LANG"), &flagImage);
+			else
+				status = loadFlagImage("en", &flagImage);
+			if (status >= 0)
+				langButton = windowNewButton(buttonContainer, NULL, &flagImage,
+					&params);
+			else
+				langButton = windowNewButton(buttonContainer, LANGUAGE, NULL,
+					&params);
+			windowRegisterEventHandler(langButton, &eventHandler);
+		}
 	}
-
-	contButton = windowNewButton(window, "Continue", NULL, &params);
-	windowRegisterEventHandler(contButton, &eventHandler);
-	windowComponentFocus(contButton);
 
 	params.gridX = 0;
 	params.gridY += 1;
-	params.gridWidth = 2;
 	params.padBottom = 5;
 	params.orientationX = orient_center;
-
-	goAwayCheckbox =
-		windowNewCheckbox(window, "Don't ask me this again", &params);
+	goAwayCheckbox = windowNewCheckbox(window, DONTASK, &params);
 	if (readOnly)
 		windowComponentSetEnabled(goAwayCheckbox, 0);
 
@@ -314,14 +439,13 @@ static void constructWindow(void)
 	windowRemoveMinimizeButton(window);
 	windowRemoveCloseButton(window);
 
-	// Go
 	windowSetVisible(window, 1);
 }
 
 
 static inline void changeStartProgram(void)
 {
-	configSet("/system/config/kernel.conf", "start.program", LOGINPROGRAM);
+	configSet(PATH_SYSTEM_CONFIG "/kernel.conf", "start.program", LOGINPROGRAM);
 }
 
 
@@ -331,11 +455,14 @@ int main(int argc, char *argv[])
 	disk sysDisk;
 	int numOptions = 0;
 	int defOption = 0;
-	char *instOption = "o Install                    ";
-	char *contOption = "o Continue                   ";
-	char *naskOption = "o Always continue (never ask)";
+	char *instOption = gettext_noop("o Install                    ");
+	char *contOption = gettext_noop("o Continue                   ");
+	char *naskOption = gettext_noop("o Always continue (never ask)");
 	char *optionStrings[3] = { NULL, NULL, NULL };
 	int selected = 0;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("imgboot");
 
 	processId = multitaskerGetCurrentProcessId();
 
@@ -344,8 +471,8 @@ int main(int argc, char *argv[])
 
 	// Check privilege level
 	if (multitaskerGetProcessPrivilege(processId) != 0)
-		quit(ERR_PERMISSION, "This program can only be run as a privileged user."
-			"\n(Try logging in as user \"admin\").");
+		quit(ERR_PERMISSION, "%s", _("This program can only be run as a privileged "
+			"user.\n(Try logging in as user \"admin\")."));
 
 	if (getopt(argc, argv, "T") == 'T')
 		// Force text mode
@@ -353,7 +480,7 @@ int main(int argc, char *argv[])
 
 	// Find out whether we are currently running on a read-only filesystem
 	bzero(&sysDisk, sizeof(disk));
-	if (!fileGetDisk("/system", &sysDisk))
+	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
 	// Find out whether we have an install program.
@@ -377,12 +504,12 @@ int main(int argc, char *argv[])
 			changeStartProgram();
 
 			windowSetVisible(window, 0);
-			
+
 			if (!passwordSet)
 			{
 				// Tell the user about the admin account
-				windowNewInfoDialog(window, "Administrator account",
-					adminString);
+				windowNewInfoDialog(window, _("Administrator account"),
+					_(adminString));
 			}
 		}
 	}
@@ -390,31 +517,31 @@ int main(int argc, char *argv[])
 	{
 	restart:
 		// Print title message, and ask whether to install or run
-		printf("\n%s\n", gplString);
+		printf("\n%s\n", GPL);
 
 		numOptions = 0;
 
 		if (haveInstall)
 		{
-			optionStrings[numOptions] = instOption;
+			optionStrings[numOptions] = _(instOption);
 			defOption = numOptions;
 			numOptions += 1;
 		}
 
-		optionStrings[numOptions] = contOption;
+		optionStrings[numOptions] = _(contOption);
 		defOption = numOptions;
 		numOptions += 1;
 
 		if (!readOnly)
 		{
-			optionStrings[numOptions] = naskOption;
+			optionStrings[numOptions] = _(naskOption);
 			numOptions += 1;
 		}
 
 		if (numOptions > 1)
 		{
-			selected = vshCursorMenu("\nPlease select from the following options",
-				optionStrings, numOptions, defOption);
+			selected = vshCursorMenu(_("\nPlease select from the following "
+				"options"), optionStrings, numOptions, defOption);
 		}
 		else
 			selected = defOption;
@@ -424,7 +551,7 @@ int main(int argc, char *argv[])
 			doEject();
 			shutdown(1, 1);
 		}
-		else if (optionStrings[selected] == instOption)
+		else if (optionStrings[selected] == _(instOption))
 		{
 			// Install
 			loaderLoadAndExec(INSTALLPROGRAM, 0, 1);
@@ -441,18 +568,19 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			if (optionStrings[selected] == naskOption)
+			if (optionStrings[selected] == _(naskOption))
 			{
 				changeStartProgram();
 				if (!passwordSet)
 					// Tell the user about the admin account
-					printf("\n%s\n", adminString);
+					printf("\n%s\n", _(adminString));
 			}
 
 			if (runLogin() < 0)
-			goto restart;
+				goto restart;
 		}
 	}
 
 	quit(0, NULL);
 }
+

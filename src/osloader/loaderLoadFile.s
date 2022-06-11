@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -171,7 +171,7 @@ read:
 
 
 loadFAT:
-	;; This routine will load the entire FAT table into memory at 
+	;; This routine will load the entire FAT table into memory at
 	;; location [FATSEGMENT:0000]
 
 	;; Save 1 word for our return code
@@ -264,7 +264,7 @@ loadDirectory:
 	push dword EAX
 	call read
 	add SP, 12
-	
+
 	;; Check status
 	cmp AX, 0
 	je .done
@@ -284,8 +284,8 @@ loadDirectory:
 
 
 searchFile:
-	;; This routine will search the pre-loaded root directory of the 
-	;; boot volume at LDRDATABUFFER and return the starting cluster of 
+	;; This routine will search the pre-loaded root directory of the
+	;; boot volume at LDRDATABUFFER and return the starting cluster of
 	;; the requested file.
 	;; Proto:
 	;;   int searchFile(char *filename);
@@ -361,7 +361,7 @@ searchFile:
 	;; Jump to the end.  We're finished
 	jmp .done
 
-	.foundFile:	
+	.foundFile:
 	;; Return the starting cluster number of the file
 	xor EAX, EAX
 	mov BX, word [ENTRYSTART]
@@ -444,7 +444,7 @@ updateProgress:
 	mov SI, PROGRESSCHAR
 	call loaderPrint
 
-	.done:	
+	.done:
 	popa
 	ret
 
@@ -460,7 +460,7 @@ killProgress:
 	call loaderPrintNewline
 	call loaderPrintNewline
 
-	.done:	
+	.done:
 	popa
 	ret
 
@@ -517,7 +517,7 @@ loadFile:
 	;; the requested memory location.  The FAT table must have previously
 	;; been loaded at memory location LDRDATABUFFER
 	;; Proto:
-	;;   word loadFile(dword cluster, dword memory_address); 
+	;;   word loadFile(dword cluster, dword memory_address);
 
 	;; Save a word for our return code
 	push word 0
@@ -603,7 +603,7 @@ loadFile:
 	mov EAX, dword [BYTESPERCLUST]
 	push dword EAX
 	push dword [MEMORYMARKER]
-	push dword [CLUSTERBUFFER]	; 32-bit source address 
+	push dword [CLUSTERBUFFER]	; 32-bit source address
 	call loaderMemCopy
 	add SP, 12
 
@@ -621,7 +621,7 @@ loadFile:
 	;; Return -2 as our error code
 	mov word [SS:(BP + 16)], -2
 	jmp .done
-	
+
 	.copiedData:
 	;; Increment the buffer pointer
 	mov EAX, dword [BYTESPERCLUST]
@@ -662,7 +662,7 @@ loadFile:
 	mov AX, word [ES:BX]
 	;; Mask the value we got
 	and AX, 0FFFh
-	.doneConvert:	
+	.doneConvert:
 	cmp AX, 0FF8h
 	jae .success
 	jmp .next
@@ -778,7 +778,7 @@ loaderFindFile:
 	;; The parameter is a pointer to an 11-character string
 	;; (FAT 8.3 format) containing the name of the file to find.
 
-	;; We need to locate the file.  Read the root directory from 
+	;; We need to locate the file.  Read the root directory from
 	;; the disk
 	call loadDirectory
 
@@ -809,7 +809,7 @@ loaderFindFile:
 	.success:
 	mov word [SS:(BP + 16)], 1
 
-	.done:	
+	.done:
 	popa
 	pop AX			; return code
 	ret
@@ -817,7 +817,7 @@ loaderFindFile:
 
 loaderLoadFile:
 	;; This routine is responsible for loading the requested file into
-	;; the requested memory location.  It is specific to the FAT-12 
+	;; the requested memory location.  It is specific to the FAT-12
 	;; filesystem.
 	;; Proto:
 	;;   dword loaderLoadFile(char *filename, dword loadOffset,
@@ -838,7 +838,7 @@ loaderLoadFile:
 	;; The second parameter is a DWORD value representing the absolute
 	;; memory location at which we should load the file.
 
-	;; We need to locate the file.  Read the root directory from 
+	;; We need to locate the file.  Read the root directory from
 	;; the disk
 	call loadDirectory
 

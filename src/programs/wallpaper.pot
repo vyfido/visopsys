@@ -8,35 +8,34 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-05-24 03:34+0100\n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: wallpaper.c:71
+#: wallpaper.c:69
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: wallpaper.c:85
+#: wallpaper.c:78
 msgid "Enter filename"
 msgstr ""
 
-#: wallpaper.c:107
-#, c-format
-msgid "File not found\n"
-msgstr ""
-
-#: wallpaper.c:94
-#, c-format
-msgid "No filename specified\n"
+#: wallpaper.c:79
+msgid "Please choose the background image:"
 msgstr ""
 
 #: wallpaper.c:86
-msgid "Please choose the background image:"
+msgid "No filename specified\n"
+msgstr ""
+
+#: wallpaper.c:99
+msgid "File not found\n"
 msgstr ""

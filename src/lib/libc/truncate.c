@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -37,7 +37,7 @@ int truncate(const char *path, off_t length)
 	// data is lost.  If the file was previously smaller, the file is expanded.
 
 	int status = 0;
-	int fd = 0; 
+	int fd = 0;
 
 	// Check params
 	if (path == NULL)

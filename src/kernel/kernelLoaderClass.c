@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -94,7 +94,7 @@ static int gifDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(GIF_MAGIC))
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) &&
 		!strncmp(dataPtr, GIF_MAGIC, min(size, 3)))
 	{
@@ -122,7 +122,7 @@ static int pngDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(PNG_MAGIC1))
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) &&
 		(sig[0] == PNG_MAGIC1) && (sig[1] == PNG_MAGIC2))
 	{
@@ -146,7 +146,7 @@ static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < 512)
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) && (*sig == 0xAA55))
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_BOOT,
@@ -169,7 +169,7 @@ static int keymapDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(KEYMAP_MAGIC))
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) &&
 		!strncmp(dataPtr, KEYMAP_MAGIC, min(size, sizeof(KEYMAP_MAGIC))))
 	{
@@ -193,7 +193,7 @@ static int pdfDetect(const char *fileName __attribute__((unused)),
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(PDF_MAGIC))
 		return (0);
-	
+
 	if (!strncmp(dataPtr, PDF_MAGIC, min(size, 5)))
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_PDF,
@@ -219,7 +219,7 @@ static int zipDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(ZIP_MAGIC))
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) && (*sig == ZIP_MAGIC))
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_ZIP,
@@ -245,7 +245,7 @@ static int gzipDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(GZIP_MAGIC))
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) && (*sig == GZIP_MAGIC))
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_GZIP,
@@ -269,7 +269,7 @@ static int arDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(AR_MAGIC))
 		return (0);
-	
+
 	if (binaryDetect(fileName, dataPtr, size, class) &&
 		!strncmp(dataPtr, AR_MAGIC, min(size, 8)))
 	{
@@ -302,7 +302,7 @@ static int pcfDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(PCF_MAGIC))
 		return (0);
-	
+
 	// See whether this file claims to be a PCF file.  Must have the signature
 	// 'pcf1' at the beginning
 	if (*((unsigned *) dataPtr) == PCF_MAGIC)
@@ -333,7 +333,7 @@ static int messageDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(MO_MAGIC))
 		return (0);
-	
+
 	// See whether this file claims to be an MO file.
 	if (*((unsigned *) dataPtr) == MO_MAGIC)
 	{
@@ -435,7 +435,7 @@ static int htmlDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Make sure there's enough data here for our detection
 	if (size < min(sizeof(HTML_MAGIC1), sizeof(HTML_MAGIC2)))
 		return (0);
-	
+
 	if (!strncasecmp(dataPtr, HTML_MAGIC1, min(size, 6)) ||
 		!strncasecmp(dataPtr, HTML_MAGIC2, min(size, 14)))
 	{
@@ -450,28 +450,28 @@ static int htmlDetect(const char *fileName, void *dataPtr, unsigned size,
 }
 
 
-// GIF images.	
+// GIF images.
 kernelFileClass gifFileClass = {
 	FILECLASS_NAME_GIF,
 	&gifDetect,
 	{ }
 };
 
-// PNG images.	
+// PNG images.
 kernelFileClass pngFileClass = {
 	FILECLASS_NAME_PNG,
 	&pngDetect,
 	{ }
 };
 
-// Boot files.	
+// Boot files.
 kernelFileClass bootFileClass = {
 	FILECLASS_NAME_BOOT,
 	&bootDetect,
 	{ }
 };
 
-// Keyboard key map files.	
+// Keyboard key map files.
 kernelFileClass keymapFileClass = {
 	FILECLASS_NAME_KEYMAP,
 	&keymapDetect,
@@ -520,7 +520,7 @@ kernelFileClass messageFileClass = {
 	{ }
 };
 
-// Config files.        
+// Config files.
 kernelFileClass configFileClass = {
 	FILECLASS_NAME_CONFIG,
 	&configDetect,
@@ -534,14 +534,14 @@ kernelFileClass htmlFileClass = {
 	{ }
 };
 
-// Text files.	
+// Text files.
 kernelFileClass textFileClass = {
 	FILECLASS_NAME_TEXT,
 	&textDetect,
 	{ }
 };
 
-// Binary files.	
+// Binary files.
 kernelFileClass binaryFileClass = {
 	FILECLASS_NAME_BIN,
 	&binaryDetect,

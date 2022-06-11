@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -26,20 +26,20 @@
 	EXTERN loaderLoadFile
 	EXTERN PRINTINFO
 	EXTERN FILEDATABUFFER
-		
+
 	GLOBAL loaderSetTextDisplay
 	GLOBAL loaderDetectVideo
 	GLOBAL loaderSetGraphicDisplay
 	GLOBAL KERNELGMODE
 	GLOBAL CURRENTGMODE
-		
+
 	SEGMENT .text
 	BITS 16
 	ALIGN 4
 
 	%include "loader.h"
 
-	
+
 enumerateGraphicsModes:
 	;; This function will enumerate graphics modes based on which ones
 	;; are available with this video card.  It has built-in preferences,
@@ -50,7 +50,7 @@ enumerateGraphicsModes:
 	;; Per VESA specs we make no assumptions about mode numbers; we ask
 	;; for resolutions and bit depths, and the card tells us the mode
 	;; number if it's supported.
-	
+
 	;; First we loop through all the acceptable resolutions/bit depths
 	;; in order, and for each supported one we add it to a list.  Then
 	;; we take the first one and make it our selected mode.
@@ -58,7 +58,7 @@ enumerateGraphicsModes:
 	mov SI, VIDEOMODES
 
 	xor CX, CX		; Saves number of available modes
-	
+
 	.modeLoop:
 	cmp word [SI], 0
 	je .done		; No more modes to try
@@ -94,12 +94,12 @@ enumerateGraphicsModes:
 
 	;; Increment the number of acceptable modes
 	inc CX
-		
+
 	.notSupported:
 	;; Move to the next mode
 	add SI, 6
 	jmp .modeLoop
-	
+
 	.done:
 	;; Save the number of acceptable modes
 	push CX
@@ -110,11 +110,11 @@ enumerateGraphicsModes:
 	popa
 	ret
 
-		
+
 selectGraphicMode:
 	;; This function will select a graphics mode for the kernel based
 	;; on which ones are available with this video card.
-	
+
 	pusha
 
 	;; If there is a mode in our list, choose it
@@ -122,7 +122,7 @@ selectGraphicMode:
 	mov SI, word [VIDEODATA_P]
 	cmp dword [SI + graphicsInfoBlock.numberModes], 0
 	je .fail 		; No mode
-	
+
 	mov SI, word [VIDEODATA_P]
 	add SI, graphicsInfoBlock.supportedModes
 	mov DI, word [VIDEODATA_P]
@@ -141,10 +141,10 @@ selectGraphicMode:
 	mov dword [DI + graphicsInfoBlock.yRes], EAX
 	mov EAX, dword [SI + 12]
 	mov dword [DI + graphicsInfoBlock.bitsPerPixel], EAX
-	
+
 	cmp word [PRINTINFO], 1
 	jne .done
-	;; Say we found a mode. 
+	;; Say we found a mode.
 	mov DL, 02h		; Use green color
 	mov SI, BLANK
 	call loaderPrint
@@ -168,7 +168,7 @@ selectGraphicMode:
 	call loaderPrint
 	call loaderPrintNewline
 	jmp .done
-		
+
 	.fail:
 	;; If we fall through to here, none of our supported modes are
 	;; available.  Make an error message.
@@ -191,11 +191,11 @@ selectGraphicMode:
 	call loaderPrint
 	call loaderPrintNewline
 
-	.done:	
+	.done:
 	popa
 	ret
-			
-	
+
+
 findGraphicMode:
 	;; This function takes parameters that describe the desired graphic
 	;; mode, and returns the VBE graphic mode number, if found.
@@ -207,7 +207,7 @@ findGraphicMode:
 
 	;; Save space on the stack for the mode number we're returning
 	sub SP, 2
-	
+
 	pusha
 
 	;; Save the stack pointer
@@ -215,7 +215,7 @@ findGraphicMode:
 
 	;; By default, return the value 0
 	mov word [SS:(BP + 16)], 0
-	
+
 	;; We need to get a pointer to a list of graphics mode numbers
 	;; from the VBE.  We can gather this from the VESA info block
 	;; retrieved earlier by the video hardware detection routines.
@@ -224,7 +224,7 @@ findGraphicMode:
 
 	;; Do a loop through the supported modes
 	.modeLoop:
-	
+
 	;; Save ES
 	push ES
 
@@ -232,7 +232,7 @@ findGraphicMode:
 	mov AX, [VESAINFO + 10h]
 	mov ES, AX
 
-	;; ES:SI is now a pointer to a word list of supported modes, 
+	;; ES:SI is now a pointer to a word list of supported modes,
 	;; terminated with the value FFFFh
 
 	;; Get the first/next mode number
@@ -272,7 +272,7 @@ findGraphicMode:
 
 	;; Get the first word of the buffer
 	mov AX, word [MODEINFO]
-	
+
 	;; Is the mode supported?
 	bt AX, 0
 	jnc .modeLoop
@@ -305,7 +305,7 @@ findGraphicMode:
 
 	;; If we fall through to here, this is the mode we want.
 	mov word [SS:(BP + 16)], DX
-	
+
 	.done:
 	popa
 	;; Return the mode number
@@ -327,7 +327,7 @@ checkLinearFramebuffer:
 
 	;; By default, return the value 0
 	mov word [SS:(BP + 16)], 0
-	
+
 	;; We need to get a pointer to a list of graphics mode numbers
 	;; from the VBE.  We can gather this from the VESA info block
 	;; retrieved earlier by the video hardware detection routines.
@@ -336,7 +336,7 @@ checkLinearFramebuffer:
 
 	;; Do a loop through the supported modes
 	.modeLoop:
-	
+
 	;; Save ES
 	push ES
 
@@ -344,7 +344,7 @@ checkLinearFramebuffer:
 	mov AX, [VESAINFO + 10h]
 	mov ES, AX
 
-	;; ES:SI is now a pointer to a word list of supported modes, 
+	;; ES:SI is now a pointer to a word list of supported modes,
 	;; terminated with the value FFFFh
 
 	;; Get the first/next mode number
@@ -384,7 +384,7 @@ checkLinearFramebuffer:
 
 	;; Get the first word of the buffer
 	mov AX, word [MODEINFO]
-	
+
 	;; Is the mode supported?
 	bt AX, 0
 	jnc .modeLoop
@@ -398,13 +398,13 @@ checkLinearFramebuffer:
 	jnc .modeLoop
 
 	;; Framebuffer is supported
-	mov word [SS:(BP + 16)], 1	
+	mov word [SS:(BP + 16)], 1
 
 	.done:
 	popa
 	pop AX
 	ret
-	
+
 
 loaderGetLinearFramebuffer:
 	;; This will return the address of the Linear Frame Buffer for
@@ -414,7 +414,7 @@ loaderGetLinearFramebuffer:
 
 	;; Save stack pointer
 	mov BP, SP
-	
+
 	;; Make sure SVGA is available
 	cmp byte [SVGAAVAIL], 1
 	jne near .error
@@ -462,7 +462,7 @@ loaderSetTextDisplay:
 
 	;; We will try to change text modes to a more attractive 80x50
 	;; mode.  This takes a couple of steps
-	
+
 	;; Change the number of scan lines in the text display
 	mov AX, 1202h		; 400 scan lines
 	mov BX, 0030h		; Change scan lines command
@@ -478,7 +478,7 @@ loaderSetTextDisplay:
 
 	;; The following call messes with ES, so save it
 	push ES
-	
+
 	;; Change the VGA font to match a 80x50 configuration
 	mov AX, 1112h		; 8x8 character set
 	mov BL, 0
@@ -489,7 +489,7 @@ loaderSetTextDisplay:
 
         ;; Should we blank the screen?
 	cmp word [SS:(BP + 18)], 0
-	jne .done	
+	jne .done
         mov AX, 0700h
         mov BH, BACKGROUNDCOLOR
         and BH, 00000111b
@@ -503,7 +503,7 @@ loaderSetTextDisplay:
 	.done:
 	;; We are now in text mode
 	mov word [CURRENTGMODE], 0
-	
+
 	popa
 	ret
 
@@ -521,17 +521,17 @@ loaderDetectVideo:
 	;; data (the loader's hardware structure).  Save it.
 	mov AX, word [SS:(BP + 18)]
 	mov word [VIDEODATA_P], AX
-	
+
 	;; Save ES, since this call could destroy it
 	push ES
-	
+
 	mov DI, VESAINFO
 	mov AX, 4F00h
 	int 10h
 
 	;; Restore ES
 	pop ES
-	
+
 	cmp AX, 004Fh
 	jne .noSVGA
 
@@ -541,7 +541,7 @@ loaderDetectVideo:
 	cmp EAX, 41534556h
 	je .okSVGA
 
-	.noSVGA:	
+	.noSVGA:
 	;; There is no SVGA video detected
 	mov DL, ERRORCOLOR	; Use the error color
 	mov SI, SAD
@@ -558,7 +558,7 @@ loaderDetectVideo:
 	call loaderPrintNewline
 
 	jmp .done
-	
+
 	.okSVGA:
 	;; Figure out which VESA version this card supports.  Since we use
 	;; the Linear Frame Buffer approach, we will require version 2.0
@@ -566,7 +566,7 @@ loaderDetectVideo:
 	mov AX, word [VESAINFO + 04h]
 	cmp AX, 0200h
 	jae .okVersion
-	
+
 	;; This video card is too old to support VESA version 2.0.  We won't
 	;; be able to use the Linear Frame Buffer
 	mov DL, ERRORCOLOR	; Use the error color
@@ -584,7 +584,7 @@ loaderDetectVideo:
 	call loaderPrintNewline
 
 	jmp .done
-	
+
 	.okVersion:
 	cmp word [PRINTINFO], 1
 	jne .noPrint1
@@ -598,8 +598,8 @@ loaderDetectVideo:
 	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
 	mov SI, VESA20
 	call loaderPrint
-	.noPrint1:	
-		
+	.noPrint1:
+
 	;; Get the amount of video memory
 	xor EAX, EAX
 	mov AX, word [(VESAINFO + 12h)]
@@ -614,11 +614,11 @@ loaderDetectVideo:
 	mov SI, VIDEORAM
 	call loaderPrint
 	call loaderPrintNewline
-	.noPrint2:	
-	
+	.noPrint2:
+
 	;; Make note that we can use SVGA.
 	mov byte [SVGAAVAIL], 1
-	
+
 	;; Check whether linear framebuffer is available in any mode
 	call checkLinearFramebuffer
 	cmp AX, 1
@@ -639,12 +639,12 @@ loaderDetectVideo:
 	call loaderPrintNewline
 
 	jmp .done
-	
-	.okFramebuffer:	
+
+	.okFramebuffer:
 	;; Get a list of the preferred graphics modes that this hardware
 	;; can display.
 	call enumerateGraphicsModes
-	
+
 	;; Find out whether the user prefers a particular video mode
 	push word GRAPHICSMODE
         call loaderFindFile
@@ -685,7 +685,7 @@ loaderDetectVideo:
 	xor EBX, EBX
 	xor ECX, ECX
 	xor EDX, EDX
-	
+
 	pop BX	; X resolution
 	pop CX	; Y resolution
 	pop DX	; BPP
@@ -700,7 +700,7 @@ loaderDetectVideo:
 	push AX
 	xor EAX, EAX
 	pop AX
-	
+
 	;; Save mode
 	mov DI, word [VIDEODATA_P]
 	mov dword [DI + graphicsInfoBlock.mode], EAX
@@ -715,7 +715,7 @@ loaderDetectVideo:
 
 	;; Whew.  This was quite a hack.  Continue, please.
 	jmp .noSelectMode
-	
+
 	.selectMode:
 	;; See if we can find a good graphics mode
 	call selectGraphicMode
@@ -727,14 +727,14 @@ loaderDetectVideo:
 	add SP, 2
 	mov DI, word [VIDEODATA_P]
 	mov dword [DI + graphicsInfoBlock.framebuffer], EAX
-	
+
 	.done:
 	popa
 	ret
 
 
 loaderSetGraphicDisplay:
-	;; This routine switches the video adapter into the requested 
+	;; This routine switches the video adapter into the requested
 	;; graphics mode.
 
 	pusha
@@ -745,7 +745,7 @@ loaderSetGraphicDisplay:
 	;; Make sure SVGA is available
 	cmp byte [SVGAAVAIL], 1
 	jne near .done
-		
+
 	;; Get the requested graphic mode from the stack and save it
 	mov AX, word [SS:(BP + 18)]
 	mov word [CURRENTGMODE], AX
@@ -791,9 +791,9 @@ loaderSetGraphicDisplay:
 
 	mov word [CURRENTGMODE], 0
 	jmp .done
-	
-	.switchok:	
-	;; Scan line lengths should be the same (in pixels) as the 
+
+	.switchok:
+	;; Scan line lengths should be the same (in pixels) as the
 	;; X resolution.  Careful; kills AX, BX, CX, DX
 	mov AX, 4F06h
 	xor BX, BX
@@ -831,7 +831,7 @@ GRAPHICSMODE	db 'GRPHMODE   ', 0
 
 ;;
 ;; Video modes, in preference order
-;; 
+;;
 
 VIDEOMODES:
 	dw 1280, 800, 32	; 1280 x 800 x 32 bpp ; Preferred mode
@@ -855,8 +855,8 @@ VIDEOMODES:
 	dw 640, 480, 16		; 640 x 480 x 16 bpp
 	dw 640, 480, 15		; 640 x 480 x 15 bpp
 	dw 0
-		
-	
+
+
 ;;
 ;; The good/informational messages
 ;;
@@ -871,7 +871,7 @@ MODESTATS1      db 'Selected mode: ', 0
 MODESTATS2	db 'x', 0
 MODESTATS3	db ' bits/pixel', 0
 SPACE		db ' ',0
-	
+
 
 ;;
 ;; The error messages

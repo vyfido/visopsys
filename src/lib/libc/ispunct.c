@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -21,20 +21,14 @@
 
 // This is the standard "ispunct" function, as found in standard C libraries
 
-// These functions check whether c, which must have the value of an
-// unsigned char or EOF, falls into a certain character class according
-// to the current locale.  Ok, right now they don't look at the current
-// locale.
-
 #include <ctype.h>
 
 
 int ispunct(int c)
 {
-	// checks for any printable character which is not a space or an
+	// Checks for any printable character which is not a space or an
 	// alphanumeric character.
-	return ((((c >= 1) && (c <= 7)) || (c == 11) || (c == 12) ||
-		 ((c >= 14) && (c <= 25)) || ((c >= 27) && (c <= 31)) ||
-		 ((c >= 33) && (c <= 255))) && (((c < 'a') || (c > 'z')) &&
-		 ((c < 'A') || (c > 'Z')) && ((c < '0') || (c > '9'))));
+
+	return (isgraph(c) && !isalnum(c));
 }
+

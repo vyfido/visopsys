@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
 
 // Tests should save/restore the text screen if they (deliberately) spew
@@ -304,7 +305,7 @@ static int text_output(void)
 	// How many screenfulls of data?
 	screenFulls = 5;
 
-	// Allocate a buffer 
+	// Allocate a buffer
 	bufferSize = (columns * rows * screenFulls);
 	buffer = malloc(bufferSize);
 	if (buffer == NULL)
@@ -614,9 +615,9 @@ static int port_io(void)
 	int res = 0;
 	unsigned char ch;
 	int count;
-	
+
 	#define inPort8(port, data) \
-		__asm__ __volatile__ ("inb %%dx, %%al" : "=a" (data) : "d" (port))    
+		__asm__ __volatile__ ("inb %%dx, %%al" : "=a" (data) : "d" (port))
 
 	pid = multitaskerGetCurrentProcessId();
 	if (pid < 0)
@@ -624,13 +625,13 @@ static int port_io(void)
 		FAILMESS("Error %d getting PID", res);
 		goto fail;
 	}
-	
+
 	for (count = 0; count < 65535; count ++)
 	{
 		portN = randomFormatted(0, 65535);
 		setClear = ((rand() % 2) == 0);
 
-		res = multitaskerSetIOPerm(pid, portN, setClear);	
+		res = multitaskerSetIOPerm(pid, portN, setClear);
 		if (res < 0)
 		{
 			FAILMESS("Error %d setting perms on port %d", res, portN);
@@ -642,14 +643,14 @@ static int port_io(void)
 			inPort8(portN, ch);
 
 		// Clear permissions again
-		res = multitaskerSetIOPerm(pid, portN, 0);	
+		res = multitaskerSetIOPerm(pid, portN, 0);
 		if (res < 0)
 		{
 			FAILMESS("Error %d clearing perms on port %d", res, portN);
 			goto fail;
 		}
 	}
-		
+
 	return (0);
 
 fail:
@@ -692,7 +693,7 @@ static int disk_reads(disk *theDisk)
 			return (status);
 		}
 	}
-		
+
 	return (status = 0);
 }
 
@@ -763,7 +764,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 	unsigned op = 0;
 	char newPath[MAX_PATH_NAME_LENGTH];
 	int count;
-		
+
 	// Initialize the file structure
 	bzero(&theFile, sizeof(file));
 
@@ -826,7 +827,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 				case 0:
 					if (numFiles < 4)
 					{
-						// Recursively copy it	
+						// Recursively copy it
 						printf("Recursively copy %s to %s\n", relPath, newPath);
 						status = fileCopyRecursive(relPath, newPath);
 						if (status < 0)
@@ -837,7 +838,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 						}
 					}
 					break;
-	
+
 				case 1:
 					if (numFiles > 4)
 					{
@@ -863,7 +864,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 						return (status);
 					}
 					break;
-	
+
 				case 3:
 					// Recursively process it the normal way
 					status = file_recurse(relPath, startTime);
@@ -878,7 +879,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 						return (status);
 					}
 					break;
-	
+
 				default:
 					FAILMESS("Unknown op %d for file %s", op, relPath);
 					return (status = ERR_BUG);
@@ -1026,7 +1027,7 @@ static int file_ops(void)
 	unsigned startTime = 0;
 	int count;
 
-	char *useFiles[] = { "/programs", "/system", "/visopsys", NULL };
+	char *useFiles[] = { PATH_PROGRAMS, PATH_SYSTEM, "/visopsys", NULL };
 	#define DIRNAME "./test_tmp"
 
 	// Initialize the file structure
@@ -1155,9 +1156,9 @@ out:
 
 static int sines(void)
 {
-	// Test the sin() and sinf() functions against some hard-coded values and 
+	// Test the sin() and sinf() functions against some hard-coded values and
 	// some random values.
-	
+
 	int status = 0;
 	float rad = 0;
 	float fres = 0;
@@ -1293,9 +1294,9 @@ out:
 
 static int cosines(void)
 {
-	// Test the cos() and cosf() functions against some hard-coded values and 
+	// Test the cos() and cosf() functions against some hard-coded values and
 	// some random values.
-	
+
 	int status = 0;
 	float rad = 0;
 	float fres = 0;
@@ -1631,7 +1632,8 @@ static int gui(void)
 		goto out;
 	}
 
-	fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+	fileMenu = windowNewMenu(window, menuBar, "File", &fileMenuContents,
+		&params);
 	if (fileMenu == NULL)
 	{
 		FAILMESS("Error getting menu");
@@ -1717,7 +1719,7 @@ static int gui(void)
 		status = ERR_NOTINITIALIZED;
 		goto out;
 	}
-		
+
 	params.gridY += 1;
 	ijklButton = windowNewButton(buttonContainer, "IJKL", NULL, &params);
 	if (ijklButton == NULL)
@@ -1824,8 +1826,6 @@ static int icons(void)
 	componentParameters params;
 	int count;
 
-	#define ICON_DIR "/system/icons"
-
 	bzero(&iconFile, sizeof(file));
 	bzero(&iconImage, sizeof(image));
 	bzero(&params, sizeof(componentParameters));
@@ -1847,7 +1847,7 @@ static int icons(void)
 	}
 
 	// Get the number of icons
-	numIcons = fileCount(ICON_DIR);
+	numIcons = fileCount(PATH_SYSTEM_ICONS);
 	if (numIcons < 0)
 	{
 		FAILMESS("Error getting icon count");
@@ -1880,10 +1880,10 @@ static int icons(void)
 	for (count = 0; count < numIcons; count ++)
 	{
 		if (count)
-			status = fileNext(ICON_DIR, &iconFile);
+			status = fileNext(PATH_SYSTEM_ICONS, &iconFile);
 		else
-			status = fileFirst(ICON_DIR, &iconFile);
-		
+			status = fileFirst(PATH_SYSTEM_ICONS, &iconFile);
+
 		if (status < 0)
 		{
 			FAILMESS("Error getting next icon");
@@ -1899,7 +1899,7 @@ static int icons(void)
 			params.gridY += 1;
 		}
 
-		sprintf(fileName, "%s/%s", ICON_DIR, iconFile.name);
+		sprintf(fileName, "%s/%s", PATH_SYSTEM_ICONS, iconFile.name);
 
 		// Try to load the image
 		status = imageLoad(fileName, 0, 0, &iconImage);
@@ -1919,7 +1919,7 @@ static int icons(void)
 
 		imageFree(&iconImage);
 
-		params.gridX += 1;      
+		params.gridX += 1;
 	}
 
 	status = windowSetBackgroundColor(window, &params.background);

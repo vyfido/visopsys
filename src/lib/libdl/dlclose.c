@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -33,35 +33,38 @@ extern char *dlerrorMessage;
 
 int dlclose(void *handle)
 {
-  // Excerpted from the GNU man page:
-  //
-  // The function dlclose() decrements the reference count on the dynamic
-  // library handle handle.  If the reference count drops to zero and no
-  // other loaded libraries use symbols in it, then the dynamic library is
-  // unloaded.
-  //
-  // ...but it's not unloaded.  The kernel doesn't do that at present.  And
-  // there's no reference counting either.  We put this here merely for
-  // compatibility at the moment.
+	// Excerpted from the GNU man page:
+	//
+	// The function dlclose() decrements the reference count on the dynamic
+	// library handle handle.  If the reference count drops to zero and no
+	// other loaded libraries use symbols in it, then the dynamic library is
+	// unloaded.
+	//
+	// ...but it's not unloaded.  The kernel doesn't do that at present.  And
+	// there's no reference counting either.  We put this here merely for
+	// compatibility at the moment.
 
-  int foundHandle = 0;
-  int count;
+	int foundHandle = 0;
+	int count;
 
-  // Make sure the handle is in our list of handles, though we don't do
-  // anything else with it.
-  for (count = 0; count < dlopenNumHandles; count ++)
-    if (dlopenHandles[count] == handle)
-      {
-	foundHandle = 1;
-	break;
-      }
+	// Make sure the handle is in our list of handles, though we don't do
+	// anything else with it.
+	for (count = 0; count < dlopenNumHandles; count ++)
+	{
+		if (dlopenHandles[count] == handle)
+		{
+			foundHandle = 1;
+			break;
+		}
+	}
 
-  if (!foundHandle)
-    {
-      errno = ERR_NOSUCHENTRY;
-      dlerrorMessage = strerror(errno);
-      return (errno);
-    }
-  else
-    return (0);
+	if (!foundHandle)
+	{
+		errno = ERR_NOSUCHENTRY;
+		dlerrorMessage = strerror(errno);
+		return (errno);
+	}
+	else
+		return (0);
 }
+

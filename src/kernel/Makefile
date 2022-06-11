@@ -1,47 +1,37 @@
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2014 J. Andrew McLaughlin
-## 
+##
 ##  Makefile
 ##
 
 ##  This file is the Makefile for the Visopsys kernel itself.
 
-ROOT		= ../..
-UTILSDIR	= ${ROOT}/utils
-BUILDDIR	= ${ROOT}/build
-INCDIR		= ../include
-LIBDIR		= ${BUILDDIR}/system/libraries
+ROOT = ../..
+UTILSDIR = ${ROOT}/utils
+BUILDDIR = ${ROOT}/build
+INCDIR = ../include
+LIBDIR = ${BUILDDIR}/system/libraries
 
 include ${ROOT}/Makefile.include
 
-ifeq (${RELEASE},)
-	RELEASE = $(shell ${UTILSDIR}/release.sh)
-endif
-ifneq (${PLUS},)
-	PLUSNAMES = kernelLicense kernelFilesystemFatPlus
-endif
-ifneq (${BUILDLANG},)
-	DEFLANG		= -DBUILDLANG=\"${BUILDLANG}\"
-	MAKELANG	= make -C ${BUILDLANG}
-	MAKELANGCLEAN	= make -C ${BUILDLANG} clean
-endif
+STDDEPS = ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
+	${INCDIR}/*.h ${LIBDIR}/libc.a
+INCLUDE = -nostdinc -I. -I${INCDIR}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL ${DEBUG} \
+	${PLUS}
+LFLAGS = -L${LIBDIR} -nostdlib -static \
+	-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
+RELEASE = $(shell ${UTILSDIR}/release.sh)
 
-STDDEPS		= ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
-		${INCDIR}/*.h ${LIBDIR}/libc.a
-INCLUDE		= -nostdinc -I. -I${INCDIR}
-DEBUG		= # -DDEBUG # Uncomment to turn on debugging
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL \
-		${DEBUG} ${PLUS}
-LFLAGS		= -L${LIBDIR} -nostdlib -static \
-		-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
-
-ifeq (${DEBUG},)
+ifdef DEBUG
+	override DEBUG = -DDEBUG
+else
 	STRIP = strip -s ${KERNEL}
-endif 
+endif
 
 # kernelMain needs to go first
-NAMES =	kernelMain \
+NAMES = kernelMain \
 	kernelApi \
 	kernelBus \
 	kernelCpu \
@@ -128,42 +118,47 @@ NAMES =	kernelMain \
 	kernelWindowTextLabel \
 	kernelWindowTitleBar
 
-DRIVERNAMES	= kernelAcpiDriver \
-		kernelAtaDriver \
-		kernelDmaDriver \
-		kernelFloppyDriver \
-		kernelFramebufferGraphicDriver \
-		kernelGraphicConsoleDriver \
-		kernelIdeDriver \
-		kernelLanceDriver \
-		kernelPciDriver \
-		kernelPicDriver \
-		kernelPs2KeyboardDriver \
-		kernelPs2MouseDriver \
-		kernelRamDiskDriver \
-		kernelRtcDriver \
-		kernelSataAhciDriver \
-		kernelScsiDiskDriver \
-		kernelSysTimerDriver \
-		kernelSystemDriver \
-		kernelTextConsoleDriver \
-		kernelUsbAtapiDriver \
-		kernelUsbDriver \
-		kernelUsbEhciDriver \
-		kernelUsbHidDriver \
-		kernelUsbHubDriver \
-		kernelUsbOhciDriver \
-		kernelUsbUhciDriver \
-		kernelUsbXhciDriver
+DRIVERNAMES = kernelAcpiDriver \
+	kernelAtaDriver \
+	kernelDmaDriver \
+	kernelFloppyDriver \
+	kernelFramebufferGraphicDriver \
+	kernelGraphicConsoleDriver \
+	kernelIdeDriver \
+	kernelLanceDriver \
+	kernelPciDriver \
+	kernelPicDriver \
+	kernelPs2KeyboardDriver \
+	kernelPs2MouseDriver \
+	kernelRamDiskDriver \
+	kernelRtcDriver \
+	kernelSataAhciDriver \
+	kernelScsiDiskDriver \
+	kernelSysTimerDriver \
+	kernelSystemDriver \
+	kernelTextConsoleDriver \
+	kernelUsbAtapiDriver \
+	kernelUsbDriver \
+	kernelUsbEhciDriver \
+	kernelUsbHidDriver \
+	kernelUsbHubDriver \
+	kernelUsbOhciDriver \
+	kernelUsbUhciDriver \
+	kernelUsbXhciDriver
 
-ALLNAMES	= ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
-OBJS		= $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
-KERNEL		= ${BUILDDIR}/visopsys
+ifdef PLUS
+	PLUSNAMES = kernelLicense kernelFilesystemFatPlus
+endif
+
+ALLNAMES = ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
+OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
+KERNEL = ${BUILDDIR}/visopsys
 
 # Targets
 
 all: target-dirs ${KERNEL} strip
-	${MAKELANG}
+	${MAKE} -C de
+	${MAKE} -C es
 
 target-dirs:
 	mkdir -p obj
@@ -178,10 +173,6 @@ strip: ${KERNEL}
 obj/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
 
-clean:
-	rm -Rf *~ *.o core obj ${KERNEL}
-	${MAKELANGCLEAN}
-
 # Object files with explicit rules
 
 obj/kernelApi.o: kernelApi.c ${STDDEPS}
@@ -189,3 +180,9 @@ obj/kernelApi.o: kernelApi.c ${STDDEPS}
 
 obj/kernelMisc.o: kernelMisc.c ${STDDEPS}
 	${CC} ${CFLAGS} -D_KVERSION_=\"${RELEASE}\" -c $< -o $@
+
+clean:
+	${MAKE} -C de clean
+	${MAKE} -C es clean
+	rm -Rf *~ *.o core obj ${KERNEL}
+

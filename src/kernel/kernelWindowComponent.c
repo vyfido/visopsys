@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -23,6 +23,7 @@
 // constructor and default functions that can be overridden.
 
 #include "kernelWindow.h"	// Our prototypes are here
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
@@ -83,6 +84,21 @@ static int grey(kernelWindowComponent *component)
 }
 
 
+static void renderComponent(kernelWindowComponent *component)
+{
+	kernelWindow *window = component->window;
+
+	kernelDebug(debug_gui, "WindowComponent render type %s in '%s'",
+		componentTypeString(component->type), window->title);
+
+	// Redraw a clip of that part of the window
+	if (window->drawClip)
+		window->drawClip(window, (component->xCoord - 2),
+			(component->yCoord - 2), (component->width + 4),
+			(component->height + 4));
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -114,7 +130,7 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 	component->type = genericComponentType;
 	component->subType = genericComponentType;
 	component->window = getWindow(parent);
-	
+
 	// Use the window's buffer by default
 	if (component->window)
 		component->buffer = &(component->window->buffer);
@@ -204,7 +220,7 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 	extern kernelWindow *consoleWindow;
 	extern kernelWindowComponent *consoleTextArea;
 
-	// Check params.  
+	// Check params.
 	if (component == NULL)
 		return;
 
@@ -283,8 +299,11 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 		else // Not visible
 		{
 			if (window->focusComponent == tmpComponent)
+			{
 				// Make sure it doesn't have the focus
-				kernelWindowComponentUnfocus(tmpComponent);
+				tmpComponent->flags &= ~WINFLAG_HASFOCUS;
+				window->focusComponent = NULL;
+			}
 
 			tmpComponent->flags &= ~WINFLAG_VISIBLE;
 			if (tmpComponent->erase)
@@ -292,14 +311,9 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 		}
 	}
 
-	if (array)
-		kernelFree(array);
+	kernelFree(array);
 
-	// Redraw a clip of that part of the window
-	if (window->drawClip)
-		window->drawClip(window, (component->xCoord - 2),
-			(component->yCoord - 2), (component->width + 4),
-			(component->height + 4));
+	renderComponent(component);
 
 	return (status = 0);
 }
@@ -325,6 +339,10 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 		return (status = ERR_NULLPARAMETER);
 
 	window = component->window;
+
+	kernelDebug(debug_gui, "WindowComponent set type %s in '%s' %sabled",
+		componentTypeString(component->type), window->title,
+		(enabled? "en" : "dis"));
 
 	if (component->numComps)
 		numComponents = component->numComps(component);
@@ -369,19 +387,18 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 			tmpComponent->flags &= ~WINFLAG_ENABLED;
 
 			if (window->focusComponent == tmpComponent)
+			{
 				// Make sure it doesn't have the focus
-				kernelWindowComponentUnfocus(tmpComponent);
+				tmpComponent->flags &= ~WINFLAG_HASFOCUS;
+				window->focusComponent = NULL;
+			}
 		}
 	}
 
-	if (array)
-		kernelFree(array);
+	kernelFree(array);
 
-	// Redraw a clip of that part of the window
-	if ((component->flags & WINFLAG_VISIBLE) && window->drawClip)
-		window->drawClip(window, (component->xCoord - 2),
-			(component->yCoord - 2), (component->width + 4),
-			(component->height + 4));
+	if (component->flags & WINFLAG_VISIBLE)
+		renderComponent(component);
 
 	return (status = 0);
 }
@@ -402,24 +419,24 @@ int kernelWindowComponentSetWidth(kernelWindowComponent *component, int width)
 	// Set the width parameter of the component
 
 	int status = 0;
-	int oldWidth = 0;
 
 	if (component == NULL)
-		return (ERR_NULLPARAMETER);
-
-	oldWidth = component->width;
+		return (status = ERR_NULLPARAMETER);
 
 	// If the component wants to know about resize events...
 	if (component->resize)
 		status = component->resize(component, width, component->height);
 
+	if ((width < component->width) && (component->flags & WINFLAG_VISIBLE))
+	{
+		component->flags &= ~WINFLAG_VISIBLE;
+		renderComponent(component);
+		component->flags |= WINFLAG_VISIBLE;
+	}
+
 	component->width = width;
 
-	// Redraw a clip of that part of the window
-	// If the component is visible, redraw the clip of the window
-	if (component->window->drawClip)
-		component->window->drawClip(component->window, component->xCoord,
-			component->yCoord, max(width, oldWidth), component->height);
+	renderComponent(component);
 
 	return (status);
 }
@@ -441,24 +458,24 @@ int kernelWindowComponentSetHeight(kernelWindowComponent *component,
 	// Set the width parameter of the component
 
 	int status = 0;
-	int oldHeight = 0;
 
 	if (component == NULL)
-		return (ERR_NULLPARAMETER);
-	
-	oldHeight = component->height;
+		return (status = ERR_NULLPARAMETER);
 
 	// If the component wants to know about resize events...
 	if (component->resize)
 		status = component->resize(component, component->width, height);
 
+	if ((height < component->height) && (component->flags & WINFLAG_VISIBLE))
+	{
+		component->flags &= ~WINFLAG_VISIBLE;
+		renderComponent(component);
+		component->flags |= WINFLAG_VISIBLE;
+	}
+
 	component->height = height;
 
-	// Redraw a clip of that part of the window
-	// If the component is visible, redraw the clip of the window
-	if (component->window->drawClip)
-		component->window->drawClip(component->window, component->xCoord,
-			component->yCoord, component->width, max(height, oldHeight));
+	renderComponent(component);
 
 	return (status);
 }
@@ -468,7 +485,7 @@ int kernelWindowComponentFocus(kernelWindowComponent *component)
 {
 	// Gives the supplied component the focus, puts it on top of any other
 	// components it intersects, etc.
-	
+
 	int status = 0;
 	kernelWindow *window = NULL;
 
@@ -491,7 +508,7 @@ int kernelWindowComponentFocus(kernelWindowComponent *component)
 int kernelWindowComponentUnfocus(kernelWindowComponent *component)
 {
 	// Removes the focus from the supplied component
-	
+
 	int status = 0;
 	kernelWindow *window = NULL;
 
@@ -514,7 +531,7 @@ int kernelWindowComponentUnfocus(kernelWindowComponent *component)
 int kernelWindowComponentDraw(kernelWindowComponent *component)
 {
 	// Draw  a component
-	
+
 	int status = 0;
 
 	// Check params
@@ -532,7 +549,7 @@ int kernelWindowComponentGetData(kernelWindowComponent *component,
 	void *buffer, int size)
 {
 	// Get (generic) data from a component
-	
+
 	int status = 0;
 
 	// Check params
@@ -550,7 +567,7 @@ int kernelWindowComponentSetData(kernelWindowComponent *component,
 	void *buffer, int size)
 {
 	// Set (generic) data in a component
-	
+
 	int status = 0;
 
 	// Check params.  buffer can only be NULL if size is NULL

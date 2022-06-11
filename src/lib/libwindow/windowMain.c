@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -211,13 +211,14 @@ _X_ void windowGuiStop(void)
 	// Desc: Stop GUI event polling which has been started by a previous call to one of the 'run' functions, such as windowGuiRun() or windowGuiThread().
 
 	run = 0;
-	
+
 	if (guiThreadPid && (multitaskerGetCurrentProcessId() != guiThreadPid))
 		multitaskerKillProcess(guiThreadPid, 0);
 
 	multitaskerYield();
 
 	guiThreadPid = 0;
-	
+
 	return;
 }
+

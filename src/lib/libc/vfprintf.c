@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -33,7 +33,7 @@ int vfprintf(FILE *theStream, const char *format, va_list list)
 	int status = 0;
 	int len = 0;
 	char output[MAXSTRINGLENGTH];
-	
+
 	if (visopsys_in_kernel)
 		return (errno = ERR_BUG);
 
@@ -58,6 +58,6 @@ int vfprintf(FILE *theStream, const char *format, va_list list)
 		errno = status;
 		return (0);
 	}
-	
+
 	return (len);
 }

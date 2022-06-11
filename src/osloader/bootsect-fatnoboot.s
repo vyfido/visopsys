@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -28,8 +28,8 @@
 main:
 	jmp short bootCode		; 00 - 01 Jump instruction
 	nop				; 02 - 02 No op
-	
-	%include "bootsect-fatBPB.s"	
+
+	%include "bootsect-fatBPB.s"
 
 bootCode:
 
@@ -48,7 +48,7 @@ bootCode:
 	;; 0000h:7C00h.
 	jmp (0):.adjCsIp
 	.adjCsIp:
-	
+
 	sti
 
 	pusha
@@ -61,8 +61,8 @@ bootCode:
 	int 16h
 
 	popa
-	
-	;; According to the docs by compaq/intel, we should issue an 
+
+	;; According to the docs by compaq/intel, we should issue an
 	;; int 18h instead to allow the BIOS to attempt loading some other
 	;; operating system
 	int 18h
@@ -71,10 +71,10 @@ bootCode:
 	cli
 	hlt
 
-	
+
 %include "bootsect-print.s"
 
-	
+
 ;; Data.  There is no data segment, so this space will have to do
 
 NOBOOT		db 'This is not a bootable Visopsys disk', 0Dh, 0Ah

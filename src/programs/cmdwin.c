@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -43,43 +43,64 @@ This command will open a new text window running a new instance of the
 #include <libintl.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
 #include <sys/font.h>
+#include <sys/paths.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
+
+#define WINDOW_TITLE	_("Command Window")
 
 static int shellProcessId = 0;
 objectKey window = NULL;
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("cmdwin");
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// This is just to handle a window shutdown event.
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
 
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		// The window is being closed by a GUI event.  Just kill our shell
-		// process -- the main process will stop blocking and do the rest of the
-		// shutdown.
-		multitaskerKillProcess(shellProcessId, 0 /* no force */);
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			// The window is being closed by a GUI event.  Just kill our shell
+			// process -- the main process will stop blocking and do the rest
+			// of the shutdown.
+			multitaskerKillProcess(shellProcessId, 0 /* no force */);
+	}
 }
 
 
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *language = "";
 	int myProcessId = 0;
 	int myPrivilege = 0;
 	componentParameters params;
 	int rows = 25;
 	objectKey textArea = NULL;
 
-	#ifdef BUILDLANG
-		language=BUILDLANG;
-	#endif
-	setlocale(LC_ALL, language);
+	setlocale(LC_ALL, getenv("LANG"));
 	textdomain("cmdwin");
 
 	// Only work in graphics mode
@@ -95,7 +116,7 @@ int main(int argc, char *argv[])
 	myPrivilege = multitaskerGetProcessPrivilege(myProcessId);
 
 	// Load a shell process
-	shellProcessId = loaderLoadProgram("/programs/vsh", myPrivilege);
+	shellProcessId = loaderLoadProgram(PATH_PROGRAMS "/vsh", myPrivilege);
 	if (shellProcessId < 0)
 	{
 		printf("%s", _("Unable to load shell\n"));
@@ -104,7 +125,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Create a new window
-	window = windowNew(myProcessId, _("Command Window"));
+	window = windowNew(myProcessId, WINDOW_TITLE);
 
 	// Put a text area in the window
 	bzero(&params, sizeof(componentParameters));
@@ -118,7 +139,7 @@ int main(int argc, char *argv[])
 	params.orientationY = orient_middle;
 	params.flags |= WINDOW_COMPFLAG_STICKYFOCUS;
 
-	status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
+	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
 		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 1);
@@ -158,3 +179,4 @@ int main(int argc, char *argv[])
 	// Done
 	return (status);
 }
+

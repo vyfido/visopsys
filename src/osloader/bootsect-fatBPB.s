@@ -1,17 +1,17 @@
 ;;
 ;;  Visopsys
 ;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
-;; 
+;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
 ;;  Software Foundation; either version 2 of the License, or (at your option)
 ;;  any later version.
-;; 
+;;
 ;;  This program is distributed in the hope that it will be useful, but
 ;;  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;;  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 ;;  for more details.
-;;  
+;;
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -22,7 +22,7 @@
 ;; This code is the BIOS Parameter Block (BPB) for the FAT boot sectors.
 ;; it's not meant to be used on its own, merely %included.
 
-	
+
 OEMName		times 8 db ' '		; 03 - 0A OEM Name
 BytesPerSect	dw 0			; 0B - 0C Bytes per sector
 SecPerClust	db 0			; 0D - 0D Sectors per cluster
@@ -51,7 +51,7 @@ BootSignature	db 0	          	; 42 - 42 Signature
 VolumeID	dd 0		    	; 43 - 46 Volume ID
 VolumeName	times 11 db ' '		; 47 - 51 Volume name
 FSType		times 8 db ' '		; 52 - 59 Filesystem type
-	
+
 %else	;; FAT12, FAT16
 DriveNumber	db 0			; 24 - 24 BIOS drive number
 Reserved1	db 0 			; 25 - 25 ?

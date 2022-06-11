@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -18,7 +18,7 @@
 //
 //  malloc.c
 //
-	
+
 // These routines comprise Visopsys heap memory management system.  It relies
 // upon the kernelMemory code, and does similar things, but instead of whole
 // memory pages, it allocates arbitrary-sized chunks.
@@ -46,36 +46,33 @@ mallocKernelOps mallocKernOps;
 #define FREELIST_REF (&freeBlockList)
 #define blockEnd(block) (block->start + (block->size - 1))
 
+// Malloc debugging messages are off by default even in a debug build.
+#undef DEBUG
+
 #if defined(DEBUG)
-#define debug(message, arg...) do {										\
-	if (visopsys_in_kernel)												\
-	{																	\
-		if (mallocKernOps.debug)										\
-			mallocKernOps.debug(__FILE__, __FUNCTION__, __LINE__,		\
-				debug_memory, message, ##arg);							\
-	}																	\
-	else																\
-	{																	\
-		printf("DEBUG: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__);	\
-		printf(message, ##arg);											\
-		printf("\n");													\
-	}																	\
-} while (0)
+#define debug(message, arg...) do { \
+	if (visopsys_in_kernel) { \
+		if (mallocKernOps.debug) \
+			mallocKernOps.debug(__FILE__, __FUNCTION__, __LINE__, \
+				debug_memory, message, ##arg); \
+	} else { \
+		printf("DEBUG: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__); \
+		printf(message, ##arg); \
+		printf("\n"); \
+	} } while (0)
 #else
 	#define debug(message, arg...) do { } while (0)
 #endif // defined(DEBUG)
 
-#define error(message, arg...) do {											\
-	if (visopsys_in_kernel)													\
-		mallocKernOps.error(__FILE__, __FUNCTION__, __LINE__, kernel_error,	\
-			message, ##arg);												\
-	else																	\
-	{																		\
-		printf("Error: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__);		\
-		printf(message, ##arg);												\
-		printf("\n");														\
-	}																		\
-} while (0)
+#define error(message, arg...) do { \
+	if (visopsys_in_kernel) { \
+		mallocKernOps.error(__FILE__, __FUNCTION__, __LINE__, kernel_error, \
+			message, ##arg); \
+	} else { \
+		printf("Error: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__); \
+		printf(message, ##arg); \
+		printf("\n"); \
+	} } while (0)
 
 
 static inline int procid(void)
@@ -260,7 +257,7 @@ static mallocBlock *getBlock(void)
 
 	block = vacantBlockList;
 	vacantBlockList = block->next;
-	
+
 	// Clear it
 	bzero(block, sizeof(mallocBlock));
 
@@ -501,7 +498,7 @@ static void mergeFree(mallocBlock *block)
 		block->size += block->prev->size;
 		putBlock(FREELIST_REF, block->prev);
 	}
-	
+
 	// Check whether we're contiguous with the next block
 	if (block->next && (block->next->heapAlloc == block->heapAlloc) &&
 		(blockEnd(block) == (block->next->start - 1)))
@@ -566,7 +563,7 @@ static int deallocateBlock(void *start, const char *function)
 			// Don't try to use 'block' after this point, it might have
 			// disappeared.
 			block = NULL;
-	
+
 			return (status = 0);
 		}
 
@@ -679,7 +676,7 @@ static int checkBlocks(void)
 					return (status = ERR_BADDATA);
 				}
 			}
-		
+
 			block = block->next;
 		}
 	}
@@ -840,7 +837,7 @@ int _mallocBlockInfo(void *start, memoryBlock *meBlock)
 			mallocBlock2MemoryBlock(maBlock, meBlock);
 			lock_release(&blocksLock);
 			return (status = 0);
-		}	
+		}
 
 		maBlock = maBlock->next;
 	}
@@ -855,7 +852,7 @@ int _mallocBlockInfo(void *start, memoryBlock *meBlock)
 int _mallocGetStats(memoryStats *stats)
 {
 	// Return malloc memory usage statistics
-	
+
 	int status = 0;
 	mallocBlock *block = usedBlockList;
 
@@ -892,7 +889,7 @@ int _mallocGetStats(memoryStats *stats)
 int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
 {
 	// Fill a memoryBlock array with 'doBlocks' used malloc blocks information
-	
+
 	int status = 0;
 	mallocBlock *block = usedBlockList;
 	int count;
@@ -917,7 +914,7 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
 		mallocBlock2MemoryBlock(block, &(blocksArray[count]));
 		block = block->next;
 	}
-	
+
 	lock_release(&blocksLock);
 
 	return (status = 0);

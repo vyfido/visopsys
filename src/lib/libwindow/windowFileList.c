@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -27,40 +27,41 @@
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/paths.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
-#define FILEBROWSE_CONFIG			"/system/config/filebrowse.conf"
+#define FILEBROWSE_CONFIG			PATH_SYSTEM_CONFIG "/filebrowse.conf"
 #define DEFAULT_FOLDERICON_VAR		"icon.folder"
-#define DEFAULT_FOLDERICON_FILE		"/system/icons/foldicon.bmp"
+#define DEFAULT_FOLDERICON_FILE		PATH_SYSTEM_ICONS "/foldicon.bmp"
 #define DEFAULT_FILEICON_VAR		"icon.file"
-#define DEFAULT_FILEICON_FILE		"/system/icons/pageicon.bmp"
+#define DEFAULT_FILEICON_FILE		PATH_SYSTEM_ICONS "/pageicon.bmp"
 #define DEFAULT_IMAGEICON_VAR		"icon.image"
-#define DEFAULT_IMAGEICON_FILE		"/system/icons/imageicon.bmp"
+#define DEFAULT_IMAGEICON_FILE		PATH_SYSTEM_ICONS "/imageicon.bmp"
 #define DEFAULT_EXECICON_VAR		"icon.executable"
-#define DEFAULT_EXECICON_FILE		"/system/icons/execicon.bmp"
+#define DEFAULT_EXECICON_FILE		PATH_SYSTEM_ICONS "/execicon.bmp"
 #define DEFAULT_MESSAGEICON_VAR		"icon.message"
-#define DEFAULT_MESSAGEICON_FILE	"/system/icons/mesgicon.ico"
+#define DEFAULT_MESSAGEICON_FILE	PATH_SYSTEM_ICONS "/mesgicon.ico"
 #define DEFAULT_OBJICON_VAR			"icon.object"
-#define DEFAULT_OBJICON_FILE		"/system/icons/objicon.bmp"
+#define DEFAULT_OBJICON_FILE		PATH_SYSTEM_ICONS "/objicon.bmp"
 #define DEFAULT_BOOTICON_VAR		"icon.boot"
-#define DEFAULT_BOOTICON_FILE		"/system/icons/booticon.bmp"
+#define DEFAULT_BOOTICON_FILE		PATH_SYSTEM_ICONS "/booticon.bmp"
 #define DEFAULT_KEYMAPICON_VAR		"icon.keymap"
-#define DEFAULT_KEYMAPICON_FILE		"/system/icons/kmapicon.ico"
+#define DEFAULT_KEYMAPICON_FILE		PATH_SYSTEM_ICONS "/kmapicon.ico"
 #define DEFAULT_PDFICON_VAR			"icon.pdf"
-#define DEFAULT_PDFICON_FILE		"/system/icons/pdficon.ico"
+#define DEFAULT_PDFICON_FILE		PATH_SYSTEM_ICONS "/pdficon.ico"
 #define DEFAULT_ARCHICON_VAR		"icon.archive"
-#define DEFAULT_ARCHICON_FILE		"/system/icons/archicon.ico"
+#define DEFAULT_ARCHICON_FILE		PATH_SYSTEM_ICONS "/archicon.ico"
 #define DEFAULT_FONTICON_VAR		"icon.font"
-#define DEFAULT_FONTICON_FILE		"/system/icons/fonticon.ico"
+#define DEFAULT_FONTICON_FILE		PATH_SYSTEM_ICONS "/fonticon.ico"
 #define DEFAULT_CONFIGICON_VAR		"icon.config"
-#define DEFAULT_CONFIGICON_FILE		"/system/icons/conficon.bmp"
+#define DEFAULT_CONFIGICON_FILE		PATH_SYSTEM_ICONS "/conficon.bmp"
 #define DEFAULT_HTMLICON_VAR		"icon.html"
-#define DEFAULT_HTMLICON_FILE		"/system/icons/htmlicon.bmp"
+#define DEFAULT_HTMLICON_FILE		PATH_SYSTEM_ICONS "/htmlicon.bmp"
 #define DEFAULT_TEXTICON_VAR		"icon.text"
-#define DEFAULT_TEXTICON_FILE		"/system/icons/texticon.bmp"
+#define DEFAULT_TEXTICON_FILE		PATH_SYSTEM_ICONS "/texticon.bmp"
 #define DEFAULT_BINICON_VAR			"icon.binary"
-#define DEFAULT_BINICON_FILE		"/system/icons/binicon.bmp"
+#define DEFAULT_BINICON_FILE		PATH_SYSTEM_ICONS "/binicon.bmp"
 
 typedef struct {
 	int class;
@@ -152,20 +153,20 @@ static icon iconList[] = {
 	FILE_ICON,
 	{ NULL, NULL, NULL, NULL, NULL }
 };
-    
+
 
 __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code
-	
+
 	va_list list;
 	char *output = NULL;
 
 	output = malloc(MAXSTRINGLENGTH);
 	if (output == NULL)
 		return;
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
@@ -182,13 +183,12 @@ static int loadIcon(const char *variableName, const char *defaultIcon,
 	// variable name, then by the default filename.
 
 	int status = 0;
-	char variableValue[MAX_PATH_NAME_LENGTH];
+	const char *value = NULL;
 
 	// First try the variable
-	status = variableListGet(&config, variableName, variableValue,
-		MAX_PATH_NAME_LENGTH);
-	if (status >= 0)
-		defaultIcon = variableValue;
+	value = variableListGet(&config, variableName);
+	if (value)
+		defaultIcon = value;
 
 	// Try to load the image
 	status = fileFind(defaultIcon, NULL);
@@ -355,7 +355,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 			error("%s", _("Memory allocation error"));
 			return (status = ERR_MEMORY);
 		}
-	
+
 		for (count = 0; count < totalFiles; count ++)
 		{
 			if (count == 0)
@@ -369,7 +369,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 				free(tmpFileEntries);
 				return (status);
 			}
-	
+
 			if (strcmp(tmpFile.name, "."))
 			{
 				memcpy(&(tmpFileEntries[tmpNumFileEntries].file), &tmpFile,
@@ -378,11 +378,11 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 				fileFixupPath(tmpFileName,
 					tmpFileEntries[tmpNumFileEntries].fullName);
 				if (!classifyEntry(&tmpFileEntries[tmpNumFileEntries]))
-					tmpNumFileEntries += 1; 
+					tmpNumFileEntries += 1;
 			}
 		}
 	}
-	
+
 	// Commit, baby.
 	strncpy(fileList->cwd, path, MAX_PATH_LENGTH);
 	if (fileList->fileEntries)
@@ -654,3 +654,4 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
 
 	return (fileList);
 }
+

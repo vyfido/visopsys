@@ -6,7 +6,7 @@ This command can be used to control operations of CD-ROM devices.
 Usage:
   cdrom [disk_name] [operation]
 
-    where 'operation' is one of: open, eject, close, lock, unlock 
+    where 'operation' is one of: open, eject, close, lock, unlock
 
 The first (optional) parameter is the name of a CD-ROM disk.  If no disk
 name is specified, the cdrom command will attempt to guess the most likely

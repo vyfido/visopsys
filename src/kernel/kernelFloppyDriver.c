@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -186,19 +186,19 @@ static int waitOperationComplete(void)
 static int evaluateError(void)
 {
 	// This is an internal-only routine that takes no parameters and returns
-	// no value.  It evaluates the returned bytes in the statusRegister[X] bytes
-	// and matches conditions to error codes and error messages
+	// no value.  It evaluates the returned bytes in the statusRegister[X]
+	// bytes and matches conditions to error codes and error messages
 
 	int errorCode = 0;
 
 	// Check for abnormal termination of command
-	if ((statusRegister0 & 0xC0) == 0x40) 
+	if ((statusRegister0 & 0xC0) == 0x40)
 		errorCode = FLOPPY_ABNORMAL;
 
 	// Check for invalid command
 	else if ((statusRegister0 & 0xC0) == 0x80)
 		errorCode = FLOPPY_INVALIDCOMMAND;
-  
+
 	// Check for Equipment check error
 	if (statusRegister0 & 0x10)  // bit 4 (status register 0)
 		errorCode = FLOPPY_EQUIPMENTCHECK;
@@ -318,7 +318,7 @@ static void specify(unsigned driveNum)
 	// Construct the head load time byte.  Make sure that DMA mode is enabled.
 	command = ((floppyData->headLoad << 1) & 0xFE);
 	commandWrite(command);
-	  
+
 	// There is no status information or interrupt after this command
 	return;
 }
@@ -358,7 +358,7 @@ static int setMotorState(int driveNum, int onOff)
 	kernelProcessorInPort8(0x03F2, data);
 
 	// Move the motor select bit to the correct location [7:4]
-	tmp = ((unsigned char) 0x10 << driveNum); 
+	tmp = ((unsigned char) 0x10 << driveNum);
 
 	// Test whether the motor is on already
 	if (onOff)
@@ -376,7 +376,7 @@ static int setMotorState(int driveNum, int onOff)
 	else
 	{
 		// Move the motor select bit to the correct location [7:4]
-		tmp = 0x0F | ((unsigned char) 0xEF << driveNum); 
+		tmp = 0x0F | ((unsigned char) 0xEF << driveNum);
 
 		// Turn off the 'motor on' bit
 		data &= tmp;
@@ -434,7 +434,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 	{
 		// Turn the drive motor on
 		setMotorState(driveNum, 1);
-		  
+
 		// We don't have to wait for the disk to spin up on a read operation;
 		// It will start reading when it's good and ready.  If it's a write
 		// operation we have to wait for it.
@@ -450,10 +450,10 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 	while (numSectors > 0)
 	{
 		// Calculate the physical head, track and sector to use
-		head = ((logicalSector % (theDisk->sectorsPerCylinder * theDisk->heads)) 
-			/ theDisk->sectorsPerCylinder);
-		track = (logicalSector /
-			(theDisk->sectorsPerCylinder * theDisk->heads));
+		head = ((logicalSector % (theDisk->sectorsPerCylinder *
+			theDisk->heads)) / theDisk->sectorsPerCylinder);
+		track = (logicalSector / (theDisk->sectorsPerCylinder *
+			theDisk->heads));
 		sector = (logicalSector % theDisk->sectorsPerCylinder) + 1;
 
 		// Make sure the head, track, and sector are within the legal range
@@ -503,7 +503,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		if (!read)
 			kernelMemCopy(buffer, xFer, xFerBytes);
 
-    	// Set up the DMA controller for the transfer.
+		// Set up the DMA controller for the transfer.
 		if (read)
 			// Set the DMA channel for writing TO memory, demand mode
 			status = kernelDmaOpenChannel(floppyData->dmaChannel, xFerPhysical,
@@ -534,8 +534,8 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 
 		// Now proceed with the read/write operation
 
-		// Tell the interrupt-received routine NOT to issue the "sense interrupt
-		// status" command after the read/write operation
+		// Tell the interrupt-received routine NOT to issue the "sense
+		// interrupt status" command after the read/write operation
 		readStatusOnInterrupt = 0;
 		interruptReceived = 0;
 
@@ -615,8 +615,8 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		// Save the current track
 		currentTrack = (unsigned ) statusRegister3;
 
-		// Now we can examine the status.  If the top two bits of register 0 are
-		// clear, then the operation completed normally.
+		// Now we can examine the status.  If the top two bits of register 0
+		// are clear, then the operation completed normally.
 		if (statusRegister0 & 0xC0)
 		{
 			// We have an error.  Retry up to twice.
@@ -644,9 +644,9 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		numSectors -= doSectors;
 		buffer += (doSectors * theDisk->sectorSize);
 		retry = 0;
-		  
+
 		} // Per-operation loop
-  
+
 	// Unlock the controller
 	kernelLockRelease(&controllerLock);
 
@@ -793,7 +793,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelMemClear(&disks, (MAXFLOPPIES * sizeof(kernelPhysicalDisk)));
 	kernelMemClear((void *) &controllerLock, sizeof(lock));
 
-	// Reset the number of floppy devices 
+	// Reset the number of floppy devices
 	numberFloppies = kernelOsLoaderInfo->floppyDisks;
 
 	// Loop for each device
@@ -804,8 +804,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		disks[count].cylinders = kernelOsLoaderInfo->fddInfo[count].tracks;
 		disks[count].sectorsPerCylinder =
 			kernelOsLoaderInfo->fddInfo[count].sectors;
-		disks[count].numSectors = (disks[count].heads * disks[count].cylinders *
-			disks[count].sectorsPerCylinder);
+		disks[count].numSectors = (disks[count].heads *
+			disks[count].cylinders * disks[count].sectorsPerCylinder);
 
 		// Some additional universal default values
 		disks[count].type =
@@ -815,7 +815,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		// Assume motor off for now
 
 		// We do division operations with these values
-		if ((disks[count].sectorsPerCylinder == 0) || (disks[count].heads == 0))
+		if (!disks[count].sectorsPerCylinder || !disks[count].heads)
 		{
 			// We do division operations with these values
 			kernelError(kernel_error, "NULL sectors or heads value");
@@ -824,9 +824,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 		// Get memory for our private data
 		floppyData = kernelMalloc(sizeof(floppyDriveData));
-		if (floppyData == NULL)
+		if (!floppyData)
 		{
-			kernelError(kernel_error, "Can't get memory for floppy drive data");
+			kernelError(kernel_error, "Can't get memory for floppy drive "
+				"data");
 			return (status = ERR_MEMORY);
 		}
 
@@ -840,43 +841,43 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		{
 			case 1:
 				// This is a 360 KB 5.25" Disk.  Yuck.
-				disks[count].description = "360 Kb 5.25\" floppy"; 
+				disks[count].description = "360 Kb 5.25\" floppy";
 				floppyData->stepRate = 0x0D;
 				floppyData->gapLength = 0x2A;
 				break;
 
 			case 2:
 				// This is a 1.2 MB 5.25" Disk.  Yuck.
-				disks[count].description = "1.2 MB 5.25\" floppy"; 
+				disks[count].description = "1.2 MB 5.25\" floppy";
 				floppyData->stepRate = 0x0D;
 				floppyData->gapLength = 0x2A;
 				break;
 
 			case 3:
 				// This is a 720 KB 3.5" Disk.  Yuck.
-				disks[count].description = "720 Kb 3.5\" floppy"; 
+				disks[count].description = "720 Kb 3.5\" floppy";
 				floppyData->stepRate = 0x0D;
 				floppyData->gapLength = 0x1B;
 				break;
-  
+
 			case 5:
 			case 6:
 				// This is a 2.88 MB 3.5" Disk.
-				disks[count].description = "2.88 MB 3.5\" floppy"; 
+				disks[count].description = "2.88 MB 3.5\" floppy";
 				floppyData->stepRate = 0x0A;
 				floppyData->gapLength = 0x1B;
 				break;
 
 			default:
-				// Oh oh.  This is an unexpected value.  Make a warning and fall
-				// through to 1.44 MB.
+				// Oh oh.  This is an unexpected value.  Make a warning and
+				// fall through to 1.44 MB.
 				kernelError(kernel_warn, "Floppy disk fd%d type %d is "
 					"unknown.  Assuming 1.44 MB.", disks[count].deviceNumber,
 					kernelOsLoaderInfo->fddInfo[count].type);
 
 			case 4:
 				// This is a 1.44 MB 3.5" Disk.
-				disks[count].description = "1.44 MB 3.5\" floppy"; 
+				disks[count].description = "1.44 MB 3.5\" floppy";
 				floppyData->stepRate = 0x0A;
 				floppyData->gapLength = 0x1B;
 				break;
@@ -895,14 +896,23 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	// address.
 	xFerPhysical = kernelMemoryGetPhysical(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
 		"floppy disk transfer");
-	if (xFerPhysical == NULL)
-		return (status = ERR_MEMORY);
+	if (!xFerPhysical)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
 
-	// Map it into the kernel's address space
+	// Map the physical memory into virtual memory
 	status = kernelPageMapToFree(KERNELPROCID, xFerPhysical, &xFer,
 		DISK_CACHE_ALIGN);
 	if (status < 0)
-		return (status);
+		goto out;
+
+	// Make it non-cacheable
+	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
+		PAGEFLAG_CACHEDISABLE, xFer, DISK_CACHE_ALIGN);
+	if (status < 0)
+		goto out;
 
 	// Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
 	// it for us
@@ -910,18 +920,18 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Clear the "interrupt received" byte
 	interruptReceived = 0;
-	readStatusOnInterrupt = 0;    
+	readStatusOnInterrupt = 0;
 
 	// Don't save any old handler for the dedicated floppy interrupt, but if
 	// there is one, we want to know about it.
 	if (kernelInterruptGetHandler(INTERRUPT_NUM_FLOPPY))
-		kernelError(kernel_warn, "Not chaining unexpected existing handler for "
-			"floppy int %d", INTERRUPT_NUM_FLOPPY);
+		kernelError(kernel_warn, "Not chaining unexpected existing handler "
+			"for floppy int %d", INTERRUPT_NUM_FLOPPY);
 
 	// Register our interrupt handler
 	status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt);
 	if (status < 0)
-		return (status);
+		goto out;
 
 	// Turn on the interrupt
 	kernelPicMask(INTERRUPT_NUM_FLOPPY, 1);
@@ -937,7 +947,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 		// Get a device
 		theDevice = kernelMalloc(sizeof(kernelDevice));
-		if (theDevice == NULL)
+		if (!theDevice)
 			// Skip this one, we guess
 			continue;
 
@@ -950,14 +960,32 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		// Register the floppy disk device
 		status = kernelDiskRegisterDevice(theDevice);
 		if (status < 0)
-			return (status);
+			kernelError(kernel_error, "Couldn't register the floppy disk");
 
 		status = kernelDeviceAdd(parent, theDevice);
 		if (status < 0)
-			return (status);
+		{
+			kernelError(kernel_error, "Couldn't add the floppy device");
+			kernelFree(theDevice);
+		}
 	}
 
-	return (status = 0);
+	status = 0;
+
+out:
+	if (status < 0)
+	{
+		if (xFer)
+			kernelPageUnmap(KERNELPROCID, xFer, DISK_CACHE_ALIGN);
+
+		if (xFerPhysical)
+			kernelMemoryReleasePhysical(xFerPhysical);
+
+		if (floppyData)
+			kernelFree((void *) floppyData);
+	}
+
+	return (status);
 }
 
 
@@ -991,3 +1019,4 @@ void kernelFloppyDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

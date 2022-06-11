@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -28,59 +28,60 @@
 
 _X_ void vshPasswordPrompt(const char *prompt, char *buffer)
 {
-  // Desc: Produces a text-mode prompt for the user to enter a password.  The prompt message is the first parameter, and a buffer to contain the result is the second parameter.
+	// Desc: Produces a text-mode prompt for the user to enter a password.  The prompt message is the first parameter, and a buffer to contain the result is the second parameter.
 
-  int count = 0;
-  int okay = 0;
-  
-  // Turn keyboard echo off
-  textInputSetEcho(0);
-  
-  while (!okay)
-    {
-      printf("%s", prompt);
-      
-      // This loop grabs characters
-      for (count = 0; count < 17; count ++)
+	int count = 0;
+	int okay = 0;
+
+	// Turn keyboard echo off
+	textInputSetEcho(0);
+
+	while (!okay)
 	{
-	  buffer[count] = getchar();
-	  
-	  if (buffer[count] == (unsigned char) 10)
-	    {
-	      buffer[count] = '\0';
-	      printf("\n");
-	      okay = 1;
-	      break;
-	    }
-	  
-	  else if (count >= 16)
-	    {
-	      printf("\nThat password is too long.\n");
-	      buffer[0] = '\0';
-	      break;
-	    }
-	  
-	  else if (buffer[count] == (unsigned char) 8)
-	    {
-	      buffer[count] = '\0';
-	      if (count > 0)
+		printf("%s", prompt);
+
+		// This loop grabs characters
+		for (count = 0; count < 17; count ++)
 		{
-		  textBackSpace();
-		  count -= 2;
+			buffer[count] = getchar();
+
+			if (buffer[count] == (unsigned char) 10)
+			{
+				buffer[count] = '\0';
+				printf("\n");
+				okay = 1;
+				break;
+			}
+
+			else if (count >= 16)
+			{
+				printf("\nThat password is too long.\n");
+				buffer[0] = '\0';
+				break;
+			}
+
+			else if (buffer[count] == (unsigned char) 8)
+			{
+				buffer[count] = '\0';
+				if (count > 0)
+				{
+					textBackSpace();
+					count -= 2;
+				}
+				else
+					count -= 1;
+				continue;
+			}
+
+			else
+				printf("*");
 		}
-	      else
-		count -= 1;
-	      continue;
-	    }
-	 
-	  else
-	    printf("*");
 	}
-    }
 
-  // Echo back on
-  textInputSetEcho(1);
+	// Echo back on
+	textInputSetEcho(1);
 
-  buffer[16] = '\0';
-  return;
+	buffer[16] = '\0';
+	return;
 }
+

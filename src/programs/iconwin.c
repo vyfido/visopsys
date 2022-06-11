@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -41,25 +41,31 @@ custom icons for each.
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/window.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/paths.h>
 #include <sys/vsh.h>
+#include <sys/window.h>
 
-#define DEFAULT_WINDOWTITLE		"Icon Window"
-#define DEFAULT_ROWS			4
-#define DEFAULT_COLUMNS			5
-#define EXECICON_FILE			"/system/icons/execicon.ico"
+#define _(string) gettext(string)
+
+#define DEFAULT_ROWS		4
+#define DEFAULT_COLUMNS		5
+#define EXECICON_FILE		PATH_SYSTEM_ICONS "/execicon.ico"
 
 typedef struct {
+	char name[WINDOW_MAX_LABEL_LENGTH + 1];
 	char imageFile[MAX_PATH_NAME_LENGTH];
 	char command[MAX_PATH_NAME_LENGTH];
 
 } iconInfo;
 
+static const char *configFile = NULL;
 static int processId;
 static int privilege;
 static char windowTitle[WINDOW_MAX_TITLE_LENGTH];
@@ -76,34 +82,70 @@ __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
 	// Generic error message code
-	
+
 	va_list list;
 	char output[MAXSTRINGLENGTH];
-	
+
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
 
-	windowNewErrorDialog(window, "Error", output);
+	windowNewErrorDialog(window, _("Error"), output);
 }
 
 
-static int readConfig(const char *fileName)
+static int readConfig(const char *fileName, variableList *config)
 {
 	int status = 0;
-	variableList config;
-	char *name = NULL;
-	char variable[128];
-	char fullCommand[128];
+	file f;
+	char langFileName[MAX_PATH_NAME_LENGTH];
+	variableList langConfig;
+	const char *variable = NULL;
+	const char *value = NULL;
 	int count;
 
-	status = configRead(fileName, &config);
+	// Try to read the standard configuration file
+	status = configRead(fileName, config);
 	if (status < 0)
 	{
-		error("Can't locate configuration file %s", fileName);
+		error(_("Can't locate configuration file %s"), fileName);
 		return (status);
 	}
 
+	// If the 'LANG' environment variable is set, see whether there's another
+	// language-specific config file that matches it.
+	if (getenv("LANG"))
+	{
+		status = fileFind(fileName, &f);
+		if (status >= 0)
+		{
+			sprintf(langFileName, "%s/%s/%s", PATH_SYSTEM_CONFIG,
+				getenv("LANG"), f.name);
+
+			status = configRead(langFileName, &langConfig);
+			if (status >= 0)
+			{
+				// We got one.  Override values in the original.
+				for (count = 0; count < langConfig.numVariables; count ++)
+				{
+					variable = variableListGetVariable(&langConfig, count);
+					if (variable)
+					{
+						value = variableListGet(&langConfig, variable);
+						if (value)
+							variableListSet(config, variable, value);
+					}
+				}
+			}
+		}
+	}
+
+	return (status = 0);
+}
+
+
+static int processConfig(variableList *config)
+{
 	/*
 	window.title=xxx
 	list.rows=xxx
@@ -113,28 +155,40 @@ static int readConfig(const char *fileName)
 	icon.xxx.command=<command to run>
 	*/
 
+	int status = 0;
+	const char *variable = NULL;
+	const char *value = NULL;
+	const char *name = NULL;
+	char fullCommand[MAX_PATH_NAME_LENGTH];
+	char tmp[128];
+	int count;
+
 	// Is the window title specified?
-	status = variableListGet(&config, "window.title", windowTitle,
-		WINDOW_MAX_TITLE_LENGTH);
-	if (status < 0)
-		strcpy(windowTitle, DEFAULT_WINDOWTITLE);
+	value = variableListGet(config, "window.title");
+	if (value)
+		strncpy(windowTitle, value, WINDOW_MAX_TITLE_LENGTH);
+	else
+		strcpy(windowTitle, _("Icon Window"));
 
 	// Are the number of rows specified?
 	rows = DEFAULT_ROWS;
-	status = variableListGet(&config, "list.rows", variable, 128);
-	if ((status >= 0) && (atoi(variable) > 0))
-		rows = atoi(variable);
+	value = variableListGet(config, "list.rows");
+	if (value && (atoi(value) > 0))
+		rows = atoi(value);
 
 	// Are the number of columns specified?
 	columns = DEFAULT_COLUMNS;
-	status = variableListGet(&config, "list.columns", variable, 128);
-	if ((status >= 0) && (atoi(variable) > 0))
-		columns = atoi(variable);
+	value = variableListGet(config, "list.columns");
+	if (value && (atoi(value) > 0))
+		columns = atoi(value);
 
 	// Figure out how many icons we *might* have
-	for (count = 0; count < config.numVariables; count ++)
-		if (!strncmp(config.variables[count], "icon.name.", 10))
+	for (count = 0; count < config->numVariables; count ++)
+	{
+		variable = variableListGetVariable(config, count);
+		if (variable && !strncmp(variable, "icon.name.", 10))
 			numIcons += 1;
+	}
 
 	// Allocate memory for our list of listItemParameters structures and the
 	// commands for each icon
@@ -143,45 +197,46 @@ static int readConfig(const char *fileName)
 		free(iconParams);
 		iconParams = NULL;
 	}
+
 	if (icons)
 	{
 		free(icons);
 		icons = NULL;
 	}
+
 	if (numIcons)
 	{
 		iconParams = malloc(numIcons * sizeof(listItemParameters));
 		icons = malloc(numIcons * sizeof(iconInfo));
 		if ((iconParams == NULL) || (icons == NULL))
 		{
-			error("Memory allocation error");
-			variableListDestroy(&config);
+			error("%s", _("Memory allocation error"));
 			return (status = ERR_MEMORY);
 		}
 	}
 
 	// Try to gather the information for the icons
 	numIcons = 0;
-	for (count = 0; count < config.numVariables; count ++)
+	for (count = 0; count < config->numVariables; count ++)
 	{
-		if (!strncmp(config.variables[count], "icon.name.", 10))
+		variable = variableListGetVariable(config, count);
+		if (variable && !strncmp(variable, "icon.name.", 10))
 		{
-			name = (config.variables[count] + 10);
+			name = (variable + 10);
 
 			// Get the text
-			sprintf(variable, "icon.name.%s", name);
-			status = variableListGet(&config, variable, iconParams[numIcons].text,
+			value = variableListGet(config, variable);
+			strncpy(icons[numIcons].name, name, WINDOW_MAX_LABEL_LENGTH);
+			strncpy(iconParams[numIcons].text, gettext(value),
 				WINDOW_MAX_LABEL_LENGTH);
-			if (status < 0)
-				// Use something 'blank'.
-				strcpy(iconParams[numIcons].text, "???");
 
 			// Get the image name
-			sprintf(variable, "icon.%s.image", name);
-			status = variableListGet(&config, variable, icons[numIcons].imageFile,
-				MAX_PATH_NAME_LENGTH);
-			if ((status < 0) ||
-				(fileFind(icons[numIcons].imageFile, NULL) < 0) ||
+			sprintf(tmp, "icon.%s.image", name);
+			value = variableListGet(config, tmp);
+			if (value)
+				strncpy(icons[numIcons].imageFile, value, MAX_PATH_NAME_LENGTH);
+
+			if (!value || (fileFind(icons[numIcons].imageFile, NULL) < 0) ||
 				(imageLoad(icons[numIcons].imageFile, 0, 0,
 					&(iconParams[numIcons].iconImage)) < 0))
 			{
@@ -196,14 +251,15 @@ static int readConfig(const char *fileName)
 			}
 
 			// Get the command string
-			sprintf(variable, "icon.%s.command", name);
-			status = variableListGet(&config, variable, icons[numIcons].command,
-				MAX_PATH_NAME_LENGTH);
-			if (status < 0)
+			sprintf(tmp, "icon.%s.command", name);
+			value = variableListGet(config, tmp);
+			if (value)
+				strncpy(icons[numIcons].command, value, MAX_PATH_NAME_LENGTH);
+			else
 				// Can't get the command.  We won't be showing this one.
 				continue;
-			
-			strncpy(fullCommand, icons[numIcons].command, 128);
+
+			strncpy(fullCommand, icons[numIcons].command, MAX_PATH_NAME_LENGTH);
 
 			// See whether the command exists
 			if (loaderCheckCommand(fullCommand) < 0)
@@ -215,7 +271,6 @@ static int readConfig(const char *fileName)
 		}
 	}
 
-	variableListDestroy(&config);
 	return (status = 0);
 }
 
@@ -233,13 +288,81 @@ static void execProgram(int argc, char *argv[])
 }
 
 
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language switch),
+	// so we need to update things
+
+	variableList tmpConfig;
+	const char *variable = NULL;
+	const char *value = NULL;
+	const char *name = NULL;
+	int count1, count2;
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("iconwin");
+
+	bzero(&tmpConfig, sizeof(variableList));
+
+	// Try to read the config file(s)
+	if (readConfig(configFile, &tmpConfig) >= 0)
+	{
+		value = variableListGet(&tmpConfig, "window.title");
+		if (value)
+			strncpy(windowTitle, value,	WINDOW_MAX_TITLE_LENGTH);
+
+		// Refresh the window title
+		windowSetTitle(window, windowTitle);
+
+		// Update the icons
+		for (count1 = 0; count1 < tmpConfig.numVariables; count1 ++)
+		{
+			variable = variableListGetVariable(&tmpConfig, count1);
+			if (variable && !strncmp(variable, "icon.name.", 10))
+			{
+				name = (variable + 10);
+
+				for (count2 = 0; count2 < numIcons; count2 ++)
+				{
+					if (!strncmp(icons[count2].name, name,
+						WINDOW_MAX_LABEL_LENGTH))
+					{
+						// Get the text
+						value = variableListGet(&tmpConfig, variable);
+
+						// Set the new (localized) icon text
+						strncpy(iconParams[count2].text, gettext(value),
+							WINDOW_MAX_LABEL_LENGTH);
+
+						break;
+					}
+				}
+			}
+		}
+
+		windowComponentSetData(iconList, iconParams, numIcons);
+
+		variableListDestroy(&tmpConfig);
+	}
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int clickedIcon = -1;
 
-	// Check for the window being closed by a GUI event.
-	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-		windowGuiStop();
+	// Check for window events.
+	if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == EVENT_WINDOW_CLOSE)
+			windowGuiStop();
+	}
 
 	// Check for events in our icon list.  We consider the icon 'clicked'
 	// if it is a mouse click selection, or an ENTER key selection
@@ -255,7 +378,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (multitaskerSpawn(&execProgram, "exec program", 1,
 			(void *[]){ icons[clickedIcon].command } ) < 0)
 		{
-			error("Couldn't execute command \"%s\"",
+			error(_("Couldn't execute command \"%s\""),
 				icons[clickedIcon].command);
 		}
 	}
@@ -307,6 +430,7 @@ static void deallocateMemory(void)
 			imageFree(&iconParams[count].iconImage);
 		free(iconParams);
 	}
+
 	if (icons)
 		free(icons);
 }
@@ -315,30 +439,50 @@ static void deallocateMemory(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
+	variableList config;
+
+	setlocale(LC_ALL, getenv("LANG"));
+	textdomain("iconwin");
 
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf("\nThe \"%s\" command only works in graphics mode\n",
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
 			(argc? argv[0] : ""));
 		return (errno = ERR_NOTINITIALIZED);
 	}
 
 	// What is my process id?
 	processId = multitaskerGetCurrentProcessId();
-	
+
 	// What is my privilege level?
 	privilege = multitaskerGetProcessPrivilege(processId);
 
 	// Make sure our config file has been specified
 	if (argc != 2)
 	{
-		printf("usage:\n%s <config_file>\n", (argc? argv[0] : ""));
+		printf(_("usage:\n%s <config_file>\n"), (argc? argv[0] : ""));
 		return (errno = ERR_INVALID);
 	}
-	
-	// Try to read the specified config file
-	status = readConfig(argv[argc - 1]);
+
+	configFile = argv[argc - 1];
+
+	bzero(&config, sizeof(variableList));
+
+	// Try to read the config file(s)
+	status = readConfig(configFile, &config);
+	if (status < 0)
+	{
+		variableListDestroy(&config);
+		deallocateMemory();
+		return (errno = status);
+	}
+
+	// Process the configuration
+	status = processConfig(&config);
+
+	variableListDestroy(&config);
+
 	if (status < 0)
 	{
 		deallocateMemory();
@@ -348,7 +492,7 @@ int main(int argc, char *argv[])
 	// Make sure there were some icons successfully specified.
 	if (numIcons <= 0)
 	{
-		error("Config file %s specifies no valid icons", argv[argc - 1]);
+		error(_("Config file %s specifies no valid icons"), argv[argc - 1]);
 		return (errno = ERR_INVALID);
 	}
 
@@ -370,3 +514,4 @@ int main(int argc, char *argv[])
 
 	return (status = 0);
 }
+

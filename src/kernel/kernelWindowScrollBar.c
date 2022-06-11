@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -109,7 +109,7 @@ static int draw(kernelWindowComponent *component)
 		scrollBar->sliderX);
 	int sliderDrawY = (component->yCoord + windowVariables->border.thickness +
 		scrollBar->sliderY);
-	
+
 	// Clear the background
 	kernelGraphicDrawRect(component->buffer,
 		(color *) &(component->params.background), draw_normal,
@@ -215,7 +215,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				// The scroll bar has started moving
 				dragging = 1;
 
-			// Save the current dragging Y and Y coordinate 
+			// Save the current dragging Y and Y coordinate
 			dragX = eventX;
 			dragY = eventY;
 		}
@@ -229,20 +229,20 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	else if (scrollBar->type == scrollbar_horizontal)
 	{
 		// Is it in the space on either side of the slider?
-		
+
 		if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
 			(eventX > 0) && (eventX < scrollBar->sliderX))
 		{
 			// It's to the left of the slider
 			scrollBar->sliderX -= scrollBar->sliderWidth;
-		}		
+		}
 		else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
 			(eventX >= (scrollBar->sliderX + scrollBar->sliderWidth)) &&
 			(eventX < (component->width - windowVariables->border.thickness)))
 		{
 			// It's to the right of the slider
 			scrollBar->sliderX += scrollBar->sliderWidth;
-		}		
+		}
 		else
 			// Do nothing.
 			return (0);
@@ -251,7 +251,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	else if (scrollBar->type == scrollbar_vertical)
 	{
 		// Is it in the space above or below the slider?
-		
+
 		if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
 			(eventY > 0) && (eventY < scrollBar->sliderY))
 		{
@@ -303,7 +303,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	calcSliderPosPercent(scrollBar, component->width, component->height);
 
 	draw(component);
-	
+
 	component->window
 		->update(component->window, component->xCoord, component->yCoord,
 			component->width, component->height);
@@ -342,10 +342,10 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowScrollBar *scrollBar = NULL;
 
-	// Check parameters.
-	if ((parent == NULL) || (params == NULL))
+	// Check params
+	if (!parent || !params)
 	{
-		kernelError(kernel_error, "NULL window component parameter");
+		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
 	}
 

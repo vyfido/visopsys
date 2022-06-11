@@ -1,5 +1,102 @@
 
 --------------
+ Version 0.74   30/06/2014
+--------------
+
+  Overview: This maintenance release features enhanced internationalization
+  support with Spanish and German translations, per-user settings, and
+  extensive stability and performance improvements, most notably to the
+  kernel memory, user input, disk I/O, and GUI subsystems.
+
+- Added per-user home directories, under /users, which are now the default
+  'current directory' when the user logs in.
+- Created a new configuration file for environment variables that are set at
+  login time, and per-user override ones in home directories.
+- Language setting is now a system-wide and per-user environment variable,
+  that can be chosen at first boot, and in the user management tools.
+- Added Spanish and German translations for many of the user programs and
+  GUI features.
+- Added a 'language chooser' dialog window to the window library.
+- Part of the GUI system has been re-written, including changing the 'menu'
+  implementation from a window component into a child window.
+- GUI menus have been changed so that when the topmost menu item is selected,
+  pressing cursor-up removes the selection.
+- The file dialog window now shows the current path the way the file browser
+  program does.
+- Implemented mouse and keyboard threads to process input outside of the
+  interrupt context, for improved stability.
+- The keyboard system has been redesigned, including the use of hardware-
+  neutral (based on UEFI) scan codes and modifier flags.
+- Added typematic key repeats for USB keyboards.
+- Fortified the kernel's user management code and closed some security
+  loopholes.
+- Added a 'deluser' command line command, as a companion to 'adduser'.
+- Modified the 'passwd' program, so that no user name argument means to
+  assume the current user.
+- Password length checking has been added to the User Manager program.
+- The disk caching code now does more combining of cache entries for improved
+  performance, reducing the number of disk writes.
+- Some of the kernel's memory management code has been reworked.
+- All hardware drivers that use mapped physical memory now set the memory
+  page attributes to disable caching.
+- The installers and install file format (e.g. dist/system/install-files.*)
+  now have a way to specify different source and destination filenames.
+- Interrupt handlers are now disallowed from allocating or freeing memory,
+  or changing the page tables/directories.
+- Made the kernelImageLoad() "requested width" and "requested height"
+  parameters work generically, for image types whose drivers don't support it.
+- Added 'set data' functionality to a number of the GUI components, required
+  for support of on-the-fly language switching
+- Separated the kernel's window shell thread from the main GUI system, as a
+  precursor to making it a userspace executable, and to facilitate per-user
+  settings and runtime language switching.
+- Re-implemented the kernel's 'variable list' functionality, so that it uses
+  data offsets instead of pointers to locate variables and values.  This
+  makes them easier to copy.
+- When a child process inherits an input stream, the old text attributes are
+  now remembered, and restored when the process terminates.
+- The build system now uses a command line 'make debug' to create a debug
+  build, which doesn't strip libraries or executables.
+- Fixed up the ctype.h functions (isalpha(), tolower(), etc) so that they
+  use the ISO-8859-15 code page we're using everywhere else, instead of just
+  basic ASCII.
+- Added a setenv() function to the C library.
+- Added a kernelUserExists() function (userExists() in user space).
+- Added a new include file, <sys/paths.h>, that centralizes the definition
+  of some of the basic file structure.
+- Created header files <sys/gpt.h> and <sys/usb.h> and moved the relevent
+  definitions from the Disk Manager and the kernel to those.
+- Added a utils/trim-whitespace script for stripping trailing whitespace
+  from source files and whatnot.
+- Removed the big header file of PCI vendor and device codes that we were
+  using in debug mode.  Too much of a pain to edit/maintain.
+- Fixed: Moving the PS/2 mouse around during hardware initialization of its
+  driver could cause a cascading boot failure.
+- Fixed: When there were windows on the screen, pressing ALT-TAB 2-3 times
+  could cause a major GUI crash.
+- Fixed: When resizing images in the 'view' program, the window title bar
+  didn't update (with the correct zoom percentage) until the window focus
+  changed.
+- Fixed: In graphics mode, the File Browser only noticed directory changes
+  when a file is added or removed, but not sub-directories.
+- Fixed: The interpretation of the Linux swap fileystem header.
+- Fixed: Support for using images inside of GUI buttons
+- Fixed: The internationalization library 'libintl' to allow multiple
+  switches of the language messages at runtime.
+- Fixed: The implementation of the C library getenv() function, so that
+  repeated calls don't leak memory.
+- Fixed: A program with no input stream could crash if it called the kernel's
+  text input functions.  Added checking in the input functions.
+- Fixed: Improved the stability of the Screenshot program.
+- Fixed: When logged in to the GUI as an unprivileged user, there were a lot
+  of error messages stating: Cannot release system memory block from
+  unprivileged user process.
+- Fixed: Pressing backspace at position (0,0) would cause the Edit program
+  to crash.
+- Fixed: Clicking on the kernel binary in the file browser program would
+  cause a crash in the kernel's runtime loader.
+
+--------------
  Version 0.73   27/01/2014
 --------------
 
@@ -69,7 +166,7 @@
 - Fixed: When scrolling up and down - for example in the default startup
   console - text was sometimes being drawn outside the text area boundaries.
 - Fixed: Dismissing a dialog box could cause the mouse pointer to disappear,
-  when the mouse was somewhere within the parent window. 
+  when the mouse was somewhere within the parent window.
 - Fixed: Newer GNU linkers create executables with non-page-aligned data
   segments.  These were not being loaded correctly by the runtime linker.
 - Fixed: Window resizing was very difficult and the correct mouse position
@@ -280,7 +377,7 @@ building under Ubuntu 10.4
   been added, and the ATA/IDE driver has been enhanced, including the
   ability to better support backwards-compatible SATA controllers.  FPU
   context saving has been improved, and a number of tweaks and bug fixes
-  are also included. 
+  are also included.
 
 - Updated the appearance of windows and several types of widgets.
 - Added JPEG image format support.
@@ -378,9 +475,9 @@ its icon text.
 - When a wallpaper image is chosen, it is now automatically resized to fit
 the the client area of the window.
 - When displaying an image, the 'view' program now scales large images down
-by default so that they use no more than 2/3 of the screen. 
+by default so that they use no more than 2/3 of the screen.
 - The 'view' program now has a right-click context menu to zoom in and out
-on images, or show them actual size. 
+on images, or show them actual size.
 - The 'disprops' (Display Settings) program has been reorganized, and now
 shows a thumbnail preview of the selected background wallpaper image.
 - Added an option to the windowFileDialog to show image file thumbnail
@@ -755,11 +852,11 @@ error messages.
 - Fixed: When an IDE disk had a small multi-sector value like 16, reading
 large files could fail with an error message about  too many PRD entries.
 - Fixed: In the Disk Manager, when NTFS resizing failed (for example with
-the unclean journal message) control didn't return - it just hung. 
+the unclean journal message) control didn't return - it just hung.
 - Fixed: With large IDE disks, on some systems, the kernel seemed to be
 getting 28-bit-limited geometry and size values from the BIOS.  The IDE
 driver replaces BIOS values with ones from the device/controller wherever
-the BIOS values make more sense. 
+the BIOS values make more sense.
 - Fixed: Doing a 'full' Visopsys install on a ~80mb partition, after
 choosing to format as FAT16, could totally crash/hang the system.
 - Fixed: The mouse was leaving tracers at the rightmost and bottommost
@@ -897,7 +994,7 @@ icon names is not required to be specified before the individual specs
 on the last line if you're scrolling with any other key than [space].
 - Fixed: Printing a legitimately-escaped format sequence such as %%d in
 user space using printf() and friends didn't work, as the kernel's print
-routines would try to format their input again. 
+routines would try to format their input again.
 - Fixed: The C library memcmp function was comparing one too many bytes.
 - Fixed: When the text was a different color (such as an error) and the
 screen scrolled, the cursor could remain the color of the previous line.
@@ -994,7 +1091,7 @@ under earlier versions)
 - Implemented right-click context menus.
 - Added support for 32-bit .bmp bitmap images and .ico icons
 - The Disk Manager's canvas now responds to keyboard cursor inputs.
-- Did general, large-scale GUI re-engineering. 
+- Did general, large-scale GUI re-engineering.
 - Fixed compilation errors under gcc 4.x
 - Added some API debugging
 - Moved the sysCall() inline function into a _syscall.c file to avoid
@@ -1303,7 +1400,7 @@ type, and more)
 - There is now a vsh library function for a text mode progress bar.
 - The format program now shows a progress bar in text mode.
 - The Disk Manager will refuse outright, or warn/confirm before moving,
-formatting, or deleting mounted partitions. 
+formatting, or deleting mounted partitions.
 - The 'disks' command now shows mount points.
 - Created an 'iconwin' program that uses config files to create custom
 windows with icons, and user-specified actions associated with them.
@@ -1328,7 +1425,7 @@ structure, and created API functions to export the hardware device tree.
 be reused in other more complex macros
 - Added floorf(), sin(), cos(), and tan() functions to the C lib.
 - Added support for %b format specifiers in the _xpndfmt.c functions
-by adding another bogus C library routine (itob). 
+by adding another bogus C library routine (itob).
 - File changes: Changed 'kernelMiscFunctions.*' to 'kernelMisc.*', and the
 kernelPageManager and kernelMemoryManager have had the 'Manager' bit taken
 out of their file/function names.
@@ -1343,7 +1440,7 @@ detect/guide against NULL pointer dereferences.
 disk structures, and instead use a set of logical flags to describe disks.
 - Removed the deprecated windowPack() and windowSetPacked() API functions.
 - Fixed: In the Disk Manager, cancelling a new partition creation at the
-label type stage caused 2 changes to show as pending. 
+label type stage caused 2 changes to show as pending.
 - Fixed: The Disk Manager's partition reordering menu didn't display
 changes properly in text mode.  It worked but the changes weren't reflected
 in the menu.
@@ -1372,7 +1469,7 @@ Version 0.58
 - Added GUID-generating capability to the kernel.
 - Filesystem drivers that support 'format' functionality now also support
 'clobber' functions, so that for example when a format is done, the
-filesystem doesn't still get detected as the previous type. 
+filesystem doesn't still get detected as the previous type.
 - The filesystems code now has a proper array of all the different
 filesystem drivers, that can be iterated through (for example, when doing
 filesystem detection).
@@ -1752,7 +1849,7 @@ Version 0.5
 - Made a 'program manager' program that allows a user to manage running
 processes, etc.
 - Enlarged the disk manager window and its canvas, and added a more action
-buttons. 
+buttons.
 - Added a 'show info' action to the disk manager.
 - Implemented the ability to 'hide' partitions in the disk manager
 - The disk manager now includes an option for writing a fresh partition
@@ -1821,7 +1918,7 @@ Previously it didn't do so and was a memory leak.
 accurately, and verifies adequate disk space *before* starting the
 installation.
 - Fixed: Extra (second) floppy disks were showing up where they didn't exist
-- Fixed: The disk manager's formatting functionality was crashy  
+- Fixed: The disk manager's formatting functionality was crashy
 - Fixed: In graphics mode, the disk manager's action buttons were not being
 laid out properly.
 - Fixed: In graphics mode, the disk name argument of the disk manager didn't
@@ -2469,7 +2566,7 @@ Version 0.2
 - The scheduler no longer spawns a new idle thread while the multitasker is
   in the process of shutting down.
 - Fixed: The 'date' command was producing wrong results.  The year, dotm,
-  hour, minute, etc., were correct, but the month and dotw were wrong. 
+  hour, minute, etc., were correct, but the month and dotw were wrong.
 - Fixed: When shortening a filename, one extra character from the old
   filename got left on the end of the new name.  This was because of strncpy
   changes.

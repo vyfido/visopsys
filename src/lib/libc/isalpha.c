@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -21,19 +21,14 @@
 
 // This is the standard "isalpha" function, as found in standard C libraries
 
-// These functions check whether c, which must have the value of an
-// unsigned char or EOF, falls into a certain character class according
-// to the current locale.  Ok, right now they don't look at the current
-// locale.
-
 #include <ctype.h>
 
 
 int isalpha(int c)
 {
-	// checks for an alphabetic character; in the standard "C"  locale, it is
-	// equivalent  to (isupper(c) || islower(c)).  In some locales, there may
-	// be additional characters for which isalpha() is true -- letters which
-	// are neither upper case nor lower case.
-	return (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')));
+	// Checks for an alphabetic character, which is equivalent to
+	// (isupper(c) || islower(c))
+
+	return (isupper(c) || islower(c));
 }
+

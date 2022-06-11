@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -27,6 +27,7 @@
 #include <sys/file.h>
 #include <sys/image.h>
 #include <sys/loader.h>
+#include <sys/paths.h>
 #include <sys/progress.h>
 #include <sys/stream.h>
 
@@ -35,15 +36,16 @@
 #endif
 
 // Window events/masks.  This first batch are "tier 2" events, produced by
-// windows, widgets, etc. to indicate that some more abstract thing has
-// happened.
+// the system, windows, widgets, etc. to indicate that some more abstract
+// thing has happened.
 #define EVENT_MASK_WINDOW					0x0F000000
+#define EVENT_WINDOW_REFRESH				0x08000000
 #define EVENT_WINDOW_RESIZE					0x04000000
 #define EVENT_WINDOW_CLOSE					0x02000000
 #define EVENT_WINDOW_MINIMIZE				0x01000000
 #define EVENT_SELECTION						0x00200000
 #define EVENT_CURSOR_MOVE					0x00100000
-// And these are "tier 1" events, produced by direct actions of the user.
+// And these are "tier 1" events, produced by direct input from the user.
 #define EVENT_MASK_KEY						0x000F0000
 #define EVENT_KEY_UP						0x00020000
 #define EVENT_KEY_DOWN						0x00010000
@@ -104,10 +106,10 @@
 	(WINFILEBROWSE_CAN_CD | WINFILEBROWSE_CAN_DEL)
 
 // Some image file names for dialog boxes
-#define INFOIMAGE_NAME						"/system/icons/infoicon.ico"
-#define ERRORIMAGE_NAME						"/system/icons/bangicon.ico"
-#define QUESTIMAGE_NAME						"/system/icons/questicon.ico"
-#define WAITIMAGE_NAME						"/system/mouse/busy.bmp"
+#define INFOIMAGE_NAME						PATH_SYSTEM_ICONS "/infoicon.ico"
+#define ERRORIMAGE_NAME						PATH_SYSTEM_ICONS "/bangicon.ico"
+#define QUESTIMAGE_NAME						PATH_SYSTEM_ICONS "/questicon.ico"
+#define WAITIMAGE_NAME						PATH_SYSTEM_MOUSE "/busy.bmp"
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
@@ -118,10 +120,12 @@ typedef volatile void * objectKey;
 
 typedef enum {
 	orient_left, orient_center, orient_right
+
 } componentXOrientation;
 
 typedef enum {
 	orient_top, orient_middle, orient_bottom
+
 } componentYOrientation;
 
 // This structure is needed to describe parameters consistent to all
@@ -159,6 +163,7 @@ typedef stream windowEventStream;
 // Types of drawing operations
 typedef enum {
 	draw_pixel, draw_line, draw_rect, draw_oval, draw_image, draw_text
+
 } drawOperation;
 
 // Parameters for any drawing operations
@@ -201,10 +206,11 @@ typedef struct {
 // Types of window list displays
 typedef enum {
 	windowlist_textonly, windowlist_icononly
+
 } windowListType;
 
 typedef struct {
-	char text[WINDOW_MAX_LABEL_LENGTH];
+	char text[WINDOW_MAX_LABEL_LENGTH + 1];
 	image iconImage;
 
 } listItemParameters;
@@ -225,7 +231,7 @@ typedef struct _windowFileList {
 } windowFileList;
 
 typedef struct {
-	char text[WINDOW_MAX_LABEL_LENGTH];
+	char text[WINDOW_MAX_LABEL_LENGTH + 1];
 	objectKey key;
 
 } windowMenuItem;
@@ -253,6 +259,7 @@ int windowNewFileDialog(objectKey, const char *, const char *, const char *,
 windowFileList *windowNewFileList(objectKey, windowListType, int, int,
 	const char *, int, void *, componentParameters *);
 int windowNewInfoDialog(objectKey, const char *, const char *);
+int windowNewLanguageDialog(objectKey, char *);
 int windowNewNumberDialog(objectKey, const char *, const char *, int, int,
 	int, int *);
 int windowNewPasswordDialog(objectKey, const char *, const char *, int,
@@ -271,3 +278,4 @@ int windowThumbImageUpdate(objectKey, const char *, unsigned, unsigned);
 
 #define _WINDOW_H
 #endif
+

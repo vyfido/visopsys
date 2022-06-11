@@ -1,17 +1,17 @@
 //
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-// 
+//
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
 //  Software Foundation; either version 2 of the License, or (at your option)
 //  any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful, but
 //  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 //  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -43,20 +43,20 @@
 static inline void debugDeviceDesc(usbDeviceDesc *deviceDesc)
 {
 	kernelDebug(debug_usb, "USB debug device descriptor:\n"
-		"    descLength=%d\n"
-		"    descType=%d\n"
-		"    usbVersion=%d.%d\n"
-		"    deviceClass=0x%02x\n"
-		"    deviceSubClass=0x%02x\n"
-		"    deviceProtocol=0x%02x\n"
-		"    maxPacketSize0=%d\n"
-		"    vendorId=0x%04x\n"
-		"    productId=0x%04x\n"
-		"    deviceVersion=%d.%d\n"
-		"    manuStringIdx=%d\n"
-		"    prodStringIdx=%d\n"
-		"    serStringIdx=%d\n"
-		"    numConfigs=%d", deviceDesc->descLength,
+		"  descLength=%d\n"
+		"  descType=%d\n"
+		"  usbVersion=%d.%d\n"
+		"  deviceClass=0x%02x\n"
+		"  deviceSubClass=0x%02x\n"
+		"  deviceProtocol=0x%02x\n"
+		"  maxPacketSize0=%d\n"
+		"  vendorId=0x%04x\n"
+		"  productId=0x%04x\n"
+		"  deviceVersion=%d.%d\n"
+		"  manuStringIdx=%d\n"
+		"  prodStringIdx=%d\n"
+		"  serStringIdx=%d\n"
+		"  numConfigs=%d", deviceDesc->descLength,
 		deviceDesc->descType, ((deviceDesc->usbVersion & 0xFF00) >> 8),
 		(deviceDesc->usbVersion & 0xFF), deviceDesc->deviceClass,
 		deviceDesc->deviceSubClass, deviceDesc->deviceProtocol,
@@ -72,14 +72,14 @@ static inline void debugDeviceDesc(usbDeviceDesc *deviceDesc)
 static inline void debugDevQualDesc(usbDevQualDesc *devQualDesc)
 {
 	kernelDebug(debug_usb, "USB debug device qualifier descriptor:\n"
-		"    descLength=%d\n"
-		"    descType=%d\n"
-		"    usbVersion=%d.%d\n"
-		"    deviceClass=0x%02x\n"
-		"    deviceSubClass=0x%02x\n"
-		"    deviceProtocol=0x%02x\n"
-		"    maxPacketSize0=%d\n"
-		"    numConfigs=%d", devQualDesc->descLength,
+		"  descLength=%d\n"
+		"  descType=%d\n"
+		"  usbVersion=%d.%d\n"
+		"  deviceClass=0x%02x\n"
+		"  deviceSubClass=0x%02x\n"
+		"  deviceProtocol=0x%02x\n"
+		"  maxPacketSize0=%d\n"
+		"  numConfigs=%d", devQualDesc->descLength,
 		devQualDesc->descType, ((devQualDesc->usbVersion & 0xFF00) >> 8),
 		(devQualDesc->usbVersion & 0xFF), devQualDesc->deviceClass,
 		devQualDesc->deviceSubClass, devQualDesc->deviceProtocol,
@@ -90,14 +90,14 @@ static inline void debugDevQualDesc(usbDevQualDesc *devQualDesc)
 static inline void debugConfigDesc(usbConfigDesc *configDesc)
 {
 	kernelDebug(debug_usb, "USB debug config descriptor:\n"
-		"    descLength=%d\n"
-		"    descType=%d\n"
-		"    totalLength=%d\n"
-		"    numInterfaces=%d\n"
-		"    confValue=%d\n"
-		"    confStringIdx=%d\n"
-		"    attributes=%d\n"
-		"    maxPower=%d", configDesc->descLength, configDesc->descType,
+		"  descLength=%d\n"
+		"  descType=%d\n"
+		"  totalLength=%d\n"
+		"  numInterfaces=%d\n"
+		"  confValue=%d\n"
+		"  confStringIdx=%d\n"
+		"  attributes=%d\n"
+		"  maxPower=%d", configDesc->descLength, configDesc->descType,
 		configDesc->totalLength, configDesc->numInterfaces,
 		configDesc->confValue, configDesc->confStringIdx,
 		configDesc->attributes, configDesc->maxPower);
@@ -107,15 +107,15 @@ static inline void debugConfigDesc(usbConfigDesc *configDesc)
 static inline void debugInterDesc(usbInterDesc *interDesc)
 {
 	kernelDebug(debug_usb, "USB debug inter descriptor:\n"
-		"    descLength=%d\n"
-		"    descType=%d\n"
-		"    interNum=%d\n"
-		"    altSetting=%d\n"
-		"    numEndpoints=%d\n"
-		"    interClass=0x%02x\n"
-		"    interSubClass=0x%02x\n"
-		"    interProtocol=0x%02x\n"
-		"    interStringIdx=%d", interDesc->descLength,
+		"  descLength=%d\n"
+		"  descType=%d\n"
+		"  interNum=%d\n"
+		"  altSetting=%d\n"
+		"  numEndpoints=%d\n"
+		"  interClass=0x%02x\n"
+		"  interSubClass=0x%02x\n"
+		"  interProtocol=0x%02x\n"
+		"  interStringIdx=%d", interDesc->descLength,
 		interDesc->descType, interDesc->interNum, interDesc->altSetting,
 		interDesc->numEndpoints, interDesc->interClass,
 		interDesc->interSubClass, interDesc->interProtocol,
@@ -126,12 +126,12 @@ static inline void debugInterDesc(usbInterDesc *interDesc)
 static inline void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 {
 	kernelDebug(debug_usb, "USB debug endpoint descriptor:\n"
-		"    descLength=%d\n"
-		"    descType=%d\n"
-		"    endpntAddress=0x%02x\n"
-		"    attributes=%d\n"
-		"    maxPacketSize=%d\n"
-		"    interval=%d", endpointDesc->descLength,
+		"  descLength=%d\n"
+		"  descType=%d\n"
+		"  endpntAddress=0x%02x\n"
+		"  attributes=%d\n"
+		"  maxPacketSize=%d\n"
+		"  interval=%d", endpointDesc->descLength,
 		endpointDesc->descType, endpointDesc->endpntAddress,
 		endpointDesc->attributes, endpointDesc->maxPacketSize,
 		endpointDesc->interval);
@@ -140,17 +140,17 @@ static inline void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 static inline void debugUsbDevice(usbDevice *usbDev)
 {
 	kernelDebug(debug_usb, "USB debug device:\n"
-		"    device=%p\n"
-		"    controller=%p (%d)\n"
-		"    port=%d\n"
-		"    speed=%s\n"
-		"    address=%d\n"
-		"    usbVersion=%d.%d\n"
-		"    classcode=0x%02x\n"
-		"    subClassCode=0x%02x\n"
-		"    protocol=0x%02x\n"
-		"    vendorId=0x%04x\n"
-		"    deviceId=0x%04x", usbDev, usbDev->controller,
+		"  device=%p\n"
+		"  controller=%p (%d)\n"
+		"  port=%d\n"
+		"  speed=%s\n"
+		"  address=%d\n"
+		"  usbVersion=%d.%d\n"
+		"  classcode=0x%02x\n"
+		"  subClassCode=0x%02x\n"
+		"  protocol=0x%02x\n"
+		"  vendorId=0x%04x\n"
+		"  deviceId=0x%04x", usbDev, usbDev->controller,
 		usbDev->controller->num, usbDev->port,
 		usbDevSpeed2String(usbDev->speed), usbDev->address,
 		((usbDev->usbVersion & 0xFF00) >> 8),
@@ -393,7 +393,7 @@ static int driverGetTargetInfo(kernelBusTarget *target, void *pointer)
 			status = 0;
 			break;
 		}
-  
+
 		usbDev = kernelLinkedListIterNext(&deviceList, &iter);
 	}
 
@@ -426,7 +426,7 @@ static int transaction(int target, usbTransaction *trans, int numTrans)
 
 	if (!usbDev->controller)
 	{
-		kernelError(kernel_error, "Device hub is NULL");
+		kernelError(kernel_error, "Device controller is NULL");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -566,7 +566,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			// Add the controller
 			status = addController(dev, numControllers++, driver);
 			if (status < 0)
-				kernelError(kernel_warn, "Couldn't add USB controller");		
+				kernelError(kernel_warn, "Couldn't add USB controller");
 		}
 	}
 
@@ -599,7 +599,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		// Add the controller
 		status = addController(dev, numControllers++, driver);
 		if (status < 0)
-			kernelError(kernel_warn, "Couldn't add USB controller");		
+			kernelError(kernel_warn, "Couldn't add USB controller");
 	}
 
 	kernelFree(pciTargets);
@@ -614,9 +614,9 @@ static void driverDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 
 	usbDevice *usbDev = NULL;
 
-	if ((target == NULL) || (driver == NULL))
+	if (!target || !driver)
 	{
-		kernelError(kernel_error, "Target or driver is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return;
 	}
 
@@ -742,11 +742,11 @@ usbClass *kernelUsbGetClass(int classCode)
 	int count;
 
 	for (count = 0; count < 256; count++)
-	{	
+	{
 		// If no more classcodes are in the list
 		if (usbClasses[count].classCode == USB_INVALID_CLASSCODE)
 			return (NULL);
-		
+
 		// If valid classcode is found
 		if (usbClasses[count].classCode == classCode)
 			return (&usbClasses[count]);
@@ -773,7 +773,7 @@ usbSubClass *kernelUsbGetSubClass(usbClass *class, int subClassCode,
 	if (class->subClasses)
 	{
 		for (count = 0; count < 256; count++)
-		{	
+		{
 			// If no more subclass codes are in the list
 			if (class->subClasses[count].subClassCode ==
 				USB_INVALID_SUBCLASSCODE)
@@ -803,7 +803,7 @@ int kernelUsbGetClassName(int classCode, int subClassCode, int protocol,
 	// Check params
 	if (!className || !subClassName)
 	{
-		kernelError(kernel_error, "className or subClassName is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -868,9 +868,9 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	int count1, count2;
 
 	// Check params
-	if ((controller == NULL) || (hub == NULL))
+	if (!controller || !hub)
 	{
-		kernelError(kernel_error, "Controller or hub is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1150,7 +1150,7 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		class = kernelUsbGetClass(usbDev->classCode);
 		subClass =
 			kernelUsbGetSubClass(class, usbDev->subClassCode, usbDev->protocol);
-  
+
 		if (subClass)
 		{
 			status =
@@ -1190,7 +1190,7 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 	usbDevice *usbDev = NULL;
 	usbClass *class = NULL;
 	usbSubClass *subClass = NULL;
-  
+
 	kernelDebug(debug_usb, "USB device disconnection on controller %d hub %p "
 		"port %d", controller->num, hub, port);
 	kernelDebug(debug_usb, "USB hub %p has %d devices", hub,
@@ -1210,7 +1210,7 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 			class = kernelUsbGetClass(usbDev->classCode);
 			subClass = kernelUsbGetSubClass(class, usbDev->subClassCode,
 				usbDev->protocol);
-	
+
 			if (subClass)
 			{
 				// Tell the device hotplug function that the device has
@@ -1272,7 +1272,7 @@ usbDevice *kernelUsbGetDevice(int target)
 
 	// Try to find the device
 	tmpUsbDev = kernelLinkedListIterStart(&deviceList, &iter);
-	while(tmpUsbDev)
+	while (tmpUsbDev)
 	{
 		if ((tmpUsbDev->controller->num == controllerNum) &&
 			(tmpUsbDev->address == address))
@@ -1280,14 +1280,14 @@ usbDevice *kernelUsbGetDevice(int target)
 			usbDev = tmpUsbDev;
 			break;
 		}
-      
+
 		tmpUsbDev = kernelLinkedListIterNext(&deviceList, &iter);
 	}
 
 	if (usbDev == NULL)
 		kernelError(kernel_error, "No such device %d", address);
 
-	return (usbDev);  
+	return (usbDev);
 }
 
 
@@ -1325,9 +1325,10 @@ kernelUsbGetEndpointDataToggle(usbDevice *dev, unsigned char endpntAddress)
 	volatile unsigned char *toggle = NULL;
 	int count;
 
-	if (dev == NULL)
+	// Check params
+	if (!dev)
 	{
-		kernelError(kernel_error, "NULL device");
+		kernelError(kernel_error, "NULL parameter");
 		return (toggle = NULL);
 	}
 
@@ -1356,9 +1357,10 @@ int kernelUsbSetupDeviceRequest(usbTransaction *trans, usbDeviceRequest *req)
 	int status = 0;
 	const char *opString __attribute__((unused)) = NULL;
 
-	if ((trans == NULL) || (req == NULL))
+	// Check params
+	if (!trans || !req)
 	{
-		kernelError(kernel_error, "NULL transaction or request");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1472,14 +1474,14 @@ int kernelUsbControlTransfer(usbDevice *usbDev, unsigned char request,
 	// This is a convenience function for doing a control transfer, so that
 	// callers (i.e. device drivers) don't have to construct a usbTransaction
 	// structure manually.
-  
+
 	int status = 0;
 	usbTransaction trans;
 
 	// Check params
-	if ((usbDev == NULL) || (usbDev->controller == NULL))
+	if (!usbDev || !usbDev->controller)
 	{
-		kernelError(kernel_error, "Device or controller is NULL");
+		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1520,9 +1522,16 @@ int kernelUsbScheduleInterrupt(usbDevice *usbDev, unsigned char endpoint,
 
 	int status = 0;
 
+	// Check params
+	if (!usbDev)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
 	if (!usbDev->controller)
 	{
-		kernelError(kernel_error, "Device hub is NULL");
+		kernelError(kernel_error, "Device controller is NULL");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -1550,6 +1559,13 @@ int kernelUsbUnscheduleInterrupt(usbDevice *usbDev)
 	// Remove any previously scheduled interrupts.
 
 	int status = 0;
+
+	// Check params
+	if (!usbDev)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
 
 	if (!usbDev->controller)
 	{

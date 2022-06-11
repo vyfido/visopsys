@@ -1,7 +1,7 @@
-// 
+//
 //  Visopsys
 //  Copyright (C) 1998-2014 J. Andrew McLaughlin
-//  
+//
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
@@ -21,18 +21,14 @@
 
 // This is the standard "isgraph" function, as found in standard C libraries
 
-// These functions check whether c, which must have the value of an
-// unsigned char or EOF, falls into a certain character class according
-// to the current locale.  Ok, right now they don't look at the current
-// locale.
-
 #include <ctype.h>
 
 
 int isgraph(int c)
 {
-	// checks for any printable character except space.
-	return (((c >= 1) && (c <= 7)) || (c == 11) || (c == 12) ||
-		((c >= 14) && (c <= 25)) ||	((c >= 27) && (c <= 31)) ||
-		((c >= 33) && (c <= 255)));
+	// Checks for any printable character except space.
+
+	// We use the ISO-8859-15 character set for this determination.
+	return (((c >= 33) && (c <= 126)) || ((c >= 161) && (c <= 255)));
 }
+

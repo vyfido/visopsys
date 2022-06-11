@@ -8,91 +8,92 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-01-04 02:23+0000\n"
+"POT-Creation-Date: 2014-05-26 12:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: edit.c:1159
-#, c-format
-msgid ""
-"\n"
-"The \"%s\" command only works in graphics mode\n"
-msgstr ""
-
-#: edit.c:145 edit.c:148
-msgid " (modified)"
-msgstr ""
-
-#: edit.c:911
-msgid "Cancel"
-msgstr ""
-
-#: edit.c:945 edit.c:1203
-msgid "Couldn't create file in a read-only filesystem"
-msgstr ""
-
-#: edit.c:911
-msgid "Discard"
-msgstr ""
-
-#: edit.c:910
-msgid "Discard changes?"
-msgstr ""
-
-#: edit.c:1081
+#: edit.c:57
 msgid "Edit"
 msgstr ""
 
-#: edit.c:393
-msgid "Enter filename"
+#: edit.c:58
+msgid "File"
 msgstr ""
 
-#: edit.c:124
+#: edit.c:59
+msgid "Untitled"
+msgstr ""
+
+#: edit.c:60
+msgid "File has been modified.  Discard changes?"
+msgstr ""
+
+#: edit.c:61
+msgid "Please enter the name of the file to edit:"
+msgstr ""
+
+#: edit.c:109
+msgid "Open"
+msgstr ""
+
+#: edit.c:110
+msgid "Save"
+msgstr ""
+
+#: edit.c:111
+msgid "Quit"
+msgstr ""
+
+#: edit.c:129
 msgid "Error"
 msgstr ""
 
-#: edit.c:947 edit.c:1205
+#: edit.c:150 edit.c:153
+msgid " (modified)"
+msgstr ""
+
+#: edit.c:400
+msgid "Enter filename"
+msgstr ""
+
+#: edit.c:949
+msgid "Discard changes?"
+msgstr ""
+
+#: edit.c:950
+msgid "Discard"
+msgstr ""
+
+#: edit.c:950
+msgid "Cancel"
+msgstr ""
+
+#: edit.c:984 edit.c:1300
+msgid "Couldn't create file in a read-only filesystem"
+msgstr ""
+
+#: edit.c:986 edit.c:1302
 #, c-format
 msgid "Error %d loading file"
 msgstr ""
 
-#: edit.c:1026
+#: edit.c:1107
+msgid "Unable to launch file dialog"
+msgstr ""
+
+#: edit.c:1118
 #, c-format
 msgid "Error %d saving file"
 msgstr ""
 
-#: edit.c:1088
-msgid "File"
-msgstr ""
-
-#: edit.c:56
-msgid "File has been modified.  Discard changes?"
-msgstr ""
-
-#: edit.c:104
-msgid "Open"
-msgstr ""
-
-#: edit.c:57
-msgid "Please enter the name of the file to edit:"
-msgstr ""
-
-#: edit.c:106
-msgid "Quit"
-msgstr ""
-
-#: edit.c:105
-msgid "Save"
-msgstr ""
-
-#: edit.c:1019
-msgid "Unable to launch file dialog"
-msgstr ""
-
-#: edit.c:55
-msgid "Untitled"
+#: edit.c:1256
+#, c-format
+msgid ""
+"\n"
+"The \"%s\" command only works in graphics mode\n"
 msgstr ""

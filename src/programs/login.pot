@@ -1,0 +1,93 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: login.c:67
+msgid "Authentication failed"
+msgstr ""
+
+#: login.c:68
+msgid "Please enter your login name:"
+msgstr ""
+
+#: login.c:69
+msgid "Please enter your password:"
+msgstr ""
+
+#: login.c:70
+msgid ""
+"You are running the system from a read-only device.\n"
+"You will not be able to alter settings, or generally\n"
+"change anything."
+msgstr ""
+
+#: login.c:99
+msgid "login: "
+msgstr ""
+
+#: login.c:108
+msgid "That login name is too long."
+msgstr ""
+
+#: login.c:109
+msgid "That password is too long."
+msgstr ""
+
+#: login.c:125 login.c:407
+msgid "Error"
+msgstr ""
+
+#: login.c:212
+msgid "Login Window"
+msgstr ""
+
+#: login.c:256
+msgid "Reboot"
+msgstr ""
+
+#: login.c:262
+msgid "Shut down"
+msgstr ""
+
+#: login.c:324
+msgid "password: "
+msgstr ""
+
+#: login.c:428
+msgid "Login Failed"
+msgstr ""
+
+#: login.c:429
+msgid "Unable to log in to the Window Manager!"
+msgstr ""
+
+#: login.c:437
+msgid "Read Only"
+msgstr ""
+
+#: login.c:452
+#, c-format
+msgid "Couldn't load login shell %s!"
+msgstr ""
+
+#: login.c:459
+#, c-format
+msgid ""
+"\n"
+"Welcome %s\n"
+msgstr ""
