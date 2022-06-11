@@ -111,6 +111,10 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	if (status >= 0)
 		kernelVariableListSet(&dev->device.attrs, "controller.type", "OHCI");
 
+	// Claim the controller device in the list of PCI targets.
+	kernelBusDeviceClaim(busTarget, driver);
+
+	// Add the kernel device
 	status = kernelDeviceAdd(busTarget->bus->dev, dev);
 	if (status < 0)
 		goto err_out;

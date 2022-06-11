@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -128,47 +128,47 @@ msgstr ""
 msgid "Missing volume name argument for '-n' option"
 msgstr ""
 
-#: format.c:447
+#: format.c:448
 msgid "Missing type argument for '-t' option"
 msgstr ""
 
-#: format.c:460
+#: format.c:461
 #, c-format
 msgid "Missing parameter for %s option"
 msgstr ""
 
-#: format.c:465
+#: format.c:466
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: format.c:481
+#: format.c:482
 msgid ""
 "\n"
 "Visopsys FORMAT Utility\n"
 "Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
 msgstr ""
 
-#: format.c:503
+#: format.c:504
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
 
-#: format.c:521
+#: format.c:522
 #, c-format
 msgid ""
 "Formatting disk %s as %s.  All data currenly on the disk will be lost.\n"
 "Are you sure?"
 msgstr ""
 
-#: format.c:526 format.c:550
+#: format.c:527 format.c:551
 msgid ""
 "\n"
 "Quitting.\n"
 msgstr ""
 
-#: format.c:544
+#: format.c:545
 msgid ""
 "\n"
 "YOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  I probably shouldn't let you\n"
@@ -176,10 +176,10 @@ msgid ""
 "Are you SURE you want to proceed?"
 msgstr ""
 
-#: format.c:559
+#: format.c:561
 msgid "Formatting..."
 msgstr ""
 
-#: format.c:594
+#: format.c:601
 msgid "Success"
 msgstr ""

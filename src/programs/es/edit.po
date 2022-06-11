@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: 2014-01-22 18:04-0400\n"
 "Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -60,37 +60,37 @@ msgstr " (modificado)"
 msgid "Enter filename"
 msgstr "Ingresar nombre de archivo"
 
-#: edit.c:949
+#: edit.c:952
 msgid "Discard changes?"
 msgstr "Descartar cambios?"
 
-#: edit.c:950
+#: edit.c:953
 msgid "Discard"
 msgstr "Descartar"
 
-#: edit.c:950
+#: edit.c:953
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: edit.c:984 edit.c:1300
+#: edit.c:987 edit.c:1303
 msgid "Couldn't create file in a read-only filesystem"
 msgstr "No se puede crear un archivo en un sistema de archivos de sólo lectura"
 
-#: edit.c:986 edit.c:1302
+#: edit.c:989 edit.c:1305
 #, c-format
 msgid "Error %d loading file"
 msgstr "Error %d al cargar archivo"
 
-#: edit.c:1107
+#: edit.c:1110
 msgid "Unable to launch file dialog"
 msgstr "No se pudo abrir el diálogo de archivos"
 
-#: edit.c:1118
+#: edit.c:1121
 #, c-format
 msgid "Error %d saving file"
 msgstr "Error %d al guardar archivo"
 
-#: edit.c:1256
+#: edit.c:1259
 #, c-format
 msgid ""
 "\n"

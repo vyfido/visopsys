@@ -33,7 +33,7 @@ _X_ int vshMoveFile(const char *srcFile, const char *destFile)
 	int status = 0;
 
 	// Make sure filename arguments aren't NULL
-	if ((srcFile == NULL) || (destFile == NULL))
+	if (!srcFile || !destFile)
 		return (errno = ERR_NULLPARAMETER);
 
 	// Attempt to rename the file
@@ -43,3 +43,4 @@ _X_ int vshMoveFile(const char *srcFile, const char *destFile)
 
 	return (status);
 }
+

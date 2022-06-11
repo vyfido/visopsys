@@ -36,10 +36,11 @@
 #include "kernelParameters.h"
 #include "kernelRtc.h"
 #include "kernelSysTimer.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
+#include <sys/msdos.h>
 
 #define _(string) kernelGetText(string)
 
@@ -819,7 +820,7 @@ static int getNumClusters(fatInternalData *fatData, unsigned startCluster,
 	// Zero clusters by default
 	*clusters = 0;
 
-	if (startCluster == 0)
+	if (!startCluster)
 		// This file has no allocated clusters.  Return size zero.
 		return (status = 0);
 
@@ -871,7 +872,7 @@ static int getNthCluster(fatInternalData *fatData, unsigned startCluster,
 	unsigned newCluster = 0;
 	unsigned clusterCount = 0;
 
-	if (startCluster == 0)
+	if (!startCluster)
 	{
 		// This is an error, because the file has no clusters, so even a
 		// nthCluster request of zero is wrong.
@@ -933,7 +934,7 @@ static int getLastCluster(fatInternalData *fatData, unsigned startCluster,
 	unsigned currentCluster = 0;
 	unsigned newCluster = 0;
 
-	if (startCluster == 0)
+	if (!startCluster)
 	{
 		// This file has no allocated clusters.  Return zero (which is not a
 		// legal cluster number), however this is not an error
@@ -1097,7 +1098,7 @@ static int releaseClusterChain(fatInternalData *fatData, unsigned startCluster)
 	unsigned currentCluster = 0;
 	unsigned nextCluster = 0;
 
-	if ((startCluster == 0) || (startCluster == fatData->terminalClust))
+	if (!startCluster || (startCluster == fatData->terminalClust))
 		// Nothing to do
 		return (status = 0);
 
@@ -1310,7 +1311,7 @@ static int getUnusedClusters(fatInternalData *fatData, unsigned requested,
 		}
 	}
 
-	if (biggestSize == 0)
+	if (!biggestSize)
 	{
 		kernelError(kernel_error, "Not enough free space to complete operation");
 		status = ERR_NOFREE;
@@ -1844,7 +1845,7 @@ static int fillDirectory(fatInternalData *fatData, kernelFileEntry *currentDir,
 
 		// Now we get the size.  If it's a directory we write zero for the size
 		// (doubleword value)
-		if ((entryData->attributes & FAT_ATTRIB_SUBDIR) != 0)
+		if (entryData->attributes & FAT_ATTRIB_SUBDIR)
 			*((unsigned *)(dirEntry + 0x1C)) = 0;
 		else
 			*((unsigned *)(dirEntry + 0x1C)) = realEntry->size;
@@ -1897,9 +1898,9 @@ static int checkFileChain(fatInternalData *fatData, kernelFileEntry *checkFile)
 
 	// Make sure there is supposed to be a starting cluster for this file.
 	// If not, make sure that the file's size is supposed to be zero
-	if (entryData->startCluster == 0)
+	if (!entryData->startCluster)
 	{
-		if (checkFile->size == 0)
+		if (!checkFile->size)
 			// Nothing to do for a zero-length file.
 			return (status = 0);
 
@@ -1915,10 +1916,10 @@ static int checkFileChain(fatInternalData *fatData, kernelFileEntry *checkFile)
 	clusterSize = (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
 	// Calculate the number of clusters we would expect this file to have
-	if (clusterSize != 0)
+	if (clusterSize)
 	{
 		expectedClusters = (checkFile->size / clusterSize);
-		if ((checkFile->size % clusterSize) != 0)
+		if (checkFile->size % clusterSize)
 			expectedClusters += 1;
 	}
 	else
@@ -2098,7 +2099,7 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
 			// all in a single operation
 			if (nextCluster == (currentCluster + 1))
 			{
-				if (savedClusters == 0)
+				if (!savedClusters)
 					startSavedClusters = currentCluster;
 
 				currentCluster = nextCluster;
@@ -2472,7 +2473,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 			dirEntry[0] = 0xE5;
 
 		// 00 means that there are no more entries
-		else if (dirEntry[0] == 0x00)
+		else if (!dirEntry[0])
 			break;
 
 		else if (dirEntry[0x0B] == 0x0F)
@@ -2489,7 +2490,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 
 		// Peek ahead and get the attributes (byte value).  Figure out the
 		// type of the file
-		if (((unsigned) dirEntry[0x0B] & FAT_ATTRIB_VOLUMELABEL) != 0)
+		if ((unsigned) dirEntry[0x0B] & FAT_ATTRIB_VOLUMELABEL)
 		{
 			// Then it's a volume label.  If this is the root directory,
 			// remember this entry so we can re-write it later.
@@ -2553,7 +2554,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 				// Determine whether this was the last long filename
 				// entry for this file.  If not, we subtract 32 from
 				// subEntry and loop
-				if ((subEntry[0] & 0x40) != 0)
+				if (subEntry[0] & 0x40)
 					break;
 				else
 					subEntry -= 32;
@@ -2574,7 +2575,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 		// If there's no long filename, set the filename to be the same as
 		// the short alias we just extracted.  We'll need to construct it
 		// from the drain-bamaged format used by DOS(TM)
-		if (longFilename == 0)
+		if (!longFilename)
 		{
 			strncpy((char *) newItem->name, (char *) entryData->shortAlias, 8);
 			newItem->name[8] = '\0';
@@ -2625,7 +2626,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 		// Attributes (byte value)
 		entryData->attributes = (unsigned) dirEntry[0x0B];
 
-		if ((entryData->attributes & FAT_ATTRIB_SUBDIR) != 0)
+		if (entryData->attributes & FAT_ATTRIB_SUBDIR)
 			// Then it's a subdirectory
 			newItem->type = dirT;
 		else
@@ -2779,7 +2780,7 @@ static int read(fatInternalData *fatData, kernelFileEntry *theFile,
 			// them all in a single operation
 			if (nextCluster == (currentCluster + 1))
 			{
-				if (savedClusters == 0)
+				if (!savedClusters)
 					startSavedClusters = currentCluster;
 
 				currentCluster = nextCluster;
@@ -3242,7 +3243,7 @@ static int writeDir(kernelFileEntry *directory)
 		// Calculate the size of a cluster in this filesystem
 		clusterSize = (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
-		if (clusterSize == 0)
+		if (!clusterSize)
 		{
 			// This volume would appear to be corrupted
 			kernelError(kernel_error, "The FAT volume is corrupt");
@@ -3353,11 +3354,11 @@ static int detect(kernelDisk *theDisk)
 		// Couldn't read the boot sector, or it was bad
 		return (status);
 
-	// It MUST be true that the signature word 0xAA55 occurs at offset
-	// 510 of the boot sector (regardless of the sector size of this device).
-	// If it does not, then this is not only NOT a FAT boot sector, but
-	// may not be a valid boot sector at all.
-	if (bpb.signature != 0xAA55)
+	// It MUST be true that the signature word MSDOS_BOOT_SIGNATURE occurs at
+	// offset 510 of the boot sector (regardless of the sector size of this
+	// device).  If it does not, then this is not only NOT a FAT boot sector,
+	// but may not be a valid boot sector at all.
+	if (bpb.signature != MSDOS_BOOT_SIGNATURE)
 		return (status = 0);
 
 	// What if we cannot be sure that this is a FAT filesystem?  In the
@@ -3424,6 +3425,7 @@ void fatProgressConfirmError(progress *prog, const char *message)
 		prog->error = 1;
 		kernelLockRelease(&prog->progLock);
 	}
+
 	while (prog->error)
 		kernelMultitaskerYield();
 }
@@ -3467,20 +3469,27 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	};
 
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+	{
+		status = ERR_NOTINITIALIZED;
+		goto out;
+	}
 
 	kernelDebug(debug_fs, "FAT formatting disk %s", theDisk->name);
 
 	// Check params
 	if (!theDisk || !type || !label)
-		return (status = ERR_NULLPARAMETER);
+	{
+		status = ERR_NULLPARAMETER;
+		goto out;
+	}
 
 	// Only format disk with 512-byte sectors
 	if (theDisk->physical->sectorSize != 512)
 	{
 		kernelError(kernel_error, "Cannot format a disk with sector size of "
 			"%u (512 only)", theDisk->physical->sectorSize);
-		return (status = ERR_INVALID);
+		status = ERR_INVALID;
+		goto out;
 	}
 
 	// Clear out our new FAT data structure
@@ -3550,7 +3559,8 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 						"Disk is too large for a FAT12 filesystem";
 					kernelError(kernel_error, "%s", tmpMessage);
 					fatProgressConfirmError(prog, tmpMessage);
-					return (status = ERR_BOUNDS);
+					status = ERR_BOUNDS;
+					goto out;
 				}
 
 				fatData.bpb.sectsPerClust *= 2;
@@ -3650,14 +3660,15 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		fatData.bpb.fat32.volumeLabel[count] = ' ';
 	}
 
-	fatData.bpb.signature = 0xAA55;
+	fatData.bpb.signature = MSDOS_BOOT_SIGNATURE;
 
 	// Get a decent-sized empty buffer for clearing sectors
 	sectorBuff = kernelMalloc(BUFFERSIZE);
 	if (!sectorBuff)
 	{
 		kernelError(kernel_error, "Unable to allocate sector data memory");
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
 	}
 
 	// How many empty sectors to write?  If we are doing a long format, write
@@ -3684,7 +3695,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		if (status < 0)
 		{
 			kernelFree(sectorBuff);
-			return (status);
+			goto out;
 		}
 
 		count += doSectors;
@@ -3726,7 +3737,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	if (status < 0)
 	{
 		kernelDebugError("Error writing FAT entries");
-		return (status);
+		goto out;
 	}
 
 	if (fatData.fsType == fat32)
@@ -3750,7 +3761,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		if (status < 0)
 		{
 			kernelFree(sectorBuff);
-			return (status);
+			goto out;
 		}
 
 		// Used one cluster for the root directory.
@@ -3762,7 +3773,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		if (status < 0)
 		{
 			kernelFree(sectorBuff);
-			return (status);
+			goto out;
 		}
 	}
 
@@ -3779,7 +3790,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	if (status < 0)
 	{
 		kernelDebugError("Error writing volume info");
-		return (status);
+		goto out;
 	}
 
 	if (fatData.fsType == fat32)
@@ -3788,7 +3799,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		if (status < 0)
 		{
 			kernelDebugError("Error writing filesystem info block");
-			return (status);
+			goto out;
 		}
 	}
 
@@ -3828,13 +3839,16 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		fatData.bpb.sectsPerClust, fatData.rootDirSects,
 		fatData.fatSects, fatData.dataClusters);
 
+	status = 0;
+
+out:
 	if (prog && (kernelLockGet(&prog->progLock) >= 0))
 	{
-		prog->percentFinished = 100;
+		prog->complete = 1;
 		kernelLockRelease(&prog->progLock);
 	}
 
-	return (status = 0);
+	return (status);
 }
 
 
@@ -3889,8 +3903,8 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
 			if (prog && (kernelLockGet(&prog->progLock) >= 0))
 			{
 				snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
-					_("Defragmenting %llu/%llu: %s"), (prog->finished + 1),
-					prog->total, entry->name);
+					_("Defragmenting %llu/%llu: %s"), (prog->numFinished + 1),
+					prog->numTotal, entry->name);
 				kernelLockRelease(&prog->progLock);
 			}
 
@@ -3934,8 +3948,9 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
 
 			if (prog && (kernelLockGet(&prog->progLock) >= 0))
 			{
-				prog->finished += 1;
-				prog->percentFinished = ((prog->finished * 100) / prog->total);
+				prog->numFinished += 1;
+				prog->percentFinished = ((prog->numFinished * 100) /
+					prog->numTotal);
 				kernelLockRelease(&prog->progLock);
 			}
 
@@ -3974,7 +3989,7 @@ static int defragRecursive(fatInternalData *fatData, kernelFileEntry *entry,
 				return (status);
 		}
 
-		for (tmpEntry = entry->contents; tmpEntry != NULL;
+		for (tmpEntry = entry->contents; tmpEntry;
 			tmpEntry = tmpEntry->nextEntry)
 		{
 			status = defragRecursive(fatData, tmpEntry, check, prog);
@@ -4016,7 +4031,8 @@ int fatDefragment(kernelDisk *theDisk, progress *prog)
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
+		status = ERR_NULLPARAMETER;
+		goto out;
 	}
 
 	if (prog && (kernelLockGet(&prog->progLock) >= 0))
@@ -4027,21 +4043,27 @@ int fatDefragment(kernelDisk *theDisk, progress *prog)
 
 	fatData = getFatData(theDisk);
 	if (!fatData)
-		return (status = ERR_BADDATA);
+	{
+		status = ERR_BADDATA;
+		goto out;
+	}
 
 	// Build the free-cluster list
 	status = makeFreeBitmap(fatData);
 	if (status < 0)
 	{
 		kernelDebugError("Unable to create the free cluster bitmap");
-		return (status = ERR_BADDATA);
+		goto out;
 	}
 
 	// Get a new file entry for the filesystem's root directory
 	theDisk->filesystem.filesystemRoot = kernelFileNewEntry(theDisk);
 	if (!theDisk->filesystem.filesystemRoot)
+	{
 		// Not enough free file structures
-		return (status = ERR_NOFREE);
+		status = ERR_NOFREE;
+		goto out;
+	}
 
 	strcpy((char *) theDisk->filesystem.filesystemRoot->name, "/");
 	theDisk->filesystem.filesystemRoot->type = dirT;
@@ -4049,7 +4071,7 @@ int fatDefragment(kernelDisk *theDisk, progress *prog)
 
 	status = readRootDir(fatData, theDisk);
 	if (status < 0)
-		return (status);
+		goto out;
 
 	if (prog && (kernelLockGet(&prog->progLock) >= 0))
 	{
@@ -4059,27 +4081,30 @@ int fatDefragment(kernelDisk *theDisk, progress *prog)
 	}
 
 	// Check fragmentation
-	status =
-		defragRecursive(fatData, theDisk->filesystem.filesystemRoot, 1, prog);
+	status = defragRecursive(fatData, theDisk->filesystem.filesystemRoot, 1,
+		prog);
 	if (status < 0)
-		return (status);
+		goto out;
 
 	if (prog && (kernelLockGet(&prog->progLock) >= 0))
 	{
-		prog->total = status;
+		prog->numTotal = status;
 		snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
-			_("%llu files need defragmentation"), prog->total);
+			_("%llu files need defragmentation"), prog->numTotal);
 		kernelLockRelease(&prog->progLock);
 
-		if (prog->total == 0)
-			return (status = 0);
+		if (!prog->numTotal)
+		{
+			status = 0;
+			goto out;
+		}
 	}
 
 	// Do the actual defrag
-	status =
-		defragRecursive(fatData, theDisk->filesystem.filesystemRoot, 0, prog);
+	status = defragRecursive(fatData, theDisk->filesystem.filesystemRoot, 0,
+		prog);
 	if (status < 0)
-		return (status);
+		goto out;
 
 	// Unbuffer all of the files
 	kernelFileUnbufferRecursive(theDisk->filesystem.filesystemRoot);
@@ -4090,12 +4115,21 @@ int fatDefragment(kernelDisk *theDisk, progress *prog)
 	{
 		status = fatFlushFSInfo(fatData);
 		if (status < 0)
-			return (status);
+			goto out;
 	}
 
+	status = 0;
+
+out:
 	freeFatData(theDisk);
 
-	return (status = 0);
+	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	{
+		prog->complete = 1;
+		kernelLockRelease(&prog->progLock);
+	}
+
+	return (status);
 }
 
 
@@ -4212,7 +4246,7 @@ static int clobber(kernelDisk *theDisk)
 		return (status);
 
 	// In the case of FAT, we clear out the 'fileSysType' fields for both FAT
-	// and FAT32, and remove the AA55 signature
+	// and FAT32, and remove the MSDOS_BOOT_SIGNATURE signature
 	strncpy(bpb.fat.fileSysType, "        ", 8);
 	strncpy(bpb.fat32.fileSysType, "        ", 8);
 	bpb.signature = 0;

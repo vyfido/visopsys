@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/keyboard.h>
+#include <sys/msdos.h>
 
 
 static int textDetect(const char *fileName, void *dataPtr, unsigned size,
@@ -38,7 +39,7 @@ static int textDetect(const char *fileName, void *dataPtr, unsigned size,
 	int textChars = 0;
 	unsigned count;
 
-	if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+	if (!fileName || !dataPtr || !size || !class)
 		return (0);
 
 	// Loop through the supplied data.  If it's at least 95% (this is an
@@ -139,7 +140,8 @@ static int pngDetect(const char *fileName, void *dataPtr, unsigned size,
 static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 	loaderFileClass *class)
 {
-	// Must be binary, and have the boot signature 'AA55' in the last 2 bytes
+	// Must be binary, and have the boot signature MSDOS_BOOT_SIGNATURE in the
+	// last 2 bytes
 
 	unsigned short *sig = (dataPtr + 510);
 
@@ -147,7 +149,8 @@ static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 	if (size < 512)
 		return (0);
 
-	if (binaryDetect(fileName, dataPtr, size, class) && (*sig == 0xAA55))
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		(*sig == MSDOS_BOOT_SIGNATURE))
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_BOOT,
 			FILECLASS_NAME_EXEC);
@@ -296,7 +299,7 @@ static int pcfDetect(const char *fileName, void *dataPtr, unsigned size,
 	#define PCF_MAGIC 0x70636601 // ("pcf" 0x01)
 
 	// Check params
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
 
 	// Make sure there's enough data here for our detection
@@ -327,7 +330,7 @@ static int messageDetect(const char *fileName, void *dataPtr, unsigned size,
 	#define MO_MAGIC 0x950412DE
 
 	// Check params
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
 
 	// Make sure there's enough data here for our detection

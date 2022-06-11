@@ -470,9 +470,9 @@ int main(int argc, char *argv[])
 	graphics = graphicsAreEnabled();
 
 	// Check privilege level
-	if (multitaskerGetProcessPrivilege(processId) != 0)
-		quit(ERR_PERMISSION, "%s", _("This program can only be run as a privileged "
-			"user.\n(Try logging in as user \"admin\")."));
+	if (multitaskerGetProcessPrivilege(processId))
+		quit(ERR_PERMISSION, "%s", _("This program can only be run as a "
+			"privileged user.\n(Try logging in as user \"admin\")."));
 
 	if (getopt(argc, argv, "T") == 'T')
 		// Force text mode

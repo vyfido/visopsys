@@ -49,9 +49,15 @@ static inline int waitReady(void)
 	unsigned char data = 0x80;
 	int count;
 
-	kernelProcessorOutPort8(0x70, 0x0A);
-	for (count = 0; ((count < 10000) && (data & 0x80)); count ++)
+	for (count = 0; count < 10000; count ++)
+	{
+		kernelProcessorOutPort8(0x70, 0x0A);
+		kernelProcessorDelay();
 		kernelProcessorInPort8(0x71, data);
+
+		if (!(data & 0x80))
+			break;
+	}
 
 	if (data & 0x80)
 	{
@@ -167,6 +173,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		return (status);
 	}
 
+	// Add the kernel device
 	return (status = kernelDeviceAdd(parent, dev));
 }
 

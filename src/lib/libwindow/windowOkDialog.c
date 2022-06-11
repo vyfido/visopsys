@@ -46,6 +46,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 
 	int status = 0;
 	objectKey dialogWindow = NULL;
+	objectKey container = NULL;
 	image iconImage;
 	objectKey mainLabel = NULL;
 	objectKey okButton = NULL;
@@ -56,8 +57,17 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (message == NULL))
+	if (!title || !message)
 		return (status = ERR_NULLPARAMETER);
+
+	// Create the dialog.  Arbitrary size and coordinates
+	if (parentWindow)
+		dialogWindow = windowNewDialog(parentWindow, title);
+	else
+		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
+
+	if (!dialogWindow)
+		return (status = ERR_NOCREATE);
 
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 1;
@@ -65,73 +75,98 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
+	params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	// Create the dialog.  Arbitrary size and coordinates
-	if (parentWindow)
-		dialogWindow = windowNewDialog(parentWindow, title);
-	else
-		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-	if (dialogWindow == NULL)
-		return (status = ERR_NOCREATE);
+	// Get a container to pack everything into
+	container = windowNewContainer(dialogWindow, "container", &params);
+	if (!container)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
-	// If our 'info' image hasn't been loaded, try to load it
+	params.padLeft = 0;
+	params.padTop = 0;
+	params.orientationX = orient_right;
+	params.orientationY = orient_top;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+
+	// If our 'info' or 'error' image hasn't been loaded, try to load it
 	if (type == infoDialog)
 		status = imageLoad(INFOIMAGE_NAME, 0, 0, &iconImage);
 	else
 		status = imageLoad(ERRORIMAGE_NAME, 0, 0, &iconImage);
 
-	if ((status == 0) && iconImage.data)
+	if (!status && iconImage.data)
 	{
 		iconImage.transColor.red = 0;
 		iconImage.transColor.green = 255;
 		iconImage.transColor.blue = 0;
-		params.padRight = 0;
-		windowNewImage(dialogWindow, &iconImage, draw_translucent, &params);
+		windowNewImage(container, &iconImage, draw_translucent, &params);
 	}
 
 	// Create the label
-	params.gridX = 1;
-	params.padRight = 5;
-	mainLabel = windowNewTextLabel(dialogWindow, message, &params);
-	if (mainLabel == NULL)
-		return (status = ERR_NOCREATE);
+	params.gridX++;
+	params.padRight = 0;
+	params.orientationX = orient_left;
+	mainLabel = windowNewTextLabel(container, message, &params);
+	if (!mainLabel)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
 	// Create the button
 	params.gridX = 0;
-	params.gridY = 1;
+	params.gridY++;
 	params.gridWidth = 2;
-	params.padBottom = 5;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-	okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
-	if (okButton == NULL)
-		return (status = ERR_NOCREATE);
+	params.padBottom = 0;
+	params.orientationX = orient_center;
+	okButton = windowNewButton(container, _("OK"), NULL, &params);
+	if (!okButton)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
 	windowComponentFocus(okButton);
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	while (1)
 	{
 		// Check for our OK button
 		status = windowComponentEventGet(okButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) || ((status > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP)))
+		{
 			break;
+		}
 
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+		if ((status < 0) || ((status > 0) &&
+			(event.type == EVENT_WINDOW_CLOSE)))
+		{
 			break;
+		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
 
-	windowDestroy(dialogWindow);
+	status = 0;
 
-	return (status = 0);
+out:
+	if (dialogWindow)
+		windowDestroy(dialogWindow);
+
+	return (status);
 }
 
 
@@ -142,7 +177,6 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 _X_ int windowNewInfoDialog(objectKey parentWindow, const char *title, const char *message)
 {

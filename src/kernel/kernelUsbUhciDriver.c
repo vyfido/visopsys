@@ -33,7 +33,6 @@
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
 #include "kernelProcessorX86.h"
-#include "kernelSysTimer.h"
 #include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +43,7 @@ static int reset(usbController *);
 #ifdef DEBUG
 static inline void debugUhciRegs(usbController *controller)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned short cmd = 0;
 	unsigned short stat = 0;
 	unsigned short intr = 0;
@@ -54,99 +53,90 @@ static inline void debugUhciRegs(usbController *controller)
 	unsigned short portsc1 = 0;
 	unsigned short portsc2 = 0;
 
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_CMD),
-		cmd);
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_STAT),
-		stat);
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_INTR),
-		intr);
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_FRNUM),
-		frnum);
-	kernelProcessorInPort32((uhciData->ioAddress + USBUHCI_PORTOFFSET_FLBASE),
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_CMD), cmd);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_STAT), stat);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_INTR), intr);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_FRNUM), frnum);
+	kernelProcessorInPort32((uhci->ioAddress + UHCI_PORTOFFSET_FLBASE),
 		flbase);
-	kernelProcessorInPort8((uhciData->ioAddress + USBUHCI_PORTOFFSET_SOF),
-		sof);
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_PORTSC1),
+	kernelProcessorInPort8((uhci->ioAddress + UHCI_PORTOFFSET_SOF), sof);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_PORTSC1),
 		portsc1);
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_PORTSC2),
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_PORTSC2),
 		portsc2);
 
 	kernelDebug(debug_usb, "UHCI registers:\n"
-		"  cmd=%04x\n"
-		"  stat=%04x\n"
-		"  intr=%04x\n"
-		"  frnum=%04x\n"
-		"  flbase=%08x\n"
-		"  sof=%02x\n"
-		"  portsc1=%04x\n"
-		"  portsc2=%04x\n", cmd, stat, intr, frnum, flbase, sof,
+		"  cmd=0x%04x\n"
+		"  stat=0x%04x\n"
+		"  intr=0x%04x\n"
+		"  frnum=0x%04x\n"
+		"  flbase=0x%08x\n"
+		"  sof=0x%02x\n"
+		"  portsc1=0x%04x\n"
+		"  portsc2=0x%04x\n", cmd, stat, intr, frnum, flbase, sof,
 		portsc1, portsc2);
 }
-
 
 static inline void debugDeviceReq(usbDeviceRequest *req)
 {
 	kernelDebug(debug_usb, "UHCI device request:\n"
-		"  requestType=%02x\n"
-		"  request=%02x\n"
-		"  value=%04x\n"
-		"  index=%04x\n"
-		"  length=%04x", req->requestType, req->request, req->value,
+		"  requestType=0x%02x\n"
+		"  request=0x%02x\n"
+		"  value=0x%04x\n"
+		"  index=0x%04x\n"
+		"  length=0x%04x", req->requestType, req->request, req->value,
 		req->index, req->length);
 }
 
-
-static inline void debugQueueHead(usbUhciQueueHead *queueHead)
+static inline void debugQueueHead(uhciQueueHead *queueHead)
 {
 	kernelDebug(debug_usb, "UHCI queue head:\n"
-		"  linkPointer=%04x\n"
-		"  element=%04x\n"
-		"  saveElement=%04x\n"
+		"  linkPointer=0x%04x\n"
+		"  element=0x%04x\n"
+		"  saveElement=0x%04x\n"
 		"  transDescs=%p", queueHead->linkPointer,
 		queueHead->element, queueHead->saveElement,
 		queueHead->transDescs);
 }
 
-
-static inline void debugTransDesc(usbUhciTransDesc *desc)
+static inline void debugTransDesc(uhciTransDesc *desc)
 {
 	kernelDebug(debug_usb, "UHCI transfer descriptor:\n"
-		"  linkPointer=%08x\n"
-		"  contStatus=%08x\n"
+		"  linkPointer=0x%08x\n"
+		"  contStatus=0x%08x\n"
 		"    spd=%d\n"
 		"    errcount=%d\n"
 		"    lowspeed=%d\n"
 		"    isochronous=%d\n"
 		"    interrupt=%d\n"
-		"    status=%02x\n"
-		"    actlen=%d (%03x)\n"
-		"  tdToken=%08x\n"
-		"    maxlen=%d (%03x)\n"
+		"    status=0x%02x\n"
+		"    actlen=%d (0x%03x)\n"
+		"  tdToken=0x%08x\n"
+		"    maxlen=%d (0x%03x)\n"
 		"    datatoggle=%d\n"
-		"    endpoint=%02x\n"
+		"    endpoint=0x%02x\n"
 		"    address=%d\n"
-		"    pid=%02x\n"
-		"  buffer=%08x", desc->linkPointer, desc->contStatus,
-		((desc->contStatus & USBUHCI_TDCONTSTAT_SPD) >> 29),
-		((desc->contStatus & USBUHCI_TDCONTSTAT_ERRCNT) >> 27),
-		((desc->contStatus & USBUHCI_TDCONTSTAT_LSPEED) >> 26),
-		((desc->contStatus & USBUHCI_TDCONTSTAT_ISOC) >> 25),
-		((desc->contStatus & USBUHCI_TDCONTSTAT_IOC) >> 24),
-		((desc->contStatus & USBUHCI_TDCONTSTAT_STATUS) >> 16),
-		(desc->contStatus & USBUHCI_TDCONTSTAT_ACTLEN),
-		(desc->contStatus & USBUHCI_TDCONTSTAT_ACTLEN),
+		"    pid=0x%02x\n"
+		"  buffer=0x%08x", desc->linkPointer, desc->contStatus,
+		((desc->contStatus & UHCI_TDCONTSTAT_SPD) >> 29),
+		((desc->contStatus & UHCI_TDCONTSTAT_ERRCNT) >> 27),
+		((desc->contStatus & UHCI_TDCONTSTAT_LSPEED) >> 26),
+		((desc->contStatus & UHCI_TDCONTSTAT_ISOC) >> 25),
+		((desc->contStatus & UHCI_TDCONTSTAT_IOC) >> 24),
+		((desc->contStatus & UHCI_TDCONTSTAT_STATUS) >> 16),
+		(desc->contStatus & UHCI_TDCONTSTAT_ACTLEN),
+		(desc->contStatus & UHCI_TDCONTSTAT_ACTLEN),
 		desc->tdToken,
-		((desc->tdToken & USBUHCI_TDTOKEN_MAXLEN) >> 21),
-		((desc->tdToken & USBUHCI_TDTOKEN_MAXLEN) >> 21),
-		((desc->tdToken & USBUHCI_TDTOKEN_DATATOGGLE) >> 19),
-		((desc->tdToken & USBUHCI_TDTOKEN_ENDPOINT) >> 15),
-		((desc->tdToken & USBUHCI_TDTOKEN_ADDRESS) >> 8),
-		(desc->tdToken & USBUHCI_TDTOKEN_PID),
+		((desc->tdToken & UHCI_TDTOKEN_MAXLEN) >> 21),
+		((desc->tdToken & UHCI_TDTOKEN_MAXLEN) >> 21),
+		((desc->tdToken & UHCI_TDTOKEN_DATATOGGLE) >> 19),
+		((desc->tdToken & UHCI_TDTOKEN_ENDPOINT) >> 15),
+		((desc->tdToken & UHCI_TDTOKEN_ADDRESS) >> 8),
+		(desc->tdToken & UHCI_TDTOKEN_PID),
 		(unsigned) desc->buffer);
 }
 
-
-static void debugTransError(usbUhciTransDesc *desc)
+static void debugTransError(uhciTransDesc *desc)
 {
 	char *errorText = NULL;
 	char *transString = NULL;
@@ -154,7 +144,7 @@ static void debugTransError(usbUhciTransDesc *desc)
 	errorText = kernelMalloc(MAXSTRINGLENGTH);
 	if (errorText)
 	{
-		switch (desc->tdToken & USBUHCI_TDTOKEN_PID)
+		switch (desc->tdToken & UHCI_TDTOKEN_PID)
 		{
 			case USB_PID_SETUP:
 				transString = "SETUP";
@@ -167,20 +157,20 @@ static void debugTransError(usbUhciTransDesc *desc)
 				break;
 		}
 		sprintf(errorText, "UHCI: Trans desc %s: ", transString);
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_ESTALL)
+		if (desc->contStatus & UHCI_TDCONTSTAT_ESTALL)
 			strcat(errorText, "stalled, ");
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_EDBUFF)
+		if (desc->contStatus & UHCI_TDCONTSTAT_EDBUFF)
 			strcat(errorText, "data buffer error, ");
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_EBABBLE)
+		if (desc->contStatus & UHCI_TDCONTSTAT_EBABBLE)
 			strcat(errorText, "babble, ");
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_ENAK)
+		if (desc->contStatus & UHCI_TDCONTSTAT_ENAK)
 			strcat(errorText, "NAK, ");
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_ECRCTO)
+		if (desc->contStatus & UHCI_TDCONTSTAT_ECRCTO)
 			strcat(errorText, "CRC/timeout, ");
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_EBSTUFF)
+		if (desc->contStatus & UHCI_TDCONTSTAT_EBSTUFF)
 			strcat(errorText, "bitstuff error, ");
 
-		if (desc->contStatus & USBUHCI_TDCONTSTAT_ACTIVE)
+		if (desc->contStatus & UHCI_TDCONTSTAT_ACTIVE)
 			strcat(errorText, "TD is still active");
 
 		kernelDebugError("%s", errorText);
@@ -200,10 +190,9 @@ static void debugTransError(usbUhciTransDesc *desc)
 
 static inline unsigned char readCommand(usbController *controller)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned short command = 0;
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_CMD),
-		command);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_CMD), command);
 	return ((unsigned char)(command & 0xFF));
 }
 
@@ -211,60 +200,136 @@ static inline unsigned char readCommand(usbController *controller)
 static inline void writeCommand(usbController *controller,
 	unsigned char command)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned short tmp = 0;
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_CMD),
-		tmp);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_CMD), tmp);
 	tmp = ((tmp & 0xFF00) | command);
-	kernelProcessorOutPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_CMD),
-		tmp);
+	kernelProcessorOutPort16((uhci->ioAddress + UHCI_PORTOFFSET_CMD), tmp);
 }
 
 
 static inline unsigned char readStatus(usbController *controller)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned short status = 0;
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_STAT),
-		status);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_STAT), status);
 	return ((unsigned char)(status & 0x3F));
 }
 
 
 static inline void writeStatus(usbController *controller, unsigned char status)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned short tmp = 0;
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_STAT),
-		tmp);
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_STAT), tmp);
 	tmp |= (status & 0x3F);
-	kernelProcessorOutPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_STAT),
-		tmp);
+	kernelProcessorOutPort16((uhci->ioAddress + UHCI_PORTOFFSET_STAT), tmp);
 }
 
 
-static int allocTransDescs(unsigned numDescs, void **physical,
-	usbUhciTransDesc **descs)
+static int deQueueDescriptors(usbController *controller,
+	uhciQueueHead *queueHead, uhciTransDesc *descs, unsigned numDescs)
 {
-	// Allocate an array of USB transfer descriptors, page-aligned.
+	// Given string of queued transfer descriptors, detach them from the queue
+	// head
+
+	int status = 0;
+
+	// Lock the controller.
+	status = kernelLockGet(&controller->lock);
+	if (status < 0)
+	{
+		kernelError(kernel_error, "Can't get controller lock");
+		return (status);
+	}
+
+	if (descs[numDescs - 1].next)
+		descs[numDescs - 1].next->prev = descs[0].prev;
+
+	// Are our descriptors at the head of the queue?
+	if (queueHead->transDescs == descs)
+	{
+		if (descs[numDescs - 1].next)
+		{
+			queueHead->element = (descs[numDescs - 1].linkPointer &
+				0xFFFFFFF0);
+			queueHead->saveElement = queueHead->element;
+			queueHead->transDescs = descs[numDescs - 1].next;
+			descs[numDescs - 1].next->prev = NULL;
+		}
+		else
+		{
+			queueHead->element = UHCI_LINKPTR_TERM;
+			queueHead->saveElement = queueHead->element;
+			queueHead->transDescs = NULL;
+		}
+	}
+	else
+	{
+		if (descs[numDescs - 1].next)
+		{
+			descs[0].prev->linkPointer = descs[numDescs - 1].linkPointer;
+			descs[0].prev->next = descs[numDescs - 1].next;
+			descs[numDescs - 1].next->prev = descs[0].prev;
+		}
+		else
+		{
+			descs[0].prev->linkPointer = UHCI_LINKPTR_TERM;
+			descs[0].prev->next = NULL;
+		}
+	}
+
+	kernelLockRelease(&controller->lock);
+	return (status = 0);
+}
+
+
+static void unregisterInterrupt(usbController *controller,
+	uhciIntrReg *intrReg)
+{
+	// Remove an interrupt registration from the controller's list
+
+	uhciData *uhci = controller->data;
+
+	kernelDebug(debug_usb, "UHCI remove interrupt registration for device %d, "
+		"endpoint 0x%02x", intrReg->usbDev->address, intrReg->endpoint);
+
+	kernelLinkedListRemove(&uhci->intrRegs, intrReg);
+
+	if (intrReg->queueHead && intrReg->transDesc)
+		deQueueDescriptors(controller, intrReg->queueHead, intrReg->transDesc,
+			1);
+
+	// Free the memory
+	if (intrReg->transDesc && intrReg->transDesc->buffVirtual)
+		kernelFree(intrReg->transDesc->buffVirtual);
+
+	kernelFree(intrReg);
+	return;
+}
+
+
+static int allocTransDescs(unsigned numDescs, unsigned *physical,
+	uhciTransDesc **descs)
+{
+	// Allocate an array of UHCI transfer descriptors, page-aligned.
 
 	int status = 0;
 	unsigned memSize = 0;
 	kernelIoMemory ioMem;
 	unsigned count;
 
-	memSize = (numDescs * sizeof(usbUhciTransDesc));
+	memSize = (numDescs * sizeof(uhciTransDesc));
 
 	status = kernelMemoryGetIo(memSize, MEMORY_PAGE_SIZE, &ioMem);
 	if (status < 0)
 	{
-		kernelError(kernel_error, "Unable to get USB transfer descriptor "
-			"memory");
+		kernelError(kernel_error, "Unable to get transfer descriptor memory");
 		return (status);
 	}
 
 	*descs = ioMem.virtual;
-	*physical = (void *) ioMem.physical;
+	*physical = ioMem.physical;
 
 	// Connect the descriptors
 	for (count = 0; count < numDescs; count ++)
@@ -279,19 +344,19 @@ static int allocTransDescs(unsigned numDescs, void **physical,
 }
 
 
-static void deallocTransDescs(usbUhciTransDesc *descs, int numDescs)
+static void deallocTransDescs(uhciTransDesc *descs, int numDescs)
 {
-	unsigned transDescsPhysical = NULL;
+	kernelIoMemory ioMem;
 
-	transDescsPhysical = kernelPageGetPhysical(KERNELPROCID, (void *) descs);
-	kernelPageUnmap(KERNELPROCID, (void *) descs,
-		(numDescs * sizeof(usbUhciTransDesc)));
-	if (transDescsPhysical)
-		kernelMemoryReleasePhysical(transDescsPhysical);
+	ioMem.size = (numDescs * sizeof(uhciTransDesc));
+	ioMem.physical = kernelPageGetPhysical(KERNELPROCID, (void *) descs);
+	ioMem.virtual = (void *) descs;
+
+	kernelMemoryReleaseIo(&ioMem);
 }
 
 
-static int allocTransDescBuffer(usbUhciTransDesc *desc, unsigned buffSize)
+static int allocTransDescBuffer(uhciTransDesc *desc, unsigned buffSize)
 {
 	// Allocate a data buffer for a transfer descriptor.
 
@@ -318,71 +383,56 @@ static int allocTransDescBuffer(usbUhciTransDesc *desc, unsigned buffSize)
 }
 
 
-static int setupTransDesc(usbUhciTransDesc *desc, usbXferType type,
-	int address, int endpoint, usbDevSpeed speed, char dataToggle,
-	unsigned char pid)
+static int setupTransDesc(uhciTransDesc *desc, usbXferType type, int address,
+	int endpoint, usbDevSpeed speed, char dataToggle, unsigned char pid)
 {
 	// Do the nuts-n-bolts setup for a transfer descriptor
 
 	int status = 0;
-	const char *pidString __attribute__((unused)) = NULL;
 
 	// Initialize the 'control and status' field.
-	desc->contStatus = (USBUHCI_TDCONTSTAT_ACTIVE | USBUHCI_TDCONTSTAT_ERRCNT);
+	desc->contStatus = (UHCI_TDCONTSTAT_ACTIVE | UHCI_TDCONTSTAT_ERRCNT);
 	if (type == usbxfer_isochronous)
-		desc->contStatus |= USBUHCI_TDCONTSTAT_ISOC;
+		desc->contStatus |= UHCI_TDCONTSTAT_ISOC;
 	if (type == usbxfer_interrupt)
-		desc->contStatus |= USBUHCI_TDCONTSTAT_IOC;
+		desc->contStatus |= UHCI_TDCONTSTAT_IOC;
 	if (speed == usbspeed_low)
-		desc->contStatus |= USBUHCI_TDCONTSTAT_LSPEED;
+		desc->contStatus |= UHCI_TDCONTSTAT_LSPEED;
 
 	// Set up the TD token field
 
 	// First the data size
 	if (desc->buffSize)
-		desc->tdToken = (((desc->buffSize - 1) << 21) & USBUHCI_TDTOKEN_MAXLEN);
+		desc->tdToken = (((desc->buffSize - 1) << 21) & UHCI_TDTOKEN_MAXLEN);
 	else
-		desc->tdToken = (USBUHCI_TD_NULLDATA << 21);
+		desc->tdToken = (UHCI_TD_NULLDATA << 21);
 
 	if (type != usbxfer_isochronous)
 		// The data toggle
-		desc->tdToken |= ((dataToggle << 19) & USBUHCI_TDTOKEN_DATATOGGLE);
+		desc->tdToken |= ((dataToggle << 19) & UHCI_TDTOKEN_DATATOGGLE);
 
 	// The endpoint
-	desc->tdToken |= ((endpoint << 15) & USBUHCI_TDTOKEN_ENDPOINT);
+	desc->tdToken |= ((endpoint << 15) & UHCI_TDTOKEN_ENDPOINT);
 	// The address
-	desc->tdToken |= ((address << 8) & USBUHCI_TDTOKEN_ADDRESS);
+	desc->tdToken |= ((address << 8) & UHCI_TDTOKEN_ADDRESS);
 	// The packet identification
-	desc->tdToken |= (pid & USBUHCI_TDTOKEN_PID);
+	desc->tdToken |= (pid & UHCI_TDTOKEN_PID);
 
-	if (pid == USB_PID_SETUP)
-		pidString = "SETUP for";
-	else if (pid == USB_PID_IN)
-		pidString = "IN from";
-	else if (pid == USB_PID_OUT)
-		pidString = "OUT to";
-	else
-	{
-		kernelError(kernel_error, "PID type %02x is unknown", pid);
-		return (status = ERR_INVALID);
-	}
-
-	kernelDebug(debug_usb, "UHCI setup transfer %s address %d:%02x, %d bytes, "
-		"dataToggle %d", pidString, address, endpoint, desc->buffSize,
-		dataToggle);
+	kernelDebug(debug_usb, "UHCI setup transfer for address %d:0x%02x, %d "
+		"bytes, dataToggle %d", address, endpoint, desc->buffSize, dataToggle);
 
 	return (status = 0);
 }
 
 
 static int queueDescriptors(usbController *controller,
-	usbUhciQueueHead *queueHead, usbUhciTransDesc *descs, unsigned numDescs)
+	uhciQueueHead *queueHead, uhciTransDesc *descs, unsigned numDescs)
 {
 	// Attach the supplied transfer descriptor(s) to the supplied queue head.
 
 	int status = 0;
-	unsigned descPhysical = NULL;
-	unsigned firstPhysical = NULL;
+	unsigned descPhysical = 0;
+	unsigned firstPhysical = 0;
 	unsigned count;
 
 	// Check params
@@ -392,21 +442,23 @@ static int queueDescriptors(usbController *controller,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelDebug(debug_usb, "UHCI queue transaction with %d transfers", numDescs);
+	kernelDebug(debug_usb, "UHCI queue transaction with %d transfers",
+		numDescs);
 
 	// Process the transfer descriptors
 	for (count = 0; count < numDescs; count ++)
 	{
 		// Isochronous?
-		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ISOC)
+		if (descs[count].contStatus & UHCI_TDCONTSTAT_ISOC)
 		{
-			kernelError(kernel_error, "Isochronous transfers not yet supported");
+			kernelError(kernel_error, "Isochronous transfers not yet "
+				"supported");
 			return (status = ERR_NOTIMPLEMENTED);
 		}
 
 		// Get the physical address of the TD
-		descPhysical = (unsigned)
-		kernelPageGetPhysical(KERNELPROCID, (void *) &(descs[count]));
+		descPhysical = kernelPageGetPhysical(KERNELPROCID,
+			(void *) &(descs[count]));
 		if (!descPhysical)
 		{
 			kernelError(kernel_error, "Can't get xfer descriptor physical "
@@ -420,16 +472,20 @@ static int queueDescriptors(usbController *controller,
 		}
 
 		if (count)
+		{
 			// Attach this TD to the previous TD.
 			descs[count - 1].linkPointer =
-				(descPhysical | USBUHCI_LINKPTR_DEPTHFIRST);
+				(descPhysical | UHCI_LINKPTR_DEPTHFIRST);
+		}
 		else
+		{
 			// Save the address because we'll attach it to the queue head in
 			// a minute.
 			firstPhysical = descPhysical;
+		}
 
 		// Blank the descriptor's link pointer and set the 'terminate' bit
-		descs[count].linkPointer = USBUHCI_LINKPTR_TERM;
+		descs[count].linkPointer = UHCI_LINKPTR_TERM;
 	}
 
 	// Everything's queued up.  Lock the controller.
@@ -448,7 +504,7 @@ static int queueDescriptors(usbController *controller,
 	{
 		kernelDebug(debug_usb, "UHCI existing descriptors in the queue");
 		descs[numDescs - 1].linkPointer =
-			((queueHead->saveElement & 0xFFFFFFF0) | USBUHCI_LINKPTR_DEPTHFIRST);
+			((queueHead->saveElement & 0xFFFFFFF0) | UHCI_LINKPTR_DEPTHFIRST);
 		descs[numDescs - 1].next = queueHead->transDescs;
 		descs[numDescs - 1].next->prev = &descs[numDescs - 1];
 	}
@@ -463,44 +519,41 @@ static int queueDescriptors(usbController *controller,
 }
 
 
-static int runQueue(usbUhciTransDesc *descs, unsigned numDescs)
+static int runQueue(uhciTransDesc *descs, unsigned numDescs, unsigned timeout)
 {
-	// Given a list of transfer descriptors associated with a single transaction,
-	// queue them up on the controller.
+	// Given a list of transfer descriptors associated with a single
+	// transaction, queue them up on the controller.
 
 	int status = 0;
-	unsigned prevFirstActive = 0;
-	unsigned firstActive = 0;
-	unsigned currTime = 0;
-	unsigned activeTime = 0;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + timeout);
 	int active = 0;
+	unsigned firstActive __attribute__((unused)) = 0;
 	int error = 0;
 	unsigned count;
 
 	kernelDebug(debug_usb, "UHCI run transaction with %d transfers", numDescs);
 
-	currTime = kernelSysTimerRead();
-	activeTime = currTime;
-
 	// Now wait while some TD is active, or until we detect an error
-	while (1)
+	while (currTime <= endTime)
 	{
 		active = 0;
+		firstActive = 0;
 
 		// See if there are still any active TDs, or if any have an error
 		for (count = 0; count < numDescs; count ++)
 		{
-			if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ACTIVE)
+			if (descs[count].contStatus & UHCI_TDCONTSTAT_ACTIVE)
 			{
 				active = 1;
 				firstActive = count;
 				break;
 			}
-			else if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ERROR)
+			else if (descs[count].contStatus & UHCI_TDCONTSTAT_ERROR)
 			{
-				kernelDebugError("Transaction error on TD %d contStatus=%08x "
-					"first active=%d", count,
-					descs[count].contStatus, firstActive);
+				kernelDebugError("Transaction error on TD %d contStatus="
+					"0x%08x first active=%d", count, descs[count].contStatus,
+					firstActive);
 				debugTransError(&descs[count]);
 				error = 1;
 				break;
@@ -511,113 +564,38 @@ static int runQueue(usbUhciTransDesc *descs, unsigned numDescs)
 		if (!active || error)
 		{
 			if (error)
-				status = ERR_IO;
+			{
+				return (status = ERR_IO);
+			}
 			else
 			{
 				kernelDebug(debug_usb, "UHCI transaction completed "
 					"successfully");
-				status = 0;
+				return (status = 0);
 			}
-
-			break;
 		}
 
-		currTime = kernelSysTimerRead();
-
-		// If the controller is moving through the queue, reset the timeout
-		if (firstActive != prevFirstActive)
-		{
-			activeTime = currTime;
-			prevFirstActive = firstActive;
-		}
-
-		if (currTime > (activeTime + 40))
-		{
-			// Software timeout after ~2 seconds per descriptor
-			kernelDebugError("Software timeout on TD %d", firstActive);
-			status = ERR_NODATA;
-			break;
-		}
-
-		// Yielding here really hits performance.  Perhaps need to experiment
-		// with interrupt-driven system.
-		// kernelMultitaskerYield();
+		currTime = kernelCpuGetMs();
 	}
 
-	return (status);
+	kernelDebugError("Software timeout on TD %d", firstActive);
+	return (status = ERR_TIMEOUT);
 }
 
 
-static int deQueueDescriptors(usbController *controller,
-	usbUhciQueueHead *queueHead, usbUhciTransDesc *descs, unsigned numDescs)
-{
-	// Given string of queued transfer descriptors, detach them from the queue
-	// head
-
-	int status = 0;
-
-	// Lock the controller.
-	status = kernelLockGet(&controller->lock);
-	if (status < 0)
-	{
-		kernelError(kernel_error, "Can't get controller lock");
-		return (status);
-	}
-
-	if (descs[numDescs - 1].next)
-		descs[numDescs - 1].next->prev = descs[0].prev;
-
-	// Are our descriptors at the head of the queue?
-	if (queueHead->transDescs == descs)
-	{
-		if (descs[numDescs - 1].next)
-		{
-			queueHead->element = (descs[numDescs - 1].linkPointer & 0xFFFFFFF0);
-			queueHead->saveElement = queueHead->element;
-			queueHead->transDescs = descs[numDescs - 1].next;
-			descs[numDescs - 1].next->prev = NULL;
-		}
-		else
-		{
-			queueHead->element = USBUHCI_LINKPTR_TERM;
-			queueHead->saveElement = queueHead->element;
-			queueHead->transDescs = NULL;
-		}
-	}
-	else
-	{
-		if (descs[numDescs - 1].next)
-		{
-			descs[0].prev->linkPointer = descs[numDescs - 1].linkPointer;
-			descs[0].prev->next = descs[numDescs - 1].next;
-			descs[numDescs - 1].next->prev = descs[0].prev;
-		}
-		else
-		{
-			descs[0].prev->linkPointer = USBUHCI_LINKPTR_TERM;
-			descs[0].prev->next = NULL;
-		}
-	}
-
-	kernelLockRelease(&controller->lock);
-	return (status = 0);
-}
-
-
-static usbUhciQueueHead *findIntQueueHead(usbController *controller,
-	int interval)
+static uhciQueueHead *findIntQueueHead(usbController *controller, int interval)
 {
 	// Figure out which interrupt queue head to use, given an interval which
 	// is a maximum frequency -- so we locate the first one which is less than
 	// or equal to the specified interval.
 
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	int queues[8] = { 128, 64, 32, 16, 8, 4, 2, 1 };
 	int count;
 
 	for (count = 0; count < 8; count ++)
 		if (queues[count] <= interval)
-			return (uhciData->queueHeads[count]);
+			return (uhci->queueHeads[count]);
 
 	// Should never fall through
 	return (NULL);
@@ -626,18 +604,18 @@ static usbUhciQueueHead *findIntQueueHead(usbController *controller,
 
 static inline unsigned short readPortStatus(usbController *controller, int num)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned portOffset = 0;
 	unsigned short status = 0;
 
 	if (!num)
-		portOffset = USBUHCI_PORTOFFSET_PORTSC1;
+		portOffset = UHCI_PORTOFFSET_PORTSC1;
 	else if (num == 1)
-		portOffset = USBUHCI_PORTOFFSET_PORTSC2;
+		portOffset = UHCI_PORTOFFSET_PORTSC2;
 	else
 		return (status = 0);
 
-	kernelProcessorInPort16((uhciData->ioAddress + portOffset), status);
+	kernelProcessorInPort16((uhci->ioAddress + portOffset), status);
 
 	return (status);
 }
@@ -646,56 +624,22 @@ static inline unsigned short readPortStatus(usbController *controller, int num)
 static inline void writePortStatus(usbController *controller, int num,
 	unsigned short status)
 {
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	unsigned portOffset = 0;
 
 	if (!num)
-		portOffset = USBUHCI_PORTOFFSET_PORTSC1;
+		portOffset = UHCI_PORTOFFSET_PORTSC1;
 	else if (num == 1)
-		portOffset = USBUHCI_PORTOFFSET_PORTSC2;
+		portOffset = UHCI_PORTOFFSET_PORTSC2;
 	else
 		return;
 
 	// Don't write any read-only/reserved bits
 	status &= 0x124E;
 
-	kernelProcessorOutPort16((uhciData->ioAddress + portOffset), status);
+	kernelProcessorOutPort16((uhci->ioAddress + portOffset), status);
 	return;
 }
-
-
-static inline unsigned short readFrameNum(usbController *controller)
-{
-	usbUhciData *uhciData = controller->data;
-	unsigned short num = 0;
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_FRNUM),
-		num);
-	return (num & 0x7FF);
-}
-
-
-static inline void writeFrameNum(usbController *controller, unsigned short num)
-{
-	usbUhciData *uhciData = controller->data;
-	unsigned short tmp = 0;
-	kernelProcessorInPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_FRNUM),
-		tmp);
-	tmp = ((tmp & 0xF800) | (num & 0x7FF));
-	kernelProcessorOutPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_FRNUM),
-		tmp);
-}
-
-
-#ifdef DEBUG
-static inline void printPortStatus(usbController *controller)
-{
-	kernelDebug(debug_usb, "UHCI controller %d, port 0: %04x  port 1: %04x "
-		"frnum %d", controller->num, readPortStatus(controller, 0),
-		readPortStatus(controller, 1), (readFrameNum(controller) & 0x3FF));
-}
-#else
-	#define printPortStatus(usb) do { } while (0)
-#endif
 
 
 static inline void setPortStatusBits(usbController *controller, int num,
@@ -706,9 +650,9 @@ static inline void setPortStatusBits(usbController *controller, int num,
 	// Get the current register
 	status = readPortStatus(controller, num);
 
-	// Don't inadvertently clear any RWC (read/write-clear) bits, but allow them
-	// to be set in the next step.
-	status &= ~USBUHCI_PORT_RWC_BITS;
+	// Don't inadvertently clear any RWC (read/write-clear) bits, but allow
+	// them to be set in the next step.
+	status &= ~UHCI_PORT_RWC_BITS;
 
 	if (on)
 		status |= bits;
@@ -721,55 +665,87 @@ static inline void setPortStatusBits(usbController *controller, int num,
 }
 
 
+static inline unsigned short readFrameNum(usbController *controller)
+{
+	uhciData *uhci = controller->data;
+	unsigned short num = 0;
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_FRNUM), num);
+	return (num & 0x7FF);
+}
+
+
+static inline void writeFrameNum(usbController *controller, unsigned short num)
+{
+	uhciData *uhci = controller->data;
+	unsigned short tmp = 0;
+	kernelProcessorInPort16((uhci->ioAddress + UHCI_PORTOFFSET_FRNUM), tmp);
+	tmp = ((tmp & 0xF800) | (num & 0x7FF));
+	kernelProcessorOutPort16((uhci->ioAddress + UHCI_PORTOFFSET_FRNUM), tmp);
+}
+
+
+#ifdef DEBUG
+static inline void debugPortStatus(usbController *controller)
+{
+	kernelDebug(debug_usb, "UHCI controller %d, port 0: 0x%04x  "
+		"port 1: 0x%04x frnum %d", controller->num,
+		readPortStatus(controller, 0), readPortStatus(controller, 1),
+		(readFrameNum(controller) & 0x3FF));
+}
+#else
+	#define debugPortStatus(usb) do { } while (0)
+#endif // DEBUG
+
+
 static void portReset(usbController *controller, int num)
 {
 	unsigned short status = 0;
 	int count;
 
 	kernelDebug(debug_usb, "UHCI before port reset");
-	printPortStatus(controller);
+	debugPortStatus(controller);
 
 	for (count = 0; count < 20; count ++)
 	{
 		// Set the reset bit
-		setPortStatusBits(controller, num, USBUHCI_PORT_RESET, 1);
+		setPortStatusBits(controller, num, UHCI_PORT_RESET, 1);
 
 		status = readPortStatus(controller, num);
-		if (status & USBUHCI_PORT_RESET)
+		if (status & UHCI_PORT_RESET)
 			break;
 	}
 
-	if (!(status & USBUHCI_PORT_RESET))
+	if (!(status & UHCI_PORT_RESET))
 		kernelError(kernel_error, "Couldn't set port reset bit");
 
 	kernelDebug(debug_usb, "UHCI after reset asserted");
-	printPortStatus(controller);
+	debugPortStatus(controller);
 
 	// Delay 50ms
 	kernelDebug(debug_usb, "UHCI delay for port reset");
 	kernelCpuSpinMs(50);
 
 	// Clear the reset bit
-	setPortStatusBits(controller, num, USBUHCI_PORT_RESET, 0);
+	setPortStatusBits(controller, num, UHCI_PORT_RESET, 0);
 
 	kernelDebug(debug_usb, "UHCI after reset cleared");
-	printPortStatus(controller);
+	debugPortStatus(controller);
 
 	for (count = 0; count < 20; count ++)
 	{
 		// Set the enabled bit
-		setPortStatusBits(controller, num, USBUHCI_PORT_ENABLED, 1);
+		setPortStatusBits(controller, num, UHCI_PORT_ENABLED, 1);
 
 		status = readPortStatus(controller, num);
-		if (status & USBUHCI_PORT_ENABLED)
+		if (status & UHCI_PORT_ENABLED)
 			break;
 	}
 
-	if (!(status & USBUHCI_PORT_ENABLED))
+	if (!(status & UHCI_PORT_ENABLED))
 		kernelError(kernel_error, "Couldn't set port enabled bit");
 
 	kernelDebug(debug_usb, "UHCI after enable set");
-	printPortStatus(controller);
+	debugPortStatus(controller);
 
 	// Delay another 10ms
 	kernelDebug(debug_usb, "UHCI delay after port reset");
@@ -777,10 +753,10 @@ static void portReset(usbController *controller, int num)
 
 	status = readPortStatus(controller, num);
 
-	if (status & USBUHCI_PORT_RESET)
+	if (status & UHCI_PORT_RESET)
 		kernelError(kernel_error, "Couldn't clear port reset bit");
 
-	if (!(status & USBUHCI_PORT_ENABLED))
+	if (!(status & UHCI_PORT_ENABLED))
 		kernelError(kernel_error, "Couldn't enable port");
 
 	return;
@@ -802,13 +778,13 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 	{
 		status = readPortStatus(controller, count);
 
-		if (status & USBUHCI_PORT_CONNCHG)
+		if (status & UHCI_PORT_CONNCHG)
 		{
-			printPortStatus(controller);
+			debugPortStatus(controller);
 
 			kernelDebug(debug_usb, "UHCI port %d connection changed", count);
 
-			if (status & USBUHCI_PORT_CONNSTAT)
+			if (status & UHCI_PORT_CONNSTAT)
 			{
 				kernelDebug(debug_usb, "UHCI port %d connected", count);
 
@@ -819,7 +795,7 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 				// Reset and enable the port
 				portReset(controller, count);
 
-				if (status & USBUHCI_PORT_LSDA)
+				if (status & UHCI_PORT_LSDA)
 					speed = usbspeed_low;
 				else
 					speed = usbspeed_full;
@@ -827,8 +803,7 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 				if (kernelUsbDevConnect(controller, &controller->hub, count,
 					speed, hotplug) < 0)
 				{
-					kernelError(kernel_error, "Error enumerating new USB "
-						"device");
+					kernelError(kernel_error, "Error enumerating new device");
 				}
 
 				kernelDebug(debug_usb, "UHCI port %d is connected", count);
@@ -845,9 +820,9 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 			}
 
 			// Reset the port 'changed' bits by writing 1s to them.
-			setPortStatusBits(controller, count, USBUHCI_PORT_RWC_BITS, 1);
+			setPortStatusBits(controller, count, UHCI_PORT_RWC_BITS, 1);
 
-			printPortStatus(controller);
+			debugPortStatus(controller);
 		}
 	}
 }
@@ -855,7 +830,7 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 
 static int startStop(usbController *controller, int start)
 {
-	// Start or stop the USB controller
+	// Start or stop the controller
 
 	int status = 0;
 	unsigned char command = 0;
@@ -867,9 +842,9 @@ static int startStop(usbController *controller, int start)
 	command = readCommand(controller);
 
 	if (start)
-		command |= USBUHCI_CMD_RUNSTOP;
+		command |= UHCI_CMD_RUNSTOP;
 	else
-		command &= ~USBUHCI_CMD_RUNSTOP;
+		command &= ~UHCI_CMD_RUNSTOP;
 
 	writeCommand(controller, command);
 
@@ -879,7 +854,7 @@ static int startStop(usbController *controller, int start)
 		for (count = 0; count < 20; count ++)
 		{
 			statReg = readStatus(controller);
-			if (!(statReg & USBUHCI_STAT_HCHALTED))
+			if (!(statReg & UHCI_STAT_HCHALTED))
 			{
 				kernelDebug(debug_usb, "UHCI starting controller took %dms",
 					count);
@@ -890,7 +865,7 @@ static int startStop(usbController *controller, int start)
 		}
 
 		// Started?
-		if (statReg & USBUHCI_STAT_HCHALTED)
+		if (statReg & UHCI_STAT_HCHALTED)
 		{
 			kernelError(kernel_error, "Couldn't clear controller halted bit");
 			status = ERR_TIMEOUT;
@@ -902,7 +877,7 @@ static int startStop(usbController *controller, int start)
 		for (count = 0; count < 20; count ++)
 		{
 			statReg = readStatus(controller);
-			if (statReg & USBUHCI_STAT_HCHALTED)
+			if (statReg & UHCI_STAT_HCHALTED)
 			{
 				kernelDebug(debug_usb, "UHCI stopping controller took %dms",
 					count);
@@ -913,7 +888,7 @@ static int startStop(usbController *controller, int start)
 		}
 
 		// Stopped?
-		if (!(statReg & USBUHCI_STAT_HCHALTED))
+		if (!(statReg & UHCI_STAT_HCHALTED))
 		{
 			kernelError(kernel_error, "Couldn't set controller halted bit");
 			status = ERR_TIMEOUT;
@@ -929,28 +904,28 @@ static int startStop(usbController *controller, int start)
 
 static void deallocUhciMemory(usbController *controller)
 {
-	usbUhciData *uhciData = controller->data;
-	unsigned queueHeadsPhysical = NULL;
+	uhciData *uhci = controller->data;
+	unsigned queueHeadsPhysical = 0;
 
-	if (uhciData)
+	if (uhci)
 	{
-		if (uhciData->frameList.virtual)
-			kernelMemoryReleaseIo(&uhciData->frameList);
+		if (uhci->frameList.virtual)
+			kernelMemoryReleaseIo(&uhci->frameList);
 
-		if (uhciData->queueHeads[0])
+		if (uhci->queueHeads[0])
 		{
 			queueHeadsPhysical = kernelPageGetPhysical(KERNELPROCID,
-				(void *) uhciData->queueHeads[0]);
-			kernelPageUnmap(KERNELPROCID, (void *) uhciData->queueHeads[0],
-				USBUHCI_QUEUEHEADS_MEMSIZE);
+				(void *) uhci->queueHeads[0]);
+			kernelPageUnmap(KERNELPROCID, (void *) uhci->queueHeads[0],
+				UHCI_QUEUEHEADS_MEMSIZE);
 			if (queueHeadsPhysical)
 				kernelMemoryReleasePhysical(queueHeadsPhysical);
 		}
 
-		if (uhciData->termTransDesc)
-			deallocTransDescs(uhciData->termTransDesc, 1);
+		if (uhci->termTransDesc)
+			deallocTransDescs(uhci->termTransDesc, 1);
 
-		kernelFree(uhciData);
+		kernelFree(uhci);
 		controller->data = NULL;
 	}
 }
@@ -961,31 +936,31 @@ static int allocUhciMemory(usbController *controller)
 	// Allocate all of the memory bits specific to the the UHCI controller.
 
 	int status = 0;
-	usbUhciData *uhciData = controller->data;
+	uhciData *uhci = controller->data;
 	kernelIoMemory ioMem;
-	usbUhciQueueHead *queueHeads = NULL;
-	void *transDescPhysical = NULL;
+	uhciQueueHead *queueHeads = NULL;
+	unsigned transDescPhysical = 0;
 	int count;
 
 	// Allocate the UHCI hub's private data
 
-	// Allocate the USB frame list.  USBUHCI_NUM_FRAMES (1024) 32-bit values,
-	// so one page of memory, page-aligned.  We need to put the physical
-	// address into the register.
+	// Allocate the frame list.  UHCI_NUM_FRAMES (1024) 32-bit values, so one
+	// page of memory, page-aligned.  We need to put the physical address into
+	// the register.
 
-	status = kernelMemoryGetIo(USBUHCI_FRAMELIST_MEMSIZE, MEMORY_PAGE_SIZE,
-		&uhciData->frameList);
+	status = kernelMemoryGetIo(UHCI_FRAMELIST_MEMSIZE, MEMORY_PAGE_SIZE,
+		&uhci->frameList);
 	if (status < 0)
 		goto err_out;
 
-	// Fill the list with 32-bit 'term' (1) values, indicating that all pointers
-	// are currently invalid
-	kernelProcessorWriteDwords(USBUHCI_LINKPTR_TERM,
-		uhciData->frameList.virtual, USBUHCI_NUM_FRAMES);
+	// Fill the list with 32-bit 'term' (1) values, indicating that all
+	// pointers are currently invalid
+	kernelProcessorWriteDwords(UHCI_LINKPTR_TERM, uhci->frameList.virtual,
+		UHCI_NUM_FRAMES);
 
-	// Allocate an array of USBUHCI_NUM_QUEUEHEADS queue heads, page-aligned.
+	// Allocate an array of UHCI_NUM_QUEUEHEADS queue heads, page-aligned.
 
-	status = kernelMemoryGetIo(USBUHCI_QUEUEHEADS_MEMSIZE, MEMORY_PAGE_SIZE,
+	status = kernelMemoryGetIo(UHCI_QUEUEHEADS_MEMSIZE, MEMORY_PAGE_SIZE,
 		&ioMem);
 	if (status < 0)
 		goto err_out;
@@ -993,18 +968,18 @@ static int allocUhciMemory(usbController *controller)
 	queueHeads = ioMem.virtual;
 
 	// Assign the queue head pointers and set the link pointers invalid
-	for (count = 0; count < USBUHCI_NUM_QUEUEHEADS; count ++)
+	for (count = 0; count < UHCI_NUM_QUEUEHEADS; count ++)
 	{
-		uhciData->queueHeads[count] = &queueHeads[count];
-		uhciData->queueHeads[count]->linkPointer = USBUHCI_LINKPTR_TERM;
-		uhciData->queueHeads[count]->element = USBUHCI_LINKPTR_TERM;
-		uhciData->queueHeads[count]->saveElement =
-			uhciData->queueHeads[count]->element;
+		uhci->queueHeads[count] = &queueHeads[count];
+		uhci->queueHeads[count]->linkPointer = UHCI_LINKPTR_TERM;
+		uhci->queueHeads[count]->element = UHCI_LINKPTR_TERM;
+		uhci->queueHeads[count]->saveElement =
+			uhci->queueHeads[count]->element;
 	}
 
 	// Allocate a blank transfer descriptor to attach to the terminating queue
 	// head
-	status = allocTransDescs(1, &transDescPhysical, &(uhciData->termTransDesc));
+	status = allocTransDescs(1, &transDescPhysical, &(uhci->termTransDesc));
 	if (status < 0)
 		goto err_out;
 
@@ -1019,12 +994,12 @@ err_out:
 
 static int setup(usbController *controller)
 {
-	// Do USB setup
+	// Do controller setup
 
 	int status = 0;
 	unsigned char command = 0;
-	usbUhciData *uhciData = controller->data;
-	usbUhciQueueHead *intQueueHead = NULL;
+	uhciData *uhci = controller->data;
+	uhciQueueHead *intQueueHead = NULL;
 	int count;
 
 	// Stop the controller
@@ -1036,8 +1011,8 @@ static int setup(usbController *controller)
 	reset(controller);
 
 	// Set interrupt mask.
-	kernelProcessorOutPort16((uhciData->ioAddress + USBUHCI_PORTOFFSET_INTR),
-		(USBUHCI_INTR_IOC | USBUHCI_INTR_TIMEOUTCRC));
+	kernelProcessorOutPort16((uhci->ioAddress + UHCI_PORTOFFSET_INTR),
+		(UHCI_INTR_IOC | UHCI_INTR_TIMEOUTCRC));
 
 	// Allocate memory
 	status = allocUhciMemory(controller);
@@ -1045,72 +1020,72 @@ static int setup(usbController *controller)
 		return (status);
 
 	// Set up the queue heads
-	for (count = 0; count < USBUHCI_NUM_QUEUEHEADS; count ++)
+	for (count = 0; count < UHCI_NUM_QUEUEHEADS; count ++)
 	{
 		// Each queue head points to the one that follows it, except the
 		// terminating queue head.
-		if (count < (USBUHCI_NUM_QUEUEHEADS - 1))
+		if (count < (UHCI_NUM_QUEUEHEADS - 1))
 		{
-			uhciData->queueHeads[count]->linkPointer =
-				((unsigned)(kernelPageGetPhysical(KERNELPROCID, (void *)
-					uhciData->queueHeads[count + 1])) |
-				USBUHCI_LINKPTR_QHEAD);
+			uhci->queueHeads[count]->linkPointer =
+				(kernelPageGetPhysical(KERNELPROCID, (void *)
+					uhci->queueHeads[count + 1]) | UHCI_LINKPTR_QHEAD);
 		}
 		else
 		{
 			// The terminating queue head points back to control queue head
 			// for bandwidth reclamation.
-			uhciData->queueHeads[count]->linkPointer =
-				uhciData->queueHeads[USBUHCI_QH_CONTROL - 1]->linkPointer;
+			uhci->queueHeads[count]->linkPointer =
+				uhci->queueHeads[UHCI_QH_CONTROL - 1]->linkPointer;
 		}
 	}
 
-	// Attach the terminating transfer descriptor to the terminating queue head
-	uhciData->queueHeads[USBUHCI_QH_TERM]->element = (unsigned)
-		kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->termTransDesc);
-	uhciData->queueHeads[USBUHCI_QH_TERM]->saveElement =
-		uhciData->queueHeads[USBUHCI_QH_TERM]->element;
-	uhciData->termTransDesc->linkPointer = USBUHCI_LINKPTR_TERM;
+	// Attach the terminating transfer descriptor to the terminating queue
+	// head
+	uhci->queueHeads[UHCI_QH_TERM]->element =
+		kernelPageGetPhysical(KERNELPROCID, (void *) uhci->termTransDesc);
+	uhci->queueHeads[UHCI_QH_TERM]->saveElement =
+		uhci->queueHeads[UHCI_QH_TERM]->element;
+	uhci->termTransDesc->linkPointer = UHCI_LINKPTR_TERM;
 
 	// Point all frame list pointers at the appropriate queue heads.  Each
 	// one will point to one of the interrupt queue heads, depending on
 	// the interval of the frame (the modulus of the frame number).
-	for (count = 0; count < USBUHCI_NUM_FRAMES; count ++)
+	for (count = 0; count < UHCI_NUM_FRAMES; count ++)
 	{
 		if (!(count % 128))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT128];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT128];
 		else if (!(count % 64))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT64];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT64];
 		else if (!(count % 32))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT32];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT32];
 		else if (!(count % 16))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT16];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT16];
 		else if (!(count % 8))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT8];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT8];
 		else if (!(count % 4))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT4];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT4];
 		else if (!(count % 2))
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT2];
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT2];
 		else
-			// By default, use the 'int 1' queue head which gets run every frame
-			intQueueHead = uhciData->queueHeads[USBUHCI_QH_INT1];
+			// By default, use the 'int 1' queue head which gets run every
+			// frame
+			intQueueHead = uhci->queueHeads[UHCI_QH_INT1];
 
-		((unsigned *) uhciData->frameList.virtual)[count] = (unsigned)
+		((unsigned *) uhci->frameList.virtual)[count] =
 			kernelPageGetPhysical(KERNELPROCID, (void *) intQueueHead);
-		((unsigned *) uhciData->frameList.virtual)[count] |=
-			USBUHCI_LINKPTR_QHEAD;
+		((unsigned *) uhci->frameList.virtual)[count] |= UHCI_LINKPTR_QHEAD;
 	}
 
 	// Put the physical address of the frame list into the frame list base
 	// address register
-	kernelProcessorOutPort32((uhciData->ioAddress + USBUHCI_PORTOFFSET_FLBASE),
-		uhciData->frameList.physical);
+	kernelProcessorOutPort32((uhci->ioAddress + UHCI_PORTOFFSET_FLBASE),
+		uhci->frameList.physical);
 
 	command = readCommand(controller);
 	// Clear: software debug
-	command &= ~USBUHCI_CMD_SWDBG;
+	command &= ~UHCI_CMD_SWDBG;
 	// Set: max packet size to 64 bytes, configure flag
-	command |= (USBUHCI_CMD_MAXP | USBUHCI_CMD_CF);
+	command |= (UHCI_CMD_MAXP | UHCI_CMD_CF);
 	writeCommand(controller, command);
 
 	// Clear the frame number
@@ -1125,31 +1100,6 @@ static int setup(usbController *controller)
 }
 
 
-static void unregisterInterrupt(usbController *controller,
-	usbUhciInterruptReg *intrReg)
-{
-	// Remove an interrupt registration from the controller's list
-
-	usbUhciData *uhciData = controller->data;
-
-	kernelDebug(debug_usb, "UHCI remove interrupt registration for device %d, "
-		"endpoint 0x%02x", intrReg->usbDev->address, intrReg->endpoint);
-
-	kernelLinkedListRemove(&uhciData->intrRegs, intrReg);
-
-	if (intrReg->queueHead && intrReg->transDesc)
-		deQueueDescriptors(controller, intrReg->queueHead, intrReg->transDesc,
-			1);
-
-	// Free the memory
-	if (intrReg->transDesc && intrReg->transDesc->buffVirtual)
-		kernelFree(intrReg->transDesc->buffVirtual);
-
-	kernelFree(intrReg);
-	return;
-}
-
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -1158,16 +1108,22 @@ static void unregisterInterrupt(usbController *controller,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 static int reset(usbController *controller)
 {
 	// Do complete UHCI controller reset
 
 	unsigned char command = 0;
 
+	// Check params
+	if (!controller)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (ERR_NULLPARAMETER);
+	}
+
 	// Set global reset
 	command = readCommand(controller);
-	command |= USBUHCI_CMD_GRESET;
+	command |= UHCI_CMD_GRESET;
 	writeCommand(controller, command);
 
 	// Delay 100 ms.
@@ -1176,7 +1132,7 @@ static int reset(usbController *controller)
 
 	// Clear global reset
 	command = readCommand(controller);
-	command &= ~USBUHCI_CMD_GRESET;
+	command &= ~UHCI_CMD_GRESET;
 	writeCommand(controller, command);
 
 	// Clear the lock
@@ -1192,42 +1148,50 @@ static int interrupt(usbController *controller)
 	// This function gets called when the controller issues an interrupt.
 
 	unsigned char status = 0;
-	usbUhciData *uhciData = controller->data;
-	usbUhciInterruptReg *intrReg = NULL;
+	uhciData *uhci = NULL;
+	uhciIntrReg *intrReg = NULL;
 	kernelLinkedListItem *iter = NULL;
 	unsigned bytes = 0;
 
+	// Check params
+	if (!controller)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (ERR_NULLPARAMETER);
+	}
+
+	uhci = controller->data;
+
 	status = readStatus(controller);
 
-	// Has an interrupt transfer occurred?
-	if (status & USBUHCI_STAT_USBINT)
+	// Has an interrupt data transfer occurred?
+	if (status & UHCI_STAT_USBINT)
 	{
 		//kernelDebug(debug_usb, "UHCI device interrupt controller %d",
 		//	  controller->num);
 
 		// Loop through the registered interrupts for ones that are no longer
 		// active.
-		intrReg = kernelLinkedListIterStart(&uhciData->intrRegs, &iter);
+		intrReg = kernelLinkedListIterStart(&uhci->intrRegs, &iter);
 		while (intrReg)
 		{
 			// If the transfer descriptor is no longer active, there might be
 			// some data there for us.
-			if (!(intrReg->transDesc->contStatus & USBUHCI_TDCONTSTAT_ACTIVE))
+			if (!(intrReg->transDesc->contStatus & UHCI_TDCONTSTAT_ACTIVE))
 			{
-				if (status & USBUHCI_STAT_ERRINT)
+				if (status & UHCI_STAT_ERRINT)
 				{
 					// If there was an error with this interrupt, remove it.
 					unregisterInterrupt(controller, intrReg);
 
 					// Restart list iteration
-					intrReg =
-						kernelLinkedListIterStart(&uhciData->intrRegs, &iter);
+					intrReg = kernelLinkedListIterStart(&uhci->intrRegs,
+						&iter);
 					continue;
 				}
 
 				bytes = (((intrReg->transDesc->contStatus &
-					USBUHCI_TDCONTSTAT_ACTLEN) + 1) &
-						USBUHCI_TDCONTSTAT_ACTLEN);
+					UHCI_TDCONTSTAT_ACTLEN) + 1) & UHCI_TDCONTSTAT_ACTLEN);
 
 				// If there's data and a callback function, do the callback.
 				if (bytes && intrReg->callback)
@@ -1235,23 +1199,23 @@ static int interrupt(usbController *controller)
 						intrReg->transDesc->buffVirtual, bytes);
 
 				// Mark the transfer descriptor active again.
-				intrReg->transDesc->contStatus &= ~USBUHCI_TDCONTSTAT_STATUS;
-				intrReg->transDesc->contStatus |=
-					(USBUHCI_TDCONTSTAT_ERRCNT | USBUHCI_TDCONTSTAT_IOC |
-					USBUHCI_TDCONTSTAT_ACTIVE | USBUHCI_TDCONTSTAT_ACTLEN);
-				intrReg->transDesc->tdToken ^= USBUHCI_TDTOKEN_DATATOGGLE;
+				intrReg->transDesc->contStatus &= ~UHCI_TDCONTSTAT_STATUS;
+				intrReg->transDesc->contStatus |= (UHCI_TDCONTSTAT_ERRCNT |
+					UHCI_TDCONTSTAT_IOC | UHCI_TDCONTSTAT_ACTIVE |
+					UHCI_TDCONTSTAT_ACTLEN);
+				intrReg->transDesc->tdToken ^= UHCI_TDTOKEN_DATATOGGLE;
 
 				// Reset the queue head's element pointer.  Should probably
 				// take a lock here.
 				intrReg->queueHead->element = intrReg->queueHead->saveElement;
 			}
 
-			intrReg = kernelLinkedListIterNext(&uhciData->intrRegs, &iter);
+			intrReg = kernelLinkedListIterNext(&uhci->intrRegs, &iter);
 		}
 	}
 
 	// Or was it an error interrupt?
-	else if (status & USBUHCI_STAT_ERRINT)
+	else if (status & UHCI_STAT_ERRINT)
 	{
 		kernelDebug(debug_usb, "UHCI error interrupt controller %d",
 			controller->num);
@@ -1281,17 +1245,17 @@ static int queue(usbController *controller, usbDevice *usbDev,
 	unsigned bytesPerTransfer = 0;
 	usbEndpointDesc *endpoint = NULL;
 	int numDescs = 0;
-	void *descsPhysical = NULL;
-	usbUhciTransDesc *descs = NULL;
-	usbUhciData *uhciData = controller->data;
-	usbUhciQueueHead *queueHead = NULL;
-	usbUhciTransDesc *setupDesc = NULL;
+	unsigned descsPhysical = 0;
+	uhciTransDesc *descs = NULL;
+	unsigned timeout = 0;
+	uhciData *uhci = controller->data;
+	uhciQueueHead *queueHead = NULL;
+	uhciTransDesc *setupDesc = NULL;
 	usbDeviceRequest *req = NULL;
-	const char *opString __attribute__((unused)) = NULL;
 	volatile unsigned char *dataToggle = NULL;
-	usbUhciTransDesc *dataDesc = NULL;
+	uhciTransDesc *dataDesc = NULL;
 	unsigned bytesToTransfer = 0;
-	usbUhciTransDesc *statusDesc = NULL;
+	uhciTransDesc *statusDesc = NULL;
 	void *buffer = NULL;
 	int descCount = 0;
 	int count;
@@ -1313,17 +1277,19 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 		if (trans[count].length)
 		{
-			// Figure out the maximum number of bytes per transfer, depending on
-			// the endpoint we're addressing.
+			// Figure out the maximum number of bytes per transfer, depending
+			// on the endpoint we're addressing.
 			if (!trans[count].endpoint && !usbDev->numEndpoints)
+			{
 				bytesPerTransfer = usbDev->deviceDesc.maxPacketSize0;
+			}
 			else
 			{
 				endpoint = kernelUsbGetEndpointDesc(usbDev,
 					trans[count].endpoint);
 				if (!endpoint)
 				{
-					kernelError(kernel_error, "No such endpoint %02x",
+					kernelError(kernel_error, "No such endpoint 0x%02x",
 						trans[count].endpoint);
 					status = ERR_NOSUCHFUNCTION;
 					goto out;
@@ -1332,11 +1298,12 @@ static int queue(usbController *controller, usbDevice *usbDev,
 				bytesPerTransfer = endpoint->maxPacketSize;
 			}
 
-			// If we haven't yet got the descriptors, etc., 8 is the minimum size
+			// If we haven't yet got the descriptors, etc., 8 is the minimum
+			// size
 			if (bytesPerTransfer < 8)
 			{
 				kernelDebug(debug_usb, "UHCI using minimum endpoint transfer "
-					"size 8 instead of %d for endpoint %02x",
+					"size 8 instead of %d for endpoint 0x%02x",
 				bytesPerTransfer, trans[count].endpoint);
 				bytesPerTransfer = 8;
 			}
@@ -1347,17 +1314,26 @@ static int queue(usbController *controller, usbDevice *usbDev,
 	}
 
 	// Get memory for the transfer descriptors
-	kernelDebug(debug_usb, "UHCI transaction requires %d descriptors", numDescs);
+	kernelDebug(debug_usb, "UHCI transaction requires %d descriptors",
+		numDescs);
 	status = allocTransDescs(numDescs, &descsPhysical, &descs);
 	if (status < 0)
 		goto out;
 
+	timeout = trans[0].timeout;
+	if (!timeout)
+		timeout = USB_STD_TIMEOUT_MS;
+
 	if (trans[0].type == usbxfer_control)
+	{
 		// Use the control queue head
-		queueHead = uhciData->queueHeads[USBUHCI_QH_CONTROL];
+		queueHead = uhci->queueHeads[UHCI_QH_CONTROL];
+	}
 	else if (trans[0].type == usbxfer_bulk)
+	{
 		// Use the bulk queue head
-		queueHead = uhciData->queueHeads[USBUHCI_QH_BULK];
+		queueHead = uhci->queueHeads[UHCI_QH_BULK];
+	}
 	else
 	{
 		kernelError(kernel_error, "Unsupported transaction type %d",
@@ -1369,11 +1345,11 @@ static int queue(usbController *controller, usbDevice *usbDev,
 	for (count = 0; count < numTrans; count ++)
 	{
 		// Get the data toggle for the endpoint
-		dataToggle =
-			kernelUsbGetEndpointDataToggle(usbDev, trans[count].endpoint);
+		dataToggle = kernelUsbGetEndpointDataToggle(usbDev,
+			trans[count].endpoint);
 		if (!dataToggle)
 		{
-			kernelError(kernel_error, "No data toggle for endpoint %02x",
+			kernelError(kernel_error, "No data toggle for endpoint 0x%02x",
 				trans[count].endpoint);
 			status = ERR_NOSUCHFUNCTION;
 			goto out;
@@ -1428,10 +1404,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 				// of the transaction buffer
 				dataDesc->buffVirtual = buffer;
 				dataDesc->buffer =
-				kernelPageGetPhysical((((unsigned) dataDesc->buffVirtual <
-					KERNEL_VIRTUAL_ADDRESS)?
-						kernelCurrentProcess->processId :
-						KERNELPROCID), dataDesc->buffVirtual);
+					kernelPageGetPhysical((((unsigned) dataDesc->buffVirtual <
+						KERNEL_VIRTUAL_ADDRESS)?
+							kernelCurrentProcess->processId : KERNELPROCID),
+						dataDesc->buffVirtual);
 				if (!dataDesc->buffer)
 				{
 					kernelDebugError("Can't get physical address for buffer "
@@ -1442,10 +1418,9 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 				dataDesc->buffSize = doBytes;
 
-				status =
-					setupTransDesc(dataDesc, trans[count].type,
-						trans[count].address, trans[count].endpoint,
-						usbDev->speed, *dataToggle, trans[count].pid);
+				status = setupTransDesc(dataDesc, trans[count].type,
+					trans[count].address, trans[count].endpoint,
+					usbDev->speed, *dataToggle, trans[count].pid);
 				if (status < 0)
 					goto out;
 
@@ -1468,11 +1443,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 			*dataToggle = 1;
 
 			// Setup the status packet
-			status =
-				setupTransDesc(statusDesc, trans[count].type,
-					trans[count].address, trans[count].endpoint, usbDev->speed,
-					*dataToggle, ((trans[count].pid == USB_PID_OUT)?
-						USB_PID_IN : USB_PID_OUT));
+			status = setupTransDesc(statusDesc, trans[count].type,
+				trans[count].address, trans[count].endpoint, usbDev->speed,
+				*dataToggle, ((trans[count].pid == USB_PID_OUT)?
+					USB_PID_IN : USB_PID_OUT));
 			if (status < 0)
 				goto out;
 		}
@@ -1484,13 +1458,13 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		goto out;
 
 	// Run the transaction
-	status = runQueue(descs, numDescs);
+	status = runQueue(descs, numDescs, timeout);
 	if (status < 0)
 	{
 		// Check for errors
 		for (count = 0; count < numDescs; count ++)
 		{
-			if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ERROR)
+			if (descs[count].contStatus & UHCI_TDCONTSTAT_ERROR)
 			{
 				status = ERR_IO;
 				break;
@@ -1520,9 +1494,9 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	// This function is used to schedule an interrupt.
 
 	int status = 0;
-	usbUhciData *uhciData = NULL;
-	usbUhciInterruptReg *intrReg = NULL;
-	void *descPhysical = NULL;
+	uhciData *uhci = NULL;
+	uhciIntrReg *intrReg = NULL;
+	unsigned descPhysical = 0;
 
 	// Check params
 	if (!controller || !usbDev || !callback)
@@ -1531,13 +1505,14 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelDebug(debug_usb, "UHCI schedule interrupt for device %d endpoint %02x "
-		"interval %d len %u", usbDev->address, endpoint, interval, maxLen);
+	kernelDebug(debug_usb, "UHCI schedule interrupt for device %d endpoint "
+		"0x%02x interval %d len %u", usbDev->address, endpoint, interval,
+		maxLen);
 
-	uhciData = controller->data;
+	uhci = controller->data;
 
 	// Get memory to hold info about the interrupt
-	intrReg = kernelMalloc(sizeof(usbUhciInterruptReg));
+	intrReg = kernelMalloc(sizeof(uhciIntrReg));
 	if (!intrReg)
 		return (status = ERR_MEMORY);
 
@@ -1547,7 +1522,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	intrReg->queueHead = findIntQueueHead(controller, interval);
 	if (!intrReg->queueHead)
 	{
-		kernelDebugError("Couldn't find QH for interrupt interval %d", interval);
+		kernelDebugError("Couldn't find QH for interrupt interval %d",
+			interval);
 		kernelFree(intrReg);
 		return (status = ERR_BUG);
 	}
@@ -1569,9 +1545,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	}
 
 	// Set up the transfer descriptor
-	status =
-		setupTransDesc(intrReg->transDesc, usbxfer_interrupt,
-			usbDev->address, endpoint, usbDev->speed, 0, USB_PID_IN);
+	status = setupTransDesc(intrReg->transDesc, usbxfer_interrupt,
+		usbDev->address, endpoint, usbDev->speed, 0, USB_PID_IN);
 	if (status < 0)
 	{
 		kernelFree(intrReg);
@@ -1583,8 +1558,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	intrReg->maxLen = maxLen;
 	intrReg->callback = callback;
 
-	// Add the interrupt registration to the hub's list.
-	status = kernelLinkedListAdd(&uhciData->intrRegs, intrReg);
+	// Add the interrupt registration to the controller's list.
+	status = kernelLinkedListAdd(&uhci->intrRegs, intrReg);
 	if (status < 0)
 	{
 		kernelFree(intrReg);
@@ -1592,8 +1567,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	}
 
 	// Queue the transfer descriptor on the queue head
-	status =
-		queueDescriptors(controller, intrReg->queueHead, intrReg->transDesc, 1);
+	status = queueDescriptors(controller, intrReg->queueHead,
+		intrReg->transDesc, 1);
 	if (status < 0)
 	{
 		kernelFree(intrReg);
@@ -1607,8 +1582,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 {
 	int status = 0;
-	usbUhciData *uhciData = NULL;
-	usbUhciInterruptReg *intrReg = NULL;
+	uhciData *uhci = NULL;
+	uhciIntrReg *intrReg = NULL;
 	kernelLinkedListItem *iter = NULL;
 
 	// Check params
@@ -1620,16 +1595,22 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 
 	kernelDebug(debug_usb, "UHCI device %d removed", usbDev->address);
 
-	uhciData = controller->data;
+	uhci = controller->data;
 
 	// Remove any interrupt registrations for the device
-	intrReg = kernelLinkedListIterStart(&uhciData->intrRegs, &iter);
+	intrReg = kernelLinkedListIterStart(&uhci->intrRegs, &iter);
 	while (intrReg)
 	{
-		if (intrReg->usbDev == usbDev)
-			unregisterInterrupt(controller, intrReg);
+		if (intrReg->usbDev != usbDev)
+		{
+			intrReg = kernelLinkedListIterNext(&uhci->intrRegs, &iter);
+			continue;
+		}
 
-		intrReg = kernelLinkedListIterNext(&uhciData->intrRegs, &iter);
+		unregisterInterrupt(controller, intrReg);
+
+		// Restart the iteration
+		intrReg = kernelLinkedListIterStart(&uhci->intrRegs, &iter);
 	}
 
 	return (status = 0);
@@ -1643,7 +1624,6 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 static void detectDevices(usbHub *hub, int hotplug)
 {
@@ -1696,7 +1676,6 @@ static void threadCall(usbHub *hub)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 	kernelDriver *driver)
 {
@@ -1706,7 +1685,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 	int status = 0;
 	pciDeviceInfo pciDevInfo;
 	usbController *controller = NULL;
-	usbUhciData *uhciData = NULL;
+	uhciData *uhci = NULL;
 	kernelDevice *dev = NULL;
 
 	// Get the PCI device header
@@ -1718,7 +1697,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 	if ((pciDevInfo.device.headerType & ~PCI_HEADERTYPE_MULTIFUNC) !=
 		PCI_HEADERTYPE_NORMAL)
 	{
-		kernelDebug(debug_usb, "UHCI headertype not 'normal' (%02x)",
+		kernelDebug(debug_usb, "UHCI headertype not 'normal' (0x%02x)",
 			(pciDevInfo.device.headerType & ~PCI_HEADERTYPE_MULTIFUNC));
 		goto err_out;
 	}
@@ -1756,20 +1735,20 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 		(controller->usbVersion & 0xF), controller->interruptNum);
 
 	// Allocate our private driver data
-	controller->data = kernelMalloc(sizeof(usbUhciData));
+	controller->data = kernelMalloc(sizeof(uhciData));
 	if (!controller->data)
 		goto err_out;
 
-	uhciData = controller->data;
+	uhci = controller->data;
 
-	// Get the I/O space base address.  For USB, it comes in the 5th
+	// Get the I/O space base address.  For UHCI, it comes in the 5th
 	// PCI base address register
-	uhciData->ioAddress =
+	uhci->ioAddress =
 		(void *)(kernelBusReadRegister(busTarget, 0x08, 32) & 0xFFFFFFE0);
 
-	if (!uhciData->ioAddress)
+	if (!uhci->ioAddress)
 	{
-		kernelDebugError("Unknown USB controller I/O address");
+		kernelDebugError("Unknown controller I/O address");
 		goto err_out;
 	}
 
@@ -1780,7 +1759,7 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 	status = setup(controller);
 	if (status < 0)
 	{
-		kernelError(kernel_error, "Error setting up USB operation");
+		kernelError(kernel_error, "Error setting up UHCI operation");
 		goto err_out;
 	}
 
@@ -1813,6 +1792,10 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 		kernelVariableListSet(&dev->device.attrs, "controller.numPorts", "2");
 	}
 
+	// Claim the controller device in the list of PCI targets.
+	kernelBusDeviceClaim(busTarget, driver);
+
+	// Add the kernel device
 	status = kernelDeviceAdd(busTarget->bus->dev, dev);
 	if (status < 0)
 		goto err_out;
@@ -1824,6 +1807,7 @@ err_out:
 
 	if (dev)
 		kernelFree(dev);
+
 	if (controller)
 	{
 		if (controller->data)

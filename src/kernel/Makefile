@@ -18,8 +18,7 @@ include ${ROOT}/Makefile.include
 STDDEPS = ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
 	${INCDIR}/*.h ${LIBDIR}/libc.a
 INCLUDE = -nostdinc -I. -I${INCDIR}
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL ${DEBUG} \
-	${PLUS}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL ${DEBUG}
 LFLAGS = -L${LIBDIR} -nostdlib -static \
 	-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 RELEASE = $(shell ${UTILSDIR}/release.sh)
@@ -147,11 +146,7 @@ DRIVERNAMES = kernelAcpiDriver \
 	kernelUsbUhciDriver \
 	kernelUsbXhciDriver
 
-ifdef PLUS
-	PLUSNAMES = kernelLicense kernelFilesystemFatPlus
-endif
-
-ALLNAMES = ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
+ALLNAMES = ${NAMES} ${DRIVERNAMES}
 OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
 KERNEL = ${BUILDDIR}/visopsys
 

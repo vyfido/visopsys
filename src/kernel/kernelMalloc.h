@@ -32,6 +32,8 @@ void *_kernelRealloc(void *, unsigned, const char *);
 #define kernelRealloc(ptr, size) _kernelRealloc(ptr, size, __FUNCTION__)
 int kernelMallocGetStats(memoryStats *);
 int kernelMallocGetBlocks(memoryBlock *, int);
+void _kernelMallocCheck(const char *, int);
+#define kernelMallocCheck() _kernelMallocCheck(__FILE__, __LINE__)
 
 #define _KERNELMALLOC_H
 #endif

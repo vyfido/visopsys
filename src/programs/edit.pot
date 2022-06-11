@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -61,37 +61,37 @@ msgstr ""
 msgid "Enter filename"
 msgstr ""
 
-#: edit.c:949
+#: edit.c:952
 msgid "Discard changes?"
 msgstr ""
 
-#: edit.c:950
+#: edit.c:953
 msgid "Discard"
 msgstr ""
 
-#: edit.c:950
+#: edit.c:953
 msgid "Cancel"
 msgstr ""
 
-#: edit.c:984 edit.c:1300
+#: edit.c:987 edit.c:1303
 msgid "Couldn't create file in a read-only filesystem"
 msgstr ""
 
-#: edit.c:986 edit.c:1302
+#: edit.c:989 edit.c:1305
 #, c-format
 msgid "Error %d loading file"
 msgstr ""
 
-#: edit.c:1107
+#: edit.c:1110
 msgid "Unable to launch file dialog"
 msgstr ""
 
-#: edit.c:1118
+#: edit.c:1121
 #, c-format
 msgid "Error %d saving file"
 msgstr ""
 
-#: edit.c:1256
+#: edit.c:1259
 #, c-format
 msgid ""
 "\n"

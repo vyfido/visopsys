@@ -33,11 +33,13 @@ _X_ int vshDeleteFile(const char *deleteFile)
 	int status = 0;
 
 	// Make sure file name isn't NULL
-	if (deleteFile == NULL)
+	if (!deleteFile)
 		return (errno = ERR_NULLPARAMETER);
 
 	status = fileDelete(deleteFile);
 	if (status < 0)
 		errno = status;
+
 	return (status);
 }
+

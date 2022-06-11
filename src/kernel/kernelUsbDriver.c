@@ -524,7 +524,8 @@ static int addController(kernelDevice *dev, int numControllers,
 		}
 
 		// Register the interrupt handler
-		status = kernelInterruptHook(controller->interruptNum, &usbInterrupt);
+		status = kernelInterruptHook(controller->interruptNum, &usbInterrupt,
+			NULL);
 		if (status < 0)
 			return (status);
 	}
@@ -702,7 +703,7 @@ static void removeDeviceRecursive(usbController *controller, usbHub *hub,
 	usbSubClass *subClass = NULL;
 
 	// If the device is a hub, recurse to remove attached devices first
-	if ((usbDev->classCode == 0x09) && (usbDev->subClassCode == 0x00))
+	if ((usbDev->classCode == 0x09) && !usbDev->subClassCode)
 	{
 		removedHub = usbDev->data;
 
@@ -746,7 +747,7 @@ static void removeDeviceRecursive(usbController *controller, usbHub *hub,
 		(void *) usbDev);
 
 	// If the device was a hub, remove it from our list of hubs
-	if ((usbDev->classCode == 0x09) && (usbDev->subClassCode == 0x00))
+	if ((usbDev->classCode == 0x09) && !usbDev->subClassCode)
 		kernelLinkedListRemove(&hubList, (void *) usbDev->data);
 
 	// Free the device's attributes list
@@ -1021,8 +1022,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	// *know* the supported packet size.
 	kernelDebug(debug_usb, "USB get short device descriptor for new device");
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
-		(USB_DESCTYPE_DEVICE << 8), 0, 8, (void *) &(usbDev->deviceDesc),
-		NULL);
+		(USB_DESCTYPE_DEVICE << 8), 0, USB_PID_IN, 8,
+		(void *) &(usbDev->deviceDesc), NULL);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Error getting short device descriptor");
@@ -1032,8 +1033,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	// Do it again.  Some devices need this.
 	kernelDebug(debug_usb, "USB get short device descriptor for new device");
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
-		(USB_DESCTYPE_DEVICE << 8), 0, 8, (void *) &(usbDev->deviceDesc),
-		NULL);
+		(USB_DESCTYPE_DEVICE << 8), 0, USB_PID_IN, 8,
+		(void *) &(usbDev->deviceDesc), NULL);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Error getting short device descriptor");
@@ -1060,7 +1061,7 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		(controller->addressCounter + 1), usbDev);
 
 	status = kernelUsbControlTransfer(usbDev, USB_SET_ADDRESS,
-		(controller->addressCounter + 1), 0, 0, NULL, NULL);
+		(controller->addressCounter + 1), 0, 0, 0, NULL, NULL);
 	if (status < 0)
 	{
 		// No device waiting for an address, we guess
@@ -1083,7 +1084,7 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	kernelDebug(debug_usb, "USB get full device descriptor for new device %d",
 		usbDev->address);
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
-		(USB_DESCTYPE_DEVICE << 8), 0, sizeof(usbDeviceDesc),
+		(USB_DESCTYPE_DEVICE << 8), 0, USB_PID_IN, sizeof(usbDeviceDesc),
 		(void *) &(usbDev->deviceDesc), NULL);
 	if (status < 0)
 	{
@@ -1112,7 +1113,7 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		"%d", usbDev->address);
 	bytes = 0;
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
-		(USB_DESCTYPE_CONFIG << 8), 0,
+		(USB_DESCTYPE_CONFIG << 8), 0, USB_PID_IN,
 		min(usbDev->deviceDesc.maxPacketSize0, sizeof(usbConfigDesc)),
 		tmpConfigDesc, &bytes);
 	if ((status < 0) || (bytes < min(usbDev->deviceDesc.maxPacketSize0,
@@ -1141,8 +1142,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 			"device %d", usbDev->address);
 		bytes = 0;
 		status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
-			(USB_DESCTYPE_CONFIG << 8), 0, tmpConfigDesc->totalLength,
-			usbDev->configDesc, &bytes);
+			(USB_DESCTYPE_CONFIG << 8), 0, USB_PID_IN,
+			tmpConfigDesc->totalLength, usbDev->configDesc, &bytes);
 		if ((status < 0) || (bytes < tmpConfigDesc->totalLength))
 			goto err_out;
 
@@ -1211,6 +1212,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 			debugEndpointDesc(usbDev->endpointDesc[usbDev->numEndpoints]);
 
 			// Register the endpoint number in our list.
+			usbDev->endpoint[usbDev->numEndpoints].interNum =
+				usbDev->interDesc[count1]->interNum;
 			usbDev->endpoint[usbDev->numEndpoints].number =
 				usbDev->endpointDesc[usbDev->numEndpoints]->endpntAddress;
 
@@ -1415,8 +1418,17 @@ usbEndpointDesc *kernelUsbGetEndpointDesc(usbDevice *dev,
 	usbEndpointDesc *endpoint = NULL;
 	int count;
 
-	if (endpntAddress == 0)
+	// Check params
+	if (!dev)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (endpoint = NULL);
+	}
+
+	if (!endpntAddress)
+	{
 		endpoint = dev->endpointDesc[0];
+	}
 	else
 	{
 		for (count = 1; count < dev->numEndpoints; count ++)
@@ -1448,8 +1460,10 @@ volatile unsigned char *kernelUsbGetEndpointDataToggle(usbDevice *dev,
 		return (toggle = NULL);
 	}
 
-	if (endpntAddress == 0)
+	if (!endpntAddress)
+	{
 		toggle = &(dev->endpoint[0].dataToggle);
+	}
 	else
 	{
 		for (count = 1; count < dev->numEndpoints; count ++)
@@ -1472,6 +1486,7 @@ int kernelUsbSetDeviceConfig(usbDevice *usbDev)
 
 	int status = 0;
 
+	// Check params
 	if (!usbDev || !usbDev->configDesc)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -1482,7 +1497,7 @@ int kernelUsbSetDeviceConfig(usbDevice *usbDev)
 		usbDev->configDesc->confValue, usbDev->address);
 
 	status = kernelUsbControlTransfer(usbDev, USB_SET_CONFIGURATION,
-		usbDev->configDesc->confValue, 0, 0, NULL, NULL);
+		usbDev->configDesc->confValue, 0, 0, 0, NULL, NULL);
 
 	return (status);
 }
@@ -1606,8 +1621,8 @@ int kernelUsbSetupDeviceRequest(usbTransaction *trans, usbDeviceRequest *req)
 
 
 int kernelUsbControlTransfer(usbDevice *usbDev, unsigned char request,
-	unsigned short value, unsigned short index, unsigned short length,
-	void *buffer, unsigned *bytes)
+	unsigned short value, unsigned short index, unsigned char pid,
+	unsigned short length, void *buffer, unsigned *bytes)
 {
 	// This is a convenience function for doing a control transfer, so that
 	// callers (i.e. device drivers) don't have to construct a usbTransaction
@@ -1641,6 +1656,8 @@ int kernelUsbControlTransfer(usbDevice *usbDev, unsigned char request,
 	trans.control.index = index;
 	trans.length = length;
 	trans.buffer = buffer;
+	trans.pid = pid;
+	trans.timeout = USB_STD_TIMEOUT_MS;
 
 	status = usbDev->controller->queue(usbDev->controller, usbDev, &trans, 1);
 

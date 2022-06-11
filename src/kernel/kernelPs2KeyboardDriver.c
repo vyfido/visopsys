@@ -22,6 +22,7 @@
 // Driver for standard PS/2 PC keyboards
 
 #include "kernelDriver.h" // Contains my prototypes
+#include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
@@ -35,7 +36,7 @@
 #include <string.h>
 #include <sys/window.h>
 
-#define KEYTIMEOUT			0xFFFF
+#define KEYTIMEOUT			20 // ms
 
 // Some special scan values that we care about
 #define EXTENDED			0xE0
@@ -98,18 +99,20 @@ static int inPort60(unsigned char *data)
 	// (port 0x60).
 
 	unsigned char status = 0;
-	unsigned count;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + KEYTIMEOUT);
 
 	// Wait until the controller says it's got data of the requested type
-	for (count = 0; count < KEYTIMEOUT; count ++)
+	while (currTime <= endTime)
 	{
 		if (isData())
 		{
 			kernelProcessorInPort8(0x60, *data);
 			return (0);
 		}
-		else
-			kernelProcessorDelay();
+
+		kernelProcessorDelay();
+		currTime = kernelCpuGetMs();
 	}
 
 	kernelProcessorInPort8(0x64, status);
@@ -123,14 +126,17 @@ static int waitControllerReady(void)
 	// Wait for the controller to be ready
 
 	unsigned char status = 0;
-	unsigned count;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + KEYTIMEOUT);
 
-	for (count = 0; count < KEYTIMEOUT; count ++)
+	while (currTime <= endTime)
 	{
 		kernelProcessorInPort8(0x64, status);
 
 		if (!(status & 0x02))
 			return (0);
+
+		currTime = kernelCpuGetMs();
 	}
 
 	kernelError(kernel_error, "Controller not ready timeout, port 64=%02x",
@@ -142,14 +148,17 @@ static int waitControllerReady(void)
 static int waitCommandReceived(void)
 {
 	unsigned char status = 0;
-	unsigned count;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + KEYTIMEOUT);
 
-	for (count = 0; count < KEYTIMEOUT; count ++)
+	while (currTime <= endTime)
 	{
 		kernelProcessorInPort8(0x64, status);
 
 		if (status & 0x08)
 			return (0);
+
+		currTime = kernelCpuGetMs();
 	}
 
 	kernelError(kernel_error, "Controller receive command timeout, port "
@@ -406,7 +415,7 @@ static void interrupt(void)
 	kernelProcessorIsrEnter(address);
 	kernelInterruptSetCurrent(INTERRUPT_NUM_KEYBOARD);
 
-	kernelDebug(debug_io, "Ps2Key: keyboard interrupt");
+	kernelDebug(debug_io, "Ps2Key keyboard interrupt");
 	readData();
 
 	kernelInterruptClearCurrent();
@@ -427,7 +436,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelMemClear(&keyboard, sizeof(kernelKeyboard));
 	keyboard.type = keyboard_ps2;
 
-	kernelDebug(debug_io, "Ps2Key: get flags data from BIOS");
+	kernelDebug(debug_io, "Ps2Key get flags data from BIOS");
 
 	// Map the BIOS data area into our memory so we can get hardware
 	// information from it.
@@ -468,21 +477,21 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		kernelError(kernel_warn, "Not chaining unexpected existing handler "
 			"for keyboard int %d", INTERRUPT_NUM_KEYBOARD);
 
-	kernelDebug(debug_io, "Ps2Key: hook interrupt");
+	kernelDebug(debug_io, "Ps2Key hook interrupt");
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt);
+	status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt, NULL);
 	if (status < 0)
 		goto out;
 
-	kernelDebug(debug_io, "Ps2Key: turn on keyboard interrupt");
+	kernelDebug(debug_io, "Ps2Key turn on keyboard interrupt");
 
 	// Turn on the interrupt
 	status = kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
 	if (status < 0)
 		goto out;
 
-	kernelDebug(debug_io, "Ps2Key: enable keyboard");
+	kernelDebug(debug_io, "Ps2Key enable keyboard");
 
 	// Tell the keyboard to enable
 	outPort64(0xAE);
@@ -496,13 +505,13 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_KEYBOARD_PS2);
 	dev->driver = driver;
 
-	kernelDebug(debug_io, "Ps2Key: adding device");
-
+	// Add the kernel device
+	kernelDebug(debug_io, "Ps2Key adding device");
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
 		goto out;
 
-	kernelDebug(debug_io, "Ps2Key: finished PS/2 keyboard detection/setup");
+	kernelDebug(debug_io, "Ps2Key finished PS/2 keyboard detection/setup");
 	status = 0;
 
 out:
@@ -523,7 +532,6 @@ out:
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelPs2KeyboardDriverRegister(kernelDriver *driver)
 {

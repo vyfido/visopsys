@@ -231,6 +231,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_INTCTRL_PIC);
 	dev->driver = driver;
 
+	// Add the kernel device
 	return (status = kernelDeviceAdd(parent, dev));
 }
 

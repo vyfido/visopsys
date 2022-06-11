@@ -36,7 +36,6 @@ extern void libwindowInitialize(void);
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
 {
 	// Desc: Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.

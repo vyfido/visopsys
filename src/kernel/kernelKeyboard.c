@@ -582,7 +582,7 @@ int kernelKeyboardInitialize(void)
 	threadPid = kernelMultitaskerSpawn(keyboardThread, "keyboard thread",
 		0, NULL);
 	if (threadPid < 0)
-		return (status = threadPid);
+		kernelError(kernel_warn, "Unable to start keyboard thread");
 
 	initialized = 1;
 	return (status = 0);

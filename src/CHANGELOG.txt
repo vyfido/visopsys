@@ -1,4 +1,124 @@
 --------------
+ Version 0.76   27/12/2014
+--------------
+
+  Overview: This maintenance release is focused on improved quality, rather
+  than new features.  The EXT (Linux) filesystem driver has been re-
+  engineered, the Disk Manager program has been fixed in numerous ways, and
+  hardware drivers and subsystems such as USB, APIC, and RTC have been tuned.
+
+- Did a fairly major overhaul of the EXT filesystem driver, adding more
+adaptive feature support, plus support for EXT4 flexible block groups and
+basic support for EXT4 extent-based files.  Also fixed a little bug in the
+formatting functionality (setting the EXT_INCOMPAT_FILETYPE flag in the
+superblock).
+- Improved the new APIC driver so that it considers the correct priority order
+when returning the number of the active interrupt.  This fixes failures when
+using the VirtualPC emulator, and some failures seen with the Qemu emulator.
+- The Disk Manager program is slowly transitioning away from the notion of
+'cylinders', and towards showing the user units of sectors, megabytes, etc.
+- Added the kernel function kernelCpuGetMs() for millisecond-accurate time
+readings based on the CPU's timestamp counter (better than using the system
+timer, in most cases).
+- Some modern systems don't allow manual control the A20 address line, but
+work anyway.  The OS loader will still print an error message, but it will no
+longer terminate booting with a fatal error in such cases.
+- Added a extra support for multi-interface (composite) USB devices.
+- Improved the EHCI (USB 2.0) driver and the way it manages queue heads and
+the periodic schedule.  Interrupt queue heads for devices are no longer placed
+directly into the periodic schedule; instead linked, interval-specific queue
+heads are used.  Linked lists of queue head items are now chained correctly.
+- All USB device drivers now check to make sure a device hasn't already been
+'claimed' by another driver.
+- All USB transaction creators now specify timeout values as appropriate, and
+all of the USB host controller drivers now pay attention to those.
+- Added kernel locking to the XHCI (USB 3.0) driver.
+- Added a short delay to the XHCI (USB 3.0) controller driver, after setting
+the port reset bit, before reading it back to check for the 'clear'.  In some
+cases it can read clear straight away, but the reset hasn't completed yet,
+resulting in device detection failures.
+- Fine-tuned the PS2 mouse and keyboard timeouts, and the USB keyboard
+typematic repeat timing.
+- Exported kernelFilesystemScan() for use in user space.  This function asks
+the kernel to re-scan a logical disk to determine its filesystem type.  Useful
+for programs that do disk formatting.
+- Upgraded the model used by the 'progress' structure and threads, so that the
+threads won't terminate prematurely -- until they're explicitly told the
+operation is completed, rather than when the progress reaches 100%.
+- Added a mallocCheck() function to the dynamic memory allocation code, in
+order to perform integrity checking on demand.  Useful for debugging memory
+corruption problems.  Also added a kernelMallocCheck() interface for use in
+the kernel.
+- The USB controller drivers and the Lance ethernet driver now make use of the
+bus device 'claiming' feature.
+- The kernelInterruptHook() function now works with both interrupt handler
+functions, and tasks (like the multitasker scheduler).
+- Improved the layout code of the window library dialog boxes.
+- Got rid of the Disk Manager checks/warnings about disk geometry errors when
+performing a partition table check.  We want to reduce reliance on legacy disk
+geometry, and frequent mismatches meant a lot of scary-looking warnings that
+probably didn't amount to anything anyway.
+- In the Disk Manager, the code for specific disk label types (MS-DOS, GPT)
+now specifies the first and last available sectors for data, and the starting
+and ending values for new/moved/resized partitions are adjusted to accommodate
+these.
+- In the Disk Manager, pasting a partition now requires committing changes,
+as with format operations, erases, filesystem resizes, etc.
+- When disks or partitions are erased in the Disk Manager, it now checks for
+mounted filesystems, and the kernel is now told to re-scan the filesystem
+types, the same as after a format operation.
+- The Disk Manager now checks for a mounted filesystem before deleting a
+partition.
+- The Disk Manager no longer enables the 'set active' button/menu item when
+working with a GPT partition table.  The option is meaningless for this disk
+label type.
+- Reduced the memory usage of the command-line 'find' program; it was
+allocating too much during a deep-path directory recursion.
+- Removed unused kernel function kernelDeviceTreeGetCount().
+- Removed some old functionality for building a 'Plus' version with extra
+features.
+- Fixed: The VirtualBox emulator was not cooperating with the RTC driver, and
+the boot would fail/crash.
+- Fixed: A double-fault would occur if an exception was triggered before
+multitasking was enabled.
+- Fixed: ALT-TAB only worked for activating the top menu bar if at least one
+window existed (i.e. something in the 'Windows' menu).  It now tries to
+activate the first menubar menu that has some menu items in it.
+- Fixed: Automounting filesystems (from mount.conf) failed if no mount point
+was set.  The filesystems program doesn't force the user to specify one.  The
+kernel now attempts to use a default (/<diskname>).
+- Fixed: The Disk Manager's data moving threads could calculate incorrect
+sector numbers when copying/moving data from the start of the disk, toward the
+end of the disk.
+- Fixed: In the Disk Manager, copying and pasting partitions between MS-DOS
+disks and GPT disks wasn't working.
+- Fixed: The Disk Manager could show an incorrect diagram with certain MS-DOS
+logical partitions.  Empty spaces were being calculated using cylinder values,
+which aren't necessarily set for logical partitions, by other software.
+- Fixed: In the Disk Manager, pasting a partition into an empty disk, would
+clobber the first track, disk label, etc. of the empty disk.
+- Fixed: In the Disk Manager, MS-DOS extended partitions were not having
+their logical sizes calculated correctly (Parted would complain about
+'overlapping partitions').
+- Fixed: Corrected the numbers shown when the Disk Manager queries the user
+for partition size, when creating or resizing.
+- Fixed: In the Disk Manager, the horizontal sliders used for moving,
+resizing, and creating partitions didn't update their associated text fields
+when moved with keyboard presses.
+- Fixed: The VSH cursor menu was corrupting memory by attempting to set the
+text cursor row to a negative number, when there were too many items to fit in
+the text area/screen.  Also added better parameter checking to the
+kernelText.c code.
+- Fixed: a divide-by-zero error in the window library's windowNumberDialog
+code, that would cause it to crash when the minimum and maximum values were
+the same.
+- Fixed: 2 bugs related to GUID generation; The structure was not being
+defined as 'packed', and separately, the kernelGuidGenerate() function was
+over-writing the end of the structure by 2 bytes when writing the node ID.
+- Fixed: The file browser program would crash when passed a relative directory
+name on the command line.
+
+--------------
  Version 0.75   27/10/2014
 --------------
 

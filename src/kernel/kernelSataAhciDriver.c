@@ -899,7 +899,8 @@ static int setupController(ahciController *controller)
 
 	// Register the interrupt handler and turn on interrupts at the system
 	// level.
-	status = kernelInterruptHook(controller->interrupt, &interruptHandler);
+	status = kernelInterruptHook(controller->interrupt, &interruptHandler,
+		NULL);
 	if (status < 0)
 		return (status);
 
@@ -1651,7 +1652,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 		if (status < 0)
 			continue;
 
-		// Add the device
+		// Add the kernel device
 		status = kernelDeviceAdd(controllerDevice, diskDevice);
 		if (status < 0)
 			continue;
@@ -1889,7 +1890,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 				"controller.interrupt", value);
 		}
 
-		// Register the controller
+		// Add the kernel device
 		kernelDeviceAdd(controllers[count].busTarget.bus->dev,
 			&controllerDevices[count]);
 	}

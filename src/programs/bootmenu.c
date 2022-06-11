@@ -784,7 +784,7 @@ int main(int argc, char *argv[])
 	processId = multitaskerGetCurrentProcessId();
 
 	// Check privilege level
-	if (multitaskerGetProcessPrivilege(processId) != 0)
+	if (multitaskerGetProcessPrivilege(processId))
 	{
 		if (graphics)
 			windowNewErrorDialog(NULL, _("Permission Denied"), PERM);

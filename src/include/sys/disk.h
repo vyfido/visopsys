@@ -137,7 +137,7 @@ typedef struct {
 
 } diskStats;
 
-#define CYLSECTS(d) (d->heads * d->sectorsPerCylinder)
+#define CYLSECTS(d) ((d)->heads * (d)->sectorsPerCylinder)
 
 #define _DISK_H
 #endif

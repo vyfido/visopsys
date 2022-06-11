@@ -635,18 +635,25 @@ _X_ int diskRamDiskDestroy(const char *name)
 // Filesystem functions
 //
 
-_X_ int filesystemFormat(const char *theDisk, const char *type _U_, const char *label _U_, int longFormat _U_, progress *prog _U_)
+_X_ int filesystemScan(const char *name)
 {
-	// Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int, progress *);
-	// Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
-	return (_syscall(_fnum_filesystemFormat, &theDisk));
+	// Proto: int kernelFilesystemScan(const char *);
+	// Desc : Ask the kernel to re-scan the filesystem type on the logical volume 'name'.
+	return (_syscall(_fnum_filesystemScan, &name));
 }
 
-_X_ int filesystemClobber(const char *theDisk)
+_X_ int filesystemFormat(const char *name, const char *type _U_, const char *label _U_, int longFormat _U_, progress *prog _U_)
+{
+	// Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int, progress *);
+	// Desc : Format the logical volume 'name', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+	return (_syscall(_fnum_filesystemFormat, &name));
+}
+
+_X_ int filesystemClobber(const char *name)
 {
 	// Proto: int kernelFilesystemClobber(const char *);
 	// Desc : Clobber all known filesystem types on the logical volume 'theDisk'.  It is optional for filesystem drivers to implement this function.
-	return (_syscall(_fnum_filesystemClobber, &theDisk));
+	return (_syscall(_fnum_filesystemClobber, &name));
 }
 
 _X_ int filesystemCheck(const char *name, int force _U_, int repair _U_, progress *prog _U_)
@@ -2557,13 +2564,6 @@ _X_ int keyboardSetMap(const char *name)
 	// Proto: int kernelKeyboardSetMap(const char *);
 	// Desc : Load the keyboard map from the file 'name' and set it as the system's current mapping.  If the filename is NULL, then the default (English US) mapping will be used.
 	return (_syscall(_fnum_keyboardSetMap, &name));
-}
-
-_X_ int deviceTreeGetCount(void)
-{
-	// Proto: int kernelDeviceTreeGetCount(void);
-	// Desc : Returns the number of devices in the kernel's device tree.
-	return (_syscall(_fnum_deviceTreeGetCount, NULL));
 }
 
 _X_ int deviceTreeGetRoot(device *rootDev)

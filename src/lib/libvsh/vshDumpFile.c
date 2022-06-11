@@ -37,7 +37,7 @@ _X_ int vshDumpFile(const char *fileName)
 	char *fileBuffer = NULL;
 
 	// Make sure file name isn't NULL
-	if (fileName == NULL)
+	if (!fileName)
 		return (errno = ERR_NULLPARAMETER);
 
 	bzero(&theFile, sizeof(file));
@@ -49,7 +49,7 @@ _X_ int vshDumpFile(const char *fileName)
 
 	// Make sure the file isn't empty.  We don't want to try reading
 	// data from a nonexistent place on the disk.
-	if (theFile.size == 0)
+	if (!theFile.size)
 		// It is empty, so just return
 		return (status = 0);
 
@@ -59,7 +59,7 @@ _X_ int vshDumpFile(const char *fileName)
 
 	// Allocate a buffer to store the file contents in
 	fileBuffer = malloc((theFile.blocks * theFile.blockSize) + 1);
-	if (fileBuffer == NULL)
+	if (!fileBuffer)
 		return (errno = ERR_MEMORY);
 
 	status = fileOpen(fileName, OPENMODE_READ, &theFile);

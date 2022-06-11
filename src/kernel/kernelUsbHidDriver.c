@@ -129,6 +129,8 @@ static int getHidDescriptor(hidDevice *hidDev)
 	usbTrans.control.index = hidDev->interNum;
 	usbTrans.length = 8;
 	usbTrans.buffer = &hidDev->hidDesc;
+	usbTrans.pid = USB_PID_IN;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hidDev->busTarget, sizeof(usbTransaction),
@@ -151,7 +153,7 @@ static int setBootProtocol(hidDevice *hidDev)
 		(USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_INTERFACE);
 	usbTrans.control.request = USB_HID_SET_PROTOCOL;
 	usbTrans.control.index = hidDev->interNum;
-	usbTrans.pid = USB_PID_OUT;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hidDev->busTarget, sizeof(usbTransaction),
@@ -181,6 +183,7 @@ static void setLights(hidDevice *hidDev)
 	usbTrans.length = 1;
 	usbTrans.buffer = &report;
 	usbTrans.pid = USB_PID_OUT;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	kernelBusWrite(hidDev->busTarget, sizeof(usbTransaction),
@@ -194,6 +197,7 @@ static void keyboardThreadCall(kernelKeyboard *keyboard)
 
 	hidDevice *hidDev = keyboard->data;
 	unsigned lights = 0;
+	uquad_t currentTime = 0;
 
 	if (hidDev->keyboard.state.toggleState & KEYBOARD_SCROLL_LOCK_ACTIVE)
 		lights |= SCROLLLOCK_FLAG;
@@ -208,12 +212,16 @@ static void keyboardThreadCall(kernelKeyboard *keyboard)
 		setLights(hidDev);
 	}
 
-	if (keyboard->repeatKey && (kernelCpuTimestamp() >= keyboard->repeatTime))
+	if (keyboard->repeatKey)
 	{
-		kernelKeyboardInput(&hidDev->keyboard, EVENT_KEY_DOWN,
-			keyboard->repeatKey);
-		keyboard->repeatTime = (kernelCpuTimestamp() +
-			(kernelCpuTimestampFreq() >> 5));
+		currentTime = kernelCpuGetMs();
+
+		if (currentTime >= keyboard->repeatTime)
+		{
+			kernelKeyboardInput(&hidDev->keyboard, EVENT_KEY_DOWN,
+				keyboard->repeatKey);
+			keyboard->repeatTime = (currentTime + 32);
+		}
 	}
 }
 
@@ -336,8 +344,7 @@ static void interrupt(usbDevice *usbDev, void *buffer, unsigned length)
 			kernelKeyboardInput(&hidDev->keyboard, EVENT_KEY_DOWN, scan);
 
 			hidDev->keyboard.repeatKey = scan;
-			hidDev->keyboard.repeatTime = (kernelCpuTimestamp() +
-				(kernelCpuTimestampFreq() >> 1));
+			hidDev->keyboard.repeatTime = (kernelCpuGetMs() + 500);
 		}
 
 		if (length < sizeof(usbHidKeyboardData))
@@ -551,7 +558,7 @@ static int detectTarget(void *parent, int target, void *driver, hidType type)
 		hidDev->intrInDesc->interval, hidDev->intrInDesc->maxPacketSize,
 		&interrupt);
 
-	// Add the device
+	// Add the kernel device
 	status = kernelDeviceAdd(parent, (kernelDevice *) &hidDev->usbDev->dev);
 
 out:
@@ -596,7 +603,12 @@ static int detect(kernelDriver *driver, hidType type)
 		if (status < 0)
 			continue;
 
+		// Must be HID class
 		if (usbDev.classCode != 0x03)
+			continue;
+
+		// Already claimed?
+		if (busTargets[deviceCount].claimed)
 			continue;
 
 		if ((type == hid_keyboard) && (usbDev.protocol != 0x01))

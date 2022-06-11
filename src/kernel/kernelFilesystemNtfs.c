@@ -80,7 +80,7 @@ static int readBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 	physicalDisk = theDisk->physical;
 
 	// The sector size must be non-zero
-	if (physicalDisk->sectorSize == 0)
+	if (!physicalDisk->sectorSize)
 	{
 		kernelError(kernel_error, "Disk sector size is zero");
 		return (status = ERR_INVALID);
@@ -109,7 +109,7 @@ static int writeBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 	physicalDisk = theDisk->physical;
 
 	// The sector size must be non-zero
-	if (physicalDisk->sectorSize == 0)
+	if (!physicalDisk->sectorSize)
 	{
 		kernelError(kernel_error, "Disk sector size is zero");
 		return (status = ERR_INVALID);

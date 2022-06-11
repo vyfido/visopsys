@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-04-09 02:58+0100\n"
+"POT-Creation-Date: 2014-12-27 02:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,62 +21,62 @@ msgstr ""
 msgid "Color Chooser"
 msgstr ""
 
-#: windowColorDialog.c:139
+#: windowColorDialog.c:151
 msgid "Red"
 msgstr ""
 
-#: windowColorDialog.c:151
+#: windowColorDialog.c:182
 msgid "Green"
 msgstr ""
 
-#: windowColorDialog.c:162
+#: windowColorDialog.c:212
 msgid "Blue"
 msgstr ""
 
-#: windowColorDialog.c:209 windowFileDialog.c:187 windowLanguageDialog.c:196
-#: windowNumberDialog.c:146 windowOkDialog.c:107 windowPromptDialog.c:105
-#: windowQueryDialog.c:58 windowRadioDialog.c:140
+#: windowColorDialog.c:264 windowFileDialog.c:207 windowLanguageDialog.c:197
+#: windowNumberDialog.c:166 windowOkDialog.c:127 windowPromptDialog.c:135
+#: windowQueryDialog.c:57 windowRadioDialog.c:157
 msgid "OK"
 msgstr ""
 
-#: windowColorDialog.c:218 windowFileDialog.c:199 windowLanguageDialog.c:207
-#: windowNumberDialog.c:153 windowProgressDialog.c:239
-#: windowPromptDialog.c:112 windowQueryDialog.c:58 windowRadioDialog.c:151
+#: windowColorDialog.c:274 windowFileDialog.c:217 windowLanguageDialog.c:207
+#: windowNumberDialog.c:171 windowProgressDialog.c:258
+#: windowPromptDialog.c:145 windowQueryDialog.c:57 windowRadioDialog.c:169
 msgid "Cancel"
 msgstr ""
 
-#: windowFileList.c:174 windowProgressDialog.c:124
+#: windowFileList.c:174 windowProgressDialog.c:122
 msgid "Error"
 msgstr ""
 
-#: windowFileList.c:271 windowFileList.c:295
+#: windowFileList.c:272 windowFileList.c:296
 msgid "(up)"
 msgstr ""
 
-#: windowFileList.c:345
+#: windowFileList.c:346
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr ""
 
-#: windowFileList.c:356
+#: windowFileList.c:357
 msgid "Memory allocation error"
 msgstr ""
 
-#: windowFileList.c:369
+#: windowFileList.c:370
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr ""
 
-#: windowFileList.c:409
+#: windowFileList.c:410
 msgid "Memory allocation error creating icon parameters"
 msgstr ""
 
-#: windowFileList.c:541
+#: windowFileList.c:542
 #, c-format
 msgid "Can't change to directory %s"
 msgstr ""
 
-#: windowFileList.c:565
+#: windowFileList.c:566
 #, c-format
 msgid "Error deleting file %s"
 msgstr ""
@@ -90,6 +90,6 @@ msgstr ""
 msgid "Language Chooser"
 msgstr ""
 
-#: windowProgressDialog.c:112
+#: windowProgressDialog.c:111
 msgid "Confirmation"
 msgstr ""

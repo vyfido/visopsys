@@ -89,6 +89,7 @@ void _doFree(void *, const char *);
 int _mallocBlockInfo(void *, memoryBlock *);
 int _mallocGetStats(memoryStats *);
 int _mallocGetBlocks(memoryBlock *, int);
+int _mallocCheck(void);
 
 #define _MEMORY_H
 #endif

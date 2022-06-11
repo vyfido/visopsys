@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-04-30 01:39+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: 2014-01-22 17:47-0400\n"
 "Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -136,21 +136,21 @@ msgstr "%s [-l] [-s] [-t Typ] [-T] [Disk_name]\n"
 msgid "Missing volume name argument for '-n' option"
 msgstr "Volumennamen-Argument für '-n' Option fehlt"
 
-#: format.c:447
+#: format.c:448
 msgid "Missing type argument for '-t' option"
 msgstr "Typen-Argument für '-t' Option fehlt"
 
-#: format.c:460
+#: format.c:461
 #, c-format
 msgid "Missing parameter for %s option"
 msgstr "Parameter für %s Option fehlt"
 
-#: format.c:465
+#: format.c:466
 #, c-format
 msgid "Unknown option '%c'"
 msgstr "Unbekannte Option '%c'"
 
-#: format.c:481
+#: format.c:482
 msgid ""
 "\n"
 "Visopsys FORMAT Utility\n"
@@ -160,7 +160,7 @@ msgstr ""
 "Visopsys FORMAT Werkzeug\n"
 "Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
 
-#: format.c:503
+#: format.c:504
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -168,7 +168,7 @@ msgstr ""
 "Sie brauchen spezielle Rechte für dieses Kommando.\n"
 "(Versuchen Sie, sich als \"admin\" einzuloggen)"
 
-#: format.c:521
+#: format.c:522
 #, c-format
 msgid ""
 "Formatting disk %s as %s.  All data currenly on the disk will be lost.\n"
@@ -177,7 +177,7 @@ msgstr ""
 "Formatiere Disk %s als %s. Alle Daten auf der Disk werden gelöscht.\n"
 "Sind Sie sicher?"
 
-#: format.c:526 format.c:550
+#: format.c:527 format.c:551
 msgid ""
 "\n"
 "Quitting.\n"
@@ -185,7 +185,7 @@ msgstr ""
 "\n"
 "Schliesse.\n"
 
-#: format.c:544
+#: format.c:545
 msgid ""
 "\n"
 "YOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  I probably shouldn't let you\n"
@@ -197,11 +197,11 @@ msgstr ""
 "Nach der Formatierung sollten Sie den Computer neustarten.\n"
 "Wollen Sie WIRKLICH fortfahren?"
 
-#: format.c:559
+#: format.c:561
 msgid "Formatting..."
 msgstr "Formatiere..."
 
-#: format.c:594
+#: format.c:601
 msgid "Success"
 msgstr "Erfolg"
 

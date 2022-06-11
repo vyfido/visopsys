@@ -30,11 +30,12 @@ typedef volatile struct {
 	extSuperblock superblock;
 	unsigned blockSize;
 	unsigned sectorsPerBlock;
-	extGroupDescriptor *groups;
 	unsigned numGroups;
+	extGroupDesc *groups;
 	const kernelDisk *disk;
 
 } extInternalData;
 
 #define _KERNELFILESYSTEMEXT_H
 #endif
+

@@ -48,17 +48,18 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 
 	int status = 0;
 	objectKey dialogWindow = NULL;
-	componentParameters params;
+	objectKey container = NULL;
 	objectKey field = NULL;
 	objectKey okButton = NULL;
 	objectKey cancelButton = NULL;
+	componentParameters params;
 	windowEvent event;
 
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (message == NULL) || (buffer == NULL))
+	if (!title || !message || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	buffer[0] = '\0';
@@ -68,7 +69,8 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		dialogWindow = windowNewDialog(parentWindow, title);
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-	if (dialogWindow == NULL)
+
+	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
 	bzero(&params, sizeof(componentParameters));
@@ -77,42 +79,79 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
+	params.padBottom = 5;
 	params.orientationX = orient_center;
-	params.orientationY = orient_top;
+	params.orientationY = orient_middle;
 
+	// Get a container to pack everything into
+	container = windowNewContainer(dialogWindow, "container", &params);
+	if (!container)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
+	// Make a label with the prompt
 	params.gridWidth = 2;
-	windowNewTextLabel(dialogWindow, message, &params);
+	params.padLeft = 0;
+	params.padRight = 0;
+	params.padTop = 0;
+	params.orientationX = orient_left;
+	params.orientationY = orient_top;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	windowNewTextLabel(container, message, &params);
 
-	params.gridY = 1;
-	params.padTop = 5;
+	// Make the text field(s)
+	params.gridY++;
+	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
 	if (type == passwordDialog)
-		field = windowNewPasswordField(dialogWindow, columns, &params);
+	{
+		field = windowNewPasswordField(container, columns, &params);
+	}
 	else
 	{
 		if (rows <= 1)
-			field = windowNewTextField(dialogWindow, columns, &params);
+			field = windowNewTextField(container, columns, &params);
 		else
-			field = windowNewTextArea(dialogWindow, columns, rows, 0, &params);
+			field = windowNewTextArea(container, columns, rows, 0, &params);
 	}
+
+	if (!field)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
 	windowComponentFocus(field);
 
 	// Create the OK button
-	params.gridY = 2;
+	params.gridY++;
 	params.gridWidth = 1;
+	params.padLeft = 2;
+	params.padRight = 2;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-	okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	okButton = windowNewButton(container, _("OK"), NULL, &params);
+	if (!okButton)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
 	// Create the Cancel button
-	params.gridX = 1;
-	params.padLeft = 0;
-	params.padRight = 5;
+	params.gridX++;
 	params.orientationX = orient_left;
-	cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
+	cancelButton = windowNewButton(container, _("Cancel"), NULL, &params);
+	if (!cancelButton)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	while (1)
@@ -120,19 +159,23 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		// Check for the OK button
 		status = windowComponentEventGet(okButton, &event);
 		if (status < 0)
+		{
 			break;
+		}
 		else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 		{
 			status = windowComponentGetData(field, buffer, (rows * columns));
 			if (status < 0)
 				break;
+
 			status = strlen(buffer);
-				break;
+			break;
 		}
 
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) ||
+			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 		{
 			status = 0;
 			break;
@@ -140,7 +183,8 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+		if ((status < 0) ||
+			((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
 		{
 			status = 0;
 			break;
@@ -149,22 +193,29 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		// Check for keyboard events
 		status = windowComponentEventGet(field, &event);
 		if (status < 0)
+		{
 			break;
+		}
 		else if ((event.type == EVENT_KEY_DOWN) &&
 			(event.key == (unsigned char) ASCII_ENTER))
 		{
 			status = windowComponentGetData(field, buffer, (rows * columns));
 			if (status < 0)
 				break;
+
 			status = strlen(buffer);
-				break;
+			break;
 		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
 
-	windowDestroy(dialogWindow);
+
+out:
+	if (dialogWindow)
+		windowDestroy(dialogWindow);
+
 	return (status);
 }
 
@@ -176,7 +227,6 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 _X_ int windowNewPromptDialog(objectKey parentWindow, const char *title, const char *message, int rows, int columns, char *buffer)
 {

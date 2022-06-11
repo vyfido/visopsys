@@ -44,9 +44,10 @@ of filesystem drivers (as a testing mechanism)
 </help>
 */
 
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
 
@@ -55,7 +56,7 @@ static void recurseDirectory(const char *dirPath)
 {
 	int status = 0;
 	file theFile;
-	char newDirPath[MAX_PATH_LENGTH];
+	char *newDirPath = NULL;
 
 	// Initialize the file structure
 	bzero(&theFile, sizeof(file));
@@ -63,7 +64,7 @@ static void recurseDirectory(const char *dirPath)
 	// Get the first item in the directory
 	status = fileFirst(dirPath, &theFile);
 	if (status < 0)
-	return;
+		return;
 
 	// Loop through the contents of the directory
 	while (1)
@@ -75,9 +76,17 @@ static void recurseDirectory(const char *dirPath)
 
 			if (theFile.type == dirT)
 			{
-				// Construct the relative pathname for this directory
-				sprintf(newDirPath, "%s/%s", dirPath, theFile.name);
-				recurseDirectory(newDirPath);
+				newDirPath = malloc(strlen(dirPath) + strlen(theFile.name) +
+					2);
+
+				if (newDirPath)
+				{
+					// Construct the relative pathname for this directory
+					sprintf(newDirPath, "%s/%s", dirPath, theFile.name);
+					recurseDirectory(newDirPath);
+
+					free(newDirPath);
+				}
 			}
 		}
 
@@ -93,10 +102,19 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	file theFile;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char *fileName = NULL;
+	int lastChar = 0;
 
 	// Initialize the file structure
 	bzero(&theFile, sizeof(file));
+
+	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	if (!fileName)
+	{
+		errno = ERR_MEMORY;
+		perror(argv[0]);
+		return (status);
+	}
 
 	if (argc == 1)
 		// No args.  Assume current directory
@@ -105,7 +123,7 @@ int main(int argc, char *argv[])
 		strcpy(fileName, argv[1]);
 
 	// Remove any trailing separators
-	int lastChar = (strlen(fileName) - 1);
+	lastChar = (strlen(fileName) - 1);
 	while ((fileName[lastChar] == '/') || (fileName[lastChar] == '\\'))
 	{
 		fileName[lastChar] = '\0';
@@ -128,6 +146,9 @@ int main(int argc, char *argv[])
 		// If it's a directory, we start our recursion.  Otherwise just print it
 		recurseDirectory(fileName);
 
+	free(fileName);
+
 	// Return success
 	return (status = 0);
 }
+

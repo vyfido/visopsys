@@ -960,7 +960,7 @@ int kernelGuidGenerate(guid *g)
 	g->clockSeqLow = (clockSeq & 0xFFFF);
 	// Random node ID
 	*((unsigned *) g->node) = kernelRandomUnformatted();
-	*((unsigned *) (g->node + 4)) = (kernelRandomUnformatted() >> 16);
+	*((unsigned short *)(g->node + 4)) = (kernelRandomUnformatted() >> 16);
 
 	kernelLockRelease(&globalLock);
 

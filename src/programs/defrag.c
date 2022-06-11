@@ -368,7 +368,7 @@ int main(int argc, char *argv[])
 	processId = multitaskerGetCurrentProcessId();
 
 	// Check privilege level
-	if (multitaskerGetProcessPrivilege(processId) != 0)
+	if (multitaskerGetProcessPrivilege(processId))
 	{
 		error("%s", _("You must be a privileged user to use this command.\n"
 			"(Try logging in as user \"admin\")"));

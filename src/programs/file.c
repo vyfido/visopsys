@@ -39,7 +39,7 @@ Example:
   file /visopsys
 
 Will produce the output:
- visopsys: ELF binary executable
+  visopsys: ELF binary executable
 
 </help>
 */

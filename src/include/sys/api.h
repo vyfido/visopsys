@@ -148,16 +148,17 @@ extern int visopsys_in_kernel;
 #define _fnum_diskRamDiskDestroy				2024
 
 // Filesystem functions.	All are in the 3000-3999 range.
-#define _fnum_filesystemFormat					3000
-#define _fnum_filesystemClobber					3001
-#define _fnum_filesystemCheck					3002
-#define _fnum_filesystemDefragment				3003
-#define _fnum_filesystemResizeConstraints		3004
-#define _fnum_filesystemResize					3005
-#define _fnum_filesystemMount					3006
-#define _fnum_filesystemUnmount					3007
-#define _fnum_filesystemGetFreeBytes			3008
-#define _fnum_filesystemGetBlockSize			3009
+#define _fnum_filesystemScan					3000
+#define _fnum_filesystemFormat					3001
+#define _fnum_filesystemClobber					3002
+#define _fnum_filesystemCheck					3003
+#define _fnum_filesystemDefragment				3004
+#define _fnum_filesystemResizeConstraints		3005
+#define _fnum_filesystemResize					3006
+#define _fnum_filesystemMount					3007
+#define _fnum_filesystemUnmount					3008
+#define _fnum_filesystemGetFreeBytes			3009
+#define _fnum_filesystemGetBlockSize			3010
 
 // File functions.	All are in the 4000-4999 range.
 #define _fnum_fileFixupPath						4000
@@ -438,13 +439,12 @@ extern int visopsys_in_kernel;
 #define _fnum_crc32								99031
 #define _fnum_keyboardGetMap					99032
 #define _fnum_keyboardSetMap					99033
-#define _fnum_deviceTreeGetCount				99034
-#define _fnum_deviceTreeGetRoot					99035
-#define _fnum_deviceTreeGetChild				99036
-#define _fnum_deviceTreeGetNext					99037
-#define _fnum_mouseLoadPointer					99038
-#define _fnum_pageGetPhysical					99039
-#define _fnum_setLicensed						99040
+#define _fnum_deviceTreeGetRoot					99034
+#define _fnum_deviceTreeGetChild				99035
+#define _fnum_deviceTreeGetNext					99036
+#define _fnum_mouseLoadPointer					99037
+#define _fnum_pageGetPhysical					99038
+#define _fnum_setLicensed						99039
 
 
 //
@@ -538,6 +538,7 @@ int diskRamDiskDestroy(const char *);
 //
 // Filesystem functions
 //
+int filesystemScan(const char *);
 int filesystemFormat(const char *, const char *, const char *, int,
 	progress *);
 int filesystemClobber(const char *);
@@ -866,7 +867,6 @@ int guidGenerate(guid *);
 unsigned crc32(void *, unsigned, unsigned *);
 int keyboardGetMap(keyMap *);
 int keyboardSetMap(const char *);
-int deviceTreeGetCount(void);
 int deviceTreeGetRoot(device *);
 int deviceTreeGetChild(device *, device *);
 int deviceTreeGetNext(device *);

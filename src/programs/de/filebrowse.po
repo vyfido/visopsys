@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,7 @@ msgstr "Fehler"
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:413
+#: filebrowse.c:420
 #, c-format
 msgid ""
 "\n"
@@ -55,15 +55,15 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: filebrowse.c:427
+#: filebrowse.c:434
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherverteilung"
 
-#: filebrowse.c:442
+#: filebrowse.c:449
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr "Es konnte nicht ins Verzeichnis \"%s\" gewechselt werden"
 
-#: filebrowse.c:448
+#: filebrowse.c:456
 msgid "Can't determine current directory"
 msgstr "Das aktuelle Verzeichnis kann nicht bestimmt werden"

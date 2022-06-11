@@ -35,7 +35,8 @@
 #include <errno.h>
 #include <string.h>
 
-#define MOUSETIMEOUT 0xFFFFFFF
+#define MOUSE_SHORT_TIMEOUT		50 // ms
+#define MOUSE_LONG_TIMEOUT		250 // ms
 
 typedef enum {
 	keyboard_input = 0x01,
@@ -66,25 +67,27 @@ static inline int isData(inputType type)
 }
 
 
-static int inPort60(unsigned char *data, inputType type)
+static int inPort60(unsigned char *data, inputType type, unsigned timeout)
 {
 	// Input a value from the keyboard controller's data port, after checking
 	// to make sure that there's some data of the correct type waiting for us
 	// (port 0x60).
 
 	unsigned char status = 0;
-	unsigned count;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + timeout);
 
 	// Wait until the controller says it's got data of the requested type
-	for (count = 0; count < MOUSETIMEOUT; count ++)
+	while (currTime <= endTime)
 	{
 		if (isData(type))
 		{
 			kernelProcessorInPort8(0x60, *data);
 			return (0);
 		}
-		else
-			kernelProcessorDelay();
+
+		kernelProcessorDelay();
+		currTime = kernelCpuGetMs();
 	}
 
 	kernelProcessorInPort8(0x64, status);
@@ -93,19 +96,22 @@ static int inPort60(unsigned char *data, inputType type)
 }
 
 
-static int waitControllerReady(void)
+static int waitControllerReady(unsigned timeout)
 {
 	// Wait for the controller to be ready
 
 	unsigned char status = 0;
-	unsigned count;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + timeout);
 
-	for (count = 0; count < MOUSETIMEOUT; count ++)
+	while (currTime <= endTime)
 	{
 		kernelProcessorInPort8(0x64, status);
 
 		if (!(status & 0x02))
 			return (0);
+
+		currTime = kernelCpuGetMs();
 	}
 
 	kernelError(kernel_error, "Controller not ready timeout, port 64=%02x",
@@ -114,17 +120,20 @@ static int waitControllerReady(void)
 }
 
 
-static int waitCommandReceived(void)
+static int waitCommandReceived(unsigned timeout)
 {
 	unsigned char status = 0;
-	unsigned count;
+	uquad_t currTime = kernelCpuGetMs();
+	uquad_t endTime = (currTime + timeout);
 
-	for (count = 0; count < MOUSETIMEOUT; count ++)
+	while (currTime <= endTime)
 	{
 		kernelProcessorInPort8(0x64, status);
 
 		if (status & 0x08)
 			return (0);
+
+		currTime = kernelCpuGetMs();
 	}
 
 	kernelError(kernel_error, "Controller receive command timeout, port "
@@ -140,7 +149,7 @@ static int outPort60(unsigned char data)
 
 	int status = 0;
 
-	status = waitControllerReady();
+	status = waitControllerReady(MOUSE_SHORT_TIMEOUT);
 	if (status < 0)
 		return (status);
 
@@ -150,21 +159,21 @@ static int outPort60(unsigned char data)
 }
 
 
-static int outPort64(unsigned char data)
+static int outPort64(unsigned char data, unsigned timeout)
 {
 	// Output a value to the keyboard controller's command port, after checking
 	// that it's able to receive data (port 0x64).
 
 	int status = 0;
 
-	status = waitControllerReady();
+	status = waitControllerReady(timeout);
 	if (status < 0)
 		return (status);
 
 	kernelProcessorOutPort8(0x64, data);
 
 	// Wait until the controller believes it has received it.
-	status = waitCommandReceived();
+	status = waitCommandReceived(timeout);
 	if (status < 0)
 		return (status);
 
@@ -188,13 +197,14 @@ static int readData(void)
 	int xChange = 0, yChange = 0, zChange = 0;
 
 	// Disable keyboard output here, because our data reads are not atomic
-	status = outPort64(0xAD);
+	status = outPort64(0xAD, MOUSE_SHORT_TIMEOUT);
 	if (status < 0)
 		goto out;
 
 	while (isData(mouse_input))
 	{
-		status = inPort60(&packet[packetByte], mouse_input);
+		status = inPort60(&packet[packetByte], mouse_input,
+			MOUSE_SHORT_TIMEOUT);
 		if (status < 0)
 			goto out;
 
@@ -271,7 +281,7 @@ out:
 	ackInterrupt();
 
 	// Re-enable keyboard output
-	outPort64(0xAE);
+	outPort64(0xAE, MOUSE_SHORT_TIMEOUT);
 
 	return (status);
 }
@@ -312,7 +322,7 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 
 	// Mouse command
 	kernelDebug(debug_io, "Ps2Mouse MC");
-	status = outPort64(0xD4);
+	status = outPort64(0xD4, MOUSE_LONG_TIMEOUT);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Error writing command");
@@ -331,7 +341,7 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 		}
 
 		// Read the ack 0xFA
-		status = inPort60(&data, mouse_input);
+		status = inPort60(&data, mouse_input, MOUSE_LONG_TIMEOUT);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Error reading ack");
@@ -366,17 +376,18 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 		}
 	}
 
-	// If this is a reset command, wait a little bit for the operation to
-	// complete
-	if (cmd == 0xFF)
-		kernelCpuSpinMs(250);
-
 	// Now, if there are parameters to this command
 	for (count = 0; count < numParams; count ++)
 	{
 		if (inParams)
 		{
-			status = inPort60(&data, mouse_input);
+			// If this is a reset command, wait a little bit for the operation
+			// to complete
+			if ((cmd == 0xFF) && !count)
+				status = inPort60(&data, mouse_input, 1000 /* ms */);
+			else
+				status = inPort60(&data, mouse_input, MOUSE_LONG_TIMEOUT);
+
 			if (status < 0)
 			{
 				kernelError(kernel_error, "Error reading command parameter %d",
@@ -392,7 +403,7 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 		else if (outParams)
 		{
 			// Mouse command
-			status = outPort64(0xD4);
+			status = outPort64(0xD4, MOUSE_LONG_TIMEOUT);
 			if (status < 0)
 			{
 				kernelError(kernel_error, "Error writing command");
@@ -413,7 +424,7 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 					outParams[count], outParams[count]);
 
 				// Read the ack 0xFA
-				status = inPort60(&data, mouse_input);
+				status = inPort60(&data, mouse_input, MOUSE_LONG_TIMEOUT);
 				if (status < 0)
 				{
 					kernelError(kernel_error, "Error reading ack");
@@ -565,7 +576,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelPicMask(INTERRUPT_NUM_KEYBOARD, 0);
 
 	// Disable keyboard output here, because our data reads are not atomic
-	status = outPort64(0xAD);
+	status = outPort64(0xAD, MOUSE_LONG_TIMEOUT);
 	if (status < 0)
 		goto exit;
 
@@ -573,15 +584,15 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Make sure the controller is set to issue mouse interrupts and make sure
 	// the 'disable mouse' bit is clear
-	outPort64(0x20);
-	inPort60(&data, keyboard_input);
+	outPort64(0x20, MOUSE_LONG_TIMEOUT);
+	inPort60(&data, keyboard_input, MOUSE_LONG_TIMEOUT);
 
 	if ((data & 0x20) || !(data & 0x02))
 	{
 		kernelDebug(debug_io, "Ps2Mouse turn on mouse interrupts");
 		data &= ~0x20;
 		data |= 0x02;
-		outPort64(0x60);
+		outPort64(0x60, MOUSE_LONG_TIMEOUT);
 		outPort60(data);
 	}
 
@@ -598,7 +609,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Register our interrupt handler
 	kernelDebug(debug_io, "Ps2Mouse hook interrupt");
-	status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt);
+	status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt, NULL);
 	if (status < 0)
 		goto exit;
 
@@ -623,7 +634,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
 	dev->driver = driver;
 
-	// Add the device
+	// Add the kernel device
 	kernelDebug(debug_io, "Ps2Mouse add device");
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
@@ -653,11 +664,11 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	status = 0;
 
 exit:
+	// Re-enable keyboard output
+	outPort64(0xAE, MOUSE_LONG_TIMEOUT);
+
 	// Restore keyboard interrupts
 	kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
-
-	// Re-enable keyboard output
-	outPort64(0xAE);
 
 	if (status < 0)
 	{
@@ -681,7 +692,6 @@ exit:
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelPs2MouseDriverRegister(kernelDriver *driver)
 {

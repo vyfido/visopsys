@@ -30,7 +30,6 @@
 #include "kernelError.h"
 #include <string.h>
 
-
 // Space for the global descriptor table
 static volatile kernelDescriptor globalDescriptorTable[GDT_SIZE];
 static volatile kernelDescriptor interruptDescriptorTable[IDT_SIZE];
@@ -50,7 +49,6 @@ static int initialized = 0;
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelDescriptorInitialize(void)
 {
@@ -233,7 +231,7 @@ int kernelDescriptorRequest(volatile kernelSelector *descNumPointer)
 		return (status = ERR_NOFREE);
 
 	// Make sure the pointer->pointer parameter we were passed isn't NULL
-	if (descNumPointer == NULL)
+	if (!descNumPointer)
 		// Oops.
 		return (status = ERR_NULLPARAMETER);
 
@@ -241,7 +239,7 @@ int kernelDescriptorRequest(volatile kernelSelector *descNumPointer)
 	newDescriptorNumber = freeDescriptors[0];
 
 	// (Make sure it isn't NULL)
-	if (newDescriptorNumber == 0)
+	if (!newDescriptorNumber)
 		// Crap.  We're corrupted or something
 		return (status = ERR_BADDATA);
 
@@ -452,7 +450,7 @@ int kernelDescriptorGet(kernelSelector selector, kernelDescriptor *descriptor)
 	entryNumber = (selector >> 3);
 
 	// Make sure the kernelDescriptor pointer we're being passed is not NULL
-	if (descriptor == NULL)
+	if (!descriptor)
 		return (status = ERR_NULLPARAMETER);
 
 	// OK, let's get the values from the requested table entry and fill out
@@ -568,3 +566,4 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
 	// There.  We made a task gate descriptor.
 	return (status = 0);
 }
+

@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/gpt.h>
 #include <sys/iso.h>
 #include <sys/msdos.h>
 
@@ -1041,7 +1042,7 @@ static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
 
 	prevSectors = (startSector - buffer->startSector);
 	nextSectors = ((buffer->startSector + buffer->numSectors) -
-		 (startSector + numSectors));
+		(startSector + numSectors));
 
 	if (!prevSectors && !nextSectors)
 	{
@@ -1962,7 +1963,7 @@ static int identifyBootCd(void)
 		}
 
 		// Make sure that this is a boot sector
-		if (*((unsigned short *)(buffer + 510)) != 0xAA55)
+		if (*((unsigned short *)(buffer + 510)) != MSDOS_BOOT_SIGNATURE)
 		{
 			kernelDebugError("%s first sector of boot image is not valid",
 				physicalDisk->name);
@@ -2309,16 +2310,6 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 	if (status < 0)
 		return;
 
-	// See if a mount point is specified
-	snprintf(variable, 128, "%s.mountpoint", theDisk->name);
-	value = kernelVariableListGet(&mountConfig, variable);
-	if (!value)
-		goto out;
-
-	status = kernelFileFixupPath(value, mountPoint);
-	if (status < 0)
-		goto out;
-
 	// See if we're supposed to automount it.
 	snprintf(variable, 128, "%s.automount", theDisk->name);
 	value = kernelVariableListGet(&mountConfig, variable);
@@ -2328,6 +2319,7 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 	if (strcasecmp(value, "yes"))
 		goto out;
 
+	// Does the disk have removable media?
 	if ((theDisk->physical->type & DISKTYPE_REMOVABLE) &&
 		// See if there's any media there
 		!kernelDiskMediaPresent((const char *) theDisk->name))
@@ -2335,6 +2327,21 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 		kernelError(kernel_error, "Can't automount %s on disk %s - no media",
 			mountPoint, theDisk->name);
 		goto out;
+	}
+
+	// See if a mount point is specified
+	snprintf(variable, 128, "%s.mountpoint", theDisk->name);
+	value = kernelVariableListGet(&mountConfig, variable);
+	if (value)
+	{
+		status = kernelFileFixupPath(value, mountPoint);
+		if (status < 0)
+			goto out;
+	}
+	else
+	{
+		// Try a default
+		sprintf(mountPoint, "/%s", theDisk->name);
 	}
 
 	kernelFilesystemMount((const char *) theDisk->name, mountPoint);
@@ -2622,17 +2629,21 @@ int kernelDiskReadPartitions(const char *diskName)
 		// Check to see if it's a GPT disk first, since a GPT disk is also
 		// technically an MS-DOS disk.
 		if (isGptDisk(physicalDisk) == 1)
+		{
 			status = readGptPartitions(physicalDisk, newLogicalDisks,
 				&newLogicalDiskCounter);
-
+		}
 		// Now check whether it's an MS-DOS disk.
 		else if (isDosDisk(physicalDisk) == 1)
+		{
 			status = readDosPartitions(physicalDisk, newLogicalDisks,
 				&newLogicalDiskCounter);
-
+		}
 		else
+		{
 			kernelDebug(debug_io, "Disk %s unknown disk label",
 				physicalDisk->name);
+		}
 
 		if (status < 0)
 			return (status);
@@ -2676,7 +2687,7 @@ int kernelDiskReadPartitions(const char *diskName)
 		if (logicalDisk->physical == physicalDisk)
 		{
 			if (physicalDisk->flags & DISKFLAG_MOTORON)
-				kernelFilesystemScan(logicalDisk);
+				kernelFilesystemScan((char *) logicalDisk->name);
 
 			kernelLog("Disk %s (%sdisk %s, %s): %s", logicalDisk->name,
 				((physicalDisk->type & DISKTYPE_HARDDISK)? "hard " : ""),
@@ -2966,7 +2977,7 @@ int kernelDiskGetFilesystemType(const char *diskName, char *buffer,
 	}
 
 	// See if we can determine the filesystem type
-	status = kernelFilesystemScan(logicalDisk);
+	status = kernelFilesystemScan((char *) logicalDisk->name);
 	if (status < 0)
 		return (status);
 
@@ -3430,7 +3441,7 @@ int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
 
 	// Call the read-write routine for a read operation
 	status = readWrite(physicalDisk, logicalSector, numSectors, dataPointer,
-			 IOMODE_READ);
+		IOMODE_READ);
 
 	// Unlock the disk
 	kernelLockRelease(&physicalDisk->lock);

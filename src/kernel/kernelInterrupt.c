@@ -22,7 +22,6 @@
 // Interrupt handling routines for basic exceptions and hardware interfaces.
 
 #include "kernelInterrupt.h"
-#include "kernelDescriptor.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
@@ -75,7 +74,6 @@ static void intHandlerUnimp(void)
 }
 
 
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -83,7 +81,6 @@ static void intHandlerUnimp(void)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelInterruptInitialize(void)
 {
@@ -142,7 +139,8 @@ void *kernelInterruptGetHandler(int intNumber)
 }
 
 
-int kernelInterruptHook(int intNumber, void *handlerAddress)
+int kernelInterruptHook(int intNumber, void *handlerAddress,
+	kernelSelector handlerTask)
 {
 	// This allows the requested interrupt number to be hooked by a new
 	// handler.  At the moment it doesn't chain them, so anyone who calls
@@ -155,6 +153,15 @@ int kernelInterruptHook(int intNumber, void *handlerAddress)
 
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!((handlerAddress && !handlerTask) ||
+		(!handlerAddress && handlerTask)))
+	{
+		kernelError(kernel_error, "Exactly one of handlerAddress or "
+			"handlerTask must be set");
+		return (status = ERR_INVALID);
+	}
 
 	vector = kernelPicGetVector(intNumber);
 	if (vector < 0)
@@ -169,13 +176,18 @@ int kernelInterruptHook(int intNumber, void *handlerAddress)
 			return (status = ERR_MEMORY);
 	}
 
-	status = kernelDescriptorSetIDTInterruptGate(vector, handlerAddress);
-	if (status < 0)
-		return (status);
+	if (handlerAddress)
+	{
+		vectorList[intNumber] = handlerAddress;
+		status = kernelDescriptorSetIDTInterruptGate(vector, handlerAddress);
+	}
+	else
+	{
+		vectorList[intNumber] = (void *) handlerTask;
+		status = kernelDescriptorSetIDTTaskGate(vector, handlerTask);
+	}
 
-	vectorList[intNumber] = handlerAddress;
-
-	return (status = 0);
+	return (status);
 }
 
 

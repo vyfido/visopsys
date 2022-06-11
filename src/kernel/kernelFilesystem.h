@@ -87,7 +87,7 @@ int kernelFilesystemNtfsInitialize(void);
 int kernelFilesystemUdfInitialize(void);
 
 // Functions exported by kernelFilesystem.c
-int kernelFilesystemScan(kernelDisk *);
+int kernelFilesystemScan(const char *);
 int kernelFilesystemFormat(const char *, const char *, const char *, int,
 	progress *);
 int kernelFilesystemClobber(const char *);

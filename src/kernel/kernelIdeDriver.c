@@ -2609,7 +2609,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 			// Claim the controller device in the list of PCI targets.
 			kernelBusDeviceClaim(&(pciTargets[deviceCount]), driver);
 
-			// Register the controller
+			// Add the kernel device
 			kernelDeviceAdd(pciTargets[deviceCount].bus->dev,
 				controllerDevices[numControllers]);
 
@@ -2757,7 +2757,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 			status =
 				kernelInterruptHook(controllers[controllerCount].pciInterrupt,
-					&pciIdeInterrupt);
+					&pciIdeInterrupt, NULL);
 			if (status < 0)
 				continue;
 
@@ -2788,9 +2788,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 					CHANNEL(controllerCount, 0).interrupt);
 			}
 
-			status =
-				kernelInterruptHook(CHANNEL(controllerCount, 0).interrupt,
-					&primaryIdeInterrupt);
+			status = kernelInterruptHook(CHANNEL(controllerCount, 0).interrupt,
+				&primaryIdeInterrupt, NULL);
 			if (status < 0)
 				continue;
 
@@ -2819,9 +2818,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 					CHANNEL(controllerCount, 1).interrupt);
 			}
 
-			status =
-				kernelInterruptHook(CHANNEL(controllerCount, 1).interrupt,
-					&secondaryIdeInterrupt);
+			status = kernelInterruptHook(CHANNEL(controllerCount, 1).interrupt,
+				&secondaryIdeInterrupt, NULL);
 			if (status < 0)
 				continue;
 
@@ -3278,6 +3276,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 				if (status < 0)
 					continue;
 
+				// Add the kernel device
 				status = kernelDeviceAdd(controllerDevices[controllerCount],
 					&devices[deviceCount]);
 				if (status < 0)

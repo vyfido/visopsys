@@ -906,7 +906,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 			"for floppy int %d", INTERRUPT_NUM_FLOPPY);
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt);
+	status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt, NULL);
 	if (status < 0)
 		goto out;
 
@@ -941,6 +941,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		if (status < 0)
 			kernelError(kernel_error, "Couldn't register the floppy disk");
 
+		// Add the kernel device
 		status = kernelDeviceAdd(parent, theDevice);
 		if (status < 0)
 		{

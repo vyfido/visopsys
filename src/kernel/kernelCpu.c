@@ -51,7 +51,7 @@ static struct {
 	{ NULL, NULL }
 };
 
-uquad_t timestampFreq = 0;
+static uquad_t timestampFreq = 0;
 
 
 static kernelDevice *regDevice(void *parent, void *driver,
@@ -71,6 +71,7 @@ static kernelDevice *regDevice(void *parent, void *driver,
 	dev->device.subClass = subClass;
 	dev->driver = driver;
 
+	// Add the kernel device
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
 	{
@@ -213,7 +214,6 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 void kernelCpuDriverRegister(kernelDriver *driver)
 {
 	// Device driver registration.
@@ -269,14 +269,22 @@ uquad_t kernelCpuTimestamp(void)
 	unsigned hi, lo;
 	uquad_t timestamp = 0;
 
-	// Make sure the timestamp frequency has been determined
-	if (!timestampFreq)
-		kernelCpuTimestampFreq();
-
 	kernelProcessorTimestamp(hi, lo);
 	timestamp = (((uquad_t) hi << 32) | lo);
 
 	return (timestamp);
+}
+
+
+uquad_t kernelCpuGetMs(void)
+{
+	// Returns a value representing the current CPU timestamp in milliseconds.
+
+	// Make sure the timestamp frequency has been determined
+	if (!timestampFreq)
+		kernelCpuTimestampFreq();
+
+	return (kernelCpuTimestamp() / (timestampFreq / 1000));
 }
 
 
@@ -285,15 +293,8 @@ void kernelCpuSpinMs(unsigned millisecs)
 	// This will use the CPU timestamp counter to spin for (at least) the
 	// specified number of milliseconds.
 
-	uquad_t endtime = 0;
-	uquad_t timestamp = kernelCpuTimestamp();
+	uquad_t endtime = (kernelCpuGetMs() + millisecs);
 
-	// Calculate the number of timestamp ticks we need.
-	endtime = (timestamp + (((unsigned) kernelCpuTimestampFreq() / 1000) *
-		millisecs));
-
-	while (kernelCpuTimestamp() < endtime);
-
-	return;
+	while (kernelCpuGetMs() < endtime);
 }
 

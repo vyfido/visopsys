@@ -192,7 +192,7 @@ static int calcVector(int intNumber)
 	// go down to level 2, because below that are the CPU exceptions.  That
 	// leaves up to 14 priority levels available.  This gives us a sensible
 	// distribution for up to 28 IRQs.
-	// 
+	//
 	// After 28 IRQs, we fudge it and start back at the top, so IRQs 28+29
 	// become vectors F2+F3, IRQs 30+31 become vectors E2+E3, etc.
 
@@ -511,9 +511,12 @@ static int enableLocalApic(kernelDevice *mpDevice)
 
 	kernelDebug(debug_io, "APIC CPU local APIC base=0x%08x", apicBase);
 
-	// Map the local APIC's registers (4KB)
-	status = kernelPageMapToFree(KERNELPROCID, apicBase,
-		(void **) &localApicRegs, 0x1000);
+	localApicRegs = (void *) apicBase;
+
+	// Identity-map the local APIC's registers (4KB)
+	status = kernelPageMap(KERNELPROCID, apicBase, (void *) localApicRegs,
+		0x1000);
+
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Couldn't map local APIC registers");
@@ -531,6 +534,12 @@ static int enableLocalApic(kernelDevice *mpDevice)
 	writeLocalReg(APIC_LOCALREG_TASKPRI, 0);
 
 	// Set up the local interrupt vectors
+
+	// Clear/mask them off initially
+	writeLocalReg(APIC_LOCALREG_PERFCNT, (1 << 16));
+	writeLocalReg(APIC_LOCALREG_LINT0, (1 << 16));
+	writeLocalReg(APIC_LOCALREG_LINT1, (1 << 16));
+	writeLocalReg(APIC_LOCALREG_ERROR, (1 << 16));
 
 	mpOps = (kernelMultiProcOps *) mpDevice->driver->ops;
 
@@ -580,12 +589,15 @@ static int enableLocalApic(kernelDevice *mpDevice)
 	kernelDebug(debug_io, "APIC LINT1=0x%08x",
 		readLocalReg(APIC_LOCALREG_LINT1));
 
+	// Set the destination format register bits 28-31 to 0xF to set 'flat
+	// model'
+	writeLocalReg(APIC_LOCALREG_DESTFMT,
+		(readLocalReg(APIC_LOCALREG_DESTFMT) | (0xF << 28)));
+
 	// Set bit 8 of the spurious interrupt vector register to enable the APIC,
 	// and set the spurious interrupt vector to 0xFF
 	writeLocalReg(APIC_LOCALREG_SPURINT,
 		(readLocalReg(APIC_LOCALREG_SPURINT) | 0x000001FF));
-
-	debugLocalRegs();
 
 	return (status = 0);
 }
@@ -598,7 +610,6 @@ static int enableLocalApic(kernelDevice *mpDevice)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 static int driverGetIntNumber(kernelPic *pic, unsigned char busId,
 	unsigned char busIrq)
@@ -639,6 +650,10 @@ static int driverGetIntNumber(kernelPic *pic, unsigned char busId,
 		if (intEntry->busId != busId)
 			continue;
 
+		// Is it the correct type?
+		if (intEntry->intType != MULTIPROC_INTTYPE_INT)
+			continue;
+
 		// Is it for the correct device?
 		if (intEntry->busIrq != busIrq)
 			continue;
@@ -665,7 +680,7 @@ static int driverGetVector(kernelPic *pic __attribute__((unused)),
 static int driverEndOfInterrupt(kernelPic *pic __attribute__((unused)),
 	int intNumber __attribute__((unused)))
 {
-	//kernelDebug(debug_io, "APIC EOI for interrupt %d", irq);
+	//kernelDebug(debug_io, "APIC EOI for interrupt %d", intNumber);
 
 	writeLocalReg(APIC_LOCALREG_EOI, 0);
 
@@ -734,18 +749,19 @@ static int driverGetActive(kernelPic *pic __attribute__((unused)))
 
 	kernelDebug(debug_io, "APIC active interrupt requested");
 
-	for (count = 0; count < 128; count += 16)
+	for (count = 112, vector = 0xFF; count >= 0; count -= 16)
 	{
 		isrReg = readLocalReg(APIC_LOCALREG_ISR + count);
 
-		kernelDebug(debug_io, "APIC ISR %08x", isrReg);
+		kernelDebug(debug_io, "APIC ISR %02x-%02x %08x", vector, (vector - 31),
+			isrReg);
 
 		if (isrReg)
 		{
-			while (!(isrReg & 0x01))
+			while (!(isrReg & 0x80000000))
 			{
-				isrReg >>= 1;
-				vector += 1;
+				isrReg <<= 1;
+				vector -= 1;
 			}
 
 			intNumber = calcIntNumber(vector);
@@ -756,7 +772,7 @@ static int driverGetActive(kernelPic *pic __attribute__((unused)))
 			break;
 		}
 
-		vector += 32;
+		vector -= 32;
 	}
 
 	return (intNumber);
@@ -878,10 +894,11 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		// Set up our driver data
 
 		ioApic->id = ioApicEntry->apicId;
+		ioApic->regs = (volatile unsigned *) ioApicEntry->apicPhysical;
 
-		// Map the registers
-		status = kernelPageMapToFree(KERNELPROCID, ioApicEntry->apicPhysical,
-			(void **) &ioApic->regs, (5 * sizeof(unsigned)));
+		// Identity-map the registers
+		status = kernelPageMap(KERNELPROCID, ioApicEntry->apicPhysical,
+			(void *) ioApic->regs, (5 * sizeof(unsigned)));
 		if (status < 0)
 			break;
 
@@ -964,7 +981,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 			kernelDeviceGetClass(DEVICESUBCLASS_INTCTRL_APIC);
 		dev->driver = driver;
 
-		// Register the device
+		// Add the kernel device
 		status = kernelDeviceAdd(parent, dev);
 		if (status < 0)
 			break;
@@ -1002,7 +1019,6 @@ static kernelPicOps apicOps = {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 void kernelApicDriverRegister(kernelDriver *driver)
 {
 	 // Device driver registration.
@@ -1028,18 +1044,18 @@ void kernelApicDebug(void)
 			readLocalReg(APIC_LOCALREG_IRR + count1 + 16),
 			readLocalReg(APIC_LOCALREG_IRR + count1));
 
-	for (count1 = 0, vector = 0; count1 < 128; count1 += 16)
+	for (count1 = 112, vector = 0xFF; count1 >= 0; count1 -= 16)
 	{
 		isrReg = readLocalReg(APIC_LOCALREG_IRR + count1);
 
 		for (count2 = 0; count2 < 32; count2 ++)
 		{
-			if (isrReg & 0x01)
+			if (isrReg & 0x80000000)
 				kernelDebug(debug_io, "APIC request=%02x irq=%d", vector,
 					calcIntNumber(vector));
 
-			isrReg >>= 1;
-			vector += 1;
+			isrReg <<= 1;
+			vector -= 1;
 		}
 	}
 
@@ -1048,18 +1064,18 @@ void kernelApicDebug(void)
 			readLocalReg(APIC_LOCALREG_ISR + count1 + 16),
 			readLocalReg(APIC_LOCALREG_ISR + count1));
 
-	for (count1 = 0, vector = 0; count1 < 128; count1 += 16)
+	for (count1 = 112, vector = 0xFF; count1 >= 0; count1 -= 16)
 	{
 		isrReg = readLocalReg(APIC_LOCALREG_ISR + count1);
 
 		for (count2 = 0; count2 < 32; count2 ++)
 		{
-			if (isrReg & 0x01)
+			if (isrReg & 0x80000000)
 				kernelDebug(debug_io, "APIC in service=%02x irq=%d", vector,
 					calcIntNumber(vector));
 
-			isrReg >>= 1;
-			vector += 1;
+			isrReg <<= 1;
+			vector -= 1;
 		}
 	}
 }

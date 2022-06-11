@@ -45,13 +45,6 @@ static volatile int run = 0;
 static volatile int guiThreadPid = 0;
 
 
-void libwindowInitialize(void)
-{
-	bindtextdomain("libwindow", GETTEXT_LOCALEDIR_PREFIX);
-	libwindow_initialized = 1;
-}
-
-
 static void guiRun(void)
 {
 	// This is the thread that runs for each user GUI program polling
@@ -100,6 +93,12 @@ static void guiRunThread(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
+void libwindowInitialize(void)
+{
+	bindtextdomain("libwindow", GETTEXT_LOCALEDIR_PREFIX);
+	libwindow_initialized = 1;
+}
+
 
 _X_ int windowClearEventHandlers(void)
 {
@@ -121,14 +120,14 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
 	int status = 0;
 
 	// Check parameters
-	if ((key == NULL) || (function == NULL))
+	if (!key || !function)
 		return (status = ERR_NULLPARAMETER);
 
-	if (callBacks == NULL)
+	if (!callBacks)
 	{
 		// Get memory for our callbacks
 		callBacks = malloc(WINDOW_MAX_EVENTHANDLERS * sizeof(callBack));
-		if (callBacks == NULL)
+		if (!callBacks)
 		{
 			errno = ERR_MEMORY;
 			return (status = errno);
@@ -189,13 +188,10 @@ _X_ int windowGuiThread(void)
 {
 	// Desc: Run the GUI windowEvent polling as a non-blocking call.  In other words, this function will launch a separate thread to monitor for GUI events and return control to your program.  Your program can then continue execution -- independent of GUI windowEvents.  If your program doesn't need to do any processing after setting up all its window components and event callbacks, use the windowGuiRun() function instead.
 
-	if (guiThreadPid && multitaskerProcessIsAlive(guiThreadPid))
-		return (guiThreadPid);
-	else
-	{
+	if (!guiThreadPid || !multitaskerProcessIsAlive(guiThreadPid))
 		guiThreadPid = multitaskerSpawn(&guiRunThread, "gui thread", 0, NULL);
-		return (guiThreadPid);
-	}
+
+	return (guiThreadPid);
 }
 
 

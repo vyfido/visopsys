@@ -164,7 +164,7 @@ static void error(const char *format, ...)
 	char *output = NULL;
 
 	output = malloc(MAXSTRINGLENGTH);
-	if (output == NULL)
+	if (!output)
 		return;
 
 	va_start(list, format);
@@ -223,7 +223,7 @@ static void getFileIcon(fileEntry *entry)
 	}
 
 	// Do we need to load the image data?
-	while (entry->icon->image->data == NULL)
+	while (!entry->icon->image->data)
 	{
 		if (loadIcon(entry->icon->imageVariable, entry->icon->imageFile,
 			entry->icon->image) < 0)
@@ -247,7 +247,9 @@ static void getFileIcon(fileEntry *entry)
 				entry->icon = &fileIcon;
 		}
 		else
+		{
 			break;
+		}
 	}
 
 	memcpy(&(entry->iconParams.iconImage), entry->icon->image, sizeof(image));
@@ -269,7 +271,7 @@ static int classifyEntry(fileEntry *entry)
 			if (!strcmp(entry->file.name, ".."))
 				strcpy(entry->iconParams.text, _("(up)"));
 			entry->icon = &folderIcon;
-			if (entry->icon->image->data == NULL)
+			if (!entry->icon->image->data)
 			{
 				status = loadIcon(entry->icon->imageVariable,
 					entry->icon->imageFile,	entry->icon->image);
@@ -293,7 +295,7 @@ static int classifyEntry(fileEntry *entry)
 			{
 				strcpy(entry->iconParams.text, _("(up)"));
 				entry->icon = &folderIcon;
-				if (entry->icon->image->data == NULL)
+				if (!entry->icon->image->data)
 				{
 					status = loadIcon(entry->icon->imageVariable,
 						entry->icon->imageFile, entry->icon->image);
@@ -350,7 +352,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 	{
 		// Get memory for the new entries
 		tmpFileEntries = malloc(totalFiles * sizeof(fileEntry));
-		if (tmpFileEntries == NULL)
+		if (!tmpFileEntries)
 		{
 			error("%s", _("Memory allocation error"));
 			return (status = ERR_MEMORY);
@@ -358,7 +360,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 
 		for (count = 0; count < totalFiles; count ++)
 		{
-			if (count == 0)
+			if (!count)
 				status = fileFirst(path, &tmpFile);
 			else
 				status = fileNext(path, &tmpFile);
@@ -401,9 +403,9 @@ static listItemParameters *allocateIconParameters(windowFileList *fileList)
 
 	if (fileList->numFileEntries)
 	{
-		newIconParams =
-			malloc(fileList->numFileEntries * sizeof(listItemParameters));
-		if (newIconParams == NULL)
+		newIconParams = malloc(fileList->numFileEntries *
+			sizeof(listItemParameters));
+		if (!newIconParams)
 		{
 			error("%s", _("Memory allocation error creating icon parameters"));
 			return (newIconParams);
@@ -448,7 +450,7 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
 	}
 
 	iconParams = allocateIconParameters(fileList);
-	if (iconParams == NULL)
+	if (!iconParams)
 	{
 		windowSwitchPointer(fileList->key, "default");
 		lockRelease(&dataLock);
@@ -457,7 +459,8 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
 
 	// Clear the list
 	windowComponentSetData(fileList->key, NULL, 0);
-	windowComponentSetData(fileList->key, iconParams, fileList->numFileEntries);
+	windowComponentSetData(fileList->key, iconParams,
+		fileList->numFileEntries);
 	windowComponentSetSelected(fileList->key, 0);
 
 	windowSwitchPointer(fileList->key, "default");
@@ -586,7 +589,6 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
 {
 	// Desc: Create a new file list widget with the parent window 'parent', the window list type 'type' (windowlist_textonly or windowlist_icononly is currently supported), of height 'rows' and width 'columns', the name of the starting location 'directory', flags (such as WINFILEBROWSE_CAN_CD or WINFILEBROWSE_CAN_DEL -- see sys/window.h), a function 'callback' for when the status changes, and component parameters 'params'.
@@ -600,7 +602,7 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
 		libwindowInitialize();
 
 	// Check params.  Callback can be NULL.
-	if ((parent == NULL) || (directory == NULL) || (params == NULL))
+	if (!parent || !directory || !params)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (fileList = NULL);
@@ -622,7 +624,7 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
 
 	// Allocate memory for our file list
 	fileList = malloc(sizeof(windowFileList));
-	if (fileList == NULL)
+	if (!fileList)
 		return (fileList);
 
 	// Scan the directory

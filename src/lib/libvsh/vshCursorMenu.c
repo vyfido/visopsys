@@ -30,7 +30,8 @@
 #include <sys/vsh.h>
 
 
-_X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defaultSelection)
+_X_ int vshCursorMenu(const char *prompt, char *items[], int numItems,
+	int defaultSelection)
 {
 	// Desc: This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 
@@ -49,8 +50,11 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 
 	// Get the width of the widest item and set our item width
 	for (count1 = 0; count1 < numItems; count1 ++)
+	{
 		if ((int) strlen(items[count1]) > itemWidth)
 			itemWidth = strlen(items[count1]);
+	}
+
 	itemWidth = min(itemWidth, textGetNumColumns());
 
 	buffer = malloc(itemWidth + 1);
@@ -98,7 +102,7 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 		c = getchar();
 		textInputSetEcho(1);
 
-		switch(c)
+		switch (c)
 		{
 			case (char) ASCII_CRSRUP:
 				// Cursor up.
@@ -127,3 +131,4 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 		}
 	}
 }
+

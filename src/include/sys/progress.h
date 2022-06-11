@@ -40,8 +40,8 @@
 #define PROGRESS_RESPONSE_NO		0x0008
 
 typedef volatile struct {
-	uquad_t total;
-	uquad_t finished;
+	uquad_t numTotal;
+	uquad_t numFinished;
 	int percentFinished;
 	char statusMessage[PROGRESS_MAX_MESSAGELEN];
 	char confirmMessage[PROGRESS_MAX_MESSAGELEN];
@@ -50,6 +50,7 @@ typedef volatile struct {
 	int error;
 	int canCancel;
 	int cancel;
+	int complete;
 	lock progLock;
 
 } progress;

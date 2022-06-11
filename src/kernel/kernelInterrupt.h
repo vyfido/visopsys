@@ -23,6 +23,8 @@
 
 #if !defined(_KERNELINTERRUPT_H)
 
+#include "kernelDescriptor.h"
+
 #define INTERRUPT_VECTORSTART			0x20
 
 // ISA/PIC interrupt numbers
@@ -45,7 +47,7 @@
 
 int kernelInterruptInitialize(void);
 void *kernelInterruptGetHandler(int);
-int kernelInterruptHook(int, void *);
+int kernelInterruptHook(int, void *, kernelSelector);
 int kernelProcessingInterrupt(void);
 int kernelInterruptGetCurrent(void);
 void kernelInterruptSetCurrent(int);

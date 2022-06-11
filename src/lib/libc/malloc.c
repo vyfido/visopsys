@@ -136,6 +136,7 @@ static inline void insertBlock(mallocBlock **list, mallocBlock *insBlock,
 
 	if (nextBlock->prev)
 		nextBlock->prev->next = insBlock;
+
 	nextBlock->prev = insBlock;
 
 	if (nextBlock == *list)
@@ -590,6 +591,31 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 
 
 #if defined(DEBUG)
+static int checkPointer(mallocBlock *block)
+{
+	int status = 0;
+
+	if (visopsys_in_kernel)
+	{
+		if ((unsigned) block < 0xC0000000)
+		{
+			error("Kernel block %p is not in kernel memory space", block);
+			return (status = ERR_BADADDRESS);
+		}
+	}
+	else
+	{
+		if ((unsigned) block > 0xC0000000)
+		{
+			error("User block %p is in kernel memory space", block);
+			return (status = ERR_BADADDRESS);
+		}
+	}
+
+	return (status = 0);
+}
+
+
 static int checkBlocks(void)
 {
 	int status = 0;
@@ -605,19 +631,27 @@ static int checkBlocks(void)
 	for (count = 0; count < 2; count ++)
 	{
 		if (lists[count] == FREELIST_REF)
-		listName = "free";
+			listName = "free";
 		else if (lists[count] == USEDLIST_REF)
-		listName = "used";
+			listName = "used";
 		else
-		listName = "unknown";
+			listName = "unknown";
 
 		block = *lists[count];
 
 		while (block)
 		{
+			status = checkPointer(block);
+			if (status < 0)
+				return (status);
+
 			if (block->prev)
 			{
 				prev = block->prev;
+
+				status = checkPointer(prev);
+				if (status < 0)
+					return (status);
 
 				if (prev->next != block)
 				{
@@ -650,6 +684,10 @@ static int checkBlocks(void)
 			if (block->next)
 			{
 				next = block->next;
+
+				status = checkPointer(next);
+				if (status < 0)
+					return (status);
 
 				if (next->prev != block)
 				{
@@ -921,3 +959,28 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
 
 	return (status = 0);
 }
+
+
+int _mallocCheck(void)
+{
+	int status = 0;
+
+	status = lock_get(&blocksLock);
+	if (status < 0)
+	{
+		error("Can't get memory lock");
+		return (errno = status);
+	}
+
+	#if defined(DEBUG)
+	status = checkBlocks();
+	#endif
+
+	lock_release(&blocksLock);
+
+	if (status < 0)
+		errno = status;
+
+	return (status);
+}
+

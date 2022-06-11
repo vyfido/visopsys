@@ -30,3 +30,4 @@ diskLabel *getLabelMsdos(void);
 
 #define _MSDOS_H
 #endif
+

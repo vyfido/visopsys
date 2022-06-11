@@ -126,6 +126,7 @@ static int getHubDescriptor(usbHub *hub)
 	usbTrans.length = sizeof(usbHubDesc);
 	usbTrans.buffer = (void *) &hub->hubDesc;
 	usbTrans.pid = USB_PID_IN;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
@@ -150,6 +151,7 @@ static int setHubDepth(usbHub *hub)
 	usbTrans.control.request = USB_HUB_SET_HUB_DEPTH;
 	usbTrans.control.value = hub->usbDev->hubDepth;
 	usbTrans.pid = USB_PID_OUT;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
@@ -196,6 +198,7 @@ static int getPortStatus(usbHub *hub, int portNum,
 	usbTrans.length = sizeof(usbHubPortStatus);
 	usbTrans.buffer = portStatus;
 	usbTrans.pid = USB_PID_IN;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
@@ -221,6 +224,7 @@ static int setPortFeature(usbHub *hub, int portNum, unsigned char feature)
 	usbTrans.control.value = feature;
 	usbTrans.control.index = (portNum + 1);
 	usbTrans.pid = USB_PID_OUT;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
@@ -246,6 +250,7 @@ static int clearPortFeature(usbHub *hub, int portNum, unsigned char feature)
 	usbTrans.control.value = feature;
 	usbTrans.control.index = (portNum + 1);
 	usbTrans.pid = USB_PID_OUT;
+	usbTrans.timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the command
 	return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
@@ -620,7 +625,7 @@ static int detectHub(usbDevice *usbDev, kernelDriver *driver, int hotplug)
 	// Tell USB that we're claiming this device.
 	kernelBusDeviceClaim(hub->busTarget, driver);
 
-	// Add the device
+	// Add the kernel device
 	status = kernelDeviceAdd(hub->controller->dev,
 		(kernelDevice *) &(hub->usbDev->dev));
 
@@ -698,8 +703,8 @@ restart:
 		if ((tmpDev.classCode != 0x09) || (tmpDev.subClassCode != 0x00))
 			continue;
 
-		// It's a hub.  Did we already do this one?
-		if (tmpDev.claimed)
+		// Already claimed?
+		if (busTargets[deviceCount].claimed)
 			continue;
 
 		found += 1;

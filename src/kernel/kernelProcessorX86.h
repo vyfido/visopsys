@@ -407,3 +407,4 @@ static inline unsigned kernelProcessorSwap32(unsigned variable)
 
 #define _KERNELPROCESSORX86_H
 #endif
+

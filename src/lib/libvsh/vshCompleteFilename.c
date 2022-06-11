@@ -58,7 +58,7 @@ _X_ void vshCompleteFilename(char *buffer)
 	int count;
 
 	// Check params
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		errno = ERR_NULLPARAMETER;
 		return;
@@ -69,7 +69,7 @@ _X_ void vshCompleteFilename(char *buffer)
 	fileName = malloc(MAX_NAME_LENGTH);
 	matchName = malloc(MAX_NAME_LENGTH);
 
-	if ((prefixPath == NULL) || (fileName == NULL) || (matchName == NULL))
+	if (!prefixPath || !fileName || !matchName)
 	{
 		errno = ERR_MEMORY;
 		freeMemory();
@@ -118,8 +118,10 @@ _X_ void vshCompleteFilename(char *buffer)
 		strcpy(fileName, (buffer + lastSeparator + 1));
 	}
 	else
+	{
 		// Copy the whole buffer into the filename string
 		strcpy(fileName, buffer);
+	}
 
 	filenameLength = strlen(fileName);
 
@@ -148,7 +150,7 @@ _X_ void vshCompleteFilename(char *buffer)
 
 	// If filename is empty, and there is only one non-'.' or '..' entry,
 	// complete that one
-	if (filenameLength == 0)
+	if (!filenameLength)
 	{
 		while (!strcmp(aFile.name, ".") || !strcmp(aFile.name, ".."))
 		{

@@ -83,7 +83,6 @@ static void doFileSelection(file *theFile, char *fullName,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength, int thumb)
 {
 	// Desc: Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  If 'fileName' contains data (i.e. the string's first character is non-NULL), the file name field of the dialog will contain that string.  If 'thumb' is non-zero, an area will display image thumbnails when image files are clicked.  The dialog will have a file selection area, a file name field, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the file name into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
@@ -115,6 +114,9 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
 
+	if (!dialogWindow)
+		return (status = ERR_NOCREATE);
+
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 4;
@@ -128,15 +130,15 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	if (thumb)
 	{
 		params.flags |= WINDOW_COMPFLAG_HASBORDER;
-		thumbImage = windowNewThumbImage(dialogWindow, NULL, MAX_IMAGE_DIMENSION,
-			 MAX_IMAGE_DIMENSION, &params);
+		thumbImage = windowNewThumbImage(dialogWindow, NULL,
+			MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, &params);
 		if (!thumbImage)
 			return (status = ERR_NOCREATE);
 
 		doImageThumbs = 1;
 	}
 
-	params.gridX += 1;
+	params.gridX++;
 	params.gridWidth = 2;
 	params.gridHeight = 1;
 	params.orientationX = orient_left;
@@ -150,18 +152,19 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	}
 
 	// Create the location text field
-	params.gridY += 1;
+	params.gridY++;
 	locationField = windowNewTextField(dialogWindow, 30, &params);
 	if (!locationField)
 	{
 		status = ERR_NOCREATE;
 		goto out;
 	}
+
 	windowComponentSetData(locationField, cwd, strlen(cwd));
 	windowComponentSetEnabled(locationField, 0); // For now
 
 	// Create the file list widget
-	params.gridY += 1;
+	params.gridY++;
 	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
 	fileList = windowNewFileList(dialogWindow, windowlist_icononly, 3, 4,
 		cwd, WINFILEBROWSE_CAN_CD, doFileSelection, &params);
@@ -170,10 +173,11 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		status = ERR_NOCREATE;
 		goto out;
 	}
+
 	windowComponentFocus(fileList->key);
 
 	// Create the text field for the user to type.
-	params.gridY += 1;
+	params.gridY++;
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
 	textField = windowNewTextField(dialogWindow, 30, &params);
 	if (!textField)
@@ -181,6 +185,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		status = ERR_NOCREATE;
 		goto out;
 	}
+
 	if (fileName[0])
 	{
 		baseName = basename(fileName);
@@ -192,10 +197,10 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	}
 
 	// Create the OK button
-	params.gridY += 1;
+	params.gridY++;
 	params.gridWidth = 1;
-	params.padLeft = 0;
-	params.padRight = 5;
+	params.padLeft = 2;
+	params.padRight = 2;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
@@ -207,9 +212,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	}
 
 	// Create the Cancel button
-	params.gridX += 1;
-	params.padLeft = 5;
-	params.padRight = 0;
+	params.gridX++;
 	params.orientationX = orient_left;
 	cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
 	if (!cancelButton)
@@ -220,6 +223,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	while (1)
@@ -236,23 +240,28 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		{
 			windowComponentGetData(textField, fileName, maxLength);
 			if (fileName[0] == '\0')
+			{
 				status = 0;
+			}
 			else
 			{
 				if (strcmp(cwd, "/"))
 					snprintf(fileName, maxLength, "%s/", cwd);
 				else
 					strncpy(fileName, cwd, maxLength);
-				windowComponentGetData(textField, (fileName + strlen(fileName)),
+				windowComponentGetData(textField,
+					(fileName + strlen(fileName)),
 					(maxLength - strlen(fileName)));
 				status = 1;
 			}
+
 			break;
 		}
 
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) ||
+			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 		{
 			fileName[0] = '\0';
 			status = 0;
@@ -261,14 +270,15 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+		if ((status < 0) ||
+			((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
 		{
 			fileName[0] = '\0';
 			status = 0;
 			break;
 		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
 

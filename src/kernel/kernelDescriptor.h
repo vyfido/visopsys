@@ -69,3 +69,4 @@ int kernelDescriptorSetIDTTaskGate(int, kernelSelector);
 
 #define _KERNELDESCRIPTOR_H
 #endif
+

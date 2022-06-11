@@ -38,7 +38,6 @@ extern void libwindowInitialize(void);
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, const char *message)
 {
 	// Desc: Create a 'banner' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  This is the very simplest kind of dialog; it just contains the supplied message with no acknowledgement mechanism for the user.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns the object key of the dialog window.  The caller must destroy the window when finished with it.
@@ -50,7 +49,7 @@ _X_ objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, c
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (message == NULL))
+	if (!title || !message)
 		return (dialogWindow = NULL);
 
 	bzero(&params, sizeof(componentParameters));
@@ -69,11 +68,11 @@ _X_ objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, c
 		dialogWindow = windowNewDialog(parentWindow, title);
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-	if (dialogWindow == NULL)
+	if (!dialogWindow)
 		return (dialogWindow);
 
 	// Create the label
-	if (windowNewTextLabel(dialogWindow, message, &params) == NULL)
+	if (!windowNewTextLabel(dialogWindow, message, &params))
 		return (dialogWindow = NULL);
 
 	// No need for a close button because there's no handler for it

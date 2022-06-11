@@ -23,6 +23,8 @@
 
 #if !defined(_MSDOS_H)
 
+#define MSDOS_BOOT_CODE_SIZE		440
+#define MSDOS_BOOT_SIGNATURE		0xAA55
 #define MSDOS_TABLE_OFFSET			0x01BE
 #define MSDOS_TABLE_ENTRIES			4
 
@@ -82,11 +84,11 @@ typedef struct {
 } __attribute__((packed)) msdosTable;
 
 typedef struct {
-	unsigned char bootcode[440];
+	unsigned char bootcode[MSDOS_BOOT_CODE_SIZE];
 	unsigned diskSig;
 	unsigned short pad;
 	msdosTable partTable;
-	unsigned short bootSig;	// 0xAA55
+	unsigned short bootSig;	// MSDOS_BOOT_SIGNATURE
 
 } __attribute__((packed)) msdosMbr;
 

@@ -238,6 +238,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		return (status);
 	}
 
+	// Add the kernel device
 	return (status = kernelDeviceAdd(parent, dev));
 }
 

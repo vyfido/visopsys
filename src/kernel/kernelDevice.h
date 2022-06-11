@@ -72,7 +72,6 @@ int kernelDeviceHotplug(kernelDevice *, int, int, int, int);
 int kernelDeviceAdd(kernelDevice *, kernelDevice *);
 int kernelDeviceRemove(kernelDevice *);
 // These ones are exported outside the kernel
-int kernelDeviceTreeGetCount(void);
 int kernelDeviceTreeGetRoot(device *);
 int kernelDeviceTreeGetChild(device *, device *);
 int kernelDeviceTreeGetNext(device *);

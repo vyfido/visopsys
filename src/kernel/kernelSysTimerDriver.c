@@ -169,7 +169,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		return (status = 0);
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_SYSTIMER);
@@ -191,6 +191,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		return (status);
 	}
 
+	// Add the kernel device
 	return (status = kernelDeviceAdd(parent, dev));
 }
 
@@ -210,7 +211,6 @@ static kernelSysTimerOps sysTimerOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelSysTimerDriverRegister(kernelDriver *driver)
 {

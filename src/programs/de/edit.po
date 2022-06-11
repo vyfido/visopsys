@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -61,38 +61,38 @@ msgstr " (geändert)"
 msgid "Enter filename"
 msgstr "Dateiname eingeben"
 
-#: edit.c:949
+#: edit.c:952
 msgid "Discard changes?"
 msgstr "Änderungen verwerfen?"
 
-#: edit.c:950
+#: edit.c:953
 msgid "Discard"
 msgstr "Verwerfen"
 
-#: edit.c:950
+#: edit.c:953
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: edit.c:984 edit.c:1300
+#: edit.c:987 edit.c:1303
 msgid "Couldn't create file in a read-only filesystem"
 msgstr ""
 "Das Dateisystem ist schreibgeschützt, die Datei konnte nicht erstellt werden"
 
-#: edit.c:986 edit.c:1302
+#: edit.c:989 edit.c:1305
 #, c-format
 msgid "Error %d loading file"
 msgstr "Fehler %d beim laden der Datei"
 
-#: edit.c:1107
+#: edit.c:1110
 msgid "Unable to launch file dialog"
 msgstr "Datei-Fenster konnte nicht gestartet werden"
 
-#: edit.c:1118
+#: edit.c:1121
 #, c-format
 msgid "Error %d saving file"
 msgstr "Fehler %d beim speichern der Datei"
 
-#: edit.c:1256
+#: edit.c:1259
 #, c-format
 msgid ""
 "\n"

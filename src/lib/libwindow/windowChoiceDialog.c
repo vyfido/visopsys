@@ -40,13 +40,13 @@ static volatile image questImage;
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const char *message, char *choiceStrings[], int numChoices, int defaultChoice)
 {
 	// Desc: Create a 'choice' dialog box, with the parent window 'parentWindow', the given titlebar text and main message, and 'numChoices' choices, as specified by the 'choiceStrings'.  'default' is the default focussed selection.  The dialog will have a button for each choice.  If the user chooses one of the choices, the function returns the 0-based index of the choice.  Otherwise it returns negative.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 	int status = 0;
 	objectKey dialogWindow = NULL;
+	objectKey container = NULL;
 	objectKey buttonContainer = NULL;
 	objectKey buttons[16];
 	componentParameters params;
@@ -58,7 +58,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (message == NULL) || (choiceStrings == NULL))
+	if (!title || !message || !choiceStrings)
 		return (status = ERR_NULLPARAMETER);
 
 	if (numChoices > 16)
@@ -69,7 +69,8 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		dialogWindow = windowNewDialog(parentWindow, title);
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-	if (dialogWindow == NULL)
+
+	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
 	bzero(&params, sizeof(componentParameters));
@@ -78,56 +79,75 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
-	params.orientationX = orient_right;
+	params.padBottom = 5;
+	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	if (questImage.data == NULL)
+	// Get a container to pack everything into
+	container = windowNewContainer(dialogWindow, "container", &params);
+	if (!container)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
+	params.padLeft = 0;
+	params.padTop = 0;
+	params.orientationX = orient_right;
+	params.orientationY = orient_top;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+
+	// If our 'question' image hasn't been loaded, try to load it
+	if (!questImage.data)
 		status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
 
-	if (status == 0)
+	if (!status && questImage.data)
 	{
 		questImage.transColor.red = 0;
 		questImage.transColor.green = 255;
 		questImage.transColor.blue = 0;
-		windowNewImage(dialogWindow, (image *) &questImage, draw_translucent,
+		windowNewImage(container, (image *) &questImage, draw_translucent,
 			&params);
 	}
 
 	// Create the label
-	params.gridX = 1;
+	params.gridX++;
+	params.padRight = 0;
 	params.orientationX = orient_left;
-	if (windowNewTextLabel(dialogWindow, message, &params) == NULL)
+	if (!windowNewTextLabel(container, message, &params))
 	{
-		windowDestroy(dialogWindow);
-		return (status = ERR_NOCREATE);
+		status = ERR_NOCREATE;
+		goto out;
 	}
 
 	// Create the container for the buttons
-	params.gridY = 1;
-	params.padBottom = 5;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.gridX = 0;
+	params.gridY++;
+	params.gridWidth = 2;
+	params.padBottom = 0;
 	params.orientationX = orient_center;
-	buttonContainer =
-		windowNewContainer(dialogWindow, "buttonContainer", &params);
-	if (buttonContainer == NULL)
+	buttonContainer = windowNewContainer(container, "buttonContainer",
+		&params);
+	if (!buttonContainer)
 	{
-		windowDestroy(dialogWindow);
-		return (status = ERR_NOCREATE);
+		status = ERR_NOCREATE;
+		goto out;
 	}
 
 	// Create the buttons
-	params.gridY = 0;
-	params.padTop = 0;
+	params.gridWidth = 1;
+	params.padLeft = 2;
+	params.padRight = 2;
 	params.padBottom = 0;
 	for (count = 0; count < numChoices; count ++)
 	{
 		params.gridX = count;
-		buttons[count] =
-		windowNewButton(buttonContainer, choiceStrings[count], NULL, &params);
-		if (buttons[count] == NULL)
+		buttons[count] = windowNewButton(buttonContainer, choiceStrings[count],
+			NULL, &params);
+		if (!buttons[count])
 		{
-			windowDestroy(dialogWindow);
-			return (status = ERR_NOCREATE);
+			status = ERR_NOCREATE;
+			goto out;
 		}
 	}
 
@@ -136,6 +156,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	while (1)
@@ -156,12 +177,18 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 			((windowComponentEventGet(dialogWindow, &event) > 0) &&
 				(event.type == EVENT_WINDOW_CLOSE)))
 		{
-			windowDestroy(dialogWindow);
-			return (choice);
+			status = choice;
+			break;
 		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
+
+out:
+	if (dialogWindow)
+		windowDestroy(dialogWindow);
+
+	return (status);
 }
 

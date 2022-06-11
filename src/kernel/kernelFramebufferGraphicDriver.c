@@ -1439,6 +1439,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	wholeScreen.height = adapter->yRes;
 	wholeScreen.data = adapter->framebuffer;
 
+	// Add the kernel device
 	return (status = kernelDeviceAdd(parent, dev));
 }
 

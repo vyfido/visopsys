@@ -525,7 +525,7 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 
 	// Register our interrupt handler for this device
 	status = kernelInterruptHook(adapter->device.interruptNum,
-		&networkInterrupt);
+		&networkInterrupt, NULL);
 	if (status < 0)
 		return (status);
 

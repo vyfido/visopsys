@@ -37,13 +37,9 @@
 extern int libwindow_initialized;
 extern void libwindowInitialize(void);
 
-static objectKey canvas = NULL;
-static objectKey redLabel = NULL;
-static objectKey greenLabel = NULL;
-static objectKey blueLabel = NULL;
 
-
-static void drawColor(color *draw)
+static void drawColor(objectKey canvas, objectKey redLabel,
+	objectKey greenLabel, objectKey blueLabel, color *draw)
 {
 	// Draw the current color on the canvas
 
@@ -82,15 +78,19 @@ static void drawColor(color *draw)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 {
 	// Desc: Create an 'color chooser' dialog box, with the parent window 'parentWindow', and a pointer to the color structure 'pickedColor'.  Currently the window consists of red/green/blue sliders and a canvas displaying the current color.  The initial color displayed will be whatever is supplied in 'pickedColor'.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 	int status = 0;
 	objectKey dialogWindow = NULL;
+	objectKey canvas = NULL;
+	objectKey sliderContainer = NULL;
+	objectKey redLabel = NULL;
 	objectKey redSlider = NULL;
+	objectKey greenLabel = NULL;
 	objectKey greenSlider = NULL;
+	objectKey blueLabel = NULL;
 	objectKey blueSlider = NULL;
 	objectKey buttonContainer = NULL;
 	objectKey okButton = NULL;
@@ -104,16 +104,16 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if (pickedColor == NULL)
+	if (!pickedColor)
 		return (status = ERR_NULLPARAMETER);
 
 	// Create the dialog.  Arbitrary size and coordinates
 	if (parentWindow)
 		dialogWindow = windowNewDialog(parentWindow, TITLE);
 	else
-		dialogWindow =
-		windowNew(multitaskerGetCurrentProcessId(), TITLE);
-	if (dialogWindow == NULL)
+		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), TITLE);
+
+	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
 	// Copy the current color into the temporary color
@@ -121,111 +121,173 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 1;
+	params.gridHeight = 1;
 	params.padLeft = 5;
+	params.padRight = 5;
 	params.padTop = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
+	params.flags = WINDOW_COMPFLAG_HASBORDER;
 
 	// A canvas for drawing the color
-	params.gridHeight = 6;
-	params.flags = WINDOW_COMPFLAG_HASBORDER;
-	canvas = windowNewCanvas(dialogWindow, CANVAS_WIDTH, CANVAS_HEIGHT, &params);
+	canvas = windowNewCanvas(dialogWindow, CANVAS_WIDTH, CANVAS_HEIGHT,
+		&params);
 
-	// Red label and slider
-	params.gridX += 1;
-	params.gridHeight = 1;
-	params.padLeft = 10;
+	// Make a container for the sliders and their labels
+	params.gridX++;
+	sliderContainer = windowNewContainer(dialogWindow, "sliderContainer",
+		&params);
+	if (!sliderContainer)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
+	// Red label, slider, and value label
+	params.padLeft = 0;
+	params.padTop = 0;
+	params.padBottom = 5;
+	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	windowNewTextLabel(sliderContainer, _("Red"), &params);
+
+	params.gridY++;
 	params.flags = 0;
-	windowNewTextLabel(dialogWindow, _("Red"), &params);
-	params.gridY += 1;
-	redSlider = windowNewSlider(dialogWindow, scrollbar_horizontal,
+	redSlider = windowNewSlider(sliderContainer, scrollbar_horizontal,
 		SLIDER_WIDTH, 0, &params);
-	if (redSlider == NULL)
-		return (status = ERR_NOCREATE);
+	if (!redSlider)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
 	scrollState.displayPercent = 20;
 	scrollState.positionPercent = ((tmpColor.red * 100) / 255);
 	windowComponentSetData(redSlider, &scrollState, sizeof(scrollBarState));
 
-	// Green label and slider
-	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("Green"), &params);
-	params.gridY += 1;
-	greenSlider = windowNewSlider(dialogWindow, scrollbar_horizontal,
+	params.gridX++;
+	params.orientationY = orient_middle;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	redLabel = windowNewTextLabel(sliderContainer, "000", &params);
+	if (!redLabel)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
+	// Green label, slider, and value label
+
+	params.gridX--;
+	params.gridY++;
+	params.orientationY = orient_top;
+	windowNewTextLabel(sliderContainer, _("Green"), &params);
+
+	params.gridY++;
+	params.flags = 0;
+	greenSlider = windowNewSlider(sliderContainer, scrollbar_horizontal,
 		SLIDER_WIDTH, 0, &params);
-	if (greenSlider == NULL)
-		return (status = ERR_NOCREATE);
+	if (!greenSlider)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
 	scrollState.positionPercent = ((tmpColor.green * 100) / 255);
 	windowComponentSetData(greenSlider, &scrollState, sizeof(scrollBarState));
 
-	// Blue label and slider
-	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("Blue"), &params);
-	params.gridY += 1;
-	blueSlider = windowNewSlider(dialogWindow, scrollbar_horizontal,
+	params.gridX++;
+	params.orientationY = orient_middle;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	greenLabel = windowNewTextLabel(sliderContainer, "000", &params);
+	if (!greenLabel)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
+	// Blue label, slider, and value label
+
+	params.gridX--;
+	params.gridY++;
+	params.orientationY = orient_top;
+	windowNewTextLabel(sliderContainer, _("Blue"), &params);
+
+	params.gridY++;
+	params.padBottom = 0;
+	params.flags = 0;
+	blueSlider = windowNewSlider(sliderContainer, scrollbar_horizontal,
 		SLIDER_WIDTH, 0, &params);
-	if (blueSlider == NULL)
-		return (status = ERR_NOCREATE);
+	if (!blueSlider)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
 	scrollState.positionPercent = ((tmpColor.blue * 100) / 255);
 	windowComponentSetData(blueSlider, &scrollState, sizeof(scrollBarState));
 
-	// Make labels to show the numerical color values
-	params.gridX += 1;
-	params.gridY = 1;
-	params.padLeft = 5;
-	params.padRight = 5;
-	redLabel = windowNewTextLabel(dialogWindow, "000", &params);
-	if (redLabel == NULL)
-		return (status = ERR_NOCREATE);
-	params.gridY += 2;
-	greenLabel = windowNewTextLabel(dialogWindow, "000", &params);
-	if (greenLabel == NULL)
-		return (status = ERR_NOCREATE);
-	params.gridY += 2;
-	blueLabel = windowNewTextLabel(dialogWindow, "000", &params);
-	if (blueLabel == NULL)
-		return (status = ERR_NOCREATE);
+	params.gridX++;
+	params.orientationY = orient_middle;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	blueLabel = windowNewTextLabel(sliderContainer, "000", &params);
+	if (!blueLabel)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
 	// Make a container for the buttons
 	params.gridX = 0;
-	params.gridY += 1;
-	params.gridWidth = 3;
+	params.gridY++;
+	params.gridWidth = 2;
+	params.padRight = 0;
 	params.padTop = 10;
 	params.padBottom = 5;
 	params.orientationX = orient_center;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-	buttonContainer =
-		windowNewContainer(dialogWindow, "buttonContainer", &params);
-	if (buttonContainer == NULL)
-		return (status = ERR_NOCREATE);
+	params.orientationY = orient_top;
+	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	buttonContainer = windowNewContainer(dialogWindow, "buttonContainer",
+		&params);
+	if (!buttonContainer)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
 	// Create the OK button
 	params.gridY = 0;
 	params.gridWidth = 1;
+	params.padLeft = 2;
+	params.padRight = 2;
 	params.padTop = 0;
 	params.padBottom = 0;
-	params.padLeft = 0;
-	params.padRight = 0;
 	params.orientationX = orient_right;
 	okButton = windowNewButton(buttonContainer, _("OK"), NULL, &params);
-	if (okButton == NULL)
-		return (status = ERR_NOCREATE);
+	if (!okButton)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
 	// Create the Cancel button
-	params.gridX = 1;
-	params.padLeft = 5;
-	params.padRight = 0;
+	params.gridX++;
 	params.orientationX = orient_left;
-	cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL, &params);
-	if (cancelButton == NULL)
-		return (status = ERR_NOCREATE);
+	cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL,
+		&params);
+	if (!cancelButton)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
+
 	windowComponentFocus(cancelButton);
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	// Draw the current color on the canvas
-	drawColor(&tmpColor);
+	drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
 
 	while (1)
 	{
@@ -236,23 +298,25 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 			windowComponentGetData(redSlider, &scrollState,
 				sizeof(scrollBarState));
 			tmpColor.red = ((scrollState.positionPercent * 255) / 100);
-			drawColor(&tmpColor);
+			drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
 		}
+
 		status = windowComponentEventGet(greenSlider, &event);
 		if (status > 0)
 		{
 			windowComponentGetData(greenSlider, &scrollState,
 				sizeof(scrollBarState));
 			tmpColor.green = ((scrollState.positionPercent * 255) / 100);
-			drawColor(&tmpColor);
+			drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
 		}
+
 		status = windowComponentEventGet(blueSlider, &event);
 		if (status > 0)
 		{
 			windowComponentGetData(blueSlider, &scrollState,
 				sizeof(scrollBarState));
 			tmpColor.blue = ((scrollState.positionPercent * 255) / 100);
-			drawColor(&tmpColor);
+			drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
 		}
 
 		// Check for our OK button
@@ -266,8 +330,11 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 		// Check for the cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) || ((status > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP)))
+		{
 			break;
+		}
 
 		// Check for window events
 		status = windowComponentEventGet(dialogWindow, &event);
@@ -276,14 +343,19 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 			if (event.type == EVENT_WINDOW_CLOSE)
 				break;
 			else if (event.type == EVENT_WINDOW_RESIZE)
-				drawColor(&tmpColor);
+				drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
 		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
 
-	windowDestroy(dialogWindow);
-	return (status = 0);
+	status = 0;
+
+out:
+	if (dialogWindow)
+		windowDestroy(dialogWindow);
+
+	return (status);
 }
 

@@ -45,7 +45,7 @@ static void timerInterrupt(void)
 	kernelProcessorIsrEnter(address);
 	kernelInterruptSetCurrent(INTERRUPT_NUM_SYSTIMER);
 
-	// Ok, now we can call the routine.
+	// Call the driver function
 	if (ops->driverTick)
 		ops->driverTick();
 
@@ -63,7 +63,6 @@ static void timerInterrupt(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelSysTimerInitialize(kernelDevice *dev)
 {
 	// This function initializes the system timer.
@@ -79,7 +78,7 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 
 	systemTimer = dev;
 
-	if ((systemTimer->driver == NULL) || (systemTimer->driver->ops == NULL))
+	if (!systemTimer->driver || !systemTimer->driver->ops)
 	{
 		kernelError(kernel_error, "The system timer driver or ops are NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -88,7 +87,8 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 	ops = systemTimer->driver->ops;
 
 	// Set up initial, default values
-	kernelSysTimerSetupTimer(0, 3, 0);
+	kernelSysTimerSetupTimer(0 /* timer */, 3 /* mode */,
+		0 /* count 0x10000 */);
 
 	// Don't save any old handler for the dedicated system timer interrupt,
 	// but if there is one, we want to know about it.
@@ -97,7 +97,8 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 			"for system timer int %d", INTERRUPT_NUM_SYSTIMER);
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt);
+	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt,
+		NULL);
 	if (status < 0)
 		return (status);
 
@@ -115,10 +116,10 @@ void kernelSysTimerTick(void)
 {
 	// This registers a tick of the system timer.
 
-	if (systemTimer == NULL)
+	if (!systemTimer)
 		return;
 
-	// Ok, now we can call the routine.
+	// Call the driver function
 	if (ops->driverTick)
 		ops->driverTick();
 
@@ -133,18 +134,18 @@ unsigned kernelSysTimerRead(void)
 	unsigned timer = 0;
 	int status = 0;
 
-	if (systemTimer == NULL)
+	if (!systemTimer)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Now make sure the device driver timer tick routine has been
 	// installed
-	if (ops->driverRead == NULL)
+	if (!ops->driverRead)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
 
-	// Ok, now we can call the routine.
+	// Call the driver function
 	timer = ops->driverRead();
 
 	// Return the result from the driver call
@@ -159,18 +160,18 @@ int kernelSysTimerReadValue(int timer)
 	int value = 0;
 	int status = 0;
 
-	if (systemTimer == NULL)
+	if (!systemTimer)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Now make sure the device driver read value routine has been
 	// installed
-	if (ops->driverReadValue == NULL)
+	if (!ops->driverReadValue)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
 
-	// Ok, now we can call the routine.
+	// Call the driver function
 	value = ops->driverReadValue(timer);
 
 	// Return the result from the driver call
@@ -184,18 +185,18 @@ int kernelSysTimerSetupTimer(int timer, int mode, int startCount)
 
 	int status = 0;
 
-	if (systemTimer == NULL)
+	if (!systemTimer)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Now make sure the device driver setup timer routine has been
 	// installed
-	if (ops->driverSetupTimer == NULL)
+	if (!ops->driverSetupTimer)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
 
-	// Ok, now we can call the routine.
+	// Call the driver function
 	status = ops->driverSetupTimer(timer, mode, startCount);
 
 	// Return the result from the driver call
@@ -209,12 +210,12 @@ void kernelSysTimerWaitTicks(int waitTicks)
 
 	int targetTime = 0;
 
-	if (systemTimer == NULL)
+	if (!systemTimer)
 		return;
 
 	// Now make sure the device driver read timer routine has been
 	// installed
-	if (ops->driverRead == NULL)
+	if (!ops->driverRead)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return;
@@ -225,7 +226,7 @@ void kernelSysTimerWaitTicks(int waitTicks)
 		// Not possible in this dimension.  Assume zero.
 		waitTicks = 0;
 
-	// Ok, now we can call the timer routine safely.
+	// Now we can call the driver function safely.
 
 	// Find out the current time
 	targetTime = ops->driverRead();

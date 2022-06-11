@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,7 +36,7 @@ msgid ""
 "  This program is distributed in the hope that it will be useful, but\n"
 "  WITHOUT ANY WARRANTY; without even the implied warranty of\n"
 "  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n"
-"  the file "
+"  the file /system/COPYING.txt for more details."
 msgstr ""
 
 #: imgboot.c:67
@@ -112,33 +112,33 @@ msgstr ""
 msgid "No\n"
 msgstr ""
 
-#: imgboot.c:356
+#: imgboot.c:364
 msgid "Can't create window!"
 msgstr ""
 
-#: imgboot.c:446
+#: imgboot.c:458
 msgid "o Install                    "
 msgstr ""
 
-#: imgboot.c:447
+#: imgboot.c:459
 msgid "o Continue                   "
 msgstr ""
 
-#: imgboot.c:448
+#: imgboot.c:460
 msgid "o Always continue (never ask)"
 msgstr ""
 
-#: imgboot.c:462
+#: imgboot.c:474
 msgid ""
 "This program can only be run as a privileged user.\n"
 "(Try logging in as user \"admin\")."
 msgstr ""
 
-#: imgboot.c:499
+#: imgboot.c:511
 msgid "Administrator account"
 msgstr ""
 
-#: imgboot.c:531
+#: imgboot.c:543
 msgid ""
 "\n"
 "Please select from the following options"

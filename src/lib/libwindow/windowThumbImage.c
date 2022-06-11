@@ -79,7 +79,6 @@ static int getImage(const char *fileName, image *imageData, unsigned maxWidth,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsigned maxWidth, unsigned maxHeight, componentParameters *params)
 {
 	// Desc: Create a new window image component from the supplied image file name 'fileName', with the given 'parent' window or container, and component parameters 'params'.  Dimension values 'maxWidth' and 'maxHeight' constrain the maximum image size.  The resulting image will be scaled down, if necessary, with the aspect ratio intact.  If 'fileName' is NULL, a blank image will be created.
@@ -92,7 +91,7 @@ _X_ objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsign
 		libwindowInitialize();
 
 	// Check params.  File name can be NULL.
-	if ((parent == NULL) || !maxWidth || !maxHeight || (params == NULL))
+	if (!parent || !maxWidth || !maxHeight || !params)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (thumbImage = NULL);
@@ -103,7 +102,7 @@ _X_ objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsign
 	if (status >= 0)
 	{
 		thumbImage = windowNewImage(parent, &imageData, draw_normal, params);
-		if (thumbImage == NULL)
+		if (!thumbImage)
 			errno = ERR_NOCREATE;
 	}
 
@@ -123,7 +122,7 @@ _X_ int windowThumbImageUpdate(objectKey thumbImage, const char *fileName, unsig
 		libwindowInitialize();
 
 	// Check params.  File name can be NULL.
-	if ((thumbImage == NULL) || !maxWidth || !maxHeight)
+	if (!thumbImage || !maxWidth || !maxHeight)
 		return (status = ERR_NULLPARAMETER);
 
 	status = getImage(fileName, &imageData, maxWidth, maxHeight);

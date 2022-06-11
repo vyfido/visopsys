@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,7 +33,7 @@ msgstr ""
 msgid "Unmount"
 msgstr ""
 
-#: computer.c:82 computer.c:507
+#: computer.c:82 computer.c:499
 msgid "Properties"
 msgstr ""
 
@@ -55,123 +55,123 @@ msgstr ""
 msgid "Can't mount %s on %s"
 msgstr ""
 
-#: computer.c:278 computer.c:362
+#: computer.c:283 computer.c:363
 #, c-format
 msgid "No media in disk %s"
 msgstr ""
 
-#: computer.c:313 computer.c:407
+#: computer.c:314 computer.c:404
 msgid "Error launching file browser"
 msgstr ""
 
-#: computer.c:352
+#: computer.c:353
 #, c-format
 msgid "Disk is already mounted as %s"
 msgstr ""
 
-#: computer.c:381
+#: computer.c:375
 msgid "Mount point"
 msgstr ""
 
-#: computer.c:382
+#: computer.c:376
 msgid "Please enter the mount point"
 msgstr ""
 
-#: computer.c:440
+#: computer.c:432
 #, c-format
 msgid "Disk %s is not mounted"
 msgstr ""
 
-#: computer.c:449
+#: computer.c:441
 #, c-format
 msgid "Error unmounting %s"
 msgstr ""
 
-#: computer.c:475
+#: computer.c:467
 msgid "Fixed "
 msgstr ""
 
-#: computer.c:477
+#: computer.c:469
 msgid "Removable "
 msgstr ""
 
-#: computer.c:480
+#: computer.c:472
 msgid "floppy\n"
 msgstr ""
 
-#: computer.c:482
+#: computer.c:474
 msgid "CD-ROM\n"
 msgstr ""
 
-#: computer.c:484
+#: computer.c:476
 msgid "flash disk\n"
 msgstr ""
 
-#: computer.c:486
+#: computer.c:478
 msgid "hard disk\n"
 msgstr ""
 
-#: computer.c:488
+#: computer.c:480
 #, c-format
 msgid "%u cylinders, %u heads, %u sectors\n"
 msgstr ""
 
-#: computer.c:492
+#: computer.c:484
 #, c-format
 msgid "Size: %llu MB\n"
 msgstr ""
 
-#: computer.c:496
+#: computer.c:488
 #, c-format
 msgid "Partition type: %s\n"
 msgstr ""
 
-#: computer.c:499
+#: computer.c:491
 #, c-format
 msgid "Filesystem type: %s\n"
 msgstr ""
 
-#: computer.c:503
+#: computer.c:495
 #, c-format
 msgid "Mounted as %s%s\n"
 msgstr ""
 
-#: computer.c:505
+#: computer.c:497
 msgid " (read only)"
 msgstr ""
 
-#: computer.c:583 computer.c:640
+#: computer.c:575 computer.c:632
 msgid "Error spawning browser thread"
 msgstr ""
 
-#: computer.c:596
+#: computer.c:588
 msgid "Error spawning mount as thread"
 msgstr ""
 
-#: computer.c:608
+#: computer.c:600
 msgid "Error spawning unmount thread"
 msgstr ""
 
-#: computer.c:621
+#: computer.c:613
 msgid "Error spawning properties thread"
 msgstr ""
 
-#: computer.c:707
+#: computer.c:699
 msgid "Memory allocation error"
 msgstr ""
 
-#: computer.c:800
+#: computer.c:792
 msgid "Disk"
 msgstr ""
 
-#: computer.c:842
+#: computer.c:834
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: computer.c:866
+#: computer.c:858
 #, c-format
 msgid "Can't load icon image %s"
 msgstr ""

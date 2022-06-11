@@ -65,28 +65,28 @@ static inline int decDigits(int max)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const char *message, int minVal, int maxVal, int defaultVal, int *value)
 {
 	// Desc: Create a 'number' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a text field for the user to enter data using the keyboard, and a slider component for adjusting it with the mouse.  Minimum, maximum, and default values should be supplied.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 	int status = 0;
 	int columns = 0;
+	char *buffer = NULL;
 	objectKey dialogWindow = NULL;
-	componentParameters params;
+	objectKey container = NULL;
 	objectKey field = NULL;
 	objectKey slider = NULL;
 	scrollBarState sliderState;
 	objectKey okButton = NULL;
 	objectKey cancelButton = NULL;
-	char *buffer = NULL;
+	componentParameters params;
 	windowEvent event;
 
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (message == NULL) || (value == NULL))
+	if (!title || !message || !value)
 		return (status = ERR_NULLPARAMETER);
 
 	if ((minVal > maxVal) || (defaultVal < minVal) || (defaultVal > maxVal))
@@ -96,7 +96,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	columns = (max(max(2, decDigits(minVal)), decDigits(maxVal)) + 1);
 
 	buffer = malloc(columns + 1);
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	// Create the dialog.
@@ -104,7 +104,8 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 		dialogWindow = windowNewDialog(parentWindow, title);
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-	if (dialogWindow == NULL)
+
+	if (!dialogWindow)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -116,44 +117,62 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
+	params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_top;
 
-	params.gridWidth = 2;
-	windowNewTextLabel(dialogWindow, message, &params);
+	// Get a container to pack everything into
+	container = windowNewContainer(dialogWindow, "container", &params);
+	if (!container)
+	{
+		status = ERR_NOCREATE;
+		goto out;
+	}
 
+	// Add a label with the prompt
+	params.gridWidth = 2;
+	params.padLeft = 0;
+	params.padRight = 0;
+	params.padTop = 0;
+	params.orientationX = orient_left;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	windowNewTextLabel(container, message, &params);
+
+	// Add a text field for the value
 	params.gridY++;
-	params.padTop = 5;
-	field = windowNewTextField(dialogWindow, columns, &params);
+	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	field = windowNewTextField(container, columns, &params);
 	sprintf(buffer, "%d", defaultVal);
 	windowComponentSetData(field, buffer, columns);
 	windowComponentFocus(field);
 
 	// Add a slider to adjust the value mouse-ly
 	params.gridY++;
-	slider = windowNewSlider(dialogWindow, scrollbar_horizontal, 0, 0, &params);
+	params.flags = 0;
+	slider = windowNewSlider(container, scrollbar_horizontal, 0, 0, &params);
 	sliderState.displayPercent = 20; // Size of slider 20%
-	sliderState.positionPercent =
-		(((defaultVal - minVal) * 100) / (maxVal - minVal));
+	sliderState.positionPercent = ((maxVal - minVal)?
+		(((defaultVal - minVal) * 100) / (maxVal - minVal)) : 50);
 	windowComponentSetData(slider, &sliderState, sizeof(scrollBarState));
 
 	// Create the OK button
 	params.gridY++;
 	params.gridWidth = 1;
-	params.padBottom = 5;
+	params.padLeft = 2;
+	params.padRight = 2;
+	params.padBottom = 0;
 	params.orientationX = orient_right;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-	okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	okButton = windowNewButton(container, _("OK"), NULL, &params);
 
 	// Create the Cancel button
 	params.gridX++;
-	params.padLeft = 0;
-	params.padRight = 5;
 	params.orientationX = orient_left;
-	cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
+	cancelButton = windowNewButton(container, _("Cancel"), NULL, &params);
 
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	while (1)
@@ -184,15 +203,12 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 			}
 
 			// Check for slider changes
-			if ((windowComponentEventGet(slider, &event) > 0) &&
-				((event.type == EVENT_MOUSE_DRAG) ||
-				(event.type == EVENT_KEY_DOWN)))
+			if (windowComponentEventGet(slider, &event) > 0)
 			{
 				windowComponentGetData(slider, &sliderState,
 					sizeof(scrollBarState));
-				sprintf(buffer, "%d",
-					(((sliderState.positionPercent *
-						(maxVal - minVal)) / 100) + minVal));
+				sprintf(buffer, "%d", (((sliderState.positionPercent *
+					(maxVal - minVal)) / 100) + minVal));
 				windowComponentSetData(field, buffer, columns);
 			}
 
@@ -214,7 +230,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 				break;
 			}
 
-			// Done
+			// Not finished yet
 			multitaskerYield();
 		}
 
@@ -233,7 +249,6 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	}
 
 out:
-
 	if (buffer)
 		free(buffer);
 

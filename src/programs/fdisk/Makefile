@@ -15,8 +15,7 @@ include ${ROOT}/Makefile.include
 STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h \
 	*.h ${LIBDIR}/crt0.o
 INCLUDE = -nostdinc -I${INCDIR}
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} ${PARTLOGIC} \
-	${PLUS}
+CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} ${PARTLOGIC}
 LFLAGS = -L${LIBDIR} -nostdlib \
 	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 

@@ -25,6 +25,7 @@
 
 uquad_t kernelCpuTimestampFreq(void);
 uquad_t kernelCpuTimestamp(void);
+uquad_t kernelCpuGetMs(void);
 void kernelCpuSpinMs(unsigned);
 
 #define _KERNELCPU_H

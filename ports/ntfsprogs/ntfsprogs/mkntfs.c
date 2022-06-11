@@ -253,7 +253,7 @@ static void format_progress_update(int myPercentIndex, u64 current, u64 total)
       if (finished >= 100)
 	finished = 99;
 
-      opts.prog->finished = finished;
+      opts.prog->numFinished = finished;
       opts.prog->percentFinished = finished;
 
       lockRelease(&opts.prog->progLock);
@@ -5356,8 +5356,9 @@ int ntfsFormat(const char *diskName, const char *volName, int longFormat,
 
   if (prog && (lockGet(&prog->progLock) >= 0))
     {
-      prog->finished = prog->total;
+      prog->numFinished = prog->numTotal;
       prog->percentFinished = 100;
+	  prog->complete = 1;
       lockRelease(&prog->progLock);
     }
 

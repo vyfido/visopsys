@@ -63,7 +63,8 @@ double-quotes (").
 #define COMMANDHISTORY		20
 #define MAX_ENVVAR_LENGTH	100
 
-static int myProcId, myPrivilege;
+static int myProcId = 0;
+static int myPrivilege = 0;
 static char *cwd = NULL;
 static int promptCatchup = 0;
 

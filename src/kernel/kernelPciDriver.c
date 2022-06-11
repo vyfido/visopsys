@@ -833,7 +833,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		}
 	}
 
-	// Register the device
+	// Add the kernel device
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
 	{

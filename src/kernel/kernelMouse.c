@@ -411,7 +411,7 @@ int kernelMouseInitialize(void)
 	// Spawn the mouse thread
 	threadPid = kernelMultitaskerSpawn(mouseThread, "mouse thread", 0, NULL);
 	if (threadPid < 0)
-		return (status = threadPid);
+		kernelError(kernel_warn, "Unable to start mouse thread");
 
 	return (status = 0);
 }

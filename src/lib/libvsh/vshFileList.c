@@ -39,7 +39,7 @@ _X_ int vshFileList(const char *itemName)
 	unsigned bytesFree = 0;
 
 	// Make sure file name isn't NULL
-	if (itemName == NULL)
+	if (!itemName)
 		return (errno = ERR_NULLPARAMETER);
 
 	// Initialize the file structure
@@ -124,13 +124,13 @@ _X_ int vshFileList(const char *itemName)
 
 		printf("  ");
 
-		if (numberFiles == 0)
+		if (!numberFiles)
 			printf("No");
 		else
 			printf("%u", numberFiles);
 		printf(" file");
 
-		if ((numberFiles == 0) || (numberFiles > 1))
+		if (!numberFiles || (numberFiles > 1))
 			putchar('s');
 
 		printf("\n  %u bytes free\n\n", bytesFree);

@@ -241,8 +241,8 @@ static void progressThread(void)
 				if (prog->cancel)
 					break;
 
-				// If the 'percent finished' is 100, quit
-				if (prog->percentFinished >= 100)
+				// Job finished?
+				if (prog->complete)
 					break;
 
 				// Copy the status
@@ -271,14 +271,13 @@ static void progressThread(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ int vshProgressBar(progress *tmpProg)
 {
 	// Desc: Given a progress structure 'tmpProg', make a text progress bar that monitors the structure and updates itself (in a non-blocking way).  After the operation has completed, vshProgressBarDestroy() should be called to shut down the thread.
 
 	int status = 0;
 
-	if (tmpProg == NULL)
+	if (!tmpProg)
 		return (status = ERR_NULLPARAMETER);
 
 	makeTextProgressBar();
@@ -300,7 +299,7 @@ _X_ int vshProgressBarDestroy(progress *tmpProg)
 
 	int status = 0;
 
-	if (tmpProg == NULL)
+	if (!tmpProg)
 		return (status = ERR_NULLPARAMETER);
 
 	if (tmpProg != prog)

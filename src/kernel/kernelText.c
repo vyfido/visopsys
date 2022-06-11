@@ -164,8 +164,8 @@ int kernelTextInitialize(int columns, int rows)
 
 	int status = 0;
 
-	// Check our arguments
-	if (!columns || !rows)
+	// Check params
+	if ((columns <= 0) || (rows <= 0))
 		return (status = ERR_INVALID);
 
 	// Initialize text mode output
@@ -253,8 +253,8 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 
 	kernelTextArea *area = NULL;
 
-	// Check params.  No such thing as an area with 0 rows or columns
-	if (!columns || !rows)
+	// Check params
+	if ((columns <= 0) || (rows <= 0) || (bytesPerChar <= 0))
 		return (area = NULL);
 
 	area = kernelMalloc(sizeof(kernelTextArea));
@@ -351,6 +351,10 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 	unsigned char *newBufferData = NULL;
 	int copyColumns = 0, diffRows = 0, diffVisibleRows = 0;
 	int rowCount;
+
+	// Check params
+	if (!area || (columns <= 0) || (rows <= 0))
+		return (ERR_INVALID);
 
 	diffRows = (rows - area->rows);
 
@@ -583,6 +587,7 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!newStream)
 		return (status = ERR_NULLPARAMETER);
 
@@ -608,6 +613,7 @@ int kernelTextNewOutputStream(kernelTextOutputStream *newStream)
 	if (!initialized)
 		return (ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!newStream)
 		return (ERR_NULLPARAMETER);
 
@@ -735,6 +741,7 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!outputStream)
 		return (status = ERR_NULLPARAMETER);
 
@@ -858,7 +865,7 @@ int kernelTextPrintAttrs(textAttrs *attrs, const char *format, ...)
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params
-	if (!format)
+	if (!attrs || !format)
 		return (ERR_NULLPARAMETER);
 
 	// Initialize the argument list
@@ -919,6 +926,7 @@ int kernelTextPrintLine(const char *format, ...)
 	char output[MAXSTRINGLENGTH];
 	kernelTextOutputStream *outputStream = NULL;
 
+	// Check params
 	if (!format)
 		return (ERR_NULLPARAMETER);
 
@@ -943,6 +951,7 @@ void kernelTextStreamNewline(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -977,6 +986,7 @@ void kernelTextStreamBackSpace(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1030,6 +1040,7 @@ void kernelTextStreamTab(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1075,6 +1086,7 @@ void kernelTextStreamCursorUp(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1113,6 +1125,7 @@ void kernelTextStreamCursorDown(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1127,6 +1140,7 @@ void kernelTextStreamCursorDown(kernelTextOutputStream *outputStream)
 				(outputStream->textArea->cursorRow + 1),
 				outputStream->textArea->cursorColumn);
 	}
+
 	return;
 }
 
@@ -1154,6 +1168,7 @@ void kernelTextStreamCursorLeft(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1203,6 +1218,7 @@ void kernelTextStreamCursorRight(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1255,6 +1271,7 @@ int kernelTextStreamEnableScroll(kernelTextOutputStream *outputStream,
 	if (!initialized)
 		return (ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!outputStream)
 		return (ERR_NULLPARAMETER);
 
@@ -1288,6 +1305,7 @@ void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1393,6 +1411,7 @@ int kernelTextStreamGetColumn(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return (0);
 
+	// Check params
 	if (!outputStream)
 		return (0);
 
@@ -1414,13 +1433,14 @@ int kernelTextGetColumn(void)
 
 
 void kernelTextStreamSetColumn(kernelTextOutputStream *outputStream,
-			 int newColumn)
+	int newColumn)
 {
 	// Don't do anything unless we've been initialized
 	if (!initialized)
 		return;
 
-	if (!outputStream)
+	// Check params
+	if (!outputStream || (newColumn < 0))
 		return;
 
 	if (outputStream->outputDriver->setCursorAddress)
@@ -1439,6 +1459,10 @@ void kernelTextSetColumn(int newColumn)
 
 	kernelTextOutputStream *outputStream = NULL;
 
+	// Check params
+	if (newColumn < 0)
+		return;
+
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
 
@@ -1453,6 +1477,7 @@ int kernelTextStreamGetRow(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return (0);
 
+	// Check params
 	if (!outputStream)
 		return (0);
 
@@ -1479,7 +1504,8 @@ void kernelTextStreamSetRow(kernelTextOutputStream *outputStream, int newRow)
 	if (!initialized)
 		return;
 
-	if (!outputStream)
+	// Check params
+	if (!outputStream || (newRow < 0))
 		return;
 
 	if (outputStream->outputDriver->setCursorAddress)
@@ -1498,6 +1524,10 @@ void kernelTextSetRow(int newRow)
 
 	kernelTextOutputStream *outputStream = NULL;
 
+	// Check params
+	if (newRow < 0)
+		return;
+
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
 
@@ -1512,6 +1542,7 @@ void kernelTextStreamSetCursor(kernelTextOutputStream *outputStream, int on)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1541,6 +1572,7 @@ void kernelTextStreamScreenClear(kernelTextOutputStream *outputStream)
 	if (!initialized)
 		return;
 
+	// Check params
 	if (!outputStream)
 		return;
 
@@ -1747,8 +1779,8 @@ int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure returnChars isn't NULL
-	if (!returnChars)
+	// Check params
+	if (!returnChars || (numberRequested <= 0))
 		return (status = ERR_NULLPARAMETER);
 
 	if (!inputStream)
@@ -1785,7 +1817,7 @@ int kernelTextInputStreamReadAll(kernelTextInputStream *inputStream,
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure returnChars isn't NULL
+	// Check params
 	if (!returnChars)
 		return (status = ERR_NULLPARAMETER);
 
@@ -1854,8 +1886,8 @@ int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure addCharacters isn't NULL
-	if (!addCharacters)
+	// Check params
+	if (!addCharacters || (numberRequested <= 0))
 		return (status = ERR_NULLPARAMETER);
 
 	if (!inputStream)
@@ -1877,7 +1909,8 @@ int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
 
 int kernelTextInputAppendN(int numberRequested, char *addCharacters)
 {
-	return (kernelTextInputStreamAppendN(NULL, numberRequested, addCharacters));
+	return (kernelTextInputStreamAppendN(NULL, numberRequested,
+		addCharacters));
 }
 
 
@@ -1925,6 +1958,10 @@ int kernelTextInputStreamRemoveN(kernelTextInputStream *inputStream,
 	// Don't do anything unless we've been initialized
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (numberRequested <= 0)
+		return (status = ERR_RANGE);
 
 	if (!inputStream)
 	{
@@ -1980,7 +2017,7 @@ int kernelTextInputRemoveAll(void)
 
 
 void kernelTextInputStreamSetEcho(kernelTextInputStream *inputStream,
-				int onOff)
+	int onOff)
 {
 	// Turn input echoing on or off
 

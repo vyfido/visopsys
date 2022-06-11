@@ -35,3 +35,4 @@ _X_ int vshSearchPath(const char *orig, char *new)
 	// Use shared code
 	#include "../shared/srchpath.c"
 }
+

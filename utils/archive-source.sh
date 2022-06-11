@@ -48,14 +48,10 @@ find "$DESTDIR" -name CVS -exec rm -R {} \; > /dev/null 2>&1
 # Other stuff
 rm -f "$DESTDIR"/*.patch
 rm -Rf "$DESTDIR"/docs/visopsys.org
-rm -f "$DESTDIR"/src/HARDWARE.txt
 rm -f "$DESTDIR"/src/ISSUES.txt
 rm -Rf "$DESTDIR"/patches
 rm -Rf "$DESTDIR"/work
 # Stuff from the 'plus' distribution
-rm -f "$DESTDIR"/src/kernel/kernelFilesystemFatPlus.c
-rm -f "$DESTDIR"/src/programs/sysdiag.c
-rm -f "$DESTDIR"/src/programs/sysdiag.pot
 rm -Rf "$DESTDIR"/src/lib/liblic
 rm -f "$DESTDIR"/src/include/sys/keygen.h
 echo Done

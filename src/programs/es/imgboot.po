@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: 2014-01-22 17:27-0400\n"
 "Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,6 +27,7 @@ msgid "Copyright (C) 1998-2014 J. Andrew McLaughlin"
 msgstr "Copyright (C) 1998-2014 J. Andrew McLaughlin"
 
 #: imgboot.c:59
+#, fuzzy
 msgid ""
 "  This program is free software; you can redistribute it and/or modify it  \n"
 "  under the terms of the GNU General Public License as published by the\n"
@@ -36,7 +37,7 @@ msgid ""
 "  This program is distributed in the hope that it will be useful, but\n"
 "  WITHOUT ANY WARRANTY; without even the implied warranty of\n"
 "  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n"
-"  the file "
+"  the file /system/COPYING.txt for more details."
 msgstr ""
 "  This program is free software; you can redistribute it and/or modify it  \n"
 "  under the terms of the GNU General Public License as published by the\n"
@@ -131,23 +132,23 @@ msgstr "Sí\n"
 msgid "No\n"
 msgstr "No\n"
 
-#: imgboot.c:356
+#: imgboot.c:364
 msgid "Can't create window!"
 msgstr "No se puede crear la ventana!"
 
-#: imgboot.c:446
+#: imgboot.c:458
 msgid "o Install                    "
 msgstr "o Instalar                   "
 
-#: imgboot.c:447
+#: imgboot.c:459
 msgid "o Continue                   "
 msgstr "o Continuar                  "
 
-#: imgboot.c:448
+#: imgboot.c:460
 msgid "o Always continue (never ask)"
 msgstr "o Continuar siempre (no preguntar más)"
 
-#: imgboot.c:462
+#: imgboot.c:474
 msgid ""
 "This program can only be run as a privileged user.\n"
 "(Try logging in as user \"admin\")."
@@ -155,11 +156,11 @@ msgstr ""
 "Necesita derechos especiales para usar este comando.\n"
 "(Intente ingresar como \"admin\")"
 
-#: imgboot.c:499
+#: imgboot.c:511
 msgid "Administrator account"
 msgstr "Cuenta de administrador"
 
-#: imgboot.c:531
+#: imgboot.c:543
 msgid ""
 "\n"
 "Please select from the following options"

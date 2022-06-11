@@ -37,3 +37,4 @@ _X_ void vshPrintTime(char *buffer, unsigned unformattedTime)
 
 	return;
 }
+

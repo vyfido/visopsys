@@ -1192,7 +1192,7 @@ int main(int argc, char *argv[])
 		graphics = 0;
 
 	// Check privilege level
-	if (multitaskerGetProcessPrivilege(processId) != 0)
+	if (multitaskerGetProcessPrivilege(processId))
 		quit(ERR_PERMISSION, "%s", _("You must be a privileged user to use "
 			"this command.\n(Try logging in as user \"admin\")."));
 
@@ -1248,8 +1248,8 @@ int main(int argc, char *argv[])
 	fullInstallSize = getInstallSize(FULLINSTALL);
 
 	// How much space is available on the raw disk?
-	diskSize =
-		(diskInfo[diskNumber].numSectors * diskInfo[diskNumber].sectorSize);
+	diskSize = (diskInfo[diskNumber].numSectors *
+		diskInfo[diskNumber].sectorSize);
 
 	// Make sure there's at least room for a basic install
 	if (diskSize < basicInstallSize)
@@ -1340,15 +1340,18 @@ int main(int argc, char *argv[])
 		updateStatus(_("Formatting... "));
 
 		if (graphics)
+		{
 			progressDialog = windowNewProgressDialog(NULL, _("Formatting..."),
 				&prog);
+		}
 		else
 		{
 			printf("%s", _("\nFormatting...\n"));
 			vshProgressBar(&prog);
 		}
 
-		status = filesystemFormat(diskName, formatFsType, "Visopsys", 0, &prog);
+		status = filesystemFormat(diskName, formatFsType, "Visopsys", 0,
+			&prog);
 
 		if (graphics)
 			windowProgressDialogDestroy(progressDialog);

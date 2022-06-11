@@ -59,6 +59,7 @@ static kernelDevice *regDevice(void *parent, void *driver,
 	dev->device.subClass = subClass;
 	dev->driver = driver;
 
+	// Add the kernel device
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
 	{

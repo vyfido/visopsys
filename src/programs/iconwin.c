@@ -66,8 +66,8 @@ typedef struct {
 } iconInfo;
 
 static const char *configFile = NULL;
-static int processId;
-static int privilege;
+static int processId = 0;
+static int privilege = 0;
 static char windowTitle[WINDOW_MAX_TITLE_LENGTH];
 static int rows = 0;
 static int columns = 0;

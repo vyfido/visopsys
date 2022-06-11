@@ -268,8 +268,7 @@ altKeyboardMethod:
 
 loaderEnableA20:
 	;; This routine will attempt to enable the A20 address line using
-	;; various methods, if necessary.  Takes no arguments, and sets the
-	;; 'fatal' error flag on total failure.
+	;; various methods, if necessary.
 
 	pusha
 
@@ -293,12 +292,10 @@ loaderEnableA20:
 	cmp AX, 0
 	jz .done
 
-	;; OK, we weren't able to set the A20 address line, so we'll not be
+	;; OK, we weren't able to set the A20 address line, so we *may* not be
 	;; able to access much memory.  We can give a fairly helpful error
-	;; message, however, because in my experience, this tends to happen
-	;; when laptops have external keyboards attached
-
-	;; Print an error message, make a fatal error, and finish
+	;; message, but don't fail the whole boot because of this.  Some modern
+	;; machines don't let us set A20 manually, but work anyway.
 
 	call loaderPrintNewline
 	mov DL, ERRORCOLOR
@@ -308,8 +305,6 @@ loaderEnableA20:
 	mov SI, A20BAD2
 	call loaderPrint
 	call loaderPrintNewline
-
-	add byte [FATALERROR], 1
 
 	.done:
 	popa
@@ -323,5 +318,6 @@ loaderEnableA20:
 	SEGMENT .data
 	ALIGN 4
 
-A20BAD1		db 'Could not enable the A20 address line, which would cause serious memory', 0
+A20BAD1		db 'Could not enable the A20 address line, which could cause '
+			db 'serious memory', 0
 A20BAD2		db 'problems for the kernel.  This is often associated with keyboard errors.', 0

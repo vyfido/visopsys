@@ -171,3 +171,20 @@ int kernelMallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
 	return (_mallocGetBlocks(blocksArray, doBlocks));
 }
 
+
+void _kernelMallocCheck(const char *srcFile, int line)
+{
+	// Get the malloc code to check its structures
+
+	// Make sure we've been initialized
+	if (!initialized)
+		return;
+
+	if (_mallocCheck() < 0)
+	{
+		kernelError(kernel_error, "kernelMallocCheck failed at %s:%d", srcFile,
+			line);
+		while (1);
+	}
+}
+

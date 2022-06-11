@@ -428,7 +428,8 @@ int main(int argc, char *argv[])
 				// Volume name
 				if (!optarg)
 				{
-					error("%s", _("Missing volume name argument for '-n' option"));
+					error("%s", _("Missing volume name argument for '-n' "
+						"option"));
 					usage(argv[0]);
 					return (status = ERR_NULLPARAMETER);
 				}
@@ -498,10 +499,10 @@ int main(int argc, char *argv[])
 	processId = multitaskerGetCurrentProcessId();
 
 	// Check privilege level
-	if (multitaskerGetProcessPrivilege(processId) != 0)
+	if (multitaskerGetProcessPrivilege(processId))
 	{
-		error("%s", _("You must be a privileged user to use this command.\n(Try "
-			"logging in as user \"admin\")"));
+		error("%s", _("You must be a privileged user to use this command.\n"
+			"(Try logging in as user \"admin\")"));
 		return (status = ERR_PERMISSION);
 	}
 
@@ -556,20 +557,26 @@ int main(int argc, char *argv[])
 
 	bzero((void *) &prog, sizeof(progress));
 	if (graphics)
+	{
 		progressDialog = windowNewProgressDialog(NULL, _("Formatting..."),
 			&prog);
+	}
 	else if (!silentMode)
+	{
 		vshProgressBar(&prog);
+	}
 
 	if (!strcasecmp(type, "none"))
 	{
 		status = filesystemClobber(diskInfo[diskNumber].name);
 		prog.percentFinished = 100;
+		prog.complete = 1;
 	}
 	else if (!strcasecmp(type, "ntfs"))
 	{
 		status = ntfsFormat(diskInfo[diskNumber].name, volName, longFormat,
 			&prog);
+		filesystemScan(diskInfo[diskNumber].name);
 	}
 	else
 	{

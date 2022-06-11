@@ -105,7 +105,6 @@ static int getLanguages(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 {
 	// Desc: Create a 'language chooser' dialog box, with the parent window 'parentWindow', and a pointer to the string buffer 'pickedLanguage', which should be at least 6 bytes in length.  The initial language selected will be the value of the LANG environment variable, if possible.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
@@ -138,6 +137,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 		dialogWindow = windowNewDialog(parentWindow, TITLE);
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), TITLE);
+
 	if (!dialogWindow)
 	{
 		status = ERR_NOCREATE;
@@ -145,8 +145,6 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	}
 
 	bzero(&params, sizeof(componentParameters));
-
-	// Create the list of languages
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 7;
@@ -154,6 +152,8 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	params.padRight = 3;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
+
+	// Create the list of languages
 	langList = windowNewList(dialogWindow, windowlist_icononly,
 		((numLangs > 3)? 2 : 1) /* rows */,	3 /* columns */,
 		0 /* multiple */, langs, numLangs, &params);
@@ -176,7 +176,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	windowComponentSetSelected(langList, selected);
 
 	// Make a container for the buttons
-	params.gridY += 1;
+	params.gridY++;
 	params.padTop = 1;
 	params.padBottom = 4;
 	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
@@ -191,6 +191,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	// Create the OK button
 	params.gridY = 0;
 	params.padTop = params.padBottom = 0;
+	params.padLeft = 2;
 	params.padRight = 2;
 	params.orientationX = orient_right;
 	okButton = windowNewButton(buttonContainer, _("OK"), NULL, &params);
@@ -201,10 +202,10 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	}
 
 	// Create the Cancel button
-	params.gridX += 1;
-	params.padLeft = 2;
+	params.gridX++;
 	params.orientationX = orient_left;
-	cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL, &params);
+	cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL,
+		&params);
 	if (!cancelButton)
 	{
 		status = ERR_NOCREATE;
@@ -237,7 +238,8 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 
 		// Check for the cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) ||
+			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 		{
 			status = ERR_CANCELLED;
 			break;
@@ -254,7 +256,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 			}
 		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
 

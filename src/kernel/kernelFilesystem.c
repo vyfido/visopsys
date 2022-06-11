@@ -328,17 +328,25 @@ static int unmount(const char *path, int removed)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelFilesystemScan(kernelDisk *theDisk)
+int kernelFilesystemScan(const char *diskName)
 {
 	// Scan a logical disk and see if we can determine the filesystem type
 
 	int status = 0;
+	kernelDisk *theDisk = NULL;
 	kernelPhysicalDisk *physicalDisk = NULL;
 
 	// Check params
-	if (!theDisk)
+	if (!diskName)
 	{
 		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	theDisk = kernelDiskGetByName(diskName);
+	if (!theDisk)
+	{
+		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -413,7 +421,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 	status = theDriver->driverFormat(theDisk, type, label, longFormat, prog);
 
 	// Re-scan the filesystem
-	kernelFilesystemScan(theDisk);
+	kernelFilesystemScan((char *) theDisk->name);
 
 	return (status);
 }
@@ -454,7 +462,7 @@ int kernelFilesystemClobber(const char *diskName)
 	}
 
 	// Re-scan the filesystem
-	kernelFilesystemScan(theDisk);
+	kernelFilesystemScan((char *) theDisk->name);
 
 	// Finished
 	return (status = 0);
@@ -488,7 +496,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);
@@ -537,7 +545,7 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);
@@ -586,7 +594,7 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);
@@ -636,7 +644,7 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);
@@ -687,7 +695,7 @@ int kernelFilesystemResize(const char *diskName, uquad_t blocks,
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);
@@ -749,7 +757,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);
@@ -939,7 +947,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
-		if (kernelFilesystemScan(theDisk) < 0)
+		if (kernelFilesystemScan((char *) theDisk->name) < 0)
 		{
 			kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 				"unknown", theDisk->name);

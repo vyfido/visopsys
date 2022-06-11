@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-05-26 12:43+0100\n"
+"POT-Creation-Date: 2014-12-27 02:06+0000\n"
 "PO-Revision-Date: 2014-01-22 18:37-0400\n"
 "Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -32,7 +32,7 @@ msgstr "Montado como..."
 msgid "Unmount"
 msgstr "Desmontar"
 
-#: computer.c:82 computer.c:507
+#: computer.c:82 computer.c:499
 msgid "Properties"
 msgstr "Propiedades"
 
@@ -54,117 +54,117 @@ msgstr "El sistema de archivos en %s no es soportado para navegar"
 msgid "Can't mount %s on %s"
 msgstr "No se puede montar %s en %s"
 
-#: computer.c:278 computer.c:362
+#: computer.c:283 computer.c:363
 #, c-format
 msgid "No media in disk %s"
 msgstr "Sin medios en el disco %s"
 
-#: computer.c:313 computer.c:407
+#: computer.c:314 computer.c:404
 msgid "Error launching file browser"
 msgstr "Error al iniciar navegador de archivos"
 
-#: computer.c:352
+#: computer.c:353
 #, c-format
 msgid "Disk is already mounted as %s"
 msgstr "Disco ya montado como %s"
 
-#: computer.c:381
+#: computer.c:375
 msgid "Mount point"
 msgstr "Punto de montaje"
 
-#: computer.c:382
+#: computer.c:376
 msgid "Please enter the mount point"
 msgstr "Por favor, ingrese el punto de montaje"
 
-#: computer.c:440
+#: computer.c:432
 #, c-format
 msgid "Disk %s is not mounted"
 msgstr "Disco %s no montado"
 
-#: computer.c:449
+#: computer.c:441
 #, c-format
 msgid "Error unmounting %s"
 msgstr "Error al desmontar %s"
 
-#: computer.c:475
+#: computer.c:467
 msgid "Fixed "
 msgstr "Fijado "
 
-#: computer.c:477
+#: computer.c:469
 msgid "Removable "
 msgstr "Removible "
 
-#: computer.c:480
+#: computer.c:472
 msgid "floppy\n"
 msgstr "Floppy\n"
 
-#: computer.c:482
+#: computer.c:474
 msgid "CD-ROM\n"
 msgstr "CD-ROM\n"
 
-#: computer.c:484
+#: computer.c:476
 #, fuzzy
 msgid "flash disk\n"
 msgstr "Disco duro\n"
 
-#: computer.c:486
+#: computer.c:478
 msgid "hard disk\n"
 msgstr "Disco duro\n"
 
-#: computer.c:488
+#: computer.c:480
 #, c-format
 msgid "%u cylinders, %u heads, %u sectors\n"
 msgstr "%u cilindros, %u cabezas, %u sectores\n"
 
-#: computer.c:492
+#: computer.c:484
 #, c-format
 msgid "Size: %llu MB\n"
 msgstr "Tamaño: %llu MB\n"
 
-#: computer.c:496
+#: computer.c:488
 #, c-format
 msgid "Partition type: %s\n"
 msgstr "Tipo de partición: %s\n"
 
-#: computer.c:499
+#: computer.c:491
 #, c-format
 msgid "Filesystem type: %s\n"
 msgstr "Tipo del sistema de archivos: %s\n"
 
-#: computer.c:503
+#: computer.c:495
 #, c-format
 msgid "Mounted as %s%s\n"
 msgstr "Montado como %s%s\n"
 
-#: computer.c:505
+#: computer.c:497
 msgid " (read only)"
 msgstr " (sólo lectura)"
 
-#: computer.c:583 computer.c:640
+#: computer.c:575 computer.c:632
 msgid "Error spawning browser thread"
 msgstr ""
 
-#: computer.c:596
+#: computer.c:588
 msgid "Error spawning mount as thread"
 msgstr ""
 
-#: computer.c:608
+#: computer.c:600
 msgid "Error spawning unmount thread"
 msgstr ""
 
-#: computer.c:621
+#: computer.c:613
 msgid "Error spawning properties thread"
 msgstr ""
 
-#: computer.c:707
+#: computer.c:699
 msgid "Memory allocation error"
 msgstr "Error de memoria"
 
-#: computer.c:800
+#: computer.c:792
 msgid "Disk"
 msgstr "Disco"
 
-#: computer.c:842
+#: computer.c:834
 #, c-format
 msgid ""
 "\n"
@@ -173,7 +173,7 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: computer.c:866
+#: computer.c:858
 #, c-format
 msgid "Can't load icon image %s"
 msgstr "No se puede cargar el ícono %s"

@@ -34,3 +34,4 @@ _X_ void vshMakeAbsolutePath(const char *orig, char *new)
 	// Use shared code
 	#include "../shared/abspath.c"
 }
+

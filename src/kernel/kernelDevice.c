@@ -276,7 +276,6 @@ static void device2user(kernelDevice *kernel, device *user)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelDeviceInitialize(void)
 {
 	// This function is called during startup so we can call the
@@ -619,13 +618,6 @@ int kernelDeviceRemove(kernelDevice *old)
 
 	numTreeDevices -= 1;
 	return (status = 0);
-}
-
-
-int kernelDeviceTreeGetCount(void)
-{
-	// Returns the number of devices in the kernel's device tree.
-	return (numTreeDevices);
 }
 
 

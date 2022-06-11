@@ -105,7 +105,7 @@ static int usbMassStorageReset(kernelScsiDisk *scsiDisk)
 	// Do the control transfer to send the reset command
 	status = kernelUsbControlTransfer(scsiDisk->usb.usbDev,
 		USB_MASSSTORAGE_RESET, 0, scsiDisk->usb.usbDev->interDesc[0]->interNum,
-		0, NULL, NULL);
+		0, 0, NULL, NULL);
 	if (status < 0)
 		kernelDebug(debug_scsi, "SCSI USB MS reset failed");
 
@@ -122,7 +122,7 @@ static int usbClearHalt(kernelScsiDisk *scsiDisk, unsigned char endpoint)
 	// Do the control transfer to send the 'clear (halt) feature' to the
 	// endpoint
 	status = kernelUsbControlTransfer(scsiDisk->usb.usbDev, USB_CLEAR_FEATURE,
-		USB_FEATURE_ENDPOINTHALT, endpoint, 0, NULL, NULL);
+		USB_FEATURE_ENDPOINTHALT, endpoint, 0, 0, NULL, NULL);
 	if (status < 0)
 		kernelError(kernel_error, "Clear halt failed");
 
@@ -202,6 +202,7 @@ static int usbScsiCommand(kernelScsiDisk *scsiDisk, unsigned char lun,
 	cmdTrans->pid = USB_PID_OUT;
 	cmdTrans->length = sizeof(usbCmdBlockWrapper);
 	cmdTrans->buffer = &cmdWrapper;
+	cmdTrans->pid = USB_PID_OUT;
 	cmdTrans->timeout = timeout;
 
 	if (dataLength)
@@ -239,6 +240,7 @@ static int usbScsiCommand(kernelScsiDisk *scsiDisk, unsigned char lun,
 	statusTrans->pid = USB_PID_IN;
 	statusTrans->length = sizeof(usbCmdStatusWrapper);
 	statusTrans->buffer = &statusWrapper;
+	statusTrans->pid = USB_PID_IN;
 	statusTrans->timeout = timeout;
 
 	kernelDebug(debug_scsi, "SCSI USB MS status length=%u",
@@ -736,10 +738,15 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 	if (status < 0)
 		goto err_out;
 
-	if (inquiryData.byte1.removable & 0x80)
+	if ((scsiDisk->busTarget->bus->type == bus_usb) ||
+		(inquiryData.byte1.removable & 0x80))
+	{
 		physicalDisk->type |= DISKTYPE_REMOVABLE;
+	}
 	else
+	{
 		physicalDisk->type |= DISKTYPE_FIXED;
+	}
 
 	// Set up the vendor and product ID strings
 
@@ -753,7 +760,9 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 			break;
 		}
 		else if (count == 0)
+		{
 			scsiDisk->vendorId[0] = '\0';
+		}
 	}
 
 	strncpy(scsiDisk->productId, inquiryData.productId, 16);
@@ -766,7 +775,9 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 			break;
 		}
 		else if (count == 0)
+		{
 			scsiDisk->productId[0] = '\0';
+		}
 	}
 	snprintf(scsiDisk->vendorProductId, 26, "%s%s%s", scsiDisk->vendorId,
 		(scsiDisk->vendorId[0]? " " : ""), scsiDisk->productId);
@@ -787,7 +798,9 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 					senseData.addlCode, senseData.addlCodeQual);
 		}
 		else
+		{
 			break;
+		}
 
 		kernelCpuSpinMs(100);
 	}
@@ -856,7 +869,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 		if (status < 0)
 			goto err_out;
 
-		// Register the device
+		// Add the kernel device
 		status = kernelDeviceAdd(parent, (kernelDevice *)
 			&scsiDisk->usb.usbDev->dev);
 		if (status < 0)
@@ -1060,7 +1073,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 				continue;
 			}
 
-			kernelDebug(debug_scsi, "SCSI found USB mass storage device");
+			// Already claimed?
+			if (busTargets[deviceCount].claimed)
+				continue;
+
+			kernelDebug(debug_scsi, "SCSI found possible USB mass storage "
+				"device");
 			detectTarget(usbDev.controller->dev, bus_usb,
 				busTargets[deviceCount].id, driver);
 		}

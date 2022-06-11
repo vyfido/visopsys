@@ -26,10 +26,6 @@ else
 	STRIP = strip -s ${COBJS} ${C++OBJS}
 endif
 
-ifdef PLUS
-	PLUSNAMES = sysdiag
-endif
-
 CNAMES = adduser \
 	bootmenu \
 	cal \
@@ -102,8 +98,7 @@ CNAMES = adduser \
 	users \
 	view \
 	vsh \
-	wallpaper \
-	${PLUSNAMES}
+	wallpaper
 
 COBJS = $(addprefix ${BUILDDIR}/, ${CNAMES})
 C++OBJS = $(addprefix ${BUILDDIR}/, ${C++NAMES})

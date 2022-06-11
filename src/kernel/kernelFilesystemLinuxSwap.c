@@ -189,12 +189,6 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 		kernelLockRelease(&prog->progLock);
 	}
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
-	{
-		prog->percentFinished = 100;
-		kernelLockRelease(&prog->progLock);
-	}
-
 	return (status = 0);
 }
 
@@ -217,7 +211,15 @@ static int format(kernelDisk *theDisk, const char *type,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	return (status = formatSectors(theDisk, theDisk->numSectors, prog));
+	status = formatSectors(theDisk, theDisk->numSectors, prog);
+
+	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	{
+		prog->complete = 1;
+		kernelLockRelease(&prog->progLock);
+	}
+
+	return (status);
 }
 
 
@@ -266,7 +268,7 @@ static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
 
 	if (prog && (kernelLockGet(&prog->progLock) >= 0))
 	{
-		prog->percentFinished = 100;
+		prog->complete = 1;
 		kernelLockRelease(&prog->progLock);
 	}
 

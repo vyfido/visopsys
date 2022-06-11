@@ -87,8 +87,8 @@ typedef struct {
 
 } dirRecord;
 
-static int processId;
-static int privilege;
+static int processId = 0;
+static int privilege = 0;
 static objectKey window = NULL;
 static objectKey fileMenu = NULL;
 static objectKey viewMenu = NULL;
@@ -390,6 +390,9 @@ static int constructWindow(const char *directory)
 	params.padBottom = 5;
 	fileList = windowNewFileList(window, windowlist_icononly, 4, 5, directory,
 		WINFILEBROWSE_ALL, doFileSelection, &params);
+	if (!fileList)
+		return (status = ERR_NOTINITIALIZED);
+
 	windowRegisterEventHandler(fileList->key, &eventHandler);
 	windowComponentFocus(fileList->key);
 
@@ -438,7 +441,7 @@ int main(int argc, char *argv[])
 
 	strcpy(dirStack[dirStackCurr].name, "/");
 	if (argc > 1)
-		strncpy(dirStack[dirStackCurr].name, argv[argc - 1], MAX_PATH_LENGTH);
+		fileFixupPath(argv[argc - 1], dirStack[dirStackCurr].name);
 
 	status = multitaskerSetCurrentDirectory(dirStack[dirStackCurr].name);
 	if (status < 0)

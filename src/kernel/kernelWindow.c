@@ -3976,6 +3976,7 @@ int kernelWindowToggleMenuBar(void)
 	int status = 0;
 	kernelWindowMenuBar *menuBar = NULL;
 	int menuNumber = 0;
+	kernelWindowContainer *container = NULL;
 	windowEvent event;
 	int count;
 
@@ -4008,7 +4009,23 @@ int kernelWindowToggleMenuBar(void)
 					}
 				}
 				else
-					kernelDebug(debug_gui, "Window raise first menu");
+				{
+					// The way menus and menu bars are currently implemented,
+					// only menus with contents can be raised.  Try to find the
+					// first one with menu items in it.
+					kernelDebug(debug_gui, "Window raise first populated "
+						"menu");
+
+					for (count = 0; count < menuBar->numMenus; count ++)
+					{
+						container = menuBar->menu[count]->mainContainer->data;
+						if (container->numComponents)
+						{
+							menuNumber = count;
+							break;
+						}
+					}
+				}
 
 				// Send a fake mouse click to raise or lower the menu
 				kernelMemClear(&event, sizeof(windowEvent));
@@ -4027,13 +4044,19 @@ int kernelWindowToggleMenuBar(void)
 				kernelWindowProcessEvent(&event);
 			}
 			else
+			{
 				kernelDebugError("Window menuBar has no menus");
+			}
 		}
 		else
+		{
 			kernelDebugError("NULL menuBar");
+		}
 	}
 	else
+	{
 		kernelDebug(debug_gui, "No focus window or no menuBar component");
+	}
 
 	return (status = 0);
 }

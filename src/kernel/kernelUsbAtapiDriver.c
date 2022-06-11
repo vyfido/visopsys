@@ -154,6 +154,8 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 	cmdTrans->pid = USB_PID_OUT;
 	cmdTrans->length = sizeof(usbCmdBlockWrapper);
 	cmdTrans->buffer = &cmdWrapper;
+	cmdTrans->pid = USB_PID_OUT;
+	cmdTrans->timeout = USB_STD_TIMEOUT_MS;
 
 	if (dataLength)
 	{
@@ -166,6 +168,7 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 		dataTrans->address = dsk->usbDev->address;
 		dataTrans->length = dataLength;
 		dataTrans->buffer = data;
+		dataTrans->timeout = USB_STD_TIMEOUT_MS;
 
 		if (read)
 		{
@@ -187,6 +190,8 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 	statusTrans->pid = USB_PID_IN;
 	statusTrans->length = sizeof(usbCmdStatusWrapper);
 	statusTrans->buffer = &statusWrapper;
+	statusTrans->pid = USB_PID_IN;
+	statusTrans->timeout = USB_STD_TIMEOUT_MS;
 
 	// Write the transactions
 	status = kernelBusWrite(dsk->busTarget,
@@ -995,7 +1000,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	if (status < 0)
 		goto err_out;
 
-	// Register the device
+	// Add the kernel device
 	status = kernelDeviceAdd(parent, (kernelDevice *) &dsk->usbDev->dev);
 	if (status < 0)
 		goto err_out;
@@ -1108,7 +1113,11 @@ static int driverDetect(void *parent __attribute__((unused)),
 			if ((usbDev.classCode != 0x08) || (usbDev.subClassCode != 0x02))
 				continue;
 
-			kernelDebug(debug_usb, "USB ATAPI found USB ATAPI device");
+			// Already claimed?
+			if (busTargets[deviceCount].claimed)
+				continue;
+
+			kernelDebug(debug_usb, "USB ATAPI found possible ATAPI device");
 			detectTarget(usbDev.controller->dev, busTargets[deviceCount].id,
 				driver);
 		}
@@ -1226,3 +1235,4 @@ void kernelUsbAtapiDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

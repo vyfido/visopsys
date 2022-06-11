@@ -50,10 +50,6 @@
 #include "kernelUser.h"
 #include "kernelWindow.h"
 
-#ifdef PLUS
-	extern void kernelSetLicensed(int);
-#endif
-
 // We do this so that <sys/api.h> won't complain about being included
 // in a kernel file
 #undef KERNEL
@@ -380,6 +376,8 @@ static kernelFunctionIndex diskFunctionIndex[] = {
 
 // Filesystem functions (3000-3999 range)
 
+static kernelArgInfo args_filesystemScan[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_filesystemFormat[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
@@ -416,6 +414,8 @@ static kernelArgInfo args_filesystemGetBlockSize[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 
 static kernelFunctionIndex filesystemFunctionIndex[] = {
+	{ _fnum_filesystemScan, kernelFilesystemScan,
+		PRIVILEGE_SUPERVISOR, 1, args_filesystemScan, type_val },
 	{ _fnum_filesystemFormat, kernelFilesystemFormat,
 		PRIVILEGE_SUPERVISOR, 5, args_filesystemFormat, type_val },
 	{ _fnum_filesystemClobber, kernelFilesystemClobber,
@@ -1725,10 +1725,6 @@ static kernelArgInfo args_mouseLoadPointer[] =
 static kernelArgInfo args_pageGetPhysical[] =
 	{ { 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_ANYPTR } };
-#ifdef PLUS
-static kernelArgInfo args_setLicensed[] =
-	{ { 1, type_val, API_ARG_ANYVAL } };
-#endif
 
 static kernelFunctionIndex miscFunctionIndex[] = {
 	{ _fnum_fontGetDefault, kernelFontGetDefault,
@@ -1799,8 +1795,6 @@ static kernelFunctionIndex miscFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_keyboardGetMap, type_val },
 	{ _fnum_keyboardSetMap, kernelKeyboardSetMap,
 		PRIVILEGE_USER, 1, args_keyboardSetMap, type_val },
-	{ _fnum_deviceTreeGetCount, kernelDeviceTreeGetCount,
-		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_deviceTreeGetRoot, kernelDeviceTreeGetRoot,
 		PRIVILEGE_USER, 1, args_deviceTreeGetRoot, type_val },
 	{ _fnum_deviceTreeGetChild, kernelDeviceTreeGetChild,
@@ -1810,11 +1804,7 @@ static kernelFunctionIndex miscFunctionIndex[] = {
 	{ _fnum_mouseLoadPointer, kernelMouseLoadPointer,
 		PRIVILEGE_USER, 2, args_mouseLoadPointer, type_val },
 	{ _fnum_pageGetPhysical, kernelPageGetPhysical,
-		PRIVILEGE_USER, 2, args_pageGetPhysical, type_ptr },
-	#ifdef PLUS
-	{ _fnum_setLicensed, kernelSetLicensed,
-		PRIVILEGE_SUPERVISOR, 1, args_setLicensed, type_void }
-	#endif
+		PRIVILEGE_USER, 2, args_pageGetPhysical, type_ptr }
 };
 
 static kernelFunctionIndex *functionIndex[] = {

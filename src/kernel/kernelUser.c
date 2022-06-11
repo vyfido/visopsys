@@ -652,13 +652,6 @@ int kernelUserSetPid(const char *userName, int loginPid)
 
 	int status = 0;
 
-	#ifdef PLUS
-	extern int kernelIsLicensed;
-	if (!kernelIsLicensed)
-		kernelPanicOutput("License key", "", 0,
-			"The license key you entered is not valid");
-	#endif
-
 	// Check initialization
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);

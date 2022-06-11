@@ -33,33 +33,35 @@
 
 #define BACKUP_MBR						PATH_SYSTEM_BOOT "/backup-%s.mbr"
 #define SIMPLE_MBR_FILE					PATH_SYSTEM_BOOT "/mbr.simple"
-
-#define ENTRYOFFSET_DRV_ACTIVE			0
-#define ENTRYOFFSET_START_HEAD			1
-#define ENTRYOFFSET_START_CYLSECT		2
-#define ENTRYOFFSET_START_CYL			3
-#define ENTRYOFFSET_TYPE				4
-#define ENTRYOFFSET_END_HEAD			5
-#define ENTRYOFFSET_END_CYLSECT			6
-#define ENTRYOFFSET_END_CYL				7
-#define ENTRYOFFSET_START_LBA			8
-#define ENTRYOFFSET_SIZE_LBA			12
 #define MAX_SLICES						((DISK_MAX_PARTITIONS * 2) + 1)
 #define MAX_DESCSTRING_LENGTH			128
 
+// Label flags
+#define LABELFLAG_PRIMARYPARTS  		0x01
+#define LABELFLAG_LOGICALPARTS			0x02
+#define LABELFLAG_USETAGS				0x04
+#define LABELFLAG_USEACTIVE				0x08
+#define LABELFLAG_USEGUIDS				0x10
+
+// A default tag for MS-DOS partition creation: FAT32 LBA
+#define DEFAULT_TAG MSDOSTAG_FAT32_LBA
+// A default GUID for partition creation: "Windows data"
+#define DEFAULT_GUID GUID_WINDATA
+
+// These define a uniform layout when we display slices
 #ifdef PARTLOGIC
-#define SLICESTRING_DISKFIELD_WIDTH		3
+	#define SLICESTRING_DISKFIELD_WIDTH	3
 #else
-#define SLICESTRING_DISKFIELD_WIDTH		5
+	#define SLICESTRING_DISKFIELD_WIDTH	5
 #endif
 #define SLICESTRING_LABELFIELD_WIDTH	22
 #define SLICESTRING_FSTYPEFIELD_WIDTH	12
-#define SLICESTRING_CYLSFIELD_WIDTH		14
-#define SLICESTRING_SIZEFIELD_WIDTH		10
+#define SLICESTRING_STARTFIELD_WIDTH	11
+#define SLICESTRING_SIZEFIELD_WIDTH		11
 #define SLICESTRING_ATTRIBFIELD_WIDTH	15
 #define SLICESTRING_LENGTH				(SLICESTRING_DISKFIELD_WIDTH + \
 	SLICESTRING_LABELFIELD_WIDTH + SLICESTRING_FSTYPEFIELD_WIDTH + \
-	SLICESTRING_CYLSFIELD_WIDTH + SLICESTRING_SIZEFIELD_WIDTH +   \
+	SLICESTRING_STARTFIELD_WIDTH + SLICESTRING_SIZEFIELD_WIDTH +   \
 	SLICESTRING_ATTRIBFIELD_WIDTH)
 
 #define ISLOGICAL(slc) ((slc)->raw.type == partition_logical)
@@ -125,38 +127,29 @@ typedef struct {
 
 // Types of disk labels
 typedef enum {
-	label_none,
+	label_none = 0,
 	label_msdos,
 	label_gpt
 
 } labelType;
 
-// Label flags
-#define LABELFLAG_PRIMARYPARTS  		0x01
-#define LABELFLAG_LOGICALPARTS			0x02
-#define LABELFLAG_USETAGS				0x04
-#define LABELFLAG_USEGUIDS				0x08
-
-// A default GUID for partition creation: "Windows data"
-#define DEFAULT_GUID GUID_WINDATA
-
-struct _partitionTable;
-
 // This structure represents a generic disk label.
 typedef struct {
 	labelType type;
 	unsigned flags;
+	uquad_t firstUsableSect;
+	uquad_t lastUsableSect;
 
 	// Disk label operations
-	int (*detect) (const disk *);
-	int (*readTable) (const disk *, rawSlice *, int *);
-	int (*writeTable) (const disk *, rawSlice *, int);
+	int (*detect)(const disk *);
+	int (*readTable)(const disk *, rawSlice *, int *);
+	int (*writeTable)(const disk *, rawSlice *, int);
 	int (*getSliceDesc)(rawSlice *, char *);
-	sliceType (*canCreate) (slice *, int, int);
-	int (*canHide) (slice *);
-	void (*hide) (slice *);
-	int (*getTypes) (listItemParameters **);
-	int (*setType) (slice *, int);
+	sliceType (*canCreateSlice)(slice *, int, int);
+	int (*canHide)(slice *);
+	void (*hide)(slice *);
+	int (*getTypes)(listItemParameters **);
+	int (*setType)(slice *, int);
 
 } diskLabel;
 
@@ -203,3 +196,4 @@ void warning(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 #define _FDISK_H
 #endif
+

@@ -714,6 +714,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 		dev->driver = driver;
 		dev->data = (void *) adapter;
 
+		// Claim the controller device in the list of PCI targets.
+		kernelBusDeviceClaim(&(busTargets[deviceCount]), driver);
+
 		// Register the network adapter device
 		status = kernelNetworkDeviceRegister(dev);
 		if (status < 0)
@@ -723,7 +726,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			return (status);
 		}
 
-		// Register the kernel device
+		// Add the kernel device
 		status = kernelDeviceAdd(busTargets[deviceCount].bus->dev, dev);
 		if (status < 0)
 		{

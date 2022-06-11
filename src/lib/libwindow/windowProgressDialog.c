@@ -83,8 +83,7 @@ static void progressThread(void)
 
 				// Look for status message changes
 				if (strncmp((char *) prog->statusMessage,
-					(char *) lastProg.statusMessage,
-					PROGRESS_MAX_MESSAGELEN))
+					(char *) lastProg.statusMessage, PROGRESS_MAX_MESSAGELEN))
 				{
 					windowComponentSetData(statusLabel,
 						(char *) prog->statusMessage,
@@ -101,16 +100,15 @@ static void progressThread(void)
 						windowSwitchPointer(dialogWindow, "busy");
 				}
 
-				// If the 'percent finished' is 100, quit
-				if (prog->percentFinished >= 100)
+				// Job finished?
+				if (prog->complete)
 					break;
 
 				// Look for 'need confirmation' flag changes
 				if (prog->needConfirm)
 				{
-					status =
-						windowNewQueryDialog(dialogWindow, _("Confirmation"),
-							 (char *) prog->confirmMessage);
+					status = windowNewQueryDialog(dialogWindow,
+						_("Confirmation"), (char *) prog->confirmMessage);
 					prog->needConfirm = 0;
 					if (status == 1)
 						prog->confirm = 1;
@@ -135,14 +133,15 @@ static void progressThread(void)
 
 		// Check for our Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) ||
+			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 		{
 			prog->cancel = 1;
 			windowComponentSetEnabled(cancelButton, 0);
 			break;
 		}
 
-		// Done
+		// Not finished yet
 		multitaskerYield();
 	}
 
@@ -161,19 +160,19 @@ static void progressThread(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title, progress *tmpProg)
 {
 	// Desc: Create a 'progress' dialog box, with the parent window 'parentWindow', and the given titlebar text and progress structure.  The dialog creates a thread which monitors the progress structure for changes, and updates the progress bar and status message appropriately.  If the operation is interruptible, it will show a 'CANCEL' button.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns immediately (but the dialog box itself is 'modal').  A call to this function should eventually be followed by a call to windowProgressDialogDestroy() in order to destroy and deallocate the window.
 
 	int status = 0;
+	objectKey container = NULL;
 	componentParameters params;
 
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
 	// Check params.  It's okay for parentWindow to be NULL.
-	if ((title == NULL) || (tmpProg == NULL))
+	if (!title || !tmpProg)
 		return (dialogWindow = NULL);
 
 	// Create the dialog.  Arbitrary size and coordinates
@@ -181,19 +180,36 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 		dialogWindow = windowNewDialog(parentWindow, title);
 	else
 		dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-	if (dialogWindow == NULL)
+
+	if (!dialogWindow)
 		return (dialogWindow);
 
 	bzero(&params, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
+	params.padRight = 5;
 	params.padTop = 5;
-	params.orientationX = orient_right;
+	params.padBottom = 5;
+	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
 
-	if (waitImage.data == NULL)
+	// Get a container to pack everything into
+	container = windowNewContainer(dialogWindow, "container", &params);
+	if (!container)
+	{
+		windowDestroy(dialogWindow);
+		return (dialogWindow = NULL);
+	}
+
+	params.gridHeight = 2;
+	params.padTop = 0;
+	params.padLeft = 0;
+	params.orientationX = orient_left;
+	params.orientationY = orient_top;
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+
+	if (!waitImage.data)
 	{
 		status = imageLoad(WAITIMAGE_NAME, 0, 0, (image *) &waitImage);
 		if (status >= 0)
@@ -203,17 +219,18 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 			waitImage.transColor.blue = 0;
 		}
 	}
+
 	if (waitImage.data)
-		windowNewImage(dialogWindow, (image *) &waitImage, draw_translucent,
+		windowNewImage(container, (image *) &waitImage, draw_translucent,
 			&params);
 
 	// Create the progress bar
 	params.gridX++;
-	params.padRight = 5;
+	params.gridHeight = 1;
+	params.padRight = 0;
 	params.orientationX = orient_center;
-	params.flags = 0;
-	progressBar = windowNewProgressBar(dialogWindow, &params);
-	if (progressBar == NULL)
+	progressBar = windowNewProgressBar(container, &params);
+	if (!progressBar)
 	{
 		windowDestroy(dialogWindow);
 		return (dialogWindow = NULL);
@@ -222,22 +239,24 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	// Create the status label
 	params.gridY++;
 	params.orientationX = orient_left;
-	statusLabel =
-		windowNewTextLabel(dialogWindow, "                                       "
-			"                                         ", &params);
-	if (statusLabel == NULL)
+	params.flags = 0;
+	statusLabel = windowNewTextLabel(container, "                          "
+		"                                                      ", &params);
+	if (!statusLabel)
 	{
 		windowDestroy(dialogWindow);
 		return (dialogWindow = NULL);
 	}
 
 	// Create the Cancel button
+	params.gridX = 0;
 	params.gridY++;
-	params.padBottom = 5;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.gridWidth = 2;
+	params.padBottom = 0;
 	params.orientationX = orient_center;
-	cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
-	if (cancelButton == NULL)
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	cancelButton = windowNewButton(container, _("Cancel"), NULL, &params);
+	if (!cancelButton)
 	{
 		windowDestroy(dialogWindow);
 		return (dialogWindow = NULL);
@@ -247,8 +266,10 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	windowComponentSetEnabled(cancelButton, 0);
 
 	windowRemoveCloseButton(dialogWindow);
+
 	if (parentWindow)
 		windowCenterDialog(parentWindow, dialogWindow);
+
 	windowSetVisible(dialogWindow, 1);
 
 	prog = tmpProg;
@@ -274,7 +295,7 @@ _X_ int windowProgressDialogDestroy(objectKey window)
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
-	if (window == NULL)
+	if (!window)
 		return (status = ERR_NULLPARAMETER);
 
 	if (window != dialogWindow)

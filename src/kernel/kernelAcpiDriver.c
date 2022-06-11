@@ -466,7 +466,7 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 	dev->driver = driver;
 	dev->data = acpi;
 
-	// Register the device
+	// Add the kernel device
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
 		goto out;

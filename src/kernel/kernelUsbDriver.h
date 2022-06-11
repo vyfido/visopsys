@@ -99,6 +99,7 @@ typedef volatile struct {
 	usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
 	int numEndpoints;
 	struct {
+		unsigned char interNum;
 		unsigned char number;
 		unsigned char dataToggle;
 		unsigned char maxBurst;
@@ -200,7 +201,7 @@ volatile unsigned char *kernelUsbGetEndpointDataToggle(usbDevice *,
 int kernelUsbSetDeviceConfig(usbDevice *);
 int kernelUsbSetupDeviceRequest(usbTransaction *, usbDeviceRequest *);
 int kernelUsbControlTransfer(usbDevice *, unsigned char, unsigned short,
-	unsigned short, unsigned short, void *,	unsigned *);
+	unsigned short, unsigned char, unsigned short, void *,	unsigned *);
 int kernelUsbScheduleInterrupt(usbDevice *, unsigned char, int, unsigned,
 	void (*)(usbDevice *, void *, unsigned));
 

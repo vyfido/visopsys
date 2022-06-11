@@ -920,17 +920,18 @@ static void exceptionHandler(void)
 			sprintf(message, "Process \"%s\" caused", targetProc->name);
 
 		sprintf((message + strlen(message)), " %s %s exception",
-		exceptionVector[processingException].a,
-		exceptionVector[processingException].name);
+			exceptionVector[processingException].a,
+			exceptionVector[processingException].name);
 
 		if (exceptionAddress >= KERNEL_VIRTUAL_ADDRESS)
 			kernOrApp = "kernel";
 		else
 			kernOrApp = "application";
 
-		// Find roughly the symbolic address where the exception happened
-		symbolName =
-			kernelLookupClosestSymbol(targetProc, (void *) exceptionAddress);
+		if (multitaskingEnabled)
+			// Find roughly the symbolic address where the exception happened
+			symbolName = kernelLookupClosestSymbol(targetProc,
+				(void *) exceptionAddress);
 
 		if (symbolName)
 			sprintf((message + strlen(message)), " in %s function %s "
@@ -954,15 +955,18 @@ static void exceptionHandler(void)
 
 		kernelError(kernel_error, "%s", message);
 
-		// Get process info
-		debugTSS(targetProc, details, MAXSTRINGLENGTH);
+		if (multitaskingEnabled)
+		{
+			// Get process info
+			debugTSS(targetProc, details, MAXSTRINGLENGTH);
 
-		// Try a stack trace
-		kernelStackTrace(targetProc, (details + strlen(details)),
-			(MAXSTRINGLENGTH - strlen(details)));
+			// Try a stack trace
+			kernelStackTrace(targetProc, (details + strlen(details)),
+				(MAXSTRINGLENGTH - strlen(details)));
 
-		// Output to the console
-		kernelTextPrintLine("%s", details);
+			// Output to the console
+			kernelTextPrintLine("%s", details);
+		}
 
 		if (!multitaskingEnabled || (targetProc == kernelProc))
 			// If it's the kernel, we're finished
@@ -1152,13 +1156,14 @@ static int schedulerShutdown(void)
 
 	// Restore the normal operation of the system timer 0, which is
 	// mode 3, initial count of 0
-	status = kernelSysTimerSetupTimer(0, 3, 0);
+	status = kernelSysTimerSetupTimer(0 /* timer */, 3 /* mode */,
+		0 /* count 0x10000 */);
 	if (status < 0)
 		kernelError(kernel_warn, "Could not restore system timer");
 
 	// Remove the task gate that we were using to capture the timer
 	// interrupt.  Replace it with the old default timer interrupt handler
-	kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, oldSysTimerHandler);
+	kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, oldSysTimerHandler, NULL);
 
 	// Give exclusive control to the current task
 	markTaskBusy(kernelCurrentProcess->tssSelector, 0);
@@ -1367,9 +1372,9 @@ static kernelProcess *chooseNextProcess(void)
 
 static int scheduler(void)
 {
-	// Well, here it is:  the kernel multitasker's scheduler.  This little
-	// program will run continually in a loop, handing out time slices to
-	// all processes, including the kernel itself.
+	// This is the kernel multitasker's scheduler thread.  This little program
+	// will run continually in a loop, handing out time slices to all
+	// processes, including the kernel itself.
 
 	// By the time this scheduler is invoked, the kernel should already have
 	// created itself a process in the task queue.  Thus, the scheduler can
@@ -1473,7 +1478,9 @@ static int scheduler(void)
 			kernelDebugError("Scheduler interrupt whilst processing exception");
 		}
 		else
+		{
 			nextProcess = chooseNextProcess();
+		}
 
 		// We should now have selected a process to run.  If not, we should
 		// re-start the old one.  This should only be likely to happen if some
@@ -1489,17 +1496,20 @@ static int scheduler(void)
 		// currently selected process.
 		kernelCurrentProcess = nextProcess;
 
-		// Set up a new time slice
-		while (kernelSysTimerSetupTimer(0, 3, TIME_SLICE_LENGTH) < 0)
-			kernelError(kernel_warn, "The scheduler was unable to control "
-				"the system timer");
-
 		// Acknowledge the timer interrupt if one occurred
 		if (!schedulerSwitchedByCall)
 			kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
 
 		// Reset the "switched by call" flag
 		schedulerSwitchedByCall = 0;
+
+		// Set up a new time slice
+		while (kernelSysTimerSetupTimer(0 /* timer */, 0 /* mode */,
+			TIME_SLICE_LENGTH) < 0)
+		{
+			kernelError(kernel_warn, "The scheduler was unable to control "
+				"the system timer");
+		}
 
 		// In the final part, we do the actual context switch.
 
@@ -1534,7 +1544,6 @@ static int schedulerInitialize(void)
 
 	int status = 0;
 	int interrupts = 0;
-	int vector = 0;
 	processImage schedImage = {
 		scheduler, scheduler,
 		NULL, 0xFFFFFFFF,
@@ -1578,15 +1587,7 @@ static int schedulerInitialize(void)
 	// Install a task gate for the interrupt, which will be the scheduler's
 	// timer interrupt.  After this point, our new scheduler task will run
 	// with every clock tick
-
-	vector = kernelPicGetVector(INTERRUPT_NUM_SYSTIMER);
-	if (vector < 0)
-	{
-		kernelProcessorRestoreInts(interrupts);
-		return (status = vector);
-	}
-
-	status = kernelDescriptorSetIDTTaskGate(vector,
+	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, NULL,
 		schedulerProc->tssSelector);
 	if (status < 0)
 	{
@@ -1609,6 +1610,9 @@ static int schedulerInitialize(void)
 
 	// Make note that the multitasker has been enabled.
 	multitaskingEnabled = 1;
+
+	// Set up the initial timer countdown
+	kernelSysTimerSetupTimer(0 /* timer */, 0 /* mode */, TIME_SLICE_LENGTH);
 
 	kernelProcessorRestoreInts(interrupts);
 
@@ -1910,7 +1914,6 @@ static int propagateEnvironmentRecursive(kernelProcess *parentProcess,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 {
 	// This function intializes the kernel's multitasker.
@@ -1936,7 +1939,6 @@ int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 
 	// We need to create the kernel's own process.
 	status = createKernelProcess(kernelStack, kernelStackSize);
-	// Make sure it was successful
 	if (status < 0)
 		return (status);
 
@@ -1948,7 +1950,6 @@ int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 
 	// Create an "idle" thread to consume all unused cycles
 	status = spawnIdleThread();
-	// Make sure it was successful
 	if (status < 0)
 		return (status);
 
@@ -1957,7 +1958,6 @@ int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 
 	// Start the exception handler thread.
 	status = spawnExceptionThread();
-	// Make sure it was successful
 	if (status < 0)
 		return (status);
 
@@ -3075,11 +3075,8 @@ int kernelMultitaskerBlock(int processId)
 	// Set the current process to "waiting"
 	kernelCurrentProcess->state = proc_waiting;
 
-	// We accomplish a yield by doing a far call to the scheduler's task.
-	// The scheduler sees this almost as if the current timeslice had expired.
-	kernelCurrentProcess->yieldSlice = kernelSysTimerRead();
-	schedulerSwitchedByCall = 1;
-	kernelProcessorFarJump(schedulerProc->tssSelector);
+	// And yield
+	kernelMultitaskerYield();
 
 	// Get the exit code from the process
 	return (kernelCurrentProcess->blockingExitCode);

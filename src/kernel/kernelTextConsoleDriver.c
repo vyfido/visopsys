@@ -468,3 +468,4 @@ int kernelTextConsoleInitialize(void)
 	// Register our driver
 	return (kernelSoftwareDriverRegister(textConsoleDriver, &textModeDriver));
 }
+

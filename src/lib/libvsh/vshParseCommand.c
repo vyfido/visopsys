@@ -36,11 +36,8 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argCount, char *a
 	int count;
 
 	// Check params
-	if ((commandLine == NULL) || (command == NULL) || (argCount == NULL) ||
-		(args == NULL))
-	{
+	if (!commandLine || !command || !argCount || !args)
 		return (errno = ERR_NULLPARAMETER);
-	}
 
 	*argCount = 0;
 
@@ -88,7 +85,7 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argCount, char *a
 		*commandLine++ = '\0';
 	}
 
-	if (*argCount == 0)
+	if (!*argCount)
 		// Nothing
 		return (status = 0);
 

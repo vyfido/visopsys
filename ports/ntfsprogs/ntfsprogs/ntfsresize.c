@@ -1013,7 +1013,7 @@ void progress_update(progress *prog, int myPercentIndex, u64 current,
       if (finished >= 100)
 	finished = 99;
 
-      prog->finished = finished;
+      prog->numFinished = finished;
       prog->percentFinished = finished;
 
       lockRelease(&prog->progLock);
@@ -2864,7 +2864,7 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
 	    // Set initial values
-	    resize->prog->total = 100;
+	    resize->prog->numTotal = 100;
 	    resize->prog->canCancel = 1;
 	    lockRelease(&resize->prog->progLock);
 	  }
@@ -3015,12 +3015,18 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 
 	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
-	    resize->prog->finished = resize->prog->total;
+	    resize->prog->numFinished = resize->prog->numTotal;
 	    resize->prog->percentFinished = 100;
 	    lockRelease(&resize->prog->progLock);
 	  }
 
  out:
+	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	{
+		resize->prog->complete = 1;
+	    lockRelease(&resize->prog->progLock);
+	}
+
 	free(resize);
 	return (0);
  err_out:

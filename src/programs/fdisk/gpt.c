@@ -30,30 +30,29 @@
 
 #define _(string) gettext(string)
 
+#define ENTRYBYTES(header) \
+	((header)->numPartEntries * (header)->partEntryBytes)
+#define ENTRYSECTORS(disk, header) \
+	((ENTRYBYTES(header) + ((disk)->sectorSize - 1)) / (disk)->sectorSize)
+
+// Forward declaration
+diskLabel gptLabel;
+
 
 static unsigned headerChecksum(gptHeader *header)
 {
 	// Given a gptHeader structure, compute the checksum
 
-	gptHeader *headerCopy = NULL;
-	unsigned checksum = 0;
+	gptHeader headerCopy;
 
-	// Allocate and make a copy of the header because we have to modify it
-	headerCopy = malloc(sizeof(gptHeader));
-	if (headerCopy == NULL)
-		return (-1);
-
-	memcpy(headerCopy, header, sizeof(gptHeader));
-	header = headerCopy;
+	// Make a copy of the header because we have to modify it
+	memcpy(&headerCopy, header, sizeof(gptHeader));
 
 	// Zero the checksum field
-	header->headerCRC32 = 0;
+	headerCopy.headerCRC32 = 0;
 
-	// Get the checksum
-	checksum = crc32(header, header->headerBytes, NULL);
-
-	free(header);
-	return (checksum);
+	// Return the checksum
+	return (crc32(&headerCopy, headerCopy.headerBytes, NULL));
 }
 
 
@@ -66,7 +65,7 @@ static gptHeader *readHeader(const disk *theDisk)
 
 	// Get memory for the header
 	header = malloc(theDisk->sectorSize);
-	if (header == NULL)
+	if (!header)
 	{
 		error("%s", _("Can't get memory for a GPT header"));
 		return (header = NULL);
@@ -92,8 +91,8 @@ static gptHeader *readHeader(const disk *theDisk)
 	// Check the header checksum.  For the moment we only warn if it's not
 	// correct.  Later we should be trying the backup header.
 	if (headerChecksum(header) != header->headerCRC32)
-		error(_("GPT header checksum mismatch (%x != %x)"), headerChecksum(header),
-			header->headerCRC32);
+		error(_("GPT header checksum mismatch (%x != %x)"),
+			headerChecksum(header), header->headerCRC32);
 
 	return (header);
 }
@@ -105,47 +104,35 @@ static int writeHeader(const disk *theDisk, gptHeader *header)
 	// write the header to disk.
 
 	int status = 0;
-	gptHeader *headerCopy = NULL;
+	gptHeader headerCopy;
 
 	// Make a copy of the header so we can modify it (other than just the
 	// checksum
-	headerCopy = malloc(header->headerBytes);
-	if (!headerCopy)
-	{
-		error("%s", _("Can't get memory for a GPT header copy"));
-		return (status = ERR_MEMORY);
-	}
-	memcpy(headerCopy, header, header->headerBytes);
+	memcpy(&headerCopy, header, header->headerBytes);
 
 	// Compute the header checksum
-	headerCopy->headerCRC32 = headerChecksum(headerCopy);
+	headerCopy.headerCRC32 = headerChecksum(&headerCopy);
 
 	// The guard MS-DOS table in the first sector.  Write the second sector.
-	status = diskWriteSectors(theDisk->name, 1, 1, headerCopy);
+	status = diskWriteSectors(theDisk->name, header->myLBA, 1, &headerCopy);
 	if (status < 0)
 	{
 		error("%s", _("Can't write GPT header"));
-		free(headerCopy);
 		return (status);
 	}
 
-	// Reset the header copy
-	memcpy(headerCopy, header, header->headerBytes);
-
 	// Adjust the 'my LBA' field and recompute the checksum
-	headerCopy->myLBA = header->altLBA;
-	headerCopy->altLBA = header->myLBA;
+	headerCopy.myLBA = header->altLBA;
+	headerCopy.altLBA = header->myLBA;
 
-	headerCopy->headerCRC32 = headerChecksum(headerCopy);
+	headerCopy.headerCRC32 = headerChecksum(&headerCopy);
 
 	// Write the backup partition table header
-	status = diskWriteSectors(theDisk->name, header->altLBA, 1, headerCopy);
+	status = diskWriteSectors(theDisk->name, header->altLBA, 1, &headerCopy);
 	if (status < 0)
 		warning("%s", _("Can't write backup GPT header"));
 
-	free(headerCopy);
-
-	return (0);
+	return (status);
 }
 
 
@@ -162,18 +149,11 @@ static gptEntry *readEntries(const disk *theDisk, gptHeader *header)
 	// Given a GPT header, return a malloc-ed array of partition entries.
 
 	int status = 0;
-	unsigned entryBytes = 0;
-	unsigned entrySectors = 0;
 	gptEntry *entries = NULL;
 
-	// Calculate the number of sectors we need to read
-	entryBytes = (header->numPartEntries * header->partEntryBytes);
-	entrySectors = ((entryBytes / theDisk->sectorSize) +
-		((entryBytes % theDisk->sectorSize)? 1 : 0));
-
 	// Get memory for the entries
-	entries = malloc(entrySectors * theDisk->sectorSize);
-	if (entries == NULL)
+	entries = malloc(ENTRYSECTORS(theDisk, header) * theDisk->sectorSize);
+	if (!entries)
 	{
 		error("%s", _("Can't get memory for a GPT entry array"));
 		return (entries = NULL);
@@ -181,7 +161,7 @@ static gptEntry *readEntries(const disk *theDisk, gptHeader *header)
 
 	// Read the entries
 	status = diskReadSectors(theDisk->name, header->partEntriesLBA,
-		entrySectors, entries);
+		ENTRYSECTORS(theDisk, header), entries);
 	if (status < 0)
 	{
 		error("%s", _("Can't read GPT entries"));
@@ -191,9 +171,13 @@ static gptEntry *readEntries(const disk *theDisk, gptHeader *header)
 
 	// Check the entries checksum.  For the moment we only warn if it's not
 	// correct.  Later we should be trying the backup entries.
-	if (entriesChecksum(entries, entryBytes) != header->partEntriesCRC32)
+	if (entriesChecksum(entries, ENTRYBYTES(header)) !=
+		header->partEntriesCRC32)
+	{
 		error(_("GPT entries checksum mismatch (%x != %x)"),
-			entriesChecksum(entries, entryBytes), header->partEntriesCRC32);
+			entriesChecksum(entries, ENTRYBYTES(header)),
+			header->partEntriesCRC32);
+	}
 
 	return (entries);
 }
@@ -205,17 +189,10 @@ static int writeEntries(const disk *theDisk, gptHeader *header,
 	// Given a GPT header and entries, write the partition entries to disk.
 
 	int status = 0;
-	unsigned entryBytes = 0;
-	unsigned entrySectors = 0;
 
-	// Calculate the number of sectors we need to read
-	entryBytes = (header->numPartEntries * header->partEntryBytes);
-	entrySectors = ((entryBytes / theDisk->sectorSize) +
-		((entryBytes % theDisk->sectorSize)? 1 : 0));
-
-	// Read the primary entries
+	// Write the primary entries
 	status = diskWriteSectors(theDisk->name, header->partEntriesLBA,
-		entrySectors, entries);
+		ENTRYSECTORS(theDisk, header), entries);
 	if (status < 0)
 	{
 		error("%s", _("Can't write GPT entries"));
@@ -224,7 +201,7 @@ static int writeEntries(const disk *theDisk, gptHeader *header,
 
 	// Write the backup entries
 	status = diskWriteSectors(theDisk->name, (header->lastUsableLBA + 1),
-		entrySectors, entries);
+		ENTRYSECTORS(theDisk, header), entries);
 	if (status < 0)
 	{
 		error("%s", _("Can't write GPT backup entries"));
@@ -232,7 +209,7 @@ static int writeEntries(const disk *theDisk, gptHeader *header,
 	}
 
 	// Update the entries checksum in the header
-	header->partEntriesCRC32 = entriesChecksum(entries, entryBytes);
+	header->partEntriesCRC32 = entriesChecksum(entries, ENTRYBYTES(header));
 
 	return (0);
 }
@@ -247,6 +224,15 @@ static inline int isEntryUsed(guid *g)
 	else
 		return (0);
 }
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard disk label functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 static int detect(const disk *theDisk)
@@ -268,7 +254,7 @@ static int detect(const disk *theDisk)
 
 	// Make sure it has the GPT protective partition
 	sectorData = malloc(theDisk->sectorSize);
-	if (sectorData == NULL)
+	if (!sectorData)
 		return (isGpt = 0);
 
 	// Read the MS-DOS table
@@ -321,12 +307,16 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 
 	// Read the header
 	header = readHeader(theDisk);
-	if (header == NULL)
+	if (!header)
 		return (status = ERR_INVALID);
+
+	// Record the first/last usable partition sectors
+	gptLabel.firstUsableSect = header->firstUsableLBA;
+	gptLabel.lastUsableSect = header->lastUsableLBA;
 
 	// Read the partition entries
 	entries = readEntries(theDisk, header);
-	if (entries == NULL)
+	if (!entries)
 		return (status = ERR_INVALID);
 
 	// Fill in the partition entries
@@ -367,10 +357,12 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 			// The partition type GUID.
 			memcpy(&slices[*numSlices].typeGuid, &entries[count].typeGuid,
 				sizeof(guid));
+
 			// The partition GUID.
 			memcpy(&slices[*numSlices].partGuid, &entries[count].partGuid,
 				sizeof(guid));
-			// The attributes
+
+			// The GPT attributes
 			slices[*numSlices].attributes = entries[count].attributes;
 
 			*numSlices += 1;
@@ -395,12 +387,12 @@ static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 
 	// Read the header
 	header = readHeader(theDisk);
-	if (header == NULL)
+	if (!header)
 		return (status = ERR_INVALID);
 
 	// Read the partition entries
 	entries = readEntries(theDisk, header);
-	if (entries == NULL)
+	if (!entries)
 		return (status = ERR_INVALID);
 
 	// Clear the partition entries
@@ -469,15 +461,17 @@ static int getSliceDesc(rawSlice *slc, char *string)
 }
 
 
-static sliceType canCreate(slice *slices __attribute__((unused)),
+static sliceType canCreateSlice(slice *slices __attribute__((unused)),
 	int numSlices __attribute__((unused)),
 	int sliceNumber __attribute__((unused)))
 {
 	// This will return a sliceType enumeration if, given a slice number
-	// representing free space, a partition can be created there.  With GPT,
-	// however, if there's empty space, a primary partition (the only type we
-	// do) can always be created there.  This function is a lot more
-	// "interesting" for MS-DOS labels ;^)
+	// representing free space, a partition can be created there.
+
+	// With GPT, as long as the empty space is >= the first usable LBA, and
+	// <= the last usable LBA, then a primary partition (the only type we do)
+	// can always be created there.  This function is a lot more "interesting"
+	// for MS-DOS labels ;^)
 	return (partition_primary);
 }
 
@@ -493,7 +487,7 @@ static int getTypes(listItemParameters **typeListParams)
 
 	// Get the list of types
 	types = diskGetGptPartTypes();
-	if (types == NULL)
+	if (!types)
 		return (numberTypes = ERR_NODATA);
 
 	for (count = 0; isEntryUsed(&types[count].typeGuid); count ++)
@@ -502,7 +496,7 @@ static int getTypes(listItemParameters **typeListParams)
 	// Make an array of list item parameters
 
 	*typeListParams = malloc(numberTypes * sizeof(listItemParameters));
-	if (*typeListParams == NULL)
+	if (!(*typeListParams))
 	{
 		numberTypes = ERR_MEMORY;
 		goto out;
@@ -528,7 +522,7 @@ static int setType(slice *slc, int typeNum)
 
 	// Get the list of types
 	types = diskGetGptPartTypes();
-	if (types == NULL)
+	if (!types)
 		return (status = ERR_NODATA);
 
 	memcpy(&slc->raw.typeGuid, &types[typeNum].typeGuid, sizeof(guid));
@@ -539,17 +533,21 @@ static int setType(slice *slc, int typeNum)
 
 
 diskLabel gptLabel = {
-	label_gpt, // type
+	// Data
+	label_gpt,		// type
 	(LABELFLAG_PRIMARYPARTS | // flags
-	 LABELFLAG_USEGUIDS),
+	LABELFLAG_USEGUIDS),
+	0,				// firstUsableSect (set dynamically)
+	(uquad_t) -1,	// lastUsableSect (set dynamically)
+
 	// Functions
 	&detect,
 	&readTable,
 	&writeTable,
 	&getSliceDesc,
-	&canCreate,
-	NULL, // canHide
-	NULL, // hide
+	&canCreateSlice,
+	NULL,			// canHide
+	NULL,			// hide
 	&getTypes,
 	&setType
 };
@@ -560,3 +558,4 @@ diskLabel *getLabelGpt(void)
 	// Called at initialization, returns a pointer to the disk label structure.
 	return (&gptLabel);
 }
+
