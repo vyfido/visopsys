@@ -47,6 +47,7 @@ int kernelFileCountDirEntries(kernelFileEntry *);
 kernelFileEntry *kernelFileLookup(const char *);
 kernelFileEntry *kernelFileResolveLink(kernelFileEntry *);
 int kernelFileSeparateLast(const char *, char *, char *);
+int kernelFileGetDisk(const char *, disk *);
 int kernelFileFirst(const char *, file *);
 int kernelFileNext(const char *, file *);
 int kernelFileFind(const char *, file *);

@@ -54,30 +54,23 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   if ((title == NULL) || (message == NULL)|| (fileName == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bzero(&params, sizeof(componentParameters));
-
   // Create the dialog.  Arbitrary size and coordinates
   if (parentWindow)
     dialogWindow = windowNewDialog(parentWindow, title);
   else
     dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
 
-  // Put a text label in the window to prompt the user
-  params.gridX = 0;
-  params.gridY = 0;
+  bzero(&params, sizeof(componentParameters));
   params.gridWidth = 2;
   params.gridHeight = 1;
   params.padLeft = 5;
   params.padRight = 5;
   params.padTop = 5;
-  params.padBottom = 0;
   params.orientationX = orient_center;
   params.orientationY = orient_top;
-  params.hasBorder = 0;
-  params.stickyFocus = 0;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  textLabel = windowNewTextLabel(dialogWindow, NULL, message, &params);
+  textLabel = windowNewTextLabel(dialogWindow, message, &params);
   if (textLabel == NULL)
     return (status = ERR_NOCREATE);
 
@@ -90,8 +83,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
-  textField = windowNewTextField(dialogWindow, 30, NULL /* default font*/,
-				 &params);
+  textField = windowNewTextField(dialogWindow, 30, &params);
   if (textField == NULL)
     return (status = ERR_NOCREATE);
   

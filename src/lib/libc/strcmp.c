@@ -34,7 +34,6 @@ int strcmp(const char *s1, const char *s2)
 
   int count = 0;
 
-
   // We don't normally set errno in this function
   errno = 0;
 

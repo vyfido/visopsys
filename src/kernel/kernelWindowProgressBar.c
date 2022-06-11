@@ -53,8 +53,9 @@ static int draw(void *componentData)
   // Draw the border
   kernelGraphicDrawGradientBorder(buffer, component->xCoord, component->yCoord,
 				  component->width, component->height,
-				  borderThickness, borderShadingIncrement,
-				  draw_reverse);
+				  borderThickness, (color *)
+				  &(component->parameters.background),
+				  borderShadingIncrement, draw_reverse);
 
   // Draw the slider
   progressBar->sliderWidth = (((component->width - (borderThickness * 2)) *
@@ -67,8 +68,9 @@ static int draw(void *componentData)
 				  (component->yCoord + borderThickness),
 				  progressBar->sliderWidth,
 				  (component->height - (borderThickness * 2)),
-				  borderThickness, borderShadingIncrement,
-				  draw_normal);
+				  borderThickness, (color *)
+				  &(component->parameters.background),
+				  borderShadingIncrement, draw_normal);
 
   // Print the progress percent
   sprintf(progress, "%d%%", progressBar->progressPercent);
@@ -86,7 +88,7 @@ static int draw(void *componentData)
 }
 
 
-static int setData(void *componentData, void *data, unsigned length)
+static int setData(void *componentData, void *data, int length)
 {
   // Set the progress percentage.  Our 'data' parameter is just an
   // integer value
@@ -120,12 +122,13 @@ static int setData(void *componentData, void *data, unsigned length)
 static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowProgressBar *progressBar =
-    (kernelWindowProgressBar *) component->data;
 
   // Release all our memory
-  if (progressBar)
-    kernelFree((void *) progressBar);
+  if (component->data)
+    {
+      kernelFree(component->data);
+      component->data = NULL;
+    }
 
   return (0);
 }
@@ -156,7 +159,7 @@ kernelWindowComponent *kernelWindowNewProgressBar(volatile void *parent,
     {
       // Try to load a nice-looking font
       if (kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			 DEFAULT_VARIABLEFONT_SMALL_NAME, &defaultFont) < 0)
+			 DEFAULT_VARIABLEFONT_SMALL_NAME, &defaultFont, 0) < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&defaultFont);
     }

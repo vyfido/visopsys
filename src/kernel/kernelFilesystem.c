@@ -27,6 +27,7 @@
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
 #include "kernelSysTimer.h"
+#include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include "kernelLog.h"
 #include "kernelError.h"
@@ -34,14 +35,11 @@
 #include <string.h>
 
 
-static kernelFilesystem filesystemArray[MAX_FILESYSTEMS];
 static kernelFilesystem *filesystemPointerArray[MAX_FILESYSTEMS];
 static int filesystemCounter = 0;
-static int filesystemIdCounter = 1;
-static int initialized = 0;
 
 
-static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
+static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 {
   // This function takes a disk structure (initialized, with its driver
   // accounted for) and calls functions to determine its type.  At the
@@ -54,6 +52,7 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
   // be called by the installDriver function.
 
   int status = 0;
+  kernelFilesystemDriver *tmpDriver = NULL;
   kernelFilesystemDriver *driver = NULL;
   char *typeName = NULL;
 
@@ -68,13 +67,11 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
   if ((((kernelPhysicalDisk *) theDisk->physical)->type == idecdrom) ||
       (((kernelPhysicalDisk *) theDisk->physical)->type == scsicdrom))
     {
-      status = kernelDriverGetIso()->driverDetect(theDisk);
-      if (status < 0)
-	// Don't continue if it's an error
-	return (driver = NULL);
-      else if (status == 1)
+      tmpDriver = kernelDriverGetIso();
+      status = tmpDriver->driverDetect(theDisk);
+      if (status == 1)
 	{
-	  driver = kernelDriverGetIso();
+	  driver = tmpDriver;
 	  typeName = driver->driverTypeName;
 	  goto finished;
 	}
@@ -82,25 +79,21 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
   else
     {
       // Check for FAT
-      status = kernelDriverGetFat()->driverDetect(theDisk);
-      if (status < 0)
-	// Don't continue if it's an error
-	return (driver = NULL);
-      else if (status == 1)
+      tmpDriver = kernelDriverGetFat();
+      status = tmpDriver->driverDetect(theDisk);
+      if (status == 1)
 	{
-	  driver = kernelDriverGetFat();
+	  driver = tmpDriver;
 	  typeName = driver->driverTypeName;
 	  goto finished;
 	}
 
       // Check for EXT
-      status = kernelDriverGetExt()->driverDetect(theDisk);
-      if (status < 0)
-	// Don't continue if it's an error
-	return (driver = NULL);
-      else if (status == 1)
+      tmpDriver = kernelDriverGetExt();
+      status = tmpDriver->driverDetect(theDisk);
+      if (status == 1)
 	{
-	  driver = kernelDriverGetExt();
+	  driver = tmpDriver;
 	  typeName = driver->driverTypeName;
 	  goto finished;
 	}
@@ -109,11 +102,22 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
   typeName = "Unsupported";
 
  finished:
-  // Copy this preliminary filesystem type name into the disk structure.
-  // The filesystem driver can change it if desired.
+  // Copy this filesystem type name into the disk structure.  The filesystem
+  // driver can change it if desired.
   strncpy((char *) theDisk->fsType, typeName, FSTYPE_MAX_NAMELENGTH);
 
-  kernelLog("%s filesystem found on disk %s", typeName, theDisk->name);
+  // Set the operation flags based on which filesystem functions are
+  // non-NULL.
+  theDisk->opFlags = 0;
+  if (driver)
+    {
+      if (driver->driverFormat)
+	theDisk->opFlags |= FS_OP_FORMAT;
+      if (driver->driverCheck)
+	theDisk->opFlags |= FS_OP_CHECK;
+      if (driver->driverDefragment)
+	theDisk->opFlags |= FS_OP_DEFRAG;
+    }
 
   return (driver);
 }
@@ -141,7 +145,7 @@ static int installDriver(kernelFilesystem *theFilesystem)
     }
 
   // OK, now call the routine that checks the types
-  theDriver = detectType(theFilesystem->disk);
+  theDriver = detectType((kernelDisk *) theFilesystem->disk);
   if (theDriver == NULL)
     {
       // Oops.  We don't know the filesystem type, so we have to make
@@ -157,48 +161,6 @@ static int installDriver(kernelFilesystem *theFilesystem)
 }
 
 
-static int releaseFilesystem(kernelFilesystem *theFilesystem)
-{
-  // We have to remove that filesystem by shifting all of the following
-  // structures in the array up by one spot and reduce the counter that keeps
-  // track of the number of devices.  If the device was the last spot,
-  // all we do is reduce the counter.
-
-  int status = 0;
-  int pointerArrayPosition = 0;
-  int count;
-
-  // Find the position of the filesystem's pointer in the pointer array
-  for (pointerArrayPosition = 0; 
-       ((filesystemPointerArray[pointerArrayPosition] != theFilesystem &&
-	 (pointerArrayPosition < filesystemCounter))); pointerArrayPosition++)
-    // Empty loop body is deliberate
-    ;
-
-  // What if we didn't find it?
-  if (pointerArrayPosition >= filesystemCounter)
-    {
-      // We didn't find the filesystem in the pointer list!
-      kernelError(kernel_error, "The filesystem cannot be found in the "
-		  "filesystem list");
-      return (status = ERR_NOSUCHENTRY);
-    }
-  
-  for (count = pointerArrayPosition; count < (filesystemCounter - 1); 
-       count ++)
-    filesystemPointerArray[count] = filesystemPointerArray[count + 1];
-
-  // Move the removed one to the end if there was more than 1
-  if (filesystemCounter > 1)
-    filesystemPointerArray[filesystemCounter - 1] = theFilesystem;
-
-  // Reduce the counters
-  filesystemCounter -= 1;
-
-  return (status = 0);
-}
-
-
 static kernelFilesystem *getNewFilesystem(kernelDisk *theDisk)
 {
   // Get a new filesystem structure from the list, fill in some values,
@@ -207,22 +169,8 @@ static kernelFilesystem *getNewFilesystem(kernelDisk *theDisk)
   int status = 0;
   kernelFilesystem *theFilesystem = NULL;
 
-  // Make sure there aren't already too many filesystems mounted
-  if (filesystemCounter >= MAX_FILESYSTEMS)
-    {
-      kernelError(kernel_error, "The maximum number of filesystems (%d) "
-		  "has been reached", MAX_FILESYSTEMS);
-      return (theFilesystem = NULL);
-    }
-
-  // Get a new filesystem structure from the list
-  theFilesystem = filesystemPointerArray[filesystemCounter];
-
-  // Initialize the filesystem structure
-  kernelMemClear((void *) theFilesystem, sizeof(kernelFilesystem));
-
-  // Set the filesystem's Id number
-  theFilesystem->filesystemNumber = filesystemIdCounter;
+  // Get a new filesystem structure
+  theFilesystem = kernelMalloc(sizeof(kernelFilesystem));
 
   // Make "theDisk" be the filesystem's disk structure
   theFilesystem->disk = theDisk;
@@ -230,15 +178,38 @@ static kernelFilesystem *getNewFilesystem(kernelDisk *theDisk)
   // Now install the filesystem driver functions
   status = installDriver(theFilesystem);
   if (status < 0)
-    return (theFilesystem = NULL);
+    {
+      kernelFree((void *) theFilesystem);
+      return (theFilesystem = NULL);
+    }
 
-  // Looks like we were successful.  Increment the filesystem counter 
-  // and Id counter
-  filesystemCounter += 1;
-  filesystemIdCounter += 1;
+  filesystemPointerArray[filesystemCounter++] = theFilesystem;
 
   // All set
   return (theFilesystem);
+}
+
+
+static void releaseFilesystem(kernelFilesystem *theFilesystem)
+{
+  // Release the filesystem.  First, find it in our list
+
+  int count;
+
+  for (count = 0; count < filesystemCounter; count ++)
+    {
+      if (filesystemPointerArray[count] == theFilesystem)
+	{
+	  if ((filesystemCounter > 1) && (count < (filesystemCounter - 1)))
+	    filesystemPointerArray[count] =
+	      filesystemPointerArray[filesystemCounter - 1];
+
+	  kernelFree((void *) theFilesystem);
+
+	  filesystemCounter -= 1;
+	}
+    }
+
 }
 
 
@@ -279,29 +250,15 @@ static kernelFilesystem *filesystemFromPath(const char *path)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelFilesystemInitialize(void)
+int kernelFilesystemScan(kernelDisk *scanDisk)
 {
-  // This function just does the small amount of initialization needed
-  // to manage the filesystems
-  
-  int status = 0;
-  int count;
- 
-  // Reset the counters 
-  filesystemCounter = 0;
+  // Scan a logical disk and see if we can determine the filesystem type
 
-  for (count = 0; count < MAX_FILESYSTEMS; count ++)
-    filesystemPointerArray[count] = &filesystemArray[count];
-
-  // Initialize the file entry manager
-  status = kernelFileInitialize();
-  if (status < 0)
-    return (status);
-  
-  // We're initialized
-  initialized = 1;
-
-  return (status = 0);
+  // Scan a disk to determine its filesystem type, etc.
+  if (detectType(scanDisk))
+    return (0);
+  else
+    return (ERR_INVALID);
 }
 
 
@@ -315,10 +272,6 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
   kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
  
-  // Do NOT format any filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (diskName == NULL)
     return (status = ERR_NULLPARAMETER);
@@ -332,7 +285,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
     }
 
   // Get a temporary filesystem driver to use for formatting
-  if (!strncmp(type, "fat", 3))
+  if (!strncasecmp(type, "fat", 3))
     theDriver = kernelDriverGetFat();
 
   if (theDriver == NULL)
@@ -371,10 +324,6 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair)
   kernelFilesystem *tmpFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
  
-  // Do NOT check any filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (diskName == NULL)
     return (status = ERR_NULLPARAMETER);
@@ -407,7 +356,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair)
     return (status);
 
   // Release the temporary filesystem structure we allocated
-  status = releaseFilesystem(tmpFilesystem);
+  releaseFilesystem(tmpFilesystem);
 
   // Finished
   return (status);
@@ -423,10 +372,6 @@ int kernelFilesystemDefragment(const char *diskName)
   kernelDisk *theDisk = NULL;
   kernelFilesystem *tmpFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
-
-  // Do NOT defragment any filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   theDisk = kernelGetDiskByName(diskName);
   if (theDisk == NULL)
@@ -461,7 +406,7 @@ int kernelFilesystemDefragment(const char *diskName)
     return (status);
 
   // Release the temporary filesystem structure we allocated
-  status = releaseFilesystem(tmpFilesystem);
+  releaseFilesystem(tmpFilesystem);
 
   // Finished
   return (status);
@@ -484,12 +429,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *parentDir = NULL;
-  //char yesNo = '\0';
   int count;
-
-  // Do NOT mount any filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if ((diskName == NULL) || (path == NULL))
@@ -669,7 +609,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   if (theFilesystem->readOnly)
     physicalDisk->readOnly = 1;
 
-  return (theFilesystem->filesystemNumber);
+  return (status = 0);
 }
 
 
@@ -687,10 +627,6 @@ int kernelFilesystemUnmount(const char *path)
   kernelFileEntry *mountPoint = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
   int numberFilesystems = -1;
-
-  // Do NOT unmount any filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   // Make sure the path name isn't NULL
   if (path == NULL)
@@ -796,10 +732,6 @@ int kernelFilesystemUnmountAll(void)
   int errors = 0;
   int count;
 
-  // Do NOT unmount any filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // We will loop through all of the mounted filesystems, unmounting
   // each of them (except root) until only root remains.  Finally, we
   // unmount the root also.
@@ -808,7 +740,7 @@ int kernelFilesystemUnmountAll(void)
 
   for (count = 0; count < filesystemCounter; count ++)
     {
-      fs = &filesystemArray[count];
+      fs = filesystemPointerArray[count];
 
       if (!strcmp((char *) fs->mountPoint, "/"))
 	{
@@ -863,31 +795,12 @@ int kernelFilesystemUnmountAll(void)
 }
 
 
-int kernelFilesystemNumberMounted(void)
-{
-  // This function will return the number of filesystems currently
-  // mounted
-
-  int status = 0;
-
-  // Do not report filesystems until we have been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (filesystemCounter);
-}
-
-
 kernelFilesystem *kernelFilesystemGet(char *fsName)
 {
   // This function will return the named filesystem.
 
   kernelFilesystem *theFilesystem = NULL;
   int count;
-
-  // Do not look for filesystems until we have been initialized
-  if (!initialized)
-    return (theFilesystem = NULL);
 
   // Make sure the filesystem name buffer we have been passed is not NULL
   if (fsName == NULL)
@@ -915,10 +828,6 @@ unsigned kernelFilesystemGetFree(const char *path)
   char mountPoint[MAX_PATH_LENGTH];
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
-
-  // Do NOT look at any filesystems until we have been initialized
-  if (!initialized)
-    return (freeSpace = 0);
 
   // Make sure the path name isn't NULL
   if (path == NULL)
@@ -963,10 +872,6 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
   unsigned blockSize = 0;
   char fixedPath[MAX_PATH_LENGTH];
   kernelFilesystem *theFilesystem = NULL;
-
-  // Do NOT look at any filesystems until we have been initialized
-  if (!initialized)
-    return (blockSize = 0);
 
   // Make sure the path name isn't NULL
   if (path == NULL)

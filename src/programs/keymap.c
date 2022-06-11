@@ -129,8 +129,7 @@ static void constructWindow(void)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  mapList =
-    windowNewList(window, NULL, 5, 1, 0, mapNames, numMapNames, &params);
+  mapList = windowNewList(window, 5, 1, 0, mapNames, numMapNames, &params);
 
   // Create an 'OK' button
   params.gridY = 1;

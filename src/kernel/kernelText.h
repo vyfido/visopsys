@@ -24,11 +24,11 @@
 #include "kernelStream.h"
 #include "kernelFont.h"
 #include "kernelGraphic.h"
-#include "kernelLock.h"
 
 // Definitions
 #define TEXTSTREAMSIZE 32768
 #define DEFAULT_TAB 8
+#define DEFAULT_SCROLLBACKLINES 200
 
 // Colours for the text console
 // 0  = black
@@ -57,16 +57,22 @@ typedef volatile struct
 {
   int xCoord;
   int yCoord;
-  unsigned columns;
-  unsigned rows;
-  unsigned cursorColumn;
-  unsigned cursorRow;
+  int columns;
+  int rows;
+  int bytesPerChar;
+  int cursorColumn;
+  int cursorRow;
+  int cursorState;
+  int maxBufferLines;
+  int scrollBackLines;
+  int scrolledBackLines;
   int hidden;
   color foreground;
   color background;
   void *inputStream;
   void *outputStream;
-  unsigned char *data;
+  unsigned char *bufferData;
+  unsigned char *visibleData;
   kernelAsciiFont *font;
   kernelGraphicBuffer *graphicBuffer;
   unsigned char *savedScreen;
@@ -88,6 +94,8 @@ typedef struct
   int (*getBackground) (kernelTextArea *);
   int (*setBackground) (kernelTextArea *, int);
   int (*print) (kernelTextArea *, const char *);
+  int (*delete) (kernelTextArea *);
+  int (*screenDraw) (kernelTextArea *);
   int (*screenClear) (kernelTextArea *);
   int (*screenRefresh) (kernelTextArea *);
 
@@ -117,6 +125,8 @@ int kernelGraphicConsoleInitialize(void);
 // Functions from kernelText.c
 
 int kernelTextInitialize(int, int);
+kernelTextArea *kernelTextAreaNew(int, int, int);
+void kernelTextAreaDelete(kernelTextArea *);
 int kernelTextSwitchToGraphics(kernelTextArea *);
 kernelTextInputStream *kernelTextGetConsoleInput(void);
 kernelTextOutputStream *kernelTextGetConsoleOutput(void);
@@ -152,6 +162,8 @@ void kernelTextStreamCursorLeft(kernelTextOutputStream *);
 void kernelTextCursorLeft(void);
 void kernelTextStreamCursorRight(kernelTextOutputStream *);
 void kernelTextCursorRight(void);
+void kernelTextStreamScroll(kernelTextOutputStream *, int);
+void kernelTextScroll(int);
 int kernelTextStreamGetNumColumns(kernelTextOutputStream *);
 int kernelTextGetNumColumns(void);
 int kernelTextStreamGetNumRows(kernelTextOutputStream *);

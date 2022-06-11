@@ -58,8 +58,13 @@ static int destroy(void *componentData)
   if (windowImage)
     {
       if (windowImage->imageData.data)
-	kernelFree(windowImage->imageData.data);
-      kernelFree((void *) windowImage);
+	{
+	  kernelFree(windowImage->imageData.data);
+	  windowImage->imageData.data = NULL;
+	}
+
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);

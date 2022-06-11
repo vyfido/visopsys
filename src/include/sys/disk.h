@@ -24,10 +24,15 @@
 
 #if !defined(_DISK_H)
 
-#define DISK_MAXDEVICES 32
-#define DISK_MAX_NAMELENGTH 16
-#define FSTYPE_MAX_NAMELENGTH 12
-#define PARTTYPE_MAX_DESCLENGTH 32
+#define DISK_MAXDEVICES         32
+#define DISK_MAX_NAMELENGTH     16
+#define DISK_MAX_PARTITIONS     16
+#define FSTYPE_MAX_NAMELENGTH   32
+
+// Flags for supported filesystem operations on a partition
+#define FS_OP_FORMAT            0x01
+#define FS_OP_CHECK             0x02
+#define FS_OP_DEFRAG            0x04
 
 typedef enum { floppy, idecdrom, scsicdrom, idedisk, scsidisk } diskType;
 typedef enum { fixed, removable } mediaType;
@@ -36,7 +41,7 @@ typedef enum { fixed, removable } mediaType;
 typedef struct
 {
   unsigned char code;
-  const char description[PARTTYPE_MAX_DESCLENGTH];
+  const char description[FSTYPE_MAX_NAMELENGTH];
 
 } partitionType;   
 
@@ -49,6 +54,7 @@ typedef struct
   int readOnly;
   partitionType partType;
   char fsType[FSTYPE_MAX_NAMELENGTH];
+  unsigned opFlags;
 
   unsigned heads;
   unsigned cylinders;

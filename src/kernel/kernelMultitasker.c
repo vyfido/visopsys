@@ -725,7 +725,6 @@ static void idleThread(void)
   // be run at the absolute lowest possible priority so that it will not 
   // be run unless there is absolutely nothing else in the other queues 
   // that is ready.
-
   while(1);
 }
 

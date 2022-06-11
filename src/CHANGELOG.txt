@@ -1,5 +1,61 @@
 
 ---------------
+Version 0.42
+---------------
+
+  Overview: This is primarily a bugfix release, with some added features
+  including the ability to format partitions from the Disk Manager, plus
+  vertical scroll bars on text areas and visual reimplementation of
+  "greyed out" window components.
+
+- Enabled filesystem formatting functionality in the disk manager.
+- Implemented vertical scroll bars and extended buffers on window text
+area components
+- Improved the 'greying out' functionality in the window manager; it
+didn't look great with the default colors and looked positively silly with
+some other color schemes.
+- Reimplemented the 'hidden' functionality of window text areas so that
+the buffer contains the real content, and the visible area contains the
+asterisks.  The 'get data' function returns the data from the buffer.
+- The window manager now makes more use of the busy mouse pointer
+- Restored window list locking, now that interrupt handlers don't need
+access.
+- Created a new logo for the splash image
+- In the disk manager, there is now a confirmation dialog before moving
+partitions
+- Added a 'get disk by file' function.
+- The 'disk' structures now contain a set of flags to indicate which
+filesystem functions are available from the appropriate driver, if
+applicable.
+- Moved the window event processing out of the execution path of interrupt
+handlers and into the window manager thread
+- Added 'new' and 'destroy' functions for kernelTextAreas
+- Moved icons and fonts into subdirectories under /system
+- Added a way to specify whether a loadable font should be fixed-width
+- Removed instances of 'bzero' calls in the kernel.  We have a much better
+kernelMemClear() function.
+- Added a 'strncasecmp' C library function
+- Simplified the management of 'kernelFilesystem' structures in the
+filesystem code.
+- The graphics code (main, framebuffer driver, and window manager and
+friends) now uses ints instead of unsigneds for widths and heights
+- Moved the font argument from some window components into the
+componentParameters structure
+- Fixed: Setting the widest item in a GUI menu to not enabled caused a bit
+of the menu border to get greyed out as well.
+- Fixed: State changes in the disk manager's disk and partition lists caused
+by key events were not being handled properly.
+- Fixed: In the User Manager, when adding a new user, if the user already
+existed the program would still prompt for a password.
+- Fixed: In 16-bit video mode, window titles were not displaying proper
+transparency
+- Fixed: The size/drawing of the items in list components was slightly off.
+- Fixed: If fonts or icons are missing, there's a panic
+- Fixed: The text mode console driver was not scrolling properly when
+printing long lines.  The next line would overwrite the wrapped part of the
+previous one.
+
+---------------
 Version 0.41
 ---------------
 

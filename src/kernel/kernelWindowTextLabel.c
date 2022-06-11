@@ -31,7 +31,7 @@
 static kernelAsciiFont *labelFont = NULL;
 
 
-static int setText(void *componentData, const char *text, unsigned length)
+static int setText(void *componentData, const char *text, int length)
 {
   // Set the label text
   
@@ -42,7 +42,10 @@ static int setText(void *componentData, const char *text, unsigned length)
 
   // Set the text
   if (label->text)
-    kernelFree((void *) label->text);
+    {
+      kernelFree((void *) label->text);
+      label->text = NULL;
+    }
 
   label->text = kernelMalloc(length + 1);
   if (label->text == NULL)
@@ -64,14 +67,15 @@ static int setText(void *componentData, const char *text, unsigned length)
   char *tmp  = label->text;
   for (count = 0; count < label->lines; count ++)
     {
-      unsigned width = kernelFontGetPrintedWidth(label->font, tmp);
+      int width = kernelFontGetPrintedWidth(component->parameters.font, tmp);
       if (width > component->width)
 	component->width = width;
       
       tmp += (strlen(tmp) + 1);
     }
 
-  component->height = (label->font->charHeight * label->lines);
+  component->height = (((kernelAsciiFont *) component->parameters.font)
+			->charHeight * label->lines);
 
   return (status = 0);
 }
@@ -94,10 +98,11 @@ static int draw(void *componentData)
 	kernelGraphicDrawText(&(window->buffer),
 			      (color *) &(component->parameters.foreground),
 			      (color *) &(component->parameters.background),
-			      label->font, tmp, draw_normal,
+			      component->parameters.font, tmp, draw_normal,
 			      component->xCoord,
-			      (component->yCoord + (label->font->charHeight *
-						    count)));
+			      (component->yCoord +
+			      (((kernelAsciiFont *) component->parameters.font)
+				->charHeight * count)));
       if (status < 0)
 	break;
 
@@ -111,7 +116,7 @@ static int draw(void *componentData)
 }
 
 
-static int setData(void *componentData, void *text, unsigned length)
+static int setData(void *componentData, void *text, int length)
 {
   // Set the label text
   
@@ -149,8 +154,13 @@ static int destroy(void *componentData)
   if (label)
     {
       if (label->text)
-	kernelFree((void *) label->text);
-      kernelFree((void *) label);
+	{
+	  kernelFree((void *) label->text);
+	  label->text = NULL;
+	}
+
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -167,7 +177,6 @@ static int destroy(void *componentData)
 
 
 kernelWindowComponent *kernelWindowNewTextLabel(volatile void *parent,
-						kernelAsciiFont *font,
 						const char *text,
 						componentParameters *params)
 {
@@ -177,7 +186,7 @@ kernelWindowComponent *kernelWindowNewTextLabel(volatile void *parent,
   kernelWindowComponent *component = NULL;
   kernelWindowTextLabel *textLabelComponent = NULL;
 
-  // Check parameters.  It's okay for the font to be NULL.
+  // Check parameters.
   if ((parent == NULL) || (text == NULL) || (params == NULL))
     return (component = NULL);
 
@@ -190,15 +199,15 @@ kernelWindowComponent *kernelWindowNewTextLabel(volatile void *parent,
     {
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont);
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);
     }
 
   // If font is NULL, use the default
-  if (font == NULL)
-    font = labelFont;
+  if (component->parameters.font == NULL)
+    component->parameters.font = labelFont;
 
   // Now populate it
   component->type = textLabelComponentType;
@@ -217,9 +226,6 @@ kernelWindowComponent *kernelWindowNewTextLabel(volatile void *parent,
     }
 
   component->data = (void *) textLabelComponent;
-
-  // Set the font
-  textLabelComponent->font = font;
 
   // Set the label data
   status = setText((void *) component, text, strlen(text));

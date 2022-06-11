@@ -108,6 +108,11 @@ static int drawPixel(kernelGraphicBuffer *buffer, color *foreground,
   if (buffer == NULL)
     buffer = &wholeScreen;
 
+  // Make sure the pixel is in the buffer
+  if ((xCoord >= buffer->width) || (yCoord >= buffer->height))
+    // Don't make an error condition, just skip it
+    return (status = 0);
+
   // Make sure we're not drawing off the screen
   if ((xCoord < 0) || (xCoord >= buffer->width) ||
       (yCoord < 0) || (yCoord >= buffer->height))
@@ -187,7 +192,7 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
       // This is an easy line to draw.
 
       // If the Y location is off the screen, skip it
-      if ((startY < 0) || (startY >= (int) buffer->height))
+      if ((startY < 0) || (startY >= buffer->height))
 	return (status = 0);
 
       // Make sure startX < endX
@@ -198,7 +203,7 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
       // display what will fit
       if (startX < 0)
 	startX = 0;
-      if (endX >= (int) buffer->width)
+      if (endX >= buffer->width)
 	endX = (buffer->width - 1);
       lineLength = ((endX - startX) + 1);
 
@@ -279,7 +284,7 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
       // This is an easy line to draw.
 
       // If the X location is off the screen, skip it
-      if ((startX < 0) || (startX >= (int) buffer->width))
+      if ((startX < 0) || (startX >= buffer->width))
 	return (status = 0);
 
       // Make sure startY < endY
@@ -290,7 +295,7 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
       // display what will fit
       if (startY < 0)
 	startY = 0;
-      if (endY >= (int) buffer->height)
+      if (endY >= buffer->height)
 	endY = (buffer->height - 1);
       lineLength = ((endY - startY) + 1);
       
@@ -457,15 +462,15 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
 
 
 static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
-		    drawMode mode, int startX, int startY, unsigned width,
-		    unsigned height, unsigned thickness, int fill)
+		    drawMode mode, int xCoord, int yCoord, int width,
+		    int height, int thickness, int fill)
 {
   // Draws a rectangle on the screen using the preset foreground color
 
   int status = 0;
-  int endX = (startX + (width - 1));
-  int endY = (startY + (height - 1));
-  unsigned lineBytes = 0;
+  int endX = (xCoord + (width - 1));
+  int endY = (yCoord + (height - 1));
+  int lineBytes = 0;
   unsigned char *lineBuffer = NULL;
   void *framebufferPointer = NULL;
   short pix = 0;
@@ -476,46 +481,42 @@ static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
   if (buffer == NULL)
     buffer = &wholeScreen;
 
-  // Zero size?
-  if (!width || !height)
-    return (status = 0);
-
   // Out of the buffer entirely?
-  if ((startX >= (int) buffer->width) || (startY >= (int) buffer->height))
+  if ((xCoord >= buffer->width) || (yCoord >= buffer->height))
     return (status = ERR_BOUNDS);
 
   if (fill)
     {
       // Off the left edge of the buffer?
-      if (startX < 0)
+      if (xCoord < 0)
 	{
-	  width += startX;
-	  startX = 0;
+	  width += xCoord;
+	  xCoord = 0;
 	}
       // Off the top of the buffer?
-      if (startY < 0)
+      if (yCoord < 0)
 	{
-	  height += startY;
-	  startY = 0;
+	  height += yCoord;
+	  yCoord = 0;
 	}
       // Off the right edge of the buffer?
-      if ((startX + width) >= buffer->width)
-	width = (buffer->width - startX);
+      if ((xCoord + width) >= buffer->width)
+	width = (buffer->width - xCoord);
       // Off the bottom of the buffer?
-      if ((startY + height) >= buffer->height)
-	height = (buffer->height - startY);
+      if ((yCoord + height) >= buffer->height)
+	height = (buffer->height - yCoord);
 	  
       // Re-set these values
-      endX = (startX + (width - 1));
-      endY = (startY + (height - 1));
+      endX = (xCoord + (width - 1));
+      endY = (yCoord + (height - 1));
 
       if ((mode == draw_or) || (mode == draw_xor))
 	// Just draw a series of lines, since every pixel needs to be dealt
 	// with individually and we can't really do that better than the
 	// line drawing routine does already.
-	for (count = startY; count <= endY; count ++)
+	for (count = yCoord; count <= endY; count ++)
 	  drawLine(buffer, foreground, mode,
-		   startX, count, endX, count);
+		   xCoord, count, endX, count);
       else
 	{
 	  // Draw the box manually
@@ -558,7 +559,7 @@ static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
 
 	  // Point to the starting place
 	  framebufferPointer = buffer->data +
-	    (((buffer->width * startY) + startX) * adapter->bytesPerPixel);
+	    (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
 	  
 	  // Copy the line 'height' times
 	  for (count = 0; count < height; count ++)
@@ -576,25 +577,21 @@ static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
   else
     {
       // Draw the top line 'thickness' times
-      for (count = (startY + thickness - 1); count >= startY; count --)
-	drawLine(buffer, foreground, mode,
-		 startX, count, endX, count);
+      for (count = (yCoord + thickness - 1); count >= yCoord; count --)
+	drawLine(buffer, foreground, mode, xCoord, count, endX, count);
 
       // Draw the left line 'thickness' times
-      for (count = (startX + thickness - 1); count >= startX; count --)
-	drawLine(buffer, foreground, mode, count,
-		 (startY + thickness), count,
+      for (count = (xCoord + thickness - 1); count >= xCoord; count --)
+	drawLine(buffer, foreground, mode, count, (yCoord + thickness), count,
 		 (endY - thickness));
 
       // Draw the bottom line 'thickness' times
       for (count = (endY - thickness + 1); count <= endY; count ++)
-	drawLine(buffer, foreground, mode,
-		 startX, count, endX, count);
+	drawLine(buffer, foreground, mode, xCoord, count, endX, count);
 
       // Draw the right line 'thickness' times
       for (count = (endX - thickness + 1); count <= endX; count ++)
-	drawLine(buffer, foreground, mode, count,
-		 (startY + thickness), count,
+	drawLine(buffer, foreground, mode, count, (yCoord + thickness), count,
 		 (endY - thickness));
     }
 
@@ -603,8 +600,8 @@ static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
 
 
 static int drawOval(kernelGraphicBuffer *buffer, color *foreground,
-		    drawMode mode, int centerX, int centerY, unsigned width,
-		    unsigned height, unsigned thickness, int fill)
+		    drawMode mode, int centerX, int centerY, int width,
+		    int height, int thickness, int fill)
 {
   // Draws an oval on the screen using the preset foreground color.  We use
   // a version of the Bresenham circle algorithm, but in the case of an
@@ -759,12 +756,12 @@ static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
   // Draws the supplied image on the screen at the requested coordinates
 
   int status = 0;
-  unsigned lineLength = 0;
-  unsigned lineBytes = 0;
-  unsigned numberLines = 0;
+  int lineLength = 0;
+  int lineBytes = 0;
+  int numberLines = 0;
   unsigned char *framebufferPointer = NULL;
   unsigned char *monoImageData = NULL;
-  unsigned lineCounter = 0;
+  int lineCounter = 0;
   unsigned pixelCounter = 0;
   short onPixel, offPixel;
   int count;
@@ -878,7 +875,7 @@ static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 	      // 'on' bit.
 	      ((short *) framebufferPointer)[count] = onPixel;
 
-	    else
+	    else if (mode != draw_translucent)
 	      // 'off' bit
 	      ((short *) framebufferPointer)[count] = offPixel;
 
@@ -901,19 +898,19 @@ static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 
 static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
-		     drawMode mode, int xCoord, int yCoord, unsigned xOffset,
-		     unsigned yOffset, unsigned width, unsigned height)
+		     drawMode mode, int xCoord, int yCoord, int xOffset,
+		     int yOffset, int width, int height)
 {
   // Draws the requested width and height of the supplied image on the screen
   // at the requested coordinates, with the requested offset
 
   int status = 0;
-  unsigned lineLength = 0;
-  unsigned lineBytes = 0;
-  unsigned numberLines = 0;
+  int lineLength = 0;
+  int lineBytes = 0;
+  int numberLines = 0;
   unsigned char *framebufferPointer = NULL;
   pixel *imageData = NULL;
-  unsigned lineCounter = 0;
+  int lineCounter = 0;
   unsigned pixelCounter = 0;
   short pix = 0;
   int count;
@@ -924,7 +921,7 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
     buffer = &wholeScreen;
 
   // If the image is outside the buffer entirely, skip it
-  if ((xCoord >= (int) buffer->width) || (yCoord >= (int) buffer->height))
+  if ((xCoord >= buffer->width) || (yCoord >= buffer->height))
     return (status = ERR_BOUNDS);
 
   // Make sure it's a color image
@@ -1049,18 +1046,18 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
 
 static int getImage(kernelGraphicBuffer *buffer, image *getImage, int xCoord,
-		    int yCoord, unsigned width, unsigned height)
+		    int yCoord, int width, int height)
 {
   // Draws the supplied image on the screen at the requested coordinates
 
   int status = 0;
   unsigned numberPixels = 0;
-  unsigned lineLength = 0;
-  unsigned numberLines = 0;
-  unsigned lineBytes = 0;
+  int lineLength = 0;
+  int numberLines = 0;
+  int lineBytes = 0;
   unsigned char *framebufferPointer = NULL;
   pixel *imageData = NULL;
-  unsigned lineCounter = 0;
+  int lineCounter = 0;
   unsigned pixelCounter = 0;
   int count;
 
@@ -1169,7 +1166,7 @@ static int getImage(kernelGraphicBuffer *buffer, image *getImage, int xCoord,
 
 
 static int copyArea(kernelGraphicBuffer *buffer, int xCoord1, int yCoord1,
-		    unsigned width, unsigned height, int xCoord2, int yCoord2)
+		    int width, int height, int xCoord2, int yCoord2)
 {
   // Copy a clip of data from one area of the buffer to another
 
@@ -1200,7 +1197,7 @@ static int copyArea(kernelGraphicBuffer *buffer, int xCoord1, int yCoord1,
 
 
 static int renderBuffer(kernelGraphicBuffer *buffer, int drawX, int drawY,
-			int clipX, int clipY, unsigned width, unsigned height)
+			int clipX, int clipY, int width, int height)
 {
   // Take the supplied graphic buffer and render it onto the screen.
 
@@ -1216,22 +1213,12 @@ static int renderBuffer(kernelGraphicBuffer *buffer, int drawX, int drawY,
   // Not allowed to specify a clip that is not fully inside the buffer
   if ((clipX < 0) || ((clipX + width) > buffer->width) ||
       (clipY < 0) || ((clipY + height) > buffer->height))
-    {
-      kernelError(kernel_warn, "Cannot render clip x:%d y:%d width:%d "
-		  "height:%d in buffer with dimensions width:%d height:%d)",
-		  clipX, clipY, width, height, buffer->width, buffer->height);
-
-      // Render the whole buffer instead
-      clipX = 0; clipY = 0; width = buffer->width; height = buffer->height;
-    }
+    return (status = ERR_RANGE);
 
   // Get the line length of each line that we want to draw and cut them
   // off if the area will extend past the screen boundaries.
   if ((drawX + clipX) < 0)
     {
-      if (-(drawX + clipX) >= width)
-	return (status = 0);
-
       width += (drawX + clipX);
       clipX -= (drawX + clipX);
     }
@@ -1239,9 +1226,6 @@ static int renderBuffer(kernelGraphicBuffer *buffer, int drawX, int drawY,
     width = (wholeScreen.width - (drawX + clipX));
   if ((drawY + clipY) < 0)
     {
-      if (-(drawY + clipY) >= height)
-	return (status = 0);
-
       height += (drawY + clipY);
       clipY -= (drawY + clipY);
     }
@@ -1275,6 +1259,106 @@ static int renderBuffer(kernelGraphicBuffer *buffer, int drawX, int drawY,
 }
 
 
+static int filter(kernelGraphicBuffer *buffer, color *filterColor, int xCoord,
+		  int yCoord, int width, int height)
+{
+  // Take an area of a buffer and average it with the supplied color
+  
+  int status = 0;
+  int lineBytes = 0;
+  unsigned char *framebufferPointer = NULL;
+  int red, green, blue;
+  int lineCount, count;
+
+  // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
+  // whole screen
+  if (buffer == NULL)
+    buffer = &wholeScreen;
+
+  // Out of the buffer entirely?
+  if ((xCoord >= buffer->width) || (yCoord >= buffer->height))
+    return (status = ERR_BOUNDS);
+
+  // Off the left edge of the buffer?
+  if (xCoord < 0)
+    {
+      width += xCoord;
+      xCoord = 0;
+    }
+  // Off the top of the buffer?
+  if (yCoord < 0)
+    {
+      height += yCoord;
+      yCoord = 0;
+    }
+  // Off the right edge of the buffer?
+  if ((xCoord + width) >= buffer->width)
+    width = (buffer->width - xCoord);
+  // Off the bottom of the buffer?
+  if ((yCoord + height) >= buffer->height)
+    height = (buffer->height - yCoord);
+
+  // How many bytes in the line?
+  lineBytes = (adapter->bytesPerPixel * width);
+
+  framebufferPointer = buffer->data +
+    (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
+
+  // Do a loop through each line, copying the color values consecutively
+  for (lineCount = 0; lineCount < height; lineCount ++)
+    {
+      if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	{
+	  for (count = 0; count < lineBytes; )
+	    {
+	      framebufferPointer[count] =
+		((framebufferPointer[count] + filterColor->blue) / 2);
+	      framebufferPointer[count + 1] =
+		((framebufferPointer[count + 1] + filterColor->green) / 2);
+	      framebufferPointer[count + 2] =
+		((framebufferPointer[count + 2] + filterColor->red) / 2);
+
+	      count += 3;
+	      if (adapter->bitsPerPixel == 32)
+		count++;
+	    }
+	}
+
+      else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+	{
+	  for (count = 0; count < width; count ++)
+	    {
+	      short *ptr = (short *) framebufferPointer;
+
+	      blue = ((((ptr[count] & 0x001F) +
+			(filterColor->blue >> 3)) >> 1) & 0x001F);
+
+	      if (adapter->bitsPerPixel == 16)
+		{
+		  red = (((((ptr[count] & 0xF800) >> 11) +
+			   (filterColor->red >> 3)) >> 1) & 0x001F);
+		  green = (((((ptr[count] & 0x07E0) >> 5) +
+			     (filterColor->green >> 2)) >> 1) & 0x003F);
+		  ptr[count] = (short) ((red << 11) | (green << 5) | blue);
+		}
+	      else
+		{
+		  red = (((((ptr[count] & 0x7C00) >> 10) +
+			   (filterColor->red >> 3)) >> 1) & 0x001F);
+		  green = (((((ptr[count] & 0x03E0) >> 5) +
+			     (filterColor->green >> 3)) >> 1) & 0x001F);
+		  ptr[count] = (short) ((red << 10) | (green << 5) | blue);
+		}
+	    }
+	}
+
+      framebufferPointer += (buffer->width * adapter->bytesPerPixel);
+    }
+
+  return (status = 0);
+}
+
+
 static kernelGraphicDriver defaultGraphicDriver =
   {
     kernelFramebufferGraphicDriverInitialize,
@@ -1288,7 +1372,8 @@ static kernelGraphicDriver defaultGraphicDriver =
     drawImage,
     getImage,
     copyArea,
-    renderBuffer
+    renderBuffer,
+    filter,
   };
 
 

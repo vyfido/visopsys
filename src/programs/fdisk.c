@@ -94,6 +94,7 @@ static objectKey menuNew = NULL;
 static objectKey menuDeleteAll = NULL;
 static objectKey menuMove = NULL;
 static objectKey menuSetType = NULL;
+static objectKey menuFormat = NULL;
 static objectKey menuWrite = NULL;
 static objectKey menuRestoreBackup = NULL;
 static objectKey menuQuit = NULL;
@@ -109,7 +110,7 @@ static objectKey newButton = NULL;
 static objectKey deleteAllButton = NULL;
 static objectKey setTypeButton = NULL;
 static objectKey writeButton = NULL;
-static objectKey restoreBackupButton = NULL;
+static objectKey formatButton = NULL;
 
 
 static int yesOrNo(char *question)
@@ -1066,6 +1067,8 @@ static void display(void)
 	  windowComponentSetEnabled(menuSetType, 1);
 	  windowComponentSetEnabled(deleteButton, 1);
 	  windowComponentSetEnabled(menuDelete, 1);
+	  windowComponentSetEnabled(formatButton, 1);
+	  windowComponentSetEnabled(menuFormat, 1);
 	}
       else
 	{
@@ -1080,12 +1083,13 @@ static void display(void)
 	  windowComponentSetEnabled(menuSetType, 0);
 	  windowComponentSetEnabled(deleteButton, 0);
 	  windowComponentSetEnabled(menuDelete, 0);
+	  windowComponentSetEnabled(formatButton, 0);
+	  windowComponentSetEnabled(menuFormat, 0);
 	}
 
       // Other buttons enabled/disabled...
       windowComponentSetEnabled(deleteAllButton, numberPartitions);
       windowComponentSetEnabled(menuDeleteAll, numberPartitions);
-      windowComponentSetEnabled(restoreBackupButton, backupAvailable);
       windowComponentSetEnabled(menuRestoreBackup, backupAvailable);
       windowComponentSetEnabled(undoButton, changesPending);
       windowComponentSetEnabled(menuUndo, changesPending);
@@ -1193,6 +1197,113 @@ static void delete(int partition)
 }
 
 
+static void format(int partition)
+{
+  // Prompt, and format partition
+
+  int status = 0;
+  objectKey formatWindow = NULL;
+  componentParameters params;
+  objectKey fsTypeRadio = NULL;
+  objectKey okButton = NULL;
+  objectKey cancelButton = NULL;
+  windowEvent event;
+  char *fsTypes[] = { "FAT", "EXT2" };
+  int selectedType = 0;
+  char tmpChar[160];
+
+  if (changesPending)
+    {
+      error("A partition format cannot be undone, and this requires that\n"
+	    "you to write your other changes to disk before continuing.");
+      return;
+    }
+
+  if (graphics)
+    {
+      formatWindow = windowNewDialog(window, "Format partition");
+
+      bzero(&params, sizeof(componentParameters));
+      params.gridWidth = 2;
+      params.gridHeight = 1;
+      params.padTop = 5;
+      params.padLeft = 5;
+      params.padRight = 5;
+      params.orientationX = orient_center;
+      params.orientationY = orient_middle;
+      params.useDefaultForeground = 1;
+      params.useDefaultBackground = 1;
+      
+      windowNewTextLabel(formatWindow, "Choose the filesystem type:", &params);
+
+      // A radio button for the filesystem type
+      params.gridY = 1;
+      fsTypeRadio = windowNewRadioButton(formatWindow, 2, 1, fsTypes, 2 ,
+					 &params);
+      windowComponentSetEnabled(fsTypeRadio, 0);
+      
+      // Make 'OK' and 'cancel' buttons
+      params.gridY = 2;
+      params.gridWidth = 1;
+      params.orientationX = orient_right;
+      params.padBottom = 5;
+      okButton = windowNewButton(formatWindow, "OK", NULL, &params);
+
+      params.gridX = 1;
+      params.orientationX = orient_left;
+      cancelButton = windowNewButton(formatWindow, "Cancel", NULL, &params);
+      
+      // Make the window visible
+      windowSetResizable(formatWindow, 0);
+      windowCenterDialog(window, formatWindow);
+      windowSetVisible(formatWindow, 1);
+
+      while(1)
+	{
+	  // Check for our OK button
+	  status = windowComponentEventGet(okButton, &event);
+	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+	    {
+	      selectedType = windowComponentGetSelected(fsTypeRadio);
+	      windowDestroy(formatWindow);
+	      break;
+	    }
+
+	  // Check for window close, or our Cancel button
+	  if (((windowComponentEventGet(formatWindow, &event) > 0) &&
+	       (event.type == EVENT_WINDOW_CLOSE)) ||
+	      ((windowComponentEventGet(cancelButton, &event) > 0) &&
+	       (event.type == EVENT_MOUSE_LEFTUP)))
+	    {
+	      windowDestroy(formatWindow);
+	      return;
+	    }
+	  
+	  // Done
+	  multitaskerYield();
+	}
+    }
+  else
+    {
+      // Don't bother with this for the moment since we really don't offer
+      // any choice other than FAT.  The graphical version above is merely
+      // eye candy for the moment.
+    }
+
+  sprintf(tmpChar, "Format partition %d as %s?\n(This change cannot be "
+	  "undone)", partition, fsTypes[selectedType]);
+  if (yesOrNo(tmpChar))
+    {
+      // Do the format
+      sprintf(tmpChar, "/programs/format -t %s %s%c", fsTypes[selectedType],
+	      selectedDisk->name, ('a' + partition));
+      system(tmpChar);
+    }
+
+  return;
+}
+
+
 static void listTypes(void)
 {
   int status = 0;
@@ -1232,7 +1343,7 @@ static void listTypes(void)
 
 	  // Make a text area for our info
 	  textArea =
-	    windowNewTextArea(typesWindow, 60, ((numberTypes / 2) + 2), NULL,
+	    windowNewTextArea(typesWindow, 60, ((numberTypes / 2) + 2), 0,
 			      &params);
 
 	  // Make a dismiss button
@@ -1467,19 +1578,6 @@ static int move(int partition)
       return (status = ERR_INVALID);
     }
 
-  sprintf(tmpChar, "Please use this feature with caution;\nit is not well "
-	  "tested.  Continue?");
-  if (graphics)
-    {
-      if (!windowNewQueryDialog(window, "New Feature", tmpChar))
-	return (status = 0);
-    }
-  else
-    {
-      if (!yesOrNo(tmpChar))
-	return (status = 0);
-    }
-
   // Figure out the ranges of cylinders we can move to in both directions
   if ((sliceNumber > 0) && !(slices[sliceNumber - 1].type))
     {
@@ -1548,6 +1646,20 @@ static int move(int partition)
   if (newStartLogical < entry.startLogical)
     moveLeft = 1;
  
+  sprintf(tmpChar, "Moving partition from cylinder %u to cylinder %u.\n"
+	  "Please use this feature with caution; it is not\nwell tested.  "
+	  "Continue?", entry.startCylinder, newStartCylinder);
+  if (graphics)
+    {
+      if (!windowNewQueryDialog(window, "New Feature", tmpChar))
+	return (status = 0);
+    }
+  else
+    {
+      if (!yesOrNo(tmpChar))
+	return (status = 0);
+    }
+
   sprintf(tmpChar, "Moving %u sectors, %u Mb",
 	  entry.sizeLogical, (entry.sizeLogical /
 			      (1048576 / selectedDisk->sectorSize)));
@@ -1565,7 +1677,7 @@ static int move(int partition)
       params.orientationY = orient_middle;
       params.useDefaultForeground = 1;
       params.useDefaultBackground = 1;
-      windowNewTextLabel(dialogWindow, NULL, tmpChar, &params);
+      windowNewTextLabel(dialogWindow, tmpChar, &params);
       
       params.gridY = 1;
       progressBar = windowNewProgressBar(dialogWindow, &params);
@@ -1938,8 +2050,8 @@ static disk *chooseDiskDialog(void)
   params.useDefaultBackground = 1;
 
   // Make a window list with all the disk choices
-  diskList = windowNewList(chooseWindow, NULL, numberDisks, 1, 0,
-			   diskStrings, numberDisks, &params);
+  diskList = windowNewList(chooseWindow, numberDisks, 1, 0, diskStrings,
+			   numberDisks, &params);
 
   // Make 'OK' and 'cancel' buttons
   params.gridY = 1;
@@ -2145,7 +2257,7 @@ static int copyDisk(void)
       params.orientationY = orient_middle;
       params.useDefaultForeground = 1;
       params.useDefaultBackground = 1;
-      windowNewTextLabel(dialogWindow, NULL, tmpChar, &params);
+      windowNewTextLabel(dialogWindow, tmpChar, &params);
       
       params.gridY = 1;
       progressBar = windowNewProgressBar(dialogWindow, &params);
@@ -2366,10 +2478,11 @@ static void eventHandler(objectKey key, windowEvent *event)
     }
 
   // Check for changes to our disk list
-  else if ((key == diskList) && (event->type == EVENT_MOUSE_LEFTDOWN))
+  else if ((key == diskList) && ((event->type == EVENT_MOUSE_LEFTDOWN) ||
+				 (event->type == EVENT_KEY_DOWN)))
     {
       int newSelected = windowComponentGetSelected(diskList);
-      if (newSelected >= 0) 
+      if ((newSelected >= 0) && (&diskInfo[newSelected] != selectedDisk))
 	selectDisk(diskInfo[newSelected].deviceNumber);
     }
 
@@ -2389,7 +2502,8 @@ static void eventHandler(objectKey key, windowEvent *event)
     }
   
   // Check for changes to our slice list
-  else if ((key == sliceList) && (event->type == EVENT_MOUSE_LEFTDOWN))
+  else if ((key == sliceList) && ((event->type == EVENT_MOUSE_LEFTDOWN) ||
+				  (event->type == EVENT_KEY_DOWN)))
     {
       selected = windowComponentGetSelected(sliceList);
       if (selected >= 0)
@@ -2450,9 +2564,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 	   (event->type == EVENT_MOUSE_LEFTUP))
     write(1);
 
-  else if (((key == restoreBackupButton) || (key == menuRestoreBackup)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if ((key == menuRestoreBackup) && (event->type == EVENT_MOUSE_LEFTUP))
     restoreBackup(selectedDisk->name);
+
+  else if (((key == formatButton) || (key == menuFormat)) &&
+	   (event->type == EVENT_MOUSE_LEFTUP))
+    format(slices[selectedSlice].partition);
 
   else
     return;
@@ -2523,6 +2640,8 @@ static void constructWindow(void)
   windowRegisterEventHandler(menuDelete, &eventHandler);
   menuDeleteAll = windowNewMenuItem(menu3, "Delete all", &params);
   windowRegisterEventHandler(menuDeleteAll, &eventHandler);
+  menuFormat = windowNewMenuItem(menu3, "Format", &params);
+  windowRegisterEventHandler(menuFormat, &eventHandler);
 
   // Create a container for the disk icon image and the title label
   params.gridY = 1;
@@ -2532,7 +2651,7 @@ static void constructWindow(void)
     {
       if (iconImage.data == NULL)
 	// Try to load an icon image to go at the top of the window
-	status = imageLoadBmp("/system/diskicon.bmp", &iconImage);
+	status = imageLoadBmp("/system/icons/diskicon.bmp", &iconImage);
       if (status == 0)
 	{
 	  // Create an image component from it, and add it to the container
@@ -2546,15 +2665,14 @@ static void constructWindow(void)
 
       // Put a title text label in the container
       params.gridX = 1;
-      textLabel = windowNewTextLabel(titleContainer, NULL, programName,
-				     &params);
+      textLabel = windowNewTextLabel(titleContainer, programName, &params);
     }
 
   // Make a list for the disks
   params.gridX = 0;
   params.gridY = 2;
   params.gridWidth = 5;
-  diskList = windowNewList(window, NULL, numberDisks, 1, 0, diskStrings,
+  diskList = windowNewList(window, numberDisks, 1, 0, diskStrings,
 			   numberDisks, &params);
   windowRegisterEventHandler(diskList, &eventHandler);
 
@@ -2569,14 +2687,15 @@ static void constructWindow(void)
 
   params.gridY = 4;
   params.hasBorder = 0;
-  textLabel = windowNewTextLabel(window, systemFont, "Partitions           "
+  params.font = systemFont;
+  textLabel = windowNewTextLabel(window, "Partitions           "
 				 "             cylinders   size (Mb)",
 				 &params);
 
   // Make a list for the partitions
   params.gridY = 5;
   params.padTop = 0;
-  sliceList = windowNewList(window, systemFont, 6, 1, 0, (char *[])
+  sliceList = windowNewList(window, 6, 1, 0, (char *[])
       { "                                                                 " },
 			    1, &params);
   windowRegisterEventHandler(sliceList, &eventHandler);
@@ -2586,6 +2705,7 @@ static void constructWindow(void)
   params.gridWidth = 1;
   params.padTop = 10;
   params.padBottom = 0;
+  params.font = NULL;
   newButton = windowNewButton(window, "New", NULL, &params);
   windowRegisterEventHandler(newButton, &eventHandler);
 
@@ -2602,8 +2722,8 @@ static void constructWindow(void)
   windowRegisterEventHandler(deleteAllButton, &eventHandler);
 
   params.gridX = 4;
-  writeButton = windowNewButton(window, "Write changes", NULL, &params);
-  windowRegisterEventHandler(writeButton, &eventHandler);
+  formatButton = windowNewButton(window, "Format", NULL, &params);
+  windowRegisterEventHandler(formatButton, &eventHandler);
 
   params.gridX = 0;
   params.gridY = 7;
@@ -2625,10 +2745,8 @@ static void constructWindow(void)
   windowRegisterEventHandler(undoButton, &eventHandler);
 
   params.gridX = 4;
-  restoreBackupButton = windowNewButton(window, "Restore backup", NULL,
-					&params);
-  windowRegisterEventHandler(restoreBackupButton, &eventHandler);
-
+  writeButton = windowNewButton(window, "Write changes", NULL, &params);
+  windowRegisterEventHandler(writeButton, &eventHandler);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -2653,11 +2771,12 @@ static int textMenu(void)
       display();
 
       // Print out the menu choices
-      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s",
+      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	     ((slices[selectedSlice].type && !slices[selectedSlice].active)?
 	      "[A] Set active\n" : ""),
 	     "[C] Copy disk\n",
 	     (slices[selectedSlice].type? "[D] Delete\n" : ""),
+	     (slices[selectedSlice].type? "[F] Format\n" : ""),
 	     (slices[selectedSlice].type? "[M] Move\n" : ""),
 	     "[L] List types\n",
 	     (!slices[selectedSlice].type? "[N] New\n" : ""),
@@ -2675,10 +2794,11 @@ static int textMenu(void)
 
       // Construct the string of allowable options, corresponding to what is
       // shown above.
-      sprintf(optionString, "%sCc%sLl%s%s%s%sSsQq%s%s%s",
+      sprintf(optionString, "%sCc%s%sLl%s%s%s%sSsQq%s%s%s",
 	      ((slices[selectedSlice].type && !slices[selectedSlice].active)?
 	      "Aa" : ""),
 	      (slices[selectedSlice].type? "Dd" : ""),
+	      (slices[selectedSlice].type? "Ff" : ""),
 	      (slices[selectedSlice].type? "Mm" : ""),
 	      (!slices[selectedSlice].type? "Nn" : ""),
 	      (numberPartitions? "Oo" : ""),
@@ -2720,6 +2840,11 @@ static int textMenu(void)
 	case 'd':
 	case 'D':
 	  delete(slices[selectedSlice].partition);
+	  continue;
+
+	case 'f':
+	case 'F':
+	  format(slices[selectedSlice].partition);
 	  continue;
 
 	case 'l':
@@ -2799,24 +2924,24 @@ int main(int argc, char *argv[])
 	programName = PARTLOGIC;
     }
 
-  processId = multitaskerGetCurrentProcessId();
-
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
+
+  processId = multitaskerGetCurrentProcessId();
+
+  // Check privilege level
+  if (multitaskerGetProcessPrivilege(processId) != 0)
+    {
+      if (graphics)
+	windowNewErrorDialog(NULL, "Permission Denied", PERM);
+      printf("\n%s\n(Try logging in as user \"admin\")\n\n", PERM);
+      return (errno = ERR_PERMISSION);
+    }
 
   // Get memory for strings about disks and partitions
   char *tmp = malloc(DISK_MAXDEVICES * 128);
   for (count = 0; count < DISK_MAXDEVICES; count ++)
     diskStrings[count] = (tmp + (count * 128));
-
-  // Check privilege level
-  if (multitaskerGetProcessPrivilege(processId) != 0)
-    {
-      printf("\n%s\n(Try logging in as user \"admin\")\n\n", PERM);
-      if (graphics)
-	windowNewErrorDialog(NULL, "Permission Denied", PERM);
-      return (errno = ERR_PERMISSION);
-    }
 
   // Gather the disk info
   status = scanDisks();

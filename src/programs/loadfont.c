@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 
@@ -30,7 +31,7 @@
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s <font file> <font name>\n", name);
+  printf("%s [-f] <font file> <font name>\n", name);
   return;
 }
 
@@ -38,7 +39,10 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *origFileName = NULL;
+  char *fontName = NULL;
   char fileName[MAX_PATH_NAME_LENGTH];
+  int fixedWidth = 0;
   objectKey font;
 
   // Only work in graphics mode
@@ -49,18 +53,25 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  if (argc != 3)
+  // Check for -f ('fixed width') option
+  while (getopt(argc, argv, "f") != -1)
+    fixedWidth = 1;
+
+  if (argc < 3)
     {
       usage((argc > 0)? argv[0] : "loadfont");
       errno = ERR_ARGUMENTCOUNT;
       return (status = errno);
     }
+  
+  origFileName = argv[argc - 2];
+  fontName = argv[argc - 1];
 
   // Make sure the file name is complete
-  vshMakeAbsolutePath(argv[1], fileName);
+  vshMakeAbsolutePath(origFileName, fileName);
 
   // Call the kernel to load the font
-  status = fontLoad(fileName, argv[2], &font);
+  status = fontLoad(fileName, fontName, &font, fixedWidth);
   if (status < 0)
     {
       errno = status;
@@ -69,7 +80,7 @@ int main(int argc, char *argv[])
     }
 
   // Switch to it
-  fontSetDefault(argv[2]);
+  fontSetDefault(fontName);
 
   errno = status;
   return (status);

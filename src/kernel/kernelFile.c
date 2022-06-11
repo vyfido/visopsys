@@ -57,11 +57,7 @@ static int allocateFileEntries(void)
   // Allocate memory for file entries
   newFileEntries = kernelMalloc(sizeof(kernelFileEntry) * MAX_BUFFERED_FILES);
   if (newFileEntries == NULL)
-    {
-      kernelError(kernel_error, "Error allocating memory for file entry "
-		  "lists");
-      return (status = ERR_MEMORY);
-    }
+    return (status = ERR_MEMORY);
 
   // Initialize the new kernelFileEntry structures.
 
@@ -219,10 +215,7 @@ static int isDescendent(kernelFileEntry *leaf, kernelFileEntry *node)
 
   // Check params
   if ((node == NULL) || (leaf == NULL))
-    {
-      kernelError(kernel_error, "NULL directory entry");
-      return (status = ERR_NULLPARAMETER);
-    }
+    return (status = ERR_NULLPARAMETER);
 
   // If "node" is not a directory, then it obviously has no descendents.
   // Return false
@@ -1188,6 +1181,39 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
 }
 
 
+int kernelFileGetDisk(const char *path, disk *userDisk)
+{
+  // Given a filename, return the name of the disk it resides on
+
+  int status = 0;
+  kernelFileEntry *item = NULL;
+  kernelFilesystem *filesystem = NULL;
+  kernelDisk *logical = NULL;
+
+  // Do not look for files until we have been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check parameters.
+  if ((path == NULL) || (userDisk == NULL))
+    {
+      kernelError(kernel_error, "Path or disk pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  item = kernelFileLookup(path);
+  if (item == NULL)
+    // There is no such item
+    return (status = ERR_NOSUCHFILE);
+
+  filesystem = (kernelFilesystem *) item->filesystem;
+  logical = (kernelDisk *) filesystem->disk;
+
+  status = kernelDiskFromLogical(logical, userDisk);
+  return (status);
+}
+
+
 int kernelFileFirst(const char *path, file *fileStructure)
 {
   // This is merely a wrapper function for the equivalent function
@@ -1199,10 +1225,7 @@ int kernelFileFirst(const char *path, file *fileStructure)
   
   // Do not look for files until we have been initialized
   if (!initialized)
-    {
-      kernelError(kernel_error, "The file manager has not been initialized");
-      return (status = ERR_NOTINITIALIZED);
-    }  
+    return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
   if ((path == NULL) || (fileStructure == NULL))
@@ -1247,10 +1270,7 @@ int kernelFileNext(const char *path, file *fileStructure)
 
   // Do not look for files until we have been initialized
   if (!initialized)
-    {
-      kernelError(kernel_error, "The file manager has not been initialized");
-      return (status = ERR_NOTINITIALIZED);
-    }
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if ((path == NULL) || (fileStructure == NULL))
@@ -1315,10 +1335,7 @@ int kernelFileFind(const char *path, file *fileStructure)
 
   // Do not look for files until we have been initialized
   if (!initialized)
-    {
-      kernelError(kernel_error, "The file manager has not been initialized");
-      return (status = ERR_NOTINITIALIZED);
-    }  
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if ((path == NULL) || (fileStructure == NULL))
@@ -1361,10 +1378,7 @@ int kernelFileCreate(const char *path)
 
   // Do not create any files until we have been initialized
   if (!initialized)
-    {
-      kernelError(kernel_error, "The file manager has not been initialized");
-      return (status = ERR_NOTINITIALIZED);
-    }  
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if (path == NULL)
@@ -1485,10 +1499,7 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 
   // Do not open any files until we have been initialized
   if (!initialized)
-    {
-      kernelError(kernel_error, "The file manager has not been initialized");
-      return (status = ERR_NOTINITIALIZED);
-    }  
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if ((fullPath == NULL) || (fileStructure == NULL))

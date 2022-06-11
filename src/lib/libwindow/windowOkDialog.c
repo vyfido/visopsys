@@ -103,7 +103,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
   // Create the label
   params.gridX = 1;
   params.padRight = 5;
-  mainLabel = windowNewTextLabel(dialogWindow, NULL, message, &params);
+  mainLabel = windowNewTextLabel(dialogWindow, message, &params);
   if (mainLabel == NULL)
     return (status = ERR_NOCREATE);
 

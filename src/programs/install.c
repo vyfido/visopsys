@@ -91,9 +91,12 @@ static void quit(int status, const char *message, ...)
   va_list list;
   char output[MAXSTRINGLENGTH];
   
-  va_start(list, message);
-  _expandFormatString(output, message, list);
-  va_end(list);
+  if (message != NULL)
+    {
+      va_start(list, message);
+      _expandFormatString(output, message, list);
+      va_end(list);
+    }
 
   if (graphics)
     {
@@ -102,14 +105,17 @@ static void quit(int status, const char *message, ...)
 	windowDestroy(dialogWindow);
     }
 
-  if (status < 0)
-    error("%s  Quitting.", output);
-  else
+  if (message != NULL)
     {
-      if (graphics)
-	windowNewInfoDialog(window, "Complete", output);
+      if (status < 0)
+	error("%s  Quitting.", output);
       else
-	printf("\n\n%s\n\n", output);
+	{
+	  if (graphics)
+	    windowNewInfoDialog(window, "Complete", output);
+	  else
+	    printf("\n\n%s\n\n", output);
+	}
     }
 
   if (graphics && window)
@@ -166,10 +172,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   // Check for the window being closed, or pressing of the 'Quit' button.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
       ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP)))
-    {
-      windowGuiStop();
-      quit(0, "Installation cancelled");
-    }
+    quit(0, NULL);
 
   // Check for the 'Install' button
   else if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
@@ -203,18 +206,18 @@ static void constructWindow(void)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  textLabel = windowNewTextLabel(window, NULL, titleString, &params);
+  textLabel = windowNewTextLabel(window, titleString, &params);
   
   params.gridY = 2;
   params.gridWidth = 1;
-  installTypeRadio = windowNewRadioButton(window, NULL, 2, 1, (char *[])
+  installTypeRadio = windowNewRadioButton(window, 2, 1, (char *[])
       { "Basic install", "Full install" }, 2 , &params);
   windowComponentSetEnabled(installTypeRadio, 0);
 
   params.gridX = 0;
   params.gridY = 3;
   params.gridWidth = 2;
-  statusLabel = windowNewTextLabel(window, NULL, "", &params);
+  statusLabel = windowNewTextLabel(window, "", &params);
   windowComponentSetWidth(statusLabel, windowComponentGetWidth(textLabel));
   bzero(statusLabelString, STATUSLENGTH);
 
@@ -234,6 +237,9 @@ static void constructWindow(void)
   quitButton = windowNewButton(window, "Quit", NULL, &params);
   windowRegisterEventHandler(quitButton, &eventHandler);
   windowComponentSetEnabled(quitButton, 0);
+
+  // Register an event handler to catch window close events
+  windowRegisterEventHandler(window, &eventHandler);
 
   // Go
   windowSetVisible(window, 1);
@@ -323,7 +329,7 @@ static int chooseDisk(void)
   if (graphics)
     {
       chooseWindow = windowNew(processId, "Choose Installation Disk");
-      windowNewTextLabel(chooseWindow, NULL, tmpChar, &params);
+      windowNewTextLabel(chooseWindow, tmpChar, &params);
     }
   else
     printf("%s\n", tmpChar);
@@ -340,8 +346,8 @@ static int chooseDisk(void)
     {
       // Make a window list with all the disk choices
       params.gridY = 1;
-      diskList = windowNewList(chooseWindow, NULL, numberDisks, 1, 0,
-			       diskStrings, numberDisks, &params);
+      diskList = windowNewList(chooseWindow, numberDisks, 1, 0, diskStrings,
+			       numberDisks, &params);
       free(diskStrings[0]);
 
       // Make 'OK', 'partition', and 'cancel' buttons
@@ -726,14 +732,13 @@ static void setAdminPassword(void)
       params.orientationY = orient_middle;
       params.useDefaultForeground = 1;
       params.useDefaultBackground = 1;
-      label = windowNewTextLabel(dialogWindow, NULL, setPasswordString,
-				 &params);
+      label = windowNewTextLabel(dialogWindow, setPasswordString, &params);
 	  
       params.gridY = 1;
       params.gridWidth = 1;
       params.padRight = 0;
       params.orientationX = orient_right;
-      label = windowNewTextLabel(dialogWindow, NULL, "New password:", &params);
+      label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
       params.gridX = 1;
       params.hasBorder = 1;
@@ -743,7 +748,7 @@ static void setAdminPassword(void)
       params.background.red = 255;
       params.background.green = 255;
       params.background.blue = 255;
-      passwordField1 = windowNewPasswordField(dialogWindow, 17, NULL, &params);
+      passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
       
       params.gridX = 0;
       params.gridY = 2;
@@ -751,8 +756,7 @@ static void setAdminPassword(void)
       params.orientationX = orient_right;
       params.hasBorder = 0;
       params.useDefaultBackground = 1;
-      label = windowNewTextLabel(dialogWindow, NULL, "Confirm password:",
-				 &params);
+      label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
@@ -762,7 +766,7 @@ static void setAdminPassword(void)
       params.background.red = 255;
       params.background.green = 255;
       params.background.blue = 255;
-      passwordField2 = windowNewPasswordField(dialogWindow, 17, NULL, &params);
+      passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 	  
       params.gridX = 0;
       params.gridY = 3;
@@ -770,7 +774,7 @@ static void setAdminPassword(void)
       params.orientationX = orient_center;
       params.hasBorder = 0;
       params.useDefaultBackground = 1;
-      noMatchLabel = windowNewTextLabel(dialogWindow, NULL, "Passwords do not "
+      noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
 					"match", &params);
       windowComponentSetVisible(noMatchLabel, 0);
       
@@ -990,7 +994,7 @@ int main(int argc, char *argv[])
     diskNumber = chooseDisk();
 
   if (diskNumber < 0)
-    quit(diskNumber, "No disk selected.");
+    quit(diskNumber, NULL);
 
   if (graphics)
     constructWindow();

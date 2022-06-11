@@ -241,7 +241,7 @@ int kernelFontSetDefault(const char *name)
 
 
 int kernelFontLoad(const char* filename, const char *fontname,
-		   kernelAsciiFont **pointer)
+		   kernelAsciiFont **pointer, int fixedWidth)
 {
   // Takes the name of a bitmap file containing a font definition and turns
   // it into our internal representation of a kernelAsciiFont.  The bitmap
@@ -287,11 +287,7 @@ int kernelFontLoad(const char* filename, const char *fontname,
   // Try to load the font bitmap
   status = kernelImageLoadBmp(filename, &fontImage);
   if (status < 0)
-    {
-      kernelError(kernel_error, "Unable to load font \"%s\" from file \"%s\"",
-		  fontname, filename);
-      return (status = ERR_NOSUCHFILE);
-    }
+    return (status = ERR_NOSUCHFILE);
 
   // The font file is a "vertical" concatenation of the character images.
   // The width of the bitmap image describes the width of a character, whereas
@@ -371,56 +367,62 @@ int kernelFontLoad(const char* filename, const char *fontname,
 	    (((unsigned char) 0x80) >> (count2 % 8));
 	}
 
-      // For variable-width fonts, we want no empty columns before the
-      // character data, and only one after.  Make sure we don't get buggered
-      // up by anything with no 'on' pixesls such as the space character
-
-
-      if ((firstOnPixel > 0) || (lastOnPixel < (charWidth - 2)))
+      if (!fixedWidth)
 	{
-	  if (firstOnPixel > lastOnPixel)
+	  // For variable-width fonts, we want no empty columns before the
+	  // character data, and only one after.  Make sure we don't get
+	  // buggered up by anything with no 'on' pixels such as the space
+	  // character
+
+	  if ((firstOnPixel > 0) || (lastOnPixel < (charWidth - 2)))
 	    {
-	      // This has no pixels.  Probably a space character.  Give it a
-	      // width of approximately 1/5th the char width
-	      firstOnPixel = 0;
-	      lastOnPixel = ((charWidth / 5) - 1);
+	      if (firstOnPixel > lastOnPixel)
+		{
+		  // This has no pixels.  Probably a space character.  Give it
+		  // a width of approximately 1/5th the char width
+		  firstOnPixel = 0;
+		  lastOnPixel = ((charWidth / 5) - 1);
+		}
+
+	      // We will strip bits from each row of the character image.  This
+	      // is a little bit of bit bashing.  The count2 counter counts
+	      // through all of the bits.  The count3 one only counts bits that
+	      // aren't being skipped, and sets/clears them.
+
+	      count3 = 0;
+	      for (count2 = 0; count2 < pixels; count2 ++)
+		{
+		  currentPixel = (count2 % charWidth);
+		  if ((currentPixel < firstOnPixel) ||
+		      (currentPixel > (lastOnPixel + 1)))
+		    // Skip this pixel.  It's from a column we're deleting.
+		    continue;
+		  
+		  if (((unsigned char *) newFont
+		       ->chars[count1].data)[count2 / 8] &
+		      (((unsigned char) 0x80) >> (count2 % 8)))
+		    // The bit is on
+		    ((unsigned char *) newFont
+		     ->chars[count1].data)[count3 / 8] |=
+		      (((unsigned char) 0x80) >> (count3 % 8));
+		  else
+		    // The bit is off
+		    ((unsigned char *) newFont
+		     ->chars[count1].data)[count3 / 8] &=
+		      ~(((unsigned char) 0x80) >> (count3 % 8));
+		  
+		  count3++;
+		}
+
+	      // Adjust the character image information
+	      newFont->chars[count1].width -=
+		(firstOnPixel + (((charWidth - 2) - lastOnPixel)));
+	      newFont->chars[count1].pixels =
+		(newFont->chars[count1].width * charHeight);
 	    }
-
-	  // We will strip bits from each row of the character image.  This
-	  // is a little bit of bit bashing.  The count2 counter counts
-	  // through all of the bits.  The count3 one only counts bits that
-	  // aren't being skipped, and sets/clears them.
-
-	  count3 = 0;
-	  for (count2 = 0; count2 < pixels; count2 ++)
-	    {
-	      currentPixel = (count2 % charWidth);
-	      if ((currentPixel < firstOnPixel) ||
-		  (currentPixel > (lastOnPixel + 1)))
-		// Skip this pixel.  It's from a column we're deleting.
-		continue;
-
-	      if (((unsigned char *) newFont->chars[count1].data)[count2 / 8] &
-		  (((unsigned char) 0x80) >> (count2 % 8)))
-		// The bit is on
-		((unsigned char *) newFont->chars[count1].data)[count3 / 8] |=
-		  (((unsigned char) 0x80) >> (count3 % 8));
-	      else
-		// The bit is off
-		((unsigned char *) newFont->chars[count1].data)[count3 / 8] &=
-		  ~(((unsigned char) 0x80) >> (count3 % 8));
-
-	      count3++;
-	    }
-
-	  // Adjust the character image information
-	  newFont->chars[count1].width -=
-	    (firstOnPixel + (((charWidth - 2) - lastOnPixel)));
-	  newFont->chars[count1].pixels =
-	    (newFont->chars[count1].width * charHeight);
 	}
       // Finished with this character.
-    }
+    }	
 					    				    
   // Release the memory from our composite font image
   kernelMemoryRelease(fontImage.data);

@@ -89,6 +89,7 @@ typedef volatile struct
   char name[DISK_MAX_NAMELENGTH];
   partitionType partType;
   char fsType [FSTYPE_MAX_NAMELENGTH];
+  unsigned opFlags;
   void *physical;
   unsigned startSector;
   unsigned numSectors;
@@ -117,7 +118,7 @@ typedef volatile struct
   unsigned sectorSize;
 
   // The logical disks residing on this physical disk
-  kernelDisk logical[16];
+  kernelDisk logical[DISK_MAX_PARTITIONS];
   int numLogical;
 
   // Misc
@@ -137,7 +138,6 @@ typedef volatile struct
 
 } kernelPhysicalDisk;
 
-
 // The default driver initializations
 int kernelFloppyDriverInitialize(void);
 int kernelIdeDriverInitialize(void);
@@ -151,10 +151,11 @@ int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);
 int kernelDiskShutdown(void);
 int kernelDiskGetBoot(char *);
-int kernelDiskGetReadOnly(const char *);
 int kernelDiskGetCount(void);
 int kernelDiskGetPhysicalCount(void);
+int kernelDiskFromLogical(kernelDisk *, disk *);
 int kernelDiskGetInfo(disk *);
+int kernelDiskFromPhysical(kernelPhysicalDisk *, disk *);
 int kernelDiskGetPhysicalInfo(disk *);
 int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);

@@ -29,11 +29,10 @@
 #include "kernelLog.h"
 #include "kernelFilesystem.h"
 #include "kernelSysTimer.h"
-#include "kernelDisk.h"
+#include "kernelMiscFunctions.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <sys/errors.h>
-#include <string.h>
 #include <stdio.h>
 
 
@@ -134,7 +133,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &font);
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &font, 0);
       if (status < 0)
 	{
 	  // Font's not there, we suppose.  There's always a default.
@@ -145,8 +144,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 			       "Shutting down");
       if (window)
 	{
-	  params.gridX = 0;
-	  params.gridY = 0;
+	  kernelMemClear(&params, sizeof(componentParameters));
 	  params.gridWidth = 1;
 	  params.gridHeight = 1;
 	  params.padLeft = 10;
@@ -155,18 +153,15 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 	  params.padBottom = 5;
 	  params.orientationX = orient_center;
 	  params.orientationY = orient_top;
-	  params.hasBorder = 0;
 	  params.useDefaultForeground = 1;
 	  params.useDefaultBackground = 1;
-	  label1 = kernelWindowNewTextLabel(window, NULL /* default font */,
-					    SHUTDOWN_MSG1, &params);
+	  label1 = kernelWindowNewTextLabel(window, SHUTDOWN_MSG1, &params);
 
 	  if (shutdownType == halt)
 	    {
 	      params.gridY = 1;
 	      params.padTop = 0;
-	      label2 = kernelWindowNewTextLabel(window, NULL /* default font*/,
-						SHUTDOWN_MSG2, &params);
+	      label2 = kernelWindowNewTextLabel(window, SHUTDOWN_MSG2, &params);
 	    }
 
 	  kernelWindowSetHasCloseButton(window, 0);

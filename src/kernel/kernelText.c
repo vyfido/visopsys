@@ -25,12 +25,13 @@
 #include "kernelParameters.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
-#include "kernelMemoryManager.h"
+#include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <sys/errors.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 // There is only ONE kernelTextInputStream for console input
@@ -51,16 +52,25 @@ static kernelTextArea consoleArea =
     0,                            // yCoord;
     80,                           // columns
     50,                           // rows
-    0,                            // cursorColumn
-    0,                            // cursorRow
+    2,                            // bytes per char
+    0,                            // cursor column
+    0,                            // cursor row
+    1,                            // cursor state
+    0,                            // max buffer lines
+    0,                            // scrollback lines
+    0,                            // scrolled back lines
     0,                            // hidden
     { 0, 0, DEFAULTFOREGROUND },  // foreground
     { 0, 0, DEFAULTBACKGROUND },  // background
-    NULL,
-    NULL,
-    (unsigned char *) 0x000B8000, // Text screen address
+    NULL,                         // inputStream
+    NULL,                         // outputStream
+    NULL,                         // buffer data
+    (unsigned char *) 0x000B8000, // Text screen address (visible data)
     NULL,                         // font
-    NULL                          // graphic buffer
+    NULL,                         // graphic buffer
+    NULL,                         // saved screen
+    0,                            // saved cursor column
+    0                             // saved cursor row
   };
 
 // So nobody can use us until we're ready
@@ -81,6 +91,18 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
     {
       // Show that something happened
       kernelTextStreamPrintLine(currentOutput, "^C");
+      return (status = 0);
+    }
+  // Check for PAGE UP
+  else if (byte == 11)
+    {
+      kernelTextStreamScroll(currentOutput, -1);
+      return (status = 0);
+    }
+  // Check for PAGE DOWN
+  else if (byte == 12)
+    {
+      kernelTextStreamScroll(currentOutput, 1);
       return (status = 0);
     }
   else if (currentInput->echo)
@@ -125,7 +147,6 @@ int kernelTextInitialize(int columns, int rows)
   // Initialize the console input and output streams
 
   int status = 0;
-  void *newScreenAddress = NULL;
 
   // Check our arguments
   if ((columns == 0) || (rows == 0))
@@ -137,16 +158,30 @@ int kernelTextInitialize(int columns, int rows)
   consoleArea.columns = columns;
   consoleArea.rows = rows;
 
-  // Take the physical text stream address and turn it into a virtual
+  // Get some buffer space
+  consoleArea.bufferData = (unsigned char *)
+    kernelMalloc((rows + DEFAULT_SCROLLBACKLINES) * columns *
+		 consoleArea.bytesPerChar);
+  if (consoleArea.bufferData == NULL)
+    return (status = ERR_MEMORY);
+  consoleArea.maxBufferLines = (rows + DEFAULT_SCROLLBACKLINES);
+
+  // Take the physical text screen address and turn it into a virtual
   // address in the kernel's address space.
-  status = kernelPageMapToFree(KERNELPROCID, consoleArea.data,
-			       &newScreenAddress, (columns * rows * 2));
-  
+  status =
+    kernelPageMapToFree(KERNELPROCID, consoleArea.visibleData,
+			(void *) &(consoleArea.visibleData),
+			(columns * rows * consoleArea.bytesPerChar));
   // Make sure we got a proper new virtual address
   if (status < 0)
     return (status);
 
-  consoleArea.data = newScreenAddress;
+  // Copy the current screen into the buffer
+  kernelMemCopy(consoleArea.visibleData,
+		(consoleArea.bufferData +
+		 ((consoleArea.maxBufferLines - rows) * columns *
+		  consoleArea.bytesPerChar)),
+		 (columns * rows * consoleArea.bytesPerChar));
 
   // We assign the text mode driver to be the output driver for now.
   consoleOutput->textArea = &consoleArea;
@@ -192,6 +227,122 @@ int kernelTextInitialize(int columns, int rows)
 }
 
 
+kernelTextArea *kernelTextAreaNew(int columns, int rows, int bufferLines)
+{
+  // Do the allocations and whatnot for a kernelTextArea.  Doesn't set any
+  // colors, and makes some other assumptions that may need to be overwritten.
+
+  kernelTextArea *area = NULL;
+
+  // Check params.  No such thing as an area with 0 rows or columns
+  if (!columns || !rows)
+    {
+      kernelError(kernel_error, "Can't allocate a text area of %dx%d",
+		  columns, rows);
+      return (area = NULL);
+    }
+
+  area = kernelMalloc(sizeof(kernelTextArea));
+  if (area == NULL)
+    return (area);
+
+  // All values not listed are NULL
+  area->columns = columns;
+  area->rows = rows;
+  area->bytesPerChar = 1;
+  area->cursorState = 1;
+  area->maxBufferLines = (rows + bufferLines);
+
+  // An input stream
+  area->inputStream = kernelMalloc(sizeof(kernelTextInputStream));
+  if ((area->inputStream == NULL) ||
+      kernelTextNewInputStream(area->inputStream))
+    {
+      kernelTextAreaDelete(area);
+      return (area = NULL);
+    }
+
+  // An output stream
+  area->outputStream = kernelMalloc(sizeof(kernelTextOutputStream));
+  if ((area->outputStream == NULL) ||
+      kernelTextNewOutputStream(area->outputStream))
+    {
+      kernelTextAreaDelete(area);
+      return (area = NULL);
+    }
+  
+  // Assign the area to the output stream
+  ((kernelTextOutputStream *) area->outputStream)->textArea = area;
+
+  // The big buffer
+  area->bufferData =
+    (unsigned char *) kernelMalloc(area->maxBufferLines * columns);
+  if (area->bufferData == NULL)
+    {
+      kernelTextAreaDelete(area);
+      return (area = NULL);
+    }
+
+  // The buffer for the visible part
+  area->visibleData = (unsigned char *) kernelMalloc(columns * rows);
+  if (area->visibleData == NULL)
+    {
+      kernelTextAreaDelete(area);
+      return (area = NULL);
+    }
+  
+  return (area);
+}
+
+
+void kernelTextAreaDelete(kernelTextArea *area)
+{
+  // Release the allocations and whatnot for a kernelTextArea.
+
+  kernelTextInputStream *inputStream = NULL;
+  kernelTextOutputStream *outputStream = NULL;
+
+  // Check params
+  if (area == NULL)
+    return;
+
+  inputStream = (kernelTextInputStream *) area->inputStream;
+  outputStream = (kernelTextOutputStream *) area->outputStream;
+
+  if (inputStream)
+    {
+      if (inputStream->s.buffer)
+	{
+	  kernelFree((void *)(inputStream->s.buffer));
+	  inputStream->s.buffer = NULL;
+	}
+
+      kernelFree(area->inputStream);
+      area->inputStream = NULL;
+    }
+
+  if (outputStream)
+    {
+      kernelFree(area->outputStream);
+      area->outputStream = NULL;
+    }
+
+  if (area->bufferData)
+    {
+      kernelFree(area->bufferData);
+      area->bufferData = NULL;
+    }
+
+  if (area->visibleData)
+    {
+      kernelFree(area->visibleData);
+      area->visibleData = NULL;
+    }
+
+  kernelFree((void *) area);
+}
+
+
 int kernelTextSwitchToGraphics(kernelTextArea *area)
 {
   // If the kernel is operating in a graphics mode, it will call this function
@@ -213,9 +364,6 @@ int kernelTextSwitchToGraphics(kernelTextArea *area)
   // Assign the text area to the console output stream
   consoleOutput->textArea = area;
   consoleOutput->outputDriver = kernelDriverGetGraphicConsole();
-
-  // Clear the console text area
-  consoleOutput->outputDriver->screenClear(area);
 
   // Done
   return (status = 0);
@@ -698,13 +846,9 @@ void kernelTextStreamBackSpace(kernelTextOutputStream *outputStream)
       cursorColumn = (outputStream->textArea->columns - 1);
     }
 
-  outputStream->outputDriver->setCursor(outputStream->textArea, 0);
   outputStream->outputDriver->setCursorAddress(outputStream->textArea,
 					       cursorRow, cursorColumn);
-  outputStream->outputDriver->print(outputStream->textArea, " ");
-  outputStream->outputDriver->setCursorAddress(outputStream->textArea,
-					       cursorRow, cursorColumn);
-  outputStream->outputDriver->setCursor(outputStream->textArea, 1);
+  outputStream->outputDriver->delete(outputStream->textArea);
 
   return;
 }
@@ -933,6 +1077,56 @@ void kernelTextCursorRight(void)
   outputStream = kernelMultitaskerGetTextOutput();
 
   kernelTextStreamCursorRight(outputStream);
+  return;
+}
+
+
+void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
+{
+  // Scroll the text area up (-1) or down (+1);
+
+  // Don't do anything unless we've been initialized
+  if (!initialized)
+    return;
+
+  if (outputStream == NULL)
+    return;
+  
+  if ((upDown == -1) && (outputStream->textArea->scrolledBackLines <
+			 outputStream->textArea->scrollBackLines))
+    {
+      // Scroll up by one screenful
+      outputStream->textArea->scrolledBackLines +=
+	min(outputStream->textArea->rows,
+	    (outputStream->textArea->scrollBackLines -
+	     outputStream->textArea->scrolledBackLines));
+    }
+  else if ((upDown == 1) && outputStream->textArea->scrolledBackLines)
+    {
+      // Scroll down by one screenful
+      outputStream->textArea->scrolledBackLines -=
+	min(outputStream->textArea->rows,
+	    outputStream->textArea->scrolledBackLines);
+    }
+
+  // We will call the text stream output driver routines to scroll the screen
+  // to the specified area
+  outputStream->outputDriver->screenDraw(outputStream->textArea);
+
+  return;
+}
+
+
+void kernelTextScroll(int upDown)
+{
+  // Scroll the text area up (-1) or down (+1);
+  
+  kernelTextOutputStream *outputStream = NULL;
+
+  // Get the text output stream for the current process
+  outputStream = kernelMultitaskerGetTextOutput();
+
+  kernelTextStreamScroll(outputStream, upDown);
   return;
 }
 
@@ -1181,18 +1375,17 @@ int kernelTextScreenSave(void)
   // Check to see whether any saved screen data is already there.
   if (textArea->savedScreen)
     {
-      kernelMemoryRelease(textArea->savedScreen);
+      kernelFree(textArea->savedScreen);
       textArea->savedScreen = NULL;
     }
 
   // Get memory for a new save area
-  textArea->savedScreen =
-    kernelMemoryGet((textArea->columns * textArea->rows), "save screen data");
+  textArea->savedScreen = kernelMalloc(textArea->columns * textArea->rows);
   if (textArea->savedScreen == NULL)
     return (ERR_MEMORY);
 
   // Copy the existing screen data into it
-  kernelMemCopy(textArea->data, textArea->savedScreen,
+  kernelMemCopy(textArea->visibleData, textArea->savedScreen,
 		(textArea->columns * textArea->rows));
   textArea->savedCursorColumn = textArea->cursorColumn;
   textArea->savedCursorRow = textArea->cursorRow;
@@ -1217,11 +1410,11 @@ int kernelTextScreenRestore(void)
   if (textArea->savedScreen)
     {
       // Copy the saved data back into the screen data
-      kernelMemCopy(textArea->savedScreen, textArea->data,
+      kernelMemCopy(textArea->savedScreen, textArea->visibleData,
 		    (textArea->columns * textArea->rows));
       textArea->cursorColumn = textArea->savedCursorColumn;
       textArea->cursorRow = textArea->savedCursorRow;
-      kernelMemoryRelease(textArea->savedScreen);
+      kernelFree(textArea->savedScreen);
       textArea->savedScreen = NULL;
     }
 

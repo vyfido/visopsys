@@ -164,7 +164,6 @@ typedef volatile struct
 int kernelFilesystemFatDetect(const kernelDisk *);
 int kernelFilesystemFatFormat(kernelDisk *, const char *, const char *, int);
 int kernelFilesystemFatCheck(kernelFilesystem *, int, int);
-int kernelFilesystemFatDefragment(kernelFilesystem *);
 int kernelFilesystemFatMount(kernelFilesystem *);
 int kernelFilesystemFatUnmount(kernelFilesystem *);
 unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *);

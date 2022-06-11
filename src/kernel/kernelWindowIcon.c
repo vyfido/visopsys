@@ -22,7 +22,6 @@
 // This code is for managing kernelWindowIcon objects.
 // These are just images that appear inside windows and buttons, etc
 
-
 #include "kernelWindowManager.h"     // Our prototypes are here
 #include "kernelParameters.h"
 #include "kernelMalloc.h"
@@ -31,7 +30,6 @@
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <string.h>
-
 
 static kernelAsciiFont *defaultFont = NULL;
 
@@ -218,8 +216,14 @@ static int destroy(void *componentData)
   // Release all our memory
   if (iconComponent)
     {
-      kernelFree(iconComponent->iconImage.data);
-      kernelFree((void *) iconComponent);
+      if (iconComponent->iconImage.data)
+	{
+	  kernelFree(iconComponent->iconImage.data);
+	  iconComponent->iconImage.data = NULL;
+	}
+
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -302,7 +306,8 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
     {
       // Try to get our favorite font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			      DEFAULT_VARIABLEFONT_SMALL_NAME, &defaultFont);
+			      DEFAULT_VARIABLEFONT_SMALL_NAME,
+			      &defaultFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&defaultFont);

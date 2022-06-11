@@ -36,14 +36,13 @@ static int focus(void *componentData, int focus)
 
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelTextArea *textArea = ((kernelWindowTextArea *) component->data)->area;
 
   // Call the 'focus' routine of the underlying text area
   status = saveFocus(componentData, focus);
   if (status < 0)
     return (status);
 
-  textArea = (kernelWindowTextArea *) component->data;
   kernelTextStreamSetCursor(((kernelTextOutputStream *)
 			     textArea->outputStream), focus);
   return (0);
@@ -53,9 +52,8 @@ static int focus(void *componentData, int focus)
 static int keyEvent(void *componentData, windowEvent *event)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelTextArea *textArea = ((kernelWindowTextArea *) component->data)->area;
 
-  // If it's a printable keystroke, make an asterisk
   if (event->type == EVENT_KEY_DOWN)
     {
       if (event->key == 8)
@@ -83,14 +81,13 @@ static int keyEvent(void *componentData, windowEvent *event)
 
 kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
 						int columns,
-						kernelAsciiFont *font,
 						componentParameters *params)
 {
   // Just returns a kernelWindowTextArea with only one row, but there are
   // a couple of other things we do as well.
 
   kernelWindowComponent *component = NULL;
-  kernelWindowTextArea *textArea = NULL;
+  kernelTextArea *textArea = NULL;
   componentParameters newParams;
   extern color kernelDefaultForeground;
 
@@ -114,14 +111,17 @@ kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
       params->useDefaultBackground = 0;
     }
   
-  component = kernelWindowNewTextArea(parent, columns, 1, font, params);
+  component = kernelWindowNewTextArea(parent, columns, 1, 0, params);
   if (component == NULL)
     return (component);
 
-  textArea = (kernelWindowTextArea *) component->data;
+  textArea = ((kernelWindowTextArea *) component->data)->area;
+
+  // Turn off the cursor until we get the focus
+  textArea->cursorState = 0;
 
   // Turn echo off
-  kernelTextInputStreamSetEcho(textArea->inputStream, 0);
+  ((kernelTextInputStream *) textArea->inputStream)->echo = 0;
 
   // We want different focus behaviour than a text area
   saveFocus = component->focus;

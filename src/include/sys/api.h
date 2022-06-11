@@ -108,18 +108,17 @@ extern int visopsys_in_kernel;
 #define _fnum_diskReadPartitions                     2000
 #define _fnum_diskSync                               2001
 #define _fnum_diskGetBoot                            2002
-#define _fnum_diskGetReadOnly                        2003
-#define _fnum_diskGetCount                           2004
-#define _fnum_diskGetPhysicalCount                   2005
-#define _fnum_diskGetInfo                            2006
-#define _fnum_diskGetPhysicalInfo                    2007
-#define _fnum_diskGetPartType                        2008
-#define _fnum_diskGetPartTypes                       2009
-#define _fnum_diskSetDoorState                       2010
-#define _fnum_diskReadSectors                        2011
-#define _fnum_diskWriteSectors                       2012
-#define _fnum_diskReadAbsoluteSectors                2013
-#define _fnum_diskWriteAbsoluteSectors               2014
+#define _fnum_diskGetCount                           2003
+#define _fnum_diskGetPhysicalCount                   2004
+#define _fnum_diskGetInfo                            2005
+#define _fnum_diskGetPhysicalInfo                    2006
+#define _fnum_diskGetPartType                        2007
+#define _fnum_diskGetPartTypes                       2008
+#define _fnum_diskSetDoorState                       2009
+#define _fnum_diskReadSectors                        2010
+#define _fnum_diskWriteSectors                       2011
+#define _fnum_diskReadAbsoluteSectors                2012
+#define _fnum_diskWriteAbsoluteSectors               2013
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -127,36 +126,36 @@ extern int visopsys_in_kernel;
 #define _fnum_filesystemDefragment                   3002
 #define _fnum_filesystemMount                        3003
 #define _fnum_filesystemUnmount                      3004
-#define _fnum_filesystemNumberMounted                3005
-#define _fnum_filesystemGetFree                      3006
-#define _fnum_filesystemGetBlockSize                 3007
+#define _fnum_filesystemGetFree                      3005
+#define _fnum_filesystemGetBlockSize                 3006
 
 // File functions.  All are in the 4000-4999 range.
 #define _fnum_fileFixupPath                          4000
-#define _fnum_fileFirst                              4001
-#define _fnum_fileNext                               4002
-#define _fnum_fileFind                               4003
-#define _fnum_fileOpen                               4004
-#define _fnum_fileClose                              4005
-#define _fnum_fileRead                               4006
-#define _fnum_fileWrite                              4007
-#define _fnum_fileDelete                             4008
-#define _fnum_fileDeleteSecure                       4009
-#define _fnum_fileMakeDir                            4010
-#define _fnum_fileRemoveDir                          4011
-#define _fnum_fileCopy                               4012
-#define _fnum_fileCopyRecursive                      4013
-#define _fnum_fileMove                               4014
-#define _fnum_fileTimestamp                          4015
-#define _fnum_fileStreamOpen                         4016
-#define _fnum_fileStreamSeek                         4017
-#define _fnum_fileStreamRead                         4018
-#define _fnum_fileStreamReadLine                     4019
-#define _fnum_fileStreamWrite                        4020
-#define _fnum_fileStreamWriteStr                     4021
-#define _fnum_fileStreamWriteLine                    4022
-#define _fnum_fileStreamFlush                        4023
-#define _fnum_fileStreamClose                        4024
+#define _fnum_fileGetDisk                            4001
+#define _fnum_fileFirst                              4002
+#define _fnum_fileNext                               4003
+#define _fnum_fileFind                               4004
+#define _fnum_fileOpen                               4005
+#define _fnum_fileClose                              4006
+#define _fnum_fileRead                               4007
+#define _fnum_fileWrite                              4008
+#define _fnum_fileDelete                             4009
+#define _fnum_fileDeleteSecure                       4010
+#define _fnum_fileMakeDir                            4011
+#define _fnum_fileRemoveDir                          4012
+#define _fnum_fileCopy                               4013
+#define _fnum_fileCopyRecursive                      4014
+#define _fnum_fileMove                               4015
+#define _fnum_fileTimestamp                          4016
+#define _fnum_fileStreamOpen                         4017
+#define _fnum_fileStreamSeek                         4018
+#define _fnum_fileStreamRead                         4019
+#define _fnum_fileStreamReadLine                     4020
+#define _fnum_fileStreamWrite                        4021
+#define _fnum_fileStreamWriteStr                     4022
+#define _fnum_fileStreamWriteLine                    4023
+#define _fnum_fileStreamFlush                        4024
+#define _fnum_fileStreamClose                        4025
 
 // Memory manager functions.  All are in the 5000-5999 range.
 #define _fnum_memoryPrintUsage                       5000
@@ -265,46 +264,47 @@ extern int visopsys_in_kernel;
 #define _fnum_windowSetResizable                     12016
 #define _fnum_windowSetPacked                        12017
 #define _fnum_windowSetHasCloseButton                12018
-#define _fnum_windowSetVisible                       12019
-#define _fnum_windowAddConsoleTextArea               12020
-#define _fnum_windowRedrawArea                       12021
-#define _fnum_windowProcessEvent                     12022
-#define _fnum_windowComponentEventGet                12023
-#define _fnum_windowTileBackground                   12024
-#define _fnum_windowCenterBackground                 12025
-#define _fnum_windowScreenShot                       12026
-#define _fnum_windowSaveScreenShot                   12027
-#define _fnum_windowSetTextOutput                    12028
-#define _fnum_windowComponentSetVisible              12029
-#define _fnum_windowComponentSetEnabled              12030
-#define _fnum_windowComponentGetWidth                12031
-#define _fnum_windowComponentSetWidth                12032
-#define _fnum_windowComponentGetHeight               12033
-#define _fnum_windowComponentSetHeight               12034
-#define _fnum_windowComponentFocus                   12035
-#define _fnum_windowComponentDraw                    12036
-#define _fnum_windowComponentGetData                 12037
-#define _fnum_windowComponentSetData                 12038
-#define _fnum_windowComponentGetSelected             12039
-#define _fnum_windowComponentSetSelected             12040
-#define _fnum_windowNewButton                        12041
-#define _fnum_windowNewCanvas                        12042
-#define _fnum_windowNewCheckbox                      12043
-#define _fnum_windowNewContainer                     12044
-#define _fnum_windowNewIcon                          12045
-#define _fnum_windowNewImage                         12046
-#define _fnum_windowNewList                          12047
-#define _fnum_windowNewListItem                      12048
-#define _fnum_windowNewMenu                          12049
-#define _fnum_windowNewMenuBar                       12050
-#define _fnum_windowNewMenuItem                      12051
-#define _fnum_windowNewPasswordField                 12052
-#define _fnum_windowNewProgressBar                   12053
-#define _fnum_windowNewRadioButton                   12054
-#define _fnum_windowNewScrollBar                     12055
-#define _fnum_windowNewTextArea                      12056
-#define _fnum_windowNewTextField                     12057
-#define _fnum_windowNewTextLabel                     12058
+#define _fnum_windowSetColors                        12019
+#define _fnum_windowSetVisible                       12020
+#define _fnum_windowAddConsoleTextArea               12021
+#define _fnum_windowRedrawArea                       12022
+#define _fnum_windowProcessEvent                     12023
+#define _fnum_windowComponentEventGet                12024
+#define _fnum_windowTileBackground                   12025
+#define _fnum_windowCenterBackground                 12026
+#define _fnum_windowScreenShot                       12027
+#define _fnum_windowSaveScreenShot                   12028
+#define _fnum_windowSetTextOutput                    12029
+#define _fnum_windowComponentSetVisible              12030
+#define _fnum_windowComponentSetEnabled              12031
+#define _fnum_windowComponentGetWidth                12032
+#define _fnum_windowComponentSetWidth                12033
+#define _fnum_windowComponentGetHeight               12034
+#define _fnum_windowComponentSetHeight               12035
+#define _fnum_windowComponentFocus                   12036
+#define _fnum_windowComponentDraw                    12037
+#define _fnum_windowComponentGetData                 12038
+#define _fnum_windowComponentSetData                 12039
+#define _fnum_windowComponentGetSelected             12040
+#define _fnum_windowComponentSetSelected             12041
+#define _fnum_windowNewButton                        12042
+#define _fnum_windowNewCanvas                        12043
+#define _fnum_windowNewCheckbox                      12044
+#define _fnum_windowNewContainer                     12045
+#define _fnum_windowNewIcon                          12046
+#define _fnum_windowNewImage                         12047
+#define _fnum_windowNewList                          12048
+#define _fnum_windowNewListItem                      12049
+#define _fnum_windowNewMenu                          12050
+#define _fnum_windowNewMenuBar                       12051
+#define _fnum_windowNewMenuItem                      12052
+#define _fnum_windowNewPasswordField                 12053
+#define _fnum_windowNewProgressBar                   12054
+#define _fnum_windowNewRadioButton                   12055
+#define _fnum_windowNewScrollBar                     12056
+#define _fnum_windowNewTextArea                      12057
+#define _fnum_windowNewTextField                     12058
+#define _fnum_windowNewTextLabel                     12059
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -935,13 +935,6 @@ _X_ static inline int diskGetBoot(char *name)
   return (sysCall_1(_fnum_diskGetBoot, name));
 }
 
-_X_ static inline int diskGetReadOnly(const char *name)
-{
-  // Proto: int kernelDiskGetReadOnly(const char *);
-  // Desc : Returns 1 if the supplied disk name is a read-only device, media, or filesystem
-  return (sysCall_1(_fnum_diskGetReadOnly, (void *) name));
-}
-
 _X_ static inline int diskGetCount(void)
 {
   // Proto: int kernelDiskGetCount(void);
@@ -1065,13 +1058,6 @@ _X_ static inline int filesystemUnmount(const char *mp)
   return (sysCall_1(_fnum_filesystemUnmount, (void *)mp));
 }
 
-_X_ static inline int filesystemNumberMounted(void)
-{
-  // Proto: int kernelFilesystemNumberMounted(void);
-  // Desc : Returns the number of filesystems currently mounted.
-  return (sysCall_0(_fnum_filesystemNumberMounted));
-}
-
 _X_ static inline int filesystemGetFree(const char *fs)
 {
   // Proto: unsigned int kernelFilesystemGetFree(const char *);
@@ -1096,6 +1082,13 @@ _X_ static inline int fileFixupPath(const char *orig, char *new)
   // Proto: int kernelFileFixupPath(const char *, char *);
   // Desc : Take the absolute pathname in 'orig' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
   return (sysCall_2(_fnum_fileFixupPath, (void *) orig, new));
+}
+
+_X_ static inline int fileGetDisk(const char *path, disk *d)
+{
+  // Proto: int kernelFileGetDisk(const char *, disk *);
+  // Desc : Given the file name 'path', return the user space structure for the logical disk that the file resides on.
+  return (sysCall_2(_fnum_fileGetDisk, (void *) path, (void *) d));
 }
 
 _X_ static inline int fileFirst(const char *path, file *f)
@@ -1702,9 +1695,9 @@ _X_ static inline int graphicsAreEnabled(void)
   return (sysCall_0(_fnum_graphicsAreEnabled));
 }
 
-_X_ static inline int graphicGetModes(videoMode *buffer, unsigned size)
+_X_ static inline int graphicGetModes(videoMode *buffer, int size)
 {
-  // Proto: int kernelGraphicGetModes(videoMode *, unsigned);
+  // Proto: int kernelGraphicGetModes(videoMode *, int);
   // Desc : Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware.
   return (sysCall_2(_fnum_graphicGetModes, buffer, (void *) size));
 }
@@ -1723,23 +1716,23 @@ _X_ static inline int graphicSetMode(videoMode *mode)
   return (sysCall_1(_fnum_graphicSetMode, mode));
 }
 
-_X_ static inline unsigned graphicGetScreenWidth(void)
+_X_ static inline int graphicGetScreenWidth(void)
 {
-  // Proto: unsigned kernelGraphicGetScreenWidth(void);
+  // Proto: int kernelGraphicGetScreenWidth(void);
   // Desc : Returns the width of the graphics screen.
   return (sysCall_0(_fnum_graphicGetScreenWidth));
 }
 
-_X_ static inline unsigned graphicGetScreenHeight(void)
+_X_ static inline int graphicGetScreenHeight(void)
 {
-  // Proto: unsigned kernelGraphicGetScreenHeight(void);
+  // Proto: int kernelGraphicGetScreenHeight(void);
   // Desc : Returns the height of the graphics screen.
   return (sysCall_0(_fnum_graphicGetScreenHeight));
 }
 
-_X_ static inline unsigned graphicCalculateAreaBytes(unsigned width, unsigned height)
+_X_ static inline int graphicCalculateAreaBytes(int width, int height)
 {
-  // Proto: unsigned kernelGraphicCalculateAreaBytes(unsigned, unsigned);
+  // Proto: int kernelGraphicCalculateAreaBytes(int, int);
   // Desc : Returns the number of bytes required to allocate a graphic buffer of width 'width' and height 'height'.  This is a function of the screen resolution, etc.
   return (sysCall_2(_fnum_graphicCalculateAreaBytes, (void *) width,
 		    (void *) height));
@@ -1783,36 +1776,36 @@ _X_ static inline int graphicDrawLine(objectKey buffer, color *foreground, drawM
 		    (void *) endY));
 }
 
-_X_ static inline int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill)
+_X_ static inline int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, int width, int height, int thickness, int fill)
 {
-  // Proto: int kernelGraphicDrawRect(kernelGraphicBuffer *, color *, drawMode, int, int, unsigned, unsigned, unsigned, int);
+  // Proto: int kernelGraphicDrawRect(kernelGraphicBuffer *, color *, drawMode, int, int, int, int, int, int);
   // Desc : Draw a rectangle into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the rectangle.   If 'buffer' is NULL, draw directly onto the screen.
   return (sysCall_9(_fnum_graphicDrawRect, buffer, foreground, (void *) mode,
 		    (void *) xCoord, (void *) yCoord, (void *) width,
 		    (void *) height, (void *) thickness, (void *) fill));
 }
 
-_X_ static inline int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill)
+_X_ static inline int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, int width, int height, int thickness, int fill)
 {
-  // Proto: int kernelGraphicDrawOval(kernelGraphicBuffer *, color *, drawMode, int, int, unsigned, unsigned, unsigned, int);
+  // Proto: int kernelGraphicDrawOval(kernelGraphicBuffer *, color *, drawMode, int, int, int, int, int, int);
   // Desc : Draw an oval (circle, whatever) into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the oval.   If 'buffer' is NULL, draw directly onto the screen.  Currently not supported by the linear framebuffer graphic driver.
   return (sysCall_9(_fnum_graphicDrawOval, buffer, foreground, (void *) mode,
 		    (void *) xCoord, (void *) yCoord, (void *) width,
 		    (void *) height, (void *) thickness, (void *) fill));
 }
 
-_X_ static inline int graphicDrawImage(objectKey buffer, image *drawImage, drawMode mode, int xCoord, int yCoord, unsigned xOffset, unsigned yOffset, unsigned width, unsigned height)
+_X_ static inline int graphicDrawImage(objectKey buffer, image *drawImage, drawMode mode, int xCoord, int yCoord, int xOffset, int yOffset, int width, int height)
 {
-  // Proto: int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, drawMode, int, int, unsigned, unsigned, unsigned, unsigned);
+  // Proto: int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, drawMode, int, int, int, int, int, int);
   // Desc : Draw the image 'drawImage' into the graphic buffer 'buffer', using the drawing mode 'mode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord' and the starting Y coordinate 'yCoord'.   The 'xOffset' and 'yOffset' parameters specify an offset into the image to start the drawing (0, 0 to draw the whole image).  Similarly the 'width' and 'height' parameters allow you to specify a portion of the image (0, 0 to draw the whole image -- minus any X or Y offsets from the previous parameters).  So, for example, to draw only the middle pixel of a 3x3 image, you would specify xOffset=1, yOffset=1, width=1, height=1.  If 'buffer' is NULL, draw directly onto the screen.
   return (sysCall_9(_fnum_graphicDrawImage, buffer, drawImage, (void *) mode,
 		    (void *) xCoord, (void *) yCoord, (void *) xOffset,
 		    (void *) yOffset, (void *) width, (void *) height));
 }
 
-_X_ static inline int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, unsigned width, unsigned height)
+_X_ static inline int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, int width, int height)
 {
-  // Proto: int kernelGraphicGetImage(kernelGraphicBuffer *, image *, int, int, unsigned, unsigned);
+  // Proto: int kernelGraphicGetImage(kernelGraphicBuffer *, image *, int, int, int, int);
   // Desc : Grab a new image 'getImage' from the graphic buffer 'buffer', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.   If 'buffer' is NULL, grab the image directly from the screen.
   return (sysCall_6(_fnum_graphicGetImage, buffer, getImage, (void *) xCoord,
 		    (void *) yCoord, (void *) width, (void *) height));
@@ -1827,27 +1820,27 @@ _X_ static inline int graphicDrawText(objectKey buffer, color *foreground, color
 		    (void *) yCoord));
 }
 
-_X_ static inline int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, unsigned width, unsigned height, int xCoord2, int yCoord2)
+_X_ static inline int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, int width, int height, int xCoord2, int yCoord2)
 {
-  // Proto: int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int, unsigned, unsigned, int, int);
+  // Proto: int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int, int, int, int, int);
   // Desc : Within the graphic buffer 'buffer', copy the area bounded by ('xCoord1', 'yCoord1'), width 'width' and height 'height' to the starting X coordinate 'xCoord2' and the starting Y coordinate 'yCoord2'.  If 'buffer' is NULL, copy directly to and from the screen.
   return (sysCall_7(_fnum_graphicCopyArea, buffer, (void *) xCoord1,
 		    (void *) yCoord1, (void *) width, (void *) height,
 		    (void *) xCoord2, (void *) yCoord2));
 }
 
-_X_ static inline int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, unsigned width, unsigned height)
+_X_ static inline int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, int width, int height)
 {
-  // Proto: int kernelGraphicClearArea(kernelGraphicBuffer *, color *, int, int, unsigned, unsigned);
+  // Proto: int kernelGraphicClearArea(kernelGraphicBuffer *, color *, int, int, int, int);
   // Desc : Clear the area of the graphic buffer 'buffer' using the background color 'background', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.  If 'buffer' is NULL, clear the area directly on the screen.
   return (sysCall_6(_fnum_graphicClearArea, buffer, background,
 		    (void *) xCoord, (void *) yCoord, (void *) width,
 		    (void *) height));
 }
 
-_X_ static inline int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, unsigned clipWidth, unsigned clipHeight)
+_X_ static inline int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, int clipWidth, int clipHeight)
 {
-  // Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, unsigned, unsigned); 
+  // Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int, int); 
   // Desc : Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
   return (sysCall_7(_fnum_graphicRenderBuffer, buffer, (void *) drawX,
 		    (void *) drawY, (void *) clipX, (void *) clipY,
@@ -1897,9 +1890,9 @@ _X_ static inline int windowDestroy(objectKey window)
   return (sysCall_1(_fnum_windowDestroy, window));
 }
 
-_X_ static inline int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, unsigned width, unsigned height)
+_X_ static inline int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, int width, int height)
 {
-  // Proto: kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, unsigned, unsigned);
+  // Proto: kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, int, int);
   // Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
   return (sysCall_5(_fnum_windowUpdateBuffer, buffer, (void *) xCoord,
 					    (void *) xCoord, (void *) width,
@@ -1914,16 +1907,16 @@ _X_ static inline int windowSetTitle(objectKey window, const char *title)
 }
 
 
-_X_ static inline int windowGetSize(objectKey window, unsigned *width, unsigned *height)
+_X_ static inline int windowGetSize(objectKey window, int *width, int *height)
 {
-  // Proto: int kernelWindowGetSize(kernelWindow *, unsigned *, unsigned *);
+  // Proto: int kernelWindowGetSize(kernelWindow *, int *, int *);
   // Desc : Get the size of the window 'window', and put the results in 'width' and 'height'.
   return (sysCall_3(_fnum_windowGetSize, window, width, height));
 }
 
-_X_ static inline int windowSetSize(objectKey window, unsigned width, unsigned height)
+_X_ static inline int windowSetSize(objectKey window, int width, int height)
 {
-  // Proto: int kernelWindowSetSize(kernelWindow *, unsigned, unsigned);
+  // Proto: int kernelWindowSetSize(kernelWindow *, int, int);
   // Desc : Resize the window 'window' to the width 'width' and the height 'height'.
   return (sysCall_3(_fnum_windowSetSize, window, (void *) width,
 		    (void *) height));
@@ -2001,6 +1994,13 @@ _X_ static inline int windowSetHasCloseButton(objectKey window, int trueFalse)
 		    (void *) trueFalse));
 }
 
+_X_ static inline int windowSetColors(objectKey window, color *background)
+{
+  // Proto: int kernelWindowSetColors(kernelWindow *, color *);
+  // Desc : Set the background color of 'window'.  If 'color' is NULL, use the default.
+  return (sysCall_2(_fnum_windowSetColors, window, background));
+}
+
 _X_ static inline int windowSetVisible(objectKey window, int visible)
 {
   // Proto: int kernelWindowSetVisible(kernelWindow *, int);
@@ -2015,9 +2015,9 @@ _X_ static inline int windowAddConsoleTextArea(objectKey window, componentParame
   return (sysCall_2(_fnum_windowAddConsoleTextArea, window, params));
 }
 
-_X_ static inline void windowRedrawArea(int xCoord, int yCoord, unsigned width, unsigned height)
+_X_ static inline void windowRedrawArea(int xCoord, int yCoord, int width, int height)
 {
-  // Proto: void kernelWindowRedrawArea(int, int, unsigned, unsigned);
+  // Proto: void kernelWindowRedrawArea(int, int, int, int);
   // Desc : Tells the windowing system to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates.  This might be useful if you were drawing non-window-based things (i.e., things without their own independent graphics buffer) directly onto the screen and you wanted to restore an area to its original contents.  For example, the mouse driver uses this method to erase the pointer from its previous position.
   sysCall_4(_fnum_windowRedrawArea, (void *) xCoord, (void *) yCoord,
 	    (void *) width, (void *) height);
@@ -2088,30 +2088,30 @@ _X_ static inline int windowComponentSetEnabled(objectKey component, int enabled
 		    (void *) enabled));
 }
 
-_X_ static inline unsigned windowComponentGetWidth(objectKey component)
+_X_ static inline int windowComponentGetWidth(objectKey component)
 {
-  // Proto: unsigned kernelWindowComponentGetWidth(kernelWindowComponent *);
+  // Proto: int kernelWindowComponentGetWidth(kernelWindowComponent *);
   // Desc : Get the pixel width of the window component 'component'.
   return (sysCall_1(_fnum_windowComponentGetWidth, component));
 }
 
-_X_ static inline int windowComponentSetWidth(objectKey component, unsigned width)
+_X_ static inline int windowComponentSetWidth(objectKey component, int width)
 {
-  // Proto: int kernelWindowComponentSetWidth(kernelWindowComponent *, unsigned);
+  // Proto: int kernelWindowComponentSetWidth(kernelWindowComponent *, int);
   // Desc : Set the pixel width of the window component 'component'
   return (sysCall_2(_fnum_windowComponentSetWidth, component, (void *) width));
 }
 
-_X_ static inline unsigned windowComponentGetHeight(objectKey component)
+_X_ static inline int windowComponentGetHeight(objectKey component)
 {
-  // Proto: unsigned kernelWindowComponentGetHeight(kernelWindowComponent *);
+  // Proto: int kernelWindowComponentGetHeight(kernelWindowComponent *);
   // Desc : Get the pixel height of the window component 'component'.
   return (sysCall_1(_fnum_windowComponentGetHeight, component));
 }
 
-_X_ static inline int windowComponentSetHeight(objectKey component, unsigned height)
+_X_ static inline int windowComponentSetHeight(objectKey component, int height)
 {
-  // Proto: int kernelWindowComponentSetHeight(kernelWindowComponent *, unsigned);
+  // Proto: int kernelWindowComponentSetHeight(kernelWindowComponent *, int);
   // Desc : Set the pixel height of the window component 'component'.
   return (sysCall_2(_fnum_windowComponentSetHeight, component,
 		    (void *) height));
@@ -2131,17 +2131,17 @@ _X_ static inline int windowComponentDraw(objectKey component)
   return (sysCall_1(_fnum_windowComponentDraw, component));
 }
 
-_X_ static inline int windowComponentGetData(objectKey component, void *buffer, unsigned size)
+_X_ static inline int windowComponentGetData(objectKey component, void *buffer, int size)
 {
-  // Proto: int kernelWindowComponentGetData(kernelWindowComponent *, void *, unsigned);
+  // Proto: int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
   // Desc : This is a generic call to get data from the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will return is totally dependent upon the type and implementation of the component.
   return (sysCall_3(_fnum_windowComponentGetData, component, buffer,
 		    (void *) size));
 }
 
-_X_ static inline int windowComponentSetData(objectKey component, void *buffer, unsigned size)
+_X_ static inline int windowComponentSetData(objectKey component, void *buffer, int size)
 {
-  // Proto: int kernelWindowComponentSetData(kernelWindowComponent *, void *, unsigned);
+  // Proto: int kernelWindowComponentSetData(kernelWindowComponent *, void *, int);
   // Desc : This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
   return (sysCall_3(_fnum_windowComponentSetData, component, buffer,
 		    (void *) size));
@@ -2171,20 +2171,20 @@ _X_ static inline objectKey windowNewButton(objectKey parent, const char *label,
 				buttonImage, params));
 }
 
-_X_ static inline objectKey windowNewCanvas(objectKey parent, unsigned width, unsigned height, componentParameters *params)
+_X_ static inline objectKey windowNewCanvas(objectKey parent, int width, int height, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewCanvas(volatile void *, unsigned, unsigned, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewCanvas(volatile void *, int, int, componentParameters *);
   // Desc : Get a new canvas component, to be placed inside the parent object 'parent', using the supplied width and height, with the given component parameters.  Canvas components are areas which will allow drawing operations, for example to show line drawings or unique graphical elements.
   return ((objectKey) sysCall_4(_fnum_windowNewCanvas, parent,
 				(void *) width, (void *) height, params));
 }
 
-_X_ static inline objectKey windowNewCheckbox(objectKey parent, objectKey font, const char *text, componentParameters *params)
+_X_ static inline objectKey windowNewCheckbox(objectKey parent, const char *text, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewCheckbox(volatile void *, kernelAsciiFont *, const char *, componentParameters *);
-  // Desc : Get a new checkbox component, to be placed inside the parent object 'parent', using the font 'cont', the accompanying text 'text', and with the given component parameters.
-  return ((objectKey) sysCall_4(_fnum_windowNewCheckbox, parent, font,
-				(void *) text, params));
+  // Proto: kernelWindowComponent *kernelWindowNewCheckbox(volatile void *, const char *, componentParameters *);
+  // Desc : Get a new checkbox component, to be placed inside the parent object 'parent', using the accompanying text 'text', and with the given component parameters.
+  return ((objectKey) sysCall_3(_fnum_windowNewCheckbox, parent, (void *) text,
+				params));
 }
 
 
@@ -2212,22 +2212,21 @@ _X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, d
 				(void *) mode, params));
 }
 
-_X_ static inline objectKey windowNewList(objectKey parent, objectKey font, unsigned rows, unsigned columns, int multiple, char *items[], int numItems, componentParameters *params)
+_X_ static inline objectKey windowNewList(objectKey parent, int rows, int columns, int multiple, char *items[], int numItems, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, kernelAsciiFont *, unsigned, unsigned, int, const char *[], int, componentParameters *);
-  // Desc : Get a new window list component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
-  return ((objectKey) sysCall_8(_fnum_windowNewList, parent, font,
-				(void *) rows, (void *) columns,
-				(void *) multiple, items, (void *) numItems,
-				params));
+  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, int, int, int, const char *[], int, componentParameters *);
+  // Desc : Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
+  return ((objectKey) sysCall_7(_fnum_windowNewList, parent, (void *) rows,
+				(void *) columns, (void *) multiple, items,
+				(void *) numItems, params));
 }
 
-_X_ static inline objectKey windowNewListItem(objectKey parent, objectKey font, const char *text, componentParameters *params)
+_X_ static inline objectKey windowNewListItem(objectKey parent, const char *text, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewListItem(volatile void *, kernelAsciiFont *, const char *, componentParameters *);
-  // Desc : Get a new list item component to be placed inside the parent object 'parent', using the font 'font', the string 'text', and the component parameters 'params'.
-  return ((objectKey) sysCall_4(_fnum_windowNewListItem, parent, font,
-				(void *) text, params));
+  // Proto: kernelWindowComponent *kernelWindowNewListItem(volatile void *, const char *, componentParameters *);
+  // Desc : Get a new list item component to be placed inside the parent object 'parent', using the string 'text', and the component parameters 'params'.
+  return ((objectKey) sysCall_3(_fnum_windowNewListItem, parent, (void *) text,
+				params));
 }
 
 _X_ static inline objectKey windowNewMenu(objectKey parent, const char *name, componentParameters *params)
@@ -2253,12 +2252,12 @@ _X_ static inline objectKey windowNewMenuItem(objectKey parent, const char *text
 				params));
 }
 
-_X_ static inline objectKey windowNewPasswordField(objectKey parent, int columns, objectKey font, componentParameters *params)
+_X_ static inline objectKey windowNewPasswordField(objectKey parent, int columns, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewPasswordField(volatile void *, int, kernelAsciiFont *, componentParameters *);
-  // Desc : Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns, the font 'font' and the component parameters 'params'.  A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*).
-  return ((objectKey) sysCall_4(_fnum_windowNewPasswordField, parent,
-				(void *) columns, font,	params));
+  // Proto: kernelWindowComponent *kernelWindowNewPasswordField(volatile void *, int, componentParameters *);
+  // Desc : Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns and the component parameters 'params'.  A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*).
+  return ((objectKey) sysCall_3(_fnum_windowNewPasswordField, parent,
+				(void *) columns, params));
 }
 
 _X_ static inline objectKey windowNewProgressBar(objectKey parent, componentParameters *params)
@@ -2268,45 +2267,45 @@ _X_ static inline objectKey windowNewProgressBar(objectKey parent, componentPara
   return ((objectKey) sysCall_2(_fnum_windowNewProgressBar, parent, params));
 }
 
-_X_ static inline objectKey windowNewRadioButton(objectKey parent, objectKey font, unsigned rows, unsigned columns, char *items[], int numItems, componentParameters *params)
+_X_ static inline objectKey windowNewRadioButton(objectKey parent, int rows, int columns, char *items[], int numItems, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewRadioButton(volatile void *, kernelAsciiFont *, unsigned, unsigned, const char **, int, componentParameters *);
-  // Desc : Get a new radio button component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'.  'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices.  The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items').
-  return ((objectKey) sysCall_7(_fnum_windowNewRadioButton, parent, font,
+  // Proto: kernelWindowComponent *kernelWindowNewRadioButton(volatile void *, int, int, const char **, int, componentParameters *);
+  // Desc : Get a new radio button component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices.  The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items').
+  return ((objectKey) sysCall_6(_fnum_windowNewRadioButton, parent,
 				(void *) rows, (void *) columns,
 				items, (void *) numItems, params));
 }
 
-_X_ static inline objectKey windowNewScrollBar(objectKey parent, scrollBarType type, unsigned width, unsigned height, componentParameters *params)
+_X_ static inline objectKey windowNewScrollBar(objectKey parent, scrollBarType type, int width, int height, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewScrollBar(volatile void *, scrollBarType, unsigned, unsigned, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewScrollBar(volatile void *, scrollBarType, int, int, componentParameters *);
   // Desc : Get a new scroll bar component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
   return ((objectKey) sysCall_5(_fnum_windowNewScrollBar, parent,
 				(void *) type, (void *) width, (void *) height,
 				params));
 }
 
-_X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int rows, objectKey font, componentParameters *params)
+_X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int rows, int bufferLines, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewTextArea(volatile void *, int, int, kernelAsciiFont *, componentParameters *);
-  // Desc : Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params', and using the number of columns 'columns', the number of rows 'rows', and the font 'font'.  If 'font' is NULL, the default font will be used.
+  // Proto: kernelWindowComponent *kernelWindowNewTextArea(volatile void *, int, int, int, componentParameters *);
+  // Desc : Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params'.  The 'columns' and 'rows' are the visible portion, and 'bufferLines' is the number of extra lines of scrollback memory.  If 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_5(_fnum_windowNewTextArea, parent,
-			       (void *) columns, (void *) rows, font, params));
+	(void *) columns, (void *) rows, (void *) bufferLines, params));
 }
 
-_X_ static inline objectKey windowNewTextField(objectKey parent, int columns, objectKey font, componentParameters *params)
+_X_ static inline objectKey windowNewTextField(objectKey parent, int columns, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewTextField(volatile void *, int, kernelAsciiFont *, componentParameters *);
-  // Desc : Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and the font 'font', and with the given component parameters 'params'.  Text field components are essentially 1-line 'text area' components.  If 'font' is NULL, the default font will be used.
-  return ((objectKey) sysCall_4(_fnum_windowNewTextField, parent,
-				(void *) columns, font, params));
+  // Proto: kernelWindowComponent *kernelWindowNewTextField(volatile void *, int, componentParameters *);
+  // Desc : Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and with the given component parameters 'params'.  Text field components are essentially 1-line 'text area' components.  If the params 'font' is NULL, the default font will be used.
+  return ((objectKey) sysCall_3(_fnum_windowNewTextField, parent,
+				(void *) columns, params));
 }
 
-_X_ static inline objectKey windowNewTextLabel(objectKey parent, objectKey font, const char *text, componentParameters *params)
+_X_ static inline objectKey windowNewTextLabel(objectKey parent, const char *text, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewTextLabel(volatile void *, kernelAsciiFont *, const char *, componentParameters *);
-  // Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text' and the font 'font'.  If 'font' is NULL, the default font will be used.
-  return ((objectKey) sysCall_4(_fnum_windowNewTextLabel, parent, font,
+  // Proto: kernelWindowComponent *kernelWindowNewTextLabel(volatile void *, const char *, componentParameters *);
+  // Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
+  return ((objectKey) sysCall_3(_fnum_windowNewTextLabel, parent,
 				(void *) text, params));
 }
 
@@ -2405,12 +2404,12 @@ _X_ static inline int fontSetDefault(const char *name)
   return (sysCall_1(_fnum_fontSetDefault, (void *) name));
 }
 
-_X_ static inline int fontLoad(const char* filename, const char *fontname, objectKey *pointer)
+_X_ static inline int fontLoad(const char* filename, const char *fontname, objectKey *pointer, int fixedWidth)
 {
-  // Proto: int kernelFontLoad(const char*, const char*, kernelAsciiFont **);
-  // Desc : Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.
-  return (sysCall_3(_fnum_fontLoad, (void *) filename, (void *) fontname,
-		    pointer));
+  // Proto: int kernelFontLoad(const char*, const char*, kernelAsciiFont **, int);
+  // Desc : Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
+  return (sysCall_4(_fnum_fontLoad, (void *) filename, (void *) fontname,
+		    pointer, (void *) fixedWidth));
 }
 
 _X_ static inline unsigned fontGetPrintedWidth(objectKey font, const char *string)

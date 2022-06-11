@@ -270,9 +270,6 @@ typedef volatile struct {
 // Functions exported by kernelFileSystemExt.c, not defined elsewhere.
 
 int kernelFilesystemExtDetect(const kernelDisk *);
-int kernelFilesystemExtFormat(kernelDisk *, const char *, const char *, int);
-int kernelFilesystemExtCheck(kernelFilesystem *, int, int);
-int kernelFilesystemExtDefragment(kernelFilesystem *);
 int kernelFilesystemExtMount(kernelFilesystem *);
 int kernelFilesystemExtUnmount(kernelFilesystem *);
 unsigned kernelFilesystemExtGetFreeBytes(kernelFilesystem *);

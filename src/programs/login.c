@@ -209,18 +209,14 @@ static void constructWindow(int myProcessId)
   if (window == NULL)
     return;
 
-  params.gridX = 0;
-  params.gridY = 0;
+  bzero(&params, sizeof(componentParameters));
   params.gridWidth = 2;
   params.gridHeight = 1;
   params.padLeft = 5;
   params.padRight = 5;
   params.padTop = 5;
-  params.padBottom = 0;
   params.orientationX = orient_center;
   params.orientationY = orient_top;
-  params.hasBorder = 0;
-  params.stickyFocus = 0;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
@@ -229,25 +225,28 @@ static void constructWindow(int myProcessId)
     status = imageLoadBmp("/system/visopsys.bmp", &splashImage);
   if (splashImage.data != NULL)
     {
+      splashImage.translucentColor.red = 0;
+      splashImage.translucentColor.green = 0xFF;
+      splashImage.translucentColor.blue = 0;
+
       // Create an image component from it, and add it to the window
       params.gridY = 0;
-      imageComponent = windowNewImage(window, &splashImage, draw_normal,
+      imageComponent = windowNewImage(window, &splashImage, draw_translucent,
 				      &params);
     }
 
   // Put text labels in the window to prompt the user
   params.gridY = 1;
-  textLabel = windowNewTextLabel(window, NULL, LOGINNAME, &params);
+  textLabel = windowNewTextLabel(window, LOGINNAME, &params);
 
   // Add a login field
   params.gridY = 2;
   params.hasBorder = 1;
-  loginField = windowNewTextField(window, 30, NULL /* default font*/, &params);
+  loginField = windowNewTextField(window, 30, &params);
   windowRegisterEventHandler(loginField, &eventHandler);
 
   // Add a password field
-  passwordField = windowNewPasswordField(window, 30, NULL /* default font*/,
-					 &params);
+  passwordField = windowNewPasswordField(window, 30, &params);
   windowComponentSetVisible(passwordField, 0);
   windowRegisterEventHandler(passwordField, &eventHandler);
 
@@ -345,7 +344,7 @@ int main(int argc, char *argv[])
   int skipLogin = 0;
   int myPid = 0;
   int shellPid = 0;
-  char bootDisk[DISK_MAX_NAMELENGTH];
+  disk sysDisk;
 
   // A lot of what we do is different depending on whether we're in graphics
   // mode or not.
@@ -362,15 +361,15 @@ int main(int argc, char *argv[])
 	  return (0);
 	case 'f':
 	  // Login using the supplied user name
-	  strcpy(login, optarg);
+	  strncpy(login, optarg, MAX_LOGIN_LENGTH);
 	  skipLogin = 1;
 	  break;
 	}
     }
 
   // Find out whether we are currently running on a read-only filesystem
-  if (!diskGetBoot(bootDisk))
-    readOnly = diskGetReadOnly(bootDisk);
+  if (!fileGetDisk("/", &sysDisk))
+    readOnly = sysDisk.readOnly;
 
   myPid = multitaskerGetCurrentProcessId();
 
@@ -386,6 +385,8 @@ int main(int argc, char *argv[])
       // Inner loop, which goes until we authenticate successfully
       while (1)
 	{
+	  windowComponentSetData(loginField, "Goobar", 7);
+
 	  if (!skipLogin)
 	    getLogin();
 	  skipLogin = 0;
@@ -426,7 +427,7 @@ int main(int argc, char *argv[])
 	  userSetPid(login, shellPid);
 
 	  if (readOnly)
-	    windowNewInfoDialog(window, "Read Only", READONLY);
+	    windowNewInfoDialog(NULL, "Read Only", READONLY);
 	  
 	  // Block on the window manager thread PID we were passed
 	  multitaskerBlock(shellPid);

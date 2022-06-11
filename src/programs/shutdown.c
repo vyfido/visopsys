@@ -90,22 +90,28 @@ static void constructWindow(void)
 
   // Create a reboot icon
   bzero(&iconImage, sizeof(image));
-  imageLoadBmp("/system/rebticon.bmp", &iconImage);
-  rebootIcon = windowNewIcon(window, &iconImage, "Reboot", NULL, &params);
-  windowRegisterEventHandler(rebootIcon, &eventHandler);
-  memoryRelease(iconImage.data);
+  if (!imageLoadBmp("/system/icons/rebticon.bmp", &iconImage))
+    {
+      rebootIcon = windowNewIcon(window, &iconImage, "Reboot", NULL, &params);
+      windowRegisterEventHandler(rebootIcon, &eventHandler);
+      memoryRelease(iconImage.data);
+    }
 
   // Create a shut down icon
   bzero(&iconImage, sizeof(image));
-  imageLoadBmp("/system/shuticon.bmp", &iconImage);
-  params.gridX = 1;
-  shutdownIcon = windowNewIcon(window, &iconImage, "Shut down", NULL, &params);
-  windowRegisterEventHandler(shutdownIcon, &eventHandler);
-  memoryRelease(iconImage.data);
+  if (!imageLoadBmp("/system/icons/shuticon.bmp", &iconImage))
+    {
+      params.gridX = 1;
+      shutdownIcon =
+	windowNewIcon(window, &iconImage, "Shut down", NULL, &params);
+      windowRegisterEventHandler(shutdownIcon, &eventHandler);
+      memoryRelease(iconImage.data);
+    }
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
 
+  windowSetColors(window, &((color){ 171, 93, 40}));
   windowSetVisible(window, 1);
 
   return;

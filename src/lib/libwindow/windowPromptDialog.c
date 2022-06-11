@@ -74,7 +74,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.useDefaultBackground = 1;
 
   params.gridWidth = 2;
-  textLabel = windowNewTextLabel(dialogWindow, NULL, message, &params);
+  textLabel = windowNewTextLabel(dialogWindow, message, &params);
 
   params.gridY = 1;
   params.padTop = 5;
@@ -85,16 +85,13 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.background.blue = 255;
 
   if (type == passwordDialog)
-    field = windowNewPasswordField(dialogWindow, columns,
-				   NULL /* default font*/, &params);
+    field = windowNewPasswordField(dialogWindow, columns, &params);
   else
     {
       if (rows <= 1)
-	field = windowNewTextField(dialogWindow, columns,
-				   NULL /* default font*/, &params);
+	field = windowNewTextField(dialogWindow, columns, &params);
       else
-	field = windowNewTextArea(dialogWindow, columns, rows,
-				  NULL /* default font*/, &params);
+	field = windowNewTextArea(dialogWindow, columns, rows, 0, &params);
     }
 
   // Create the OK button

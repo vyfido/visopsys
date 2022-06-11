@@ -23,6 +23,7 @@
 // selectable items that occur inside of kernelWindowMenu components.
 
 #include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelMiscFunctions.h"
 #include <string.h>
 
 static kernelAsciiFont *menuItemFont = NULL;
@@ -50,13 +51,22 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
     {
       // Try to load a nice-looking font
       if (kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			 DEFAULT_VARIABLEFONT_SMALL_NAME, &menuItemFont) < 0)
+			 DEFAULT_VARIABLEFONT_SMALL_NAME,
+			 &menuItemFont, 0) < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&menuItemFont);
     }
 
+  if (params->font == NULL)
+    {
+      componentParameters tmpParams;
+      kernelMemCopy(params, &tmpParams, sizeof(componentParameters));
+      params = &tmpParams;
+      params->font = menuItemFont;
+    }
+
   // Get the superclass list item component
-  component = kernelWindowNewListItem(parent, menuItemFont, text, params);
+  component = kernelWindowNewListItem(parent, text, params);
   if (component == NULL)
     return (component);
 

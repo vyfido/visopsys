@@ -71,7 +71,7 @@ static int draw(void *componentData)
 
   kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
 			(color *) &(component->parameters.background),
-			checkbox->font, checkbox->text, draw_normal,
+			component->parameters.font, checkbox->text, draw_normal,
 			(component->xCoord + CHECKBOX_SIZE + 3),
 			(component->yCoord));
 
@@ -172,8 +172,13 @@ static int destroy(void *componentData)
   if (checkbox)
     {
       if (checkbox->text)
-	kernelFree((void *) checkbox->text);
-      kernelFree((void *) checkbox);
+	{
+	  kernelFree((void *) checkbox->text);
+	  checkbox->text = NULL;
+	}
+      
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -190,7 +195,6 @@ static int destroy(void *componentData)
 
 
 kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
-					       kernelAsciiFont *font,
 					       const char *text,
 					       componentParameters *params)
 {
@@ -200,7 +204,7 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
   kernelWindowComponent *component = NULL;
   kernelWindowCheckbox *checkbox = NULL;
 
-  // Check parameters.  It's okay for the font to be NULL.
+  // Check parameters.
   if ((parent == NULL) || (text == NULL) || (params == NULL))
     return (component = NULL);
 
@@ -213,15 +217,16 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
     {
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			      DEFAULT_VARIABLEFONT_SMALL_NAME, &checkboxFont);
+			      DEFAULT_VARIABLEFONT_SMALL_NAME,
+			      &checkboxFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&checkboxFont);
     }
 
   // If font is NULL, use the default
-  if (font == NULL)
-    font = checkboxFont;
+  if (component->parameters.font == NULL)
+    component->parameters.font = checkboxFont;
 
   // Now populate it
   component->type = checkboxComponentType;
@@ -244,8 +249,6 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
       return (component = NULL);
     }
 
-  checkbox->font = font;
-
   // Try to get memory for the text
   checkbox->text = kernelMalloc(strlen(text) + 1);
   if (checkbox->text == NULL)
@@ -260,11 +263,12 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
   // of padding, plus the printed width of the text
   component->width =
     (CHECKBOX_SIZE + 3 +
-     kernelFontGetPrintedWidth(checkbox->font, checkbox->text));
+     kernelFontGetPrintedWidth(component->parameters.font, checkbox->text));
 
   // The height of the checkbox is the height of the font, or the height
   // of the checkbox, whichever is greater
-  component->height = max(font->charHeight, CHECKBOX_SIZE);
+  component->height = max(((kernelAsciiFont *) component->parameters.font)
+			  ->charHeight, CHECKBOX_SIZE);
   
   component->data = (void *) checkbox;
 

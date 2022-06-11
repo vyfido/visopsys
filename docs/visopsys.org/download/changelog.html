@@ -1,12 +1,8 @@
 <html>
 
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
 <title>Visopsys Downloads</title>
-<meta name="description"
-content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
-<meta name="keywords"
-content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
 <meta name="Microsoft Border" content="lb">
 </head>
 
@@ -20,7 +16,9 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
     <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
     <br>
     <a href="../about/index.html">
-    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a><br>
+    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="../about/screenshots.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="index.html">
     <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
@@ -44,6 +42,67 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <p align="center">
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
+
+<p><font size="4">VERSION 0.42<br>
+</font>11/09/2004</p>
+<p><font size="4">Overview: This is primarily a bugfix release, with some added 
+features including the ability to format partitions from the Disk Manager, plus 
+vertical scroll bars on text areas and visual reimplementation of &quot;greyed out&quot; 
+window components.</font></p>
+<ul>
+  <li><font size="4">Enabled filesystem formatting functionality in the disk 
+  manager.</font></li>
+  <li><font size="4">Implemented vertical scroll bars and extended buffers on 
+  window text area components</font></li>
+  <li><font size="4">Improved the 'greying out' functionality in the window 
+  manager; it didn't look great with the default colors and looked positively 
+  silly with some other color schemes.</font></li>
+  <li><font size="4">Reimplemented the 'hidden' functionality of window text 
+  areas so that the buffer contains the real content, and the visible area 
+  contains the asterisks. The 'get data' function returns the data from the 
+  buffer.</font></li>
+  <li><font size="4">The window manager now makes more use of the busy mouse 
+  pointer</font></li>
+  <li><font size="4">Restored window list locking, now that interrupt handlers 
+  don't need access.</font></li>
+  <li><font size="4">Created a new logo for the splash image</font></li>
+  <li><font size="4">In the disk manager, there is now a confirmation dialog 
+  before moving partitions</font></li>
+  <li><font size="4">Added a 'get disk by file' function.</font></li>
+  <li><font size="4">The 'disk' structures now contain a set of flags to 
+  indicate which filesystem functions are available from the appropriate driver, 
+  if applicable.</font></li>
+  <li><font size="4">Moved the window event processing out of the execution path 
+  of interrupt handlers and into the window manager thread</font></li>
+  <li><font size="4">Added 'new' and 'destroy' functions for kernelTextAreas</font></li>
+  <li><font size="4">Moved icons and fonts into subdirectories under /system</font></li>
+  <li><font size="4">Added a way to specify whether a loadable font should be 
+  fixed-width</font></li>
+  <li><font size="4">Removed instances of 'bzero' calls in the kernel. We have a 
+  much better kernelMemClear() function.</font></li>
+  <li><font size="4">Added a 'strncasecmp' C library function</font></li>
+  <li><font size="4">Simplified the management of 'kernelFilesystem' structures 
+  in the filesystem code.</font></li>
+  <li><font size="4">The graphics code (main, framebuffer driver, and window 
+  manager and friends) now uses ints instead of unsigneds for widths and heights</font></li>
+  <li><font size="4">Moved the font argument from some window components into 
+  the componentParameters structure</font></li>
+  <li><font size="4">Fixed: Setting the widest item in a GUI menu to not enabled 
+  caused a bit of the menu border to get greyed out as well.</font></li>
+  <li><font size="4">Fixed: State changes in the disk manager's disk and 
+  partition lists caused by key events were not being handled properly.</font></li>
+  <li><font size="4">Fixed: In the User Manager, when adding a new user, if the 
+  user already existed the program would still prompt for a password.</font></li>
+  <li><font size="4">Fixed: In 16-bit video mode, window titles were not 
+  displaying proper transparency</font></li>
+  <li><font size="4">Fixed: The size/drawing of the items in list components was 
+  slightly off.</font></li>
+  <li><font size="4">Fixed: If fonts or icons are missing, there's a panic</font></li>
+  <li><font size="4">Fixed: The text mode console driver was not scrolling 
+  properly when printing long lines. The next line would overwrite the wrapped 
+  part of the previous one.</font></li>
+</ul>
+<hr>
 
 <p><font size="4">VERSION 0.41<br>
 </font>09/08/2004</p>
@@ -684,25 +743,26 @@ abstraction layer initialization</font></li>
     <p align="right"><font color="#FFFFFF"><a href="../index.html">
     <img
     src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
-    align="middle" width="53" height="25"></a> <a href="../about/index.html">
+    align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="../about/index.html">
     <img src="../img/nav_buttons/about.gif"
-    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a> <a href="index.html">
+    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp; </font>
+    <a href="../about/screenshots.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="index.html">
     <img
     src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
-    border="0" align="middle" width="95" height="25"></a></font> <a href="../developers/index.html">
-    <img
+    border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="../developers/index.html"><img
     src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
-    border="0" align="middle" width="97" height="29"></a> <a href="../osdev/index.html">
+    border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../osdev/index.html">
     <img
-    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a> <a href="../search.html">
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
     <img
     src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
-    border="0" width="63" height="24"></a><br>
-    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2003, J.
+    border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
+    This site is copyright © 1999-2004, J.
     Andrew McLaughlin<br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    July 05, 2004</font></p>
+    September 11, 2004</font></p>
   </blockquote>
 </blockquote>
 

@@ -30,8 +30,10 @@
 #include "kernelMiscFunctions.h"
 #include "kernelText.h"
 #include "kernelError.h"
+#include "kernelLock.h"
 #include <sys/errors.h>
 #include <stdio.h>
+#include <string.h>
 
 
 static kernelMallocBlock *blockList = NULL;
@@ -562,9 +564,12 @@ void kernelMallocDump(void)
   block = blockList;
   while (block && (block != firstUnusedBlock))
     {
-      kernelTextPrintLine("%u->%u (%u) %s %d %s", block->start,
+      kernelTextPrintLine("%u->%u (%u) %s %d%s %s", block->start,
 			  block->end, blockSize(block),
 			  (block->used? "Used" : "Free"), block->process,
+			  ((block->used &&
+			    !kernelMultitaskerProcessIsAlive(block->process))?
+			   "(?)" : ""),
 			  (block->used? block->function : ""));
       block = (kernelMallocBlock *) block->next;
     }

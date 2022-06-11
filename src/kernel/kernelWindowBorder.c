@@ -113,6 +113,7 @@ static int draw(void *componentData)
   kernelGraphicDrawGradientBorder(buffer, 0, 0, window->buffer.width,
 				  window->buffer.height,
 				  DEFAULT_BORDER_THICKNESS,
+				  (color *) &(window->background),
 				  borderShadingIncrement, draw_normal);
   return (0);
 }
@@ -247,7 +248,10 @@ static int destroy(void *componentData)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
 
   if (component->data)
-    kernelFree(component->data)
+    {
+      kernelFree(component->data);
+      component->data = NULL;
+    }
 
   return (0);
 }

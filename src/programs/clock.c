@@ -54,7 +54,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   objectKey window = NULL;
-  objectKey font = NULL;
   objectKey label = NULL;
   componentParameters params;
   unsigned width, height;
@@ -83,11 +82,13 @@ int main(int argc, char *argv[])
   params.orientationY = orient_middle;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  fontLoad("arial-bold-10.bmp", "arial-bold-10", &font);
+  fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+
   makeTime();
-  label = windowNewTextLabel(window, font, timeString, &params);
+  label = windowNewTextLabel(window, timeString, &params);
   
   // No title bar
+  params.font = NULL;
   windowSetHasTitleBar(window, 0);
 
   // Do the layout

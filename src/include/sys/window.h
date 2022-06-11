@@ -58,13 +58,16 @@
 #define WINDOW_MAX_MENUS         16
 
 // Some image file names for dialog boxes
-#define INFOIMAGE_NAME           "/system/infoicon.bmp"
-#define ERRORIMAGE_NAME          "/system/bangicon.bmp"
-#define QUESTIMAGE_NAME          "/system/questicon.bmp"
+#define INFOIMAGE_NAME           "/system/icons/infoicon.bmp"
+#define ERRORIMAGE_NAME          "/system/icons/bangicon.bmp"
+#define QUESTIMAGE_NAME          "/system/icons/questicon.bmp"
+
+// An "object key".  Really a pointer to an object in kernel memory, but
+// of course not usable by applications other than as a reference
+typedef void * objectKey;
 
 // These describe the X orientation and Y orientation of a component,
 // respectively, within its grid cell
-
 typedef enum {
   orient_left, orient_center, orient_right
 }  componentXOrientation;
@@ -74,7 +77,6 @@ typedef enum {
 
 // This structure is needed to describe parameters consistent to all
 // window components
-
 typedef struct {
   int gridX;
   int gridY;
@@ -94,12 +96,9 @@ typedef struct {
   color foreground;
   int useDefaultBackground;
   color background;
+  objectKey font;
 
 } componentParameters;
-
-// An "object key".  Really a pointer to an object in kernel memory, but
-// of course not usable by applications other than as a reference
-typedef void * objectKey;
 
 // A structure for containing various types of window events.
 typedef struct {

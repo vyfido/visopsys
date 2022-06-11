@@ -45,6 +45,7 @@ typedef struct
 typedef struct
 {
   kernelMouseDriver *driver;
+  int busy;
 
 } kernelMouse;
 
@@ -60,6 +61,7 @@ int kernelMouseSwitchPointer(const char *);
 void kernelMouseDraw(void);
 void kernelMouseMove(int, int);
 void kernelMouseButtonChange(int, int);
+void kernelMouseBusy(int);
 
 #define _KERNELMOUSE_H
 #endif

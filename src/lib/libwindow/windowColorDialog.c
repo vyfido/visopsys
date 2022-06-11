@@ -122,12 +122,12 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
   // Create labels for the red, green, and blue colors
   params.gridX = 1;
-  windowNewTextLabel(dialogWindow, NULL, "Red", &params);
+  windowNewTextLabel(dialogWindow, "Red", &params);
   params.gridX = 2;
-  windowNewTextLabel(dialogWindow, NULL, "Green", &params);
+  windowNewTextLabel(dialogWindow, "Green", &params);
   params.gridX = 3;
   params.padRight = 5;
-  windowNewTextLabel(dialogWindow, NULL, "Blue", &params);
+  windowNewTextLabel(dialogWindow, "Blue", &params);
 
   // Get a canvas for drawing the color
   params.gridX = 0;
@@ -161,11 +161,11 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.gridX = 1;
   params.gridY = 2;
   params.padRight = 0;
-  redLabel = windowNewTextLabel(dialogWindow, NULL, "000", &params);
+  redLabel = windowNewTextLabel(dialogWindow, "000", &params);
   params.gridX = 2;
-  greenLabel = windowNewTextLabel(dialogWindow, NULL, "000", &params);
+  greenLabel = windowNewTextLabel(dialogWindow, "000", &params);
   params.gridX = 3;
-  blueLabel = windowNewTextLabel(dialogWindow, NULL, "000", &params);
+  blueLabel = windowNewTextLabel(dialogWindow, "000", &params);
 
   // Make a panel for the buttons
   params.gridX = 0;

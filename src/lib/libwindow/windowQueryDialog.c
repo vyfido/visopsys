@@ -87,7 +87,7 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   params.gridX = 1;
   params.gridWidth = 2;
   params.orientationX = orient_center;
-  mainLabel = windowNewTextLabel(dialogWindow, NULL, message, &params);
+  mainLabel = windowNewTextLabel(dialogWindow, message, &params);
   if (mainLabel == NULL)
     return (status = ERR_NOCREATE);
 

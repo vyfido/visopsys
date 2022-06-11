@@ -309,8 +309,8 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
   if ((fileName == NULL) || (list == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bzero(&oldFile, sizeof(fileStream));
-  bzero(&configFile, sizeof(fileStream));
+  kernelMemClear(&oldFile, sizeof(fileStream));
+  kernelMemClear(&configFile, sizeof(fileStream));
 
   // Is there already an old version of the config file?
   file tmp;

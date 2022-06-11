@@ -82,7 +82,7 @@ OBJS	= ${BUILDDIR}/adduser \
 	${BUILDDIR}/window
 
 all: target-dirs ${OBJS}
-	make -C mines
+	#make -C mines
 
 target-dirs:
 	mkdir -p ${BUILDDIR}

@@ -289,7 +289,7 @@ static void constructWindow(void)
   params.padLeft = 0;
   params.orientationX = orient_center;
   modeList =
-    windowNewList(container, NULL, 5, 1, 0, modeStrings, numberModes, &params);
+    windowNewList(container, 5, 1, 0, modeStrings, numberModes, &params);
 
   // Select the current mode
   for (count = 0; count < numberModes; count ++)
@@ -306,7 +306,7 @@ static void constructWindow(void)
   params.padTop = 5;
   params.orientationX = orient_left;
   bootGraphicsCheckbox =
-    windowNewCheckbox(container, NULL, "Boot in graphics mode", &params);
+    windowNewCheckbox(container, "Boot in graphics mode", &params);
   windowComponentSetSelected(bootGraphicsCheckbox, 1);
   if (readOnly)
     windowComponentSetEnabled(bootGraphicsCheckbox, 0);
@@ -314,7 +314,7 @@ static void constructWindow(void)
   // Make a checkbox for whether to show the clock on the desktop
   params.gridY = 2;
   showClockCheckbox =
-    windowNewCheckbox(container, NULL, "Show a clock on the desktop", &params);
+    windowNewCheckbox(container, "Show a clock on the desktop", &params);
   // Are we currently set to show one?
   list = configurationReader("/system/windowmanager.conf");
   if (list != NULL)
@@ -347,12 +347,12 @@ static void constructWindow(void)
   params.gridY = 1;
   params.gridWidth = 1;
   params.padTop = 5;
-  windowNewTextLabel(container, NULL, "Colors:", &params);
+  windowNewTextLabel(container, "Colors:", &params);
 
   // Create the colors radio button
   params.gridY = 2;
   params.gridHeight = 2;
-  colorsRadio = windowNewRadioButton(container, NULL, 2, 1, (char *[])
+  colorsRadio = windowNewRadioButton(container, 2, 1, (char *[])
       { "Foreground", "Background", "Desktop" }, 3 , &params);
   windowRegisterEventHandler(colorsRadio, &eventHandler);
 
@@ -420,7 +420,7 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char bootDisk[DISK_MAX_NAMELENGTH];
+  disk sysDisk;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -431,8 +431,8 @@ int main(int argc, char *argv[])
     }
 
   // Find out whether we are currently running on a read-only filesystem
-  if (!diskGetBoot(bootDisk))
-    readOnly = diskGetReadOnly(bootDisk);
+  if (!fileGetDisk("/system", &sysDisk))
+    readOnly = sysDisk.readOnly;
 
   // We need our process ID to create the windows
   processId = multitaskerGetCurrentProcessId();

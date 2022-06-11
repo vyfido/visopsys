@@ -102,8 +102,9 @@ static int draw(void *componentData)
   // normally the size of the whole button
   kernelGraphicDrawGradientBorder(buffer, component->xCoord, component->yCoord,
 				  component->width, component->height,
-				  borderThickness, borderShadingIncrement,
-				  draw_normal);
+				  borderThickness, (color *)
+				  &(component->parameters.background),
+				  borderShadingIncrement, draw_normal);
   return (0);
 }
 
@@ -141,6 +142,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
       kernelGraphicDrawGradientBorder(buffer, component->xCoord,
 				      component->yCoord, component->width,
 				      component->height, borderThickness,
+				      (color *)
+				      &(component->parameters.background),
 				      borderShadingIncrement, draw_normal);
       button->state = 0;
     }
@@ -150,6 +153,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
       kernelGraphicDrawGradientBorder(buffer, component->xCoord,
 				      component->yCoord, component->width,
 				      component->height, borderThickness,
+				      (color *)
+				      &(component->parameters.background),
 				      borderShadingIncrement, draw_reverse);
       button->state = 1;
     }
@@ -194,10 +199,14 @@ static int destroy(void *componentData)
     {
       // If we have an image, release the image data
       if (button->buttonImage.data)
-	kernelFree(button->buttonImage.data);
+	{
+	  kernelFree(button->buttonImage.data);
+	  button->buttonImage.data = NULL;
+	}
 
       // The button itself.
-      kernelFree((void *) button);
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -223,6 +232,7 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
   int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowButton *button = NULL;
+  //color *background = NULL;
 
   // Check parameters.  It's okay for the image or label to be NULL
   if ((parent == NULL) || (params == NULL))
@@ -232,11 +242,21 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
     {
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont);
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);
     }
+
+  /*
+  if (params->useDefaultBackground)
+    {
+      background = (color *) &(getWindow(parent)->background);
+      params->background.red = background->red;
+      params->background.green = background->green;
+      params->background.blue = background->blue;
+    }
+  */
 
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);

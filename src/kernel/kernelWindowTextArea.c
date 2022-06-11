@@ -25,52 +25,40 @@
 
 #include "kernelWindowManager.h"     // Our prototypes are here
 #include "kernelMalloc.h"
-#include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
 #include <sys/errors.h>
 #include <string.h>
+
+
+static inline int isMouseInScrollBar(windowEvent *event,
+				     kernelWindowComponent *scrollBar)
+{
+  // We use this to determine whether a mouse event is inside the slider
+
+  kernelWindow *window = scrollBar->window;
+
+  if (event->xPosition >= (window->xCoord + scrollBar->xCoord))
+    return (1);
+  else
+    return (0);
+}
 
 
 static int draw(void *componentData)
 {
   // Draw the textArea component
 
-  // Not sure what is the right thing to do here.  We might be able to do
-  // some sort of "refresh", but normally the kernelTextArea keeps redrawing
-  // itself all the time.
-
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
-  unsigned char *data = area->data;
-  unsigned char *line = NULL;
-  int rowCount;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelTextArea *area = textArea->area;
 
-  // Clear the area visually
-  kernelGraphicClearArea(area->graphicBuffer, (color *) &(area->background),
-			 component->xCoord, component->yCoord,
-			 component->width, component->height);
-  area->cursorColumn = 0;
-  area->cursorRow = 0;
+  // Tell the text area to draw itself
+  ((kernelTextOutputStream *) area->outputStream)->outputDriver
+    ->screenDraw(area);
 
-  // Loop through contents of the data area and print them.
-
-  line = kernelMalloc(area->columns + 1);
-  if (line == NULL)
-    return (ERR_MEMORY);
-
-  for (rowCount = 0; rowCount < area->rows; rowCount ++)
-    {
-      // Copy up to a screen line of data into our buffer
-      strncpy(line, (data + (rowCount * area->columns)), area->columns);
-      line[area->columns] = '\0';
-      kernelTextStreamPrint(area->outputStream, line);
-    }
-
-  // Free our temporary memory
-  kernelFree(line);
-
-  kernelTextStreamSetCursor(area->outputStream,
-			    (component->flags & WINFLAG_HASFOCUS));
+  // If there's a scroll bar, draw it too
+  if (textArea->scrollBar && textArea->scrollBar->draw)
+    textArea->scrollBar->draw((void *) textArea->scrollBar);
 
   if (component->parameters.hasBorder)
     component->drawBorder((void *) component, 1);
@@ -82,28 +70,39 @@ static int draw(void *componentData)
 static int move(void *componentData, int xCoord, int yCoord)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelTextArea *area = textArea->area;
 
   area->xCoord = xCoord;
   area->yCoord = yCoord;
+
+  if (textArea->scrollBar)
+    {
+      textArea->scrollBar->xCoord = (xCoord + textArea->areaWidth);
+      textArea->scrollBar->yCoord = yCoord;
+    }
 
   return (0);
 }
 
 
-static int resize(void *componentData, unsigned width, unsigned height)
+static int resize(void *componentData, int width, int height)
 {
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
-  unsigned oldColumns = 0, oldRows = 0;
+  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
+  int oldColumns = 0, oldRows = 0;
   unsigned char *oldBuffer = NULL;
   unsigned char *oldLine = NULL;
-  unsigned rowCount;
+  int rowCount;
+
+  // This doesn't work right now
+  return 0;
 
   oldColumns = area->columns;
   oldRows = area->rows;
-  oldBuffer = area->data;
+  oldBuffer = area->visibleData;
+  area->visibleData = NULL;
 
   // Set the new columns and rows.
   area->columns = (width / area->font->charWidth);
@@ -111,8 +110,8 @@ static int resize(void *componentData, unsigned width, unsigned height)
   area->cursorColumn = 0;
   area->cursorRow = 0;
 
-  area->data = kernelMalloc(area->columns * area->rows);
-  if (area->data == NULL)
+  area->visibleData = kernelMalloc(area->columns * area->rows);
+  if (area->visibleData == NULL)
     return (status = ERR_MEMORY);
 
   for (rowCount = 0; ((rowCount < oldRows) &&
@@ -132,7 +131,7 @@ static int resize(void *componentData, unsigned width, unsigned height)
 static int focus(void *componentData, int focus)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
 
   if (focus)
     {
@@ -144,39 +143,70 @@ static int focus(void *componentData, int focus)
 }
 
 
-static int getData(void *componentData, void *buffer, unsigned size)
+static int getData(void *componentData, void *buffer, int size)
 {
   // Copy the text (up to size bytes) from the text area to the supplied
   // buffer.
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
 
   if (size > (area->columns * area->rows))
     size = (area->columns * area->rows);
 
-  kernelMemCopy(area->data, buffer, size);
+  kernelMemCopy(area->visibleData, buffer, size);
 
   return (0);
 }
 
 
-static int setData(void *componentData, void *buffer, unsigned size)
+static int setData(void *componentData, void *buffer, int size)
 {
   // Copy the text (up to size bytes) from the supplied buffer to the
   // text area.
-  int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
 
   if (size > (area->columns * area->rows))
     size = (area->columns * area->rows);
 
   kernelTextStreamScreenClear(area->outputStream);
+  kernelTextStreamPrint(area->outputStream, buffer);
 
-  kernelMemCopy(buffer, area->data, size);
+  return (0);
+}
 
-  if (component->draw)
-    status = component->draw((void *) component);
+
+static int mouseEvent(void *componentData, windowEvent *event)
+{
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowScrollBar *scrollBar = NULL;
+  int scrolledBackLines = 0;
+
+  // Is the event in one our scroll bar?
+  if (textArea->scrollBar && isMouseInScrollBar(event, textArea->scrollBar) &&
+      textArea->scrollBar->mouseEvent)
+    {
+      scrollBar = (kernelWindowScrollBar *) textArea->scrollBar->data;;
+
+      // First, pass on the event to the scroll bar
+      status = textArea->scrollBar
+	->mouseEvent((void *) textArea->scrollBar, event);
+      if (status < 0)
+	return (status);
+
+      scrolledBackLines = (((100 - scrollBar->state.positionPercent) *
+	  textArea->area->scrollBackLines) / 100);
+
+      if (scrolledBackLines != textArea->area->scrolledBackLines)
+	{
+	  // Adjust the scrollback values of the text area based on the
+	  // positioning of the scroll bar.
+	  textArea->area->scrolledBackLines = scrolledBackLines;
+	  component->draw(componentData);
+	}
+    }
 
   return (status);
 }
@@ -187,12 +217,23 @@ static int keyEvent(void *componentData, windowEvent *event)
   // Puts window key events into the input stream of the text area
 
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
   kernelTextInputStream *inputStream =
-    (kernelTextInputStream *) area->inputStream;
+    (kernelTextInputStream *) textArea->area->inputStream;
+  scrollBarState state;
 
   if ((event->type == EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
-    inputStream->s.append(area->inputStream, (char) event->key);
+    inputStream->s.append(textArea->area->inputStream, (char) event->key);
+
+  if (textArea->scrollBar && textArea->scrollBar->setData)
+    {
+      state.displayPercent =
+	((textArea->area->rows * 100) /
+	 (textArea->area->rows + textArea->area->scrollBackLines));
+      state.positionPercent = 100;
+      textArea->scrollBar->setData((void *) textArea->scrollBar, &state,
+      				   sizeof(scrollBarState));
+    }
 
   return (0);
 }
@@ -201,24 +242,31 @@ static int keyEvent(void *componentData, windowEvent *event)
 static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
 
-  if (area)
+  if (textArea)
     {
-      // If the current input/output streams are currently pointing at our
-      // input/output streams, set the current ones to NULL
-      if (kernelTextGetCurrentInput() == area->inputStream)
-	kernelTextSetCurrentInput(NULL);
-      if (kernelTextGetCurrentOutput() == area->outputStream)
-	kernelTextSetCurrentOutput(NULL);
+      if (textArea->area)
+	{
+	  // If the current input/output streams are currently pointing at our
+	  // input/output streams, set the current ones to NULL
+	  if (kernelTextGetCurrentInput() == textArea->area->inputStream)
+	    kernelTextSetCurrentInput(NULL);
+	  if (kernelTextGetCurrentOutput() == textArea->area->outputStream)
+	    kernelTextSetCurrentOutput(NULL);
 
-      // Release all of our memory
-      kernelFree((void *)(((kernelTextInputStream *)
-			   area->inputStream)->s.buffer));
-      kernelFree(area->inputStream);
-      kernelFree(area->outputStream);
-      kernelFree(area->data);
-      kernelFree((void *) area);
+	  kernelTextAreaDelete(textArea->area);
+	  textArea->area = NULL;
+	}
+
+      if (textArea->scrollBar)
+	{
+	  kernelWindowComponentDestroy(textArea->scrollBar);
+	  textArea->scrollBar = NULL;
+	}
+
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -236,18 +284,21 @@ static int destroy(void *componentData)
 
 kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
 					       int columns, int rows,
-					       kernelAsciiFont *font,
+					       int bufferLines,
 					       componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowTextArea
 
   int status = 0;
+  kernelWindow *window = NULL;
   kernelWindowComponent *component = NULL;
-  kernelTextArea *area = NULL;
+  kernelWindowTextArea *textArea = NULL;
 
-  // Check parameters.  It's okay for the font to be NULL.
+  // Check parameters.
   if ((parent == NULL) || (params == NULL))
     return (component = NULL);
+
+  window = getWindow(parent);
 
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
@@ -264,19 +315,84 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
     }
 
   // If font is NULL, get the default font
-  if (font == NULL)
+  if (component->parameters.font == NULL)
     {
-      status = kernelFontGetDefault(&font);
+      status = kernelFontGetDefault((kernelAsciiFont **)
+				    &(component->parameters.font));
       if (status < 0)
-	// Couldn't get the default font
 	return (component = NULL);
     }
 
-  // Now populate it
+  // Get memory for the kernelWindowTextArea
+  textArea = kernelMalloc(sizeof(kernelWindowTextArea));
+  if (textArea == NULL)
+    {
+      kernelFree((void *) component);
+      return (component = NULL);
+    }
+
+  // Create the text area inside it
+  textArea->area = kernelTextAreaNew(columns, rows, bufferLines);
+  if (textArea->area == NULL)
+    {
+      kernelFree((void *) textArea);
+      kernelFree((void *) component);
+      return (component = NULL);
+    }
+
+  // Set some values
+  textArea->area->foreground.red = component->parameters.foreground.red;
+  textArea->area->foreground.green = component->parameters.foreground.green;
+  textArea->area->foreground.blue = component->parameters.foreground.blue;
+  textArea->area->background.red = component->parameters.background.red;
+  textArea->area->background.green = component->parameters.background.green;
+  textArea->area->background.blue = component->parameters.background.blue;
+  textArea->area->font = component->parameters.font;
+  textArea->area->graphicBuffer = &(window->buffer);
+  textArea->areaWidth =
+    (columns * ((kernelAsciiFont *) component->parameters.font)->charWidth);
+
+  // Populate the rest of the component fields
   component->type = textAreaComponentType;
-  component->width = (columns * font->charWidth);
-  component->height = (rows * font->charHeight);
+  component->width = textArea->areaWidth;
+  component->height =
+    (rows * ((kernelAsciiFont *) component->parameters.font)->charHeight);
   component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
+
+  // If there are any buffer lines, we need a scroll bar as well.
+  if (bufferLines)
+    {
+      textArea->scrollBar =
+	kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,
+				 component->height, params);
+      if (textArea->scrollBar == NULL)
+	{
+	  kernelTextAreaDelete(textArea->area);
+	  textArea->area = NULL;
+	  kernelFree((void *) textArea);
+	  kernelFree((void *) component);
+	  return (component = NULL);
+	}
+
+      // Remove the scrollbar from the parent container
+      if (((kernelWindow *) parent)->type == windowType)
+	{
+	  kernelWindowContainer *tmpContainer =
+	    (kernelWindowContainer *) window->mainContainer->data;
+	  tmpContainer->containerRemove(window->mainContainer,
+					textArea->scrollBar);
+	}
+      else
+	{
+	  kernelWindowContainer *tmpContainer = (kernelWindowContainer *)
+	    ((kernelWindowComponent *) parent)->data;
+	  tmpContainer->containerRemove((kernelWindowComponent *) parent,
+					textArea->scrollBar);
+	}
+
+      textArea->scrollBar->xCoord = component->width;
+      component->width += textArea->scrollBar->width;
+    }
 
   // The functions
   component->draw = &draw;
@@ -285,38 +401,11 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   component->focus = &focus;
   component->getData = &getData;
   component->setData = &setData;
+  component->mouseEvent = &mouseEvent;
   component->keyEvent = &keyEvent;
   component->destroy = &destroy;
 
-  // Create the text area
-  area = kernelMalloc(sizeof(kernelTextArea));
-  if (area == NULL)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
-
-  area->columns = columns;
-  area->rows = rows;
-  area->cursorColumn = 0;
-  area->cursorRow = 0;
-  area->foreground.red = component->parameters.foreground.red;
-  area->foreground.green = component->parameters.foreground.green;
-  area->foreground.blue = component->parameters.foreground.blue;
-  area->background.red = component->parameters.background.red;
-  area->background.green = component->parameters.background.green;
-  area->background.blue = component->parameters.background.blue;
-  area->inputStream = kernelMalloc(sizeof(kernelTextInputStream));
-  kernelTextNewInputStream(area->inputStream);
-  area->outputStream = kernelMalloc(sizeof(kernelTextOutputStream));
-  kernelTextNewOutputStream(area->outputStream);
-  ((kernelTextOutputStream *) area->outputStream)->textArea = area;
-  area->data = (unsigned char *) kernelMalloc(columns * rows);
-  area->font = font;
-  area->graphicBuffer = &(getWindow(parent)->buffer);
-
-
-  component->data = (void *) area;
+  component->data = (void *) textArea;
 
   return (component);
 }

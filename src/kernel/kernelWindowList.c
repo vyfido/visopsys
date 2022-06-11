@@ -56,7 +56,7 @@ static void populateList(kernelWindowComponent *listComponent,
     (kernelWindowScrollBar *) list->scrollBar->data;
   kernelWindow *window = listComponent->window;
   scrollBarState state;
-  unsigned itemWidth = 0;
+  int itemWidth = 0;
   int setSize = 0;
   int count;
 
@@ -86,8 +86,8 @@ static void populateList(kernelWindowComponent *listComponent,
        count ++)
     {
       list->listItems[count] =
-	kernelWindowNewListItem(window, list->font, items[count],
-			(componentParameters *) &(listComponent->parameters));
+	kernelWindowNewListItem(window, items[count], (componentParameters *)
+				&(listComponent->parameters));
 
       kernelWindowContainer *tmpContainer =
 	(kernelWindowContainer *) window->mainContainer->data;
@@ -95,6 +95,8 @@ static void populateList(kernelWindowComponent *listComponent,
       // Remove it from the window's main container
       tmpContainer->containerRemove(window->mainContainer,
 				    list->listItems[count]);
+      // Set the container to the list component
+      list->listItems[count]->container = (void *) listComponent;
 
       if (count == list->selectedItem)
 	((kernelWindowListItem *) list->listItems[count]->data)->selected = 1;
@@ -297,7 +299,7 @@ static int setSelected(void *componentData, int selected)
 }
 
 
-static int setData(void *componentData, void *buffer, unsigned size)
+static int setData(void *componentData, void *buffer, int size)
 {
   // Resets the subcomponents 
 
@@ -351,7 +353,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
   if (list->scrollBar && isMouseInScrollBar(event, list->scrollBar) &&
       list->scrollBar->mouseEvent)
     {
-      // First, pass on the event to the scoll bar
+      // First, pass on the event to the scroll bar
       status = list->scrollBar->mouseEvent((void *) list->scrollBar, event);
       if (status < 0)
 	return (status);
@@ -504,11 +506,17 @@ static int destroy(void *componentData)
 
   // Loop through the subcomponents, calling their destroy() functions
   for (count = 0; count < list->numItems; count ++)
-    kernelWindowComponentDestroy(list->listItems[count]);
+    {
+      kernelWindowComponentDestroy(list->listItems[count]);
+      list->listItems[count] = NULL;
+    }
 
   // Release all our memory
   if (list)
-    kernelFree((void *) list);
+    {
+      kernelFree(component->data);
+      component->data = NULL;
+    }
 
   return (0);
 }
@@ -523,10 +531,8 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewList(volatile void *parent,
-					   kernelAsciiFont *font,
-					   unsigned rows, unsigned columns,
-					   int selectMultiple,
+kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
+					   int columns, int selectMultiple,
 					   const char *items[], int numItems,
 					   componentParameters *params)
 {
@@ -536,7 +542,7 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent,
   kernelWindowComponent *component = NULL;
   kernelWindowList *list = NULL;
 
-  // Check parameters.  It's okay for the font to be NULL.
+  // Check parameters.
   if ((parent == NULL) || (items == NULL) || (params == NULL))
     return (component = NULL);
 
@@ -566,17 +572,16 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent,
     {
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont);
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);
     }
 
   // If font is NULL, use the default
-  if (font == NULL)
-    font = labelFont;
+  if (component->parameters.font == NULL)
+    component->parameters.font = labelFont;
 
-  list->font = font;
   list->columns = columns;
   list->rows = rows;
   list->selectMultiple = selectMultiple;

@@ -20,9 +20,8 @@
 //
 
 #include "kernelError.h"
-#include "kernelParameters.h"
-#include "kernelText.h"
 #include "kernelLog.h"
+#include "kernelMiscFunctions.h"
 #include "kernelWindowManager.h"
 #include "kernelMultitasker.h"
 #include <string.h>
@@ -50,8 +49,8 @@ static void errorDialogThread(int numberArgs, void *args[])
       goto exit;
     }
 
-  bzero(&errorImage, sizeof(image));
-  bzero(&params, sizeof(componentParameters));
+  kernelMemClear(&errorImage, sizeof(image));
+  kernelMemClear(&params, sizeof(componentParameters));
 
   // Create the dialog.
   dialogWindow = kernelWindowNew(kernelCurrentProcess->processId, title);
@@ -82,7 +81,7 @@ static void errorDialogThread(int numberArgs, void *args[])
   // Create the label
   params.gridX = 1;
   params.padRight = 5;
-  kernelWindowNewTextLabel(dialogWindow, NULL, message, &params);
+  kernelWindowNewTextLabel(dialogWindow, message, &params);
 
   // Create the button
   params.gridX = 0;

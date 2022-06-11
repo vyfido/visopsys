@@ -110,11 +110,7 @@ int kernelLockGet(lock *getLock)
   // Check whether the process already has the lock.  We'll allow this for
   // now but later we want to make a process wait against even its own locks
   if (getLock->processId == currentProcId)
-    {
-      kernelError(kernel_error, "Lock already held by process %d",
-		  getLock->processId);
-      return (status = ERR_ALREADY);
-    }
+    return (status = 0);
 
   while(1)
     {

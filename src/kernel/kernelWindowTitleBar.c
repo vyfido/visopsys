@@ -29,6 +29,8 @@
 #include <string.h>
 
 static kernelAsciiFont *titleBarFont = NULL;
+static image closeImage;
+static int imagesCreated = 0;
 
 
 static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
@@ -47,6 +49,57 @@ static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
     return (1);
   else
     return (0);
+}
+
+
+static void createImages(void)
+{
+  // Create some standard, shared images for close buttons, etc.
+  
+  kernelGraphicBuffer graphicBuffer;
+  extern color kernelDefaultBackground;
+
+  kernelMemClear((void *) &graphicBuffer, sizeof(kernelGraphicBuffer));
+
+  // Get a buffer to draw our close button graphic
+  graphicBuffer.width = (DEFAULT_TITLEBAR_HEIGHT - 2);
+  graphicBuffer.height = (DEFAULT_TITLEBAR_HEIGHT - 2);
+  graphicBuffer.data =
+    kernelMalloc(kernelGraphicCalculateAreaBytes(graphicBuffer.width,
+						 graphicBuffer.height));
+  if (graphicBuffer.data == NULL)
+    return;
+
+  // Do the close button
+  kernelMemClear(&closeImage, sizeof(image));
+  kernelGraphicClearArea(&graphicBuffer, &kernelDefaultBackground,
+			 0, 0, graphicBuffer.width,
+			 graphicBuffer.height);
+  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			0, 0, (graphicBuffer.width - 1),
+			(graphicBuffer.height - 1));
+  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			1, 0, (graphicBuffer.width - 1),
+			(graphicBuffer.height - 2));
+  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			0, 1, (graphicBuffer.width - 2),
+			(graphicBuffer.height - 1));
+  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			0, (graphicBuffer.width - 1),
+			(graphicBuffer.height - 1), 0);
+  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			0, (graphicBuffer.width - 2),
+			(graphicBuffer.height - 2), 0);
+  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			1, (graphicBuffer.width - 1),
+			(graphicBuffer.height - 1), 1);
+  kernelGraphicGetKernelImage(&graphicBuffer, &closeImage, 0, 0,
+			      graphicBuffer.width, graphicBuffer.height);
+
+  kernelFree(graphicBuffer.data);
+  graphicBuffer.data = NULL;
+
+  imagesCreated = 1;
 }
 
 
@@ -77,8 +130,10 @@ static int draw(void *componentData)
     (kernelWindowTitleBar *) component->data;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelGraphicBuffer *buffer = &(window->buffer);
+  int titleWidth = 0;
   char title[128];
-  color foregroundColor, backgroundColor;
+  color foregroundColor;
+  color backgroundColor;
   int count;
 
   // The color will be different depending on whether the window has
@@ -141,20 +196,24 @@ static int draw(void *componentData)
     }
 
   strncpy(title, (char *) window->title, 128);
-  while (kernelFontGetPrintedWidth(titleBarFont, title) >
-	 (component->width - ((window->flags & WINFLAG_HASCLOSEBUTTON)?
-			      (titleBarComponent->closeButton->width + 1): 1)))
+  titleWidth = (component->width - 1);
+  if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
+      titleBarComponent->closeButton)
+    titleWidth -= titleBarComponent->closeButton->width;
+
+  while (kernelFontGetPrintedWidth(titleBarFont, title) > titleWidth)
     title[strlen(title) - 2] = '\0';
 
   kernelGraphicDrawText(buffer, &foregroundColor, &backgroundColor,
 			titleBarFont, title, draw_translucent,
 			(component->xCoord + 5), (component->yCoord +
 		  ((component->height - titleBarFont->charHeight) / 2)));
-  
-  // Draw any buttons on the title bar
-  if (window->flags & WINFLAG_HASCLOSEBUTTON)
-    titleBarComponent->closeButton->draw((void *)
-					 titleBarComponent->closeButton);
+
+  if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
+      titleBarComponent->closeButton && titleBarComponent->closeButton->draw)
+    titleBarComponent->closeButton
+      ->draw((void *) titleBarComponent->closeButton);
+
   return (0);
 }
 
@@ -164,43 +223,49 @@ static int move(void *componentData, int xCoord, int yCoord)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
+  int buttonX, buttonY;
 
   // Move our buttons
-  if (window->flags & WINFLAG_HASCLOSEBUTTON)
+  if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
     {
-      titleBar->closeButton->xCoord =
+      buttonX =
 	(xCoord + component->width - (titleBar->closeButton->width + 1));
-      titleBar->closeButton->yCoord = (yCoord + 1);
+      buttonY = (yCoord + 1);
 
       if (titleBar->closeButton->move)
-	titleBar->closeButton->move((void *) titleBar->closeButton,
-				    titleBar->closeButton->xCoord,
-				    titleBar->closeButton->yCoord);
+	titleBar->closeButton
+	  ->move((void *) titleBar->closeButton, buttonX, buttonY);
+
+      titleBar->closeButton->xCoord = buttonX;
+      titleBar->closeButton->yCoord = buttonY;
     }
 
   return (0);
 }
 
  
-static int resize(void *componentData, unsigned width, unsigned height)
+static int resize(void *componentData, int width, int height)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
+  int buttonX, buttonY;
 
   // Move our buttons
-  if (window->flags & WINFLAG_HASCLOSEBUTTON)
+  if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
     {
-      titleBar->closeButton->width = (height - 2);
-      titleBar->closeButton->height = (height - 2);
-      titleBar->closeButton->xCoord =
+      buttonX =
 	(component->xCoord + (width - (titleBar->closeButton->width + 1)));
-      titleBar->closeButton->yCoord = (component->yCoord + 1);
+      buttonY = (component->yCoord + 1);
 
       if (titleBar->closeButton->move)
-	titleBar->closeButton->move((void *) titleBar->closeButton,
-				    titleBar->closeButton->xCoord,
-				    titleBar->closeButton->yCoord);
+	titleBar->closeButton
+	  ->move((void *) titleBar->closeButton, buttonX, buttonY);
+
+      titleBar->closeButton->width = (height - 2);
+      titleBar->closeButton->height = (height - 2);
+      titleBar->closeButton->xCoord = buttonX;
+      titleBar->closeButton->yCoord = buttonY;
     }
 
   return (0);
@@ -269,9 +334,6 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
 	  window->flags |= WINFLAG_VISIBLE;
 
-	  // Decrement the levels of any windows now covered
-	  // decrementCoveredLevels(window);
-
 	  // Re-render it at the new location
 	  kernelGraphicRenderBuffer(&(window->buffer), window->xCoord,
 				    window->yCoord, 0, 0,
@@ -286,7 +348,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status = 0);
     }
 
-  else if (isMouseInButton(event, titleBar->closeButton))
+  else if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton &&
+	   isMouseInButton(event, titleBar->closeButton))
     {
       // Call the 'event' function for buttons
       if (titleBar->closeButton->mouseEvent)
@@ -335,9 +398,13 @@ static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
 
-  // Release our memory
   if (component->data)
-    kernelFree(component->data);
+    {
+      // Release the title bar itself
+      // TEMP TEMP TEMP - This is causing crashes.  Not yet sure why.
+      // kernelFree(component->data);
+      // component->data = NULL;
+    }
 
   return (0);
 }
@@ -353,21 +420,15 @@ static int destroy(void *componentData)
 
 
 kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
-					       unsigned width, unsigned height,
+					       int width,
 					       componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowTitleBar
 
   int status = 0;
   kernelWindowComponent *component = NULL;
-  kernelWindowTitleBar *titleBarComponent = NULL;
+  kernelWindowTitleBar *titleBar = NULL;
   componentParameters buttonParams;
-  kernelGraphicBuffer graphicBuffer;
-  // We don't want to load images for the buttons every time
-  static image closeImage;
-  extern color kernelDefaultBackground;
-
-  bzero(&closeImage, sizeof(image));
   
   // Check parameters
   if ((parent == NULL) || (params == NULL))
@@ -377,31 +438,25 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
     {
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &titleBarFont);
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME,
+			      &titleBarFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&titleBarFont);
     }
+
+  if (!imagesCreated)
+    createImages();
 
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
 
-  // Get memory for the title bar structure
-  titleBarComponent = kernelMalloc(sizeof(kernelWindowTitleBar));
-  if (titleBarComponent == NULL)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
-
   // Now populate the main component
   component->type = titleBarComponentType;
   component->width = width;
-  component->height = height;
-  
-  component->data = (void *) titleBarComponent;
+  component->height = DEFAULT_TITLEBAR_HEIGHT;
 
   // The functions
   component->draw = &draw;
@@ -410,68 +465,40 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   component->mouseEvent = &mouseEvent;
   component->destroy = &destroy;
 
-  // Put the minimize/maximize/close buttons on the title bar.
-
-  // Get a buffer to draw our close button graphic
-  graphicBuffer.width = (height - 2);
-  graphicBuffer.height = (height - 2);
-  graphicBuffer.data =
-    kernelMalloc(kernelGraphicCalculateAreaBytes(graphicBuffer.width,
-						 graphicBuffer.height));
-  if (graphicBuffer.data != NULL)
+  // Get memory for the title bar structure
+  titleBar = kernelMalloc(sizeof(kernelWindowTitleBar));
+  if (titleBar == NULL)
     {
-      kernelGraphicClearArea(&graphicBuffer, &kernelDefaultBackground,
-			     0, 0, graphicBuffer.width,
-			     graphicBuffer.height);
-      kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			    0, 0, (graphicBuffer.width - 1),
-			    (graphicBuffer.height - 1));
-      kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			    1, 0, (graphicBuffer.width - 1),
-			    (graphicBuffer.height - 2));
-      kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			    0, 1, (graphicBuffer.width - 2),
-			    (graphicBuffer.height - 1));
-      kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			    0, (graphicBuffer.width - 1),
-			    (graphicBuffer.height - 1), 0);
-      kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			    0, (graphicBuffer.width - 2),
-			    (graphicBuffer.height - 2), 0);
-      kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			    1, (graphicBuffer.width - 1),
-			    (graphicBuffer.height - 1), 1);
-      kernelGraphicGetImage(&graphicBuffer, &closeImage, 0, 0,
-			    graphicBuffer.width, graphicBuffer.height);
-      kernelFree(graphicBuffer.data);
+      kernelFree((void *) component);
+      return (component = NULL);
     }
+
+  // Put any minimize/maximize/close buttons on the title bar.
 
   // Standard parameters for a close button
   kernelMemClear((void *) &buttonParams, sizeof(componentParameters));
   buttonParams.useDefaultForeground = 1;
   buttonParams.useDefaultBackground = 1;
 
-  titleBarComponent->closeButton =
-    kernelWindowNewButton(getWindow(parent)->sysContainer, NULL,
-			  ((closeImage.data == NULL)? NULL : &closeImage),
-			  &buttonParams);
-  if (titleBarComponent->closeButton)
+  titleBar->closeButton =
+    kernelWindowNewButton(parent, NULL, ((closeImage.data == NULL)?
+					 NULL : &closeImage), &buttonParams);
+
+  if (titleBar->closeButton)
     {
-      titleBarComponent->closeButton->width = (height - 2);
-      titleBarComponent->closeButton->height = (height - 2);
+      titleBar->closeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 2);
+      titleBar->closeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 2);
 
       // We don't want close buttons to get the focus
-      titleBarComponent->closeButton->flags &= ~WINFLAG_CANFOCUS;
-      
-      kernelWindowRegisterEventHandler((objectKey)
-				       titleBarComponent->closeButton,
+      titleBar->closeButton->flags &= ~WINFLAG_CANFOCUS;
+
+      kernelWindowRegisterEventHandler((objectKey) titleBar->closeButton,
 				       &closeWindow);
-  
+
       getWindow(parent)->flags |= WINFLAG_HASCLOSEBUTTON;
     }
 
-  if (closeImage.data)
-    kernelMemoryRelease(closeImage.data);
+  component->data = (void *) titleBar;
 
   return (component);
 }

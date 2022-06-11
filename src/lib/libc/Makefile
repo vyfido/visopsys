@@ -131,13 +131,14 @@ STRINGOBJS	= obj/bcopy.o \
 		obj/memmove.o \
 		obj/memset.o \
 		obj/rindex.o \
-		obj/strcasecmp.o \
 		obj/strcat.o \
 		obj/strcmp.o \
+		obj/strcasecmp.o \
 		obj/strcpy.o \
 		obj/strlen.o \
 		obj/strncat.o \
 		obj/strncmp.o \
+		obj/strncasecmp.o \
 		obj/strncpy.o \
 		obj/strspn.o \
 		obj/strstr.o
@@ -464,14 +465,14 @@ obj/memset.o: memset.c ../../include/string.h ${STDDEP}
 obj/rindex.o: rindex.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c rindex.c -o $@
 
-obj/strcasecmp.o: strcasecmp.c ../../include/string.h ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c strcasecmp.c -o $@
-
 obj/strcat.o: strcat.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcat.c -o $@
 
 obj/strcmp.o: strcmp.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcmp.c -o $@
+
+obj/strcasecmp.o: strcasecmp.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strcasecmp.c -o $@
 
 obj/strcpy.o: strcpy.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcpy.c -o $@
@@ -484,6 +485,9 @@ obj/strncat.o: strncat.c ../../include/string.h ${STDDEP}
 
 obj/strncmp.o: strncmp.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncmp.c -o $@
+
+obj/strncasecmp.o: strncasecmp.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strncasecmp.c -o $@
 
 obj/strncpy.o: strncpy.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncpy.c -o $@

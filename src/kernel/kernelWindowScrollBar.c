@@ -50,8 +50,9 @@ static int draw(void *componentData)
   // Draw the border
   kernelGraphicDrawGradientBorder(buffer, component->xCoord, component->yCoord,
 				  component->width, component->height,
-				  borderThickness, borderShadingIncrement,
-				  draw_reverse);
+				  borderThickness, (color *)
+				  &(component->parameters.background),
+				  borderShadingIncrement, draw_reverse);
 
   // Draw the slider
   scrollBar->sliderWidth = (component->width - (borderThickness * 2));
@@ -63,13 +64,14 @@ static int draw(void *componentData)
 				  (component->yCoord + borderThickness +
 				   scrollBar->sliderY), scrollBar->sliderWidth,
 				  scrollBar->sliderHeight, borderThickness,
+				  (color *)
+				  &(component->parameters.background),
 				  borderShadingIncrement, draw_normal);
-
   return (0);
 }
 
 
-static int getData(void *componentData, void *buffer, unsigned size)
+static int getData(void *componentData, void *buffer, int size)
 {
   // Gets the state of the scroll bar
 
@@ -83,12 +85,13 @@ static int getData(void *componentData, void *buffer, unsigned size)
 }
 
 
-static int setData(void *componentData, void *buffer, unsigned size)
+static int setData(void *componentData, void *buffer, int size)
 {
   // Sets the state of the scroll bar
 
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
+  kernelWindow *window = (kernelWindow *) component->window;
 
   kernelMemCopy(buffer, (void *) &(scrollBar->state),
 		max(size, sizeof(scrollBarState)));
@@ -99,6 +102,11 @@ static int setData(void *componentData, void *buffer, unsigned size)
     ((((component->height - (borderThickness * 2)) - scrollBar->sliderHeight) *
       scrollBar->state.positionPercent) / 100);
 
+  draw(componentData);
+
+  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
+			   component->yCoord, component->width,
+			   component->height);
   return (0);
 }
 
@@ -190,11 +198,13 @@ static int mouseEvent(void *componentData, windowEvent *event)
 static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
 
   // Release all our memory
-  if (scrollBar)
-    kernelFree((void *) scrollBar);
+  if (component->data)
+    {
+      kernelFree(component->data);
+      component->data = NULL;
+    }
 
   return (0);
 }
@@ -210,7 +220,7 @@ static int destroy(void *componentData)
 
 
 kernelWindowComponent *kernelWindowNewScrollBar(volatile void *parent,
-			scrollBarType type, unsigned width, unsigned height,
+			scrollBarType type, int width, int height,
 			componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowScrollBar

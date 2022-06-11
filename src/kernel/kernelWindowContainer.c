@@ -114,7 +114,10 @@ static int destroy(void *componentData)
 
   // Release all our memory
   if (component->data)
-    kernelFree(component->data);
+    {
+      kernelFree(component->data);
+      component->data = NULL;
+    }
 
   return (status = 0);
 }
@@ -150,6 +153,7 @@ static int containerAdd(kernelWindowComponent *containerComponent,
   // Add it to the container
   container->components[container->numComponents++] = component;
   component->container = (void *) containerComponent;
+  component->window = containerComponent->window;
 
   // Copy the parameters into the component
   kernelMemCopy(params, (void *) &(component->parameters),

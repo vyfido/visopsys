@@ -62,7 +62,7 @@ static int draw(void *componentData)
   strcpy(textBuffer, item->text);
       
   // Don't draw text outside our component area
-  while ((kernelFontGetPrintedWidth(item->font, textBuffer) >=
+  while ((kernelFontGetPrintedWidth(component->parameters.font, textBuffer) >
 	  component->width) && strlen(textBuffer))
     textBuffer[strlen(textBuffer) - 1] = '\0';
 
@@ -71,15 +71,17 @@ static int draw(void *componentData)
       kernelGraphicDrawText(&(window->buffer),
 			    (color *) &(component->parameters.background),
 			    (color *) &(component->parameters.foreground),
-			    item->font, textBuffer, draw_normal,
-			    (component->xCoord + 1), (component->yCoord + 1));
+			    component->parameters.font, textBuffer,
+			    draw_normal, (component->xCoord + 1),
+			    (component->yCoord + 1));
   else
     status =
       kernelGraphicDrawText(&(window->buffer),
 			    (color *) &(component->parameters.foreground),
 			    (color *) &(component->parameters.background),
-			    item->font, textBuffer, draw_normal,
-			    (component->xCoord + 1), (component->yCoord + 1));
+			    component->parameters.font, textBuffer,
+			    draw_normal, (component->xCoord + 1),
+			    (component->yCoord + 1));
 
   kernelFree(textBuffer);
 
@@ -172,8 +174,13 @@ static int destroy(void *componentData)
   if (label)
     {
       if (label->text)
-      	kernelFree((void *) label->text);
-      kernelFree((void *) label);
+	{
+	  kernelFree((void *) label->text);
+	  label->text = NULL;
+	}
+
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -190,7 +197,6 @@ static int destroy(void *componentData)
 
 
 kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
-					       kernelAsciiFont *font,
 					       const char *text,
 					       componentParameters *params)
 {
@@ -200,7 +206,7 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
   kernelWindowComponent *component = NULL;
   kernelWindowListItem *listItemComponent = NULL;
 
-  // Check parameters.  It's okay for the font to be NULL.
+  // Check parameters.
   if ((parent == NULL) || (text == NULL) || (params == NULL))
     return (component = NULL);
 
@@ -222,20 +228,22 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
     {
       // Try to load a nice-looking font
       status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont);
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);
     }
 
   // If font is NULL, use the default
-  if (font == NULL)
-    font = labelFont;
+  if (component->parameters.font == NULL)
+    component->parameters.font = labelFont;
 
   // Now populate it
   component->type = listItemComponentType;
-  component->width = (kernelFontGetPrintedWidth(font, text) + 2);
-  component->height = (font->charHeight + 2);
+  component->width =
+    (kernelFontGetPrintedWidth(component->parameters.font, text) + 2);
+  component->height =
+    (((kernelAsciiFont *) component->parameters.font)->charHeight + 2);
 
   // The label data
   listItemComponent = kernelMalloc(sizeof(kernelWindowListItem));
@@ -253,7 +261,6 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
       return (component = NULL);
     }
   strcpy((char *) listItemComponent->text, text);
-  listItemComponent->font = font;
 
   listItemComponent->selected = 0;
 

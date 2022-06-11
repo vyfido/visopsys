@@ -63,16 +63,13 @@ typedef volatile struct
 
 // This is an enumeration that lists the names of the known types of 
 // filesystems.
-typedef enum
-  {
-    unknown, Ext, Fat, Iso
-  
-  } kernelFileSysTypeEnum;
+typedef enum {
+  unknown, Ext, Fat, Iso
+} kernelFileSysTypeEnum;
 
 // This is the structure that is used to define file systems
 typedef volatile struct
 {
-  int filesystemNumber;
   const char *description;
   char mountPoint[MAX_FS_NAME_LENGTH];
   const kernelDisk *disk;
@@ -123,14 +120,13 @@ int kernelFilesystemFatInitialize(void);
 int kernelFilesystemIsoInitialize(void);
 
 // Functions exported by kernelFilesystem.c
-int kernelFilesystemInitialize(void);
+int kernelFilesystemScan(kernelDisk *);
 int kernelFilesystemCheck(const char *, int, int);
 int kernelFilesystemFormat(const char *, const char *, const char *, int);
 int kernelFilesystemDefragment(const char *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
 int kernelFilesystemUnmountAll(void);
-int kernelFilesystemNumberMounted(void);
 kernelFilesystem *kernelFilesystemGet(char *);
 unsigned kernelFilesystemGetFree(const char *);
 unsigned kernelFilesystemGetBlockSize(const char *);

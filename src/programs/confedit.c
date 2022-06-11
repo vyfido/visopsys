@@ -142,7 +142,7 @@ static void setVariableDialog(const char *variable)
   params.useDefaultBackground = 1;
 
   params.orientationX = orient_right;
-  windowNewTextLabel(dialogWindow, NULL, "Variable name:", &params);
+  windowNewTextLabel(dialogWindow, "Variable name:", &params);
 
   if (variable)
     {
@@ -156,7 +156,7 @@ static void setVariableDialog(const char *variable)
   params.orientationX = orient_left;
   if (variable)
     {
-      windowNewTextLabel(dialogWindow, NULL, variableBuffer, &params);
+      windowNewTextLabel(dialogWindow, variableBuffer, &params);
     }
   else
     {
@@ -165,8 +165,7 @@ static void setVariableDialog(const char *variable)
       params.background.red = 255;
       params.background.green = 255;
       params.background.blue = 255;
-      variableField =
-	windowNewTextField(dialogWindow, fieldWidth, NULL, &params);
+      variableField = windowNewTextField(dialogWindow, fieldWidth, &params);
     }
 
   params.gridX = 0;
@@ -175,7 +174,7 @@ static void setVariableDialog(const char *variable)
   params.orientationX = orient_right;
   params.hasBorder = 0;
   params.useDefaultBackground = 1;
-  windowNewTextLabel(dialogWindow, NULL, "value:", &params);
+  windowNewTextLabel(dialogWindow, "value:", &params);
 
   params.gridX = 1;
   params.padRight = 5;
@@ -184,7 +183,7 @@ static void setVariableDialog(const char *variable)
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
-  valueField = windowNewTextField(dialogWindow, fieldWidth, NULL, &params);
+  valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
   if (variable)
     {
       variableListGet(list, variableBuffer, valueBuffer, 128);
@@ -268,12 +267,12 @@ static void setVariableDialog(const char *variable)
 
       // Check for the Cancel button
       status = windowComponentEventGet(cancelButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+      if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	break;
       
       // Check for window close events
       status = windowComponentEventGet(dialogWindow, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+      if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
 	break;
 
       // Done
@@ -328,7 +327,6 @@ static void constructWindow(void)
   // command line.
 
   componentParameters params;
-  objectKey font = NULL;
   objectKey buttonContainer = NULL;
 
   // Create a new window
@@ -359,8 +357,8 @@ static void constructWindow(void)
   params.gridY = 1;
   params.padRight = 0;
   params.orientationX = orient_center;
-  fontLoad("arial-bold-10.bmp", "arial-bold-10", &font);
-  listList = windowNewList(window, font, min(10, list->numVariables), 1, 0,
+  fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+  listList = windowNewList(window, min(10, list->numVariables), 1, 0,
 			   listStrings, numListStrings, &params);
 
   // Make a container component for the buttons
@@ -368,6 +366,7 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
+  params.font = NULL;
   buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 
   // Create an 'add variable' button
@@ -411,7 +410,7 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char bootDisk[DISK_MAX_NAMELENGTH];
+  disk theDisk;
   char tmpFilename[MAX_PATH_NAME_LENGTH];
 
   // Only work in graphics mode
@@ -425,10 +424,6 @@ int main(int argc, char *argv[])
   processId = multitaskerGetCurrentProcessId();
   privilege = multitaskerGetProcessPrivilege(processId);
 
-  // Find out whether we are currently running on a read-only filesystem
-  if (!diskGetBoot(bootDisk))
-    readOnly = diskGetReadOnly(bootDisk);
-
   // If a configuration file was not specified, ask for it
   if (argc < 2)
     {
@@ -439,11 +434,14 @@ int main(int argc, char *argv[])
       if (status != 1)
 	return (errno = status);
     }
-  
   else
     strncpy(tmpFilename, argv[1], MAX_PATH_NAME_LENGTH);
 
   vshMakeAbsolutePath(tmpFilename, fileName);
+
+  // Find out whether we are currently running on a read-only filesystem
+  if (!fileGetDisk(fileName, &theDisk))
+    readOnly = theDisk.readOnly;
 
   // Read the config file
   status = readConfigFile();
@@ -457,6 +455,8 @@ int main(int argc, char *argv[])
 
   // Run the GUI
   windowGuiRun();
+
+  windowDestroy(window);
 
   // Done
   return (errno = 0);

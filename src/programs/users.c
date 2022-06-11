@@ -63,16 +63,6 @@ static int getUserNames(void)
   char *bufferPointer = NULL;
   int count;
 
-  if (userBuffer)
-    free(userBuffer);
-
-  userBuffer = malloc(1024);
-  if (userBuffer == NULL)
-    {
-      error("Error getting buffer memory");
-      return (status = ERR_MEMORY);
-    }
-
   bzero(userBuffer, 1024);
 
   status = userGetNames(userBuffer, 1024);
@@ -155,7 +145,7 @@ static int setPasswordDialog(int userNumber)
   sprintf(labelText, "User name: %s", userNames[userNumber]);
   params.gridY = 0;
   params.gridWidth = 2;
-  label = windowNewTextLabel(dialogWindow, NULL, labelText, &params);
+  label = windowNewTextLabel(dialogWindow, labelText, &params);
 
   // If this user is privileged, or we can authenticate with no password,
   // don't prompt for the old password
@@ -165,8 +155,8 @@ static int setPasswordDialog(int userNumber)
       params.gridWidth = 1;
       params.padRight = 0;
       params.orientationX = orient_right;
-      oldPasswordLabel = windowNewTextLabel(dialogWindow, NULL, "Old "
-					    "password:", &params);
+      oldPasswordLabel =
+	windowNewTextLabel(dialogWindow, "Old password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
@@ -176,9 +166,7 @@ static int setPasswordDialog(int userNumber)
       params.background.red = 255;
       params.background.green = 255;
       params.background.blue = 255;
-      oldPasswordField =
-	windowNewPasswordField(dialogWindow, 17, NULL /* default font*/,
-			       &params);
+      oldPasswordField = windowNewPasswordField(dialogWindow, 17, &params);
     }
 
   params.gridX = 0;
@@ -188,7 +176,7 @@ static int setPasswordDialog(int userNumber)
   params.orientationX = orient_right;
   params.hasBorder = 0;
   params.useDefaultBackground = 1;
-  label = windowNewTextLabel(dialogWindow, NULL, "New password:", &params);
+  label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
   params.gridX = 1;
   params.hasBorder = 1;
@@ -198,8 +186,7 @@ static int setPasswordDialog(int userNumber)
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
-  passwordField1 =
-    windowNewPasswordField(dialogWindow, 17, NULL /* default font*/, &params);
+  passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
 
   params.gridX = 0;
   params.gridY = 3;
@@ -207,7 +194,7 @@ static int setPasswordDialog(int userNumber)
   params.orientationX = orient_right;
   params.hasBorder = 0;
   params.useDefaultBackground = 1;
-  label = windowNewTextLabel(dialogWindow, NULL, "Confirm password:", &params);
+  label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
   params.gridX = 1;
   params.orientationX = orient_left;
@@ -217,8 +204,7 @@ static int setPasswordDialog(int userNumber)
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
-  passwordField2 =
-    windowNewPasswordField(dialogWindow, 17, NULL /* default font*/, &params);
+  passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 
   params.gridX = 0;
   params.gridY = 4;
@@ -226,7 +212,7 @@ static int setPasswordDialog(int userNumber)
   params.orientationX = orient_center;
   params.hasBorder = 0;
   params.useDefaultBackground = 1;
-  noMatchLabel = windowNewTextLabel(dialogWindow, NULL, "Passwords do not "
+  noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
   				    "match", &params);
   windowComponentSetVisible(noMatchLabel, 0);
 
@@ -369,7 +355,7 @@ static int addUser(const char *userName, const char *password)
   if (!status || (status == ERR_PERMISSION))
     {
       error("User \"%s\" already exists.", userName);
-      return (status);
+      return (status = ERR_ALREADY);
     }
 
   // Tell the kernel to add the user
@@ -432,10 +418,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   // Check for the window being closed by a GUI event.
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-    {
-      windowGuiStop();
-      exit(0);
-    }
+    windowGuiStop();
 
   else if ((key == addUserButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
@@ -485,6 +468,7 @@ static void constructWindow(void)
   componentParameters params;
 
   // Create a new window
+  printf("Contruct my window...\n");
   window = windowNew(processId, "User Manager");
   if (window == NULL)
     return;
@@ -503,8 +487,7 @@ static void constructWindow(void)
   params.gridY = 0;
   params.gridHeight = 3;
   params.padBottom = 5;
-  userList =
-    windowNewList(window, NULL, 5, 1, 0, userNames, numUserNames, &params);
+  userList = windowNewList(window, 5, 1, 0, userNames, numUserNames, &params);
 
   // Create an 'add user' button
   params.gridX = 1;
@@ -545,8 +528,8 @@ int main(int argc, char *argv[])
   int status = 0;
   char opt;
   char userName[17];
-  int setPassword = 0;
-  char bootDisk[DISK_MAX_NAMELENGTH];
+  int setPass = 0;
+  disk sysDisk;
   int count;
 
   // Only work in graphics mode
@@ -564,7 +547,7 @@ int main(int argc, char *argv[])
 	{
 	case 'p':
 	  strncpy(userName, optarg, 17);
-	  setPassword = 1;
+	  setPass = 1;
 	  break;
 	default:
 	  error("Unknown option '%c'.", opt);
@@ -573,22 +556,32 @@ int main(int argc, char *argv[])
     }
 
   // Find out whether we are currently running on a read-only filesystem
-  if (!diskGetBoot(bootDisk))
-    readOnly = diskGetReadOnly(bootDisk);
+  bzero(&sysDisk, sizeof(disk));
+  if (!fileGetDisk("/system", &sysDisk))
+    readOnly = sysDisk.readOnly;
 
   processId = multitaskerGetCurrentProcessId();
   privilege = multitaskerGetProcessPrivilege(processId);
+
+  // Get a buffer for user names
+  userBuffer = malloc(1024);
+  if (userBuffer == NULL)
+    {
+      error("Error getting buffer memory");
+      return (status = ERR_MEMORY);
+    }
 
   // Get the list of user names
   status = getUserNames();
   if (status < 0)
     {
+      free(userBuffer);
       errno = status;
       perror(argv[0]);
       return (status);
     }
 
-  if (setPassword)
+  if (setPass)
     {
       int userNumber = -1;
 
@@ -614,8 +607,10 @@ int main(int argc, char *argv[])
 
       // Run the GUI
       windowGuiRun();
+      windowDestroy(window);
     }
 
   // Done
+  free(userBuffer);
   return (errno = status);
 }

@@ -39,8 +39,7 @@
 
 
 kernelWindowComponent *kernelWindowNewPasswordField(volatile void *parent,
-				    int columns, kernelAsciiFont *font,
-				    componentParameters *params)
+				    int columns, componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowPasswordField.
   // Really it just returns a modified kernelWindowTextField that only
@@ -48,11 +47,11 @@ kernelWindowComponent *kernelWindowNewPasswordField(volatile void *parent,
 
   kernelWindowComponent *component = NULL;
 
-  component = kernelWindowNewTextField(parent, columns, font, params);
+  component = kernelWindowNewTextField(parent, columns, params);
   if (component == NULL)
     return (component = NULL);
 
-  ((kernelWindowTextField *) component->data)->hidden = 1;
+  ((kernelWindowTextArea *) component->data)->area->hidden = 1;
 
   return (component);
 }

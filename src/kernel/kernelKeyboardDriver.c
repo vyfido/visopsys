@@ -24,6 +24,7 @@
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelProcessorX86.h"
 #include "kernelMultitasker.h"
+#include "kernelWindowManager.h"
 #include "kernelShutdown.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
@@ -31,24 +32,26 @@
 #include <sys/errors.h>
 #include <sys/stream.h>
 
-
 int kernelKeyboardDriverRegisterDevice(void *);
 int kernelKeyboardDriverSetStream(stream *);
 void kernelKeyboardDriverReadData(void);
 
 // Some special scan values that we care about
-#define KEY_RELEASE 128
-#define EXTENDED    224
-#define LEFT_SHIFT  42
-#define RIGHT_SHIFT 54
-#define LEFT_CTRL   29
-#define LEFT_ALT    56
-#define F1_KEY      59
-#define F2_KEY      60
-#define DEL_KEY     83
-#define CAPSLOCK    58
-#define NUMLOCK     69
-#define SCROLLLOCK  70
+#define KEY_RELEASE  128
+#define EXTENDED     224
+#define LEFT_SHIFT   42
+#define RIGHT_SHIFT  54
+#define LEFT_CTRL    29
+#define LEFT_ALT     56
+#define F1_KEY       59
+#define F2_KEY       60
+#define F3_KEY       61
+#define PAGEUP_KEY   73
+#define PAGEDOWN_KEY 81
+#define DEL_KEY      83
+#define CAPSLOCK     58
+#define NUMLOCK      69
+#define SCROLLLOCK   70
 
 #define INSERT_FLAG     0x80
 #define CAPSLOCK_FLAG   0x40
@@ -275,6 +278,9 @@ void kernelKeyboardDriverReadData(void)
 	case F2_KEY:
 	  kernelMultitaskerDumpProcessList();
 	  return;
+	case F3_KEY:
+	  kernelWindowDumpList();
+	  return;
 	default:
 	  break;
 	}
@@ -289,6 +295,7 @@ void kernelKeyboardDriverReadData(void)
   
   else if (theKeyboard->flags & CONTROL_FLAG)
     {
+      // CTRL-ALT-DEL?
       if ((theKeyboard->flags & ALT_FLAG) && (data == DEL_KEY))
 	{
 	  // CTRL-ALT-DEL means reboot

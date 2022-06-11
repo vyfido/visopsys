@@ -101,17 +101,11 @@ int main(int argc, char *argv[])
   // Create a new window, with small, arbitrary size and location
   window = windowNew(processId, tmpFilename);
 
-  params.gridX = 0;
-  params.gridY = 0;
+  bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
-  params.padLeft = 0;
-  params.padRight = 0;
-  params.padTop = 0;
-  params.padBottom = 0;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.hasBorder = 0;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
   imageComponent = windowNewImage(window, &showImage, draw_normal, &params);

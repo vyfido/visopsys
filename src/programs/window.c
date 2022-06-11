@@ -88,8 +88,7 @@ int main(int argc, char *argv[])
   params.stickyFocus = 1;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  textArea = windowNewTextArea(window, 80, 40, NULL /* (default font) */,
-			       &params);
+  textArea = windowNewTextArea(window, 80, 40, 200, &params);
 
   // Use the text area for all our input and output
   windowSetTextOutput(textArea);

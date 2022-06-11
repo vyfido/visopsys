@@ -24,6 +24,7 @@
 
 #include "kernelDisk.h"
 #include "kernelParameters.h"
+#include "kernelFilesystem.h"
 #include "kernelMalloc.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
@@ -1026,6 +1027,11 @@ int kernelDiskReadPartitions(void)
     {
       physicalDisk = physicalDisks[count];
 
+      // Clear the logical disks
+      physicalDisk->numLogical = 0;
+      kernelMemClear(&(physicalDisk->logical),
+		     (sizeof(kernelDisk) * DISK_MAX_PARTITIONS));
+
       // Assume UNKNOWN (code 0) partition type for now.
       partType.code = 0;
       strcpy((char *) partType.description, physicalDisk->description);
@@ -1088,9 +1094,15 @@ int kernelDiskReadPartitions(void)
 
 		  logicalDisks[logicalDiskCounter++] = logicalDisk;
 
+		  // See if we can determine the filesystem types
+		  status = kernelFilesystemScan(logicalDisk);
+		  if (status < 0)
+		    strncpy((char *) logicalDisk->fsType,
+			    partType.description, FSTYPE_MAX_NAMELENGTH);
+
 		  kernelLog("Disk %s (hard disk %d, partition %d): %s",
 			    logicalDisk->name, count, partition,
-			    partType.description);
+			    logicalDisk->fsType);
 
 		  // Move to the next partition record
 		  partitionRecord += 16;
@@ -1382,29 +1394,6 @@ int kernelDiskGetBoot(char *boot)
 }
 
 
-int kernelDiskGetReadOnly(const char *diskName)
-{
-  int status = 0;
-  kernelDisk *logicalDisk = NULL;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (diskName == NULL)
-    return (status = ERR_NULLPARAMETER);
- 
-  logicalDisk = kernelGetDiskByName(diskName);
-  if (logicalDisk == NULL)
-    {
-      kernelError(kernel_error, "No such disk \"%s\"", diskName);
-      return (status = ERR_NOSUCHENTRY);
-    }
-
-  return (((kernelPhysicalDisk *) logicalDisk->physical)->readOnly);
-}
-
-
 int kernelDiskGetCount(void)
 {
   // Returns the number of registered logical disk structures.  Useful for
@@ -1429,13 +1418,46 @@ int kernelDiskGetPhysicalCount(void)
 }
 
 
+int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
+{
+  // Takes our logical disk kernel structure and turns it into a user space
+  // 'disk' object
+
+  int status = 0;
+  kernelPhysicalDisk *physical = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if ((logical == NULL) || (userDisk == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  physical = (kernelPhysicalDisk *) logical->physical;
+
+  // Get the physical disk info
+  status = kernelDiskFromPhysical(physical, userDisk);
+  if (status < 0)
+    return (status);
+
+  // Add/override some things specific to logical disks
+  strncpy(userDisk->name, (char *) logical->name, DISK_MAX_NAMELENGTH);
+  kernelMemCopy((void *) &(logical->partType), &(userDisk->partType),
+	sizeof(partitionType));
+  strncpy(userDisk->fsType, (char *) logical->fsType, FSTYPE_MAX_NAMELENGTH);
+  userDisk->opFlags = logical->opFlags;
+  userDisk->startSector = logical->startSector;
+  userDisk->numSectors = logical->numSectors;
+
+  return (status = 0);
+}
+
+
 int kernelDiskGetInfo(disk *array)
 {
   // Fills a simplified disk info structure of all the logical disks
 
   int status = 0;
-  kernelDisk *diskStructure = NULL;
-  kernelPhysicalDisk *physicalDisk = NULL;
   int count;
 
   if (!initialized)
@@ -1447,28 +1469,37 @@ int kernelDiskGetInfo(disk *array)
  
   // Loop through the disks, filling the array supplied
   for (count = 0; count < logicalDiskCounter; count ++)
-    {
-      diskStructure = logicalDisks[count];
-      physicalDisk = (kernelPhysicalDisk *) diskStructure->physical;
+    kernelDiskFromLogical(logicalDisks[count], &array[count]);
 
-      // Got it.  Fill in the relevant information
-      strncpy(array[count].name, (char *) diskStructure->name,
-	      DISK_MAX_NAMELENGTH);
-      kernelMemCopy((void *) &(diskStructure->partType),
-		    &(array[count].partType), sizeof(partitionType));
-      strncpy(array[count].fsType, (char *) diskStructure->fsType,
-	      FSTYPE_MAX_NAMELENGTH);
-      array[count].deviceNumber = physicalDisk->deviceNumber;
-      array[count].type = physicalDisk->type;
-      array[count].fixedRemovable = physicalDisk->fixedRemovable;
-      array[count].readOnly = physicalDisk->readOnly;
-      array[count].heads = physicalDisk->heads;
-      array[count].cylinders = physicalDisk->cylinders;
-      array[count].sectorsPerCylinder = physicalDisk->sectorsPerCylinder;
-      array[count].startSector = diskStructure->startSector;
-      array[count].numSectors = diskStructure->numSectors;
-      array[count].sectorSize = physicalDisk->sectorSize;
-    }
+  return (status = 0);
+}
+
+
+int kernelDiskFromPhysical(kernelPhysicalDisk *physical, disk *userDisk)
+{
+  // Takes our physical disk kernel structure and turns it into a user space
+  // 'disk' object
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if ((physical == NULL) || (userDisk == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(userDisk->name, (char *) physical->name, DISK_MAX_NAMELENGTH);
+  userDisk->deviceNumber = physical->deviceNumber;
+  userDisk->type = physical->type;
+  userDisk->fixedRemovable = physical->fixedRemovable;
+  userDisk->readOnly = physical->readOnly;
+  userDisk->heads = physical->heads;
+  userDisk->cylinders = physical->cylinders;
+  userDisk->sectorsPerCylinder = physical->sectorsPerCylinder;
+  userDisk->startSector = 0;
+  userDisk->numSectors = physical->numSectors;
+  userDisk->sectorSize = physical->sectorSize;
 
   return (status = 0);
 }
@@ -1479,7 +1510,6 @@ int kernelDiskGetPhysicalInfo(disk *array)
   // Fills a simplified disk info structure of all the physical disks
 
   int status = 0;
-  kernelPhysicalDisk *diskStructure = NULL;
   int count;
 
   if (!initialized)
@@ -1491,23 +1521,7 @@ int kernelDiskGetPhysicalInfo(disk *array)
  
   // Loop through the physical disks, filling the array supplied
   for (count = 0; count < physicalDiskCounter; count ++)
-    {
-      diskStructure = physicalDisks[count];
-
-      // Got it.  Fill in the relevant information
-      strncpy(array[count].name, (char *) diskStructure->name,
-	      DISK_MAX_NAMELENGTH);
-      array[count].deviceNumber = diskStructure->deviceNumber;
-      array[count].type = diskStructure->type;
-      array[count].fixedRemovable = diskStructure->fixedRemovable;
-      array[count].readOnly = diskStructure->readOnly;
-      array[count].heads = diskStructure->heads;
-      array[count].cylinders = diskStructure->cylinders;
-      array[count].sectorsPerCylinder = diskStructure->sectorsPerCylinder;
-      array[count].startSector = 0;
-      array[count].numSectors = diskStructure->numSectors;
-      array[count].sectorSize = diskStructure->sectorSize;
-    }
+    kernelDiskFromPhysical(physicalDisks[count], &array[count]);
 
   return (status = 0);
 }

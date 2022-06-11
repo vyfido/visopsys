@@ -173,7 +173,6 @@ static void constructWindow(void)
   // command line.
 
   componentParameters params;
-  objectKey font = NULL;
 
   // Create a new window, with small, arbitrary size and location
   window = windowNew(processId, "Welcome to Visopsys");
@@ -191,16 +190,17 @@ static void constructWindow(void)
   params.orientationY = orient_middle;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  windowNewTextLabel(window, font, titleString, &params);
+  windowNewTextLabel(window, titleString, &params);
 
   params.gridY = 1;
-  fontLoad("arial-bold-10.bmp", "arial-bold-10", &font);
-  windowNewTextLabel(window, font, gplString, &params);
+  fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+  windowNewTextLabel(window, gplString, &params);
 
   params.gridY = 2;
   params.orientationX = orient_center;
-  windowNewTextLabel(window, NULL, "Would you like to install "
-				 "Visopsys, or just run it now?", &params);
+  params.font = NULL;
+  windowNewTextLabel(window, "Would you like to install Visopsys, or just run "
+		     "it now?", &params);
 
   params.gridY = 3;
   params.gridWidth = 1;
@@ -219,7 +219,7 @@ static void constructWindow(void)
   params.gridWidth = 2;
   params.orientationX = orient_center;
   goAwayCheckbox =
-    windowNewCheckbox(window, NULL, "Don't ask me this again", &params);
+    windowNewCheckbox(window, "Don't ask me this again", &params);
   if (readOnly)
     windowComponentSetEnabled(goAwayCheckbox, 0);
 
@@ -246,7 +246,7 @@ static void changeStartProgram(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char bootDisk[DISK_MAX_NAMELENGTH];
+  disk sysDisk;
   int foregroundColor = textGetForeground();
   int backgroundColor = textGetBackground();
   int options = 3;
@@ -265,8 +265,9 @@ int main(int argc, char *argv[])
 	 "\n(Try logging in as user \"admin\").");
 
   // Find out whether we are currently running on a read-only filesystem
-  if (!diskGetBoot(bootDisk))
-    readOnly = diskGetReadOnly(bootDisk);
+  bzero(&sysDisk, sizeof(disk));
+  if (!fileGetDisk("/system", &sysDisk))
+    readOnly = sysDisk.readOnly;
 
   if (graphics)
     {
@@ -302,6 +303,7 @@ int main(int argc, char *argv[])
 	{
 	  textSetColumn(column);
 	  textSetRow(row);
+	  textSetCursor(0);
 
 	  for (count = 0; count < options; count ++)
 	    {
@@ -313,9 +315,9 @@ int main(int argc, char *argv[])
 		}
 
 	      if (count == 0)
-		printf(" o Install               \n");
+		printf(" o Install                \n");
 	      else if (count == 1)
-		printf(" o Run now               \n");
+		printf(" o Run now                \n");
 	      else if (count == 2)
 		printf(" o Always run             \n"
 		       "   (never ask to install) ");
@@ -324,7 +326,6 @@ int main(int argc, char *argv[])
 	      textSetBackground(backgroundColor);
 	    }
 
-	  textSetCursor(0);
 	  textInputSetEcho(0);
 	  character = getchar();
       

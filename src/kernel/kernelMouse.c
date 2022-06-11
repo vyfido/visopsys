@@ -352,3 +352,26 @@ void kernelMouseButtonChange(int buttonNumber, int status)
 
   return;
 }
+
+
+void kernelMouseBusy(int busy)
+{
+  // Called to set the mouse busy (1) or not busy (0).  We maintain a counter
+  // of busies.
+  
+  if (busy)
+    {
+      if (!systemMouse->busy)
+	kernelMouseSwitchPointer("busy");
+
+      systemMouse->busy += 1;
+    }
+  else
+    {
+      if (systemMouse->busy)
+	systemMouse->busy -= 1;
+
+      if (!systemMouse->busy)
+	kernelMouseSwitchPointer("default");
+    }
+}

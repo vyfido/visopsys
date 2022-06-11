@@ -40,9 +40,9 @@ static kernelFilesystemDriver defaultExtDriver = {
   "EXT", // Driver name
   kernelFilesystemExtInitialize,
   kernelFilesystemExtDetect,
-  kernelFilesystemExtFormat,
-  kernelFilesystemExtCheck,
-  kernelFilesystemExtDefragment,
+  NULL, // driverFormat
+  NULL, // driverCheck
+  NULL, // driverDefragment
   kernelFilesystemExtMount,
   kernelFilesystemExtUnmount,
   kernelFilesystemExtGetFreeBytes,
@@ -753,49 +753,6 @@ int kernelFilesystemExtDetect(const kernelDisk *theDisk)
     return (status = 0);
 }
 
-
-int kernelFilesystemExtFormat(kernelDisk *theDisk, const char *type,
-			      const char *label, int longFormat)
-{
-  // Format the supplied disk as a EXT volume.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtCheck(kernelFilesystem *checkFilesystem, int force,
-			     int repair)
-{
-  // This function performs a check of the EXT filesystem structure supplied.
-  // Assumptions: the filesystem is REALLY a EXT filesystem, the filesystem
-  // is not currently mounted anywhere, and the filesystem driver structure
-  // for the filesystem is installed.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtDefragment(kernelFilesystem *filesystem)
-{
-  // Defragment the EXT filesystem
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
 
 int kernelFilesystemExtMount(kernelFilesystem *filesystem)
 {

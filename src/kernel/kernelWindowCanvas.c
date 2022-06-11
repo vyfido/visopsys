@@ -30,30 +30,37 @@
 #include <sys/errors.h>
 
 
-static int resize(void *componentData, unsigned width, unsigned height)
+static int resize(void *componentData, int width, int height)
 {
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowCanvas *canvas = (kernelWindowCanvas *) component->data;
+  void *savePtr = NULL;
 
-  // Free the old image data
   if (canvas->imageData.data)
     {
-      kernelMemoryRelease(canvas->imageData.data);
+      savePtr = canvas->imageData.data;
       canvas->imageData.data = NULL;
     }
 
   // Get a new image
-  status = kernelGraphicNewImage((image *) &(canvas->imageData), width,
-				 height);
+  status = kernelGraphicNewKernelImage((image *) &(canvas->imageData), width,
+				       height);
   if (status < 0)
-    return (status);
+    {
+      canvas->imageData.data = savePtr;
+      return (status);
+    }
   
+  // If there was old data, free it
+  if (savePtr)
+    kernelFree(savePtr);
+
   return (status = 0);
 }
 
 
-static int setData(void *componentData, void *data, unsigned size)
+static int setData(void *componentData, void *data, int size)
 {
   // This is where we implement drawing on the canvas.  Our parameter
   // is a structure that specifies the drawing operation and parameters
@@ -110,9 +117,10 @@ static int setData(void *componentData, void *data, unsigned size)
 
   // Get the component's new image
   status =
-    kernelGraphicGetImage(buffer, (image *) &(canvas->imageData),
-			  component->xCoord, component->yCoord,
-			  component->width, component->height);
+    kernelGraphicGetKernelImage(buffer, (image *) &(canvas->imageData),
+				component->xCoord, component->yCoord,
+				canvas->imageData.width,
+				canvas->imageData.height);
   
   kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
 			   component->width, component->height);
@@ -131,7 +139,7 @@ static int setData(void *componentData, void *data, unsigned size)
 
 
 kernelWindowComponent *kernelWindowNewCanvas(volatile void *parent, 
-					     unsigned width, unsigned height,
+					     int width, int height,
 					     componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowCanvas.  A
@@ -148,7 +156,7 @@ kernelWindowComponent *kernelWindowNewCanvas(volatile void *parent,
 
   // Get a temporary image of the correct size
   tmpImage.data = NULL;
-  status = kernelGraphicNewImage(&tmpImage, width, height);
+  status = kernelGraphicNewKernelImage(&tmpImage, width, height);
   if (status < 0)
     return (component = NULL);
 

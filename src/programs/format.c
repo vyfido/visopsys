@@ -128,6 +128,10 @@ int main(int argc, char *argv[])
       return (status);
     }
 
+  // Print a message
+  printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2004 J. Andrew "
+	 "McLaughlin\n\n");
+
   // By default, we do 'generic' (i.e. let the driver make decisions) FAT.
   strcpy(type, "fat");
 
@@ -153,11 +157,13 @@ int main(int argc, char *argv[])
 	    diskNumber = count2;
 	    break;
 	  }
+      
+      if (diskNumber == -1)
+	{
+	  printf("\nInvalid disk name \"%s\"\n\n", argv[argc - 1]);
+	  return (errno = ERR_INVALID);
+	}
     }
-
-  // Print a message
-  printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2004 J. Andrew "
-	 "McLaughlin\n\n");
 
   // Check privilege level
   if (multitaskerGetProcessPrivilege(multitaskerGetCurrentProcessId()) != 0)

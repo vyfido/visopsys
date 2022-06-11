@@ -45,7 +45,7 @@ static kernelFilesystemDriver defaultFatDriver = {
   kernelFilesystemFatDetect,
   kernelFilesystemFatFormat,
   kernelFilesystemFatCheck,
-  kernelFilesystemFatDefragment,
+  NULL, // driverDefragment
   kernelFilesystemFatMount,
   kernelFilesystemFatUnmount,
   kernelFilesystemFatGetFreeBytes,
@@ -3941,17 +3941,6 @@ int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
 
   // Return success
   return (status = (errors? errors : 0));
-}
-
-
-int kernelFilesystemFatDefragment(kernelFilesystem *filesystem)
-{
-  // Defragment the FAT filesystem.
-
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
-  return (ERR_NOTIMPLEMENTED);
 }
 
 

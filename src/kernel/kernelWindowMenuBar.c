@@ -61,7 +61,9 @@ static void menuSetVisible(kernelWindowComponent *menuBarComponent,
 	      (kernelFontGetPrintedWidth(menuBarFont,
 			 (const char *) menu->name) + (borderThickness * 2)),
 	      (menuBarFont->charHeight + (borderThickness * 2)),
-	      borderThickness, borderShadingIncrement, draw_normal);
+	      borderThickness,
+	      (color *) &(menuComponent->parameters.background),
+	      borderShadingIncrement, draw_normal);
       kernelWindowUpdateBuffer(&(window->buffer), menuBarComponent->xCoord,
 			       menuBarComponent->yCoord,
 			       menuBarComponent->width,
@@ -308,7 +310,7 @@ kernelWindowComponent *kernelWindowNewMenuBar(volatile void *parent,
     {
       // Try to load a nice-looking font
       if (kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			 DEFAULT_VARIABLEFONT_SMALL_NAME, &menuBarFont) < 0)
+			 DEFAULT_VARIABLEFONT_SMALL_NAME, &menuBarFont, 0) < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&menuBarFont);
     }

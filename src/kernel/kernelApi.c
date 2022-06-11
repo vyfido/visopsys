@@ -127,7 +127,6 @@ static kernelFunctionIndex diskFunctionIndex[] = {
     0, PRIVILEGE_SUPERVISOR },
   { _fnum_diskSync, kernelDiskSync, 0, PRIVILEGE_USER },
   { _fnum_diskGetBoot, kernelDiskGetBoot, 1, PRIVILEGE_USER },
-  { _fnum_diskGetReadOnly, kernelDiskGetReadOnly, 1, PRIVILEGE_USER },
   { _fnum_diskGetCount, kernelDiskGetCount, 0, PRIVILEGE_USER },
   { _fnum_diskGetPhysicalCount, kernelDiskGetPhysicalCount,
     0, PRIVILEGE_USER },
@@ -154,8 +153,6 @@ static kernelFunctionIndex filesystemFunctionIndex[] = {
     1, PRIVILEGE_USER },
   { _fnum_filesystemMount, kernelFilesystemMount, 2, PRIVILEGE_USER },
   { _fnum_filesystemUnmount, kernelFilesystemUnmount, 1, PRIVILEGE_USER },
-  { _fnum_filesystemNumberMounted, kernelFilesystemNumberMounted,
-    0, PRIVILEGE_USER },
   { _fnum_filesystemGetFree, kernelFilesystemGetFree, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetBlockSize, kernelFilesystemGetBlockSize,
     1, PRIVILEGE_USER }
@@ -166,6 +163,7 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   // File functions (4000-4999 range)
 
   { _fnum_fileFixupPath, kernelFileFixupPath, 2, PRIVILEGE_USER },
+  { _fnum_fileGetDisk, kernelFileGetDisk, 2, PRIVILEGE_USER },
   { _fnum_fileFirst, kernelFileFirst, 2, PRIVILEGE_USER },
   { _fnum_fileNext, kernelFileNext, 2, PRIVILEGE_USER },
   { _fnum_fileFind, kernelFileFind, 2, PRIVILEGE_USER },
@@ -360,6 +358,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowSetPacked, kernelWindowSetPacked, 2, PRIVILEGE_USER },
   { _fnum_windowSetHasCloseButton, kernelWindowSetHasCloseButton,
     2, PRIVILEGE_USER },
+  { _fnum_windowSetColors, kernelWindowSetColors, 2, PRIVILEGE_USER },
   { _fnum_windowSetVisible, kernelWindowSetVisible, 2, PRIVILEGE_USER },
   { _fnum_windowAddConsoleTextArea, kernelWindowAddConsoleTextArea,
     2, PRIVILEGE_USER },
@@ -400,25 +399,25 @@ static kernelFunctionIndex windowFunctionIndex[] = {
     2, PRIVILEGE_USER },
   { _fnum_windowNewButton, kernelWindowNewButton, 4, PRIVILEGE_USER },
   { _fnum_windowNewCanvas, kernelWindowNewCanvas, 4, PRIVILEGE_USER },
-  { _fnum_windowNewCheckbox, kernelWindowNewCheckbox, 4, PRIVILEGE_USER },
+  { _fnum_windowNewCheckbox, kernelWindowNewCheckbox, 3, PRIVILEGE_USER },
   { _fnum_windowNewContainer, kernelWindowNewContainer, 3, PRIVILEGE_USER },
   { _fnum_windowNewIcon, kernelWindowNewIcon, 5, PRIVILEGE_USER },
   { _fnum_windowNewImage, kernelWindowNewImage, 4, PRIVILEGE_USER },
-  { _fnum_windowNewList, kernelWindowNewList, 8, PRIVILEGE_USER },
-  { _fnum_windowNewListItem, kernelWindowNewListItem, 4, PRIVILEGE_USER },
+  { _fnum_windowNewList, kernelWindowNewList, 7, PRIVILEGE_USER },
+  { _fnum_windowNewListItem, kernelWindowNewListItem, 3, PRIVILEGE_USER },
   { _fnum_windowNewMenu, kernelWindowNewMenu, 3, PRIVILEGE_USER },
   { _fnum_windowNewMenuBar, kernelWindowNewMenuBar, 2, PRIVILEGE_USER },
   { _fnum_windowNewMenuItem, kernelWindowNewMenuItem, 3, PRIVILEGE_USER },
   { _fnum_windowNewPasswordField, kernelWindowNewPasswordField,
-    4, PRIVILEGE_USER },
+    3, PRIVILEGE_USER },
   { _fnum_windowNewProgressBar, kernelWindowNewProgressBar,
     2, PRIVILEGE_USER },
   { _fnum_windowNewRadioButton, kernelWindowNewRadioButton,
-    7, PRIVILEGE_USER },
+    6, PRIVILEGE_USER },
   { _fnum_windowNewScrollBar, kernelWindowNewScrollBar, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextArea, kernelWindowNewTextArea, 5, PRIVILEGE_USER },
-  { _fnum_windowNewTextField, kernelWindowNewTextField, 4, PRIVILEGE_USER },
-  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 4, PRIVILEGE_USER }
+  { _fnum_windowNewTextField, kernelWindowNewTextField, 3, PRIVILEGE_USER },
+  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex userFunctionIndex[] = {
@@ -443,7 +442,7 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   
   { _fnum_fontGetDefault, kernelFontGetDefault, 1, PRIVILEGE_USER },
   { _fnum_fontSetDefault, kernelFontSetDefault, 1, PRIVILEGE_USER },
-  { _fnum_fontLoad, kernelFontLoad, 3, PRIVILEGE_USER },
+  { _fnum_fontLoad, kernelFontLoad, 4, PRIVILEGE_USER },
   { _fnum_fontGetPrintedWidth, kernelFontGetPrintedWidth, 2, PRIVILEGE_USER },
   { _fnum_imageLoadBmp, kernelImageLoadBmp, 2, PRIVILEGE_USER },
   { _fnum_imageSaveBmp, kernelImageSaveBmp, 2, PRIVILEGE_USER },

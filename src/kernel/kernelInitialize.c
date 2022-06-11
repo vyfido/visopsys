@@ -31,7 +31,7 @@
 #include "kernelDescriptor.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
-#include "kernelFilesystem.h"
+#include "kernelFile.h"
 #include "kernelGraphic.h"
 #include "kernelUser.h"
 #include "kernelWindowManager.h"
@@ -184,8 +184,8 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       return (status);
     }
 
-  // Initialize the filesystem manager
-  status = kernelFilesystemInitialize();
+  // Initialize the file management
+  status = kernelFileInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "Filesystem functions initialization failed");
@@ -280,14 +280,18 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       kernelImageLoadBmp(splashName, &splashImage);
       if (splashImage.data)
 	{
+	  splashImage.translucentColor.red = 0;
+	  splashImage.translucentColor.green = 0xFF;
+	  splashImage.translucentColor.blue = 0;
+
 	  // Loaded successfully.  Put it in the middle of the screen.
-	  kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
+	  kernelGraphicDrawImage(NULL, &splashImage, draw_translucent, 
 				 ((kernelGraphicGetScreenWidth() -
 				   splashImage.width) / 2),
 				 ((kernelGraphicGetScreenHeight() -
 				   splashImage.height) / 2), 0, 0, 0, 0);
 	}
-    }    
+    }
 
   // If the filesystem is not read-only, open a kernel log file
   if (!(rootFilesystem->readOnly))

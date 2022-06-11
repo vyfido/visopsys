@@ -31,7 +31,6 @@
 
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;
-static int (*saveLayout) (kernelWindowComponent *) = NULL;  
 
 
 static int draw(void *componentData)
@@ -55,7 +54,9 @@ static int draw(void *componentData)
 
   kernelGraphicDrawGradientBorder(buffer, component->xCoord, component->yCoord,
 				  component->width, component->height,
-				  borderThickness, borderShadingIncrement,
+				  borderThickness, (color *)
+				  &(component->parameters.background),
+				  borderShadingIncrement,
 				  draw_normal);
 
   // Draw all the menu items
@@ -77,20 +78,29 @@ static int mouseEvent(void *componentData, windowEvent *event)
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowMenu *menu = (kernelWindowMenu *) component->data;
   kernelWindowComponent *clickedItem = NULL;
-  
+  int count;
+
   if (menu->numComponents && (event->type & EVENT_MASK_MOUSE))
     {
       // Figure out which menu item was clicked based on the coordinates
       // of the event
-      int tmp = ((event->yPosition - (window->yCoord + component->yCoord)) /
-		 menu->components[0]->height);
+      int tmp = (event->yPosition - window->yCoord);
+
+      for (count = 0; count < menu->numComponents; count ++)
+	{
+	  if ((tmp >= menu->components[count]->yCoord) &&
+	      (tmp < (menu->components[count]->yCoord +
+		      menu->components[count]->height)))
+	    {
+	      clickedItem = menu->components[count];
+	      break;
+	    }
+	}
 
       // Is there an item in this space?
-      if (tmp >= menu->numComponents)
+      if (clickedItem == NULL)
 	return (status = 0);
 	  
-      clickedItem = menu->components[tmp];
-
       if ((clickedItem->flags & WINFLAG_VISIBLE) &&
 	  (clickedItem->flags & WINFLAG_ENABLED) && clickedItem->mouseEvent)
 	{
@@ -107,9 +117,6 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  // visible
 	  if (clickedItem->setSelected)
 	    clickedItem->setSelected((void *) clickedItem, 0);
-
-	  // Make the menu not visible
-	  kernelWindowComponentSetVisible(component, 0);
 	}
     }
 
@@ -126,6 +133,9 @@ static int containerLayout(kernelWindowComponent *containerComponent)
   kernelWindowComponent *itemComponent = NULL;
   int count;
 
+  containerComponent->width = 0;
+  containerComponent->height = 0;
+  
   // Set the parameters of all the menu items
   for (count = 0; count < menu->numComponents; count ++)
     {
@@ -138,36 +148,33 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 	  return (status = ERR_INVALID);
 	}
 
-      // Set almost all the parameters.  Really the only things we want
-      // to preserve from the user are the color settings.
-      itemComponent->parameters.gridX = 0;
-      itemComponent->parameters.gridY = count;
-      itemComponent->parameters.gridWidth = 1;
-      itemComponent->parameters.gridHeight = 1;
-      itemComponent->parameters.padLeft = borderThickness;
-      itemComponent->parameters.padRight = borderThickness;
+      itemComponent->xCoord =
+	(containerComponent->xCoord + borderThickness);
       if (count == 0)
-	itemComponent->parameters.padTop = (borderThickness * 2);
+        itemComponent->yCoord = (containerComponent->yCoord + borderThickness);
       else
-	itemComponent->parameters.padTop = 0;
-      if (count == (menu->numComponents - 1))
-	itemComponent->parameters.padBottom = borderThickness;
-      else
-	itemComponent->parameters.padBottom = 0;
-      itemComponent->parameters.orientationX = orient_left;
-      itemComponent->parameters.orientationY = orient_middle;
-      itemComponent->parameters.resizableX = 0;
-      itemComponent->parameters.resizableY = 0;
-      itemComponent->parameters.hasBorder = 0;
-      itemComponent->parameters.stickyFocus = 0;
+        itemComponent->yCoord = (menu->components[count - 1]->yCoord +
+				 menu->components[count - 1]->height);
+      
+      if (containerComponent->width < itemComponent->width)
+	containerComponent->width = itemComponent->width;
     }
 
-  // Call the saved layout function
-  if (saveLayout)
-    status = saveLayout(containerComponent);
+  if (menu->numComponents)
+    containerComponent->height =
+      ((menu->components[menu->numComponents - 1]->yCoord +
+       menu->components[menu->numComponents - 1]->height) -
+	containerComponent->yCoord);
 
+  containerComponent->width += (borderThickness * 2);
+  containerComponent->height += borderThickness;
+
+  // Make sure we have minimum width and height
   if (containerComponent->width < 50)
     containerComponent->width = 50;
+
+  // Set the flag to indicate layout complete
+  menu->doneLayout = 1;
 
   return(status);
 }
@@ -200,17 +207,11 @@ kernelWindowComponent *kernelWindowNewMenu(volatile void *parent,
   if (component == NULL)
     return (component);
 
-  component->width = 50;
-  component->height = (borderThickness * 2);
-  
-  // Save the old draw function, and superimpose our own
   component->draw = &draw;
   component->mouseEvent = &mouseEvent;
 
   container = (kernelWindowContainer *) component->data;
 
-  // Save the old layout function, and superimpose our own
-  saveLayout = container->containerLayout;
   container->containerLayout = &containerLayout;
 
   return (component);
