@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -81,6 +81,13 @@ static int readSuperblock(const kernelDisk *theDisk, unsigned char *buffer)
   kernelMemClear(buffer, EXT_SUPERBLOCK_SIZE);
 
   physicalDisk = theDisk->physical;
+
+  // The sector size must be non-zero
+  if (physicalDisk->sectorSize == 0)
+    {
+      kernelError(kernel_error, "Disk sector size is zero");
+      return (status = ERR_INVALID);
+    }
 
   // Read the superblock
   status =
@@ -378,7 +385,7 @@ static int readFile(extInternalData *extData, kernelFileEntry *fileEntry,
   void *dataPointer = NULL;
   int count;
   
-  inode = &(((extInodeData *) fileEntry->fileEntryData)->inode);
+  inode = &(((extInodeData *) fileEntry->driverData)->inode);
 
   // If numBlocks is zero, that means read the whole file
   if (numBlocks == 0)
@@ -519,7 +526,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
       return (status = ERR_NOTADIR);
     }
 
-  dirInode = &(((extInodeData *) dirEntry->fileEntryData)->inode);
+  dirInode = &(((extInodeData *) dirEntry->driverData)->inode);
 
   // Check for unsupported directory types
   if ((dirInode->flags & EXT_BTREE_FL) || (dirInode->flags & EXT_INDEX_FL))
@@ -580,7 +587,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 	  return (status = ERR_NOCREATE);
 	}
       
-      inode = &(((extInodeData *) fileEntry->fileEntryData)->inode);
+      inode = &(((extInodeData *) fileEntry->driverData)->inode);
       if (inode == NULL)
 	{
 	  kernelError(kernel_error, "New entry has no private data");
@@ -660,7 +667,7 @@ static int readRootDir(extInternalData *extData, kernelFilesystem *filesystem)
 
   int status = 0;
   extInode *rootInode =
-    &(((extInodeData *) filesystem->filesystemRoot->fileEntryData)->inode);
+    &(((extInodeData *) filesystem->filesystemRoot->driverData)->inode);
 
   if (rootInode == NULL)
     {
@@ -717,6 +724,13 @@ int kernelFilesystemExtDetect(const kernelDisk *theDisk)
   
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "Disk structure is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
 
   // Get a temporary buffer to read the superblock
   buffer = kernelMalloc(EXT_SUPERBLOCK_SIZE);
@@ -915,7 +929,7 @@ int kernelFilesystemExtNewEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry, and that there is a filesystem attached
-  if (newEntry->fileEntryData != NULL)
+  if (newEntry->driverData != NULL)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);
@@ -954,7 +968,7 @@ int kernelFilesystemExtNewEntry(kernelFileEntry *newEntry)
   inodeData = freeInodeDatas;
   freeInodeDatas = (extInodeData *) inodeData->next;
   numFreeInodeDatas -= 1;
-  newEntry->fileEntryData = (void *) inodeData;
+  newEntry->driverData = (void *) inodeData;
 
   return (status = 0);
 }
@@ -980,7 +994,7 @@ int kernelFilesystemExtInactiveEntry(kernelFileEntry *inactiveEntry)
       return (status = ERR_NULLPARAMETER);
     }
 
-  inodeData = (extInodeData *) inactiveEntry->fileEntryData;
+  inodeData = (extInodeData *) inactiveEntry->driverData;
   if (inodeData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
@@ -997,7 +1011,7 @@ int kernelFilesystemExtInactiveEntry(kernelFileEntry *inactiveEntry)
   numFreeInodeDatas += 1;
 
   // Remove the reference
-  inactiveEntry->fileEntryData = NULL;
+  inactiveEntry->driverData = NULL;
 
   return (status = 0);
 }
@@ -1034,7 +1048,7 @@ int kernelFilesystemExtResolveLink(kernelFileEntry *linkEntry)
   if (extData == NULL)
     return (0);
   
-  inode = &(((extInodeData *) linkEntry->fileEntryData)->inode);
+  inode = &(((extInodeData *) linkEntry->driverData)->inode);
   if (inode == NULL)
     {
       kernelError(kernel_error, "Link entry has no private data");
@@ -1135,7 +1149,7 @@ int kernelFilesystemExtReadFile(kernelFileEntry *theFile, unsigned blockNum,
   if (extData == NULL)
     return (status = ERR_BADDATA);
  
-  inode = &(((extInodeData *) theFile->fileEntryData)->inode); 
+  inode = &(((extInodeData *) theFile->driverData)->inode); 
   if (inode == NULL)
     {
       kernelError(kernel_error, "File \"%s\" has no private data",
@@ -1231,7 +1245,7 @@ int kernelFilesystemExtReadDir(kernelFileEntry *directory)
     }
 
   // Make sure there's an inode attached
-  if (directory->fileEntryData == NULL)
+  if (directory->driverData == NULL)
     {
       kernelError(kernel_error, "Directory \"%s\" has no private data",
 		  directory->name);

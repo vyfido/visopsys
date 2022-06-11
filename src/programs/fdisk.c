@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -279,7 +279,6 @@ static int scanDisks(void)
 
   // Call the kernel to give us the number of available disks
   tmpNumberDisks = diskGetPhysicalCount();
-
   if (tmpNumberDisks <= 0)
     return (status = ERR_NOSUCHENTRY);
 
@@ -1397,7 +1396,7 @@ int main(int argc, char *argv[])
 
   else
     // Print a message
-    printf("\nVisopsys FDISK Utility\nCopyright (C) 1998-2003 J. Andrew "
+    printf("\nVisopsys FDISK Utility\nCopyright (C) 1998-2004 J. Andrew "
 	   "McLaughlin\n");
   
   // Check privilege level

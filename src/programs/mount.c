@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/vsh.h>
 
 
 static void usage(char *name)
@@ -41,7 +42,7 @@ int main(int argc, char *argv[])
 
   int status = 0;
   char *diskName = NULL;
-  char *filesystem = NULL;
+  char filesystem[MAX_PATH_NAME_LENGTH];
   
   if (argc < 3)
     {
@@ -54,14 +55,12 @@ int main(int argc, char *argv[])
     return (status = ERR_NULLPARAMETER);
   
   diskName = argv[1];
-  filesystem = argv[2];
   
-  status = filesystemMount(diskName, filesystem);
+  vshMakeAbsolutePath(argv[2], filesystem);
 
+  status = filesystemMount(diskName, filesystem);
   if (status < 0)
     {
-      printf("Error %d mounting disk %s on %s\n", status, diskName,
-	     filesystem);
       errno = status;
       perror(argv[0]);
       return (status = errno);

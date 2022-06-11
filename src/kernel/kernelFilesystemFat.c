@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -83,22 +83,12 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
 
   // Read the boot sector
   status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, buffer);
-  // Make sure that the read was successful
   if (status < 0)
     {
       // Couldn't read the boot sector.  Make an error
-      kernelError(kernel_error, "Unable to gather information about the FAT "
-		  "filesystem from the boot block");
+      kernelError(kernel_error, "Unable to read the boot block");
       return (status);
     }
-
-  // It MUST be true that the signature word 0xAA55 occurs at offset
-  // 510 of the boot sector (regardless of the sector size of this device).  
-  // If it does not, then this is not only NOT a FAT boot sector, but 
-  // may not be a valid boot sector at all.
-  if ((buffer[510] != (unsigned char) 0x55) || 
-      (buffer[511] != (unsigned char) 0xAA))
-    return (status = ERR_BADDATA);
 
   // Return success
   return (status = 0);
@@ -1357,7 +1347,7 @@ static int shortenFile(fatInternalData *fatData, kernelFileEntry *entry,
     return (status = 0);
 
   // Get the private FAT data structure attached to this file entry
-  entryData = (fatEntryData *) entry->fileEntryData;
+  entryData = (fatEntryData *) entry->driverData;
   
   if (entryData == NULL)
     return (status = ERR_NODATA);
@@ -1833,7 +1823,7 @@ static int fillDirectory(kernelFileEntry *currentDir,
         realEntry = kernelFileResolveLink(listItemPointer);
 
       // Get the entry's data
-      entryData = (fatEntryData *) realEntry->fileEntryData;
+      entryData = (fatEntryData *) realEntry->driverData;
       if (entryData == NULL)
 	{
 	  kernelError(kernel_error, "File entry has no private filesystem "
@@ -2040,7 +2030,7 @@ static int checkFileChain(fatInternalData *fatData, kernelFileEntry *checkFile)
   unsigned allocatedClusters = 0;
 
   // Get the entry's data
-  entryData = (fatEntryData *) checkFile->fileEntryData;
+  entryData = (fatEntryData *) checkFile->driverData;
 
   if (entryData == NULL)
     {
@@ -2121,7 +2111,7 @@ static int releaseEntryClusters(fatInternalData *fatData,
   fatEntryData *entryData = NULL;
 
   // Get the entry's data
-  entryData = (fatEntryData *) deallocateFile->fileEntryData;
+  entryData = (fatEntryData *) deallocateFile->driverData;
 
   if (entryData == NULL)
     {
@@ -2177,7 +2167,7 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
   unsigned count;
 
   // Get the entry's data
-  entryData = (fatEntryData *) writeFile->fileEntryData;
+  entryData = (fatEntryData *) writeFile->driverData;
 
   if (entryData == NULL)
     {
@@ -2451,7 +2441,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
   int count;
   
   // Get the entry's data
-  entryData = (fatEntryData *) theFile->fileEntryData;
+  entryData = (fatEntryData *) theFile->driverData;
   if (entryData == NULL)
     {
       kernelError(kernel_error, "File has no private filesystem data");
@@ -2581,7 +2571,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
       if (listItemPointer != theFile)
 	{
 	  // Get the list item's data
-	  listItemData = (fatEntryData *) listItemPointer->fileEntryData;
+	  listItemData = (fatEntryData *) listItemPointer->driverData;
 	  if (listItemData == NULL)
 	    {
 	      kernelError(kernel_error, "File has no private filesystem "
@@ -2646,8 +2636,7 @@ static int scanDirectory(fatInternalData *fatData,
   fatEntryData *entryData = NULL;
 
   // Manufacture some "." and ".." entries
-  status = kernelFileMakeDotDirs(filesystem, currentDir->parentDirectory,
- 				 currentDir);
+  status = kernelFileMakeDotDirs(currentDir->parentDirectory, currentDir);
   if (status < 0)
     kernelError(kernel_warn, "Unable to create '.' and '..' directory "
  		"entries");
@@ -2702,7 +2691,7 @@ static int scanDirectory(fatInternalData *fatData,
 
       // Get the entry data structure.  This should have been created by
       // a call to our NewEntry function by the kernelFileNewEntry call.
-      entryData = (fatEntryData *) newItem->fileEntryData;
+      entryData = (fatEntryData *) newItem->driverData;
       if (entryData == NULL)
 	{
 	  kernelError(kernel_error, "Entry has no private filesystem data");
@@ -2897,7 +2886,7 @@ static int read(fatInternalData *fatData, kernelFileEntry *theFile,
   unsigned count;
 
   // Get the entry's data
-  entryData = (fatEntryData *) theFile->fileEntryData;
+  entryData = (fatEntryData *) theFile->driverData;
   if (entryData == NULL)
     {
       kernelError(kernel_error, "Entry has no data");
@@ -3098,7 +3087,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
       // The only thing the read routine needs in this data structure
       // is the starting cluster number.
       dummyEntryData.startCluster = fatData->rootDirClusterF32;
-      dummyEntry.fileEntryData = (void *) &dummyEntryData;
+      dummyEntry.driverData = (void *) &dummyEntryData;
 
       // Go.
       status = read(fatData, &dummyEntry, 0, rootDirBlocks, dirBuffer);
@@ -3117,7 +3106,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
 
   // Get the entry data structure.  This should have been created by
   // a call to our NewEntry function by the kernelFileNewEntry call.
-  rootDirData = (fatEntryData *) rootDir->fileEntryData;
+  rootDirData = (fatEntryData *) rootDir->driverData;
   if (rootDirData == NULL)
     {
       kernelError(kernel_error, "Entry has no private data");
@@ -3280,7 +3269,7 @@ static int recursiveClusterChainCheck(kernelFilesystem *filesystem,
 
   // First, process the current entry
 
-  entryData = (fatEntryData *) entry->fileEntryData;
+  entryData = (fatEntryData *) entry->driverData;
 
   if ((entry->size == 0) || (entry->blocks == 0))
     {
@@ -3526,8 +3515,8 @@ int kernelFilesystemFatDetect(const kernelDisk *theDisk)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // We can start by reading the first sector of the volume
-  // (the "boot sector").
+  // We can start by reading the first sector of the volume (the "boot
+  // sector").
 
   // Call the function that reads the boot sector
   status = readBootSector((kernelDisk *) theDisk, bootSector);
@@ -3535,6 +3524,14 @@ int kernelFilesystemFatDetect(const kernelDisk *theDisk)
   if (status < 0)
     // Couldn't read the boot sector, or it was bad
     return (status);
+
+  // It MUST be true that the signature word 0xAA55 occurs at offset
+  // 510 of the boot sector (regardless of the sector size of this device).  
+  // If it does not, then this is not only NOT a FAT boot sector, but 
+  // may not be a valid boot sector at all.
+  if ((bootSector[510] != (unsigned char) 0x55) || 
+      (bootSector[511] != (unsigned char) 0xAA))
+    return (status = 0);
 
   // What if we cannot be sure that this is a FAT filesystem?  In the 
   // interest of data integrity, we will decline the invitation to use 
@@ -4210,7 +4207,7 @@ int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry
-  if (newEntry->fileEntryData != NULL)
+  if (newEntry->driverData != NULL)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);
@@ -4244,7 +4241,7 @@ int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
   entryData = freeEntryDatas;
   freeEntryDatas = (fatEntryData *) entryData->next;
   numFreeEntryDatas -= 1;
-  newEntry->fileEntryData = (void *) entryData;
+  newEntry->driverData = (void *) entryData;
 
   // Return success
   return (status = 0);
@@ -4271,7 +4268,7 @@ int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
       return (status = ERR_NULLPARAMETER);
     }
 
-  entryData = (fatEntryData *) inactiveEntry->fileEntryData;
+  entryData = (fatEntryData *) inactiveEntry->driverData;
   if (entryData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
@@ -4288,7 +4285,7 @@ int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
   numFreeEntryDatas += 1;
 
   // Remove the reference
-  inactiveEntry->fileEntryData = NULL;
+  inactiveEntry->driverData = NULL;
 
   // Return success
   return (status = 0);
@@ -4337,7 +4334,7 @@ int kernelFilesystemFatReadFile(kernelFileEntry *theFile, unsigned blockNum,
 
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (theFile->fileEntryData == NULL)
+  if (theFile->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_NODATA);
@@ -4402,7 +4399,7 @@ int kernelFilesystemFatWriteFile(kernelFileEntry *theFile, unsigned blockNum,
 
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (theFile->fileEntryData == NULL)
+  if (theFile->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_NODATA);
@@ -4455,7 +4452,7 @@ int kernelFilesystemFatCreateFile(kernelFileEntry *theFile)
       
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (theFile->fileEntryData == NULL)
+  if (theFile->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_NODATA);
@@ -4521,7 +4518,7 @@ int kernelFilesystemFatDeleteFile(kernelFileEntry *theFile, int secure)
     return (status = ERR_BADDATA);
 
   // Get the private FAT data structure attached to this file entry
-  entryData = (fatEntryData *) theFile->fileEntryData;
+  entryData = (fatEntryData *) theFile->driverData;
   if (entryData == NULL)
     {
       kernelError(kernel_error, "File has no private filesystem data");
@@ -4581,7 +4578,7 @@ int kernelFilesystemFatFileMoved(kernelFileEntry *entry)
 
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (entry->fileEntryData == NULL)
+  if (entry->driverData == NULL)
     {
       kernelError(kernel_error, "File has no private filesystem data");
       return (status = ERR_NODATA);
@@ -4626,7 +4623,7 @@ int kernelFilesystemFatReadDir(kernelFileEntry *directory)
 
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (directory->fileEntryData == NULL)
+  if (directory->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_NODATA);
@@ -4651,7 +4648,7 @@ int kernelFilesystemFatReadDir(kernelFileEntry *directory)
     return (status = ERR_NOTADIR);
 
   // Get the directory entry's data
-  entryData = (fatEntryData *) directory->fileEntryData;
+  entryData = (fatEntryData *) directory->driverData;
 
   // Now we can go about scanning the directory.
 
@@ -4727,7 +4724,7 @@ int kernelFilesystemFatWriteDir(kernelFileEntry *directory)
     }
 
   // Get the private FAT data structure attached to this file entry
-  entryData = (fatEntryData *) directory->fileEntryData;
+  entryData = (fatEntryData *) directory->driverData;
   if (entryData == NULL)
     {
       kernelError(kernel_error, "NULL private file data");
@@ -4868,7 +4865,7 @@ int kernelFilesystemFatMakeDir(kernelFileEntry *directory)
 
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (directory->fileEntryData == NULL)
+  if (directory->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_NODATA);
@@ -4909,7 +4906,7 @@ int kernelFilesystemFatMakeDir(kernelFileEntry *directory)
   directory->size = (fatData->sectorsPerCluster * fatData->bytesPerSector);
 
   // Set all the appropriate attributes in the directory's private data
-  dirData = directory->fileEntryData;
+  dirData = directory->driverData;
   dirData->attributes = (FAT_ATTRIB_ARCHIVE | FAT_ATTRIB_SUBDIR);
   dirData->res = 0;
   dirData->timeTenth = 0;
@@ -4959,7 +4956,7 @@ int kernelFilesystemFatRemoveDir(kernelFileEntry *directory)
     return (status = ERR_BADDATA);
 
   // Get the private FAT data structure attached to this file entry
-  entryData = (fatEntryData *) directory->fileEntryData;
+  entryData = (fatEntryData *) directory->driverData;
   if (entryData == NULL)
     {
       kernelError(kernel_error, "Directory has no private filesystem data");
@@ -5008,7 +5005,7 @@ int kernelFilesystemFatTimestamp(kernelFileEntry *theFile)
 
   // Make sure that there's a private FAT data structure attached to this
   // file entry
-  if (theFile->fileEntryData == NULL)
+  if (theFile->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_NODATA);
@@ -5029,7 +5026,7 @@ int kernelFilesystemFatTimestamp(kernelFileEntry *theFile)
     return (status = ERR_BADDATA);
 
   // Get the entry's data
-  entryData = (fatEntryData *) theFile->fileEntryData;
+  entryData = (fatEntryData *) theFile->driverData;
 
   // The only FAT-specific thing we're doing here is setting the 
   // 'archive' bit.

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 int kernelRtcDriverReadSeconds(void);
 int kernelRtcDriverReadMinutes(void);
 int kernelRtcDriverReadHours(void);
-int kernelRtcDriverReadDayOfWeek(void);
 int kernelRtcDriverReadDayOfMonth(void);
 int kernelRtcDriverReadMonth(void);
 int kernelRtcDriverReadYear(void);
@@ -37,7 +36,7 @@ int kernelRtcDriverReadYear(void);
 #define SECSREG 0  // Seconds register
 #define MINSREG 2  // Minutes register
 #define HOURREG 4  // Hours register
-#define DOTWREG 6  // Day of week register
+// #define DOTWREG 6  // (unused) Day of week register
 #define DOTMREG 7  // Day of month register
 #define MNTHREG 8  // Month register
 #define YEARREG 9  // Year register
@@ -49,7 +48,6 @@ static kernelRtcDriver defaultRtcDriver =
   kernelRtcDriverReadSeconds,
   kernelRtcDriverReadMinutes,
   kernelRtcDriverReadHours,
-  kernelRtcDriverReadDayOfWeek,
   kernelRtcDriverReadDayOfMonth,
   kernelRtcDriverReadMonth,
   kernelRtcDriverReadYear
@@ -142,13 +140,6 @@ int kernelRtcDriverReadHours(void)
 {
   // This function returns the hours value from the Real-Time clock.
   return (readRegister(HOURREG));
-}
-
-
-int kernelRtcDriverReadDayOfWeek(void)
-{
-  // This function returns the day value from the Real-Time clock.
-  return (readRegister(DOTWREG));
 }
 
 

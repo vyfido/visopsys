@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -1022,8 +1022,8 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.31' , 0
-LOADMSG2	db 'Copyright (C) 1998-2003 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.32' , 0
+LOADMSG2	db 'Copyright (C) 1998-2004 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0
 DEVDISK2	db ', ', 0

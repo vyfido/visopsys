@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     }
 
   // Print a message
-  printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2003 J. Andrew "
+  printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2004 J. Andrew "
 	 "McLaughlin\n\n");
 
   // Check privilege level

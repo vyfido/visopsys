@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -65,6 +65,7 @@ void *malloc(size_t);
 int rand(void);
 void *realloc(void *, size_t);
 void srand(unsigned int);
+int system(const char *);
 
 // For dealing with unimplemented functions
 #define not_implemented_void()   \
@@ -102,7 +103,6 @@ char *getenv(const char *);
 #define strtod(s, endptr) not_implemented_int()
 #define strtol(s, endptr, base) not_implemented_int()
 #define strtoul(s, endptr, base) not_implemented_uns()
-#define system(s) not_implemented_int()
 #define wcstombs(s, wcs, n) not_implemented_uns()
 #define wctomb(s, wchar) not_implemented_int()
 

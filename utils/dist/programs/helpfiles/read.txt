@@ -1,0 +1,12 @@
+
+ -- read --
+
+Read one or more files from disk into memory.
+
+Usage:
+  read <file1> [file2] [...]
+
+Each file name parameter will cause the file to be loaded from disk into
+memory.  This command has no practical purpose for most users.  It is
+primarily useful for filesystem testing.
+

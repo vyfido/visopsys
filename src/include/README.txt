@@ -97,10 +97,9 @@ mbstowcs                               ldiv
 mbtowc                                 malloc (sort of)
 qsort                                  rand
 realloc                                srand
-strtod
+strtod                                 system
 strtol
 strtoul
-system
 wcstombs
 wctomb
 

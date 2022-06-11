@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -170,30 +170,6 @@ int kernelRtcReadHours(void)
 
   // Call the driver function
   status = systemRtc->driver->driverReadHours();
-  return (status);
-}
-
-
-int kernelRtcReadDayOfWeek(void)
-{
-  // This is a generic routine for invoking the corresponding routine
-  // in a Real-Time Clock driver.  It takes no arguments and returns the
-  // result from the device driver call
-
-  int status = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Make sure the device driver 'read day-of-week' function has been installed
-  if (systemRtc->driver->driverReadDayOfWeek == NULL)
-    {
-      kernelError(kernel_error, "The device driver routine is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Call the driver function
-  status = systemRtc->driver->driverReadDayOfWeek();
   return (status);
 }
 
@@ -404,6 +380,21 @@ unsigned kernelRtcPackedTime(void)
 }
 
 
+int kernelRtcDayOfWeek(unsigned day, unsigned month, unsigned year)
+{
+  // This function, given a date value, returns the day of the week
+  // as 0-6, with 0 being Monday
+
+  if (month < 3)
+    {
+      month += 12;
+      year -= 1;
+    }
+
+  return (((((13 * month) + 3) / 5) + day + year + (year / 4) - (year / 100) + 
+	   (year / 400)) % 7);
+}
+
 int kernelRtcDateTime(struct tm *timeStruct)
 {
   // This function will fill out a 'tm' structure according to the current
@@ -425,7 +416,9 @@ int kernelRtcDateTime(struct tm *timeStruct)
   timeStruct->tm_mday = kernelRtcReadDayOfMonth();
   timeStruct->tm_mon = (kernelRtcReadMonth() - 1);
   timeStruct->tm_year = kernelRtcReadYear();
-  timeStruct->tm_wday = (kernelRtcReadDayOfWeek() - 1);
+  timeStruct->tm_wday =
+    kernelRtcDayOfWeek(timeStruct->tm_mday, (timeStruct->tm_mon + 1),
+		       timeStruct->tm_year);
   timeStruct->tm_yday = 0;  // unimplemented
   timeStruct->tm_isdst = 0; // We don't know anything about DST yet
 

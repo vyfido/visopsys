@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -101,8 +101,9 @@ ABSDRIVEROBJS	= build/kernelSysTimer.o \
 FILEOBJS	= build/kernelFilesystem.o \
 		build/kernelFile.o \
 		build/kernelFileStream.o \
+		build/kernelFilesystemExt.o \
 		build/kernelFilesystemFat.o \
-		build/kernelFilesystemExt.o
+		build/kernelFilesystemIso.o
 
 OBJS		= ${GLOBALOBJS} ${DRIVEROBJS} ${ABSDRIVEROBJS} \
 		${FILEOBJS}
@@ -247,7 +248,7 @@ build/kernelPS2MouseDriver.o: kernelPS2MouseDriver.c ${STDDEPS}
 build/kernelFloppyDriver.o: kernelFloppyDriver.c ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFloppyDriver.c -o $@
 
-build/kernelIdeDriver.o: kernelIdeDriver.c ${STDDEPS}
+build/kernelIdeDriver.o: kernelIdeDriver.c kernelIdeDriver.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelIdeDriver.c -o $@
 
 build/kernelRtcDriver.o: kernelRtcDriver.c ${STDDEPS}
@@ -319,8 +320,11 @@ build/kernelFile.o: kernelFile.c kernelFile.h ${STDDEPS}
 build/kernelFileStream.o: kernelFileStream.c kernelFileStream.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFileStream.c -o $@
 
+build/kernelFilesystemExt.o: kernelFilesystemExt.c kernelFilesystemExt.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelFilesystemExt.c -o $@
+
 build/kernelFilesystemFat.o: kernelFilesystemFat.c kernelFilesystemFat.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFilesystemFat.c -o $@
 
-build/kernelFilesystemExt.o: kernelFilesystemExt.c kernelFilesystemExt.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelFilesystemExt.c -o $@
+build/kernelFilesystemIso.o: kernelFilesystemIso.c kernelFilesystemIso.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelFilesystemIso.c -o $@

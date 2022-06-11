@@ -62,7 +62,9 @@ border="0" width="290" height="55"></strong></font></p>
 which is still -- and is continually -- in development.&nbsp; It consists of code created
 entirely from the ground up (i.e. no &quot;borrowed&quot; or &quot;supporting&quot; code).
 Visopsys has initially been designed to support PC-compatible computers.&nbsp; The source
-code is available under the terms of the <a href="gpl.html">GNU General Public License</a>.</big></p>
+code is available under the terms of the <a href="gpl.html">GNU General Public License</a>.&nbsp; 
+The libraries and include files are licensed under the terms of the
+<a href="lgpl.html">GNU Lesser General Public License</a>.</big></p>
 
 <p><big>The design and interface philosophies of Visopsys are driven by the fundamental
 goal of keeping some of the best features of other successful systems, while discarding
@@ -160,16 +162,18 @@ planned features -- only short- and medium term goals are listed here:</big></p>
   <li><big>Support for ELF and &quot;flat binary&quot; executable formats</big></li>
   <li><big>Filesystem support for:<br>
     </big>Virtual filesystem API<br>
+    Multiple mount points, multiple disk slices (partitions) on a single device<br>
     Buffered, asynchronous filesystem IO<br>
     Multi-threaded filesystem functions and device locking<br>
     12, 16, and 32-bit FAT filesystems (commonly used by DOS and Windows)<br>
-    Multiple mount points, multiple disk slices, or partitions, on a single device</li>
+  Read-only Ext2/Ext3 filesystems (commonly used by Linux)<br>
+    CD-ROM filesystems (ISO9660/Joliet)</li>
   <li><big>Abstracted loading and management of device drivers</big></li>
   <li><big>Native command line shell</big></li>
   <li><font size="4">Native installer program</font></li>
   <li><big>Runtime loader</big></li>
   <li><font size="4">Hardware d</font><big>evice support for:<br>
-    </big>Single 486, K6/MII/Pentium processor (or better)<br>
+    </big>Single  K6/MII/Pentium processor (or better)<br>
     <a href="memory-management.html">RAM above 64Mb</a><br>
     Programmable Interrupt Controller (PIC)<br>
     System timer chip<br>
@@ -177,10 +181,11 @@ planned features -- only short- and medium term goals are listed here:</big></p>
     Keyboard controller<br>
     Text console IO<br>
     Direct Memory Access (DMA) controller<br>
-    Floppy disk drives<br>
-    IDE hard disk drives<br>
-    VESA 2.0 or greater video cards with LFB<br>
-    PS2 mice</li>
+    Floppy disk drive<br>
+    IDE hard disk drive<br>
+    IDE CD-ROM<br>
+    VESA 2.0 or greater video card with LFB<br>
+    PS2 mouse</li>
 </ul>
 
 <p><big>In development: </big>
@@ -206,20 +211,19 @@ planned features -- only short- and medium term goals are listed here:</big></p>
   <li><big>Dynamically loaded/linked libraries</big></li>
   <li><big>Emulation of other operating systems' APIs</big></li>
   <li><big>Filesystem support for:<br>
-    </big>Ext2/Ext3 filesystems (commonly used by Linux)<br>
+    </big>Writable Ext2/Ext3<br>
     NTFS filesystems (commonly used by Windows NT/2000 and Linux)<br>
-    CD-ROM filesystems (ISO9660/Joliet)<br>
     (others, as demand dictates)</li>
   <li><big>Device support for:<br>
     </big>Multiple processors (multiprocessing)<br>
-    3DNow! and MMX processor extension<br>
+    3DNow! and MMX processor extensions<br>
     Plug and play<br>
     PCI bus devices<br>
-    Accelerated graphics cards<br>
+    Accelerated graphics card<br>
     Serial port (UART chip)<br>
-    CD-ROM devices<br>
-    Serial mice<br>
+    Serial mouse<br>
     Modem<br>
+    NDIS
     Network Interface Card (NIC)<br>
     Printers<br>
     (many others)<br>
@@ -234,8 +238,8 @@ planned features -- only short- and medium term goals are listed here:</big></p>
 <p><strong><big>A TEAM OF HIGHLY SKILLED PROGRAMMERS</big></strong></p>
 
 <p><big>Who's working on Visopsys?&nbsp; It's a very small team.&nbsp;
-<a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>: 30 year
-old programmer from <a href="http://www.cict.com/weather/live.htm">Calgary, Canada</a>.&nbsp;
+<a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>: 31 year
+old programmer from </big><font size="4">Calgary, Canada</font><big>.&nbsp;
 I have recently moved to London, UK, after a year in Boston and 2 years in Silicon Valley (San Jose, California). Like many other hobby OS writers, I build Visopsys in my
 spare time.</big></p>
 
@@ -265,10 +269,10 @@ software.<br>
 
 <p><strong><big>TRY VISOPSYS</big></strong></p>
 
-<p><big>Version 0.2 is now available.&nbsp; The binary
-version that you'll find on the <a href="../download/index.html">download page</a> is
-intended for anyone who wants to try Visopsys on their own computer. It can 
-install on a single floppy disk (no installing on your hard drive necessary).&nbsp; There's also
+<p><big>The binary
+version that you'll find on the <a href="../download/index.html">download page</a> 
+is intended for anyone who wants to try Visopsys on their own computer. It can 
+install on a single floppy disk, or on a hard disk partition.&nbsp; There's also
 a source code distribution on the same page, and there are also some screen shots <a
 href="screenshots.html">here</a>.<br>
 </big></p>
@@ -310,9 +314,6 @@ knowledge) to the success of this project: </big>
   <li><big>Tom Shanley &quot;<a
     href="http://www1.fatbrain.com/asp/bookinfo/bookinfo.asp?theisbn=020155447X">Protected
     Mode Software Architecture</a>&quot; (Addison-Wesley/Mindshare ISBN# 0-201-55447-X)</big></li>
-  <li><big>Bob Watson's (<a href="mailto:rhwatson@sympatico.ca">rhwatson@sympatico.ca</a>) MS-DOS7 Commands page at <a href="http://www3.sympatico.ca/rhwatson/dos7/">http://www3.sympatico.ca/rhwatson/dos7/</a>.
-    Visopsys' DOS/Windows installation tools wouldn't work as well as they do without the aid
-    of this site.</big></li>
 </ul>
 
 <p>&nbsp;</p>

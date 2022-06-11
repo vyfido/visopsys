@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -107,7 +107,7 @@
 
 #define kernelProcessorClearAddressCache(address) \
   __asm__ __volatile__ ("invlpg %0"               \
-                        : : "m" (*((char *) address)))
+                        : : "m" (*((char *)(address))))
 
 #define kernelProcessorGetCR3(variable)  \
   __asm__ __volatile__ ("movl %%cr3, %0" \
@@ -138,6 +138,26 @@
   __asm__ __volatile__ ("outb %%al, %%dx"   \
                         : : "a" (data), "d" (port))
 
+#define kernelProcessorRepInPort8(port, buffer, reads) \
+  __asm__ __volatile__ ("pushal \n\t"                  \
+			"pushfl \n\t"                  \
+                        "cli \n\t"                     \
+                        "cld \n\t"                     \
+                        "rep insb \n\t"                \
+                        "popfl \n\t"                   \
+			"popal"                        \
+                        : : "d" (port), "D" (buffer), "c" (reads))
+
+#define kernelProcessorRepOutPort8(port, buffer, writes) \
+  __asm__ __volatile__ ("pushal \n\t"                    \
+			"pushfl \n\t"                    \
+                        "cli \n\t"                       \
+                        "cld \n\t"                       \
+                        "rep outsb \n\t"                 \
+                        "popfl \n\t"                     \
+			"popal"                          \
+                        : : "d" (port), "S" (buffer), "c" (writes))
+
 #define kernelProcessorInPort16(port, data) \
   __asm__ __volatile__ ("inw %%dx, %%ax"    \
                         : "=a" (data) : "d" (port))
@@ -146,14 +166,14 @@
   __asm__ __volatile__ ("outw %%ax, %%dx"    \
                         : : "a" (data), "d" (port))
 
-#define kernelProcessorRepInPort16(port, buffer, reads)  \
-  __asm__ __volatile__ ("pushal \n\t"                    \
-			"pushfl \n\t"                    \
-                        "cli \n\t"                       \
-                        "cld \n\t"                       \
-                        "rep insw \n\t"                  \
-                        "popfl \n\t"                     \
-			"popal"                          \
+#define kernelProcessorRepInPort16(port, buffer, reads) \
+  __asm__ __volatile__ ("pushal \n\t"                   \
+			"pushfl \n\t"                   \
+                        "cli \n\t"                      \
+                        "cld \n\t"                      \
+                        "rep insw \n\t"                 \
+                        "popfl \n\t"                    \
+			"popal"                         \
                         : : "d" (port), "D" (buffer), "c" (reads))
 
 #define kernelProcessorRepOutPort16(port, buffer, writes) \

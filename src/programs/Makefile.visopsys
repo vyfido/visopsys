@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -43,12 +43,14 @@ PROGRAMS	= build/chkdisk \
 		build/vsh
 
 COMMANDS	= build/cat \
+		build/cdrom \
 		build/console \
 		build/cp \
 		build/date \
 		build/disks \
 		build/display \
 		build/find \
+		build/help \
 		build/kill \
 		build/loadfont \
 		build/logout \
@@ -123,6 +125,9 @@ build/blowup: blowup.c ${STDDEPS}
 build/cat: cat.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} cat.c -lvsh -lc -o $@
 
+build/cdrom: cdrom.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} cdrom.c -lc -o $@
+
 build/console: console.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} console.c -lc -lwindow -o $@
 
@@ -140,6 +145,9 @@ build/display: display.c ${STDDEPS}
 
 build/hello: hello.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} hello.c -lc -o $@
+
+build/help: help.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} help.c -lc -o $@
 
 build/find: find.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} find.c -lvsh -lc -o $@
@@ -172,7 +180,7 @@ build/more: more.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} more.c -lvsh -lc -o $@
 
 build/mount: mount.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} mount.c -lc -o $@
+	${CC} ${INCLUDES} ${OPTS} mount.c -lvsh -lc -o $@
 
 build/move: move.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} move.c -lvsh -lc -o $@
@@ -217,7 +225,7 @@ build/touch: touch.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} touch.c -lvsh -lc -o $@
 
 build/umount: umount.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} umount.c -lc -o $@
+	${CC} ${INCLUDES} ${OPTS} umount.c -lvsh -lc -o $@
 
 build/uname: uname.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} uname.c -lc -o $@

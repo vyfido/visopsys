@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -129,6 +129,7 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskGetPhysicalInfo, kernelDiskGetPhysicalInfo, 1, PRIVILEGE_USER },
   { _fnum_diskGetPartType, kernelDiskGetPartType, 2, PRIVILEGE_USER },
   { _fnum_diskGetPartTypes, kernelDiskGetPartTypes, 0, PRIVILEGE_USER },
+  { _fnum_diskSetDoorState, kernelDiskSetDoorState, 2, PRIVILEGE_USER },
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
   { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
   { _fnum_diskReadAbsoluteSectors, kernelDiskReadAbsoluteSectors,
@@ -266,7 +267,7 @@ static kernelFunctionIndex rtcFunctionIndex[] = {
   { _fnum_rtcReadSeconds, kernelRtcReadSeconds, 0, PRIVILEGE_USER },
   { _fnum_rtcReadMinutes, kernelRtcReadMinutes, 0, PRIVILEGE_USER },
   { _fnum_rtcReadHours, kernelRtcReadHours, 0, PRIVILEGE_USER },
-  { _fnum_rtcReadDayOfWeek, kernelRtcReadDayOfWeek, 0, PRIVILEGE_USER },
+  { _fnum_rtcDayOfWeek, kernelRtcDayOfWeek, 3, PRIVILEGE_USER },
   { _fnum_rtcReadDayOfMonth, kernelRtcReadDayOfMonth, 0, PRIVILEGE_USER },
   { _fnum_rtcReadMonth, kernelRtcReadMonth, 0, PRIVILEGE_USER },
   { _fnum_rtcReadYear, kernelRtcReadYear, 0, PRIVILEGE_USER },

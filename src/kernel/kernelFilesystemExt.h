@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -274,7 +274,6 @@ int kernelFilesystemExtFormat(kernelDisk *, const char *, const char *, int);
 int kernelFilesystemExtCheck(kernelFilesystem *, int, int);
 int kernelFilesystemExtDefragment(kernelFilesystem *);
 int kernelFilesystemExtMount(kernelFilesystem *);
-int kernelFilesystemExtSync(kernelFilesystem *);
 int kernelFilesystemExtUnmount(kernelFilesystem *);
 unsigned kernelFilesystemExtGetFreeBytes(kernelFilesystem *);
 int kernelFilesystemExtNewEntry(kernelFileEntry *);

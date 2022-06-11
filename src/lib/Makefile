@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ##  
 ##  This library is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU Lesser General Public License as published by
@@ -30,7 +30,7 @@ OPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
 		-mcpu=pentium -fno-strength-reduce -pipe -Wall -Werror
 
 INCLUDES	= -I../include
-STDDEP		= Makefile
+STDDEP		= Makefile shared/*
 
 CTYPEOBJS	= build/isalnum.o \
 		build/isalpha.o \
@@ -118,6 +118,7 @@ STDLIBOBJS	= build/abort.o \
 		build/rand.o \
 		build/realloc.o \
 		build/srand.o \
+		build/system.o \
 		build/utoa.o \
 		build/xtoi.o
 
@@ -432,6 +433,9 @@ build/realloc.o: realloc.c ../include/stdlib.h ${STDDEP}
 
 build/srand.o: srand.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c srand.c -o $@
+
+build/system.o: system.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c system.c -o $@
 
 build/utoa.o: utoa.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c utoa.c -o $@

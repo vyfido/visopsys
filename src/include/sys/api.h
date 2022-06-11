@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -105,10 +105,11 @@ extern int visopsys_in_kernel;
 #define _fnum_diskGetPhysicalInfo                    2006
 #define _fnum_diskGetPartType                        2007
 #define _fnum_diskGetPartTypes                       2008
-#define _fnum_diskReadSectors                        2009
-#define _fnum_diskWriteSectors                       2010
-#define _fnum_diskReadAbsoluteSectors                2011
-#define _fnum_diskWriteAbsoluteSectors               2012
+#define _fnum_diskSetDoorState                       2009
+#define _fnum_diskReadSectors                        2010
+#define _fnum_diskWriteSectors                       2011
+#define _fnum_diskReadAbsoluteSectors                2012
+#define _fnum_diskWriteAbsoluteSectors               2013
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -190,7 +191,7 @@ extern int visopsys_in_kernel;
 #define _fnum_rtcReadSeconds                         8000
 #define _fnum_rtcReadMinutes                         8001
 #define _fnum_rtcReadHours                           8002
-#define _fnum_rtcReadDayOfWeek                       8003
+#define _fnum_rtcDayOfWeek                           8003
 #define _fnum_rtcReadDayOfMonth                      8004
 #define _fnum_rtcReadMonth                           8005
 #define _fnum_rtcReadYear                            8006
@@ -841,6 +842,12 @@ static inline partitionType *diskGetPartTypes(void)
   return ((partitionType *) sysCall_0(_fnum_diskGetPartTypes));
 }
 
+static inline int diskSetDoorState(const char *name, int state)
+{
+  // Proto: int kernelDiskSetDoorState(const char *, int);
+  return (sysCall_2(_fnum_diskSetDoorState, (void *) name, (void *) state));
+}
+
 static inline int diskReadSectors(const char *name, unsigned sect,
 				  unsigned count, void *buf)
 {
@@ -1354,10 +1361,11 @@ static inline int rtcReadHours(void)
   return (sysCall_0(_fnum_rtcReadHours));
 }
 
-static inline int rtcReadDayOfWeek(void)
+static inline int rtcDayOfWeek(unsigned day, unsigned month, unsigned year)
 {
-  // Proto: int kernelRtcReadDayOfWeek(void);
-  return (sysCall_0(_fnum_rtcReadDayOfWeek));
+  // Proto: int kernelRtcDayOfWeek(unsigned, unsigned, unsigned);
+  return (sysCall_3(_fnum_rtcDayOfWeek, (void *) day, (void *) month,
+		    (void *) year));
 }
 
 static inline int rtcReadDayOfMonth(void)

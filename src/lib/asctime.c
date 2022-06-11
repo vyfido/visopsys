@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,10 +39,10 @@ char *asctime(const struct tm *timePtr)
   // ctime() time format:
   // "Wed Jun 30 21:49:08 1993\n"
 
-  char *weekDay[] = { "Mon ", "Tue ", "Wed ", "Thu ", "Fri ", 
-		      "Sat ", "Sun "};
-  char *month[] = { "Jan ", "Feb ", "Mar ", "Apr ", "May ", "Jun ", 
-		    "Jul ", "Aug ", "Sep ", "Oct ", "Nov ", "Dec " };
+  static char *weekDay[] = { "Mon ", "Tue ", "Wed ", "Thu ", "Fri ", 
+			     "Sat ", "Sun "};
+  static char *month[] = { "Jan ", "Feb ", "Mar ", "Apr ", "May ", "Jun ", 
+			   "Jul ", "Aug ", "Sep ", "Oct ", "Nov ", "Dec " };
   static char timeString[25];
 
   // Make sure timePtr is not NULL

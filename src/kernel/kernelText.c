@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -546,9 +546,6 @@ int kernelTextStreamPrint(kernelTextOutputStream *outputStream,
 
   if ((outputStream == NULL) || (output == NULL))
     return (status = ERR_INVALID);
-
-  if (outputStream->outputDriver == NULL)
-    while(1);
 
   // We will call the text stream output driver routine with the 
   // characters we were passed

@@ -1,8 +1,7 @@
 #!/bin/csh -f
-
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ##
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -23,5 +22,5 @@
 
 # Echoes the release number of Visopsys to the stdout
 
-echo "0.31"
+echo "0.32"
 exit 0

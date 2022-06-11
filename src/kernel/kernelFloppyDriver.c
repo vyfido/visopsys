@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,18 +21,24 @@
 
 // Driver for standard 3.5" floppy disks
 
-#include "kernelDriverManagement.h" // Contains my prototypes
-#include "kernelDma.h"
+#include "kernelDriverManagement.h"
 #include "kernelParameters.h"
 #include "kernelProcessorX86.h"
 #include "kernelMemoryManager.h"
 #include "kernelPageManager.h"
+#include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelLock.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 
+int kernelFloppyDriverRegisterDevice(void *);
+int kernelFloppyDriverReset(int);
+int kernelFloppyDriverRecalibrate(int);
+int kernelFloppyDriverSetMotorState(int, int);
+int kernelFloppyDriverDiskChanged(int);
+int kernelFloppyDriverReadSectors(int, unsigned, unsigned, void *);
+int kernelFloppyDriverWriteSectors(int, unsigned, unsigned, void *);
 void kernelFloppyDriverReceiveInterrupt(void);
 
 // Error codes and messages
@@ -52,6 +58,15 @@ void kernelFloppyDriverReceiveInterrupt(void);
 #define FLOPPY_BADADDRESSMARK     13
 #define FLOPPY_TIMEOUT            14
 #define FLOPPY_UNKNOWN            15
+
+typedef volatile struct {
+  unsigned headLoad;   // Head load timer
+  unsigned headUnload; // Head unload timer
+  unsigned stepRate;   // Step rate timer
+  unsigned dataRate;   // Data rate
+  unsigned gapLength;  // Gap length between sectors
+
+} floppyDriveData;
 
 static char *errorMessages[] = {
   "Abnormal termination - command did not complete",
@@ -85,6 +100,20 @@ static volatile unsigned char statusRegister3;
 // An area for doing floppy disk DMA transfers (physically aligned, etc)
 static volatile void *xFerPhysical = NULL;
 static volatile void *xFer = NULL;
+
+static kernelDiskDriver defaultFloppyDriver =
+{
+  NULL, // driverDetect
+  kernelFloppyDriverRegisterDevice,
+  kernelFloppyDriverReset,
+  kernelFloppyDriverRecalibrate,
+  kernelFloppyDriverSetMotorState,
+  NULL, // driverLockState
+  NULL, // driverDoorState
+  kernelFloppyDriverDiskChanged,
+  kernelFloppyDriverReadSectors,
+  kernelFloppyDriverWriteSectors,
+};
 
 
 static void commandWrite(unsigned char cmd)
@@ -285,9 +314,12 @@ static void specify(unsigned driveNum)
   // about the specified drive.
 
   unsigned char commandByte;
+  floppyDriveData *floppyData = (floppyDriveData *)
+    floppies[driveNum]->driverData;
 
   // Construct the data rate byte
-  commandByte = (unsigned char) floppies[driveNum]->dataRate;
+  commandByte = (unsigned char)
+    ((floppyDriveData *)(floppies[driveNum]->driverData))->dataRate;
   kernelProcessorOutPort8(0x03F7, commandByte);
   kernelProcessorDelay();
 
@@ -296,12 +328,12 @@ static void specify(unsigned driveNum)
   commandWrite(commandByte);
 
   // Construct the step rate/head unload byte
-  commandByte = (unsigned char) ((floppies[driveNum]->stepRate << 4) |
-				 (floppies[driveNum]->headUnload & 0x0F));
+  commandByte = (unsigned char)
+    ((floppyData->stepRate << 4) | (floppyData->headUnload & 0x0F));
   commandWrite(commandByte);
 
   // Construct the head load time byte.  Make sure that DMA mode is enabled.
-  commandByte = (unsigned char) ((floppies[driveNum]->headLoad << 1) & 0xFE);
+  commandByte = (unsigned char) ((floppyData->headLoad << 1) & 0xFE);
   commandWrite(commandByte);
   
   // There is no status information or interrupt after this command
@@ -309,7 +341,7 @@ static void specify(unsigned driveNum)
 }
 
 
-static int setMotorStatus(unsigned driveNum, int onOff)
+static int setMotorState(int driveNum, int onOff)
 {
   // Turns the floppy motor on or off
 
@@ -352,7 +384,7 @@ static int setMotorStatus(unsigned driveNum, int onOff)
       kernelProcessorDelay();
     }
 
-  floppies[driveNum]->motorStatus = onOff;
+  floppies[driveNum]->motorState = onOff;
 
   return (0);
 }
@@ -386,10 +418,10 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
   selectDrive(driveNum);
   
   // We will have to make sure the motor is turned on
-  if (theDisk->motorStatus == 0)
+  if (theDisk->motorState == 0)
     {
       // Turn the drive motor on
-      setMotorStatus(driveNum, 1);
+      setMotorState(driveNum, 1);
       
       // We don't have to wait for the disk to spin up on a read operation;
       // It will start reading when it's good and ready.  If it's a write
@@ -538,7 +570,8 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       commandWrite(commandByte);
 
       // Construct the gap length byte
-      commandByte = (unsigned char) floppies[driveNum]->gapLength;
+      commandByte = (unsigned char)
+	((floppyDriveData *)(floppies[driveNum]->driverData))->gapLength;
       commandWrite(commandByte);
 
       // Construct the custom sector size byte
@@ -610,248 +643,6 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 }
 
 
-static int recalibrate(int driveNum)
-{
-  // Recalibrates the selected drive, causing it to seek to track 0
-
-  int status = 0;
-  unsigned char commandByte, driveByte;
-
-  if (driveNum >= MAXFLOPPIES)
-    return (status = ERR_BOUNDS);
-
-  // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
-  if (status < 0)
-    return (status);
-
-  // Select the drive
-  selectDrive(driveNum);
-
-  // Tell the interrupt-received routine to issue the "sense interrupt
-  // status" command after the operation
-  readStatusOnInterrupt = 1;
-  interruptReceived = 0;
-
-  // We have to send two byte commands to the controller
-  commandByte = (unsigned char) 0x07;
-  commandWrite(commandByte);
-  driveByte = (unsigned char) driveNum;
-  commandWrite(driveByte);
-
-  // Now wait for the operation to end
-  status = waitOperationComplete();
-
-  // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
-
-  if (status < 0)
-    return (status);
-
-  // Check error status
-  if ((statusRegister0 & 0xF8) != 0x20)
-    return (status = ERR_IO);
-
-  // Make sure that we are now at track 0
-  if (currentTrack == 0)
-    return (status = 0);
-  else
-    return (status = ERR_IO);
-}
-
-
-static int registerDevice(void *diskPointer)
-{
-  // This function should be called before any attempt is made to use the
-  // drive in question.  This allows us to store some information about this
-  // drive.
-
-  int status = 0;
-  kernelPhysicalDisk *newDisk = (kernelPhysicalDisk *) diskPointer;
-
-  if ((newDisk->sectorsPerCylinder == 0) || (newDisk->heads == 0))
-    // We do division operations with these values
-    return (status = ERR_INVALID);
-
-  // Save the pointer to the disk info
-  floppies[newDisk->deviceNumber] = newDisk;
-
-  recalibrate(newDisk->deviceNumber);
-
-  // Select the drive on the controller
-  selectDrive(newDisk->deviceNumber);
-
-  // Send the controller info about the drive.
-  specify(newDisk->deviceNumber);
-
-  return (status = 0);
-}
-
-
-static int reset(int driveNum)
-{
-  // Does a software reset of the requested floppy controller.  Always
-  // returns success.
-
-  int status = 0;
-  unsigned char data = 0;
-
-  if (driveNum >= MAXFLOPPIES)
-    return (status = ERR_BOUNDS);
-
-  // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
-  if (status < 0)
-    return (status);
-
-  // Select the drive
-  selectDrive(driveNum);
-
-  // Read the port's current state
-  kernelProcessorDelay();
-  kernelProcessorInPort8(0x03F2, data);
-
-  // Mask off the 'reset' bit (go to reset mode)
-  data &= 0xFB;
-
-  // Issue the command
-  kernelProcessorOutPort8(0x03F2, data);
-  kernelProcessorDelay();
-  kernelProcessorDelay();
-
-  // Now mask on the 'reset' bit (exit reset mode)
-  data |= 0x04;
-
-  // Issue the command
-  kernelProcessorOutPort8(0x03F2, data);
-  kernelProcessorDelay();
-
-  // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
-
-  return (status = 0);
-}
-
-
-static int motorOn(int driveNum)
-{
-  // Turns the requested floppy motor on.
-
-  int status = 0;
-
-  if (driveNum >= MAXFLOPPIES)
-    return (status = ERR_BOUNDS);
-
-  // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
-  if (status < 0)
-    return (status);
-
-  status = setMotorStatus(driveNum, 1);
-
-  // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
-
-  return (status);
-}
-
-
-static int motorOff(int driveNum)
-{
-  // Turns the requested floppy motor off.
-
-  int status = 0;
-
-  if (driveNum >= MAXFLOPPIES)
-    return (status = ERR_BOUNDS);
-
-  // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
-  if (status < 0)
-    return (status);
-
-  status = setMotorStatus(driveNum, 0);
-
-  // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
-
-  return (status);
-}
-
-
-static int diskChanged(int driveNum)
-{
-  // This routine determines whether the media in the floppy has changed.
-  // drive.  It takes no parameters, and returns 1 if the disk is missing
-  // or has been changed, 0 if it has not been changed, and  negative if it
-  // encounters some other type of error.
-
-  int status = 0;
-  unsigned char data = 0;
-
-  if (driveNum >= MAXFLOPPIES)
-    return (status = ERR_BOUNDS);
-
-  // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
-  if (status < 0)
-    return (status);
-
-  // Select the drive
-  selectDrive(driveNum);
-
-  // Now simply read port 03F7h.  Bit 7 is the only part that matters.
-  kernelProcessorDelay();
-  kernelProcessorInPort8(0x03F7, data);
-
-  // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
-
-  if (data & 0x80)
-    return (status = 1);
-  else
-    return (status = 0);
-}
-
-
-static int readSectors(int driveNum, unsigned logicalSector,
-		       unsigned numSectors, void *buffer)
-{
-  if (driveNum >= MAXFLOPPIES)
-    return (ERR_BOUNDS);
-
-  // This routine is a wrapper for the readWriteSectors routine.
-  return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
-			   1));  // Read operation
-}
-
-
-static int writeSectors(int driveNum, unsigned logicalSector,
-			unsigned numSectors, void *buffer)
-{
-  if (driveNum >= MAXFLOPPIES)
-    return (ERR_BOUNDS);
-
-  // This routine is a wrapper for the readWriteSectors routine.
-  return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
-			   0));  // Write operation
-}
-
-
-static kernelDiskDriver defaultFloppyDriver =
-{
-  NULL, // driverDetect
-  registerDevice,
-  reset,
-  recalibrate,
-  motorOn,
-  motorOff,
-  diskChanged,
-  readSectors,
-  writeSectors,
-};
-
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -901,6 +692,280 @@ int kernelFloppyDriverInitialize(void)
   readStatusOnInterrupt = 0;    
   
   return (kernelDriverRegister(floppyDriver, &defaultFloppyDriver));
+}
+
+
+int kernelFloppyDriverRegisterDevice(void *diskPointer)
+{
+  // This function should be called before any attempt is made to use the
+  // drive in question.  This allows us to store some information about this
+  // drive.
+
+  int status = 0;
+  kernelPhysicalDisk *newDisk = NULL;
+  floppyDriveData *floppyData = NULL;
+
+  // Check params
+  if (diskPointer == NULL)
+    {
+      kernelError(kernel_error, "NULL disk pointer");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  newDisk = (kernelPhysicalDisk *) diskPointer;
+
+  if ((newDisk->sectorsPerCylinder == 0) || (newDisk->heads == 0))
+    {
+      // We do division operations with these values
+      kernelError(kernel_error, "NULL sectors or heads value");
+      return (status = ERR_INVALID);
+    }
+
+  // Get memory for our private data
+  floppyData = kernelMalloc(sizeof(floppyDriveData));
+  if (floppyData == NULL)
+    {
+      kernelError(kernel_error, "Can't get memory for floppy drive data");
+      return (status = ERR_MEMORY);
+    }
+
+  switch(newDisk->biosType)
+    {
+    case 1:
+      // This is a 360 KB 5.25" Disk.  Yuck.
+      newDisk->description = "360 Kb 5.25\" floppy"; 
+      floppyData->stepRate = 0x0D;
+      floppyData->gapLength = 0x2A;
+      break;
+	
+    case 2:
+      // This is a 1.2 MB 5.25" Disk.  Yuck.
+      newDisk->description = "1.2 Mb 5.25\" floppy"; 
+      floppyData->stepRate = 0x0D;
+      floppyData->gapLength = 0x2A;
+      break;
+	
+    case 3:
+      // This is a 720 KB 3.5" Disk.  Yuck.
+      newDisk->description = "720 Kb 3.5\" floppy"; 
+      floppyData->stepRate = 0x0D;
+      floppyData->gapLength = 0x1B;
+      break;
+	
+    case 5:
+    case 6:
+      // This is a 2.88 MB 3.5" Disk.
+      newDisk->description = "2.88 Mb 3.5\" floppy"; 
+      floppyData->stepRate = 0x0A;
+      floppyData->gapLength = 0x1B;
+      break;
+      
+    default:
+      // Oh oh.  This is an unexpected value.  Make a warning and fall
+      // through to 1.44 MB.
+      kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
+		  "Asumming 1.44 Mb.", newDisk->deviceNumber,
+		  newDisk->biosType);
+    case 4:
+      // This is a 1.44 MB 3.5" Disk.
+      newDisk->description = "1.44 Mb 3.5\" floppy"; 
+      floppyData->stepRate = 0x0A;
+      floppyData->gapLength = 0x1B;
+      break;
+    }
+
+  // Generic, regardless of type
+  floppyData->headLoad = 0x02;
+  floppyData->headUnload = 0x0F;
+  floppyData->dataRate = 0;
+
+  // Attach the drive data to the disk
+  newDisk->driverData = (void *) floppyData;
+
+  // Save the pointer to the disk info
+  floppies[newDisk->deviceNumber] = newDisk;
+
+  // Select the drive on the controller
+  selectDrive(newDisk->deviceNumber);
+
+  // Send the controller info about the drive.
+  specify(newDisk->deviceNumber);
+
+  return (status = 0);
+}
+
+
+int kernelFloppyDriverReset(int driveNum)
+{
+  // Does a software reset of the requested floppy controller.  Always
+  // returns success.
+
+  int status = 0;
+  unsigned char data = 0;
+
+  if (driveNum >= MAXFLOPPIES)
+    return (status = ERR_BOUNDS);
+
+  // Wait for a lock on the controller
+  status = kernelLockGet((void *) &controllerLock);
+  if (status < 0)
+    return (status);
+
+  // Select the drive
+  selectDrive(driveNum);
+
+  // Read the port's current state
+  kernelProcessorDelay();
+  kernelProcessorInPort8(0x03F2, data);
+
+  // Mask off the 'reset' bit (go to reset mode)
+  data &= 0xFB;
+
+  // Issue the command
+  kernelProcessorOutPort8(0x03F2, data);
+  kernelProcessorDelay();
+  kernelProcessorDelay();
+
+  // Now mask on the 'reset' bit (exit reset mode)
+  data |= 0x04;
+
+  // Issue the command
+  kernelProcessorOutPort8(0x03F2, data);
+  kernelProcessorDelay();
+
+  // Unlock the controller
+  kernelLockRelease((void *) &controllerLock);
+
+  return (status = 0);
+}
+
+
+int kernelFloppyDriverRecalibrate(int driveNum)
+{
+  // Recalibrates the selected drive, causing it to seek to track 0
+
+  int status = 0;
+  unsigned char commandByte, driveByte;
+
+  if (driveNum >= MAXFLOPPIES)
+    return (status = ERR_BOUNDS);
+
+  // Wait for a lock on the controller
+  status = kernelLockGet((void *) &controllerLock);
+  if (status < 0)
+    return (status);
+
+  // Select the drive
+  selectDrive(driveNum);
+
+  // Tell the interrupt-received routine to issue the "sense interrupt
+  // status" command after the operation
+  readStatusOnInterrupt = 1;
+  interruptReceived = 0;
+
+  // We have to send two byte commands to the controller
+  commandByte = (unsigned char) 0x07;
+  commandWrite(commandByte);
+  driveByte = (unsigned char) driveNum;
+  commandWrite(driveByte);
+
+  // Now wait for the operation to end
+  status = waitOperationComplete();
+
+  // Unlock the controller
+  kernelLockRelease((void *) &controllerLock);
+
+  if (status < 0)
+    return (status);
+
+  // Check error status
+  if ((statusRegister0 & 0xF8) != 0x20)
+    return (status = ERR_IO);
+
+  // Make sure that we are now at track 0
+  if (currentTrack == 0)
+    return (status = 0);
+  else
+    return (status = ERR_IO);
+}
+
+
+int kernelFloppyDriverSetMotorState(int driveNum, int onOff)
+{
+  // Turns the floppy motor on or off
+
+  int status = 0;
+
+  // Wait for a lock on the controller
+  status = kernelLockGet((void *) &controllerLock);
+  if (status < 0)
+    return (status);
+
+  status = setMotorState(driveNum, onOff);
+
+  // Unlock the controller
+  kernelLockRelease((void *) &controllerLock);
+
+  return (status);
+}
+
+
+int kernelFloppyDriverDiskChanged(int driveNum)
+{
+  // This routine determines whether the media in the floppy has changed.
+  // drive.  It takes no parameters, and returns 1 if the disk is missing
+  // or has been changed, 0 if it has not been changed, and  negative if it
+  // encounters some other type of error.
+
+  int status = 0;
+  unsigned char data = 0;
+
+  if (driveNum >= MAXFLOPPIES)
+    return (status = ERR_BOUNDS);
+
+  // Wait for a lock on the controller
+  status = kernelLockGet((void *) &controllerLock);
+  if (status < 0)
+    return (status);
+
+  // Select the drive
+  selectDrive(driveNum);
+
+  // Now simply read port 03F7h.  Bit 7 is the only part that matters.
+  kernelProcessorDelay();
+  kernelProcessorInPort8(0x03F7, data);
+
+  // Unlock the controller
+  kernelLockRelease((void *) &controllerLock);
+
+  if (data & 0x80)
+    return (status = 1);
+  else
+    return (status = 0);
+}
+
+
+int kernelFloppyDriverReadSectors(int driveNum, unsigned logicalSector,
+				  unsigned numSectors, void *buffer)
+{
+  if (driveNum >= MAXFLOPPIES)
+    return (ERR_BOUNDS);
+
+  // This routine is a wrapper for the readWriteSectors routine.
+  return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
+			   1));  // Read operation
+}
+
+
+int kernelFloppyDriverWriteSectors(int driveNum, unsigned logicalSector,
+				   unsigned numSectors, void *buffer)
+{
+  if (driveNum >= MAXFLOPPIES)
+    return (ERR_BOUNDS);
+
+  // This routine is a wrapper for the readWriteSectors routine.
+  return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
+			   0));  // Write operation
 }
 
 

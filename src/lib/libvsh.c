@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -123,6 +123,7 @@ int vshFileList(const char *itemName)
   int numberFiles = 0;
   file theFile;
   unsigned int bytesFree = 0;
+  static char *cmdName = "list files";
 
   // Make sure file name isn't NULL
   if (itemName == NULL)
@@ -137,7 +138,7 @@ int vshFileList(const char *itemName)
   if (status < 0)
     {
       errno = status;
-      perror("vshFileList");
+      perror(cmdName);
       return (status);
     }
 
@@ -179,7 +180,7 @@ int vshFileList(const char *itemName)
       if ((status != ERR_NOSUCHFILE) && (status < 0))
 	{
 	  errno = status;
-	  perror("vshFileList");
+	  perror(cmdName);
 	  return (status);
 	}
 
@@ -240,6 +241,7 @@ int vshDumpFile(const char *fileName)
   int count;
   file theFile;
   char *fileBuffer = NULL;
+  static char *cmdName = "dump file";
 
   // Make sure file name isn't NULL
   if (fileName == NULL)
@@ -253,7 +255,7 @@ int vshDumpFile(const char *fileName)
   if (status < 0)
     {
       errno = status;
-      perror("vshFileDump");
+      perror(cmdName);
       return (status);
     }
 
@@ -273,7 +275,7 @@ int vshDumpFile(const char *fileName)
   if (fileBuffer == NULL)
     {
       errno = ERR_MEMORY;
-      perror("vshFileDump");
+      perror(cmdName);
       return (status = ERR_MEMORY);
     }
 
@@ -281,7 +283,7 @@ int vshDumpFile(const char *fileName)
   if (status < 0)
     {
       errno = status;
-      perror("vshFileDump");
+      perror(cmdName);
       memoryRelease(fileBuffer);
       return (status);
     }
@@ -290,7 +292,7 @@ int vshDumpFile(const char *fileName)
   if (status < 0)
     {
       errno = status;
-      perror("vshFileDump");
+      perror(cmdName);
       memoryRelease(fileBuffer);
       return (status);
     }
@@ -339,7 +341,7 @@ int vshDeleteFile(const char *deleteFile)
   if (status < 0)
     {
       errno = status;
-      perror("vshDeleteFile");
+      perror("delete file");
       return (status);
     }
 
@@ -353,7 +355,7 @@ int vshCopyFile(const char *srcFile, const char *destFile)
   // This command is like the built-in DOS "copy" command. 
   
   int status = 0;
-    
+ 
   // Make sure filenames aren't NULL
   if ((srcFile == NULL) || (destFile == NULL))
     return -1;
@@ -363,7 +365,7 @@ int vshCopyFile(const char *srcFile, const char *destFile)
   if (status < 0)
     {
       errno = status;
-      perror("vshCopyFile");
+      perror("copy file");
       return (status);
     }
  
@@ -387,7 +389,7 @@ int vshRenameFile(const char *srcFile, const char *destFile)
   if (status < 0)
     {
       errno = status;
-      perror("vshRenameFile");
+      perror("rename file");
       return (status);
     }
  
@@ -398,25 +400,8 @@ int vshRenameFile(const char *srcFile, const char *destFile)
 
 void vshMakeAbsolutePath(const char *orig, char *new)
 {
-  char cwd[MAX_PATH_LENGTH];
-  
-  // Get the current directory
-  multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      strcpy(new, cwd);
-      
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-      
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-  
-  return;
+  // Use shared code
+  #include "shared/abspath.c"
 }
 
 
@@ -554,60 +539,6 @@ void vshCompleteFilename(char *buffer)
 
 int vshSearchPath(const char *orig, char *new)
 {
-  // First of all, we won't search the path if this is an absolute
-  // pathname.  That would be pointless
-
-  int status = 0;
-  char path[1024];
-  int pathCount = 0;
-  char pathElement[MAX_PATH_NAME_LENGTH];
-  int pathElementCount = 0;
-  file theFile;
-  
-  if ((orig[0] == '/') || (orig[0] == '\\'))
-    return (status = ERR_NOSUCHFILE);
-
-  // Get the value of the PATH environment variable
-  status = environmentGet("PATH", path, 1024);
-  if (status < 0)
-    return (status);
-
-  pathCount = 0;
-
-  // We need to loop once for each element in the PATH.  Elements are
-  // separated by colon characters.  When we hit a NULL character we are
-  // at the end.
-  
-  while(path[pathCount] != '\0')
-    {
-      pathElementCount = 0;
-
-      // Copy characters from the path until we hit either a ':' or a NULL
-      while ((path[pathCount] != ':') && (path[pathCount] != '\0'))
-	{
-	  pathElement[pathElementCount++] = path[pathCount++];
-	  pathElement[pathElementCount] = '\0';
-	}
-      
-      if (path[pathCount] == ':')
-	pathCount++;
-
-      // Append the name to the path
-      strncat(pathElement, "/", 1);
-      strcat(pathElement, orig);
-
-      // Does the file exist in the PATH directory?
-      status = fileFind(pathElement, &theFile);
-      if (status >= 0)
-	{
-	  // Copy the full path into the buffer supplied
-	  strcpy(new, pathElement);
-
-	  // Return success
-	  return (status = 0);
-	}
-    }
-
-  // If we fall through, no dice
-  return (status = ERR_NOSUCHFILE);
+  // Use shared code
+  #include "shared/srchpath.c"
 }

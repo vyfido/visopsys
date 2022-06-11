@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -140,10 +140,7 @@ static void interpretCommand(char *commandLine)
 
   // Try to match the command with the list of known commands
   
-  if (!strcmp(argv[0], "help"))
-    interpretCommand("more /system/helpinfo.txt");
-  
-  else if (!strcmp(argv[0], "pwd"))
+  if (!strcmp(argv[0], "pwd"))
     printf("%s\n", cwd);
 
   else if (!strcmp(argv[0], "cd"))
@@ -394,12 +391,6 @@ static void simpleShell(void)
 
   // Start at the first command buffer
   commandBuffer = commandHistory[0];
-
-  // What is my process id?
-  myProcId = multitaskerGetCurrentProcessId();
-
-  // What is my privilege level?
-  myPrivilege = multitaskerGetProcessPrivilege(myProcId);
 
   // This program runs in an infinite loop
   while(1)
@@ -653,12 +644,49 @@ static void simpleShell(void)
 }
 
 
-int main(void)
+int main(int argc, char *argv[])
 {
   // This initializes the simple shell
 
   int status = 0;
+  char fileName[MAX_PATH_NAME_LENGTH];
+  file theFile;
 
+  // What is my process id?
+  myProcId = multitaskerGetCurrentProcessId();
+
+  // What is my privilege level?
+  myPrivilege = multitaskerGetProcessPrivilege(myProcId);
+
+  // If we have a -c option, we just execute the command
+  if ((argc > 2) && !strncmp(argv[1], "-c", 2))
+    {
+      // Operating in non-interactive mode.
+
+      // If the command is a RELATIVE pathname, we will try inserting the 
+      // pwd before it.  This has the effect of always putting '.' in
+      // the PATH
+      vshMakeAbsolutePath(argv[2], fileName);
+
+      // Does the file exist?
+      status = fileFind(fileName, &theFile);
+      if (status < 0)
+        {
+          // Not found in the current directory.  Let's try searching the
+          // PATH for the file instead
+          status = vshSearchPath(argv[2], fileName);
+          if (status < 0)
+            {
+              // Not found
+              errno = status;
+              perror(argv[0]);
+              return (status);
+            }
+        }
+        
+        return (status = loaderLoadAndExec(fileName, myPrivilege, (argc - 2),
+                                           &(argv[2]), 1 /* block */));
+    }
 
   // Make a message
   printf("\nVisopsys Shell.\n");
@@ -666,10 +694,9 @@ int main(void)
 
   // Get the starting current directory
   status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
   if (status < 0)
     {
-      printf("can't determine current directory\n");
+      printf("Can't determine current directory\n");
       return (-1);
     }
 

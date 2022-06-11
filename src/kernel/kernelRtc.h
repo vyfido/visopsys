@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,7 +32,6 @@ typedef struct
   int (*driverReadSeconds) (void);
   int (*driverReadMinutes) (void);
   int (*driverReadHours) (void);
-  int (*driverReadDayOfWeek) (void);
   int (*driverReadDayOfMonth) (void);
   int (*driverReadMonth) (void);
   int (*driverReadYear) (void);
@@ -54,13 +53,13 @@ int kernelRtcInitialize(void);
 int kernelRtcReadSeconds(void);
 int kernelRtcReadMinutes(void);
 int kernelRtcReadHours(void);
-int kernelRtcReadDayOfWeek(void);
 int kernelRtcReadDayOfMonth(void);
 int kernelRtcReadMonth(void);
 int kernelRtcReadYear(void);
 unsigned kernelRtcUptimeSeconds(void);
 unsigned kernelRtcPackedDate(void);
 unsigned kernelRtcPackedTime(void);
+int kernelRtcDayOfWeek(unsigned, unsigned, unsigned);
 int kernelRtcDateTime(struct tm *);
 
 #define _KERNELRTC_H

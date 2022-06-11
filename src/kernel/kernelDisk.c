@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -134,26 +134,6 @@ static int initialized = 0;
 // Circular dependency here
 static int readWriteSectors(kernelPhysicalDisk *, unsigned, unsigned, void *,
 			    int);
-
-
-static int recalibrate(kernelPhysicalDisk *theDisk)
-{
-  // This is the generic disk "recalibrate drive" routine which invokes 
-  // the driver routine designed for that function.  Normally it simply 
-  // returns the status as returned by the driver routine, unless
-  // there is an error, in which case it returns negative
-
-  int status = 0;
-
-  // Make sure the device driver recalibrate routine has been installed
-  if (theDisk->driver->driverRecalibrate == NULL)
-    {
-      kernelError(kernel_error, "Driver routine is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  return (theDisk->driver->driverRecalibrate(theDisk->deviceNumber));
-}
 
 
 #if (DISK_CACHE)
@@ -678,15 +658,13 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
     return (status = 0);
 
   // Make sure the motor isn't already off
-  if (!(physicalDisk->motorStatus))
+  if (!(physicalDisk->motorState))
     return (status = 0);
 
   // Now make sure the device driver motor off routine has been installed
-  if (physicalDisk->driver->driverMotorOff == NULL)
-    {
-      kernelError(kernel_error, "Driver routine is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
+  if (physicalDisk->driver->driverSetMotorState == NULL)
+    // Don't make this an error.  It's just not available in some drivers.
+    return (status = 0);
 
   // Lock the disk
   status = kernelLockGet(&(physicalDisk->lock));
@@ -694,12 +672,13 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
     return (status = ERR_NOLOCK);
 
   // Ok, now turn the motor off
-  status = physicalDisk->driver->driverMotorOff(physicalDisk->deviceNumber);
+  status = physicalDisk->driver
+    ->driverSetMotorState(physicalDisk->deviceNumber, 0);
   if (status < 0)
     return (status);
   else
     // Make note of the fact that the motor is off
-    physicalDisk->motorStatus = 0;
+    physicalDisk->motorState = 0;
 
   // Reset the 'idle since' value
   physicalDisk->idleSince = kernelSysTimerRead();
@@ -734,9 +713,9 @@ static void diskd(void)
 
 	  currentTime = kernelSysTimerRead();
 
-	  // If the disk has been idle for >= 2 seconds, sync it and turn
-	  // off the motor if applicable.
-	  if ((physicalDisk->fixedRemovable == removable) &&
+	  // If the disk is a floppy and has been idle for >= 2 seconds,
+	  // turn off the motor.
+	  if ((physicalDisk->type == floppy) &&
 	      (currentTime > (physicalDisk->idleSince + 40)))
 	    motorOff(physicalDisk);
 	}
@@ -776,7 +755,6 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
   // and kernelDiskWriteSectors which in turn call this routine.
 
   int status = 0;
-  int retryCount = 0;
   unsigned doSectors = 0;
   unsigned extraSectors = 0;
 
@@ -906,45 +884,27 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
 	}
 #endif // DISK_CACHE
 
-      // We attempt the basic read/write operation DISK_RETRY_ATTEMPTS times
-      for (retryCount = 1; retryCount <= DISK_RETRY_ATTEMPTS; retryCount ++)
+      // Call the read or write routine
+      if (mode & IOMODE_READ)
+	status = physicalDisk->driver
+	  ->driverReadSectors(physicalDisk->deviceNumber, logicalSector,
+			      doSectors, dataPointer);
+      else
+	status = physicalDisk->driver
+	  ->driverWriteSectors(physicalDisk->deviceNumber, logicalSector,
+			       doSectors, dataPointer);
+      if (status < 0)
 	{
-	  // Call the read or write routine
-	  if (mode & IOMODE_READ)
-	    status = physicalDisk->driver
-	      ->driverReadSectors(physicalDisk->deviceNumber, logicalSector,
-				  doSectors, dataPointer);
-	  else
-	    status = physicalDisk->driver
-	      ->driverWriteSectors(physicalDisk->deviceNumber, logicalSector,
-				   doSectors, dataPointer);
-	  if (status >= 0)
-	    break;
-
-	  // If it is a write-protect error, mark the disk as read only and
-	  // quit
+	  // If it is a write-protect error, mark the disk as read only
 	  if ((mode & IOMODE_WRITE) && (status == ERR_NOWRITE))
 	    {
 	      kernelError(kernel_error, "Read-only disk.");
 	      physicalDisk->readOnly = 1;
-	      return (status);
 	    }
+	  
+	  return (status);
+	}
 
-	  // Should we retry the operation?
-	  if (retryCount < DISK_RETRY_ATTEMPTS)
-	    {
-	      // Recalibrate the disk and try again
-	      if (recalibrate(physicalDisk) < 0)
-		// Something went wrong, so we can't continue.  Make 
-		// the error, with the status and error saved by the driver
-		return (status);
-	    }
-	  else
-	    // Make an error, with the status and error saved by the driver
-	    return (status);
-
-	} // retry loop
-      
 #if (DISK_CACHE)
       if ((!(mode & IOMODE_NOCACHE)) && (mode & IOMODE_READ))
 	{
@@ -994,19 +954,11 @@ int kernelDiskRegisterDevice(kernelPhysicalDisk *physicalDisk)
   int status = 0;
   int count;
 
-  // Check the disk structure and device driver before proceeding
-
-  if (physicalDisk == NULL)
+  // Check params
+  if ((physicalDisk == NULL) || (physicalDisk->driver == NULL))
     {
-      kernelError(kernel_error, "Disk structure is NULL");
+      kernelError(kernel_error, "Disk structure or driver is NULL");
       return (status = ERR_NULLPARAMETER);
-    }
-
-  // Make sure that the disk structure has a non-NULL driver
-  if (physicalDisk->driver == NULL)
-    {
-      kernelError(kernel_error, "Disk device driver is NULL");
-      return (status = ERR_NOSUCHDRIVER);
     }
 
   // Make sure the arrays of disk structures aren't full
@@ -1038,8 +990,8 @@ int kernelDiskRegisterDevice(kernelPhysicalDisk *physicalDisk)
 	return (status);
     }
   
-  // If it's removable, make sure the motor is off
-  if (physicalDisk->fixedRemovable == removable)
+  // If it's a floppy, make sure the motor is off
+  if (physicalDisk->type == floppy)
     motorOff(physicalDisk);
 
   // Reset the 'idle since' and 'last sync' values
@@ -1394,7 +1346,7 @@ int kernelDiskShutdown(void)
       physicalDisk = physicalDisks[count];
 
       if ((physicalDisk->fixedRemovable == removable) &&
-	  physicalDisk->motorStatus)
+	  physicalDisk->motorState)
 	motorOff(physicalDisk);
     }
 
@@ -1625,6 +1577,67 @@ kernelPhysicalDisk *kernelGetPhysicalDiskByName(const char *name)
 }
 
 
+int kernelDiskSetDoorState(const char *diskName, int state)
+{
+  // This routine is the user-accessible interface for opening or closing
+  // a removable disk device.
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // Get the disk structure
+  physicalDisk = kernelGetPhysicalDiskByName(diskName);
+  if (physicalDisk == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  // Make sure it's a removable disk
+  if (physicalDisk->fixedRemovable != removable)
+    {
+      kernelError(kernel_error, "Cannot open/close a non-removable disk");
+      return (status = ERR_INVALID);
+    }
+
+  // Reset the 'idle since' value
+  physicalDisk->idleSince = kernelSysTimerRead();
+  
+  // Make sure the operation is supported
+  if (physicalDisk->driver->driverSetDoorState == NULL)
+    {
+      kernelError(kernel_error, "Driver routine is NULL");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+  
+  // Lock the disk
+  status = kernelLockGet(&(physicalDisk->lock));
+  if (status < 0)
+    return (status = ERR_NOLOCK);
+
+#if (DISK_CACHE)
+  // Make sure the cache is invalidated
+  cacheInvalidate(physicalDisk);
+#endif
+
+  // Call the door control operation
+  status = physicalDisk->driver
+    ->driverSetDoorState(physicalDisk->deviceNumber, state);
+
+  // Reset the 'idle since' value
+  physicalDisk->idleSince = kernelSysTimerRead();
+
+  // Unlock the disk
+  kernelLockRelease(&(physicalDisk->lock));
+
+  return (status);
+}
+
+
 int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
 			  unsigned numSectors, void *dataPointer)
 {
@@ -1658,7 +1671,9 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
        (theDisk->startSector + theDisk->numSectors)))
     {
       // Make a kernelError.
-      kernelError(kernel_error, "Exceeding volume boundary");
+      kernelError(kernel_error, "Sector range %u-%u exceeds volume boundary "
+		  "of %u", logicalSector, (logicalSector + numSectors - 1),
+		  (theDisk->startSector + theDisk->numSectors));
       return (status = ERR_BOUNDS);
     }
 

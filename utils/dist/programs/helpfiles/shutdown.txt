@@ -1,0 +1,14 @@
+
+ -- shutdown --
+
+A command for shutting down the computer.
+
+Usage:
+  shutdown [-f]
+
+This command causes the system to shut down.  If the (optional) '-f'
+parameter is supplied, then 'reboot' will attempt to ignore errors and shut
+down regardless.  Use this flag with caution if filesystems do not appear to
+be unmounting correctly; you may need to back up unsaved data before
+shutting down.
+

@@ -1,5 +1,31 @@
 
 ---------------
+Version 0.32
+---------------
+
+  Overview: This is primarily a bugfix release, with CD-ROM and ISO9660
+  filesystem support added as new (alpha) features.
+
+- Added (multi-session capable) CD-ROM driver code
+- Fixed: The 'date' command day of the week was wrong.
+- Created a set of help text files for all of the commands, in a
+  /programs/helpfiles subdirectory.  The 'help' command is now an executable
+  which can provide command-specific help.
+- The 'vsh' shell now has a '-c' option so that it can be used to execute
+  commands, non-interactively.
+- Added a 'system' Visopsys C library function
+- Added a 'driver data' field in the physical disk object, so that the
+  different drivers can store device-specific data there.  Implemented the
+  floppy driver's 'detect' and 'register device' routines to remove some of
+  the floppy-specific stuff from the hardware detection code.
+- The 'mount' and 'umount' commands will now accept relative pathnames
+- Added an ISO9660 filesystem driver
+- Eliminated spurious floppy timeout error messages when booting from hard
+  disks.
+- Fixed: Unknown floppy drive types were causing hardware detection (and
+  therefore the whole startup) to fail.
+
+---------------
 Version 0.31
 ---------------
 

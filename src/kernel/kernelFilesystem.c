@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,6 +53,7 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
   // function should not be called by a user.  It should really only 
   // be called by the installDriver function.
 
+  int status = 0;
   kernelFilesystemDriver *driver = NULL;
   char *typeName = NULL;
 
@@ -63,23 +64,51 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
 
   // Check 'em
 
-  // Check for FAT
-  if (kernelDriverGetFat()->driverDetect(theDisk) == 1)
+  // If it's a CD-ROM, only check ISO
+  if ((((kernelPhysicalDisk *) theDisk->physical)->type == idecdrom) ||
+      (((kernelPhysicalDisk *) theDisk->physical)->type == scsicdrom))
     {
-      driver = kernelDriverGetFat();
-      typeName = driver->driverTypeName;
+      status = kernelDriverGetIso()->driverDetect(theDisk);
+      if (status < 0)
+	// Don't continue if it's an error
+	return (driver = NULL);
+      else if (status == 1)
+	{
+	  driver = kernelDriverGetIso();
+	  typeName = driver->driverTypeName;
+	  goto finished;
+	}
+    }
+  else
+    {
+      // Check for FAT
+      status = kernelDriverGetFat()->driverDetect(theDisk);
+      if (status < 0)
+	// Don't continue if it's an error
+	return (driver = NULL);
+      else if (status == 1)
+	{
+	  driver = kernelDriverGetFat();
+	  typeName = driver->driverTypeName;
+	  goto finished;
+	}
+
+      // Check for EXT
+      status = kernelDriverGetExt()->driverDetect(theDisk);
+      if (status < 0)
+	// Don't continue if it's an error
+	return (driver = NULL);
+      else if (status == 1)
+	{
+	  driver = kernelDriverGetExt();
+	  typeName = driver->driverTypeName;
+	  goto finished;
+	}
     }
 
-  // Check for EXT
-  else if (kernelDriverGetExt()->driverDetect(theDisk) == 1)
-    {
-      driver = kernelDriverGetExt();
-      typeName = driver->driverTypeName;
-    } 
+  typeName = "Unsupported";
 
-  else
-    typeName = "Unsupported";
-
+ finished:
   // Copy this preliminary filesystem type name into the disk structure.
   // The filesystem driver can change it if desired.
   strncpy((char *) theDisk->fsType, typeName, FSTYPE_MAX_NAMELENGTH);
@@ -201,19 +230,13 @@ static kernelFilesystem *getNewFilesystem(kernelDisk *theDisk)
   
   // Now install the filesystem driver functions
   status = installDriver(theFilesystem);
-
-  // Make sure it was successful
   if (status < 0)
-    {
-      kernelError(kernel_error, "Unable to install the filesystem driver");
-      releaseFilesystem(theFilesystem);
-      return (theFilesystem = NULL);
-    }
+    return (theFilesystem = NULL);
 
   // Looks like we were successful.  Increment the filesystem counter 
   // and Id counter
   filesystemCounter += 1;
-  filesystemIdCounter+= 1;
+  filesystemIdCounter += 1;
 
   // All set
   return (theFilesystem);
@@ -501,6 +524,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   char parentDirName[MAX_PATH_LENGTH];
   char mountDirName[MAX_NAME_LENGTH];
   kernelDisk *theDisk = NULL;
+  kernelPhysicalDisk *physicalDisk = NULL;
   kernelFilesystem *parentFilesystem = NULL;
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
@@ -526,6 +550,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
       return (status = ERR_NULLPARAMETER);
     }
+  physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
 
   // Fix up the path of the mount point
   status = kernelFileFixupPath(path, mountPoint);
@@ -589,11 +614,8 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   theFilesystem = getNewFilesystem(theDisk);
   if (theFilesystem == NULL)
-    {
-      kernelError(kernel_error, "Unable to get filesystem structure for "
-		  "mounting");
-      return (status = ERR_NOSUCHENTRY);
-    }
+    // Probably unable to determine the type of the filesystem
+    return (status = ERR_NOSUCHDRIVER);
   
   theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
@@ -694,6 +716,11 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	}
     }
 
+  // If the disk is removable and has a 'lock' function, lock it
+  if ((physicalDisk->fixedRemovable == removable) &&
+      (physicalDisk->driver->driverSetLockState != NULL))
+    physicalDisk->driver->driverSetLockState(physicalDisk->deviceNumber, 1);
+
   return (theFilesystem->filesystemNumber);
 }
 
@@ -710,6 +737,7 @@ int kernelFilesystemUnmount(const char *path)
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *mountPoint = NULL;
+  kernelPhysicalDisk *physicalDisk = NULL;
   int numberFilesystems = -1;
 
   // Do NOT unmount any filesystems until we have been initialized
@@ -796,15 +824,21 @@ int kernelFilesystemUnmount(const char *path)
     kernelError(kernel_warn, "Unable to sync disk \"%s\" after unmount",
 		theFilesystem->disk->name);
 
+  physicalDisk = (kernelPhysicalDisk *) theFilesystem->disk->physical;
+
   // If this is a removable disk, invalidate the disk cache
-  if (((kernelPhysicalDisk *) theFilesystem->disk->physical)
-      ->fixedRemovable == removable)
+  if (physicalDisk->fixedRemovable == removable)
     {
       status = kernelDiskInvalidateCache((char *) ((kernelPhysicalDisk *)
 				   theFilesystem->disk->physical)->name);
       if (status < 0)
 	kernelError(kernel_warn, "Unable to invalidate \"%s\" disk cache "
 		    "before mount", theFilesystem->disk->name);
+
+      // If it has an 'unlock' function, unlock it
+      if (physicalDisk->driver->driverSetLockState != NULL)
+	physicalDisk->driver->driverSetLockState(physicalDisk->deviceNumber,
+						 0);
     }
 
   status = releaseFilesystem(theFilesystem);

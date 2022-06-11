@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -193,50 +193,6 @@ static int enumerateFloppyDevices(void)
     {
       kernelInstallFloppyDriver(&floppyDevices[count]);
 
-      switch(systemInfo->fddInfo[count].type)
-	{
-	case 1:
-	  // This is a 360 KB 5.25" Disk.  Yuck.
-	  floppyDevices[count].description = "360 Kb 5.25\" floppy"; 
-	  floppyDevices[count].stepRate = 0x0D;
-	  floppyDevices[count].gapLength = 0x2A;
-	  break;
-	
-	case 2:
-	  // This is a 1.2 MB 5.25" Disk.  Yuck.
-	  floppyDevices[count].description = "1.2 Mb 5.25\" floppy"; 
-	  floppyDevices[count].stepRate = 0x0D;
-	  floppyDevices[count].gapLength = 0x2A;
-	  break;
-	
-	case 3:
-	  // This is a 720 KB 3.5" Disk.  Yuck.
-	  floppyDevices[count].description = "720 Kb 3.5\" floppy"; 
-	  floppyDevices[count].stepRate = 0x0D;
-	  floppyDevices[count].gapLength = 0x1B;
-	  break;
-	
-	case 4:
-	  // This is a 1.44 MB 3.5" Disk.
-	  floppyDevices[count].description = "1.44 Mb 3.5\" floppy"; 
-	  floppyDevices[count].stepRate = 0x0A;
-	  floppyDevices[count].gapLength = 0x1B;
-	  break;
-	
-	case 5:
-	  // This is a 2.88 MB 3.5" Disk.
-	  floppyDevices[count].description = "2.88 Mb 3.5\" floppy"; 
-	  floppyDevices[count].stepRate = 0x0A;
-	  floppyDevices[count].gapLength = 0x1B;
-	  break;
-	
-	default:
-	  // Oh oh.  This is an unexpected value.  Make an error.
-	  kernelError(kernel_error, "The disk type returned by the disk "
-		      "controller is unknown");
-	  return (status = ERR_INVALID);
-	}
-
       // The device name and filesystem type
       sprintf((char *) floppyDevices[count].name, "fd%d", count);
 
@@ -248,18 +204,15 @@ static int enumerateFloppyDevices(void)
       floppyDevices[count].numSectors = 
 	(floppyDevices[count].heads * floppyDevices[count].cylinders *
 	 floppyDevices[count].sectorsPerCylinder);
+      floppyDevices[count].biosType = systemInfo->fddInfo[count].type;
 
       // Some additional universal default values
       floppyDevices[count].type = floppy;
       floppyDevices[count].fixedRemovable = removable;
       floppyDevices[count].deviceNumber = count;
       floppyDevices[count].sectorSize = 512;
-      floppyDevices[count].headLoad = 0x02;
-      floppyDevices[count].headUnload = 0x0F;
-      floppyDevices[count].dataRate = 0;
       floppyDevices[count].dmaChannel = 2;
-      // Assume motor on for now
-      floppyDevices[count].motorStatus = 1;
+      // Assume motor off for now
 
       // Register the floppy disk device
       status = kernelDiskRegisterDevice(&floppyDevices[count]);
@@ -338,7 +291,7 @@ static int enumerateHardDiskDevices(void)
 	    }
 	  hardDiskDevices[numberHardDisks].bootLBA =
 	    systemInfo->hddInfo[numberHardDisks].bootLBA;
-	  hardDiskDevices[numberHardDisks].motorStatus = 1;
+	  hardDiskDevices[numberHardDisks].motorState = 1;
 
 	  // Register the hard disk device
 	  status = kernelDiskRegisterDevice(&hardDiskDevices[numberHardDisks]);

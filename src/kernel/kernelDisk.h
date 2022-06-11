@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,11 +28,10 @@
 #include "kernelLock.h"
 #include <sys/disk.h>
 
-#define DISK_CACHE 1
-#define DISK_CACHE_ALIGN (64 * 1024) // Convenient for floppies
-#define DISK_MAX_CACHE 1048576 // 1 Meg
-#define DISK_READAHEAD_SECTORS 32
-#define DISK_RETRY_ATTEMPTS 2
+#define DISK_CACHE              1
+#define DISK_CACHE_ALIGN        (64 * 1024) // Convenient for floppies
+#define DISK_MAX_CACHE          1048576 // 1 Meg
+#define DISK_READAHEAD_SECTORS  32
 
 typedef enum { addr_pchs, addr_lba } kernelAddrMethod;
 
@@ -45,8 +44,9 @@ typedef struct
   int (*driverRegisterDevice) (void *); // Pointer is a kernelPhysicalDisk *
   int (*driverReset) (int);
   int (*driverRecalibrate) (int);
-  int (*driverMotorOn) (int);
-  int (*driverMotorOff) (int);
+  int (*driverSetMotorState) (int, int);
+  int (*driverSetLockState) (int, int);
+  int (*driverSetDoorState) (int, int);
   int (*driverDiskChanged) (int);
   int (*driverReadSectors) (int, unsigned, unsigned, void *);
   int (*driverWriteSectors) (int, unsigned, unsigned, void *);
@@ -100,6 +100,7 @@ typedef volatile struct
   // This structure describes a physical disk device, as opposed to a
   // logical disk.
   
+  // Generic disk metadata
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
   int dmaChannel;
@@ -108,26 +109,25 @@ typedef volatile struct
   mediaType fixedRemovable;
   int readOnly;
 
+  // Generic geometry parameters
   unsigned heads;
   unsigned cylinders;
   unsigned sectorsPerCylinder;
   unsigned numSectors;
   unsigned sectorSize;
-  unsigned bootLBA;
-
-  // For floppies only
-  unsigned headLoad;   // Head load timer
-  unsigned headUnload; // Head unload timer
-  unsigned stepRate;   // Step rate timer
-  unsigned dataRate;   // Data rate
-  unsigned gapLength;  // Gap length between sectors
 
   // The logical disks residing on this physical disk
   kernelDisk logical[16];
   int numLogical;
 
+  // Misc
+  unsigned biosType;     // Needed for floppy detection
+  unsigned bootLBA;      // Needed for hard disk booting
+  unsigned lastSession;  // Needed for multisession CD-ROM
+  void *driverData;
   kernelLock lock;
-  int motorStatus;
+  int motorState;
+  int lockState;
   unsigned idleSince;
 
   kernelDiskDriver *driver;
@@ -160,6 +160,7 @@ int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);
 kernelDisk *kernelGetDiskByName(const char *);
 kernelPhysicalDisk *kernelGetPhysicalDiskByName(const char *);
+int kernelDiskSetDoorState(const char *, int);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskReadAbsoluteSectors(const char *, unsigned, unsigned, void *);

@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,6 @@
 ##  This is the Makefile for the Visopsys utilities.  
 
 
-# For the "all" target, we don't install Visopsys on anything
 all:
 	chmod +x *.sh
 	make -C src-mgmt all

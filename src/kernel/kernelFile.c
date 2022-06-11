@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -507,6 +507,9 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
   freeFileEntries = (kernelFileEntry *) theEntry->nextEntry;
   numFreeEntries -= 1;
 
+  // Clear it
+  kernelMemClear((void *) theEntry, sizeof(kernelFileEntry));
+
   // Set some default time/date values
   updateAllTimes(theEntry);
 
@@ -521,7 +524,11 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
 
   // OK, we just have to call the filesystem driver function
   if (theDriver->driverNewEntry != NULL)
-    theDriver->driverNewEntry(theEntry);
+    {
+      status = theDriver->driverNewEntry(theEntry);
+      if (status < 0)
+	return (theEntry = NULL);
+    }
 
   return (theEntry);
 }
@@ -541,7 +548,7 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
 
   // If there's some private filesystem data attached to the file entry
   // structure, we will need to release it.
-  if (theEntry->fileEntryData != NULL)
+  if (theEntry->driverData != NULL)
     {
       // Get the filesystem pointer from the file entry structure
       theFilesystem = theEntry->filesystem;
@@ -799,8 +806,7 @@ int kernelFileRemoveEntry(kernelFileEntry *entry)
 }
 
 
-int kernelFileMakeDotDirs(kernelFilesystem *filesystem,
-			  kernelFileEntry *parentDir, kernelFileEntry *dir)
+int kernelFileMakeDotDirs(kernelFileEntry *parentDir, kernelFileEntry *dir)
 {
   // This just makes the '.' and '..' links in a new directory
 
@@ -808,13 +814,13 @@ int kernelFileMakeDotDirs(kernelFilesystem *filesystem,
   kernelFileEntry *dotDir = NULL;
   kernelFileEntry *dotDotDir = NULL;
 
-  if ((filesystem == NULL) || (parentDir == NULL) || (dir == NULL))
+  if ((parentDir == NULL) || (dir == NULL))
     {
       kernelError(kernel_error, "NULL filesystem or directory parameter");
       return (status = ERR_NULLPARAMETER);
     }
 
-  dotDir = kernelFileNewEntry(filesystem);
+  dotDir = kernelFileNewEntry(dir->filesystem);
   if (dotDir == NULL)
     return (status = ERR_NOFREE);
 
@@ -826,7 +832,7 @@ int kernelFileMakeDotDirs(kernelFilesystem *filesystem,
 
   if (parentDir != dir)
     {
-      dotDotDir = kernelFileNewEntry(filesystem);
+      dotDotDir = kernelFileNewEntry(dir->filesystem);
 
       if (dotDotDir == NULL)
 	{
@@ -2066,7 +2072,7 @@ int kernelFileMakeDir(const char *path)
     }
 
   // Create the '.' and '..' entries inside the directory
-  kernelFileMakeDotDirs(theFilesystem, parent, newDir);
+  kernelFileMakeDotDirs(parent, newDir);
 
   // If the filesystem driver has a 'make dir' routine, call it.
   if (theDriver->driverMakeDir != NULL)

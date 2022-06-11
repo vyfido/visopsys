@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,13 +26,13 @@
 #include "kernelMalloc.h"
 #include "kernelMemoryManager.h"
 #include "kernelParameters.h"
+#include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
+#include "kernelText.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <stdio.h>
 
-#include "kernelText.h"
-#include "kernelMultitasker.h"
 
 static kernelMallocBlock *blockList = NULL;
 static kernelMallocBlock *firstUnusedBlock = NULL;
@@ -317,9 +317,8 @@ static int deallocateBlock(void *start)
   // Find an allocated (used) block and deallocate it.
 
   int status = 0;
-  kernelMallocBlock *block = NULL;
+  kernelMallocBlock *block = blockList;
 
-  block = blockList;
   while (block)
     {
       if ((block == firstUnusedBlock) ||
@@ -368,9 +367,9 @@ void *_kernelMalloc(char *function, unsigned size)
   FUNCTION = function;
 
   // Make sure we do allocations on nice boundaries
-  if (size % sizeof(unsigned))
-    size += (sizeof(unsigned) - (size % sizeof(unsigned)));
-
+  if (size % sizeof(void *))
+    size += (sizeof(void *) - (size % sizeof(void *)));
+  
   // Make sure there's enough heap memory.  This will get called the first
   // time we're invoked, as totalMemory will be zero.
   while (size > (totalMemory - usedMemory))

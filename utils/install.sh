@@ -1,8 +1,7 @@
 #!/bin/csh -f
-
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -125,11 +124,12 @@ echo Done
 echo -n "Copying miscellany...  "
 mkdir -p $MOUNTDIR/programs
 cp $PROGDIR/* $MOUNTDIR/programs/
+mkdir -p $MOUNTDIR/programs/helpfiles
+cp dist/programs/helpfiles/*.txt $MOUNTDIR/programs/helpfiles/
 mkdir -p $MOUNTDIR/system
 cp $KERNELDIR/kernelSymbols.txt $MOUNTDIR/system/
 cp dist/system/*.bmp $MOUNTDIR/system/
 cp dist/system/*.conf $MOUNTDIR/system/
-cp dist/system/*.txt $MOUNTDIR/system/
 cp ../COPYING.TXT $MOUNTDIR/system/
 
 sync

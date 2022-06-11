@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,7 +46,7 @@ typedef volatile struct
 
   // Misc
   void *filesystem;     // parent filesystem
-  void *fileEntryData;  // private fs-specific data
+  void *driverData;     // private fs-driver-specific data
   int openCount;
   kernelLock lock;
 
@@ -65,7 +65,7 @@ typedef volatile struct
 // filesystems.
 typedef enum
   {
-    unknown, Fat, Ext
+    unknown, Ext, Fat, Iso
   
   } kernelFileSysTypeEnum;
 
@@ -118,8 +118,9 @@ typedef struct
 } kernelFilesystemDriver;
 
 // The default driver initializations
-int kernelFilesystemFatInitialize(void);
 int kernelFilesystemExtInitialize(void);
+int kernelFilesystemFatInitialize(void);
+int kernelFilesystemIsoInitialize(void);
 
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemInitialize(void);

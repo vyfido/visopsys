@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,6 @@
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelProcessorX86.h"
 #include <sys/errors.h>
-
-#include "kernelText.h"
 
 
 int kernelDmaDriverOpenChannel(int, void *, int, int);

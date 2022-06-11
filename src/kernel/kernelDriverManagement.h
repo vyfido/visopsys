@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,8 +40,8 @@
 // An enumeration of driver types
 typedef enum {
   picDriver, sysTimerDriver, rtcDriver, dmaDriver, keyboardDriver,
-  mouseDriver, floppyDriver, ideDriver, graphicDriver, fatDriver, extDriver,
-  textConsoleDriver, graphicConsoleDriver
+  mouseDriver, floppyDriver, ideDriver, graphicDriver, extDriver, fatDriver,
+  isoDriver, textConsoleDriver, graphicConsoleDriver
 
 } kernelDriverType;
 
@@ -62,8 +62,9 @@ typedef struct
   kernelDiskDriver *floppyDriver;
   kernelDiskDriver *ideDriver;
   kernelGraphicDriver *graphicDriver;
-  kernelFilesystemDriver *fatDriver;
   kernelFilesystemDriver *extDriver;
+  kernelFilesystemDriver *fatDriver;
+  kernelFilesystemDriver *isoDriver;
   kernelTextOutputDriver *textConsoleDriver;
   kernelTextOutputDriver *graphicConsoleDriver;
 
@@ -81,8 +82,9 @@ void kernelInstallMouseDriver(kernelMouse *);
 void kernelInstallFloppyDriver(kernelPhysicalDisk *);
 void kernelInstallIdeDriver(kernelPhysicalDisk *);
 void kernelInstallGraphicDriver(kernelGraphicAdapter *);
-kernelFilesystemDriver *kernelDriverGetFat(void);
 kernelFilesystemDriver *kernelDriverGetExt(void);
+kernelFilesystemDriver *kernelDriverGetFat(void);
+kernelFilesystemDriver *kernelDriverGetIso(void);
 kernelTextOutputDriver *kernelDriverGetTextConsole(void);
 kernelTextOutputDriver *kernelDriverGetGraphicConsole(void);
 

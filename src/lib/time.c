@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,7 +43,7 @@ time_t time(time_t *t)
   struct tm time_struct;
   int count;
 
-  int month_days[] =
+  static int month_days[] =
   { 31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
     31, /* May */ 30, /* Jun */ 31, /* Jul */ 31, /* Aug */
     30, /* Sep */ 31, /* Aug */ 30 /* Nov */ };

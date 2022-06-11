@@ -1,0 +1,19 @@
+
+ -- vsh --
+
+The Visopsys Shell.
+
+Usage:
+  vsh [-c command]
+
+'vsh' is the Visopsys command line shell (interpreter).  In text mode the
+login program automatically launches an instance of vsh for you.  In graphics
+mode there is no 'default' command line shell, but clicking on the
+'Command Window' icon or running the 'window' command will create a window
+with an instance of vsh running inside it.
+
+Normally, vsh operates interactively.  However, if the (optional) -c
+parameter is supplied, vsh will execute the command that follows (you should
+put the command inside double-quotes (") if it contains spaces or tab
+characters.
+

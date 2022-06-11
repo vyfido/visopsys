@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -167,7 +167,6 @@ int kernelFilesystemFatFormat(kernelDisk *, const char *, const char *, int);
 int kernelFilesystemFatCheck(kernelFilesystem *, int, int);
 int kernelFilesystemFatDefragment(kernelFilesystem *);
 int kernelFilesystemFatMount(kernelFilesystem *);
-int kernelFilesystemFatSync(kernelFilesystem *);
 int kernelFilesystemFatUnmount(kernelFilesystem *);
 unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *);
 int kernelFilesystemFatNewEntry(kernelFileEntry *);

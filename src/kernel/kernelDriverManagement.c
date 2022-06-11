@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  Copyright (C) 1998-2004 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,8 +38,9 @@ static void *builtinDriverInits[] = {
   kernelFloppyDriverInitialize,
   kernelIdeDriverInitialize,
   kernelLFBGraphicDriverInitialize,
-  kernelFilesystemFatInitialize,
   kernelFilesystemExtInitialize,
+  kernelFilesystemFatInitialize,
+  kernelFilesystemIsoInitialize,
   kernelTextConsoleInitialize,
   kernelGraphicConsoleInitialize,
   (void *) -1
@@ -58,8 +59,9 @@ kernelDriverManager kernelAllDrivers =
   NULL, // Floppy driver
   NULL, // IDE driver
   NULL, // Graphics driver
-  NULL, // FAT filesystem driver
   NULL, // EXT filesystem driver
+  NULL, // FAT filesystem driver
+  NULL, // ISO filesystem driver
   NULL, // Text-mode console driver
   NULL  // Graphic-mode console driver
 };
@@ -155,11 +157,14 @@ int kernelDriverRegister(kernelDriverType type, void *driver)
     case graphicDriver:
       kernelAllDrivers.graphicDriver = (kernelGraphicDriver *) driver;
       break;
+    case extDriver:
+      kernelAllDrivers.extDriver = (kernelFilesystemDriver *) driver;
+      break;
     case fatDriver:
       kernelAllDrivers.fatDriver = (kernelFilesystemDriver *) driver;
       break;
-    case extDriver:
-      kernelAllDrivers.extDriver = (kernelFilesystemDriver *) driver;
+    case isoDriver:
+      kernelAllDrivers.isoDriver = (kernelFilesystemDriver *) driver;
       break;
     case textConsoleDriver:
       kernelAllDrivers.textConsoleDriver = (kernelTextOutputDriver *) driver;
@@ -240,6 +245,13 @@ void kernelInstallGraphicDriver(kernelGraphicAdapter *adapter)
 }
 
 
+kernelFilesystemDriver *kernelDriverGetExt(void)
+{
+  // Return the default EXT filesystem driver
+  return (kernelAllDrivers.extDriver);
+}
+
+
 kernelFilesystemDriver *kernelDriverGetFat(void)
 {
   // Return the default FAT filesystem driver
@@ -247,10 +259,10 @@ kernelFilesystemDriver *kernelDriverGetFat(void)
 }
 
 
-kernelFilesystemDriver *kernelDriverGetExt(void)
+kernelFilesystemDriver *kernelDriverGetIso(void)
 {
-  // Return the default EXT filesystem driver
-  return (kernelAllDrivers.extDriver);
+  // Return the default ISO filesystem driver
+  return (kernelAllDrivers.isoDriver);
 }
 
 
