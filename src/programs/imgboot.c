@@ -175,10 +175,13 @@ static void constructWindow(void)
   // If we are in graphics mode, make a window rather than operating on the
   // command line.
 
+  char title[80];
   componentParameters params;
 
+  sprintf(title, "Welcome to %s", version());
+
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, "Welcome to Visopsys");
+  window = windowNew(processId, title);
   if (window == NULL)
     quit(ERR_NOCREATE, "Can't create window!");
 
@@ -242,13 +245,14 @@ static void constructWindow(void)
 
 static void changeStartProgram(void)
 {
-  variableList *kernelConf = configurationReader("/system/kernel.conf");
-  if (kernelConf)
-    {
-      variableListSet(kernelConf, "start.program", "/programs/login");
-      configurationWriter("/system/kernel.conf", kernelConf);
-      free(kernelConf);
-    }
+  variableList kernelConf;
+
+  if (configurationReader("/system/kernel.conf", &kernelConf) < 0)
+    return;
+
+  variableListSet(&kernelConf, "start.program", "/programs/login");
+  configurationWriter("/system/kernel.conf", &kernelConf);
+  free(kernelConf.memory);
 }
 
 

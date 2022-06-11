@@ -22,6 +22,27 @@
 // Saves a screen shot, either with the supplied filename, or else it
 // will query the user for one.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- screenshot --
+
+Save the current screen to an image file.
+
+Usage:
+  screenshot [file_name]
+
+(Only available in graphics mode)
+
+The (optional) file name can be an absolute pathname under which the
+screenshot should be saved.  If no file name is specified, the program
+will present a dialog box asking for one.
+
+Currently only (uncompressed, 24-bit) bitmap format is supported.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>

@@ -21,6 +21,29 @@
 
 // Yup, it's the UNIX-style command for renaming files
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- mv --
+
+Move (rename) files.
+
+Synonym:
+  move, ren, rename
+
+Usage:
+  mv <file1> [file2] [...] <new_name | detination_directory>
+
+This command will move a file or files.  If one file is being moved, then
+the last argument can be either a new filename, or else can be a
+destination directory -- in which case the moved file will retain the same
+file name as before.  If multiple files are being moved, then the last
+argument must be a directory name and all files will retain the same file
+names.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>

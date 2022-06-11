@@ -25,15 +25,8 @@
 
 // Definitions.
 
-// These sizes keep the environment memory to just about exactly
-// 1 memory page.
-#define MAX_ENVIRONMENT_VARIABLES  127
-#define ENVIRONMENT_BYTES          3044
-
-typedef variableList kernelEnvironment;
-
 // Functions exported by kernelEnvironment.c
-kernelEnvironment *kernelEnvironmentCreate(int, kernelEnvironment *);
+int kernelEnvironmentCreate(int, variableList *, variableList *);
 int kernelEnvironmentGet(const char *, char *, unsigned);
 int kernelEnvironmentSet(const char *, const char *);
 int kernelEnvironmentUnset(const char *);

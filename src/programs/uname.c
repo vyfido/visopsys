@@ -21,6 +21,19 @@
 
 // This is the UNIX-style command for viewing basic info about the system
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- uname --
+
+Prints the Visopsys version.
+
+Usage:
+  uname
+
+</help>
+*/
+
 #include <stdio.h>
 #include <sys/api.h>
 

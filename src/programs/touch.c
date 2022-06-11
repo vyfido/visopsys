@@ -21,6 +21,23 @@
 
 // This is the UNIX-style command for touching files
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- touch --
+
+Timestamp a file or directory.
+
+Usage:
+  touch <file1> [file2] [...]
+
+This command has a dual purpose; it is used either to create one or more new,
+empty files, or to update the time/date on one or more existing files or
+directories.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>

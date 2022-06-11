@@ -254,9 +254,18 @@ static int mouseEvent(void *componentData, windowEvent *event)
 static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindow *window = component->window;
+  int count;
 
   if (component->data)
     {
+      for (count = 0; count < 4; count ++)
+	if (window->borders[count] == component)
+	  {
+	    window->borders[count] = NULL;
+	    break;
+	  }
+
       kernelFree(component->data);
       component->data = NULL;
     }

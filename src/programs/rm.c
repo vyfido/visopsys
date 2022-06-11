@@ -21,6 +21,25 @@
 
 // This is the UNIX-style command for removing files
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- rm --
+
+Remove (delete) one or more files.
+
+Synonym:
+  del
+
+Usage:
+  rm <file1> [file2] [...]
+
+This command will remove one or more files.  It will not remove directories.
+To remove a directory, use the 'rmdir' command.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>

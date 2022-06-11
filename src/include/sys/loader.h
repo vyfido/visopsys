@@ -33,7 +33,8 @@
 #define LOADERFILECLASS_OBJ      0x0008
 #define LOADERFILECLASS_LIB      0x0010
 #define LOADERFILECLASS_CORE     0x0020
-#define LOADERFILECLASS_DATA     0x0040
+#define LOADERFILECLASS_IMAGE    0x0040
+#define LOADERFILECLASS_DATA     0x0080
 
 // Symbol bindings for loader symbol structure
 #define LOADERSYMBOLBIND_LOCAL   0

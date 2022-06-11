@@ -21,6 +21,22 @@
 
 // This is the UNIX-style command for removing directories
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- rmdir --
+
+Remove (delete) one or more empty directories.
+
+Usage:
+  rmdir <directory1> [directory2] [...]
+
+This command will remove one or more empty directories.  It will not remove
+regular files.  To remove a file, use the 'rm' command.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>

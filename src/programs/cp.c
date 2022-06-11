@@ -21,6 +21,29 @@
 
 // Yup, it's the UNIX-style command for copying files
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- cp --
+
+Copy files.
+
+Synonym:
+  copy
+
+Usage:
+  cp <source_file1> [source_file2] ... <new_file | detination_directory>
+
+This command will copy a file or files.  If one source file is specified,
+then the last argument can be either a complete new filename to copy to,
+or else can be a destination directory -- in which case the new file will
+have the same name as the source file.  If multiple source files are
+specified, then the last argument must be a directory name and all files
+will have the same names as their source files
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>

@@ -22,10 +22,10 @@
 #if !defined(_KERNELMULTITASKER_H)
 
 #include "kernelDescriptor.h"
-#include "kernelEnvironment.h"
 #include "kernelText.h"
 #include <time.h>
 #include <sys/process.h>
+#include <sys/variable.h>
 
 // Definitions
 #define MAX_PROCESSES             ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
@@ -38,8 +38,7 @@
 #define PRIORITY_DEFAULT          ((PRIORITY_LEVELS / 2) - 1)
 
 // A structure representing x86 TSSes (Task State Sements)
-typedef volatile struct
-{
+typedef volatile struct {
   unsigned oldTSS;
   unsigned ESP0;
   unsigned SS0;
@@ -70,8 +69,7 @@ typedef volatile struct
 } kernelTSS;
 
 // A structure for processes
-typedef volatile struct
-{
+typedef volatile struct {
   char processName[MAX_PROCNAME_LENGTH];
   int userId;
   int processId;
@@ -89,8 +87,6 @@ typedef volatile struct
   int waitForProcess;
   int blockingExitCode;
   processState state;
-  void *codeDataPointer;
-  unsigned codeDataSize;
   void *userStack;
   unsigned userStackSize;
   void *superStack;
@@ -98,7 +94,7 @@ typedef volatile struct
   kernelSelector tssSelector;
   kernelTSS taskStateSegment;
   char currentDirectory[MAX_PATH_LENGTH];
-  kernelEnvironment *environment;
+  variableList environment;
   kernelTextInputStream *textInputStream;
   kernelTextOutputStream *textOutputStream;
   unsigned signalMask;
@@ -119,12 +115,10 @@ int kernelMultitaskerGetCurrentProcessId(void);
 int kernelMultitaskerGetProcess(int, process *);
 int kernelMultitaskerGetProcessByName(const char *, process *);
 int kernelMultitaskerGetProcesses(void *, unsigned);
-int kernelMultitaskerCreateProcess(void *, unsigned, const char *, int, int,
-				   void *);
-int kernelMultitaskerSpawn(void *, const char *, int, void *);
-int kernelMultitaskerSpawnKernelThread(void *, const char *, int, void *);
+int kernelMultitaskerCreateProcess(const char *, int, processImage *);
+int kernelMultitaskerSpawn(void *, const char *, int, void *[]);
+int kernelMultitaskerSpawnKernelThread(void *, const char *, int, void *[]);
 //int kernelMultitaskerFork(void);
-int kernelMultitaskerPassArgs(int, int, void *);
 int kernelMultitaskerGetProcessState(int, processState *);
 int kernelMultitaskerSetProcessState(int, processState);
 int kernelMultitaskerProcessIsAlive(int);

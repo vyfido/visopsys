@@ -21,6 +21,23 @@
 
 // This is the UNIX-style command for setting a password
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- passwd --
+
+Set the password on a user account.
+
+Usage:
+  passwd <user name>
+
+The passwd program is a very simple method of setting a password for an
+account.  The program is interactive and requires the password to be entered
+twice at a prompt.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

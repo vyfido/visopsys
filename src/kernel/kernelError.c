@@ -21,9 +21,11 @@
 
 #include "kernelError.h"
 #include "kernelLog.h"
-#include "kernelMiscFunctions.h"
-#include "kernelWindow.h"
+#include "kernelInterrupt.h"
+#include "kernelPic.h"
 #include "kernelMultitasker.h"
+#include "kernelWindow.h"
+#include "kernelMiscFunctions.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -33,8 +35,7 @@ static char *warningConst = "Warning";
 static char *messageConst = "Message";
 
 
-/*
-static void errorDialogThread(int numberArgs, void *args[])
+static void errorDialogThread(int argc, void *argv[])
 {
   int status = 0;
   const char *title = NULL;
@@ -45,16 +46,12 @@ static void errorDialogThread(int numberArgs, void *args[])
   componentParameters params;
   windowEvent event;
 
-  title = args[0];
-  message = args[1];
+  if (argc < 3)
+    goto exit;
 
-  // Check params.  It's okay for parentWindow to be NULL.
-  if ((title == NULL) || (message == NULL))
-    {
-      status = ERR_NULLPARAMETER;
-      goto exit;
-    }
-
+  title = argv[1];
+  message = argv[2];
+ 
   kernelMemClear(&errorImage, sizeof(image));
   kernelMemClear(&params, sizeof(componentParameters));
 
@@ -66,10 +63,6 @@ static void errorDialogThread(int numberArgs, void *args[])
       goto exit;
     }
 
-  status = kernelImageLoadBmp(ERRORIMAGE_NAME, &errorImage);
-  if (status < 0)
-    goto exit;
-
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 5;
@@ -79,10 +72,17 @@ static void errorDialogThread(int numberArgs, void *args[])
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  errorImage.translucentColor.red = 0;
-  errorImage.translucentColor.green = 255;
-  errorImage.translucentColor.blue = 0;
-  kernelWindowNewImage(dialogWindow, &errorImage, draw_translucent, &params);
+  status = kernelImageLoad(ERRORIMAGE_NAME, 0, 0, &errorImage);
+
+  if (status == 0)
+    {
+      errorImage.translucentColor.red = 0;
+      errorImage.translucentColor.green = 255;
+      errorImage.translucentColor.blue = 0;
+      params.padRight = 0;
+      kernelWindowNewImage(dialogWindow, &errorImage, draw_translucent,
+			   &params);
+    }
 
   // Create the label
   params.gridX = 1;
@@ -94,6 +94,7 @@ static void errorDialogThread(int numberArgs, void *args[])
   params.gridY = 1;
   params.gridWidth = 2;
   params.padBottom = 5;
+  params.fixedWidth = 1;
   okButton = kernelWindowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
     {
@@ -107,12 +108,12 @@ static void errorDialogThread(int numberArgs, void *args[])
     {
       // Check for our OK button
       status = kernelWindowComponentEventGet((void *) okButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+      if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	break;
 
       // Check for window close events
       status = kernelWindowComponentEventGet((void *) dialogWindow, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+      if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
 	break;
 
       // Done
@@ -125,7 +126,6 @@ static void errorDialogThread(int numberArgs, void *args[])
  exit:
   kernelMultitaskerTerminate(status);
 }
-*/
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -137,7 +137,7 @@ static void errorDialogThread(int numberArgs, void *args[])
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelErrorOutput(const char *module, const char *function, int line,
+void kernelErrorOutput(const char *fileName, const char *function, int line,
 		       kernelErrorKind kind, const char *message, ...)
 {
   // This routine takes a bunch of parameters and outputs a kernel error.
@@ -146,9 +146,8 @@ void kernelErrorOutput(const char *module, const char *function, int line,
 
   va_list list;
   const char *errorType = NULL;
-  const char *processName = NULL;
+  char processName[MAX_PROCNAME_LENGTH];
   char errorText[MAX_ERRORTEXT_LENGTH];
-  //int regularForeground;
 
   // Copy the kind of the error
   switch(kind)
@@ -167,19 +166,15 @@ void kernelErrorOutput(const char *module, const char *function, int line,
       break;
     }
 
-  if (kernelCurrentProcess)
-    processName = (const char *) kernelCurrentProcess->processName;
-  else
-    processName = "";
+  processName[0] = '\0';
+  if (kernelProcessingInterrupt)
+    sprintf(processName, "interrupt %x", kernelPicGetActive());
+  else if (kernelCurrentProcess)
+    strncpy(processName, (char *) kernelCurrentProcess->processName,
+	    MAX_PROCNAME_LENGTH);
 
-  sprintf(errorText, "%s:%s:%s:%s(%d):", errorType, processName, module,
+  sprintf(errorText, "%s:%s:%s:%s(%d):", errorType, processName, fileName,
 	  function, line);
-
-  // Save the current text foreground color so we can re-set it.
-  //regularForeground = kernelTextGetForeground();
-
-  // Now set the foreground color to the error color
-  //kernelTextSetForeground(DEFAULTERRORFOREGROUND);
 
   // Output the context of the message
   kernelLog(errorText);
@@ -202,25 +197,37 @@ void kernelErrorOutput(const char *module, const char *function, int line,
 
   if (!kernelLogGetToConsole())
     kernelTextPrintLine(errorText);
-  
-  // Set the foreground color back to what it was
-  //kernelTextSetForeground(regularForeground);
 
   return;
 }
 
 
-/*
-void kernelErrorDialog(const char *title, const char *message)
+void kernelErrorDialog(const char *title, const char *message, ...)
 {
   // This will make a simple error dialog message, and wait until the button
   // has been pressed.
 
-  void *args[] = { (void *) title, (void *) message };
+  va_list list;
+  char errorText[MAX_ERRORTEXT_LENGTH];
+  void *args[] = {
+    (void *) title,
+    (void *) errorText
+  };
 
-  kernelMultitaskerSpawnKernelThread(&errorDialogThread, "error dialog", 2,
-				     args);
+  // Check params
+  if ((title == NULL) || (message == NULL))
+    return;
+
+  // Initialize the argument list
+  va_start(list, message);
+
+  // Expand the message if there were any parameters
+  _expandFormatString(errorText, message, list);
+
+  va_end(list);
+
+  kernelMultitaskerSpawnKernelThread(&errorDialogThread, "error dialog thread",
+				     2, args);
 
   return;
 }
-*/

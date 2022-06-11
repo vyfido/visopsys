@@ -21,6 +21,25 @@
 
 // This is a program for performing filesystem scans
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- chkdisk --
+
+This command can be used to perform a filesystem integrity check on a
+logical disk.
+
+Usage:
+  chkdisk <disk_name>
+
+The first parameter is the name of a disk (use the 'disks' command to list
+the disks).  A check will be performed if the disk's filesystem is of a
+recognized type, and the applicable filesystem driver supports a checking
+function.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

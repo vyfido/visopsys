@@ -308,55 +308,6 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 }
 
 
-int kernelFilesystemCheck(const char *diskName, int force, int repair)
-{
-  // This function is a wrapper for the filesystem driver's 'check' function,
-  // if applicable.
-
-  int status = 0;
-  kernelDisk *theDisk = NULL;
-  kernelFilesystem *tmpFilesystem = NULL;
-  kernelFilesystemDriver *theDriver = NULL;
- 
-  // Check params
-  if (diskName == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  theDisk = kernelGetDiskByName(diskName);
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "No such disk \"%s\"", diskName);
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Get a temporary filesystem to use for checking
-  tmpFilesystem = getNewFilesystem(theDisk);
-  if (tmpFilesystem == NULL)
-    return (status = ERR_NOFREE);
-  
-  theDriver = (kernelFilesystemDriver *) tmpFilesystem->driver;
-  // Make sure the driver's checking routine is not NULL
-  if (theDriver->driverCheck == NULL)
-    {
-      kernelError(kernel_error, "The filesystem driver does not support the "
-		  "'check' operation");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Check the filesystem
-  status = theDriver->driverCheck(tmpFilesystem, force, repair);
-  if (status < 0)
-    // Return the code that the driver routine produced
-    return (status);
-
-  // Release the temporary filesystem structure we allocated
-  releaseFilesystem(tmpFilesystem);
-
-  // Finished
-  return (status);
-}
-
-
 int kernelFilesystemDefragment(const char *diskName)
 {
   // This function is a wrapper for the filesystem driver's 'defragment'
@@ -509,6 +460,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
 		  "'mount' operation");
+      releaseFilesystem(theFilesystem);
       return (status = ERR_NOSUCHFUNCTION);
     }
   
@@ -520,9 +472,12 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   // Get a new file entry for the filesystem's root directory
   theFilesystem->filesystemRoot = kernelFileNewEntry(theFilesystem);
   if (theFilesystem->filesystemRoot == NULL)
-    // Not enough free file structures
-    return (status = ERR_NOFREE);
-  
+    {
+      // Not enough free file structures
+      releaseFilesystem(theFilesystem);
+      return (status = ERR_NOFREE);
+    }
+
   theFilesystem->filesystemRoot->type = dirT;
   theFilesystem->filesystemRoot->filesystem = (void *) theFilesystem;
 
@@ -534,7 +489,11 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       // Set the root filesystem pointer
       status = kernelFileSetRoot(theFilesystem->filesystemRoot);
       if (status < 0)
-	return (status);
+	{
+	  kernelFileReleaseEntry(theFilesystem->filesystemRoot);
+	  releaseFilesystem(theFilesystem);
+	  return (status);
+	}
     }
   else
     {
@@ -542,48 +501,22 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       // root directory into the file entry tree.
       status = kernelFileInsertEntry(theFilesystem->filesystemRoot, parentDir);
       if (status < 0)
-	return (status);
+	{
+	  kernelFileReleaseEntry(theFilesystem->filesystemRoot);
+	  releaseFilesystem(theFilesystem);
+	  return (status);
+	}
     }
 
   // Mount the filesystem
   status = theDriver->driverMount(theFilesystem);
   if (status < 0)
     {
-      /*
-      // If the driver has a 'check' function, run it now.  The function can
-      // make up its own mind whether the filesystem really needs to be checked
-      // or not.
-      if (theDriver->driverCheck)
-	{
-	  // No force, no repair
-	  status = theDriver->driverCheck(theFilesystem, 0, // no force
-					  0); // no repair
-	  if (status < 0)
-	    {
-	      // The filesystem may contain errors.  Before we fail the whole
-	      // operation, ask whether the user wants to try and repair it.
-	      kernelTextPrint("The filesystem may contain errors.\nDo you "
-			      "want to try to repair it? (y/n): ");
-	      kernelTextInputGetc(&yesNo);
-	      kernelTextNewline();
-
-	      if ((yesNo == 'y') || (yesNo == 'Y'))
-		// Force, repair
-		status = theDriver->driverCheck(theFilesystem, 1, // force
-						1); // repair
-	      if (status < 0)
-		{
-		  kernelError(kernel_error, "Filesystem consistency check "
-			      "failed.  Mount aborted.");
-		  return (status);
-		}
-	    }
-	}
-      else
-      */
-	{      
-	  return (status);
-	}
+      if (strcmp(mountPoint, "/"))
+	kernelFileRemoveEntry(theFilesystem->filesystemRoot);
+      kernelFileReleaseEntry(theFilesystem->filesystemRoot);
+      releaseFilesystem(theFilesystem);
+      return (status);
     }
 
   // Set the name of the mount point directory
@@ -600,8 +533,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   // If the driver specified that the filesystem is read-only, mark the disk
   // as read-only also
-  if (theFilesystem->readOnly)
-    physicalDisk->readOnly = 1;
+  theDisk->readOnly = theFilesystem->readOnly;
 
   return (status = 0);
 }
@@ -610,8 +542,8 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 int kernelFilesystemUnmount(const char *path)
 {
   // This routine will remove a filesystem structure and its driver from the 
-  // lists.  It takes the filesystem number and returns the new number of 
-  // filesystems in the array.  If the filesystem number doesn't exist, 
+  // lists.  It takes the filesystem mount point name and returns the new
+  // number of filesystems in the array.  If the filesystem doesn't exist, 
   // it returns negative
 
   int status = 0;
@@ -712,6 +644,55 @@ int kernelFilesystemUnmount(const char *path)
   releaseFilesystem(theFilesystem);
   
   return (numberFilesystems = filesystemCounter);
+}
+
+
+int kernelFilesystemCheck(const char *diskName, int force, int repair)
+{
+  // This function is a wrapper for the filesystem driver's 'check' function,
+  // if applicable.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  kernelFilesystem *tmpFilesystem = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+ 
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  theDisk = kernelGetDiskByName(diskName);
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Get a temporary filesystem to use for checking
+  tmpFilesystem = getNewFilesystem(theDisk);
+  if (tmpFilesystem == NULL)
+    return (status = ERR_NOFREE);
+  
+  theDriver = (kernelFilesystemDriver *) tmpFilesystem->driver;
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverCheck == NULL)
+    {
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'check' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Check the filesystem
+  status = theDriver->driverCheck(tmpFilesystem, force, repair);
+  if (status < 0)
+    // Return the code that the driver routine produced
+    return (status);
+
+  // Release the temporary filesystem structure we allocated
+  releaseFilesystem(tmpFilesystem);
+
+  // Finished
+  return (status);
 }
 
 

@@ -21,6 +21,20 @@
 
 // This is the UNIX-style command for viewing info about system uptime
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- uptime --
+
+Prints the number of days, minutes, and seconds since the system was
+booted.
+
+Usage:
+  uptime
+
+</help>
+*/
+
 #include <stdio.h>
 #include <sys/api.h>
 

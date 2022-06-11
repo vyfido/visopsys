@@ -33,32 +33,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-static kernelFilesystemDriver defaultExtDriver = {
-  Ext,   // FS type
-  "EXT", // Driver name
-  kernelFilesystemExtDetect,
-  NULL, // driverFormat
-  NULL, // driverCheck
-  NULL, // driverDefragment
-  kernelFilesystemExtMount,
-  kernelFilesystemExtUnmount,
-  kernelFilesystemExtGetFreeBytes,
-  kernelFilesystemExtNewEntry,
-  kernelFilesystemExtInactiveEntry,
-  kernelFilesystemExtResolveLink,
-  kernelFilesystemExtReadFile,
-  NULL, // driverWriteFile
-  NULL, // driverCreateFile
-  NULL, // driverDeleteFile,
-  NULL, // driverFileMoved,
-  kernelFilesystemExtReadDir,
-  NULL, // driverWriteDir
-  NULL, // driverMakeDir
-  NULL, // driverRemoveDir
-  NULL  // driverTimestamp
-};
-
 // These hold free private data memory
 static extInodeData *freeInodeDatas = NULL;
 static unsigned numFreeInodeDatas = 0;
@@ -66,7 +40,7 @@ static unsigned numFreeInodeDatas = 0;
 static int initialized = 0;
 
 
-static int readSuperblock(const kernelDisk *theDisk, unsigned char *buffer)
+static int readSuperblock(const kernelDisk *theDisk, extSuperblock *superblock)
 {
   // This simple function will read the superblock into the supplied buffer
   // and ensure that it is (at least trivially) valid.  Returns 0 on success,
@@ -76,7 +50,7 @@ static int readSuperblock(const kernelDisk *theDisk, unsigned char *buffer)
   kernelPhysicalDisk *physicalDisk = NULL;
 
   // Initialize the buffer we were given
-  kernelMemClear(buffer, EXT_SUPERBLOCK_SIZE);
+  kernelMemClear(superblock, sizeof(extSuperblock));
 
   physicalDisk = theDisk->physical;
 
@@ -90,14 +64,13 @@ static int readSuperblock(const kernelDisk *theDisk, unsigned char *buffer)
   // Read the superblock
   status =
     kernelDiskReadSectors((char *) theDisk->name, EXT_SUPERBLOCK_SECTOR,
-			  (EXT_SUPERBLOCK_SIZE / physicalDisk->sectorSize),
-			  buffer);
+			  (sizeof(extSuperblock) / physicalDisk->sectorSize),
+			  superblock);
   if (status < 0)
     return (status);
 
   // Check for the EXT magic number
-  if (*((unsigned short *)(buffer + EXT_MAGICNUMBER_OFFSET)) !=
-      (unsigned short) EXT_MAGICNUMBER)
+  if (superblock->magic != (unsigned short) EXT_MAGICNUMBER)
     // Not EXT2
     return (status = ERR_BADDATA);
 
@@ -119,7 +92,6 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
   // This function reads the filesystem parameters from the superblock
 
   int status = 0;
-  unsigned char *buffer = NULL;
   extInternalData *extData = filesystem->filesystemData;
   kernelPhysicalDisk *physicalDisk = NULL;
   unsigned groupDescriptorBlocks = 0;
@@ -128,52 +100,36 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
   if (extData)
     return (extData);
 
-  // Get a temporary buffer to read the superblock
-  buffer = kernelMalloc(EXT_SUPERBLOCK_SIZE);
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate superblock buffer");
-      return (extData = NULL);
-    }
-
-  // Read the superblock into our extInternalData buffer
-  status = readSuperblock(filesystem->disk, buffer);
-  if (status < 0)
-    {
-      kernelFree(buffer);
-      return (extData = NULL);
-    }
-
   // We must allocate some new memory to hold information about
   // the filesystem
   extData = kernelMalloc(sizeof(extInternalData));
   if (extData == NULL)
+    return (extData = NULL);
+
+  // Read the superblock into our extInternalData buffer
+  status =
+    readSuperblock(filesystem->disk, (extSuperblock *) &(extData->superblock));
+  if (status < 0)
     {
-      kernelError(kernel_error, "Unable to allocate EXT data memory");
-      kernelFree(buffer);
+      kernelFree((void *) extData);
       return (extData = NULL);
     }
 
-  // Copy the data part of the superblock into our internal data structure,
-  // which matches the superblock
-  kernelMemCopy(buffer, (void *) extData, EXT_SUPERBLOCK_DATASIZE);
-
-  kernelFree(buffer);
-
   // Check that the inode size is the same size as our structure
-  if (extData->inode_size != sizeof(extInode))
+  if (extData->superblock.inode_size != sizeof(extInode))
     kernelError(kernel_warn, "Inode size (%u) does not match structure "
-                "size (%u)", extData->inode_size, sizeof(extInode));
+                "size (%u)", extData->superblock.inode_size, sizeof(extInode));
 
   physicalDisk = filesystem->disk->physical;
 
-  extData->blockSize = (1024 << extData->log_block_size);
+  extData->blockSize = (1024 << extData->superblock.log_block_size);
 
   // Save the sectors per block so we don't have to keep calculating it
   extData->sectorsPerBlock = (extData->blockSize / physicalDisk->sectorSize);
 
   // Calculate the number of block groups
-  extData->numGroups = (extData->blocks_count / extData->blocks_per_group);
+  extData->numGroups =
+    (extData->superblock.blocks_count / extData->superblock.blocks_per_group);
 
   // Attach the disk structure to the extData structure
   extData->disk = filesystem->disk;
@@ -183,11 +139,10 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
   if ((extData->numGroups * sizeof(extGroupDescriptor)) % extData->blockSize)
     groupDescriptorBlocks++;
 
-  // Get a new temporary buffer to read the group descriptors block
-  buffer = kernelMalloc(groupDescriptorBlocks * extData->blockSize);
-  if (buffer == NULL)
+  // Get some memory for our array of group descriptors
+  extData->groups = kernelMalloc(groupDescriptorBlocks * extData->blockSize);
+  if (extData->groups == NULL)
     {
-      kernelError(kernel_error, "Unable to allocate superblock buffer");
       kernelFree((void *) extData);
       return (extData = NULL);
     }
@@ -196,32 +151,14 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
   status = kernelDiskReadSectors((char *) extData->disk->name,
                                  extData->sectorsPerBlock,
                                  (groupDescriptorBlocks *
-                                  extData->sectorsPerBlock), buffer);
+                                  extData->sectorsPerBlock), extData->groups);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to read EXT group descriptors");
+      kernelFree(extData->groups);
       kernelFree((void *) extData);
-      kernelFree(buffer);
       return (extData = NULL);
     }
-
-  // Get some memory for our array of group descriptors
-  extData->groups =
-    kernelMalloc(extData->numGroups * sizeof(extGroupDescriptor));
-  if (extData->groups == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate EXT group descriptors "
-                  "memory");
-      kernelFree((void *) extData);
-      kernelFree(buffer);
-      return (extData = NULL);
-    }
-
-  // Copy the group descriptor data into our internal data structure
-  kernelMemCopy(buffer, (void *) extData->groups,
-                (extData->numGroups * sizeof(extGroupDescriptor)));
-
-  kernelFree(buffer);
 
   // Attach our new FS data to the filesystem structure
   filesystem->filesystemData = (void *) extData;
@@ -243,7 +180,7 @@ static int readInode(extInternalData *extData, unsigned number,
   unsigned inodeTableBlock = 0;
   unsigned char *buffer = NULL;
 
-  if ((number < 1) || (number > extData->inodes_count))
+  if ((number < 1) || (number > extData->superblock.inodes_count))
     {
       kernelError(kernel_error, "Invalid inode number %u", number);
       return (status = ERR_BOUNDS);
@@ -253,19 +190,16 @@ static int readInode(extInternalData *extData, unsigned number,
   number--;
 
   // Calculate the group number
-  groupNumber = (number / extData->inodes_per_group);
+  groupNumber = (number / extData->superblock.inodes_per_group);
 
   // Calculate the relevant sector of the inode table
-  inodeTableBlock = (((number % extData->inodes_per_group) *
+  inodeTableBlock = (((number % extData->superblock.inodes_per_group) *
 		      sizeof(extInode)) / extData->blockSize); 
 
   // Get a new temporary buffer to read the inode table block
   buffer = kernelMalloc(extData->blockSize);
   if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate inode table buffer");
-      return (status = ERR_MEMORY);
-    }
+    return (status = ERR_MEMORY);
 
   // Read the inode table block for the group
   status = kernelDiskReadSectors((char *) extData->disk->name,
@@ -281,9 +215,9 @@ static int readInode(extInternalData *extData, unsigned number,
     }
 
   // Copy the inode structure.
-  kernelMemCopy((buffer + (((number % extData->inodes_per_group) *
+  kernelMemCopy((buffer + (((number % extData->superblock.inodes_per_group) *
 			    sizeof(extInode)) % extData->blockSize)),
-		(void *) inode, sizeof(extInode));
+		inode, sizeof(extInode));
 
   kernelFree(buffer);
 
@@ -305,10 +239,7 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
   // Get memory to hold a block
   indexBuffer = kernelMalloc(extData->blockSize);
   if (indexBuffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to get block buffer memory");
-      return (status = ERR_MEMORY);
-    }
+    return (status = ERR_MEMORY);
 
   // Read the indirect block number we've been passed
   status = kernelDiskReadSectors((char *) extData->disk->name,
@@ -369,8 +300,8 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
   return (status = 0);
 }
 
-static int readFile(extInternalData *extData, kernelFileEntry *fileEntry,
-		    unsigned startBlock, unsigned numBlocks, void *buffer)
+static int read(extInternalData *extData, kernelFileEntry *fileEntry,
+		unsigned startBlock, unsigned numBlocks, void *buffer)
 {
   // Read numBlocks blocks of a file (or directory) starting at startBlock
   // into buffer.
@@ -550,12 +481,9 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
   // Get a buffer for the directory
   buffer = kernelMalloc(bufferSize);
   if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to get memory for directory buffer");
-      return (status = ERR_MEMORY);
-    }
+    return (status = ERR_MEMORY);
 
-  status = readFile(extData, dirEntry, dirInode->block[0], 0, buffer);
+  status = read(extData, dirEntry, 0, 0, buffer);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to read directory data");
@@ -577,7 +505,6 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
       fileEntry = kernelFileNewEntry(dirEntry->filesystem);
       if (fileEntry == NULL)
 	{
-	  kernelError(kernel_error, "Unable to get new filesystem entry");
 	  kernelFree(buffer);
 	  return (status = ERR_NOCREATE);
 	}
@@ -682,31 +609,7 @@ static int readRootDir(extInternalData *extData, kernelFilesystem *filesystem)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelFilesystemExtInitialize(void)
-{
-  // Initialize the driver
-
-  int status = 0;
-  
-  // Register our driver
-  status = kernelDriverRegister(extDriver, &defaultExtDriver);
-
-  initialized = 1;
-
-  return (status);
-}
-
-
-int kernelFilesystemExtDetect(const kernelDisk *theDisk)
+static int detect(const kernelDisk *theDisk)
 {
   // This function is used to determine whether the data on a disk structure
   // is using a EXT filesystem.  It uses a simple test or two to determine
@@ -715,7 +618,7 @@ int kernelFilesystemExtDetect(const kernelDisk *theDisk)
   // and negative if it encounters an error
 
   int status = 0;
-  char *buffer = NULL;
+  extSuperblock superblock;
   
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -727,18 +630,8 @@ int kernelFilesystemExtDetect(const kernelDisk *theDisk)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Get a temporary buffer to read the superblock
-  buffer = kernelMalloc(EXT_SUPERBLOCK_SIZE);
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate superblock buffer");
-      return (status = ERR_MEMORY);
-    }
-
   // Try to load the superblock
-  status = readSuperblock(theDisk, buffer);
-
-  kernelFree(buffer);
+  status = readSuperblock(theDisk, &superblock);
 
   if (status == 0)
     {
@@ -752,7 +645,7 @@ int kernelFilesystemExtDetect(const kernelDisk *theDisk)
 }
 
 
-int kernelFilesystemExtMount(kernelFilesystem *filesystem)
+static int mount(kernelFilesystem *filesystem)
 {
   // This function initializes the filesystem driver by gathering all of
   // the required information from the boot sector.  In addition, it
@@ -801,7 +694,7 @@ int kernelFilesystemExtMount(kernelFilesystem *filesystem)
 }
 
 
-int kernelFilesystemExtUnmount(kernelFilesystem *filesystem)
+static int unmount(kernelFilesystem *filesystem)
 {
   // This function releases all of the stored information about a given
   // filesystem.
@@ -825,7 +718,7 @@ int kernelFilesystemExtUnmount(kernelFilesystem *filesystem)
     return (status = ERR_BADDATA);
 
   // Deallocate any global filesystem memory
-  kernelFree((void *) extData->groups);
+  kernelFree(extData->groups);
   kernelFree((void *) extData);
   
   // Finally, remove the reference from the filesystem structure
@@ -835,7 +728,7 @@ int kernelFilesystemExtUnmount(kernelFilesystem *filesystem)
 }
 
 
-unsigned kernelFilesystemExtGetFreeBytes(kernelFilesystem *filesystem)
+static unsigned getFreeBytes(kernelFilesystem *filesystem)
 {
   // This function returns the amount of free disk space, in bytes.
 
@@ -856,11 +749,11 @@ unsigned kernelFilesystemExtGetFreeBytes(kernelFilesystem *filesystem)
   if (extData == NULL)
     return (0);
   
-  return (extData->free_blocks_count * extData->blockSize);
+  return (extData->superblock.free_blocks_count * extData->blockSize);
 }
 
 
-int kernelFilesystemExtNewEntry(kernelFileEntry *newEntry)
+static int newEntry(kernelFileEntry *newEntry)
 {
   // This function gets called when there's a new kernelFileEntry in the
   // filesystem (either because a file was created or because some existing
@@ -902,16 +795,12 @@ int kernelFilesystemExtNewEntry(kernelFileEntry *newEntry)
       // Allocate memory for file entries
       newInodeDatas = kernelMalloc(sizeof(extInodeData) * MAX_BUFFERED_FILES);
       if (newInodeDatas == NULL)
-	{
-	  kernelError(kernel_error, "Error allocating memory for EXT inode "
-		      "data");
-	  return (status = ERR_MEMORY);
-	}
+	return (status = ERR_MEMORY);
 
       // Initialize the new extInodeData structures.
 
       for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
-	newInodeDatas[count].next = (void *) &(newInodeDatas[count + 1]);
+	newInodeDatas[count].next = &(newInodeDatas[count + 1]);
 
       // The free file entries are the new memory
       freeInodeDatas = newInodeDatas;
@@ -923,13 +812,13 @@ int kernelFilesystemExtNewEntry(kernelFileEntry *newEntry)
   inodeData = freeInodeDatas;
   freeInodeDatas = (extInodeData *) inodeData->next;
   numFreeInodeDatas -= 1;
-  newEntry->driverData = (void *) inodeData;
+  newEntry->driverData = inodeData;
 
   return (status = 0);
 }
 
 
-int kernelFilesystemExtInactiveEntry(kernelFileEntry *inactiveEntry)
+static int inactiveEntry(kernelFileEntry *inactiveEntry)
 {
   // This function gets called when a kernelFileEntry is about to be
   // deallocated by the system (either because a file was deleted or because
@@ -957,11 +846,11 @@ int kernelFilesystemExtInactiveEntry(kernelFileEntry *inactiveEntry)
     }
 
   // Erase all of the data in this entry
-  kernelMemClear((void *) inodeData, sizeof(extInodeData));
+  kernelMemClear(inodeData, sizeof(extInodeData));
 
   // Release the inode data structure attached to this file entry.  Put the
   // inode data back into the pool of free ones.
-  inodeData->next = (void *) freeInodeDatas;
+  inodeData->next = freeInodeDatas;
   freeInodeDatas = inodeData;
   numFreeInodeDatas += 1;
 
@@ -972,7 +861,7 @@ int kernelFilesystemExtInactiveEntry(kernelFileEntry *inactiveEntry)
 }
 
 
-int kernelFilesystemExtResolveLink(kernelFileEntry *linkEntry)
+static int resolveLink(kernelFileEntry *linkEntry)
 {
   // This is called by the kernelFile.c code when we have registered a
   // file or directory as a link, but not resolved it, and now it needs
@@ -1021,10 +910,7 @@ int kernelFilesystemExtResolveLink(kernelFileEntry *linkEntry)
 
       buffer = kernelMalloc(extData->blockSize);
       if (buffer == NULL)
-	{
-	  kernelError(kernel_error, "No buffer for link data");
-	  return (status = ERR_MEMORY);
-	}
+	return (status = ERR_MEMORY);
 
       status = kernelDiskReadSectors((char *) extData->disk->name,
 				     getSectorNumber(extData, inode->block[0]),
@@ -1077,8 +963,8 @@ int kernelFilesystemExtResolveLink(kernelFileEntry *linkEntry)
 }
 
 
-int kernelFilesystemExtReadFile(kernelFileEntry *theFile, unsigned blockNum,
-				unsigned blocks, unsigned char *buffer)
+static int readFile(kernelFileEntry *theFile, unsigned blockNum,
+		    unsigned blocks, unsigned char *buffer)
 {
   // This function is the "read file" function that the filesystem
   // driver exports to the world.  It is mainly a wrapper for the
@@ -1112,11 +998,11 @@ int kernelFilesystemExtReadFile(kernelFileEntry *theFile, unsigned blockNum,
       return (status = ERR_NODATA);
     }
 
-  return (readFile(extData, theFile, blockNum, blocks, buffer));
+  return (read(extData, theFile, blockNum, blocks, buffer));
 }
 
 
-int kernelFilesystemExtReadDir(kernelFileEntry *directory)
+static int readDir(kernelFileEntry *directory)
 {
   // This function receives an emtpy file entry structure, which represents
   // a directory whose contents have not yet been read.  This will fill the
@@ -1150,4 +1036,54 @@ int kernelFilesystemExtReadDir(kernelFileEntry *directory)
     return (status = ERR_BADDATA);
 
   return (status = scanDirectory(extData, directory));
+}
+
+
+static kernelFilesystemDriver defaultExtDriver = {
+  Ext,   // FS type
+  "EXT", // Driver name
+  detect,
+  NULL,  // driverFormat
+  NULL,  // driverDefragment
+  mount,
+  unmount,
+  NULL,  // driverCheck
+  getFreeBytes,
+  newEntry,
+  inactiveEntry,
+  resolveLink,
+  readFile,
+  NULL,  // driverWriteFile
+  NULL,  // driverCreateFile
+  NULL,  // driverDeleteFile,
+  NULL,  // driverFileMoved,
+  readDir,
+  NULL,  // driverWriteDir
+  NULL,  // driverMakeDir
+  NULL,  // driverRemoveDir
+  NULL   // driverTimestamp
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelFilesystemExtInitialize(void)
+{
+  // Initialize the driver
+
+  int status = 0;
+  
+  // Register our driver
+  status = kernelDriverRegister(extDriver, &defaultExtDriver);
+
+  initialized = 1;
+
+  return (status);
 }

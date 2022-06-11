@@ -69,9 +69,11 @@ typedef void * objectKey;
 
 // These describe the X orientation and Y orientation of a component,
 // respectively, within its grid cell
+
 typedef enum {
   orient_left, orient_center, orient_right
 }  componentXOrientation;
+
 typedef enum {
   orient_top, orient_middle, orient_bottom
 }  componentYOrientation;

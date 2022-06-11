@@ -41,7 +41,7 @@ static volatile int run = 0;
 static volatile int guiThreadPid = 0;
 
 
-static void guiRun(int thread)
+static void guiRun(void)
 {
   // This is the thread that runs for each user GUI program polling
   // components' event queues for events.
@@ -68,11 +68,13 @@ static void guiRun(int thread)
       // Done
       multitaskerYield();
     }
+}
 
-  if (thread)
-    multitaskerTerminate(0);
-  else
-    return;
+
+static void guiRunThread(void)
+{
+  guiRun();
+  multitaskerTerminate(0);
 }
 
 
@@ -131,8 +133,7 @@ _X_ void windowGuiRun(void)
 {
   // Desc: Run the GUI windowEvent polling as a blocking call.  In other words, use this function when your program has completed its setup code, and simply needs to watch for GUI events such as mouse clicks, key presses, and window closures.  If your program needs to do other processing (independently of windowEvents) you should use the windowGuiThread() function instead.
 
-  guiRun(0 /* no thread */);
-
+  guiRun();
   return;
 }
 
@@ -141,10 +142,7 @@ _X_ void windowGuiThread(void)
 {
 // Desc: Run the GUI windowEvent polling as a non-blocking call.  In other words, this function will launch a separate thread to monitor for GUI events and return control to your program.  Your program can then continue execution -- independent of GUI windowEvents.  If your program doesn't need to do any processing after setting up all its window components and event callbacks, use the windowGuiRun() function instead.
 
-  static void *args[] = { (void *) 1 /* thread */ };
-
-  guiThreadPid = multitaskerSpawn(&guiRun, "gui thread", 1, args);
-
+  guiThreadPid = multitaskerSpawn(&guiRunThread, "gui thread", 0, NULL);
   return;
 }
 

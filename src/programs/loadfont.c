@@ -21,6 +21,36 @@
 
 // Calls the kernel to switch to the named font.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- loadfont --
+
+Switch the default font.
+
+Usage:
+  loadfont [-f] <font_file> <font_name>
+
+(Only available in graphics mode)
+
+This command will switch the current default font to the one specified by
+the user.  The first parameter is the name of the file containing the
+font definition.  The second parameter is a symbolic name to assign to the
+font.
+
+Example:
+  loadfont /system/fonts/arial-bold-12.bmp arial-bold-12
+
+This command is of only marginal usefulness to most users.  It is primarily
+intended for testing new font definitions.
+
+Options:
+
+-f  Use the font in fixed-width mode
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

@@ -10,4 +10,3 @@ The passwd program is a very simple method of setting a password for an
 account.  The program is interactive and requires the password to be entered
 twice at a prompt.
 
-

@@ -21,6 +21,32 @@
 
 // This is a program for formatting a disk
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- format --
+
+This command will create a new, empty filesystem.
+
+Usage:
+  format [-T] [-t type] [disk_name]
+
+The 'format' program is interactive, but options can be specified on the
+command line.  The -T option forces format to operate in text-only mode.
+The -t option is the desired filesystem type.  Currently the default type,
+if none is specified, is FAT.  The names of supported filesystem types are
+dependent upon the names allowed by particular filesystem drivers.
+For example, the FAT filesystem driver will accept the type name 'fat' and
+then go ahead and make its own decision about the specific FAT type, or else
+will accept the types 'fat12', 'fat16' or 'fat32'.  Other filesystem types
+can be expected to exhibit the same sorts of behaviour as they are developed.
+The third (optional) parameter is the name of a (logical) disk to format
+(use the 'disks' command to list the disks).  A format can only proceed if
+the driver for the requested filesystem type supports this functionality.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -261,8 +287,11 @@ int main(int argc, char *argv[])
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
 
+  // By default, we do 'generic' (i.e. let the driver make decisions) FAT.
+  strcpy(type, "fat");
+
   // Check for options
-  while (strchr("st:", (opt = getopt(argc, argv, "st:"))))
+  while (strchr("st:T", (opt = getopt(argc, argv, "st:T"))))
     {
       // Operate in silent/script mode?
       if (opt == 's')
@@ -295,9 +324,6 @@ int main(int argc, char *argv[])
     // Print a message
     printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2005 J. Andrew "
 	   "McLaughlin\n\n");
-
-  // By default, we do 'generic' (i.e. let the driver make decisions) FAT.
-  strcpy(type, "fat");
 
   if (argc > 1)
     {

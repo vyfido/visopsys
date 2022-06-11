@@ -38,7 +38,6 @@ typedef struct {
 // An enumeration of driver types
 typedef enum {
   extDriver, fatDriver, isoDriver, textConsoleDriver, graphicConsoleDriver
-
 } kernelDriverType;
 
 // Structures

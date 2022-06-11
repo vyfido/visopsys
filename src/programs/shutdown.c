@@ -21,6 +21,25 @@
 
 // This is the UNIX-style command for shutting down the system
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- shutdown --
+
+A command for shutting down the computer.
+
+Usage:
+  shutdown [-f]
+
+This command causes the system to shut down.  If the (optional) '-f'
+parameter is supplied, then 'reboot' will attempt to ignore errors and shut
+down regardless.  Use this flag with caution if filesystems do not appear to
+be unmounting correctly; you may need to back up unsaved data before
+shutting down.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -122,7 +141,7 @@ static void constructWindow(void)
 
   // Create a reboot icon
   bzero(&iconImage, sizeof(image));
-  if (!imageLoadBmp("/system/icons/rebticon.bmp", &iconImage))
+  if (!imageLoad("/system/icons/rebticon.bmp", 0, 0, &iconImage))
     {
       rebootIcon = windowNewIcon(window, &iconImage, "Reboot", &params);
       windowRegisterEventHandler(rebootIcon, &eventHandler);
@@ -131,7 +150,7 @@ static void constructWindow(void)
 
   // Create a shut down icon
   bzero(&iconImage, sizeof(image));
-  if (!imageLoadBmp("/system/icons/shuticon.bmp", &iconImage))
+  if (!imageLoad("/system/icons/shuticon.bmp", 0, 0, &iconImage))
     {
       params.gridX = 1;
       shutdownIcon =

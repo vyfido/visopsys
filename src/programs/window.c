@@ -21,6 +21,24 @@
 
 // This command will create a new window
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- window --
+
+Open a new command window.
+
+Usage:
+  window
+
+(Only available in graphics mode)
+
+This command will open a new text window running a new instance of the
+'vsh' command shell.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

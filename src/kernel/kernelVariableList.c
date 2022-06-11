@@ -31,6 +31,51 @@
 #include <string.h>
 
 
+static int expandList(variableList *list)
+{
+  // Takes the variable list and expands it.
+
+  int status = 0;
+  void *memory = NULL;
+  char **variables = NULL;
+  char **values = NULL;
+  void *data = NULL;
+  int count;
+
+  list->maxVariables *= 2;
+  list->maxData *= 2;
+  list->memorySize =
+    ((list->maxVariables * sizeof(char *) * 2) + list->maxData);
+
+  memory = kernelMemoryGet(list->memorySize, "variable list");
+  if (memory == NULL)
+    return (status = ERR_MEMORY);
+
+  // Set the pointers
+  variables = memory;
+  values = ((void *) variables + (list->maxVariables * sizeof(char *)));
+  data = ((void *) values + (list->maxVariables * sizeof(char *)));
+
+  for (count = 0; count < (int) list->numVariables; count ++)
+    {
+      variables[count] = (data + (list->variables[count] - list->data));
+      values[count] = (data + (list->values[count] - list->data));
+    }
+
+  // Copy the data
+  kernelMemCopy(list->data, data, list->usedData);
+
+  list->variables = variables;
+  list->values = values;
+  list->data = data;
+
+  kernelMemoryRelease(list->memory);
+  list->memory = memory;
+
+  return (status = 0);
+}
+
+
 static int findVariable(variableList *list, const char *variable)
 {
   // This will attempt to locate a variable in the supplied list.
@@ -38,16 +83,21 @@ static int findVariable(variableList *list, const char *variable)
   // it returns negative.
 
   int slot = ERR_NOSUCHENTRY;
-  unsigned count;
+  int count;
+
+  if ((list == NULL) || (variable == NULL))
+    kernelError(kernel_error, "NULL PARAMETER");
 
   // Search through the list of variables in the supplied list for the one
   // requested by the caller
   for (count = 0; count < list->numVariables; count ++)
-    if (!strcmp(list->variables[count], variable))
-      {
-	slot = count;
-	break;
-      }
+    {
+      if (!strcmp(list->variables[count], variable))
+	{
+	  slot = count;
+	  break;
+	}
+    }
 
   return (slot);
 }
@@ -62,13 +112,12 @@ static int unsetVariable(variableList *list, const char *variable)
   int status = 0;
   int slot = 0;
   int subtract = 0;
-  unsigned count;
-  
+  int count;
+
   // Search the list of variables for the requested one.
   slot = findVariable(list, variable);
-
-  // Did we find it?
   if (slot < 0)
+    // Not found
     return (status = ERR_NOSUCHENTRY);
 
   // Found it.  The amount of data to subtract from the data is equal to the
@@ -100,7 +149,7 @@ static int unsetVariable(variableList *list, const char *variable)
     }
 
   // We now have one fewer variables
-  list->numVariables--;
+  list->numVariables -= 1;
 
   // Adjust the number of bytes used
   list->usedData -= subtract;
@@ -117,34 +166,25 @@ static int setVariable(variableList *list, const char *variable,
 
   int status = 0;
   
-  // Make sure we're not exceeding the maximum number of variables
-  if (list->numVariables >= list->maxVariables)
-    {
-      kernelError(kernel_error, "Maximum number of variables (%d) reached",
-		  list->maxVariables);
-      return (status = ERR_BOUNDS);
-    }
-
   // Check to see whether the variable currently has a value
   if (findVariable(list, variable) >= 0)
     {
-      // The variable already has a value.  We need to unset it first.  The
-      // only problem with this is that if we later discover we don't have
-      // enough room to store the new variable, the old variable gets trashed.
-      // Oh well.
+      // The variable already has a value.  We need to unset it first.
       status = unsetVariable(list, variable);
       if (status < 0)
 	// We couldn't unset it.
 	return (status);
     }
 
-  // Make sure we now have enough room to store the variable
-  if ((list->usedData + (strlen(variable) + 1) + (strlen(value) + 1)) > 
-      list->maxData)
+  // Make sure we're not exceeding the maximum number of variables, and
+  // make sure we now have enough room to store the variable name and value
+  if ((list->numVariables >= list->maxVariables) ||
+      ((list->usedData + (strlen(variable) + 1) + (strlen(value) + 1)) > 
+       (unsigned) list->maxData))
     {
-      kernelError(kernel_error, "Variable list of size %u is full",
-		  list->maxData);
-      return (status = ERR_BOUNDS);
+      status = expandList(list);
+      if (status < 0)
+	return (status);
     }
 
   // Okay, we're setting the variable
@@ -182,56 +222,41 @@ static int setVariable(variableList *list, const char *variable,
 /////////////////////////////////////////////////////////////////////////
 
 
-variableList *kernelVariableListCreate(unsigned maxVariables,
-				       unsigned dataSize,
-				       const char *description)
+int kernelVariableListCreate(variableList *list)
 {
   // This function will create a new variableList structure
 
-  unsigned structureSize = 0;
-  variableList *list = NULL;
-  
-  // numVariables and size must be non-zero
-  if (!maxVariables || !dataSize)
+  int status = 0;
+
+  if (list == NULL)
     {
-      kernelError(kernel_error, "Cannot create an empty variable list");
-      return (list = NULL);
+      kernelError(kernel_error, "NULL variable list parameter");
+      return (status = ERR_NULLPARAMETER);
     }
 
-  // The description should not be NULL
-  if (description == NULL)
-    description = "variable list";
-
-  // The total structure size will be the size of the raw data, plus the size
-  // of variableList itself, plus maxVariables pointers for both the variable
-  // names and the values, respectively
-  structureSize =
-    (sizeof(variableList) + (sizeof(char *) * maxVariables * 2) + dataSize);
-  
-  // Get memory for the data structure
-  list = kernelMemoryGet(structureSize, description);
-  if (list == NULL)
-    return (list);
-
   // Initialize the number of variables and max variables and max data
-  list->numVariables = 0;
-  list->maxVariables = maxVariables;
-  list->usedData = 0;
-  list->maxData = dataSize;
-  list->totalSize = structureSize;
+  kernelMemClear(list, sizeof(variableList));
+  list->maxVariables = VARIABLE_INITIAL_NUMBER;
+  list->maxData = VARIABLE_INITIAL_DATASIZE;
+  list->memorySize = VARIABLE_INITIAL_MEMORY;
 
-  // Set the first variable pointer to be at the end of the control data
-  list->variables = ((void *) list + sizeof(variableList));
-  
+  // The memory will be the size of pointers for both the variable names and
+  // the values, plus additional memory for raw data
+  list->memory = kernelMemoryGet(list->memorySize, "variable list");
+  if (list->memory == NULL)
+    return (status = ERR_MEMORY);
+
+  list->variables = list->memory;
+
   // Set the first value pointer to be at the end of the variable pointers
   list->values =
-    ((void *) list->variables + (sizeof(char *) * maxVariables));
+    ((void *) list->variables + (sizeof(char *) * list->maxVariables));
 
   // Set the data pointer to be at the end of the value pointers
-  list->data = ((void *) list->values + (sizeof(char *) * maxVariables));
+  list->data = ((void *) list->values + (sizeof(char *) * list->maxVariables));
 
   // Return success
-  return (list);
+  return (status = 0);
 }
 
 
@@ -242,6 +267,9 @@ int kernelVariableListGet(variableList *list, const char *variable,
 
   int status = 0;
   int slot = 0;
+
+  if (buffer != NULL)
+    buffer[0] = '\0';
 
   // Make sure none of our pointers are NULL
   if ((list == NULL) || (variable == NULL) || (buffer == NULL) ||
@@ -258,7 +286,6 @@ int kernelVariableListGet(variableList *list, const char *variable,
   if (slot < 0)
     {
       // No such variable
-      buffer[0] = '\0';
       kernelLockRelease(&(list->listLock));
       return (status = slot);
     }

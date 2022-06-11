@@ -24,8 +24,8 @@
 #include <sys/memory.h>
 
 // Definitions
-#define MAXMEMORYBLOCKS 2048
-#define MEMBLOCKSIZE MEMORY_PAGE_SIZE
+#define MAXMEMORYBLOCKS  2048
+#define MEMBLOCKSIZE     MEMORY_PAGE_SIZE
 
 // Functions from kernelMemoryManager.c
 int kernelMemoryInitialize(unsigned);

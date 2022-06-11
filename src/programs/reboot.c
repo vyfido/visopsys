@@ -21,6 +21,24 @@
 
 // This is the UNIX-style command for rebooting the system
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- reboot --
+
+A command for rebooting the computer.
+
+Usage:
+  reboot [-f]
+
+This command causes the system to reboot.  If the (optional) '-f' parameter
+is supplied, then 'reboot' will attempt to ignore errors and reboot
+regardless.  Use this flag with caution if filesystems do not appear to be
+unmounting correctly; you may need to back up unsaved data before rebooting.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/api.h>

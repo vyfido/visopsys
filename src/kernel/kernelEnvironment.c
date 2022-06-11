@@ -19,19 +19,18 @@
 //  kernelEnvironment.c
 //
 
-// This file contains the C functions belonging to the kernel's environment
-// manager.  The environment manager is for maintaining list of variables
-// associated with each process (for example, the PATH variable).
+// This file contains convenience functions for creating/accessing a
+// process' list of environment variables (for example, the PATH variable).
+//  It's just a standard variableList.
 
 #include "kernelEnvironment.h"
 #include "kernelParameters.h"
-#include "kernelMemoryManager.h"
 #include "kernelPageManager.h"
-#include "kernelMultitasker.h"
 #include "kernelVariableList.h"
+#include "kernelMultitasker.h"
+#include "kernelMemoryManager.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <string.h>
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -43,56 +42,55 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelEnvironment *kernelEnvironmentCreate(int processId,
-					   kernelEnvironment *copy)
+int kernelEnvironmentCreate(int processId, variableList *env,
+			    variableList *copy)
 {
   // This function will create a new environment structure for a process.
 
   int status = 0;
   int currentProcessId = 0;
-  kernelEnvironment *peekEnvAddr = NULL;
-  kernelEnvironment *procEnvAddr = NULL;
-  unsigned variablesOffset, valuesOffset;
-  char **peekVariables;
-  char **peekValues;
-  unsigned count;
+  void *procMemAddr = NULL;
+  int count;
+
+  // Check params
+  if (env == NULL)
+    {
+      kernelError(kernel_error, "Environment structure pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
 
   // It's OK for the 'copy' pointer to be NULL, but if it is not, it is
   // assumed that it is in the current process' address space.
 
-  peekEnvAddr = kernelVariableListCreate(MAX_ENVIRONMENT_VARIABLES,
-					 ENVIRONMENT_BYTES,
-					 "process environment");
-  if (peekEnvAddr == NULL)
+  status = kernelVariableListCreate(env);
+  if (status < 0)
     // Eek.  Couldn't get environment space
-    return (peekEnvAddr);
+    return (status);
+
+  if (processId == KERNELPROCID)
+    return (status = 0);
 
   currentProcessId = kernelMultitaskerGetCurrentProcessId();
 
-  if (processId != KERNELPROCID)
+  // Share the memory with the target process
+  status =
+    kernelMemoryShare(currentProcessId, processId, env->memory, &procMemAddr);
+  if (status < 0)
     {
-      // Share the memory with the target process
-      status =
-	kernelMemoryShare(currentProcessId, processId,
-			  (void *) peekEnvAddr, (void **) &procEnvAddr);
-      
-      if (status < 0)
-	// Eek.  Couldn't share the memory.
-	return (peekEnvAddr = NULL);
-
-      // Change the ownership without remapping
-      status = kernelMemoryChangeOwner(currentProcessId, processId, 0,
-				       (void *) peekEnvAddr, NULL);
-
-      if (status < 0)
-	{
-	  // Eek.  Couldn't chown the memory.
-	  kernelMemoryRelease(peekEnvAddr);
-	  return (peekEnvAddr = NULL);
-	}
+      // Eek.  Couldn't share the memory.
+      kernelMemoryRelease(env->memory);
+      return (status);
     }
-  else
-    procEnvAddr = peekEnvAddr;
+
+  // Change the ownership without remapping
+  status =
+    kernelMemoryChangeOwner(currentProcessId, processId, 0, env->memory, NULL);
+  if (status < 0)
+    {
+      // Eek.  Couldn't chown the memory.
+      kernelMemoryRelease(env->memory);
+      return (status);
+    }
 
   // Now we have access to it again, but we also have the virtual address
   // using which the target process will refer to it.
@@ -100,43 +98,35 @@ kernelEnvironment *kernelEnvironmentCreate(int processId,
   // Are we supposed to inherit the environment from another process?
   if (copy)
     {
-      kernelMemCopy((void *) copy, (void *) peekEnvAddr,
-		    peekEnvAddr->totalSize);
-
-      variablesOffset = ((void *) copy->variables - (void *) copy);
-      valuesOffset = ((void *) copy->values - (void *) copy);
-      
-      // Adjust the pointers to the lists of variable names and values, and
-      // to the data itself
-      peekEnvAddr->variables = ((void *) procEnvAddr + variablesOffset);
-      peekEnvAddr->values = ((void *) procEnvAddr + valuesOffset);
-      peekEnvAddr->data =
-	((void *) procEnvAddr + ((void *) copy->data - (void *) copy));
+      // Add all the variables to the new list
+      for (count = 0; count < copy->numVariables; count ++)
+	kernelVariableListSet(env, copy->variables[count],
+			      copy->values[count]);
 
       // Loop through all of the pointers to the variables, adjusting them so
-      // that they now point to the copied strings in the target address
-      // space.
-
-      peekVariables = ((void *) peekEnvAddr + variablesOffset);
-      peekValues = ((void *) peekEnvAddr + valuesOffset);
-
-      for (count = 0; count < peekEnvAddr->numVariables; count ++)
+      // that they now point to the target memory address space.
+      for (count = 0; count < env->numVariables; count ++)
 	{
-	  peekVariables[count] = (char *) ((void *) procEnvAddr +
-	    ((void *) (copy->variables[count]) - (void *) copy));
-	  peekValues[count] = (char *) ((void *) procEnvAddr +
-	    ((void *) (copy->values[count]) - (void *) copy));
+	  env->variables[count] =
+	    (procMemAddr + ((void *) env->variables[count] - env->memory));
+	  env->values[count] =
+	    (procMemAddr + ((void *) env->values[count] - env->memory));
 	}
-      
     }
 
-  if (processId != KERNELPROCID)
-    // Unmap the new environment from the current process' address space
-    kernelPageUnmap(currentProcessId, (void *) peekEnvAddr,
-		    peekEnvAddr->totalSize);
+  // Adjust the pointers to the lists of variable names and values, and
+  // to the data itself
+  env->variables = (procMemAddr + ((void *) env->variables - env->memory));
+  env->values = (procMemAddr + ((void *) env->values - env->memory));
+  env->data = (procMemAddr + ((void *) env->data - env->memory));
+
+  // Unmap the new environment from the current process' address space
+  kernelPageUnmap(currentProcessId, env->memory, env->memorySize);
+
+  env->memory = procMemAddr;
 
   // Return success
-  return (procEnvAddr);
+  return (status = 0);
 }
 
 
@@ -151,8 +141,9 @@ int kernelEnvironmentGet(const char *variable, char *buffer,
   if ((variable == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  status = kernelVariableListGet(kernelCurrentProcess->environment, variable,
-				 buffer, buffSize);
+  status = kernelVariableListGet((variableList *)
+				 &(kernelCurrentProcess->environment),
+				 variable, buffer, buffSize);
   return (status);
 }
 
@@ -167,8 +158,9 @@ int kernelEnvironmentSet(const char *variable, const char *value)
   if ((variable == NULL) || (value == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  status = kernelVariableListSet(kernelCurrentProcess->environment, variable,
-				 value);
+  status = kernelVariableListSet((variableList *)
+				 &(kernelCurrentProcess->environment),
+				 variable, value);
   return (status);
 }
 
@@ -183,24 +175,24 @@ int kernelEnvironmentUnset(const char *variable)
   if (variable == NULL)
     return (status = ERR_NULLPARAMETER);
   
-  kernelVariableListUnset(kernelCurrentProcess->environment, variable);
-
+  kernelVariableListUnset((variableList *)
+			  &(kernelCurrentProcess->environment), variable);
   return (status);
 }
 
 
 void kernelEnvironmentDump(void)
 {
-  unsigned count;
+  int count;
 
   kernelTextPrintLine("Diagnostic process environment dump:");
 
-  for (count = 0; count < kernelCurrentProcess->environment->numVariables;
+  for (count = 0; count < kernelCurrentProcess->environment.numVariables;
        count ++)
     {
-      kernelTextPrint(kernelCurrentProcess->environment->variables[count]);
+      kernelTextPrint(kernelCurrentProcess->environment.variables[count]);
       kernelTextPutc('=');
-      kernelTextPrintLine(kernelCurrentProcess->environment->values[count]);
+      kernelTextPrintLine(kernelCurrentProcess->environment.values[count]);
     }
 
   return;

@@ -230,18 +230,14 @@
 
 #define kernelProcessorDisableInts() __asm__ __volatile__ ("cli")
 
-#define kernelProcessorSuspendInts(variable) \
-do                                           \
-{                                            \
+#define kernelProcessorSuspendInts(variable) do { \
   kernelProcessorIntStatus(variable);        \
   kernelProcessorDisableInts();              \
 } while (0)
 
-#define kernelProcessorRestoreInts(variable) \
-do                                           \
-{                                            \
-  if (variable)                              \
-    kernelProcessorEnableInts();             \
+#define kernelProcessorRestoreInts(variable) do { \
+  if (variable)                                   \
+    kernelProcessorEnableInts();                  \
 } while (0)
 
 #define kernelProcessorIsrEnter()              \
@@ -278,6 +274,20 @@ do                                           \
 			"inb %dx, %al \n\t"    \
 			"inb %dx, %al \n\t"    \
 			"popal")
+
+static inline unsigned short kernelProcessorSwap16(unsigned short variable)
+{
+  volatile unsigned short tmp = (variable);
+  __asm__ __volatile__ ("rolw $8, %0" : "=r" (tmp) : "r" (tmp));
+  return (tmp);
+}
+
+static inline unsigned kernelProcessorSwap32(unsigned variable)
+{
+  volatile unsigned tmp = (variable);
+  __asm__ __volatile__ ("bswap %0" : "=r" (tmp) : "r" (tmp));
+  return (tmp);
+}
 
 #define _KERNELPROCESSORX86_H
 #endif

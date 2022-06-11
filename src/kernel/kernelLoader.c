@@ -22,179 +22,34 @@
 // This file contains the functions belonging to the kernel's executable
 // program loader.
 
-
 #include "kernelLoader.h"
-#include "kernelExecutableFormatElf.h"
 #include "kernelFile.h"
 #include "kernelMemoryManager.h"
+#include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
+#include "kernelPageManager.h"
 #include "kernelError.h"
 #include <string.h>
+#include <stdio.h>
+
+// This is the static list of file class registration functions.  If you
+// add any to this, remember to update the LOADER_NUM_FILECLASSES value
+// in the header file.
+static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES]) (void) = {
+  kernelFileClassElf,
+  kernelFileClassBmp
+};
+static kernelFileClass *fileClassList[LOADER_NUM_FILECLASSES];
+static int numFileClasses = 0;
 
 
-static int setupElfExecutable(unsigned char **loadAddress)
+static void *load(const char *filename, file *theFile, int kernel)
 {
-  // This function is for preparing an ELF executable image to run.
-
-  int status = 0;
-  Elf32Header *header = (Elf32Header *) *loadAddress;
-  Elf32ProgramHeader *programHeader = NULL;
-  Elf32_Off codeOffset, dataOffset;
-  Elf32_Addr codeVirtualAddress, dataVirtualAddress;
-  Elf32_Word codeSizeInFile, dataSizeInFile, dataSizeInMem;
-
-  // We will assume we this function is not called unless the loader is
-  // already sure that this file is ELF.  Thus, we will not check the magic
-  // number stuff at the head of the file again.
-
-  // Check to make aure it's an executable file
-  if (header->e_type != (Elf32_Half) 2)
-    {
-      kernelError(kernel_error, "ELF file is not executable");
-      return (status = ERR_INVALID);
-    }
-
-  // Check the code entry point.  Should be zero
-  if (header->e_entry != (Elf32_Addr) 0)
-    {
-      kernelError(kernel_error, "ELF entry point is not zero");
-      return (status = ERR_INVALID);
-    }
-
-  // Make sure there are 2 program header entries; 1 for code and 1 for data
-  if (header->e_phnum != (Elf32_Half) 2)
-    {
-      kernelError(kernel_warn, "Invalid number of ELF program header "
-		  "entries (%d)", (int) header->e_phnum);
-    }
-
-  // Get the address of the program header
-  programHeader = (Elf32ProgramHeader *) (*loadAddress + header->e_phoff);
-
-  // Skip the segment type.
-
-  // Get the code offset and virtual address
-  codeOffset = programHeader->p_offset;
-  codeVirtualAddress = programHeader->p_vaddr;
-
-  // Skip the physical address.
-
-  codeSizeInFile = programHeader->p_filesz;
-
-  // Make sure that the code size in the file is the same as the size in
-  // memory
-  if (codeSizeInFile != programHeader->p_memsz)
-    {
-      kernelError(kernel_error, "Invalid ELF program (code filesz != memsz)");
-      return (status = ERR_INVALID);
-    }
-
-  // Just check the alignment.  Must be the same as our page size
-  if (programHeader->p_align &&
-      (programHeader->p_align != MEMORY_PAGE_SIZE))
-    {
-      kernelError(kernel_error, "Invalid ELF program (code p_align != "
-		  "MEMORY_PAGE_SIZE)");
-      return (status = ERR_INVALID);
-    }
-
-  // Now we skip to the data segment
-  programHeader = (Elf32ProgramHeader *) (*loadAddress + header->e_phoff +
-					  header->e_phentsize);
-  
-  // Skip the segment type.
-
-  // Get the data offset and virtual address
-  dataOffset = programHeader->p_offset;
-  dataVirtualAddress = programHeader->p_vaddr;
-
-  // Skip the physical address.
-
-  dataSizeInFile = programHeader->p_filesz;
-  dataSizeInMem = programHeader->p_memsz;
-
-  // Check the alignment.  Must be the same as our page size
-  if (programHeader->p_align &&
-      (programHeader->p_align != MEMORY_PAGE_SIZE))
-    {
-      kernelError(kernel_error, "Invalid ELF program (data p_align != "
-		  "MEMORY_PAGE_SIZE)");
-      return (status = ERR_INVALID);
-    }
-
-  // Make sure we have enough memory for the relocated code and data
-  unsigned imageSize = ((codeOffset + codeSizeInFile) +
-			((dataVirtualAddress - codeVirtualAddress) -
-			 (codeOffset + codeSizeInFile)) + dataSizeInMem);
-
-  void *imageMemory = kernelMemoryGet(imageSize, "elf executable");
-  if (imageMemory == NULL)
-    {
-      kernelError(kernel_error, "Error getting memory for ELF executable "
-		  "image");
-      return (status = ERR_MEMORY);
-    }
-  
-  // We will do layout for two segments; the code and data segments
-
-  // For the code segment, we simply place it at the entry point.  The
-  // entry point, in physical memory, should be at the start of the image.
-  // Thus, all we do is move all code forward by codeOffset bytes.
-  // This will have the side effect of deleting the ELF header and
-  // program headers from memory.
-  kernelMemCopy((*loadAddress + codeOffset), imageMemory, codeSizeInFile);
-
-  // We do the same operation for the data segment, except we have to
-  // make sure that the difference between the code and data's virtual
-  // address is the same as the difference between the offsets in the file.
-  kernelMemCopy((*loadAddress + dataOffset),
-		(imageMemory + (dataVirtualAddress - codeVirtualAddress)),
-		dataSizeInFile);
-
-  // Get rid of the old memory
-  kernelMemoryRelease(*loadAddress);
-  *loadAddress = imageMemory;
-
-  // Success
-  return (status = 0);
-}
-
-
-static int processExecutableType(unsigned char **loadAddress)
-{
-  // This function will attempt to determine the program's executable type
-  // and do whatever is necessary to make it ready to go
-
-  int status = 0;
-
-  if ((*loadAddress[0] == 0x7F) &&
-      !strncmp((*loadAddress + 1), "ELF", 3))
-    {
-      // This program is an ELF binary.  Set up for that
-      status = setupElfExecutable(loadAddress);
-      return (status);
-    }
-
-  // Otherwise, we assume 'binary' format, which we do nothing to
-  return (status = 0);
-}
-
-
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-void *kernelLoaderLoad(const char *filename, file *theFile)
-{
-  // This function merely loads the named file into memory and returns
-  // a pointer to the memory.  The caller must deallocate the memory when
-  // finished with the data
+  // This function merely loads the named file into memory (kernel memory
+  // if 'kernel' is non-NULL, otherwise user memory) and returns a pointer
+  // to the memory.  The caller must deallocate the memory when finished
+  // with the data
 
   int status = 0;
   void *fileData = NULL;
@@ -229,22 +84,23 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
     }
 
   // Get some memory into which we can load the program
-  fileData = kernelMemoryGet((theFile->blocks * theFile->blockSize),
-			     "file data");
+  if (kernel)
+    fileData = kernelMalloc(theFile->blocks * theFile->blockSize);
+  else
+    fileData = kernelMemoryGet((theFile->blocks * theFile->blockSize),
+			       "file data");
   if (fileData == NULL)
-    {
-      kernelError(kernel_error, "There was not enough memory for the "
-		  "loader to load this file");
-      return (fileData = NULL);
-    }
+    return (fileData);
 
   // We got the memory.  Now we can load the program into memory
   status = kernelFileOpen(filename, OPENMODE_READ, theFile);
   if (status < 0)
     {
       // Release the memory we allocated for the program
-      kernelMemoryRelease(fileData);
-      kernelError(kernel_error, "The loader could not load this file");
+      if (kernel)
+	kernelFree(fileData);
+      else
+	kernelMemoryRelease(fileData);
       return (fileData = NULL);
     }
 
@@ -252,8 +108,10 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
   if (status < 0)
     {
       // Release the memory we allocated for the program
-      kernelMemoryRelease(fileData);
-      kernelError(kernel_error, "The loader could not load this file");
+      if (kernel)
+	kernelFree(fileData);
+      else
+	kernelMemoryRelease(fileData);
       return (fileData = NULL);
     }
 
@@ -261,64 +119,196 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
 }
 
 
+static void populateFileClassList(void)
+{
+  // Populate our list of file classes
+
+  int count;
+  
+  for (count = 0; count < LOADER_NUM_FILECLASSES; count ++)
+    fileClassList[numFileClasses++] = classRegFns[count]();
+}
+
+  
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+void *kernelLoaderLoad(const char *filename, file *theFile)
+{
+  // This function merely loads the named file into memory and returns
+  // a pointer to the memory.  The caller must deallocate the memory when
+  // finished with the data
+
+  // Make sure the filename and theFile isn't NULL
+  if ((filename == NULL) || (theFile == NULL))
+    {
+      kernelError(kernel_error, "NULL filename or file structure");
+      return (NULL);
+    }
+
+  return (load(filename, theFile, 0 /* not kernel */));
+}
+
+
+kernelFileClass *kernelLoaderGetFileClass(const char *className)
+{
+  // Given a file class name, try to find it in our list.  This is internal
+  // for kernel use only.
+
+  int count;
+
+  // Has our list of file classes been initialized?
+  if (!numFileClasses)
+    populateFileClassList();
+
+  // Determine the file's class
+  for (count = 0; count < numFileClasses; count ++)
+    {
+      if (!strcmp(fileClassList[count]->className, className))
+	return (fileClassList[count]);
+    }
+  
+  // Not found
+  return (NULL);
+}
+
+
+kernelFileClass *kernelLoaderClassify(void *fileData, loaderFileClass *class)
+{
+  // Given some file data, try to determine whether it is one of our known
+  // file classes.
+
+  int count;
+
+  // Has our list of file classes been initialized?
+  if (!numFileClasses)
+    populateFileClassList();
+  
+  // Determine the file's class
+  for (count = 0; count < numFileClasses; count ++)
+    {
+      if (fileClassList[count]->detect(fileData, class) == 1)
+	return (fileClassList[count]);
+    }
+
+  // Not found
+  return (NULL);
+}
+
+
+loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName, int dynamic)
+{
+  // Given a file name, get symbols.
+
+  loaderSymbolTable *symTable = NULL;
+  void *loadAddress = NULL;
+  file theFile;
+  kernelFileClass *fileClassDriver = NULL;
+  loaderFileClass class;
+
+  // Check params
+  if (fileName == NULL)
+    {
+      kernelError(kernel_error, "File name is NULL");
+      return (symTable = NULL);
+    }
+
+  // Load the file data into memory
+  loadAddress =
+    (unsigned char *) load(fileName, &theFile, 1 /* kernel memory */);
+  if (loadAddress == NULL)
+    return (symTable = NULL);
+
+  // Try to determine what kind of executable format we're dealing with.
+  fileClassDriver = kernelLoaderClassify(loadAddress, &class);
+  if (fileClassDriver == NULL)
+    {
+      kernelFree(loadAddress);
+      return (symTable = NULL);
+    }
+
+  if (fileClassDriver->executable.getSymbols)
+    // Get the symbols
+    symTable = fileClassDriver->executable
+      .getSymbols(loadAddress, dynamic, 0 /* not kernel */);
+
+  kernelFree(loadAddress);
+  return (symTable);
+}
+
+
 int kernelLoaderLoadProgram(const char *userProgram, int privilege,
 			    int argc, char *argv[])
 {
-  // Thistakes the name of an executable to load and creates a process
+  // This takes the name of an executable to load and creates a process
   // image based on the contents of the file.  The program is not started
   // by this function.
 
   int status = 0;
   file theFile;
-  unsigned char *loadAddress = NULL;
+  void *loadAddress = NULL;
+  kernelFileClass *fileClassDriver = NULL;
+  loaderFileClass class;
   char procName[MAX_NAME_LENGTH];
   char tmp[MAX_PATH_NAME_LENGTH];
-  int currentProcId = 0;
   int newProcId = 0;
-  int argSpaceSize = 0;
-  void *argSpace = NULL;
-  void *newArgAddress = NULL;
-  int count, length; 
+  processImage execImage;
+  int count;
 
-  struct
-  {
-    int argc;
-    char **argv;
-
-  } argStruct;
-
-  // We need to make sure neither of the arguments are NULL
-
+  // Check params
   if (userProgram == NULL)
     {
-      kernelError(kernel_error,
-		  "The loader received a NULL function parameter");
+      kernelError(kernel_error, "Program name to load is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+  if (argc && !argv)
+    {
+      kernelError(kernel_error, "Parameter list pointer is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
+  kernelMemClear(&execImage, sizeof(processImage));
+
   // Load the program code/data into memory
-  loadAddress = (unsigned char *) kernelLoaderLoad(userProgram, &theFile);
+  loadAddress =
+    (unsigned char *) load(userProgram, &theFile, 0 /* not kernel */);
   if (loadAddress == NULL)
-    {
-      kernelError(kernel_error, "The loader could not load this program");
-      return (status = ERR_INVALID);
-    }
+    return (status = ERR_INVALID);
 
   // Try to determine what kind of executable format we're dealing with.
-  // We may need to do some fixup or relocations
-  status = processExecutableType(&loadAddress);
-  if (status < 0)
+  fileClassDriver = kernelLoaderClassify(loadAddress, &class);
+  if (fileClassDriver == NULL)
     {
-      kernelError(kernel_error, "The loader could not load this program");
+      kernelMemoryRelease(loadAddress);
       return (status = ERR_INVALID);
     }
 
-  // Get the current process ID
-  currentProcId = kernelMultitaskerGetCurrentProcessId();
+  // Make sure it's an executable
+  if (!(class.flags & LOADERFILECLASS_EXEC))
+    {
+      kernelError(kernel_error, "File \"%s\" is not an executable program",
+		  userProgram);
+      kernelMemoryRelease(loadAddress);
+      return (status = ERR_PERMISSION);
+    }
 
-  // By default, pass no arguments
-  argStruct.argc = 0;
-  argStruct.argv = NULL;
+  // We may need to do some fixup or relocations
+  if (fileClassDriver->executable.layoutExecutable)
+    {
+      status = fileClassDriver->executable
+	.layoutExecutable(loadAddress, &execImage);
+      if (status < 0)
+	{
+	  kernelMemoryRelease(loadAddress);
+	  return (status);
+	}
+    }
 
   // Just get the program name without the path in order to set the process
   // name
@@ -326,90 +316,30 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   if (status < 0)
     strncpy(procName, userProgram, MAX_NAME_LENGTH);
 
+  // Set up arguments
+  execImage.argc = argc;
+  for (count = 0; count < argc; count ++)
+    execImage.argv[count] = argv[count];
+
   // Set up and run the user program as a process in the multitasker
-  newProcId = kernelMultitaskerCreateProcess(loadAddress, theFile.size,
-					     procName, privilege,
-					     2, &argStruct);
+  newProcId = kernelMultitaskerCreateProcess(procName, privilege, &execImage);
   if (newProcId < 0)
     {
       // Release the memory we allocated for the program
       kernelMemoryRelease(loadAddress);
-      kernelError(kernel_error, "The loader could not create a process "
-		  "for this program");
+      kernelMemoryRelease(execImage.code);
       return (newProcId);
     }
 
-  // If there were any arguments, we need to pass them on the new
-  // process' stack
+  // Unmap the new process' image memory from this process' address space.
+  status = kernelPageUnmap(kernelCurrentProcess->processId, execImage.code,
+			   execImage.imageSize);
+  if (status < 0)
+    kernelError(kernel_warn, "Unable to unmap new process memory from current "
+		"process");
 
-  argSpaceSize = ((argc + 2) * sizeof(char *));
-  argSpaceSize += (strlen(procName) + 1);
-  for (count = 0; count < argc; count ++)
-    argSpaceSize += (strlen(argv[count]) + 1);
-
-  argStruct.argv = kernelMemoryGet(argSpaceSize, "argument space");
-
-  if (argStruct.argv)
-    {
-      // Make the new process own the memory
-      status = kernelMemoryChangeOwner(currentProcId, newProcId,
-				       1, argStruct.argv, &newArgAddress);
-      if (status >= 0)
-	{
-	  // Share the memory back with this process
-	  status = kernelMemoryShare(newProcId, currentProcId, newArgAddress,
-				     (void *) &(argStruct.argv));
-	  if (status >= 0)
-	    {
-	      // Leave space for pointers to the strings
-	      argSpace = (argStruct.argv + ((argc + 2) * sizeof(char *)));
-
-	      // Copy the executable name into argv[0]
-	      length = strlen(procName);
-	      strcpy(argSpace, procName);
-	      // Adjust the pointer in argv so that it refers to the new
-	      // process' address space
-	      argStruct.argv[0] =
-		((argSpace - (void *) argStruct.argv) + newArgAddress);
-	      argSpace += (length + 1);
-
-	      for (count = 0; count < argc; count ++)
-		{
-		  length = strlen(argv[count]);
-		  strcpy(argSpace, argv[count]);		      
-		  // Adjust the pointer in argv so that it refers to the
-		  // new process' address space
-		  argStruct.argv[count + 1] =
-		    ((argSpace - (void *) argStruct.argv) + newArgAddress);
-		  argSpace += (length + 1);
-		}
-
-	      // We add one for argv[0], the name of the executable
-	      argc += 1;
-
-	      // argv[argc] is supposed to be a NULL pointer, according to
-	      // some standard or other
-	      argStruct.argv[argc] = NULL;
-	      
-	      // Adjust argv so that it refers to the new process' address
-	      // space
-	      argStruct.argc = argc;
-	      argStruct.argv = newArgAddress;
-
-	      // Finally, pass argc and argv to the new process
-	      status = kernelMultitaskerPassArgs(newProcId, 2, &argStruct);
-	      if (status < 0)
-		kernelError(kernel_warn, "Unable to pass arguments");
-	    }
-	  else
-	    kernelError(kernel_warn, "Unable to share argument space");
-	}
-      else
-	kernelError(kernel_warn, "Unable to make new process own argument "
-		    "space");
-    }
-  else
-    kernelError(kernel_warn, "Unable to allocate argument space");
+  // Get rid of the old file memory
+  kernelMemoryRelease(loadAddress);
 
   // All set.  Return the process id.
   return (newProcId);
@@ -429,10 +359,7 @@ int kernelLoaderExecProgram(int processId, int block)
   // Start user program's process
   status = kernelMultitaskerSetProcessState(processId, proc_ready);
   if (status < 0)
-    {
-      kernelError(kernel_error, "The loader could not execute this program");
-      return (status);
-    }
+    return (status);
 
   // Now, if we are supposed to block on this program, we should make
   // the appropriate call to the multitasker

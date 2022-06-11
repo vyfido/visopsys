@@ -158,72 +158,62 @@ static int driverDetect(void *driver)
   int interrupts = 0;
   unsigned char response = 0;
   unsigned char deviceId = 0;
-  int count;
-
-  // Only proceed if we are in graphics mode
-  if (!kernelGraphicsAreEnabled())
-    return (0);
 
   // Do the hardware initialization.
 
+  // Disable keyboard output here, because our data reads are not atomic
+  outPort64(0xAD);
+
   kernelProcessorSuspendInts(interrupts);
 
-  for (count = 0; count < 10; count ++)
-    {
-      // Send reset command
-      outPort64(0xD4);
-      outPort60(0xFF);
+  // Send reset command
+  outPort64(0xD4);
+  outPort60(0xFF);
 
-      // Read the ack 0xFA
-      response = inPort60();
-      if (response != 0xFA)
-	continue;
+  // Read the ack 0xFA
+  response = inPort60();
+  if (response != 0xFA)
+    goto exit;
 
-      // Should be 'self test passed' 0xAA
-      response = inPort60();
-      if (response != 0xAA)
-	continue;
+  // Should be 'self test passed' 0xAA
+  response = inPort60();
+  if (response != 0xAA)
+    goto exit;
 
-      // Get the device ID.  0x00 for normal PS/2 mouse
-      deviceId = inPort60();
-      //if (deviceId != 0)
-      //return (status = 0);
+  // Get the device ID.  0x00 for normal PS/2 mouse
+  deviceId = inPort60();
+  if (deviceId != 0)
+    goto exit;
 
-      // Set scaling to 2:1
-      outPort64(0xD4);
-      outPort60(0xE7);
+  // Set scaling to 2:1
+  outPort64(0xD4);
+  outPort60(0xE7);
 
-      // Read the ack
-      response = inPort60();
-      if (response != 0xFA)
-        continue;
+  // Read the ack
+  response = inPort60();
+  if (response != 0xFA)
+    goto exit;
 
-      // Tell the controller to issue mouse interrupts
-      outPort64(0x20);
-      response = inPort60();
-      response |= 0x02;
-      outPort64(0x60);
-      outPort60(response);
+  // Tell the controller to issue mouse interrupts
+  outPort64(0x20);
+  response = inPort60();
+  response |= 0x02;
+  outPort64(0x60);
+  outPort60(response);
 
-      // Enable data reporting (stream mode)
-      outPort64(0xD4);
-      outPort60(0xF4);
+  // Enable data reporting (stream mode)
+  outPort64(0xD4);
+  outPort60(0xF4);
 
-      // Read the ack
-      response = inPort60();
-      if (response != 0xFA)
-        continue;
-
-      // All set
-      break;
-    }
-
-  kernelProcessorRestoreInts(interrupts);
+  // Read the ack
+  response = inPort60();
+  if (response != 0xFA)
+    goto exit;
 
   // Allocate memory for the device
   device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelMouse));
   if (device == NULL)
-    return (status = 0);
+    goto exit;
 
   device->class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
   device->subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
@@ -235,10 +225,24 @@ static int driverDetect(void *driver)
   if (status < 0)
     {
       kernelFree(device);
-      return (status);
+      goto exit;
     }
 
-  return (status = kernelDeviceAdd(NULL, device));
+  // Add the device
+  status = kernelDeviceAdd(NULL, device);
+  if (status < 0)
+    {
+      kernelFree(device);
+      goto exit;
+    }
+
+exit:
+  kernelProcessorRestoreInts(interrupts);
+
+  // Re-enable keyboard output
+  outPort64(0xAE);
+
+  return (status = 0);
 }
 
 

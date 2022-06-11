@@ -30,8 +30,7 @@
 #define MAX_FS_NAME_LENGTH 64
 
 // This structure defines a file or directory entry
-typedef volatile struct
-{
+typedef volatile struct {
   unsigned char name[MAX_NAME_LENGTH];
   fileType type;
   int flags;
@@ -68,8 +67,7 @@ typedef enum {
 } kernelFileSysTypeEnum;
 
 // This is the structure that is used to define file systems
-typedef volatile struct
-{
+typedef volatile struct {
   const char *description;
   char mountPoint[MAX_FS_NAME_LENGTH];
   const kernelDisk *disk;
@@ -84,16 +82,15 @@ typedef volatile struct
 
 // This is the structure that is used to define a file system
 // driver
-typedef struct
-{
+typedef struct {
   kernelFileSysTypeEnum driverType;
   char *driverTypeName;
   int (*driverDetect) (const kernelDisk *);
   int (*driverFormat) (kernelDisk *, const char *, const char *, int);
-  int (*driverCheck) (kernelFilesystem *, int, int);
   int (*driverDefragment) (kernelFilesystem *);
   int (*driverMount) (kernelFilesystem *);
   int (*driverUnmount) (kernelFilesystem *);
+  int (*driverCheck) (kernelFilesystem *, int, int);
   unsigned (*driverGetFree) (kernelFilesystem *);
   int (*driverNewEntry) (kernelFileEntry *);
   int (*driverInactiveEntry) (kernelFileEntry *);
@@ -120,11 +117,11 @@ int kernelFilesystemIsoInitialize(void);
 
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemScan(kernelDisk *);
-int kernelFilesystemCheck(const char *, int, int);
 int kernelFilesystemFormat(const char *, const char *, const char *, int);
 int kernelFilesystemDefragment(const char *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
+int kernelFilesystemCheck(const char *, int, int);
 int kernelFilesystemUnmountAll(void);
 kernelFilesystem *kernelFilesystemGet(char *);
 unsigned kernelFilesystemGetFree(const char *);

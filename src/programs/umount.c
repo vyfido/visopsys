@@ -21,6 +21,27 @@
 
 // This is the UNIX-style command for mounting filesystems
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- umount --
+
+Unmount a filesystem.
+
+Usage:
+  umount <mount_point>
+
+This command will unmount (disconnect, make unusable) the filesystem mounted
+at the mount point specified as a parameter.
+
+Example:
+  umount /C
+
+This will synchronize and unmount the logical disk mounted at /C.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

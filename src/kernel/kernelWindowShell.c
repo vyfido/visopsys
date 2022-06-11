@@ -153,28 +153,27 @@ static void runPrograms(void)
 {
   // Get any programs we're supposed to run automatically and run them.
 
-  variableList *settings = NULL;
+  variableList settings;
   char programName[MAX_PATH_NAME_LENGTH];
-  unsigned count;
+  int count;
 
   // Read the config file
-  settings = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG);
-  if (settings == NULL)
+  if (kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG, &settings) < 0)
     return;
 
   // Loop for variables with "program.*"
-  for (count = 0; count < settings->numVariables; count ++)
+  for (count = 0; count < settings.numVariables; count ++)
     {
-      if (!strncmp(settings->variables[count], "program.", 8))
+      if (!strncmp(settings.variables[count], "program.", 8))
 	{
-	  if (!kernelVariableListGet(settings, settings->variables[count],
+	  if (!kernelVariableListGet(&settings, settings.variables[count],
 				     programName, MAX_PATH_NAME_LENGTH))
 	    // Try to run the program
 	    kernelLoaderLoadAndExec(programName, privilege, 0, NULL, 0);
 	}
     }
 
-  kernelMemoryRelease(settings);
+  kernelMemoryRelease(settings.memory);
 }
 
 
@@ -249,7 +248,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   kernelWindowComponent *iconComponent = NULL;
   kernelWindowComponent *menuComponent = NULL;
   componentParameters params;
-  unsigned count1, count2;
+  int count1, count2;
 
   // We get default colors from here
   extern color kernelDefaultDesktop;
@@ -291,7 +290,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   if (!kernelVariableListGet(settings, "background.image", propertyValue,
 			     128) && strncmp(propertyValue, "", 128))
     {
-      status = kernelImageLoadBmp(propertyValue, &tmpImage);
+      status = kernelImageLoad(propertyValue, 0, 0, &tmpImage);
 
       if (status == 0)
 	{
@@ -443,7 +442,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 	  kernelVariableListGet(settings, propertyName, propertyValue,
 				128);
 
-	  status = kernelImageLoadBmp(propertyValue, &tmpImage);
+	  status = kernelImageLoad(propertyValue, 0, 0, &tmpImage);
 	  if (status == 0)
 	    {
 	      params.gridY = count2++;

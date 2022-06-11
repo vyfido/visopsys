@@ -37,6 +37,7 @@ typedef struct {
   void (*driverWriteRegister) (int, int, int, unsigned);
   int (*driverDeviceEnable) (int, int);
   int (*driverSetMaster) (int, int);
+
 } kernelBusOps;
 
 // Functions exported by kernelBus.c

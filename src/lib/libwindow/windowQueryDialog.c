@@ -71,7 +71,7 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
     return (status = ERR_NOCREATE);
 
   if (questImage.data == NULL)
-    status = imageLoadBmp(QUESTIMAGE_NAME, (image *) &questImage);
+    status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
 
   if (status == 0)
     {

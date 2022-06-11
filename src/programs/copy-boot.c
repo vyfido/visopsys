@@ -160,7 +160,7 @@ static int merge(unsigned char *oldBootsect, unsigned char *newBootsect)
     {
       printf("File system type is not supported\n");
       errno = EINVAL;
-      return (-errno);
+      return (-1);
     }
 
   return (errno = 0);

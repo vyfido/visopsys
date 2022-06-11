@@ -177,8 +177,10 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
       // Loop through the pages in this page table.  If we find a free
       // page and numberFree is zero, set freeSpace to the corresponding
       // virtual address.  If we find a used page, we reset both numberFree
-      // and freeStart to NULL
-      for (pageNumber = 0; pageNumber < PAGE_PAGES_PER_TABLE; pageNumber++)
+      // and freeStart to NULL.  If the table number is zero, skip the
+      // first page
+      for (pageNumber = (tableNumber == 0) ;
+	   pageNumber < PAGE_PAGES_PER_TABLE; pageNumber++)
 	{
 	  if (table->virtual->page[pageNumber] == NULL)
 	    {

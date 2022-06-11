@@ -6,19 +6,20 @@
 ##
 
 BUILDDIR=../../build/programs
+INCDIR=../include
 LIBDIR=../../build/system/libraries
 
 CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
-STDDEPS		= Makefile* ${LIBDIR}/*.a
+STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h ${LIBDIR}/*.a
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
-INCLUDE         = -nostdinc -I../include
+INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -Wl,../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
+LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -Wl,../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386
 OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES	= adduser \

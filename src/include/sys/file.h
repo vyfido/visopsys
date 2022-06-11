@@ -39,14 +39,12 @@
 // Typedef a file handle
 typedef void* fileHandle;
 
-typedef enum
-{
+typedef enum {
   fileT, dirT, linkT, volT, unknownT
 } fileType;
 
 // This is the structure used to store universal information about a file
-typedef struct
-{
+typedef struct {
   fileHandle handle;
   char name[MAX_NAME_LENGTH];
   fileType type;

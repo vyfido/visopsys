@@ -45,24 +45,21 @@
 
 // Data structures
 
-typedef volatile struct 
-{
+typedef volatile struct {
   unsigned table[PAGE_TABLES_PER_DIR];
 
 } kernelPageDirPhysicalMem;
 
 typedef kernelPageDirPhysicalMem kernelPageDirVirtualMem;
 
-typedef volatile struct 
-{
+typedef volatile struct {
   unsigned page[PAGE_PAGES_PER_TABLE];
 
 } kernelPageTablePhysicalMem;
 
 typedef kernelPageTablePhysicalMem kernelPageTableVirtualMem;
 
-typedef volatile struct
-{
+typedef volatile struct {
   int processId;
   int numberShares;
   int parent;
@@ -73,8 +70,7 @@ typedef volatile struct
 
 } kernelPageDirectory;
 
-typedef volatile struct
-{
+typedef volatile struct {
   kernelPageDirectory *directory;
   int tableNumber;
   int freePages;

@@ -21,6 +21,19 @@
 
 // This is the UNIX-style command for viewing the current time/date
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- date --
+
+Print the date and time.
+
+Usage:
+  date
+
+</help>
+*/
+
 #include <stdio.h>
 #include <time.h>
 #include <sys/api.h>

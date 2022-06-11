@@ -34,7 +34,8 @@ NAMES	= vshCompleteFilename \
 	vshRenameFile \
 	vshSearchPath
 
-OBJS = $(addprefix obj/, $(addsuffix .o, ${NAMES}))
+OBJDIR = obj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
 LIBRARY = ${BUILDDIR}/libvsh.a
 
 # Targets
@@ -42,14 +43,16 @@ LIBRARY = ${BUILDDIR}/libvsh.a
 all: target-dirs ${LIBRARY}
 
 target-dirs:
-	mkdir -p obj
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OBJDIR} ${BUILDDIR}
 
 ${LIBRARY}: ${OBJS}
 	${AR} -rs ${LIBRARY} ${OBJS}
 
-obj/%.o: %.c ${STDDEPS}
+${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${OPTS} -c $< -o $@
 
+${PICOBJDIR}/%.o: %.c ${STDDEPS}
+	${CC} ${OPTS} -fpic -c $< -o $@
+
 clean:
-	rm -Rf *~ *.o core obj ${LIBRARY}
+	rm -Rf *~ *.o core ${OBJDIR} ${LIBRARY}

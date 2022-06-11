@@ -48,70 +48,6 @@ static lock locksLock;
   (((unsigned) block->end - (unsigned) block->start) + 1)
 
 
-/*
-static void check(void)
-{
-  unsigned count;
-  kernelMallocBlock *block = NULL;
-
-  // Count the used blocks
-  count = 0;
-  block = blockList;
-  while (block)
-    {
-      if (block == firstUnusedBlock)
-	break;
-      count += 1;
-      block = (kernelMallocBlock *) block->next;
-    }
-  if (count != usedBlocks)
-    kernelError(kernel_warn, "Used blocks count %u is wrong (%u)",
-		usedBlocks, count);
-
-  // Count the unused blocks
-  count = 0;
-  block = firstUnusedBlock;
-  while (block)
-    {
-      count += 1;
-      block = (kernelMallocBlock *) block->next;
-    }
-  if (count != (totalBlocks - usedBlocks))
-    kernelError(kernel_warn, "Free blocks count %u is wrong (%u)",
-		(totalBlocks - usedBlocks), count);
-
-  // Check for overlaps
-  block = blockList;
-  while (block)
-    {
-      if (block == firstUnusedBlock)
-	break;
-
-      kernelMallocBlock *testBlock = (kernelMallocBlock *) block->next;
-      while (testBlock)
-	{
-	  if (testBlock == firstUnusedBlock)
-	    break;
-
-	  // It should have a start value greater than block
-	  if (testBlock->start <= block->start)
-	    kernelError(kernel_warn, "Block start %u is out of order",
-			testBlock->start);
-
-	  if (((testBlock->start >= block->start) &&
-	       (testBlock->start <= block->end)) ||
-	      ((testBlock->end >= block->start) &&
-	       (testBlock->end <= block->end)))
-	    kernelError(kernel_warn, "Block at %u and block at %u overlap",
-			block->start, testBlock->start);
-	  
-	  testBlock = (kernelMallocBlock *) testBlock->next;
-	}
-
-      block = (kernelMallocBlock *) block->next;
-    }  
-}
-*/
 
 
 static inline void insertBlock(kernelMallocBlock *firstBlock,
@@ -513,8 +449,6 @@ void *_kernelMalloc(const char *function, unsigned size)
 
   // Find a free block big enough
   address = allocateBlock(size);
-  
-  //check();
 
   kernelLockRelease(&locksLock);
 
@@ -547,8 +481,6 @@ int _kernelFree(const char *function, void *start)
     }
 
   status = deallocateBlock(start);
-
-  //check();
 
   kernelLockRelease(&locksLock);
 

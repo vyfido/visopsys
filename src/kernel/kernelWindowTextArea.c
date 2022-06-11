@@ -310,6 +310,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   kernelWindow *window = NULL;
   kernelWindowComponent *component = NULL;
   kernelWindowTextArea *textArea = NULL;
+  componentParameters subParams;
 
   // Check parameters.
   if ((parent == NULL) || (params == NULL))
@@ -379,13 +380,17 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   // If there are any buffer lines, we need a scroll bar as well.
   if (bufferLines)
     {
+      // Standard parameters for a scroll bar
+      kernelMemCopy(params, &subParams, sizeof(componentParameters));
+      subParams.useDefaultForeground = 1;
+      subParams.useDefaultBackground = 1;
+
       textArea->scrollBar =
 	kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,
-				 component->height, params);
+				 component->height, &subParams);
       if (textArea->scrollBar == NULL)
 	{
 	  kernelTextAreaDestroy(textArea->area);
-	  textArea->area = NULL;
 	  kernelFree((void *) textArea);
 	  kernelFree((void *) component);
 	  return (component = NULL);

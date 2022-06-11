@@ -29,8 +29,7 @@
 #define MEMORY_MAX_DESC_LENGTH  32
 
 // Struct that describes one memory block
-typedef struct
-{
+typedef struct {
   int processId;
   char description[MEMORY_MAX_DESC_LENGTH];
   unsigned startLocation;
@@ -39,8 +38,7 @@ typedef struct
 } memoryBlock;
 
 // Struct that describes overall memory statistics
-typedef struct
-{
+typedef struct {
   unsigned totalBlocks;
   unsigned usedBlocks;
   unsigned totalMemory;

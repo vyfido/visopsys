@@ -21,6 +21,29 @@
 
 // This command just lists all the disks registered in the system
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- disks --
+
+Print all of the logical disks attached to the system.
+
+Usage:
+  disks
+
+This command will print all of the disks by name, along with any device,
+filesystem, or logical partition information that is appropriate.
+
+Disk names start with certain combinations of letters which tend to indicate
+the type of disk.  Examples
+
+cd0  - First CD-ROM disk
+fd1  - Second floppy disk
+hd0b - Second logical partition on the first hard disk.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

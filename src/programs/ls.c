@@ -21,6 +21,29 @@
 
 // Yup, it's the UNIX-style command for viewing directory listings
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- ls --
+
+List files.
+
+Synonym:
+  dir
+
+Usage:
+  ls [file | directory] [file | directory] [...]
+
+This command will list (show information about) one or more files or
+directories.  If no parameters are specified, 'ls' will display the contents
+of the current directory.  If any of the parameters specify directories,
+all of the files in those directories are displayed.  If any of the parameters
+are the names of individual files, then information about those specific
+files are displayed.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <sys/vsh.h>
 #include <sys/api.h>

@@ -29,8 +29,7 @@ typedef struct
 
 } kernelSerialDriver;
 
-typedef struct 
-{
+typedef struct {
   int portNumber;
   unsigned baseAddress;
   int baudRate;

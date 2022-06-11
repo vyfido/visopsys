@@ -23,8 +23,7 @@
 
 #if !defined(_LOCALE_H)
 
-struct lconv
-{
+struct lconv {
     char *currency_symbol;
     char *decimal_point;
     char *grouping;

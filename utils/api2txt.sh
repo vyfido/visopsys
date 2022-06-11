@@ -15,5 +15,5 @@ if [ $# != 1 ] ; then
 	exit 1
 fi
 
-sed -n  -e  's/static inline /\n\n/' -e 's/[        ]*_X_ //p' -e 's/[ ]*\/\/[ ]*Desc[ ]*: /\n	/p' $1
+sed -n -e 's/static inline /\n\n/' -e 's/[        ]*_X_ //p' -e 's/[ ]*\/\/[ ]*Desc[ ]*: /\n	/p' $1
 

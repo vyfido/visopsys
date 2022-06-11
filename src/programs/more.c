@@ -21,6 +21,25 @@
 
 // This is the UNIX-style command for reading files page by page
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- more --
+
+Display file's contents, one screenfull at a time.
+
+Usage:
+  more <file1> [file2] [...]
+
+Each file name listed after the command name will be printed in sequence.
+This is similar to the 'cat' command, except that the file contents are
+displayed one screenfull at a time.  To page forward to the next screenfull,
+press the [SPACE] key.  To quit, press the [Q] key.  To advance by a single
+line, press any other key.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -45,6 +45,68 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 
 <font SIZE="2">
 
+<p><font size="4">VERSION 0.56<br>
+</font>22/07/2005</p>
+</font>
+<p><font size="4">Overview: This is a maintenance and bugfix release. Important 
+fixes include the elimination of boot hangs due to faulty mouse initialization 
+and full kernel variable lists, a fix to the detection of secondary hard disks, 
+and a fix to faulty mounting of EXT2/3 filesystems.&nbsp; In addition, important 
+multitasker improvements related to process initialization have been back-ported 
+from the 0.6 development branch.</font></p>
+<ul>
+  <li><font size="4">Fixed: The system could fail to boot in graphics mode due 
+  to faulty mouse initialization</font></li>
+  <li><font size="4">Fixed: The kernel's symbol variable list was becoming full 
+  and causing various boot initializations to fail. The kernel's variableList 
+  code has been changed so that it automatically manages list memory.</font></li>
+  <li><font size="4">Fixed: &quot;ID or target sector not found&quot; messages during boot 
+  when a second (slave, for example) hard disk was present.</font></li>
+  <li><font size="4">Fixed: EXT2 mounting had become generally broken</font></li>
+  <li><font size="4">Back-ported the 0.6 branch multitasker changes (to do with 
+  processImage structures and argument passing).</font></li>
+  <li><font size="4">The exception handler process now displays a dialog box 
+  when a program crashes, so that they don't simply disappear (requiring the 
+  user to look at the console output for the reason)</font></li>
+  <li><font size="4">Added a system to generate the programs' help file text 
+  from comments within the source code, so that it's easier to keep up to date.</font></li>
+  <li><font size="4">Fixed: When a mount attempt failed, it was possible to end 
+  up with a rogue '/' entry added to the root directory, which could render the 
+  whole directory tree useless until reboot.</font></li>
+  <li><font size="4">&quot;Genericized&quot; the image loading functions so that they 
+  first identify the format, then call the appropriate routines to interpret it.</font></li>
+  <li><font size="4">Fixed: When calling kernelWindowDestroy() with a window 
+  that had user containers, there were a number of &quot;Container data is NULL&quot; 
+  error messages.</font></li>
+  <li><font size="4">The kernelError code no longer prints the current process 
+  name if the error occurs inside an interrupt handler; it prints the interrupt 
+  handler number instead.</font></li>
+  <li><font size="4">Any window components that contain other components now 
+  remove them from the parent container, if applicable. (windowTextArea and 
+  windowTitleBar, for example).</font></li>
+  <li><font size="4">Fixed: After choosing the destination disk in the install 
+  program, there was an error message from kernelMemoryManager.c:838:The memory 
+  pointer is not mapped.</font></li>
+  <li><font size="4">The ELF loader code now marks executable code pages as 
+  read-only, ELF headers are now processed more correctly (side effect: 
+  eliminating various messages about unexpected number of ELF headers)</font></li>
+  <li><font size="4">Changed the FAT, EXT, and ISO filesystem drivers to take 
+  more advantage of packed structures for better efficiency.</font></li>
+  <li><font size="4">Fixed: The 'format' program was inadvertently ignoring the 
+  '-t' filesystem type option.</font></li>
+  <li><font size="4">Fixed: If the default background colour was not used, the 
+  text area widget's scroll bar would use that background color rather than the 
+  normal grey.</font></li>
+  <li><font size="4">Un-exported the filesystem functions in the FAT, ISO, and 
+  EXT drivers.</font></li>
+  <li><font size="4">The 'imgboot' program now shows the OS version in the 
+  title.</font></li>
+</ul>
+
+<font SIZE="2">
+
+<hr>
+
 <p><font size="4">VERSION 0.55<br>
 </font></font>18/05/2005</p>
 <p><font size="4">Overview: This is a maintenance and bugfix release, with some 

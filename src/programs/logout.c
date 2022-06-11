@@ -21,6 +21,22 @@
 
 // Log the user out of the system
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- logout --
+
+End the current login session.
+
+Synonym:
+  exit
+
+Usage:
+  logout
+
+</help>
+*/
+
 #include <sys/api.h>
 
 

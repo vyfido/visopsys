@@ -22,6 +22,26 @@
 // This is a program for controlling aspects of a CD-ROM device, such
 // as opening and closing the drawer.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- cdrom --
+
+This command can be used to control operations of CD-ROM devices.
+
+Usage:
+  cdrom [disk_name] <operation>
+
+    where 'operation' is one of: open, eject, close, lock, unlock 
+
+The first (optional) parameter is the name of a CD-ROM disk (use the 'disks'
+command to list the disks).  If no disk name is specified, the cdrom command
+will attempt to guess the most likely device.  The second (mandatory)
+argument tells the CD-ROM which operation to perform.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

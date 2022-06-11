@@ -22,9 +22,16 @@
 #if !defined(_KERNELVARIABLELIST_H)
 
 #include <sys/variable.h>
+#include <sys/memory.h>
+
+#define VARIABLE_INITIAL_MEMORY    MEMORY_PAGE_SIZE
+#define VARIABLE_INITIAL_NUMBER    32
+#define VARIABLE_INITIAL_DATASIZE  (VARIABLE_INITIAL_MEMORY -       \
+				    (2 * VARIABLE_INITIAL_NUMBER *  \
+				     sizeof(char *)))
 
 // Functions exported by kernelVariableList.c
-variableList *kernelVariableListCreate(unsigned, unsigned, const char *);
+int kernelVariableListCreate(variableList *);
 int kernelVariableListGet(variableList *, const char *, char *, unsigned);
 int kernelVariableListSet(variableList *, const char *, const char *);
 int kernelVariableListUnset(variableList *, const char *);

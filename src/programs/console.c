@@ -21,6 +21,25 @@
 
 // This command will display/close the console window
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- console --
+
+Launch a console window.
+
+Usage:
+  console
+
+(Only available in graphics mode)
+
+This command will launch a window in which console messages are displayed.
+This is useful for viewing logging or error messages that do not appear
+in other windows.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

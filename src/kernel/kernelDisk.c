@@ -1306,6 +1306,7 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   userDisk->opFlags = logical->opFlags;
   userDisk->startSector = logical->startSector;
   userDisk->numSectors = logical->numSectors;
+  userDisk->readOnly = logical->readOnly;
 
   return (status = 0);
 }
@@ -1390,6 +1391,8 @@ int kernelDiskReadPartitions(void)
 
 	  // Initialize the sector buffer
 	  kernelMemClear(sectBuf, 512);
+
+	  startSector = 0;
 	  extendedStartSector = 0;
       
 	  // Clear the logical disks

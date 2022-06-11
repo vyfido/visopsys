@@ -22,7 +22,6 @@
 #if !defined(_KERNELUSER_H)
 
 #define USER_PASSWORDFILE      "/system/password"
-#define USER_MAXUSERS          64
 #define USER_MAX_NAMELENGTH    16
 #define USER_MAX_PASSWDLENGTH  16
 

@@ -241,8 +241,8 @@ int kernelFontSetDefault(const char *name)
 int kernelFontLoad(const char* filename, const char *fontname,
 		   kernelAsciiFont **pointer, int fixedWidth)
 {
-  // Takes the name of a bitmap file containing a font definition and turns
-  // it into our internal representation of a kernelAsciiFont.  The bitmap
+  // Takes the name of a image file containing a font definition and turns
+  // it into our internal representation of a kernelAsciiFont.  The image
   // should have pure green as its background; every other color gets turned
   // 'on' in our mono font scheme.  If the operation is successful the
   // supplied pointer is set to point to the new font.
@@ -282,14 +282,14 @@ int kernelFontLoad(const char* filename, const char *fontname,
   if (numFonts >= MAX_FONTS)
     return (status = ERR_NOFREE);
 
-  // Try to load the font bitmap
-  status = kernelImageLoadBmp(filename, &fontImage);
+  // Try to load the font image
+  status = kernelImageLoad(filename, 0, 0, &fontImage);
   if (status < 0)
     return (status = ERR_NOSUCHFILE);
 
   // The font file is a "vertical" concatenation of the character images.
-  // The width of the bitmap image describes the width of a character, whereas
-  // the height of a character is the division of the bitmap height and the
+  // The width of the image describes the width of a character, whereas
+  // the height of a character is the division of the image height and the
   // ASCII_PRINTABLES value
   charWidth = fontImage.width;
   charHeight = (fontImage.height / ASCII_PRINTABLES);

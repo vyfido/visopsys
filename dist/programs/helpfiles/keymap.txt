@@ -17,3 +17,4 @@ contains space characters).
 
 In graphics mode, the program is interactive and the user can choose a new
 mapping simply by clicking.
+

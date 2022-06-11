@@ -26,6 +26,7 @@
 // A lock structure
 typedef volatile struct {
   int processId;
+
 } lock;
 
 #define _LOCK_H

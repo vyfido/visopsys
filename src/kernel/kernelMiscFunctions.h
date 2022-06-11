@@ -37,7 +37,7 @@ void kernelMemClear(void *, unsigned);
 int kernelMemCmp(const void *, const void *, unsigned);
 void kernelStackTrace(void *, void *);
 void kernelConsoleLogin(void);
-variableList *kernelConfigurationReader(const char *);
+int kernelConfigurationReader(const char *, variableList *);
 int kernelConfigurationWriter(const char *, variableList *);
 int kernelReadSymbols(const char *);
 

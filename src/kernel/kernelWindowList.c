@@ -613,6 +613,7 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
   kernelWindowComponent *component = NULL;
   kernelWindowList *list = NULL;
   kernelWindowContainer *container = NULL;
+  componentParameters subParams;
 
   // Check parameters.
   if ((parent == NULL) || (items == NULL) || (params == NULL))
@@ -686,20 +687,21 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
     }
   container = (kernelWindowContainer *) list->container->data;
 
+  // Standard parameters for a scroll bar
+  kernelMemCopy(params, &subParams, sizeof(componentParameters));
+  subParams.useDefaultForeground = 1;
+  subParams.useDefaultBackground = 1;
+
   // Get our scrollbar component
   list->scrollBar =
     kernelWindowNewScrollBar(parent, scrollbar_vertical, 0, component->height,
-			     params);
+			     &subParams);
   if (list->scrollBar == NULL)
     {
       kernelFree((void *) list);
       kernelFree((void *) component);
       return (component = NULL);
     }
-
-  // Standard parameters for a scroll bar
-  list->scrollBar->parameters.useDefaultForeground = 1;
-  list->scrollBar->parameters.useDefaultBackground = 1;
 
   // Remove the container and scrollbar from the parent container
   if (((kernelWindow *) parent)->type == windowType)

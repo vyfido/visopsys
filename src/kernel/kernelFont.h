@@ -27,8 +27,7 @@
 #define MAX_FONTS 16
 
 // The font data structure for ascii-oriented fonts
-typedef struct
-{
+typedef struct {
   char name[32];
   int charWidth;
   int charHeight;

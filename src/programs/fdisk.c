@@ -22,6 +22,33 @@
 // This is a program for modifying partition tables and doing other disk
 // management tasks.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- fdisk --
+
+Also known as the "Disk Manager".  This program can be used to perform
+maintenance on fixed disks.
+
+Usage:
+  fdisk [-T] [-o <disk name>] [disk name]
+
+The fdisk program is interactive, and can be used in either text or graphics
+mode.  It provides the same functionality in both modes but graphics mode
+will tend to be more fluid and user-friendly.  Development of this program
+is ongoing and will be a major focus of improvements in future releases,
+aiming towards providing much of the same functionality of PartitionMagic
+and similar utilities.  If the disk name can be specified as the last
+argument.
+
+Options:
+
+-T  Force text mode operation
+-o <disk name>  Clear the partition table of the specified disk
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -52,8 +79,8 @@ static int selectedSlice = 0;
 static int changesPending = 0;
 static char *tmpBackupName = NULL;
 static int backupAvailable = 0;
-static unsigned canvasWidth = 600;
-static unsigned canvasHeight = 60;
+static ioThreadArgs readerArgs;
+static ioThreadArgs writerArgs;
 static int ioThreadsTerminate = 0;
 static int ioThreadsFinished = 0;
 
@@ -91,6 +118,8 @@ static objectKey infoButton = NULL;
 static objectKey moveButton = NULL;
 static objectKey newButton = NULL;
 static objectKey setTypeButton = NULL;
+static unsigned canvasWidth = 600;
+static unsigned canvasHeight = 60;
 
 
 static int yesOrNo(char *question)
@@ -2138,11 +2167,10 @@ static void listTypes(void)
 	    windowNewButton(typesWindow, "Dismiss", NULL, &params);
 	  windowComponentFocus(dismissButton);
 
-	  // Save old text output
+	  // Save old text output and set the text output to our new area
 	  oldOutput = multitaskerGetTextOutput();
-
-	  // Set the text output to our new area
 	  windowSetTextOutput(textArea);
+
 	  windowSetHasCloseButton(typesWindow, 0);
 	  windowCenterDialog(window, typesWindow);
 	  windowSetVisible(typesWindow, 1);
@@ -3111,32 +3139,58 @@ static disk *chooseDiskDialog(void)
 }
 
 
-static int copyDiskIoThread(disk *theDisk, unsigned startSector,
-			    unsigned numSectors, concurrentIoBuffer *buffer,
-			    int reader, int showProgress,
-			    objectKey progressBar, objectKey statusLabel)
+static int copyDiskIoThread(int argc, char *argv[])
 {
   // This thread polls for empty/full buffers and reads/writes them when
   // they're ready
 
   int status = 0;
+  int reader = 0;
+  ioThreadArgs *args = NULL;
+  unsigned currentSector = 0;
+  unsigned doSectors = 0;
   unsigned sectorsPerOp = 0;
   int currentBuffer = 0;
-  unsigned currentSector = startSector;
-  unsigned doSectors = numSectors;
   int percentage = 0;
   int startSeconds = rtcUptimeSeconds();
   int elapsedSeconds = 0;
   int remainingSeconds = 0;
   char statusText[80];
 
+  // Are we a reader thread or a writer thread?
+  if (argc < 2)
+    {
+      error("IO thread argument count (%d) error", argc);
+      status = ERR_ARGUMENTCOUNT;
+      goto terminate;
+    }
+
+  if (!strcmp(argv[1], "reader"))
+    reader = 1;
+  else if (!strcmp(argv[1], "writer"))
+    reader = 0;
+  else
+    {
+      error("Invalid IO thread argument \"%s\"", argv[0]);
+      status = ERR_INVALID;
+      goto terminate;
+    }
+
+  if (reader)
+    args = &readerArgs;
+  else
+    args = &writerArgs;
+
+  currentSector = args->startSector;
+  doSectors = args->numSectors;
+
   // Calculate the sectors per operation for the disk
-  sectorsPerOp = (buffer->bufferSize / theDisk->sectorSize);
+  sectorsPerOp = (args->buffer->bufferSize / args->theDisk->sectorSize);
 
   while (doSectors && !ioThreadsTerminate)
     {
-      if ((reader && buffer->buffer[currentBuffer].full) ||
-	  (!reader && !buffer->buffer[currentBuffer].full))
+      if ((reader && args->buffer->buffer[currentBuffer].full) ||
+	  (!reader && !args->buffer->buffer[currentBuffer].full))
 	{
 	  // For good behaviour
 	  multitaskerYield();
@@ -3148,46 +3202,50 @@ static int copyDiskIoThread(disk *theDisk, unsigned startSector,
 	sectorsPerOp = doSectors;
 
       if (reader)
-	status = diskReadSectors(theDisk->name, currentSector, sectorsPerOp,
-				 buffer->buffer[currentBuffer].data);
+	status =
+	  diskReadSectors(args->theDisk->name, currentSector, sectorsPerOp,
+			  args->buffer->buffer[currentBuffer].data);
       else
-	status = diskWriteSectors(theDisk->name, currentSector, sectorsPerOp,
-				  buffer->buffer[currentBuffer].data);
+	status =
+	  diskWriteSectors(args->theDisk->name, currentSector, sectorsPerOp,
+			   args->buffer->buffer[currentBuffer].data);
       if (status < 0)
 	{
 	  error("Error %d %s %u sectors at %u %s disk %s", status,
 		(reader? "reading" : "writing"), sectorsPerOp,
-		currentSector, (reader? "from" : "to"), theDisk->name);
-	  multitaskerTerminate(status);
+		currentSector, (reader? "from" : "to"), args->theDisk->name);
+	  goto terminate;
 	}
 
       if (reader)
-	buffer->buffer[currentBuffer].full = 1;
+	args->buffer->buffer[currentBuffer].full = 1;
       else
-	buffer->buffer[currentBuffer].full = 0;
+	args->buffer->buffer[currentBuffer].full = 0;
 
       currentSector += sectorsPerOp;
       doSectors -= sectorsPerOp;
 
-      if (showProgress)
+      if (args->showProgress)
 	{
-	  percentage = (((currentSector - startSector) * 100) / numSectors);
+	  percentage =
+	    (((currentSector - args->startSector) * 100) / args->numSectors);
 	  elapsedSeconds = (rtcUptimeSeconds() - startSeconds);
 	  remainingSeconds =
 	    ((elapsedSeconds * (doSectors / sectorsPerOp)) /
-	     ((currentSector - startSector) / sectorsPerOp));
+	     ((currentSector - args->startSector) / sectorsPerOp));
 	  sprintf(statusText, "Time remaining: %d:%02d:%02d",
 		  (remainingSeconds / 3600), ((remainingSeconds % 3600) / 60),
 		  (remainingSeconds % 60));
 
 	  if (graphics)
 	    {
-	      if (progressBar)
+	      if (args->progressBar)
 		// Update the progress indicator
-		windowComponentSetData(progressBar, (void *) percentage, 1);
-	      if (statusLabel)
+		windowComponentSetData(args->progressBar, (void *) percentage,
+				       1);
+	      if (args->statusLabel)
 		// Update the status label
-		windowComponentSetData(statusLabel, statusText,
+		windowComponentSetData(args->statusLabel, statusText,
 				       strlen(statusText));
 	    }
 	  else
@@ -3213,7 +3271,10 @@ static int copyDiskIoThread(disk *theDisk, unsigned startSector,
 	multitaskerYield();
     }
 
-  multitaskerTerminate(0);
+  status = 0;
+
+ terminate:
+  multitaskerTerminate(status);
   // Compiler happy
   while(1);
 }
@@ -3248,7 +3309,7 @@ static int copyDisk(void)
   char character[2];
   slice entry;
   unsigned lastUsedSector = 0;
-  concurrentIoBuffer buffer;
+  ioBuffer buffer;
   int readerPID = 0;
   int writerPID = 0;
   int cancelled = 0;
@@ -3373,7 +3434,7 @@ static int copyDisk(void)
     }
   
   // Set up the memory buffer to copy data to/from
-  bzero(&buffer, sizeof(concurrentIoBuffer));
+  bzero(&buffer, sizeof(ioBuffer));
   buffer.bufferSize = COPYBUFFER_SIZE;
   // This loop will allow us to try successively smaller memory buffer
   // allocations, so that we can start by trying to allocate a large amount
@@ -3447,35 +3508,29 @@ static int copyDisk(void)
 
   // Set up and start our IO threads
 
-  void *readerArgs[] = {
-    srcDisk,
-    (void *) 0 /* start */,
-    (void *) (lastUsedSector + 1) /* number */,
-    &buffer,
-    (void *) 1 /* reader */,
-    (void *) 0 /* progress */,
-    NULL,
-    NULL
-  };
-
-  void *writerArgs[] = {
-    destDisk,
-    (void *) 0 /* start */,
-    (void *) (lastUsedSector + 1) /* number */,
-    &buffer,
-    (void *) 0 /* reader */,
-    (void *) 1 /* progress */,
-    progressBar,
-    statusLabel
-  };
+  bzero(&readerArgs, sizeof(ioThreadArgs));
+  readerArgs.theDisk = srcDisk;
+  readerArgs.startSector = 0;
+  readerArgs.numSectors = (lastUsedSector + 1);
+  readerArgs.buffer = &buffer;
+  readerArgs.showProgress = 0;
+  
+  bzero(&writerArgs, sizeof(ioThreadArgs));
+  writerArgs.theDisk = destDisk;
+  writerArgs.startSector = 0;
+  writerArgs.numSectors = (lastUsedSector + 1);
+  writerArgs.buffer = &buffer;
+  writerArgs.showProgress = 1;
+  writerArgs.progressBar = progressBar;
+  writerArgs.statusLabel = statusLabel;
 
   ioThreadsTerminate = 0;
   ioThreadsFinished = 0;
 
-  readerPID = multitaskerSpawn(&copyDiskIoThread, "i/o reader thread",
-			       8, readerArgs);
-  writerPID = multitaskerSpawn(&copyDiskIoThread, "i/o writer thread",
-			       8, writerArgs);
+  readerPID = multitaskerSpawn(&copyDiskIoThread, "i/o reader thread", 1,
+			       (void *[]) { "reader" });
+  writerPID = multitaskerSpawn(&copyDiskIoThread, "i/o writer thread", 1,
+			       (void *[]) { "writer" });
   if ((readerPID < 0) || (writerPID < 0))
     {
       if (readerPID < 0)
@@ -4137,7 +4192,7 @@ static void constructWindow(void)
     {
       if (iconImage.data == NULL)
 	// Try to load an icon image to go at the top of the window
-	status = imageLoadBmp("/system/icons/diskicon.bmp", &iconImage);
+	status = imageLoad("/system/icons/diskicon.bmp", 0, 0, &iconImage);
       if (status == 0)
 	{
 	  // Create an image component from it, and add it to the container

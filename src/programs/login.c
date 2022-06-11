@@ -21,6 +21,30 @@
 
 // This is the current login process for Visopsys.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- login --
+
+A program which allows a user to log into the system.
+
+Usage:
+  login [-v]
+
+This program is interactive, except when specifying the (optional) '-v'
+option.  If -v is specified, the program will print its version number and
+exit.  It works in both text and graphics modes.
+
+The current version of the login program will prompt for a user name,
+but no password, and will accept any (non-empty) user name.  There is no
+user authentication at present.
+
+If the login program has crashed or been killed, you can start a new instance
+using the [F1] key.
+
+</help>
+*/
+
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -222,7 +246,7 @@ static void constructWindow(int myProcessId)
 
   if (splashImage.data == NULL)
     // Try to load a splash image to go at the top of the window
-    status = imageLoadBmp("/system/visopsys.bmp", &splashImage);
+    status = imageLoad("/system/visopsys.bmp", 0, 0, &splashImage);
   if (splashImage.data != NULL)
     {
       splashImage.translucentColor.red = 0;
@@ -283,9 +307,6 @@ static void getLogin(void)
   login[0] = '\0';
   password[0] = '\0';
       
-  // Turn keyboard echo off
-  textInputSetEcho(0);
-  
   if (graphics)
     {
       windowComponentSetData(loginField, "", 0);
@@ -294,6 +315,9 @@ static void getLogin(void)
     }
   else
     {
+      // Turn keyboard echo off
+      textInputSetEcho(0);
+  
       printf("\n");
       printPrompt();
 
@@ -331,10 +355,10 @@ static void getLogin(void)
 	  if (bufferCharacter == (unsigned char) 10)
 	    break;
 	}
-    }
   
-  // Turn keyboard echo back on
-  textInputSetEcho(1);
+      // Turn keyboard echo back on
+      textInputSetEcho(1);
+    }
 }
 
 

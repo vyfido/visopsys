@@ -20,4 +20,3 @@ Options:
 -T  Force text mode operation
 -o <disk name>  Clear the partition table of the specified disk
 
-

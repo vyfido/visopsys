@@ -343,8 +343,8 @@ extern int visopsys_in_kernel;
 #define _fnum_fontSetDefault                         99001
 #define _fnum_fontLoad                               99002
 #define _fnum_fontGetPrintedWidth                    99003
-#define _fnum_imageLoadBmp                           99004
-#define _fnum_imageSaveBmp                           99005
+#define _fnum_imageLoad                              99004
+#define _fnum_imageSave                              99005
 #define _fnum_shutdown                               99006
 #define _fnum_version                                99007
 #define _fnum_encryptMD5                             99008
@@ -1398,18 +1398,18 @@ _X_ static inline int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSiz
 // Multitasker functions
 //
 
-_X_ static inline int multitaskerCreateProcess(void *addr, unsigned size, const char *name, int numargs, void *args)
+_X_ static inline int multitaskerCreateProcess(const char *name, int privilege, processImage *execImage)
 {
-  // Proto: int kernelMultitaskerCreateProcess(void *, unsigned int, const char *, int, void *);
-  // Desc : Create a new process.  The code should have been loaded at the address 'addr' and be of size 'size'.  'name' will be the new process' name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new process.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
-  return (sysCall_5(_fnum_multitaskerCreateProcess, addr, (void *) size, 
-		   (void *) name, (void *) numargs, args));
+  // Proto: int kernelMultitaskerCreateProcess(const char *, int, processImage *);
+  // Desc : Create a new process.  'name' will be the new process' name.  'privilege' is the privilege level.  'execImage' is a processImage structure that describes the loaded location of the file, the program's desired virtual address, entry point, size, etc.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+  return (sysCall_3(_fnum_multitaskerCreateProcess, (void *) name,
+		    (void *) privilege, execImage));
 }
 
-_X_ static inline int multitaskerSpawn(void *addr, const char *name, int numargs, void *args)
+_X_ static inline int multitaskerSpawn(void *addr, const char *name, int numargs, void *args[])
 {
-  // Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *);
-  // Desc : Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+  // Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *[]);
+  // Desc : Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and made runnable, so there is no need to change its state to activate it.
   return (sysCall_4(_fnum_multitaskerSpawn, addr, (void *) name, 
 		    (void *) numargs, args));
 }
@@ -1446,8 +1446,8 @@ _X_ static inline int multitaskerSetProcessState(int pid, int state)
 {
   // Proto: int kernelMultitaskerSetProcessState(int, kernelProcessState);
   // Desc : Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
-  return (sysCall_2(_fnum_multitaskerSetProcessState, (void *) pid, 
-		   (void *) state));
+  return (sysCall_2(_fnum_multitaskerSetProcessState, (void *) pid,
+		    (void *) state));
 }
 
 _X_ static inline int multitaskerProcessIsAlive(int pid)
@@ -1462,7 +1462,7 @@ _X_ static inline int multitaskerSetProcessPriority(int pid, int priority)
   // Proto: int kernelMultitaskerSetProcessPriority(int, int);
   // Desc : Sets the priority of the process referenced by process ID 'pid' to 'priority'.
   return (sysCall_2(_fnum_multitaskerSetProcessPriority, (void *) pid, 
-		   (void *)priority));
+		    (void *) priority));
 }
 
 _X_ static inline int multitaskerGetProcessPrivilege(int pid)
@@ -1476,8 +1476,8 @@ _X_ static inline int multitaskerGetCurrentDirectory(char *buff, int buffsz)
 {
   // Proto: int kernelMultitaskerGetCurrentDirectory(char *, int);
   // Desc : Returns the absolute pathname of the calling process' current directory.  Puts the value in the buffer 'buff' which is of size 'buffsz'.
-  return (sysCall_2(_fnum_multitaskerGetCurrentDirectory, buff, 
-		   (void *) buffsz));
+  return (sysCall_2(_fnum_multitaskerGetCurrentDirectory, buff,
+		    (void *) buffsz));
 }
 
 _X_ static inline int multitaskerSetCurrentDirectory(char *buff)
@@ -1989,8 +1989,7 @@ _X_ static inline int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, i
   // Proto: kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, int, int);
   // Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
   return (sysCall_5(_fnum_windowUpdateBuffer, buffer, (void *) xCoord,
-					    (void *) yCoord, (void *) width,
-					    (void *) height));
+		    (void *) yCoord, (void *) width, (void *) height));
 }
 
 _X_ static inline int windowSetTitle(objectKey window, const char *title)
@@ -2410,7 +2409,8 @@ _X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int
   // Proto: kernelWindowComponent *kernelWindowNewTextArea(volatile void *, int, int, int, componentParameters *);
   // Desc : Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params'.  The 'columns' and 'rows' are the visible portion, and 'bufferLines' is the number of extra lines of scrollback memory.  If 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_5(_fnum_windowNewTextArea, parent,
-	(void *) columns, (void *) rows, (void *) bufferLines, params));
+				(void *) columns, (void *) rows,
+				(void *) bufferLines, params));
 }
 
 _X_ static inline objectKey windowNewTextField(objectKey parent, int columns, componentParameters *params)
@@ -2571,18 +2571,20 @@ _X_ static inline int fontGetPrintedWidth(objectKey font, const char *string)
   return (sysCall_2(_fnum_fontGetPrintedWidth, font, (void *) string));
 }
 
-_X_ static inline int imageLoadBmp(const char *filename, image *loadImage)
+_X_ static inline int imageLoad(const char *filename, int width, int height, image *loadImage)
 {
-  // Proto: int imageLoadBmp(const char *, image *);
-  // Desc : Try to load the bitmap image file 'filename', and if successful, save the data in the image data structure 'loadImage'.
-  return (sysCall_2(_fnum_imageLoadBmp, (void *) filename, loadImage));
+  // Proto: int imageLoad(const char *, int, int, image *);
+  // Desc : Try to load the bitmap image file 'filename' (with the specified 'width' and 'height' if possible -- zeros indicate no preference), and if successful, save the data in the image data structure 'loadImage'.
+  return (sysCall_4(_fnum_imageLoad, (void *) filename,(void *) width,
+		    (void *) height, loadImage));
 }
 
-_X_ static inline int imageSaveBmp(const char *filename, image *saveImage)
+_X_ static inline int imageSave(const char *filename, int format, image *saveImage)
 {
-  // Proto: int imageSaveBmp(const char *, image *);
-  // Desc : Save the image data structure 'saveImage' as a bitmap, to the file 'fileName'.
-  return (sysCall_2(_fnum_imageSaveBmp, (void *) filename, saveImage));
+  // Proto: int imageSave(const char *, int, image *);
+  // Desc : Save the image data structure 'saveImage' using the image format 'format' to the file 'fileName'.  Image format codes are found in the file <sys/image.h>
+  return (sysCall_3(_fnum_imageSave, (void *) filename, (void *) format,
+		    saveImage));
 }
 
 _X_ static inline int shutdown(int reboot, int nice)
@@ -2627,13 +2629,11 @@ _X_ static inline int lockVerify(lock *verLock)
   return (sysCall_1(_fnum_lockVerify, (void *) verLock));
 }
 
-_X_ static inline variableList *variableListCreate(unsigned maxVar, unsigned size, const char *desc)
+_X_ static inline int variableListCreate(variableList *list)
 {
-  // Proto: variableList *kernelVariableListCreate(unsigned, unsigned, const char *);
-  // Desc : Get a new variable list structure with the maximum number of variables 'maxVar', the total data size 'size', and the description 'desc'.
-  return ((variableList *) sysCall_3(_fnum_variableListCreate,
-				     (void *) maxVar, (void *) size,
-				     (void *) desc));
+  // Proto: int kernelVariableListCreate(variableList *);
+  // Desc : Set up a new variable list structure.
+  return (sysCall_1(_fnum_variableListCreate, list));
 }
   
 _X_ static inline int variableListGet(variableList *list, const char *var, char *buffer, unsigned buffSize)
@@ -2659,12 +2659,11 @@ _X_ static inline int variableListUnset(variableList *list, const char *var)
   return (sysCall_2(_fnum_variableListUnset, list, (void *) var));
 }
 
-_X_ static inline variableList *configurationReader(const char *fileName)
+_X_ static inline int configurationReader(const char *fileName, variableList *list)
 {
-  // Proto: variableList *kernelConfigurationReader(const char *);
-  // Desc : Read the contents of the configuration file 'fileName', and return the data in a variable list structure.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
-  return ((variableList *) sysCall_1(_fnum_configurationReader,
-				     (void *) fileName));
+  // Proto: int kernelConfigurationReader(const char *, variableList *);
+  // Desc : Read the contents of the configuration file 'fileName', and return the data in the variable list structure 'list'.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
+  return (sysCall_2(_fnum_configurationReader, (void *) fileName, list));
 }
 
 _X_ static inline int configurationWriter(const char *fileName, variableList *list)

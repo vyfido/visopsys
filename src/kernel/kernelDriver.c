@@ -21,7 +21,7 @@
 
 #include "kernelDriver.h"
 #include "kernelText.h"
-#include "kernelFilesystemExt.h"
+#include "kernelFilesystem.h"
 #include "kernelError.h"
 #include <string.h>
 

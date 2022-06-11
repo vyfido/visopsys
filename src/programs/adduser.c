@@ -21,6 +21,23 @@
 
 // This is the UNIX-style command for adding a user
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- adduser --
+
+Add a user account to the system
+
+Usage:
+  adduser <user name>
+
+The adduser program is a very simple method of adding a user account.  The
+resulting account has no password assigned (you can use the passwd command
+to set the password).
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/api.h>

@@ -42,8 +42,7 @@ typedef int kernelSelector;
 
 // This structure describes the fields of a descriptor in the x86
 // architecture
-typedef struct
-{
+typedef struct {
   unsigned char segSizeByte1;
   unsigned char segSizeByte2;
   unsigned char baseAddress1;

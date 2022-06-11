@@ -31,46 +31,21 @@
 #include <string.h>
 #include <stdlib.h>
 
-static kernelFilesystemDriver defaultIsoDriver = {
-  Iso,   // FS type
-  "ISO", // Driver name
-  kernelFilesystemIsoDetect,
-  NULL, // driverFormat
-  NULL, // driverCheck
-  NULL, // driverDefragment
-  kernelFilesystemIsoMount,
-  kernelFilesystemIsoUnmount,
-  kernelFilesystemIsoGetFree,
-  kernelFilesystemIsoNewEntry,
-  kernelFilesystemIsoInactiveEntry,
-  kernelFilesystemIsoResolveLink,
-  kernelFilesystemIsoReadFile,
-  NULL, // driverWriteFile
-  NULL, // driverCreateFile
-  NULL, // driverDeleteFile
-  NULL, // driverFileMoved
-  kernelFilesystemIsoReadDir,
-  NULL, // driverWriteDir
-  NULL, // driverMakeDir
-  NULL, // driverRemoveDir
-  NULL // driverTimestamp
-};
 
-static int initialized = 0;
-
-
-static int readPrimaryVolDesc(const kernelDisk *theDisk, unsigned char *buffer)
+static int readPrimaryVolDesc(isoInternalData *isoData)
 {
   // This simple function will read the primary volume descriptor into the
   // supplied buffer.  Returns 0 on success, negative on error.
 
   int status = 0;
-  kernelPhysicalDisk *physicalDisk = theDisk->physical;
+  kernelPhysicalDisk *physicalDisk = isoData->disk->physical;
 
   // Do a dummy read from the CD-ROM to ensure that the TOC has been properly
   // read, and therefore the information for the last session is available.
-  status = kernelDiskReadSectors((char *) theDisk->name,
-				 ISO_PRIMARY_VOLDESC_SECTOR, 1, buffer);
+  status =
+    kernelDiskReadSectors((char *) isoData->disk->name,
+			  ISO_PRIMARY_VOLDESC_SECTOR, 1,
+			  (isoPrimaryDescriptor *) &(isoData->volDesc));
   if (status < 0)
     return (status);
   
@@ -81,20 +56,26 @@ static int readPrimaryVolDesc(const kernelDisk *theDisk, unsigned char *buffer)
       return (status = ERR_INVALID);
     }
 
-  // Initialize the buffer we were given
-  kernelMemClear(buffer, physicalDisk->sectorSize);
-     
+  // Initialize the volume descriptor we were given
+  kernelMemClear((void *) &(isoData->volDesc), sizeof(isoPrimaryDescriptor));
+
   // Read the primary volume descriptor
-  status = kernelDiskReadSectors((char *) theDisk->name,
-				 (physicalDisk->lastSession + 
-				  ISO_PRIMARY_VOLDESC_SECTOR), 1, buffer);
+  status =
+    kernelDiskReadSectors((char *) isoData->disk->name,
+			  (physicalDisk->lastSession +
+			   ISO_PRIMARY_VOLDESC_SECTOR), 1,
+			  (isoPrimaryDescriptor *) &(isoData->volDesc));
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to read the ISO primary volume "
 		  "descriptor");
 	  return (status);
     }
-  
+
+  // Not sure why this is necessary, exactly, since it's supposed to be
+  // a 4-byte value.  But it's not.
+  isoData->volDesc.blockSize &= 0xFFFF;
+
   return (status = 0);
 }
 
@@ -127,32 +108,26 @@ static void makeSystemTime(unsigned char *isoTime, unsigned *date,
 }
 
 
-static void readDirRecord(unsigned char *buffer, kernelFileEntry *fileEntry,
-			  unsigned blockSize)
+static void readDirRecord(isoDirectoryRecord *record,
+			  kernelFileEntry *fileEntry, unsigned blockSize)
 {
   // Reads a directory record from the on-disk structure in 'buffer' to
   // our structure
 
   isoFileData *fileData = (isoFileData *) fileEntry->driverData;
-  unsigned nameLength = 0;
   int count;
 
-  // Get the name length
-  nameLength = (unsigned) *(buffer + 32);
-
-  // Additional stuff that is only in our private structure
-  fileData->blockNumber = *((unsigned *)(buffer + 2));
-  fileData->flags = *(buffer + 25);
-  fileData->unitSize = *(buffer + 26);
-  fileData->intrGapSize = *(buffer + 27);
-  fileData->volSeqNumber = *((unsigned *)(buffer + 28));
+  // Copy the static bits of the directory record
+  kernelMemCopy(record, (void *) &(fileData->dirRec),
+		record->recordLength);
 
   // Copy the name into the file entry
-  kernelMemCopy((buffer + 33), (char *) fileEntry->name, nameLength);
-  fileEntry->name[nameLength] = '\0';
+  kernelMemCopy((char *) fileData->dirRec.name, (char *) fileEntry->name,
+		fileData->dirRec.nameLength);
+  fileEntry->name[fileData->dirRec.nameLength] = '\0';
 
   // Find the semicolon (if any) at the end of the name
-  for (count = (nameLength - 1); count > 0; count --)
+  for (count = (fileData->dirRec.nameLength - 1); count > 0; count --)
     if (fileEntry->name[count] == ';')
       {
 	fileEntry->name[count] = '\0';
@@ -163,21 +138,22 @@ static void readDirRecord(unsigned char *buffer, kernelFileEntry *fileEntry,
   // Get the type
   fileEntry->type = fileT;
 
-  if (fileData->flags & ISO_FLAGMASK_DIRECTORY)
+  if (fileData->dirRec.flags & ISO_FLAGMASK_DIRECTORY)
     fileEntry->type = dirT;
 
-  if (fileData->flags & ISO_FLAGMASK_ASSOCIATED)
+  if (fileData->dirRec.flags & ISO_FLAGMASK_ASSOCIATED)
     fileEntry->type = linkT;
 
   // Get the date and time
-  makeSystemTime((buffer + 18), (unsigned *) &(fileEntry->creationDate),
+  makeSystemTime((unsigned char *) fileData->dirRec.date,
+		 (unsigned *) &(fileEntry->creationDate),
 		 (unsigned *) &(fileEntry->creationTime));
   fileEntry->accessedTime = fileEntry->creationTime;
   fileEntry->accessedDate = fileEntry->creationDate;
   fileEntry->modifiedTime = fileEntry->creationTime;
   fileEntry->modifiedDate = fileEntry->creationDate;
 
-  fileEntry->size = *((unsigned *)(buffer + 10));
+  fileEntry->size = fileData->dirRec.size;
   fileEntry->blocks = (fileEntry->size / blockSize);
   if (fileEntry->size % blockSize)
     fileEntry->blocks += 1;
@@ -190,74 +166,48 @@ static isoInternalData *getIsoData(kernelFilesystem *filesystem)
   // This function reads the filesystem parameters from the superblock
 
   int status = 0;
-  unsigned char *buffer = NULL;
   isoInternalData *isoData = filesystem->filesystemData;
-  kernelPhysicalDisk *physicalDisk = NULL;
 
   // Have we already read the parameters for this filesystem?
   if (isoData)
     return (isoData);
 
-  physicalDisk = filesystem->disk->physical;
+  // We must allocate some new memory to hold information about the filesystem
+  isoData = kernelMalloc(sizeof(isoInternalData));
+  if (isoData == NULL)
+    return (isoData = NULL);
 
-  // Get a temporary buffer to read the primary volume descriptor
-  buffer = kernelMalloc(physicalDisk->sectorSize);
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate buffer");
-      return (isoData = NULL);
-    }
+  // Attach the disk structure to the isoData structure
+  isoData->disk = filesystem->disk;
 
   // Read the superblock into our isoInternalData buffer
-  status = readPrimaryVolDesc(filesystem->disk, buffer);
+  status = readPrimaryVolDesc(isoData);
   if (status < 0)
     {
-      kernelFree(buffer);
+      kernelFree((void *) isoData);
       return (isoData = NULL);
     }
 
   // Make sure it's a primary volume descriptor
-  if (buffer[0] != (unsigned char) ISO_DESCRIPTORTYPE_PRIMARY)
+  if (isoData->volDesc.type != (unsigned char) ISO_DESCRIPTORTYPE_PRIMARY)
     {
       kernelError(kernel_error, "Primary volume descriptor not found");
-      kernelFree(buffer);
+      kernelFree((void *) isoData);
       return (isoData = NULL);
     }
 
-  // We must allocate some new memory to hold information about
-  // the filesystem
-  isoData = kernelMalloc(sizeof(isoInternalData));
-  if (isoData == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate ISO data memory");
-      kernelFree(buffer);
-      return (isoData = NULL);
-    }
-
-  // Set our filesystem data
-  strncpy((char *) isoData->volumeIdentifier, (buffer + 40), 31);
-  isoData->volumeIdentifier[31] = '\0';
-  // MSB data
-  isoData->volumeBlocks = *((unsigned *)(buffer + 80));
-  isoData->blockSize = *((unsigned short *)(buffer + 128));
-  isoData->pathTableSize = *((unsigned *)(buffer + 132));
-  isoData->pathTableBlock = *((unsigned *)(buffer + 140));
+  // Put a NULL in the volume identifier
+  isoData->volDesc.volumeIdentifier[31] = '\0';
 
   // Get the root directory record
-  readDirRecord((buffer + 156), filesystem->filesystemRoot,
-		isoData->blockSize);
-
-  // We don't need this any more.
-  kernelFree(buffer);
-
-  // Attach the disk structure to the isoData structure
-  isoData->disk = filesystem->disk;
+  readDirRecord((isoDirectoryRecord *) &(isoData->volDesc.rootDirectoryRecord),
+		filesystem->filesystemRoot, isoData->volDesc.blockSize);
 
   // Attach our new FS data to the filesystem structure
   filesystem->filesystemData = (void *) isoData;
 
   // Specify the filesystem block size
-  filesystem->blockSize = isoData->blockSize;
+  filesystem->blockSize = isoData->volDesc.blockSize;
 
   return (isoData);
 }
@@ -280,7 +230,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
     }
 
   // Make sure it's not zero-length
-  if ((dirEntry->blocks == 0) || (isoData->blockSize == 0))
+  if ((dirEntry->blocks == 0) || (isoData->volDesc.blockSize == 0))
     {
       kernelError(kernel_error, "Directory or blocksize is NULL");
       return (status = ERR_NODATA);
@@ -294,7 +244,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 
   scanDirRec = (isoFileData *) dirEntry->driverData;
 
-  bufferSize = (dirEntry->blocks * isoData->blockSize);
+  bufferSize = (dirEntry->blocks * isoData->volDesc.blockSize);
   if (bufferSize < dirEntry->size)
     {
       kernelError(kernel_error, "Wrong buffer size for directory!");
@@ -310,8 +260,8 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
     }
 
   status = kernelDiskReadSectors((char *) isoData->disk->name,
-				 scanDirRec->blockNumber, dirEntry->blocks,
-				 buffer);
+				 scanDirRec->dirRec.blockNumber,
+				 dirEntry->blocks, buffer);
   if (status < 0)
     {
       kernelFree(buffer);
@@ -328,10 +278,11 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 	  // the same logical sector, it is placed in the next one.  Thus,
 	  // if we are not within the last sector we read, skip to the next
 	  // one.
-	  if ((((ptr - buffer) / isoData->blockSize) + 1) < dirEntry->blocks)
+	  if ((((ptr - buffer) / isoData->volDesc.blockSize) + 1) <
+	      dirEntry->blocks)
 	    {
-	      ptr += (isoData->blockSize -
-		      ((ptr - buffer) % isoData->blockSize));
+	      ptr += (isoData->volDesc.blockSize -
+		      ((ptr - buffer) % isoData->volDesc.blockSize));
 	      continue;
 	    }
 	  else
@@ -347,7 +298,8 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
           return (status = ERR_NOCREATE);
         }
 
-      readDirRecord(ptr, fileEntry, isoData->blockSize);
+      readDirRecord((isoDirectoryRecord *) ptr, fileEntry,
+		    isoData->volDesc.blockSize);
 
       if ((fileEntry->name[0] < 32) || (fileEntry->name[0] > 126))
 	{
@@ -373,37 +325,13 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 
       ptr += (unsigned) ((unsigned char *) ptr)[0];
     }
-  
+
   kernelFree(buffer);
   return (status = 0);
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are exported for isoernal use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelFilesystemIsoInitialize(void)
-{
-  // Initialize the driver
-
-  int status = 0;
-  
-  // Register our driver
-  status = kernelDriverRegister(isoDriver, &defaultIsoDriver);
-
-  initialized = 1;
-
-  return (status);
-}
-
-
-int kernelFilesystemIsoDetect(const kernelDisk *theDisk)
+static int detect(const kernelDisk *theDisk)
 {
   // This function is used to determine whether the data on a disk structure
   // is using an ISO filesystem.  It just looks for a 'magic number' on the
@@ -412,13 +340,9 @@ int kernelFilesystemIsoDetect(const kernelDisk *theDisk)
   // it encounters an error
 
   int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-  char *buffer = NULL;
+  isoInternalData isoData;
   int isIso = 0;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (theDisk == NULL)
     {
@@ -426,39 +350,29 @@ int kernelFilesystemIsoDetect(const kernelDisk *theDisk)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Get the physical disk
-  physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+  // Clear stack memory
+  kernelMemClear((void * ) &isoData, sizeof(isoInternalData));
 
-  // Get a temporary buffer to read the primary volume descriptor
-  buffer = kernelMalloc(physicalDisk->sectorSize);
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate buffer");
-      return (status = ERR_MEMORY);
-    }
+  isoData.disk = theDisk;
 
   // Read the primary volume descriptor
-  status = readPrimaryVolDesc(theDisk, buffer);
+  status = readPrimaryVolDesc(&isoData);
   if (status < 0)
-    {
-      kernelFree(buffer);
-      return (status);
-    }
+    return (status);
 
   // Check for the standard identifier
-  if (!strncmp((buffer + 1), ISO_STANDARD_IDENTIFIER,
+  if (!strncmp((char *) isoData.volDesc.identifier, ISO_STANDARD_IDENTIFIER,
 	       strlen(ISO_STANDARD_IDENTIFIER)))
     {
       strcpy((char *) theDisk->fsType, "iso9660");
       isIso = 1;
     }
 
-  kernelFree(buffer);
   return (isIso);
 }
 
 
-int kernelFilesystemIsoMount(kernelFilesystem *filesystem)
+static int mount(kernelFilesystem *filesystem)
 {
   // This function initializes the filesystem driver by gathering all of
   // the required information from the boot sector.  In addition, it
@@ -468,9 +382,6 @@ int kernelFilesystemIsoMount(kernelFilesystem *filesystem)
   int status = 0;
   isoInternalData *isoData = NULL;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Make sure the filesystem isn't NULL
   if (filesystem == NULL)
     {
@@ -506,16 +417,13 @@ int kernelFilesystemIsoMount(kernelFilesystem *filesystem)
 }
 
 
-int kernelFilesystemIsoUnmount(kernelFilesystem *filesystem)
+static int unmount(kernelFilesystem *filesystem)
 {
   // This function releases all of the stored information about a given
   // filesystem.
 
   int status = 0;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (filesystem == NULL)
     {
@@ -531,7 +439,7 @@ int kernelFilesystemIsoUnmount(kernelFilesystem *filesystem)
 }
 
 
-unsigned kernelFilesystemIsoGetFree(kernelFilesystem *filesystem)
+static unsigned getFree(kernelFilesystem *filesystem)
 {
   // This function returns the amount of free disk space, in bytes,
   // which is always zero.
@@ -544,7 +452,7 @@ unsigned kernelFilesystemIsoGetFree(kernelFilesystem *filesystem)
 }
 
 
-int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
+static int newEntry(kernelFileEntry *newEntry)
 {
   // This function gets called when there's a new kernelFileEntry in the
   // filesystem (either because a file was created or because some existing
@@ -557,9 +465,6 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
   //isoFileData *newDirectoryRecords = NULL;
   //int count;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (newEntry == NULL)
     {
@@ -626,7 +531,7 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
 }
 
 
-int kernelFilesystemIsoInactiveEntry(kernelFileEntry *inactiveEntry)
+static int inactiveEntry(kernelFileEntry *inactiveEntry)
 {
   // This function gets called when a kernelFileEntry is about to be
   // deallocated by the system (either because a file was deleted or because
@@ -635,9 +540,6 @@ int kernelFilesystemIsoInactiveEntry(kernelFileEntry *inactiveEntry)
 
   int status = 0;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (inactiveEntry == NULL)
     {
@@ -655,7 +557,7 @@ int kernelFilesystemIsoInactiveEntry(kernelFileEntry *inactiveEntry)
 }
 
 
-int kernelFilesystemIsoResolveLink(kernelFileEntry *linkEntry)
+static int resolveLink(kernelFileEntry *linkEntry)
 {
   // This is called by the kernelFile.c code when we have registered a
   // file or directory as a link, but not resolved it, and now it needs
@@ -664,9 +566,6 @@ int kernelFilesystemIsoResolveLink(kernelFileEntry *linkEntry)
   // wants to read/write the symbolically-linked directory or file.
 
   int status = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if (linkEntry == NULL)
@@ -679,8 +578,8 @@ int kernelFilesystemIsoResolveLink(kernelFileEntry *linkEntry)
 }
 
 
-int kernelFilesystemIsoReadFile(kernelFileEntry *theFile, unsigned blockNum,
-				unsigned blocks, unsigned char *buffer)
+static int readFile(kernelFileEntry *theFile, unsigned blockNum,
+		    unsigned blocks, unsigned char *buffer)
 {
   // This function is the "read file" function that the filesystem
   // driver exports to the world.  It is mainly a wrapper for the
@@ -690,9 +589,6 @@ int kernelFilesystemIsoReadFile(kernelFileEntry *theFile, unsigned blockNum,
   int status = 0;
   isoInternalData *isoData = NULL;
   isoFileData *dirRec = NULL;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if ((theFile == NULL) || (buffer == NULL))
@@ -717,12 +613,13 @@ int kernelFilesystemIsoReadFile(kernelFileEntry *theFile, unsigned blockNum,
 
   status =
     kernelDiskReadSectors((char *) isoData->disk->name,
-			  (dirRec->blockNumber + blockNum), blocks, buffer);
+			  (dirRec->dirRec.blockNumber + blockNum), blocks,
+			  buffer);
   return (status);
 }
 
 
-int kernelFilesystemIsoReadDir(kernelFileEntry *directory)
+static int readDir(kernelFileEntry *directory)
 {
   // This function receives an emtpy file entry structure, which represents
   // a directory whose contents have not yet been read.  This will fill the
@@ -732,9 +629,6 @@ int kernelFilesystemIsoReadDir(kernelFileEntry *directory)
   int status = 0;
   isoInternalData *isoData = NULL;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
   // Check params
   if (directory == NULL)
     {
@@ -756,4 +650,46 @@ int kernelFilesystemIsoReadDir(kernelFileEntry *directory)
     return (status = ERR_BADDATA);
 
   return (scanDirectory(isoData, directory));
+}
+
+
+static kernelFilesystemDriver defaultIsoDriver = {
+  Iso,   // FS type
+  "ISO", // Driver name
+  detect,
+  NULL,  // driverFormat
+  NULL,  // driverDefragment
+  mount,
+  unmount,
+  NULL,  // driverCheck
+  getFree,
+  newEntry,
+  inactiveEntry,
+  resolveLink,
+  readFile,
+  NULL,  // driverWriteFile
+  NULL,  // driverCreateFile
+  NULL,  // driverDeleteFile
+  NULL,  // driverFileMoved
+  readDir,
+  NULL,  // driverWriteDir
+  NULL,  // driverMakeDir
+  NULL,  // driverRemoveDir
+  NULL   // driverTimestamp
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for isoernal use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelFilesystemIsoInitialize(void)
+{
+  // Register our driver
+  return (kernelDriverRegister(isoDriver, &defaultIsoDriver));
 }

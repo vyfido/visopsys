@@ -41,7 +41,6 @@ int _formatInput(const char *input, const char *format, va_list list)
   void *argument = NULL;
   int isLong = 0;
 
-
   // How long are the input and format strings?
   inputLen = strlen(input);
   formatLen = strlen(format);

@@ -22,6 +22,26 @@
 // This is a program for conveniently editing generic configuration files in
 // graphics mode
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- confedit --
+
+Edit Visopsys configuration files
+
+Usage:
+  confedit [file name]
+
+The confedit (Configuration Editor) program is interactive, and may only be
+used in graphics mode.  You can specify the name of the file to edit on the
+command line, or else the program will prompt you.  You can add, delete, and
+modify variables.  Examples of applicable configuration files include the
+kernel configuration, /system/kernel.conf, and the window manager
+configuration, /system/windowmanager.conf.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +54,7 @@ static int processId = 0;
 static int privilege = 0;
 static char fileName[MAX_PATH_NAME_LENGTH];
 static int readOnly = 1;
-static variableList *list = NULL;
+static variableList list;
 static char *listStringData = NULL;
 static char *listStrings[1024];
 static int numListStrings = 0;
@@ -52,10 +72,9 @@ static int readConfigFile(void)
 {
   // Read the configuration file
 
-  int status = 0;
-  list = configurationReader(fileName);
-  if (list == NULL)
-    return (status = ERR_NODATA);
+  int status = configurationReader(fileName, &list);
+  if (status < 0)
+    return (status);
 
   changesPending = 0;
 
@@ -67,7 +86,7 @@ static int writeConfigFile(void)
 {
   // Write the configuration file
 
-  int status = configurationWriter(fileName, list);
+  int status = configurationWriter(fileName, &list);
 
   changesPending = 0;
 
@@ -78,21 +97,21 @@ static int writeConfigFile(void)
 static void fillList(void)
 {
   char *bufferPtr = NULL;
-  unsigned count;
+  int count;
 
   numListStrings = 0;
 
   if (listStringData)
     free(listStringData);
-  listStringData = malloc(list->maxData * list->numVariables);
+  listStringData = malloc(list.maxData * list.numVariables);
 
   bufferPtr = listStringData;
 
-  for (count = 0; count < list->numVariables; count ++)
+  for (count = 0; count < list.numVariables; count ++)
     {
       listStrings[count] = bufferPtr;
-      sprintf(listStrings[count], "%s=%s", list->variables[count],
-	      list->values[count]);
+      sprintf(listStrings[count], "%s=%s", list.variables[count],
+	      list.values[count]);
       bufferPtr += (strlen(listStrings[count]) + 1);
       numListStrings += 1;
     }
@@ -147,7 +166,7 @@ static void setVariableDialog(const char *variable)
 
   if (variable)
     {
-      variableListGet(list, variableBuffer, valueBuffer, 128);
+      variableListGet(&list, variableBuffer, valueBuffer, 128);
       fieldWidth = max(strlen(variableBuffer), strlen(valueBuffer)) + 1;
       fieldWidth = max(fieldWidth, 30);
     }
@@ -187,7 +206,7 @@ static void setVariableDialog(const char *variable)
   valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
   if (variable)
     {
-      variableListGet(list, variableBuffer, valueBuffer, 128);
+      variableListGet(&list, variableBuffer, valueBuffer, 128);
       windowComponentSetData(valueField, valueBuffer, 128);
     }
 
@@ -236,7 +255,7 @@ static void setVariableDialog(const char *variable)
 
 	  if (variable)
 	    {
-	      variableListSet(list, variableBuffer, valueBuffer);
+	      variableListSet(&list, variableBuffer, valueBuffer);
 	      changesPending += 1;
 	    }
 	  else
@@ -244,7 +263,7 @@ static void setVariableDialog(const char *variable)
 	      windowComponentGetData(variableField, variableBuffer, 128);
 	      if (variableBuffer[0] != '\0')
 		{
-		  variableListSet(list, variableBuffer, valueBuffer);
+		  variableListSet(&list, variableBuffer, valueBuffer);
 		  changesPending += 1;
 		}
 	    }
@@ -308,13 +327,13 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if ((key == changeVariableButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
-      setVariableDialog(list->variables[windowComponentGetSelected(listList)]);
+      setVariableDialog(list.variables[windowComponentGetSelected(listList)]);
     }
   else if ((key == deleteVariableButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
-      variableListUnset(list,
-			list->variables[windowComponentGetSelected(listList)]);
+      variableListUnset(&list,
+			list.variables[windowComponentGetSelected(listList)]);
       changesPending += 1;
       fillList();
       windowComponentSetData(listList, listStrings, numListStrings);
@@ -361,7 +380,7 @@ static void constructWindow(void)
   params.padRight = 0;
   params.orientationX = orient_center;
   fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
-  listList = windowNewList(window, min(10, list->numVariables), 1, 0,
+  listList = windowNewList(window, min(10, list.numVariables), 1, 0,
 			   listStrings, numListStrings, &params);
 
   // Make a container component for the buttons

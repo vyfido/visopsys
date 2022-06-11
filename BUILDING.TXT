@@ -1,13 +1,14 @@
 BUILDING VISOPSYS
 
-Visopsys is developed on Red Hat Linux 9.  To build Visopsys you will
-need the following tools (all of which are available on the Red Hat CDs):
+Visopsys is developed on SuSE Linux 9.3.  To build Visopsys you will
+need the following tools (the first two of which are available on the
+SuSE CDs):
 
 - The GNU C Compiler (gcc).  The most recent version tested with Visopsys
-  is 3.2.2.
+  is 3.3.5.
+- A "make" utility of some kind.  I use GNU Make version 3.80.
 - The Netwide Assembler (NASM).  The most recent version tested with Visopsys
-  is 0.98.35.
-- A "make" utility of some kind.  I use GNU Make version 3.79.1
+  is 0.98.39.  (Available at http://nasm.sourceforge.net/)
 
 You might be able to get away with using something other than gcc without
 modifications (doubtful), but you will need NASM-compatible assembler to
@@ -42,4 +43,4 @@ and do:
 Good luck, and let me know if there's any help I can offer.
 
 Andy McLaughlin <andy@visopsys.org>
-04/12/2004
+16/07/2005

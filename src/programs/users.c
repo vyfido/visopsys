@@ -21,6 +21,23 @@
 
 // This is a program for managing users and passwords.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- users --
+
+User manager for creating/deleting user accounts
+
+Usage:
+  users
+
+The users (User Manager) program is interactive, and may only be used in
+graphics mode.  It can be used to add and delete user accounts, and set
+account passwords.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -185,10 +185,10 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
 
   currentPointer = &pointerList[numberPointers++];
 
-  status = kernelImageLoadBmp(fileName, &(currentPointer->pointerImage));
+  status = kernelImageLoad(fileName, 0, 0, &(currentPointer->pointerImage));
   if (status < 0)
     {
-      kernelError(kernel_error, "Error loading mouse bitmap %s", pointerName);
+      kernelError(kernel_error, "Error loading mouse image %s", pointerName);
       return (status);
     }
 

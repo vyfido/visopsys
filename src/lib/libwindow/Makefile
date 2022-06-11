@@ -30,7 +30,8 @@ NAMES		= windowBannerDialog \
 		windowPromptDialog \
 		windowQueryDialog
 
-OBJS = $(addprefix obj/, $(addsuffix .o, ${NAMES}))
+OBJDIR = obj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
 LIBRARY = ${BUILDDIR}/libwindow.a
 
 # Targets
@@ -38,14 +39,13 @@ LIBRARY = ${BUILDDIR}/libwindow.a
 all: target-dirs ${LIBRARY}
 
 target-dirs:
-	mkdir -p obj
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OBJDIR} ${BUILDDIR}
 
 ${LIBRARY}: ${OBJS}
-	${AR} -rs ${LIBRARY} ${OBJS}
+	${AR} -rs $@ ${OBJS}
 
-obj/%.o: %.c ${STDDEPS}
+${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${OPTS} -c $< -o $@
 
 clean:
-	rm -Rf *~ *.o core obj ${LIBRARY}
+	rm -Rf *~ *.o core ${OBJDIR} ${LIBRARY}

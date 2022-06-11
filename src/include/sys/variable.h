@@ -26,13 +26,13 @@
 
 #include <sys/lock.h>
 
-typedef struct
-{
-  unsigned numVariables;
-  unsigned maxVariables;
-  unsigned usedData;
-  unsigned maxData;
-  unsigned totalSize;
+typedef struct {
+  int numVariables;
+  int maxVariables;
+  int usedData;
+  int maxData;
+  void *memory;
+  unsigned memorySize;
   char **variables;
   char **values;
   char *data;

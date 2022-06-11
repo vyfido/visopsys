@@ -30,17 +30,13 @@
 #define MAX_ERRORTEXT_LENGTH 1024
 
 // Items concerning severity
-typedef enum 
-{
-  kernel_panic, 
-  kernel_error, 
-  kernel_warn 
-
+typedef enum {
+  kernel_panic, kernel_error,  kernel_warn 
 } kernelErrorKind;
 
 void kernelErrorOutput(const char *, const char *, int, kernelErrorKind, 
 		       const char *, ...);
-void kernelErrorDialog(const char *, const char *);
+void kernelErrorDialog(const char *, const char *, ...);
 
 // This macro should be used to invoke all kernel errors
 #define kernelError(kind, message, arg...) \

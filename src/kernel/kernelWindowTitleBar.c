@@ -427,7 +427,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status = 0);
     }
 
-  else if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton &&
+  else if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
+	   titleBar->closeButton &&
 	   isMouseInButton(event, titleBar->closeButton))
     {
       // Call the 'event' function for buttons
@@ -437,7 +438,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
       // Put this mouse event into the button's windowEventStream
       kernelWindowEventStreamWrite(&(titleBar->closeButton->events), event);
-	  
+	
       return (status);
     }
   
@@ -455,7 +456,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  
       return (status);
     }
-  
+
   else if (event->type == EVENT_MOUSE_DRAG)
     {
       if (window->flags & WINFLAG_MOVABLE)
@@ -491,13 +492,16 @@ static int mouseEvent(void *componentData, windowEvent *event)
 static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindow *window = component->window;
 
-  if (component->data)
+  if (0)//(component->data)
     {
+      if (window->titleBar == component)
+	window->titleBar = NULL;
+
       // Release the title bar itself
-      // NO, THIS IS CRASHY.  TMP TMP TMP
-      // kernelFree(component->data);
-      // component->data = NULL;
+      kernelFree(component->data);
+      component->data = NULL;
     }
 
   return (0);
@@ -571,14 +575,14 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
   // Put any minimize/maximize/close buttons on the title bar.
 
-  // Standard parameters for a close button
+  // Standard parameters for the buttons
   kernelMemClear((void *) &buttonParams, sizeof(componentParameters));
   buttonParams.useDefaultForeground = 1;
   buttonParams.useDefaultBackground = 1;
 
   titleBar->closeButton =
     kernelWindowNewButton(parent, NULL, ((closeImage.data == NULL)?
-			   NULL : &closeImage), &buttonParams);
+					 NULL : &closeImage), &buttonParams);
 
   if (titleBar->closeButton)
     {

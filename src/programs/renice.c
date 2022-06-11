@@ -22,6 +22,26 @@
 // This is the UNIX-style command for changing the priority levels
 // of running processes
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- renice --
+
+Change the priority level(s) of one or more processes.
+
+Usage:
+  renice <priority> <process1> [process2] [...]
+
+The 'renice' command can be used to change the priority level(s) of one or
+more processes.  The first parameter is the new priority level for the
+process.  Priority level can be from 0-7, with 0 being highest (real time)
+priority and 7 being lowest.  The second parameter (and,optionally, any number
+of additional parameters) is the process ID of the process to change.  To
+see a list of running processes, use the 'ps' command.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

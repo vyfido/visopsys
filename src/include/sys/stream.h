@@ -27,11 +27,12 @@
 #include <sys/file.h>
 
 // An enum for describing the size of each item in the stream
-typedef enum { itemsize_byte, itemsize_dword } streamItemSize;
+typedef enum {
+  itemsize_byte, itemsize_dword
+} streamItemSize;
 
 // This data structure is the generic stream
-typedef struct
-{
+typedef struct {
   unsigned char *buffer;
   unsigned buffSize;
   unsigned size;
@@ -39,7 +40,7 @@ typedef struct
   unsigned last;
   unsigned count;
 
-  // Stream functions
+  // Stream functions.  These are not for calling from user space.
   int (*clear) (void *);
   int (*intercept) (void *, ...);
   int (*append) (void *, ...);
@@ -54,8 +55,7 @@ typedef struct
 // Some specialized kinds of streams
 
 // A file stream, for character-based file IO
-typedef struct 
-{
+typedef struct {
   file f;
   unsigned block;
   int dirty;

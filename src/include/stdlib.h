@@ -35,16 +35,16 @@
 #define NULL 0
 #endif
 
-typedef struct
-{
+typedef struct {
   int quot;
   int rem;
+
 } div_t;
 
-typedef struct
-{
+typedef struct {
   long quot;
   long rem;
+
 } ldiv_t;
 
 

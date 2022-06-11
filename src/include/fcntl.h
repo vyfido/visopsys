@@ -82,8 +82,7 @@
 
 // The structure flock describes a file lock. It includes the following
 // members: 
-typedef struct
-{
+typedef struct {
   short l_type;   // type of lock; F_RDLCK, F_WRLCK, F_UNLCK
   short l_whence; // flag for starting offset
   off_t l_start;  // relative offset in bytes

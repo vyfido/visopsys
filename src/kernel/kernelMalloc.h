@@ -25,8 +25,7 @@
 
 #include <sys/memory.h>
 
-typedef volatile struct
-{
+typedef volatile struct {
   int used;
   int process;
   void *start;

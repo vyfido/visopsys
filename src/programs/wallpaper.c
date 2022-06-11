@@ -21,6 +21,27 @@
 
 // Calls the kernel's window manager to change the background image
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- wallpaper --
+
+Set the background wallpaper image.
+
+Usage:
+  wallpaper [image_file]
+
+(Only available in graphics mode)
+
+This command will set the background wallpaper image from the (optional)
+image file name parameter or, if no image file name is supplied, the program
+will prompt the user.
+
+Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported. 
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

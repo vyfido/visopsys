@@ -32,6 +32,7 @@
 #include "kernelProcessorX86.h"
 #include "kernelPic.h"
 #include "kernelSysTimer.h"
+#include "kernelEnvironment.h"
 #include "kernelShutdown.h"
 #include "kernelMiscFunctions.h"
 #include "kernelInterrupt.h"
@@ -304,9 +305,8 @@ static int createTaskStateSegment(kernelProcess *theProcess,
 }
 
 
-static int createNewProcess(void *codeDataPointer, unsigned codeDataSize, 
-			    int priority, int privilege, const char *name, 
-			    int numberArgs, void *arguments, int newPageDir)
+static int createNewProcess(const char *name, int priority, int privilege,
+			    processImage *execImage, int newPageDir)
 {
   // This function is used to create a new process in the process
   // queue.  It makes a "defaults" kind of process -- it sets up all of
@@ -319,7 +319,14 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
   kernelProcess *newProcess = NULL;
   void *stackMemoryAddr = NULL;
   void *processPageDir = NULL;
-  void *temp = NULL;
+  void *physicalCodeData = NULL;
+  int *args = NULL;
+  char **argv = NULL;
+  int argSpaceSize = 0;
+  char *argSpace = NULL;
+  char *newArgAddress = NULL;
+  int length = 0;
+  int count;
 
   // Don't bother checking the parameters, as the external functions 
   // should have done this already.
@@ -388,14 +395,73 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
   // The thread's initial state will be "stopped"
   newProcess->state = proc_stopped;
 
-  // Assign the appropriate code/data pointer and size
-  newProcess->codeDataPointer = codeDataPointer;
-  newProcess->codeDataSize = codeDataSize;
+  // Do we need to create a new page directory and a set of page tables for 
+  // this process?
+  if (newPageDir)
+    {
+      // We need to make a new page directory, etc.
+      processPageDir = kernelPageNewDirectory(newProcess->processId,
+					      newProcess->privilege);
+      if (processPageDir == NULL)
+	{
+	  // Not able to setup a page directory
+	  releaseProcess(newProcess);
+	  return (status = ERR_NOVIRTUAL);
+	}
+
+      // Get the physical address of the code/data
+      physicalCodeData =
+	kernelPageGetPhysical(newProcess->parentProcessId, execImage->code);
+
+      // Make the process own its code/data memory.  Don't remap it yet
+      // because we want to map it at the requested virtual address.
+      status = kernelMemoryChangeOwner(newProcess->parentProcessId,
+				newProcess->processId, 0, execImage->code,
+				NULL);
+      if (status < 0)
+	{
+	  // Couldn't make the process own its memory
+	  releaseProcess(newProcess);
+	  return (status);
+	}
+
+      // Remap the code/data to the requested virtual address.
+      status = kernelPageMap(newProcess->processId, physicalCodeData,
+			     execImage->virtualAddress, execImage->imageSize);
+      if (status < 0)
+	{
+	  // Couldn't map the process memory
+	  releaseProcess(newProcess);
+	  return (status);
+	}
+
+      // Code should be read-only
+      status =
+	kernelPageSetAttrs(newProcess->processId, 0, PAGEFLAG_WRITABLE,
+			   execImage->virtualAddress, execImage->codeSize);
+      if (status < 0)
+	{
+	  releaseProcess(newProcess);
+	  return (status);
+	}
+    }
+  else
+    {
+      // This process will share a page directory with its parent
+      processPageDir = kernelPageShareDirectory(newProcess->parentProcessId, 
+						newProcess->processId);
+      if (processPageDir == NULL)
+	{
+	  // Not able to setup a page directory
+	  releaseProcess(newProcess);
+	  return (status = ERR_NOVIRTUAL);
+	}
+    }
 
   // Give the process a stack
-  stackMemoryAddr = kernelMemoryGet((DEFAULT_STACK_SIZE +
-				     DEFAULT_SUPER_STACK_SIZE),
-				    "process stack");
+  stackMemoryAddr =
+    kernelMemoryGet((DEFAULT_STACK_SIZE + DEFAULT_SUPER_STACK_SIZE),
+		    "process stack");
   if (stackMemoryAddr == NULL)
     {
       // We couldn't make a stack for the new process.  Maybe the system
@@ -410,60 +476,77 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
       newProcess->superStackSize = DEFAULT_SUPER_STACK_SIZE;
     }
   else
-    newProcess->userStackSize = DEFAULT_STACK_SIZE +
-      DEFAULT_SUPER_STACK_SIZE;
+    newProcess->userStackSize =
+      (DEFAULT_STACK_SIZE + DEFAULT_SUPER_STACK_SIZE);
 
-  // If there are any arguments, copy them to the new process' user stack
-  // while we still own the stack memory.
-  if (numberArgs > 0)
+  // Copy 'argc' and 'argv' arguments to the new process' stack while we
+  // still own the stack memory.
+
+  // Set pointers to the appropriate stack locations for the arguments
+  args = (stackMemoryAddr + newProcess->userStackSize - (2 * sizeof(int)));
+
+  // Calculate the amount of memory we need to allocate for argument data.
+  // Leave space for pointers to the strings, since the (int argc,
+  // char *argv[]) scheme means just 2 values on the stack: an integer
+  // an a pointer to an array of char* pointers...
+  argSpaceSize = ((execImage->argc + 2) * sizeof(char *));
+  argSpaceSize += (strlen(name) + 1);
+  for (count = 0; count < execImage->argc; count ++)
+    argSpaceSize += (strlen(execImage->argv[count]) + 1);
+
+  // Get memory for the argument data
+  argSpace = kernelMemoryGet(argSpaceSize, "process arguments");
+  if (argSpace == NULL)
     {
-      temp = (stackMemoryAddr + (newProcess->userStackSize - sizeof(int)));
-      temp -= (numberArgs * sizeof(int));
+      kernelMemoryRelease(stackMemoryAddr);
+      releaseProcess(newProcess);
+      return (status = ERR_MEMORY);
+    }
       
-      // Copy the arguments
-      kernelMemCopy(arguments, temp, (numberArgs * sizeof(int)));
+  // Change ownership to the new process, and share it back with this process.
+  if (kernelMemoryChangeOwner(newProcess->parentProcessId,
+			      newProcess->processId, 1, argSpace,
+			      (void **) &newArgAddress) < 0)
+    {
+      kernelMemoryRelease(stackMemoryAddr);
+      kernelMemoryRelease(argSpace);
+      releaseProcess(newProcess);
+      return (status = ERR_MEMORY);
     }
 
-  // Do we need to create a new page directory and a set of page tables for 
-  // this process?
-  if (newPageDir)
+  if (kernelMemoryShare(newProcess->processId, newProcess->parentProcessId,
+			newArgAddress, (void **) &argSpace) < 0)
     {
-      // We need to make a new page directory, etc.
-      processPageDir = kernelPageNewDirectory(newProcess->processId,
-					      newProcess->privilege);
-      if (processPageDir == NULL)
-	{
-	  // Not able to setup a page directory
-	  kernelMemoryRelease(stackMemoryAddr);
-	  releaseProcess(newProcess);
-	  return (status = ERR_NOVIRTUAL);
-	}
+      kernelMemoryRelease(stackMemoryAddr);
+      releaseProcess(newProcess);
+      return (status = ERR_MEMORY);
+    }
 
-      // Make the process own its code/data memory
-      status = kernelMemoryChangeOwner(newProcess->parentProcessId, 
-		       newProcess->processId, 1, newProcess->codeDataPointer, 
-		       (void **) &(newProcess->codeDataPointer));
-      if (status < 0)
-	{
-	  // Couldn't make the process own its memory
-	  kernelMemoryRelease(stackMemoryAddr);
-	  releaseProcess(newProcess);
-	  return (status);
-	}
-    }
-  else
+  args[0] = (execImage->argc + 1);
+  args[1] = (int) newArgAddress;
+	
+  argv = (char **) argSpace;
+  argSpace += ((execImage->argc + 2) * sizeof(char *));
+  newArgAddress += ((execImage->argc + 2) * sizeof(char *));
+
+  // Copy the name into argv[0]
+  strcpy(argSpace, name);
+  argv[0] = newArgAddress;
+  length = (strlen(name) + 1);
+
+  for (count = 0; count < execImage->argc; count ++)
     {
-      // This process will share a page directory with its parent
-      processPageDir = kernelPageShareDirectory(newProcess->parentProcessId, 
-						newProcess->processId);
-      if (processPageDir == NULL)
-	{
-	  // Not able to setup a page directory
-	  kernelMemoryRelease(stackMemoryAddr);
-	  releaseProcess(newProcess);
-	  return (status = ERR_NOVIRTUAL);
-	}
+      strcpy((argSpace + length), execImage->argv[count]);
+      argv[count + 1] = (newArgAddress + length);
+      length += (strlen(execImage->argv[count]) + 1);
     }
+
+  // argv[argc] is supposed to be a NULL pointer, according to
+  // some standard or other
+  argv[args[0]] = NULL;
+
+  // Unmap the argument space from this process
+  kernelPageUnmap(newProcess->parentProcessId, argSpace, argSpaceSize);
 
   // Make the process own its stack memory
   status = kernelMemoryChangeOwner(newProcess->parentProcessId, 
@@ -487,24 +570,22 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
   if (status < 0)
     {
       // Not able to create the TSS
-      kernelMemoryRelease(stackMemoryAddr);
-      kernelMemoryRelease((void *) newProcess->environment);
       releaseProcess(newProcess);
       return (status);
     }
 
-  // Adjust the stack pointer to account for the number of arguments
-  // that we copied to the process' stack
-  if (numberArgs)
-    newProcess->taskStateSegment.ESP -= (numberArgs * sizeof(int));
+  // Adjust the stack pointer to account for the arguments that we copied to
+  // the process' stack
+  newProcess->taskStateSegment.ESP -= sizeof(int);
+
+  // Set the EIP to the entry point
+  newProcess->taskStateSegment.EIP = (unsigned) execImage->entryPoint;
 
   // Finally, add the process to the process queue
   status = addProcessToQueue(newProcess);
   if (status < 0)
     {
       // Not able to queue the process.
-      kernelMemoryRelease(stackMemoryAddr);
-      kernelMemoryRelease((void *) newProcess->environment);
       releaseProcess(newProcess);
       return (status);
     }
@@ -1158,10 +1239,16 @@ static int schedulerInitialize(void)
   
   int status = 0;
   int interrupts = 0;
+  processImage schedImage = {
+    scheduler, scheduler,
+    NULL, 0xFFFFFFFF,
+    NULL, 0xFFFFFFFF,
+    0xFFFFFFFF,
+    0, { NULL }
+  };
   
-  status = createNewProcess(scheduler, kernelProc->codeDataSize, 
-			    kernelProc->priority, kernelProc->privilege,
-			    "scheduler process", 0, NULL, 0);
+  status = createNewProcess("scheduler process", kernelProc->priority,
+			    kernelProc->privilege, &schedImage, 0);
   if (status < 0)
     return (status);
 
@@ -1248,13 +1335,19 @@ static int createKernelProcess(void)
 
   int status = 0;
   int kernelProcId = 0;
+  processImage kernImage = {
+    (void *) KERNEL_VIRTUAL_ADDRESS,
+    kernelMain, 
+    NULL, 0xFFFFFFFF,
+    NULL, 0xFFFFFFFF,
+    0xFFFFFFFF,
+    0, { NULL }
+  };
 
   // The kernel process is its own parent, of course, and it is owned 
   // by "admin".  We create no page table, and there are no arguments.
   kernelProcId = 
-    createNewProcess(0, 0xFFFFFFFF, 1, PRIVILEGE_SUPERVISOR, "kernel process",
-		     0, NULL, // no args
-		     0); // no page dir
+    createNewProcess("kernel process", 1, PRIVILEGE_SUPERVISOR, &kernImage, 0);
 
   if (kernelProcId < 0)
     // Damn.  Not able to create the kernel process
@@ -1279,10 +1372,11 @@ static int createKernelProcess(void)
   kernelMemoryRelease(kernelProc->userStack);
 
   // Create the kernel process' environment
-  kernelProc->environment = kernelEnvironmentCreate(KERNELPROCID, NULL);
-  if (kernelProc->environment == NULL)
+  status = kernelEnvironmentCreate(KERNELPROCID, (variableList *)
+				   &(kernelProc->environment), NULL);
+  if (status < 0)
     // Couldn't create an environment structure for this process
-    return (status = ERR_NOTINITIALIZED);
+    return (status);
 
   // Make the kernel's text streams be the console streams
   kernelProc->textInputStream = kernelTextGetConsoleInput();
@@ -1557,8 +1651,8 @@ void kernelExceptionHandler(void)
       else
 	{
 	  kernelError(kernel_error, tmpMsg);
-	  //if (kernelGraphicsAreEnabled())
-	  //  kernelErrorDialog("Fatal exception", tmpMsg);
+	  if (kernelGraphicsAreEnabled())
+	    kernelErrorDialog("Application Exception", tmpMsg);
 	}
 
       // If the process was in kernel code, and we are not processing an
@@ -1673,9 +1767,8 @@ void kernelMultitaskerDumpProcessList(void)
 }
 
 
-int kernelMultitaskerCreateProcess(void *loadAddress, unsigned size, 
-				   const char *name, int privilege,
-				   int numberArgs, void *arguments)
+int kernelMultitaskerCreateProcess(const char *name, int privilege,
+				   processImage *execImage)
 {
   // This function is called to set up an (initially) single-threaded
   // process in the multitasker.  This is the routine used by external
@@ -1695,14 +1788,8 @@ int kernelMultitaskerCreateProcess(void *loadAddress, unsigned size,
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the parameters are valid
-  if ((loadAddress == NULL) || (size == NULL) || (name == NULL))
+  if ((name == NULL) || (execImage == NULL))
     return (status = ERR_NULLPARAMETER);
-
-  // If the number of arguments is not zero, make sure the arguments
-  // pointer is not NULL
-  if (numberArgs > 0)
-    if (arguments == NULL)
-      return (status = ERR_NULLPARAMETER);
 
   // Make sure that an unprivileged process is not trying to create a
   // privileged one
@@ -1715,26 +1802,23 @@ int kernelMultitaskerCreateProcess(void *loadAddress, unsigned size,
     }
 
   // Create the new process
-  processId = createNewProcess(loadAddress, size, PRIORITY_DEFAULT, 
-			       privilege, name, numberArgs,
-			       arguments, 1); // create page directory
+  processId = createNewProcess(name, PRIORITY_DEFAULT, privilege, execImage,
+			       1); // create page directory
 
   // Get the pointer to the new process from its process Id
   newProcess = getProcessById(processId);
-
-  // Make sure it's valid
   if (newProcess == NULL)
     // We couldn't get access to the new process
     return (status = ERR_NOCREATE);
 
   // Create the process' environment
-  newProcess->environment =
-    kernelEnvironmentCreate(newProcess->processId, 
-			    kernelCurrentProcess->environment);
-
-  if (newProcess->environment == NULL)
+  status =
+    kernelEnvironmentCreate(newProcess->processId, (variableList *)
+			    &(newProcess->environment), (variableList *)
+			    &(kernelCurrentProcess->environment));
+  if (status < 0)
     // Couldn't create an environment structure for this process
-    return (status = ERR_NOTINITIALIZED);
+    return (status);
 
   // Don't assign input or output streams to this process.  There are
   // multiple possibilities here, and the caller will have to either block
@@ -1745,8 +1829,8 @@ int kernelMultitaskerCreateProcess(void *loadAddress, unsigned size,
 }
 
 
-int kernelMultitaskerSpawn(void *startAddress, const char *name,
-			   int numberArgs, void *arguments)
+int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
+			   void *argv[])
 {
   // This function is used to spawn a new thread from the current
   // process.  The function needs to be told the starting address of
@@ -1757,10 +1841,15 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name,
   int status = 0;
   int processId = 0;
   kernelProcess *newProcess = NULL;
+  processImage execImage;
+  int count;
 
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
+
+  // The start address CAN be NULL, if it is the zero offset in a
+  // process' private address space.
 
   // Make sure the pointer to the name is not NULL
   if (name == NULL)
@@ -1769,23 +1858,31 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name,
 
   // If the number of arguments is not zero, make sure the arguments
   // pointer is not NULL
-  if ((numberArgs > 0) && (arguments == NULL))
+  if (argc && !argv)
     return (status = ERR_NULLPARAMETER);
-
-  // The start address CAN be NULL, if it is the zero offset in a
-  // process' private address space.
 
   // Make sure the current process isn't NULL
   if (kernelCurrentProcess == NULL)
     return (status = ERR_NOSUCHPROCESS);
 
-  // OK, now we should create the new process
-  processId = createNewProcess(kernelCurrentProcess->codeDataPointer, 
-	       kernelCurrentProcess->codeDataSize,
-	       kernelCurrentProcess->priority, kernelCurrentProcess->privilege,
-	       name, numberArgs, arguments, 0); // no page directory
+  kernelMemClear(&execImage, sizeof(processImage));
+  execImage.virtualAddress = startAddress;
+  execImage.entryPoint = startAddress;
+  execImage.code = NULL;
+  execImage.codeSize = 0;
+  execImage.data = NULL;
+  execImage.dataSize = 0;
+  execImage.imageSize = 0;
 
-  // Make sure we got a proper process Id
+  // Set up arguments
+  execImage.argc = argc;
+  for (count = 0; count < argc; count ++)
+    execImage.argv[count] = argv[count];
+
+  // OK, now we should create the new process
+  processId = createNewProcess(name, kernelCurrentProcess->priority,
+			       kernelCurrentProcess->privilege,
+			       &execImage, 0);
   if (processId < 0)
     return (status = processId);
   
@@ -1808,9 +1905,6 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name,
   // the space where the return address would normally go.
   newProcess->taskStateSegment.ESP -= 4;
 
-  // Set the EIP to the starting address of the spawned thread
-  newProcess->taskStateSegment.EIP = (unsigned) startAddress;
-
   // Copy the environment
   newProcess->environment = kernelCurrentProcess->environment;
 
@@ -1828,7 +1922,7 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name,
 
 
 int kernelMultitaskerSpawnKernelThread(void *startAddress, const char *name, 
-				       int numberArgs, void *arguments)
+				       int argc, void *argv[])
 {
   // This function is a wrapper around the regular spawn() call, which
   // causes threads to be spawned as children of the kernel, instead of
@@ -1854,7 +1948,7 @@ int kernelMultitaskerSpawnKernelThread(void *startAddress, const char *name,
 
   // Spawn
 
-  status = kernelMultitaskerSpawn(startAddress, name, numberArgs, arguments);
+  status = kernelMultitaskerSpawn(startAddress, name, argc, argv);
 
   // Reset the current process
   kernelCurrentProcess = myProcess;
@@ -1864,83 +1958,6 @@ int kernelMultitaskerSpawnKernelThread(void *startAddress, const char *name,
 
   // Done
   return (status);
-}
-
-
-int kernelMultitaskerPassArgs(int processId, int numberArgs, void *args)
-{
-  // This will allow arguments to be passed to a process after it has
-  // already been created (of course, this should never be attempted 
-  // after a process has been allowed to run).
-
-  int status = 0;
-  kernelProcess *targetProcess = 0;
-  void *processStack = NULL;
-  
-  // Make sure multitasking has been enabled
-  if (!multitaskingEnabled)
-    return (status = ERR_NOTINITIALIZED);
-  
-  // If numberargs is <= zero, there's nothing to do
-  if (numberArgs <= 0)
-    return (status = ERR_NODATA);
-
-  // Make sure the args aren't NULL
-  if (args == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Try to match the requested process Id number with a real
-  // live process structure
-  targetProcess = getProcessById(processId);
-
-  if (targetProcess == NULL)
-    // That means there's no such process
-    return (status = ERR_NOSUCHPROCESS);
-
-  // Don't do this if the process appears to have been run in the past
-  if (targetProcess->cpuTime > 0)
-    {
-      kernelError(kernel_error, "Cannot pass arguments to a process that "
-		  "has been started");
-      return (status = ERR_INVALID);
-    }
-
-  // Permission check -- make sure that this action is allowed.  The
-  // requesting process must either have supervisor privilege or be the
-  // target process' direct parent
-  if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
-      (targetProcess->parentProcessId != kernelCurrentProcess->processId))
-    {
-      kernelError(kernel_error, "Cannot pass arguments to a process - "
-		  "permission denied");
-      return (status = ERR_PERMISSION);
-    }
-
-  // Ok, now we need to map the process' stack memory into the current
-  // address space
-  status = kernelMemoryShare(processId, kernelCurrentProcess->processId, 
-			     targetProcess->userStack, &processStack);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Can't access the stack memory of the "
-		  "target process");
-      return (status);
-    }
-  
-  // Adjust processStack by the process' stack pointer MINUS the size of
-  // the argument data we're passing
-  processStack += (unsigned) (targetProcess->taskStateSegment.ESP -
-			      (unsigned) targetProcess->userStack);
-  processStack -= (numberArgs * sizeof(int));
-
-  // Now, copy the argument data
-  kernelMemCopy(args, processStack, (numberArgs * sizeof(int)));
-
-  // Now adjust the process' stack pointer
-  targetProcess->taskStateSegment.ESP -= (numberArgs * sizeof(int));
-
-  // Return success
-  return (status = 0);
 }
 
 

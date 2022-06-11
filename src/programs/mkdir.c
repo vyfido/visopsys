@@ -21,6 +21,23 @@
 
 // This is the UNIX-style command for creating directories
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- mkdir --
+
+Create one or more new directories.
+
+Usage:
+  mkdir <directory1> [directory2] [...]
+
+This command will can be used to create new directories.  The first parameter
+is the name of the new directory to create.  Any number of other (optional)
+directories to create can be specified at the same time.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>

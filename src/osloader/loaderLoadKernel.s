@@ -121,15 +121,15 @@ getElfHeaderInfo:
 	;; The kernel image doesn't look the way we expected.  Newer versions
 	;; of GNU ld seem to create an extra, no-load, stack section.  Make
 	;; a warning but otherwise ignore it.
-	call loaderPrintNewline
-	call loaderPrintNewline
-	call loaderPrintNewline
-	mov DL, ERRORCOLOR
-	mov SI, THEFILE
-	call loaderPrint
-	mov SI, NUMSEGS
-	call loaderPrint
-	call loaderPrintNewline
+	;; call loaderPrintNewline
+	;; call loaderPrintNewline
+	;; call loaderPrintNewline
+	;; mov DL, ERRORCOLOR
+	;; mov SI, THEFILE
+	;; call loaderPrint
+	;; mov SI, NUMSEGS
+	;; call loaderPrint
+	;; call loaderPrintNewline
 
 	.progHdr:
 	;; That is all the information we get directly from the ELF header.

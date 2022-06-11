@@ -21,6 +21,26 @@
 
 // This is the UNIX-style command for synchronizing changes to the disk.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- sync --
+
+Synchronize data on all disks.
+
+Usage:
+  sync
+
+This command will cause all pending disk data in memory to be written out
+to the disk.
+
+Disk I/O in Visopsys is usually ansynchronous -- i.e. changes are first
+made in memory, and then committed to disk at an opportune time.  This
+command causes all such data to be committed at once.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/api.h>

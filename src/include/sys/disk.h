@@ -69,15 +69,13 @@
 #define DISKFLAG_HARDDISK             (DISKFLAG_SCSIDISK | DISKFLAG_IDEDISK)
 
 // This structure is used to describe a known partition type
-typedef struct
-{
+typedef struct {
   unsigned char code;
   const char description[FSTYPE_MAX_NAMELENGTH];
 
 } partitionType;   
 
-typedef struct
-{
+typedef struct {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
   int flags;

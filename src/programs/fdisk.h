@@ -123,7 +123,20 @@ typedef struct {
   } buffer[2];
   unsigned bufferSize;
 
-} concurrentIoBuffer;
+} ioBuffer;
+
+// Arguments for the reader/writer threads during things like disk-to-disk
+// copies
+typedef struct {
+  disk *theDisk;
+  unsigned startSector;
+  unsigned numSectors;
+  ioBuffer *buffer;
+  int showProgress;
+  objectKey progressBar;
+  objectKey statusLabel;
+
+} ioThreadArgs;
 
 #define _FDISK_H
 #endif

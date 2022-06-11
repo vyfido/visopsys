@@ -21,6 +21,26 @@
 
 // This command will display an image file in a new window.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- view --
+
+View an image file.
+
+Usage:
+  view [image_file]
+
+(Only available in graphics mode)
+
+This command will launch a window in which an image file is viewed.
+If no image file name is supplied, the program will prompt the user.
+
+Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported. 
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,7 +113,7 @@ int main(int argc, char *argv[])
   vshMakeAbsolutePath(tmpFilename, filename);
 
   // Try to load the image file
-  status = imageLoadBmp(filename, &showImage);
+  status = imageLoad(filename, 0, 0, &showImage);
   if (status < 0)
     {
       printf("Unable to load image \"%s\"\n", filename);

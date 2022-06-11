@@ -210,51 +210,39 @@ void kernelConsoleLogin(void)
 }
 
 
-variableList *kernelConfigurationReader(const char *fileName)
+int kernelConfigurationReader(const char *fileName, variableList *list)
 {
   int status = 0;
   fileStream configFile;
-  unsigned variableListItems = 0;
-  unsigned variableListSize = 0;
-  variableList *list = NULL;
   char lineBuffer[256];
   char *variable = NULL;
   char *value = NULL;
   int count;
 
-  if (fileName == NULL)
-    return (list = NULL);
+  // Check params
+  if ((fileName == NULL) || (list == NULL))
+    {
+      kernelError(kernel_error, "File name or list parameter is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
 
   status = kernelFileStreamOpen(fileName, OPENMODE_READ, &configFile);
   if (status < 0)
     {
       kernelError(kernel_warn, "Unable to read the configuration file \"%s\"",
 		  fileName);
-      return (list = NULL);
-    }
-
-  // Check for a zero-length file.
-  if (!configFile.f.size)
-    {
-      variableListItems = 1;
-      variableListSize = 1;
-    }
-  else
-    {
-      variableListItems = (configFile.f.size / 4);
-      variableListSize = configFile.f.size;
+      return (status);
     }
 
   // Create the list, based on the size of the file, estimating one variable
   // for each minimum-sized 'line' of the file
-  list = kernelVariableListCreate(variableListItems, variableListSize,
-				  "configuration data");
-  if (list == NULL)
+  status = kernelVariableListCreate(list);
+  if (status < 0)
     {
       kernelError(kernel_warn, "Unable to create a variable list for "
 		  "configuration file \"%s\"", fileName);
       kernelFileStreamClose(&configFile);
-      return (list);
+      return (status);
     }
 
   // Read line by line
@@ -286,7 +274,7 @@ variableList *kernelConfigurationReader(const char *fileName)
 
   kernelFileStreamClose(&configFile);
 
-  return (list);
+  return (status = 0);
 }
 
 
@@ -305,8 +293,9 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
   char lineBuffer[256];
   char *variable = NULL;
   char *value = NULL;
-  unsigned count;
+  int count;
 
+  // Check params
   if ((fileName == NULL) || (list == NULL))
     {
       kernelError(kernel_error, "File name or list parameter is NULL");
@@ -404,41 +393,41 @@ int kernelReadSymbols(const char *filename)
   // through which we can search for addresses.
   
   int status = 0;
-  variableList *tmpList = NULL;
-  unsigned count;
+  variableList tmpList;
+  int count;
 
   // Make a log message
   kernelLog("Reading kernel symbols from \"%s\"", filename);
 
   // Try to read the supplied file name
-  tmpList = kernelConfigurationReader(filename);
-  if (tmpList == NULL)
-    return (status = ERR_IO);
+  status = kernelConfigurationReader(filename, &tmpList);
+  if (status < 0)
+    return (status);
 
-  if (tmpList->numVariables == 0)
+  if (tmpList.numVariables == 0)
     // No symbols were properly read
     return (status = ERR_NOSUCHENTRY);
 
   // Get some memory to hold our list of symbols
   kernelSymbols =
-    kernelMemoryGet((tmpList->numVariables * sizeof(kernelSymbol)),
+    kernelMemoryGet((tmpList.numVariables * sizeof(kernelSymbol)),
 		    "kernel symbols");
   if (kernelSymbols == NULL)
     // Couldn't get the memory
     return (status = ERR_MEMORY);
 
   // Loop through all of the variables, setting the symbols in our table
-  for (count = 0; count < tmpList->numVariables; count ++)
+  for (count = 0; count < tmpList.numVariables; count ++)
     {
-      kernelSymbols[count].address = xtoi(tmpList->variables[count]);
-      strncpy((char *) kernelSymbols[count].symbol, tmpList->values[count],
+      kernelSymbols[count].address = xtoi(tmpList.variables[count]);
+      strncpy((char *) kernelSymbols[count].symbol, tmpList.values[count],
 	      MAX_SYMBOL_LENGTH);
     }
 
-  kernelNumberSymbols = tmpList->numVariables;
+  kernelNumberSymbols = tmpList.numVariables;
 
   // Release our variable list
-  kernelMemoryRelease(tmpList);
+  kernelMemoryRelease(tmpList.memory);
 
   return (status = 0);
 }

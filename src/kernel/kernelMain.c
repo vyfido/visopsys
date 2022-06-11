@@ -22,14 +22,13 @@
 #include "kernelMain.h"
 #include "kernelParameters.h"
 #include "kernelInitialize.h"
-#include "kernelSysTimer.h"
+#include "kernelEnvironment.h"
 #include "kernelMultitasker.h"
-#include "kernelMalloc.h"
 #include "kernelLoader.h"
-#include "kernelMiscFunctions.h"
-#include "kernelKeyboard.h"
+#include "kernelSysTimer.h"
 #include "kernelProcessorX86.h"
-#include "kernelShutdown.h"
+#include "kernelMiscFunctions.h"
+#include "kernelText.h"
 #include "kernelError.h"
 #include <string.h>
 
@@ -47,7 +46,8 @@ int visopsys_in_kernel = 1;
 loaderInfoStruct *kernelOsLoaderInfo = NULL;
 
 // General kernel configuration variables
-variableList *kernelVariables = NULL;
+static variableList variables;
+variableList *kernelVariables = &variables;
 
 
 void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)

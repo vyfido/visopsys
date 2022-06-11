@@ -87,7 +87,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
     }
 
   if (myImage->data == NULL)
-    status = imageLoadBmp(imageName, myImage);
+    status = imageLoad(imageName, 0, 0, myImage);
 
   if (status == 0)
     {

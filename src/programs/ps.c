@@ -21,6 +21,22 @@
 
 // This is the UNIX-style command for viewing a list of running processes
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- ps --
+
+Print all of the running processes
+
+Usage:
+  ps
+
+This command will print all of the running processes, their process IDs,
+privilege level, priority level, CPU utilization and other statistics.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/api.h>

@@ -21,6 +21,19 @@
 
 // This shows a little clock in the corner of the screen
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- clock --
+
+Show a simple clock in the corner of the screen.
+
+Usage:
+  clock
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

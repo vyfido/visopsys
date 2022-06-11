@@ -21,6 +21,23 @@
 
 // Sets display properties for the kernel's window manager
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- disprops --
+
+Control the display properties
+
+Usage:
+  disprops
+
+The disprops program is interactive, and may only be used in graphics mode.
+It can be used to change display settings, such as the screen resolution,
+the background wallpaper, and the base colors used by the window manager.
+
+</help>
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -114,7 +131,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
   int mode = 0;
   int clockSelected = 0;
-  variableList *list = NULL;
+  variableList list;
   char string[160];
   file tmp;
 
@@ -173,31 +190,31 @@ static void eventHandler(objectKey key, windowEvent *event)
       if ((!showingClock && clockSelected) || (showingClock && !clockSelected))
 	{
 	  if (!readOnly)
-	    list = configurationReader("/system/windowmanager.conf");
+	    configurationReader("/system/windowmanager.conf", &list);
 
 	  if (!showingClock && clockSelected)
 	    {
 	      // Run the clock program now.  No block.
 	      loaderLoadAndExec("/programs/clock", privilege, 0, NULL, 0);
 	      
-	      if (list)
+	      if (list.memory)
 		// Add a variable for the clock
-		variableListSet(list, "program.clock", "/programs/clock");
+		variableListSet(&list, "program.clock", "/programs/clock");
 	    }
 	  else
 	    {
 	      // Try to kill any clock program(s) currently running
 	      multitaskerKillByName("clock", 0);
 
-	      if (list)
+	      if (list.memory)
 		// Remove any 'program.clock=' variable
-		variableListUnset(list, "program.clock");
+		variableListUnset(&list, "program.clock");
 	    }
 
-	  if (list)
+	  if (list.memory)
 	    {
-	      configurationWriter("/system/windowmanager.conf", list);
-	      free(list);
+	      configurationWriter("/system/windowmanager.conf", &list);
+	      free(list.memory);
 	    }
 	}
 

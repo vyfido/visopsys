@@ -22,6 +22,28 @@
 // This is the UNIX-style command for recursively traversing file trees
 // and doing optional, conditional operations on the files/directories.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- find --
+
+A command for traversing directory trees.
+
+Usage:
+  find [start_directory]
+
+This command is designed to recursively descend through directory trees.
+The (optional) starting directory parameter can be supplied, or else the
+current directory will be used.
+
+This command is very limited at the moment, and has no filtering ability,
+execution ability, or anything really.  It will be developed more fully in
+the future, but was added at the present time to facilitate the development
+of filesystem drivers (as a testing mechanism) 
+
+</help>
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

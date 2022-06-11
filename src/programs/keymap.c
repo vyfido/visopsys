@@ -22,6 +22,31 @@
 // This is a program for showing and changing the keyboard mapping.  Works
 // in both text and graphics modes.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- keymap --
+
+View or change the current keyboard mapping
+
+Usage:
+  keymap [map name]
+
+The keymap program can be used to view the available keyboard mapping, or
+set the current map.  It works in both text and graphics modes:
+
+In text mode: If no map is specified on the command line, then all available
+mappings are listed, with the current one indicated at the top of the list.
+To change the map, the user must enter the new name in exactly the same
+format as shown by the command (with double quotes (") around it if it
+contains space characters).
+
+In graphics mode, the program is interactive and the user can choose a new
+mapping simply by clicking.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -71,17 +96,19 @@ static int setMap(const char *mapName)
   int status = 0;
 
   // Change the mapping in the kernel config for the next reboot
-  variableList *kernelConf = configurationReader("/system/kernel.conf");
-  if (kernelConf)
-    {
-      status = keyboardSetMap(mapName);
-      if (status < 0)
-	return (status);
+  variableList kernelConf;
 
-      variableListSet(kernelConf, "keyboard.map", mapName);
-      configurationWriter("/system/kernel.conf", kernelConf);
-      free(kernelConf);
-    }
+  status = configurationReader("/system/kernel.conf", &kernelConf);
+  if (status < 0)
+    return (status);
+
+  status = keyboardSetMap(mapName);
+  if (status < 0)
+    return (status);
+
+  variableListSet(&kernelConf, "keyboard.map", mapName);
+  configurationWriter("/system/kernel.conf", &kernelConf);
+  free(kernelConf.memory);
 
   return (status = 0);
 }

@@ -31,13 +31,11 @@
 typedef enum {
   proc_running, proc_ready, proc_waiting, proc_sleeping, proc_stopped,
   proc_finished, proc_zombie
-
 } processState;
 
 // An enumeration listing possible process types
 typedef enum {
   proc_normal, proc_thread
-
 } processType;
 
 typedef struct {

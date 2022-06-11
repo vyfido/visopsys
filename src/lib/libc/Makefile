@@ -127,26 +127,26 @@ UNISTDNAMES	= close \
 		write
 
 ALLNAMES = ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${MISCNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
-OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
+OBJDIR = obj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
 CRT0 = ${BUILDDIR}/crt0.o
 LIBRARY = ${BUILDDIR}/libc.a
 
 # Targets
 
-all: target-dirs ${LIBRARY}
+all: target-dirs ${CRT0} ${LIBRARY}
 
 target-dirs:
-	mkdir -p obj
-	mkdir -p ${BUILDDIR}
-
-${LIBRARY}: ${CRT0} ${OBJS} ${STARTOBJS}
-	${AR} -rs $@ ${OBJS} ${STARTOBJS}
+	mkdir -p ${OBJDIR} ${BUILDDIR}
 
 ${CRT0}: crt0.c ${STDDEPS}
 	${CC} ${OPTS} -c $< -o $@
 
-obj/%.o: %.c ${STDDEPS}
+${LIBRARY}: ${OBJS}
+	${AR} -rs $@ ${OBJS}
+
+${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
 
 clean:
-	rm -Rf *~ *.o core obj ${BUILDDIR}/crt0.o ${LIBRARY}
+	rm -Rf *~ *.o core ${OBJDIR} ${CRT0} ${LIBRARY}

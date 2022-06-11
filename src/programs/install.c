@@ -21,6 +21,24 @@
 
 // This is a program for installing the system on a target disk (filesystem).
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- install --
+
+This program will install a copy of Visopsys on another disk.
+
+Usage:
+  install [disk_name]
+
+The 'install' program is interactive, but a logical disk parameter can
+(optionally) be specified on the command line.  If no disk is specified,
+then the user will be prompted to choose from a menu.  Use the 'disks'
+command to list the available disks.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -340,7 +358,6 @@ static int chooseDisk(void)
       params.gridY = 1;
       diskList = windowNewList(chooseWindow, 5, 1, 0, diskStrings,
 			       numberDisks, &params);
-      free(diskStrings[0]);
 
       // Make 'OK', 'partition', and 'cancel' buttons
       params.gridY = 2;
@@ -387,10 +404,17 @@ static int chooseDisk(void)
 	      // window, run the disk manager, and start again
 	      windowDestroy(chooseWindow);
 	      chooseWindow = NULL;
+
 	      // Privilege zero, no args, block
 	      loaderLoadAndExec("/programs/fdisk", 0, 0, NULL, 1);
+
 	      // Remake our disk list
 	      makeDiskList();
+
+	      // Release our disk strings memory
+	      free(diskStrings[0]);
+
+	      // Start again.
 	      goto start;
 	    }
 
@@ -962,14 +986,14 @@ static void changeStartProgram(void)
 {
   // Change the target installation's start program to the login program
 
-  variableList *kernelConf =
-    configurationReader(MOUNTPOINT "/system/kernel.conf");
-  if (kernelConf)
-    {
-      variableListSet(kernelConf, "start.program", "/programs/login");
-      configurationWriter(MOUNTPOINT "/system/kernel.conf", kernelConf);
-      free(kernelConf);
-    }
+  variableList kernelConf;
+
+  if (configurationReader(MOUNTPOINT "/system/kernel.conf", &kernelConf) < 0)
+    return;
+
+  variableListSet(&kernelConf, "start.program", "/programs/login");
+  configurationWriter(MOUNTPOINT "/system/kernel.conf", &kernelConf);
+  free(kernelConf.memory);
 }
 
 

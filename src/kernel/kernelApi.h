@@ -23,8 +23,7 @@
 
 #define API_MAX_ARGS 9
 
-typedef struct 
-{
+typedef struct {
   unsigned functionNumber;
   void *functionPointer;
   int argCount;

@@ -199,7 +199,7 @@ static void addTitleBar(kernelWindow *window)
   int width = window->buffer.width;
   componentParameters params;
 
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     return;
 
   // Standard parameters for a title bar
@@ -207,8 +207,9 @@ static void addTitleBar(kernelWindow *window)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  window->titleBar = kernelWindowNewTitleBar(window->sysContainer, width,
-					     &params);
+  window->titleBar =
+    kernelWindowNewTitleBar(window->sysContainer, width, &params);
+
   if (window->titleBar)
     {
       window->titleBar->xCoord = 0;
@@ -219,8 +220,6 @@ static void addTitleBar(kernelWindow *window)
 	  window->titleBar->xCoord += borderThickness;
 	  window->titleBar->yCoord += borderThickness;
 	}
-
-      window->flags |= WINFLAG_HASTITLEBAR;
     }
 
   return;
@@ -231,13 +230,11 @@ static void removeTitleBar(kernelWindow *window)
 {
   // Removes the title bar from atop the window
 
-  if (!(window->flags & WINFLAG_HASTITLEBAR))
+  if (!(window->titleBar))
     return;
 
   kernelWindowComponentDestroy(window->titleBar);
   window->titleBar = NULL;
-
-  window->flags &= ~WINFLAG_HASTITLEBAR;
 
   return;
 }
@@ -269,7 +266,7 @@ static int tileBackgroundImage(kernelWindow *window)
       clientAreaWidth -= (borderThickness * 2);
       clientAreaHeight -= (borderThickness * 2);
     }
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     {
       clientAreaY += titleBarHeight;
       clientAreaHeight -= titleBarHeight;
@@ -570,7 +567,7 @@ static int drawWindow(kernelWindow *window)
       clientAreaWidth -= (borderThickness * 2);
       clientAreaHeight -= (borderThickness * 2);
     }
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     {
       clientAreaY += titleBarHeight;
       clientAreaHeight -= titleBarHeight;
@@ -598,7 +595,7 @@ static int drawWindow(kernelWindow *window)
     }
 
   // If the window has a titlebar, draw it
-  if (window->titleBar && window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     {
       status = window->titleBar->draw((void *) window->titleBar);
       if (status < 0)
@@ -812,7 +809,7 @@ static int setWindowSize(kernelWindow *window, int width, int height)
   kernelFree(oldBufferData);
   
   // Tell the title bar component to resize
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     {
       newTitleBarWidth = width;
       if (window->flags & WINFLAG_HASBORDER)
@@ -871,7 +868,7 @@ static int layoutWindow(kernelWindow *window)
   window->mainContainer->width = window->buffer.width;
   window->mainContainer->height = window->buffer.height;
     
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     {
       window->mainContainer->yCoord += titleBarHeight;
       window->mainContainer->height -= titleBarHeight;
@@ -889,7 +886,7 @@ static int layoutWindow(kernelWindow *window)
   if (status < 0)
     return (status);
   
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     {
       window->titleBar->xCoord = 0;
       window->titleBar->yCoord = 0;
@@ -1145,7 +1142,7 @@ static void changeWindowFocus(kernelWindow *window)
 	  // title bar 'draw' routine won't make it look focused
 	  focusWindow->flags &= ~WINFLAG_HASFOCUS;
 	  
-	  if (focusWindow->flags & WINFLAG_HASTITLEBAR)
+	  if (focusWindow->titleBar)
 	    focusWindow->titleBar->draw((void *) focusWindow->titleBar);
 
 	  // Redraw the window's title bar area only
@@ -1164,7 +1161,7 @@ static void changeWindowFocus(kernelWindow *window)
   focusWindow = window;
 
   // Draw the title bar as focused
-  if (window->flags & WINFLAG_HASTITLEBAR)
+  if (window->titleBar)
     window->titleBar->draw((void *) window->titleBar);
 
   if (window->focusComponent)
@@ -1245,9 +1242,8 @@ static kernelWindowComponent *findTopmostComponent(kernelWindow *window,
   int count;
 
   // Check whether the event happened in any of the top-level system components
-  if ((window->flags & WINFLAG_HASTITLEBAR) &&
-      (isPointInside(xCoord, yCoord,
-		     makeComponentScreenArea(window->titleBar))))
+  if (window->titleBar && isPointInside(xCoord, yCoord,
+				makeComponentScreenArea(window->titleBar)))
     return (window->titleBar);
 
   if (window->flags & WINFLAG_HASBORDER)
@@ -1476,17 +1472,16 @@ static void windowThread(void)
 	    {
 	      component = container->components[compCount];
  
-	      // Any events pending?
-	      if ((kernelWindowEventStreamRead(&(component->events),
-					       &event) > 0) &&
-		  // Any handler for the event?
-		  component->eventHandler)
+	      // Any handler for the event?  Any events pending?
+	      if (component->eventHandler &&
+		  (kernelWindowEventStreamRead(&(component->events),
+					       &event) > 0))
 		{
 		  component->eventHandler((objectKey) component, &event);
-		  
+
 		  // Window closed?  Don't want to loop here any more.
 		  if (!kernelMultitaskerProcessIsAlive(processId))
-		    compCount = container->numComponents;
+		    break;
 		}
 	    }
 	}
@@ -1538,27 +1533,13 @@ static kernelWindow *findTopmostWindow(void)
 }
 
 
-static variableList *getConfiguration(void)
-{
-  variableList *settings = NULL;
-
-  // Read the config file
-  settings = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG);
-  if (settings == NULL)
-    // Argh.  No file?  Create a reasonable, empty list for us to use
-    settings = kernelVariableListCreate(255, 1024, "window configuration");
-
-  return (settings);
-}
-
-
 static int windowStart(void)
 {
   // This does all of the startup stuff.  Gets called once during
   // system initialization.
 
   int status = 0;
-  variableList *settings = NULL;
+  variableList settings;
   kernelTextOutputStream *output = NULL;
   char propertyName[128];
   char propertyValue[128];
@@ -1573,9 +1554,15 @@ static int windowStart(void)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  settings = getConfiguration();
-  if (settings == NULL)
-    return (status = ERR_NOTINITIALIZED);
+  // Read the config file
+  status = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+  if (status < 0)
+    {
+      // Argh.  No file?  Create a reasonable, empty list for us to use
+      status = kernelVariableListCreate(&settings);
+      if (status < 0)
+	return (status);
+    }
 
   // Variables and whatnot are dealt with elsewhere.
   // Set the temporary text area to the current desktop color, for neatness'
@@ -1591,12 +1578,12 @@ static int windowStart(void)
       strcpy(propertyName, "mouse.pointer.");
       strcat(propertyName, mousePointerTypes[count][0]);
 
-      if (kernelVariableListGet(settings, propertyName, propertyValue, 128))
+      if (kernelVariableListGet(&settings, propertyName, propertyValue, 128))
 	{
 	  // Nothing specified.  Use the default.
 	  strcpy(propertyValue, mousePointerTypes[count][1]);
 	  // Save it so it can be written out later to the configuration file
-	  kernelVariableListSet(settings, propertyName, propertyValue);
+	  kernelVariableListSet(&settings, propertyName, propertyValue);
 	}
 
       // When you load a mouse pointer it automatically switches to it,
@@ -1612,7 +1599,7 @@ static int windowStart(void)
   if ((kernelWindowEventStreamNew(&mouseEvents) < 0) ||
       (kernelWindowEventStreamNew(&keyEvents) < 0))
     {
-      kernelMemoryRelease(settings);
+      kernelMemoryRelease(settings.memory);
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -1620,10 +1607,10 @@ static int windowStart(void)
   spawnWindowThread();
 
   // Draw the main, root window.
-  rootWindow = kernelWindowMakeRoot(settings);
+  rootWindow = kernelWindowMakeRoot(&settings);
   if (rootWindow == NULL)
     {
-      kernelMemoryRelease(settings);
+      kernelMemoryRelease(settings.memory);
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -1636,14 +1623,14 @@ static int windowStart(void)
   kernelMouseDraw();
 
   // Re-write config file
-  status = kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, settings);
+  status = kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
   if (status < 0)
     kernelError(kernel_error, "Error updating window configuration");
   else
     kernelLog("Updated window configuration");
 
   // Done
-  kernelMemoryRelease(settings);
+  kernelMemoryRelease(settings.memory);
   return (status = 0);
 }
 
@@ -1959,7 +1946,6 @@ int kernelWindowDestroy(kernelWindow *window)
 
   int status = 0;
   int listPosition = 0;
-  kernelWindowContainer flatContainer;
   int count;
 
   // Make sure we've been initialized
@@ -2026,21 +2012,13 @@ int kernelWindowDestroy(kernelWindow *window)
 
   if (window->mainContainer)
     {
-      flatContainer.numComponents = 0;
-      flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		       &flatContainer, 0 /* No flags/conditions */);
-      for (count = 0; count < flatContainer.numComponents; count ++)
-	kernelWindowComponentDestroy(flatContainer.components[count]);
+      kernelWindowComponentDestroy(window->mainContainer);
       window->mainContainer = NULL;
     }
 
   if (window->sysContainer)
     {
-      flatContainer.numComponents = 0;
-      flattenContainer((kernelWindowContainer *) window->sysContainer->data,
-		       &flatContainer, 0 /* No flags/conditions */);
-      for (count = 0; count < flatContainer.numComponents; count ++)
-	kernelWindowComponentDestroy(flatContainer.components[count]);
+      kernelWindowComponentDestroy(window->sysContainer);
       window->sysContainer = NULL;
     }
 
@@ -2204,7 +2182,7 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
     {
       width = window->buffer.width;
       height = window->buffer.height;
-      if (window->flags & WINFLAG_HASTITLEBAR)
+      if (window->titleBar)
 	height -= titleBarHeight;
       if (window->flags & WINFLAG_HASBORDER)
 	{
@@ -2864,7 +2842,7 @@ int kernelWindowTileBackground(const char *filename)
   
   int status = 0;
   image backgroundImage;
-  variableList *settings = NULL;
+  variableList settings;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2875,7 +2853,7 @@ int kernelWindowTileBackground(const char *filename)
     return (status = ERR_NULLPARAMETER);
   
   // Try to load the new background image
-  status = kernelImageLoadBmp(filename, &backgroundImage);
+  status = kernelImageLoad(filename, 0, 0, &backgroundImage);
   if (status < 0)
     {
       kernelError(kernel_error, "Error loading background image");
@@ -2894,12 +2872,12 @@ int kernelWindowTileBackground(const char *filename)
   kernelMouseDraw();
 
   // Save the settings variable
-  settings = getConfiguration();
-  if (settings)
+  status = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+  if (status >= 0)
     {
-      kernelVariableListSet(settings, "background.image", filename);
-      kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, settings);
-      kernelMemoryRelease(settings);
+      kernelVariableListSet(&settings, "background.image", filename);
+      kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+      kernelMemoryRelease(settings.memory);
     }
 
   return (status = 0);
@@ -2995,9 +2973,9 @@ int kernelWindowSaveScreenShot(const char *name)
 	  kernelWindowSetVisible(dialog, 1);
 	}
 
-      status = kernelImageSaveBmp(filename, &saveImage);
+      status = kernelImageSave(filename, IMAGEFORMAT_BMP, &saveImage);
       if (status < 0)
-	kernelError(kernel_error, "Error %d saving bitmap\n", status);
+	kernelError(kernel_error, "Error %d saving image\n", status);
 
       kernelMemoryRelease(saveImage.data);
 
@@ -3138,11 +3116,20 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
   if (!initialized)
     return;
 
-  // Check params.  Never destroy the console text area
+  // Check params.  
   if (component == NULL)
     return;
 
   window = (kernelWindow *) component->window;
+
+  // If the component is a container, recurse for each thing that's in it.
+  if (component->type == containerComponentType)
+    {
+      container = component->data;
+
+      while (container->numComponents)
+	kernelWindowComponentDestroy(container->components[0]);
+    }
 
   // Make sure the component is removed from any containers it's in
   if (component->container != NULL)
@@ -3157,7 +3144,8 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
       container->containerRemove(containerComponent, component);
     }
 
-  // If this is the console text area, move it back to our console window
+  // Never destroy the console text area.  If this is the console text area,
+  // move it back to our console window
   if (component == consoleTextArea)
     {
       kernelMemClear(&params, sizeof(componentParameters));

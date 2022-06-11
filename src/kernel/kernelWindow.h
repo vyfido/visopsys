@@ -41,14 +41,13 @@
 #define DEFAULT_MOUSEPOINTER_DEFAULT      "/system/mouse.bmp"
 #define DEFAULT_MOUSEPOINTER_BUSY         "/system/mousebsy.bmp"
 
-#define WINFLAG_VISIBLE                   0x2000
-#define WINFLAG_ENABLED                   0x1000
-#define WINFLAG_MOVABLE                   0x0800
-#define WINFLAG_RESIZABLE                 0x0600
-#define WINFLAG_RESIZABLEX                0x0400
-#define WINFLAG_RESIZABLEY                0x0200
-#define WINFLAG_PACKED                    0x0100
-#define WINFLAG_HASTITLEBAR               0x0080
+#define WINFLAG_VISIBLE                   0x1000
+#define WINFLAG_ENABLED                   0x0800
+#define WINFLAG_MOVABLE                   0x0400
+#define WINFLAG_RESIZABLE                 0x0300
+#define WINFLAG_RESIZABLEX                0x0200
+#define WINFLAG_RESIZABLEY                0x0100
+#define WINFLAG_PACKED                    0x0080
 #define WINFLAG_HASMINIMIZEBUTTON         0x0040
 #define WINFLAG_HASCLOSEBUTTON            0x0020
 #define WINFLAG_HASBORDER                 0x0010

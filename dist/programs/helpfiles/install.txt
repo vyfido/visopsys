@@ -11,9 +11,3 @@ The 'install' program is interactive, but a logical disk parameter can
 then the user will be prompted to choose from a menu.  Use the 'disks'
 command to list the available disks.
 
-At present, Visopsys will only boot from a FAT12 filesystem, so it can only
-effectively be installed on such a filesystem.  The 'install' program will
-prompt the user about whether to format the destination disk; if it has not
-already been formatted as FAT12, the user should choose 'yes' (keeping in
-mind that doing so will erase all data on the logical disk).
-

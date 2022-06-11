@@ -28,6 +28,8 @@
 #define IMAGETYPE_MONO  1
 #define IMAGETYPE_COLOR 2
 
+#define IMAGEFORMAT_BMP 1
+
 #define MAXVIDEOMODES   20
 
 // An enumeration for different drawing modes.
@@ -37,8 +39,7 @@ typedef enum {
 
 // Structures for manipulating generic images.
 
-typedef struct
-{
+typedef struct {
   unsigned char blue;
   unsigned char green;
   unsigned char red;
@@ -47,8 +48,7 @@ typedef struct
 
 typedef color pixel;
 
-typedef struct
-{
+typedef struct {
   int type;
   color translucentColor;
   unsigned pixels;
@@ -60,8 +60,7 @@ typedef struct
 } image;
 
 // A data structure to describe a graphics mode
-typedef struct
-{
+typedef struct {
   int mode;
   int xRes;
   int yRes;

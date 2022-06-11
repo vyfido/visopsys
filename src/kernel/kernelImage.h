@@ -26,8 +26,8 @@
 #include <sys/image.h>
 
 // Functions exported by kernelImage.c
-int kernelImageLoadBmp(const char *, image *);
-int kernelImageSaveBmp(const char *, image *);
+int kernelImageLoad(const char *, int, int, image *);
+int kernelImageSave(const char *, int, image *);
 
 #define _KERNELIMAGE_H
 #endif

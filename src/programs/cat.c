@@ -21,6 +21,24 @@
 
 // This is the UNIX-style command for dumping files
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- cat --
+
+Print a file's contents on the screen.
+
+Synonym:
+  type
+
+Usage:
+  cat <file1> [file2] [file3] [...]
+
+Each file name listed after the command name will be printed in sequence.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

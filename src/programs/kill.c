@@ -21,6 +21,27 @@
 
 // This is the UNIX-style command for killing processes
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- kill --
+
+Kill (stop) programs or processes.
+
+Usage:
+  kill [-f] <process1> [process2] [...]
+
+The 'kill' command can be used to stop and eliminate one or more programs or
+processes.  The '-f' option means 'force' (i.e., stop the program even if it
+is not responding, or if there are errors of various types).  If no -f option
+is specified, the kill operation will tend to quit if errors are encountered
+while dismantling a process.  The only mandatory parameter is a process ID
+number (and, optionally, any number of additional process ID numbers).  To
+see a list of running processes, use the 'ps' command.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

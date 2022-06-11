@@ -39,8 +39,13 @@ double pow(double x, double y)
       return (0);
     }
 
-  for (count = 1; count < y; count ++)
-    x *= x;
-  
+  if (y == 0)
+    x = 1;
+  else
+    {
+      for (count = 1; count < y; count ++)
+	x *= x;
+    }
+
   return (x);
 }

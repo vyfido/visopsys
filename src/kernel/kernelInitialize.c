@@ -224,7 +224,10 @@ int kernelInitialize(unsigned kernelMemory)
   graphics = kernelGraphicsAreEnabled();
 
   // Read the kernel config file
-  kernelVariables = kernelConfigurationReader(DEFAULT_KERNEL_CONFIG);
+  status = kernelConfigurationReader(DEFAULT_KERNEL_CONFIG, kernelVariables);
+  if (status < 0)
+    kernelVariables = NULL;
+
   if (kernelVariables != NULL)
     {
       // Get the keyboard mapping
@@ -294,7 +297,7 @@ int kernelInitialize(unsigned kernelMemory)
 	  // Try to load the default splash image to use when starting/
 	  // restarting
 	  kernelMemClear(&splashImage, sizeof(image));
-	  kernelImageLoadBmp(splashName, &splashImage);
+	  kernelImageLoad(splashName, 0, 0, &splashImage);
 	  if (splashImage.data)
 	    // Loaded successfully.  Put it in the middle of the screen.
 	    kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 

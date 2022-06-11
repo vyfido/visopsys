@@ -36,31 +36,6 @@
 #include <string.h>
 #include <ctype.h>
 
-static kernelFilesystemDriver defaultFatDriver = {
-  Fat,   // FS type
-  "FAT", // Driver name
-  kernelFilesystemFatDetect,
-  kernelFilesystemFatFormat,
-  kernelFilesystemFatCheck,
-  NULL, // driverDefragment
-  kernelFilesystemFatMount,
-  kernelFilesystemFatUnmount,
-  kernelFilesystemFatGetFreeBytes,
-  kernelFilesystemFatNewEntry,
-  kernelFilesystemFatInactiveEntry,
-  NULL, // driverResolveLink,
-  kernelFilesystemFatReadFile,
-  kernelFilesystemFatWriteFile,
-  kernelFilesystemFatCreateFile,
-  kernelFilesystemFatDeleteFile,
-  kernelFilesystemFatFileMoved,
-  kernelFilesystemFatReadDir,
-  kernelFilesystemFatWriteDir,
-  kernelFilesystemFatMakeDir,
-  kernelFilesystemFatRemoveDir,
-  kernelFilesystemFatTimestamp
-};
-
 // These hold free private data memory
 static fatEntryData *freeEntryDatas = NULL;
 static unsigned numFreeEntryDatas = 0;
@@ -68,7 +43,7 @@ static unsigned numFreeEntryDatas = 0;
 static int initialized = 0;
 
 
-static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
+static int readBootSector(kernelDisk *theDisk, fatBPB *bpb)
 {
   // This simple function will read a disk structure's boot sector into
   // the requested buffer and ensure that it is (at least trivially) 
@@ -76,11 +51,11 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
 
   int status = 0;
 
-  // Initialize the buffer we were given
-  kernelMemClear(buffer, FAT_MAX_SECTORSIZE);
+  // Initialize the structure
+  kernelMemClear(bpb, sizeof(fatBPB));
 
   // Read the boot sector
-  status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, buffer);
+  status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, bpb);
   if (status < 0)
     return (status);
 
@@ -89,8 +64,7 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
 }
 
 
-static int readFSInfo(kernelPhysicalDisk *theDisk, unsigned sectorNumber,
-		      unsigned char *buffer)
+static int readFSInfo(fatInternalData *fatData)
 {
   // This simple function will read a disk structure's fsInfo sector into
   // the requested buffer and ensure that it is (at least trivially) 
@@ -98,18 +72,11 @@ static int readFSInfo(kernelPhysicalDisk *theDisk, unsigned sectorNumber,
 
   int status = 0;
 
-  // Make sure that neither of the pointers we were passed are NULL
-  if ((theDisk == NULL) || (buffer == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  // Initialize the buffer we were given
-  kernelMemClear(buffer, FAT_MAX_SECTORSIZE);
-
   // Read the FSInfo sector (read 1 sector starting at the logical sector
   // number we were given)
-  status = kernelDiskReadSectors((char *) theDisk->name, sectorNumber,
-				 1, buffer);
-  // Make sure that the read was successful
+  status = kernelDiskReadSectors((char *) fatData->disk->name,
+				 fatData->bpb.fat32.fsInfo,
+				 1, (fatFsInfo *) &(fatData->fsInfo));
   if (status < 0)
     {
       // Couldn't read the FSInfo sector.
@@ -124,9 +91,9 @@ static int readFSInfo(kernelPhysicalDisk *theDisk, unsigned sectorNumber,
   // FSInfo sector.  It must also be true that we find two 
   // signature dwords in the sector: 0x41615252 at offset 0 and 
   // 0x61417272 at offset 0x1E4.
-  if ((*((unsigned *)(buffer + FAT_FSINFO_LEADSIG)) != 0x41615252) ||
-      (*((unsigned *)(buffer + FAT_FSINFO_STRUCSIG)) != 0x61417272) ||
-      (*((unsigned *)(buffer + FAT_FSINFO_TRAILSIG)) != 0xAA550000))
+  if ((fatData->fsInfo.leadSig != 0x41615252) ||
+      (fatData->fsInfo.structSig != 0x61417272) ||
+      (fatData->fsInfo.trailSig != 0xAA550000))
     {
       // Oops, there's something wrong with it.
       kernelError(kernel_error, "Not a valid FSInfo sector");
@@ -135,6 +102,8 @@ static int readFSInfo(kernelPhysicalDisk *theDisk, unsigned sectorNumber,
   
   // After all that exhaustive checking (why, Microsoft?), it looks 
   // like we have a valid FAT32 FSInfo sector.  
+  
+  fatData->freeClusters = fatData->fsInfo.freeCount;
   
   // Return success
   return (status = 0);
@@ -149,55 +118,18 @@ static int flushFSInfo(fatInternalData *fatData)
   // right after the boot sector, and which is part of the reserved area
   // of the disk.  This data structure contains a few bits of information
   // which are pretty useful for maintaining large filesystems, specifically
-  // the 'free cluster count' and 'first free cluster' values.  This function
-  // will write the current values of these fields back to the FSInfo
-  // block.
+  // the 'free cluster count' and 'first free cluster' values.
 
   int status = 0;
-  unsigned char fsInfoBlock[FAT_MAX_SECTORSIZE];
 
-  // Make sure the fsInfoSectorF32 value is still reasonable.  It must
-  // come after the boot sector and be within the reserved area of the
-  // volume.  Otherwise, we will assume there's an inconsistency somewhere.
-  if ((fatData->fsInfoSectorF32 < 1) || 
-      (fatData->fsInfoSectorF32 > fatData->reservedSectors))
-    return (status = ERR_BADDATA);
+  fatData->fsInfo.freeCount = fatData->freeClusters;
   
-  // Now we can read in the current FSInfo block (so that we can modify
-  // select values before writing it back).  Call the function that will 
-  // read the FSInfo block
-  status =
-    kernelDiskReadSectors((char *) ((kernelPhysicalDisk *) fatData->disk)
-			  ->name, (unsigned) fatData->fsInfoSectorF32, 1,
-			  fsInfoBlock);
-  if (status < 0)
-    // Couldn't read the boot FSInfo block
-    return (status);
-
-  // Set the first signature
-  *((unsigned *)(fsInfoBlock + FAT_FSINFO_LEADSIG)) = 0x41615252;
-
-  // Set the second signature
-  *((unsigned *)(fsInfoBlock + FAT_FSINFO_STRUCSIG)) = 0x61417272;
-
-  // Set the FAT32 "free cluster count".  Doubleword value.
-  *((unsigned *)(fsInfoBlock + FAT_FSINFO_FREECOUNT)) =
-    fatData->freeClusters;
-
-  // Set the FAT32 "first free cluster".  Doubleword value.
-  *((unsigned *)(fsInfoBlock + FAT_FSINFO_NEXTFREE)) =
-    fatData->firstFreeClusterF32;
-
-  // Set the third signature (Overkill?  Yeah, probably.  Don't blame me.)
-  *((unsigned *)(fsInfoBlock + FAT_FSINFO_TRAILSIG)) = 0xAA550000;
-
-  // Now write the updated FSInfo block back to the disk
-  status = kernelDiskWriteSectors((char *) fatData->disk->name, 
-				  fatData->fsInfoSectorF32, 1, fsInfoBlock);
-  // Make sure that the write was successful
+  // Write the updated FSInfo block back to the disk
+  status = kernelDiskWriteSectors((char *) fatData->disk->name,
+				  fatData->bpb.fat32.fsInfo, 1,
+				  (fatFsInfo *) &(fatData->fsInfo));
   if (status < 0)
     {
-      // Couldn't read the FSInfo sector.
       kernelError(kernel_error, "Unable to read or write the FAT32 FSInfo "
 		  "structure");
       return (status);
@@ -220,39 +152,25 @@ static int readVolumeInfo(fatInternalData *fatData)
   // disk structure.  The functions that are exported will do this.
   
   int status = 0;
-  unsigned char bootSector[FAT_MAX_SECTORSIZE];
   kernelPhysicalDisk *physicalDisk = NULL;
 
   physicalDisk = (kernelPhysicalDisk *) fatData->disk->physical;
 
   // Call the function that reads the boot sector
-  status = readBootSector((kernelDisk *) fatData->disk, bootSector);
-  // Make sure we were successful
+  status =
+    readBootSector((kernelDisk *) fatData->disk, (fatBPB *) &(fatData->bpb));
   if (status < 0)
-    {
-      // Couldn't read the boot sector, or it was bad
-      kernelError(kernel_error, "Not a valid boot sector");
-      return (status);
-    }
+    return (status);
 
-  // Now we can gather some information about the filesystem
-
-  // Whomever formatted the volume, blah.  It's just that we need to set
-  // it to something when *we* format it.
-  strncpy((char *) fatData->oemName,
-	  ((char *)(bootSector + FAT_BS_OEMNAME)), 9);
-
-  // The number of bytes per sector.  Word value.
-  fatData->bytesPerSector = (unsigned)
-    *((short *)(bootSector + FAT_BS_BYTESPERSECT));
+  // Check some things about the filesystem
 
   // The bytes-per-sector field may only contain one of the following 
   // values: 512, 1024, 2048 or 4096.  Anything else is illegal, according 
   // to MS.  512 is almost always the value found here.
-  if ((fatData->bytesPerSector != 512) && 
-      (fatData->bytesPerSector != 1024) && 
-      (fatData->bytesPerSector != 2048) && 
-      (fatData->bytesPerSector != 4096))
+  if ((fatData->bpb.bytesPerSect != 512) &&
+      (fatData->bpb.bytesPerSect != 1024) && 
+      (fatData->bpb.bytesPerSect != 2048) && 
+      (fatData->bpb.bytesPerSect != 4096))
     {
       // Not a legal value for FAT
       kernelError(kernel_error, "Illegal bytes-per-sector value");
@@ -261,82 +179,59 @@ static int readVolumeInfo(fatInternalData *fatData)
 
   // Also, the bytes-per-sector field should match the value for the
   // disk structure we're referencing
-  if (fatData->bytesPerSector != physicalDisk->sectorSize)
+  if (fatData->bpb.bytesPerSect != physicalDisk->sectorSize)
     {
       // Not a legal value for FAT
       kernelError(kernel_error, "Bytes-per-sector does not match disk");
       return (status = ERR_BADDATA);
     }
 
-  // Get the number of sectors per cluster.  Byte value.
-  fatData->sectorsPerCluster = (unsigned) bootSector[FAT_BS_SECPERCLUST];
-
   // The combined (bytes-per-sector * sectors-per-cluster) value should not
   // exceed 32K, according to MS.  Apparently, some think 64K is OK, but MS
   // says it's not.  32K it is.
-  if ((fatData->bytesPerSector * fatData->sectorsPerCluster) > 32768)
+  if ((fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust) > 32768)
     {
       // Not a legal value in our FAT driver
       kernelError(kernel_error, "Illegal sectors-per-cluster value");
       return (status = ERR_BADDATA);
     }
 
-  // Get the number of reserved sectors.  Word value.
-  fatData->reservedSectors = (unsigned)
-    *((short *)(bootSector + FAT_BS_RESERVEDSECS));
-
-  // This value must be one or more
-  if (fatData->reservedSectors < 1)
+  // The number of reserved sectors must be one or more
+  if (fatData->bpb.rsvdSectCount < 1)
     {
       // Not a legal value for FAT
       kernelError(kernel_error, "Illegal reserved sectors");
       return (status = ERR_BADDATA);
     }
 
-  // Next, the number of FAT tables.  Byte value.
-  fatData->numberOfFats = (unsigned) bootSector[FAT_BS_NUMFATS];
-
-  // This value must be one or more
-  if (fatData->numberOfFats < 1)
+  // The number of FAT tables must be one or more
+  if (fatData->bpb.numFats < 1)
     {
       // Not a legal value in our FAT driver
       kernelError(kernel_error, "Illegal number of FATs");
       return (status = ERR_BADDATA);
     }
 
-  // The number of root directory entries.  Word value.
-  fatData->rootDirEntries = (unsigned)
-    *((short *)(bootSector + FAT_BS_ROOTENTRIES));
-
-  // The root-dir-entries value should either be 0 (must for FAT32) or,
-  // for FAT12 and FAT16, should result in an even multiple of the
+  // The number of root directory entries should either be 0 (must for FAT32)
+  // or, for FAT12 and FAT16, should result in an even multiple of the
   // bytes-per-sector value when multiplied by 32; however, this is not 
   // a requirement.
 
-  // Get the total number of sectors from the 16-bit field.  Word value.
-  fatData->totalSectors = (unsigned)
-    *((short *)(bootSector + FAT_BS_TOTALSECS16));
-
-  // This 16-bit-total-sectors value is linked to the 32-bit-total-sectors 
+  // The 16-bit total number of sectors value is linked to the 32-bit 
   // value we will find further down in the boot sector (there are
   // requirements here) but we will save our evaluation of this field 
-  // until we have gethered the 32-bit value
+  // until we have gathered the 32-bit value
   
-  // Get the media type.  Byte value.
-  fatData->mediaType = (unsigned) bootSector[FAT_BS_MEDIABYTE];
-
-  // There is a list of legal values for this field:  0xF0, 0xF8, 0xF9,
-  // 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, and 0xFF.  We don't actually use this
-  // value for anything, but we will ensure that the value is legal
-  if ((fatData->mediaType < 0xF8) && (fatData->mediaType != 0xF0))
+  // There is a list of legal values for the media type field:
+  // 0xF0, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, and 0xFF.  We don't
+  // actually use this value for anything, but we will ensure that the
+  // value is legal
+  if ((fatData->bpb.media < 0xF8) && (fatData->bpb.media != 0xF0))
     {
       // Oops, not a legal value for FAT
       kernelError(kernel_error, "Illegal media type byte");
       return (status = ERR_BADDATA);
     }
-
-  // The 16-bit number of sectors per FAT.  Word value.
-  fatData->fatSectors = (unsigned) *((short *)(bootSector + FAT_BS_FATSIZE16));
 
   // OK, there's a little bit of a paradox here.  If this happens to be
   // a FAT32 volume, then the sectors-per-fat value must be zero in this
@@ -344,7 +239,7 @@ static int readVolumeInfo(fatInternalData *fatData)
   // need to know how many data clusters there are (it's used in the 
   // "official" MS calculation that determines FAT type).  The problem is 
   // that the data-cluster-count calculation depends on the sectors-per-fat
-  // value.  Oopsie, Micsosoft.  Unfortunately, this means that if the 
+  // value.  Oopsie, Microsoft.  Unfortunately, this means that if the 
   // sectors-per-fat happens to be zero, we must momentarily ASSUME that
   // this is indeed a FAT32, and read the 32-bit sectors-per-fat in
   // advance from another part of the bootsector.  There's a data
@@ -357,46 +252,38 @@ static int readVolumeInfo(fatInternalData *fatData)
   // would lead to data corruption for sure.  Oh well, it's the only
   // way I can see...
 
-  if (fatData->fatSectors == 0)
+  fatData->fatSects = fatData->bpb.fatSize16;
+  if (!fatData->fatSects)
     // The FAT32 number of sectors per FAT.  Doubleword value.
-    fatData->fatSectors = *((unsigned *)(bootSector + FAT_BS32_FATSIZE));
+    fatData->fatSects = fatData->bpb.fat32.fatSize32;
 
   // The sectors-per-fat value must now be non-zero
-  if (!fatData->fatSectors)
+  if (!fatData->fatSects)
     {
       // Oops, not a legal value for FAT32
       kernelError(kernel_error, "Illegal FAT32 sectors per fat");
       return (status = ERR_BADDATA);
     }
 
-  // The 16-bit number of sectors per track/cylinder.  Word value.
-  fatData->sectorsPerTrack = (unsigned)
-    *((short *)(bootSector + FAT_BS_SECSPERCYL));
-
-  // This sectors-per-track field is not always relevant.  We won't 
-  // check it here.
-
-  // The number of heads for this volume. Word value. 
-  fatData->heads = (unsigned) *((short *)(bootSector + FAT_BS_NUMHEADS));
-
-  // Like the sectors-per-track field, above, this heads field is not always 
+  // The 16-bit number of sectors per track/cylinder field is not always
   // relevant.  We won't check it here.
 
-  // The number of hidden sectors.  Doubleword value.
-  fatData->hiddenSectors = *((unsigned *)(bootSector + FAT_BS_HIDDENSECS));
+  // Like the sectors-per-track field, above, the number of heads field is
+  // not always relevant.  We won't check it here.
 
-  // Hmm, I'm not too sure what to make of this hidden-sectors field.
+  // Hmm, I'm not too sure what to make of the hidden-sectors field.
   // The way I read the documentation is that it describes the number of
   // sectors in any physical partitions that preceed this one.  However,
   // we already get this value from the master boot record where needed.
   // We will ignore the value of this field.
 
-  if (!fatData->totalSectors)
+  fatData->totalSects = fatData->bpb.totalSects16;
+  if (!fatData->totalSects)
     // Get the 32-bit value instead.  Doubleword value.
-    fatData->totalSectors = *((unsigned *)(bootSector + FAT_BS_TOTALSECS32));
+    fatData->totalSects = fatData->bpb.totalSects32;
 
   // Ensure that we have a non-zero total-sectors value
-  if (!fatData->totalSectors)
+  if (!fatData->totalSects)
     {
       // Oops, this combination is not legal for FAT
       kernelError(kernel_error, "Illegal total sectors");
@@ -412,22 +299,22 @@ static int readVolumeInfo(fatInternalData *fatData)
   // Figure out the actual number of directory sectors.  We have already
   // ensured that the bytes-per-sector value is non-zero (don't worry
   // about a divide-by-zero error here)
-  fatData->rootDirSectors = 
-    ((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->rootDirEntries) / 
-     fatData->bytesPerSector);
-  if (((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->rootDirEntries) % 
-       fatData->bytesPerSector) != 0)
-    fatData->rootDirSectors += 1;
+  fatData->rootDirSects = 
+    ((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->bpb.rootEntCount) / 
+     fatData->bpb.bytesPerSect);
+  if (((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->bpb.rootEntCount) % 
+       fatData->bpb.bytesPerSect) != 0)
+    fatData->rootDirSects += 1;
 
-  // This calculation comes directly from MicrosoftTM.  This is how we
+  // This calculation comes directly from Microsoft(R).  This is how we
   // determine the number of data sectors and data clusters on the volume.
   // We have already ensured that the sectors-per-cluster value is 
   // non-zero (don't worry about a divide-by-zero error here)
-  fatData->dataSectors = 
-    (fatData->totalSectors - (fatData->reservedSectors + 
-			      (fatData->numberOfFats * fatData->fatSectors) +
-			      fatData->rootDirSectors));
-  fatData->dataClusters = (fatData->dataSectors / fatData->sectorsPerCluster);
+  fatData->dataSects = 
+    (fatData->totalSects - (fatData->bpb.rsvdSectCount + 
+			      (fatData->bpb.numFats * fatData->fatSects) +
+			      fatData->rootDirSects));
+  fatData->dataClusters = (fatData->dataSects / fatData->bpb.sectsPerClust);
 
   // OK.  Now we now have enough data to determine the type of this FAT
   // filesystem.  According to the Microsoft white paper, the following 
@@ -439,68 +326,27 @@ static int readVolumeInfo(fatInternalData *fatData)
     {
       // We have a FAT12 filesystem.  Hooray.
       fatData->fsType = fat12;
-      fatData->terminalCluster = 0x0FF8; // (or above)
+      fatData->terminalClust = 0x0FF8; // (or above)
     }
 
   else if (fatData->dataClusters < 65525)
     {
       // We have a FAT16 filesystem.  Hooray.
       fatData->fsType = fat16;
-      fatData->terminalCluster = 0xFFF8; // (or above)
+      fatData->terminalClust = 0xFFF8; // (or above)
     }
 
   else
     {
       // Any larger value of data clusters denotes a FAT32 filesystem
       fatData->fsType = fat32;
-      fatData->terminalCluster = 0x0FFFFFF8; // (or above)
+      fatData->terminalClust = 0x0FFFFFF8; // (or above)
     }
 
-  fatData->volumeId = 0;
-  fatData->volumeLabel[0] = '\0';
-  fatData->fsSignature[0] = '\0';
-  
   // Now we know the type of the FAT filesystem.  From here, the data
   // gathering we do must diverge.
 
-  if ((fatData->fsType == fat12) || (fatData->fsType == fat16))
-    {
-      // We have either a FAT12 or FAT16 filesystem.  There are some
-      // additional pieces of information we can gather from this boot
-      // sector.
-
-      // The drive number.  Byte value.
-      fatData->driveNumber = (unsigned)
-	*((char *)(bootSector + FAT_BS_DRIVENUM));
-
-      // The extended boot block signature.  Byte value.
-      fatData->bootSignature = (unsigned)
-	*((char *)(bootSector + FAT_BS_BOOTSIG));
-  
-      // Only do these last ones if the boot signature was 0x29
-      if (fatData->bootSignature == (unsigned char) 0x29)
-	{
-	  // The volume Id of the filesystem.  Doubleword value.
-	  fatData->volumeId = (unsigned)
-	    *((unsigned *)(bootSector + FAT_BS_VOLID));
-
-	  // The volume label of the filesystem.
-	  strncpy((char *) fatData->volumeLabel,
-		  (bootSector + FAT_BS_VOLLABEL), 11);
-	  fatData->volumeLabel[11] = '\0';
-      
-	  // The filesystem type indicator "hint"
-	  strncpy((char *) fatData->fsSignature,
-		  (bootSector + FAT_BS_FILESYSTYPE), 8);
-	  fatData->fsSignature[8] = '\0';
-	}
-
-      // Since this is a FAT12/16 filesystem, we are now finished.  There
-      // is no additional useful information we can get from the boot
-      // sector.
-    }
-
-  else
+  if (fatData->fsType == fat32)
     {
       // OK, this is FAT32.  There is some additional information we need to
       // gather from the disk that is specific to this type of filesystem.
@@ -522,124 +368,66 @@ static int readVolumeInfo(fatInternalData *fatData)
       // supporting here is 0.0.  We will not mount a FAT volume that has
       // a higher version number than that (but we don't need to save
       // the version number anywhere).
-      if (*((short *)(bootSector + FAT_BS32_FSVERSION)) != (short) 0)
+      if (fatData->bpb.fat32.fsVersion != (short) 0)
 	{
 	  // Oops, we cannot support this version of FAT32
 	  kernelError(kernel_error, "Unsupported FAT32 version");
 	  return (status = ERR_BADDATA);
 	}
 
-      // Next, we get the starting cluster number of the root directory.
-      // Doubleword value.
-      fatData->rootDirClusterF32 = (unsigned)
-	*((unsigned *)(bootSector + FAT_BS32_ROOTCLUST));
-
-      // This root-dir-cluster value must be >= 2, and <= (data-clusters + 1)
-      if ((fatData->rootDirClusterF32 < 2) || 
-	  (fatData->rootDirClusterF32 > (fatData->dataClusters + 1)))
+      // The starting cluster number of the root directory must be >= 2,
+      // and <= (data-clusters + 1)
+      if ((fatData->bpb.fat32.rootClust < 2) || 
+	  (fatData->bpb.fat32.rootClust > (fatData->dataClusters + 1)))
 	{
 	  // Oops, this is not a legal cluster number
 	  kernelError(kernel_error, "Illegal FAT32 root dir cluster %u",
-		      fatData->rootDirClusterF32);
+		      fatData->bpb.fat32.rootClust);
 	  return (status = ERR_BADDATA);
 	}
 
-      // Next, we get the sector number (in the reserved area) of the
-      // FSInfo structure.  This structure contains some extra information
-      // that is useful to us for maintaining large volumes.  Word value.
-      fatData->fsInfoSectorF32 = (unsigned)
-	*((short *)(bootSector + FAT_BS32_FSINFO));
-
-      // This number must be greater than 1, and less than the number
-      // of reserved sectors in the volume
-      if ((fatData->fsInfoSectorF32 < 1) ||
-	  (fatData->fsInfoSectorF32 >= fatData->reservedSectors))
+      // The sector number (in the reserved area) of the FSInfo structure
+      // number must be greater than 1, and less than the number of reserved
+      // sectors in the volume
+      if ((fatData->bpb.fat32.fsInfo < 1) ||
+	  (fatData->bpb.fat32.fsInfo >= fatData->bpb.rsvdSectCount))
 	{
 	  // Oops, this is not a legal sector number
 	  kernelError(kernel_error, "Illegal FAT32 FSInfo sector");
 	  return (status = ERR_BADDATA);
 	}
 
-      // The sector number of the backup boot sector
-      fatData->backupBootF32 = (unsigned)
-	*((unsigned *)(bootSector + FAT_BS32_BACKUPBOOT));
-
-      // The drive number.  Byte value.  Same as the field for FAT12/16,
-      // but at a different offset
-      fatData->driveNumber = (unsigned)
-	*((unsigned *)(bootSector + FAT_BS32_DRIVENUM));
-
-      // The extended boot block signature.  Byte value.  Same as the field 
-      // for FAT12/16, but at a different offset
-      fatData->bootSignature = (unsigned)
-	*((unsigned *)(bootSector + FAT_BS32_BOOTSIG));
-  
-      // Only do these last ones if the boot signature was 0x29
-      if (fatData->bootSignature == (unsigned char) 0x29)
-	{
-	  // The volume Id of the filesystem.  Doubleword value.  Same as 
-	  // the field for FAT12/16, but at a different offset
-	  fatData->volumeId = (unsigned)
-	    *((unsigned *)(bootSector + FAT_BS32_VOLID));
-
-	  // The volume label of the filesystem.  Same as the field for 
-	  // FAT12/16, but at a different offset
-	  strncpy((char *) fatData->volumeLabel,
-		  (bootSector + FAT_BS32_VOLLABEL), 11);
-	  fatData->volumeLabel[11] = '\0';
-      
-	  // The filesystem type indicator "hint".  Same as the field for 
-	  // FAT12/16, but at a different offset
-	  strncpy((char *) fatData->fsSignature,
-		  (bootSector + FAT_BS32_FILESYSTYPE), 8);
-	  fatData->fsSignature[8] = '\0';
-
-	  // Now we will read some additional information, not included
-	  // in the boot sector.  This FSInfo sector contains more information
-	  // that will be useful in managing large FAT32 volumes.  We 
-	  // previously gathered the sector number of this structure from
-	  // the boot sector.
-	}
-
-      // From here on, we are finished with the data in the boot
-      // sector, so we will reuse the buffer to hold the FSInfo.
+      // Now we will read some additional information, not included
+      // in the boot sector.  This FSInfo sector contains more information
+      // that will be useful in managing large FAT32 volumes.  We 
+      // previously gathered the sector number of this structure from
+      // the boot sector.
 	  
       // Call the function that will read the FSInfo block
-      status = readFSInfo((kernelPhysicalDisk *) fatData->disk, 
-			  (unsigned) fatData->fsInfoSectorF32, bootSector);
-      // Make sure we were successful
+      status = readFSInfo(fatData);
       if (status < 0)
-	// Couldn't read the boot FSInfo block, or it was bad
-	return (status);
+	{
+	  kernelError(kernel_error, "Can't parse FAT32 fsInfo block");
+	  return (status);
+	}
 
-      // Now we can gather some additional information about the 
-      // FAT32 filesystem
-
-      // Get the FAT32 "free cluster count".  Doubleword value.
-      fatData->freeClusters = (unsigned)
-	*((unsigned *)(bootSector + FAT_FSINFO_FREECOUNT));
-
-      // This free-cluster-count value can be zero, but it cannot
+      // This free cluster count value can be zero, but it cannot
       // be greater than data-clusters -- with one exeption.  It can
       // be 0xFFFFFFFF (meaning the free cluster count is unknown).
-      if ((fatData->freeClusters > fatData->dataClusters) &&
-	  (fatData->freeClusters != 0xFFFFFFFF))
+      if ((fatData->fsInfo.freeCount > fatData->dataClusters) &&
+	  (fatData->fsInfo.freeCount != 0xFFFFFFFF))
 	{
 	  // Oops, not a legal value for FAT
-	  kernelError(kernel_error, "Illegal FAT32 free cluster count");
+	  kernelError(kernel_error, "Illegal FAT32 free cluster count (%x)");
 	  return (status = ERR_BADDATA);
 	}
 
-      // Finally, get the FAT32 "first free cluster".  Doubleword value.
-      fatData->firstFreeClusterF32 = (unsigned)
-	*((unsigned *)(bootSector + FAT_FSINFO_NEXTFREE));
-
-      // This first-free-cluster value must be >= 2, but it cannot be
+      // This first free cluster value must be >= 2, but it cannot be
       // greater than data-clusters, unless it is 0xFFFFFFFF (not
       // known)
-      if ((fatData->firstFreeClusterF32 < 2) || 
-	  ((fatData->firstFreeClusterF32 > fatData->dataClusters) &&
-	   (fatData->firstFreeClusterF32 != 0xFFFFFFFF)))
+      if ((fatData->fsInfo.nextFree < 2) || 
+	  ((fatData->fsInfo.nextFree > fatData->dataClusters) &&
+	   (fatData->fsInfo.nextFree != 0xFFFFFFFF)))
 	{
 	  // Oops, not a legal value for FAT
 	  kernelError(kernel_error, "Illegal FAT32 first free cluster");
@@ -661,100 +449,37 @@ static int flushVolumeInfo(fatInternalData *fatData)
   // disk structure.  The functions that are exported will do this.
   
   int status = 0;
-  char bootSector[512];
 
-  // Initialize the boot sector
-  kernelMemClear((void *) &bootSector, 512);
-
-  // Read the existing boot sector
-  status =
-    kernelDiskReadSectors((char *)((kernelDisk *) fatData->disk)->name,
-			  0, 1, &bootSector);
-  if (status < 0)
+  // Set a couple of BPB values that are based on up-to-date ones in the 
+  // main fatInternalData structure.
+  fatData->bpb.totalSects16 = fatData->totalSects;
+  fatData->bpb.totalSects32 = fatData->totalSects;
+  if (fatData->fsType == fat32)
+    fatData->bpb.totalSects16 = 0;
+  else
     {
-      kernelError(kernel_error, "Unable to read boot sector of filesystem");
-      return (status);
+       if (fatData->totalSects <= 0xFFFF)
+	 fatData->bpb.totalSects32 = 0;
+       else
+	 fatData->bpb.totalSects16 = 0;
     }
 
-  strncpy(((char *)(bootSector + FAT_BS_OEMNAME)),
-	  (char *) fatData->oemName, 9);
-  *((short *)(bootSector + FAT_BS_BYTESPERSECT)) =
-    (short) fatData->bytesPerSector;
-  *((char *)(bootSector + FAT_BS_SECPERCLUST)) =
-    (char) fatData->sectorsPerCluster;
-  *((short *)(bootSector + FAT_BS_RESERVEDSECS)) =
-    (short) fatData->reservedSectors;
-  *((char *)(bootSector + FAT_BS_NUMFATS)) = (char) fatData->numberOfFats;
-  *((short *)(bootSector + FAT_BS_ROOTENTRIES)) =
-    (short) fatData->rootDirEntries;
-  if (fatData->totalSectors < 0x10000)
-    *((short *)(bootSector + FAT_BS_TOTALSECS16)) =
-      (short) fatData->totalSectors;
-  else
-    *((short *)(bootSector + FAT_BS_TOTALSECS16)) = (short) 0;
-  *((char *)(bootSector + FAT_BS_MEDIABYTE)) = (char) fatData->mediaType;
-  if ((fatData->fsType == fat12) || (fatData->fsType == fat16))
-    *((short *)(bootSector + FAT_BS_FATSIZE16)) = (short) fatData->fatSectors;
-  else
-    *((short *)(bootSector + FAT_BS_FATSIZE16)) = (short) 0;
-  *((short *)(bootSector + FAT_BS_SECSPERCYL)) =
-    (short) fatData->sectorsPerTrack;
-  *((short *)(bootSector + FAT_BS_NUMHEADS)) = (short) fatData->heads;
-  *((unsigned *)(bootSector + FAT_BS_HIDDENSECS)) =
-    (unsigned) fatData->hiddenSectors;
-  if (fatData->totalSectors >= 0x10000)
-    *((unsigned *)(bootSector + FAT_BS_TOTALSECS32)) =
-      (unsigned) fatData->totalSectors;
-  else
-    *((unsigned *)(bootSector + FAT_BS_TOTALSECS32)) = (unsigned) 0;
-
+  fatData->bpb.fatSize16 = fatData->fatSects;
   if (fatData->fsType == fat32)
     {
-      *((unsigned *)(bootSector + FAT_BS32_FATSIZE)) = fatData->fatSectors;
-      // All FATS have been active, 0 primary. 
-      *((short *)(bootSector + FAT_BS32_EXTFLAGS)) &= (short) 0xFF00;
-      *((short *)(bootSector + FAT_BS32_EXTFLAGS)) |= (short) 0x0008;
-      *((short *)(bootSector + FAT_BS32_FSVERSION)) = (short) 0;
-      *((unsigned *)(bootSector + FAT_BS32_ROOTCLUST)) =
-	(unsigned) fatData->rootDirClusterF32;
-      *((short *)(bootSector + FAT_BS32_FSINFO)) =
-	(short) fatData->fsInfoSectorF32;
-      *((short *)(bootSector + FAT_BS32_BACKUPBOOT)) =
-	(short) fatData->backupBootF32;
-      *((char *)(bootSector + FAT_BS32_DRIVENUM)) =
-	(char) fatData->driveNumber;
-      *((char *)(bootSector + FAT_BS32_BOOTSIG)) =
-	(char) fatData->bootSignature;
-      *((unsigned *)(bootSector + FAT_BS32_VOLID)) =
-	(unsigned) fatData->volumeId;
-      strncpy((char *)(bootSector + FAT_BS32_VOLLABEL),
-	      (char *) fatData->volumeLabel, 11);
-      strncpy((char *)(bootSector + FAT_BS32_FILESYSTYPE),
-	      (char *) fatData->fsSignature, 8);
+      fatData->bpb.fatSize16 = 0;
+      fatData->bpb.fat32.fatSize32 = fatData->fatSects;
     }
-  else
-    {
-      *((char *)(bootSector + FAT_BS_DRIVENUM)) =
-	(unsigned char) fatData->driveNumber;
-      *((char *)(bootSector + FAT_BS_BOOTSIG)) = (char) fatData->bootSignature;
-      *((unsigned *)(bootSector + FAT_BS_VOLID)) =
-	(unsigned) fatData->volumeId;
-      strncpy((char *)(bootSector + FAT_BS_VOLLABEL),
-	      (char *) fatData->volumeLabel, 11);
-      strncpy((char *)(bootSector + FAT_BS_FILESYSTYPE),
-	      (char *) fatData->fsSignature, 8);
-    } 
 
-  *((short *)(bootSector + 510)) = (unsigned short) 0xAA55;
+  status = kernelDiskWriteSectors((char *) fatData->disk->name, 0, 1,
+				  (fatBPB *) &(fatData->bpb));
 
-  status = kernelDiskWriteSectors((char *) fatData->disk->name,
-				  0, 1, (void *) &bootSector);
-  
   // If FAT32 and backupBootF32 is non-zero, make a backup copy of the
   // boot sector
-  if ((fatData->fsType == fat32) && fatData->backupBootF32)
+  if ((fatData->fsType == fat32) && fatData->bpb.fat32.backupBootSect)
     kernelDiskWriteSectors((char *) fatData->disk->name,
-			   fatData->backupBootF32, 1, (void *) &bootSector);
+			   fatData->bpb.fat32.backupBootSect, 1,
+			   (fatBPB *) &(fatData->bpb));
 
   return (status);
 }
@@ -772,18 +497,18 @@ static int writeDirtyFatSects(fatInternalData *fatData)
     // Nothing to do
     return (status = 0);
 
-  for (fatCount = 0; fatCount < fatData->numberOfFats; fatCount ++)
+  for (fatCount = 0; fatCount < fatData->bpb.numFats; fatCount ++)
     for (sectorCount = 0; sectorCount < fatData->numDirtyFatSects;
 	 sectorCount ++)
       {
 	status =
 	  kernelDiskWriteSectors((char *) fatData->disk->name, 
-				 (fatData->reservedSectors +
-				  (fatCount * fatData->fatSectors) +
+				 (fatData->bpb.rsvdSectCount +
+				  (fatCount * fatData->fatSects) +
 				  fatData->dirtyFatSectList[sectorCount]), 1,
 				 (fatData->FAT +
 				  (fatData->dirtyFatSectList[sectorCount] *
-				   fatData->bytesPerSector)));
+				   fatData->bpb.bytesPerSect)));
 	if (status < 0)
 	  errors = status;
       }
@@ -975,12 +700,12 @@ static int changeFatEntry(fatInternalData *fatData,
     }
 
   // Calculate which FAT sector(s) which contain(s) the entry we changed
-  fatSectorNumber = (entryOffset / fatData->bytesPerSector);
+  fatSectorNumber = (entryOffset / fatData->bpb.bytesPerSect);
   status = markDiryFatSect(fatData, fatSectorNumber);
 
   if ((fatData->fsType == fat12) &&
-      ((entryOffset % fatData->bytesPerSector) ==
-       (fatData->bytesPerSector - 1)))
+      ((entryOffset % fatData->bpb.bytesPerSect) ==
+       (unsigned)(fatData->bpb.bytesPerSect - 1)))
     status = markDiryFatSect(fatData, (fatSectorNumber + 1));
 
   return (status);
@@ -1010,11 +735,11 @@ static int getNumClusters(fatInternalData *fatData, unsigned startCluster,
   currentCluster = startCluster;
 
   // Now we go through a loop to gather the cluster numbers, adding 1 to the
-  // total each time.  A value of terminalCluster or more means that there
+  // total each time.  A value of terminalClust or more means that there
   // are no more sectors
   while(1)
     {
-      if ((currentCluster < 2) || (currentCluster >= fatData->terminalCluster))
+      if ((currentCluster < 2) || (currentCluster >= fatData->terminalClust))
 	{
 	  kernelError(kernel_error, "Invalid cluster number %u (start cluster "
 		      "%u)", currentCluster, startCluster);
@@ -1033,7 +758,7 @@ static int getNumClusters(fatInternalData *fatData, unsigned startCluster,
       currentCluster = newCluster;
 
       // Finished?
-      if (currentCluster >= fatData->terminalCluster)
+      if (currentCluster >= fatData->terminalClust)
 	break;
     }
 
@@ -1066,7 +791,7 @@ static int getNthCluster(fatInternalData *fatData, unsigned startCluster,
   currentCluster = startCluster;
 
   // Now we go through a loop to step through the cluster numbers.  A
-  // value of terminalCluster or more means that there are no more clusters.
+  // value of terminalClust or more means that there are no more clusters.
   while (1)
     {
       if (clusterCount == *nthCluster)
@@ -1076,7 +801,7 @@ static int getNthCluster(fatInternalData *fatData, unsigned startCluster,
 	  return (status = 0);
 	}
 
-      if ((currentCluster < 2) || (currentCluster >= fatData->terminalCluster))
+      if ((currentCluster < 2) || (currentCluster >= fatData->terminalClust))
 	{
 	  kernelError(kernel_error, "Invalid cluster number %u",
 		      currentCluster);
@@ -1092,7 +817,7 @@ static int getNthCluster(fatInternalData *fatData, unsigned startCluster,
 
       clusterCount++;
 
-      if (newCluster < fatData->terminalCluster)
+      if (newCluster < fatData->terminalClust)
 	currentCluster = newCluster;
       else
 	{
@@ -1128,10 +853,10 @@ static int getLastCluster(fatInternalData *fatData, unsigned startCluster,
   currentCluster = startCluster;
 
   // Now we go through a loop to step through the cluster numbers.  A
-  // value of terminalCluster or more means that there are no more clusters.
+  // value of terminalClust or more means that there are no more clusters.
   while (1)
     {
-      if ((currentCluster < 2) || (currentCluster >= fatData->terminalCluster))
+      if ((currentCluster < 2) || (currentCluster >= fatData->terminalClust))
 	{
 	  kernelError(kernel_error, "Invalid cluster number %u",
 		      currentCluster);
@@ -1145,7 +870,7 @@ static int getLastCluster(fatInternalData *fatData, unsigned startCluster,
 	  return (status = ERR_BADDATA);
 	}
 
-      if (newCluster < fatData->terminalCluster)
+      if (newCluster < fatData->terminalClust)
 	currentCluster = newCluster;
       else
 	break;
@@ -1245,7 +970,7 @@ static int releaseClusterChain(fatInternalData *fatData, unsigned startCluster)
   unsigned currentCluster = 0;
   unsigned nextCluster = 0;
 
-  if ((startCluster == 0) || (startCluster == fatData->terminalCluster))
+  if ((startCluster == 0) || (startCluster == fatData->terminalClust))
     // Nothing to do
     return (status = 0);
 
@@ -1292,7 +1017,7 @@ static int releaseClusterChain(fatInternalData *fatData, unsigned startCluster)
       fatData->freeClusters++;
 
       // Any more to do?
-      if (nextCluster >= fatData->terminalCluster)
+      if (nextCluster >= fatData->terminalClust)
 	break;
 
       currentCluster = nextCluster;
@@ -1344,7 +1069,7 @@ static int shortenFile(fatInternalData *fatData, kernelFileEntry *entry,
     return (status);
   
   // Mark the last cluster as last
-  status = changeFatEntry(fatData, newLastCluster, fatData->terminalCluster);
+  status = changeFatEntry(fatData, newLastCluster, fatData->terminalClust);
   if (status < 0)
     return (status);
   
@@ -1355,7 +1080,7 @@ static int shortenFile(fatInternalData *fatData, kernelFileEntry *entry,
 
   entry->blocks = newBlocks;
   entry->size =
-    (newBlocks * (fatData->bytesPerSector * fatData->sectorsPerCluster));
+    (newBlocks * (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust));
 
   return (status = 0);
 }
@@ -1372,13 +1097,14 @@ static int clearClusterChainData(fatInternalData *fatData,
   unsigned nextCluster = 0;
   unsigned char *buffer;
 
-  if ((startCluster == 0) || (startCluster == fatData->terminalCluster))
+  if ((startCluster == 0) || (startCluster == fatData->terminalClust))
     // Nothing to do
     return (status = 0);
 
   // Allocate an empty buffer equal in size to one cluster.  The memory
   // allocation routine will make it all zeros.
-  buffer = kernelMalloc(fatData->sectorsPerCluster * fatData->bytesPerSector);
+  buffer =
+    kernelMalloc(fatData->bpb.sectsPerClust * fatData->bpb.bytesPerSect);
   if (buffer == NULL)
     {
       kernelError(kernel_error, "Unable to allocate memory for clearing "
@@ -1405,11 +1131,11 @@ static int clearClusterChainData(fatInternalData *fatData,
       status = 
 	kernelDiskWriteSectors((char *) fatData->disk->name,
 			       (((currentCluster - 2) *
-				 fatData->sectorsPerCluster) + 
-				fatData->reservedSectors +
-				(fatData->fatSectors * 2) + 
-				fatData->rootDirSectors),
-			       fatData->sectorsPerCluster, buffer);
+				 fatData->bpb.sectsPerClust) + 
+				fatData->bpb.rsvdSectCount +
+				(fatData->fatSects * 2) + 
+				fatData->rootDirSects),
+			       fatData->bpb.sectsPerClust, buffer);
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Error clearing cluster data");
@@ -1418,7 +1144,7 @@ static int clearClusterChainData(fatInternalData *fatData,
 	}
 
       // Any more to do?
-      if (nextCluster == fatData->terminalCluster)
+      if (nextCluster == fatData->terminalClust)
 	break;
     }
 
@@ -1548,7 +1274,7 @@ static int getUnusedClusters(fatInternalData *fatData,
 	{
 	  // Last cluster
 	  lastCluster = count;
-	  status = changeFatEntry(fatData, count, fatData->terminalCluster);
+	  status = changeFatEntry(fatData, count, fatData->terminalClust);
 	}
 
       if (status)
@@ -2023,7 +1749,7 @@ static int checkFileChain(fatInternalData *fatData, kernelFileEntry *checkFile)
     }
 
   // Calculate the cluster size for this filesystem
-  clusterSize = (fatData->bytesPerSector * fatData->sectorsPerCluster);
+  clusterSize = (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
   // Calculate the number of clusters we would expect this file to have
   if (clusterSize != 0)
@@ -2136,7 +1862,6 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
 
   // Get the entry's data
   entryData = (fatEntryData *) writeFile->driverData;
-
   if (entryData == NULL)
     {
       kernelError(kernel_error, "Entry has no data");
@@ -2145,7 +1870,7 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
 
   // Calculate cluster size
   clusterSize = 
-    (unsigned)(fatData->bytesPerSector * fatData->sectorsPerCluster);
+    (unsigned)(fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
   // Make sure there's enough free space on the volume BEFORE beginning the
   // write operation
@@ -2269,15 +1994,16 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
       status =
 	kernelDiskWriteSectors((char *) fatData->disk->name,
 			       (((startSavedClusters - 2) *
-				 fatData->sectorsPerCluster) +
-				fatData->reservedSectors +
-				(fatData->fatSectors * 2) +
-				fatData->rootDirSectors),
-			       (fatData->sectorsPerCluster * savedClusters),
+				 fatData->bpb.sectsPerClust) +
+				fatData->bpb.rsvdSectCount +
+				(fatData->fatSects * 2) +
+				fatData->rootDirSects),
+			       (fatData->bpb.sectsPerClust * savedClusters),
 			       buffer);
       if (status < 0)
 	{
-	  kernelError(kernel_error, "Error writing file");
+	  kernelError(kernel_error, "Error writing to disk %s",
+		      fatData->disk->name);
 	  return (status);
 	}
 
@@ -2298,8 +2024,8 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
   if (status < 0)
     return (status);
 
-  writeFile->size = (writeFile->blocks * fatData->sectorsPerCluster *
-		     fatData->bytesPerSector);
+  writeFile->size = (writeFile->blocks * fatData->bpb.sectsPerClust *
+		     fatData->bpb.bytesPerSect);
 
   // Write out dirty FAT sectors
   writeDirtyFatSects(fatData);
@@ -2809,8 +2535,8 @@ static int scanDirectory(fatInternalData *fatData,
 	}
 
       if (entryData->attributes & FAT_ATTRIB_SUBDIR)
-	newItem->size = (newItem->blocks * (fatData->bytesPerSector * 
-					    fatData->sectorsPerCluster));
+	newItem->size = (newItem->blocks * (fatData->bpb.bytesPerSect * 
+					    fatData->bpb.sectsPerClust));
       else
 	// (doubleword value)
 	newItem->size = *((unsigned *)(dirEntry + 0x1C));
@@ -2855,7 +2581,7 @@ static int read(fatInternalData *fatData, kernelFileEntry *theFile,
 
   // Calculate cluster size
   clusterSize = (unsigned)
-    (fatData->bytesPerSector * fatData->sectorsPerCluster);
+    (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
   currentCluster = entryData->startCluster;
 
@@ -2919,11 +2645,11 @@ static int read(fatInternalData *fatData, kernelFileEntry *theFile,
       status =
 	kernelDiskReadSectors((char *) fatData->disk->name,
 			      (((startSavedClusters - 2) *
-				fatData->sectorsPerCluster) +
-			       fatData->reservedSectors +
-			       (fatData->fatSectors * 2) +
-			       fatData->rootDirSectors), 
-			      (fatData->sectorsPerCluster * savedClusters),
+				fatData->bpb.sectsPerClust) +
+			       fatData->bpb.rsvdSectCount +
+			       (fatData->fatSects * 2) +
+			       fatData->rootDirSects), 
+			      (fatData->bpb.sectsPerClust * savedClusters),
 			      buffer);
      if (status < 0)
 	{
@@ -2978,19 +2704,19 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
     // sector and the number of FAT sectors on the volume.  Since
     // we are working with a FAT12 or FAT16 volume, the root 
     // directory size is fixed. 
-    dirBufferSize = (fatData->bytesPerSector * fatData->rootDirSectors);
+    dirBufferSize = (fatData->bpb.bytesPerSect * fatData->rootDirSects);
 
   else // if (fatData->fsType == fat32)
     {
       // We need to take the starting cluster of the FAT32 root directory,
       // and determine the size of the directory.
-      status = getNumClusters(fatData, fatData->rootDirClusterF32,
+      status = getNumClusters(fatData, fatData->bpb.fat32.rootClust,
 			      &dirBufferSize);
       if (status < 0)
 	return (status);
 
-      dirBufferSize *= (fatData->bytesPerSector *
-			fatData->sectorsPerCluster);
+      dirBufferSize *=
+	(fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
     }
 
   dirBuffer = kernelMalloc(dirBufferSize);
@@ -3009,16 +2735,16 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
     {
       // This is not FAT32, so we have to calculate the starting SECTOR of 
       // the root directory.  It's like this:  
-      // bootSector + (numberOfFats * fatSectors)
-      rootDirStart = (fatData->reservedSectors + (fatData->numberOfFats * 
-						  fatData->fatSectors));
+      // bootSector + (numberOfFats * fatSects)
+      rootDirStart = (fatData->bpb.rsvdSectCount + (fatData->bpb.numFats * 
+						    fatData->fatSects));
 
       // Now we need to read some straight sectors from the disk which
       // make up the root directory
 
       // Now we read all of the sectors for the root directory
       status = kernelDiskReadSectors((char *) fatData->disk->name,
-				     rootDirStart, fatData->rootDirSectors,
+				     rootDirStart, fatData->rootDirSects,
 				     dirBuffer);
       if (status < 0)
 	{
@@ -3026,7 +2752,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
 	  return (status);
 	}
 
-      rootDirBlocks = (fatData->rootDirSectors / fatData->sectorsPerCluster);
+      rootDirBlocks = (fatData->rootDirSects / fatData->bpb.sectsPerClust);
     }
 
   else // if (fatData->fsType == fat32)
@@ -3036,7 +2762,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
       // cluster, so we need to fill out a dummy kernelFileEntry structure so
       // that the read() routine can go get it for us.
 
-      status = getNumClusters(fatData, fatData->rootDirClusterF32,
+      status = getNumClusters(fatData, fatData->bpb.fat32.rootClust,
 			      &rootDirBlocks);
       if (status < 0)
 	{
@@ -3046,7 +2772,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
 
       // The only thing the read routine needs in this data structure
       // is the starting cluster number.
-      dummyEntryData.startCluster = fatData->rootDirClusterF32;
+      dummyEntryData.startCluster = fatData->bpb.fat32.rootClust;
       dummyEntry.driverData = (void *) &dummyEntryData;
 
       // Go.
@@ -3081,14 +2807,14 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
   
   if ((fatData->fsType == fat12) || (fatData->fsType == fat16))
     {
-      rootDir->size = (fatData->rootDirSectors * fatData->bytesPerSector);
+      rootDir->size = (fatData->rootDirSects * fatData->bpb.bytesPerSect);
       rootDirData->startCluster = 0;
     }
   else
     {
-      rootDir->size = (rootDir->blocks * fatData->sectorsPerCluster * 
-		       fatData->bytesPerSector);
-      rootDirData->startCluster = fatData->rootDirClusterF32;
+      rootDir->size = (rootDir->blocks * fatData->bpb.sectsPerClust * 
+		       fatData->bpb.bytesPerSect);
+      rootDirData->startCluster = fatData->bpb.fat32.rootClust;
     }
 
   // Fill out some values in the directory's private data
@@ -3151,7 +2877,7 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
     }
 
   // Read the entire FAT table into memory
-  fatData->FAT = kernelMalloc(fatData->bytesPerSector * fatData->fatSectors);
+  fatData->FAT = kernelMalloc(fatData->bpb.bytesPerSect * fatData->fatSects);
   if (fatData->FAT == NULL)
     {
       // Oops.  Something went wrong.
@@ -3160,8 +2886,8 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
     }
 
   status = kernelDiskReadSectors((char *) fatData->disk->name, 
-				 fatData->reservedSectors,
-				 fatData->fatSectors, fatData->FAT);
+				 fatData->bpb.rsvdSectCount,
+				 fatData->fatSects, fatData->FAT);
   if (status < 0)
     {
       // Oops.  Something went wrong.
@@ -3198,9 +2924,252 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
 
   // Specify the filesystem block size
   filesystem->blockSize = 
-    (fatData->bytesPerSector * fatData->sectorsPerCluster);
+    (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
   return (fatData);
+}
+
+
+static int readDir(kernelFileEntry *directory)
+{
+  // This function receives an emtpy file entry structure, which represents
+  // a directory whose contents have not yet been read.  This will fill the
+  // directory structure with its appropriate contents.  Returns 0 on
+  // success, negative otherwise.
+
+  int status = 0;
+  kernelFilesystem *filesystem = NULL;
+  fatInternalData *fatData = NULL;
+  fatEntryData *entryData = NULL;
+  unsigned char *dirBuffer = NULL;
+  unsigned dirBufferSize = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Make sure the file entry isn't NULL
+  if (directory == NULL)
+    {
+      kernelError(kernel_error, "NULL directory entry");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Make sure that there's a private FAT data structure attached to this
+  // file entry
+  if (directory->driverData == NULL)
+    {
+      kernelError(kernel_error, "File entry has no private filesystem data");
+      return (status = ERR_NODATA);
+    }
+
+  // Get the filesystem pointer
+  filesystem = (kernelFilesystem *) directory->filesystem;
+  if (filesystem == NULL)
+    {
+      kernelError(kernel_error, "NULL filesystem structure");
+      return (status = ERR_BADADDRESS);
+    }
+
+  // Get the FAT data for the requested filesystem
+  fatData = getFatData(filesystem);
+  // Make sure there wasn't a problem
+  if (fatData == NULL)
+    return (status = ERR_BADDATA);
+  
+  // Make sure it's really a directory, and not a regular file
+  if (directory->type != dirT)
+    return (status = ERR_NOTADIR);
+
+  // Get the directory entry's data
+  entryData = (fatEntryData *) directory->driverData;
+
+  // Now we can go about scanning the directory.
+
+  dirBufferSize = (directory->blocks * fatData->bpb.sectsPerClust *
+		   fatData->bpb.bytesPerSect);
+
+  dirBuffer = kernelMalloc(dirBufferSize);
+  if (dirBuffer == NULL)
+    {
+      kernelError(kernel_error, "Memory allocation error");
+      return (status = ERR_MEMORY);
+    }
+  
+  // Now we read all of the sectors of the directory
+  status = read(fatData, directory, 0, directory->blocks, dirBuffer);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Error reading directory");
+      kernelFree(dirBuffer);
+      return (status);
+    }
+  
+  // Call the routine to interpret the directory data
+  status = scanDirectory(fatData, filesystem, directory, dirBuffer, 
+			 dirBufferSize);
+
+  // Free the directory buffer we used
+  kernelFree(dirBuffer);
+
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Error parsing directory");
+      return (status);
+    }
+	      
+  // Return success
+  return (status = 0);
+}
+
+
+static int writeDir(kernelFileEntry *directory)
+{
+  // This function takes a directory entry structure and updates it 
+  // appropriately on the disk volume.  On success it returns zero,
+  // negative otherwise.
+
+  int status = 0;
+  kernelFilesystem *filesystem = NULL;
+  fatInternalData *fatData = NULL;
+  fatEntryData *entryData = NULL;
+  unsigned clusterSize = 0;
+  unsigned char *dirBuffer = NULL;
+  unsigned dirBufferSize = 0;
+  unsigned directoryEntries = 0;
+  unsigned blocks = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Make sure the directory entry isn't NULL
+  if (directory == NULL)
+    {
+      kernelError(kernel_error, "NULL directory entry");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Get the filesystem pointer
+  filesystem = (kernelFilesystem *) directory->filesystem;
+  if (filesystem == NULL)
+    {
+      kernelError(kernel_error, "NULL filesystem structure");
+      return (status = ERR_BADADDRESS);
+    }
+
+  // Get the private FAT data structure attached to this file entry
+  entryData = (fatEntryData *) directory->driverData;
+  if (entryData == NULL)
+    {
+      kernelError(kernel_error, "NULL private file data");
+      return (status = ERR_NODATA);
+    }
+
+  // Get the FAT data for the requested filesystem
+  fatData = getFatData(filesystem);
+  // Make sure there wasn't a problem
+  if (fatData == NULL)
+    {
+      kernelError(kernel_error, "Unable to find FAT filesystem data");
+      return (status = ERR_BADDATA);
+    }
+  
+  // Make sure it's really a directory, and not a regular file
+  if (directory->type != dirT)
+    {
+      kernelError(kernel_error, "Directory to write is not a directory");
+      return (status = ERR_NOTADIR);
+    }
+
+  // Figure out the size of the buffer we need to allocate to hold the
+  // directory
+  if ((fatData->fsType != fat32) &&
+      (directory == (kernelFileEntry *) filesystem->filesystemRoot))
+    {
+      dirBufferSize = (fatData->rootDirSects * fatData->bpb.bytesPerSect);
+      blocks = fatData->rootDirSects;
+    }
+
+  else
+    {
+      // Figure out how many directory entries there are
+      directoryEntries = dirRequiredEntries(directory);
+
+      // Calculate the size of a cluster in this filesystem
+      clusterSize = (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
+  
+      if (clusterSize == 0)
+	{
+	  // This volume would appear to be corrupted
+	  kernelError(kernel_error, "The FAT volume is corrupt");
+	  return (status = ERR_BADDATA);
+	}
+
+      dirBufferSize = (directoryEntries * FAT_BYTES_PER_DIR_ENTRY);
+      if (dirBufferSize % clusterSize)
+	dirBufferSize += (clusterSize - (dirBufferSize % clusterSize));
+
+      // Calculate the new number of blocks that will be occupied by
+      // this directory
+      blocks = (dirBufferSize / 
+		(fatData->bpb.sectsPerClust * fatData->bpb.bytesPerSect));
+      if (dirBufferSize % 
+	  (fatData->bpb.sectsPerClust * fatData->bpb.bytesPerSect))
+	blocks += 1;
+
+      // If the new number of blocks is less than the previous value, we
+      // should deallocate all of the extra clusters at the end
+
+      if (blocks < directory->blocks)
+	{
+	  status = shortenFile(fatData, directory, blocks);
+	  if (status < 0)
+	    // Not fatal.  Just warn
+	    kernelError(kernel_warn, "Unable to shorten directory");
+	}
+    }
+
+  // Allocate temporary space for the directory buffer
+  dirBuffer = kernelMalloc(dirBufferSize);
+  if (dirBuffer == NULL)
+    {
+      kernelError(kernel_error, "Memory allocation error writing directory");
+      return (status = ERR_MEMORY);
+    }
+
+  // Fill in the directory entries
+  status = fillDirectory(directory, dirBuffer);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Error filling directory structure");
+      kernelFree(dirBuffer);
+      return (status);
+    }
+
+  // Write the directory "file".  If it's the root dir of a non-FAT32
+  // filesystem we do a special version of this write.
+  if ((fatData->fsType != fat32) &&
+      (directory == (kernelFileEntry *) filesystem->filesystemRoot))
+    status = 
+      kernelDiskWriteSectors((char *) fatData->disk->name, 
+			     (fatData->bpb.rsvdSectCount +
+			      (fatData->fatSects * fatData->bpb.numFats)),
+			     blocks, dirBuffer);
+  else
+    status = write(fatData, directory, 0, blocks, dirBuffer);
+
+  // De-allocate the directory buffer
+  kernelFree(dirBuffer);
+
+  if (status == ERR_NOWRITE)
+    {
+      kernelError(kernel_warn, "File system is read-only");
+      filesystem->readOnly = 1;
+    }
+  else if (status < 0)
+    kernelError(kernel_error, "Error writing directory \"%s\"",
+		directory->name);
+
+  return (status);
 }
 
 
@@ -3283,7 +3252,7 @@ static int recursiveClusterChainCheck(kernelFilesystem *filesystem,
       // Now check the cluster chain
 
       // Calculate the cluster size for this filesystem
-      clusterSize = (fatData->bytesPerSector * fatData->sectorsPerCluster);
+      clusterSize = (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
 
       // Calculate the number of clusters we would expect this file to have
       if (clusterSize != 0)
@@ -3362,7 +3331,7 @@ static int recursiveClusterChainCheck(kernelFilesystem *filesystem,
       if (entry->contents == NULL)
 	{
 	  // This directory has not been read yet.  Read it.
-	  status = kernelFilesystemFatReadDir(entry);
+	  status = readDir(entry);
 	  if (status < 0)
 	    return (status);
 	}
@@ -3388,7 +3357,7 @@ static int recursiveClusterChainCheck(kernelFilesystem *filesystem,
       // out the directory
       if (errors && repair)
 	{
-	  status = kernelFilesystemFatWriteDir(entry);
+	  status = writeDir(entry);
 	  if (status < 0)
 	    kernelError(kernel_warn, "Unable to write repaired directory");
 	}
@@ -3425,27 +3394,7 @@ static int checkAllClusters(kernelFilesystem *filesystem,
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelFilesystemFatInitialize(void)
-{
-  // Initialize the driver
-
-  initialized = 1;
-
-  // Register our driver
-  return (kernelDriverRegister(fatDriver, &defaultFatDriver));
-}
-
-
-int kernelFilesystemFatDetect(const kernelDisk *theDisk)
+static int detect(const kernelDisk *theDisk)
 {
   // This function is used to determine whether the data on a disk structure
   // is using a FAT filesystem.  It uses a simple test or two to determine
@@ -3471,7 +3420,7 @@ int kernelFilesystemFatDetect(const kernelDisk *theDisk)
   // sector").
 
   // Call the function that reads the boot sector
-  status = readBootSector((kernelDisk *) theDisk, bootSector);
+  status = readBootSector((kernelDisk *) theDisk, (fatBPB *) bootSector);
   // Make sure we were successful
   if (status < 0)
     // Couldn't read the boot sector, or it was bad
@@ -3527,13 +3476,13 @@ int kernelFilesystemFatDetect(const kernelDisk *theDisk)
     strcpy((char *) theDisk->fsType, "fat16");
   else if (!strncmp((bootSector + 0x52), "FAT32", 5))
     strcpy((char *) theDisk->fsType, "fat32");
-  
+
   return (status = 1);
 }
 
 
-int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
-			      const char *label, int longFormat)
+static int format(kernelDisk *theDisk, const char *type, const char *label,
+		  int longFormat)
 {
   // Format the supplied disk as a FAT volume.
 
@@ -3593,19 +3542,22 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   // Set the disk structure
   fatData.disk = theDisk;
 
-  strcpy((char *) fatData.oemName, "Visopsys");
-  fatData.sectorsPerTrack = physicalDisk->sectorsPerCylinder;
-  fatData.heads = physicalDisk->heads;
-  fatData.bytesPerSector = physicalDisk->sectorSize;
-  fatData.hiddenSectors = 0;
-  fatData.numberOfFats = 2;
-  fatData.totalSectors = theDisk->numSectors;
-  fatData.sectorsPerCluster = 1;
+  fatData.bpb.jmpBoot[0] = 0xEB;  // JMP inst
+  fatData.bpb.jmpBoot[1] = 0x3C;  // JMP inst
+  fatData.bpb.jmpBoot[2] = 0x90;  // No op
+  strncpy((char *) fatData.bpb.oemName, "Visopsys", 8);
+  fatData.bpb.sectsPerTrack = physicalDisk->sectorsPerCylinder;
+  fatData.bpb.numHeads = physicalDisk->heads;
+  fatData.bpb.bytesPerSect = physicalDisk->sectorSize;
+  fatData.bpb.hiddenSects = 0;
+  fatData.bpb.numFats = 2;
+  fatData.totalSects = theDisk->numSectors;
+  fatData.bpb.sectsPerClust = 1;
 
   if (physicalDisk->flags & DISKFLAG_FIXED)
-    fatData.mediaType = 0xF8;
+    fatData.bpb.media = 0xF8;
   else
-    fatData.mediaType = 0xF0;
+    fatData.bpb.media = 0xF0;
 
   if (!strncmp(type, "fat12", 5))
     fatData.fsType = fat12;
@@ -3614,9 +3566,9 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   else if (!strncmp(type, "fat32", 5))
     fatData.fsType = fat32;
   else if ((physicalDisk->flags & DISKFLAG_FLOPPY) ||
-	   (fatData.totalSectors < 8400))
+	   (fatData.totalSects < 8400))
     fatData.fsType = fat12;
-  else if (fatData.totalSectors < 66600)
+  else if (fatData.totalSects < 66600)
     fatData.fsType = fat16;
   else
     fatData.fsType = fat32;
@@ -3625,103 +3577,106 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
     {
       // FAT12 or FAT16
 
-      fatData.reservedSectors = 1;
+      fatData.bpb.rsvdSectCount = 1;
       
       if (fatData.fsType == fat12)
 	{
 	  // FAT12
 
-	  fatData.rootDirEntries = 224;
+	  fatData.bpb.rootEntCount = 224;
 
 	  // Calculate the sectors per cluster.
-	  while((theDisk->numSectors / fatData.sectorsPerCluster) >= 4085)
-	    fatData.sectorsPerCluster *= 2;
+	  while((theDisk->numSectors / fatData.bpb.sectsPerClust) >= 4085)
+	    fatData.bpb.sectsPerClust *= 2;
 
-	  fatData.terminalCluster = 0x0FF8;
-	  strcpy((char *) fatData.fsSignature, "FAT12   ");
+	  fatData.terminalClust = 0x0FF8;
+	  strncpy((char *) fatData.bpb.fat.fileSysType, "FAT12   ", 8);
 	}
       else
 	{
 	  // FAT16
 
-	  fatData.rootDirEntries = 512;
+	  fatData.bpb.rootEntCount = 512;
 
 	  // Calculate the sectors per cluster based on a Microsoft table
 	  for (count = 0; ; count ++)
-	    if (f16Tab[count].diskSize >= fatData.totalSectors)
+	    if (f16Tab[count].diskSize >= fatData.totalSects)
 	      {
-		fatData.sectorsPerCluster = f16Tab[count].secPerClust;
+		fatData.bpb.sectsPerClust = f16Tab[count].secPerClust;
 		break;
 	      }
 
-	  fatData.terminalCluster = 0xFFF8;
-	  strcpy((char *) fatData.fsSignature, "FAT16   ");
+	  fatData.terminalClust = 0xFFF8;
+	  strncpy((char *) fatData.bpb.fat.fileSysType, "FAT16   ", 8);
 	}
     }
-  else
+  else if (fatData.fsType == fat32)
     {
-      // FAT32
-
-      fatData.reservedSectors = 32;
-      fatData.rootDirEntries = 0;
+      fatData.bpb.rsvdSectCount = 32;
+      fatData.bpb.rootEntCount = 0;
 
       // Calculate the sectors per cluster based on a Microsoft table
       for (count = 0; ; count ++)
-	if (f32Tab[count].diskSize >= fatData.totalSectors)
+	if (f32Tab[count].diskSize >= fatData.totalSects)
 	  {
-	    fatData.sectorsPerCluster = f32Tab[count].secPerClust;
+	    fatData.bpb.sectsPerClust = f32Tab[count].secPerClust;
 	    break;
 	  }
 
-      fatData.terminalCluster = 0x0FFFFFF8;
-      strcpy((char *) fatData.fsSignature, "FAT32   ");
+      fatData.terminalClust = 0x0FFFFFF8;
+      strncpy((char *) fatData.bpb.fat32.fileSysType, "FAT32   ", 8);
     }
 
   if (physicalDisk->flags & DISKFLAG_FLOPPY)
     {
-      fatData.rootDirSectors = 14;
-      fatData.fatSectors = 9;
+      fatData.rootDirSects = 14;
+      fatData.fatSects = 9;
     }
-
   else
     {
-      fatData.rootDirSectors =
-	(((FAT_BYTES_PER_DIR_ENTRY * fatData.rootDirEntries) +
-	  (fatData.bytesPerSector - 1)) / fatData.bytesPerSector);
+      fatData.rootDirSects =
+	(((FAT_BYTES_PER_DIR_ENTRY * fatData.bpb.rootEntCount) +
+	  (fatData.bpb.bytesPerSect - 1)) / fatData.bpb.bytesPerSect);
 
       // Figure out the number of FAT sectors based on a "clever bit of
       // math" provided by MicrosoftTM.
-      unsigned tmp1 = (fatData.totalSectors - (fatData.reservedSectors +
-					       fatData.rootDirSectors));
-      unsigned tmp2 = ((256 * fatData.sectorsPerCluster) +
-		       fatData.numberOfFats);
+      unsigned tmp1 = (fatData.totalSects - (fatData.bpb.rsvdSectCount +
+					     fatData.rootDirSects));
+      unsigned tmp2 =
+	((256 * fatData.bpb.sectsPerClust) + fatData.bpb.numFats);
       if (fatData.fsType == fat32)
 	tmp2 /= 2;
-      fatData.fatSectors = ((tmp1 + (tmp2 - 1)) / tmp2);
+      fatData.fatSects = ((tmp1 + (tmp2 - 1)) / tmp2);
     }
 
-  fatData.dataSectors =
-    (fatData.totalSectors - (fatData.reservedSectors +
-			     (fatData.numberOfFats * fatData.fatSectors) +
-			     fatData.rootDirSectors));
-  fatData.dataClusters = (fatData.dataSectors / fatData.sectorsPerCluster);
+  fatData.dataSects =
+    (fatData.totalSects - (fatData.bpb.rsvdSectCount +
+			   (fatData.bpb.numFats * fatData.fatSects) +
+			   fatData.rootDirSects));
+  fatData.dataClusters = (fatData.dataSects / fatData.bpb.sectsPerClust);
 
-  kernelLog("Format: Type: %s  Total Sectors: %u  Bytes Per Sector: "
-	    "%u  Sectors Per Cluster: %u  Root Directory Sectors: "
-	    "%u  Fat Sectors: %u  Data Clusters: %u",
-	    fatData.fsSignature, fatData.totalSectors,
-	    fatData.bytesPerSector, fatData.sectorsPerCluster,
-	    fatData.rootDirSectors, fatData.fatSectors,
-	    fatData.dataClusters);
+  if ((fatData.fsType == fat12) || (fatData.fsType == fat16))
+    {
+      fatData.bpb.fat.biosDriveNum =
+	((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;
+      if (physicalDisk->flags & DISKFLAG_FIXED)
+	fatData.bpb.fat.biosDriveNum |= 0x80;
+      fatData.bpb.fat.bootSig = 0x29;  // Means volume id, label, etc., valid
+      fatData.bpb.fat.volumeId = kernelSysTimerRead();
+      strncpy((char *) fatData.bpb.fat.volumeLabel, (char *) label, 11);
+    }
+  else if (fatData.fsType == fat32)
+    {
+      fatData.bpb.fat32.biosDriveNum =
+	((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;
+      if (physicalDisk->flags & DISKFLAG_FIXED)
+	fatData.bpb.fat32.biosDriveNum |= 0x80;
+      fatData.bpb.fat32.bootSig = 0x29;  // Means volume id, label, etc., valid
+      fatData.bpb.fat32.volumeId = kernelSysTimerRead();
+      strncpy((char *) fatData.bpb.fat32.volumeLabel, (char *) label, 11);
+    }
 
-  fatData.driveNumber =
-    ((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;
-  if (physicalDisk->flags & DISKFLAG_FIXED)
-    fatData.driveNumber |= 0x80;
-
-  fatData.bootSignature = 0x29;  // Means volume id, label, etc., valid
-  fatData.volumeId = kernelSysTimerRead();
-  strncpy((char *) fatData.volumeLabel, (char *) label, 12);
+  fatData.bpb.signature = 0xAA55;
 
   // Get a decent-sized buffer for clearing sectors
   sectorBuff = kernelMalloc(BUFFERSIZE);
@@ -3734,16 +3689,16 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   // How many empty sectors to write?  If we are doing a long format, write
   // every sector.  Otherwise, just the system areas
   if (longFormat)
-    clearSectors = fatData.totalSectors;
+    clearSectors = fatData.totalSects;
   else
-    clearSectors = (fatData.reservedSectors +
-		    (fatData.numberOfFats * fatData.fatSectors) +
-		    fatData.rootDirSectors);
+    clearSectors =
+      (fatData.bpb.rsvdSectCount + (fatData.bpb.numFats * fatData.fatSects) +
+       fatData.rootDirSects);
 
   for (count = 0; count < clearSectors; )
     {
-      doSectors =
-	min((clearSectors - count), (BUFFERSIZE / fatData.bytesPerSector));
+      doSectors = min((clearSectors - count), (unsigned)
+		      (BUFFERSIZE / fatData.bpb.bytesPerSect));
 
       status = kernelDiskWriteSectors((char *) theDisk->name, count, doSectors,
 				      sectorBuff);
@@ -3759,30 +3714,33 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   // Set first two FAT table entries
   if (fatData.fsType == fat12)
     {
-      *((short *) sectorBuff) = (0x0F00 | fatData.mediaType);
+      *((short *) sectorBuff) = (0x0F00 | fatData.bpb.media);
       *((short *)(sectorBuff + 1)) |= 0xFFF0;
     }
   else if (fatData.fsType == fat16)
     {
-      *((short *) sectorBuff) = (0xFF00 | fatData.mediaType);
+      *((short *) sectorBuff) = (0xFF00 | fatData.bpb.media);
       *((short *)(sectorBuff + 2)) = 0xFFFF;
     }
   else if (fatData.fsType == fat32)
     {
       // These fields are specific to the FAT32 filesystem type, and
       // are not applicable to FAT12 or FAT16
-      fatData.rootDirClusterF32 = 2;
-      fatData.fsInfoSectorF32 = 1;
-      fatData.backupBootF32 = 6;
-      fatData.freeClusters = (fatData.dataClusters - 1);
-      fatData.firstFreeClusterF32 = 3;
+      fatData.bpb.fat32.rootClust = 2;
+      fatData.bpb.fat32.fsInfo = 1;
+      fatData.bpb.fat32.backupBootSect = 6;
+      fatData.fsInfo.leadSig = 0x41615252;
+      fatData.fsInfo.structSig = 0x61417272;
+      fatData.fsInfo.freeCount = (fatData.dataClusters - 1);
+      fatData.fsInfo.nextFree = 3;
+      fatData.fsInfo.trailSig = 0xAA550000;
 
       // Write an empty root directory
-      for (count = 0; count < fatData.sectorsPerCluster; count ++)
+      for (count = 0; count < fatData.bpb.sectsPerClust; count ++)
 	{
 	  status = kernelDiskWriteSectors((char *) theDisk->name,
-			  (fatData.reservedSectors + count +
-			   (fatData.numberOfFats * fatData.fatSectors)),
+			  (fatData.bpb.rsvdSectCount + count +
+			   (fatData.bpb.numFats * fatData.fatSects)),
 					  1, sectorBuff);
 	  if (status < 0)
 	    {
@@ -3791,12 +3749,12 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
 	    }
 	}
 
-      *((unsigned *) sectorBuff) = (0x0FFFFF00 | fatData.mediaType);
+      *((unsigned *) sectorBuff) = (0x0FFFFF00 | fatData.bpb.media);
       *((unsigned *)(sectorBuff + 4)) = 0x0FFFFFFF;
       
       // Mark the root dir cluster as being used in the FAT
-      *((unsigned *)(sectorBuff + (fatData.rootDirClusterF32 * 4))) =
-	fatData.terminalCluster;
+      *((unsigned *)(sectorBuff + (fatData.bpb.fat32.rootClust * 4))) =
+	fatData.terminalClust;
     }
 
   // Write the first sector of the FATs
@@ -3819,43 +3777,6 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
       kernelFree(sectorBuff);
       return (status);
     }
-
-  // Put a bogus 'jmp' instruction at the beginning of the boot sector,
-  // otherwise Windows won't consider it formatted
-  {
-    status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, sectorBuff);
-    if (status < 0)
-      {
-	kernelError(kernel_error, "Error re-writing boot sector");
-	kernelFree(sectorBuff);
-	return (status);
-      }
-
-    *((short *) sectorBuff) = 0x3CEB;  // JMP inst
-    sectorBuff[2] = 0x90;              // No op
-
-    // Main boot sector
-    status = kernelDiskWriteSectors((char *) theDisk->name, 0, 1, sectorBuff);
-    if (status < 0)
-      {
-	kernelError(kernel_error, "Error re-writing boot sector");
-	kernelFree(sectorBuff);
-	return (status);
-      }
-
-    if (fatData.fsType == fat32)
-      {
-	// Backup boot sector
-	status = kernelDiskWriteSectors((char *) theDisk->name,
-					fatData.backupBootF32, 1, sectorBuff);
-	if (status < 0)
-	  {
-	    kernelError(kernel_error, "Error writing backup boot sector");
-	    kernelFree(sectorBuff);
-	    return (status);
-	  }
-      }
-  }
 
   kernelFree(sectorBuff);
 
@@ -3886,110 +3807,19 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
     }
 
   status = kernelDiskSyncDisk((char *) theDisk->name);
+ 
+  kernelLog("Format: Type: %s  Total Sectors: %u  Bytes Per Sector: "
+	    "%u  Sectors Per Cluster: %u  Root Directory Sectors: "
+	    "%u  Fat Sectors: %u  Data Clusters: %u", theDisk->fsType,
+	    fatData.totalSects, fatData.bpb.bytesPerSect,
+	    fatData.bpb.sectsPerClust, fatData.rootDirSects,
+	    fatData.fatSects, fatData.dataClusters);
+
   return (status);
 }
 
 
-int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
-			     int repair)
-{
-  // This function performs a check of the FAT filesystem structure supplied.
-  // Assumptions: the filesystem is REALLY a FAT filesystem, the filesystem
-  // is not currently mounted anywhere, and the filesystem driver structure for
-  // the filesystem is installed.
-
-  int status = 0;
-  int errors = 0;
-  fatInternalData *fatData = NULL;
-  int mountedForCheck = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Make sure the filesystem structure isn't NULL
-  if (checkFilesystem == NULL)
-    {
-      kernelError(kernel_error, "NULL filesystem structure");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // We ignore the 'force' flag for now.  This keeps the compiler happy.
-  if (force)
-    {
-    }
-
-  kernelTextPrintLine("Checking FAT filesystem...");
-
-  // Make sure there's really a FAT filesystem on the disk
-  if (!kernelFilesystemFatDetect(checkFilesystem->disk))
-    {
-      kernelError(kernel_error, "Disk structure to check does not contain "
-		  "a FAT filesystem");
-      return (status = ERR_INVALID);
-    }
-
-  // Make sure it's not mounted anywhere, if we're going to try to repair
-  // things.
-  if (checkFilesystem->filesystemRoot && repair)
-    {
-      kernelError(kernel_warn, "Cannot repair a mounted filesytem");
-      repair = 0;
-    }
-
-  // Read-only for checking, unless we have been told to repair things
-  // automatically.
-  checkFilesystem->readOnly = !repair;
-
-  kernelTextPrintLine("  reading filesystem structures");
-
-  if (!checkFilesystem->filesystemRoot)
-    {
-      // "mount" the filesystem so that its data gets read in.  This is not
-      // a real mount in that it is never exposed to the rest of the system,
-      status = kernelFilesystemFatMount(checkFilesystem);
-      if (status < 0)
-	{
-	  kernelError(kernel_error, "Unable to check the filesystem");
-	  return (status);
-	}
-
-      mountedForCheck = 1;
-    }
-
-  fatData = checkFilesystem->filesystemData;
-
-  // Recurse through all the files, checking the cluster chains
-  kernelTextPrintLine("  checking clusters");
-  status = checkAllClusters(checkFilesystem, checkFilesystem->filesystemRoot,
-			    repair);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Cluster chain checking failed");
-      errors = status;
-    }
-
-  if (mountedForCheck)
-    {
-      // Release all file entry data that we might have accumulated
-      status = kernelFileUnbufferRecursive(checkFilesystem->filesystemRoot);
-      if (status < 0)
-	kernelError(kernel_warn, "Unable to unbuffer filesystem entries");
-
-      checkFilesystem->filesystemRoot = NULL;
-
-      // "unmount" the filesystem.  Same comment as above.
-      kernelFilesystemFatUnmount(checkFilesystem);
-    }
-
-  if (!errors)
-    kernelTextPrintLine("Done");
-
-  // Return success
-  return (status = (errors? errors : 0));
-}
-
-
-int kernelFilesystemFatMount(kernelFilesystem *filesystem)
+static int mount(kernelFilesystem *filesystem)
 {
   // This function initializes the filesystem driver by gathering all
   // of the required information from the boot sector.  In addition, 
@@ -4069,7 +3899,7 @@ int kernelFilesystemFatMount(kernelFilesystem *filesystem)
 }
 
 
-int kernelFilesystemFatUnmount(kernelFilesystem *filesystem)
+static int unmount(kernelFilesystem *filesystem)
 {
   // This function releases all of the stored information about a given
   // filesystem.
@@ -4140,7 +3970,105 @@ int kernelFilesystemFatUnmount(kernelFilesystem *filesystem)
 }
 
 
-unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *filesystem)
+static int check(kernelFilesystem *checkFilesystem, int force, int repair)
+{
+  // This function performs a check of the FAT filesystem structure supplied.
+  // Assumptions: the filesystem is REALLY a FAT filesystem, the filesystem
+  // is not currently mounted anywhere, and the filesystem driver structure for
+  // the filesystem is installed.
+
+  int status = 0;
+  int errors = 0;
+  fatInternalData *fatData = NULL;
+  int mountedForCheck = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Make sure the filesystem structure isn't NULL
+  if (checkFilesystem == NULL)
+    {
+      kernelError(kernel_error, "NULL filesystem structure");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // We ignore the 'force' flag for now.  This keeps the compiler happy.
+  if (force)
+    {
+    }
+
+  kernelTextPrintLine("Checking FAT filesystem...");
+
+  // Make sure there's really a FAT filesystem on the disk
+  if (!detect(checkFilesystem->disk))
+    {
+      kernelError(kernel_error, "Disk structure to check does not contain "
+		  "a FAT filesystem");
+      return (status = ERR_INVALID);
+    }
+
+  // Make sure it's not mounted anywhere, if we're going to try to repair
+  // things.
+  if (checkFilesystem->filesystemRoot && repair)
+    {
+      kernelError(kernel_warn, "Cannot repair a mounted filesytem");
+      repair = 0;
+    }
+
+  // Read-only for checking, unless we have been told to repair things
+  // automatically.
+  checkFilesystem->readOnly = !repair;
+
+  kernelTextPrintLine("  reading filesystem structures");
+
+  if (!checkFilesystem->filesystemRoot)
+    {
+      // "mount" the filesystem so that its data gets read in.  This is not
+      // a real mount in that it is never exposed to the rest of the system,
+      status = mount(checkFilesystem);
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Unable to check the filesystem");
+	  return (status);
+	}
+
+      mountedForCheck = 1;
+    }
+
+  fatData = checkFilesystem->filesystemData;
+
+  // Recurse through all the files, checking the cluster chains
+  kernelTextPrintLine("  checking clusters");
+  status = checkAllClusters(checkFilesystem, checkFilesystem->filesystemRoot,
+			    repair);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Cluster chain checking failed");
+      errors = status;
+    }
+
+  if (mountedForCheck)
+    {
+      // Release all file entry data that we might have accumulated
+      status = kernelFileUnbufferRecursive(checkFilesystem->filesystemRoot);
+      if (status < 0)
+	kernelError(kernel_warn, "Unable to unbuffer filesystem entries");
+
+      checkFilesystem->filesystemRoot = NULL;
+
+      // "unmount" the filesystem.  Same comment as above.
+      unmount(checkFilesystem);
+    }
+
+  if (!errors)
+    kernelTextPrintLine("Done");
+
+  // Return success
+  return (status = (errors? errors : 0));
+}
+
+
+static unsigned getFreeBytes(kernelFilesystem *filesystem)
 {
   // This function returns the amount of free disk space, in bytes.
 
@@ -4163,12 +4091,12 @@ unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *filesystem)
     return (0);
 
   // OK, now we can return the requested info
-  return ((unsigned)(fatData->bytesPerSector * 
-		     fatData->sectorsPerCluster) * fatData->freeClusters);
+  return ((unsigned)(fatData->bpb.bytesPerSect * 
+		     fatData->bpb.sectsPerClust) * fatData->freeClusters);
 }
 
 
-int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
+static int newEntry(kernelFileEntry *newEntry)
 {
   // This function gets called when there's a new kernelFileEntry in the
   // filesystem (either because a file was created or because some existing
@@ -4233,7 +4161,7 @@ int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
 }
 
 
-int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
+static int inactiveEntry(kernelFileEntry *inactiveEntry)
 {
   // This function gets called when a kernelFileEntry is about to be
   // deallocated by the system (either because a file was deleted or because
@@ -4277,8 +4205,8 @@ int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
 }
 
 
-int kernelFilesystemFatReadFile(kernelFileEntry *theFile, unsigned blockNum,
-				unsigned blocks, unsigned char *buffer)
+static int readFile(kernelFileEntry *theFile, unsigned blockNum,
+		    unsigned blocks, unsigned char *buffer)
 {
   // This function is the "read file" function that the filesystem
   // driver exports to the world.  It is mainly a wrapper for the
@@ -4342,8 +4270,8 @@ int kernelFilesystemFatReadFile(kernelFileEntry *theFile, unsigned blockNum,
 }
 
 
-int kernelFilesystemFatWriteFile(kernelFileEntry *theFile, unsigned blockNum, 
-				 unsigned blocks, unsigned char *buffer)
+static int writeFile(kernelFileEntry *theFile, unsigned blockNum,
+		     unsigned blocks, unsigned char *buffer)
 {
   // This function is the "write file" function that the filesystem
   // driver exports to the world.  It is mainly a wrapper for the
@@ -4407,7 +4335,7 @@ int kernelFilesystemFatWriteFile(kernelFileEntry *theFile, unsigned blockNum,
 }
 
 
-int kernelFilesystemFatCreateFile(kernelFileEntry *theFile)
+static int createFile(kernelFileEntry *theFile)
 {
   // This function does the FAT-specific initialization of a new file.
   // There's not much more to this than getting a new entry data structure
@@ -4455,7 +4383,7 @@ int kernelFilesystemFatCreateFile(kernelFileEntry *theFile)
 }
 
 
-int kernelFilesystemFatDeleteFile(kernelFileEntry *theFile, int secure)
+static int deleteFile(kernelFileEntry *theFile, int secure)
 {
   // This function deletes a file.  It returns 0 on success, negative
   // otherwise
@@ -4528,7 +4456,7 @@ int kernelFilesystemFatDeleteFile(kernelFileEntry *theFile, int secure)
 }
 
 
-int kernelFilesystemFatFileMoved(kernelFileEntry *entry)
+static int fileMoved(kernelFileEntry *entry)
 {
   // This function is called by the filesystem manager whenever a file
   // has been moved from one place to another.  This allows us the chance
@@ -4569,250 +4497,7 @@ int kernelFilesystemFatFileMoved(kernelFileEntry *entry)
 }
 
 
-int kernelFilesystemFatReadDir(kernelFileEntry *directory)
-{
-  // This function receives an emtpy file entry structure, which represents
-  // a directory whose contents have not yet been read.  This will fill the
-  // directory structure with its appropriate contents.  Returns 0 on
-  // success, negative otherwise.
-
-  int status = 0;
-  kernelFilesystem *filesystem = NULL;
-  fatInternalData *fatData = NULL;
-  fatEntryData *entryData = NULL;
-  unsigned char *dirBuffer = NULL;
-  unsigned dirBufferSize = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Make sure the file entry isn't NULL
-  if (directory == NULL)
-    {
-      kernelError(kernel_error, "NULL directory entry");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Make sure that there's a private FAT data structure attached to this
-  // file entry
-  if (directory->driverData == NULL)
-    {
-      kernelError(kernel_error, "File entry has no private filesystem data");
-      return (status = ERR_NODATA);
-    }
-
-  // Get the filesystem pointer
-  filesystem = (kernelFilesystem *) directory->filesystem;
-  if (filesystem == NULL)
-    {
-      kernelError(kernel_error, "NULL filesystem structure");
-      return (status = ERR_BADADDRESS);
-    }
-
-  // Get the FAT data for the requested filesystem
-  fatData = getFatData(filesystem);
-  // Make sure there wasn't a problem
-  if (fatData == NULL)
-    return (status = ERR_BADDATA);
-  
-  // Make sure it's really a directory, and not a regular file
-  if (directory->type != dirT)
-    return (status = ERR_NOTADIR);
-
-  // Get the directory entry's data
-  entryData = (fatEntryData *) directory->driverData;
-
-  // Now we can go about scanning the directory.
-
-  dirBufferSize = (directory->blocks * fatData->sectorsPerCluster
-		   * fatData->bytesPerSector);
-
-  dirBuffer = kernelMalloc(dirBufferSize);
-  if (dirBuffer == NULL)
-    {
-      kernelError(kernel_error, "Memory allocation error");
-      return (status = ERR_MEMORY);
-    }
-  
-  // Now we read all of the sectors of the directory
-  status = read(fatData, directory, 0, directory->blocks, dirBuffer);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Error reading directory");
-      kernelFree(dirBuffer);
-      return (status);
-    }
-  
-  // Call the routine to interpret the directory data
-  status = scanDirectory(fatData, filesystem, directory, dirBuffer, 
-			 dirBufferSize);
-
-  // Free the directory buffer we used
-  kernelFree(dirBuffer);
-
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Error parsing directory");
-      return (status);
-    }
-	      
-  // Return success
-  return (status = 0);
-}
-
-
-int kernelFilesystemFatWriteDir(kernelFileEntry *directory)
-{
-  // This function takes a directory entry structure and updates it 
-  // appropriately on the disk volume.  On success it returns zero,
-  // negative otherwise.
-
-  int status = 0;
-  kernelFilesystem *filesystem = NULL;
-  fatInternalData *fatData = NULL;
-  fatEntryData *entryData = NULL;
-  unsigned clusterSize = 0;
-  unsigned char *dirBuffer = NULL;
-  unsigned dirBufferSize = 0;
-  unsigned directoryEntries = 0;
-  unsigned blocks = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Make sure the directory entry isn't NULL
-  if (directory == NULL)
-    {
-      kernelError(kernel_error, "NULL directory entry");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Get the filesystem pointer
-  filesystem = (kernelFilesystem *) directory->filesystem;
-  if (filesystem == NULL)
-    {
-      kernelError(kernel_error, "NULL filesystem structure");
-      return (status = ERR_BADADDRESS);
-    }
-
-  // Get the private FAT data structure attached to this file entry
-  entryData = (fatEntryData *) directory->driverData;
-  if (entryData == NULL)
-    {
-      kernelError(kernel_error, "NULL private file data");
-      return (status = ERR_NODATA);
-    }
-
-  // Get the FAT data for the requested filesystem
-  fatData = getFatData(filesystem);
-  // Make sure there wasn't a problem
-  if (fatData == NULL)
-    {
-      kernelError(kernel_error, "Unable to find FAT filesystem data");
-      return (status = ERR_BADDATA);
-    }
-  
-  // Make sure it's really a directory, and not a regular file
-  if (directory->type != dirT)
-    {
-      kernelError(kernel_error, "Directory to write is not a directory");
-      return (status = ERR_NOTADIR);
-    }
-
-  // Figure out the size of the buffer we need to allocate to hold the
-  // directory
-  if ((fatData->fsType != fat32) &&
-      (directory == (kernelFileEntry *) filesystem->filesystemRoot))
-    {
-      dirBufferSize = (fatData->rootDirSectors * fatData->bytesPerSector);
-      blocks = fatData->rootDirSectors;
-    }
-
-  else
-    {
-      // Figure out how many directory entries there are
-      directoryEntries = dirRequiredEntries(directory);
-
-      // Calculate the size of a cluster in this filesystem
-      clusterSize = (fatData->bytesPerSector * fatData->sectorsPerCluster);
-  
-      if (clusterSize == 0)
-	{
-	  // This volume would appear to be corrupted
-	  kernelError(kernel_error, "The FAT volume is corrupt");
-	  return (status = ERR_BADDATA);
-	}
-
-      dirBufferSize = (directoryEntries * FAT_BYTES_PER_DIR_ENTRY);
-      if (dirBufferSize % clusterSize)
-	dirBufferSize += (clusterSize - (dirBufferSize % clusterSize));
-
-      // Calculate the new number of blocks that will be occupied by
-      // this directory
-      blocks = (dirBufferSize / 
-		(fatData->sectorsPerCluster * fatData->bytesPerSector));
-      if (dirBufferSize % 
-	  (fatData->sectorsPerCluster * fatData->bytesPerSector))
-	blocks += 1;
-
-      // If the new number of blocks is less than the previous value, we
-      // should deallocate all of the extra clusters at the end
-
-      if (blocks < directory->blocks)
-	{
-	  status = shortenFile(fatData, directory, blocks);
-	  if (status < 0)
-	    // Not fatal.  Just warn
-	    kernelError(kernel_warn, "Unable to shorten directory");
-	}
-    }
-
-  // Allocate temporary space for the directory buffer
-  dirBuffer = kernelMalloc(dirBufferSize);
-  if (dirBuffer == NULL)
-    {
-      kernelError(kernel_error, "Memory allocation error writing directory");
-      return (status = ERR_MEMORY);
-    }
-
-  // Fill in the directory entries
-  status = fillDirectory(directory, dirBuffer);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Error filling directory structure");
-      kernelFree(dirBuffer);
-      return (status);
-    }
-
-  // Write the directory "file".  If it's the root dir of a non-FAT32
-  // filesystem we do a special version of this write.
-  if ((fatData->fsType != fat32) &&
-      (directory == (kernelFileEntry *) filesystem->filesystemRoot))
-    status = 
-      kernelDiskWriteSectors((char *) fatData->disk->name, 
-			     (fatData->reservedSectors +
-			      (fatData->fatSectors * fatData->numberOfFats)),
-			     blocks, dirBuffer);
-  else
-    status = write(fatData, directory, 0, blocks, dirBuffer);
-
-  // De-allocate the directory buffer
-  kernelFree(dirBuffer);
-
-  if (status == ERR_NOWRITE)
-    {
-      kernelError(kernel_warn, "File system is read-only");
-      filesystem->readOnly = 1;
-    }
-  else if (status < 0)
-    kernelError(kernel_error, "Error writing directory \"%s\"",
-		directory->name);
-
-  return (status);
-}
-
-
-int kernelFilesystemFatMakeDir(kernelFileEntry *directory)
+static int makeDir(kernelFileEntry *directory)
 {
   // This function is used to create a directory on disk.  The caller will
   // create the file entry data structures, and it is simply the
@@ -4875,7 +4560,7 @@ int kernelFilesystemFatMakeDir(kernelFileEntry *directory)
 
   // Set the size on the new directory entry
   directory->blocks = 1;
-  directory->size = (fatData->sectorsPerCluster * fatData->bytesPerSector);
+  directory->size = (fatData->bpb.sectsPerClust * fatData->bpb.bytesPerSect);
 
   // Set all the appropriate attributes in the directory's private data
   dirData = directory->driverData;
@@ -4893,7 +4578,7 @@ int kernelFilesystemFatMakeDir(kernelFileEntry *directory)
 }
 
 
-int kernelFilesystemFatRemoveDir(kernelFileEntry *directory)
+static int removeDir(kernelFileEntry *directory)
 {
   // This function deletes a directory, but only if it is empty.  
   // It returns 0 on success, negative otherwise
@@ -4956,7 +4641,7 @@ int kernelFilesystemFatRemoveDir(kernelFileEntry *directory)
 }
 
 
-int kernelFilesystemFatTimestamp(kernelFileEntry *theFile)
+static int timestamp(kernelFileEntry *theFile)
 {
   // This function does FAT-specific stuff for time stamping a file.
 
@@ -5005,4 +4690,50 @@ int kernelFilesystemFatTimestamp(kernelFileEntry *theFile)
   entryData->attributes = (entryData->attributes | FAT_ATTRIB_ARCHIVE);
 
   return (status = 0);
+}
+
+
+static kernelFilesystemDriver defaultFatDriver = {
+  Fat,   // FS type
+  "FAT", // Driver name
+  detect,
+  format,
+  NULL, // driverDefragment
+  mount,
+  unmount,
+  check,
+  getFreeBytes,
+  newEntry,
+  inactiveEntry,
+  NULL, // driverResolveLink,
+  readFile,
+  writeFile,
+  createFile,
+  deleteFile,
+  fileMoved,
+  readDir,
+  writeDir,
+  makeDir,
+  removeDir,
+  timestamp
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelFilesystemFatInitialize(void)
+{
+  // Initialize the driver
+
+  initialized = 1;
+
+  // Register our driver
+  return (kernelDriverRegister(fatDriver, &defaultFatDriver));
 }

@@ -21,6 +21,23 @@
 
 // This is the DOS-style command for viewing memory usage statistics
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- mem --
+
+A command to display current memory utilization
+
+Usage:
+  mem [-k]
+
+This command prints a listing of memory allocations, plus a summary at the
+end.  If the (optional) '-k' parameter is supplied, then 'mem' will display
+system (kernel) memory usage instead.
+
+</help>
+*/
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>

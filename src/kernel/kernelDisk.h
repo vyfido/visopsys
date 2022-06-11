@@ -30,8 +30,8 @@
 #include <sys/disk.h>
 
 #define DISK_CACHE              1
-#define DISK_CACHE_ALIGN        (64 * 1024) // Convenient for floppies
-#define DISK_MAX_CACHE          1048576 // 1 Meg
+#define DISK_CACHE_ALIGN        (64 * 1024)  // Convenient for floppies
+#define DISK_MAX_CACHE          1048576      // 1 Meg
 #define DISK_READAHEAD_SECTORS  32
 
 typedef enum { addr_pchs, addr_lba } kernelAddrMethod;
@@ -83,6 +83,7 @@ typedef volatile struct {
   unsigned startSector;
   unsigned numSectors;
   int primary;
+  int readOnly;
 
 } kernelDisk;
 

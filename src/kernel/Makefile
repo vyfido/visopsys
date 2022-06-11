@@ -8,18 +8,19 @@
 ##  This file is the Makefile for the Visopsys kernel itself.
 
 BUILDDIR=../../build
+INCDIR=../include
 LIBDIR=../../build/system/libraries
 
 CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
-STDDEPS		= *.h ../include/sys/*.h ${LIBDIR}/libc.a Makefile
+STDDEPS		= Makefile *.h ${INCDIR}/sys/*.h ${INCDIR}/*.h ${LIBDIR}/libc.a
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
 		-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls \
 		-Werror
-INCLUDE		= -nostdinc -I. -I../include
+INCLUDE		= -nostdinc -I. -I${INCDIR}
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
 LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
@@ -43,10 +44,12 @@ NAMES =	kernelMain \
 	kernelFont \
 	kernelGraphic \
 	kernelImage \
+	kernelImageBmp \
 	kernelInitialize \
 	kernelInterrupt \
 	kernelKeyboard \
 	kernelLoader \
+	kernelLoaderElf \
 	kernelLock \
 	kernelLog \
 	kernelMalloc \

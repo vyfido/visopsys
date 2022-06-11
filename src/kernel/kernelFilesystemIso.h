@@ -22,28 +22,11 @@
 #if !defined(_KERNELFILESYSTEMISO_H)
 
 #include "kernelDisk.h"
-#include "kernelFilesystem.h"
-
-// Definitions
-#define ISO_PRIMARY_VOLDESC_SECTOR        16
-#define ISO_STANDARD_IDENTIFIER           "CD001"
-#define ISO_DESCRIPTORTYPE_BOOT           0
-#define ISO_DESCRIPTORTYPE_PRIMARY        1
-#define ISO_DESCRIPTORTYPE_SUPPLEMENTARY  2
-#define ISO_DESCRIPTORTYPE_PARTITION      3
-#define ISO_DESCRIPTORTYPE_TERMINATOR     255
-
-#define ISO_FLAGMASK_HIDDEN          0x01
-#define ISO_FLAGMASK_DIRECTORY       0x02
-#define ISO_FLAGMASK_ASSOCIATED      0x04
-#define ISO_FLAGMASK_EXTENDEDSTRUCT  0x08
-#define ISO_FLAGMASK_EXTENDEDPERM    0x10
-#define ISO_FLAGMASK_LINKS           0x80
+#include <sys/iso.h>
 
 // Structures
 
 typedef volatile struct {
-
   unsigned char dirIdentLength;
   unsigned char extAttrLength;
   unsigned blockNumber;
@@ -53,39 +36,18 @@ typedef volatile struct {
 } isoPathTableRecord;
 
 typedef volatile struct {
-
-  unsigned blockNumber;
-  unsigned flags;
-  unsigned unitSize;
-  unsigned intrGapSize;
-  unsigned volSeqNumber;
+  isoDirectoryRecord dirRec;
+  char __namePadding__[255];
   unsigned versionNumber;
 
 } isoFileData;
 
 // Global filesystem data
 typedef volatile struct {
-
-  char volumeIdentifier[32];
-  unsigned volumeBlocks;
-  unsigned blockSize;
-  unsigned pathTableSize;
-  unsigned pathTableBlock;
+  isoPrimaryDescriptor volDesc;
   const kernelDisk *disk;
 
 } isoInternalData;
-
-// Functions exported by kernelFileSystemIso.c, not defined elsewhere.
-int kernelFilesystemIsoDetect(const kernelDisk *);
-int kernelFilesystemIsoMount(kernelFilesystem *);
-int kernelFilesystemIsoUnmount(kernelFilesystem *);
-unsigned kernelFilesystemIsoGetFree(kernelFilesystem *);
-int kernelFilesystemIsoNewEntry(kernelFileEntry *);
-int kernelFilesystemIsoInactiveEntry(kernelFileEntry *);
-int kernelFilesystemIsoResolveLink(kernelFileEntry *);
-int kernelFilesystemIsoReadFile(kernelFileEntry *, unsigned, unsigned,
-				unsigned char *);
-int kernelFilesystemIsoReadDir(kernelFileEntry *);
 
 #define _KERNELFILESYSTEMISO_H
 #endif

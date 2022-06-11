@@ -21,6 +21,25 @@
 
 // Uses the kernel's built-in MD5 crypto to create a digest string
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- md5 --
+
+Calculate and print one or more MD5 digests.  MD5 is a one-way hashing
+(encryption) algorithm which can be used to calculate checksums or encrypt
+passwords.
+
+Usage:
+  md5 [string1] [string2] [...]
+
+This command will print one line of MD5 digest for each string parameter
+supplied.  If no parameter is supplied, the digest will still be created,
+but for an empty string (which is "d41d8cd98f00b204e9800998ecf8427e").
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

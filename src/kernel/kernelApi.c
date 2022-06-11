@@ -24,20 +24,23 @@
 
 #include "kernelApi.h"
 #include "kernelParameters.h"
-#include "kernelProcessorX86.h"
 #include "kernelText.h"
+#include "kernelDisk.h"
 #include "kernelFile.h"
+#include "kernelFileStream.h"
 #include "kernelMemoryManager.h"
 #include "kernelMultitasker.h"
 #include "kernelLoader.h"
 #include "kernelRtc.h"
+#include "kernelRandom.h"
+#include "kernelEnvironment.h"
+#include "kernelWindow.h"
+#include "kernelUser.h"
 #include "kernelShutdown.h"
 #include "kernelMiscFunctions.h"
-#include "kernelWindow.h"
-#include "kernelRandom.h"
-#include "kernelUser.h"
 #include "kernelEncrypt.h"
 #include "kernelKeyboard.h"
+#include "kernelProcessorX86.h"
 #include "kernelError.h"
 
 // We do this so that <sys/api.h> won't complain about being included
@@ -215,7 +218,7 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
   // Multitasker functions (6000-6999 range)
 
   { _fnum_multitaskerCreateProcess, kernelMultitaskerCreateProcess,
-    5, PRIVILEGE_USER },
+    3, PRIVILEGE_USER },
   { _fnum_multitaskerSpawn, kernelMultitaskerSpawn, 4, PRIVILEGE_USER },
   { _fnum_multitaskerGetCurrentProcessId, kernelMultitaskerGetCurrentProcessId,
     0, PRIVILEGE_USER },
@@ -461,19 +464,19 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   { _fnum_fontSetDefault, kernelFontSetDefault, 1, PRIVILEGE_USER },
   { _fnum_fontLoad, kernelFontLoad, 4, PRIVILEGE_USER },
   { _fnum_fontGetPrintedWidth, kernelFontGetPrintedWidth, 2, PRIVILEGE_USER },
-  { _fnum_imageLoadBmp, kernelImageLoadBmp, 2, PRIVILEGE_USER },
-  { _fnum_imageSaveBmp, kernelImageSaveBmp, 2, PRIVILEGE_USER },
+  { _fnum_imageLoad, kernelImageLoad, 4, PRIVILEGE_USER },
+  { _fnum_imageSave, kernelImageSave, 3, PRIVILEGE_USER },
   { _fnum_shutdown, kernelShutdown, 2, PRIVILEGE_USER },
   { _fnum_version, kernelVersion, 0, PRIVILEGE_USER },
   { _fnum_encryptMD5, kernelEncryptMD5, 2, PRIVILEGE_USER },
   { _fnum_lockGet, kernelLockGet, 1, PRIVILEGE_USER },
   { _fnum_lockRelease, kernelLockRelease, 1, PRIVILEGE_USER },
   { _fnum_lockVerify, kernelLockVerify, 1, PRIVILEGE_USER },
-  { _fnum_variableListCreate, kernelVariableListCreate, 3, PRIVILEGE_USER },
+  { _fnum_variableListCreate, kernelVariableListCreate, 1, PRIVILEGE_USER },
   { _fnum_variableListGet, kernelVariableListGet, 4, PRIVILEGE_USER },
   { _fnum_variableListSet, kernelVariableListSet, 3, PRIVILEGE_USER },
   { _fnum_variableListUnset, kernelVariableListUnset, 2, PRIVILEGE_USER },
-  { _fnum_configurationReader, kernelConfigurationReader, 1, PRIVILEGE_USER },
+  { _fnum_configurationReader, kernelConfigurationReader, 2, PRIVILEGE_USER },
   { _fnum_configurationWriter, kernelConfigurationWriter, 2, PRIVILEGE_USER },
   { _fnum_keyboardGetMaps, kernelKeyboardGetMaps, 2, PRIVILEGE_USER },
   { _fnum_keyboardSetMap, kernelKeyboardSetMap, 1, PRIVILEGE_USER }
