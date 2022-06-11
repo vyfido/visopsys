@@ -1,0 +1,48 @@
+//
+//  Visopsys
+//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+// 
+//  This program is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU General Public License as published by the Free
+//  Software Foundation; either version 2 of the License, or (at your option)
+//  any later version.
+// 
+//  This program is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+//  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+//  for more details.
+//  
+//  You should have received a copy of the GNU General Public License along
+//  with this program; if not, write to the Free Software Foundation, Inc.,
+//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//
+//  pow.c
+//
+
+// This is the standard "pow" function, as found in standard C libraries
+
+#include <math.h>
+#include <errno.h>
+
+
+double pow(double x, double y)
+{
+  // The pow() function returns the value of x raised to the power of y.
+
+  int count;
+
+  if ((x < 0) && (floor(y) != y))
+    {
+      // The argument x is negative and y is not an integral value.  This
+      // would result in a complex number.
+      errno = ERR_DOMAIN;
+      return (0);
+    }
+  else
+    errno = 0;
+
+  for (count = 1; count < y; count ++)
+    x *= x;
+  
+  return (x);
+}

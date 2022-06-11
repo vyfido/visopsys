@@ -1,0 +1,1497 @@
+ISSUES.txt
+---
+
+This file contains current issues, problems, and development direction for 
+the Visopsys kernel.  Basically, it's a notepad for random thoughts, and
+for bugs. -A
+
+
+ISSUES ( next issue number : 324 )
+
+- 322 - the lib/_xpndfmt.c module doesn't know how to expand long values
+/*------------------------------------------------------------------------*/
+- 319 - When in the multitasker the killing of a process is delayed because
+of child threads, the process never seems to be killed when the children
+have all terminated.  For example, when you mount a large FAT filesystem
+(C:), the thread that reads the FAT keeps the "mount" process alive, waiting,
+forever.
+/*------------------------------------------------------------------------*/
+- 310 - The scheduler should not spawn a new idle thread while the
+multitasker is in the process of shutting down.
+/*------------------------------------------------------------------------*/
+- 291 - There's some sort of funny memory problem.  It's necessary to do
+a 'fake' memory allocation in kernelInitialize.c to keep the LOGIN program
+from crashing.  It seems as if the physical locations of LOGIN's page
+directory and page table in memory are important.  Here's a list of the
+memory locations that seem to work and those that don't:
+Good				Bad
+581632 589823 test		581632 585727 test	
+589824 610303 disk tran		585728 589823 page dir
+610304 618495 process code	589824 610303 disk tran
+618496 622591 page dir		610304 618495 process code
+622592 626687 page table	618496 622591 page table
+655360 1048575 high mem		655360 1048575 high mem
+/*------------------------------------------------------------------------*/
+- 265 - As part of code cleanup, go through each .h file and ensure that
+each of the things that are defined there are necessary
+/*------------------------------------------------------------------------*/
+- 262 - It's not currently possible to run the shell as a supervisor
+process: It appears to run in an endless loop doing nothing.  Why?
+/*------------------------------------------------------------------------*/
+- 243 - Make it easy to produce a version of the Visopsys kernel that has
+multitasking disabled.  All of the kernel threads that currently rely
+on multithreading should be able to operate without it.  It would be nice
+if this could be specified in a non-static way (for example, via a file)
+but this may not be possible in an elegant way.   Otherwise, it should be
+specified by a compile-time constant.
+/*------------------------------------------------------------------------*/
+- 220 - Need to start thinking ahead and adding permission checking to the
+kernel functions that will be exported to the rest of the world.
+/*------------------------------------------------------------------------*/
+- 219 - The kernel's exception handler should possibly be a spawned thread
+with its own stack, etc., so that it doesn't run as part of whatever process
+caused the exception in the first place.  This would help to prevent the
+exception handler itself from crashing if things have gone seriously wrong
+with a process.
+/*------------------------------------------------------------------------*/
+- 189 - A disk's transfer area should actually be used all the time.  A
+reason for this (other than the DMA issue that makes DTAs a requirement
+for floppy disks) is that it can be used as a cache, to prevent redundant 
+reads and writes.  This will be especially important when I make the FAT 
+read and write routines provide random and character-based access (i.e. 
+we don't want to re-read a sector every time a function requests a single 
+byte from a file, for example).  The disk functions must be augmented to 
+keep track of sectors cached in the transfer area.
+/*------------------------------------------------------------------------*/
+- 181 - Write "how to use Visopsys" documentation for distribution kits.
+This should be geared towards someone who's never seen it before, of course.
+Add the documentation to the binary distribution.
+/*------------------------------------------------------------------------*/
+- 180 - The Visopsys installation utilities for UNIX (floppy-install.csh)
+should not rely on the mkdosfs command.  I should write a little something
+of my own that will create a simple FAT12 filesystem.  It would be nice if I
+could do something similar for DOS as well. 
+/*------------------------------------------------------------------------*/
+- 168 - When the hardware enumeration routine is detecting drives, if there is
+a SCSI drive that shows up in the list, it seems that the SCSI drive
+can actually end up issuing "interrupt 77" in response.  What is that?
+/*------------------------------------------------------------------------*/
+- 165 - The shutdown command should check for the appropriate power
+management routine(s), which might allow the system to be powered off.  
+This will be good for laptops or other systems that try to "resume" 
+whenever they're shut off.  Powering off is also a nifty trick anyway.
+/*------------------------------------------------------------------------*/
+- 161 - The filesystem mount and unmount commands should mark a volume as 
+dirty and clean, respectively.  [The MS-standard way is ONLY available
+on FAT16 and FAT32 volumes.  Not available on FAT12 volumes.  Perhaps
+there is another, clandestine way?]
+/*------------------------------------------------------------------------*/
+- 157 - Need the ability to copy directory trees, either as a function of the 
+filesystem driver or as a recursive driver function in the shell commands
+section.  [This is not a function of the filesystem driver I think, 
+but rather of the copy command].
+/*------------------------------------------------------------------------*/
+- 155 - The routine that prints non-integer numbers is broken
+/*------------------------------------------------------------------------*/
+
+
+OLD/FIXED/IGNORED
+
+
+- 323 - There is a problem with getting/setting the text console colours.
+In particular, the colours want to keep being black (numberically zero).
+/*------------------------------------------------------------------------*/
+- 321 - After replacing the text console driver, there seems to be a problem
+printing lines of text when we're on the last line of the screen, and the
+first character of the output is a newline.  Go to the bottom of the screen
+and type 'dir': Notice how the "directory of [...]" message is missing.
+/*------------------------------------------------------------------------*/
+- 293 - The loader needs to do a proper BIOS call at boot time to ask the
+system about reserved memory blocks.  This information should be passed to
+the kernel via the loader's info structure so those used memory blocks can
+be marked as 'reserved' by the memory manager  
+/*------------------------------------------------------------------------*/
+- 320 - the lib/_xpndfmt.c module doesn't know how to expand unsigned/long
+values
+/*------------------------------------------------------------------------*/
+- 317 - The colourful error messages are currently broken (related to a
+change I made in the text console driver which detects newline characters).
+Only the first character of the error message has the new colour.
+/*------------------------------------------------------------------------*/
+- 244 - Eliminate the kernelTextConsoleDriver.  All of that work can (and
+should, I think) be done from within kernelText.c.  Alternatively make
+kernelTextConsoleDriver into a C routine, and have kernelTextOutputStream
+use text drivers more generically.
+/*------------------------------------------------------------------------*/
+- 292 - If the creation of the first page table fails in kernelPageManger.c
+kernelPageNewDirectory(), the page directory that's been created needs to
+be deallocated before returning.
+/*------------------------------------------------------------------------*/
+- 313 - All of a sudden the log file updater can't write to the log file.
+The error messages are: kernelFileStreamWrite(407): Couldn't append to file
+ stream  and  flushLogStream(87): Unable to write to the log stream
+/*------------------------------------------------------------------------*/
+- 193 - Investigate the possibility of making the kernel be an ELF binary,
+instead of a flat binary.  While this will increase its size, and require
+significant changes to the os-loader, it will make the kernel easier to
+manage from a development perspective (one can use tools like "nm" to
+read symbols, for example).  This will also make it possible to ensure that
+the appropriate data sections are allocated for the kernel.
+/*------------------------------------------------------------------------*/
+- 318 - Child processes should not be forced to terminate at the same time
+as the parent process.
+/*------------------------------------------------------------------------*/
+- 316 - On my AMD desktop machine, CTRL-ALT-DEL causes a triple-fault.
+/*------------------------------------------------------------------------*/
+- 315 - The shutdown routine should not attempt to abort the shutdown after
+some number of things (such as the multitasker) have been stopped.  After
+a certain point there's just no reasonable way to recover.
+/*------------------------------------------------------------------------*/
+- 312 - There needs to be a way to release system memory blocks (I guess
+we haven't needed to do that so far).  It should work using the regular
+ReleaseByPointer() routine. [ it does ]
+/*------------------------------------------------------------------------*/
+- 314 - There should be an equivalent suite of Visopsys 'fileutils'
+programs.  They should probably go into a '/programs/commands' directory
+or something like that.
+/*------------------------------------------------------------------------*/
+- 306 - Visopsys needs to support environment variables.  There should be
+some 'default' environment stuff (like paths) automatically set by the
+system at startup time.
+/*------------------------------------------------------------------------*/
+- 311 - argv[argc] is supposed to be a NULL pointer.
+/*------------------------------------------------------------------------*/
+- 295 - When a blocking program is launched by the kernel's program loader,
+the exit status of the launched program should be returned to the caller
+when the blocking program completes
+/*------------------------------------------------------------------------*/
+- 307 - Visopsys' little standard C library should contain at least a stub
+for every function.  Unimplemented ones should set errno to
+ERR_NOTIMPLEMENTED and exit.  Implement as many common ones as are practical
+before the first release.
+/*------------------------------------------------------------------------*/
+- 308 - The kernelError function should accept variable arguments (i.e. a
+format string followed by values, a la printf).
+/*------------------------------------------------------------------------*/
+- 309 - The standard C library header files should be modified so that
+functions which should not be used from within the kernel will produce
+error messages if someone attempts to do so.
+/*------------------------------------------------------------------------*/
+- 154 - Printf needs lots of work
+/*------------------------------------------------------------------------*/
+- 256 - Modify the SISH and loader functions so that argc and argv can
+be passed to new processes from the command line.
+/*------------------------------------------------------------------------*/
+- 305 - The kernel logger should put dates/times in front of the log messages
+/*------------------------------------------------------------------------*/
+- 304 - Copying any file over top of another one produces an error from
+the FAT write() routine "Error reading FAT entry in existing chain".
+(related to #283, probably)
+/*------------------------------------------------------------------------*/
+- 283 - There seem to be some data corruption problems in the FAT filesystem
+driver when a file needs to grow in situ.  Seems like the terminal cluster
+marker gets encountered unexpectedly by the 'write' routine.  Of course, it
+should be simply allocating more clusters at that point, and be able to
+skip past the terminal cluster marker without problems.
+/*------------------------------------------------------------------------*/
+- 301 - When a file stream 'write' operation spans two file blocks, there
+seems to be some data loss and/or corruption.  This can most easily be
+observed in the kernel log file (this issue is loosely related to #290)
+/*------------------------------------------------------------------------*/
+- 303 - The 'renice' command is (incorrectly) reporting an incorrect number
+of parameters
+/*------------------------------------------------------------------------*/
+- 302 - The os loader fails (and the error message is incorrect) when 
+neither the VISOPSYS.BMP or NOSPLASH files are present.
+/*------------------------------------------------------------------------*/
+- 259 - Launching a 'SISH' process after launching a 'LOOPER' process
+causes the system to hang.  It's as if the new shell never gets run
+at all because of the looper.  The shell stays in a ready state while the
+looper simply consumes all available processor time.
+/*------------------------------------------------------------------------*/
+- 290 - When the kernel log grows beyond the size of a single block, the
+write operation fails.  The error message, from kernelFileSetSize(), says
+"New size for file is invalid".
+/*------------------------------------------------------------------------*/
+- 300 - The little standard library should define a global 'errno' variable
+like in other C libraries.  The kernel calls should be trained to use it,
+and 'perror' should be changed appropriately.
+/*------------------------------------------------------------------------*/
+- 299 - There needs to be a kernel thread that periodically flushes the
+kernel log file's file stream to disk.  Currently it is flushed every time
+a log message is entered.
+/*------------------------------------------------------------------------*/
+- 298 - The login process should show a new prompt whenever the user just
+hits 'enter' without a login name.
+/*------------------------------------------------------------------------*/
+- 297 - Currently, when a 'SISH' is run in the background (i.e. it has no
+input stream or output stream) it causes a page fault (so does 'LOGIN')
+/*------------------------------------------------------------------------*/
+- 296 - A process which is not attached to the console output stream should
+not be able to change the foreground colour.  Foreground colour should be
+an attribute of a text stream, not a global value.
+/*------------------------------------------------------------------------*/
+- 294 - Running some programs in a non-blocking (i.e. background) way
+(specifically /PROGRAMS/LOOPER) causes everything to stop.  It doesn't seem
+to be possible to get the kernel to respond to anything from the keyboard,
+although the scheduler would seem to be running since the filesystem
+synchronizer still works at that point.
+/*------------------------------------------------------------------------*/
+- 289 - The perror() function in the little C library is no longer printing
+any strings.  As a result, a number of error messages for things like
+'no such file' seem to have gone missing. 
+/*------------------------------------------------------------------------*/
+- 286 - Aargh.  Now it doesn't seem possible to load and execute any
+program and have the launching process receive normal time slices afterward.
+Maybe this is related to issue #259?
+/*------------------------------------------------------------------------*/
+- 175 - Start a kernel logging facility.  The error facilities should output
+to the kernel log.  Before the root filesystem is enabled, the logging
+facility should buffer messages in memory.  When the root filesystem is
+mounted, it should then dump all of the buffered messages into the log file.
+/*------------------------------------------------------------------------*/
+- 287 - The system won't build on tweedle, apparently due to differences
+between the assembler there and the one on andy-linux.  Tweedle's as
+complains about the use of ltr in my inline assembly code (in
+kernelProcessorFunctions.h ?).  It gives the error message:
+/tmp/ccePGR7y.s: Assembler messages:
+/tmp/ccePGR7y.s:1361: Error: suffix or operands invalid for `ltr'
+/*------------------------------------------------------------------------*/
+- 288 - The keyboard driver read routine and/or the input file stream
+code is a little broken right now, since it seems that certain characters
+are going missing.  Almost like any combination of 2 bytes in the input
+stream get lost, whereas a single byte gets processed.
+/*------------------------------------------------------------------------*/
+- 281 - Implement streams properly?  Files should be read and written using
+"file streams", which could be managed the same way as text streams.  If
+files were accessed this way (from outside the file manager code) it would
+make them much easier to use.  [ There's still some work to be done on the
+streams stuff, so I won't call the issue resolved yet.  The writing of a
+stream should, by default, occur at the end of the file.  This necessitates
+a way to define the end of a file (aside from the current method that
+assumes the file makes use of its entire last block). ]
+/*------------------------------------------------------------------------*/
+- 285 - During shutdown: kill all processes, THEN synchronize the filesystems,
+THEN kill the multitasker.  This will prevent the sync from hanging if
+the synchronizer task is stuck, with a valid lock.
+/*------------------------------------------------------------------------*/
+- 271 - As part of the code cleanup, turn the hordes of undisciplined 
+kernelTextOutputStream error messages into kernelErrors.
+/*------------------------------------------------------------------------*/
+- 284 - Larger files are not being copied between filesystems correctly.
+I can't copy a 900K image file from my /c disk to my root filesystem
+(even though no errors are reported, the file gets truncated)
+/*------------------------------------------------------------------------*/
+- 264 - As part of code cleanup, go through each .c file and ensure that
+each of the #includes is necessary
+/*------------------------------------------------------------------------*/
+- 280 - The floppy disk driver is not addressing the second floppy disk
+correctly; in fact, it is using the first floppy, thinking that it's the
+second.  This can be catastrophic. [ This seems to be related to the
+filesystem manager code, as opposed to the floppy driver code ].  Now
+it's even worse, as the presence of the second floppy screws up access
+to the first one.
+/*------------------------------------------------------------------------*/
+- 282 - Strange things are happening with synchronization whenever more
+than one filesystem is mounted.  The user can 'sync' changes from the command
+line, but if changes cause the filesystem synchronizer to perform a 'sync',
+then the synchronizer page faults, and any subsequent attempt from the
+command line does the same.
+/*------------------------------------------------------------------------*/
+- 273 - Genericize the disk drivers so that they all use the same interface.
+In particular I'm talking about the fact that the floppy disk driver takes
+different parameters for the reading and writing than the hard disk driver
+does.  The floppy disk driver should take care of its own DMA stuff
+/*------------------------------------------------------------------------*/
+- 167 - The hard disk read/write function is currently only able to transfer
+128K at a time.  This is no good -- I just didn't get around to fixing
+the software loop tonight.
+/*------------------------------------------------------------------------*/
+- 279 - Hardware detection in the loader does not detect the presence of
+a second floppy disk drive.
+/*------------------------------------------------------------------------*/
+- 166 - The hard disk driver does not currently seem able to connect to slave
+hard disks
+/*------------------------------------------------------------------------*/
+- 278 - The copy operation should make sure that there's enough room on
+the volume even BEFORE reading the source file.
+/*------------------------------------------------------------------------*/
+- 267 - Even if the source file has no data, a copy command should still
+produce an empty destination file.
+/*------------------------------------------------------------------------*/
+- 275 - Scandisk is still unhappy with my '.' and '..' entries.  I suppose
+I'm either writing either too much or too little information about those
+to the disk.
+/*------------------------------------------------------------------------*/
+- 274 - In the FAT filesystem driver, if a directory shrinks in the number of
+clusters it uses, it should be truncated before it is written back to disk.
+/*------------------------------------------------------------------------*/
+- 269 - The little standard C library should have something akin to the
+'perror' function to print out the meanings of the various standard error
+codes.
+/*------------------------------------------------------------------------*/
+- 277 - The filesystem manager should have an 'unmount all' function.  This
+is presently implemented in the shutdown code, and it should not be there.
+/*------------------------------------------------------------------------*/
+- 276 - Filesystem drivers should have 'check' and 'defragment' functions.
+Of course, these should not be required to be implemented -- and I probably
+won't implement them (for real) in the FAT filesystem driver right now.
+/*------------------------------------------------------------------------*/
+- 162 - The fragmenting of files is still not quite right.  Copying a .jpg
+image file that is subsequently fragmented produces a corrupt image.
+/*------------------------------------------------------------------------*/
+- 272 - On some machines -- particularly tweedle -- the system does a quick
+reboot during the boot sequence.  It seems to happen shortly after the hard
+disk partition enumeration (maybe during the random generator initialization?)
+/*------------------------------------------------------------------------*/
+- 260 - There seems to be a small problem with my new memory mapping in 
+that if a new file entry is created, a subsequent directory listing causes
+a page fault.  What really seems to be happening here is a mystery.  Whenever
+the Open() routine gets called, a subsequent attempt by SISH to print the date
+in any file structure causes a page fault.  The stack must be getting
+corrupted as a result of the call to Open() or one of its subfunctions.
+/*------------------------------------------------------------------------*/
+- 270 - Scandisk is complaining about my short aliases again.
+/*------------------------------------------------------------------------*/
+- 254 - There are still some little issues with the new filesystem code.
+'mv' still has some little quirks and directories are not being synchronized
+to disk properly.
+/*------------------------------------------------------------------------*/
+- 194 - Add a "secure delete" function to the filesystem functions (and 
+thus to the FAT filesystem driver) which actually overwrites the data
+in a file's clusters.  This form of deletion will obviously take longer
+to perform, but it is a useful and desirable security feature.
+/*------------------------------------------------------------------------*/
+- 169 - The FAT filesystem driver needs the following feature:  Read and write
+functions that will allow the user to read a file starting at some
+offset, rather than just the entire file.
+/*------------------------------------------------------------------------*/
+- 270 - The 'rmdir' command is broken right now.  It seems to have no
+affect at all.
+/*------------------------------------------------------------------------*/
+- 174 - See if I can't find a way to stop machines from hanging if the floppy
+disk has been removed, and an attempt is made to use it.  Maybe the timeout
+period needs to be shortened.
+/*------------------------------------------------------------------------*/
+- 268 - Create a 'login' process that launches the shell.  This will mean
+that a new shell can be launched if the old one dies.
+/*------------------------------------------------------------------------*/
+- 225 - There now seems to be a problem with some of the disk driver code.
+There seem to be a lot of timeouts and things like that.  I wonder if it
+has anything to do with my threads and processes having different data
+segments than the kernel.  Something to think about there.
+/*------------------------------------------------------------------------*/
+- 226 - There seem to possibly be some deadlocking problems related to the
+disk object and the "filesystem synchronizer" thread.  Copy operations on
+files seem to fail sometimes, and it seems to happen when the automatic
+"sync" operation occurs during the copy.
+/*------------------------------------------------------------------------*/
+- 266 - The filesystem driver needs to have a 'file entry inactive' function
+that gets called before kernelFileEntries are released.  This will give
+the filesystem driver an opportunity to release its private data.
+/*------------------------------------------------------------------------*/
+- 160 - Doing an "ls" of the kernel source directory is fatal.  The command
+goes into an endless loop.  Is this a result of the number of files in the 
+directory?  Is it related to the long file names?
+/*------------------------------------------------------------------------*/
+- 208 - The unbufferDirectory function in the FAT filesystem driver still
+doesn't check to make sure that the directory it is unbuffering doesn't
+have any open files.  It must check this in the future or bad things will
+happen.  This still depends on me finalizing an interface for opening and
+locking files.
+/*------------------------------------------------------------------------*/
+- 250 - Make a standard list of error code numbers in a header file a la
+unix.  Change all the error code returns in the kernel to match numbers in
+this new list.  Ugh.
+/*------------------------------------------------------------------------*/
+- 263 - If process 1 is blocking on another process 2 which is, in turn, 
+blocking on another process 3, then if process 2 gets killed process 1
+should be changed to block on process 3 instead.  Is that messed up?
+/*------------------------------------------------------------------------*/
+- 261 - Killing all processes except the kernel causes a page fault since
+the scheduler then has no processes to run.  The scheduler should probably
+launch a new idle thread in that case.
+/*------------------------------------------------------------------------*/
+- 258 - Make sure it's possible to kill a parent process of a standalone
+process without killing the child.
+/*------------------------------------------------------------------------*/
+- 257 - There needs to be a way to distinguish between memory mapped
+for the kernel by a user process, and memory mapped for the user process.
+I'll probably need to make separate memory allocation calls for this
+with corresponding memory mapping routines in the page manager
+/*------------------------------------------------------------------------*/
+- 252 - Shutting down or rebooting from the standalone SISH shell seems
+to have problems deallocating memory, causing error messages.
+/*------------------------------------------------------------------------*/
+- 255 - Modify the multitasker code again so that it is possible to pass
+arbitrary arguments to any new process or thread.  When this is working,
+it should be possible to correct the argument passing to the FAT FS driver's
+makeFreeBitmap thread.
+/*------------------------------------------------------------------------*/
+- 172 - When overwriting an existing file in the FAT driver, only the clusters
+should be deallocated -- not a full deletion of the file structure
+/*------------------------------------------------------------------------*/
+- 241 - Disk transfer areas should only be created for disk objects when
+there is some possibility that the disk could get used (hard disks with
+unsupported partition types, for example, might never get used).  Maybe
+there's a way to delay allocating these until they're called upon.
+/*------------------------------------------------------------------------*/
+- 249 - Investigate eliminating the use of DMA with the floppy driver.
+Polled I/O might be better, and it would mean that the floppy's access
+functions and usage could be more like that of hard disks.  It would also
+eliminate the restrictions on where the disk transfer area for the floppy
+could be located. [ Argh, nope.  Can't be done sensibly ]
+/*------------------------------------------------------------------------*/
+- 198 - At a later time -- i.e. when I attempt to implement a filesystem
+driver OTHER than my FAT driver, consider moving the file data structures
+themselves (in a filesystem-independent way) from the FAT filesystem driver
+to the filesystem functions.  This will allow the writing of filesystem
+drivers to be much simpler and more reliable, since there will only be
+one "tree" of files to maintain in the kernel, rather than many hierarchies
+maintained by each filesystem driver.
+/*------------------------------------------------------------------------*/
+- 253 - Make it possible to avoid the pretty splash screen by use of a 
+flag file (such as '.NOSPLSH' or 'NOSPLASH') instead of a header file
+parameter
+/*------------------------------------------------------------------------*/
+- 170 - When doing a between-filesystems copy, we need to make sure that we
+do the right thing even when a destination filename was not specified
+/*------------------------------------------------------------------------*/
+- 218 - In all my rearranging of the multitasker, it seems as if I've done
+something funny that has broken the "kill" command.  For some reason, it's
+not finding SOME processes in the process queue (but it does find others, 
+and I can't seem to see a pattern in it).
+/*------------------------------------------------------------------------*/
+- 222 - Exception handling seems to be exceptionally broken at the moment.
+Usually results in a kernel crash.
+/*------------------------------------------------------------------------*/
+- 251 - If a process is blocking on another process, if the process becomes
+a zombie or stopped, the first process must become unblocked.
+/*------------------------------------------------------------------------*/
+- 248 - The page manager needs its 'deleteDirectory' function implemented.
+This means that the multitasker can call this function to delete a 
+(non-shared) page directory and all its associated page tables.
+/*------------------------------------------------------------------------*/
+- 247 - The page manager still needs a little bit of work.  The lists of
+page directory structures and page table structures need to be more
+dynamic, so that page directories and page tables can be added and deleted
+more elegantly.
+/*------------------------------------------------------------------------*/
+- 192 - When the kernel's API becomes a little more developed (see issues
+187 & 188), make the simple shell be the first program we separate from
+the kernel, to be a standalone executable.
+/*------------------------------------------------------------------------*/
+- 187 - Complete a working set of exported functions for the Visopsys
+callgate API.  This does not need to be complete, but it needs to provide
+a good functional set.
+/*------------------------------------------------------------------------*/
+- 188 - Figure out a good way for the standard library functions to call
+the new Visopsys callgate API.  Any way we can avoid another level of function
+call?  Despite my opposition to using gcc inline assembly code (especially
+in the kernel), I am slightly in favour of using it in the standard
+libraries.  Even using this method, the call path from a C application
+to a kernel function would be:
+    application -> stdlib function -> API entrypoint -> kernel function
+I don't want to make this any deeper if I can help it.  If the inline
+assembly can be used in a way that makes it possible to detect the return
+code of the API call, then I think that's how I'll do it.  Otherwise, I
+guess there will need to be calls from the C functions of the libraries
+to specialized assembler functions that call the API.
+/*------------------------------------------------------------------------*/
+- 246 - Deallocating memory blocks, with the new virtual memory wrapper,
+is still not correct.  I'm getting NULL pointer errors from the memory
+manager, among other things.
+/*------------------------------------------------------------------------*/
+- 242 - Implement virtual memory.  Whew.  The OS loader should create a
+basic page translation environment for the kernel before the kernel is
+started.  The kernel can then recreate that environment (page tables, etc)
+at startup time.  The reason I want the OS loader to do this is so that the
+kernel can be linked in such a way that it lives peacefully at its virtual
+address (high up in nonexistent memory).  The kernel's initial page tables
+need not describe anything other than its own memory space.  It shouldn't
+initially need to access the whole address space the way it will later.
+/*------------------------------------------------------------------------*/
+- 183 - After a period of time, interrupts become disabled and no more
+keyboard input is possible.  This is a new problem that has ocurred since I
+permanently disabled interrupts in the scheduler (which should never be
+interrupted) [ This problem seems to have gone away again.  The solution may
+have been either the liberal use of "volatile" that I added to the
+multitasker functions, but it seems to be more likely the switch to -O1
+compiler optimization (previously -O2) ].  This seems to happen only on
+my slow IBM laptop nowadays, so I wonder if the time slices given by the
+multitasker are still too short.
+/*------------------------------------------------------------------------*/
+- 245 - If keyboard initialization fails, don't tell the user to 'press any
+key to reboot' :)
+/*------------------------------------------------------------------------*/
+- 240 - The loader's new graphics modes code seems to work on some machines,
+but doesn't work on my Windows desktop machine.  Is it possible that this
+video card is not properly VESA compatible?  It doesn't seem to be able
+to provide useful mode numbers or to switch to any of the VESA standard 
+modes using the normal methods.
+/*------------------------------------------------------------------------*/
+- 239 - Change the os loader so that it will use a better text resolution
+than 80x25 (say, 80x43 or 80x50).
+/*------------------------------------------------------------------------*/
+- 238 - When displaying the list of used memory blocks, the memory manager
+routine should sort them first.  This will neither help nor harm the 
+efficiency of the memory manager in general, but it will make the list a 
+little nicer to look at.
+/*------------------------------------------------------------------------*/
+- 236 - The memory manager's checkIntegrity function needs to be completed
+so that it sums the free memory indicated by the free page bitmap, then
+compares the sum with the stored 'total free' value
+/*------------------------------------------------------------------------*/
+- 224 - The kernel appears to sometimes do a very sudden reboot now on 
+my desktop machine.  I think it's happening before the kernel gets very
+far into the hardware initialization.  I actually suspect it might have 
+something to do with the keyboard code, since when the keyboard is 
+disconnected it happens every time (it does happen other times, however).
+/*------------------------------------------------------------------------*/
+- 237 - Finish work to make the os loader load the kernel at any arbitrary
+address with the help of "big real mode".  To complete this, I will probably
+have to move the code that enables the A20 address line to the loader so
+that it can use odd-megabyte addresses, although the whole thing works right
+now for even megabytes.
+/*------------------------------------------------------------------------*/
+- 235 - Another fix is necessary to the memory manager so that it
+will properly test all non-reserved memory, without, obviously, disturbing
+the reserved memory.  Also need to send it a proper list of reserved areas
+instead of reserving the entire sub-1Mb area.
+/*------------------------------------------------------------------------*/
+- 234 - Update the textOutputStream's "tab" function so that it properly
+jumps to the next tab stop.
+/*------------------------------------------------------------------------*/
+- 233 - Add to the memory manager the ability to predefine "reserved"
+memory ranges, and then allow it to manage ALL of the remaining memory
+(not just the extended memory).
+/*------------------------------------------------------------------------*/
+- 216 - Reorganize the memory manager so that it uses a free-page bitmap
+instead of a free-range list.  This will improve the searching of free
+pages, and eliminate a lot of the overhead of maintaining the current free
+list (which does have a LOT of overhead to keep it sorted, etc).  I will
+keep the used-range list, but it might be better to sort it some way other
+than as a linked list.
+/*------------------------------------------------------------------------*/
+- 230 - Add a text "description" field to the memory blocks structure of the
+memory manager, and add a routine for (optionally) setting this description
+field.  Thus, the routines that print out memory usage will be a little bit
+more descriptive in their output.
+/*------------------------------------------------------------------------*/
+- 231 - The multitasker routine that changes the privilege level of a 
+process needs a lot of work.  Presently, the routine only changes the 
+nominal priority (i.e. the number in the data structure) but doesn't
+effectively change the privilege level (the privilege of the process' 
+segments and selectors.
+/*------------------------------------------------------------------------*/
+- 232 - Arrgh.  My kernelFastMemoryCopy and kernelFastMemoryClear routines
+only work properly for size multiples of 4.  This was lazy and stupid.
+I wouldn't be surprised if some bugs go away after I fix that.
+/*------------------------------------------------------------------------*/
+- 229 - There is still excessive seeking going on in the FAT filesystem
+driver when directories are synchronized.  It seems as if each directory
+involves two seeks (yuck)  [ No... remember, new directories require the
+FAT table to be synchronized afterwards, and we usually sync the FAT first
+because it's at the beginning of the disk ]
+/*------------------------------------------------------------------------*/
+- 217 - Don't forget to ensure that the kernel callgate API actually HAS
+a callgate in the GDT.
+/*------------------------------------------------------------------------*/
+- 159 - The "sync" routine in the filesystem driver needs to have a sorting
+algorithm in place, so that when a list of "dirty" directories are written,
+those disk writes are done in physical order (at least, physical order
+of their respective starting clusters, which is probably the best we
+can realistically do in this filesystem driver).  Later on, when 
+multitasking is working, the disk driver can sort writes by track.
+/*------------------------------------------------------------------------*/
+- 228 - Whenever a parent directory changes, the updateSubdir function in
+the FAT filesystem driver is marking all child subdirectories as dirty, which
+leads to excessive directory synchronization.  Maybe is shouldn't do that.
+/*------------------------------------------------------------------------*/
+- 206 - The OS loader seems to have a little bug where a fatal error check
+at the end either causes, or doesn't properly stop, a strange jump
+or call from occurring.  To see: insert a "jmp .notReady" after reading
+a kernel sector.  Maybe the stack is bad at that point?
+/*------------------------------------------------------------------------*/
+- 227 - Implement priority inversion in the resource manager, to help
+reduce waiting times for higher-priority processes.
+/*------------------------------------------------------------------------*/
+- 164 - "mkdir" command causes the filesystem synchronizer thread to go into
+an endless loop.  Seems to be caused by any situation in which subdirectories
+need to be sychronized for any reason.  The filesystem synchronizer is just
+generally hosed at the moment.
+/*------------------------------------------------------------------------*/
+- 210 - The launching of new threads and new processes (i.e. from disk) is
+not correct.  The stack does not seem to be set up correctly; any non-trivial
+attempt to use the stack results in a stack fault.
+/*------------------------------------------------------------------------*/
+- 158 - Sanity check that a user cannot CD to a file.  Only directories.
+That's it.
+/*------------------------------------------------------------------------*/
+- 215 - Once the hardware interrupt vectors have been successfully 
+separated from the processor exceptions, examine whether the multitasker's
+assembly language interrupt handling can be reduced or removed (since it
+no longer needs to distinguish between a timer interrupt and an exception).
+Maybe the rest of the multitasker's assembly code can be moved to, say,
+the processor driver, and we eliminate kernelMultitaskerAsm.s
+/*------------------------------------------------------------------------*/
+- 156 - Finish the FAT filesystem driver.  
+/*------------------------------------------------------------------------*/
+- 223 - Directory listings are broken at the moment since I added current 
+directory information to the process structure.  [ Fixed itself ?!?!?! ]
+/*------------------------------------------------------------------------*/
+- 221 - Each process should have an associated current working directory.
+/*------------------------------------------------------------------------*/
+- 213 - Reorganize the hardware interrupts so that they no longer share 
+interrupt vectors with the processor exceptions.
+/*------------------------------------------------------------------------*/
+- 212 - Move the interrupt table management routines into the kernelDescriptor
+functions.  (the interrupt init routines will still do the table building)
+/*------------------------------------------------------------------------*/
+- 211 - Create a separate set of driver functions for the PIC, and move
+the PIC programming out of the interrupt initialization routines.  Put it
+in the new driver instead.
+/*------------------------------------------------------------------------*/
+- 214 - Eliminate those silly routines that NULLify the elements in the
+various kernel data structures (found in kernelDataStructures.c).  Replace
+all initialization calls with kernelFastMemoryClear calls.  Should be
+able to remove kernelDataStructures.c and kernelDataStructures.h
+altogether
+/*------------------------------------------------------------------------*/
+- 209 - My new A20 enabling code seems to work on most machines, but strangely
+it doesn't work on my Linux machine.  Maybe I need to add the old, unreliable
+method as a backup attempt. [ Added the backup method.  The keyboard driver
+issues a warning if it needs to use that method ]
+/*------------------------------------------------------------------------*/
+- 201 - Add a function to the multitasker that will allow a "blocking"
+spawn.  A function that calls this blocking facility should go into a 
+yield() loop while the spawned process is still runnable.
+/*------------------------------------------------------------------------*/
+- 178 - When a filesystem runs out of free files, the filesystem driver must
+"phase out" or "unbuffer" files that have not been used in the longest 
+period of time, synchronizing them to disk first if necessary.
+/*------------------------------------------------------------------------*/
+- 207 - Changed the FAT filesystem's free list into a free-cluster-bitmap.
+This is used for UNIX filesystems and was suggested by Becker (not the answer
+I was looking for in terms of avoiding full scans of the FAT table, but the
+bitmap is a nice touch).  Also speeds up the FAT driver and reduces the 
+overall code complexity.
+/*------------------------------------------------------------------------*/
+- 176 & 179 - On Graeme's desktop machine, the kernel hangs after the 
+"Starting Winix" message.  I saw this once before on a Compaq machine at 
+Cadence.  I'm not sure what the solution is, or even what the problem, is.
+Go over the bootsector and os-loader again, looking for any "environment"
+-type issues which might prevent the kernel from starting on some machines.
+Make sure there aren't any assumptions being made about the state of any
+processor registers.  It appears that I can test this bug on my Linux
+machine, as it seems to hang after the "Starting Winix" message (like on 
+Graeme's machine).
+/*------------------------------------------------------------------------*/
+- 205 - The free-space-on-the-volume is still incorrect in the FAT 
+filesystem driver, specifically when using FAT32 volumes.  Make the stored
+value on a FAT32 volume become the value reported back to calling 
+functions (even if the free list does not represent all of the free space)
+Of course, this value will need to be kept up-to-date by the request-block
+and release-block routines.  Similarly, these routines must keep the 
+first-free-block value up to date after an allocation or deallocation.
+/*------------------------------------------------------------------------*/
+- 204 - The FAT free-block list is now built using a spawned process.  It
+still needs a way to be rebuilt, by a BLOCKING version of the thread this
+time, when the list becomes empty.  Of course, if the list is still empty
+after it's been rebuilt, then there is no more free space on the volume.
+/*------------------------------------------------------------------------*/
+- 202 - In the multitasker, remove from the body of the scheduler the job
+of determining whether a waiting process should stop waiting.  The various
+wait() functions should yield-and-loop while the various wait conditions
+are unmet.  This will speed up the existing scheduler code, and allow us 
+to add more waitable conditions without further slowing down the scheduler.
+[ This cannot be done.  How would the process ever wake up? ]
+/*------------------------------------------------------------------------*/
+- 203 - Here is another possible solution to issue 182: I can keep all
+of my existing algorithm for maintaining a comprehensive free-block-list
+by spawn()ing the "build free list" function as a non-blocking thread at 
+mount time.  This will allow the system to begin using a mount without 
+necessarily having to wait for the entire free-block-list to be built 
+(possibly several minutes using the existing method).  Modify the 
+request-free-block function so that it will periodically rebuild the list 
+using a blocking spawn() when a request cannot be granted, in whole, using 
+existing free blocks list.  [ This is the one I chose ]
+/*------------------------------------------------------------------------*/
+- 191 - Here is a possible partial solution to issue 182:  At startup
+time, during the building of the free list, the FAT filesystem driver
+could perform a binary search of FAT sectors, looking for the first one
+that is "mostly" (say, 80%) unallocated.  This might be a good place for
+the free list to begin allocating larger requests.  In addition, the
+filesystem routine that buffers FAT sectors should invoke an applicable
+"free list" function to opportunistically scan FAT sectors that are
+being cached.  This will allow the free list to become more comprehensive
+as the filesystem is used, without requiring the free list routines
+to attempt to scan all FAT sectors at startup.  [ This is not the one I 
+chose in the end, but it still might be useful later ]
+/*------------------------------------------------------------------------*/
+- 182 - This is a stumper:  I need to find a way to maintain a free-block list
+in the FAT filesystem driver that does not require the driver to be
+aware of the entire contents of the FAT.  It's OK to read the entire FAT
+on a floppy disk, but not so OK on a > 7Gb disk (takes about 3 minutes or
+something like that).  The MS way seems to be to make note of the first
+free cluster on the disk.  That still seems a little silly to me, and
+would probably lead to lots of fragmentation -- I would lose the advantage
+that I currently have in allocating extents for new files.  I need to be
+able to maintain a list of free ranges, but obviously not covering the
+whole disk.  I don't want the list to be taken up by a whole bunch of
+small groups of unallocated clusters in the first part of the disk 
+(fragmentation problems when I try to allocate larger files).  If there is
+a way, it might work to try to identify the "end" of most of the existing
+data on the disk, and try to allocate larger requests there.  Hmmm.
+/*------------------------------------------------------------------------*/
+- 200 - Create a general "resource-locking" facility based on the "disk
+locking" facilities in kernelDiskFunctions.  This facility should be
+general purpose, for use by any volatile resource. 
+/*------------------------------------------------------------------------*/
+- 185 - Read the extra, useful information about free cluster count and first 
+free cluster from the FAT32 FSInfo block in the FAT filesystem driver.
+The driver should write these values as well at shutdown time.
+/*------------------------------------------------------------------------*/
+- 171 - Hard disk addresses do not appear to be correct on non-LBA disks
+/*------------------------------------------------------------------------*/
+- 199 - The floppy disk driver is having problems dealing with Graeme's
+Toshiba laptop, which he has lent me to diagnose the problem.  The driver
+is complaining about "abnormal termination of command".  Maybe I haven't
+left long enough delays for slower hardware?  Maybe the delays are TOO long
+on a slow processor like the Toshiba's 486 chip? [ I was doing a gratuitous
+reset command when an error was encountered by the controller.  Fixed ]
+/*------------------------------------------------------------------------*/
+- 197 - The FAT filesystem driver must flush the FSInfo data back to disk
+before unmounting, with updated values.  This must be done AFTER everything
+else except, possibly, the second FAT flush.
+/*------------------------------------------------------------------------*/
+- 196 - The alphabetical sorting of directory entries is SORT of working.
+It sorts them correctly, some of the time.  I'll take another look at this
+tomorrow.
+/*------------------------------------------------------------------------*/
+- 163 - The filesystem driver should alphabetically sort directory entries,
+but maybe only before committing the directory to disk.  [ No, directories
+should be alphabetically sorted (subdirectories first, then files) when
+they are initially scanned (since the individual entries are being added 
+to a new list at the time anyway, why not add them in order?).  New files
+and directories can simply be added to the end of a directory listing,
+and they will become sorted the next time the directory is read from disk ]
+/*------------------------------------------------------------------------*/
+- 177 - Add FAT32 support to the FAT filesystem driver.  Yahoo!
+/*------------------------------------------------------------------------*/
+- 190 - The FAT filesystem driver should make better use of the disk
+object's "sector size" attribute, so that it does not rely strictly on 
+information gathered from the boot sector.  Maybe it should compare the
+boot sector's sector size with the one contained in the disk object?
+/*------------------------------------------------------------------------*/
+- 195 - There is a bug in my FAT32 support, in that the FAT allocation
+chains are not being supplied correctly.  Directory listings look normal
+for regular files and some directories, but subdirectory entries (which 
+have no built-in "size" attribute and thus need to have their FAT chains
+followed) often have HUGE (incorrect) size values.  Another indication
+is that image files copied from the FAT32 filesystem are severely corrupt.
+Take another look at the GetFatEntry and SetFatEntry routines for FAT32.
+In fact, double-check the FAT16 versions too.  I sometimes think that 
+the number of sectors being read for simple directory listings is rather
+large.
+/*------------------------------------------------------------------------*/
+- 186 - Make sure that the FAT filesystem read/write/find files routines
+will only work for regular files.  The filesystem driver should completely
+hide directories (and their implementation as files) from the caller.
+/*------------------------------------------------------------------------*/
+- 173 - Only the first FAT needs to be kept up-to-date while the FAT
+filesystem is mounted.  The others can be updated at unmount time.
+[They will all be kept up to date to reduce bookkeeping and simplify 
+the unmount procedure]
+/*------------------------------------------------------------------------*/
+- 184 - Add an extra level of mutex-checking in the disk functions'
+disk-locking function, to provide additional protection against 
+accidentally giving the lock to multiple processes simulataneously.  
+This can be as simple as adding an additional "if" statement after 
+initially granting the lock.
+/*------------------------------------------------------------------------*/
+- 186 - Move the kernel's GDT descriptor table and associated management
+routines out of the multitasker code.  This code is only partially related
+to multitasking.  I need to do this in preparation for beginning the
+kernelAPI
+/*------------------------------------------------------------------------*/
+- 153 - Synchronizing the FATs now seems to corrupt them.  Yuck. [I was 
+writing the master FAT sectors over the boot sector by accident -- whoops.]
+/*------------------------------------------------------------------------*/
+- 152 - The "Show directory" code must print the file size as an unsigned
+number.
+/*------------------------------------------------------------------------*/
+- 151 - Write general installation utilities and documentation, for both DOS
+and UNIX
+/*------------------------------------------------------------------------*/
+- 150 - Add a bunch of compliance checking to the getDiskInfo function in the 
+FAT filesystem driver.
+/*------------------------------------------------------------------------*/
+- 149 - If the "create process" routine in the multitasker cannot create the
+process successfully, it must not leave the process stopped in the queue.
+It must erase the process and deallocate its resources before returning.
+/*------------------------------------------------------------------------*/
+- 148 - The FAT filesystem driver still needs to sync the backup copies of
+the FAT table with the master copy.  This would all be done in the 
+flushFat function of course, since the bufferFat routine flushes 
+individual sectors as needed (they won't show up in the "dirty sector"
+list when we synchronize the FATs
+/*------------------------------------------------------------------------*/
+- 147 - Shorten the function names of all non-exported functions in the
+FAT filesystem driver.  Some of those names are getting really long
+and redundant.  They make it difficult to describe a function precisely
+since they're so long to begin with.
+/*------------------------------------------------------------------------*/
+- 146 - The FAT filesystem driver should not try to buffer the entire FAT
+using dynamic memory.  Instead, it should do some intelligent caching
+of the most-recently used FAT sectors using static memory defined in the
+fatInternalData structure.
+/*------------------------------------------------------------------------*/
+- 145 - Change the code (in particular the multitasker and filesystem driver) 
+to make liberal use of the "volatile" directive, since there is so much 
+in that code that IS volatile.  This will all hopefully lead to a little 
+better stability in the long run.
+/*------------------------------------------------------------------------*/
+- 144 - The new A20 enabling code I write doesn't seem to work after a soft 
+reset on the laptop, but it does work on the desktop PC.  Maybe the keyboard
+driver initialize function needs to do some preparatory stuff with the
+keyboard.
+/*------------------------------------------------------------------------*/
+- 143 - The filesystem routine for copying files needs to be completed so that
+it can copy files between two different filesystems
+/*------------------------------------------------------------------------*/
+- 142 - When multiple filesystems are mounted, there seems to be some
+difficulty with the disk objects at shutdown (unmounting) time.
+/*------------------------------------------------------------------------*/
+- 141 - The loader must ensure that what it's trying to run is, at the very
+least, a regular file (NOT a directory).  [Naah.  Later it can check for
+execute permission, or something of that sort]
+/*------------------------------------------------------------------------*/
+- 140 - The FAT filesystem driver needs the following feature:  The ability to
+open a file and keep a file descriptor with information about the file.
+/*------------------------------------------------------------------------*/
+- 139 - When attempting to mount a filesystem on a nonexistent disk object,
+the mount shell command issues redundant error messages.
+/*------------------------------------------------------------------------*/
+- 138 - Do not allow the filesystem functions to unmount "/" if there are ANY
+other filesystems mounted (since root will be their parent filesystem, of
+course).
+/*------------------------------------------------------------------------*/
+- 137 - When filesystems other than the root filesystem are mounted at
+shutdown time, the "unmount" operation for those filesystems seems to return
+an error code (although it also seems to unmount the filesystem properly) and
+the reboot is aborted.  Repeating the "reboot" command -- one for each
+extra filesystem -- seems to umount them all successfully one by one.
+/*------------------------------------------------------------------------*/
+- 136 - Unmounting filesystems now seems to be a bit screwy.  It seems to be
+mostly connected to the process of automatically adding and deleting 
+mount point directories (not with the mount/umount commands per se).
+The problem seems to manifest in a number of ways while mounting, including
+(but not exclusively) root directory corruption.  Ouch.  Yup, the problem
+appears to be with the process of deleting something, not the mount or
+umount facilities.  Deleting any entry in the middle of the file list seems
+to corrupt the whole directory, while deleting an entry at the end of the
+file list merely corrupts the free files list.
+/*------------------------------------------------------------------------*/
+- 135 - Mounting multiple hard disk partitions can cause the root filesystem
+to become corrupted.  All of the files in the root directory appear
+to become truncated (in memory, anyway).
+/*------------------------------------------------------------------------*/
+- 134 - Find a way to fix the fact that we cannot use the second megabyte of
+extended memory.  Probably related to the A20 address line problem.
+/*------------------------------------------------------------------------*/
+- 133 - The "reboot" now seems to be screwy.  Of course, it has worked for 
+months and months without issues prior to this.  Will this crap never end?  
+It sucks when you solve a problem, and then it suddenly gets un-solved for 
+no good reason.  If this problem persists I will look into inserting an 
+alternate reset method immediately following the preferred one.  That way, 
+if the keyboard reset method doesn't work, the second method might do the 
+trick. [Nope.  Still not working].  Now it's happening on the laptop, too.  
+Is this another gay memory corruption problem?
+/*------------------------------------------------------------------------*/
+- 132 - Replace the borrowed A20 code with rewritten code
+/*------------------------------------------------------------------------*/
+- 131 - If a process commits a fatal exception, and cannot be killed for some 
+reason, this should not necessarily result in a kernel panic.  The exception
+handler should attempt to change the process state to stopped, or zombie.
+/*------------------------------------------------------------------------*/
+- 130 - The "mount" command must ensure that neither mount points or DISK 
+OBJECTS are being used in duplicate.
+/*------------------------------------------------------------------------*/
+- 129 - Why does initialization of the fatInternalData structure as a text
+string crash the computer?  Must I do it using the structure itself?
+/*------------------------------------------------------------------------*/
+- 128 - Floppy disk detection still needs to be moved from the kernel's
+hardware enumeration routines to the loader's hardware detection sequence.
+/*------------------------------------------------------------------------*/
+- 127 - The hard disk driver needs to ensure that the number of sectors to
+read/write is no larger than 256.  If the value IS 256, it needs to send
+the value zero to the sector count register
+/*------------------------------------------------------------------------*/
+- 126 - The user should (?) only be allowed to mount a filesystem from a mount
+point in the root directory.
+/*------------------------------------------------------------------------*/
+- 125 - The hard disk drive on my desktop machine is timing out.  Seems to 
+happen when any multi-sector operation is specified.
+/*------------------------------------------------------------------------*/
+- 124 - Do not allow the user to remove the root directory, of course
+/*------------------------------------------------------------------------*/
+- 123 - Have to make the "checkRemove" function in the FAT filesystem driver
+stop reading the floppy disk gratuitously.
+/*------------------------------------------------------------------------*/
+- 122 - The unmount operation in the filesystem functions needs to correctly
+remove the mount point.  Currently, it seems to work when the user
+issues an "umount" command, but does not seem to work at reboot time.
+Is the root filesystem being unmounted first, for some reason?
+/*------------------------------------------------------------------------*/
+- 121 - Fix up the FAT filesystem driver so that it does a proper media check
+ONLY before doing any sort of read or write on the disk.  This will 
+prevent the disk from spinning up gratuitously every time a filesystem
+access is made.
+/*------------------------------------------------------------------------*/
+- 120 - Inside the "cat" command, if the file has no terminating newline, cat
+should insert one.
+/*------------------------------------------------------------------------*/
+- 119 - The disk function that strips filesystem prefixes from path names
+needs to be a little bit smarter; it needs to recognize the difference between
+/command.com and /c/ommand.com (which it doesn't right now).
+/*------------------------------------------------------------------------*/
+- 118 - The simple shell should allow the user to surround arguments with
+double-quotes as a method of grouping whitespace-separated arguments
+into a single item.  This is useful for using files or pathnames with
+space characters in them, for example.
+/*------------------------------------------------------------------------*/
+- 117 - The paths that the simple shell has are now wrong.  They are not
+"fixed up" paths as they were before I moved most of that functionality
+to the filesystem functions.  Is there a way I can hack this up, or
+do I have to expose the fixup function to the outside?
+/*------------------------------------------------------------------------*/
+- 116 - Make it so that the DISCLAIMER clears the screen when it displays,
+but then restores the screen when it terminates.  This will ensure that
+any boot messages aren't interfered with, and don't get scrolled off
+the screen before they can be read.
+/*------------------------------------------------------------------------*/
+- 115 - The filesystem driver "initialize" and "shutdown" routines should be
+passed disk object arguments in order to start or shut down a particular 
+filesystem.  When this is true, then the filesystem driver can scan the
+volume for data at mount time.  Additionally the fs driver can free 
+resources from a particular filesystem when it is unmounted.
+/*------------------------------------------------------------------------*/
+- 114 - If the FAT driver initialize routine attempts to cache FAT data, it
+gets back a NULL pointer.  I haven't been able to figure out yet where
+the NULL comes from.
+/*------------------------------------------------------------------------*/
+- 113 - The memory manager routines should not require the process id to be
+one of their parameters.  Process id should never be a parameter -- the
+function that needs to know such information should call the getPID function.
+/*------------------------------------------------------------------------*/
+- 112 - Currently, the multitasker gets shut down AFTER filesystems are 
+unmounted.This is necessary right now since the disk functions are coded to 
+expect the presence of the multitasker.  However, this is really not an 
+optimal situation -- multitasking should be shut down first.
+/*------------------------------------------------------------------------*/
+- 111 - Rearrange the hardware enumeration in the kernel so that it allows the
+data to be gathered by the os loader and then elaborated by the kernel
+routines (creating the device objects, etc).  Remove any actual hardware
+detection from the kernel routines.
+/*------------------------------------------------------------------------*/
+- 110 - "Finish" the multitasker
+/*------------------------------------------------------------------------*/
+- 109 - The Fat12 file system driver should be able to buffer information
+about more than one filesystem
+/*------------------------------------------------------------------------*/
+- 108 - Inter-filesystem copy is almost finished.  Still is not actually
+writing the data to the destination file.
+/*------------------------------------------------------------------------*/
+- 107 - The FAT filesystem driver needs the following feature:  A function
+that will return the size of a file, in bytes. [Never mind.  The kernelFile
+structure already contains that data.]
+/*------------------------------------------------------------------------*/
+- 106 - I have to finish the work on the filesystem functions where I properly
+strip the mount-point prefixes from path names.  I ran into that stupid
+116 Kb barrier.
+/*------------------------------------------------------------------------*/
+- 105 - The cat/type command is broken.  Is this related to the fact that
+the read/write routines are in flux?
+/*------------------------------------------------------------------------*/
+- 104 - I have to figure out why, at 116 Kb, the kernel suddenly gets screwy.
+This seems to happen regardless of the compiler used, or which code pushes
+it over the limit.  There must be some problem with the loader or the
+load location.
+/*------------------------------------------------------------------------*/
+- 103 - The "sync" routine in the filesystem functions should take a
+filesystem NAME as a parameter, rather than a filesystem number
+/*------------------------------------------------------------------------*/
+- 102 - Pathnames passed to the disk functions should eventually be sufficient
+for the disk routines to identify the requested filesystem.  There should
+be a funtion that returns the target filesystem given a full path name.
+No "filesystem name" arguments should be passed to the disk functions from
+the calling routines.
+/*------------------------------------------------------------------------*/
+- 101 - The "mount point" for a filesystem should NOT exist in the "parent"
+filesystem (unlike UNIX)
+/*------------------------------------------------------------------------*/
+- 100 - The disk functions must be able to support the mounting of multiple 
+file systems.
+/*------------------------------------------------------------------------*/
+- 99 - The disk function read and write routines need to check for LBA drives
+before sending read/write commands to the driver.  The driver already
+knows how to deal with both types of disk address.
+/*------------------------------------------------------------------------*/
+- 98 - Fix the disk function routines for reading and writing, so that they
+make intelligent choices about whether to do LBA or CHS conversions
+before sending disk commands.
+/*------------------------------------------------------------------------*/
+- 97 - It seems as if the boot sector of partitions are not being located 
+properly if they are somewhere other than the first partition.  I'm not sure
+if that is truly the problem, but my little FAT12 partition on the laptop 
+machine can't be found (the boot sector, anyway) even though the driver seems
+to be reading the correct physical sector.  Is this an LBA thing?  Is it the
+location of the partition?
+/*------------------------------------------------------------------------*/
+- 96 - Eliminate all outstanding possibilities of divide-by-zero errors in 
+kernel routines.  I noticed that the FAT GetDiskInfo routine does some
+divisions with untested values that it reads from the disk.  Saw one
+such error occur when the wrong boot sector was read.
+/*------------------------------------------------------------------------*/
+- 95 - The boot process hangs when the system tries to examine the partitions
+on a second hard disk.  My Linux system that I tested this on had
+both drives configured on the same controller, master/slave.
+/*------------------------------------------------------------------------*/
+- 94 - When a filesystem fails to mount properly, the filesystem manager still
+tries to unmount it at shutdown time.  Make sure all remnants of a failed
+mount are removed from the filesystem manager
+/*------------------------------------------------------------------------*/
+- 93 - We need to be able to gather hard disk info about drives in older 
+systems that don't support EBIOS
+/*------------------------------------------------------------------------*/
+- 92 - Gather information about all hard disks in the system
+/*------------------------------------------------------------------------*/
+- 91 - Fix the processor time information so that it works, but without that
+Pentium instruction
+/*------------------------------------------------------------------------*/
+- 90 - The timer value does not read zero afer a fully-used timeslice.
+In fact it seems as if it wraps back around, so that its value is actually
+much larger than the original value written to the timer.  This would explain
+the funny numbers we get from the %CPU reading when we do a "ps" command.
+Is this related to the timer mode I'm using?  Does the timer just
+naturally oscillate a bit after it expires?
+/*------------------------------------------------------------------------*/
+- 89 - Lengthening the scheduler's timeslices seems to solve the interrupt
+disabling problem.  Is this the case? [NO]
+/*------------------------------------------------------------------------*/
+- 88 - The recursive deletion algorithm is not working properly.  It is not
+actually deallocating all space from the disk when we move directories
+around.
+/*------------------------------------------------------------------------*/
+- 87 - Moving a directory from one parent directory to another works (even
+when the operation involves overwriting another directory) however scandisk 
+has some minor complaint about the directory (or entries within it) 
+being damaged.  My hypothesis is that the '..' entry needs to be updated to 
+point to thenew parent directory??  Even though WE never actually use it 
+for anything...
+/*------------------------------------------------------------------------*/
+- 86 - The delete command is not really deleting things properly on disk.
+The files and their parent directories are simply getting mangled
+/*------------------------------------------------------------------------*/
+- 85 - Doing a "mkdir" command that fails sometimes orphans a cluster on the
+disk.  An example of this happening is when you try to "mkdir" an already
+existing directory
+/*------------------------------------------------------------------------*/
+- 84 - Looks like the mkdir routine still has issues.  Seems as if a new
+file in a brand new directory can sometimes report multiple name clashes
+with its short filename, despite the fact that it is the only file in the
+directory.  Also, scandisk is complaining about my directory entries
+again.
+/*------------------------------------------------------------------------*/
+- 83 - Long filename short aliases seem to be corrupted.  Scandisk complains
+about these.  (actually looks like they're not properly NULL terminated)
+/*------------------------------------------------------------------------*/
+- 82 - Moving one file over another existing file causes the Move routine to
+complain that the destination is a file -- but then it does it anyway.
+/*------------------------------------------------------------------------*/
+- 81 - Copying one file over another existing file causes corruption of the
+directory in memory.  This is because a duplicate file name gets entered
+into the directory (This should definitely never happen).  After that, the
+findNext routine gets caught in an endless loop.
+/*------------------------------------------------------------------------*/
+- 80 - Detect extended memory over 64M
+/*------------------------------------------------------------------------*/
+- 79 - Suddenly, the system is not waiting the requisite few seconds after
+boot to shut off the disk motor.  Causes the laptop to poop.
+/*------------------------------------------------------------------------*/
+- 78 - "reboot" now causes a fatal error in the kernel if there are any dirty
+filesystems
+/*------------------------------------------------------------------------*/
+- 77 - Killing a process does not release its code/data memory
+/*------------------------------------------------------------------------*/
+- 76 - The disk function routines need to be multi-threaded.
+/*------------------------------------------------------------------------*/
+- 75 - New multithreaded disk functions have some remaining problems.  
+Sometimes, system will hang while doing an "ls" after a "mkdir", "cp", "mv"
+/*------------------------------------------------------------------------*/
+- 74 - Implement multi-threading for scheduler tasks
+/*------------------------------------------------------------------------*/
+- 73 - When files are "touched" into existence, sync operations do not 
+recognize the directory as dirty
+/*------------------------------------------------------------------------*/
+- 72 - The copy command of the FAT12 driver overwrites other files' directory
+entries when it creates a new file
+/*------------------------------------------------------------------------*/
+- 71 - I am going to have to write a routine to gate on the A20 address line.
+I think not having done so is possibly the reason for my occasional, 
+mysterious memory problems
+/*------------------------------------------------------------------------*/
+- 70 - The exception handlers (GPF, double-fault, etc) should be separated
+from the interrupt handlers.  They can still share the same vector numbers,
+but the code should be logically separate.
+/*------------------------------------------------------------------------*/
+- 69 - The exception handlers (GPF, double-fault, etc) should make a call to
+the multitasker instead of halting the computer.  This will allow the
+multitasker/scheduler to shut down errant processes (even the kernel).
+/*------------------------------------------------------------------------*/
+- 68 - Implement the various priority queues I've been planning for the
+multitasker scheduler
+/*------------------------------------------------------------------------*/
+- 67 - Write a routine that allows the kernel to "hook" interrupt events?  
+This would mean that all the interrupt handlers would have to make a 
+call to a kernel routine which checks for this.  [Nope.  They maintain
+a single table of hooks]
+/*------------------------------------------------------------------------*/
+- 66 - Need the ability to delete directory trees, either as a function of
+the filesystem driver or as a recursive driver function in the shell commands
+section.  [This is not a function of the filesystem driver I think, 
+but rather of the remove command.  I made it so that we can now delete
+directories].
+/*------------------------------------------------------------------------*/
+- 65 - The various routines, in addition to scanning for illegal characters in
+new filenames, should ensure that the file name and complete file path
+do not exceed the maximum values for the FAT filesystem (which escape me
+at the moment)
+/*------------------------------------------------------------------------*/
+- 64 - The FAT filesystem driver must scan for and disallow illegal long
+filenames, such as ones that contain a "?"
+/*------------------------------------------------------------------------*/
+- 63 - Day of the week seems to be wrong more often than not.  It also seems 
+to be different depending on the computer.  Not a reliable piece of info 
+from the RTC?  Maybe day-of-week should be calculated from the date instead
+(yuck.  No thanks).  [It turns out that this is a notoriously bad value.
+We should never expect to get that value from the BIOS].
+/*------------------------------------------------------------------------*/
+- 62 - Filesystem driver has another free bytes problem.  When doing 'mkdir', 
+it allocates a cluster without actually writing the new directory's contents.
+Then, when the directory is committed, "write" deallocates and then 
+reallocates that cluster (since the file already technically exists).  
+Somewhere in there the number of free bytes is corrupted -- one cluster 
+appears to be lost.  This only manifests in the number representing free 
+bytes.  It does not actually cause clusters to be lost on the disk (i.e.
+doesn't directly cause filesystem errors)
+/*------------------------------------------------------------------------*/
+- 61 - It looks as if there is a bug in the deallocation of cluster blocks
+when the cluster block is only one block in length.  In one case I saw it hung
+the system.  In another single-cluster case the ending cluster of the block 
+to release was preposterously large (as opposed to the correct value, which
+would be the same as the starting cluster).
+/*------------------------------------------------------------------------*/
+- 60 - The loader should indicate the boot device to the kernel.  This will 
+allowthe kernel to automatically know on which device to mount the "root" 
+filesystem.
+/*------------------------------------------------------------------------*/
+- 59 - There currently seems to be a bug in which the disk object's
+startCluster field is corrupted (reset to zero), which causes all sorts of
+problems (for example, writing the FAT ends up overwriting the boot block)
+/*------------------------------------------------------------------------*/
+- 58 - The mount/unmount and/or sync functions have an undetermined bug.  If
+the root filesystem is remounted, then creating a new file or directory
+and doing another sync causes a general protection fault.
+/*------------------------------------------------------------------------*/
+- 57 - Saw an instance in which the short filename generated by the 
+installShortAlias routine appeared to be padded with garbage.  The "~"
+character before the numeric postfix appeared to be missing as well.
+/*------------------------------------------------------------------------*/
+- 56 - The filsystem driver is still unable to correctly evaluate the
+remaining space on the volume for the purpose of fragmenting files when a
+single extent is not possible.  The number of free bytes is then corrupted.
+Successive attempts then hang the kernel.
+/*------------------------------------------------------------------------*/
+- 55 - The disk function routines still need some significant work before 
+this can proceed much further with the first filesystem driver.  For example:
+	1. they need to double-check the head/track/sector [done]
+	2. do smart iterations when reads/writes span multiple cylinders
+	[done]
+	3. ensure that single read/write operations don't cross 64K memory 
+	boundaries (and do smart iterations to transparently hide this 
+	limitation when it occurs) [Now that I'm using the disk transfer 
+	areas, the start of the transfer is always aligned on a 64K 
+	boundary, however I have still not addressed situations in which 
+	a physical cylinder's data exceeds 64K (and thus the transfer could 
+	still exceed 64K)] [This only matters for floppy disks (i.e. the DMA
+	limitation), and they should never have more than 64K per cylinder]
+	4. ensure that read/write buffers are physically within the first 
+	16Mb of memory (and transparently accommodate buffers which are not).
+	[done -- using disk transfer area now]
+	5. Logical disk read/write routines should transparently account for 
+	disk objects that have different physical starting 
+	(head,track,sector) than (0,0,1).
+/*------------------------------------------------------------------------*/
+- 54 - The sanity checker should make sure that the user cannot 'cat' a
+directory file.  This leads to unpredictable results.  
+/*------------------------------------------------------------------------*/
+- 53 - The mount/umount filesystem manager routines still have a memory 
+problem, such that after a proportional number of remounts (dependent
+on the maximum number of mounted filesystems) memory corruption will 
+occur.
+/*------------------------------------------------------------------------*/
+- 52 - Any filesystem driver routines that create new directory entries must
+check to make sure that the maximum number of entries per directory
+will not be exceeded.  In the case of the root directory this is always
+a fixed number, but there is a recommended maximum in the MS FAT 
+specification.  My filesystem driver should be compliant with that.
+/*------------------------------------------------------------------------*/
+- 51 - Think of a way to use the disk changed status properly.  Currently
+the filesystem driver will puke after it detects a disk change.  It should
+probably just refuse to perform any operations until the volume is 
+properly synced or unmounted.
+/*------------------------------------------------------------------------*/
+- 50 - See if I can't finally figure out a reliable way to have the disk
+driver determine whether the media has been changed in a removable 
+volume.  There are "unreliable" ways (such as checking the volume Id)
+but this will not do very well when there is actually no media in the
+drive.  This will only create "volume not present" errors and hangs, and
+be inefficient.
+/*------------------------------------------------------------------------*/
+- 49 - 'mkdir' routines still have a couple of remaining issues, in that the 
+newly created items still have some of their links set incorrectly.
+/*------------------------------------------------------------------------*/
+- 48 - Finished the basic functionality to make the filesystem be "virtual",
+so that it is only periodically "synced" with the physical copy on disk.
+It will be good when the multitasker can schedule "sync" operations 
+during idle time, to maximize efficiency.  Of course, floppy disk MUST
+now be synced before removal, or the filesystem could become corrupt.
+/*------------------------------------------------------------------------*/
+- 47 - When the shell is in "DOS mode", maybe it should accept the path
+"...".  This, of course, means the same as ../..  -- There is no direct
+equivalent in UNIX, so there would be no conflicts as far as I can tell.
+Not very important really.
+/*------------------------------------------------------------------------*/
+- 46 - Completed preliminary work on a system to mount, unmount and remount
+filesystems.  This was more difficult than it sounds since the filesystem
+manager routines had to be partially rewritten.  I knew I'd have to do
+that when I wrote the original routines, because they were really a hack.
+/*------------------------------------------------------------------------*/
+- 45 - Fixed some issues with automatic generation of short filename aliases
+so that they're "more correct" (i.e. more compatible with the way MS
+does it)
+/*------------------------------------------------------------------------*/
+- 44 - Mkdir has at least one additional issue, in that Win98 complains about
+the new directories when doing 'scandisk'.  Says that "the entries that
+identify this folder or the folder in it are missing or damaged".  Could
+this refer to the '.' or '..' entries? [absolutely]
+/*------------------------------------------------------------------------*/
+- 43 - There still seems to be a problem with allocating new sectors for large
+files, or maybe rather for files that end up allocating sectors towards the
+middle or end of the disk, with larger FAT table offsets.  Is there still a 
+problem with the function that grabs space from the free list (the 
+getFreeBlock routine)?
+/*------------------------------------------------------------------------*/
+- 42 - If there is an error removing the entries associated with a file, that
+file should NOT be removed from the data structures regardless.
+/*------------------------------------------------------------------------*/
+- 41 - The write file function in the filesystem driver MUST ensure that it 
+is able to actually allocate the appropriate values in the fat
+/*------------------------------------------------------------------------*/
+- 40 - When doing a multi-cluster read or write operation, sending an
+operation of more than 2 clusters (read OR write) leads to corruption of
+the file.  This may be a problem in the filesystem driver, or it may be a
+problem in the disk function routines.  [Ooh, this was a toughie.  Turns
+out that the memory corruption errors causing this problem were related
+to DMA transfer alignment.  Had to finally implement the part where the disk
+functions use the disk transfer area instead of doing DMA transfers 
+directly to user memory].
+/*------------------------------------------------------------------------*/
+- 39 - If the user gives the "rm" command an invalid filename, the first time
+(only the first time) the last item in the current directory will disappear
+from the memory structures and cease to appear in directory listings.  The
+file is still present on disk, however.
+/*------------------------------------------------------------------------*/
+- 38 - The boot still doesn't work on Compaq BIOS machine.  Maybe the fix 
+that was applied to the bootsector code needs to be done to the osloader 
+code.  Specify all of the segment registers before starting.
+/*------------------------------------------------------------------------*/
+- 37 - The filesystem driver needs a 'sanity checker' to make sure that none
+of the actions it performs are logically impossible (for example, moving
+a directory into a subdirectory of itself).  Currently, it will actually
+perform such actions, thus creating errors in the filesystem (for example,
+lost/disconnected files/directories)
+/*------------------------------------------------------------------------*/
+- 36 - A failed boot attempt should issue "int 18h" to allow the BIOS to
+recover and attempt to boot from another device.
+/*------------------------------------------------------------------------*/
+- 35 - The DL register should be checked by the boot sector for the boot
+device number on initial startup
+/*------------------------------------------------------------------------*/
+- 34 - The boot device number should not be hard-coded into the boot sector 
+code.  There was supposed to be a register that is pre-loaded with the 
+boot disk number when the boot sector code is started.
+/*------------------------------------------------------------------------*/
+- 33 - Memory manager - On some machines (with particular amounts of extended 
+memory?) testing all of the memory detects errors at or near the end of 
+memory.
+/*------------------------------------------------------------------------*/
+- 32 - Memory manager routine incorrectly detects inconsistencies EVERY
+TIME on some machines.  Double check the parameters it examines and the
+bit-size of the various operands it compares.
+/*------------------------------------------------------------------------*/
+- 31 - The disk routines and/or DMA have a bug that seems to prevent them
+from reading disk data into the correct memory locations on most machines
+(but not my laptop, for some reason).
+/*------------------------------------------------------------------------*/
+- 30 - The new, improved error messages from the memory manager's consistency 
+checkindicate that it is having trouble reconciling the calculated amount of 
+total memory with the amounts of used and free memory.  This is on the few 
+machines where there are repeated consistency check failures
+/*------------------------------------------------------------------------*/
+- 29 - Running scandisk on my boot floppies produces:
+  1. FAT copies are not identical (my driver can and will fix this)
+  2. Invalid entries in the root directory (my driver should "zero" all 
+     entries after the last valid entry.  Obviously the Linux mkdosfs (or 
+     the Linux fs driver doesn't do this)
+  3. Scandisk says that a bunch of unreadable filenames have bad allocation 
+  chains (See #3)
+  4. Scandisk says that a bunch of unreadable directory names have no 
+  clusters allocated (See #3)
+  5. Finds invalid filenames (See #3)
+/*------------------------------------------------------------------------*/
+- 28 - Next filesystem driver goal: creating/modifying/deleting files.
+/*------------------------------------------------------------------------*/
+- 27 - Fat12 filesystem driver or simple shell (but preferably the driver)
+needs to be modified to properly handle ./ and ../ paths.  ../ works (in an 
+unacceptable way) for directories that are not / or a subdirectory of /.
+/*------------------------------------------------------------------------*/
+- 26 - Use the Microsoft document about FAT filesystems to correct some of
+the algorithms in my FAT12 filesystem driver; particularly the filesystem
+type detection routine, which is now strictly correct.  The previous
+detection worked but was in reality an unreliable hack.
+/*------------------------------------------------------------------------*/
+- 25 - Fix memory manager consistency-check error messages to be more 
+informative,so that I can figure out why we get all of those (apparently 
+unnecessary)errors.  Maybe, however, there's really (another?!?!) bug in the 
+way thememmanager handles its lists, and the errors are real.
+/*------------------------------------------------------------------------*/
+- 24 - The Fat12 file system driver needs to be able to handle directories
+other than /, obviously
+/*------------------------------------------------------------------------*/
+- 23 - Write routines that will implement built-in shell filesystem
+commands.  For example ls/dir, cat/type, etc.
+/*------------------------------------------------------------------------*/
+- 22 - Next filesystem driver goal: opening/reading files, not just
+directories
+/*------------------------------------------------------------------------*/
+- 21 - Changed the memory test so that it uses a random test pattern instead
+of that silly, long string constant I was using before.  The best part of
+this is that I was able to turn on OPTIMIZATION, which previously caused
+the memory test to fail.  This shrunk the kernel executable from 67Kb to
+48 Kb.  YAY!  Also eliminated the "zeroing" part of the memory test, 
+since it's really not important to do that.
+/*------------------------------------------------------------------------*/
+- 20 - The file system driver needs to implement linked-lists of buffered
+files and directories it has read from the volume.  This will enable the
+driver to avoid re-reading multiple directories in the file tree for every
+access.
+/*------------------------------------------------------------------------*/
+- 19 - Fixed a bug in the OS loader that was preventing the kernel from 
+loading correctly after it exceeded 64Kb (of course -- it wasn't originally
+built to load kernels bigger than a single segment)
+/*------------------------------------------------------------------------*/
+- 18 - Disk reads complete without hanging now, but there's a DMA overrun/
+underrun error on every machine.
+/*------------------------------------------------------------------------*/
+- 17 - Need to work on the DMA driver and associated stuff with the floppy 
+driver so that we can do disk reads and writes.
+/*------------------------------------------------------------------------*/
+- 16 - Finish the floppy disk device driver so I can begin writing a 
+filesystem driver.
+/*------------------------------------------------------------------------*/
+- 15 - Reboot command still unreliable.  Works on some machines, and not on 
+others.
+/*------------------------------------------------------------------------*/
+- 14 - Memory manager does not seem to like to assign an exact-fit aligned 
+block.  Specifically, when allocating a disk transfer area it skips a 64K 
+block at the very beginning of the free memory and assigns the NEXT 64K block.
+/*------------------------------------------------------------------------*/
+- 13 - Also to do with interrupts - the AMIBIOS machine sometimes gets an 
+interrupt 15 when issuing disk commands.  My PC book mentions something 
+about machines with cheap motherboards sometimes issuing interrupt 15 (and/or 
+interrupt FF?) when there is noise on the interrupt signal lines.  The 
+interrupt handlers for these vectors should check whether there was a real 
+interrupt.
+/*------------------------------------------------------------------------*/
+- 12 - Interrupt initialization is still broken.  On some machines now, there 
+is a double-fault (or sometimes divide-by-zero) on nearly every boot.  I 
+think the code that talks to the interrupt controllers is still broken in a 
+number of ways.  Maybe I need to write a proper driver for these?
+/*------------------------------------------------------------------------*/
+- 11 - Fix the "makedisk" script so that it is more reliable.  Graeme pointed 
+out that the mount command needs to be given some more options, like 
+filesystem type.  He also suggested using both the device name AND mount 
+point in the mount command. [This only seems to work if one is "root"]
+/*------------------------------------------------------------------------*/
+- 10 - Have written the parts of the DMA and Floppy drivers that should be
+all that is needed to perform floppy disk read accesses, but there's
+something still missing.  A read call appears to hang the machine.  Have
+written diagnostic routines that read back various values from the DMA
+and floppy controllers, but nothing seems amiss.  The hang occurs very
+shortly (but not immediately) after the last command byte is written to
+the floppy controller.  No floppy interrupt occurs.  Test how much
+time/activity elapses before the crash?
+/*------------------------------------------------------------------------*/
+- 9 - The AMIBIOS bug seems like it is related to a difference in one of the 
+BIOS disk calls -- it would appear that one of the calls is selecting the 
+hard disk instead of the floppy disk.
+/*------------------------------------------------------------------------*/
+- 8 - Write a routine that allows pending scheduled events to be cancelled.  
+This will allow the 'motor on' routine to cancel any pending 'motor off' 
+events scheduled by the complimentary routine.
+/*------------------------------------------------------------------------*/
+- 7 - Major bug is preventing the kernel from starting.  This is a bug
+which is derived from a very old, previously undetected one, in which the
+boot sector was reporting 17 sectors on the boot device instead of the
+correct value of 18.  It only manifested itself when the kernel became too
+large for a single disk track, and some kernel code was not being loaded by
+the os-loader.  Now, the code is being loaded correctly but some other
+inconsistency has been created by the fix.
+/*------------------------------------------------------------------------*/
+- 6 - blockId numbers should be changed, so that instead of being arbitrary, 
+consecutive integers (which theoretically could overflow) they should 
+represent the array index of the block.  This will eliminate some of the 
+full-list searches the code does to find blocks with particular Ids.  It 
+will also eliminate the overflow possibility.
+/*------------------------------------------------------------------------*/
+- 5 - The memory manager still has a bug, probably in 
+kernelMemoryConsolidateFree in which most, but not all, contiguous free 
+blocks are concatenated.  After allocation/deallocation operations, there 
+always seems to be at least one extra free block which should have been 
+merged.  Often, this extra free block will consume other free blocks after 
+additional operations, but it will never be consumed itself.
+/*------------------------------------------------------------------------*/
+- 4 - The memory manager still needs to support alignment of memory  
+allocation.  This will be a good feature to have anyway but in particular 
+it needs to be finished before I can proceed with the DMA device driver 
+(and therefore the disk device drivers).  DMA transfer memory areas need 
+to be aligned on 128K boundaries.
+/*------------------------------------------------------------------------*/
+- 3 - Need to have an "timed event scheduler", probably implemented as
+part of the kernelSystemTimerDriver.  One reason is so that the floppy
+disk motor can be scheduled to be turned off later, but the system doesn't
+have to wait for it.
+/*------------------------------------------------------------------------*/
+- 2 - I think the memory test failure is related to the amount of video
+memory in the adapter card.  Is it possible that I'm trying to test video
+memory this way by accident?  Does the video memory maybe start at A0000
+(just above conventional memory) and continue for the amount of video memory 
+present?
+/*------------------------------------------------------------------------*/
+- 1 - Maybe the kernelInterruptsInitialize should clear all interrupts on the 
+PICs before enabling interrupts (i.e. discard all pending ones that happened 
+while they were disabled during the boot)
+/*------------------------------------------------------------------------*/

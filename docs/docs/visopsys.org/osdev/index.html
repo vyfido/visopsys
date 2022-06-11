@@ -1,0 +1,340 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>OS Development</title>
+<meta name="description" content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
+<meta name="keywords" content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
+
+<meta name="Microsoft Border" content="lb, default"></head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" bgproperties="fixed" background="../img/background.jpg"><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html"><img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" WIDTH="53" HEIGHT="25"></a><br>
+    <br>
+    <a href="../about/index.html"><img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" WIDTH="60" HEIGHT="25"></a><br>
+    <br>
+    <a href="../download/index.html"><img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" WIDTH="95" HEIGHT="25"></a></font><br>
+    <br>
+    <a href="../developers/index.html"><img src="../img/nav_buttons/developers.jpg" border="0" alt="Resources for Visopsys development" align="middle" WIDTH="97" HEIGHT="31"></a><br>
+    <br>
+    <a href="index.html"><img src="../img/nav_buttons/osdev.jpg" border="0" alt="OS Development Resources" align="middle" WIDTH="64" HEIGHT="25"></a><br>
+    <br>
+    <a href="../search.html"><img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" WIDTH="63" HEIGHT="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+<p>&nbsp;</p>
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center"><font size="5"><strong><img src="../img/banners/visopsys-logo.jpg" align="middle" border="0" WIDTH="290" HEIGHT="95"></strong></font><br>
+<img src="../img/banners/visopsys-osdev.jpg" align="middle" border="0" WIDTH="290" HEIGHT="51"></p>
+
+<p align="left"><strong><big>OS DEVELOPMENT</big></strong></p>
+
+<p align="left"><big>This little page is the beginning of a collection of source code,
+information, and links related to general Operating Systems' Development on the Web.</big></p>
+
+<blockquote>
+  <p align="left"><big><a href="#SOURCE">Source code</a><br>
+  <a href="#LINKS">Links</a><br>
+  </big></p>
+</blockquote>
+
+<p align="left"><big><a name="SOURCE"></a><strong>SOURCE CODE</strong></big></p>
+
+<p align="left"><big>Here is some source code, written by Andy McLaughlin, which might be
+useful to programmers who are developing OS- like products on the x86 platform. &nbsp; All
+code ending with an &quot;.s&quot; extension is NASM- compatible Assembler code.&nbsp; All
+&quot;.c&quot; code is tested for gcc-2.95 (or compatible) C compilers.</big></p>
+
+<blockquote>
+  <div align="center"><center><table border="1" cellpadding="2">
+    <tr>
+      <td><big><a href="sources/enableA20.s">enableA20.s</a></big></td>
+      <td><big>This is a fairly versatile snippet of code for enabling the x86's A20 address
+      line. &nbsp; It's a little bit lengthy, but it seems to work more reliably than other
+      examples I've tried.&nbsp; Cut and paste it into one of your existing source files.</big></td>
+    </tr>
+    <tr>
+      <td><big><a href="sources/vesaModes.s">vesaModes.s</a></big></td>
+      <td><big>This piece of 16-bit code will query the VESA BIOS for a supported graphics mode
+      number based on the desired parameters of resolution and colour depth.&nbsp; Cut and paste
+      it into one of your existing source files.</big></td>
+    </tr>
+  </table>
+  </center></div>
+</blockquote>
+
+<p>&nbsp;</p>
+
+<p><big><a name="LINKS"></a><strong>LINKS</strong></big></p>
+
+<p><big>Here are some selected links to sites useful to OS developers (much of this is
+specific to PC- style hardware architectures).&nbsp; Please <a href="mailto:jamesamc@yahoo.com">email me</a> about any broken links or erroneous
+descriptions.&nbsp; Thanks.</big></p>
+<div align="center"><center>
+
+<table border="1" cellspacing="0" cellpadding="0">
+  <tr>
+    <th colspan="2" valign="middle" align="center" nowrap><p align="center"><big><br>
+    General<br>
+    </big></th>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a ADD_DATE="941145092" LAST_VISIT="941144904" LAST_MODIFIED="941144904" href="http://bphantom.hypermart.net/OS_Design_Qs.html">Questions
+    For an OS Designer</a></big></td>
+    <td valign="top" align="left"><big>So, why are you doing this anyway?&nbsp; This should be
+    required reading for anyone contemplating starting an OS project</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.webring.org/cgi-bin/webring?ring=os&amp;id=31&amp;list" ADD_DATE="941734917" LAST_VISIT="941734897" LAST_MODIFIED="941734897">The OS Ring</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Good collection of links to general things</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.mega-tokyo.com/os/os-faq.html" ADD_DATE="942169435" LAST_VISIT="956860285" LAST_MODIFIED="942169427">Creating your own Operating System</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Dark Fiber's FAQ about OS development</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a ADD_DATE="936812205" LAST_VISIT="947741046" LAST_MODIFIED="936812199" href="http://www.nondot.org/sabre/os/">The Operating Systems
+    Resource Center</a></big></td>
+    <td valign="top" align="left"><big>Great collection of technical information and tutorials</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.acm.uiuc.edu/sigops/roll_your_own/" ADD_DATE="944517138" LAST_VISIT="956694396" LAST_MODIFIED="944517129">SigOps: Create Your
+    Own Operating System</a></big></td>
+    <td valign="top" align="left"><big>This is a broadly focused site about OS theory</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.gaztek.co.uk/osdev/index.html" ADD_DATE="944540919" LAST_VISIT="944540910" LAST_MODIFIED="944540910">GazTek Website</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>This subsection of the GazTek site is about general OS
+    development</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.execpc.com/~geezer/os/index.htm" ADD_DATE="941144826" LAST_VISIT="944850097" LAST_MODIFIED="941144746">Protected mode and operating systems</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>x86-specific site for protected mode operating systems</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html" ADD_DATE="944155995" LAST_VISIT="957927099" LAST_MODIFIED="944155986">Ralf Brown's
+        Interrupt List</a> <a HREF="http://ctyme.com/rbrown.htm" ADD_DATE="910562877" LAST_VISIT="954626368" LAST_MODIFIED="910562874">(also try this HTML Version)</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Don't start any OS project on an x86 machine without
+    getting this first.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://millenium.atcg.com/~taco/helppc/" ADD_DATE="957927954" LAST_VISIT="957927975" LAST_MODIFIED="957927942">HelpPC WWW conversion </a><a HREF="ftp://ftp.tu-graz.ac.at/pub/doc/IBM-PC/helppc21.zip" ADD_DATE="937975683" LAST_VISIT="0" LAST_MODIFIED="0">(or download the actual HelpPC application)</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Likewise.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.geocities.com/SiliconValley/2151/pcgpe.html" ADD_DATE="959877360" LAST_VISIT="959877343" LAST_MODIFIED="959877343">The PC Game
+        Programmer's Encyclopedia</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>More useful x86 programming information.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://members.xoom.com/xorcoders/" ADD_DATE="936034182" LAST_VISIT="960853450" LAST_MODIFIED="936034094">XOR-Coders</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Pretty decent collection of low-level programming
+    information targeted at OS developers.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.sandpile.org/80x86/index.shtml" ADD_DATE="917740542" LAST_VISIT="939708597" LAST_MODIFIED="917740506">sandpile.org --
+    80x86 index</a></big></td>
+    <td valign="top" align="left"><big>Lots of good information about x86 processors.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.web-sites.co.uk/nasm/" ADD_DATE="905722436" LAST_VISIT="958004961" LAST_MODIFIED="905722431">NASM - The Netwide
+    Assembler Project - FREE 80x86 assembler</a></big></td>
+    <td valign="top" align="left"><big>A GREAT little open- source assembler for x86 machines.</big></td>
+  </tr>
+  <tr>
+    <th colspan="2" valign="middle" align="center" nowrap><p align="center"><big><br>
+    File Formats<br>
+    </big></th>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.wotsit.org/" ADD_DATE="922861319" LAST_VISIT="960751669" LAST_MODIFIED="922861311">Wotsit's Format: The programmer's file
+    formats and data formats resource.</a></big></td>
+    <td valign="top" align="left"><big>This site is a godsend.&nbsp; Information on file
+    formats of almost any kind. &nbsp; Look here before you go anywhere else.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.maverick.subnet.dk/FileSystemFormats/Standard_DiskFormat.html" ADD_DATE="952632826" LAST_VISIT="953150996" LAST_MODIFIED="952632769">Standard Disk Format
+        (Maverick)</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>All about the format of the x86 Master Boot Sector</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.cybertrails.com/~fys/longfile.htm" ADD_DATE="947616753" LAST_VISIT="947616749" LAST_MODIFIED="947616749">Programming Long
+    File Names in DOS</a></big></td>
+    <td valign="top" align="left"><big>Long filename information</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://members.aol.com/royalef/gifabout.htm" ADD_DATE="936143870" LAST_VISIT="936143859" LAST_MODIFIED="936143859">All About GIF89a</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Info about the GIF file format</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.delorie.com/djgpp/doc/coff/" ADD_DATE="948823955" LAST_VISIT="948824026" LAST_MODIFIED="948823940">DJGPP COFF Spec</a></big></td>
+    <td valign="top" align="left"><big>About the COFF object file format</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.dcs.ed.ac.uk/~mxr/gfx/" ADD_DATE="939713004" LAST_VISIT="939713001" LAST_MODIFIED="939713001">The Graphics File
+    Format Page</a></big></td>
+    <td valign="top" align="left"><big>Info about lots of graphic file formats.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.ping.be/~pin11466/formtxt.html#CD-ROM" ADD_DATE="960998133" LAST_VISIT="960998625" LAST_MODIFIED="960998113">CD formats</a></big></dt>
+      <dt><big><a HREF="http://www.isomedia.net/cd-rom_iso9660.htm" ADD_DATE="960998146" LAST_VISIT="960998139" LAST_MODIFIED="960998139">ISOMEDIA - CD ROM ISO 9660 Specifications</a></big></dt>
+      <dt><big><a HREF="http://www.disctronics.co.uk/cdref/cd-rom/iso9660.htm" ADD_DATE="960998160" LAST_VISIT="960998152" LAST_MODIFIED="960998152">ISO 9660 File
+        Systems</a></big></dt>
+      <dt><big><a HREF="http://www.y-adagio.com/public/committees/format/act1999/cdrom_ah/docset4/back_g.htm" ADD_DATE="960998186" LAST_VISIT="960998181" LAST_MODIFIED="960998181">ISO/IEC 9660
+        Background</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>CD-ROM filesystem format information</big></td>
+  </tr>
+  <tr>
+    <th colspan="2" align="center" valign="middle" nowrap><dl>
+      <dt><big><br>
+        PC Hardware References<br>
+        </big></dt>
+    </dl>
+    </th>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://developer.intel.com/design/pentium/manuals/" ADD_DATE="936035099" LAST_VISIT="937975603" LAST_MODIFIED="936035094">Pentium(r)Processor - Manuals</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>You need this if you're going to do any coding in x86
+    Assembly language</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a href="http://www2.dgsys.com/~raymoon/faq/gen1.html#11">x86 Assembly Language FAQ</a></big></td>
+    <td valign="top" align="left"><big>Ray Moon's FAQ for comp.lang.asm.x86</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.rs6000.ibm.com/resource/technology/chrpio/floppy5.mak.html" ADD_DATE="951341712" LAST_VISIT="953549576" LAST_MODIFIED="951341691">IBM Floppy disk
+        specification</a></big></dt>
+      <dt><big><a HREF="http://developer.intel.com/design/periphrl/datashts/290475.htm" ADD_DATE="951432763" LAST_VISIT="951432755" LAST_MODIFIED="951432755">82078 64 Pin CHMOS
+        Single-Chip Floppy Disk Controller</a></big></dt>
+      <dt><big><a HREF="http://debs.future.easyspace.com/Programming/Hardware/FDC/floppy.html" ADD_DATE="935106106" LAST_VISIT="939226674" LAST_MODIFIED="935106102">Programming the NEC
+        µPD765 and Intel 82072/7 Floppy Disk Controller</a></big></dt>
+      <dt><big><a HREF="http://andercheran.aiind.upv.es/~amstrad/CPC_Guide/Hardware_Programming/Chips/fdc.html" ADD_DATE="939057765" LAST_VISIT="947575405" LAST_MODIFIED="939057684">CPC Guide - Chips -
+        Floppy Disc Controller</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Programming the PC's floppy disk controller</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.ata-atapi.com/" ADD_DATE="940438338" LAST_VISIT="949559132" LAST_MODIFIED="940438321">ATA-ATAPI.COM -- ATA ATAPI IDE EIDE</a></big></dt>
+      <dt><big><a HREF="http://www.repairfaq.org/filipg/LINK/F_IDE-tech.html" ADD_DATE="947283126" LAST_VISIT="953416474" LAST_MODIFIED="947283121">Fil's FAQ-Link-In Corner: IDE Ref.</a><br>
+        <a HREF="http://www.phoenix.com/products/" ADD_DATE="951330743" LAST_VISIT="951330734" LAST_MODIFIED="951330734">Phoenix Technologies Ltd. - Products and Solutions</a></big></dt>
+      <dt><big><a HREF="http://support.intel.com/support/controllers/peripheral/spec.htm" ADD_DATE="944699456" LAST_VISIT="949559073" LAST_MODIFIED="944699452">(Intel)
+        Specifications</a></big></dt>
+      <dt><big><a HREF="ftp://download.intel.com/support/controllers/peripheral/" ADD_DATE="944699468" LAST_VISIT="949559065" LAST_MODIFIED="944699464">(Intel) Directory of
+        /support/controllers/peripheral</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Programming the PC's hard disk controller</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://atschool.eduweb.co.uk/camdean/pupils/amac/vga.htm" ADD_DATE="939883140" LAST_VISIT="957999110" LAST_MODIFIED="939882924">VGA graphics
+        Programming</a></big></dt>
+      <dt><big><a HREF="http://www.rs6000.ibm.com/resource/technology/chrpio/vga_app.mak.html" ADD_DATE="942339972" LAST_VISIT="947283185" LAST_MODIFIED="942339898">VGA Programming
+        model</a></big></dt>
+      <dt><big><a HREF="http://www.goodnet.com/~tinara/FreeVGA/vga/vgamem.htm" ADD_DATE="939713782" LAST_VISIT="960854107" LAST_MODIFIED="939713709">VGA/SVGA Video
+        Programming--Accessing the VGA Display Memory</a></big></dt>
+      <dt><big><a HREF="http://www.goodnet.com/~tinara/FreeVGA/home.htm" ADD_DATE="942339681" LAST_VISIT="960854162" LAST_MODIFIED="942339646">FreeVGA Project Home - Hardware level VGA
+        and SVGA programming info</a></big></dt>
+      <dt><big><a HREF="http://www.monstersoft.com/tutorial1/" ADD_DATE="939711347" LAST_VISIT="960854272" LAST_MODIFIED="939711345">High-res high-speed VESA tutorial</a></big></dt>
+      <dt><big><a HREF="http://gameprogrammer.com/" ADD_DATE="939712551" LAST_VISIT="939869549" LAST_MODIFIED="939712542">Game Programming and graphics programming</a></big></dt>
+      <dt><big><a HREF="http://www.brackeen.com/home/vga/" ADD_DATE="939880909" LAST_VISIT="939880891" LAST_MODIFIED="939880891">256-Color VGA Programming in C - Home</a></big></dt>
+      <dt><big><a HREF="http://www.hornet.org/" ADD_DATE="942167526" LAST_VISIT="942340497" LAST_MODIFIED="942167525">Graphics and sound - The Hornet Archive</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Programming the PC's video hardware.</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://www.psyber.com/~tcj/tcserial.html" ADD_DATE="958598830" LAST_VISIT="959980233" LAST_MODIFIED="958598821">Serial Communications from TCJ</a></big></dt>
+      <dt><big><a HREF="http://www.geocities.com/SiliconValley/Bay/8302/serial1.htm" ADD_DATE="942339586" LAST_VISIT="947283151" LAST_MODIFIED="942339577">Interfacing The
+        Serial / RS-232 Port</a></big></dt>
+      <dt><big><a HREF="http://home.clear.net.nz/pages/kheidens/ppmfaq/khppmfaq.htm" ADD_DATE="947183881" LAST_VISIT="947575385" LAST_MODIFIED="947183872">Kris Heidenstrom's
+        PC Parallel Port Mini-FAQ</a></big></dt>
+      <dt><big><a HREF="http://www.lvr.com/serport.htm" ADD_DATE="936145651" LAST_VISIT="936145642" LAST_MODIFIED="936145642">Serial Links using RS-232 and RS-485</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>Serial port programming information</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="http://www.geocities.com/SiliconValley/Bay/8302/interupt.htm" ADD_DATE="942339639" LAST_VISIT="956806480" LAST_MODIFIED="942339612">Interfacing The PIC : Using Interrupts</a></big></td>
+    <td valign="top" align="left"><big>Programming the PC's Programmable Interrupt Controller</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><dl>
+      <dt><big><a HREF="http://members.hyperlink.net.au/~chart/pci.htm" ADD_DATE="939067884" LAST_VISIT="947282492" LAST_MODIFIED="939067859">PCI Information</a><br>
+        <a HREF="http://www.datashopper.dk/~finth/pci.html" ADD_DATE="942339801" LAST_VISIT="942339748" LAST_MODIFIED="942339748">PCI Vendor &amp; Device IDs</a></big></dt>
+    </dl>
+    </td>
+    <td valign="top" align="left"><big>PCI bus information</big></td>
+  </tr>
+  <tr>
+    <td valign="top" align="left"><big><a HREF="ftp://rtfm.mit.edu/pub/usenet/news.answers/pc-hardware-faq/" ADD_DATE="939229824" LAST_VISIT="939708137" LAST_MODIFIED="939229087">/pub/usenet/news.answers/pc-hardware-faq</a></big></td>
+    <td valign="top" align="left"><big>PC hardware Usenet FAQ</big></td>
+  </tr>
+</table>
+</center></div>
+
+<p><big>&nbsp; </big>
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../index.html"><img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" WIDTH="53" HEIGHT="25"></a> <a href="../about/index.html"><img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" WIDTH="60" HEIGHT="25"></a> <a href="../download/index.html"><img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" WIDTH="95" HEIGHT="25"></a></font> <a href="../developers/index.html"><img src="../img/nav_buttons/developers.jpg" alt="Resources for Visopsys development" border="0" align="middle" WIDTH="97" HEIGHT="31"></a> <a href="index.html"><img src="../img/nav_buttons/osdev.jpg" border="0" align="middle" WIDTH="64" HEIGHT="25"></a> <a href="../search.html"><img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" WIDTH="63" HEIGHT="24"></a><br>
+    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2001, J.
+    Andrew McLaughlin<br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Page last updated: March 26, 2001</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+</td></tr><!--msnavigation--></table></body>
+</html>

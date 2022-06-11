@@ -1,0 +1,165 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>Visopsys Installation using a UNIX system</title>
+<meta name="description" content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
+<meta name="keywords" content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
+
+<meta name="Microsoft Border" content="lb, default"></head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" background="../img/background.jpg"><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html"><img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" WIDTH="53" HEIGHT="25"></a><br>
+    <br>
+    <a href="../about/index.html"><img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" WIDTH="60" HEIGHT="25"></a><br>
+    <br>
+    <a href="index.html"><img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" WIDTH="95" HEIGHT="25"></a></font><br>
+    <br>
+    <a href="../developers/index.html"><img src="../img/nav_buttons/developers.jpg" border="0" alt="Resources for Visopsys development" align="middle" WIDTH="97" HEIGHT="31"></a><br>
+    <br>
+    <a href="../osdev/index.html"><img src="../img/nav_buttons/osdev.jpg" border="0" alt="OS Development Resources" align="middle" WIDTH="64" HEIGHT="25"></a><br>
+    <br>
+    <a href="../search.html"><img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" WIDTH="63" HEIGHT="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+<p>&nbsp;</p>
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center"><img src="../img/banners/visopsys-logo.jpg" align="middle" border="0" WIDTH="290" HEIGHT="95"><br>
+<img src="../img/banners/visopsys-download.jpg" align="middle" border="0" WIDTH="290" HEIGHT="41"></p>
+
+<blockquote>
+  <p align="left"><font color="#FFFF00"><strong><big>&nbsp;</big></strong></font></p>
+  <p align="left"><font color="#FFFF00"><strong><big>NOTE:&nbsp; This document is obsolete.
+  &nbsp; Use the Java installation utility instead; it works on multiple platforms.</big></strong></font></p>
+</blockquote>
+
+<p align="left"><font color="#FFFF00"><strong><big>&nbsp;</big></strong></font></p>
+<font SIZE="2">
+
+<p></font><strong><big>HOW TO INSTALL VISOPSYS USING A UNIX SYSTEM</big></strong></p>
+
+<p><strong><big>OVERVIEW</big></strong></p>
+
+<p><big>This file contains detailed instructions for installing Visopsys if you are
+currently running some version of UNIX. The files in this directory are the tools you will
+need for doing this.</big><br>
+</p>
+
+<p><strong><big>INSTALLATION INSTRUCTIONS</big></strong></p>
+
+<p><big>Your top-level Visopsys directory should contain the following:</big></p>
+<div align="left">
+
+<table border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td><font face="Courier New"><big>README.TXT&nbsp; </big></font></td>
+    <td><big>General README file.</big></td>
+  </tr>
+  <tr>
+    <td><font face="Courier New"><big>dosutil</big></font></td>
+    <td><big>Utilities for installing Visopsys using a DOS/Windows system</big></td>
+  </tr>
+  <tr>
+    <td><font face="Courier New"><big>instfile</big></font></td>
+    <td><big>Contains the Visopsys files that get installed</big></td>
+  </tr>
+  <tr>
+    <td><font face="Courier New"><big>unixutil</big></font></td>
+    <td><big>This directory</big></td>
+  </tr>
+</table>
+</div>
+
+<p><big>NOTE that the UNIX installation tools have been designed specifically with and for
+Linux. They will probably work for other UNIX systems in the future, and may only need a
+small amount of tweaking to work in their current form. Additionally Your UNIX system must
+be able to support MS-DOS filesystems; specifically the 12-bit FAT filesystem commonly
+used with DOS floppy disks (Linux supports this).&nbsp; </big></p>
+
+<p><big>To install Visopsys, cd to the directory where you unpacked Visopsys. Next, change
+to the &quot;unixutil&quot; directory. There you should see something similar to the
+following:</big></p>
+
+<blockquote>
+  <p><font face="Courier New">total 20<br>
+  drwxr-xr-x 2 andymc 4096 Apr 1 23:13 ./<br>
+  drwxr-xr-x 5 andymc 4096 Apr 1 23:13 ../<br>
+  -rw-r--r-- 1 andymc 3933 Apr 1 23:13 INSTALL.TXT<br>
+  -rwxr-xr-x 1 andymc 3690 Apr 1 23:13 floppy-install.csh*<br>
+  -rwxr-xr-x 1 andymc 1355 Apr 1 23:13 platform.csh*<br>
+  andy-linux%</font><big> </big></p>
+</blockquote>
+
+<p><big>First, you need to insert a floppy disk in your first floppy drive. Please use a
+floppy disk that is empty or conatins unwanted data, as this installation process will
+ERASE ALL DATA ON THE FLOPPY WITHOUT ANY FURTHER PROMPTING. Make sure the floppy disk is
+not write-protected (see the little movable tab on the back side of the floppy disk -- the
+tab should cover the hole).</big></p>
+
+<p><big>The file you need to run to install Visopsys is floppy-install.csh. Before doing
+so, you will need to ensure a couple of things: </big>
+
+<ol>
+  <li><big>The UNIX account you're using must have permission to mount the floppy disk in the
+    &quot;usual&quot; place (see your /etc/fstab, /etc/vfstab, /etc/checklist, or whatever is
+    appropriate for your version of UNIX).</big></li>
+  <li><big>The UNIX account you're using must have permission to write directly to the floppy
+    disk device file, such as /dev/fd0.&nbsp; </big></li>
+</ol>
+
+<p><big>If you can become root on your system, this should provide all the permissions you
+need. Note that the installation script assumes that the&nbsp; device file for your floppy
+drive is /dev/fd0 (common on Linux systems).&nbsp; If this is not the correct device file
+for your system, you will need to edit the floppy-install.csh script and make the
+appropriate change.&nbsp; When you run floppy-install.csh, you should see output similar
+to the following:</big></p>
+
+<blockquote>
+  <p><font face="Courier New">FLOPPY-INSTALL - Visopsys floppy disk installation script for
+  UNIX <br>
+  Copyright (C) 2000 Andrew McLaughlin<br>
+  -= NOTE: suitable for use only with Visopsys BINARY distribution =-</font></p>
+  <p><font face="Courier New">Making Visopsys boot diskette in /dev/fd0<br>
+  Reading floppy device info from /etc/fstab<br>
+  /sbin/mkdosfs 2.2 (06 Jul 1999)<br>
+  Installing boot sector... Done<br>
+  Copying os loader... Done<br>
+  Copying kernel... Done</font></p>
+</blockquote>
+
+<p><big>The entire process should take about 15 seconds. If you do not see any unusual
+error messages, then Visopsys is now installed on your floppy disk.&nbsp; You should now
+be able to reboot your system using the Visopsys floppy you've just created. Tip: make
+sure your system BIOS is set to be bootable from a floppy. If you insert the floppy and
+reboot the system, but do not see messages about Visopsys, you need to enter your BIOS
+setup and change your &quot;boot sequence&quot; to something like A,C or A,CDROM,C (this
+is BIOS-specific). &nbsp; The point is that the computer should first attempt to boot from
+the floppy drive where you insert the Visopsys boot diskette.</big></p>
+
+<p><big>Good luck!<br>
+<br>
+</big>
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../index.html"><img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" WIDTH="53" HEIGHT="25"></a> <a href="../about/index.html"><img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" WIDTH="60" HEIGHT="25"></a> <a href="index.html"><img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" WIDTH="95" HEIGHT="25"></a></font> <a href="../developers/index.html"><img src="../img/nav_buttons/developers.jpg" alt="Resources for Visopsys development" border="0" align="middle" WIDTH="97" HEIGHT="31"></a> <a href="../osdev/index.html"><img src="../img/nav_buttons/osdev.jpg" border="0" align="middle" WIDTH="64" HEIGHT="25"></a> <a href="../search.html"><img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" WIDTH="63" HEIGHT="24"></a><br>
+    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2001, J.
+    Andrew McLaughlin<br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Page last updated: July 30, 2001</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+</td></tr><!--msnavigation--></table></body>
+</html>

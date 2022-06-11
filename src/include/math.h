@@ -1,0 +1,51 @@
+//
+//  Visopsys
+//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+// 
+//  This program is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU General Public License as published by the Free
+//  Software Foundation; either version 2 of the License, or (at your option)
+//  any later version.
+// 
+//  This program is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+//  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+//  for more details.
+//  
+//  You should have received a copy of the GNU General Public License along
+//  with this program; if not, write to the Free Software Foundation, Inc.,
+//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//
+//  math.h
+//
+
+// This is the Visopsys version of the standard header file math.h
+
+#if !defined(_MATH_H)
+
+double acos(double);
+double asin(double);
+double atan(double);
+double atan2(double, double);
+double ceil(double);
+double cos(double);
+double cosh(double);
+double exp(double);
+double fabs(double);
+double floor(double);
+double fmod(double, double);
+double frexp(double, int *);
+double ldexp(double, int);
+double log(double);
+double log10(double);
+double modf(double x, double *pint);
+double pow(double, double);
+double sin(double);
+double sinh(double);
+double sqrt(double);
+double tan(double);
+double tanh(double);
+
+#define _MATH_H
+#endif
+

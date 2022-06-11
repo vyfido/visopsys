@@ -1,0 +1,43 @@
+BUILDING VISOPSYS
+
+This is just a bare-bones description to accompany the first release(s) of
+the Visopsys source code; you might need a little know-how to get this to
+work for you.  After a while the source distribution will become more
+user-friendly.  The point is that the source code is available.
+
+To build the basic system, you will need a C compiler and assembler.  I use
+the GNU C Compiler (gcc) version 2.95.2, and the Netwide Assembler (NASM)
+version 0.98.  You will also need a "make" utility of some kind.  I use
+GNU Make version 3.77.
+
+You might be able to get away with using something other than gcc without
+modifications (doubtful), but you will need NASM to build this code.
+
+To build the Java installation tool, you will also need a Java-1.2 (or better)
+Java compiler (javac).  I use the SDK from Sun Microsystems, available at
+http://java.sun.com.
+
+Once you have all the requisite tools as listed above, you build by simply
+executing a 'make' command in the top-level directory directory, like so:
+
+	make
+
+After you've built the system, you might want to use it.  If this is the case,
+you can install it on a floppy disk using a couple of different methods.
+
+One way is to change to the 'utils' directory, and run the 'archive-binary.sh'
+script.  After this has completed you will have .zip and .tar.gz files just
+like the binary distribution available at Visopsys.org.  Un-package one of
+these files and run the Java installer using the script 'install.sh' (on Unix)
+or 'install.bat' (on Windows).
+
+The other method (Linux only) is to use the 'floppy-install.sh' script which
+is also located in the 'utils' directory.  Change to that directory, insert
+an unused floppy into the drive, and run the script.  This won't install a
+"complete" system -- just the basics.  I (Andy) use this script on a daily
+basis for kernel development.
+
+Good luck, and let me know if there's any help I can offer.
+
+-Andy McLaughlin (jamesamc@yahoo.com)
+07/30/2001

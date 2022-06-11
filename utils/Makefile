@@ -1,0 +1,38 @@
+##
+##  Visopsys
+##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+## 
+##  This program is free software; you can redistribute it and/or modify it
+##  under the terms of the GNU General Public License as published by the Free
+##  Software Foundation; either version 2 of the License, or (at your option)
+##  any later version.
+## 
+##  This program is distributed in the hope that it will be useful, but
+##  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+##  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+##  for more details.
+##  
+##  You should have received a copy of the GNU General Public License along
+##  with this program; if not, write to the Free Software Foundation, Inc.,
+##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+##
+##  Makefile
+##
+
+##  This is the Makefile for the Visopsys utilities.  
+
+
+# For the "all" target, we don't install Visopsys on anything
+all:
+	chmod +x *.sh
+	make -C src-mgmt all
+	make -C dist all
+
+# Make a floppy installation of Visopsys
+floppy: all
+	./floppy-install.sh -i blank-floppy-image.bin
+
+clean:
+	rm -f *~ core *.zip *.tar.gz
+	make -C src-mgmt clean
+	make -C dist clean

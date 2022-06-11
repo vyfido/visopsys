@@ -1,0 +1,104 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>Visopsys Memory Management</title>
+<meta name="description" content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
+<meta name="keywords" content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
+
+<meta name="Microsoft Border" content="lb, default"></head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" bgproperties="fixed" background="../img/background.jpg"><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html"><img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" WIDTH="53" HEIGHT="25"></a><br>
+    <br>
+    <a href="index.html"><img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" WIDTH="60" HEIGHT="25"></a><br>
+    <br>
+    <a href="../download/index.html"><img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" WIDTH="95" HEIGHT="25"></a></font><br>
+    <br>
+    <a href="../developers/index.html"><img src="../img/nav_buttons/developers.jpg" border="0" alt="Resources for Visopsys development" align="middle" WIDTH="97" HEIGHT="31"></a><br>
+    <br>
+    <a href="../osdev/index.html"><img src="../img/nav_buttons/osdev.jpg" border="0" alt="OS Development Resources" align="middle" WIDTH="64" HEIGHT="25"></a><br>
+    <br>
+    <a href="../search.html"><img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" WIDTH="63" HEIGHT="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+<p>&nbsp;</p>
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center"><img src="../img/banners/visopsys-logo.jpg" align="middle" border="0" WIDTH="290" HEIGHT="95"><br>
+<font size="5"><strong><img src="../img/banners/visopsys-about.jpg" align="middle" border="0" WIDTH="290" HEIGHT="55"></strong></font></p>
+<font SIZE="2">
+
+<p></font><strong><big>VISOPSYS' MEMORY MANAGER</big></strong></p>
+
+<p><big>Visopsys contains a memory manager that is capable of controlling basically
+arbitrary quantities of RAM memory.&nbsp; Suffice to say that your PC hardware is not
+capable of supporting more memory than Visopsys can handle.</big></p>
+
+<p><big>The quantity of memory in your system is determined at boot time by Visopsys'
+Operating System Loader.&nbsp; The amount of memory detected is then passed to the kernel
+at startup.&nbsp; This is the &quot;safest&quot; way to detect your memory -- <a href="#alt-memory-detect">there are other possible methods*</a>, but the consensus among
+hardware programmers is that asking the 16- bit system BIOS (before the 32-bit Visopsys
+kernel is invoked) is the most appropriate technique.&nbsp; </big></p>
+
+<p><big>In Visopsys, memory is organized as a 32-bit flat memory space.&nbsp; From the
+application program's point of view, memory is arranged as one large space which starts at
+address 0 and continues uninterrupted all the way to the end.&nbsp; All of this means that
+Visopsys does not use the x86's famously complicated segmented memory scheme. &nbsp; While
+segmented memory is easy to &quot;protect&quot; (i.e. to protect applications from
+interfering with memory that doesn't belong to them), it introduces unnecessary
+complication.&nbsp; In Visopsys, memory protection is achieved via the &quot;paging&quot;
+or &quot;virtual memory&quot; mechanism.&nbsp; An application may only access memory pages
+that belong to it.</big></p>
+
+<p><big>&quot;Real&quot; or &quot;linear&quot; (as opposed to paged or virtual) memory is
+allocated in 4 kilobyte pages.&nbsp; Thus, any allocation of memory can be no smaller than
+4Kb, and can theoretically be as large as the maximum number supported by the 32- bit x86
+CPU -- 4 gigabytes.&nbsp; </big></p>
+
+<p><big>This 4Kb minimum allocation was chosen for a couple of reasons: &nbsp; not
+coincidentally, it corresponds with the size of a virtual memory page in the x86.&nbsp;
+Also, 4Kb is relatively small compared to the large quantities of memory shipped with most
+modern PCs.&nbsp; Any potential wastage as a result of multiple small memory allocation
+requests is kept reasonably low in relation to the available memory in most systems.&nbsp;
+Computer Science theory tells us that on average, for each memory allocation request, ½
+of the minimum block size (2 Kb) will go unused.&nbsp; Generally speaking, good
+&quot;heap&quot; memory management will reduce the number of small allocation
+requests;&nbsp; instead, one larger allocation is performed by the application libraries
+and pieces of that memory are parceled out when necessary.</big></p>
+
+<p><big>Shortly, I will be documenting the Visopsys kernel's external interface to the
+memory management routines, for use by libraries and application programs.&nbsp; In its
+current form, it is only available for internal use by the kernel itself.</big></p>
+
+<p>&nbsp;</p>
+
+<p><a name="alt-memory-detect"></a>* The original IBM PC couldn't support even a single
+megabyte of RAM.&nbsp; Even today, detecting memory beyond 64 megabytes is slightly
+tricky.&nbsp; A technique exists to test the presence memory whereby the programmer
+attempts to use memory in increasing increments -- at the point where such an attempt
+fails, the programmer assumes that no real memory exists beyond that point. &nbsp; This is
+not generally considered a &quot;safe&quot; technique.</p>
+&nbsp;<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../index.html"><img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" WIDTH="53" HEIGHT="25"></a> <a href="index.html"><img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" WIDTH="60" HEIGHT="25"></a> <a href="../download/index.html"><img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" WIDTH="95" HEIGHT="25"></a></font> <a href="../developers/index.html"><img src="../img/nav_buttons/developers.jpg" alt="Resources for Visopsys development" border="0" align="middle" WIDTH="97" HEIGHT="31"></a> <a href="../osdev/index.html"><img src="../img/nav_buttons/osdev.jpg" border="0" align="middle" WIDTH="64" HEIGHT="25"></a> <a href="../search.html"><img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" WIDTH="63" HEIGHT="24"></a><br>
+    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2001, J.
+    Andrew McLaughlin<br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Page last updated: March 26, 2001</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+</td></tr><!--msnavigation--></table></body>
+</html>
