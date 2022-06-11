@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -128,7 +128,7 @@ static int mouseEvent(kernelWindow *menu, kernelWindowComponent *component,
 			tmpEvent.yPosition -= (menu->yCoord + component->yCoord);
 
 			// Copy the event into the event stream of the menu item
-			kernelWindowEventStreamWrite(&(component->events), &tmpEvent);
+			kernelWindowEventStreamWrite(&component->events, &tmpEvent);
 
 			// Tell the menu item not to show selected any more
 			component->setSelected(component, 0);
@@ -170,15 +170,19 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 			if (event->key == keyUpArrow)
 			{
 				// Cursor up
-				if (tmpSelected == 0)
+				if (!tmpSelected)
 				{
 					newSelected = -1;
 					break;
 				}
 				else if (tmpSelected < 0)
+				{
 					tmpSelected = (container->numComponents - 1);
+				}
 				else
+				{
 					tmpSelected -= 1;
+				}
 			}
 			else
 			{
@@ -189,7 +193,9 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 					tmpSelected = 0;
 				}
 				else
+				{
 					tmpSelected += 1;
+				}
 			}
 
 			itemComponent = container->components[tmpSelected];
@@ -242,7 +248,7 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 			tmpEvent.yPosition -= (menu->yCoord + itemComponent->yCoord);
 
 			// Copy the event into the event stream of the menu item
-			kernelWindowEventStreamWrite(&(itemComponent->events), &tmpEvent);
+			kernelWindowEventStreamWrite(&itemComponent->events, &tmpEvent);
 
 			// Tell the menu item not to show selected any more
 			itemComponent->setSelected(itemComponent, 0);

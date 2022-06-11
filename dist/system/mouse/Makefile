@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -9,7 +9,7 @@ BUILDDIR = ../../../build/system/mouse
 
 all:
 	mkdir -p ${BUILDDIR}
-	cp *.bmp ${BUILDDIR}
+	cp *.bmp *.ico ${BUILDDIR}
 
 clean:
 	rm -f *~ core

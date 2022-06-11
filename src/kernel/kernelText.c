@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,6 +20,7 @@
 //
 
 #include "kernelText.h"
+#include "kernelCharset.h"
 #include "kernelKeyboard.h"
 #include "kernelParameters.h"
 #include "kernelPage.h"
@@ -65,6 +66,7 @@ static kernelTextArea consoleArea = {
 	NULL,							// buffer data
 	(unsigned char *) 0x000B8000,	// Text screen address (visible data)
 	NULL,							// font
+	CHARSET_NAME_DEFAULT,			// charSet
 	NULL,							// window component
 	0								// no-scroll flag
 };
@@ -132,7 +134,7 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 	// us by our caller.
 
 	// Call the original stream append function
-	status = currentInput->s.intercept(&(currentInput->s), byte);
+	status = currentInput->s.intercept(&currentInput->s, byte);
 
 	return (status);
 }
@@ -183,8 +185,7 @@ int kernelTextInitialize(int columns, int rows)
 	// Take the physical text screen address and turn it into a virtual
 	// address in the kernel's address space.
 	status = kernelPageMapToFree(KERNELPROCID,
-		(unsigned) consoleArea.visibleData,
-		(void *) &(consoleArea.visibleData),
+		(unsigned) consoleArea.visibleData, (void *) &consoleArea.visibleData,
 		(columns * rows * consoleArea.bytesPerChar));
 	// Make sure we got a proper new virtual address
 	if (status < 0)
@@ -213,8 +214,7 @@ int kernelTextInitialize(int columns, int rows)
 	consoleArea.outputStream = consoleOutput;
 
 	// Set up our console input stream
-	status = kernelStreamNew(&(consoleInput->s), TEXT_STREAMSIZE,
-		itemsize_byte);
+	status = kernelStreamNew(&consoleInput->s, TEXT_STREAMSIZE, itemsize_byte);
 	if (status < 0)
 		return (status);
 
@@ -223,7 +223,7 @@ int kernelTextInitialize(int columns, int rows)
 	// keyboard interrupts and such.  Remember the original append function
 	// though
 	consoleInput->s.intercept = consoleInput->s.append;
-	consoleInput->s.append = (int (*) (stream *, ...)) &currentInputIntercept;
+	consoleInput->s.append = (int (*)(stream *, ...)) &currentInputIntercept;
 	consoleInput->attrs.echo = 1;
 
 	consoleArea.inputStream = consoleInput;
@@ -284,8 +284,8 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 	((kernelTextOutputStream *) area->outputStream)->textArea = area;
 
 	// The big buffer
-	area->bufferData =
-		kernelMalloc(columns * area->maxBufferLines * bytesPerChar);
+	area->bufferData = kernelMalloc(columns * area->maxBufferLines *
+		bytesPerChar);
 	if (!area->bufferData)
 	{
 		kernelTextAreaDestroy(area);
@@ -299,6 +299,9 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
 		kernelTextAreaDestroy(area);
 		return (area = NULL);
 	}
+
+	// Default character set
+	area->charSet = CHARSET_NAME_DEFAULT;
 
 	return (area);
 }
@@ -320,7 +323,7 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 
 	if (inputStream && (inputStream != &originalConsoleInput))
 	{
-		kernelStreamDestroy(&(inputStream->s));
+		kernelStreamDestroy(&inputStream->s);
 		kernelFree((void *) area->inputStream);
 	}
 
@@ -370,9 +373,9 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 	{
 		diffVisibleRows = min(diffRows, area->scrollBackLines);
 		for (rowCount = 0; rowCount < area->maxBufferLines; rowCount ++)
-			strncpy((char *) (newBufferData + ((diffVisibleRows + rowCount) *
+			strncpy((char *)(newBufferData + ((diffVisibleRows + rowCount) *
 				columns)),
-					(char *) (area->bufferData + (rowCount * area->columns)),
+					(char *)(area->bufferData + (rowCount * area->columns)),
 				copyColumns);
 		area->cursorRow += diffVisibleRows;
 		area->scrollBackLines -= diffVisibleRows;
@@ -381,8 +384,8 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 	{
 		diffVisibleRows = min(-diffRows, area->scrollBackLines);
 		for (rowCount = 0; rowCount < newBufferLines; rowCount ++)
-			strncpy((char *) (newBufferData + (rowCount * columns)),
-				(char *) (area->bufferData + ((diffVisibleRows + rowCount) *
+			strncpy((char *)(newBufferData + (rowCount * columns)),
+				(char *)(area->bufferData + ((diffVisibleRows + rowCount) *
 					area->columns)),
 				copyColumns);
 		if (area->cursorRow >= (area->rows - 1))
@@ -535,7 +538,7 @@ int kernelTextSetCurrentInput(kernelTextInputStream *newInput)
 	currentInput = newInput;
 
 	// Tell the keyboard driver to append all new input to this stream
-	status = kernelKeyboardSetStream(&(currentInput->s));
+	status = kernelKeyboardSetStream(&currentInput->s);
 
 	return (status);
 }
@@ -587,14 +590,14 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
 	if (!newStream)
 		return (status = ERR_NULLPARAMETER);
 
-	status = kernelStreamNew(&(newStream->s), TEXT_STREAMSIZE, itemsize_byte);
+	status = kernelStreamNew(&newStream->s, TEXT_STREAMSIZE, itemsize_byte);
 	if (status < 0)
 		return (status);
 
 	// We want to be able to intercept things as they're put into the input
 	// stream, so we can catch keyboard interrupts and such.
 	newStream->s.intercept = newStream->s.append;
-	newStream->s.append = (int (*) (stream *, ...)) &currentInputIntercept;
+	newStream->s.append = (int (*)(stream *, ...)) &currentInputIntercept;
 	newStream->attrs.echo = 1;
 
 	return (status = 0);
@@ -637,7 +640,7 @@ int kernelTextGetForeground(color *foreground)
 	if (!outputStream)
 		return (ERR_INVALID);
 
-	memcpy(foreground, (color *) &(outputStream->textArea->foreground),
+	memcpy(foreground, (color *) &outputStream->textArea->foreground,
 		sizeof(color));
 	return (0);
 }
@@ -668,7 +671,7 @@ int kernelTextSetForeground(color *foreground)
 		status = outputStream->outputDriver
 			->setForeground(outputStream->textArea, foreground);
 
-	memcpy((color *) &(outputStream->textArea->foreground), foreground,
+	memcpy((color *) &outputStream->textArea->foreground, foreground,
 		sizeof(color));
 	return (status);
 }
@@ -691,7 +694,7 @@ int kernelTextGetBackground(color *background)
 	if (!outputStream)
 		return (ERR_INVALID);
 
-	memcpy(background, (color *) &(outputStream->textArea->background),
+	memcpy(background, (color *) &outputStream->textArea->background,
 		sizeof(color));
 	return (0);
 }
@@ -722,7 +725,7 @@ int kernelTextSetBackground(color *background)
 		status = outputStream->outputDriver
 			->setBackground(outputStream->textArea, background);
 
-	memcpy((color *) &(outputStream->textArea->background), background,
+	memcpy((color *) &outputStream->textArea->background, background,
 		sizeof(color));
 	return (status);
 }
@@ -741,7 +744,7 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
 	if (!outputStream)
 		return (status = ERR_NULLPARAMETER);
 
-	theChar[0] = (char) ascii;
+	theChar[0] = ascii;
 	theChar[1] = '\0';
 
 	// Call the text stream output driver routine with the character
@@ -906,7 +909,9 @@ int kernelTextStreamPrintLine(kernelTextOutputStream *outputStream,
 		outputStream->outputDriver->print(outputStream->textArea, "\n", NULL);
 	}
 	else
+	{
 		status = ERR_NOSUCHFUNCTION;
+	}
 
 	return (status);
 }
@@ -1709,7 +1714,7 @@ int kernelTextInputStreamGetc(kernelTextInputStream *inputStream,
 		kernelMultitaskerYield();
 
 	// Call the 'pop' function for this stream
-	status = inputStream->s.pop(&(inputStream->s), returnChar);
+	status = inputStream->s.pop(&inputStream->s, returnChar);
 
 	// Return the status from the call
 	return (status);
@@ -1745,12 +1750,12 @@ int kernelTextInputStreamPeek(kernelTextInputStream *inputStream,
 	}
 
 	// Call the 'pop' function for this stream
-	status = inputStream->s.pop(&(inputStream->s), returnChar);
+	status = inputStream->s.pop(&inputStream->s, returnChar);
 	if (status)
 		return (status);
 
 	// Push the character back into the stream
-	status = inputStream->s.push(&(inputStream->s), *returnChar);
+	status = inputStream->s.push(&inputStream->s, *returnChar);
 
 	// Return the status from the call
 	return (status);
@@ -1787,7 +1792,7 @@ int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
 	}
 
 	// Call the 'popN' function for this stream
-	status = inputStream->s.popN(&(inputStream->s), numberRequested,
+	status = inputStream->s.popN(&inputStream->s, numberRequested,
 		returnChars);
 
 	// Return the status from the call
@@ -1826,7 +1831,7 @@ int kernelTextInputStreamReadAll(kernelTextInputStream *inputStream,
 
 	// Get all of the characters in the stream.  Call the 'popN' function
 	// for this stream
-	status = inputStream->s.popN(&(inputStream->s), inputStream->s.count,
+	status = inputStream->s.popN(&inputStream->s, inputStream->s.count,
 		returnChars);
 
 	// Return the status from the call
@@ -1858,7 +1863,7 @@ int kernelTextInputStreamAppend(kernelTextInputStream *inputStream, int ascii)
 	}
 
 	// Call the 'append' function for this stream
-	status = inputStream->s.append(&(inputStream->s), (unsigned char) ascii);
+	status = inputStream->s.append(&inputStream->s, (unsigned char) ascii);
 
 	// Return the status from the call
 	return (status);
@@ -1895,7 +1900,7 @@ int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
 
 	// Call the 'appendN' function for this stream
 	status =
-		inputStream->s.appendN(&(inputStream->s), numberRequested,
+		inputStream->s.appendN(&inputStream->s, numberRequested,
 			addCharacters);
 
 	// Return the status from the call
@@ -1930,7 +1935,7 @@ int kernelTextInputStreamRemove(kernelTextInputStream *inputStream)
 
 	// Call the 'pop' function for this stream, and discard the char we
 	// get back.
-	status = inputStream->s.pop(&(inputStream->s), &junk);
+	status = inputStream->s.pop(&inputStream->s, &junk);
 
 	// Return the status from the call
 	return (status);
@@ -1968,7 +1973,7 @@ int kernelTextInputStreamRemoveN(kernelTextInputStream *inputStream,
 
 	// Call the 'popN' function for this stream, and discard the chars we
 	// get back.
-	status = inputStream->s.popN(&(inputStream->s), numberRequested, junk);
+	status = inputStream->s.popN(&inputStream->s, numberRequested, junk);
 
 	// Return the status from the call
 	return (status);
@@ -1999,7 +2004,7 @@ int kernelTextInputStreamRemoveAll(kernelTextInputStream *inputStream)
 	}
 
 	// Call the 'clear' function for this stream
-	status = inputStream->s.clear(&(inputStream->s));
+	status = inputStream->s.clear(&inputStream->s);
 
 	// Return the status from the call
 	return (status);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -66,9 +66,9 @@ static void progressThread(void)
 
 	windowComponentSetEnabled(cancelButton, prog->canCancel);
 	if (prog->canCancel)
-		windowSwitchPointer(dialogWindow, "default");
+		windowSwitchPointer(dialogWindow, MOUSE_POINTER_DEFAULT);
 	else
-		windowSwitchPointer(dialogWindow, "busy");
+		windowSwitchPointer(dialogWindow, MOUSE_POINTER_BUSY);
 
 	while (1)
 	{
@@ -96,9 +96,14 @@ static void progressThread(void)
 				{
 					windowComponentSetEnabled(cancelButton, prog->canCancel);
 					if (prog->canCancel)
-						windowSwitchPointer(dialogWindow, "default");
+					{
+						windowSwitchPointer(dialogWindow,
+							MOUSE_POINTER_DEFAULT);
+					}
 					else
-						windowSwitchPointer(dialogWindow, "busy");
+					{
+						windowSwitchPointer(dialogWindow, MOUSE_POINTER_BUSY);
+					}
 				}
 
 				// Job finished?
@@ -214,15 +219,11 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	{
 		status = imageLoad(WAITIMAGE_NAME, 0, 0, (image *) &waitImage);
 		if (status >= 0)
-		{
-			waitImage.transColor.red = 0;
-			waitImage.transColor.green = 255;
-			waitImage.transColor.blue = 0;
-		}
+			waitImage.transColor.green = 0xFF;
 	}
 
 	if (waitImage.data)
-		windowNewImage(container, (image *) &waitImage, draw_translucent,
+		windowNewImage(container, (image *) &waitImage, draw_alphablend,
 			&params);
 
 	// Create the progress bar

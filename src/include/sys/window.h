@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,11 +24,14 @@
 
 #if !defined(_WINDOW_H)
 
+#include <sys/charset.h>
+#include <sys/compress.h>
 #include <sys/file.h>
 #include <sys/graphic.h>
 #include <sys/image.h>
 #include <sys/keyboard.h>
 #include <sys/loader.h>
+#include <sys/mouse.h>
 #include <sys/paths.h>
 #include <sys/progress.h>
 #include <sys/stream.h>
@@ -36,6 +39,32 @@
 #ifndef _X_
 #define _X_
 #endif
+
+// The window system configuration file and variable names
+#define WINDOW_CONFIGFILE					"window.conf"
+#define WINDOW_MINWIDTH						"window.minwidth"
+#define WINDOW_MINHEIGHT					"window.minheight"
+#define WINDOW_MINREST_TRACERS				"window.minrest.tracers"
+#define WINDOW_TITLEBAR_HEIGHT				"titlebar.height"
+#define WINDOW_TITLEBAR_MINWIDTH			"titlebar.minwidth"
+#define WINDOW_BORDER_THICKNESS				"border.thickness"
+#define WINDOW_BORDER_SHADINGINCREMENT		"border.shadingincrement"
+#define WINDOW_RADIOBUTTON_SIZE				"radiobutton.size"
+#define WINDOW_CHECKBOX_SIZE				"checkbox.size"
+#define WINDOW_SLIDER_WIDTH					"slider.width"
+#define WINDOW_FONT_FIXWIDTH_SMALL_FAMILY	"font.fixwidth.small.family"
+#define WINDOW_FONT_FIXWIDTH_SMALL_FLAGS	"font.fixwidth.small.flags"
+#define WINDOW_FONT_FIXWIDTH_SMALL_POINTS	"font.fixwidth.small.points"
+#define WINDOW_FONT_FIXWIDTH_MEDIUM_FAMILY	"font.fixwidth.medium.family"
+#define WINDOW_FONT_FIXWIDTH_MEDIUM_FLAGS	"font.fixwidth.medium.flags"
+#define WINDOW_FONT_FIXWIDTH_MEDIUM_POINTS	"font.fixwidth.medium.points"
+#define WINDOW_FONT_VARWIDTH_SMALL_FAMILY	"font.varwidth.small.family"
+#define WINDOW_FONT_VARWIDTH_SMALL_FLAGS	"font.varwidth.small.flags"
+#define WINDOW_FONT_VARWIDTH_SMALL_POINTS	"font.varwidth.small.points"
+#define WINDOW_FONT_VARWIDTH_MEDIUM_FAMILY	"font.varwidth.medium.family"
+#define WINDOW_FONT_VARWIDTH_MEDIUM_FLAGS	"font.varwidth.medium.flags"
+#define WINDOW_FONT_VARWIDTH_MEDIUM_POINTS	"font.varwidth.medium.points"
+#define WINDOW_FONT_FLAG_BOLD				"bold"
 
 // Window events/masks.  This first batch are "tier 2" events, produced by
 // the system, windows, widgets, etc. to indicate that some more abstract
@@ -108,11 +137,40 @@
 #define WINFILEBROWSE_ALL \
 	(WINFILEBROWSE_CAN_CD | WINFILEBROWSE_CAN_DEL)
 
-// Some image file names for dialog boxes
-#define INFOIMAGE_NAME						PATH_SYSTEM_ICONS "/infoicon.ico"
-#define ERRORIMAGE_NAME						PATH_SYSTEM_ICONS "/bangicon.ico"
-#define QUESTIMAGE_NAME						PATH_SYSTEM_ICONS "/questicon.ico"
-#define WAITIMAGE_NAME						PATH_SYSTEM_MOUSE "/busy.bmp"
+// Some icon file names for dialog boxes
+#define INFOIMAGE_NAME						PATH_SYSTEM_ICONS "/info.ico"
+#define ERRORIMAGE_NAME						PATH_SYSTEM_ICONS "/error.ico"
+#define QUESTIMAGE_NAME						PATH_SYSTEM_ICONS "/question.ico"
+#define WAITIMAGE_NAME						PATH_SYSTEM_MOUSE "/busy.ico"
+
+// Window keyboard widget parameters
+#define WINDOWKEYBOARD_KEYROWS				6
+#define WINDOWKEYBOARD_ROW0_P0_KEYS			13
+#define WINDOWKEYBOARD_ROW0_P1_KEYS			3
+#define WINDOWKEYBOARD_ROW0_KEYS \
+	(WINDOWKEYBOARD_ROW0_P0_KEYS + WINDOWKEYBOARD_ROW0_P1_KEYS)
+#define WINDOWKEYBOARD_ROW1_P0_KEYS			14
+#define WINDOWKEYBOARD_ROW1_P1_KEYS			3
+#define WINDOWKEYBOARD_ROW1_KEYS \
+	(WINDOWKEYBOARD_ROW1_P0_KEYS + WINDOWKEYBOARD_ROW1_P1_KEYS)
+#define WINDOWKEYBOARD_ROW2_P0_KEYS			14
+#define WINDOWKEYBOARD_ROW2_P1_KEYS			3
+#define WINDOWKEYBOARD_ROW2_KEYS \
+	(WINDOWKEYBOARD_ROW2_P0_KEYS + WINDOWKEYBOARD_ROW2_P1_KEYS)
+#define WINDOWKEYBOARD_ROW3_P0_KEYS			14
+#define WINDOWKEYBOARD_ROW3_P1_KEYS			0
+#define WINDOWKEYBOARD_ROW3_KEYS \
+	(WINDOWKEYBOARD_ROW3_P0_KEYS + WINDOWKEYBOARD_ROW3_P1_KEYS)
+#define WINDOWKEYBOARD_ROW4_P0_KEYS			13
+#define WINDOWKEYBOARD_ROW4_P1_KEYS			1
+#define WINDOWKEYBOARD_ROW4_KEYS \
+	(WINDOWKEYBOARD_ROW4_P0_KEYS + WINDOWKEYBOARD_ROW4_P1_KEYS)
+#define WINDOWKEYBOARD_ROW5_P0_KEYS			8
+#define WINDOWKEYBOARD_ROW5_P1_KEYS			3
+#define WINDOWKEYBOARD_ROW5_KEYS \
+	(WINDOWKEYBOARD_ROW5_P0_KEYS + WINDOWKEYBOARD_ROW5_P1_KEYS)
+#define WINDOWKEYBOARD_MAX_ROWKEYS			17
+#define WINDOWKEYBOARD_GAP					5
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
@@ -222,6 +280,30 @@ typedef struct {
 
 } listItemParameters;
 
+typedef struct _windowTreeItem {
+	char text[WINDOW_MAX_LABEL_LENGTH + 1];
+	char displayText[WINDOW_MAX_LABEL_LENGTH + 1];
+	objectKey key;
+	struct _windowTreeItem *firstChild;
+	struct _windowTreeItem *next;
+	int expanded;
+	int subItem;
+
+} windowTreeItem;
+
+typedef struct _windowArchiveList {
+	objectKey key;
+	archiveMemberInfo *members;
+	int numMembers;
+	void (*selectionCallback)(int);
+
+	// Externally-callable service routines
+	int (*eventHandler)(struct _windowArchiveList *, windowEvent *);
+	int (*update)(struct _windowArchiveList *, archiveMemberInfo *, int);
+	int (*destroy)(struct _windowArchiveList *);
+
+} windowArchiveList;
+
 typedef struct _windowFileList {
 	objectKey key;
 	char cwd[MAX_PATH_LENGTH];
@@ -249,6 +331,89 @@ typedef struct {
 
 } windowMenuContents;
 
+typedef struct {
+	int xCoord;
+	int yCoord;
+	int width;
+	int height;
+	keyScan scan;
+	const char *string1;
+	const char *string2;
+
+} windowKey;
+
+typedef struct _windowKeyboard {
+	objectKey canvas;
+	keyMap map;
+	char charsetName[CHARSET_NAME_LEN];
+	unsigned shiftState;
+	unsigned toggleState;
+	int width;
+	int height;
+	color foreground;
+	color background;
+	objectKey font;
+	int fontWidth;
+	int fontHeight;
+	objectKey smallFont;
+	int smallFontHeight;
+	windowKey *leftShift;
+	windowKey *rightShift;
+	windowKey *leftControl;
+	windowKey *rightControl;
+	windowKey *pressedKey;
+	struct {
+		int numKeys;
+		windowKey keys[WINDOWKEYBOARD_MAX_ROWKEYS];
+
+	} rows[WINDOWKEYBOARD_KEYROWS];
+
+	// Externally-callable service routines
+	int (*eventHandler)(struct _windowKeyboard *, windowEvent *);
+	int (*setMap)(struct _windowKeyboard *, keyMap *);
+	int (*setCharset)(struct _windowKeyboard *, const char *);
+
+	// If set, this is called when keys are pressed/released
+	int (*callback)(int, keyScan);
+
+} windowKeyboard;
+
+typedef enum {
+	pixedmode_draw, pixedmode_pick, pixedmode_select
+
+} pixelEditorMode;
+
+typedef struct _windowPixelEditor {
+	objectKey canvas;
+	int width;
+	int height;
+	graphicBuffer buffer;
+	image *img;
+	int minPixelSize;
+	int maxPixelSize;
+	int pixelSize;
+	int horizPixels;
+	int vertPixels;
+	int startHoriz;
+	int startVert;
+	scrollBarState horiz;
+	scrollBarState vert;
+	pixelEditorMode mode;
+	windowDrawParameters drawing;
+	color foreground;
+	color background;
+	int changed;
+
+	// Externally-callable service routines
+	int (*resize)(struct _windowPixelEditor *);
+	int (*eventHandler)(struct _windowPixelEditor *, windowEvent *);
+	int (*zoom)(struct _windowPixelEditor *, int);
+	int (*scrollHoriz)(struct _windowPixelEditor *, int);
+	int (*scrollVert)(struct _windowPixelEditor *, int);
+	int (*destroy)(struct _windowPixelEditor *);
+
+} windowPixelEditor;
+
 void windowCenterDialog(objectKey, objectKey);
 int windowClearEventHandler(objectKey);
 int windowClearEventHandlers(void);
@@ -256,21 +421,28 @@ void windowGuiRun(void);
 void windowGuiStop(void);
 int windowGuiThread(void);
 int windowGuiThreadPid(void);
+windowArchiveList *windowNewArchiveList(objectKey, windowListType, int, int,
+	archiveMemberInfo *, int, void (*)(int), componentParameters *);
 objectKey windowNewBannerDialog(objectKey, const char *, const char *);
 int windowNewChoiceDialog(objectKey, const char *, const char *, char *[],
 	int, int);
 int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, const char *,
-	char *, unsigned, int);
+	char *, unsigned, fileType, int);
 windowFileList *windowNewFileList(objectKey, windowListType, int, int,
-	const char *, int, void *, componentParameters *);
+	const char *, int, void (*)(file *, char *, loaderFileClass *),
+	componentParameters *);
 int windowNewInfoDialog(objectKey, const char *, const char *);
+windowKeyboard *windowNewKeyboard(objectKey, int, int, void *,
+	componentParameters *);
 int windowNewLanguageDialog(objectKey, char *);
 int windowNewNumberDialog(objectKey, const char *, const char *, int, int,
 	int, int *);
 int windowNewPasswordDialog(objectKey, const char *, const char *, int,
 	char *);
+windowPixelEditor *windowNewPixelEditor(objectKey, int, int, image *,
+	componentParameters *);
 objectKey windowNewProgressDialog(objectKey, const char *, progress *);
 int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 	char *);

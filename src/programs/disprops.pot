@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,92 +17,92 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: disprops.c:54
+#: disprops.c:56
 msgid "Display Settings"
 msgstr ""
 
-#: disprops.c:55
+#: disprops.c:57
 msgid "Screen resolution:"
 msgstr ""
 
-#: disprops.c:56
+#: disprops.c:58
 msgid "Colors:"
 msgstr ""
 
-#: disprops.c:57
+#: disprops.c:59
 msgid "Foreground"
 msgstr ""
 
-#: disprops.c:58
+#: disprops.c:60
 msgid "Background"
 msgstr ""
 
-#: disprops.c:59
+#: disprops.c:61
 msgid "Desktop"
 msgstr ""
 
-#: disprops.c:60
+#: disprops.c:62
 msgid "Change"
 msgstr ""
 
-#: disprops.c:61
+#: disprops.c:63
 msgid "Background wallpaper:"
 msgstr ""
 
-#: disprops.c:62
+#: disprops.c:64
 msgid "Choose"
 msgstr ""
 
-#: disprops.c:63
+#: disprops.c:65
 msgid "Use background wallpaper"
 msgstr ""
 
-#: disprops.c:64
+#: disprops.c:66
 msgid "Miscellaneous:"
 msgstr ""
 
-#: disprops.c:65
+#: disprops.c:67
 msgid "Boot in graphics mode"
 msgstr ""
 
-#: disprops.c:66
+#: disprops.c:68
 msgid "Show a clock on the desktop"
 msgstr ""
 
-#: disprops.c:67
+#: disprops.c:69
 msgid "OK"
 msgstr ""
 
-#: disprops.c:68
+#: disprops.c:70
 msgid "Cancel"
 msgstr ""
 
-#: disprops.c:146
+#: disprops.c:218
 #, c-format
 msgid " %d x %d, %d bit "
 msgstr ""
 
-#: disprops.c:531
+#: disprops.c:686
 #, c-format
 msgid ""
 "The resolution has been changed to %dx%d, %dbpp\n"
 "This will take effect after you reboot."
 msgstr ""
 
-#: disprops.c:535
+#: disprops.c:690
 msgid "Changed"
 msgstr ""
 
-#: disprops.c:539
+#: disprops.c:694
 #, c-format
 msgid "Error %d setting mode"
 msgstr ""
 
-#: disprops.c:540
+#: disprops.c:695
 msgid "Error"
 msgstr ""
 
-#: disprops.c:816
+#: disprops.c:971
 #, c-format
 msgid ""
 "\n"

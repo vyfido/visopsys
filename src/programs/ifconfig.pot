@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,31 +105,31 @@ msgstr ""
 msgid "Disable"
 msgstr ""
 
-#: ifconfig.c:205 ifconfig.c:428
+#: ifconfig.c:205 ifconfig.c:432
 msgid "Enable"
 msgstr ""
 
-#: ifconfig.c:338
+#: ifconfig.c:342
 msgid "Shutting down networking"
 msgstr ""
 
-#: ifconfig.c:339
+#: ifconfig.c:343
 msgid "Initializing networking"
 msgstr ""
 
-#: ifconfig.c:339
+#: ifconfig.c:343
 msgid "One moment please..."
 msgstr ""
 
-#: ifconfig.c:423
+#: ifconfig.c:427
 msgid "Networking is disabled"
 msgstr ""
 
-#: ifconfig.c:583
+#: ifconfig.c:587
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:591
+#: ifconfig.c:595
 msgid "Can't get the count of network devices"
 msgstr ""

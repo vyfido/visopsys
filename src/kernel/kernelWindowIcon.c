@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,6 +22,7 @@
 // This code is for managing kernelWindowIcon objects.
 
 #include "kernelWindow.h"	// Our prototypes are here
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelFont.h"
 #include "kernelImage.h"
@@ -91,7 +92,8 @@ static void splitLabelsAtNewlines(kernelWindowIcon *icon)
 }
 
 
-static void splitLongLabel(kernelWindowIcon *icon, int line, asciiFont *font)
+static void splitLongLabel(kernelWindowIcon *icon, int line, kernelFont *font,
+	char *charSet)
 {
 	int labelLen = 0;
 	char tmp[WINDOW_MAX_LABEL_LENGTH];
@@ -107,7 +109,8 @@ static void splitLongLabel(kernelWindowIcon *icon, int line, asciiFont *font)
 		if (tmp[count] == ' ')
 		{
 			tmp[count] = '\0';
-			if (kernelFontGetPrintedWidth(font, tmp) <= MAX_LABEL_WIDTH)
+			if (kernelFontGetPrintedWidth(font, charSet, tmp) <=
+				MAX_LABEL_WIDTH)
 			{
 				splitLabelAt(icon, line, count, 0 /* no preserve */);
 				return;
@@ -120,30 +123,31 @@ static void splitLongLabel(kernelWindowIcon *icon, int line, asciiFont *font)
 	strcpy(tmp, icon->labelLine[line]);
 	labelLen = strlen(tmp);
 
-	while (kernelFontGetPrintedWidth(font, tmp) > MAX_LABEL_WIDTH)
+	while (kernelFontGetPrintedWidth(font, charSet, tmp) > MAX_LABEL_WIDTH)
 		tmp[--labelLen] = '\0';
 
 	splitLabelAt(icon, line, labelLen, 1 /* preserve */);
 }
 
 
-static void splitLongLabels(kernelWindowIcon *icon, asciiFont *font)
+static void splitLongLabels(kernelWindowIcon *icon, kernelFont *font,
+	char *charSet)
 {
 	int count;
 
 	for (count = 0; count < icon->labelLines; count ++)
 	{
-		if (kernelFontGetPrintedWidth(font, icon->labelLine[count]) >
+		if (kernelFontGetPrintedWidth(font, charSet, icon->labelLine[count]) >
 			MAX_LABEL_WIDTH)
 		{
-			splitLongLabel(icon, count, font);
+			splitLongLabel(icon, count, font, charSet);
 		}
 	}
 }
 
 
 static void setLabel(kernelWindowIcon *icon, const char *label,
-	asciiFont *font)
+	kernelFont *font, char *charSet)
 {
 	// Given a string, try and fit it into our maximum number of label lines
 	// with each having a maximum width.  For a long icon label, try to split
@@ -164,16 +168,16 @@ static void setLabel(kernelWindowIcon *icon, const char *label,
 	splitLabelsAtNewlines(icon);
 
 	// If the labels are too long, split them
-	splitLongLabels(icon, font);
+	splitLongLabels(icon, font, charSet);
 
 	// Set the label width
 	icon->labelWidth = 0;
 	for (count = 0; count < icon->labelLines; count ++)
 	{
-		if (kernelFontGetPrintedWidth(font, icon->labelLine[count]) >
+		if (kernelFontGetPrintedWidth(font, charSet, icon->labelLine[count]) >
 			icon->labelWidth)
 		{
-			icon->labelWidth = kernelFontGetPrintedWidth(font,
+			icon->labelWidth = kernelFontGetPrintedWidth(font, charSet,
 				icon->labelLine[count]);
 		}
 	}
@@ -187,16 +191,15 @@ static int draw(kernelWindowComponent *component)
 	kernelWindowIcon *icon = component->data;
 	color *textColor = NULL;
 	color *textBackground = NULL;
-	asciiFont *font = (asciiFont *) component->params.font;
+	kernelFont *font = (kernelFont *) component->params.font;
+	int labelX = 0, labelY = 0;
 	int count;
 
-	int labelX = (component->xCoord + (component->width -
-		icon->labelWidth) / 2);
-	int labelY = (component->yCoord + icon->iconImage.height + 3);
+	kernelDebug(debug_gui, "WindowIcon draw");
 
 	// Draw the icon image
 	kernelGraphicDrawImage(component->buffer, (image *) &icon->iconImage,
-		draw_translucent, IMAGEX, component->yCoord, 0, 0, 0, 0);
+		draw_alphablend, IMAGEX, component->yCoord, 0, 0, 0, 0);
 
 	if (icon->selected)
 	{
@@ -215,17 +218,18 @@ static int draw(kernelWindowComponent *component)
 		{
 			labelX = (component->xCoord +
 				((component->width -
-					kernelFontGetPrintedWidth(font, (char *)
-						icon->labelLine[count])) / 2) + 1);
+					kernelFontGetPrintedWidth(font,
+						(char *) component->charSet,
+						(char *) icon->labelLine[count])) / 2) + 1);
 			labelY = (component->yCoord + icon->iconImage.height + 4 +
 				(font->glyphHeight * count));
 
 			kernelGraphicDrawText(component->buffer, textBackground, textColor,
-				font, (char *) icon->labelLine[count], draw_translucent,
-				(labelX + 1), (labelY + 1));
+				font, (char *) component->charSet, icon->labelLine[count],
+				draw_translucent, (labelX + 1), (labelY + 1));
 			kernelGraphicDrawText(component->buffer, textColor, textBackground,
-				font, (char *) icon->labelLine[count], draw_translucent,
-				labelX, labelY);
+				font, (char *) component->charSet, icon->labelLine[count],
+				draw_translucent, labelX, labelY);
 		}
 	}
 
@@ -240,10 +244,12 @@ static int focus(kernelWindowComponent *component, int gotFocus)
 {
 	kernelWindowIcon *icon = component->data;
 
+	kernelDebug(debug_gui, "WindowIcon %s focus", (gotFocus? "got" : "lost"));
+
 	if (gotFocus)
 	{
 		kernelGraphicDrawImage(component->buffer, (image *)
-			&icon->selectedImage, draw_translucent, IMAGEX, component->yCoord,
+			&icon->selectedImage, draw_alphablend, IMAGEX, component->yCoord,
 			0, 0, 0, 0);
 		component->window->update(component->window, component->xCoord,
 			component->yCoord, component->width, component->height);
@@ -265,8 +271,11 @@ static int setData(kernelWindowComponent *component, void *label,
 
 	kernelWindowIcon *icon = component->data;
 
+	kernelDebug(debug_gui, "WindowIcon set data");
+
 	if (component->params.font)
-		setLabel(icon, label, (asciiFont *) component->params.font);
+		setLabel(icon, label, (kernelFont *) component->params.font,
+			(char *) component->charSet);
 
 	// Re-draw
 	if (component->draw)
@@ -281,11 +290,11 @@ static int setData(kernelWindowComponent *component, void *label,
 
 static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
-	// Launch a thread to load and run the program
-
 	kernelWindowIcon *icon = component->data;
 	static int dragging = 0;
 	static windowEvent dragEvent;
+
+	kernelDebug(debug_gui, "WindowIcon mouse event");
 
 	// Is the icon being dragged around?
 	if (dragging)
@@ -306,7 +315,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 			// Draw the moving image.
 			kernelGraphicDrawImage(NULL, (image *) &icon->selectedImage,
-				draw_translucent, (component->window->xCoord + IMAGEX),
+				draw_alphablend, (component->window->xCoord + IMAGEX),
 				(component->window->yCoord + component->yCoord),
 				0, 0, 0, 0);
 
@@ -377,7 +386,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 		// Draw the moving image.
 		kernelGraphicDrawImage(NULL, (image *) &icon->selectedImage,
-			draw_translucent, (component->window->xCoord + IMAGEX),
+			draw_alphablend, (component->window->xCoord + IMAGEX),
 			(component->window->yCoord + component->yCoord), 0, 0, 0, 0);
 
 		// Save a copy of the dragging event
@@ -392,13 +401,18 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 		if (event->type == EVENT_MOUSE_LEFTDOWN)
 		{
+			kernelDebug(debug_gui, "WindowIcon mouse click");
+
 			kernelGraphicDrawImage(component->buffer,
-				(image *) &icon->selectedImage, draw_translucent, IMAGEX,
+				(image *) &icon->selectedImage, draw_alphablend, IMAGEX,
 				component->yCoord, 0, 0, 0, 0);
+
 			icon->selected = 1;
 		}
 		else if (event->type == EVENT_MOUSE_LEFTUP)
 		{
+			kernelDebug(debug_gui, "WindowIcon mouse unclick");
+
 			icon->selected = 0;
 
 			// Remove the focus from the icon.  This will cause it to be
@@ -419,6 +433,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	int status = 0;
+
+	kernelDebug(debug_gui, "WindowIcon key event");
 
 	// We're only looking for 'enter' key releases, which we turn into mouse
 	// button presses.
@@ -472,8 +488,8 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 	pixel *pix = NULL;
 	unsigned count;
 
-	// Check params
-	if (!parent || !imageCopy || !label || !params)
+	// Check params.  Label can be NULL.
+	if (!parent || !imageCopy || !params)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (component = NULL);
@@ -502,18 +518,18 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 
 	// If default colors are requested, override the standard component colors
 	// with the ones we prefer
+
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
 	{
-		component->params.foreground.red = 0x28;
-		component->params.foreground.green = 0x5D;
-		component->params.foreground.blue = 0xAB;
-		component->params.flags |= WINDOW_COMPFLAG_CUSTOMFOREGROUND;
+		// Use default foreground color
+		memcpy((void *) &component->params.foreground,
+			&windowVariables->color.foreground, sizeof(color));
 	}
+
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
-		component->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
 	}
 
 	// Always use our font
@@ -566,15 +582,16 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 		}
 	}
 
-	if (component->params.font)
-		setLabel(icon, label, (asciiFont *) component->params.font);
+	if (label && component->params.font)
+		setLabel(icon, label, (kernelFont *) component->params.font,
+			(char *) component->charSet);
 
 	// Now populate the main component
 	component->width = max(imageCopy->width,
 		((unsigned)(icon->labelWidth + 3)));
 	component->height = (imageCopy->height + 5);
 	if (component->params.font)
-		component->height += (((asciiFont *)
+		component->height += (((kernelFont *)
 			component->params.font)->glyphHeight * icon->labelLines);
 
 	component->minWidth = component->width;

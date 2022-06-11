@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,12 +38,12 @@ static int draw(kernelWindowComponent *component)
 	kernelWindowProgressBar *progressBar = component->data;
 	int thickness = windowVariables->border.thickness;
 	int shadingIncrement = windowVariables->border.shadingIncrement;
-	asciiFont *font = (asciiFont *) component->params.font;
+	kernelFont *font = (kernelFont *) component->params.font;
 	char prog[5];
 
 	// Draw the background of the progress bar
 	kernelGraphicDrawRect(component->buffer,
-		(color *) &(component->params.background), draw_normal,
+		(color *) &component->params.background, draw_normal,
 		(component->xCoord + thickness), (component->yCoord + thickness),
 		(component->width - (thickness * 2)),
 		(component->height - (thickness * 2)), 1, 1);
@@ -51,7 +51,7 @@ static int draw(kernelWindowComponent *component)
 	// Draw the border
 	kernelGraphicDrawGradientBorder(component->buffer,
 		component->xCoord, component->yCoord, component->width,
-		component->height, thickness, (color *) &(component->params.background),
+		component->height, thickness, (color *) &component->params.background,
 		shadingIncrement, draw_reverse, border_all);
 
 	// Draw the slider
@@ -63,7 +63,7 @@ static int draw(kernelWindowComponent *component)
 	kernelGraphicDrawGradientBorder(component->buffer,
 		(component->xCoord + thickness), (component->yCoord + thickness),
 		progressBar->sliderWidth, (component->height - (thickness * 2)),
-		thickness, (color *) &(component->params.background),
+		thickness, (color *) &component->params.background,
 		shadingIncrement, draw_normal, border_all);
 
 	if (font)
@@ -71,10 +71,12 @@ static int draw(kernelWindowComponent *component)
 		// Print the progress percent
 		sprintf(prog, "%d%%", progressBar->progressPercent);
 		kernelGraphicDrawText(component->buffer,
-			(color *) &(component->params.foreground),
-			(color *) &(component->params.background), font, prog,
-			draw_translucent, (component->xCoord + ((component->width -
-				 kernelFontGetPrintedWidth(font, prog)) / 2)),
+			(color *) &component->params.foreground,
+			(color *) &component->params.background, font,
+			(char *) component->charSet, prog, draw_translucent,
+			(component->xCoord + ((component->width -
+				 kernelFontGetPrintedWidth(font, (char *) component->charSet,
+					prog)) / 2)),
 			(component->yCoord +
 				((component->height - font->glyphHeight) / 2)));
 	}
@@ -92,7 +94,7 @@ static int setData(kernelWindowComponent *component, void *data, int length)
 	kernelWindowProgressBar *progressBar = component->data;
 
 	// We ignore 'length'.  This keeps the compiler happy
-	if (length == 0)
+	if (!length)
 		return (status = ERR_NULLPARAMETER);
 
 	if (component->erase)

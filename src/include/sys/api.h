@@ -1,6 +1,6 @@
 //
 //	Visopsys
-//	Copyright (C) 1998-2015 J. Andrew McLaughlin
+//	Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //	This library is free software; you can redistribute it and/or modify it
 //	under the terms of the GNU Lesser General Public License as published by
@@ -183,18 +183,19 @@ extern int visopsys_in_kernel;
 #define _fnum_fileMove							0x4011
 #define _fnum_fileTimestamp						0x4012
 #define _fnum_fileSetSize						0x4013
-#define _fnum_fileGetTemp						0x4014
-#define _fnum_fileGetFullPath					0x4015
-#define _fnum_fileStreamOpen					0x4016
-#define _fnum_fileStreamSeek					0x4017
-#define _fnum_fileStreamRead					0x4018
-#define _fnum_fileStreamReadLine				0x4019
-#define _fnum_fileStreamWrite					0x401A
-#define _fnum_fileStreamWriteStr				0x401B
-#define _fnum_fileStreamWriteLine				0x401C
-#define _fnum_fileStreamFlush					0x401D
-#define _fnum_fileStreamClose					0x401E
-#define _fnum_fileStreamGetTemp					0x401F
+#define _fnum_fileGetTempName					0x4014
+#define _fnum_fileGetTemp						0x4015
+#define _fnum_fileGetFullPath					0x4016
+#define _fnum_fileStreamOpen					0x4017
+#define _fnum_fileStreamSeek					0x4018
+#define _fnum_fileStreamRead					0x4019
+#define _fnum_fileStreamReadLine				0x401A
+#define _fnum_fileStreamWrite					0x401B
+#define _fnum_fileStreamWriteStr				0x401C
+#define _fnum_fileStreamWriteLine				0x401D
+#define _fnum_fileStreamFlush					0x401E
+#define _fnum_fileStreamClose					0x401F
+#define _fnum_fileStreamGetTemp					0x4020
 
 // Memory manager functions. All are in the 0x5000-0x5FFF range.
 #define _fnum_memoryGet							0x5000
@@ -314,12 +315,10 @@ extern int visopsys_in_kernel;
 #define _fnum_imagePaste						0xD007
 
 // Font functions  All are in the 0xE000-0xEFFF range.
-#define _fnum_fontGetDefault					0xE000
-#define _fnum_fontLoadSystem					0xE001
-#define _fnum_fontLoadUser						0xE002
-#define _fnum_fontGetPrintedWidth				0xE003
-#define _fnum_fontGetWidth						0xE004
-#define _fnum_fontGetHeight						0xE005
+#define _fnum_fontGet							0xE000
+#define _fnum_fontGetPrintedWidth				0xE001
+#define _fnum_fontGetWidth						0xE002
+#define _fnum_fontGetHeight						0xE003
 
 // Windowing system functions.  All are in the 0xF000-0xFFFF range.
 #define _fnum_windowLogin						0xF000
@@ -328,76 +327,83 @@ extern int visopsys_in_kernel;
 #define _fnum_windowNewDialog					0xF003
 #define _fnum_windowDestroy						0xF004
 #define _fnum_windowUpdateBuffer				0xF005
-#define _fnum_windowSetTitle					0xF006
-#define _fnum_windowGetSize						0xF007
-#define _fnum_windowSetSize						0xF008
-#define _fnum_windowGetLocation					0xF009
-#define _fnum_windowSetLocation					0xF00A
-#define _fnum_windowCenter						0xF00B
-#define _fnum_windowSnapIcons					0xF00C
-#define _fnum_windowSetHasBorder				0xF00D
-#define _fnum_windowSetHasTitleBar				0xF00E
-#define _fnum_windowSetMovable					0xF00F
-#define _fnum_windowSetResizable				0xF010
-#define _fnum_windowSetFocusable				0xF011
-#define _fnum_windowRemoveMinimizeButton		0xF012
-#define _fnum_windowRemoveCloseButton			0xF013
-#define _fnum_windowSetVisible					0xF014
-#define _fnum_windowSetMinimized				0xF015
-#define _fnum_windowAddConsoleTextArea			0xF016
-#define _fnum_windowRedrawArea					0xF017
-#define _fnum_windowDrawAll						0xF018
-#define _fnum_windowGetColor					0xF019
-#define _fnum_windowSetColor					0xF01A
-#define _fnum_windowResetColors					0xF01B
-#define _fnum_windowProcessEvent				0xF01C
-#define _fnum_windowComponentEventGet			0xF01D
-#define _fnum_windowSetBackgroundColor			0xF01E
-#define _fnum_windowShellTileBackground			0xF01F
-#define _fnum_windowShellCenterBackground		0xF020
-#define _fnum_windowScreenShot					0xF021
-#define _fnum_windowSaveScreenShot				0xF022
-#define _fnum_windowSetTextOutput				0xF023
-#define _fnum_windowLayout						0xF024
-#define _fnum_windowDebugLayout					0xF025
-#define _fnum_windowContextAdd					0xF026
-#define _fnum_windowContextSet					0xF027
-#define _fnum_windowSwitchPointer				0xF028
-#define _fnum_windowRefresh						0xF029
-#define _fnum_windowComponentDestroy			0xF02A
-#define _fnum_windowComponentSetVisible			0xF02B
-#define _fnum_windowComponentSetEnabled			0xF02C
-#define _fnum_windowComponentGetWidth			0xF02D
-#define _fnum_windowComponentSetWidth			0xF02E
-#define _fnum_windowComponentGetHeight			0xF02F
-#define _fnum_windowComponentSetHeight			0xF030
-#define _fnum_windowComponentFocus				0xF031
-#define _fnum_windowComponentUnfocus			0xF032
-#define _fnum_windowComponentDraw				0xF033
-#define _fnum_windowComponentGetData			0xF034
-#define _fnum_windowComponentSetData			0xF035
-#define _fnum_windowComponentGetSelected		0xF036
-#define _fnum_windowComponentSetSelected		0xF037
-#define _fnum_windowNewButton					0xF038
-#define _fnum_windowNewCanvas					0xF039
-#define _fnum_windowNewCheckbox					0xF03A
-#define _fnum_windowNewContainer				0xF03B
-#define _fnum_windowNewDivider					0xF03C
-#define _fnum_windowNewIcon						0xF03D
-#define _fnum_windowNewImage					0xF03E
-#define _fnum_windowNewList						0xF03F
-#define _fnum_windowNewListItem					0xF040
-#define _fnum_windowNewMenu						0xF041
-#define _fnum_windowNewMenuBar					0xF042
-#define _fnum_windowNewMenuItem					0xF043
-#define _fnum_windowNewPasswordField			0xF044
-#define _fnum_windowNewProgressBar				0xF045
-#define _fnum_windowNewRadioButton				0xF046
-#define _fnum_windowNewScrollBar				0xF047
-#define _fnum_windowNewSlider					0xF048
-#define _fnum_windowNewTextArea					0xF049
-#define _fnum_windowNewTextField				0xF04A
-#define _fnum_windowNewTextLabel				0xF04B
+#define _fnum_windowSetCharSet					0xF006
+#define _fnum_windowSetTitle					0xF007
+#define _fnum_windowGetSize						0xF008
+#define _fnum_windowSetSize						0xF009
+#define _fnum_windowGetLocation					0xF00A
+#define _fnum_windowSetLocation					0xF00B
+#define _fnum_windowCenter						0xF00C
+#define _fnum_windowSnapIcons					0xF00D
+#define _fnum_windowSetHasBorder				0xF00E
+#define _fnum_windowSetHasTitleBar				0xF00F
+#define _fnum_windowSetMovable					0xF010
+#define _fnum_windowSetResizable				0xF011
+#define _fnum_windowSetFocusable				0xF012
+#define _fnum_windowRemoveMinimizeButton		0xF013
+#define _fnum_windowRemoveCloseButton			0xF014
+#define _fnum_windowSetVisible					0xF015
+#define _fnum_windowSetMinimized				0xF016
+#define _fnum_windowAddConsoleTextArea			0xF017
+#define _fnum_windowRedrawArea					0xF018
+#define _fnum_windowDrawAll						0xF019
+#define _fnum_windowGetColor					0xF01A
+#define _fnum_windowSetColor					0xF01B
+#define _fnum_windowResetColors					0xF01C
+#define _fnum_windowProcessEvent				0xF01D
+#define _fnum_windowComponentEventGet			0xF01E
+#define _fnum_windowSetBackgroundColor			0xF01F
+#define _fnum_windowShellTileBackground			0xF020
+#define _fnum_windowShellCenterBackground		0xF021
+#define _fnum_windowShellNewTaskbarIcon			0xF022
+#define _fnum_windowShellNewTaskbarTextLabel	0xF023
+#define _fnum_windowShellDestroyTaskbarComp		0xF024
+#define _fnum_windowShellIconify				0xF025
+#define _fnum_windowScreenShot					0xF026
+#define _fnum_windowSaveScreenShot				0xF027
+#define _fnum_windowSetTextOutput				0xF028
+#define _fnum_windowLayout						0xF029
+#define _fnum_windowDebugLayout					0xF02A
+#define _fnum_windowContextAdd					0xF02B
+#define _fnum_windowContextSet					0xF02C
+#define _fnum_windowSwitchPointer				0xF02D
+#define _fnum_windowRefresh						0xF02E
+#define _fnum_windowComponentDestroy			0xF02F
+#define _fnum_windowComponentSetCharSet			0xF030
+#define _fnum_windowComponentSetVisible			0xF031
+#define _fnum_windowComponentSetEnabled			0xF032
+#define _fnum_windowComponentGetWidth			0xF033
+#define _fnum_windowComponentSetWidth			0xF034
+#define _fnum_windowComponentGetHeight			0xF035
+#define _fnum_windowComponentSetHeight			0xF036
+#define _fnum_windowComponentFocus				0xF037
+#define _fnum_windowComponentUnfocus			0xF038
+#define _fnum_windowComponentDraw				0xF039
+#define _fnum_windowComponentGetData			0xF03A
+#define _fnum_windowComponentSetData			0xF03B
+#define _fnum_windowComponentGetSelected		0xF03C
+#define _fnum_windowComponentSetSelected		0xF03D
+#define _fnum_windowNewButton					0xF03E
+#define _fnum_windowNewCanvas					0xF03F
+#define _fnum_windowNewCheckbox					0xF040
+#define _fnum_windowNewContainer				0xF041
+#define _fnum_windowNewDivider					0xF042
+#define _fnum_windowNewIcon						0xF043
+#define _fnum_windowNewImage					0xF044
+#define _fnum_windowNewList						0xF045
+#define _fnum_windowNewListItem					0xF046
+#define _fnum_windowNewMenu						0xF047
+#define _fnum_windowNewMenuBar					0xF048
+#define _fnum_windowNewMenuItem					0xF049
+#define _fnum_windowNewPasswordField			0xF04A
+#define _fnum_windowNewProgressBar				0xF04B
+#define _fnum_windowNewRadioButton				0xF04C
+#define _fnum_windowNewScrollBar				0xF04D
+#define _fnum_windowNewSlider					0xF04E
+#define _fnum_windowNewTextArea					0xF04F
+#define _fnum_windowNewTextField				0xF050
+#define _fnum_windowNewTextLabel				0xF051
+#define _fnum_windowNewTree						0xF052
 
 // User functions.  All are in the 0x10000-0x10FFF range.
 #define _fnum_userAuthenticate					0x10000
@@ -456,6 +462,8 @@ extern int visopsys_in_kernel;
 #define _fnum_deviceTreeGetNext					0xFF013
 #define _fnum_mouseLoadPointer					0xFF014
 #define _fnum_pageGetPhysical					0xFF015
+#define _fnum_charsetToUnicode					0xFF016
+#define _fnum_charsetFromUnicode				0xFF017
 
 
 //
@@ -586,6 +594,7 @@ int fileCopyRecursive(const char *, const char *);
 int fileMove(const char *, const char *);
 int fileTimestamp(const char *);
 int fileSetSize(file *, unsigned);
+int fileGetTempName(char *, unsigned);
 int fileGetTemp(file *);
 int fileGetFullPath(file *, char *, int);
 int fileStreamOpen(const char *, int, fileStream *);
@@ -721,7 +730,7 @@ int graphicGetImage(graphicBuffer *, image *, int, int, int, int);
 int graphicDrawImage(graphicBuffer *, image *, drawMode, int, int, int, int,
 	int, int);
 int graphicDrawText(graphicBuffer *, color *, color *, objectKey, const char *,
-	drawMode, int, int);
+	const char *, drawMode, int, int);
 int graphicCopyArea(graphicBuffer *, int, int, int, int, int, int);
 int graphicClearArea(graphicBuffer *, color *, int, int, int, int);
 int graphicRenderBuffer(graphicBuffer *, int, int, int, int, int, int);
@@ -741,10 +750,8 @@ int imagePaste(image *, image *, int, int);
 //
 // Font functions
 //
-int fontGetDefault(objectKey *);
-int fontLoadSystem(const char *, const char *, objectKey *, int);
-int fontLoadUser(const char *, asciiFont **, int);
-int fontGetPrintedWidth(objectKey, const char *);
+objectKey fontGet(const char *, unsigned, int, const char *);
+int fontGetPrintedWidth(objectKey, const char *, const char *);
 int fontGetWidth(objectKey);
 int fontGetHeight(objectKey);
 
@@ -757,6 +764,7 @@ objectKey windowNew(int, const char *);
 objectKey windowNewDialog(objectKey, const char *);
 int windowDestroy(objectKey);
 int windowUpdateBuffer(void *, int, int, int, int);
+int windowSetCharSet(objectKey, const char *);
 int windowSetTitle(objectKey, const char *);
 int windowGetSize(objectKey, int *, int *);
 int windowSetSize(objectKey, int, int);
@@ -784,6 +792,10 @@ int windowComponentEventGet(objectKey, windowEvent *);
 int windowSetBackgroundColor(objectKey, color *);
 int windowShellTileBackground(const char *);
 int windowShellCenterBackground(const char *);
+objectKey windowShellNewTaskbarIcon(image *);
+objectKey windowShellNewTaskbarTextLabel(const char *);
+void windowShellDestroyTaskbarComp(objectKey);
+objectKey windowShellIconify(objectKey, int, image *);
 int windowScreenShot(image *);
 int windowSaveScreenShot(const char *);
 int windowSetTextOutput(objectKey);
@@ -794,6 +806,7 @@ int windowContextSet(objectKey, objectKey);
 int windowSwitchPointer(objectKey, const char *);
 int windowRefresh(void);
 void windowComponentDestroy(objectKey);
+int windowComponentSetCharSet(objectKey, const char *);
 int windowComponentSetVisible(objectKey, int);
 int windowComponentSetEnabled(objectKey, int);
 int windowComponentGetWidth(objectKey);
@@ -835,6 +848,8 @@ objectKey windowNewSlider(objectKey, scrollBarType, int, int,
 objectKey windowNewTextArea(objectKey, int, int, int, componentParameters *);
 objectKey windowNewTextField(objectKey, int, componentParameters *);
 objectKey windowNewTextLabel(objectKey, const char *, componentParameters *);
+objectKey windowNewTree(objectKey, windowTreeItem *, int, int,
+	componentParameters *);
 
 //
 // User functions
@@ -899,6 +914,8 @@ int deviceTreeGetChild(device *, device *);
 int deviceTreeGetNext(device *);
 int mouseLoadPointer(const char *, const char *);
 void *pageGetPhysical(int, void *);
+unsigned charsetToUnicode(const char *, unsigned);
+unsigned charsetFromUnicode(const char *, unsigned);
 
 #define _API_H
 #endif

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -55,7 +55,7 @@ char *basename(char *path)
 	int count;
 
 	// Get the memory to return.  Always a maxed-out pathname.
-	newPath = malloc(MAX_PATH_NAME_LENGTH);
+	newPath = malloc(MAX_NAME_LENGTH);
 	if (!newPath)
 	{
 		// Nothing much we can do here.
@@ -64,14 +64,14 @@ char *basename(char *path)
 	}
 
 	// Look for NULL, or an empty string
-	if (!path || (path[0] == '\0'))
+	if (!path || !path[0])
 	{
 		newPath[0] = '.';
 		newPath[1] = '\0';
 		return (newPath);
 	}
 
-	strncpy(newPath, path, MAX_PATH_NAME_LENGTH);
+	strncpy(newPath, path, MAX_NAME_LENGTH);
 
 	// Check for no '/'
 	if (!strrchr(newPath, '/'))
@@ -84,7 +84,7 @@ char *basename(char *path)
 		newPath[count] = '\0';
 	}
 
-	if (!strncmp(newPath, "/", MAX_PATH_NAME_LENGTH))
+	if (!strncmp(newPath, "/", MAX_NAME_LENGTH))
 		// It's just a slash.  Stop.
 		return (newPath);
 
@@ -92,7 +92,7 @@ char *basename(char *path)
 	lastSlash = strrchr(newPath, '/');
 
 	// Re-copy the string
-	strncpy(newPath, (lastSlash + 1), MAX_PATH_NAME_LENGTH);
+	strncpy(newPath, (lastSlash + 1), MAX_NAME_LENGTH);
 
 	return (newPath);
 }

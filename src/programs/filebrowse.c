@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,9 +62,11 @@ filebrowse will attempt to execute it -- etc.
 #define WINDOW_TITLE		_("File Browser")
 #define FILE_MENU			_("File")
 #define VIEW_MENU			_("View")
-#define EXECPROG_VIEW		PATH_PROGRAMS "/view"
-#define EXECPROG_KEYMAP		PATH_PROGRAMS "/keymap"
+#define EXECPROG_ARCHMAN	PATH_PROGRAMS "/archman"
 #define EXECPROG_CONFEDIT	PATH_PROGRAMS "/confedit"
+#define EXECPROG_FONTUTIL	PATH_PROGRAMS "/fontutil"
+#define EXECPROG_KEYMAP		PATH_PROGRAMS "/keymap"
+#define EXECPROG_VIEW		PATH_PROGRAMS "/view"
 
 #define FILEMENU_QUIT 0
 windowMenuContents fileMenuContents = {
@@ -190,15 +192,10 @@ static void doFileSelection(file *theFile, char *fullName,
 			{
 				strcpy(command, fullName);
 			}
-			else if ((loaderClass->class & LOADERFILECLASS_IMAGE) &&
-				!fileFind(EXECPROG_VIEW, NULL))
+			else if ((loaderClass->class & LOADERFILECLASS_ARCHIVE) &&
+				!fileFind(EXECPROG_ARCHMAN, NULL))
 			{
-				sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
-			}
-			else if ((loaderClass->class & LOADERFILECLASS_KEYMAP) &&
-				!fileFind(EXECPROG_KEYMAP, NULL))
-			{
-				sprintf(command, EXECPROG_KEYMAP " \"%s\"", fullName);
+				sprintf(command, EXECPROG_ARCHMAN " \"%s\"", fullName);
 			}
 			else if (((loaderClass->class & LOADERFILECLASS_DATA) &&
 				(loaderClass->subClass & LOADERFILESUBCLASS_CONFIG)) &&
@@ -206,15 +203,32 @@ static void doFileSelection(file *theFile, char *fullName,
 			{
 				sprintf(command, EXECPROG_CONFEDIT " \"%s\"", fullName);
 			}
+			else if ((loaderClass->class & LOADERFILECLASS_FONT) &&
+				!fileFind(EXECPROG_FONTUTIL, NULL))
+			{
+				sprintf(command, EXECPROG_FONTUTIL " \"%s\"", fullName);
+			}
+			else if ((loaderClass->class & LOADERFILECLASS_KEYMAP) &&
+				!fileFind(EXECPROG_KEYMAP, NULL))
+			{
+				sprintf(command, EXECPROG_KEYMAP " \"%s\"", fullName);
+			}
 			else if ((loaderClass->class & LOADERFILECLASS_TEXT) &&
 				!fileFind(EXECPROG_VIEW, NULL))
 			{
 				sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
 			}
+			else if ((loaderClass->class & LOADERFILECLASS_IMAGE) &&
+				!fileFind(EXECPROG_VIEW, NULL))
+			{
+				sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
+			}
 			else
+			{
 				return;
+			}
 
-			windowSwitchPointer(window, "busy");
+			windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 			// Run a thread to execute the command
 			pid = multitaskerSpawn(&execProgram, "exec program", 1,
@@ -224,7 +238,7 @@ static void doFileSelection(file *theFile, char *fullName,
 			else
 				while (multitaskerProcessIsAlive(pid));
 
-			windowSwitchPointer(window, "default");
+			windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 
 			break;
 		}
@@ -278,6 +292,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filebrowse");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the 'file' menu
 	refreshMenuContents(&fileMenuContents);
@@ -387,7 +405,7 @@ static int constructWindow(const char *directory)
 	// Create the file list widget
 	params.gridY += 1;
 	params.padBottom = 5;
-	fileList = windowNewFileList(window, windowlist_icononly, 4, 5, directory,
+	fileList = windowNewFileList(window, windowlist_icononly, 5, 8, directory,
 		WINFILEBROWSE_ALL, doFileSelection, &params);
 	if (!fileList)
 		return (status = ERR_NOTINITIALIZED);

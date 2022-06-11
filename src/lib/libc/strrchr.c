@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,7 +35,7 @@ char *strrchr(const char *string, int character)
 	if (!string)
 		return ((char *) string);
 
-	strptr = (char *) (string + strlen(string) - 1);
+	strptr = (char *)(string + strlen(string) - 1);
 
 	while (strptr >= string)
 	{

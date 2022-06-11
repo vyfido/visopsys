@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,7 +24,7 @@ msgstr ""
 #: bootmenu.c:67
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2015 J. Andrew McLaughlin"
+"Copyright (C) 1998-2016 J. Andrew McLaughlin"
 msgstr ""
 
 #: bootmenu.c:69
@@ -132,53 +132,53 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: bootmenu.c:748
+#: bootmenu.c:700
 msgid "Can't write boot menu"
 msgstr ""
 
-#: bootmenu.c:760
+#: bootmenu.c:712
 #, c-format
 msgid "Can't write MBR %s to %s"
 msgstr ""
 
-#: bootmenu.c:801
+#: bootmenu.c:753
 msgid "Permission Denied"
 msgstr ""
 
-#: bootmenu.c:812
+#: bootmenu.c:764
 #, c-format
 msgid "Can't get disk %s"
 msgstr ""
 
-#: bootmenu.c:821
+#: bootmenu.c:773
 #, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr ""
 
-#: bootmenu.c:829
+#: bootmenu.c:781
 msgid "Can't get the list of logical disks"
 msgstr ""
 
-#: bootmenu.c:884
+#: bootmenu.c:836
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr ""
 
-#: bootmenu.c:909
+#: bootmenu.c:861
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr ""
 
-#: bootmenu.c:953
+#: bootmenu.c:905
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
 "   'd' delete, Enter to accept, 'Q' to quit]"
 msgstr ""
 
-#: bootmenu.c:1020
+#: bootmenu.c:972
 msgid "Can't write boot menu or MBR"
 msgstr ""
 
-#: bootmenu.c:1028
+#: bootmenu.c:980
 msgid "Done"
 msgstr ""

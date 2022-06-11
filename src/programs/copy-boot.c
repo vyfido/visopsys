@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -356,7 +356,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 		for (count = 2; count < (bsHeader->bytesPerSector / (unsigned) 3);
 			count ++)
 		{
-			entry = *((unsigned short *) (buffer + (count + (count >> 1))));
+			entry = *((unsigned short *)(buffer + (count + (count >> 1))));
 
 			// 0 = mask, since the extra data is in the upper 4 bits
 			// 1 = shift, since the extra data is in the lower 4 bits
@@ -429,8 +429,8 @@ static int setOsLoaderParams(const char *outputName,
 	fat32BSHeader *fat32Header = (fat32BSHeader *) newBootsect;
 	unsigned firstUnusedCluster = 0;
 	unsigned fatSectors = 0;
-	unsigned *firstUserSector = (unsigned *) (newBootsect + 502);
-	unsigned *osLoaderSectors = (unsigned *) (newBootsect + 506);
+	unsigned *firstUserSector = (unsigned *)(newBootsect + 502);
+	unsigned *osLoaderSectors = (unsigned *)(newBootsect + 506);
 
 	DEBUGMSG("%s", _("Set OS loader parameters\n"));
 
@@ -452,9 +452,8 @@ static int setOsLoaderParams(const char *outputName,
 		DEBUGMSG(_("Sectors per cluster %u\n"),
 			(unsigned) fatHeader->common1.sectorsPerCluster);
 
-		firstUnusedCluster =
-			findUnusedCluster(outputName, fatHeader->common2.fsSignature,
-				&(fatHeader->common1));
+		firstUnusedCluster = findUnusedCluster(outputName,
+			fatHeader->common2.fsSignature, &fatHeader->common1);
 
 #ifndef VISOPSYS
 		// For some reason the Linux driver gives us the second unused cluster
@@ -488,9 +487,8 @@ static int setOsLoaderParams(const char *outputName,
 
 		// Read the FAT32 FSInfo sector
 
-		firstUnusedCluster =
-			findUnusedCluster(outputName, fat32Header->common2.fsSignature,
-				&(fat32Header->common1));
+		firstUnusedCluster = findUnusedCluster(outputName,
+			fat32Header->common2.fsSignature, &fat32Header->common1);
 
 		*firstUserSector =
 			((unsigned) fat32Header->common1.reservedSectors +
@@ -547,21 +545,21 @@ int main(int argc, char *argv[])
 	if (sizeof(fatBSHeader) != 0x3E)
 	{
 		printf(_("fatBSHeader size is 0x%02x instead of 0x3E\n"),
-			sizeof(fatBSHeader));
+			(unsigned char) sizeof(fatBSHeader));
 		errno = EINVAL;
 		return (-1);
 	}
 	if (sizeof(fat32BSHeader) != 0x5A)
 	{
 		printf(_("fat32BSHeader size is 0x%02x instead of 0x5A\n"),
-			sizeof(fat32BSHeader));
+			(unsigned char) sizeof(fat32BSHeader));
 		errno = EINVAL;
 		return (-1);
 	}
 	if (sizeof(fat32FsInfo) != 512)
 	{
 		printf(_("fat32FsInfo size is %d instead of 512\n"),
-			sizeof(fat32FsInfo));
+			(int) sizeof(fat32FsInfo));
 		errno = EINVAL;
 		return (-1);
 	}

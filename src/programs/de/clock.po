@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: 2013-11-02 12:49-0400\n"
 "Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,82 +22,82 @@ msgid "Clock"
 msgstr "Uhr"
 
 #: clock.c:59
-msgid "Mon"
-msgstr "Mo"
-
-#: clock.c:60
-msgid "Tue"
-msgstr "Di"
-
-#: clock.c:61
-msgid "Wed"
-msgstr "Mi"
-
-#: clock.c:62
-msgid "Thu"
-msgstr "Do"
-
-#: clock.c:63
-msgid "Fri"
-msgstr "Fr"
-
-#: clock.c:64
-msgid "Sat"
-msgstr "Sa"
-
-#: clock.c:65
 msgid "Sun"
 msgstr "So"
 
-#: clock.c:68
+#: clock.c:60
+msgid "Mon"
+msgstr "Mo"
+
+#: clock.c:61
+msgid "Tue"
+msgstr "Di"
+
+#: clock.c:62
+msgid "Wed"
+msgstr "Mi"
+
+#: clock.c:63
+msgid "Thu"
+msgstr "Do"
+
+#: clock.c:64
+msgid "Fri"
+msgstr "Fr"
+
+#: clock.c:65
+msgid "Sat"
+msgstr "Sa"
+
+#: clock.c:69
 msgid "Jan"
 msgstr "Jan"
 
-#: clock.c:69
+#: clock.c:70
 msgid "Feb"
 msgstr "Feb"
 
-#: clock.c:70
+#: clock.c:71
 msgid "Mar"
 msgstr "März"
 
-#: clock.c:71
+#: clock.c:72
 msgid "Apr"
 msgstr "Apr"
 
-#: clock.c:72
+#: clock.c:73
 msgid "May"
 msgstr "Mai"
 
-#: clock.c:73
+#: clock.c:74
 msgid "Jun"
 msgstr "Jun"
 
-#: clock.c:74
+#: clock.c:75
 msgid "Jul"
 msgstr "Jul"
 
-#: clock.c:75
+#: clock.c:76
 msgid "Aug"
 msgstr "Aug"
 
-#: clock.c:76
+#: clock.c:77
 msgid "Sep"
 msgstr "Sep"
 
-#: clock.c:77
+#: clock.c:78
 msgid "Oct"
 msgstr "Okt"
 
-#: clock.c:78
+#: clock.c:79
 msgid "Nov"
 msgstr "Nov"
 
-#: clock.c:79
+#: clock.c:80
 msgid "Dec"
 msgstr "Dez"
 
-#: clock.c:120
+#: clock.c:122
 #, c-format
 msgid ""
 "\n"

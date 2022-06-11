@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,8 +39,10 @@ double pow(double x, double y)
 		return (0);
 	}
 
-	if (y == 0)
+	if (!y)
+	{
 		x = 1;
+	}
 	else
 	{
 		for (count = 1; count < y; count ++)

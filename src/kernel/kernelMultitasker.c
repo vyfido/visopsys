@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -93,7 +93,7 @@ static struct {
 	kernelSelector tssSelector;
 	const char *a;
 	const char *name;
-	int (*handler) (void);
+	int (*handler)(void);
 
 } exceptionVector[19] = {
 	{ EXCEPTION_DIVBYZERO, 0, "a", "divide-by-zero", NULL },
@@ -337,7 +337,7 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 	int status = 0;
 
 	// Get a free descriptor for the process' TSS
-	status = kernelDescriptorRequest(&(theProcess->tssSelector));
+	status = kernelDescriptorRequest(&theProcess->tssSelector);
 	if ((status < 0) || !theProcess->tssSelector)
 		// Crap.  An error getting a free descriptor.
 		return (status);
@@ -345,7 +345,7 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 	// Fill in the process' Task State Segment descriptor
 	status = kernelDescriptorSet(
 		theProcess->tssSelector,	// TSS selector number
-		&(theProcess->taskStateSegment), // Starts at...
+		&theProcess->taskStateSegment, // Starts at...
 		sizeof(kernelTSS),			// Limit of a TSS segment
 		1,							// Present in memory
 		PRIVILEGE_SUPERVISOR,		// TSSs are supervisor privilege level
@@ -364,7 +364,7 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 	// of this will be different depending on whether this is a user
 	// or supervisor mode process
 
-	memset((void *) &(theProcess->taskStateSegment), 0, sizeof(kernelTSS));
+	memset((void *) &theProcess->taskStateSegment, 0, sizeof(kernelTSS));
 
 	// Set the IO bitmap's offset
 	theProcess->taskStateSegment.IOMapBase = IOBITMAP_OFFSET;
@@ -800,7 +800,7 @@ static int deleteProcess(kernelProcess *killProcess)
 
 	// If the process has a signal stream, destroy it
 	if (killProcess->signalStream.buffer)
-		kernelStreamDestroy(&(killProcess->signalStream));
+		kernelStreamDestroy(&killProcess->signalStream);
 
 	// Deallocate all memory owned by this process
 	status = kernelMemoryReleaseAllByProcId(killProcess->processId);
@@ -1025,7 +1025,7 @@ static int spawnExceptionThread(void)
 
 	status = kernelDescriptorSet(
 		exceptionProc->tssSelector,	// TSS selector
-		&(exceptionProc->taskStateSegment), // Starts at...
+		&exceptionProc->taskStateSegment, // Starts at...
 		sizeof(kernelTSS),			// Maximum size of a TSS selector
 		1,							// Present in memory
 		PRIVILEGE_SUPERVISOR,		// Highest privilege level
@@ -3444,7 +3444,7 @@ int kernelMultitaskerSignalSet(int processId, int sig, int on)
 	// If there is not yet a signal stream allocated for this process, do it now.
 	if (!(signalProcess->signalStream.buffer))
 	{
-		status = kernelStreamNew(&(signalProcess->signalStream), 16, 1);
+		status = kernelStreamNew(&signalProcess->signalStream, 16, 1);
 		if (status < 0)
 			return (status);
 	}
@@ -3494,7 +3494,7 @@ int kernelMultitaskerSignal(int processId, int sig)
 
 	// Put the signal into the signal stream
 	status =
-		signalProcess->signalStream.append(&(signalProcess->signalStream), sig);
+		signalProcess->signalStream.append(&signalProcess->signalStream, sig);
 
 	return (status);
 }
@@ -3534,7 +3534,7 @@ int kernelMultitaskerSignalRead(int processId)
 		return (sig = 0);
 
 	status =
-		signalProcess->signalStream.pop(&(signalProcess->signalStream), &sig);
+		signalProcess->signalStream.pop(&signalProcess->signalStream, &sig);
 
 	if (status < 0)
 		return (status);

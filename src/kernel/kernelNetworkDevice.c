@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -76,16 +76,16 @@ static void debugArp(kernelArpPacket *arpPacket)
 		arpPacket->protocolAddrLen,
 		processorSwap16(arpPacket->opCode));
 	kernelTextPrint("ARP: srcHardAddr=");
-	printAddress((networkAddress *) &(arpPacket->srcHardwareAddress),
+	printAddress((networkAddress *) &arpPacket->srcHardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET, 1);
 	kernelTextPrint(" srcLogAddr=");
-	printAddress((networkAddress *) &(arpPacket->srcLogicalAddress),
+	printAddress((networkAddress *) &arpPacket->srcLogicalAddress,
 		NETWORK_ADDRLENGTH_IP, 0);
 	kernelTextPrint("\nARP: dstHardAddr=");
-	printAddress((networkAddress *) &(arpPacket->destHardwareAddress),
+	printAddress((networkAddress *) &arpPacket->destHardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET, 1);
 	kernelTextPrint(" dstLogAddr=");
-	printAddress((networkAddress *) &(arpPacket->destLogicalAddress),
+	printAddress((networkAddress *) &arpPacket->destLogicalAddress,
 		NETWORK_ADDRLENGTH_IP, 0);
 	kernelTextPrintLine("");
 }
@@ -105,8 +105,7 @@ static int searchArpCache(kernelNetworkDevice *adapter,
 	for (count = 0; count < adapter->numArpCaches; count ++)
 	{
 		if (networkAddressesEqual(logicalAddress,
-			&(adapter->arpCache[count].logicalAddress),
-			NETWORK_ADDRLENGTH_IP))
+			&adapter->arpCache[count].logicalAddress, NETWORK_ADDRLENGTH_IP))
 		{
 			return (count);
 		}
@@ -134,16 +133,16 @@ static int sendArp(kernelNetworkDevice *adapter,
 
 	if ((opCode == NETWORK_ARPOP_REPLY) && destPhysicalAddress)
 		// Destination is the supplied physical address
-		memcpy(&(arpPacket->header.dest), destPhysicalAddress,
+		memcpy(&arpPacket->header.dest, destPhysicalAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 	else
 		// Destination is the ethernet broadcast address FF:FF:FF:FF:FF:FF
-		memcpy(&(arpPacket->header.dest), &ethernetBroadcastAddress,
+		memcpy(&arpPacket->header.dest, &ethernetBroadcastAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Source is the adapter hardware address
-	memcpy(&(arpPacket->header.source),
-		(void *) &(adapter->device.hardwareAddress),
+	memcpy(&arpPacket->header.source,
+		(void *) &adapter->device.hardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Ethernet type is ARP
@@ -162,26 +161,26 @@ static int sendArp(kernelNetworkDevice *adapter,
 	arpPacket->opCode = processorSwap16(opCode);
 
 	// Our source hardware address
-	memcpy(&(arpPacket->srcHardwareAddress),
-		(void *) &(adapter->device.hardwareAddress),
+	memcpy(&arpPacket->srcHardwareAddress,
+		(void *) &adapter->device.hardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET);
 	// Our source logical address
-	memcpy(&(arpPacket->srcLogicalAddress),
-		(void *) &(adapter->device.hostAddress), NETWORK_ADDRLENGTH_IP);
+	memcpy(&arpPacket->srcLogicalAddress,
+		(void *) &adapter->device.hostAddress, NETWORK_ADDRLENGTH_IP);
 	// Our desired logical address
-	memcpy(&(arpPacket->destLogicalAddress), destLogicalAddress,
+	memcpy(&arpPacket->destLogicalAddress, destLogicalAddress,
 		NETWORK_ADDRLENGTH_IP);
 
 	if ((opCode == NETWORK_ARPOP_REPLY) && destPhysicalAddress)
 		// The target's hardware address
-		memcpy(&(arpPacket->destHardwareAddress), destPhysicalAddress,
+		memcpy(&arpPacket->destHardwareAddress, destPhysicalAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 
 	//debugArp(arpPacket);
 
 	// Try to lock the adapter's input stream and queue the reply, rather than
 	// tying up the adapter inside an interrupt handler.
-	if (immediate || kernelLockGet(&(adapter->outputStreamLock)) < 0)
+	if (immediate || kernelLockGet(&adapter->outputStreamLock) < 0)
 	{
 		// Can't lock.  Send it now.
 		status = kernelNetworkDeviceSend((char *) adapter->device.name,
@@ -195,12 +194,12 @@ static int sendArp(kernelNetworkDevice *adapter,
 		memset(&packet, 0, sizeof(kernelNetworkPacket));
 		packet.memory = arpPacket;
 		packet.length = sizeof(kernelArpPacket);
-		status = kernelNetworkPacketStreamWrite(&(adapter->outputStream),
+		status = kernelNetworkPacketStreamWrite(&adapter->outputStream,
 			&packet);
 
 		// ARP packet memory will be released by the network thread
 
-		kernelLockRelease(&(adapter->outputStreamLock));
+		kernelLockRelease(&adapter->outputStreamLock);
 	}
 
 	return (status);
@@ -216,17 +215,17 @@ static void addArpCache(kernelNetworkDevice *adapter,
 	// list grows to its maximum size, the oldest entries fall off the bottom.
 
 	// Shift all down
-	memcpy((void *) &(adapter->arpCache[1]), (void *) &(adapter->arpCache[0]),
+	memcpy((void *) &adapter->arpCache[1], (void *) &adapter->arpCache[0],
 		((NETWORK_ARPCACHE_SIZE - 1) * sizeof(kernelArpCacheItem)));
 
 	adapter->arpCache[0].logicalAddress.quad = logicalAddress->quad;
 	adapter->arpCache[0].physicalAddress.quad = physicalAddress->quad;
 
 	//kernelTextPrint("Added ARP address ");
-	//printAddress((networkAddress *) &(adapter->arpCache[0].logicalAddress),
+	//printAddress((networkAddress *) &adapter->arpCache[0].logicalAddress,
 	//	NETWORK_ADDRLENGTH_IP, 0);
 	//kernelTextPrint(" = ");
-	//printAddress((networkAddress *) &(adapter->arpCache[0].physicalAddress),
+	//printAddress((networkAddress *) &adapter->arpCache[0].physicalAddress,
 	//	NETWORK_ADDRLENGTH_ETHERNET, 1);
 	//kernelTextPrintLine("");
 
@@ -251,27 +250,27 @@ static void receiveArp(kernelNetworkDevice *adapter,
 
 	// See if we have the source feller in our table
 	arpPosition = searchArpCache(adapter, (networkAddress *)
-		&(arpPacket->srcLogicalAddress));
+		&arpPacket->srcLogicalAddress);
 	if (arpPosition >= 0)
 	{
 		// Update him in our cache
-		memcpy((void *) &(adapter->arpCache[arpPosition].physicalAddress),
-			&(arpPacket->srcHardwareAddress), NETWORK_ADDRLENGTH_ETHERNET);
+		memcpy((void *) &adapter->arpCache[arpPosition].physicalAddress,
+			&arpPacket->srcHardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
 	}
 	else
 	{
 		// Add him to our cache.  Perhaps we shouldn't do this unless the ARP
 		// packet is for us, but we suppose for the moment it can't hurt too
 		// badly to have a few extras in our table.
-		addArpCache(adapter, (networkAddress *) &(arpPacket->srcLogicalAddress),
-			(networkAddress *) &(arpPacket->srcHardwareAddress));
+		addArpCache(adapter, (networkAddress *) &arpPacket->srcLogicalAddress,
+			(networkAddress *) &arpPacket->srcHardwareAddress);
 	}
 
 	//debugArp(arpPacket);
 
 	// If this isn't for me, ignore it.
-	if (!networkAddressesEqual(&(adapter->device.hostAddress),
-		(networkAddress *) &(arpPacket->destLogicalAddress),
+	if (!networkAddressesEqual(&adapter->device.hostAddress,
+		(networkAddress *) &arpPacket->destLogicalAddress,
 			NETWORK_ADDRLENGTH_IP))
 	{
 		return;
@@ -281,8 +280,8 @@ static void receiveArp(kernelNetworkDevice *adapter,
 	{
 		// Someone is asking for us.  Send a reply, but it should be queued
 		// instead of immediate.
-		sendArp(adapter, (networkAddress *) &(arpPacket->srcLogicalAddress),
-			(networkAddress *) &(arpPacket->srcHardwareAddress),
+		sendArp(adapter, (networkAddress *) &arpPacket->srcLogicalAddress,
+			(networkAddress *) &arpPacket->srcHardwareAddress,
 			NETWORK_ARPOP_REPLY, 0);
 	}
 }
@@ -359,7 +358,7 @@ static int readData(kernelDevice *dev)
 			(packet.length - (sizeof(networkEthernetHeader) + ipHeaderLen));
 
 		// Try to get a lock on the input stream.
-		status = kernelLockGet(&(adapter->inputStreamLock));
+		status = kernelLockGet(&adapter->inputStreamLock);
 		if (status < 0)
 		{
 			// It would be good if we had a collection of 'deferred packets'
@@ -372,9 +371,9 @@ static int readData(kernelDevice *dev)
 		}
 
 		// Insert it into the input packet stream
-		kernelNetworkPacketStreamWrite(&(adapter->inputStream), &packet);
+		kernelNetworkPacketStreamWrite(&adapter->inputStream, &packet);
 
-		kernelLockRelease(&(adapter->inputStreamLock));
+		kernelLockRelease(&adapter->inputStreamLock);
 	}
 
 	return (status = 0);
@@ -415,7 +414,7 @@ static void networkInterrupt(void)
 
 			// Try to get a lock, though it might fail since we are are inside
 			// an interrupt
-			kernelLockGet(&(adapter->adapterLock));
+			kernelLockGet(&adapter->adapterLock);
 
 			if (ops->driverInterruptHandler)
 				// Call the driver routine.
@@ -430,7 +429,7 @@ static void networkInterrupt(void)
 				serviced = 1;
 			}
 
-			kernelLockRelease(&(adapter->adapterLock));
+			kernelLockRelease(&adapter->adapterLock);
 		}
 	}
 
@@ -583,7 +582,7 @@ int kernelNetworkDeviceSetFlags(const char *adapterName, unsigned flags,
 	ops = dev->driver->ops;
 
 	// Lock the adapter
-	status = kernelLockGet(&(adapter->adapterLock));
+	status = kernelLockGet(&adapter->adapterLock);
 	if (status < 0)
 		return (status);
 
@@ -592,7 +591,7 @@ int kernelNetworkDeviceSetFlags(const char *adapterName, unsigned flags,
 		status = ops->driverSetFlags(adapter, flags, onOff);
 
 	// Release the lock
-	kernelLockRelease(&(adapter->adapterLock));
+	kernelLockRelease(&adapter->adapterLock);
 
 	return (status);
 }
@@ -703,7 +702,7 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
 	ops = dev->driver->ops;
 
 	// Lock the adapter
-	status = kernelLockGet(&(adapter->adapterLock));
+	status = kernelLockGet(&adapter->adapterLock);
 	if (status < 0)
 		return (status);
 
@@ -717,7 +716,7 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
 		kernelMultitaskerYield();
 
 	// Release the lock
-	kernelLockRelease(&(adapter->adapterLock));
+	kernelLockRelease(&adapter->adapterLock);
 
 	if (status >= 0)
 	{
@@ -767,7 +766,7 @@ int kernelNetworkDeviceGet(const char *name, networkDevice *dev)
 
 	adapter = kernelDev->data;
 
-	memcpy(dev, (networkDevice *) &(adapter->device), sizeof(networkDevice));
+	memcpy(dev, (networkDevice *) &adapter->device, sizeof(networkDevice));
 
 	return (0);
 }

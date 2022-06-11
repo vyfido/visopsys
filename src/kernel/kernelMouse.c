@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,7 +47,7 @@ static int threadStop = 0;
 static int initialized = 0;
 
 // Keeps mouse pointer size and location data
-volatile struct {
+static volatile struct {
 	int xChange;
 	int yChange;
 	int zChange;
@@ -71,7 +71,7 @@ static inline void draw(void)
 
 	// Draw the mouse pointer
 	kernelGraphicDrawImage(NULL, &currentPointer->pointerImage,
-		draw_translucent, mouseStatus.xPosition, mouseStatus.yPosition,
+		draw_alphablend, mouseStatus.xPosition, mouseStatus.yPosition,
 		0, 0, 0, 0);
 }
 
@@ -110,6 +110,7 @@ static void mouseThread(void)
 			!mouseStatus.zChange && !mouseStatus.changeButton)
 		{
 			kernelMultitaskerYield();
+			continue;
 		}
 
 		xChange = mouseStatus.xChange;
@@ -282,7 +283,7 @@ static int makeDefaultPointer(void)
 	if (!buffer.data)
 		return (status = ERR_MEMORY);
 
-	kernelGraphicDrawRect(&buffer, &((color) { 0, 255, 0 } ), draw_normal,
+	kernelGraphicDrawRect(&buffer, &((color){ 0, 255, 0 } ), draw_normal,
 		0, 0, buffer.width, buffer.height, 1, 1);
 
 	kernelGraphicDrawLine(&buffer, &COLOR_WHITE, draw_normal, 0, 0,
@@ -325,7 +326,7 @@ static int makeDefaultPointer(void)
 	}
 
 	// Save the name
-	strncpy(newPointer->name, "default", MOUSE_POINTER_NAMELEN);
+	strncpy(newPointer->name, MOUSE_POINTER_DEFAULT, MOUSE_POINTER_NAMELEN);
 
 	// Mouse pointers are translucent, and the translucent color is pure green
 	newPointer->pointerImage.transColor.red = 0;
@@ -364,10 +365,10 @@ int kernelMouseInitialize(void)
 
 	// The list of default mouse pointers and their image files.
 	char *mousePointerTypes[][2] = {
-		{ "default", MOUSE_DEFAULT_POINTER_DEFAULT },
-		{ "busy", MOUSE_DEFAULT_POINTER_BUSY },
-		{ "resizeh", MOUSE_DEFAULT_POINTER_RESIZEH },
-		{ "resizev", MOUSE_DEFAULT_POINTER_RESIZEV },
+		{ MOUSE_POINTER_DEFAULT, MOUSE_DEFAULT_POINTER_DEFAULT },
+		{ MOUSE_POINTER_BUSY, MOUSE_DEFAULT_POINTER_BUSY },
+		{ MOUSE_POINTER_RESIZEH, MOUSE_DEFAULT_POINTER_RESIZEH },
+		{ MOUSE_POINTER_RESIZEV, MOUSE_DEFAULT_POINTER_RESIZEV },
 		{ NULL, NULL }
 	};
 
@@ -408,7 +409,7 @@ int kernelMouseInitialize(void)
 	}
 
 	// Make sure there's at least a default pointer
-	status = findPointerSlot("default");
+	status = findPointerSlot(MOUSE_POINTER_DEFAULT);
 	if (status < 0)
 	{
 		// Perhaps the pointer image is missing.  We need to have something, so
@@ -544,7 +545,8 @@ kernelMousePointer *kernelMouseGetPointer(const char *pointerName)
 	if (pointerSlot >= 0)
 		pointer = pointerList[pointerSlot];
 	else
-		kernelError(kernel_error, "Mouse pointer \"%s\" not found", pointerName);
+		kernelError(kernel_error, "Mouse pointer \"%s\" not found",
+			pointerName);
 
 	return (pointer);
 }
@@ -587,6 +589,20 @@ void kernelMouseDraw(void)
 		return;
 
 	draw();
+
+	return;
+}
+
+
+void kernelMouseHide(void)
+{
+	// Just erase the mouse pointer.
+
+	// Make sure we've been initialized
+	if (!initialized)
+		return;
+
+	erase();
 
 	return;
 }

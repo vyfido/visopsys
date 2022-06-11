@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -335,7 +335,7 @@ static unsigned char driveStatus(int driveNum)
 
 	// Construct the drive/head select byte
 	// Format [00000 (head 1 bit)(drive 2 bits)]
-	command = (unsigned char) (driveNum & 3);
+	command = (unsigned char)(driveNum & 3);
 	commandWrite(command);
 
 	return (statusRead());
@@ -413,7 +413,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 	int count;
 
 	// Get a pointer to the requested disk
-	theDisk = &(disks[driveNum]);
+	theDisk = &disks[driveNum];
 	floppyData = theDisk->driverData;
 
 	// Wait for a lock on the controller
@@ -484,7 +484,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 
 		// Construct the drive/head select byte
 		// Format [00000 (head 1 bit)(drive 2 bits)]
-		command = (unsigned char) (((head & 1) << 2) | (driveNum & 3));
+		command = (unsigned char)(((head & 1) << 2) | (driveNum & 3));
 		commandWrite(command);
 
 		// Construct the track number byte
@@ -556,7 +556,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 
 		// Construct the drive/head select byte
 		// Format [00000 (head 1 bit)(drive 2 bits)]
-		command = (unsigned char) (((head & 1) << 2) | (driveNum & 3));
+		command = (unsigned char)(((head & 1) << 2) | (driveNum & 3));
 		commandWrite(command);
 
 		// Construct the track number byte
@@ -572,7 +572,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		commandWrite(command);
 
 		// Construct the sector size code
-		command = (unsigned char) (theDisk->sectorSize >> 8);
+		command = (unsigned char)(theDisk->sectorSize >> 8);
 		commandWrite(command);
 
 		// Construct the end of track byte
@@ -833,7 +833,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 			return (status = ERR_MEMORY);
 		}
 
-		// Generic, regardless of type
+		// Generic, regardlesS of type
 		floppyData->dmaChannel = 2;
 		floppyData->headLoad = 0x02;
 		floppyData->headUnload = 0x0F;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -77,14 +77,18 @@ rmdir             Remove a directory
 shutdown          Stops the computer
 snake             A 'snake' game like the one found on mobile phones
 sync              Synchronize all filesystems on disk
+sysdiag           Performs system diagnostics
 touch             Update a file or create a new (empty) file
 umount            Unmount a filesystem
 uname             Prints system information
+unzip             Decompress and extract files from a compressed archive file
 uptime            Time since last boot
 vsh               Start a new command shell
+zip               Compress and archive files
 
  -- Additional (graphics mode only) --
 
+archman           A graphical program for managing archive files
 calc              A calculator program
 clock             Show a simple clock in the corner of the screen
 cmdwin            Open a new command window
@@ -96,6 +100,8 @@ edit              Simple text editor
 filebrowse        Navigate the file system
 filesys           Set mount points and other filesystem properties
 iconwin           A program for displaying custom icon windows
+imgedit           Simple image editor
+keyboard          Display a virtual keyboard
 mines             A mine sweeper game
 progman           View and manage programs and processes
 screenshot        Take a screenshot

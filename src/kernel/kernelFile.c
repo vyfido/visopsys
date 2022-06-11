@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 // system tree.
 
 #include "kernelFile.h"
+#include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelDisk.h"
 #include "kernelError.h"
@@ -33,7 +34,6 @@
 #include "kernelMultitasker.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
-#include "kernelSysTimer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,7 +68,7 @@ static int allocateFileEntries(void)
 	// Initialize the new kernelFileEntry structures.
 
 	for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
-		newFileEntries[count].nextEntry = &(newFileEntries[count + 1]);
+		newFileEntries[count].nextEntry = &newFileEntries[count + 1];
 
 	// The free file entries are the new memory
 	freeFileEntries = newFileEntries;
@@ -271,7 +271,7 @@ static inline void updateCreationTime(kernelFileEntry *entry)
 
 	entry->creationDate = kernelRtcPackedDate();
 	entry->creationTime = kernelRtcPackedTime();
-	entry->lastAccess = kernelSysTimerRead();
+	entry->lastAccess = kernelCpuTimestamp();
 	return;
 }
 
@@ -282,7 +282,7 @@ static inline void updateModifiedTime(kernelFileEntry *entry)
 
 	entry->modifiedDate = kernelRtcPackedDate();
 	entry->modifiedTime = kernelRtcPackedTime();
-	entry->lastAccess = kernelSysTimerRead();
+	entry->lastAccess = kernelCpuTimestamp();
 	return;
 }
 
@@ -293,7 +293,7 @@ static inline void updateAccessedTime(kernelFileEntry *entry)
 
 	entry->accessedDate = kernelRtcPackedDate();
 	entry->accessedTime = kernelRtcPackedTime();
-	entry->lastAccess = kernelSysTimerRead();
+	entry->lastAccess = kernelCpuTimestamp();
 	return;
 }
 
@@ -500,7 +500,7 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 		while (listItem)
 		{
 			// Update the access time on this directory
-			listItem->lastAccess = kernelSysTimerRead();
+			listItem->lastAccess = kernelCpuTimestamp();
 
 			if ((int) strlen((char *) listItem->name) == itemLength)
 			{
@@ -569,7 +569,7 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 
 			if (itemName[itemLength] == '\0')
 			{
-				listItem->lastAccess = kernelSysTimerRead();
+				listItem->lastAccess = kernelCpuTimestamp();
 				return (listItem);
 			}
 		}
@@ -760,7 +760,7 @@ static int fileOpen(kernelFileEntry *openItem, int openMode)
 		}
 
 		// Put a write lock on the file
-		status = kernelLockGet(&(openItem->lock));
+		status = kernelLockGet(&openItem->lock);
 		if (status < 0)
 			return (status);
 
@@ -1633,7 +1633,7 @@ int kernelFileInsertEntry(kernelFileEntry *theFile, kernelFileEntry *directory)
 	}
 
 	// Update the access time on the directory
-	directory->lastAccess = kernelSysTimerRead();
+	directory->lastAccess = kernelCpuTimestamp();
 
 	// Don't mark the directory as dirty; that is the responsibility of the
 	// caller, since this function is used in building initial directory
@@ -1705,7 +1705,7 @@ int kernelFileRemoveEntry(kernelFileEntry *entry)
 	entry->nextEntry = NULL;
 
 	// Update the access time on the directory
-	directory->lastAccess = kernelSysTimerRead();
+	directory->lastAccess = kernelCpuTimestamp();
 
 	// Don't mark the directory as dirty; that is the responsibility of the
 	// caller, since this function is used for things like unbuffering
@@ -1912,7 +1912,7 @@ int kernelFileUnbufferRecursive(kernelFileEntry *dir)
 	listItemPointer = dir->contents;
 	while (listItemPointer)
 	{
-		if (kernelLockVerify(&(listItemPointer->lock)))
+		if (kernelLockVerify(&listItemPointer->lock))
 			break;
 		else
 			listItemPointer = listItemPointer->nextEntry;
@@ -2087,7 +2087,7 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
 
 	// Copy everything before count into the path string.  We skip the
 	// trailing '/' or '\' unless it's the first character
-	if (count == 0)
+	if (!count)
 	{
 		pathName[0] = fixedPath[0];
 		pathName[1] = '\0';
@@ -2437,7 +2437,7 @@ int kernelFileClose(file *fileStructure)
 		theFile->openCount -= 1;
 
 	// If the file was locked by this PID, we should unlock it
-	kernelLockRelease(&(theFile->lock));
+	kernelLockRelease(&theFile->lock);
 
 	// Return success
 	return (status = 0);
@@ -2918,7 +2918,7 @@ int kernelFileCopy(const char *srcName, const char *destName)
 
 	// Make sure the destination file's block size isn't zero (this would
 	// lead to a divide-by-zero error at writing time)
-	if (destFileStruct.blockSize == 0)
+	if (!destFileStruct.blockSize)
 	{
 		kernelError(kernel_error, "Destination file has zero blocksize");
 		status = ERR_DIVIDEBYZERO;
@@ -2999,7 +2999,7 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
 
 					dest = kernelFileLookup(tmpDestName);
 
-					if ((dest != NULL) && (dest->type != dirT))
+					if (dest && (dest->type != dirT))
 					{
 						// Some non-directory item is sitting there using our
 						// desired destination name, blocking us.  Try to delete
@@ -3361,6 +3361,35 @@ int kernelFileSetSize(file *fileStructure, unsigned newSize)
 }
 
 
+int kernelFileGetTempName(char *buffer, unsigned bufferLen)
+{
+	int status = 0;
+
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!buffer || !bufferLen)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	while (1)
+	{
+		// Construct the file name
+		snprintf(buffer, bufferLen, PATH_TEMP "/%03d-%08x.tmp",
+			kernelCurrentProcess->processId, (unsigned) kernelCpuTimestamp());
+
+		// Make sure it doesn't already exist
+		if (!fileLookup(buffer))
+			break;
+	}
+
+	return (status = 0);
+}
+
+
 int kernelFileGetTemp(file *tmpFile)
 {
 	// This will create and open a temporary file in write mode.
@@ -3389,21 +3418,16 @@ int kernelFileGetTemp(file *tmpFile)
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
-	while (1)
-	{
-		// Construct the file name
-		sprintf(fileName, PATH_TEMP "/%03d-%08x.tmp",
-		kernelCurrentProcess->processId, kernelSysTimerRead());
-
-		// Make sure it doesn't already exist
-		if (!fileLookup(fileName))
-			break;
-	}
+	status = kernelFileGetTempName(fileName, MAX_PATH_NAME_LENGTH);
+	if (status < 0)
+		return (status);
 
 	// Create and open it for reading/writing
 	status = kernelFileOpen(fileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
 		OPENMODE_READWRITE), tmpFile);
+
 	kernelFree(fileName);
+
 	return (status);
 }
 

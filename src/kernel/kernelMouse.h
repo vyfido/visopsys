@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,14 +24,7 @@
 #if !defined(_KERNELMOUSE_H)
 
 #include <sys/image.h>
-#include <sys/paths.h>
-
-#define MOUSE_MAX_POINTERS				16
-#define MOUSE_POINTER_NAMELEN			64
-#define MOUSE_DEFAULT_POINTER_DEFAULT	PATH_SYSTEM_MOUSE "/default.bmp"
-#define MOUSE_DEFAULT_POINTER_BUSY		PATH_SYSTEM_MOUSE "/busy.bmp"
-#define MOUSE_DEFAULT_POINTER_RESIZEH	PATH_SYSTEM_MOUSE "/resizeh.bmp"
-#define MOUSE_DEFAULT_POINTER_RESIZEV	PATH_SYSTEM_MOUSE "/resizev.bmp"
+#include <sys/mouse.h>
 
 typedef struct {
 	char name[MOUSE_POINTER_NAMELEN];
@@ -46,6 +39,7 @@ int kernelMouseLoadPointer(const char *, const char *);
 kernelMousePointer *kernelMouseGetPointer(const char *);
 int kernelMouseSetPointer(kernelMousePointer *);
 void kernelMouseDraw(void);
+void kernelMouseHide(void);
 void kernelMouseMove(int, int);
 void kernelMouseButtonChange(int, int);
 void kernelMouseScroll(int);

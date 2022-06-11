@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,134 +17,134 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: users.c:59
+#: users.c:60
 msgid "User Manager"
 msgstr ""
 
-#: users.c:60 users.c:656
+#: users.c:61 users.c:683
 msgid "Add User"
 msgstr ""
 
-#: users.c:61
+#: users.c:62
 msgid "Delete User"
 msgstr ""
 
-#: users.c:62
+#: users.c:63
 msgid "Set Password"
 msgstr ""
 
-#: users.c:63
+#: users.c:64
 msgid "Set Language"
 msgstr ""
 
-#: users.c:91
+#: users.c:92
 msgid "Error"
 msgstr ""
 
-#: users.c:109
+#: users.c:110
 msgid "Error getting user names"
 msgstr ""
 
-#: users.c:185
+#: users.c:186
 #, c-format
 msgid "User name: %s"
 msgstr ""
 
-#: users.c:198
+#: users.c:199
 msgid "Old password:"
 msgstr ""
 
-#: users.c:212
+#: users.c:213
 msgid "New password:"
 msgstr ""
 
-#: users.c:229
+#: users.c:230
 msgid "Confirm password:"
 msgstr ""
 
-#: users.c:243 users.c:414
+#: users.c:244 users.c:415
 msgid "Passwords do not match"
 msgstr ""
 
-#: users.c:247
+#: users.c:248
 msgid "Password should be longer"
 msgstr ""
 
-#: users.c:259
+#: users.c:260
 msgid "OK"
 msgstr ""
 
-#: users.c:264
+#: users.c:265
 msgid "Cancel"
 msgstr ""
 
-#: users.c:408 users.c:513
+#: users.c:409 users.c:514
 msgid "Permission denied"
 msgstr ""
 
-#: users.c:410
+#: users.c:411
 msgid "Error setting password"
 msgstr ""
 
-#: users.c:463
+#: users.c:464
 #, c-format
 msgid "User \"%s\" already exists."
 msgstr ""
 
-#: users.c:471
+#: users.c:472
 msgid "Error adding user"
 msgstr ""
 
-#: users.c:481
+#: users.c:482
 msgid "Warning: couldn't create user directory"
 msgstr ""
 
-#: users.c:515
+#: users.c:516
 msgid "Error deleting user"
 msgstr ""
 
-#: users.c:657
+#: users.c:684
 msgid "Enter the user name:"
 msgstr ""
 
-#: users.c:675
+#: users.c:702
 #, c-format
 msgid "Delete user %s?"
 msgstr ""
 
-#: users.c:677
+#: users.c:704
 msgid "Delete?"
 msgstr ""
 
-#: users.c:681
+#: users.c:708
 msgid "Can't delete the last user"
 msgstr ""
 
-#: users.c:705
+#: users.c:732
 msgid "Couldn't save the language choice"
 msgstr ""
 
-#: users.c:804
+#: users.c:831
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: users.c:821
+#: users.c:848
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: users.c:861
+#: users.c:888
 #, c-format
 msgid "No such user \"%s\""
 msgstr ""
 
-#: users.c:865
+#: users.c:892
 msgid "Done"
 msgstr ""
 
-#: users.c:865
+#: users.c:892
 msgid "Password set"
 msgstr ""

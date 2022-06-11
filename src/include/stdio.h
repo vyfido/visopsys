@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -73,6 +73,10 @@ int snprintf(char *, size_t, const char *, ...)
      __attribute__((format(printf, 3, 4)));
 int sprintf(char *, const char *, ...) __attribute__((format(printf, 2, 3)));
 int sscanf(const char *, const char *, ...);
+long int strtol(const char *, char **, int);
+long long int strtoll(const char *, char **, int);
+unsigned long int strtoul(const char *, char **, int);
+unsigned long long int strtoull(const char *, char **, int);
 int vfprintf(FILE *, const char *, va_list);
 int vfscanf(FILE *, const char *, va_list);
 int vprintf(const char *, va_list);

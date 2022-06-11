@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -1602,7 +1602,7 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 			count);
 
 		entry = (sectorData + (count * entrySize));
-		logicalDisk = &(physicalDisk->logical[physicalDisk->numLogical]);
+		logicalDisk = &physicalDisk->logical[physicalDisk->numLogical];
 
 		typeGuid = (guid *) entry;
 
@@ -1692,10 +1692,10 @@ static int readDosPartitions(kernelPhysicalDisk *physicalDisk,
 		// entries
 		for (partition = 0; partition < 4; partition ++)
 		{
-			logicalDisk = &(physicalDisk->logical[physicalDisk->numLogical]);
+			logicalDisk = &physicalDisk->logical[physicalDisk->numLogical];
 
 			msdosTag = partitionRecord[4];
-			if (msdosTag == 0)
+			if (!msdosTag)
 			{
 				// The "rules" say we must be finished with this
 				// physical device.  But that is not the way things
@@ -2607,13 +2607,13 @@ int kernelDiskReadPartitions(const char *diskName)
 			// our array and continue to the next physical disk.
 			for (count = 0; count < physicalDisk->numLogical; count ++)
 				newLogicalDisks[newLogicalDiskCounter++] =
-					&(physicalDisk->logical[count]);
+					&physicalDisk->logical[count];
 			return (status = 1);
 		}
 
 		// Clear the logical disks
 		physicalDisk->numLogical = 0;
-		memset(&(physicalDisk->logical), 0,
+		memset(&physicalDisk->logical, 0,
 			 (sizeof(kernelDisk) * DISK_MAX_PARTITIONS));
 
 		// Check to see if it's a GPT disk first, since a GPT disk is also
@@ -2646,7 +2646,7 @@ int kernelDiskReadPartitions(const char *diskName)
 		// If this is a not a hard disk with partitions, etc, make the logical
 		// disk be the same as the physical disk
 		physicalDisk->numLogical = 1;
-		logicalDisk = &(physicalDisk->logical[0]);
+		logicalDisk = &physicalDisk->logical[0];
 		// Logical disk name same as physical
 		strcpy((char *) logicalDisk->name, (char *) physicalDisk->name);
 		strncpy((char *) logicalDisk->partType, msdosType.description,
@@ -2989,7 +2989,7 @@ int kernelDiskGetMsdosPartType(int tag, msdosPartType *type)
 	if (!type)
 		return (status = ERR_NULLPARAMETER);
 
-	for (count = 0; (msdosPartTypes[count].tag != 0); count ++)
+	for (count = 0; msdosPartTypes[count].tag; count ++)
 	{
 		if (msdosPartTypes[count].tag == tag)
 		{

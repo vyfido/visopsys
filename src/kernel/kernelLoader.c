@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,19 +38,21 @@
 // This is the static list of file class registration functions.  If you
 // add any to this, remember to update the LOADER_NUM_FILECLASSES value
 // in the header file.
-static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES]) (void) = {
+static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES])(void) = {
 	// Binary formats with magic numbers
 	kernelFileClassBmp,
 	kernelFileClassIco,
 	kernelFileClassJpg,
 	kernelFileClassGif,
 	kernelFileClassPng,
+	kernelFileClassPpm,
 	kernelFileClassBoot,
 	kernelFileClassKeymap,
 	kernelFileClassPdf,
 	kernelFileClassZip,
 	kernelFileClassGzip,
 	kernelFileClassAr,
+	kernelFileClassTar,
 	kernelFileClassPcf,
 	kernelFileClassTtf,
 	kernelFileClassVbf,
@@ -477,7 +479,7 @@ loaderSymbol *kernelLoaderFindSymbol(const char *name,
 	{
 		if (!strcmp(symTable->symbols[count].name, name))
 		{
-			symbol = &(symTable->symbols[count]);
+			symbol = &symTable->symbols[count];
 			break;
 		}
 	}
@@ -503,7 +505,7 @@ int kernelLoaderCheckCommand(const char *command)
 
 	// Set up argc and argv
 	strncpy(checkImage.commandLine, command, MAXSTRINGLENGTH);
-	parseCommand(checkImage.commandLine, &(checkImage.argc), checkImage.argv);
+	parseCommand(checkImage.commandLine, &checkImage.argc, checkImage.argv);
 
 	if (!checkImage.argc)
 		return (status = ERR_NOSUCHFILE);
@@ -543,7 +545,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 
 	// Set up argc and argv
 	strncpy(execImage.commandLine, command, MAXSTRINGLENGTH);
-	parseCommand(execImage.commandLine, &(execImage.argc), execImage.argv);
+	parseCommand(execImage.commandLine, &execImage.argc, execImage.argv);
 
 	if (!execImage.argc)
 		return (status = ERR_NOSUCHFILE);

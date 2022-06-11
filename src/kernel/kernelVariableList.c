@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -265,7 +265,7 @@ int kernelVariableListCreate(variableList *list)
 	// The memory will be the size of pointers for both the variable names and
 	// the values, plus additional memory for raw data
 	list->memory = kernelMemoryGet(list->memorySize, "variable list");
-	if (list->memory == NULL)
+	if (!list->memory)
 		return (status = ERR_MEMORY);
 
 	// Return success
@@ -320,13 +320,13 @@ const char *kernelVariableListGetVariable(variableList *list, int slot)
 	}
 
 	// Lock the list while we're working with it
-	if (kernelLockGet(&(list->listLock)) < 0)
+	if (kernelLockGet(&list->listLock) < 0)
 		return (data = NULL);
 
 	variables = list->memory;
 	data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
 
-	kernelLockRelease(&(list->listLock));
+	kernelLockRelease(&list->listLock);
 
 	kernelDebug(debug_misc, "VariableList return variable %s",
 		(data + variables[slot]));
@@ -353,21 +353,21 @@ const char *kernelVariableListGet(variableList *list, const char *variable)
 	kernelDebug(debug_misc, "VariableList get %s", variable);
 
 	// Lock the list while we're working with it
-	if (kernelLockGet(&(list->listLock)) < 0)
+	if (kernelLockGet(&list->listLock) < 0)
 		return (data = NULL);
 
 	slot = findVariable(list, variable);
 	if (slot < 0)
 	{
 		// No such variable
-		kernelLockRelease(&(list->listLock));
+		kernelLockRelease(&list->listLock);
 		return (data = NULL);
 	}
 
 	values = (list->memory + (list->maxVariables * sizeof(unsigned)));
 	data = (list->memory + (list->maxVariables * 2 * sizeof(unsigned)));
 
-	kernelLockRelease(&(list->listLock));
+	kernelLockRelease(&list->listLock);
 
 	kernelDebug(debug_misc, "VariableList return value %s",
 		(data + values[slot]));
@@ -393,13 +393,13 @@ int kernelVariableListSet(variableList *list, const char *variable,
 	kernelDebug(debug_misc, "VariableList set %s=%s", variable, value);
 
 	// Lock the list while we're working with it
-	status = kernelLockGet(&(list->listLock));
+	status = kernelLockGet(&list->listLock);
 	if (status < 0)
 		return (status = ERR_NOLOCK);
 
 	status = setVariable(list, variable, value);
 
-	kernelLockRelease(&(list->listLock));
+	kernelLockRelease(&list->listLock);
 
 	return (status);
 }
@@ -421,13 +421,13 @@ int kernelVariableListUnset(variableList *list, const char *variable)
 	kernelDebug(debug_misc, "VariableList unset %s", variable);
 
 	// Lock the list while we're working with it
-	status = kernelLockGet(&(list->listLock));
+	status = kernelLockGet(&list->listLock);
 	if (status < 0)
 		return (status = ERR_NOLOCK);
 
 	status = unsetVariable(list, variable);
 
-	kernelLockRelease(&(list->listLock));
+	kernelLockRelease(&list->listLock);
 
 	return (status);
 }
@@ -449,14 +449,14 @@ int kernelVariableListClear(variableList *list)
 	kernelDebug(debug_misc, "VariableList clear list");
 
 	// Lock the list while we're working with it
-	status = kernelLockGet(&(list->listLock));
+	status = kernelLockGet(&list->listLock);
 	if (status < 0)
 		return (status = ERR_NOLOCK);
 
 	list->numVariables = 0;
 	list->usedData = 0;
 
-	kernelLockRelease(&(list->listLock));
+	kernelLockRelease(&list->listLock);
 
 	return (status = 0);
 }

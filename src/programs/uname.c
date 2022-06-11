@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,10 +46,17 @@ Options:
 */
 
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/utsname.h>
+
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
 
 
 int main(int argc, char *argv[])
@@ -58,6 +65,9 @@ int main(int argc, char *argv[])
 	char opt;
 	int sysname = 0, nodename = 0, release = 0, version = 0, machine = 0;
 	struct utsname data;
+
+	setlocale(LC_ALL, getenv(ENV_LANG));
+	textdomain("uname");
 
 	if (argc > 1)
 	{
@@ -95,7 +105,7 @@ int main(int argc, char *argv[])
 					break;
 
 				default:
-					fprintf(stderr, "Unknown option '%c'\n", optopt);
+					fprintf(stderr, _("Unknown option '%c'\n"), optopt);
 					status = errno = ERR_INVALID;
 					perror(argv[0]);
 					return (status);

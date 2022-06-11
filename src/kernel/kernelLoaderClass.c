@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,8 +25,11 @@
 #include "kernelLoader.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/gzip.h>
 #include <sys/keyboard.h>
 #include <sys/msdos.h>
+#include <sys/png.h>
+#include <sys/tar.h>
 
 
 static int textDetect(const char *fileName, void *dataPtr, unsigned size,
@@ -39,6 +42,7 @@ static int textDetect(const char *fileName, void *dataPtr, unsigned size,
 	int textChars = 0;
 	unsigned count;
 
+	// Check params
 	if (!fileName || !dataPtr || !size || !class)
 		return (0);
 
@@ -75,6 +79,10 @@ static int binaryDetect(const char *fileName, void *dataPtr, unsigned size,
 {
 	// If it's not text, it's binary
 
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
 	if (!textDetect(fileName, dataPtr, size, class))
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_BIN,
@@ -95,6 +103,10 @@ static int gifDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Must be binary, and have the signature 'GIF'
 
 	#define GIF_MAGIC "GIF"
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
 
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(GIF_MAGIC))
@@ -121,10 +133,11 @@ static int pngDetect(const char *fileName, void *dataPtr, unsigned size,
 	// Must be binary, and have the signature '0x89504E47 0x0D0A1A0A' at the
 	// beginning
 
-	#define PNG_MAGIC1 0x474E5089
-	#define PNG_MAGIC2 0x0A1A0A0D
-
 	unsigned *sig = dataPtr;
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
 
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(PNG_MAGIC1))
@@ -153,6 +166,10 @@ static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 
 	unsigned short *sig = (dataPtr + 510);
 
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
 	// Make sure there's enough data here for our detection
 	if (size < 512)
 		return (0);
@@ -179,6 +196,10 @@ static int keymapDetect(const char *fileName, void *dataPtr, unsigned size,
 {
 	// Must be binary, and have the magic number KEYMAP_MAGIC at the beginning
 
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(KEYMAP_MAGIC))
 		return (0);
@@ -198,12 +219,16 @@ static int keymapDetect(const char *fileName, void *dataPtr, unsigned size,
 }
 
 
-static int pdfDetect(const char *fileName __attribute__((unused)),
-	void *dataPtr, unsigned size, loaderFileClass *class)
+static int pdfDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
 {
 	// Must be binary, and have the magic number PDF_MAGIC at the beginning
 
 	#define PDF_MAGIC "%PDF-"
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
 
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(PDF_MAGIC))
@@ -233,6 +258,10 @@ static int zipDetect(const char *fileName, void *dataPtr, unsigned size,
 
 	unsigned *sig = dataPtr;
 
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(ZIP_MAGIC))
 		return (0);
@@ -255,9 +284,7 @@ static int zipDetect(const char *fileName, void *dataPtr, unsigned size,
 static int gzipDetect(const char *fileName, void *dataPtr, unsigned size,
 	loaderFileClass *class)
 {
-	// Must be binary, and have the signature '0x8B1F' at the beginning
-
-	#define GZIP_MAGIC 0x8B1F
+	// Must have the signature '0x8B1F' at the beginning
 
 	unsigned short *sig = dataPtr;
 
@@ -291,6 +318,10 @@ static int arDetect(const char *fileName, void *dataPtr, unsigned size,
 
 	#define AR_MAGIC "!<arch>\n"
 
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(AR_MAGIC))
 		return (0);
@@ -305,6 +336,37 @@ static int arDetect(const char *fileName, void *dataPtr, unsigned size,
 			FILECLASS_NAME_ARCHIVE);
 		class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_LIB);
 		class->subClass = LOADERFILESUBCLASS_STATIC;
+		return (1);
+	}
+	else
+	{
+		return (0);
+	}
+}
+
+
+static int tarDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must have the signature 'ustar' in a TAR header
+
+	tarHeader *header = dataPtr;
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < sizeof(tarHeader))
+		return (0);
+
+	if (!memcmp(header->magic, TAR_MAGIC, sizeof(TAR_MAGIC)) ||
+		!memcmp(header->magic, TAR_OLDMAGIC, sizeof(TAR_OLDMAGIC)))
+	{
+		sprintf(class->className, "%s %s", FILECLASS_NAME_TAR,
+			FILECLASS_NAME_ARCHIVE);
+		class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_ARCHIVE);
+		class->subClass = LOADERFILESUBCLASS_TAR;
 		return (1);
 	}
 	else
@@ -541,6 +603,13 @@ kernelFileClass arFileClass = {
 	{ }
 };
 
+// Tar archives.
+kernelFileClass tarFileClass = {
+	FILECLASS_NAME_TAR,
+	&tarDetect,
+	{ }
+};
+
 // PCF font files.
 kernelFileClass pcfFileClass = {
 	FILECLASS_NAME_PCF,
@@ -653,6 +722,14 @@ kernelFileClass *kernelFileClassAr(void)
 	// The loader will call this function so that we can return a structure
 	// for managing Ar archives
 	return (&arFileClass);
+}
+
+
+kernelFileClass *kernelFileClassTar(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing Tar archives
+	return (&tarFileClass);
 }
 
 

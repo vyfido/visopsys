@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,6 +26,7 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -87,7 +88,7 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 
 		componentSize = (component->minHeight + component->params.padTop +
 			component->params.padBottom);
-		if (component->params.gridHeight != 0)
+		if (component->params.gridHeight)
 		{
 			componentSize /= component->params.gridHeight;
 			for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
@@ -121,11 +122,11 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 		extraWidth /= numExpandableX;
 	for (count1 = 0; count1 < container->maxComponents; count1 ++)
 	{
-		if (count1 == 0)
+		if (!count1)
 			columnStartX[count1] = containerComponent->xCoord;
 		else
-			columnStartX[count1] =
-			(columnStartX[count1 - 1] + columnWidth[count1 - 1]);
+			columnStartX[count1] = (columnStartX[count1 - 1] +
+				columnWidth[count1 - 1]);
 
 		if (columnWidth[count1] && expandableX[count1])
 			columnWidth[count1] += extraWidth;
@@ -137,7 +138,7 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 		extraHeight /= numExpandableY;
 	for (count1 = 0; count1 < container->maxComponents; count1 ++)
 	{
-		if (count1 == 0)
+		if (!count1)
 			rowStartY[count1] = containerComponent->yCoord;
 		else
 			rowStartY[count1] = (rowStartY[count1 - 1] + rowHeight[count1 - 1]);
@@ -178,11 +179,20 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		goto out;
 	}
 
+	kernelDebug(debug_gui, "WindowContainer \"%s\" container \"%s\" layout "
+		"sized", containerComponent->window->title, container->name);
+
+	kernelDebug(debug_gui, "WindowContainer old width=%d height=%d "
+		"minWidth=%d minHeight=%d", containerComponent->width,
+		containerComponent->height, containerComponent->minWidth,
+		containerComponent->minHeight);
+
+	kernelDebug(debug_gui, "WindowContainer new width=%d height=%d", width,
+		height);
+
 	// Don't go beyond minimum sizes
-	if (width < containerComponent->minWidth)
-		width = containerComponent->minWidth;
-	if (height < containerComponent->minHeight)
-		height = containerComponent->minHeight;
+	width = max(width, containerComponent->minWidth);
+	height = max(height, containerComponent->minHeight);
 
 	// Calculate the grid with the extra/less space factored in
 	calculateGrid(containerComponent, columnStartX, columnWidth, rowStartY,
@@ -253,13 +263,15 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 			case orient_left:
 				tmpX += component->params.padLeft;
 				break;
+
 			case orient_center:
 				tmpX += ((tmpWidth - component->width) / 2);
 				break;
+
 			case orient_right:
 				tmpX += ((tmpWidth - component->width) -
 					 component->params.padRight);
-			break;
+				break;
 		}
 
 		tmpY = rowStartY[component->params.gridY];
@@ -273,13 +285,15 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 			case orient_top:
 				tmpY += component->params.padTop;
 				break;
+
 			case orient_middle:
 				tmpY += ((tmpHeight - component->height) / 2);
 				break;
+
 			case orient_bottom:
 				tmpY += ((tmpHeight - component->height) -
 					 component->params.padBottom);
-			break;
+				break;
 		}
 
 		if ((tmpX != component->xCoord) || (tmpY != component->yCoord))
@@ -383,10 +397,10 @@ static int add(kernelWindowComponent *containerComponent,
 }
 
 
-static int remove(kernelWindowComponent *containerComponent,
+static int delete(kernelWindowComponent *containerComponent,
 	kernelWindowComponent *component)
 {
-	// Removes a component from a container
+	// Deletes a component from a container
 
 	int status = 0;
 	kernelWindowContainer *container = containerComponent->data;
@@ -550,6 +564,7 @@ static int layout(kernelWindowComponent *containerComponent)
 			{
 				if (doAreasIntersect(makeComponentScreenArea(component),
 					makeComponentScreenArea(container->components[count2])))
+
 				container->components[count2]->level++;
 			}
 		}
@@ -777,7 +792,7 @@ static void drawGrid(kernelWindowComponent *containerComponent)
 			for (count3 = 0; count3 < component->params.gridWidth; count3 ++)
 			{
 				kernelGraphicDrawRect(containerComponent->buffer,
-					&((color) {0,0,0}), draw_normal,
+					&((color){0, 0, 0}), draw_normal,
 					columnStartX[component->params.gridX + count3],
 					rowStartY[component->params.gridY + count2],
 					columnWidth[component->params.gridX + count3],
@@ -833,7 +848,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 
 	// Set the functions
 	component->add = (int (*)(kernelWindowComponent *, objectKey)) &add;
-	component->remove = &remove;
+	component->delete = &delete;
 	component->numComps = &numComps;
 	component->flatten = &flatten;
 	component->layout = &layout;

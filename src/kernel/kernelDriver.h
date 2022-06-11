@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -64,7 +64,7 @@ void kernelFloppyDriverRegister(kernelDriver *);
 void kernelFramebufferGraphicDriverRegister(kernelDriver *);
 void kernelIdeDriverRegister(kernelDriver *);
 void kernelIsaBridgeDriverRegister(kernelDriver *);
-void kernelLanceDriverRegister(kernelDriver *);
+void kernelPcNetDriverRegister(kernelDriver *);
 void kernelMemoryDriverRegister(kernelDriver *);
 void kernelMultiProcDriverRegister(kernelDriver *);
 void kernelPciDriverRegister(kernelDriver *);
@@ -82,6 +82,7 @@ void kernelUsbGenericDriverRegister(kernelDriver *);
 void kernelUsbHubDriverRegister(kernelDriver *);
 void kernelUsbKeyboardDriverRegister(kernelDriver *);
 void kernelUsbMouseDriverRegister(kernelDriver *);
+void kernelUsbTouchscreenDriverRegister(kernelDriver *);
 
 #define _KERNELDRIVER_H
 #endif

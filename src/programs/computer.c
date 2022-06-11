@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,13 +57,13 @@ browser window for that filesystem.
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE			_("Computer")
-#define DEFAULT_ROWS			4
+#define DEFAULT_ROWS			3
 #define DEFAULT_COLUMNS			5
 #define MAX_VARIABLE_LEN		128
-#define FLOPPYDISK_ICONFILE		PATH_SYSTEM_ICONS "/floppyicon.ico"
-#define HARDDISK_ICONFILE		PATH_SYSTEM_ICONS "/diskicon.bmp"
-#define CDROMDISK_ICONFILE		PATH_SYSTEM_ICONS "/cdromicon.ico"
-#define FLASHDISK_ICONFILE		PATH_SYSTEM_ICONS "/usbthumbicon.bmp"
+#define FLOPPYDISK_ICONFILE		PATH_SYSTEM_ICONS "/floppy.ico"
+#define HARDDISK_ICONFILE		PATH_SYSTEM_ICONS "/harddisk.ico"
+#define CDROMDISK_ICONFILE		PATH_SYSTEM_ICONS "/cdrom.ico"
+#define FLASHDISK_ICONFILE		PATH_SYSTEM_ICONS "/usbthumb.ico"
 #define FILE_BROWSER			PATH_PROGRAMS "/filebrowse"
 #define FORMAT					PATH_PROGRAMS "/format"
 
@@ -260,7 +260,7 @@ static void browseThread(void)
 	disk theDisk;
 	char *command = NULL;
 
-	windowSwitchPointer(window, "busy");
+	windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 	selected = getAndScanSelection();
 	if (selected < 0)
@@ -319,7 +319,7 @@ static void browseThread(void)
 	status = 0;
 
 out:
-	windowSwitchPointer(window, "default");
+	windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 	multitaskerTerminate(status);
 }
 
@@ -355,7 +355,7 @@ static void mountAsThread(void)
 		goto out;
 	}
 
-	windowSwitchPointer(window, "busy");
+	windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 	// If it's removable, see if there is any media present
 	if ((theDisk.type & DISKTYPE_REMOVABLE) &&
@@ -366,7 +366,7 @@ static void mountAsThread(void)
 		goto out;
 	}
 
-	windowSwitchPointer(window, "default");
+	windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 
 	// See if there's a mount point specified in the mount configuration
 	if (getMountPoint(theDisk.name, theDisk.mountPoint) < 0)
@@ -378,7 +378,7 @@ static void mountAsThread(void)
 	if (status <= 0)
 		goto out;
 
-	windowSwitchPointer(window, "busy");
+	windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 	status = mount(&theDisk, theDisk.mountPoint);
 	if (status < 0)
@@ -413,7 +413,7 @@ static void mountAsThread(void)
 	status = 0;
 
 out:
-	windowSwitchPointer(window, "default");
+	windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 	multitaskerTerminate(status);
 }
 
@@ -434,7 +434,7 @@ static void unmountThread(void)
 		goto out;
 	}
 
-	windowSwitchPointer(window, "busy");
+	windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 	// Unmount it
 	status = filesystemUnmount(disks[selected].mountPoint);
@@ -442,7 +442,7 @@ static void unmountThread(void)
 		error(_("Error unmounting %s"), disks[selected].name);
 
 out:
-	windowSwitchPointer(window, "default");
+	windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 	multitaskerTerminate(status);
 }
 
@@ -525,10 +525,12 @@ static void refreshMenuContents(void)
 	initMenuContents(&diskMenuContents);
 
 	for (count = 0; count < diskMenuContents.numItems; count ++)
+	{
 		windowComponentSetData(diskMenuContents.items[count].key,
 			diskMenuContents.items[count].text,
 			strlen(diskMenuContents.items[count].text),
 			(count == (diskMenuContents.numItems - 1)));
+	}
 }
 
 
@@ -540,6 +542,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("computer");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the menu contents
 	refreshMenuContents();
@@ -712,7 +718,7 @@ static int scanComputer(void)
 	if (!disks || (newNumDisks != numDisks) ||
 		memcmp(disks, newDisks, newDisksSize))
 	{
-		windowSwitchPointer(window, "busy");
+		windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 		// Get the icon image and label for each disk.
 		for (count1 = 0; count1 < newNumDisks; count1 ++)
@@ -757,7 +763,7 @@ static int scanComputer(void)
 			setContextMenus();
 		}
 
-		windowSwitchPointer(window, "default");
+		windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 	}
 	else
 	{
@@ -855,7 +861,8 @@ int main(int argc, char *argv[])
 			goto out;
 		}
 
-		status = imageLoad(icons[count].fileName, 0, 0, icons[count].iconImage);
+		status = imageLoad(icons[count].fileName, 64, 64,
+			icons[count].iconImage);
 		if (status < 0)
 		{
 			error(_("Can't load icon image %s"), icons[count].fileName);

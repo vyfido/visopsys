@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -89,7 +89,7 @@ static int readRegister(int regNum)
 
 	// Now we have 244 us to read the data we want.  We'd better stop
 	// talking and do it.  Disable NMI at the same time.
-	data = (unsigned char) (regNum | 0x80);
+	data = (unsigned char)(regNum | 0x80);
 	processorOutPort8(0x70, data);
 
 	// Now read the data
@@ -159,7 +159,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		return (status = 0);
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_RTC);

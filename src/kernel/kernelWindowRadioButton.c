@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,7 @@ static int draw(kernelWindowComponent *component)
 
 	int status = 0;
 	kernelWindowRadioButton *radio = component->data;
-	asciiFont *font = (asciiFont *) component->params.font;
+	kernelFont *font = (kernelFont *) component->params.font;
 	int xCoord = 0, yCoord = 0;
 	color tmpColor;
 	int count1, count2;
@@ -71,7 +71,7 @@ static int draw(kernelWindowComponent *component)
 		if (radio->selectedItem == count1)
 		{
 			kernelGraphicDrawOval(component->buffer,
-				(color *) &(component->params.foreground), draw_normal,
+				(color *) &component->params.foreground, draw_normal,
 				(xCoord + 3), (yCoord + 3),
 				(windowVariables->radioButton.size - 6),
 				(windowVariables->radioButton.size - 6), 1, 1);
@@ -80,9 +80,9 @@ static int draw(kernelWindowComponent *component)
 		if (font)
 		{
 			status = kernelGraphicDrawText(component->buffer,
-				(color *) &(component->params.foreground),
-				(color *) &component->window->background,
-				font, tmp, draw_normal,
+				(color *) &component->params.foreground,
+				(color *) &component->window->background, font,
+				(char *) component->charSet, tmp, draw_normal,
 				(component->xCoord + windowVariables->radioButton.size + 2),
 				(component->yCoord + (font->glyphHeight * count1)));
 			if (status < 0)
@@ -123,7 +123,7 @@ static int setData(kernelWindowComponent *component, void *data, int numItems)
 	int count;
 
 	// If no items, nothing to do
-	if (numItems == 0)
+	if (!numItems)
 		return (ERR_NODATA);
 
 	// Calculate how much memory we need for our text data
@@ -148,13 +148,13 @@ static int setData(kernelWindowComponent *component, void *data, int numItems)
 		tmp += (strlen(items[count]) + 1);
 
 		if (component->params.font &&
-			((kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				items[count]) + windowVariables->radioButton.size + 3) >
-			component->width))
+			((kernelFontGetPrintedWidth((kernelFont *) component->params.font,
+				(char *) component->charSet, items[count]) +
+				windowVariables->radioButton.size + 3) > component->width))
 		{
-			component->width = (kernelFontGetPrintedWidth((asciiFont *)
-					component->params.font, items[count]) +
-				windowVariables->radioButton.size + 3);
+			component->width = (kernelFontGetPrintedWidth((kernelFont *)
+				component->params.font, (char *) component->charSet,
+				items[count]) + windowVariables->radioButton.size + 3);
 		}
 
 		radio->numItems += 1;
@@ -164,7 +164,7 @@ static int setData(kernelWindowComponent *component, void *data, int numItems)
 	// of items.
 	if (component->params.font)
 		component->height = (numItems *
-			((asciiFont *) component->params.font)->glyphHeight);
+			((kernelFont *) component->params.font)->glyphHeight);
 
 	component->minWidth = component->width;
 	component->minHeight = component->height;
@@ -221,7 +221,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			(event->yPosition - (component->window->yCoord + component->yCoord));
 		if (component->params.font)
 			clickedItem /=
-				((asciiFont *) component->params.font)->glyphHeight;
+				((kernelFont *) component->params.font)->glyphHeight;
 
 		// Is this item different from the currently selected item?
 		if (clickedItem != radio->selectedItem)

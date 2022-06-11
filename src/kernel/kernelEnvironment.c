@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -132,7 +132,7 @@ int kernelEnvironmentLoad(const char *userName)
 		status = 0;
 	}
 
-	if (strncmp(userName, "admin", USER_MAX_NAMELENGTH))
+	if (strncmp(userName, USER_ADMIN, USER_MAX_NAMELENGTH))
 	{
 		// Try to load more environment variables from the user's home
 		// directory
@@ -170,7 +170,9 @@ int kernelEnvironmentGet(const char *variable, char *buffer,
 		return (ERR_NULLPARAMETER);
 	}
 
-	value = kernelVariableListGet(kernelCurrentProcess->environment, variable);
+	if (kernelCurrentProcess)
+		value = kernelVariableListGet(kernelCurrentProcess->environment,
+			variable);
 
 	if (value)
 	{
@@ -188,6 +190,10 @@ int kernelEnvironmentGet(const char *variable, char *buffer,
 int kernelEnvironmentSet(const char *variable, const char *value)
 {
 	// Set a variable's value in the current process' environment space.
+
+	if (!kernelCurrentProcess)
+		return (ERR_NOSUCHPROCESS);
+
 	return (kernelVariableListSet(kernelCurrentProcess->environment,
 		variable, value));
 }
@@ -196,6 +202,10 @@ int kernelEnvironmentSet(const char *variable, const char *value)
 int kernelEnvironmentUnset(const char *variable)
 {
 	// Unset a variable's value from the current process' environment space.
+
+	if (!kernelCurrentProcess)
+		return (ERR_NOSUCHPROCESS);
+
 	return (kernelVariableListUnset(kernelCurrentProcess->environment,
 		variable));
 }
@@ -204,15 +214,24 @@ int kernelEnvironmentUnset(const char *variable)
 int kernelEnvironmentClear(void)
 {
 	// Clear the current process' entire environment space.
+
+	if (!kernelCurrentProcess)
+		return (ERR_NOSUCHPROCESS);
+
 	return (kernelVariableListClear(kernelCurrentProcess->environment));
 }
 
 
 void kernelEnvironmentDump(void)
 {
-	variableList *list = kernelCurrentProcess->environment;
+	variableList *list = NULL;
 	const char *variable = NULL;
 	int count;
+
+	if (!kernelCurrentProcess)
+		return;
+
+	list = kernelCurrentProcess->environment;
 
 	if (!list)
 		return;

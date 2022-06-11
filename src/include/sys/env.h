@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,6 +28,7 @@
 #define ENV_PATH		"PATH"
 #define ENV_LANG		"LANG"
 #define ENV_CHARSET		"CHARSET"
+#define ENV_KEYMAP		"KEYMAP"
 
 #define _ENV_H
 #endif

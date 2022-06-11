@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -335,16 +335,11 @@ static int viewText(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
-	if (status >= 0)
-		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&(params.font), 1);
-	if (status < 0)
-	{
+	params.font = fontGet(FONT_FAMILY_LIBMONO, (FONT_STYLEFLAG_BOLD |
+		FONT_STYLEFLAG_FIXED), 10, NULL);
+	if (!params.font)
 		// Use the system font.  It can comfortably show more rows.
-		params.font = NULL;
 		rows = 40;
-	}
 
 	textAreaComponent = windowNewTextArea(window, 80, rows, textLines,
 		 &params);
@@ -397,7 +392,7 @@ int main(int argc, char *argv[])
 	{
 		status = windowNewFileDialog(NULL, _("Enter filename"),
 			_("Please choose the file to view:"), NULL, fileName,
-			MAX_PATH_NAME_LENGTH, 1);
+			MAX_PATH_NAME_LENGTH, fileT, 1 /* show thumbnails */);
 		if (status != 1)
 		{
 			if (status)

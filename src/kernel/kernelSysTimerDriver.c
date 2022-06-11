@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -141,10 +141,10 @@ static int driverSetupTimer(int counter, int mode, int count)
 	// initial count of the timer.
 
 	// Send low byte first, followed by the high byte to the data
-	data = (unsigned char) (count & 0xFF);
+	data = (unsigned char)(count & 0xFF);
 	processorOutPort8(portNumber[counter], data);
 
-	data = (unsigned char) ((count >> 8) & 0xFF);
+	data = (unsigned char)((count >> 8) & 0xFF);
 	processorOutPort8(portNumber[counter], data);
 
 	// Wait until the count is loaded (NULL count is zero)

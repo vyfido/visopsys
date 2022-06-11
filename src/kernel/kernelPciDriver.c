@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -368,7 +368,7 @@ static void getClass(int classCode, pciClass **class)
 		// If valid classcode is found
 		if (pciClassNames[count].classCode == classCode)
 		{
-			*class = &(pciClassNames[count]);
+			*class = &pciClassNames[count];
 			return;
 		}
 	}
@@ -394,7 +394,7 @@ static void getSubClass(pciClass *class, int subClassCode,
 		// If valid subclass code is found
 		if (class->subClasses[count].subClassCode == subClassCode)
 		{
-			*subClass = &(class->subClasses[count]);
+			*subClass = &class->subClasses[count];
 			return;
 		}
 	}
@@ -714,7 +714,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 				// Just read the first dword of the header to get the device
 				// and vendor IDs
 				readConfig32(busCount, deviceCount, functionCount, 0,
-					&(pciDevice.header[0]));
+					&pciDevice.header[0]);
 
 				// See if this is really a device, or if this device header is
 				// unoccupied.
@@ -769,7 +769,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 				// Just read the first dword of the header to get the device
 				// and vendor IDs
 				readConfig32(busCount, deviceCount, functionCount, 0,
-					&(pciDevice.header[0]));
+					&pciDevice.header[0]);
 
 				if (!pciDevice.device.vendorID ||
 					(pciDevice.device.vendorID == 0xFFFF) ||

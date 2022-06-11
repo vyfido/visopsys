@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -61,7 +61,6 @@ main:
 
 
 bootCode:
-
 	cli
 
 	;; Make the data segment registers be the same as the code segment
@@ -368,25 +367,24 @@ setTextMode:
 
 
 clearScreen:
-
 	pusha
 
-        ;; Blank the screen
-        mov AX, 0700h
-        mov BH, byte [BGCOLOR]
-        and BH, 00000111b
-        shl BH, 4
-        or BH, byte [FGCOLOR]
-        mov CX, 0000h
-        mov DH, ROWS
-        mov DL, COLUMNS
-        int 10h
+	;; Blank the screen
+	mov AX, 0700h
+	mov BH, byte [BGCOLOR]
+	and BH, 00000111b
+	shl BH, 4
+	or BH, byte [FGCOLOR]
+	mov CX, 0000h
+	mov DH, ROWS
+	mov DL, COLUMNS
+	int 10h
 
 	mov AX, 0200h
 	mov BH, VIDEOPAGE
 	mov DH, 0
 	mov DL, 0
-        int 10h
+	int 10h
 
 	popa
 	ret
@@ -564,46 +562,46 @@ IOError:
 	SEGMENT .data
 	ALIGN 4
 
-LOADMSG		db 0Dh, 0Ah, ' Visopsys Boot Menu' , 0Dh, 0Ah
-		db ' Copyright (C) 1998-2015 J. Andrew McLaughlin', 0Dh, 0Ah
-		db 0Dh, 0Ah, 0
-NOTARGETS	db ' No targets to boot!  Did you run the installer program?'
-		db 0Dh, 0Ah, 0
-TIMEOUT1	db 0Dh, 0Ah, ' Default selection will boot in ', 0
-TIMEOUT2	db ' seconds.   ', 0Dh, 0Ah, 0
-CHOOSE		db 0Dh, 0Ah, ' Please choose the partition to boot:', 0Dh, 0Ah
-		db 0Dh, 0Ah, 0
-NOSUCHENTRY	db ' No such partition table entry to boot!', 0Dh, 0Ah, 0
-BOOTING		db 0Dh, 0Ah, ' Booting...', 0Dh, 0Ah, 0
-NEWLINE		db 0Dh, 0Ah, 0
-IOERR		db ' I/O Error reading boot sector', 0Dh, 0Ah, 0
+LOADMSG			db 0Dh, 0Ah, ' Visopsys Boot Menu' , 0Dh, 0Ah
+				db ' Copyright (C) 1998-2016 J. Andrew McLaughlin', 0Dh, 0Ah
+				db 0Dh, 0Ah, 0
+NOTARGETS		db ' No targets to boot!  Did you run the installer program?'
+				db 0Dh, 0Ah, 0
+TIMEOUT1		db 0Dh, 0Ah, ' Default selection will boot in ', 0
+TIMEOUT2		db ' seconds.   ', 0Dh, 0Ah, 0
+CHOOSE			db 0Dh, 0Ah, ' Please choose the partition to boot:', 0Dh, 0Ah
+				db 0Dh, 0Ah, 0
+NOSUCHENTRY		db ' No such partition table entry to boot!', 0Dh, 0Ah, 0
+BOOTING			db 0Dh, 0Ah, ' Booting...', 0Dh, 0Ah, 0
+NEWLINE			db 0Dh, 0Ah, 0
+IOERR			db ' I/O Error reading boot sector', 0Dh, 0Ah, 0
 STRAIGHTLINE	times (STRINGLENGTH - 1) db 196
-		db 0Dh, 0Ah, 0
-FGCOLOR		db FOREGROUNDCOLOR
-BGCOLOR		db BACKGROUNDCOLOR
+				db 0Dh, 0Ah, 0
+FGCOLOR			db FOREGROUNDCOLOR
+BGCOLOR			db BACKGROUNDCOLOR
 SELECTEDTARGET	dw 0
-STARTSECTOR	dd 0
-PART_TABLE	dw 0
+STARTSECTOR		dd 0
+PART_TABLE		dw 0
 
 ;; For the timer
-RTCSECONDS      dw 0
-TIMEOUTSECPOS   dw 0
-TIMEOUTSECS     dw 0
+RTCSECONDS		dw 0
+TIMEOUTSECPOS	dw 0
+TIMEOUTSECS		dw 0
 
 ;; For printing numbers
-LEADZERO	db 0
-REMAINDER	dd 0
-TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0,
-		db '7', 0, '8', 0, '9', 0
+LEADZERO		db 0
+REMAINDER		dd 0
+TALLY			db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0,
+				db '7', 0, '8', 0, '9', 0
 
 ;; For loading
-DISK		db 0
-NUMHEADS	dw 0
-NUMCYLS		dw 0
-NUMSECTS	db 0
-HEAD		db 0
-SECTOR		db 0
-CYLINDER	dw 0
+DISK			db 0
+NUMHEADS		dw 0
+NUMCYLS			dw 0
+NUMSECTS		db 0
+HEAD			db 0
+SECTOR			db 0
+CYLINDER		dw 0
 
 ;; Disk cmd packet for extended int13 disk ops
 DISKPACKET	times 16 db 0

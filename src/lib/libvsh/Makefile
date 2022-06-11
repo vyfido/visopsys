@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -56,7 +56,8 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs ${LIBRARY} ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${LD} -shared -nostdlib -z norelro -soname=${SONAME} ${PICOBJS} -o $@
+	${CC} ${ARCH} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro \
+		${PICOBJS} -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}

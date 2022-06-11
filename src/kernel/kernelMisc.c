@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -223,7 +223,7 @@ const char *kernelLookupClosestSymbol(kernelProcess *lookupProcess,
 int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 {
 	// Will try to do a stack trace of the return addresses between for each
-	// stack freame between the current stack pointer and stack base.  The
+	// stack frame between the current stack pointer and stack base.  The
 	// stack memory in question must already be mapped in the current address
 	// space.
 
@@ -263,17 +263,16 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 		return (status = ERR_PERMISSION);
 	}
 
-	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"--> stack trace process \"%s\":\n", traceProcess->name);
+	snprintf(buffer, len, "--> stack trace process \"%s\":\n",
+		traceProcess->name);
 
 	// The initial frame pointer will be different depending on whether or not
-	// we are live-tracing the current process (traceProcess is NULL).  If so
-	// then we need the current frame pointer.  Otherwise we get the saved frame
-	// pointer from the process structure.
-	if (!traceProcess)
+	// we are live-tracing the current process.  If so, then we need the
+	// current frame pointer.  Otherwise we get the saved frame pointer from
+	// the process structure.
+	if (traceProcess == kernelCurrentProcess)
 	{
 		// Live-tracing the current process
-		traceProcess = kernelCurrentProcess;
 		processorGetInstructionPointer(instPointer);
 		processorGetFramePointer(framePointer);
 	}
@@ -835,8 +834,8 @@ int kernelGuidGenerate(guid *g)
 
 	longTime = ((kernelUnixTime() * 10000000) + 0x01b21dd213814000ULL);
 
-	g->timeLow = (unsigned) (longTime & 0x00000000FFFFFFFF);
-	g->timeMid = (unsigned) ((longTime >> 32) & 0x0000FFFF);
+	g->timeLow = (unsigned)(longTime & 0x00000000FFFFFFFF);
+	g->timeMid = (unsigned)((longTime >> 32) & 0x0000FFFF);
 	g->timeHighVers = (((unsigned)(longTime >> 48) & 0x0FFF) | 0x1000);
 	g->clockSeqRes = (((clockSeq >> 16) & 0x3FFF) | 0x8000);
 	g->clockSeqLow = (clockSeq & 0xFFFF);
@@ -906,7 +905,7 @@ void kernelPause(int seconds)
 
 		// Do a loop, manually polling the keyboard input buffer, looking for
 		// the key press.
-		while (kernelTextInputCount() == 0)
+		while (!kernelTextInputCount())
 			kernelMultitaskerYield();
 
 		kernelTextInputRemoveAll();

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,14 +40,14 @@ static void setSize(kernelWindowComponent *component)
 	component->width = (windowVariables->checkbox.size + 3);
 	if (component->params.font)
 		component->width +=
-			kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				checkbox->text);
+			kernelFontGetPrintedWidth((kernelFont *) component->params.font,
+				(char *) component->charSet, checkbox->text);
 
 	// The height of the checkbox is the height of the font, or the height
 	// of the checkbox, whichever is greater
 	component->height = windowVariables->checkbox.size;
 	if (component->params.font)
-		component->height = max(((asciiFont *) component->params.font)
+		component->height = max(((kernelFont *) component->params.font)
 			->glyphHeight, windowVariables->checkbox.size);
 
 	component->minWidth = component->width;
@@ -73,7 +73,7 @@ static int draw(kernelWindowComponent *component)
 	// Draw a border around it
 	kernelGraphicDrawGradientBorder(component->buffer, component->xCoord,
 		yCoord, checkboxSize, checkboxSize,	windowVariables->border.thickness,
-		(color *) &(component->params.background),
+		(color *) &component->params.background,
 		windowVariables->border.shadingIncrement, draw_reverse, border_all);
 
 	if (checkbox->selected)
@@ -99,9 +99,10 @@ static int draw(kernelWindowComponent *component)
 	{
 		// Now draw the text next to the box
 		kernelGraphicDrawText(component->buffer,
-			(color *) &(component->params.foreground),
-			(color *) &(component->params.background),
-			(asciiFont *) component->params.font, checkbox->text, draw_normal,
+			(color *) &component->params.foreground,
+			(color *) &component->params.background,
+			(kernelFont *) component->params.font, (char *) component->charSet,
+			checkbox->text, draw_normal,
 			(component->xCoord + checkboxSize + 3), (component->yCoord));
 	}
 

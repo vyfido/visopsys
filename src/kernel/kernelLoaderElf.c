@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,7 +53,7 @@ static Elf32SectionHeader *getSectionHeader(void *data, const char *name)
 	sectionHeaders = (Elf32SectionHeader *)((void *) data + header->e_shoff);
 
 	// Store a pointer to the header for the 'header strings' section
-	headerStringsHeader = &(sectionHeaders[header->e_shstrndx]);
+	headerStringsHeader = &sectionHeaders[header->e_shstrndx];
 
 	for (count = 1; count < header->e_shnum; count ++)
 	{
@@ -484,7 +484,7 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 			if (!library)
 				return (status = ERR_NOTINITIALIZED);
 
-			memcpy(&(array->libraries[array->numLibraries]), library,
+			memcpy(&array->libraries[array->numLibraries], library,
 				sizeof(kernelDynamicLibrary));
 			array->numLibraries += 1;
 		}
@@ -528,7 +528,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 		if (!symbol->name[0])
 			continue;
 
-		newSymbol = &(newTable->symbols[newTable->numSymbols]);
+		newSymbol = &newTable->symbols[newTable->numSymbols];
 		memcpy(newSymbol, symbol, sizeof(loaderSymbol));
 		strcpy(newTableData, newSymbol->name);
 		newSymbol->name = newTableData;
@@ -541,7 +541,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 	// doesn't exist in the new table and defined in the library, add it.
 	for (count = 0; count < library->symbolTable->numSymbols; count ++)
 	{
-		symbol = &(library->symbolTable->symbols[count]);
+		symbol = &library->symbolTable->symbols[count];
 
 		// Skip undefined symbols, and local ones we're not exporting from
 		// this library
@@ -565,7 +565,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 		else
 		{
 			// Put the symbol in the new table
-			newSymbol = &(newTable->symbols[newTable->numSymbols]);
+			newSymbol = &newTable->symbols[newTable->numSymbols];
 			memcpy(newSymbol, symbol, sizeof(loaderSymbol));
 			strcpy(newTableData, newSymbol->name);
 			newSymbol->name = newTableData;
@@ -1071,7 +1071,7 @@ static int resolveLibraryDependencies(int processId,
 	// For each library in our list,
 	for (count = 0; count < libArray->numLibraries; count ++)
 	{
-		library = &(libArray->libraries[count]);
+		library = &libArray->libraries[count];
 		status = pullInLibrary(processId, library, symbols);
 		if (status < 0)
 			return (status);
@@ -1080,7 +1080,7 @@ static int resolveLibraryDependencies(int processId,
 	// Do relocations for each library.  All symbols should now be resolved
 	for (count = 0; count < libArray->numLibraries; count ++)
 	{
-		library = &(libArray->libraries[count]);
+		library = &libArray->libraries[count];
 		status = doRelocations(library->data,  library->codeVirtual,
 			 library->dataVirtual, *symbols, library->relocationTable,
 			libArray);

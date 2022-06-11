@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,7 +33,7 @@ int _fmtinpt(const char *, const char *, va_list);
 int _ldigits(unsigned long long, int, int);
 void _lnum2str(unsigned long long, char *, int, int);
 void _num2str(unsigned, char *, int, int);
-unsigned long long _str2num(const char *, unsigned, int);
+unsigned long long _str2num(const char *, unsigned, int, int *);
 int _xpndfmt(char *, int, const char *, va_list);
 
 #define _CDEFS_H

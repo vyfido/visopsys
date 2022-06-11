@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,17 +24,20 @@
 
 #include "kernelFilesystemExt.h"
 #include "kernelDebug.h"
+#include "kernelDisk.h"
+#include "kernelDriver.h"
 #include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelFilesystem.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
-#include "kernelMultitasker.h"
 #include "kernelSysTimer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/progress.h>
+#include <sys/types.h>
 
 static int initialized = 0;
 
@@ -131,11 +134,11 @@ static inline void debugInode(extInode *inode)
 	kernelDebug(debug_fs, "EXT inode:\n"
 		"  mode=0x%04x uid=%u size=%u\n"
 		"  atime=%u ctime=%u mtime=%u dtime=%u\n"
-		"  gid=%u links_count=%u blocks=%u flags=0x%08x\n  %s\n"
+		"  gid=%u links_count=%u blocks512=%u flags=0x%08x\n  %s\n"
 		"  file_acl=%u dir_acl=%u", inode->mode, inode->uid, inode->size,
 		inode->atime, inode->ctime, inode->mtime, inode->dtime, inode->gid,
-		inode->links_count, inode->blocks, inode->flags, tmp, inode->file_acl,
-		inode->dir_acl);
+		inode->links_count, inode->blocks512, inode->flags, tmp,
+		inode->file_acl, inode->dir_acl);
 }
 
 static inline void debugExtentNode(extExtent *extent)
@@ -250,6 +253,65 @@ static int writeSuperblock(const kernelDisk *theDisk,
 }
 
 
+static int isSuperGroup(int groupNumber)
+{
+	// Returns 1 if the supplied block group number should have a superblock
+	// (or superblock backup) under the SPARSE_SUPER scheme.  Block groups 0
+	// and 1, and powers of 3, 5, and 7.
+
+	int do3 = 1, do5 = 1, do7 = 1;
+	int count, tmp3, tmp5, tmp7;
+
+	// Shortcut some little ones.
+	if ((groupNumber == 0) || (groupNumber == 1) || (groupNumber == 3) ||
+		(groupNumber == 5) || (groupNumber == 7))
+	{
+		return (1);
+	}
+
+	for (count = 2; (do3 || do5 || do7) ; count ++)
+	{
+		if (do3)
+		{
+			tmp3 = POW(3, count);
+			if (tmp3 == groupNumber)
+				return (1);
+			if (tmp3 > groupNumber)
+				do3 = 0;
+		}
+
+		if (do5)
+		{
+			tmp5 = POW(5, count);
+			if (tmp5 == groupNumber)
+				return (1);
+			if (tmp5 > groupNumber)
+				do5 = 0;
+		}
+
+		if (do7)
+		{
+			tmp7 = POW(7, count);
+			if (tmp7 == groupNumber)
+				return (1);
+			if (tmp7 > groupNumber)
+				do7 = 0;
+		}
+	}
+
+	return (0);
+}
+
+
+static inline void setBitmap(unsigned char *bitmap, int idx, int onOff)
+{
+	if (onOff)
+		bitmap[idx / 8] |= (0x01 << (idx % 8));
+	else
+		bitmap[idx / 8] &= ~(0x01 << (idx % 8));
+}
+
+
 static inline unsigned getSectorNumber(extInternalData *extData,
 	unsigned blockNum)
 {
@@ -281,7 +343,7 @@ static extInternalData *getExtData(kernelDisk *theDisk)
 		return (extData = NULL);
 
 	// Read the superblock into our extInternalData buffer
-	status = readSuperblock(theDisk, (extSuperblock *) &(extData->superblock));
+	status = readSuperblock(theDisk, (extSuperblock *) &extData->superblock);
 	if (status < 0)
 	{
 		kernelFree((void *) extData);
@@ -640,7 +702,7 @@ static int read(extInternalData *extData, kernelFileEntry *fileEntry,
 
 	// If numBlocks is zero, that means read the whole file
 	if (!numBlocks)
-		numBlocks = inode->blocks;
+		numBlocks = (inode->blocks512 / (extData->blockSize >> 9));
 
 	kernelDebug(debug_fs, "EXT read %u blocks of \"%s\" at %u", numBlocks,
 		fileEntry->name, startBlock);
@@ -744,14 +806,14 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 	dirInode = (extInode *) dirEntry->driverData;
 
 	// Make sure it's not zero-length.  Shouldn't ever happen.
-	if (!dirInode->blocks)
+	if (!dirInode->blocks512)
 	{
 		kernelError(kernel_error, "Directory \"%s\" has no data",
 			dirEntry->name);
 		return (status = ERR_NODATA);
 	}
 
-	bufferSize = (dirInode->blocks * extData->blockSize);
+	bufferSize = (dirInode->blocks512 << 9);
 	if (bufferSize < dirEntry->size)
 	{
 		kernelError(kernel_error, "Invalid buffer size for directory!");
@@ -850,7 +912,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 		fileEntry->modifiedTime = makeSystemTime(inode->mtime);
 		fileEntry->modifiedDate = makeSystemDate(inode->mtime);
 		fileEntry->size = inode->size;
-		fileEntry->blocks = (inode->blocks / extData->sectorsPerBlock);
+		fileEntry->blocks = (inode->blocks512 / (extData->blockSize >> 9));
 		fileEntry->lastAccess = kernelSysTimerRead();
 
 		// Add it to the directory
@@ -910,6 +972,14 @@ static int readRootDir(extInternalData *extData, kernelDisk *theDisk)
 }
 
 
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard filesystem driver functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
 static int detect(kernelDisk *theDisk)
 {
 	// This function is used to determine whether the data on a disk structure
@@ -942,67 +1012,10 @@ static int detect(kernelDisk *theDisk)
 		return (status = 1);
 	}
 	else
+	{
 		// Not EXT
 		return (status = 0);
-}
-
-
-static int isSuperGroup(int groupNumber)
-{
-	// Returns 1 if the supplied block group number should have a superblock
-	// (or superblock backup) under the SPARSE_SUPER scheme.  Block groups 0
-	// and 1, and powers of 3, 5, and 7.
-
-	int do3 = 1, do5 = 1, do7 = 1;
-	int count, tmp3, tmp5, tmp7;
-
-	// Shortcut some little ones.
-	if ((groupNumber == 0) || (groupNumber == 1) || (groupNumber == 3) ||
-		(groupNumber == 5) || (groupNumber == 7))
-	{
-		return (1);
 	}
-
-	for (count = 2; (do3 || do5 || do7) ; count ++)
-	{
-		if (do3)
-		{
-			tmp3 = POW(3, count);
-			if (tmp3 == groupNumber)
-				return (1);
-			if (tmp3 > groupNumber)
-				do3 = 0;
-		}
-
-		if (do5)
-		{
-			tmp5 = POW(5, count);
-			if (tmp5 == groupNumber)
-				return (1);
-			if (tmp5 > groupNumber)
-				do5 = 0;
-		}
-
-		if (do7)
-		{
-			tmp7 = POW(7, count);
-			if (tmp7 == groupNumber)
-				return (1);
-			if (tmp7 > groupNumber)
-				do7 = 0;
-		}
-	}
-
-	return (0);
-}
-
-
-static inline void setBitmap(unsigned char *bitmap, int idx, int onOff)
-{
-	if (onOff)
-		bitmap[idx / 8] |= (0x01 << (idx % 8));
-	else
-		bitmap[idx / 8] &= ~(0x01 << (idx % 8));
 }
 
 
@@ -1308,7 +1321,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	inodeTable[EXT_ROOT_INO - 1].ctime = superblock.mtime;
 	inodeTable[EXT_ROOT_INO - 1].mtime = superblock.mtime;
 	inodeTable[EXT_ROOT_INO - 1].links_count = 3;
-	inodeTable[EXT_ROOT_INO - 1].blocks = sectsPerBlock;
+	inodeTable[EXT_ROOT_INO - 1].blocks512 = (blockSize >> 9);
 	inodeTable[EXT_ROOT_INO - 1].u.block[0] =
 		(1 + groupDescBlocks + 2 + inodeTableBlocks);
 
@@ -1320,7 +1333,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	inodeTable[superblock.first_ino - 1].ctime = superblock.mtime;
 	inodeTable[superblock.first_ino - 1].mtime = superblock.mtime;
 	inodeTable[superblock.first_ino - 1].links_count = 2;
-	inodeTable[superblock.first_ino - 1].blocks = sectsPerBlock;
+	inodeTable[superblock.first_ino - 1].blocks512 = (blockSize >> 9);
 	inodeTable[superblock.first_ino - 1].u.block[0] =
 		(inodeTable[EXT_ROOT_INO - 1].u.block[0] + 1);
 
@@ -1365,8 +1378,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		((unsigned) dirEntry - (unsigned) dirBuffer));
 
 	kernelDiskWriteSectors((char *) theDisk->name,
-		(inodeTable[EXT_ROOT_INO - 1].u.block[0] *
-			sectsPerBlock), inodeTable[EXT_ROOT_INO - 1].blocks, dirBuffer);
+		(inodeTable[EXT_ROOT_INO - 1].u.block[0] * sectsPerBlock),
+		(inodeTable[EXT_ROOT_INO - 1].size / physicalDisk->sectorSize),
+		dirBuffer);
 
 	// Create the lost+found directory
 
@@ -1389,7 +1403,8 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	kernelDiskWriteSectors((char *) theDisk->name,
 		(inodeTable[superblock.first_ino - 1].u.block[0] * sectsPerBlock),
-		inodeTable[superblock.first_ino - 1].blocks, dirBuffer);
+		(inodeTable[superblock.first_ino - 1].size / physicalDisk->sectorSize),
+		dirBuffer);
 
 	strcpy((char *) theDisk->fsType, FSNAME_EXT"2");
 
@@ -1401,8 +1416,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	kernelLog("Format: Type: %s  Total blocks: %u  Bytes per block: %u  "
 		"Sectors per block: %u  Block group size: %u  Block groups: %u",
-		theDisk->fsType, superblock.blocks_count, blockSize,
-		(blockSize / physicalDisk->sectorSize),
+		theDisk->fsType, superblock.blocks_count, blockSize, sectsPerBlock,
 		superblock.blocks_per_group, blockGroups);
 
 	status = 0;
@@ -1884,33 +1898,33 @@ static int readDir(kernelFileEntry *directory)
 }
 
 
-static kernelFilesystemDriver defaultExtDriver = {
-	FSNAME_EXT, // Driver name
+static kernelFilesystemDriver fsDriver = {
+	FSNAME_EXT,	// Driver name
 	detect,
 	format,
 	clobber,
-	NULL,	// driverCheck
-	NULL,	// driverDefragment
-	NULL,	// driverStat
+	NULL,		// driverCheck
+	NULL,		// driverDefragment
+	NULL,		// driverStat
 	getFreeBytes,
-	NULL,	// driverResizeConstraints
-	NULL,	// driverResize
+	NULL,		// driverResizeConstraints
+	NULL,		// driverResize
 	mount,
 	unmount,
 	newEntry,
 	inactiveEntry,
 	resolveLink,
 	readFile,
-	NULL,	// driverWriteFile
-	NULL,	// driverCreateFile
-	NULL,	// driverDeleteFile
-	NULL,	// driverFileMoved
+	NULL,		// driverWriteFile
+	NULL,		// driverCreateFile
+	NULL,		// driverDeleteFile
+	NULL,		// driverFileMoved
 	readDir,
-	NULL,	// driverWriteDir
-	NULL,	// driverMakeDir
-	NULL,	// driverRemoveDir
-	NULL,	// driverTimestamp
-	NULL	// driverSetBlocks
+	NULL,		// driverWriteDir
+	NULL,		// driverMakeDir
+	NULL,		// driverRemoveDir
+	NULL,		// driverTimestamp
+	NULL		// driverSetBlocks
 };
 
 
@@ -1929,7 +1943,7 @@ int kernelFilesystemExtInitialize(void)
 	int status = 0;
 
 	// Register our driver
-	status = kernelSoftwareDriverRegister(extDriver, &defaultExtDriver);
+	status = kernelSoftwareDriverRegister(extDriver, &fsDriver);
 
 	initialized = 1;
 

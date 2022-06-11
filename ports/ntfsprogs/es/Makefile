@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -16,4 +16,7 @@ all:
 
 clean:
 	rm -f *~ core
-	${shell if [ -d ${MSGDIR} ] ; then for FILE in *.po ; do find ${MSGDIR} -name `basename $$FILE .po`.mo -exec rm {} \; ; done ; fi }
+	${shell if [ -d ${MSGDIR} ] ; then for FILE in *.po ; \
+		do find ${MSGDIR} -name `basename $$FILE .po`.mo -exec rm {} \; ; \
+			done ; fi }
+

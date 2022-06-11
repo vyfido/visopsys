@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -278,21 +278,21 @@ typedef struct {
 
 // Some predefined ATAPI packets
 #define ATAPI_PACKET_UNLOCK \
-	((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_PERMITREMOVAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_LOCK \
-	((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_PERMITREMOVAL, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_STOP \
-	((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_STARTSTOP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_START \
-	((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_STARTSTOP, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_EJECT \
-	((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_STARTSTOP, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_CLOSE \
-	((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_STARTSTOP, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_READCAPACITY \
-	((unsigned char[]) { ATAPI_READCAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
+	((unsigned char[]){ ATAPI_READCAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_READTOC \
-	((unsigned char[]) { ATAPI_READTOC, 0, 1, 0, 0, 0, 0, 0, 12, 0x40, 0, 0 } )
+	((unsigned char[]){ ATAPI_READTOC, 0, 1, 0, 0, 0, 0, 0, 12, 0x40, 0, 0 } )
 
 static inline void ataError2String(int error, char *string)
 {
@@ -383,3 +383,4 @@ ataDmaMode *kernelAtaGetDmaModes(void);
 
 #define _KERNELATADRIVER_H
 #endif
+

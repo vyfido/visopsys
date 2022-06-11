@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,6 +30,6 @@ double difftime(time_t time1, time_t time0)
 	// expressed in seconds as a double.  The difftime() function is
 	// provided because there are no general arithmetic properties defined
 	// for type time_t.
-	return ((double) (time1 - time0));
+	return ((double)(time1 - time0));
 }
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -241,15 +241,22 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 			pcColor &= 0xF0;
 			pcColor |= (getPcColor(&attrs->foreground) & 0x0F);
 		}
+
 		if (attrs->flags & TEXT_ATTRS_BACKGROUND)
 		{
 			pcColor &= 0x0F;
 			pcColor |= ((getPcColor(&attrs->background) & 0x07) << 4);
 		}
+
 		if (attrs->flags & TEXT_ATTRS_REVERSE)
+		{
 			pcColor = (((pcColor & 0x07) << 4) | ((pcColor & 0x70) >> 4));
+		}
+
 		if (attrs->flags & TEXT_ATTRS_BLINKING)
+		{
 			pcColor |= 0x80;
+		}
 	}
 
 	// If we are currently scrolled back, this puts us back to normal
@@ -285,8 +292,8 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 
 		if (string[count1] == '\t')
 		{
-			tabChars =
-				(TEXT_DEFAULT_TAB - (area->cursorColumn % TEXT_DEFAULT_TAB));
+			tabChars = (TEXT_DEFAULT_TAB - (area->cursorColumn %
+				TEXT_DEFAULT_TAB));
 			for (count2 = 0; count2 < tabChars; count2 ++)
 			{
 				*(bufferAddress++) = ' ';
@@ -310,13 +317,15 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 				}
 			}
 			else
+			{
 				area->cursorRow += 1;
+			}
 
 			area->cursorColumn = 0;
-			bufferAddress =
-				(TEXTAREA_FIRSTVISIBLE(area) + (TEXTAREA_CURSORPOS(area) * 2));
-			visibleAddress =
-				(area->visibleData + (TEXTAREA_CURSORPOS(area) * 2));
+			bufferAddress = (TEXTAREA_FIRSTVISIBLE(area) +
+				(TEXTAREA_CURSORPOS(area) * 2));
+			visibleAddress = (area->visibleData +
+				(TEXTAREA_CURSORPOS(area) * 2));
 		}
 	}
 
@@ -398,9 +407,9 @@ static int screenSave(kernelTextArea *area, textScreen *screen)
 	// This routine saves the current contents of the screen
 
 	// Get memory for a new save area
-	screen->data =
-		kernelMemoryGet((area->columns * area->rows * 2), "text screen data");
-	if (screen->data == NULL)
+	screen->data = kernelMemoryGet((area->columns * area->rows * 2),
+		"text screen data");
+	if (!screen->data)
 		return (ERR_MEMORY);
 
 	memcpy(screen->data, TEXTAREA_FIRSTVISIBLE(area),

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,14 +19,14 @@
 //  clock.c
 //
 
-// This shows a little clock in the corner of the screen
+// This shows a little clock in the taskbar menu of the window shell
 
 /* This is the text that appears when a user requests help about this program
 <help>
 
  -- clock --
 
-Show a simple clock in the corner of the screen.
+Show a simple clock in the taskbar menu of the window shell.
 
 Usage:
   clock
@@ -56,14 +56,15 @@ Usage:
 #define WINDOW_TITLE	_("Clock")
 
 static char *weekDay[] = {
+	gettext_noop("Sun"),
 	gettext_noop("Mon"),
 	gettext_noop("Tue"),
 	gettext_noop("Wed"),
 	gettext_noop("Thu"),
 	gettext_noop("Fri"),
-	gettext_noop("Sat"),
-	gettext_noop("Sun")
+	gettext_noop("Sat")
 };
+
 static char *month[] = {
 	gettext_noop("Jan"),
 	gettext_noop("Feb"),
@@ -78,7 +79,9 @@ static char *month[] = {
 	gettext_noop("Nov"),
 	gettext_noop("Dec")
 };
-static char timeString[32];
+
+static char oldTimeString[32] = "";
+static char timeString[32] = "";
 
 
 static void makeTime(void)
@@ -94,9 +97,11 @@ static void makeTime(void)
 	if (rtcDateTime(&theTime) < 0)
 		return;
 
+	strcpy(oldTimeString, timeString);
+
 	// Turn it into a string
 	sprintf(timeString, "%s %s %d - %02d:%02d", _(weekDay[theTime.tm_wday]),
-		_(month[theTime.tm_mon]), theTime.tm_mday, theTime.tm_hour,
+		_(month[theTime.tm_mon]), (theTime.tm_mday + 1), theTime.tm_hour,
 		theTime.tm_min);
 
 	return;
@@ -106,10 +111,7 @@ static void makeTime(void)
 int main(int argc __attribute__((unused)), char *argv[])
 {
 	int status = 0;
-	objectKey window = NULL;
-	objectKey label = NULL;
-	componentParameters params;
-	int width, height;
+	objectKey taskBarLabel = NULL;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("clock");
@@ -123,43 +125,17 @@ int main(int argc __attribute__((unused)), char *argv[])
 		return (status = errno);
 	}
 
-	// Create a new window, with small, arbitrary size and location
-	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (!window)
-		return (status = ERR_NOTINITIALIZED);
-
-	// No title bar
-	windowSetHasTitleBar(window, 0);
-
-	memset(&params, 0, sizeof(componentParameters));
-	params.gridWidth = 1;
-	params.gridHeight = 1;
-	params.padLeft = 2;
-	params.padRight = 2;
-	params.padTop = 2;
-	params.padBottom = 2;
-	params.orientationX = orient_center;
-	params.orientationY = orient_middle;
-	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
-			&(params.font), 0);
-
 	makeTime();
-	label = windowNewTextLabel(window, timeString, &params);
-
-	// Put it in the bottom right corner
-	windowGetSize(window, &width, &height);
-	windowSetLocation(window, (graphicGetScreenWidth() - width),
-		(graphicGetScreenHeight() - height));
-
-	// Make it visible
-	windowSetVisible(window, 1);
+	taskBarLabel = windowShellNewTaskbarTextLabel(timeString);
 
 	while (1)
 	{
 		makeTime();
-		windowComponentSetData(label, timeString, (strlen(timeString) + 1),
-			1 /* redraw */);
+
+		if (strcmp(timeString, oldTimeString))
+			windowComponentSetData(taskBarLabel, timeString,
+				(strlen(timeString) + 1), 1 /* redraw */);
+
 		sleep(1);
 	}
 }

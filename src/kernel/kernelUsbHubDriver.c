@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -548,7 +548,7 @@ static int detectHub(usbDevice *usbDev, kernelDriver *driver, int hotplug)
 
 	// Get a hub structure
 	hub = kernelMalloc(sizeof(usbHub));
-	if (hub == NULL)
+	if (!hub)
 		return (status = ERR_MEMORY);
 
 	// Hubs only have one interface
@@ -630,7 +630,7 @@ static int detectHub(usbDevice *usbDev, kernelDriver *driver, int hotplug)
 
 	// Get memory for a port change bitmap
 	hub->changeBitmap = kernelMalloc(hub->intrInEndp->maxPacketSize);
-	if (hub->changeBitmap == NULL)
+	if (!hub->changeBitmap)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -752,7 +752,7 @@ restart:
 		found += 1;
 
 		usbDev = kernelUsbGetDevice(busTargets[deviceCount].id);
-		if (usbDev == NULL)
+		if (!usbDev)
 			continue;
 
 		status = detectHub(usbDev, driver, 0 /* no hotplug */);
@@ -791,7 +791,7 @@ static int driverHotplug(void *parent __attribute__((unused)),
 		(connected? "" : "dis"));
 
 	usbDev = kernelUsbGetDevice(target);
-	if (usbDev == NULL)
+	if (!usbDev)
 	{
 		kernelError(kernel_error, "No such USB device %d", target);
 		return (status = ERR_NOSUCHENTRY);
@@ -807,7 +807,7 @@ static int driverHotplug(void *parent __attribute__((unused)),
 	{
 		// Hubs only have one interface
 		hub = usbDev->interface[0].data;
-		if (hub == NULL)
+		if (!hub)
 		{
 			kernelError(kernel_error, "No such hub device %d", target);
 			return (status = ERR_NOSUCHENTRY);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -156,11 +156,18 @@ static kernelDriver deviceDrivers[] = {
 	// PS2 mouses use the keyboard controller.
 	{ DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_PS2,
 		kernelPs2MouseDriverRegister, NULL, NULL, NULL					},
+	// USB mice and touchscreens can look very much alike in their HID
+	// descriptors, but the mouse driver at least restricts itself to
+	// claiming interfaces that declare themselves as using "boot mouse"
+	// protocol.  The touchscreen driver is more promiscuous, so do mouse
+	// first.
 	{ DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_USB,
 		kernelUsbMouseDriverRegister, NULL, NULL, NULL					},
+	{ DEVICECLASS_TOUCHSCR, DEVICESUBCLASS_TOUCHSCR_USB,
+		kernelUsbTouchscreenDriverRegister, NULL, NULL, NULL			},
 	// Network and other non-critical (for basic operation) devices follow
 	{ DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET,
-		kernelLanceDriverRegister, NULL, NULL, NULL						},
+		kernelPcNetDriverRegister, NULL, NULL, NULL						},
 	// For creating kernel devices for unsupported things
 	{ DEVICECLASS_UNKNOWN, DEVICESUBCLASS_UNKNOWN_USB,
 		kernelUsbGenericDriverRegister, NULL, NULL, NULL				},
@@ -546,8 +553,8 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
 	driverString[0] = '\0';
 
-	vendor = kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_VENDOR);
-	model = kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_MODEL);
+	vendor = kernelVariableListGet(&new->device.attrs, DEVICEATTRNAME_VENDOR);
+	model = kernelVariableListGet(&new->device.attrs, DEVICEATTRNAME_MODEL);
 	if (vendor || model)
 	{
 		if (vendor && model)

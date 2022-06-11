@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,6 @@
 // in the "device independent bitmap" (.bmp) format, commonly used in
 // MS(R)-Windows(R), etc.
 
-#include "kernelImageBmp.h"
 #include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelGraphic.h"
@@ -33,6 +32,7 @@
 #include "kernelMemory.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/bmp.h>
 
 
 static int detect(const char *fileName, void *dataPtr, unsigned size,
@@ -42,14 +42,14 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	// points to an BMP file.
 
 	// Check params
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
 
 	if (size < 2)
 		return (0);
 
 	// See whether this file claims to be a bitmap file
-	if (!strncmp(dataPtr, "BM", 2))
+	if (!strncmp(dataPtr, BMP_MAGIC, 2))
 	{
 		// We will say this is a BMP file.
 		sprintf(class->className, "%s %s", FILECLASS_NAME_BMP,
@@ -59,7 +59,9 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -87,11 +89,11 @@ static int load(unsigned char *imageFileData, int dataLength,
 	int count1, count2;
 
 	// Check params
-	if ((imageFileData == NULL) || !dataLength || (loadImage == NULL))
+	if (!imageFileData || !dataLength || !loadImage)
 		return (status = ERR_NULLPARAMETER);
 
 	// Point our header pointer at the start of the file
-	header = (bmpHeader *) (imageFileData + 2);
+	header = (bmpHeader *)(imageFileData + 2);
 
 	width = header->width;
 	height = header->height;
@@ -224,7 +226,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 					int endOfLine = 0;
 
 					// Check for an escape code.
-					if (imageFileData[fileOffset] == 0)
+					if (!imageFileData[fileOffset])
 					{
 						fileOffset += 1;
 
@@ -435,7 +437,7 @@ static int save(const char *fileName, image *saveImage)
 
 	// Get memory for the file
 	fileData = kernelMalloc(header.size);
-	if (fileData == NULL)
+	if (!fileData)
 	{
 		kernelError(kernel_error, "Unable to allocate memory for bitmap file");
 		return (status = ERR_MEMORY);

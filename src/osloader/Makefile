@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -15,7 +15,7 @@ include ${ROOT}/Makefile.include
 
 WARN = -w+orphan-labels
 BOOTOPTS = -f bin ${WARN}
-LOADOPTS = -f elf ${WARN}
+LOADOPTS = -f elf32 ${WARN}
 LINKOPTS = -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
 STDDEPS = loader.h Makefile
 
@@ -77,7 +77,7 @@ ${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s ${STDDEPS}
 #
 
 ${LOADBUILDDIR}/vloader: ${LOADOBJS} ${STDDEPS}
-	${CC} -nodefaultlibs -nostartfiles ${LINKOPTS} ${LOADOBJS} -o $@
+	${CC} ${ARCH} -nodefaultlibs -nostartfiles ${LINKOPTS} ${LOADOBJS} -o $@
 
 obj/%.o: %.s ${STDDEPS}
 	${NASM} ${LOADOPTS} $< -o $@

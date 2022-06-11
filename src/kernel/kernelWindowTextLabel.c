@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,7 +40,7 @@ static int setText(kernelWindowComponent *component, const char *text,
 
 	int status = 0;
 	kernelWindowTextLabel *label = component->data;
-	asciiFont *font = (asciiFont *) component->params.font;
+	kernelFont *font = (kernelFont *) component->params.font;
 	int width = 0;
 	int count;
 
@@ -75,7 +75,8 @@ static int setText(kernelWindowComponent *component, const char *text,
 	{
 		width = 0;
 		if (font)
-			width = kernelFontGetPrintedWidth(font, tmp);
+			width = kernelFontGetPrintedWidth(font,
+				(char *) component->charSet, tmp);
 		if (width > component->width)
 			component->width = width;
 
@@ -97,7 +98,7 @@ static int draw(kernelWindowComponent *component)
 
 	int status = 0;
 	kernelWindowTextLabel *label = component->data;
-	asciiFont *font = (asciiFont *) component->params.font;
+	kernelFont *font = (kernelFont *) component->params.font;
 	int count;
 
 	char *tmp = label->text;
@@ -106,10 +107,11 @@ static int draw(kernelWindowComponent *component)
 		if (font)
 		{
 			status = kernelGraphicDrawText(component->buffer,
-				(color *) &(component->params.foreground),
-				(color *) &(component->params.background), font, tmp,
-				draw_normal, component->xCoord,
-				(component->yCoord + (font->glyphHeight * count)));
+				(color *) &component->params.foreground,
+				(color *) &component->params.background, font,
+				(char *) component->charSet, tmp, draw_normal,
+				component->xCoord, (component->yCoord +
+					(font->glyphHeight * count)));
 			if (status < 0)
 				break;
 		}

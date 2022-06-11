@@ -5,6 +5,11 @@ The window library is a set of functions to aid GUI development on the Visopsys 
 The functions are defined in the header file <sys/window.h> and the code is contained in libwindow.a (link with '-lwindow').
 
 
+windowArchiveList *windowNewArchiveList(objectKey parent, windowListType type, int rows, int columns, archiveMemberInfo *members, int numMembers, void (*callback)(int), componentParameters *params)
+
+	Create a new archive list widget with the parent window 'parent', the window list type 'type' (windowlist_textonly or windowlist_icononly is currently supported), of height 'rows' and width 'columns', an array of archive member info and number of members, a function 'callback' for when the status changes, and component parameters 'params'.
+
+
 objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, const char *message)
 
 	Create a 'banner' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  This is the very simplest kind of dialog; it just contains the supplied message with no acknowledgement mechanism for the user.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns the object key of the dialog window.  The caller must destroy the window when finished with it.
@@ -25,14 +30,24 @@ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	Create an 'color chooser' dialog box, with the parent window 'parentWindow', and a pointer to the color structure 'pickedColor'.  Currently the window consists of red/green/blue sliders and a canvas displaying the current color.  The initial color displayed will be whatever is supplied in 'pickedColor'.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
-int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength, int thumb)
+int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength, fileType type, int thumb)
 
-	Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  If 'fileName' contains data (i.e. the string's first character is non-NULL), the file name field of the dialog will contain that string.  If 'thumb' is non-zero, an area will display image thumbnails when image files are clicked.  The dialog will have a file selection area, a file name field, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the file name into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+	Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  If 'fileName' contains data (i.e. the string's first character is non-NULL), the file name field of the dialog will contain that string.  The 'type' argument specifies whether the user is expected to select a file (fileT) or directory (dirT).  If 'thumb' is non-zero, an area will display image thumbnails when image files are clicked.  The dialog will have a file selection area, a file name field, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the file name into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
-windowFileList *windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
+windowFileList *windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void (*callback)(file *, char *, loaderFileClass *), componentParameters *params)
 
 	Create a new file list widget with the parent window 'parent', the window list type 'type' (windowlist_textonly or windowlist_icononly is currently supported), of height 'rows' and width 'columns', the name of the starting location 'directory', flags (such as WINFILEBROWSE_CAN_CD or WINFILEBROWSE_CAN_DEL -- see sys/window.h), a function 'callback' for when the status changes, and component parameters 'params'.
+
+
+windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, void *callback, componentParameters *params)
+
+	Create a 'virtual keyboard' widget with the parent window 'parent', the given width and height in pixels, and an optional function pointer 'callback' for when virtual keys are pressed.
+
+
+int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
+
+	Create a 'language chooser' dialog box, with the parent window 'parentWindow', and a pointer to the string buffer 'pickedLanguage', which should be at least 6 bytes in length.  The initial language selected will be the value of the LANG environment variable, if possible.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
 int windowClearEventHandlers(void)
@@ -85,6 +100,11 @@ int windowNewErrorDialog(objectKey parentWindow, const char *title, const char *
 	Create an 'error' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single 'OK' button for the user to acknowledge.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
+windowPixelEditor *windowNewPixelEditor(objectKey parent, int width, int height, image *img, componentParameters *params)
+
+	Create a new pixel editor widget with the parent window 'parent', with the required width and height, a pointer to the image data 'img', and component parameters 'params'.
+
+
 objectKey windowNewProgressDialog(objectKey parentWindow, const char *title, progress *tmpProg)
 
 	Create a 'progress' dialog box, with the parent window 'parentWindow', and the given titlebar text and progress structure.  The dialog creates a thread which monitors the progress structure for changes, and updates the progress bar and status message appropriately.  If the operation is interruptible, it will show a 'CANCEL' button.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns immediately (but the dialog box itself is 'modal').  A call to this function should eventually be followed by a call to windowProgressDialogDestroy() in order to destroy and deallocate the window.
@@ -115,11 +135,12 @@ int windowNewRadioDialog(objectKey parentWindow, const char *title, const char *
 	Create a dialog window with a radio button widget with the parent window 'parentWindow', the given titlebar text and main message, and 'numChoices' choices, as specified by the 'choiceStrings'.  'default' is the default focussed selection.  The dialog's radio button widget will have items for each choice.  If the user chooses one of the choices, the function returns the 0-based index of the choice.  Otherwise it returns negative.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
-objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsigned maxWidth, unsigned maxHeight, componentParameters *params)
+objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsigned maxWidth, unsigned maxHeight, int stretch, componentParameters *params)
 
-	Create a new window image component from the supplied image file name 'fileName', with the given 'parent' window or container, and component parameters 'params'.  Dimension values 'maxWidth' and 'maxHeight' constrain the maximum image size.  The resulting image will be scaled down, if necessary, with the aspect ratio intact.  If 'fileName' is NULL, a blank image will be created.
+	Create a new window image component from the supplied image file name 'fileName', with the given 'parent' window or container, and component parameters 'params'.  Dimension values 'maxWidth' and 'maxHeight' constrain the maximum image size.  The resulting image will be scaled down, if necessary, with the aspect ratio intact, unless 'stretch' is non-zero, in which case the thumbnail image will be resized to 'maxWidth' and 'maxHeight'.  If 'params' specifies a background color, any empty space will be filled with that color.  If 'fileName' is NULL, an empty image will be created.
 
 
-int windowThumbImageUpdate(objectKey thumbImage, const char *fileName, unsigned maxWidth, unsigned maxHeight)
+int windowThumbImageUpdate(objectKey thumbImage, const char *fileName, unsigned maxWidth, unsigned maxHeight, int stretch, color *background)
 
 	Update an existing window image component 'thumbImage', previously created with a call to windowNewThumbImage(), from the supplied image file name 'fileName'.  Dimension values 'maxWidth' and 'maxHeight' constrain the maximum image size.  The resulting image will be scaled down, if necessary, with the aspect ratio intact.  If 'fileName' is NULL, the image will become blank.
+

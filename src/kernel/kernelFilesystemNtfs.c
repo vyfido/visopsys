@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,7 @@
 
 #include "kernelFilesystem.h"
 #include "kernelDebug.h"
+#include "kernelDriver.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include <string.h>
@@ -124,6 +125,14 @@ static int writeBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 	return (status);
 }
 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard filesystem driver functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 static int detect(kernelDisk *theDisk)
 {
@@ -347,7 +356,7 @@ static int mount(kernelDisk *theDisk)
 #endif
 
 
-static kernelFilesystemDriver defaultNtfsDriver = {
+static kernelFilesystemDriver fsDriver = {
 	FSNAME_NTFS, // Driver name
 	detect,
 	NULL,	// driverFormat
@@ -392,7 +401,7 @@ int kernelFilesystemNtfsInitialize(void)
 	int status = 0;
 
 	// Register our driver
-	status = kernelSoftwareDriverRegister(ntfsDriver, &defaultNtfsDriver);
+	status = kernelSoftwareDriverRegister(ntfsDriver, &fsDriver);
 
 	initialized = 1;
 

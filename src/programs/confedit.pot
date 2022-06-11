@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,11 +25,11 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: confedit.c:66 confedit.c:371
+#: confedit.c:66 confedit.c:370
 msgid "Save"
 msgstr ""
 
-#: confedit.c:67 confedit.c:371
+#: confedit.c:67 confedit.c:370
 msgid "Quit"
 msgstr ""
 
@@ -79,34 +79,34 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: confedit.c:279 confedit.c:371
+#: confedit.c:279 confedit.c:370
 msgid "Cancel"
 msgstr ""
 
-#: confedit.c:369
+#: confedit.c:368
 msgid "Unsaved changes"
 msgstr ""
 
-#: confedit.c:370
+#: confedit.c:369
 msgid "Quit without saving changes?"
 msgstr ""
 
-#: confedit.c:611
+#: confedit.c:612
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: confedit.c:623
+#: confedit.c:624
 msgid "Enter filename"
 msgstr ""
 
-#: confedit.c:624
+#: confedit.c:625
 msgid "Please enter a configuration file to edit:"
 msgstr ""
 
-#: confedit.c:646
+#: confedit.c:648
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,7 @@ double ceil(double d)
 	int c = (int) d;
 
 	if (d > 0)
-		d = (double) (c + 1);
+		d = (double)(c + 1);
 
 	else if (d < 0)
 		// ??? what to do ???  Is ceil(-5.5) == -6.0, or is

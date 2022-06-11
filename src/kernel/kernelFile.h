@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,7 +59,7 @@ typedef volatile struct _kernelFileEntry {
 	volatile struct _kernelFileEntry *parentDirectory;
 	volatile struct _kernelFileEntry *previousEntry;
 	volatile struct _kernelFileEntry *nextEntry;
-	unsigned lastAccess;
+	uquad_t lastAccess;
 
 	// (The following additional stuff only applies to directories and links)
 	volatile struct _kernelFileEntry *contents;
@@ -102,6 +102,7 @@ int kernelFileCopyRecursive(const char *, const char *);
 int kernelFileMove(const char *, const char *);
 int kernelFileTimestamp(const char *);
 int kernelFileSetSize(file *, unsigned);
+int kernelFileGetTempName(char *, unsigned);
 int kernelFileGetTemp(file *);
 int kernelFileGetFullPath(file *, char *, int);
 

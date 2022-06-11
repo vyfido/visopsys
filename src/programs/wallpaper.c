@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,16 +48,17 @@ Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/desktop.h>
 #include <sys/env.h>
 #include <sys/paths.h>
+#include <sys/user.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 
-#define DESKTOP_CONFIG		"desktop.conf"
-
 static int readOnly = 1;
+static char currentUser[USER_MAX_NAMELENGTH + 1];
 
 
 static int writeFileConfig(const char *configName, const char *imageName)
@@ -83,9 +84,9 @@ static int writeFileConfig(const char *configName, const char *imageName)
 
 	// Save the wallpaper variable
 	if (imageName)
-		status = configSet(configName, "background.image", imageName);
+		status = configSet(configName, DESKTOP_BACKGROUND, imageName);
 	else
-		status = configUnset(configName, "background.image");
+		status = configUnset(configName, DESKTOP_BACKGROUND);
 
 	return (status);
 }
@@ -101,7 +102,29 @@ static int writeConfig(const char *imageName)
 	if (readOnly)
 		return (status = ERR_NOWRITE);
 
-	sprintf(configName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG);
+	if (!strcmp(currentUser, USER_ADMIN))
+	{
+		// The user 'admin' doesn't have user settings.  Use the system one.
+		sprintf(configName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIGFILE);
+	}
+	else
+	{
+		// Does the user have a config dir?
+		sprintf(configName, PATH_USERS_CONFIG, currentUser);
+
+		status = fileFind(configName, NULL);
+		if (status < 0)
+		{
+			// No, try to create it.
+			status = fileMakeDir(configName);
+			if (status < 0)
+				return (status);
+		}
+
+		// Use the user's window config file?
+		sprintf(configName, PATH_USERS_CONFIG "/" DESKTOP_CONFIGFILE,
+			currentUser);
+	}
 
 	status = writeFileConfig(configName, imageName);
 
@@ -133,12 +156,15 @@ int main(int argc, char *argv[])
 	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
+	// Need the user name for saving settings
+	userGetCurrent(currentUser, USER_MAX_NAMELENGTH);
+
 	if (argc < 2)
 	{
 		// The user did not specify a file.  We will prompt them.
 		status = windowNewFileDialog(NULL, _("Enter filename"),
 			_("Please choose the background image:"), PATH_SYSTEM_WALLPAPER,
-			fileName, MAX_PATH_NAME_LENGTH, 1);
+			fileName, MAX_PATH_NAME_LENGTH, fileT, 1 /* show thumbnails */);
 		if (status != 1)
 		{
 			if (!status)
@@ -153,7 +179,7 @@ int main(int argc, char *argv[])
 		strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
 	}
 
-	if (strncmp(fileName, "none", MAX_PATH_NAME_LENGTH))
+	if (strncmp(fileName, DESKTOP_BACKGROUND_NONE, MAX_PATH_NAME_LENGTH))
 	{
 		status = fileFind(fileName, NULL);
 		if (status < 0)

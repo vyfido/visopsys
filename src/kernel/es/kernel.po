@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2015 J. Andrew McLaughlin
+# Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:24+0100\n"
+"POT-Creation-Date: 2015-06-26 02:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,7 @@ msgstr ""
 msgid "Defragmenting %llu/%llu: %s"
 msgstr "Defragmentando %llu/%llu: %s"
 
-#: kernelFilesystemFat.c:4022
+#: kernelFilesystemFat.c:4022 kernelFilesystemFat.c:4492
 msgid "Reading filesystem info"
 msgstr "Leyendo informacion del sistema de archivos"
 
@@ -33,76 +33,98 @@ msgstr "Analizando"
 msgid "%llu files need defragmentation"
 msgstr "%llu archivos necesitan defragmentacion"
 
-#: kernelShutdown.c:43
+#: kernelFilesystemFat.c:4180
+msgid "Checking constraints"
+msgstr "Chequeando limites"
+
+#: kernelFilesystemFat.c:4473
+msgid "Error getting resizing constraints"
+msgstr "Error al buscar los límites de cambio de tamaño"
+
+#: kernelFilesystemFat.c:4480
+#, c-format
+msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
+msgstr ""
+"El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El minimo "
+"es %llu)"
+
+#: kernelFilesystemFat.c:4483
+#, c-format
+msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
+msgstr ""
+"El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El maximo "
+"es %llu)"
+
+#: kernelFilesystemFat.c:4500 kernelFilesystemFat.c:4532
+msgid "Error reading filesystem info"
+msgstr "Error al leer la informacion del sistema de archivos"
+
+#: kernelFilesystemFat.c:4516
+#, fuzzy
+msgid "Defragmenting"
+msgstr "Defragmentando %llu/%llu: %s"
+
+#: kernelFilesystemFat.c:4524
+msgid "Error defragmenting filesystem"
+msgstr "Error al defragmentar"
+
+#: kernelFilesystemFat.c:4543
+#, c-format
+msgid "Data exists outside the new size (%u >= %llu)"
+msgstr "Aún existe informacion fuera del nuevo tamaño (%u >= %llu)"
+
+#: kernelFilesystemFat.c:4588
+msgid "Error moving data"
+msgstr "Error moviendo datos"
+
+#: kernelFilesystemFat.c:4599
+msgid "Clearing new FAT sectors"
+msgstr "Limpiando nuevos sectores FAT"
+
+#: kernelFilesystemFat.c:4606
+msgid "Error getting memory"
+msgstr "Error ubicando memoria"
+
+#: kernelFilesystemFat.c:4625
+msgid "Error clearing new FAT sectors"
+msgstr "Error limpiando sectores FAT"
+
+#: kernelFilesystemFat.c:4638
+msgid "Error synching FAT copies"
+msgstr "Error al sincronizar las copias FAT"
+
+#: kernelFilesystemFat.c:4648
+msgid "Updating filesystem info"
+msgstr "Actualizando informacion del sistema de archivos"
+
+#: kernelFilesystemFat.c:4663 kernelFilesystemFat.c:4672
+msgid "Error updating filesystem info"
+msgstr "Error actualizando informacion del sistema de archivos"
+
+#: kernelShutdown.c:44
 msgid "Shutting down Visopsys, please wait..."
 msgstr "Apagando Visopsys, espere por favor..."
 
-#: kernelShutdown.c:44
+#: kernelShutdown.c:45
 msgid "[ Wait for \"OK to power off\" message ]"
 msgstr "[ Espere por el mensaje \"Ya Puede Apagar\" ]"
 
-#: kernelShutdown.c:45
+#: kernelShutdown.c:46
 msgid "Rebooting."
 msgstr "Reiniciando."
 
-#: kernelShutdown.c:46
+#: kernelShutdown.c:47
 msgid "OK to power off now."
 msgstr "Ya puede apagar"
 
-#: kernelShutdown.c:154
+#: kernelShutdown.c:161
 msgid "Shutting down"
 msgstr "Apagando"
 
-#: kernelShutdown.c:322
+#: kernelShutdown.c:329
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
 msgstr "SISTEMA DETENIDO: Panico en %s:%s(%d)"
-
-#~ msgid "Checking constraints"
-#~ msgstr "Chequeando limites"
-
-#~ msgid "Error getting resizing constraints"
-#~ msgstr "Error al buscar los límites de cambio de tamaño"
-
-#~ msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
-#~ msgstr ""
-#~ "El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El "
-#~ "minimo es %llu)"
-
-#~ msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
-#~ msgstr ""
-#~ "El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El "
-#~ "maximo es %llu)"
-
-#~ msgid "Error reading filesystem info"
-#~ msgstr "Error al leer la informacion del sistema de archivos"
-
-#~ msgid "Error defragmenting filesystem"
-#~ msgstr "Error al defragmentar"
-
-#~ msgid "Data exists outside the new size (%u >= %llu)"
-#~ msgstr "Aún existe informacion fuera del nuevo tamaño (%u >= %llu)"
-
-#~ msgid "Error moving data"
-#~ msgstr "Error moviendo datos"
-
-#~ msgid "Clearing new FAT sectors"
-#~ msgstr "Limpiando nuevos sectores FAT"
-
-#~ msgid "Error getting memory"
-#~ msgstr "Error ubicando memoria"
-
-#~ msgid "Error clearing new FAT sectors"
-#~ msgstr "Error limpiando sectores FAT"
-
-#~ msgid "Error synching FAT copies"
-#~ msgstr "Error al sincronizar las copias FAT"
-
-#~ msgid "Updating filesystem info"
-#~ msgstr "Actualizando informacion del sistema de archivos"
-
-#~ msgid "Error updating filesystem info"
-#~ msgstr "Error actualizando informacion del sistema de archivos"
 
 #, fuzzy
 #~ msgid ""

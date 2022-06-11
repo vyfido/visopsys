@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -376,7 +376,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	totalMemory += (kernelOsLoaderInfo->extendedMemory * 1024);
 
 	// Make sure that totalMemory is a multiple of MEMORY_BLOCK_SIZE.
-	if ((totalMemory % MEMORY_BLOCK_SIZE) != 0)
+	if (totalMemory % MEMORY_BLOCK_SIZE)
 		totalMemory = ((totalMemory / MEMORY_BLOCK_SIZE) * MEMORY_BLOCK_SIZE);
 
 	totalUsed = 0;
@@ -387,7 +387,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	// allocate them), but we do need to fill up the list of pointers to those
 	// memory structures
 	for (count = 0; count < MAXMEMORYBLOCKS; count ++)
-		usedBlockList[count] = &(usedBlockMemory[count]);
+		usedBlockList[count] = &usedBlockMemory[count];
 
 	totalBlocks = (totalMemory / MEMORY_BLOCK_SIZE);
 	usedBlocks = 0;
@@ -419,7 +419,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	// The list of reserved memory blocks needs to be completed here, before
 	// we attempt to use it to calculate the location of the free-block
 	// bitmap.
-	for (count = 0; reservedBlocks[count].processId != 0; count ++)
+	for (count = 0; reservedBlocks[count].processId; count ++)
 	{
 		// Set the end value for the "kernel memory" reserved block
 		if (!strcmp((char *) reservedBlocks[count].description,
@@ -455,7 +455,8 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	// Allocate blocks for all our static reserved memory ranges, including the
 	// free block bitmap (which is cool, because this allocation will use the
 	// bitmap itself (which is 'unofficially' allocated).  Woo, paradox...
-	for (count = 0; reservedBlocks[count].processId != 0; count ++)
+	for (count = 0; reservedBlocks[count].processId; count ++)
+	{
 		// No point in checking status from this call, as we don't want to fail
 		// kernel initialization because of this, and logging and error output
 		// aren't initialized at this stage.
@@ -463,6 +464,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 			reservedBlocks[count].startLocation,
 			reservedBlocks[count].endLocation,
 			(char *) reservedBlocks[count].description);
+	}
 
 	// Now do the same for all the BIOS's non-available memory blocks.  It's OK
 	// if these overlap with - or are already covered by - our static ones.

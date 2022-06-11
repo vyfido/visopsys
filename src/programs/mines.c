@@ -156,6 +156,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("mines");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
 }

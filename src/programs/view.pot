@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,32 +70,32 @@ msgstr ""
 msgid "Unable to load the file \"%s\"\n"
 msgstr ""
 
-#: view.c:380
+#: view.c:374
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: view.c:398
+#: view.c:392
 msgid "Enter filename"
 msgstr ""
 
-#: view.c:399
+#: view.c:393
 msgid "Please choose the file to view:"
 msgstr ""
 
-#: view.c:415
+#: view.c:409
 #, c-format
 msgid "The file \"%s\" was not found"
 msgstr ""
 
-#: view.c:424
+#: view.c:418
 #, c-format
 msgid "Unable to classify the file \"%s\""
 msgstr ""
 
-#: view.c:431
+#: view.c:425
 #, c-format
 msgid "Can't display the file type of \"%s\" (%s)"
 msgstr ""

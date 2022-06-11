@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,15 +21,68 @@
 
 // This file contains code for manipulating windows .ico format icon files.
 
-#include "kernelImageIco.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelGraphic.h"
 #include "kernelImage.h"
-#include "kernelImageBmp.h"
 #include "kernelLoader.h"
+#include "kernelMalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/bmp.h>
+#include <sys/ico.h>
+#include <sys/png.h>
+
+
+#ifdef DEBUG
+static void debugIcoHeader(icoHeader *header)
+{
+	kernelDebug(debug_misc, "ICO header:\n"
+		"  reserved=%d\n"
+		"  type=%d\n"
+		"  numIcons=%d", header->reserved, header->type, header->numIcons);
+}
+
+static void debugIcoEntry(icoEntry *entry)
+{
+	kernelDebug(debug_misc, "ICO entry:\n"
+		"  width=%d\n"
+		"  height=%d\n"
+		"  colorCount=%d\n"
+		"  reserved=%d\n"
+		"  planes=%d\n"
+		"  bitCount=%d\n"
+		"  size=%u\n"
+		"  fileOffset=%u", (entry->width? entry->width : 256),
+		(entry->height? entry->height : 256), entry->colorCount,
+		entry->reserved, entry->planes, entry->bitCount, entry->size,
+		entry->fileOffset);
+}
+
+static void debugIcoInfoHeader(icoInfoHeader *info)
+{
+	kernelDebug(debug_misc, "ICO entry info header:\n"
+		"  headerSize=%u\n"
+		"  width=%u\n"
+		"  height=%u\n"
+		"  planes=%d\n"
+		"  bitsPerPixel=%d\n"
+		"  compression=%u\n"
+		"  dataSize=%u\n"
+		"  hResolution=%u\n"
+		"  vResolution=%u\n"
+		"  colors=%u\n"
+		"  importantColors=%u", info->headerSize, info->width, info->height,
+		info->planes, info->bitsPerPixel, info->compression, info->dataSize,
+		info->hResolution, info->vResolution, info->colors,
+		info->importantColors);
+}
+#else
+	#define debugIcoHeader(header) do { } while (0)
+	#define debugIcoEntry(entry) do { } while (0)
+	#define debugIcoInfoHeader(info) do { } while (0)
+#endif
 
 
 static int detect(const char *fileName, void *dataPtr, unsigned dataSize,
@@ -39,37 +92,50 @@ static int detect(const char *fileName, void *dataPtr, unsigned dataSize,
 	// points to an ICO file.
 
 	icoHeader *header = dataPtr;
+	icoEntry *entry = NULL;
+	int count;
 
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
+
+	kernelDebug(debug_misc, "ICO detect %s", fileName);
 
 	// Make sure there's enough data here for our detection
 	if (dataSize < (sizeof(icoHeader) + sizeof(icoEntry)))
 		return (0);
 
 	// See whether this file seems to be an .ico file
-	if ((header->reserved == 0) &&
-		(header->type == 1) &&
-		(header->numIcons) &&
-		(header->entries[0].width) &&
-		(header->entries[0].height) &&
-		(header->entries[0].reserved == 0) &&
-		(header->entries[0].planes == 1) &&
-		((header->entries[0].bitCount == BMP_BPP_MONO) ||
-			(header->entries[0].bitCount == BMP_BPP_16) ||
-			(header->entries[0].bitCount == BMP_BPP_256) ||
-			(header->entries[0].bitCount == BMP_BPP_16BIT) ||
-			(header->entries[0].bitCount == BMP_BPP_24BIT) ||
-			(header->entries[0].bitCount == BMP_BPP_32BIT)))
+	if (!header->reserved && (header->type == 1) && header->numIcons)
 	{
-			// We will say this is an ICO file.
-			sprintf(class->className, "%s %s", FILECLASS_NAME_ICO,
-				FILECLASS_NAME_IMAGE);
-			class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
-			return (1);
+		debugIcoHeader(header);
+
+		// We will search up to 3 entries for valid BMP values
+		for (count = 0; count < min(2, header->numIcons); count ++)
+		{
+			entry = &header->entries[count];
+
+			debugIcoEntry(entry);
+
+			if (!entry->reserved &&
+				((entry->planes == 0) || (entry->planes == 1)) &&
+				((entry->bitCount == BMP_BPP_MONO) ||
+					(entry->bitCount == BMP_BPP_16) ||
+					(entry->bitCount == BMP_BPP_256) ||
+					(entry->bitCount == BMP_BPP_16BIT) ||
+					(entry->bitCount == BMP_BPP_24BIT) ||
+					(entry->bitCount == BMP_BPP_32BIT)))
+			{
+				// We will say this is an ICO file.
+				sprintf(class->className, "%s %s", FILECLASS_NAME_ICO,
+					FILECLASS_NAME_IMAGE);
+				class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
+				class->subClass = LOADERFILESUBCLASS_ICO;
+				return (1);
+			}
+		}
 	}
-	else
-		return (0);
+
+	return (0);
 }
 
 
@@ -83,67 +149,90 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 
 	int status = 0;
 	icoHeader *fileHeader = NULL;
+	icoEntry *entry = NULL;
 	unsigned width = 0;
 	unsigned height = 0;
-	unsigned dataStart = 0;
-	icoEntry *entry = NULL;
 	unsigned size = 0;
-	icoInfoHeader *infoHeader = NULL;
+	icoInfoHeader *info = NULL;
+	unsigned dataStart = 0;
+	unsigned colorCount = 0;
 	unsigned char *palette = NULL;
+	unsigned char *xorBitmap = NULL;
+	unsigned char *andBitmap = NULL;
 	pixel *imageData = NULL;
 	unsigned fileOffset = 0;
 	unsigned fileLineWidth = 0;
-	int compression = 0;
 	unsigned pixelRowCounter = 0;
 	unsigned char colorIndex = 0;
-	int colors = 0;
 	unsigned pixelCounter = 0;
+	unsigned tmpWidth, tmpHeight;
 	int count;
 
-	if ((imageFileData == NULL) || !dataSize || (loadImage == NULL))
+	if (!imageFileData || !dataSize || !loadImage)
 		return (status = ERR_NULLPARAMETER);
+
+	kernelDebug(debug_misc, "ICO load, dataSize=%d", dataSize);
 
 	// Point our header pointer at the start of the file
 	fileHeader = (icoHeader *) imageFileData;
 
+	if (!fileHeader->numIcons)
+		return (status = ERR_NODATA);
+
 	// Loop through the icon entries.  If a desired height and width was
 	// specified, pick the one that's closest.  Otherwise, pick the largest
 	// ("highest res") one
-	entry = &(fileHeader->entries[0]);
-	size = (entry->width * entry->height);
 	for (count = 0; count < fileHeader->numIcons; count ++)
 	{
-		if (reqWidth && reqHeight)
+		// If it's a PNG image rather than a BMP, skip it
+		if (*((unsigned *)(imageFileData +
+			fileHeader->entries[count].fileOffset)) == PNG_MAGIC1)
 		{
-			if (abs((fileHeader->entries[0].width *
-					fileHeader->entries[0].height) - (reqWidth * reqHeight)) <
-				abs((entry->width * entry->height) - (reqWidth * reqHeight)))
-			{
-				entry = &(fileHeader->entries[count]);
-				size = (entry->width * entry->height);
-			}
+			continue;
 		}
-		else
+
+		tmpWidth = 256;
+		if (fileHeader->entries[count].width)
+			tmpWidth = fileHeader->entries[count].width;
+		tmpHeight = 256;
+		if (fileHeader->entries[count].height)
+			tmpHeight = fileHeader->entries[count].height;
+
+		if ((reqWidth && reqHeight &&
+				(abs((tmpWidth * tmpHeight) - (reqWidth * reqHeight)) <
+					abs((width * height) - (reqWidth * reqHeight)))) ||
+			(!reqWidth && !reqHeight && ((tmpWidth * tmpHeight) > size)))
 		{
-			if (((unsigned) fileHeader->entries[0].width *
-				(unsigned) fileHeader->entries[0].height) > size)
-			{
-				entry = &(fileHeader->entries[count]);
-				size = (entry->width * entry->height);
-			}
+			kernelDebug(debug_misc, "ICO choosing entry %d", count);
+			entry = &fileHeader->entries[count];
+			width = tmpWidth;
+			height = tmpHeight;
+			size = (width * height);
 		}
 	}
 
-	infoHeader = ((void *) imageFileData + entry->fileOffset);
+	if (!entry)
+		return (status = ERR_NOSUCHENTRY);
 
-	width = entry->width;
-	height = entry->height;
-	dataStart = (entry->fileOffset + sizeof(icoInfoHeader) +
-		(entry->colorCount * 4));
-	compression = infoHeader->compression;
-	colors = entry->colorCount;
+	debugIcoEntry(entry);
 
-	palette = ((void *) infoHeader + infoHeader->headerSize);
+	info = ((void *) imageFileData + entry->fileOffset);
+
+	debugIcoInfoHeader(info);
+
+	dataStart = (entry->fileOffset + sizeof(icoInfoHeader) + (colorCount * 4));
+
+	if (info->bitsPerPixel == BMP_BPP_256)
+	{
+		colorCount = 256;
+		if (entry->colorCount)
+			colorCount = entry->colorCount;
+	}
+
+	palette = ((void *) info + info->headerSize);
+	xorBitmap = (palette + (colorCount * 4));
+	andBitmap = (xorBitmap + ((size * info->bitsPerPixel) / 8) +
+		(((size * info->bitsPerPixel) % 8)? 1 : 0));
 
 	// Get a blank image of sufficient size
 	status = kernelImageNew(loadImage, width, height);
@@ -155,10 +244,14 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 	// Ok.  Now we need to loop through the bitmap data and turn each bit of
 	// data into a pixel.  Note that bitmap data is "upside down" in the file.
 
-	if (infoHeader->bitsPerPixel == BMP_BPP_32BIT)
+	if (info->bitsPerPixel == BMP_BPP_32BIT)
 	{
 		// 32-bit bitmap.  Pretty simple, since our image structure's data
 		// is a 24-bit bitmap (but the right way up).
+
+		loadImage->alpha = kernelMalloc(size * sizeof(float));
+		if (!loadImage->alpha)
+			return (status = ERR_MEMORY);
 
 		fileLineWidth = (width * 4);
 
@@ -175,13 +268,15 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 					imageFileData[fileOffset + (pixelRowCounter * 4)];
 				imageData[pixelCounter].green =
 					imageFileData[fileOffset + (pixelRowCounter * 4) + 1];
-				imageData[pixelCounter++].red =
+				imageData[pixelCounter].red =
 					imageFileData[fileOffset + (pixelRowCounter * 4) + 2];
+				loadImage->alpha[pixelCounter++] = ((float)
+					imageFileData[fileOffset + (pixelRowCounter * 4) + 3] /
+					(float) 0xFF);
 			}
 		}
 	}
-
-	else if (infoHeader->bitsPerPixel == BMP_BPP_24BIT)
+	else if (info->bitsPerPixel == BMP_BPP_24BIT)
 	{
 		// 24-bit bitmap.  Very simple, since our image structure's data
 		// is a 24-bit bitmap (but the right way up).
@@ -203,12 +298,11 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 				(width * 3));
 		}
 	}
-
-	else if (infoHeader->bitsPerPixel == BMP_BPP_256)
+	else if (info->bitsPerPixel == BMP_BPP_256)
 	{
 		// 8-bit bitmap.  (256 colors)
 
-		if (compression == BMP_COMP_NONE)
+		if (info->compression == BMP_COMP_NONE)
 		{
 			// No compression.  Each sequential byte of data in the file is an
 			// index into the color palette (at the end of the header)
@@ -217,7 +311,7 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 			// make each one have a multiple of 4 bytes
 			fileLineWidth = width;
 			if (fileLineWidth % 4)
-			fileLineWidth = (fileLineWidth + (4 - (fileLineWidth % 4)));
+				fileLineWidth = (fileLineWidth + (4 - (fileLineWidth % 4)));
 
 			// This outer loop is repeated once for each row of pixels
 			for (count = (height - 1); count >= 0; count --)
@@ -231,7 +325,7 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 					// Get the byte that indexes the color
 					colorIndex = imageFileData[fileOffset + pixelRowCounter];
 
-					if (colorIndex >= colors)
+					if (colorIndex >= colorCount)
 					{
 						kernelError(kernel_error, "Illegal color index %d",
 							colorIndex);
@@ -242,9 +336,9 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 					// Convert it to a pixel
 					imageData[pixelCounter].blue = palette[colorIndex * 4];
 					imageData[pixelCounter].green =
-					palette[(colorIndex * 4) + 1];
+						palette[(colorIndex * 4) + 1];
 					imageData[pixelCounter++].red =
-					palette[(colorIndex * 4) + 2];
+						palette[(colorIndex * 4) + 2];
 				}
 			}
 		}
@@ -256,14 +350,36 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 			return (status = ERR_INVALID);
 		}
 	}
-
 	else
 	{
 		// Not supported.  Release the image data memory
 		kernelError(kernel_error, "Unsupported bit depth %d",
-			infoHeader->bitsPerPixel);
+			info->bitsPerPixel);
 		kernelImageFree((image *) &loadImage);
 		return (status = ERR_INVALID);
+	}
+
+	if ((info->bitsPerPixel == BMP_BPP_24BIT) ||
+		(info->bitsPerPixel == BMP_BPP_256))
+	{
+		// Process the XOR-bitmap for BPP < 32
+	}
+
+	// Process the AND-bitmap (for transparency)
+	fileLineWidth = (((width + 31) / 32) * 4);
+	for (pixelCounter = 0, count = (height - 1); count >= 0; count --)
+	{
+		for (pixelRowCounter = 0; pixelRowCounter < width; pixelRowCounter ++,
+			pixelCounter ++)
+		{
+			if (andBitmap[(count * fileLineWidth) + (pixelRowCounter / 8)] &
+				(0x80 >> (pixelRowCounter % 8)))
+			{
+				imageData[pixelCounter].blue = 0;
+				imageData[pixelCounter].green = 0xFF;
+				imageData[pixelCounter].red = 0;
+			}
+		}
 	}
 
 	// Set the image's info fields

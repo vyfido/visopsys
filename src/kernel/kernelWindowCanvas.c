@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -171,10 +171,21 @@ static int setData(kernelWindowComponent *component, void *data, int size
 		case draw_text:
 			if (params->font)
 			{
+				// Try to make sure we have the required character set.
+				if (!kernelFontHasCharSet((kernelFont *) params->font,
+					(char *) component->charSet))
+				{
+					kernelFontGet(((kernelFont *) params->font)->family,
+						((kernelFont *) params->font)->flags,
+						((kernelFont *) params->font)->points,
+						(char *) component->charSet);
+				}
+
 				status = kernelGraphicDrawText(&canvas->buffer,
 					&params->foreground, &params->background,
-					(asciiFont *) params->font, (char *) params->data,
-					params->mode, params->xCoord1, params->yCoord1);
+					(kernelFont *) params->font, (char *) component->charSet,
+					params->data, params->mode, params->xCoord1,
+					params->yCoord1);
 			}
 			break;
 

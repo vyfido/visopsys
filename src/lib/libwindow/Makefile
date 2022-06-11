@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -23,16 +23,19 @@ else
 	STRIP = strip -s ${SHAREDLIB}
 endif
 
-NAMES = windowBannerDialog \
+NAMES = windowArchiveList \
+	windowBannerDialog \
 	windowCenterDialog \
 	windowChoiceDialog \
 	windowColorDialog \
 	windowFileDialog \
 	windowFileList \
+	windowKeyboard \
 	windowLanguageDialog \
 	windowMain \
 	windowNumberDialog \
 	windowOkDialog \
+	windowPixelEditor \
 	windowProgressDialog \
 	windowPromptDialog \
 	windowQueryDialog \
@@ -52,6 +55,8 @@ SHAREDLIB = ${BUILDDIR}/${SONAME}
 all: target-dirs ${LIBRARY} ${SHAREDLIB} strip
 	${MAKE} -C de
 	${MAKE} -C es
+	${MAKE} -C ru
+	${MAKE} -C tr
 
 target-dirs:
 	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
@@ -60,7 +65,8 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${LD} -shared -nostdlib -z norelro -soname=${SONAME} ${PICOBJS} -o $@
+	${CC} ${ARCH} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro \
+		${PICOBJS} -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}
@@ -74,5 +80,7 @@ ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 clean:
 	${MAKE} -C de clean
 	${MAKE} -C es clean
+	${MAKE} -C ru clean
+	${MAKE} -C tr clean
 	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}
 

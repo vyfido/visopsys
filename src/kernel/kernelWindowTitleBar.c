@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,7 +54,9 @@ static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -135,7 +137,7 @@ static void minimizeWindow(kernelWindow *window, windowEvent *event)
 	// Transfer this event into the window's event stream, so the application
 	// can find out about it.
 	event->type = EVENT_WINDOW_MINIMIZE;
-	kernelWindowEventStreamWrite(&(window->events), event);
+	kernelWindowEventStreamWrite(&window->events, event);
 
 	return;
 }
@@ -148,7 +150,7 @@ static void closeWindow(kernelWindow *window, windowEvent *event)
 	// Transfer this event into the window's event stream, so the application
 	// can find out about it.
 	event->type = EVENT_WINDOW_CLOSE;
-	kernelWindowEventStreamWrite(&(window->events), event);
+	kernelWindowEventStreamWrite(&window->events, event);
 
 	return;
 }
@@ -159,35 +161,21 @@ static int draw(kernelWindowComponent *component)
 	// Draw the title bar component atop the window
 
 	kernelWindowTitleBar *titleBar = component->data;
-	asciiFont *font = (asciiFont *) component->params.font;
+	kernelFont *font = (kernelFont *) component->params.font;
 	int titleWidth = 0;
 	char title[128];
-	color foregroundColor;
 	color backgroundColor;
+
+	memcpy(&backgroundColor, (color *) &component->params.background,
+		sizeof(color));
 
 	// The color will be different depending on whether the window has
 	// the focus
-	if (component->window->flags & WINFLAG_HASFOCUS)
+	if (!(component->window->flags & WINFLAG_HASFOCUS))
 	{
-		if (component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
-		{
-			// Use user-supplied colors
-			memcpy(&backgroundColor, (color *) &component->params.background,
-				sizeof(color));
-		}
-		else
-		{
-			// Use default color blue
-			backgroundColor.red = 0;
-			backgroundColor.green = 0;
-			backgroundColor.blue = 200;
-		}
-	}
-	else
-	{
-		backgroundColor.red = 0;
-		backgroundColor.green = 0;
-		backgroundColor.blue = 150;
+		backgroundColor.red = (((int) backgroundColor.red * 2) / 3);
+		backgroundColor.green = (((int) backgroundColor.green * 2) / 3);
+		backgroundColor.blue = (((int) backgroundColor.blue * 2) / 3);
 	}
 
 	kernelGraphicConvexShade(component->buffer, &backgroundColor,
@@ -195,20 +183,6 @@ static int draw(kernelWindowComponent *component)
 		component->height, shade_fromtop);
 
 	// Put the title on the title bar
-
-	if (component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
-	{
-		// Use user-supplied colors
-		memcpy(&foregroundColor, (color *) &component->params.foreground,
-			sizeof(color));
-	}
-	else
-	{
-		// Use default color white
-		foregroundColor.red = 255;
-		foregroundColor.green = 255;
-		foregroundColor.blue = 255;
-	}
 
 	if (font)
 	{
@@ -219,11 +193,15 @@ static int draw(kernelWindowComponent *component)
 		if (titleBar->closeButton)
 			titleWidth -= titleBar->closeButton->width;
 
-		while (kernelFontGetPrintedWidth(font, title) > titleWidth)
+		while (kernelFontGetPrintedWidth(font, (char *) component->charSet,
+			title) > titleWidth)
+		{
 			title[strlen(title) - 2] = '\0';
+		}
 
-		kernelGraphicDrawText(component->buffer, &foregroundColor,
-			&backgroundColor, font, title, draw_translucent,
+		kernelGraphicDrawText(component->buffer,
+			(color *) &component->params.foreground, &backgroundColor, font,
+			(char *) component->charSet, title, draw_translucent,
 			(component->xCoord + 5), (component->yCoord + ((component->height -
 				font->glyphHeight) / 2)));
 	}
@@ -363,7 +341,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				(event->yPosition - dragEvent.yPosition);
 
 			// Draw an xor'ed outline
-			kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
+			kernelGraphicDrawRect(NULL, &((color){ 255, 255, 255 }),
 				draw_xor, component->window->xCoord, component->window->yCoord,
 				component->window->buffer.width,
 				component->window->buffer.height, 1, 0);
@@ -445,7 +423,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->window->buffer.height);
 
 			// Draw an xor'ed outline
-			kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
+			kernelGraphicDrawRect(NULL, &((color){ 255, 255, 255 }),
 				draw_xor, component->window->xCoord,
 				component->window->yCoord, component->window->buffer.width,
 				component->window->buffer.height, 1, 0);
@@ -540,6 +518,23 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	component->resize = &resize;
 	component->mouseEvent = &mouseEvent;
 	component->destroy = &destroy;
+
+	// If default colors are requested, override the standard component colors
+	// with the ones we prefer
+
+	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+	{
+		// Use default white
+		memcpy((color *) &component->params.foreground, &COLOR_WHITE,
+			sizeof(color));
+	}
+
+	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	{
+		// Use the default foreground color as the background color
+		memcpy((void *) &component->params.background,
+			&windowVariables->color.foreground, sizeof(color));
+	}
 
 	// If font is NULL, use the default
 	if (!component->params.font)

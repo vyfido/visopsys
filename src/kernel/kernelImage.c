@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -102,8 +102,8 @@ static int imageCopy(image *srcImage, image *destImage, int kernel)
 		if (destImage->alpha)
 		{
 			// Copy the data
-			memcpy(destImage->alpha, srcImage->alpha,
-				(destImage->pixels * sizeof(float)));
+			memcpy(destImage->alpha, srcImage->alpha, (destImage->pixels *
+				sizeof(float)));
 		}
 	}
 
@@ -279,6 +279,10 @@ int kernelImageSave(const char *fileName, int format, image *saveImage)
 			fileClassName = FILECLASS_NAME_JPG;
 			break;
 
+		case IMAGEFORMAT_PPM:
+			fileClassName = FILECLASS_NAME_PPM;
+			break;
+
 		default:
 			kernelError(kernel_error, "Image format %d is unknown", format);
 			return (status = ERR_NULLPARAMETER);
@@ -386,10 +390,10 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 			{
 				srcAlpha[0] = &resizeImage->alpha[srcIndex];
 				srcAlpha[1] = &resizeImage->alpha[srcIndex + 1];
-				srcAlpha[2] =
-					&resizeImage->alpha[srcIndex + resizeImage->width];
-				srcAlpha[3] =
-					&resizeImage->alpha[srcIndex + resizeImage->width + 1];
+				srcAlpha[2] = &resizeImage->alpha[srcIndex +
+					resizeImage->width];
+				srcAlpha[3] = &resizeImage->alpha[srcIndex +
+					resizeImage->width + 1];
 
 				bilinearInterpolation(distanceX, distanceY, srcArea,
 					srcAlpha, &destPixels[destIndex],
@@ -498,6 +502,8 @@ int kernelImagePaste(image *srcImage, image *destImage, int xCoord, int yCoord)
 	int status = 0;
 	void *srcPixel = 0;
 	void *destPixel = 0;
+	void *srcAlpha = NULL;
+	void *destAlpha = NULL;
 	int maxLines = 0;
 	int lineWidth = 0;
 	int lineCount;
@@ -515,15 +521,28 @@ int kernelImagePaste(image *srcImage, image *destImage, int xCoord, int yCoord)
 	destPixel = (destImage->data + (((yCoord * destImage->width) + xCoord) *
 		sizeof(pixel)));
 
+	srcAlpha = (void *) srcImage->alpha;
+	if (srcAlpha && !destImage->alpha)
+		kernelImageGetAlpha(destImage);
+	if (destImage->alpha)
+		destAlpha = ((void *) destImage->alpha + (((yCoord *
+			destImage->width) + xCoord) * sizeof(float)));
+
 	maxLines = min(srcImage->height, (destImage->height - yCoord));
 	lineWidth = min(srcImage->width, (destImage->width - xCoord));
 
 	for (lineCount = 0; lineCount < maxLines; lineCount ++)
 	{
 		memcpy(destPixel, srcPixel, (lineWidth * sizeof(pixel)));
-
 		srcPixel += (srcImage->width * sizeof(pixel));
 		destPixel += (destImage->width * sizeof(pixel));
+
+		if (srcAlpha && destAlpha)
+		{
+			memcpy(destAlpha, srcAlpha, (lineWidth * sizeof(float)));
+			srcAlpha += (srcImage->width * sizeof(float));
+			destAlpha += (destImage->width * sizeof(float));
+		}
 	}
 
 	return (status = 0);
@@ -541,19 +560,22 @@ int kernelImageGetAlpha(image *alphaImage)
 	float *a = NULL;
 	unsigned count;
 
-	alphaImage->alpha = kernelMalloc(alphaImage->pixels * sizeof(float));
 	if (!alphaImage->alpha)
-		return (status = ERR_MEMORY);
-
-	// Calculate it.
-
-	p = alphaImage->data;
-	a = alphaImage->alpha;
-
-	for (count = 0; count < alphaImage->pixels; count ++)
 	{
-		if (!PIXELS_EQ(&p[count], &alphaImage->transColor))
-			a[count] = 1.0;
+		alphaImage->alpha = kernelMalloc(alphaImage->pixels * sizeof(float));
+		if (!alphaImage->alpha)
+			return (status = ERR_MEMORY);
+
+		// Calculate it.
+
+		p = alphaImage->data;
+		a = alphaImage->alpha;
+
+		for (count = 0; count < alphaImage->pixels; count ++)
+		{
+			if (!PIXELS_EQ(&p[count], &alphaImage->transColor))
+				a[count] = 1.0;
+		}
 	}
 
 	return (status = 0);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -162,13 +162,13 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 	usbKeyboard *keyDev = usbDev->interface[interface].data;
 	usbKeyboardData *keyboardData = NULL;
 	keyScan scan = 0;
-	int count;
+	int count1, count2;
 
 	//kernelDebug(debug_usb, "USB keyboard interrupt %u bytes", length);
 
 	keyboardData = buffer;
 
-	// kernelDebug(debug_usb, "USB keyboard mod=%02x codes %02x %02x %02x %02x "
+	//kernelDebug(debug_usb, "USB keyboard mod=%02x codes %02x %02x %02x %02x "
 	//	"%02x %02x", keyboardData->modifier, keyboardData->code[0],
 	//	keyboardData->code[1], keyboardData->code[2], keyboardData->code[3],
 	//	keyboardData->code[4], keyboardData->code[5]);
@@ -227,21 +227,30 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 	}
 
 	// Find key releases
-	for (count = 0; count < 6; count ++)
+	for (count1 = 0; count1 < USB_HID_KEYBOARD_BUFFSIZE; count1 ++)
 	{
-		if ((keyDev->oldKeyboardData.code[count] < 4) ||
-			(keyDev->oldKeyboardData.code[count] > 231))
+		if ((keyDev->oldKeyboardData.code[count1] < 4) ||
+			(keyDev->oldKeyboardData.code[count1] > 231))
 		{
-			break;
-		}
-
-		if (strchr((const char *) keyboardData->code,
-			keyDev->oldKeyboardData.code[count]))
-		{
+			// Empty, or not a code that we are interested in
 			continue;
 		}
 
-		scan = usbScan2Scan[keyDev->oldKeyboardData.code[count]];
+		// Does the old key press exist in the new data?
+		for (count2 = 0; count2 < USB_HID_KEYBOARD_BUFFSIZE; count2 ++)
+		{
+			if (keyDev->oldKeyboardData.code[count1] ==
+				keyboardData->code[count2])
+			{
+				break;
+			}
+		}
+
+		if (count2 < USB_HID_KEYBOARD_BUFFSIZE)
+			// The key is still pressed
+			continue;
+
+		scan = usbScan2Scan[keyDev->oldKeyboardData.code[count1]];
 
 		kernelKeyboardInput(&keyDev->keyboard, EVENT_KEY_UP, scan);
 
@@ -250,21 +259,30 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 	}
 
 	// Find new keypresses
-	for (count = 0; count < 6; count ++)
+	for (count1 = 0; count1 < USB_HID_KEYBOARD_BUFFSIZE; count1 ++)
 	{
-		if ((keyboardData->code[count] < 4) ||
-			(keyboardData->code[count] > 231))
+		if ((keyboardData->code[count1] < 4) ||
+			(keyboardData->code[count1] > 231))
 		{
-			break;
-		}
-
-		if (strchr((const char *) keyDev->oldKeyboardData.code,
-			keyboardData->code[count]))
-		{
+			// Empty, or not a code that we are interested in
 			continue;
 		}
 
-		scan = usbScan2Scan[keyboardData->code[count]];
+		// Does the new key press exist in the old data?
+		for (count2 = 0; count2 < USB_HID_KEYBOARD_BUFFSIZE; count2 ++)
+		{
+			if (keyboardData->code[count1] ==
+				keyDev->oldKeyboardData.code[count2])
+			{
+				break;
+			}
+		}
+
+		if (count2 < USB_HID_KEYBOARD_BUFFSIZE)
+			// The key was already pressed
+			continue;
+
+		scan = usbScan2Scan[keyboardData->code[count1]];
 
 		kernelKeyboardInput(&keyDev->keyboard, EVENT_KEY_DOWN, scan);
 
@@ -275,6 +293,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 	if (length < sizeof(usbKeyboardData))
 		memset(&keyDev->oldKeyboardData, 0, sizeof(usbKeyboardData));
 
+	// Copy the new data to the 'old' buffer
 	memcpy(&keyDev->oldKeyboardData, keyboardData,
 		min(length, sizeof(usbKeyboardData)));
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -749,7 +749,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 			scsiDisk->vendorId[count + 1] = '\0';
 			break;
 		}
-		else if (count == 0)
+		else if (!count)
 		{
 			scsiDisk->vendorId[0] = '\0';
 		}
@@ -764,7 +764,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 			scsiDisk->productId[count + 1] = '\0';
 			break;
 		}
-		else if (count == 0)
+		else if (!count)
 		{
 			scsiDisk->productId[0] = '\0';
 		}
@@ -969,7 +969,7 @@ static int readWriteSectors(int driveNum, uquad_t logicalSector,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if (numSectors == 0)
+	if (!numSectors)
 		// Not an error we guess, but nothing to do
 		return (status = 0);
 

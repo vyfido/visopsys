@@ -1,12 +1,12 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: 2014-01-22 17:32-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -109,31 +109,31 @@ msgstr "desactivado"
 msgid "Disable"
 msgstr "Desactivar"
 
-#: ifconfig.c:205 ifconfig.c:428
+#: ifconfig.c:205 ifconfig.c:432
 msgid "Enable"
 msgstr "Activar"
 
-#: ifconfig.c:338
+#: ifconfig.c:342
 msgid "Shutting down networking"
 msgstr "Apagando red"
 
-#: ifconfig.c:339
+#: ifconfig.c:343
 msgid "Initializing networking"
 msgstr "Inicializando red"
 
-#: ifconfig.c:339
+#: ifconfig.c:343
 msgid "One moment please..."
 msgstr "Un momento, por favor..."
 
-#: ifconfig.c:423
+#: ifconfig.c:427
 msgid "Networking is disabled"
 msgstr "Red activada"
 
-#: ifconfig.c:583
+#: ifconfig.c:587
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:591
+#: ifconfig.c:595
 msgid "Can't get the count of network devices"
 msgstr "No se puede determinar el número de dispositivos de red"

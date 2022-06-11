@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 // the screen
 
 #include "kernelGraphic.h"
+#include "kernelCharset.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelFile.h"
@@ -34,21 +35,18 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
+#include "kernelVariableList.h"
 #include "kernelWindow.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/color.h>
+#include <sys/env.h>
 #include <sys/image.h>
 
 // The global default colors
-color kernelDefaultForeground = {
-	DEFAULT_FOREGROUND_BLUE, DEFAULT_FOREGROUND_GREEN, DEFAULT_FOREGROUND_RED
-};
-color kernelDefaultBackground = {
-	DEFAULT_BACKGROUND_BLUE, DEFAULT_BACKGROUND_GREEN, DEFAULT_BACKGROUND_RED
-};
-color kernelDefaultDesktop = {
-	DEFAULT_DESKTOP_BLUE, DEFAULT_DESKTOP_GREEN, DEFAULT_DESKTOP_RED
-};
+color kernelDefaultForeground = COLOR_DEFAULT_FOREGROUND;
+color kernelDefaultBackground = COLOR_DEFAULT_BACKGROUND;
+color kernelDefaultDesktop = COLOR_DEFAULT_DESKTOP;
 
 static kernelDevice *systemAdapter = NULL;
 static kernelGraphicAdapter *adapterDevice = NULL;
@@ -187,7 +185,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	tmpConsole->foreground.blue = 255;
 	tmpConsole->foreground.green = 255;
 	tmpConsole->foreground.red = 255;
-	memcpy((color *) &(tmpConsole->background), &kernelDefaultDesktop,
+	memcpy((color *) &tmpConsole->background, &kernelDefaultDesktop,
 		sizeof(color));
 
 	// Change the input and output streams to the console
@@ -240,8 +238,8 @@ int kernelGraphicInitialize(kernelDevice *dev)
 		return (status);
 	}
 
-	// Assign the default system font to our console text area
-	kernelFontGetDefault((asciiFont **) &tmpConsole->font);
+	// Assign the built-in system font to our console text area
+	kernelFontGetSystem((kernelFont **) &tmpConsole->font);
 
 	// Switch the console
 	kernelTextSwitchToGraphics(tmpConsole);
@@ -272,7 +270,7 @@ int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
 	// Return the list of graphics modes supported by the adapter
 
 	size = max(size, (sizeof(videoMode) * MAXVIDEOMODES));
-	memcpy(modeBuffer, &(adapterDevice->supportedModes), size);
+	memcpy(modeBuffer, &adapterDevice->supportedModes, size);
 	return (adapterDevice->numberModes);
 }
 
@@ -604,23 +602,23 @@ int kernelGraphicDrawImage(graphicBuffer *buffer, image *drawImage,
 
 
 int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
-	color *background, asciiFont *font, const char *text, drawMode mode,
-	int xCoord, int yCoord)
+	color *background, kernelFont *font, const char *charSet,
+	const char *text, drawMode mode, int xCoord, int yCoord)
 {
-	// Draws a line of text using the supplied ASCII font at the requested
+	// Draws a line of text using the supplied font at the requested
 	// coordinates.  Uses the default foreground and background colors.
 
 	int status = 0;
 	int length = 0;
-	unsigned idx = 0;
-	int count;
+	unsigned unicode = 0;
+	int count1, count2;
 
 	// Make sure we've been initialized
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
-	if (!font || !text || !foreground)
+	// Check parameters.  'buffer' and 'charSet' are allowed to be NULL.
+	if (!foreground || !background || !font || !text)
 		return (status = ERR_NULLPARAMETER);
 
 	// Now make sure the device driver drawMonoImage routine has been installed
@@ -633,19 +631,36 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 	// How long is the string?
 	length = strlen(text);
 
+	// What character set are we using?
+	if (!charSet)
+		charSet = CHARSET_NAME_DEFAULT;
+
 	// Loop through the string
-	for (count = 0; count < length; count ++)
+	for (count1 = 0; count1 < length; count1 ++)
 	{
-		idx = (unsigned char) text[count];
+		if ((unsigned char) text[count1] < CHARSET_IDENT_CODES)
+			unicode = text[count1];
+		else
+			unicode = kernelCharsetToUnicode(charSet,
+				(unsigned char) text[count1]);
 
-		if (font->glyphs[idx].data)
+		for (count2 = 0; count2 < font->numGlyphs; count2 ++)
 		{
-			// Call the driver routine to draw the character
-			status = ops->driverDrawMonoImage(buffer, &font->glyphs[idx],
-				mode, foreground, background, xCoord, yCoord);
-		}
+			if (font->glyphs[count2].unicode == unicode)
+			{
+				if (font->glyphs[count2].img.data)
+				{
+					// Call the driver routine to draw the character
+					status = ops->driverDrawMonoImage(buffer,
+						&font->glyphs[count2].img, mode, foreground,
+						background, xCoord, yCoord);
 
-		xCoord += font->glyphs[idx].width;
+					xCoord += font->glyphs[count2].img.width;
+				}
+
+				break;
+			}
+		}
 	}
 
 	return (status = 0);

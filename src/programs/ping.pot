@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,60 +37,60 @@ msgstr ""
 msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=X ms\n"
 msgstr ""
 
-#: ping.c:252
+#: ping.c:253
 msgid "Stop"
 msgstr ""
 
-#: ping.c:295
+#: ping.c:296
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ping.c:304
+#: ping.c:305
 msgid "Networking is not currently enabled"
 msgstr ""
 
-#: ping.c:320
+#: ping.c:321
 msgid "Enter Address"
 msgstr ""
 
-#: ping.c:321
+#: ping.c:322
 msgid "Enter the network address to ping:"
 msgstr ""
 
-#: ping.c:356
+#: ping.c:357
 msgid "Memory allocation error"
 msgstr ""
 
-#: ping.c:375
+#: ping.c:376
 msgid "Error opening network connection"
 msgstr ""
 
-#: ping.c:379
+#: ping.c:380
 #, c-format
 msgid "Ping %d.%d.%d.%d %d bytes of data\n"
 msgstr ""
 
-#: ping.c:393
+#: ping.c:394
 msgid "Error setting signal handler"
 msgstr ""
 
-#: ping.c:406
+#: ping.c:407
 msgid "Error starting response thread"
 msgstr ""
 
-#: ping.c:416
+#: ping.c:417
 msgid "Error pinging host"
 msgstr ""
 
-#: ping.c:434
+#: ping.c:435
 #, c-format
 msgid ""
 "\n"
 "--- %d.%d.%d.%d ping statistics ---\n"
 msgstr ""
 
-#: ping.c:436
+#: ping.c:437
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time Xms\n"
 msgstr ""

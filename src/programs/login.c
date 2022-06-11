@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,6 +59,7 @@ Options:
 #include <sys/ascii.h>
 #include <sys/env.h>
 #include <sys/errors.h>
+#include <sys/lang.h>
 #include <sys/paths.h>
 #include <sys/window.h>
 
@@ -90,6 +91,51 @@ typedef enum {
 	halt, reboot
 
 } shutdownType;
+
+
+static void setDefaults(void)
+{
+	char language[6];
+	char charsetName[CHARSET_NAME_LEN];
+	char keyMapName[KEYMAP_NAMELEN];
+	char keyMapFile[MAX_PATH_NAME_LENGTH + 1];
+
+	if (getenv(ENV_LANG))
+	{
+		strncpy(language, getenv(ENV_LANG), (sizeof(language) - 1));
+	}
+	else
+	{
+		if (configGet(PATH_SYSTEM_CONFIG "/environment.conf", ENV_LANG,
+			language, (sizeof(language) - 1)) < 0)
+		{
+			strcpy(language, LANG_ENGLISH);
+		}
+
+		setenv(ENV_LANG, language, 1);
+	}
+
+	// Based on the default language, try to set an appropriate character
+	// set variable
+	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf", language, charsetName,
+		CHARSET_NAME_LEN) >= 0)
+	{
+		setenv(ENV_CHARSET, charsetName, 1);
+	}
+
+	// Based on the default language, try to set an appropriate keymap
+	// variable
+	if (configGet(PATH_SYSTEM_CONFIG "/keymap.conf", language, keyMapName,
+		KEYMAP_NAMELEN) >= 0)
+	{
+		sprintf(keyMapFile, PATH_SYSTEM_KEYMAPS "/%s.map", keyMapName);
+		keyboardSetMap(keyMapFile);
+		setenv(ENV_KEYMAP, keyMapName, 1);
+	}
+
+	setlocale(LC_ALL, language);
+	textdomain("login");
+}
 
 
 static void printPrompt(void)
@@ -209,6 +255,8 @@ static void constructWindow(int myProcessId)
 	// If we are in graphics mode, make a window rather than operating on the
 	// command line.
 
+	color background = { COLOR_DEFAULT_DESKTOP_BLUE,
+		COLOR_DEFAULT_DESKTOP_GREEN, COLOR_DEFAULT_DESKTOP_RED };
 	componentParameters params;
 
 	// This function can be called multiple times.  Clear any event handlers
@@ -216,9 +264,17 @@ static void constructWindow(int myProcessId)
 	windowClearEventHandlers();
 
 	// Create a new window, with small, arbitrary size and location
-	window = windowNew(myProcessId, _("Login Window"));
+	window = windowNew(myProcessId, _("Login"));
 	if (!window)
 		return;
+
+	// No title bar or border for the login window
+	windowSetHasTitleBar(window, 0);
+	windowSetHasBorder(window, 0);
+
+	// Background color same as the desktop
+	windowGetColor(COLOR_SETTING_DESKTOP, &background);
+	windowSetBackgroundColor(window, &background);
 
 	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 2;
@@ -234,18 +290,22 @@ static void constructWindow(int myProcessId)
 		imageLoad(PATH_SYSTEM "/visopsys.jpg", 0, 0, &splashImage);
 
 	if (splashImage.data)
-	{
 		// Create an image component from it, and add it to the window
-		params.gridY = 0;
 		windowNewImage(window, &splashImage, draw_normal, &params);
-	}
 
 	// Put text labels in the window to prompt the user
-	params.gridY = 1;
+	params.gridY += 1;
+	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.foreground = COLOR_WHITE;
+	memcpy(&params.background, &background, sizeof(color));
 	textLabel = windowNewTextLabel(window, LOGINNAME, &params);
 
 	// Add a login field
-	params.gridY = 2;
+	params.gridY += 1;
+	params.flags = (WINDOW_COMPFLAG_FIXEDHEIGHT | WINDOW_COMPFLAG_FIXEDWIDTH);
+	params.font = fontGet(FONT_FAMILY_LIBMONO, (FONT_STYLEFLAG_BOLD |
+		FONT_STYLEFLAG_FIXED), 10, NULL);
 	loginField = windowNewTextField(window, 30, &params);
 	windowRegisterEventHandler(loginField, &eventHandler);
 
@@ -255,11 +315,11 @@ static void constructWindow(int myProcessId)
 	windowRegisterEventHandler(passwordField, &eventHandler);
 
 	// Create a 'reboot' button
-	params.gridY = 3;
+	params.gridY += 1;
 	params.gridWidth = 1;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.font = NULL;
 	rebootButton = windowNewButton(window, _("Reboot"), NULL, &params);
 	windowRegisterEventHandler(rebootButton, &eventHandler);
 
@@ -268,12 +328,6 @@ static void constructWindow(int myProcessId)
 	params.orientationX = orient_left;
 	shutdownButton = windowNewButton(window, _("Shut down"), NULL, &params);
 	windowRegisterEventHandler(shutdownButton, &eventHandler);
-
-	// Don't want the user minimizing or closing this window.  It will just
-	// confuse them later because they won't be able to login unless they use
-	// the 'F1' trick.
-	windowRemoveMinimizeButton(window);
-	windowRemoveCloseButton(window);
 
 	return;
 }
@@ -359,8 +413,8 @@ int main(int argc, char *argv[])
 	int shellPid = 0;
 	disk sysDisk;
 
-	setlocale(LC_ALL, getenv(ENV_LANG));
-	textdomain("login");
+	// Default language, character set, etc.
+	setDefaults();
 
 	// A lot of what we do is different depending on whether we're in graphics
 	// mode or not.
@@ -407,6 +461,9 @@ skipOpts:
 	// Outer loop, from which we never exit
 	while (1)
 	{
+		// Default language, character set, etc.
+		setDefaults();
+
 		if (graphics)
 		{
 			constructWindow(myPid);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -36,6 +36,7 @@ extern int libwindow_initialized;
 extern void libwindowInitialize(void);
 
 static char cwd[MAX_PATH_LENGTH];
+static fileType selectType = unknownT;
 static int doImageThumbs = 0;
 static objectKey dialogWindow = NULL;
 static objectKey thumbImage = NULL;
@@ -52,10 +53,10 @@ static void doFileSelection(file *theFile, char *fullName,
 		if ((theFile->type == fileT) &&
 			(loaderClass->class & LOADERFILECLASS_IMAGE))
 		{
-			windowSwitchPointer(dialogWindow, "busy");
+			windowSwitchPointer(dialogWindow, MOUSE_POINTER_BUSY);
 			windowThumbImageUpdate(thumbImage, fullName, MAX_IMAGE_DIMENSION,
 				MAX_IMAGE_DIMENSION, 0 /* no stretch */, &COLOR_WHITE);
-			windowSwitchPointer(dialogWindow, "default");
+			windowSwitchPointer(dialogWindow, MOUSE_POINTER_DEFAULT);
 		}
 		else
 		{
@@ -64,7 +65,7 @@ static void doFileSelection(file *theFile, char *fullName,
 		}
 	}
 
-	if (theFile->type == fileT)
+	if (theFile->type == selectType)
 		windowComponentSetData(textField, theFile->name,
 			(strlen(theFile->name) + 1), 1 /* redraw */);
 
@@ -86,9 +87,9 @@ static void doFileSelection(file *theFile, char *fullName,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-_X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength, int thumb)
+_X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength, fileType type, int thumb)
 {
-	// Desc: Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  If 'fileName' contains data (i.e. the string's first character is non-NULL), the file name field of the dialog will contain that string.  If 'thumb' is non-zero, an area will display image thumbnails when image files are clicked.  The dialog will have a file selection area, a file name field, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the file name into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+	// Desc: Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  If 'fileName' contains data (i.e. the string's first character is non-NULL), the file name field of the dialog will contain that string.  The 'type' argument specifies whether the user is expected to select a file (fileT) or directory (dirT).  If 'thumb' is non-zero, an area will display image thumbnails when image files are clicked.  The dialog will have a file selection area, a file name field, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the file name into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 	int status = 0;
 	componentParameters params;
@@ -119,6 +120,9 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
+
+	// Record the type of file the user is supposed to select
+	selectType = type;
 
 	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
@@ -257,9 +261,11 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 					snprintf(fileName, maxLength, "%s/", cwd);
 				else
 					strncpy(fileName, cwd, maxLength);
-				windowComponentGetData(textField,
-					(fileName + strlen(fileName)),
-					(maxLength - strlen(fileName)));
+
+				if (type == fileT)
+					windowComponentGetData(textField,
+						(fileName + strlen(fileName)),
+						(maxLength - strlen(fileName)));
 				status = 1;
 			}
 

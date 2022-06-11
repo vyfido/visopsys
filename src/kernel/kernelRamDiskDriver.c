@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -102,14 +102,14 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	unsigned length = 0;
 
 	physical = findDiskByNumber(diskNum);
-	if (physical == NULL)
+	if (!physical)
 	{
 		kernelError(kernel_error, "No such RAM disk %d", diskNum);
 		return (status = ERR_NOSUCHENTRY);
 	}
 
 	ramDisk = disks[diskNum]->driverData;
-	if (ramDisk == NULL)
+	if (!ramDisk)
 	{
 		kernelError(kernel_error, "RAM disk %s has no private data",
 			physical->name);
@@ -234,7 +234,7 @@ int kernelDiskRamDiskCreate(unsigned size, char *name)
 	// Get memory for the physical disk and our private data
 	physical = kernelMalloc(sizeof(kernelPhysicalDisk));
 	ramDisk = kernelMalloc(sizeof(kernelRamDisk));
-	if ((physical == NULL) || (ramDisk == NULL))
+	if (!physical || !ramDisk)
 		return (status = ERR_MEMORY);
 
 	// Get a new disk number
@@ -257,7 +257,7 @@ int kernelDiskRamDiskCreate(unsigned size, char *name)
 
 	// Get memory for the data
 	ramDisk->data = kernelMemoryGetSystem(size, "ramdisk data");
-	if (ramDisk->data == NULL)
+	if (!ramDisk->data)
 	{
 		status = ERR_MEMORY;
 		goto err_out;
@@ -314,7 +314,7 @@ int kernelDiskRamDiskDestroy(const char *name)
 
 	// Try to find the disk
 	physical = findDiskByName(name);
-	if (physical == NULL)
+	if (!physical)
 	{
 		kernelError(kernel_error, "No such RAM disk %s", name);
 		return (status = ERR_NOSUCHENTRY);

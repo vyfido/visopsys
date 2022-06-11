@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,8 +36,8 @@
 // A structure used to register a DMA driver.
 
 typedef struct {
-	int (*driverOpenChannel) (int, void *, int, int);
-	int (*driverCloseChannel) (int);
+	int (*driverOpenChannel)(int, void *, int, int);
+	int (*driverCloseChannel)(int);
 
 } kernelDmaOps;
 
@@ -48,3 +48,4 @@ int kernelDmaCloseChannel(int);
 
 #define _KERNELDMA_H
 #endif
+

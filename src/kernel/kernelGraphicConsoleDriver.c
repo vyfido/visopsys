@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -78,24 +78,26 @@ static void setCursor(kernelTextArea *area, int onOff)
 	if (onOff)
 	{
 		kernelGraphicDrawRect(buffer,
-			(color *) &(area->foreground), draw_normal,
+			(color *) &area->foreground, draw_normal,
 			(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
 			(area->yCoord + (area->cursorRow * area->font->glyphHeight)),
 			area->font->glyphWidth, area->font->glyphHeight, 1, 1);
-		kernelGraphicDrawText(buffer, (color *) &(area->background),
-			(color *) &(area->foreground), area->font, string, draw_normal,
+		kernelGraphicDrawText(buffer, (color *) &area->background,
+			(color *) &area->foreground, area->font, area->charSet, string,
+			draw_normal,
 			(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
 			(area->yCoord + (area->cursorRow * area->font->glyphHeight)));
 	}
 	else
 	{
 		// Clear out the position and redraw the character
-		kernelGraphicClearArea(buffer, (color *) &(area->background),
+		kernelGraphicClearArea(buffer, (color *) &area->background,
 			(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
 			(area->yCoord + (area->cursorRow * area->font->glyphHeight)),
 			area->font->glyphWidth, area->font->glyphHeight);
-		kernelGraphicDrawText(buffer, (color *) &(area->foreground),
-			(color *) &(area->background), area->font, string, draw_normal,
+		kernelGraphicDrawText(buffer, (color *) &area->foreground,
+			(color *) &area->background, area->font, area->charSet, string,
+			draw_normal,
 			(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
 			(area->yCoord + (area->cursorRow * area->font->glyphHeight)));
 	}
@@ -157,7 +159,7 @@ static int scrollLine(kernelTextArea *area)
 	}
 
 	// Erase the last line
-	kernelGraphicClearArea(buffer, (color *) &(area->background), area->xCoord,
+	kernelGraphicClearArea(buffer, (color *) &area->background, area->xCoord,
 		(area->yCoord + ((area->rows - 1) * area->font->glyphHeight)),
 		longestLine, area->font->glyphHeight);
 
@@ -200,11 +202,11 @@ static int screenDraw(kernelTextArea *area)
 	int count;
 
 	lineBuffer = kernelMalloc(area->columns + 1);
-	if (lineBuffer == NULL)
+	if (!lineBuffer)
 		return (ERR_MEMORY);
 
 	// Clear the area
-	kernelGraphicClearArea(buffer, (color *) &(area->background), area->xCoord,
+	kernelGraphicClearArea(buffer, (color *) &area->background, area->xCoord,
 		area->yCoord, (area->columns * area->font->glyphWidth),
 		(area->rows * area->font->glyphHeight));
 
@@ -216,10 +218,10 @@ static int screenDraw(kernelTextArea *area)
 	{
 		strncpy(lineBuffer, (char *) bufferAddress, area->columns);
 		lineBuffer[area->columns] = '\0';
-		kernelGraphicDrawText(buffer, (color *) &(area->foreground),
-			(color *) &(area->background), area->font,
-			lineBuffer, draw_normal, area->xCoord,
-			(area->yCoord + (count * area->font->glyphHeight)));
+		kernelGraphicDrawText(buffer, (color *) &area->foreground,
+			(color *) &area->background, area->font, area->charSet, lineBuffer,
+			draw_normal, area->xCoord, (area->yCoord +
+				(count * area->font->glyphHeight)));
 		bufferAddress += area->columns;
 	}
 
@@ -283,8 +285,8 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 		((kernelWindowComponent *) area->windowComponent)->buffer;
 	int cursorState = area->cursorState;
 	int length = 0;
-	color *foreground = (color *) &(area->foreground);
-	color *background = (color *) &(area->background);
+	color *foreground = (color *) &area->foreground;
+	color *background = (color *) &area->background;
 	char *lineBuffer = NULL;
 	int inputCounter = 0;
 	int bufferCounter = 0;
@@ -292,7 +294,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 	unsigned count;
 
 	lineBuffer = kernelMalloc(area->columns + 1);
-	if (lineBuffer == NULL)
+	if (!lineBuffer)
 		return (ERR_MEMORY);
 
 	// See whether we're printing with special attributes
@@ -350,7 +352,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 			lineBuffer[bufferCounter] = '\0';
 
 			// Add it to our buffers
-			strncpy((char *) (TEXTAREA_FIRSTVISIBLE(area) +
+			strncpy((char *)(TEXTAREA_FIRSTVISIBLE(area) +
 				TEXTAREA_CURSORPOS(area)), lineBuffer,
 				(area->columns - area->cursorColumn));
 
@@ -358,21 +360,21 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 			{
 				for (count = 0; count < strlen(lineBuffer); count ++)
 					lineBuffer[count] = '*';
-				strncpy((char *) (area->visibleData + TEXTAREA_CURSORPOS(area)),
+				strncpy((char *)(area->visibleData + TEXTAREA_CURSORPOS(area)),
 					lineBuffer, (area->columns - area->cursorColumn));
 			}
 			else
 			{
-				strncpy((char *) (area->visibleData + TEXTAREA_CURSORPOS(area)),
-					(char *) (TEXTAREA_FIRSTVISIBLE(area) +
-					TEXTAREA_CURSORPOS(area)),
+				strncpy((char *)(area->visibleData + TEXTAREA_CURSORPOS(area)),
+					(char *)(TEXTAREA_FIRSTVISIBLE(area) +
+						TEXTAREA_CURSORPOS(area)),
 					(area->columns - area->cursorColumn));
 			}
 
 			// Draw it
 			kernelGraphicDrawText(buffer, foreground, background, area->font,
-				lineBuffer, draw_normal, (area->xCoord +
-					(area->cursorColumn * area->font->glyphWidth)),
+				area->charSet, lineBuffer, draw_normal,
+				(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
 				(area->yCoord + (area->cursorRow * area->font->glyphHeight)));
 
 			kernelWindowUpdateBuffer(buffer, (area->xCoord +
@@ -461,7 +463,7 @@ static int screenClear(kernelTextArea *area)
 		((kernelWindowComponent *) area->windowComponent)->buffer;
 
 	// Clear the area
-	kernelGraphicClearArea(buffer, (color *) &(area->background),
+	kernelGraphicClearArea(buffer, (color *) &area->background,
 		area->xCoord, area->yCoord, (area->columns * area->font->glyphWidth),
 		(area->rows * area->font->glyphHeight));
 

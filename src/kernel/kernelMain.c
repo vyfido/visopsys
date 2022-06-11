@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -80,7 +80,7 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 
 		// Do a loop, manually polling the keyboard input buffer
 		// looking for the key press to reboot.
-		while (kernelTextInputCount() == 0)
+		while (!kernelTextInputCount())
 			kernelMultitaskerYield();
 
 		kernelTextPrint("Rebooting...");

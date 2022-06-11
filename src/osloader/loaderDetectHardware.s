@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -64,13 +64,13 @@ loaderDetectHardware:
 
 	;; Before we check video, make sure that the user hasn't specified
 	;; text-only mode
-        push word NOGRAPHICS
-        call loaderFindFile
-        add SP, 2
+	push word NOGRAPHICS
+	call loaderFindFile
+	add SP, 2
 
-        ;; Does the file exist?
-        cmp AX, 1
-        je .skipVideo	; The user doesn't want graphics
+	;; Does the file exist?
+	cmp AX, 1
+	je .skipVideo	; The user doesn't want graphics
 
 	;; Detect video.  Push a pointer to the start of the video
 	;; information in the hardware structure
@@ -90,7 +90,7 @@ loaderDetectHardware:
 	;; If we're booting from CD-ROM in emulation mode, print a message
 	cmp dword [BOOTCD], 1
 	jne .noEmul
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, CDCHECK
@@ -207,7 +207,7 @@ detectProcessor:
 	.badCPU:
 	;; Print out the fatal message that we're not running an
 	;; adequate processor
-	mov DL, ERRORCOLOR	; Use error color
+	mov DL, BADCOLOR	; Use error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, PROCESSOR
@@ -358,7 +358,7 @@ detectCdEmul:
 	ja .isEmul
 
 	;; Else, print a warning.
-	mov DL, ERRORCOLOR	; Use error color
+	mov DL, BADCOLOR	; Use error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, EMULCHECKBAD
@@ -483,7 +483,7 @@ detectFloppies:
 
 	;; Print message about the disk scan
 
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, FDDCHECK
@@ -559,7 +559,7 @@ detectHardDisks:
 	cmp word [PRINTINFO], 1
 	jne .noPrint1
 	;; Print messages about the disk scan
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, HDDCHECK
@@ -759,7 +759,7 @@ printCpuInfo:
 
 	pusha
 
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, PROCESSOR
@@ -833,7 +833,7 @@ printMemoryInfo:
 
 	pusha
 
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, MEMDETECT1
@@ -858,7 +858,7 @@ printFddInfo:
 	pusha
 
 	;; Print a message about what we found
-	mov DL, 02h
+	mov DL, GOODCOLOR
 	mov SI, BLANK
 	call loaderPrint
 
@@ -898,7 +898,7 @@ printHddInfo:
 	pusha
 
 	;; Print a message about what we found
-	mov DL, 02h
+	mov DL, GOODCOLOR
 	mov SI, BLANK
 	call loaderPrint
 
@@ -1047,8 +1047,8 @@ int6_restore:
 	ALIGN 4
 
 OLDINT6		dd 0		;; Address of the interrupt 6 handler
-ISRRETURNADDR	dw 0		;; The offset of the return address for int6
-INVALIDOPCODE	db 0		;; To pass data from our interrupt handler
+ISRRETURNADDR	dw 0	;; The offset of the return address for int6
+INVALIDOPCODE	db 0	;; To pass data from our interrupt handler
 HARDDISKS	dd 0		;; Number present
 HDDINFO		times 42h  db 0	;; Space for info ret by EBIOS
 HDDINFOBLOCK: ISTRUC hddInfoBlock

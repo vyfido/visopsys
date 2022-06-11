@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,15 +36,22 @@ The deluser program is a very simple method of deleting a user account.
 </help>
 */
 
-#include <stdio.h>
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
+
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
 
 
 static void usage(char *name)
 {
-	printf("usage:\n");
-	printf("%s <username>\n", name);
+	printf("%s\n", _("usage:"));
+	printf(_("%s <username>\n"), name);
 	return;
 }
 
@@ -52,6 +59,9 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
 	int status = 0;
+
+	setlocale(LC_ALL, getenv(ENV_LANG));
+	textdomain("deluser");
 
 	if (argc != 2)
 	{
@@ -62,7 +72,7 @@ int main(int argc, char *argv[])
 	// Make sure the user exists
 	if (!userExists(argv[1]))
 	{
-		fprintf(stderr, "User %s does not exist.\n", argv[1]);
+		fprintf(stderr, _("User %s does not exist.\n"), argv[1]);
 		return (status = ERR_NOSUCHUSER);
 	}
 
@@ -73,7 +83,7 @@ int main(int argc, char *argv[])
 		return (status);
 	}
 
-	printf("User deleted.\n");
+	printf("%s\n", _("User deleted."));
 
 	// Done
 	return (status = 0);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,7 +39,7 @@ static int clear(stream *theStream)
 	int status = 0;
 
 	// Make sure the stream pointer isn't NULL
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -68,7 +68,7 @@ static int appendByte(stream *theStream, unsigned char byte)
 	int status = 0;
 
 	// Make sure the stream pointer isn't NULL
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -100,7 +100,7 @@ static int appendDword(stream *theStream, unsigned dword)
 	int status = 0;
 
 	// Make sure the stream pointer isn't NULL
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -134,7 +134,7 @@ static int appendBytes(stream *theStream, unsigned number,
 	unsigned added = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (buffer == NULL))
+	if (!theStream || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -171,7 +171,7 @@ static int appendDwords(stream *theStream, unsigned number, unsigned *buffer)
 	unsigned added = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (buffer == NULL))
+	if (!theStream || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -207,7 +207,7 @@ static int pushByte(stream *theStream, unsigned char byte)
 	int status = 0;
 
 	// Make sure the stream pointer isn't NULL
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -242,7 +242,7 @@ static int pushDword(stream *theStream, unsigned dword)
 	int status = 0;
 
 	// Make sure the stream pointer isn't NULL
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
@@ -278,7 +278,7 @@ static int pushBytes(stream *theStream, unsigned number, unsigned char *buffer)
 	int added = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (buffer == NULL))
+	if (!theStream || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	// Make sure the number of bytes to push is greater than zero
@@ -324,7 +324,7 @@ static int pushDwords(stream *theStream, unsigned number, unsigned *buffer)
 	int added = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (buffer == NULL))
+	if (!theStream || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	// Make sure the number of dwords to push is greater than zero
@@ -369,11 +369,11 @@ static int popByte(stream *theStream, unsigned char *byte)
 	int status = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (byte == NULL))
+	if (!theStream || !byte)
 		return (status = ERR_NULLPARAMETER);
 
 	// Make sure the buffer isn't empty
-	if (theStream->count == 0)
+	if (!theStream->count)
 		return (status = ERR_NODATA);
 
 	status = kernelLockGet(&theStream->lock);
@@ -408,11 +408,11 @@ static int popDword(stream *theStream, unsigned *dword)
 	int status = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (dword == NULL))
+	if (!theStream || !dword)
 		return (status = ERR_NULLPARAMETER);
 
 	// Make sure the buffer isn't empty
-	if (theStream->count == 0)
+	if (!theStream->count)
 		return (status = ERR_NODATA);
 
 	status = kernelLockGet(&theStream->lock);
@@ -449,11 +449,11 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
 	unsigned removed = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (buffer == NULL))
+	if (!theStream || !buffer)
 		return (removed = ERR_NULLPARAMETER);
 
 	// Make sure the buffer isn't empty
-	if (theStream->count == 0)
+	if (!theStream->count)
 		return (removed = 0);
 
 	status = kernelLockGet(&theStream->lock);
@@ -464,7 +464,7 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
 	while (removed < number)
 	{
 		// If the buffer is now empty, we stop here
-		if (theStream->count == 0)
+		if (!theStream->count)
 			break;
 
 		// Get the byte at the head of the buffer
@@ -498,11 +498,11 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
 	unsigned removed = 0;
 
 	// Check parameters
-	if ((theStream == NULL) || (buffer == NULL))
+	if (!theStream || !buffer)
 		return (removed = ERR_NULLPARAMETER);
 
 	// Make sure the buffer isn't empty
-	if (theStream->count == 0)
+	if (!theStream->count)
 		return (removed = 0);
 
 	status = kernelLockGet(&theStream->lock);
@@ -513,7 +513,7 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
 	while (removed < number)
 	{
 		// If the buffer is now empty, we stop here
-		if (theStream->count == 0)
+		if (!theStream->count)
 			break;
 
 		// Get the dword at the head of the buffer
@@ -552,7 +552,7 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 	int status = 0;
 
 	// Check parameters
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	// Items should be greater than zero
@@ -579,7 +579,7 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 
 	// Set up the stream's internal data.  All the other bits are zero
 	theStream->buffer = kernelMalloc(theStream->buffSize);
-	if (theStream->buffer == NULL)
+	if (!theStream->buffer)
 		return (status = ERR_MEMORY);
 
 	// Set the appropriate manipulation functions for this stream.
@@ -622,7 +622,7 @@ int kernelStreamDestroy(stream *theStream)
 	void *buffer = theStream->buffer;
 
 	// Check parameters
-	if (theStream == NULL)
+	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	// Clear it

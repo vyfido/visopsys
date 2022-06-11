@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -76,7 +76,7 @@ char *gets(char *s)
 		{
 			textNewline();
 
-			if (read == 0)
+			if (!read)
 				return (NULL);
 			else
 				return (s);

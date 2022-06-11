@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,82 +22,82 @@ msgid "Clock"
 msgstr ""
 
 #: clock.c:59
-msgid "Mon"
-msgstr ""
-
-#: clock.c:60
-msgid "Tue"
-msgstr ""
-
-#: clock.c:61
-msgid "Wed"
-msgstr ""
-
-#: clock.c:62
-msgid "Thu"
-msgstr ""
-
-#: clock.c:63
-msgid "Fri"
-msgstr ""
-
-#: clock.c:64
-msgid "Sat"
-msgstr ""
-
-#: clock.c:65
 msgid "Sun"
 msgstr ""
 
-#: clock.c:68
-msgid "Jan"
+#: clock.c:60
+msgid "Mon"
+msgstr ""
+
+#: clock.c:61
+msgid "Tue"
+msgstr ""
+
+#: clock.c:62
+msgid "Wed"
+msgstr ""
+
+#: clock.c:63
+msgid "Thu"
+msgstr ""
+
+#: clock.c:64
+msgid "Fri"
+msgstr ""
+
+#: clock.c:65
+msgid "Sat"
 msgstr ""
 
 #: clock.c:69
-msgid "Feb"
+msgid "Jan"
 msgstr ""
 
 #: clock.c:70
-msgid "Mar"
+msgid "Feb"
 msgstr ""
 
 #: clock.c:71
-msgid "Apr"
+msgid "Mar"
 msgstr ""
 
 #: clock.c:72
-msgid "May"
+msgid "Apr"
 msgstr ""
 
 #: clock.c:73
-msgid "Jun"
+msgid "May"
 msgstr ""
 
 #: clock.c:74
-msgid "Jul"
+msgid "Jun"
 msgstr ""
 
 #: clock.c:75
-msgid "Aug"
+msgid "Jul"
 msgstr ""
 
 #: clock.c:76
-msgid "Sep"
+msgid "Aug"
 msgstr ""
 
 #: clock.c:77
-msgid "Oct"
+msgid "Sep"
 msgstr ""
 
 #: clock.c:78
-msgid "Nov"
+msgid "Oct"
 msgstr ""
 
 #: clock.c:79
+msgid "Nov"
+msgstr ""
+
+#: clock.c:80
 msgid "Dec"
 msgstr ""
 
-#: clock.c:120
+#: clock.c:122
 #, c-format
 msgid ""
 "\n"

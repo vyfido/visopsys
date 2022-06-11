@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,6 +42,7 @@
 #include "kernelParameters.h"
 #include "kernelRandom.h"
 #include "kernelText.h"
+#include "kernelTouch.h"
 #include "kernelUsbDriver.h"
 #include "kernelUser.h"
 #include "kernelWindow.h"
@@ -62,7 +63,7 @@ static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 	int count;
 
 	buffer = kernelMalloc(chars);
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	for (count = 0; count < chars; count ++)
@@ -125,7 +126,7 @@ static void logLoaderInfo(void)
 
 		kernelLog("OS Loader: memory range %s: %p-%p (%lldK->%lldK)", memType,
 			(void *)(unsigned) kernelOsLoaderInfo->memoryMap[count].start,
-			(void *)(unsigned) (kernelOsLoaderInfo->memoryMap[count].start +
+			(void *)(unsigned)(kernelOsLoaderInfo->memoryMap[count].start +
 				kernelOsLoaderInfo->memoryMap[count].size - 1),
 			(kernelOsLoaderInfo->memoryMap[count].start >> 10),
 			((kernelOsLoaderInfo->memoryMap[count].start +
@@ -206,8 +207,6 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	char tmpRootDiskName[DISK_MAX_NAMELENGTH];
 	kernelDisk *rootDisk = NULL;
 	const char *value = NULL;
-	const char *splashName = NULL;
-	image splashImage;
 	int networking = 0;
 	int count;
 
@@ -295,7 +294,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2015 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2016 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
@@ -394,7 +393,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 				if (kernelDiskGetByName(tmpRootDiskName))
 				{
 					status = kernelFilesystemMount(tmpRootDiskName, "/");
-					if (status == 0)
+					if (!status)
 					{
 						strcpy(rootDiskName, tmpRootDiskName);
 						break;
@@ -413,7 +412,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelDebug(debug_misc, "Mounted root disk %s", rootDiskName);
 
 	rootDisk = kernelDiskGetByName(rootDiskName);
-	if (rootDisk == NULL)
+	if (!rootDisk)
 	{
 		kernelError(kernel_error, "Couldn't get root disk \"%s\"",
 			rootDiskName);
@@ -497,11 +496,6 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 			value = kernelVariableListGet(kernelVariables, COLOR_DESKTOP_BLUE);
 			if (value)
 				kernelDefaultDesktop.blue = atoi(value);
-
-			// Get the name of the splash image (used only if we are in
-			// graphics mode)
-			splashName = kernelVariableListGet(kernelVariables,
-				"splash.image");
 		}
 
 		value = kernelVariableListGet(kernelVariables, "network");
@@ -513,34 +507,18 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	{
 		kernelDebug(debug_misc, "Initializing graphics");
 
-		// Clear the screen with our default background color
+		// Clear the screen with our default desktop color
 		kernelGraphicClearScreen(&kernelDefaultDesktop);
-		memset(&splashImage, 0, sizeof(image));
-
-		if (splashName && !kernelFileFind(splashName, NULL))
-		{
-			// Try to load the default splash image to use when starting/
-			// restarting
-			kernelImageLoad(splashName, 0, 0, &splashImage);
-			if (splashImage.data)
-			{
-				// Loaded successfully.  Put it in the middle of the screen.
-				kernelGraphicDrawImage(NULL, &splashImage, draw_normal,
-					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
-					((kernelGraphicGetScreenHeight() -
-						splashImage.height) / 2), 0, 0, 0, 0);
-				kernelGraphicDrawRect(NULL, &COLOR_BLACK, draw_normal,
-					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
-					((kernelGraphicGetScreenHeight() -
-						splashImage.height) / 2),
-					splashImage.width, splashImage.height, 1, 0);
-			}
-		}
 
 		// Initialize mouse operations
 		status = kernelMouseInitialize();
 		if (status < 0)
 			kernelError(kernel_warn, "Mouse initialization failed");
+
+		// Initialize touch operations
+		status = kernelTouchInitialize();
+		if (status < 0)
+			kernelError(kernel_warn, "Touch initialization failed");
 	}
 
 	// If the filesystem is not read-only, open a kernel log file
@@ -599,10 +577,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 			// Make a warning, but don't return error.  This is not fatal.
 			kernelError(kernel_warn, "Unable to start the window manager");
 
-		// Clear the screen with our default background color
+		// Clear the screen with our default desktop color
 		kernelGraphicClearScreen(&kernelDefaultDesktop);
-		if (splashImage.data)
-			kernelImageFree(&splashImage);
 	}
 	else
 	{

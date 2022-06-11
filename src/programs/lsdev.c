@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,80 +52,11 @@ Options:
 #define _(string) gettext(string)
 
 #define WINDOW_TITLE		_("System Device Information")
-#define COLUMNS				60
-#define NORMAL_ROWS			25
-#define MORE_ROWS			40
-#define SCROLLBACK_LINES	200
 
 static int graphics = 0;
-static int rows = NORMAL_ROWS;
 static objectKey window = NULL;
-
-
-static void printTree(device *dev, int level)
-{
-	device child;
-	const char *vendor = NULL;
-	const char *model = NULL;
-	const char *variable = NULL;
-	const char *value = NULL;
-	int count1, count2;
-
-	while (1)
-	{
-		for (count1 = 0; count1 < level; count1 ++)
-			printf("   ");
-		printf("-");
-
-		vendor = variableListGet(&dev->attrs, DEVICEATTRNAME_VENDOR);
-		model = variableListGet(&dev->attrs, DEVICEATTRNAME_MODEL);
-
-		if (vendor || model)
-		{
-			if (vendor && vendor[0] && model && model[0])
-				printf("\"%s %s\" ", vendor, model);
-			else if (vendor && vendor[0])
-				printf("\"%s\" ", vendor);
-			else if (model && model[0])
-				printf("\"%s\" ", model);
-		}
-
-		if (dev->subClass.name[0])
-			printf("%s ", dev->subClass.name);
-
-		printf("%s\n", dev->devClass.name);
-
-		// Print any additional attributes
-		for (count1 = 0; count1 < dev->attrs.numVariables; count1 ++)
-		{
-			variable = variableListGetVariable(&dev->attrs, count1);
-
-			if (strcmp(variable, DEVICEATTRNAME_VENDOR) &&
-				strcmp(variable, DEVICEATTRNAME_MODEL))
-			{
-				value = variableListGet(&dev->attrs, variable);
-				if (value)
-				{
-					for (count2 = 0; count2 <= level; count2 ++)
-						printf("   ");
-					printf("  %s=%s\n", variable, value);
-				}
-			}
-		}
-
-		if (deviceTreeGetChild(dev, &child) >= 0)
-			printTree(&child, (level + 1));
-
-		if (deviceTreeGetNext(dev) < 0)
-			break;
-	}
-
-	if (graphics)
-		// Scroll back to the very top
-		textScroll(-(SCROLLBACK_LINES / rows));
-
-	return;
-}
+static objectKey tree = NULL;
+static windowTreeItem *treeItems = NULL;
 
 
 __attribute__((noreturn))
@@ -152,6 +83,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("lsdev");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
 }
@@ -175,8 +110,6 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 static void constructWindow(void)
 {
-	int status = 0;
-	objectKey textArea = NULL;
 	componentParameters params;
 
 	// Create a new window
@@ -184,20 +117,7 @@ static void constructWindow(void)
 	if (!window)
 		return;
 
-	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
-	if (status >= 0)
-	{
-		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&(params.font), 1);
-	}
-	if (status < 0)
-	{
-		params.font = NULL;
-		// The system font can comfortably show more rows
-		rows = MORE_ROWS;
-	}
-
-	// Create a text area to show our stuff
+	// Create a tree to show our stuff
 	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -207,14 +127,130 @@ static void constructWindow(void)
 	params.padBottom = 1;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	textArea = windowNewTextArea(window, COLUMNS, rows, SCROLLBACK_LINES,
-		&params);
-	windowSetTextOutput(textArea);
-	textSetCursor(0);
-	textInputSetEcho(0);
+	tree = windowNewTree(window, NULL, 600, 400, &params);
+	if (!tree)
+		quit(ERR_NOCREATE);
+
+	// Make sure it has the focus
+	windowComponentFocus(tree);
 
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
+
+	return;
+}
+
+
+static int makeItemsRecursive(device *dev, windowTreeItem *item)
+{
+	int status = 0;
+	const char *vendor = NULL;
+	const char *model = NULL;
+	windowTreeItem *childItem = NULL;
+	const char *variable = NULL;
+	const char *value = NULL;
+	device child;
+	int count;
+
+	// Construct the main item string for this device
+
+	item->text[0] = '\0';
+
+	vendor = variableListGet(&dev->attrs, DEVICEATTRNAME_VENDOR);
+	model = variableListGet(&dev->attrs, DEVICEATTRNAME_MODEL);
+
+	if (vendor || model)
+	{
+		if (vendor && vendor[0] && model && model[0])
+			sprintf(item->text, "\"%s %s\" ", vendor, model);
+		else if (vendor && vendor[0])
+			sprintf(item->text, "\"%s\" ", vendor);
+		else if (model && model[0])
+			sprintf(item->text, "\"%s\" ", model);
+	}
+
+	if (dev->subClass.name[0])
+		sprintf((item->text + strlen(item->text)), "%s ", dev->subClass.name);
+
+	strcat(item->text, dev->devClass.name);
+
+	// Add any additional attributes
+	for (count = 0; count < dev->attrs.numVariables; count ++)
+	{
+		variable = variableListGetVariable(&dev->attrs, count);
+
+		if (strcmp(variable, DEVICEATTRNAME_VENDOR) &&
+			strcmp(variable, DEVICEATTRNAME_MODEL))
+		{
+			value = variableListGet(&dev->attrs, variable);
+			if (value)
+			{
+				if (childItem)
+				{
+					childItem->next = malloc(sizeof(windowTreeItem));
+					childItem = childItem->next;
+				}
+				else
+				{
+					childItem = malloc(sizeof(windowTreeItem));
+					item->firstChild = childItem;
+				}
+
+				if (!childItem)
+					return (status = ERR_MEMORY);
+
+				sprintf(childItem->text, "%s=%s", variable, value);
+				childItem->subItem = 1;
+			}
+		}
+	}
+
+	if (deviceTreeGetChild(dev, &child) >= 0)
+	{
+		if (childItem)
+		{
+			childItem->next = malloc(sizeof(windowTreeItem));
+			childItem = childItem->next;
+		}
+		else
+		{
+			childItem = malloc(sizeof(windowTreeItem));
+			item->firstChild = childItem;
+		}
+
+		if (!childItem)
+			return (status = ERR_MEMORY);
+
+		makeItemsRecursive(&child, childItem);
+	}
+
+	if (deviceTreeGetNext(dev) >= 0)
+	{
+		item->next = malloc(sizeof(windowTreeItem));
+		if (!item->next)
+			return (status = ERR_MEMORY);
+
+		makeItemsRecursive(dev, item->next);
+	}
+
+	return (status = 0);
+}
+
+
+static void printTreeRecursive(windowTreeItem *item, int level)
+{
+	int count;
+
+	for (count = 0; count < level; count ++)
+		printf("   ");
+
+	printf("%s%s\n", (item->subItem? "- " : ""), item->text);
+
+	if (item->firstChild)
+		printTreeRecursive(item->firstChild, (level + 1));
+
+	if (item->next)
+		printTreeRecursive(item->next, level);
 
 	return;
 }
@@ -256,15 +292,29 @@ int main(int argc, char *argv[])
 	if (status < 0)
 		quit(status);
 
-	printTree(&dev, 0);
+	treeItems = malloc(sizeof(windowTreeItem));
+	if (!treeItems)
+		quit(status = ERR_MEMORY);
+
+	status = makeItemsRecursive(&dev, treeItems);
+	if (status < 0)
+		quit(status);
+
+	// Expand the first 'system' tree item
+	treeItems->expanded = 1;
 
 	if (graphics)
 	{
+		windowComponentSetData(tree, treeItems, sizeof(windowTreeItem),
+			1 /* render */);
 		windowSetVisible(window, 1);
 		windowGuiRun();
 	}
 	else
+	{
+		printTreeRecursive(treeItems, 0);
 		printf("\n");
+	}
 
 	quit(0);
 }

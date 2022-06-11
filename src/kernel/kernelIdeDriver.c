@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -498,6 +498,30 @@ static int writeCommandFile(int diskNum, unsigned char featErr,
 }
 
 
+static inline void readPort16(int portNum, void *buffer, unsigned words)
+{
+	unsigned count;
+
+	for (count = 0; count < words; count ++)
+	{
+		processorInPort16(portNum, *((unsigned short *) buffer));
+		buffer += 2;
+	}
+}
+
+
+static inline void writePort16(int portNum, void *buffer, unsigned words)
+{
+	unsigned count;
+
+	for (count = 0; count < words; count ++)
+	{
+		processorOutPort16(portNum, *((unsigned short *) buffer));
+		buffer += 2;
+	}
+}
+
+
 static int sendAtapiPacket(int diskNum, unsigned byteCount,
 	unsigned char *packet)
 {
@@ -515,9 +539,9 @@ static int sendAtapiPacket(int diskNum, unsigned byteCount,
 	expectInterrupt(diskNum);
 
 	processorOutPort8(DISK_CHAN(diskNum).ports.featErr, 0);
-	data = (unsigned char) (byteCount & 0x000000FF);
+	data = (unsigned char)(byteCount & 0x000000FF);
 	processorOutPort8(DISK_CHAN(diskNum).ports.lbaMid, data);
-	data = (unsigned char) ((byteCount & 0x0000FF00) >> 8);
+	data = (unsigned char)((byteCount & 0x0000FF00) >> 8);
 	processorOutPort8(DISK_CHAN(diskNum).ports.lbaHigh, data);
 
 	// Send the "ATAPI packet" command
@@ -534,7 +558,7 @@ static int sendAtapiPacket(int diskNum, unsigned byteCount,
 	expectInterrupt(diskNum);
 
 	// Send the 12 bytes of packet data.
-	processorRepOutPort16(DISK_CHAN(diskNum).ports.data, packet, 6);
+	writePort16(DISK_CHAN(diskNum).ports.data, packet, 6);
 
 	// Interrupt says data received
 	status = waitOperationComplete(diskNum, 0 /* no yield */,
@@ -573,7 +597,7 @@ static int atapiRequestSense(int diskNum, atapiSenseData *senseData)
 	expectInterrupt(diskNum);
 
 	// Read in the sense data
-	processorRepInPort16(DISK_CHAN(diskNum).ports.data, senseData,
+	readPort16(DISK_CHAN(diskNum).ports.data, senseData,
 		(sizeof(atapiSenseData) / 2));
 
 	// Interrupt at the end says data is finished
@@ -1118,8 +1142,8 @@ static int identify(int diskNum, ataIdentifyData *identData)
 			// Transfer one sector's worth of data from the controller.
 			kernelDebug(debug_io, "IDE disk %02x identify succeeded",
 				diskNum);
-			processorRepInPort16(DISK_CHAN(diskNum).ports.data,
-				identData, (sizeof(ataIdentifyData) / 2));
+			readPort16(DISK_CHAN(diskNum).ports.data, identData,
+				(sizeof(ataIdentifyData) / 2));
 			kernelDebug(debug_io, "IDE disk %02x read identify data",
 				diskNum);
 			ackInterrupt(diskNum);
@@ -1190,7 +1214,7 @@ static int identify(int diskNum, ataIdentifyData *identData)
 	}
 
 	// Transfer one sector's worth of data from the controller.
-	processorRepInPort16(DISK_CHAN(diskNum).ports.data, identData,
+	readPort16(DISK_CHAN(diskNum).ports.data, identData,
 		(sizeof(ataIdentifyData) / 2));
 	kernelDebug(debug_io, "IDE disk %02x read identify data", diskNum);
 
@@ -1281,7 +1305,7 @@ static int readWriteAtapi(int diskNum, uquad_t logicalSector,
 		expectInterrupt(diskNum);
 
 		// Transfer the number of words from the disk.
-		processorRepInPort16(DISK_CHAN(diskNum).ports.data, buffer, words);
+		readPort16(DISK_CHAN(diskNum).ports.data, buffer, words);
 
 		buffer += (words << 1);
 		atapiNumBytes -= (words << 1);
@@ -1536,8 +1560,8 @@ static int readWritePio(int diskNum, uquad_t logicalSector, uquad_t numSectors,
 
 				kernelDebug(debug_io, "IDE transfer out %d sectors",
 					sectorsPerInt);
-				processorRepOutPort16(DISK_CHAN(diskNum).ports.data,
-					buffer, (sectorsPerInt * 256));
+				writePort16(DISK_CHAN(diskNum).ports.data, buffer,
+					(sectorsPerInt * 256));
 			}
 
 			// Wait for the controller to finish the operation
@@ -1551,8 +1575,8 @@ static int readWritePio(int diskNum, uquad_t logicalSector, uquad_t numSectors,
 			{
 				kernelDebug(debug_io, "IDE transfer in %d sectors",
 					sectorsPerInt);
-				processorRepInPort16(DISK_CHAN(diskNum).ports.data,
-					 buffer, (sectorsPerInt * 256));
+				readPort16(DISK_CHAN(diskNum).ports.data, buffer,
+					(sectorsPerInt * 256));
 			}
 
 			// 'expect' before 'ack' in case the next interrupt comes really
@@ -2670,7 +2694,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 				&controllerDevices[numControllers]->device.attrs);
 
 			// Claim the controller device in the list of PCI targets.
-			kernelBusDeviceClaim(&(pciTargets[deviceCount]), driver);
+			kernelBusDeviceClaim(&pciTargets[deviceCount], driver);
 
 			// Add the kernel device
 			kernelDeviceAdd(pciTargets[deviceCount].bus->dev,

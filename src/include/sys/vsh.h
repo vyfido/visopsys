@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,7 @@
 
 // Functions
 void vshCompleteFilename(char *);
-int vshCursorMenu(const char *, char *[], int, int);
+int vshCursorMenu(const char *, char *[], int, int, int);
 int vshDeleteFile(const char *);
 int vshDumpFile(const char *);
 int vshFileList(const char *);

@@ -172,6 +172,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("calc");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
 }
@@ -221,7 +225,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 				switch(last_op)
 				{
 					case calc_op_divide:
-						if (number_field == 0)
+						if (!number_field)
 						{
 							windowNewErrorDialog(window, _("Division by zero"),
 								_("Error: division by zero!"));
@@ -244,7 +248,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 						break;
 
 					case calc_op_module:
-						if (number_field == 0)
+						if (!number_field)
 						{
 							windowNewErrorDialog(window, _("Division by zero"),
 								_("Error: division by zero!"));
@@ -325,7 +329,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		double root = sqrt(calc_entered ? number_field : calc_result);
 
 		reset_calculator();
-		update_calculator_display((root = calc_result));
+		update_calculator_display((number_field = calc_result = root));
 	}
 
 	else if (key == factButton && event->type == EVENT_MOUSE_LEFTUP)
@@ -353,14 +357,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 		for (factx = 0; factx <= fact; factx++)
 		{
-			if (factx == 0)
+			if (!factx)
 				factresult = 1;
 			else
 				factresult *= factx;
 		}
 
 		reset_calculator();
-		update_calculator_display((calc_result = factresult));
+		update_calculator_display((number_field = calc_result = factresult));
 	}
 
 	// Check for window events.

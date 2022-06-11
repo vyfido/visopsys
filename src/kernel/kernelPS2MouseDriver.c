@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -473,7 +473,7 @@ static int detect(void)
 
 		// Should be 'self test passed' 0xAA and device ID 0 for normal
 		// PS/2 mouse
-		if ((data[0] != 0xAA) || (data[1] != 0))
+		if ((data[0] != 0xAA) || data[1])
 			break;
 
 		// Read device type.
@@ -481,7 +481,7 @@ static int detect(void)
 			break;
 
 		// Should be type 0.
-		if (data[0] != 0)
+		if (data[0])
 			break;
 
 		status = 0;

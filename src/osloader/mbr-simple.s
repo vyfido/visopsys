@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -171,7 +171,7 @@ DATA_DISKSIG	dd 0
 DATA_NULLS		dw 0
 
 ;; Here's where the partition table goes
-DATA_PART_TABLE
+DATA_PART_TABLE:
 	times 16	db 0
 	times 16	db 0
 	times 16	db 0

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -100,14 +100,14 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
 
 	if (!questImage.data)
-		status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
+		status = imageLoad(QUESTIMAGE_NAME, 64, 64, (image *) &questImage);
 
 	if (!status)
 	{
 		questImage.transColor.red = 0;
 		questImage.transColor.green = 255;
 		questImage.transColor.blue = 0;
-		windowNewImage(container, (image *) &questImage, draw_translucent,
+		windowNewImage(container, (image *) &questImage, draw_alphablend,
 			&params);
 	}
 

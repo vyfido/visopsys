@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -106,6 +106,10 @@ STDIONAMES = fclose \
 	snprintf \
 	sprintf \
 	sscanf \
+	strtol \
+	strtoll \
+	strtoul \
+	strtoull \
 	vfprintf \
 	vfscanf \
 	vprintf \
@@ -206,8 +210,8 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${CC} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro ${PICOBJS} \
-		-static -lgcc -o $@
+	${CC} ${ARCH} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro \
+		${PICOBJS} -static -lgcc -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}

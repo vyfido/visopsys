@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +20,8 @@
 //
 
 // This is a generic function to interpret a string as a number and return
-// the value.
+// the value.  Follows the conventions of the strtol family of C library
+// functions.
 
 #include <ctype.h>
 #include <errno.h>
@@ -28,7 +29,8 @@
 #include <sys/cdefs.h>
 
 
-unsigned long long _str2num(const char *string, unsigned base, int sign)
+unsigned long long _str2num(const char *string, unsigned base, int sign,
+	int *consumed)
 {
 	unsigned long long result = 0;
 	int length = 0;
@@ -44,19 +46,82 @@ unsigned long long _str2num(const char *string, unsigned base, int sign)
 	// Get the length of the string
 	length = strlen(string);
 
-	if (sign && (string[0] == '-'))
+	// Skip whitespace
+	while ((count < length) && isspace(string[count]))
+		count += 1;
+
+	if (count >= length)
 	{
-		negative = 1;
+		errno = ERR_INVALID;
+		goto out;
+	}
+
+	// Note sign, if applicable
+	if ((string[count] == '+') || (string[count] == '-'))
+	{
+		if (sign && (string[count] == '-'))
+			negative = 1;
 		count += 1;
 	}
 
+	if (count >= length)
+	{
+		errno = ERR_INVALID;
+		goto out;
+	}
+
+	// Handle '0x' for base 0 or base 16
+	if ((count < (length - 1)) && (!base || (base == 16)))
+	{
+		if ((string[count] == '0') && (string[count + 1] == 'x'))
+		{
+			base = 16;
+			count += 2;
+		}
+	}
+
+	if (count >= length)
+	{
+		errno = ERR_INVALID;
+		goto out;
+	}
+
+	// Handle additional base 0 situations
+	if (!base)
+	{
+		if (string[count] == '0')
+		{
+			base = 8;
+			count += 1;
+		}
+		else
+		{
+			base = 10;
+		}
+	}
+
+	if (count >= length)
+	{
+		errno = ERR_INVALID;
+		goto out;
+	}
+
 	// Do a loop to iteratively add to the value of 'result'.
-	for ( ; count < length; count ++)
+	while (count < length)
 	{
 		switch (base)
 		{
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			case 6:
+			case 7:
+			case 8:
+			case 9:
 			case 10:
-				if (!isdigit(string[count]))
+				if (!isdigit(string[count]) ||
+					((string[count] - '0') >= (int) base))
 				{
 					errno = ERR_INVALID;
 					goto out;
@@ -84,11 +149,16 @@ unsigned long long _str2num(const char *string, unsigned base, int sign)
 				errno = ERR_NOTIMPLEMENTED;
 				goto out;
 		}
+
+		count += 1;
 	}
 
 out:
 	if (negative)
 		result = ((long long) result * -1);
+
+	if (consumed)
+		*consumed = count;
 
 	return (result);
 }

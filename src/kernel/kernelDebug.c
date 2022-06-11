@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -96,6 +96,7 @@ void kernelDebugInitialize(void)
 	//
 	// kernelDebugAddCategory(debug_all);
 	// kernelDebugAddCategory(debug_api);
+	// kernelDebugAddCategory(debug_font);
 	// kernelDebugAddCategory(debug_fs);
 	// kernelDebugAddCategory(debug_gui);
 	// kernelDebugAddCategory(debug_io);

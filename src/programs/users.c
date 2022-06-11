@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ this command will prompt the user to set the password for the named user.
 #include <sys/api.h>
 #include <sys/ascii.h>
 #include <sys/env.h>
+#include <sys/keyboard.h>
 #include <sys/paths.h>
 #include <sys/user.h>
 
@@ -432,7 +433,7 @@ static void enableButtons(void)
 	windowComponentGetSelected(userList, &userNumber);
 	if (userNumber >= 0)
 	{
-		isAdmin = !strcmp(userListParams[userNumber].text, "admin");
+		isAdmin = !strcmp(userListParams[userNumber].text, USER_ADMIN);
 		isCurrentUser = !strcmp(userListParams[userNumber].text, currentUser);
 	}
 
@@ -541,10 +542,12 @@ static int setLanguage(const char *userName, const char *language)
 	int status = 0;
 	char fileName[MAX_PATH_NAME_LENGTH];
 	file f;
+	char charsetName[CHARSET_NAME_LEN];
+	char keyMapName[KEYMAP_NAMELEN];
 	variableList envList;
 
 	// The user 'admin' doesn't have user settings
-	if (!strcmp(userName, "admin"))
+	if (!strcmp(userName, USER_ADMIN))
 		return (status = ERR_INVALID);
 
 	if (!readOnly)
@@ -583,6 +586,26 @@ static int setLanguage(const char *userName, const char *language)
 		if (status < 0)
 			return (status);
 
+		// Based on the language variable, try to set an appropriate character
+		// set variable
+		if (configGet(PATH_SYSTEM_CONFIG "/charset.conf", language,
+			charsetName, CHARSET_NAME_LEN) >= 0)
+		{
+			status = variableListSet(&envList, ENV_CHARSET, charsetName);
+			if (status < 0)
+				return (status);
+		}
+
+		// Based on the language variable, try to set an appropriate keymap
+		// variable
+		if (configGet(PATH_SYSTEM_CONFIG "/keymap.conf", language,
+			keyMapName, KEYMAP_NAMELEN) >= 0)
+		{
+			status = variableListSet(&envList, ENV_KEYMAP, keyMapName);
+			if (status < 0)
+				return (status);
+		}
+
 		// Write the config file.
 		status = configWrite(fileName, &envList);
 
@@ -604,6 +627,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("users");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);

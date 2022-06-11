@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -248,25 +248,25 @@ static int prependEthernetHeader(kernelNetworkDevice *adapter,
 
 	// If the IP destination address is broadcast, we make the ethernet
 	// destination be broadcast as well
-	if (networkAddressesEqual(&(packet->destAddress), &broadcastAddress,
+	if (networkAddressesEqual(&packet->destAddress, &broadcastAddress,
 		NETWORK_ADDRLENGTH_IP))
 	{
 		// Destination is the ethernet broadcast address FF:FF:FF:FF:FF:FF
-		memcpy(&(header->dest), &broadcastAddress,
+		memcpy(&header->dest, &broadcastAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 	}
 	else
 	{
 		// Get the 6-byte ethernet destination address
 		status = kernelNetworkDeviceGetAddress((char *) adapter->device.name,
-			&(packet->destAddress), (networkAddress *) &(header->dest));
+			&packet->destAddress, (networkAddress *) &header->dest);
 		if (status < 0)
 			// Can't find the destination host, we guess
 			return (status);
 	}
 
 	// Copy the 6-byte ethernet source address
-	memcpy(&(header->source), (void *) &(adapter->device.hardwareAddress),
+	memcpy(&header->source, (void *) &adapter->device.hardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Always the same for our purposes
@@ -304,8 +304,8 @@ static int prependIpHeader(kernelNetworkPacket *packet)
 	header->protocol = packet->transProtocol;
 	// Wait until the end for the checksum.  Copy the source and destination
 	// IP addresses
-	memcpy(&(header->srcAddress), &(packet->srcAddress), 4);
-	memcpy(&(header->destAddress), &(packet->destAddress), 4);
+	memcpy(&header->srcAddress, &packet->srcAddress, 4);
+	memcpy(&header->destAddress, &packet->destAddress, 4);
 	// Do the checksum.
 	header->headerChecksum = processorSwap16(ipChecksum(header));
 
@@ -384,9 +384,8 @@ static int setupReceivedPacket(kernelNetworkPacket *packet)
 	}
 
 	// Copy the source and destination addresses
-	memcpy(&(packet->srcAddress), &(ipHeader->srcAddress),
-		NETWORK_ADDRLENGTH_IP);
-	memcpy(&(packet->destAddress), &(ipHeader->destAddress),
+	memcpy(&packet->srcAddress, &ipHeader->srcAddress, NETWORK_ADDRLENGTH_IP);
+	memcpy(&packet->destAddress, &ipHeader->destAddress,
 		NETWORK_ADDRLENGTH_IP);
 
 	packet->transProtocol = ipHeader->protocol;
@@ -472,11 +471,11 @@ static int setupSendPacket(kernelNetworkConnection *connection,
 	memset(packet, 0, sizeof(kernelNetworkPacket));
 
 	// Set up the packet info
-	memcpy(&(packet->srcAddress),
-		(void *) &(connection->adapter->device.hostAddress),
+	memcpy(&packet->srcAddress,
+		(void *) &connection->adapter->device.hostAddress,
 		sizeof(networkAddress));
 	packet->srcPort = connection->filter.localPort;
-	memcpy(&(packet->destAddress), (void *) &(connection->address),
+	memcpy(&packet->destAddress, (void *) &connection->address,
 		sizeof(networkAddress));
 	packet->destPort = connection->filter.remotePort;
 	// Get memory for the packet data
@@ -707,7 +706,7 @@ static int send(kernelNetworkConnection *connection, unsigned char *buffer,
 		else
 		{
 			status = kernelNetworkPacketStreamWrite(
-				&(connection->adapter->outputStream), &packet);
+				&connection->adapter->outputStream, &packet);
 		}
 
 		if (status < 0)
@@ -894,10 +893,7 @@ static kernelNetworkConnection *connectionOpen(kernelNetworkDevice *adapter,
 
 	// If the network address was specified, copy it.
 	if (address)
-	{
-		memcpy((void *) &(connection->address), address,
-			sizeof(networkAddress));
-	}
+		memcpy((void *) &connection->address, address, sizeof(networkAddress));
 
 	// If this is an IP connection, check/find the local port number
 	if (filter->netProtocol == NETWORK_NETPROTOCOL_IP)
@@ -924,7 +920,7 @@ static kernelNetworkConnection *connectionOpen(kernelNetworkDevice *adapter,
 	}
 
 	// Copy the network filter
-	memcpy((void *) &(connection->filter), filter, sizeof(networkFilter));
+	memcpy((void *) &connection->filter, filter, sizeof(networkFilter));
 
 	// The ID of the IP packets is the lower 16 bits of the connection pointer
 	connection->ip.identification = (((unsigned) connection) >> 16);
@@ -988,8 +984,7 @@ static int waitDhcpReply(kernelNetworkDevice *adapter,
 		}
 
 		// Read the packet from the stream
-		status = kernelNetworkPacketStreamRead(&(adapter->inputStream),
-			packet);
+		status = kernelNetworkPacketStreamRead(&adapter->inputStream, packet);
 		if (status < 0)
 			continue;
 
@@ -1143,7 +1138,7 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
 	// attempt to renew it.
 	if (adapter->device.flags & NETWORK_ADAPTERFLAG_AUTOCONF)
 	{
-		memcpy(&sendDhcpPacket, (void *) &(adapter->dhcpConfig.dhcpPacket),
+		memcpy(&sendDhcpPacket, (void *) &adapter->dhcpConfig.dhcpPacket,
 			sizeof(kernelDhcpPacket));
 	}
 	else
@@ -1166,22 +1161,22 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
 		sendDhcpPacket.transactionId =
 		processorSwap32(kernelRandomUnformatted());
 		// Our ethernet hardware address
-		memcpy(&(sendDhcpPacket.clientHardwareAddr),
-			(void *) &(adapter->device.hardwareAddress),
+		memcpy(&sendDhcpPacket.clientHardwareAddr,
+			(void *) &adapter->device.hardwareAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 		// Magic DHCP cookie
 		sendDhcpPacket.cookie = processorSwap32(NETWORK_DHCP_COOKIE);
 		// Options.  First one is mandatory message type
 		sendDhcpPacket.options[0] = NETWORK_DHCPOPTION_END;
 		setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_MSGTYPE, 1,
-			(unsigned char[]) { NETWORK_DHCPMSG_DHCPDISCOVER });
+			(unsigned char[]){ NETWORK_DHCPMSG_DHCPDISCOVER });
 		// Request an infinite lease time
 		unsigned tmpLeaseTime = 0xFFFFFFFF;
 		setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_LEASETIME, 4,
 			(unsigned char *) &tmpLeaseTime);
 		// Request some paramters
 		setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_PARAMREQ, 7,
-			(unsigned char[]) { NETWORK_DHCPOPTION_SUBNET,
+			(unsigned char[]){ NETWORK_DHCPOPTION_SUBNET,
 				NETWORK_DHCPOPTION_ROUTER,
 				NETWORK_DHCPOPTION_DNSSERVER,
 				NETWORK_DHCPOPTION_HOSTNAME,
@@ -1247,7 +1242,7 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
 
 	// Add an option to request the supplied address
 	setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_ADDRESSREQ,
-		NETWORK_ADDRLENGTH_IP, (void *) &(sendDhcpPacket.yourLogicalAddr));
+		NETWORK_ADDRLENGTH_IP, (void *) &sendDhcpPacket.yourLogicalAddr);
 
 	// If the server did not specify a host name to us, specify one to it.
 	if (!getSpecificDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_HOSTNAME))
@@ -1260,7 +1255,7 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
 			(strlen(domainName) + 1), (unsigned char *) domainName);
 
 	// Clear the 'your address' field
-	memset(&(sendDhcpPacket.yourLogicalAddr), 0, NETWORK_ADDRLENGTH_IP);
+	memset(&sendDhcpPacket.yourLogicalAddr, 0, NETWORK_ADDRLENGTH_IP);
 
 	status = send(connection, (unsigned char *) &sendDhcpPacket,
 		sizeof(kernelDhcpPacket), 1, 1);
@@ -1319,8 +1314,8 @@ waitDhcpAck:
 	// Okay, communication should be finished.  Gather up the information.
 
 	// Copy the host address
-	memcpy((void *) &(adapter->device.hostAddress),
-		&(recvDhcpPacket->yourLogicalAddr), NETWORK_ADDRLENGTH_IP);
+	memcpy((void *) &adapter->device.hostAddress,
+		&recvDhcpPacket->yourLogicalAddr, NETWORK_ADDRLENGTH_IP);
 
 	// Loop through all of the options
 	for (count = 0; ; count ++)
@@ -1336,13 +1331,13 @@ waitDhcpAck:
 		{
 			case NETWORK_DHCPOPTION_SUBNET:
 				// The server supplied the subnet mask
-				memcpy((void *) &(adapter->device.netMask), option->data,
+				memcpy((void *) &adapter->device.netMask, option->data,
 					min(option->length, NETWORK_ADDRLENGTH_IP));
 				break;
 
 			case NETWORK_DHCPOPTION_ROUTER:
 				// The server supplied the gateway address
-				memcpy((void *) &(adapter->device.gatewayAddress),
+				memcpy((void *) &adapter->device.gatewayAddress,
 					option->data, min(option->length, NETWORK_ADDRLENGTH_IP));
 				break;
 
@@ -1364,7 +1359,7 @@ waitDhcpAck:
 
 			case NETWORK_DHCPOPTION_BROADCAST:
 				// The server supplied the broadcast address
-				memcpy((void *) &(adapter->device.broadcastAddress),
+				memcpy((void *) &adapter->device.broadcastAddress,
 					option->data, min(option->length, NETWORK_ADDRLENGTH_IP));
 				break;
 
@@ -1385,7 +1380,7 @@ waitDhcpAck:
 
 	// Copy the DHCP packet into our config structure, so that we can renew,
 	// release, etc., the configuration later
-	memcpy((void *) &(adapter->dhcpConfig.dhcpPacket), recvDhcpPacket,
+	memcpy((void *) &adapter->dhcpConfig.dhcpPacket, recvDhcpPacket,
 		sizeof(kernelDhcpPacket));
 
 	kernelFree(packet.memory);
@@ -1419,7 +1414,7 @@ static int releaseDhcp(kernelNetworkDevice *adapter)
 		return (status = ERR_INVALID);
 
 	// Copy the saved configuration data into our send packet
-	memcpy(&sendDhcpPacket, (void *) &(adapter->dhcpConfig.dhcpPacket),
+	memcpy(&sendDhcpPacket, (void *) &adapter->dhcpConfig.dhcpPacket,
 		sizeof(kernelDhcpPacket));
 
 	// Re-set the message type
@@ -1543,7 +1538,7 @@ static int matchFilters(kernelNetworkDevice *adapter,
 				(unsigned) packet->transHeader);
 		}
 
-		connection->inputStream.appendN(&(connection->inputStream), length,
+		connection->inputStream.appendN(&connection->inputStream, length,
 			copyPtr);
 
 		connection = findMatchFilter(connection->next, packet);
@@ -1574,7 +1569,7 @@ static void processIcmpPacket(kernelNetworkDevice *adapter,
 			memset(&filter, 0, sizeof(networkFilter));
 			filter.transProtocol = NETWORK_TRANSPROTOCOL_ICMP;
 			connection = connectionOpen(adapter, NETWORK_MODE_WRITE,
-				(networkAddress *) &(ipHeader->srcAddress), &filter);
+				(networkAddress *) &ipHeader->srcAddress, &filter);
 			if (!connection)
 				return;
 			icmpHeader->type = NETWORK_ICMP_ECHOREPLY;
@@ -1644,7 +1639,7 @@ static void sendTcpReset(kernelNetworkDevice *adapter,
 
 	// Fabricate a partial connection based on this packet
 	connection.mode = NETWORK_MODE_WRITE;
-	memcpy((void *) &(connection.address), &(packet->srcAddress),
+	memcpy((void *) &connection.address, &packet->srcAddress,
 		NETWORK_ADDRLENGTH_IP);
 	connection.filter.linkProtocol = packet->linkProtocol;
 	connection.filter.netProtocol = packet->netProtocol;
@@ -1880,14 +1875,14 @@ static void networkThread(void)
 				(sizeof(kernelNetworkPacket) / sizeof(unsigned)))
 			{
 				// Try to get a lock on the stream
-				if (kernelLockGet(&(adapter->inputStreamLock)) < 0)
+				if (kernelLockGet(&adapter->inputStreamLock) < 0)
 					// Stop for this timeslice
 					break;
 
-				status = kernelNetworkPacketStreamRead(&(adapter->inputStream),
+				status = kernelNetworkPacketStreamRead(&adapter->inputStream,
 					&packet);
 
-				kernelLockRelease(&(adapter->inputStreamLock));
+				kernelLockRelease(&adapter->inputStreamLock);
 
 				if (status < 0)
 					// Eh.  Dunno.  Stop for this timeslice.
@@ -1918,14 +1913,14 @@ static void networkThread(void)
 				(sizeof(kernelNetworkPacket) / sizeof(unsigned)))
 			{
 				// Try to get a lock on the stream
-				if (kernelLockGet(&(adapter->outputStreamLock)) < 0)
+				if (kernelLockGet(&adapter->outputStreamLock) < 0)
 					// Stop for this timeslice
 					break;
 
-				status = kernelNetworkPacketStreamRead(&(adapter->outputStream),
+				status = kernelNetworkPacketStreamRead(&adapter->outputStream,
 					&packet);
 
-				kernelLockRelease(&(adapter->outputStreamLock));
+				kernelLockRelease(&adapter->outputStreamLock);
 
 				if (status < 0)
 					// Eh.  Dunno.  Stop for this timeslice.
@@ -2058,10 +2053,10 @@ int kernelNetworkInitialize(void)
 		if (!(adapter->device.flags & NETWORK_ADAPTERFLAG_INITIALIZED))
 		{
 			// Initialize the adapter's network packet input and output streams
-			status = kernelNetworkPacketStreamNew(&(adapter->inputStream));
+			status = kernelNetworkPacketStreamNew(&adapter->inputStream);
 			if (status < 0)
 				continue;
-			status = kernelNetworkPacketStreamNew(&(adapter->outputStream));
+			status = kernelNetworkPacketStreamNew(&adapter->outputStream);
 			if (status < 0)
 				continue;
 
@@ -2185,7 +2180,7 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 	if (mode & NETWORK_MODE_READ)
 	{
 		// Get an input stream
-		if (kernelStreamNew(&(connection->inputStream),
+		if (kernelStreamNew(&connection->inputStream,
 			NETWORK_DATASTREAM_LENGTH, 1) < 0)
 		{
 			kernelFree((void *) connection);
@@ -2199,7 +2194,7 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 		if (openTcpConnection(connection) < 0)
 		{
 			if (connection->inputStream.buffer)
-				kernelStreamDestroy(&(connection->inputStream));
+				kernelStreamDestroy(&connection->inputStream);
 			kernelFree((void *) connection);
 			return (connection = NULL);
 		}
@@ -2279,7 +2274,7 @@ int kernelNetworkClose(kernelNetworkConnection *connection)
 
 	// If there's an input stream, deallocate it
 	if (connection->inputStream.buffer)
-		kernelStreamDestroy(&(connection->inputStream));
+		kernelStreamDestroy(&connection->inputStream);
 
 	// Close the connection
 	return (connectionClose(connection));
@@ -2394,15 +2389,15 @@ int kernelNetworkRead(kernelNetworkConnection *connection,
 	bufferSize = min(connection->inputStream.count, bufferSize);
 
 	// Lock the input stream
-	status = kernelLockGet(&(connection->inputStreamLock));
+	status = kernelLockGet(&connection->inputStreamLock);
 	if (status < 0)
 		return (status);
 
 	// Read into the buffer
-	status = connection->inputStream.popN(&(connection->inputStream),
-		bufferSize, buffer);
+	status = connection->inputStream.popN(&connection->inputStream,	bufferSize,
+		buffer);
 
-	kernelLockRelease(&(connection->inputStreamLock));
+	kernelLockRelease(&connection->inputStreamLock);
 
 	// If this is a TCP connection and we have un-ACKed data, ACK it now.
 	if ((connection->filter.transProtocol == NETWORK_TRANSPROTOCOL_TCP) &&
@@ -2501,7 +2496,7 @@ int kernelNetworkPing(kernelNetworkConnection *connection, int sequenceNum,
 
 	// Do the checksum after everything else is set
 	pingPacket.icmpHeader.checksum =
-		processorSwap16(icmpChecksum(&(pingPacket.icmpHeader), packetSize));
+		processorSwap16(icmpChecksum(&pingPacket.icmpHeader, packetSize));
 
 	return (send(connection, (unsigned char *) &pingPacket, packetSize, 1, 1));
 }
@@ -2607,8 +2602,8 @@ void kernelNetworkIpDebug(unsigned char *buffer)
 		return;
 	}
 
-	srcAddr = (networkAddress *) &(ipHeader->srcAddress);
-	destAddr = (networkAddress *) &(ipHeader->destAddress);
+	srcAddr = (networkAddress *) &ipHeader->srcAddress;
+	destAddr = (networkAddress *) &ipHeader->destAddress;
 
 	kernelTextPrintLine("versionHeaderLen=%x, identification=%x, protocol=%d\n"
 		"source=%d.%d.%d.%d, dest=%d.%d.%d.%d",

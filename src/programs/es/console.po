@@ -1,12 +1,12 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: 2014-01-22 18:24-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,7 @@ msgstr ""
 msgid "Console Window"
 msgstr "Ventana de consola"
 
-#: console.c:100
+#: console.c:104
 #, c-format
 msgid ""
 "\n"
@@ -29,14 +29,14 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: console.c:116 console.c:121
+#: console.c:120 console.c:125
 msgid "Error"
 msgstr "Error"
 
-#: console.c:116
+#: console.c:120
 msgid "Cannot open more than one console window!"
 msgstr "No se puede abrir más de una ventana de consola!"
 
-#: console.c:121
+#: console.c:125
 msgid "Error opening the console window!"
 msgstr "Error al abrir ventana de consola!"

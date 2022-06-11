@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,6 +33,7 @@
 #define IMAGEFORMAT_BMP		1
 #define IMAGEFORMAT_ICO		2
 #define IMAGEFORMAT_JPG		3
+#define IMAGEFORMAT_PPM		4
 
 // Structures for manipulating generic images.
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: 2014-01-22 05:05-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: mkdir.c:55
+#: mkdir.c:60
 msgid "usage:\n"
 msgstr "Uso:\n"
 
-#: mkdir.c:56
+#: mkdir.c:61
 #, c-format
 msgid "%s <directory1> [directory2] [...]\n"
 msgstr "%s <Directorio1> [Directorio2] [...]\n"
+
+#: mkdir.c:117
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""

@@ -1,6 +1,6 @@
 //
 //	Visopsys
-//	Copyright (C) 1998-2015 J. Andrew McLaughlin
+//	Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //	This program is free software; you can redistribute it and/or modify it
 //	under the terms of the GNU General Public License as published by the Free
@@ -141,7 +141,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 			// Don't resize below reasonable minimums
 			if (tmpWindowWidth < windowVariables->window.minWidth)
+			{
 				newWindowWidth = windowVariables->window.minWidth;
+			}
 			else
 			{
 				newWindowX = tmpWindowX;
@@ -149,7 +151,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			}
 
 			if (tmpWindowHeight < windowVariables->window.minHeight)
+			{
 				newWindowHeight = windowVariables->window.minHeight;
+			}
 			else
 			{
 				newWindowY = tmpWindowY;
@@ -157,7 +161,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			}
 
 			// Draw an xor'ed outline
-			kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
+			kernelGraphicDrawRect(NULL, &((color){ 255, 255, 255 }),
 				draw_xor, newWindowX, newWindowY, newWindowWidth,
 				newWindowHeight, 1, 0);
 		}
@@ -169,7 +173,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->window->title);
 
 			// Erase the xor'ed outline
-			kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
+			kernelGraphicDrawRect(NULL, &((color){ 255, 255, 255 }),
 				draw_xor, newWindowX, newWindowY, newWindowWidth,
 				newWindowHeight, 1, 0);
 
@@ -194,7 +198,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		kernelWindowSetVisible(component->window, 0);
 
 		// Draw an xor'ed outline
-		kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
+		kernelGraphicDrawRect(NULL, &((color){ 255, 255, 255 }),
 			draw_xor, component->window->xCoord, component->window->yCoord,
 			component->window->buffer.width, component->window->buffer.height,
 			1, 0);
@@ -287,13 +291,13 @@ kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 	{
 		component->width = windowVariables->border.thickness;
 		component->height = window->buffer.height;
-		component->pointer = kernelMouseGetPointer("resizeh");
+		component->pointer = kernelMouseGetPointer(MOUSE_POINTER_RESIZEH);
 	}
 	else
 	{
 		component->width = window->buffer.width;
 		component->height = windowVariables->border.thickness;
-		component->pointer = kernelMouseGetPointer("resizev");
+		component->pointer = kernelMouseGetPointer(MOUSE_POINTER_RESIZEV);
 	}
 
 	component->minWidth = component->width;

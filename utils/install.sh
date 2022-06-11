@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  install.sh
 ##
@@ -71,6 +71,8 @@ MNTARGS=
 # If it is a regular device, format it
 if [ -b "$DEVICE" ] ; then
 	echo -n "Formatting...  "
+	# Try to make sure it's not mounted
+	umount -f $DEVICE > /dev/null 2>&1
 	# Format the disk.  Stop if the command fails.
 	/sbin/mkdosfs -n Visopsys -v $DEVICE > $MKDOSFSLOG 2>&1
 	RET=$?

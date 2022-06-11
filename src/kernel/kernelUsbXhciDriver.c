@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -92,7 +92,8 @@ static inline void debugHcsParams2(xhciData *xhci)
 		"  event ring segment table max=%d\n"
 		"  isochronous scheduling threshold=%d",
 		xhci->capRegs->hcsparams2,
-		((xhci->capRegs->hcsparams2 & XHCI_HCSP2_MAXSCRPBUFFS) >> 27),
+		(((xhci->capRegs->hcsparams2 & XHCI_HCSP2_MAXSCRPBUFFSHI) >> 16) |
+			((xhci->capRegs->hcsparams2 & XHCI_HCSP2_MAXSCRPBUFFSLO) >> 27)),
 		((xhci->capRegs->hcsparams2 & XHCI_HCSP2_SCRATCHPREST) >> 26),
 		((xhci->capRegs->hcsparams2 & XHCI_HCSP2_ERSTMAX) >> 4),
 		(xhci->capRegs->hcsparams2 & XHCI_HCSP2_ISOCSCHDTHRS));
@@ -599,9 +600,9 @@ static int getEvent(xhciData *xhci, int intrNum, xhciTrb *destTrb, int consume)
 	xhciTrbRing *eventRing = NULL;
 	xhciTrb *eventTrb = NULL;
 
-	regSet = &(xhci->rtRegs->intrReg[intrNum]);
+	regSet = &xhci->rtRegs->intrReg[intrNum];
 	eventRing = xhci->eventRings[intrNum];
-	eventTrb = &(eventRing->trbs[eventRing->nextTrb]);
+	eventTrb = &eventRing->trbs[eventRing->nextTrb];
 
 	if ((eventTrb->typeFlags & XHCI_TRBFLAG_CYCLE) == eventRing->cycleState)
 	{
@@ -625,7 +626,7 @@ static int getEvent(xhciData *xhci, int intrNum, xhciTrb *destTrb, int consume)
 
 			// Move to the next TRB
 			eventRing->nextTrb = ringNextTrb(eventRing);
-			if (eventRing->nextTrb == 0)
+			if (!eventRing->nextTrb)
 				eventRing->cycleState ^= 1;
 
 			// Update the controller's event ring dequeue TRB pointer to point
@@ -658,7 +659,7 @@ static int command(xhciData *xhci, xhciTrb *cmdTrb)
 		((cmdTrb->typeFlags & XHCI_TRBTYPE_MASK) >> 10),
 		debugTrbType2String(cmdTrb), xhci->commandRing->nextTrb);
 
-	nextTrb = &(xhci->commandRing->trbs[xhci->commandRing->nextTrb]);
+	nextTrb = &xhci->commandRing->trbs[xhci->commandRing->nextTrb];
 
 	kernelDebug(debug_usb, "XHCI use TRB with physical address=0x%08x",
 		trbPhysical(xhci->commandRing, nextTrb));
@@ -710,7 +711,7 @@ static int command(xhciData *xhci, xhciTrb *cmdTrb)
 
 	// Advance the nextTrb 'enqueue pointer'
 	xhci->commandRing->nextTrb = ringNextTrb(xhci->commandRing);
-	if (xhci->commandRing->nextTrb == 0)
+	if (!xhci->commandRing->nextTrb)
 	{
 		// Update the cycle bit of the link TRB
 		if (xhci->commandRing->cycleState)
@@ -1269,7 +1270,7 @@ static xhciTrb *queueIntrDesc(xhciData *xhci, xhciSlot *slot, int endpoint,
 
 	// Advance the nextTrb 'enqueue pointer'
 	transRing->nextTrb = ringNextTrb(transRing);
-	if (transRing->nextTrb == 0)
+	if (!transRing->nextTrb)
 	{
 		// Update the cycle bit of the link TRB
 		if (transRing->cycleState)
@@ -1395,7 +1396,7 @@ static int eventInterrupt(xhciData *xhci)
 	// Loop through the interrupters, to see which one(s) are interrupting
 	for (intrCount = 0; intrCount < xhci->numIntrs; intrCount ++)
 	{
-		regSet = &(xhci->rtRegs->intrReg[intrCount]);
+		regSet = &xhci->rtRegs->intrReg[intrCount];
 
 		if (!(regSet->intrMan & XHCI_IMAN_INTPENDING))
 			continue;
@@ -1476,14 +1477,16 @@ static int configDevSlot(xhciData *xhci, xhciSlot *slot, usbDevice *usbDev)
 
 	// Loop through the endpoints (not including default endpoint 0) and set
 	// up their endpoint contexts
-	for (count = 1; count < usbDev->numEndpoints; count ++)
+	for (count = 0; count < usbDev->numEndpoints; count ++)
 	{
 		// Get the endpoint descriptor
 		endpoint = usbDev->endpoint[count];
 
-		if (endpoint->number)
-			ctxtIndex = ((((endpoint->number & 0xF) * 2) - 1) +
-				(endpoint->number >> 7));
+		if (!endpoint->number)
+			continue;
+
+		ctxtIndex = ((((endpoint->number & 0xF) * 2) - 1) +
+			(endpoint->number >> 7));
 
 		kernelDebug(debug_usb, "XHCI configure endpoint 0x%02x, ctxtIndex=%d",
 			endpoint->number, ctxtIndex);
@@ -1957,6 +1960,7 @@ static int controlTransfer(usbController *controller, usbDevice *usbDev,
 	int status = 0;
 	xhciData *xhci = controller->data;
 	xhciSlot *slot = NULL;
+	int standard = 0;
 	unsigned maxPacketSize = 0;
 
 	kernelDebug(debug_usb, "XHCI control transfer to controller %d, device %d",
@@ -1969,9 +1973,13 @@ static int controlTransfer(usbController *controller, usbDevice *usbDev,
 		return (status = ERR_NOSUCHENTRY);
 	}
 
+	// Is it a USB standard request?
+	if ((trans->control.requestType & 0x70) == USB_DEVREQTYPE_STANDARD)
+		standard = 1;
+
 	// If this is a USB_SET_ADDRESS, we don't send it.  Instead, we tell the
 	// controller to put the device into the addressed state.
-	if (trans->control.request == USB_SET_ADDRESS)
+	if (standard && (trans->control.request == USB_SET_ADDRESS))
 	{
 		kernelDebug(debug_usb, "XHCI skip sending USB_SET_ADDRESS");
 		status = setDevAddress(xhci, slot, usbDev);
@@ -1982,7 +1990,7 @@ static int controlTransfer(usbController *controller, usbDevice *usbDev,
 
 	// If we are at the stage of configuring the device, we also need to tell
 	// the controller about it.
-	if (trans->control.request == USB_SET_CONFIGURATION)
+	if (standard && (trans->control.request == USB_SET_CONFIGURATION))
 	{
 		status = configDevSlot(xhci, slot, usbDev);
 		if (status < 0)
@@ -2009,7 +2017,7 @@ static int controlTransfer(usbController *controller, usbDevice *usbDev,
 
 	// If this was a 'get hub descriptor' control transfer, we need to spy
 	// on it to record a) the fact that it's a hub; b) the number of ports
-	if (trans->control.request == USB_GET_DESCRIPTOR)
+	if (standard && (trans->control.request == USB_GET_DESCRIPTOR))
 	{
 		if (((trans->control.value >> 8) == USB_DESCTYPE_HUB) ||
 			((trans->control.value >> 8) == USB_DESCTYPE_SSHUB))
@@ -2569,8 +2577,9 @@ static int processExtCaps(xhciData *xhci)
 static int allocScratchPadBuffers(xhciData *xhci, unsigned *scratchPadPhysical)
 {
 	int status = 0;
-	int numScratchPads = ((xhci->capRegs->hcsparams2 &
-		XHCI_HCSP2_MAXSCRPBUFFS) >> 27);
+	int numScratchPads = (((xhci->capRegs->hcsparams2 &
+			XHCI_HCSP2_MAXSCRPBUFFSHI) >> 16) |
+		((xhci->capRegs->hcsparams2 & XHCI_HCSP2_MAXSCRPBUFFSLO) >> 27));
 	kernelIoMemory ioMem;
 	unsigned long long *scratchPadBufferArray = NULL;
 	unsigned buffer = NULL;
@@ -3446,7 +3455,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 
 	// Map the physical memory space pointed to by the decoder.
 	status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
-		(void **) &(xhci->capRegs), memSpaceSize);
+		(void **) &xhci->capRegs, memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("Error mapping memory");

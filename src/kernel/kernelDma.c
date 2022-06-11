@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,7 +53,7 @@ int kernelDmaInitialize(kernelDevice *dev)
 
 	systemDma = dev;
 
-	if ((systemDma->driver == NULL) || (systemDma->driver->ops == NULL))
+	if (!systemDma->driver || !systemDma->driver->ops)
 	{
 		kernelError(kernel_error, "The DMA driver or ops are NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -73,11 +73,11 @@ int kernelDmaOpenChannel(int channelNumber, void *address, int count, int mode)
 
 	int status = 0;
 
-	if (systemDma == NULL)
+	if (!systemDma)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the driver's "open channel" routine has been initialized
-	if (ops->driverOpenChannel == NULL)
+	if (!ops->driverOpenChannel)
 	{
 		// Ooops.  Driver function is NULL.
 		kernelError(kernel_error, "Driver function is NULL");
@@ -97,11 +97,11 @@ int kernelDmaCloseChannel(int channelNumber)
 
 	int status = 0;
 
-	if (systemDma == NULL)
+	if (!systemDma)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the driver's "close channel" routine has been initialized
-	if (ops->driverCloseChannel == NULL)
+	if (!ops->driverCloseChannel)
 	{
 		// Ooops.  Driver function is NULL.
 		kernelError(kernel_error, "Driver function is NULL");
@@ -111,3 +111,4 @@ int kernelDmaCloseChannel(int channelNumber)
 	status = ops->driverCloseChannel(channelNumber);
 	return (status);
 }
+

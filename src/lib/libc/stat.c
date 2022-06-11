@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -59,7 +59,16 @@ int stat(const char *fileName, struct stat *buf)
 
 	buf->st_dev = theDisk.deviceNumber;
 	buf->st_ino = 1;      // bogus
-	buf->st_mode = 0;     // bogus
+
+	// Set the file type, if known
+	buf->st_mode = 0;
+	if (theFile.type == fileT)
+		buf->st_mode |= S_IFREG;
+	if (theFile.type == dirT)
+		buf->st_mode |= S_IFDIR;
+	if (theFile.type == linkT)
+		buf->st_mode |= S_IFLNK;
+
 	buf->st_nlink = 1;    // bogus
 	buf->st_uid = 1;      // bogus
 	buf->st_gid = 1;      // bogus

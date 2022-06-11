@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,11 +23,13 @@
 // filesystem (commonly found on CD-ROM disks)
 
 #include "kernelFilesystemIso.h"
+#include "kernelDisk.h"
+#include "kernelDriver.h"
+#include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelFile.h"
 #include "kernelMalloc.h"
 #include "kernelSysTimer.h"
-#include "kernelError.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -44,7 +46,7 @@ static int readPrimaryVolDesc(isoInternalData *isoData)
 	// read, and therefore the information for the last session is available.
 	status = kernelDiskReadSectors((char *) isoData->disk->name,
 		ISO_PRIMARY_VOLDESC_SECTOR, 1,
-		(isoPrimaryDescriptor *) &(isoData->volDesc));
+		(isoPrimaryDescriptor *) &isoData->volDesc);
 
 	if (status < 0)
 		return (status);
@@ -57,12 +59,12 @@ static int readPrimaryVolDesc(isoInternalData *isoData)
 	}
 
 	// Initialize the volume descriptor we were given
-	memset((void *) &(isoData->volDesc), 0, sizeof(isoPrimaryDescriptor));
+	memset((void *) &isoData->volDesc, 0, sizeof(isoPrimaryDescriptor));
 
 	// Read the primary volume descriptor
 	status = kernelDiskReadSectors((char *) isoData->disk->name,
 		(physicalDisk->lastSession + ISO_PRIMARY_VOLDESC_SECTOR), 1,
-		(isoPrimaryDescriptor *) &(isoData->volDesc));
+		(isoPrimaryDescriptor *) &isoData->volDesc);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Unable to read the ISO primary volume "
@@ -111,7 +113,7 @@ static void readDirRecord(isoDirectoryRecord *record,
 	int count;
 
 	// Copy the static bits of the directory record
-	memcpy((void *) &(fileData->dirRec), record, record->recordLength);
+	memcpy((void *) &fileData->dirRec, record, record->recordLength);
 
 	// Copy the name into the file entry
 	memcpy((char *) fileEntry->name, (char *) fileData->dirRec.name,
@@ -134,15 +136,15 @@ static void readDirRecord(isoDirectoryRecord *record,
 	fileEntry->type = fileT;
 
 	if (fileData->dirRec.flags & ISO_FLAGMASK_DIRECTORY)
-	fileEntry->type = dirT;
+		fileEntry->type = dirT;
 
 	if (fileData->dirRec.flags & ISO_FLAGMASK_ASSOCIATED)
-	fileEntry->type = linkT;
+		fileEntry->type = linkT;
 
 	// Get the date and time
 	makeSystemTime((unsigned char *) fileData->dirRec.date,
-		(unsigned *) &(fileEntry->creationDate),
-		(unsigned *) &(fileEntry->creationTime));
+		(unsigned *) &fileEntry->creationDate,
+		(unsigned *) &fileEntry->creationTime);
 	fileEntry->accessedTime = fileEntry->creationTime;
 	fileEntry->accessedDate = fileEntry->creationDate;
 	fileEntry->modifiedTime = fileEntry->creationTime;
@@ -193,7 +195,7 @@ static isoInternalData *getIsoData(kernelDisk *theDisk)
 	}
 
 	// Get the root directory record
-	readDirRecord((isoDirectoryRecord *) &(isoData->volDesc.rootDirectoryRecord),
+	readDirRecord((isoDirectoryRecord *) &isoData->volDesc.rootDirectoryRecord,
 		theDisk->filesystem.filesystemRoot, isoData->volDesc.blockSize);
 
 	// Attach our new FS data to the filesystem structure
@@ -300,7 +302,9 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 				continue;
 			}
 			else
+			{
 				break;
+			}
 		}
 
 		fileEntry = kernelFileNewEntry(dirEntry->disk);
@@ -323,7 +327,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 				kernelError(kernel_warn, "Unknown directory entry type in %s",
 					dirEntry->name);
 			kernelFileReleaseEntry(fileEntry);
-			ptr += (unsigned) ((unsigned char *) ptr)[0];
+			ptr += (unsigned)((unsigned char *) ptr)[0];
 			continue;
 		}
 
@@ -337,13 +341,21 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 			return (status);
 		}
 
-		ptr += (unsigned) ((unsigned char *) ptr)[0];
+		ptr += (unsigned)((unsigned char *) ptr)[0];
 	}
 
 	kernelFree(buffer);
 	return (status = 0);
 }
 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard filesystem driver functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 static int detect(kernelDisk *theDisk)
 {
@@ -628,7 +640,7 @@ static int readDir(kernelFileEntry *directory)
 }
 
 
-static kernelFilesystemDriver defaultIsoDriver = {
+static kernelFilesystemDriver fsDriver = {
 	FSNAME_ISO, // Driver name
 	detect,
 	NULL,	// driverFormat
@@ -669,6 +681,6 @@ static kernelFilesystemDriver defaultIsoDriver = {
 int kernelFilesystemIsoInitialize(void)
 {
 	// Register our driver
-	return (kernelSoftwareDriverRegister(isoDriver, &defaultIsoDriver));
+	return (kernelSoftwareDriverRegister(isoDriver, &fsDriver));
 }
 

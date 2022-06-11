@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -52,16 +52,16 @@ loaderGetCursorAddress:
 
 	.textMode:
 	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Eh	;; MSB of cursor address
-	out DX, AL	;; Select the correct register
+	mov AL, 0Eh		;; MSB of cursor address
+	out DX, AL		;; Select the correct register
 	mov DX, 03D5h	;; The data port
 	in AL, DX
 
 	shl AX, 8
 
 	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Fh	;; LSB of cursor address
-	out DX, AL	;; Select the correct register
+	mov AL, 0Fh		;; LSB of cursor address
+	out DX, AL		;; Select the correct register
 	mov DX, 03D5h	;; The data port
 	in AL, DX
 
@@ -86,15 +86,15 @@ loaderSetCursorAddress:
 	mov CX, AX
 
 	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Fh	;; LSB of cursor address
-	out DX, AL	;; Select the correct register
+	mov AL, 0Fh		;; LSB of cursor address
+	out DX, AL		;; Select the correct register
 	mov DX, 03D5h	;; The data port
 	mov AL, CL
 	out DX, AL
 
 	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Eh	;; MSB of cursor address
-	out DX, AL	;; Select the correct register
+	mov AL, 0Eh		;; MSB of cursor address
+	out DX, AL		;; Select the correct register
 	mov DX, 03D5h	;; The data port
 	mov AL, CH
 	out DX, AL
@@ -176,7 +176,6 @@ loaderPrint:
 
 
 loaderPrintNewline:
-
 	pusha
 
 	;; Get the current cursor position
@@ -193,8 +192,7 @@ loaderPrintNewline:
 	call loaderGetCursorAddress
 
 	.noScroll:
-	;; Now we must round the offset up to the next multiple of
-	;; COLUMNS
+	;; Now we must round the offset up to the next multiple of COLUMNS
 	xor BX, BX
 	.addMore:
 	add BX, COLUMNS

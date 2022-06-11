@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,35 +46,35 @@ typedef struct {
 // driver
 typedef struct _kernelFilesystemDriver {
 	char *driverTypeName;
-	int (*driverDetect) (kernelDisk *);
-	int (*driverFormat) (kernelDisk *, const char *, const char *, int,
+	int (*driverDetect)(kernelDisk *);
+	int (*driverFormat)(kernelDisk *, const char *, const char *, int,
 		progress *);
-	int (*driverClobber) (kernelDisk *);
-	int (*driverCheck) (kernelDisk *, int, int, progress *);
-	int (*driverDefragment) (kernelDisk *, progress *);
-	int (*driverStat) (kernelDisk *, kernelFilesystemStats *);
-	uquad_t (*driverGetFreeBytes) (kernelDisk *);
-	int (*driverResizeConstraints) (kernelDisk *, uquad_t *, uquad_t *,
+	int (*driverClobber)(kernelDisk *);
+	int (*driverCheck)(kernelDisk *, int, int, progress *);
+	int (*driverDefragment)(kernelDisk *, progress *);
+	int (*driverStat)(kernelDisk *, kernelFilesystemStats *);
+	uquad_t (*driverGetFreeBytes)(kernelDisk *);
+	int (*driverResizeConstraints)(kernelDisk *, uquad_t *, uquad_t *,
 		progress *);
-	int (*driverResize) (kernelDisk *, uquad_t, progress *);
-	int (*driverMount) (kernelDisk *);
-	int (*driverUnmount) (kernelDisk *);
-	int (*driverNewEntry) (kernelFileEntry *);
-	int (*driverInactiveEntry) (kernelFileEntry *);
-	int (*driverResolveLink) (kernelFileEntry *);
-	int (*driverReadFile) (kernelFileEntry *, unsigned, unsigned,
+	int (*driverResize)(kernelDisk *, uquad_t, progress *);
+	int (*driverMount)(kernelDisk *);
+	int (*driverUnmount)(kernelDisk *);
+	int (*driverNewEntry)(kernelFileEntry *);
+	int (*driverInactiveEntry)(kernelFileEntry *);
+	int (*driverResolveLink)(kernelFileEntry *);
+	int (*driverReadFile)(kernelFileEntry *, unsigned, unsigned,
 		unsigned char *);
-	int (*driverWriteFile) (kernelFileEntry *, unsigned, unsigned,
+	int (*driverWriteFile)(kernelFileEntry *, unsigned, unsigned,
 		unsigned char *);
-	int (*driverCreateFile) (kernelFileEntry *);
-	int (*driverDeleteFile) (kernelFileEntry *);
-	int (*driverFileMoved) (kernelFileEntry *);
-	int (*driverReadDir) (kernelFileEntry *);
-	int (*driverWriteDir) (kernelFileEntry *);
-	int (*driverMakeDir) (kernelFileEntry *);
-	int (*driverRemoveDir) (kernelFileEntry *);
-	int (*driverTimestamp) (kernelFileEntry *);
-	int (*driverSetBlocks) (kernelFileEntry *, unsigned);
+	int (*driverCreateFile)(kernelFileEntry *);
+	int (*driverDeleteFile)(kernelFileEntry *);
+	int (*driverFileMoved)(kernelFileEntry *);
+	int (*driverReadDir)(kernelFileEntry *);
+	int (*driverWriteDir)(kernelFileEntry *);
+	int (*driverMakeDir)(kernelFileEntry *);
+	int (*driverRemoveDir)(kernelFileEntry *);
+	int (*driverTimestamp)(kernelFileEntry *);
+	int (*driverSetBlocks)(kernelFileEntry *, unsigned);
 
 } kernelFilesystemDriver;
 

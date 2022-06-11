@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -121,7 +121,7 @@ static int draw(kernelWindowComponent *component)
 
 	// Clear the background
 	kernelGraphicDrawRect(component->buffer,
-		(color *) &(component->params.background), draw_normal,
+		(color *) &component->params.background, draw_normal,
 		component->xCoord, component->yCoord, component->width,
 		component->height, 1, 1);
 
@@ -129,12 +129,12 @@ static int draw(kernelWindowComponent *component)
 	kernelGraphicDrawGradientBorder(component->buffer, component->xCoord,
 		component->yCoord, component->width, component->height,
 		windowVariables->border.thickness,
-		(color *) &(component->params.background),
+		(color *) &component->params.background,
 		windowVariables->border.shadingIncrement, draw_reverse, border_all);
 
 	// Draw the slider.  First the shading
 	kernelGraphicConvexShade(component->buffer,
-		(color *) &(component->params.foreground), sliderDrawX, sliderDrawY,
+		(color *) &component->params.foreground, sliderDrawX, sliderDrawY,
 		scrollBar->sliderWidth, scrollBar->sliderHeight,
 		((scrollBar->type == scrollbar_horizontal)?
 			shade_fromtop : shade_fromleft));
@@ -143,7 +143,7 @@ static int draw(kernelWindowComponent *component)
 	kernelGraphicDrawGradientBorder(component->buffer, sliderDrawX, sliderDrawY,
 		scrollBar->sliderWidth,	scrollBar->sliderHeight,
 		windowVariables->border.thickness,
-		(color *) &(component->params.background),
+		(color *) &component->params.background,
 		windowVariables->border.shadingIncrement, draw_normal, border_all);
 
 	return (0);
@@ -163,7 +163,7 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	memcpy(buffer, (void *) &(scrollBar->state),
+	memcpy(buffer, (void *) &scrollBar->state,
 		max(size, (int) sizeof(scrollBarState)));
 
 	return (0);
@@ -176,7 +176,7 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	memcpy((void *) &(scrollBar->state), buffer,
+	memcpy((void *) &scrollBar->state, buffer,
 		max(size, (int) sizeof(scrollBarState)));
 
 	calcSliderSizePos(scrollBar, component->width, component->height);
@@ -378,13 +378,15 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 	component->destroy = &destroy;
 
 	// If default colors were requested, override the standard foreground color
-	// with the one we prefer (blueish)
+	// with a slightly lighter one
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
 	{
-		component->params.foreground.red = 0x84;
-		component->params.foreground.green = 0x84;
-		component->params.foreground.blue = 0xF8;
-		component->params.flags |= WINDOW_COMPFLAG_CUSTOMFOREGROUND;
+		component->params.foreground.red = min(0xFF,
+			(((int) component->params.foreground.red * 4) / 3));
+		component->params.foreground.green = min(0xFF,
+			(((int) component->params.foreground.green * 4) / 3));
+		component->params.foreground.blue = min(0xFF,
+			(((int) component->params.foreground.blue * 4) / 3));
 	}
 
 	scrollBar = kernelMalloc(sizeof(kernelWindowScrollBar));

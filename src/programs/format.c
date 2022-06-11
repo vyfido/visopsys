@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -258,7 +258,7 @@ static int chooseDisk(void)
 		for (count = 0; count < numberDisks; count ++)
 			diskStrings[count] = diskListParams[count].text;
 		diskNumber = vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks,
-			0 /* selected */);
+			10 /* max rows */, 0 /* selected */);
 	}
 
 	return (diskNumber);
@@ -285,7 +285,7 @@ static int mountedCheck(disk *theDisk)
 	{
 		choice =
 			windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
-				(char *[]) { _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
+				(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
 	}
 	else
 	{
@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
 
 	if (!graphics && !silentMode)
 		// Print a message
-		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2015 J. "
+		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2016 J. "
 			"Andrew McLaughlin\n"));
 
 	if (argc > 1)

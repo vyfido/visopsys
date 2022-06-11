@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -42,8 +42,8 @@
 // Functions
 void abort(void) __attribute__((noreturn));
 int abs(int);
-#define atoi(string) ((int) _str2num(string, 10, 1))
-#define atoll(string) ((long long) _str2num(string, 10, 1))
+#define atoi(string) ((int) _str2num(string, 10, 1, NULL))
+#define atoll(string) ((long long) _str2num(string, 10, 1, NULL))
 void *_calloc(size_t, size_t, const char *);
 #define calloc(num, size) _calloc(num, size, __FUNCTION__)
 void exit(int) __attribute__((noreturn));
@@ -73,8 +73,8 @@ int wctomb(char *, wchar_t);
 
 // These are unofficial, Andy-special extensions of the atoi() and atoll()
 // paradigm.
-#define atou(string) ((unsigned) _str2num(string, 10, 0))
-#define atoull(string) _str2num(string, 10, 0)
+#define atou(string) ((unsigned) _str2num(string, 10, 0, NULL))
+#define atoull(string) _str2num(string, 10, 0, NULL)
 #define dtoa(num, string, round) _dbl2str(num, string, round)
 #define ftoa(num, string) _flt2str(num, string, round)
 #define itoa(num, string) _num2str(num, string, 10, 1)
@@ -83,8 +83,8 @@ int wctomb(char *, wchar_t);
 #define lltoa(num, string) _lnum2str(num, string, 10, 1)
 #define lltoux(num, string) _lnum2str(num, string, 16, 0)
 #define lltox(num, string) _lnum2str(num, string, 16, 1)
-#define xtoi(string) ((int) _str2num(string, 16, 1))
-#define xtoll(string) ((long long) _str2num(string, 16, 1))
+#define xtoi(string) ((int) _str2num(string, 16, 1, NULL))
+#define xtoll(string) ((long long) _str2num(string, 16, 1, NULL))
 #define ulltoa(num, string) _lnum2str(num, string, 10, 0)
 #define utoa(num, string) _num2str(num, string, 10, 0)
 

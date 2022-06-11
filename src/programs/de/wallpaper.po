@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: wallpaper.c:124
+#: wallpaper.c:147
 #, c-format
 msgid ""
 "\n"
@@ -26,18 +26,18 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: wallpaper.c:139
+#: wallpaper.c:165
 msgid "Enter filename"
 msgstr "Dateiname eingeben"
 
-#: wallpaper.c:140
+#: wallpaper.c:166
 msgid "Please choose the background image:"
 msgstr "Bitte wählen Sie das Hintergrundbild aus:"
 
-#: wallpaper.c:147
+#: wallpaper.c:173
 msgid "No filename specified\n"
 msgstr "Es wurde kein Dateiname festgelegt\n"
 
-#: wallpaper.c:161
+#: wallpaper.c:187
 msgid "File not found\n"
 msgstr "Die Datei wurde nicht gefunden\n"

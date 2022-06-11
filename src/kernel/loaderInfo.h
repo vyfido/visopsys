@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,6 +56,7 @@ typedef struct {
 	int xRes;
 	int yRes;
 	int bitsPerPixel;
+	int scanLineBytes;
 	int numberModes;
 	videoMode supportedModes[MAXVIDEOMODES];
 
@@ -111,3 +112,4 @@ typedef struct {
 
 #define _LOADERINFO_H
 #endif
+

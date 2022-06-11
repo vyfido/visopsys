@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -51,7 +51,7 @@ int ftruncate(int fd, off_t length)
 	}
 
 	// Let the kernel do the rest of the work, baby.
-	status = fileSetSize(&(theStream->f), length);
+	status = fileSetSize(&theStream->f, length);
 	if (status < 0)
 	{
 		errno = status;

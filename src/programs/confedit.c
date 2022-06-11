@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -365,15 +365,14 @@ static void quit(void)
 
 	if (changesPending && !readOnly)
 	{
-		selected =
-			windowNewChoiceDialog(window, _("Unsaved changes"),
-				_("Quit without saving changes?"),
-				(char *[]) { _("Save"), _("Quit"), _("Cancel") }, 3, 0);
+		selected = windowNewChoiceDialog(window, _("Unsaved changes"),
+			_("Quit without saving changes?"),
+			(char *[]){ _("Save"), _("Quit"), _("Cancel") }, 3, 0);
 
 		if ((selected < 0) || (selected == 2))
 			return;
 
-		else if (selected == 0)
+		else if (!selected)
 			writeConfigFile();
 	}
 
@@ -412,6 +411,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("confedit");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh all the menu contents
 	refreshMenuContents();
@@ -542,9 +545,7 @@ static void constructWindow(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
-		&(params.font), 0);
+	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10, NULL);
 	listList = windowNewList(window, windowlist_textonly,
 		min(10, list.numVariables), 1, 0, listItemParams, list.numVariables,
 		&params);
@@ -622,7 +623,8 @@ int main(int argc, char *argv[])
 		// Start in the config dir by default
 		status = windowNewFileDialog(NULL, _("Enter filename"),
 			_("Please enter a configuration file to edit:"),
-			PATH_SYSTEM_CONFIG, fileName, MAX_PATH_NAME_LENGTH, 0);
+			PATH_SYSTEM_CONFIG, fileName, MAX_PATH_NAME_LENGTH, fileT,
+			0 /* no thumbnails */);
 		if (status != 1)
 		{
 			if (status)

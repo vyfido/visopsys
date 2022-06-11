@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -63,9 +63,10 @@ char *strncat(char *destString, const char *sourceString, size_t maxLength)
 			endFlag = 1;
 			sourceChar = (char) NULL;
 		}
-
 		else
+		{
 			sourceChar = sourceString[count2];
+		}
 
 		destString[count1] = sourceChar;
 		count1++; count2++;

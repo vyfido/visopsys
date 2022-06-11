@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -296,6 +296,94 @@ static int detect(const disk *theDisk)
 }
 
 
+static int create(const disk *theDisk)
+{
+	// Creates a GPT disk label.
+
+	int status = 0;
+	gptHeader header;
+	gptEntry *entries = NULL;
+	msdosMbr *dosMbr = NULL;
+
+	// Clear the header
+	memset(&header, 0, sizeof(gptHeader));
+
+	// Set up the header
+	memcpy(header.signature, GPT_SIG, strlen(GPT_SIG));
+	header.revision = 0x00010000;
+	header.headerBytes = GPT_HEADERBYTES;
+	header.myLBA = 1;							// After guard MBR
+	header.altLBA = (theDisk->numSectors - 1);	// Last sector
+	header.partEntriesLBA = (header.myLBA + 1);	// After GPT header
+	header.numPartEntries = 128;				// Arbitrary
+	header.partEntryBytes = sizeof(gptEntry);
+	header.firstUsableLBA = (header.partEntriesLBA +
+		ENTRYSECTORS(theDisk, &header));
+	header.lastUsableLBA = ((header.altLBA - 1) -
+		ENTRYSECTORS(theDisk, &header));
+	guidGenerate(&header.diskGUID);
+
+	// Allocate an empty array of entries
+	entries = calloc(header.numPartEntries, sizeof(gptEntry));
+	if (!entries)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
+
+	// Write the entries
+	status = writeEntries(theDisk, &header, entries);
+	if (status < 0)
+		goto out;
+
+	// Write the header
+	status = writeHeader(theDisk, &header);
+	if (status < 0)
+		goto out;
+
+	// Write a protective MBR table with a single entry
+	dosMbr = malloc(theDisk->sectorSize);
+	if (!dosMbr)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
+
+	// Read the existing MBR sector
+	status = diskReadSectors(theDisk->name, 0, 1, dosMbr);
+	if (status < 0)
+		goto out;
+
+	// Clear the partition table
+	memset(&dosMbr->partTable, 0, sizeof(msdosTable));
+
+	// Create a protective partition
+	dosMbr->partTable.entries[0].driveActive = 0x80;
+	dosMbr->partTable.entries[0].startCylSect = (header.myLBA + 1);
+	dosMbr->partTable.entries[0].tag = MSDOSTAG_EFI_GPT_PROT;
+	dosMbr->partTable.entries[0].endHead =
+		dosMbr->partTable.entries[0].endCylSect =
+			dosMbr->partTable.entries[0].endCyl = 0xFF;
+	dosMbr->partTable.entries[0].startLogical = header.myLBA;
+	dosMbr->partTable.entries[0].sizeLogical = (theDisk->numSectors - 1);
+	dosMbr->bootSig = MSDOS_BOOT_SIGNATURE;
+
+	// Write the protective MBR sector
+	status = diskWriteSectors(theDisk->name, 0, 1, dosMbr);
+	if (status < 0)
+		goto out;
+
+	status = 0;
+
+out:
+	if (dosMbr)
+		free(dosMbr);
+	if (entries)
+		free(entries);
+	return (status);
+}
+
+
 static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 {
 	// Read the partition table.
@@ -332,27 +420,9 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 			slices[*numSlices].tag = 1;
 
 			// The logical (LBA) start sector and number of sectors.
-			slices[*numSlices].startLogical = entries[count].startingLBA;
-			slices[*numSlices].sizeLogical =
+			slices[*numSlices].startSector = entries[count].startingLBA;
+			slices[*numSlices].numSectors =
 				((entries[count].endingLBA - entries[count].startingLBA) + 1);
-
-			// Calculate some (fictitious) partition geometry.
-			slices[*numSlices].geom.startCylinder =
-				(entries[count].startingLBA / CYLSECTS(theDisk));
-			slices[*numSlices].geom.startHead =
-				((entries[count].startingLBA % CYLSECTS(theDisk)) /
-					theDisk->sectorsPerCylinder);
-			slices[*numSlices].geom.startSector =
-				(((entries[count].startingLBA % CYLSECTS(theDisk)) %
-					theDisk->sectorsPerCylinder) + 1);
-			slices[*numSlices].geom.endCylinder =
-				(entries[count].endingLBA / CYLSECTS(theDisk));
-			slices[*numSlices].geom.endHead =
-				((entries[count].endingLBA % CYLSECTS(theDisk)) /
-					theDisk->sectorsPerCylinder);
-			slices[*numSlices].geom.endSector =
-				(((entries[count].endingLBA % CYLSECTS(theDisk)) %
-					theDisk->sectorsPerCylinder) + 1);
 
 			// The partition type GUID.
 			memcpy(&slices[*numSlices].typeGuid, &entries[count].typeGuid,
@@ -418,9 +488,9 @@ static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 				sizeof(guid));
 
 			// The logical (LBA) start sector and end sectors.
-			entries[numEntries].startingLBA = slices[count].startLogical;
-			entries[numEntries].endingLBA =
-				(slices[count].startLogical + slices[count].sizeLogical - 1);
+			entries[numEntries].startingLBA = slices[count].startSector;
+			entries[numEntries].endingLBA = (slices[count].startSector +
+				slices[count].numSectors - 1);
 
 			// The GPT attributes
 			entries[numEntries].attributes = slices[count].attributes;
@@ -542,6 +612,7 @@ diskLabel gptLabel = {
 
 	// Functions
 	&detect,
+	&create,
 	&readTable,
 	&writeTable,
 	&getSliceDesc,

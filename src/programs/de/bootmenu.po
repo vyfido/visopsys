@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,10 +25,10 @@ msgstr "Installationsprogramm im Boot-Menü"
 #: bootmenu.c:67
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2015 J. Andrew McLaughlin"
+"Copyright (C) 1998-2016 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Installationsprogramm für das Boot-Menü\n"
-"Copyright (C) 1998-2015 J. Andrew McLaughlin"
+"Copyright (C) 1998-2016 J. Andrew McLaughlin"
 
 #: bootmenu.c:69
 msgid ""
@@ -147,44 +147,44 @@ msgstr "ja"
 msgid "no"
 msgstr "nein"
 
-#: bootmenu.c:748
+#: bootmenu.c:700
 msgid "Can't write boot menu"
 msgstr "Boot-Menü konnte nicht geschrieben werden"
 
-#: bootmenu.c:760
+#: bootmenu.c:712
 #, c-format
 msgid "Can't write MBR %s to %s"
 msgstr "MBR %s konnte nicht auf %s geschrieben werden"
 
-#: bootmenu.c:801
+#: bootmenu.c:753
 msgid "Permission Denied"
 msgstr "Zugriff verweigert"
 
-#: bootmenu.c:812
+#: bootmenu.c:764
 #, c-format
 msgid "Can't get disk %s"
 msgstr "Disk %s wurde nicht gefunden"
 
-#: bootmenu.c:821
+#: bootmenu.c:773
 #, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr "Disk %s ist keine physikalisch vorhandene Festplatte"
 
-#: bootmenu.c:829
+#: bootmenu.c:781
 msgid "Can't get the list of logical disks"
 msgstr "Es konnte keine Liste von Disks gefunden werden"
 
-#: bootmenu.c:884
+#: bootmenu.c:836
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr "\"%s\" [Dateisystem: %s]"
 
-#: bootmenu.c:909
+#: bootmenu.c:861
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr ""
 "Auf der Disk existieren keine nacheinander ladefähigen Betriebssysteme."
 
-#: bootmenu.c:953
+#: bootmenu.c:905
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
@@ -195,10 +195,10 @@ msgstr ""
 "   \"e\" zum bearbeiten, \"*\" für den Standard\n"
 "   \"d\" zum löschen, \"Enter\" zum annehmen, \"q\" zum abbrechen]"
 
-#: bootmenu.c:1020
+#: bootmenu.c:972
 msgid "Can't write boot menu or MBR"
 msgstr "Boot-Menü oder MBR konnte nicht geschrieben werden"
 
-#: bootmenu.c:1028
+#: bootmenu.c:980
 msgid "Done"
 msgstr "Fertig"

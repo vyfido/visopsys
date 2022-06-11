@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -97,7 +97,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 	char option = '\0';
 	int count;
 
-	if (optind == 0)
+	if (!optind)
 		// We don't want argv[0]
 		optind += 1;
 
@@ -129,7 +129,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 		}
 
 		// Skip the '-'
-		if (nextchar == 0)
+		if (!nextchar)
 			nextchar += 1;
 
 		// Looks like we have an argument.  What is it then?

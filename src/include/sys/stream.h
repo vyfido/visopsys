@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,14 +43,14 @@ typedef volatile struct _stream {
 	lock lock;
 
 	// Stream functions.  These are not for calling from user space.
-	int (*clear) (volatile struct _stream *);
-	int (*intercept) (volatile struct _stream *, ...);
-	int (*append) (volatile struct _stream *, ...);
-	int (*appendN) (volatile struct _stream *, unsigned, ...);
-	int (*push) (volatile struct _stream *, ...);
-	int (*pushN) (volatile struct _stream *, unsigned, ...);
-	int (*pop) (volatile struct _stream *, ...);
-	int (*popN) (volatile struct _stream *, unsigned, ...);
+	int (*clear)(volatile struct _stream *);
+	int (*intercept)(volatile struct _stream *, ...);
+	int (*append)(volatile struct _stream *, ...);
+	int (*appendN)(volatile struct _stream *, unsigned, ...);
+	int (*push)(volatile struct _stream *, ...);
+	int (*pushN)(volatile struct _stream *, unsigned, ...);
+	int (*pop)(volatile struct _stream *, ...);
+	int (*popN)(volatile struct _stream *, unsigned, ...);
 
 } stream;
 

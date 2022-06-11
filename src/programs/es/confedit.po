@@ -1,12 +1,12 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: 2014-01-22 18:30-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,11 +24,11 @@ msgstr "Editor de configuración"
 msgid "File"
 msgstr "Archivo"
 
-#: confedit.c:66 confedit.c:371
+#: confedit.c:66 confedit.c:370
 msgid "Save"
 msgstr "Guardar"
 
-#: confedit.c:67 confedit.c:371
+#: confedit.c:67 confedit.c:370
 msgid "Quit"
 msgstr "Salir"
 
@@ -78,19 +78,19 @@ msgstr "Valor:"
 msgid "OK"
 msgstr "OK"
 
-#: confedit.c:279 confedit.c:371
+#: confedit.c:279 confedit.c:370
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: confedit.c:369
+#: confedit.c:368
 msgid "Unsaved changes"
 msgstr "Cambios no guardados"
 
-#: confedit.c:370
+#: confedit.c:369
 msgid "Quit without saving changes?"
 msgstr "Salir sin guardar?"
 
-#: confedit.c:611
+#: confedit.c:612
 #, c-format
 msgid ""
 "\n"
@@ -99,15 +99,15 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: confedit.c:623
+#: confedit.c:624
 msgid "Enter filename"
 msgstr "Ingresar nombre del archivo"
 
-#: confedit.c:624
+#: confedit.c:625
 msgid "Please enter a configuration file to edit:"
 msgstr "Por favor, ingrese un archivo de configuración para editar:"
 
-#: confedit.c:646
+#: confedit.c:648
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr "Error %d al crear un nuevo archivo de configuración."

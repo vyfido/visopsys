@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -80,13 +80,13 @@ char *strerror(int error)
 	// Returns the appropriate error message corresponding to the error
 	// number that we were passed.
 
-    int count;
+	int count;
 
-    for (count = 0; errorStringTable[count].string != NULL; count ++)
+	for (count = 0; errorStringTable[count].string; count ++)
 		if (errorStringTable[count].code == error)
 			return (errorStringTable[count].string);
 
-    // Not found.  Don't change errno.
-    return (NULL);
+	// Not found.  Don't change errno.
+	return (NULL);
 }
 

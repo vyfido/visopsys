@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -111,7 +111,7 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 	process *parent = NULL;
 	int count;
 
-	if (numProcesses == 0)
+	if (!numProcesses)
 		// No parent to sort children for.
 		return;
 
@@ -333,10 +333,9 @@ static void runProgram(void)
 	char *argv[64];
 	int count;
 
-	status =
-	windowNewFileDialog(NULL, _("Enter command"),
+	status = windowNewFileDialog(NULL, _("Enter command"),
 		_("Please enter a command to run:"), PATH_PROGRAMS, commandLine,
-		MAX_PATH_NAME_LENGTH, 0);
+		MAX_PATH_NAME_LENGTH, fileT, 0 /* no thumbnails */);
 	if (status != 1)
 		goto out;
 
@@ -448,6 +447,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("progman");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the 'disk performance' label
 	windowComponentSetData(diskPerfLabel, DISKPERF_STRING,
 		strlen(DISKPERF_STRING), 1 /* redraw */);
@@ -533,6 +536,7 @@ static void constructWindow(void)
 	params.padTop = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
+	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10, NULL);
 
 	memoryBlocksLabel = windowNewTextLabel(window, USEDBLOCKS_STRING, &params);
 
@@ -561,7 +565,8 @@ static void constructWindow(void)
 	params.gridY += 2;
 	params.gridWidth = 2;
 	params.padBottom = 0;
-	fontGetDefault(&(params.font));
+	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 8, NULL);
+
 	// Create the label of column headers for the list below
 	windowNewTextLabel(window, _("Process                   "
 		"PID PPID UID Pri Priv CPU% STATE   "), &params);

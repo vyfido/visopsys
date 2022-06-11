@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -67,8 +67,9 @@ static inline void updateScrollBar(kernelWindowTextArea *textArea)
 					(textArea->area->rows + textArea->area->scrollBackLines));
 		state.positionPercent = 100;
 		if (textArea->area->scrollBackLines)
-			state.positionPercent -= ((textArea->area->scrolledBackLines * 100) /
-				textArea->area->scrollBackLines);
+			state.positionPercent -=
+				((textArea->area->scrolledBackLines * 100) /
+					textArea->area->scrollBackLines);
 		textArea->scrollBar->setData(textArea->scrollBar, &state,
 			sizeof(scrollBarState));
 	}
@@ -349,7 +350,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			// Write a 'cursor moved' event to the component event stream
 			memset(&cursorEvent, 0, sizeof(windowEvent));
 			cursorEvent.type = EVENT_CURSOR_MOVE;
-			kernelWindowEventStreamWrite(&(component->events), &cursorEvent);
+			kernelWindowEventStreamWrite(&component->events, &cursorEvent);
 		}
 	}
 
@@ -367,7 +368,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	if ((event->type == EVENT_KEY_DOWN) && inputStream &&
 		inputStream->s.append && event->ascii)
 	{
-		inputStream->s.append(&(inputStream->s), (char) event->ascii);
+		inputStream->s.append(&inputStream->s, (char) event->ascii);
 	}
 
 	if (textArea->scrollBar)
@@ -386,8 +387,8 @@ static int destroy(kernelWindowComponent *component)
 	{
 		if (textArea->area)
 		{
-			// If the current input/output streams are currently pointing at our
-			// input/output streams, set the current ones to NULL
+			// If the current input/output streams are currently pointing at
+			// our input/output streams, set the current ones to NULL
 			if (kernelTextGetCurrentInput() == textArea->area->inputStream)
 				kernelTextSetCurrentInput(NULL);
 			if (kernelTextGetCurrentOutput() == textArea->area->outputStream)
@@ -395,8 +396,11 @@ static int destroy(kernelWindowComponent *component)
 
 			if (kernelMultitaskerGetTextInput() == textArea->area->inputStream)
 				kernelMultitaskerSetTextInput(processId, NULL);
-			if (kernelMultitaskerGetTextOutput() == textArea->area->outputStream)
+			if (kernelMultitaskerGetTextOutput() ==
+				textArea->area->outputStream)
+			{
 				kernelMultitaskerSetTextOutput(processId, NULL);
+			}
 
 			kernelTextAreaDestroy(textArea->area);
 			textArea->area = NULL;
@@ -429,7 +433,6 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 {
 	// Formats a kernelWindowComponent as a kernelWindowTextArea
 
-	int status = 0;
 	kernelWindowComponent *component = NULL;
 	kernelWindowTextArea *textArea = NULL;
 	componentParameters subParams;
@@ -464,21 +467,22 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	component->keyEvent = &keyEvent;
 	component->destroy = &destroy;
 
-	// If the user wants the default colors, we change set them to the
-	// default for a text area
+	// If the user wants the default colors, we set them to the default for a
+	// text area
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
 
-	// If font is NULL, get the default font
+	// If font is NULL, user the default small fixed-width font
 	if (!component->params.font)
 	{
-		status = kernelFontGetDefault((asciiFont **) &component->params.font);
-		if (status < 0)
-		{
-			kernelWindowComponentDestroy(component);
-			return (component = NULL);
-		}
+		// Try to make sure we've got the required character set
+		kernelFontGet(windowVariables->font.fixWidth.small.family,
+			windowVariables->font.fixWidth.small.flags,
+			windowVariables->font.fixWidth.small.points,
+			(char *) component->charSet);
+
+		component->params.font = windowVariables->font.fixWidth.small.font;
 	}
 
 	// Get memory for the kernelWindowTextArea
@@ -506,16 +510,17 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 		(color *) &component->params.foreground, sizeof(color));
 	memcpy((color *) &textArea->area->background,
 		(color *) &component->params.background, sizeof(color));
-	textArea->area->font = (asciiFont *) component->params.font;
+	textArea->area->font = (kernelFont *) component->params.font;
+	textArea->area->charSet = (char *) component->charSet;
 	textArea->area->windowComponent = (void *) component;
 	textArea->areaWidth = (columns *
-		((asciiFont *) component->params.font)->glyphWidth);
+		((kernelFont *) component->params.font)->glyphWidth);
 
 	// Populate the rest of the component fields
-	component->width =
-		(textArea->areaWidth + (windowVariables->border.thickness * 2));
+	component->width = (textArea->areaWidth +
+		(windowVariables->border.thickness * 2));
 	component->height = ((rows *
-		((asciiFont *) component->params.font)->glyphHeight) +
+		((kernelFont *) component->params.font)->glyphHeight) +
 			(windowVariables->border.thickness * 2));
 
 	// If there are any buffer lines, we need a scroll bar as well.

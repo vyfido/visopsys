@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,6 +28,7 @@
 #include <sys/env.h>
 #include <sys/errors.h>
 #include <sys/file.h>
+#include <sys/lang.h>
 #include <sys/paths.h>
 #include <sys/window.h>
 
@@ -51,7 +52,7 @@ static int getLanguages(void)
 	int count;
 
 	// We always have English
-	strcpy(codes[0], "en");
+	strcpy(codes[0], LANG_ENGLISH);
 	numLangs = 1;
 
 	// Does the 'locale' directory exist?  Anything in it?

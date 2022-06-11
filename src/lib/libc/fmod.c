@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,13 +37,15 @@ double fmod(double x, double y)
 
 	double m = 0;
 
-	if (y == 0)
+	if (!y)
 	{
 		m = 0;
 		errno = ERR_DIVIDEBYZERO;
 	}
 	else
+	{
 		m = (x - (floor(x / y) * y));
+	}
 
 	return (m);
 }

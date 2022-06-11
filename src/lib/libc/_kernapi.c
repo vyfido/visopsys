@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -857,6 +857,13 @@ _X_ int fileSetSize(file *f, unsigned size _U_)
 	return (_syscall(_fnum_fileSetSize, &f));
 }
 
+_X_ int fileGetTempName(char *buff, unsigned len _U_)
+{
+	// Proto: int kernelFileGetTempName(char *, unsigned);
+	// Desc : Given a buffer 'buff' and a buffer size 'len', get a file name to use as a temporary file or directory.  Doesn't create anything, only computes a suitable name.
+	return (_syscall(_fnum_fileGetTempName, &buff));
+}
+
 _X_ int fileGetTemp(file *f)
 {
 	// Proto: int kernelFileGetTemp(void);
@@ -1591,10 +1598,10 @@ _X_ int graphicDrawImage(graphicBuffer *buffer, image *drawImage _U_, drawMode m
 	return (_syscall(_fnum_graphicDrawImage, &buffer));
 }
 
-_X_ int graphicDrawText(graphicBuffer *buffer, color *foreground _U_, color *background _U_, objectKey font _U_, const char *text _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_)
+_X_ int graphicDrawText(graphicBuffer *buffer, color *foreground _U_, color *background _U_, objectKey font _U_, const char *charSet _U_, const char *text _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_)
 {
-	// Proto: int kernelGraphicDrawText(graphicBuffer *, color *, color *, kernelAsciiFont *, const char *, drawMode, int, int);
-	// Desc : Draw the text string 'text' into the graphic buffer 'buffer', using the colors 'foreground' and 'background', the font 'font', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'.   If 'buffer' is NULL, draw directly onto the screen.  If 'font' is NULL, use the default font.
+	// Proto: int kernelGraphicDrawText(graphicBuffer *, color *, color *, kernelFont *, const char *, const char *, drawMode, int, int);
+	// Desc : Draw the text string 'text' into the graphic buffer 'buffer', using the colors 'foreground' and 'background', the font 'font', the character set 'charSet', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'.   If 'buffer' is NULL, draw directly onto the screen.  If 'font' is NULL, use the default font.  If 'charSet' is NULL, use the default character set.
 	return (_syscall(_fnum_graphicDrawText, &buffer));
 }
 
@@ -1685,44 +1692,30 @@ _X_ int imagePaste(image *srcImage, image *destImage _U_, int xCoord _U_, int yC
 // Font functions
 //
 
-_X_ int fontGetDefault(objectKey *pointer)
+_X_ objectKey fontGet(const char *family, unsigned flags _U_, int points _U_, const char *charSet _U_)
 {
-	// Proto: int kernelFontGetDefault(kernelAsciiFont **);
-	// Desc : Get an object key in 'pointer' to refer to the current default font.
-	return (_syscall(_fnum_fontGetDefault, &pointer));
+	// Proto: kernelFont *kernelFontGet(const char *, unsigned, int, const char *);
+	// Desc : Load the font with the desired family, flags, points, and optional character set.  Returns an object key for the font in 'pointer' if successful.  See <sys/font.h> for flags.  The fixed width flag should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
+	return ((objectKey)(long) _syscall(_fnum_fontGet, &family));
 }
 
-_X_ int fontLoadSystem(const char *filename, const char *fontname _U_, objectKey *pointer _U_, int fixedWidth _U_)
+_X_ int fontGetPrintedWidth(objectKey font, const char *charSet _U_, const char *string _U_)
 {
-	// Proto: int kernelFontLoadSystem(const char*, const char*, kernelAsciiFont **, int);
-	// Desc : Load the font from the font file 'filename' for systemwide use.  Give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
-	return (_syscall(_fnum_fontLoadSystem, &filename));
-}
-
-_X_ int fontLoadUser(const char *filename, asciiFont **font _U_, int fixedWidth _U_)
-{
-	// Proto: int kernelFontLoadUser(const char*, kernelAsciiFont **, int);
-	// Desc : Load the font from the font file 'filename', and return the font structure in process memory, pointed to by 'font' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
-	return (_syscall(_fnum_fontLoadUser, &filename));
-}
-
-_X_ int fontGetPrintedWidth(objectKey font, const char *string _U_)
-{
-	// Proto: int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
-	// Desc : Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
+	// Proto: int kernelFontGetPrintedWidth(kernelFont *, const char *, const char *);
+	// Desc : Given the supplied string and character set (may be NULL), return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
 	return (_syscall(_fnum_fontGetPrintedWidth, &font));
 }
 
 _X_ int fontGetWidth(objectKey font)
 {
-	// Proto: int kernelFontGetWidth(kernelAsciiFont *font)
+	// Proto: int kernelFontGetWidth(kernelFont *);
 	// Desc : Returns the character width of the supplied font.  Only useful when the font is fixed-width.
 	return (_syscall(_fnum_fontGetWidth, &font));
 }
 
 _X_ int fontGetHeight(objectKey font)
 {
-	// Proto: int kernelFontGetHeight(kernelAsciiFont *font)
+	// Proto: int kernelFontGetHeight(kernelFont *);
 	// Desc : Returns the character height of the supplied font.
 	return (_syscall(_fnum_fontGetHeight, &font));
 }
@@ -1772,6 +1765,13 @@ _X_ int windowUpdateBuffer(void *buffer, int xCoord _U_, int yCoord _U_, int wid
 	// Proto: kernelWindowUpdateBuffer(graphicBuffer *, int, int, int, int);
 	// Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
 	return (_syscall(_fnum_windowUpdateBuffer, &buffer));
+}
+
+_X_ int windowSetCharSet(objectKey window, const char *charSet _U_)
+{
+	// Proto: int kernelWindowSetCharSet(kernelWindow *, const char *);
+	// Desc : Set the character set of window 'window' to be 'charSet'.
+	return (_syscall(_fnum_windowSetCharSet, &window));
 }
 
 _X_ int windowSetTitle(objectKey window, const char *title _U_)
@@ -1963,6 +1963,35 @@ _X_ int windowShellCenterBackground(const char *theFile)
 	return (_syscall(_fnum_windowShellCenterBackground, &theFile));
 }
 
+_X_ objectKey windowShellNewTaskbarIcon(image *img)
+{
+	// Proto: kernelWindowComponent *kernelWindowShellNewTaskbarIcon(image *);
+	// Desc : Create an icon in the window shell's taskbar menu, using the supplied image 'img'
+	return ((objectKey)(long) _syscall(_fnum_windowShellNewTaskbarIcon, &img));
+}
+
+_X_ objectKey windowShellNewTaskbarTextLabel(const char *text)
+{
+	// Proto: kernelWindowComponent *kernelWindowShellNewTaskbarTextLabel(const char *);
+	// Desc : Create a text label in the window shell's taskbar menu, using the supplied text 'text'
+	return ((objectKey)(long) _syscall(_fnum_windowShellNewTaskbarTextLabel,
+		&text));
+}
+
+_X_ void windowShellDestroyTaskbarComp(objectKey component)
+{
+	// Proto: void kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *);
+	// Desc : Destroy a component in the window shell's taskbar menu
+	_syscall(_fnum_windowShellDestroyTaskbarComp, &component);
+}
+
+_X_ objectKey windowShellIconify(objectKey window, int iconify _U_, image *img _U_)
+{
+	// Proto: kernelWindowComponent *kernelWindowShellIconify(kernelWindow *, int, image *);
+	// Desc : Iconify or restore 'window' in the window shell's taskbar menu, depending on the parameter 'iconify'.  If an image 'img' is supplied, then that will be used to create the icon component, which is returned.
+	return ((objectKey)(long) _syscall(_fnum_windowShellIconify, &window));
+}
+
 _X_ int windowScreenShot(image *saveImage)
 {
 	// Proto: int kernelWindowScreenShot(image *);
@@ -2015,7 +2044,7 @@ _X_ int windowContextSet(objectKey parent, objectKey menu _U_)
 _X_ int windowSwitchPointer(objectKey parent, const char *pointerName _U_)
 {
 	// Proto: int kernelWinowSwitchPointer(objectKey, const char *);
-	// Desc : Switch the mouse pointer for the parent window or component object 'parent' to the pointer represented by the name 'pointerName'.  Examples of pointer names are "default" and "busy".
+	// Desc : Switch the mouse pointer for the parent window or component object 'parent' to the pointer represented by the name 'pointerName'.  Pointer names are defined in the header file <sys/mouse.h>.  Examples are "default" and "busy".
 	return (_syscall(_fnum_windowSwitchPointer, &parent));
 }
 
@@ -2031,6 +2060,13 @@ _X_ void windowComponentDestroy(objectKey component)
 	// Proto: void kernelWindowComponentDestroy(kernelWindowComponent *);
 	// Desc : Deallocate and destroy a window component.
 	_syscall(_fnum_windowComponentDestroy, &component);
+}
+
+_X_ int windowComponentSetCharSet(objectKey component, const char *charSet _U_)
+{
+	// Proto: int kernelWindowComponentSetCharSet(kernelWindowComponent *, const char *);
+	// Desc : Set the character set as 'charSet' for 'component'.
+	return (_syscall(_fnum_windowComponentSetCharSet, &component));
 }
 
 _X_ int windowComponentSetVisible(objectKey component, int visible _U_)
@@ -2262,6 +2298,13 @@ _X_ objectKey windowNewTextLabel(objectKey parent, const char *text _U_, compone
 	// Proto: kernelWindowComponent *kernelWindowNewTextLabel(objectKey, const char *, componentParameters *);
 	// Desc : Get a new text label component to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
 	return ((objectKey)(long) _syscall(_fnum_windowNewTextLabel, &parent));
+}
+
+_X_ objectKey windowNewTree(objectKey parent, windowTreeItem *rootItem _U_, int width _U_, int height _U_, componentParameters *params _U_)
+{
+	// Proto: kernelWindowComponent *kernelWindowNewTree(objectKey, windowTreeItem *, int, int, componentParameters *);
+	// Desc : Get a new tree component to be placed inside the parent object 'parent', with the given width and height, component parameters 'params', and using the tree of windowTreeItems rooted at 'rootItem'.  If the params 'font' is NULL, the default font will be used.
+	return ((objectKey)(long) _syscall(_fnum_windowNewTree, &parent));
 }
 
 
@@ -2641,5 +2684,19 @@ _X_ void *pageGetPhysical(int processId, void *pointer _U_)
 	// Proto: void *kernelPageGetPhysical(int, void *);
 	// Desc : Returns the physical address corresponding pointed to by the virtual address 'pointer' for the process 'processId'
 	return ((void *)(long) _syscall(_fnum_pageGetPhysical, &processId));
+}
+
+_X_ unsigned charsetToUnicode(const char *set, unsigned value _U_)
+{
+	// Proto: unsigned kernelCharsetToUnicode(const char *, unsigned);
+	// Desc : Given a character set name and a character code from that set, return the equivalent unicode value
+	return (_syscall(_fnum_charsetToUnicode, &set));
+}
+
+_X_ unsigned charsetFromUnicode(const char *set, unsigned value _U_)
+{
+	// Proto: unsigned kernelCharsetFromUnicode(const char *, unsigned);
+	// Desc : Given a character set name and a unicode value, return the equivalent character set value
+	return (_syscall(_fnum_charsetFromUnicode, &set));
 }
 

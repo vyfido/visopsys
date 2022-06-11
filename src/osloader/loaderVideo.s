@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -29,6 +29,7 @@
 
 	GLOBAL loaderSetTextDisplay
 	GLOBAL loaderDetectVideo
+	GLOBAL loaderQueryGraphicMode
 	GLOBAL loaderSetGraphicDisplay
 	GLOBAL KERNELGMODE
 	GLOBAL CURRENTGMODE
@@ -41,111 +42,364 @@
 
 
 enumerateGraphicsModes:
-	;; This function will enumerate graphics modes based on which ones
-	;; are available with this video card.  It has built-in preferences,
-	;; so that they are listed in the desired order.
+	;; This function will enumerate graphics modes based on which ones are
+	;; available with this video card, and are suitable for our use.
 
 	pusha
 
-	;; Per VESA specs we make no assumptions about mode numbers; we ask
-	;; for resolutions and bit depths, and the card tells us the mode
-	;; number if it's supported.
+	;; Per VESA specs we make no assumptions about mode numbers; we ask for
+	;; resolutions and bit depths, and the card tells us the mode number if
+	;; it's supported.
 
-	;; First we loop through all the acceptable resolutions/bit depths
-	;; in order, and for each supported one we add it to a list.  Then
-	;; we take the first one and make it our selected mode.
+	xor CX, CX	; Saves number of available modes
+	push CX
 
-	mov SI, VIDEOMODES
+	;; We need to get a pointer to a list of graphics mode numbers from the
+	;; VBE.  We can gather this from the VESA info block retrieved earlier by
+	;; the video hardware detection code.
 
-	xor CX, CX		; Saves number of available modes
+	;; Get the offset now, and the segment inside the loop.
+	mov SI, [VESAINFO + 0Eh]
 
+	;; Do a loop through the supported modes
 	.modeLoop:
-	cmp word [SI], 0
-	je .done		; No more modes to try
-	push word [SI + 4]
-	push word [SI + 2]
-	push word [SI]
-	call findGraphicMode
-	add SP, 6
 
-	;; Supported?
-	cmp AX, 0
-	je .notSupported	; No
+	;; Save ES
+	push ES
+
+	;; Now get the segment of the pointer, as mentioned above
+	mov AX, [VESAINFO + 10h]
+	mov ES, AX
+
+	;; ES:SI is now a pointer to a word list of supported modes,
+	;; terminated with the value FFFFh
+
+	;; Get the first/next mode number
+	mov DX, word [ES:SI]
+
+	;; Restore ES
+	pop ES
+
+	;; Is it the end of the mode number list?
+	cmp DX, 0FFFFh
+	je .done
+
+	;; Increment the pointer for the next loop
+	add SI, 2
+
+	;; We have a mode number.  Now we need to do a VBE call to determine
+	;; whether this mode number suits our needs.  This call will put a bunch
+	;; of info in the buffer pointed to by ES:DI
+	mov CX, DX
+	mov AX, 4F01h
+	mov DI, MODEINFO
+	int 10h
+
+	;; Make sure the function call is supported
+	cmp AL, 4Fh
+	jne .done
+	;; Is the mode supported by this call?
+	cmp AH, 00h
+	jne .modeLoop
+
+	;; We need to look for a few features to determine whether this is a mode
+	;; we want.  It needs to be supported, and it needs to be a graphics mode
+	;; with linear framebuffer support.
+
+	;; Get the first word of the buffer
+	mov AX, word [MODEINFO]
+
+	;; Is the mode supported?
+	bt AX, 0
+	jnc .modeLoop
+
+	;; Is this mode a graphics mode?
+	bt AX, 4
+	jnc .modeLoop
+
+	;; Does this mode support a linear frame buffer?
+	bt AX, 7
+	jnc .modeLoop
+
+	;; Is this mode at least 640x480?
+	mov AX, word [MODEINFO + 12h]
+	cmp AX, 640
+	jl .modeLoop
+	mov AX, word [MODEINFO + 14h]
+	cmp AX, 480
+	jl .modeLoop
+
+	;; Is this mode more than 8 bits per pixel?
+	mov AL, byte [MODEINFO + 19h]
+	cmp AL, 8
+	jle .modeLoop
 
 	;; Get the correct list address in DI
+	pop CX
+	push CX
 	mov DI, CX
 	shl DI, 4
 	add DI, word [VIDEODATA_P]
 	add DI, graphicsInfoBlock.supportedModes
 
-	;; We need EAX clear
-	push AX
 	xor EAX, EAX
-	pop AX
-
-	mov dword [DI], EAX
-	xor EBX, EBX
-	mov BX, word [SI]
-	mov dword [DI + 4], EBX
-	mov BX, word [SI + 2]
-	mov dword [DI + 8], EBX
-	mov BX, word [SI + 4]
-	mov dword [DI + 12], EBX
+	mov AX, DX
+	mov dword [DI], EAX			; Mode number
+	mov AX, word [MODEINFO + 12h]
+	mov dword [DI + 4], EAX		; X resolution
+	mov AX, word [MODEINFO + 14h]
+	mov dword [DI + 8], EAX		; Y resolution
+	xor AX, AX
+	mov AL, byte [MODEINFO + 19h]
+	mov dword [DI + 12], EAX	; Bits per pixel
 
 	;; Increment the number of acceptable modes
+	pop CX
 	inc CX
+	push CX
 
-	.notSupported:
-	;; Move to the next mode
-	add SI, 6
-	jmp .modeLoop
+	cmp CX, MAXVIDEOMODES
+	jl .modeLoop
 
 	.done:
 	;; Save the number of acceptable modes
-	push CX
 	xor ECX, ECX
 	pop CX
 	mov DI, word [VIDEODATA_P]
 	mov dword [DI + graphicsInfoBlock.numberModes], ECX
+
 	popa
 	ret
 
 
 selectGraphicMode:
-	;; This function will select a graphics mode for the kernel based
-	;; on which ones are available with this video card.
+	;; This function will select a graphics mode for the kernel.  The algorithm
+	;; is to first search for a fallback mode; the biggest screen area less
+	;; than 1500 in width if possible.  Then, we look for the highest aspect
+	;; ratio of all modes greater than 800x600, *hopefully* identifying the
+	;; 'native' aspect ratio.  Finally, we try to find the biggest screen area
+	;; with this aspect ratio that's less than 1500 in width (but we'll accept
+	;; bigger).  If we don't choose one with the ideal aspect ratio, we use the
+	;; fallback.
+
+	;; The original C version of this code is preserved in
+	;; src/programs/disprops.c if we ever need to debug the algorithm
 
 	pusha
 
-	;; If there is a mode in our list, choose it
+	;; Save the stack pointer
+	mov BP, SP
 
-	mov SI, word [VIDEODATA_P]
-	cmp dword [SI + graphicsInfoBlock.numberModes], 0
-	je .fail 		; No mode
+	;; Save some space for local variables
+	push dword 0	; [SS:(BP - 4)]		bestScreenArea
+	push word 0		; [SS:(BP - 6)]		fallbackMode
+	push dword 0	; [SS:(BP - 10)]	bestAspect
 
-	mov SI, word [VIDEODATA_P]
+	;; Loop through the enumerated modes, and try to find a fallback mode
+
+	xor ECX, ECX					; counter
+	mov DI, 0						; fallback mode
+
+	.fallbackLoop:
+	;; Get the correct list address in SI
+	mov SI, CX
+	shl SI, 4
+	add SI, word [VIDEODATA_P]
 	add SI, graphicsInfoBlock.supportedModes
+
+	;; Less than 640x480?
+	cmp dword [SI + 4], 640			; X res
+	jb .nextFallback
+	cmp dword [SI + 8], 480			; Y res
+	jb .nextFallback
+
+	;; If we have some fallback, and X res > 1500, skip it
+	cmp DI, 0
+	je .noFallback
+	cmp dword [SI + 4], 1500
+	ja .nextFallback
+	.noFallback:
+
+	;; Calculate the screen area of this mode
+	xor EDX, EDX
+	mov EAX, dword [SI + 4]			; X res
+	mov EBX, dword [SI + 8]			; Y res
+	mul EBX
+
+	;; If we have no fallback, or the fallback X res > 1500, or the screen
+	;; area is the highest one (or higher BPP), remember this one
+	cmp DI, 0
+	je .saveFallback
+	cmp dword [DI + 4], 1500		; X res
+	je .saveFallback
+	cmp EAX, dword [SS:(BP - 4)]	; screen area vs. best screen area
+	ja .saveFallback
+	cmp EAX, dword [SS:(BP - 4)]	; screen area vs. best screen area
+	jae .maybeSaveFallback
+	jmp .nextFallback
+	.maybeSaveFallback:
+	mov EBX, dword [SI + 12]		; bits per pixel
+	cmp EBX, dword [DI + 12]		; bits per pixel
+	jbe .nextFallback
+
+	.saveFallback:
+	;; Save this one
+	mov dword [SS:(BP - 4)], EAX	; best screen area
+	mov DI, SI
+
+	.nextFallback:
+	inc CX
+	mov SI, word [VIDEODATA_P]
+	cmp ECX, dword [SI + graphicsInfoBlock.numberModes]
+	jb .fallbackLoop
+
+	;; Did we find any reasonable fallback mode?
+	cmp DI, 0
+	je near .fail
+	mov word [SS:(BP - 6)], DI		; fallback mode
+
+	;; Loop through the enumerated modes, and try to find the best aspect ratio
+
+	xor ECX, ECX					; counter
+
+	.aspectLoop:
+	;; Get the correct list address in SI
+	mov SI, CX
+	shl SI, 4
+	add SI, word [VIDEODATA_P]
+	add SI, graphicsInfoBlock.supportedModes
+
+	;; Less than 800x600?
+	cmp dword [SI + 4], 800			; X res
+	jb .nextAspect
+	cmp dword [SI + 8], 600			; Y res
+	jb .nextAspect
+
+	;; Calculate this mode's aspect ratio
+	xor EDX, EDX
+	mov EAX, dword [SI + 4]			; X res
+	shl EAX, 8
+	mov EBX, dword [SI + 8]			; Y res
+	div EBX
+
+	;; Biggest so far?
+	cmp EAX, dword [SS:(BP - 10)]	; best aspect
+	jb .nextAspect
+
+	;; Save this one
+	mov dword [SS:(BP - 10)], EAX	; best aspect
+
+	.nextAspect:
+	inc CX
+	mov SI, word [VIDEODATA_P]
+	cmp ECX, dword [SI + graphicsInfoBlock.numberModes]
+	jb .aspectLoop
+
+	;; Loop again, looking for the mode with this aspect ratio that has the
+	;; biggest screen area
+
+	xor ECX, ECX					; counter
+	mov DI, 0						; best mode
+	mov dword [SS:(BP - 4)], 0		; best screen area
+
+	.bestLoop:
+	;; Get the correct list address in SI
+	mov SI, CX
+	shl SI, 4
+	add SI, word [VIDEODATA_P]
+	add SI, graphicsInfoBlock.supportedModes
+
+	;; Calculate this mode's aspect ratio
+	xor EDX, EDX
+	mov EAX, dword [SI + 4]			; X res
+	shl EAX, 8
+	mov EBX, dword [SI + 8]			; Y res
+	div EBX
+
+	;; Same as best aspect?
+	cmp EAX, dword [SS:(BP - 10)]	; best aspect
+	jne .nextBest
+
+	;; If we have some best, and X res > 1500, skip it
+	cmp dword [SI + 4], 1500		; X res
+	jbe .smallBest
+	cmp DI, 0
+	jne .nextBest
+	.smallBest:
+
+	;; Calculate the screen area of this mode
+	xor EDX, EDX
+	mov EAX, dword [SI + 4]			; X res
+	mov EBX, dword [SI + 8]			; Y res
+	mul EBX
+
+	;; If we have no best, or the best X res > 1500, or the screen area is the
+	;; highest one (or higher BPP), remember this one
+	cmp DI, 0
+	je .saveBest
+	cmp dword [DI + 4], 1500		; X res
+	ja .saveBest
+	cmp EAX, dword [SS:(BP - 4)]	; screen area vs. best screen area
+	ja .saveBest
+	cmp EAX, dword [SS:(BP - 4)]	; screen area vs. best screen area
+	jae .maybeSaveBest
+	jmp .nextBest
+	.maybeSaveBest:
+	mov EBX, dword [SI + 12]		; bits per pixel
+	cmp EBX, dword [DI + 12]		; bits per pixel
+	jbe .nextBest
+
+	.saveBest:
+	mov dword [SS:(BP - 4)], EAX	; best screen area
+	mov DI, SI
+
+	.nextBest:
+	inc CX
+	mov SI, word [VIDEODATA_P]
+	cmp ECX, dword [SI + graphicsInfoBlock.numberModes]
+	jb .bestLoop
+
+	;; Did we find a best mode?
+	cmp DI, 0
+	jne .haveBest
+	;; Use fallback
+	mov DI, word [SS:(BP - 6)]		; fallback mode
+
+	.haveBest:
+	;; We chose a mode
+	mov SI, DI
 	mov DI, word [VIDEODATA_P]
 
-	;; Save mode
-	mov EAX, dword [SI]
+	mov EAX, dword [SI + 0]			; mode number
 	mov dword [DI + graphicsInfoBlock.mode], EAX
 
 	;; Save it here too
 	mov word [KERNELGMODE], AX
 
-	;; Save X res, Y res, and BPP
-	mov EAX, dword [SI + 4]
+	mov EAX, dword [SI + 4]			; X res
 	mov dword [DI + graphicsInfoBlock.xRes], EAX
-	mov EAX, dword [SI + 8]
+
+	mov EAX, dword [SI + 8]			; Y res
 	mov dword [DI + graphicsInfoBlock.yRes], EAX
-	mov EAX, dword [SI + 12]
+
+	mov EAX, dword [SI + 12]		; bits per pixel
 	mov dword [DI + graphicsInfoBlock.bitsPerPixel], EAX
+
+	;; Assume scan line length equals X res times bytes per pixel for now.
+	;; We'll check later.
+	xor EDX, EDX
+	mov EAX, dword [SI + 4]			; X res
+	mov EBX, dword [SI + 12]		; bits per pixel
+	mul EBX
+	add EAX, 7						; round up to a byte
+	shr EAX, 3						; bytes per pixel
+	mov dword [DI + graphicsInfoBlock.scanLineBytes], EAX
 
 	cmp word [PRINTINFO], 1
 	jne .done
+
 	;; Say we found a mode.
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Switch to good color
 	mov SI, BLANK
 	call loaderPrint
 	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
@@ -170,9 +424,9 @@ selectGraphicMode:
 	jmp .done
 
 	.fail:
-	;; If we fall through to here, none of our supported modes are
-	;; available.  Make an error message.
-	mov DL, ERRORCOLOR	; Switch to the error color
+	;; If we fall through to here, we didn't find any acceptable video mode.
+	;; Make an error message.
+	mov DL, BADCOLOR	; Switch to the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, VIDMODE
@@ -192,6 +446,7 @@ selectGraphicMode:
 	call loaderPrintNewline
 
 	.done:
+	mov SP, BP
 	popa
 	ret
 
@@ -543,7 +798,7 @@ loaderDetectVideo:
 
 	.noSVGA:
 	;; There is no SVGA video detected
-	mov DL, ERRORCOLOR	; Use the error color
+	mov DL, BADCOLOR	; Use the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, SVGA
@@ -569,7 +824,7 @@ loaderDetectVideo:
 
 	;; This video card is too old to support VESA version 2.0.  We won't
 	;; be able to use the Linear Frame Buffer
-	mov DL, ERRORCOLOR	; Use the error color
+	mov DL, BADCOLOR	; Use the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, SVGA
@@ -589,7 +844,7 @@ loaderDetectVideo:
 	cmp word [PRINTINFO], 1
 	jne .noPrint1
 	;; Indicate SVGA detected
-	mov DL, 02h		; Use green color
+	mov DL, GOODCOLOR		; Switch to good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, SVGA
@@ -624,7 +879,7 @@ loaderDetectVideo:
 	cmp AX, 1
 	je .okFramebuffer
 
-	mov DL, ERRORCOLOR	; Use the error color
+	mov DL, BADCOLOR	; Use the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, SVGA
@@ -733,10 +988,127 @@ loaderDetectVideo:
 	ret
 
 
+loaderQueryGraphicMode:
+	;; Presents the user with a list of possible graphics modes.
+	pusha
+
+	mov DL, FOREGROUNDCOLOR
+	mov SI, CHOOSEMODE
+	call loaderPrint
+	call loaderPrintNewline
+	call loaderPrintNewline
+
+	mov DI, VIDEOMODES
+	mov BX, 0			; valid mode not found
+	mov CX, 1
+
+	.modeLoop:
+	;; See whether the mode is supported
+	push word [DI + 4]		; BPP
+	push word [DI + 2]		; Y resolution
+	push word [DI]			; X resolution
+	call findGraphicMode
+	add SP, 6
+	cmp AX, 0
+	je .skip				; Not a good mode
+
+	add BX, 1				; valid mode found
+
+	;; Print selection number
+	mov SI, INDENT
+	call loaderPrint
+	mov AX, CX
+	call loaderPrintNumber
+	mov SI, COLON
+	call loaderPrint
+
+	;; Print mode info
+	mov AX, word [DI]		; X resolution
+	call loaderPrintNumber
+	mov SI, MODESTATS2
+	call loaderPrint
+	mov AX, word [DI + 2]	; Y resolution
+	call loaderPrintNumber
+	mov SI, SPACE
+	call loaderPrint
+	mov AX, word [DI + 4]	; BPP
+	call loaderPrintNumber
+	mov SI, MODESTATS3
+	call loaderPrint
+	call loaderPrintNewline
+
+	.skip:
+	inc CX
+	add DI, 6
+	mov AX, word [DI]
+	cmp AX, 0
+	jnz .modeLoop
+
+	call loaderPrintNewline
+
+	;; Valid mode found?
+	cmp BX, 0
+	je .out
+
+	.getInput:
+	;; Read the key press
+	mov AX, 0000h
+	int 16h
+
+	;; Valid number key?
+	cmp AH, 2
+	jb .getInput
+	cmp AH, 10
+	ja .getInput
+
+	;; Valid mode?
+	shr AX, 8
+	sub AX, 2			; Index into our mode array
+	mov BL, 6
+	mul BL
+	mov DI, VIDEOMODES
+	add DI, AX
+
+	push word [DI + 4]	; BPP
+	push word [DI + 2]	; Y resolution
+	push word [DI]		; X resolution
+	call findGraphicMode
+	add SP, 6
+	cmp AX, 0
+	je .getInput		; Not a good mode
+
+	;; Clear top half of EAX
+	push AX
+	xor EAX, EAX
+	pop AX
+
+	xor EBX, EBX
+	mov BX, word [DI]		; X resolution
+	xor ECX, ECX
+	mov CX, word [DI + 2]	; Y resolution
+	xor EDX, EDX
+	mov DX, word [DI + 4]	; BPP
+
+	;; Save mode
+	mov SI, word [VIDEODATA_P]
+	mov dword [SI + graphicsInfoBlock.mode], EAX
+
+	;; Save it here too
+	mov word [KERNELGMODE], AX
+
+	;; Save X res, Y res, and BPP
+	mov dword [SI + graphicsInfoBlock.xRes], EBX
+	mov dword [SI + graphicsInfoBlock.yRes], ECX
+	mov dword [SI + graphicsInfoBlock.bitsPerPixel], EDX
+
+	.out:
+	popa
+	ret
+
+
 loaderSetGraphicDisplay:
 	;; This routine switches the video adapter into the requested
 	;; graphics mode.
-
 	pusha
 
 	;; Save the stack pointer
@@ -770,7 +1142,7 @@ loaderSetGraphicDisplay:
 	je .switchok
 
 	;; Couldn't switch to graphics mode.  Print an error message.
-	mov DL, ERRORCOLOR	; Switch to the error color
+	mov DL, BADCOLOR	; Switch to the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, VIDMODE
@@ -800,6 +1172,21 @@ loaderSetGraphicDisplay:
 	mov CX, word [MODEINFO + 12h]
 	int 10h
 
+	;; Get the scan line length in bytes
+	mov AX, 4F06h
+	mov BX, 1
+	int 10h
+
+	cmp AX, 004Fh			; Returns this value if successful
+	jne .displayStart
+
+	;; Save it
+	mov DI, word [VIDEODATA_P]
+	xor EAX, EAX
+	mov AX, BX
+	mov dword [DI + graphicsInfoBlock.scanLineBytes], EAX
+
+	.displayStart:
 	;; Make sure the display starts at the same place as the
 	;; frame buffer (line 0, pixel 0).  Careful; kills AX, BX, CX, DX
 	mov AX, 4F07h
@@ -811,7 +1198,6 @@ loaderSetGraphicDisplay:
 	.done:
 	popa
 	ret
-
 
 ;;
 ;; The data segment
@@ -830,32 +1216,20 @@ SVGAAVAIL		db 0
 GRAPHICSMODE	db 'GRPHMODE   ', 0
 
 ;;
-;; Video modes, in preference order
+;; Predefined video resolutions, for the boot menu
 ;;
 
 VIDEOMODES:
-	dw 1280, 800, 32	; 1280 x 800 x 32 bpp ; Preferred mode
-	dw 1280, 800, 24	; 1280 x 800 x 24 bpp ; (widescreen)
-	dw 1024, 768, 32	; 1024 x 768 x 32 bpp ; Preferred mode
-	dw 1024, 768, 24	; 1024 x 768 x 24 bpp ; (normal screen)
-	dw 1400, 1050, 32	; 1400 x 1050 x 32 bpp
-	dw 1400, 1050, 24	; 1400 x 1050 x 24 bpp
 	dw 1280, 1024, 32	; 1280 x 1024 x 32 bpp
-	dw 1280, 1024, 24	; 1280 x 1024 x 24 bpp
+	dw 1280, 800, 32	; 1280 x 800 x 32 bpp
 	dw 1152, 864, 32	; 1152 x 864 x 32 bpp
-	dw 1152, 864, 24	; 1152 x 864 x 24 bpp
-	dw 1024, 768, 16	; 1024 x 768 x 16 bpp
-	dw 1024, 768, 15	; 1024 x 768 x 15 bpp
+	dw 1024, 768, 32	; 1024 x 768 x 32 bpp
+	dw 1024, 768, 24	; 1024 x 768 x 24 bpp
 	dw 800, 600, 32		; 800 x 600 x 32 bpp
 	dw 800, 600, 24		; 800 x 600 x 24 bpp
-	dw 800, 600, 16		; 800 x 600 x 16 bpp
-	dw 800, 600, 15		; 800 x 600 x 15 bpp
 	dw 640, 480, 32		; 640 x 480 x 32 bpp
 	dw 640, 480, 24		; 640 x 480 x 24 bpp
-	dw 640, 480, 16		; 640 x 480 x 16 bpp
-	dw 640, 480, 15		; 640 x 480 x 15 bpp
 	dw 0
-
 
 ;;
 ;; The good/informational messages
@@ -870,8 +1244,10 @@ VIDMODE		db 'Video mode   ', 10h, ' ', 0
 MODESTATS1	db 'Selected mode: ', 0
 MODESTATS2	db 'x', 0
 MODESTATS3	db ' bits/pixel', 0
+CHOOSEMODE	db 'Please choose the video mode:', 0
 SPACE		db ' ',0
-
+INDENT		db '  ',0
+COLON		db ': ',0
 
 ;;
 ;; The error messages

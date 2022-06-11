@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -220,78 +220,6 @@
 
 #define processorOutPort32(port, data) \
 	__asm__ __volatile__ ("outl %%eax, %%dx" : : "a" (data), "d" (port))
-
-#define processorRepInPort8(port, buffer, reads) do { \
-	processorPushRegs(); \
-	processorPushFlags(); \
-	processorDisableInts(); \
-	processorClearDirection(); \
-	__asm__ __volatile__ ( \
-		"rep insb" \
-		: : "d" (port), "D" (buffer), "c" (reads)); \
-	processorPopFlags(); \
-	processorPopRegs(); \
-} while (0)
-
-#define processorRepOutPort8(port, buffer, writes) do { \
-	processorPushRegs(); \
-	processorPushFlags(); \
-	processorDisableInts(); \
-	processorClearDirection(); \
-	__asm__ __volatile__ ( \
-		"rep outsb" \
-		: : "d" (port), "S" (buffer), "c" (writes)); \
-	processorPopFlags(); \
-	processorPopRegs(); \
-} while (0)
-
-#define processorRepInPort16(port, buffer, reads) do { \
-	processorPushRegs(); \
-	processorPushFlags(); \
-	processorDisableInts(); \
-	processorClearDirection(); \
-	__asm__ __volatile__ ( \
-		"rep insw" \
-		: : "d" (port), "D" (buffer), "c" (reads)); \
-	processorPopFlags(); \
-	processorPopRegs(); \
-} while (0)
-
-#define processorRepOutPort16(port, buffer, writes) do { \
-	processorPushRegs(); \
-	processorPushFlags(); \
-	processorDisableInts(); \
-	processorClearDirection(); \
-	__asm__ __volatile__ ( \
-		"rep outsw" \
-		: : "d" (port), "S" (buffer), "c" (writes)); \
-	processorPopFlags(); \
-	processorPopRegs(); \
-} while (0)
-
-#define processorRepInPort32(port, buffer, reads) do { \
-	processorPushRegs(); \
-	processorPushFlags(); \
-	processorDisableInts(); \
-	processorClearDirection(); \
-	__asm__ __volatile__ ( \
-		"rep insl" \
-		: : "d" (port), "D" (buffer), "c" (reads)); \
-	processorPopFlags(); \
-	processorPopRegs(); \
-} while (0)
-
-#define processorRepOutPort32(port, buffer, writes) do { \
-	processorPushRegs(); \
-	processorPushFlags(); \
-	processorDisableInts(); \
-	processorClearDirection(); \
-	__asm__ __volatile__ ( \
-		"rep outsl" \
-		: : "d" (port), "S" (buffer), "c" (writes)); \
-	processorPopFlags(); \
-	processorPopRegs(); \
-} while (0)
 
 //
 // Task-related (multiasking, interrupt/exception handling, API)

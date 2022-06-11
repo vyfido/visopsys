@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,7 @@
 
 #if !defined(_KERNELLOADER_H)
 
-#include <sys/font.h>
+#include "kernelFont.h"
 #include <sys/loader.h>
 #include <sys/file.h>
 #include <sys/image.h>
@@ -49,6 +49,7 @@
 #define FILECLASS_NAME_JPG		"JPEG"
 #define FILECLASS_NAME_GIF		"GIF"
 #define FILECLASS_NAME_PNG		"PNG"
+#define FILECLASS_NAME_PPM		"PPM"
 #define FILECLASS_NAME_BOOT		"boot"
 #define FILECLASS_NAME_KEYMAP	"keymap"
 #define FILECLASS_NAME_PDF		"PDF"
@@ -56,13 +57,14 @@
 #define FILECLASS_NAME_ZIP		"zip"
 #define FILECLASS_NAME_GZIP		"gzip"
 #define FILECLASS_NAME_AR		"ar"
+#define FILECLASS_NAME_TAR		"tar"
 #define FILECLASS_NAME_PCF		"PCF"
 #define FILECLASS_NAME_TTF		"TTF"
 #define FILECLASS_NAME_VBF		"VBF"
 #define FILECLASS_NAME_MESSAGE	"message"
 #define FILECLASS_NAME_CONFIG	"configuration"
 #define FILECLASS_NAME_HTML		"HTML"
-#define LOADER_NUM_FILECLASSES	20
+#define LOADER_NUM_FILECLASSES	22
 
 // A generic structure to represent a relocation entry
 typedef struct {
@@ -102,7 +104,8 @@ typedef struct {
 			int (*save)(const char *, image *);
 		} image;
 		struct {
-			int (*load)(unsigned char *, int, int, asciiFont **, int);
+			int (*getInfo)(const char *, kernelFont *);
+			int (*load)(unsigned char *, int, kernelFont *, int);
 		} font;
 	};
 
@@ -149,12 +152,14 @@ kernelFileClass *kernelFileClassIco(void);
 kernelFileClass *kernelFileClassJpg(void);
 kernelFileClass *kernelFileClassGif(void);
 kernelFileClass *kernelFileClassPng(void);
+kernelFileClass *kernelFileClassPpm(void);
 kernelFileClass *kernelFileClassBoot(void);
 kernelFileClass *kernelFileClassKeymap(void);
 kernelFileClass *kernelFileClassPdf(void);
 kernelFileClass *kernelFileClassZip(void);
 kernelFileClass *kernelFileClassGzip(void);
 kernelFileClass *kernelFileClassAr(void);
+kernelFileClass *kernelFileClassTar(void);
 kernelFileClass *kernelFileClassPcf(void);
 kernelFileClass *kernelFileClassTtf(void);
 kernelFileClass *kernelFileClassVbf(void);

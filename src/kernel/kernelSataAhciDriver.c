@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -324,7 +324,7 @@ static int detectPciControllers(void)
 
 		// Map the physical memory space pointed to by the decoder.
 		status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
-			(void **) &(controllers[numControllers].regs), memSpaceSize);
+			(void **) &controllers[numControllers].regs, memSpaceSize);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Error mapping memory");
@@ -382,7 +382,7 @@ static void spinUpPorts(ahciController *controller)
 		if (!(controller->regs->PI & (1 << count)))
 			continue;
 
-		portRegs = &(controller->regs->port[count]);
+		portRegs = &controller->regs->port[count];
 
 		if (!(portRegs->CMD & AHCI_PXCMD_SUD))
 		{
@@ -414,7 +414,7 @@ static int startStopPortCommands(ahciController *controller, int portNum,
 	kernelDebug(debug_io, "AHCI %s port %d commands", (start? "start" : "stop"),
 		portNum);
 
-	portRegs = &(controller->regs->port[portNum]);
+	portRegs = &controller->regs->port[portNum];
 
 	// If the command list is already running/not running, print a debug
 	// message
@@ -493,7 +493,7 @@ static int startStopPortReceives(ahciController *controller, int portNum,
 	kernelDebug(debug_io, "AHCI %s port %d receives", (start? "start" : "stop"),
 		portNum);
 
-	portRegs = &(controller->regs->port[portNum]);
+	portRegs = &controller->regs->port[portNum];
 
 	// If port receives are already running/not running, print a debug
 	// message
@@ -578,7 +578,7 @@ static int allocPortMemory(ahciController *controller, int portNum)
 
 	kernelDebug(debug_io, "AHCI allocate memory for port %d", portNum);
 
-	portRegs = &(controller->regs->port[portNum]);
+	portRegs = &controller->regs->port[portNum];
 
 	// Get physical memory for the port's command list.  It is a 1Kb structure
 	// that needs to reside on a 1Kb boundary
@@ -658,7 +658,7 @@ static int initializePorts(ahciController *controller)
 		if (!(controller->regs->PI & (1 << count)))
 			continue;
 
-		portRegs = &(controller->regs->port[count]);
+		portRegs = &controller->regs->port[count];
 
 		// The spec says that we first have to ensure that all of the
 		// implemented ports are idle.  If any of the fields ST, CR, FRE, or
@@ -984,7 +984,7 @@ static unsigned detectAndEnableDisk(ahciController *controller, int portNum)
 {
 	ahciPortRegs *portRegs = NULL;
 
-	portRegs = &(controller->regs->port[portNum]);
+	portRegs = &controller->regs->port[portNum];
 
 	// Perform device detection
 
@@ -1042,7 +1042,7 @@ static int findCommandSlot(ahciController *controller, int portNum)
 	int commandSlots = 0;
 	int count = 0;
 
-	portRegs = &(controller->regs->port[portNum]);
+	portRegs = &controller->regs->port[portNum];
 
 	// How many command slots are implemented?
 	commandSlots = (((controller->regs->CAP & AHCI_CAP_NCS) >> 8) + 1);
@@ -1180,7 +1180,7 @@ static int errorRecovery(ahciController *controller, int portNum)
 	// All of our software error recovery is handled here
 
 	int status = 0;
-	ahciPortRegs *portRegs = &(controller->regs->port[portNum]);
+	ahciPortRegs *portRegs = &controller->regs->port[portNum];
 	unsigned interruptStatus = controller->port[portNum].interruptStatus;
 	unsigned char taskFileError = 0;
 	int recovered = 0;
@@ -1268,7 +1268,7 @@ static int issueCommand(ahciController *controller, int portNum,
 	// Issue a command on the requested port
 
 	int status = 0;
-	ahciPortRegs *portRegs = &(controller->regs->port[portNum]);
+	ahciPortRegs *portRegs = &controller->regs->port[portNum];
 	int slotNum = -1;
 	unsigned numPrds = 0;
 	unsigned commandTableSize = 0;
@@ -1346,7 +1346,7 @@ static int issueCommand(ahciController *controller, int portNum,
 
 		// Set up the command header
 		commandHeader =
-			&(controller->port[portNum].commandList->command[slotNum]);
+			&controller->port[portNum].commandList->command[slotNum];
 		memset((void *) commandHeader, 0, sizeof(ahciCommandHeader));
 		commandHeader->fisLen = ((fisLen >> 2) & 0x1F);
 		commandHeader->atapi = (atapiPacket? 1 : 0);
@@ -1571,7 +1571,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 		diskNum = ((controller->num << 8) | portNum);
 
-		physicalDisk = &(DISK(diskNum)->physical);
+		physicalDisk = &DISK(diskNum)->physical;
 		physicalDisk->description = "Unknown SATA disk";
 		physicalDisk->deviceNumber = diskNum;
 		physicalDisk->driver = driver;
@@ -1856,16 +1856,16 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 		}
 
 		// Initialize the variable list for attributes of the disk.
-		status = kernelVariableListCreate(&(diskDevice->device.attrs));
+		status = kernelVariableListCreate(&diskDevice->device.attrs);
 		if (status >= 0)
 		{
-			kernelVariableListSet(&(diskDevice->device.attrs),
+			kernelVariableListSet(&diskDevice->device.attrs,
 				DEVICEATTRNAME_MODEL, (char *) DISK(diskNum)->physical.model);
 
 			if (DISK(diskNum)->featureFlags & ATA_FEATURE_MULTI)
 			{
 				sprintf(value, "%d", DISK(diskNum)->physical.multiSectors);
-				kernelVariableListSet(&(diskDevice->device.attrs),
+				kernelVariableListSet(&diskDevice->device.attrs,
 					"disk.multisectors", value);
 			}
 
@@ -1890,7 +1890,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			if (DISK(diskNum)->featureFlags & ATA_FEATURE_48BIT)
 				strcat(value, ",48-bit");
 
-			kernelVariableListSet(&(diskDevice->device.attrs), "disk.features",
+			kernelVariableListSet(&diskDevice->device.attrs, "disk.features",
 				value);
 		}
 	}
@@ -1978,7 +1978,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		// Claim the controller device in the list of PCI targets.
 		kernelBusDeviceClaim((kernelBusTarget *)
-			&(controllers[count].busTarget), driver);
+			&controllers[count].busTarget, driver);
 
 		// Detect disks
 		status = detectDisks(driver, &controllerDevices[count],
@@ -2334,7 +2334,7 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	}
 
 	// Wait for a lock on the port
-	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
+	status = kernelLockGet(&controller->port[dsk->portNum].lock);
 	if (status < 0)
 		return (status);
 
@@ -2362,7 +2362,7 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 		kernelDebug(debug_io, "AHCI transfer successful");
 
 	// Unlock the port
-	kernelLockRelease(&(controller->port[dsk->portNum].lock));
+	kernelLockRelease(&controller->port[dsk->portNum].lock);
 
 	return (status);
 }
@@ -2387,7 +2387,7 @@ static int driverSetLockState(int diskNum, int locked)
 	}
 
 	// Wait for a lock on the port
-	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
+	status = kernelLockGet(&controller->port[dsk->portNum].lock);
 	if (status < 0)
 		return (status);
 
@@ -2398,7 +2398,7 @@ static int driverSetLockState(int diskNum, int locked)
 	}
 
 	// Unlock the port
-	kernelLockRelease(&(controller->port[dsk->portNum].lock));
+	kernelLockRelease(&controller->port[dsk->portNum].lock);
 
 	return (status);
 }
@@ -2430,7 +2430,7 @@ static int driverSetDoorState(int diskNum, int open)
 	}
 
 	// Wait for a lock on the port
-	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
+	status = kernelLockGet(&controller->port[dsk->portNum].lock);
 	if (status < 0)
 		return (status);
 
@@ -2441,7 +2441,7 @@ static int driverSetDoorState(int diskNum, int open)
 	}
 
 	// Unlock the port
-	kernelLockRelease(&(controller->port[dsk->portNum].lock));
+	kernelLockRelease(&controller->port[dsk->portNum].lock);
 
 	return (status);
 }
@@ -2467,7 +2467,7 @@ static int driverMediaPresent(int diskNum)
 		return (present = 1);
 
 	// Wait for a lock on the port
-	if (kernelLockGet(&(controller->port[dsk->portNum].lock)) < 0)
+	if (kernelLockGet(&controller->port[dsk->portNum].lock) < 0)
 		return (present = 0);
 
 	kernelDebug(debug_io, "AHCI does %ssupport media status",
@@ -2505,7 +2505,7 @@ static int driverMediaPresent(int diskNum)
 	}
 
 	// Unlock the port
-	kernelLockRelease(&(controller->port[dsk->portNum].lock));
+	kernelLockRelease(&controller->port[dsk->portNum].lock);
 
 	kernelDebug(debug_io, "AHCI media %spresent", (present? "" : "not "));
 
@@ -2554,7 +2554,7 @@ static int driverFlush(int diskNum)
 		return (status = 0);
 
 	// Wait for a lock on the port
-	status = kernelLockGet(&(controller->port[dsk->portNum].lock));
+	status = kernelLockGet(&controller->port[dsk->portNum].lock);
 	if (status < 0)
 		return (status);
 
@@ -2569,7 +2569,7 @@ static int driverFlush(int diskNum)
 		NULL, NULL, 0, 0, 0 /* default timeout */);
 
 	// Unlock the port
-	kernelLockRelease(&(controller->port[dsk->portNum].lock));
+	kernelLockRelease(&controller->port[dsk->portNum].lock);
 
 	return (status);
 }

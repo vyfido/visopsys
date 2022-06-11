@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,7 +38,7 @@ static void setText(kernelWindowComponent *component, const char *label,
 	int length)
 {
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
-	asciiFont *labelFont = (asciiFont *) component->params.font;
+	kernelFont *labelFont = (kernelFont *) component->params.font;
 	int borderThickness = windowVariables->border.thickness;
 
 	strncpy((char *) button->label, label,
@@ -47,7 +47,8 @@ static void setText(kernelWindowComponent *component, const char *label,
 
 	int tmp = ((borderThickness * 2) + 6);
 	if (labelFont)
-		tmp += kernelFontGetPrintedWidth(labelFont, (char *) button->label);
+		tmp += kernelFontGetPrintedWidth(labelFont,
+			(char *) component->charSet, (char *) button->label);
 
 	if (tmp > component->width)
 		component->width = tmp;
@@ -66,7 +67,7 @@ static int setImage(kernelWindowComponent *component, image *img)
 	int status = 0;
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
 
-	status = kernelImageCopyToKernel(img, (image *) &(button->buttonImage));
+	status = kernelImageCopyToKernel(img, (image *) &button->buttonImage);
 	if (status < 0)
 		return (status);
 
@@ -95,9 +96,9 @@ static void drawFocus(kernelWindowComponent *component, int focus)
 	if (component->flags & WINFLAG_CANFOCUS)
 	{
 		if (focus)
-			drawColor = (color *) &(component->params.foreground);
+			drawColor = (color *) &component->params.foreground;
 		else
-			drawColor = (color *) &(component->params.background);
+			drawColor = (color *) &component->params.background;
 
 		kernelGraphicDrawRect(component->buffer, drawColor, draw_normal,
 			(component->xCoord + borderThickness),
@@ -115,17 +116,17 @@ static int draw(kernelWindowComponent *component)
 	// Draw the button component
 
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
-	asciiFont *labelFont = (asciiFont *) component->params.font;
+	kernelFont *labelFont = (kernelFont *) component->params.font;
 
 	// Draw the background of the button
 	if (button->state)
 		kernelGraphicConvexShade(component->buffer,
-			(color *) &(component->params.background), component->xCoord,
+			(color *) &component->params.background, component->xCoord,
 			component->yCoord, component->width, component->height,
 			shade_frombottom);
 	else
 		kernelGraphicConvexShade(component->buffer,
-			(color *) &(component->params.background), component->xCoord,
+			(color *) &component->params.background, component->xCoord,
 			component->yCoord, component->width, component->height,
 			shade_fromtop);
 
@@ -133,12 +134,13 @@ static int draw(kernelWindowComponent *component)
 	if (button->label[0])
 	{
 		kernelGraphicDrawText(component->buffer,
-			(color *) &(component->params.foreground),
-			(color *) &(component->params.background),
-			labelFont, (const char *) button->label, draw_translucent,
-			(component->xCoord + ((component->width -
+			(color *) &component->params.foreground,
+			(color *) &component->params.background,
+			labelFont, (char *) component->charSet, (char *) button->label,
+			draw_translucent, (component->xCoord + ((component->width -
 				kernelFontGetPrintedWidth(labelFont,
-					(const char *) button->label)) / 2)),
+					(char *) component->charSet,
+					(char *) button->label)) / 2)),
 			(component->yCoord + ((component->height -
 				labelFont->glyphHeight) / 2)));
 	}
@@ -158,7 +160,7 @@ static int draw(kernelWindowComponent *component)
 			tmpYoff = -((button->buttonImage.height - component->height) / 2);
 
 		kernelGraphicDrawImage(component->buffer,
-			(image *) &(button->buttonImage), draw_translucent, tmpX, tmpY,
+			(image *) &button->buttonImage, draw_alphablend, tmpX, tmpY,
 			tmpXoff, tmpYoff, component->width, component->height);
 	}
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,7 +31,6 @@
 
 static int (*saveFocus)(kernelWindowComponent *, int) = NULL;
 static int (*saveSetData)(kernelWindowComponent *, void *, int) = NULL;
-static int (*saveKeyEvent)(kernelWindowComponent *, windowEvent *) = NULL;
 static int (*saveDestroy)(kernelWindowComponent *component) = NULL;
 
 
@@ -80,9 +79,14 @@ static int showScrolled(kernelWindowComponent *component)
 
 	// Do we need to do any horizontal scrolling?
 	if (bufferChars >= (area->columns - 1))
-		bufferPtr = (textArea->fieldBuffer + (bufferChars - area->columns) + 1);
+	{
+		bufferPtr = (textArea->fieldBuffer + (bufferChars -
+			area->columns) + 1);
+	}
 	else
+	{
 		bufferPtr = textArea->fieldBuffer;
+	}
 
 	if (saveSetData)
 		return (saveSetData(component, bufferPtr, strlen(bufferPtr)));
@@ -142,10 +146,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 		}
 	}
 
-	if (saveKeyEvent)
-		return (saveKeyEvent(component, event));
-	else
-		return (0);
+	return (0);
 }
 
 
@@ -231,9 +232,7 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	// buffer)
 	component->getData = getData;
 
-	// Override the key event handler
-	if (!saveKeyEvent)
-		saveKeyEvent = component->keyEvent;
+	// Override the key event handler (we output directly into the text area)
 	component->keyEvent = keyEvent;
 
 	// Override the destructor

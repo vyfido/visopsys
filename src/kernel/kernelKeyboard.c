@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,7 @@
 // functionality
 
 #include "kernelError.h"
+#include "kernelCharset.h"
 #include "kernelFile.h"
 #include "kernelFileStream.h"
 #include "kernelKeyboard.h"
@@ -40,8 +41,8 @@
 
 // The default US-English keymap (but with the extra UK keys mapped, for me).
 static keyMap defMap = {
-	KEYMAP_MAGIC,
-	"English (US)",
+	KEYMAP_MAGIC, 0x0200,
+	"English (US)", { 'e', 'n' },
 	// Regular map
 	{ 0, 0, 0, ASCII_SPACE,										// 00-03
 	  0, 0, 0, 0,												// 04-07
@@ -120,7 +121,7 @@ static keyMap defMap = {
 	  0, 0, 0, 0,												// 60-63
 	  0, 0, 0, 0, 0												// 64-68
 	},
-	// Alt-Gr map.  Same as the regular map for this keyboard.
+	// AltGr map.  Same as the regular map for this keyboard.
 	{ 0, 0, 0, ASCII_SPACE,										// 00-03
 	  0, 0, 0, 0,												// 04-07
 	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_CRSRRIGHT, 0,		// 08-0B
@@ -145,12 +146,39 @@ static keyMap defMap = {
 	  '-', ASCII_ESC, 0, 0, 0, 0, 0, 0,							// 58-5F
 	  0, 0, 0, 0,												// 60-63
 	  0, 0, 0, 0, 0												// 64-68
+	},
+	// Shift-AltGr map.  Same as the shift map for this keyboard.
+	{ 0, 0, 0, ASCII_SPACE,										// 00-03
+	  0, 0, 0, 0,												// 04-07
+	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_CRSRRIGHT, 0,		// 08-0B
+	  ASCII_DEL, ASCII_ENTER, 0, '|',							// 0C-0F
+	  'Z', 'X', 'C', 'V',										// 10-13
+	  'B', 'N', 'M', '<',										// 14-17
+	  '>', '?', 0, ASCII_CRSRUP,								// 18-1B
+	  0, ASCII_CRSRDOWN, ASCII_PAGEDOWN, 0,						// 1C-1F
+	  'A', 'S', 'D', 'F',										// 20-23
+	  'G', 'H', 'J', 'K',										// 24-27
+	  'L', ':', '"', '~',										// 28-2B
+	  ASCII_CRSRLEFT, 0, ASCII_CRSRRIGHT, '+',					// 2C-2F
+	  ASCII_TAB, 'Q', 'W', 'E',									// 30-33
+	  'R', 'T', 'Y', 'U',										// 34-37
+	  'I', 'O', 'P', '{',										// 38-3B
+	  '}', '|', ASCII_DEL, 0,									// 3C-3F
+	  ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
+	  '~', '!', '@', '#',										// 44-47
+	  '$', '%', '^', '&', '*', '(', ')', '_',					// 48-4F
+	  '+', ASCII_BACKSPACE, 0, ASCII_HOME,						// 50-53
+	  ASCII_PAGEUP, 0, '/', '*',								// 54-57
+	  '-', ASCII_ESC, 0, 0, 0, 0, 0, 0,							// 58-5F
+	  0, 0, 0, 0,												// 60-63
+	  0, 0, 0, 0, 0												// 64-68
 	}
 };
 
 static kernelKeyboard *keyboards[MAX_KEYBOARDS];
 static int numKeyboards = 0;
-static keyMap *kernelKeyMap = &defMap;
+static keyMap *currentMap = NULL;
+static char currentCharset[CHARSET_NAME_LEN] = CHARSET_NAME_ISO_8859_15;
 static kernelKeyboard *virtual = NULL;
 
 // A buffer for input data waiting to be processed
@@ -416,19 +444,31 @@ static void keyboardThread(void)
 			if (buffer[count].keyboard->state.shiftState &
 				KEYBOARD_CONTROL_PRESSED)
 			{
-				ascii =	kernelKeyMap->controlMap[buffer[count].scanCode];
+				ascii =	kernelCharsetFromUnicode(currentCharset,
+					currentMap->controlMap[buffer[count].scanCode]);
 			}
 
 			else if (buffer[count].keyboard->state.shiftState &
 				KEYBOARD_RIGHT_ALT_PRESSED)
 			{
-				ascii = kernelKeyMap->altGrMap[buffer[count].scanCode];
+				if (buffer[count].keyboard->state.shiftState &
+					KEYBOARD_SHIFT_PRESSED)
+				{
+					ascii = kernelCharsetFromUnicode(currentCharset,
+						currentMap->shiftAltGrMap[buffer[count].scanCode]);
+				}
+				else
+				{
+					ascii = kernelCharsetFromUnicode(currentCharset,
+						currentMap->altGrMap[buffer[count].scanCode]);
+				}
 			}
 
 			else if (buffer[count].keyboard->state.shiftState &
 				KEYBOARD_SHIFT_PRESSED)
 			{
-				ascii =	kernelKeyMap->shiftMap[buffer[count].scanCode];
+				ascii =	kernelCharsetFromUnicode(currentCharset,
+					currentMap->shiftMap[buffer[count].scanCode]);
 
 				// Check for Caps Lock
 				if ((buffer[count].keyboard->state.toggleState &
@@ -440,7 +480,8 @@ static void keyboardThread(void)
 
 			else
 			{
-				ascii =	kernelKeyMap->regMap[buffer[count].scanCode];
+				ascii =	kernelCharsetFromUnicode(currentCharset,
+					currentMap->regMap[buffer[count].scanCode]);
 
 				// Check for Caps Lock
 				if ((buffer[count].keyboard->state.toggleState &
@@ -563,8 +604,8 @@ int kernelKeyboardInitialize(void)
 	if (initialized)
 		return (status = 0);
 
-	kernelKeyMap = kernelMalloc(sizeof(keyMap));
-	if (!kernelKeyMap)
+	currentMap = kernelMalloc(sizeof(keyMap));
+	if (!currentMap)
 		return (status = ERR_MEMORY);
 
 	// Create a virtual keyboard
@@ -578,10 +619,10 @@ int kernelKeyboardInitialize(void)
 	// We use US English as default, because, well, Americans would be so
 	// confused if it wasn't.  Everyone else understands the concept of
 	// setting it.
-	memcpy(kernelKeyMap, &defMap, sizeof(keyMap));
+	memcpy(currentMap, &defMap, sizeof(keyMap));
 
 	// Set the default keyboard data stream to be the console input
-	consoleStream = &(kernelTextGetConsoleInput()->s);
+	consoleStream = &kernelTextGetConsoleInput()->s;
 
 	// Spawn the keyboard thread
 	threadPid = kernelMultitaskerSpawn(keyboardThread, "keyboard thread",
@@ -629,7 +670,7 @@ int kernelKeyboardGetMap(keyMap *map)
 	if (!map)
 		return (status = ERR_NULLPARAMETER);
 
-	memcpy(map, kernelKeyMap, sizeof(keyMap));
+	memcpy(map, currentMap, sizeof(keyMap));
 
 	return (status = 0);
 }
@@ -638,11 +679,12 @@ int kernelKeyboardGetMap(keyMap *map)
 int kernelKeyboardSetMap(const char *fileName)
 {
 	// Load the keyboard map from the supplied file name and set it as the
-	// current mapping.  If the filename is NULL, then the default (English US)
+	// current mapping.  If the filename is NULL, then the default (US English)
 	// mapping will be used.
 
 	int status = 0;
 	fileStream theFile;
+	char charsetName[CHARSET_NAME_LEN];
 
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
@@ -650,7 +692,7 @@ int kernelKeyboardSetMap(const char *fileName)
 	// Check params
 	if (!fileName)
 	{
-		memcpy(kernelKeyMap, &defMap, sizeof(keyMap));
+		memcpy(currentMap, &defMap, sizeof(keyMap));
 		return (status = 0);
 	}
 
@@ -662,9 +704,19 @@ int kernelKeyboardSetMap(const char *fileName)
 		return (status);
 
 	status = kernelFileStreamRead(&theFile, sizeof(keyMap),
-		(char *) kernelKeyMap);
+		(char *) currentMap);
 
 	kernelFileStreamClose(&theFile);
+
+	// If the read was successful, try to set an appropriate character set
+	if (status >= 0)
+	{
+		if (kernelConfigGet(PATH_SYSTEM_CONFIG "/charset.conf",
+			currentMap->language, charsetName, CHARSET_NAME_LEN) >= 0)
+		{
+			strncpy(currentCharset, charsetName, CHARSET_NAME_LEN);
+		}
+	}
 
 	return (status);
 }

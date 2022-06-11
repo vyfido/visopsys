@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -206,8 +206,8 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 				// appropriately
 				if (intArg)
 				{
-					strcpy((output + outCount), (char *) ((unsigned) intArg));
-					outCount += strlen((char *) ((unsigned) intArg));
+					strcpy((output + outCount), (char *)((unsigned) intArg));
+					outCount += strlen((char *)((unsigned) intArg));
 				}
 				else
 				{

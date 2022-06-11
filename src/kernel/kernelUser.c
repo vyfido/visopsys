@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,7 @@
 #include "kernelEnvironment.h"
 #include "kernelError.h"
 #include "kernelFile.h"
+#include "kernelKeyboard.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
@@ -275,10 +276,10 @@ int kernelUserInitialize(void)
 	}
 
 	// Make sure there's a user called 'admin'
-	if (!userExists("admin", &systemUserList))
+	if (!userExists(USER_ADMIN, &systemUserList))
 	{
 		// Create a user entry for 'admin' with a blank password.
-		status = addUser(&systemUserList, "admin", "");
+		status = addUser(&systemUserList, USER_ADMIN, "");
 		if (status < 0)
 			return (status);
 
@@ -328,7 +329,9 @@ int kernelUserLogin(const char *userName, const char *password)
 	// Logs a user in
 
 	int status = 0;
-	char homeDir[MAX_PATH_LENGTH];
+	char homeDir[MAX_PATH_LENGTH + 1];
+	char keyMapName[KEYMAP_NAMELEN + 1];
+	char keyMapFile[MAX_PATH_NAME_LENGTH + 1];
 
 	// Check initialization
 	if (!initialized)
@@ -353,13 +356,13 @@ int kernelUserLogin(const char *userName, const char *password)
 
 	// This is just a kludge for now.  'admin' is supervisor privilege,
 	// everyone else is user privilege
-	if (!strncmp(userName, "admin", USER_MAX_NAMELENGTH))
+	if (!strncmp(userName, USER_ADMIN, USER_MAX_NAMELENGTH))
 		currentUser.privilege = PRIVILEGE_SUPERVISOR;
 	else
 		currentUser.privilege = PRIVILEGE_USER;
 
 	// Determine the user's home directory
-	if (!strncmp(userName, "admin", USER_MAX_NAMELENGTH))
+	if (!strncmp(userName, USER_ADMIN, USER_MAX_NAMELENGTH))
 		strcpy(homeDir, "/");
 	else
 		snprintf(homeDir, MAX_PATH_LENGTH, PATH_USERS_HOME, userName);
@@ -376,6 +379,14 @@ int kernelUserLogin(const char *userName, const char *password)
 	// Load the rest of the environment variables
 	kernelEnvironmentLoad(userName);
 
+	// If the user has the ENV_KEYMAP variable set, set the current keymap
+	status = kernelEnvironmentGet(ENV_KEYMAP, keyMapName, KEYMAP_NAMELEN);
+	if (status >= 0)
+	{
+		sprintf(keyMapFile, PATH_SYSTEM_KEYMAPS "/%s.map", keyMapName);
+		kernelKeyboardSetMap(keyMapFile);
+	}
+
 	return (status = 0);
 }
 
@@ -385,6 +396,7 @@ int kernelUserLogout(const char *userName)
 	// Logs a user out.  Currently, only 1 user can be logged in at a time.
 
 	int status = 0;
+	char keyMapFile[MAX_PATH_NAME_LENGTH + 1];
 
 	// Check initialization
 	if (!initialized)
@@ -403,6 +415,17 @@ int kernelUserLogout(const char *userName)
 
 	// Clear environment variables
 	kernelEnvironmentClear();
+
+	// Restore keyboard mapping to the default
+	if (kernelConfigGet(PATH_SYSTEM_CONFIG "/kernel.conf", "keyboard.map",
+		keyMapFile, MAX_PATH_NAME_LENGTH) >= 0)
+	{
+		kernelKeyboardSetMap(keyMapFile);
+	}
+	else
+	{
+		kernelKeyboardSetMap(NULL);
+	}
 
 	// Set the current directory to '/'
 	kernelMultitaskerSetCurrentDirectory("/");
@@ -629,7 +652,7 @@ int kernelUserGetPrivilege(const char *userName)
 
 	// This is just a kludge for now.  'admin' is supervisor privilege,
 	// everyone else is user privilege
-	if (!strcmp(userName, "admin"))
+	if (!strcmp(userName, USER_ADMIN))
 		return (PRIVILEGE_SUPERVISOR);
 	else
 		return (PRIVILEGE_USER);

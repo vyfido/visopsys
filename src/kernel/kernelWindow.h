@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,8 +23,9 @@
 
 #if !defined(_KERNELWINDOW_H)
 
-#include "kernelMouse.h"
+#include "kernelCharset.h"
 #include "kernelGraphic.h"
+#include "kernelMouse.h"
 #include "kernelText.h"
 #include "kernelVariableList.h"
 #include <string.h>
@@ -34,28 +35,34 @@
 
 // Definitions
 
-#define WINDOW_TITLEBAR_HEIGHT					19
-#define WINDOW_TITLEBAR_MINWIDTH				(WINDOW_TITLEBAR_HEIGHT * 4)
-#define WINDOW_BORDER_THICKNESS					3
-#define WINDOW_SHADING_INCREMENT				15
-#define WINDOW_RADIOBUTTON_SIZE					10
-#define WINDOW_CHECKBOX_SIZE					10
-#define WINDOW_SLIDER_WIDTH						20
-#define WINDOW_MIN_WIDTH \
-	(WINDOW_TITLEBAR_MINWIDTH + (WINDOW_BORDER_THICKNESS * 2))
-#define WINDOW_MIN_HEIGHT \
-	(WINDOW_TITLEBAR_HEIGHT + (WINDOW_BORDER_THICKNESS * 2))
-#define WINDOW_MINREST_TRACERS					20
+#define WINDOW_DEFAULT_TITLEBAR_HEIGHT			24
+#define WINDOW_DEFAULT_TITLEBAR_MINWIDTH \
+	(WINDOW_DEFAULT_TITLEBAR_HEIGHT * 4)
+#define WINDOW_DEFAULT_BORDER_THICKNESS			2
+#define WINDOW_DEFAULT_SHADING_INCREMENT		15
+#define WINDOW_DEFAULT_RADIOBUTTON_SIZE			12
+#define WINDOW_DEFAULT_CHECKBOX_SIZE			12
+#define WINDOW_DEFAULT_SLIDER_WIDTH				20
+#define WINDOW_DEFAULT_MIN_WIDTH \
+	(WINDOW_DEFAULT_TITLEBAR_MINWIDTH + (WINDOW_DEFAULT_BORDER_THICKNESS * 2))
+#define WINDOW_DEFAULT_MIN_HEIGHT \
+	(WINDOW_DEFAULT_TITLEBAR_HEIGHT + (WINDOW_DEFAULT_BORDER_THICKNESS * 2))
+#define WINDOW_DEFAULT_MINREST_TRACERS			20
+#define WINDOW_DEFAULT_FIXFONT_SMALL_FAMILY		FONT_FAMILY_LIBMONO
+#define WINDOW_DEFAULT_FIXFONT_SMALL_FLAGS		FONT_STYLEFLAG_FIXED
+#define WINDOW_DEFAULT_FIXFONT_SMALL_POINTS		8
+#define WINDOW_DEFAULT_FIXFONT_MEDIUM_FAMILY	FONT_FAMILY_LIBMONO
+#define WINDOW_DEFAULT_FIXFONT_MEDIUM_FLAGS		FONT_STYLEFLAG_FIXED
+#define WINDOW_DEFAULT_FIXFONT_MEDIUM_POINTS	10
+#define WINDOW_DEFAULT_VARFONT_SMALL_FAMILY		FONT_FAMILY_ARIAL
+#define WINDOW_DEFAULT_VARFONT_SMALL_FLAGS		FONT_STYLEFLAG_BOLD
+#define WINDOW_DEFAULT_VARFONT_SMALL_POINTS		10
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_FAMILY	FONT_FAMILY_ARIAL
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_FLAGS		FONT_STYLEFLAG_BOLD
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS	12
 #define WINDOW_MAX_CHILDREN						32
-#define WINDOW_CONFIG							"window.conf"
-#define WINDOW_DESKTOP_CONFIG					"desktop.conf"
-#define WINDOW_DEFAULT_VARFONT_SMALL_FILE \
-	PATH_SYSTEM_FONTS "/arial-bold-10.vbf"
-#define WINDOW_DEFAULT_VARFONT_SMALL_NAME		"arial-bold-10"
-#define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE \
-	PATH_SYSTEM_FONTS "/arial-bold-12.vbf"
-#define WINDOW_DEFAULT_VARFONT_MEDIUM_NAME		"arial-bold-12"
 
+#define WINFLAG_ICONIFIED						0x0800
 #define WINFLAG_VISIBLE							0x0400
 #define WINFLAG_ENABLED							0x0200
 #define WINFLAG_MOVABLE							0x0100
@@ -108,17 +115,33 @@ typedef struct {
 	} slider;
 
 	struct {
-		asciiFont *defaultFont;
+		kernelFont *defaultFont;
 		struct {
 			struct {
-				char file[MAX_PATH_NAME_LENGTH];
-				char name[MAX_NAME_LENGTH];
-				asciiFont *font;
+				char family[FONT_FAMILY_LEN];
+				unsigned flags;
+				int points;
+				kernelFont *font;
 			} small;
 			struct {
-				char file[MAX_PATH_NAME_LENGTH];
-				char name[MAX_NAME_LENGTH];
-				asciiFont *font;
+				char family[FONT_FAMILY_LEN];
+				unsigned flags;
+				int points;
+				kernelFont *font;
+			} medium;
+		} fixWidth;
+		struct {
+			struct {
+				char family[FONT_FAMILY_LEN];
+				unsigned flags;
+				int points;
+				kernelFont *font;
+			} small;
+			struct {
+				char family[FONT_FAMILY_LEN];
+				unsigned flags;
+				int points;
+				kernelFont *font;
 			} medium;
 		} varWidth;
 	} font;
@@ -145,6 +168,7 @@ typedef enum {
 	textAreaComponentType,
 	textLabelComponentType,
 	titleBarComponentType,
+	treeComponentType,
 	windowType
 
 } kernelWindowObjectType;
@@ -154,11 +178,12 @@ struct _kernelWindow;
 
 // The object that defines a GUI component inside a window
 typedef volatile struct _kernelWindowComponent {
-	kernelWindowObjectType type;
+	kernelWindowObjectType type;	// Must be first
 	kernelWindowObjectType subType;
 	volatile struct _kernelWindow *window;
 	volatile struct _kernelWindowComponent *container;
 	volatile struct _kernelWindow *contextMenu;
+	char charSet[CHARSET_NAME_LEN];
 	graphicBuffer *buffer;
 	int xCoord;
 	int yCoord;
@@ -186,12 +211,14 @@ typedef volatile struct _kernelWindowComponent {
 	// Routines that should be implemented by components that 'contain'
 	// or instantiate other components
 	int (*add)(volatile struct _kernelWindowComponent *, objectKey);
-	int (*remove)(volatile struct _kernelWindowComponent *,
+	int (*delete)(volatile struct _kernelWindowComponent *,
 			volatile struct _kernelWindowComponent *);
 	int (*numComps)(volatile struct _kernelWindowComponent *);
 	int (*flatten)(volatile struct _kernelWindowComponent *,
 		volatile struct _kernelWindowComponent **, int *, unsigned);
 	int (*layout)(volatile struct _kernelWindowComponent *);
+	volatile struct _kernelWindowComponent *
+		(*activeComp)(volatile struct _kernelWindowComponent *);
 	volatile struct _kernelWindowComponent *
 		(*eventComp)(volatile struct _kernelWindowComponent *, windowEvent *);
 	int (*setBuffer)(volatile struct _kernelWindowComponent *,
@@ -301,6 +328,7 @@ typedef volatile struct {
 	int menuXCoord[WINDOW_MAX_CHILDREN];
 	int menuTitleWidth[WINDOW_MAX_CHILDREN];
 	int numMenus;
+	kernelWindowComponent *container;
 
 } kernelWindowMenuBar;
 
@@ -361,10 +389,24 @@ typedef volatile struct {
 
 } kernelWindowTitleBar;
 
+typedef volatile struct {
+	int numItems;
+	windowTreeItem *items;
+	int rows;
+	int expandedItems;
+	int visibleItems;
+	int scrolledLines;
+	int selectedItem;
+	kernelWindowComponent *container;
+	kernelWindowComponent *scrollBar;
+
+} kernelWindowTree;
+
 // The object that defines a GUI window
 typedef volatile struct _kernelWindow {
-	kernelWindowObjectType type;
+	kernelWindowObjectType type;	// Must be first
 	int processId;
+	char charSet[CHARSET_NAME_LEN];
 	char title[WINDOW_MAX_TITLE_LENGTH];
 	int xCoord;
 	int yCoord;
@@ -414,12 +456,12 @@ typedef struct {
 } screenArea;
 
 #define makeWindowScreenArea(w) \
-	(&((screenArea) { (w)->xCoord, (w)->yCoord,		\
+	(&((screenArea){ (w)->xCoord, (w)->yCoord,		\
 		((w)->xCoord + ((w)->buffer.width - 1)),	\
 		((w)->yCoord + ((w)->buffer.height - 1)) } ))
 
 #define makeComponentScreenArea(c) \
-	(&((screenArea) { ((c)->window->xCoord + (c)->xCoord),		\
+	(&((screenArea){ ((c)->window->xCoord + (c)->xCoord),		\
 		((c)->window->yCoord + (c)->yCoord),					\
 		((c)->window->xCoord + (c)->xCoord + ((c)->width - 1)),	\
 		((c)->window->yCoord + (c)->yCoord + ((c)->height - 1)) } ))
@@ -479,18 +521,21 @@ static inline int doAreasIntersect(screenArea *firstArea,
 		doLinesIntersect(secondArea->leftX, secondArea->topY,
 			secondArea->rightX, firstArea->leftX, firstArea->topY,
 			firstArea->bottomY))
+	{
 		return (1);
-
+	}
 	else
+	{
 		// Nope, not intersecting
 		return (0);
+	}
 }
 
 static inline void removeFromContainer(kernelWindowComponent *component)
 {
 	// Remove the component from its parent container
-	if (component->container && component->container->remove)
-		component->container->remove(component->container, component);
+	if (component->container && component->container->delete)
+		component->container->delete(component->container, component);
 	component->container = NULL;
 }
 
@@ -556,6 +601,7 @@ kernelWindow *kernelWindowNewChild(kernelWindow *, const char *);
 kernelWindow *kernelWindowNewDialog(kernelWindow *, const char *);
 int kernelWindowDestroy(kernelWindow *);
 int kernelWindowUpdateBuffer(graphicBuffer *, int, int, int, int);
+int kernelWindowSetCharSet(kernelWindow *, const char *);
 int kernelWindowSetTitle(kernelWindow *, const char *);
 int kernelWindowGetSize(kernelWindow *, int *, int *);
 int kernelWindowSetSize(kernelWindow *, int, int);
@@ -601,16 +647,21 @@ int kernelWindowRefresh(void);
 // Window shell functions
 int kernelWindowShell(const char *);
 void kernelWindowShellUpdateList(kernelWindow *[], int);
-int kernelWindowShellRefresh(void);
+void kernelWindowShellRefresh(void);
 int kernelWindowShellTileBackground(const char *);
 int kernelWindowShellCenterBackground(const char *);
 int kernelWindowShellRaiseWindowMenu(void);
+kernelWindowComponent *kernelWindowShellNewTaskbarIcon(image *);
+kernelWindowComponent *kernelWindowShellNewTaskbarTextLabel(const char *);
+void kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *);
+kernelWindowComponent *kernelWindowShellIconify(kernelWindow *, int, image *);
 
 // Functions for managing components.  This first batch is from
 // kernelWindowComponent.c
 kernelWindowComponent *kernelWindowComponentNew(objectKey,
 	componentParameters *);
 void kernelWindowComponentDestroy(kernelWindowComponent *);
+int kernelWindowComponentSetCharSet(kernelWindowComponent *, const char *);
 int kernelWindowComponentSetVisible(kernelWindowComponent *, int);
 int kernelWindowComponentSetEnabled(kernelWindowComponent *, int);
 int kernelWindowComponentGetWidth(kernelWindowComponent *);
@@ -650,6 +701,8 @@ kernelWindow *kernelWindowNewMenu(kernelWindow *, kernelWindowComponent *,
 	const char *, windowMenuContents *, componentParameters *);
 kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *,
 	componentParameters *);
+kernelWindowComponent *kernelWindowNewMenuBarIcon(objectKey parent, image *,
+	componentParameters *);
 kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *,
 	const char *, componentParameters *);
 kernelWindowComponent *kernelWindowNewPasswordField(objectKey, int,
@@ -672,6 +725,8 @@ kernelWindowComponent *kernelWindowNewTextLabel(objectKey, const char *,
 	componentParameters *);
 kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *,
 	componentParameters *);
+kernelWindowComponent *kernelWindowNewTree(objectKey, windowTreeItem *, int,
+	int, componentParameters *);
 
 #define _KERNELWINDOW_H
 #endif

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -93,12 +93,12 @@ static void writeWordPort(int port, int value)
 	unsigned char data;
 
 	// Set the controller register.  Start with the low byte.
-	data = (unsigned char) (value & 0xFF);
+	data = (unsigned char)(value & 0xFF);
 	processorOutPort8(port, data);
 	processorDelay();
 
 	// Now the high byte
-	data = (unsigned char) ((value >> 8) & 0xFF);
+	data = (unsigned char)((value >> 8) & 0xFF);
 	processorOutPort8(port, data);
 	processorDelay();
 }
@@ -136,12 +136,12 @@ static int driverOpenChannel(int channel, void *address, int count, int mode)
 
 	// 1. Disable the channel.  Mask out all but the bottom two bits of the
 	// channel number, then turn on the disable 'mask' bit
-	data = (unsigned char) ((channel & 0x03) | 0x04);
+	data = (unsigned char)((channel & 0x03) | 0x04);
 	processorOutPort8(controllerPorts[controller].maskReg, data);
 	processorDelay();
 
 	// 2. Set the channel and mode.  "or" the channel with the mode
-	data = (unsigned char) ((mode | channel) & 0xFF);
+	data = (unsigned char)((mode | channel) & 0xFF);
 	processorOutPort8(controllerPorts[controller].modeReg, data);
 	processorDelay();
 
@@ -160,13 +160,13 @@ static int driverOpenChannel(int channel, void *address, int count, int mode)
 	writeWordPort(channelPorts[channel].baseCurrentCountReg, count);
 
 	// Set the page register
-	data = (unsigned char) (segment & 0xFF);
+	data = (unsigned char)(segment & 0xFF);
 	processorOutPort8(channelPorts[channel].pageReg, data);
 	processorDelay();
 
 	// 4. Enable the channel.  Mask out all but the bottom two bits of the
 	// channel number.
-	data = (unsigned char) (channel & 0x03);
+	data = (unsigned char)(channel & 0x03);
 	processorOutPort8(controllerPorts[controller].maskReg, data);
 	processorDelay();
 
@@ -200,7 +200,7 @@ static int driverCloseChannel(int channel)
 
 	// Mask out all but the bottom two bits of the channel number, as above,
 	// then turn on the 'mask' bit
-	data = (unsigned char) ((channel & 0x03) | 0x04);
+	data = (unsigned char)((channel & 0x03) | 0x04);
 	processorOutPort8(controllerPorts[controller].maskReg, data);
 	processorDelay();
 
@@ -224,7 +224,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		return (status = 0);
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_DMA);

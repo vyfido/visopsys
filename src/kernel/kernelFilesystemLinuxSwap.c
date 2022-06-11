@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,8 +23,9 @@
 // filesystem
 
 #include "kernelFilesystem.h"
-#include "kernelMalloc.h"
+#include "kernelDriver.h"
 #include "kernelError.h"
+#include "kernelMalloc.h"
 #include <string.h>
 #include <sys/linuxswap.h>
 
@@ -84,48 +85,6 @@ static int writeSwapHeader(const kernelDisk *theDisk, linuxSwapHeader *header)
 }
 
 
-static int detect(kernelDisk *theDisk)
-{
-	// This function is used to determine whether the data on a disk
-	// structure is using a Linux swap filesystem.  Returns 1 for true, 0 for
-	// false, and negative if it encounters an error
-
-	int status = 0;
-	unsigned char sectBuff[MEMORY_PAGE_SIZE];
-	linuxSwapHeader *header = (linuxSwapHeader *) sectBuff;
-
-	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
-
-	// Check params
-	if (!theDisk)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
-	}
-
-	// Read the swap header
-	status = readSwapHeader(theDisk, header);
-	if (status < 0)
-		// Not linux-swap
-		return (status = 0);
-
-	// Check for the signature
-	if (!strncmp(header->magic.magic, LINUXSWAP_MAGIC1, 10) ||
-		!strncmp(header->magic.magic, LINUXSWAP_MAGIC2, 10))
-	{
-		// Linux-swap
-		strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
-		strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel,
-			16);
-		return (status = 1);
-	}
-	else
-		// Not linux-swap
-		return (status = 0);
-}
-
-
 static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 {
 	// This function does a basic format of a linux swap filesystem.
@@ -165,7 +124,7 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 	}
 
 	header = kernelMalloc(sizeof(linuxSwapHeader));
-	if (header == NULL)
+	if (!header)
 		return (status = ERR_MEMORY);
 
 	// Fill out the header
@@ -189,6 +148,58 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 	}
 
 	return (status = 0);
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard filesystem driver functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+static int detect(kernelDisk *theDisk)
+{
+	// This function is used to determine whether the data on a disk
+	// structure is using a Linux swap filesystem.  Returns 1 for true, 0 for
+	// false, and negative if it encounters an error
+
+	int status = 0;
+	unsigned char sectBuff[MEMORY_PAGE_SIZE];
+	linuxSwapHeader *header = (linuxSwapHeader *) sectBuff;
+
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!theDisk)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Read the swap header
+	status = readSwapHeader(theDisk, header);
+	if (status < 0)
+		// Not linux-swap
+		return (status = 0);
+
+	// Check for the signature
+	if (!strncmp(header->magic.magic, LINUXSWAP_MAGIC1, 10) ||
+		!strncmp(header->magic.magic, LINUXSWAP_MAGIC2, 10))
+	{
+		// Linux-swap
+		strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
+		strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel,
+			16);
+		return (status = 1);
+	}
+	else
+	{
+		// Not linux-swap
+		return (status = 0);
+	}
 }
 
 
@@ -310,7 +321,7 @@ static int readDir(kernelFileEntry *directory)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (directory == NULL)
+	if (!directory)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
@@ -364,7 +375,7 @@ static int mount(kernelDisk *theDisk)
 
 	// Attach our new FS data
 	header = kernelMalloc(sizeof(linuxSwapHeader));
-	if (header == NULL)
+	if (!header)
 		return (status = ERR_MEMORY);
 
 	status = readSwapHeader(theDisk, header);

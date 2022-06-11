@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -58,17 +58,6 @@
 
 // Other
 #define MAX_SERIAL_PORTS			4
-
-// Variable names from kernel.conf
-#define COLOR_FOREGROUND_RED		"color.foreground.red"
-#define COLOR_FOREGROUND_GREEN		"color.foreground.green"
-#define COLOR_FOREGROUND_BLUE		"color.foreground.blue"
-#define COLOR_BACKGROUND_RED		"color.background.red"
-#define COLOR_BACKGROUND_GREEN		"color.background.green"
-#define COLOR_BACKGROUND_BLUE		"color.background.blue"
-#define COLOR_DESKTOP_RED			"color.desktop.red"
-#define COLOR_DESKTOP_GREEN			"color.desktop.green"
-#define COLOR_DESKTOP_BLUE			"color.desktop.blue"
 
 #define _KERNELPARAMETERS_H
 #endif

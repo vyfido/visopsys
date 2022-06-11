@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,8 +39,9 @@
 #define XHCI_HCSP1_MAXDEVSLOTS		0x000000FF
 
 // Bitfields for the HCSPARAMS2 register
-#define XHCI_HCSP2_MAXSCRPBUFFS		0xF8000000
+#define XHCI_HCSP2_MAXSCRPBUFFSLO	0xF8000000
 #define XHCI_HCSP2_SCRATCHPREST		0x04000000
+#define XHCI_HCSP2_MAXSCRPBUFFSHI	0x03E00000
 #define XHCI_HCSP2_ERSTMAX			0x000000F0
 #define XHCI_HCSP2_ISOCSCHDTHRS		0x0000000F
 

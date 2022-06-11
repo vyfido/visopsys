@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2015 J. Andrew McLaughlin
+# Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,10 +22,10 @@ msgstr "Instalador del menu de arranque"
 #: bootmenu.c:67
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2015 J. Andrew McLaughlin"
+"Copyright (C) 1998-2016 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys - Instalador del menu de arranque\n"
-"Copyright (C) 1998-2015 J. Andrew McLaughlin"
+"Copyright (C) 1998-2016 J. Andrew McLaughlin"
 
 #: bootmenu.c:69
 msgid ""
@@ -145,43 +145,43 @@ msgstr "si"
 msgid "no"
 msgstr "No"
 
-#: bootmenu.c:748
+#: bootmenu.c:700
 msgid "Can't write boot menu"
 msgstr "No se pudo escribir el menu de arranque"
 
-#: bootmenu.c:760
+#: bootmenu.c:712
 #, c-format
 msgid "Can't write MBR %s to %s"
 msgstr "No se pudo escribir MBR %s en %s"
 
-#: bootmenu.c:801
+#: bootmenu.c:753
 msgid "Permission Denied"
 msgstr "Permiso denegado"
 
-#: bootmenu.c:812
+#: bootmenu.c:764
 #, c-format
 msgid "Can't get disk %s"
 msgstr "No se pudo acceder al disco %s"
 
-#: bootmenu.c:821
+#: bootmenu.c:773
 #, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr "El disco %s no es un disco duro fisico"
 
-#: bootmenu.c:829
+#: bootmenu.c:781
 msgid "Can't get the list of logical disks"
 msgstr "No se pudo obtener la lista de discos logicos"
 
-#: bootmenu.c:884
+#: bootmenu.c:836
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr "\"%s\" [Sistema de archivos: %s]"
 
-#: bootmenu.c:909
+#: bootmenu.c:861
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr "No existen sistemas operativos con arranque por cadena en este disco."
 
-#: bootmenu.c:953
+#: bootmenu.c:905
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
@@ -191,10 +191,10 @@ msgstr ""
 "  [Cursor arriba/abajo para seleccionar, 'e' edita,\n"
 "   '*' valores por defecto, Enter para aceptar y Esc para salir ]"
 
-#: bootmenu.c:1020
+#: bootmenu.c:972
 msgid "Can't write boot menu or MBR"
 msgstr "No se puede escribir el menu de arranque o MBR"
 
-#: bootmenu.c:1028
+#: bootmenu.c:980
 msgid "Done"
 msgstr "Listo"

@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -89,48 +89,48 @@ msgstr "zombie "
 msgid "unknown "
 msgstr "unbekannt "
 
-#: progman.c:337
+#: progman.c:336
 msgid "Enter command"
 msgstr "Befehl eingeben"
 
-#: progman.c:338
+#: progman.c:337
 msgid "Please enter a command to run:"
 msgstr "Bitte geben Sie einen Befehl an der ausgeführt werden soll:"
 
-#: progman.c:367
+#: progman.c:366
 msgid "Unable to execute program"
 msgstr "Programm kann nicht gestartet werden"
 
-#: progman.c:404 progman.c:607
+#: progman.c:403 progman.c:612
 msgid "Set priority"
 msgstr "Priorität festlegen"
 
-#: progman.c:405
+#: progman.c:404
 msgid "Please enter the desired priority"
 msgstr "Bitte geben Sie die gewünschte Priorität an"
 
-#: progman.c:497
+#: progman.c:500
 msgid "Unable to launch file dialog"
 msgstr "Datei-Fenster kann nicht angezeigt werden"
 
-#: progman.c:566
+#: progman.c:571
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr "Prozess                   PID PPID UID Pri Priv CPU% STATUS   "
 
-#: progman.c:580
+#: progman.c:585
 msgid "Show all sub-processes"
 msgstr "Alle Unter-Prozesse anzeigen"
 
-#: progman.c:600
+#: progman.c:605
 msgid "Run program"
 msgstr "Programm ausführen"
 
-#: progman.c:613
+#: progman.c:618
 msgid "Kill process"
 msgstr "Prozess beenden"
 
-#: progman.c:636
+#: progman.c:641
 #, c-format
 msgid ""
 "\n"
@@ -139,6 +139,6 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: progman.c:655
+#: progman.c:660
 msgid "Error getting memory"
 msgstr "Fehler beim beziehen von Speicher"

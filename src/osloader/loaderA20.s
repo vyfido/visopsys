@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -298,7 +298,7 @@ loaderEnableA20:
 	;; machines don't let us set A20 manually, but work anyway.
 
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, A20BAD1
 	call loaderPrint
 	call loaderPrintNewline

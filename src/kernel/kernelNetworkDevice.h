@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,10 +30,10 @@
 #define NETWORK_ARPOP_REPLY				2
 
 typedef struct {
-	void (*driverInterruptHandler) (kernelNetworkDevice *);
-	int (*driverSetFlags) (kernelNetworkDevice *, unsigned, int);
-	unsigned (*driverReadData) (kernelNetworkDevice *, unsigned char *);
-	int (*driverWriteData) (kernelNetworkDevice *, unsigned char *, unsigned);
+	void (*driverInterruptHandler)(kernelNetworkDevice *);
+	int (*driverSetFlags)(kernelNetworkDevice *, unsigned, int);
+	unsigned (*driverReadData)(kernelNetworkDevice *, unsigned char *);
+	int (*driverWriteData)(kernelNetworkDevice *, unsigned char *, unsigned);
 
 } kernelNetworkDeviceOps;
 

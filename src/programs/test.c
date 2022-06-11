@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -112,9 +112,9 @@ static int format_strings(void)
 
 				val[1] = 0;
 				if (types[typeCount].bits == 32)
-					status = sscanf(buff, format, (unsigned *) &(val[1]));
+					status = sscanf(buff, format, (unsigned *) &val[1]);
 				else if (types[typeCount].bits == 64)
-					status = sscanf(buff, format, &(val[1]));
+					status = sscanf(buff, format, &val[1]);
 
 				if (status < 0)
 				{
@@ -156,7 +156,7 @@ static int format_strings(void)
 			FAILMESS("Error expanding char format");
 			goto out;
 		}
-		status = sscanf(buff, format, &(charVal[1]));
+		status = sscanf(buff, format, &charVal[1]);
 		if (status < 0)
 		{
 			FAILMESS("Error formatting char input");
@@ -551,10 +551,9 @@ static int xtra_chars(void)
 		params.padBottom = 5;
 		params.orientationX = orient_center;
 		params.orientationY = orient_middle;
-
-		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&(params.font), 0);
-		if (status < 0)
+		params.font = fontGet(FONT_FAMILY_XTERM, FONT_STYLEFLAG_NORMAL, 10,
+			NULL);
+		if (!params.font)
 		{
 			FAILMESS("Error %d getting font", status);
 			goto out;
@@ -1482,7 +1481,7 @@ static int floats(void)
 		{
 			for (x = 0; x < 8; x++)
 			{
-				coefficients[(y * 8) + x] = (int) (temp[(y * 8) + x] / 4.0 + 0.5);
+				coefficients[(y * 8) + x] = (int)(temp[(y * 8) + x] / 4.0 + 0.5);
 				coefficients[(y * 8) + x] += 128;
 			}
 		}
@@ -1649,9 +1648,8 @@ static int gui(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	status = fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
-		&(params.font), 0);
-	if (status < 0)
+	params.font = fontGet(FONT_FAMILY_XTERM, FONT_STYLEFLAG_NORMAL, 10, NULL);
+	if (!params.font)
 	{
 		FAILMESS("Error %d getting font", status);
 		goto out;

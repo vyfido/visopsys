@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -14,6 +14,10 @@ all:
 	cp de/*.conf ${BUILDDIR}/de
 	mkdir -p ${BUILDDIR}/es
 	cp es/*.conf ${BUILDDIR}/es
+	mkdir -p ${BUILDDIR}/ru
+	cp ru/*.conf ${BUILDDIR}/ru
+	mkdir -p ${BUILDDIR}/tr
+	cp tr/*.conf ${BUILDDIR}/tr
 
 clean:
 	rm -f *~ core

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -280,6 +280,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filesys");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the 'mount point' label
 	windowComponentSetData(mountPointLabel, MOUNT_POINT, strlen(MOUNT_POINT),

@@ -10,9 +10,14 @@ void vshCompleteFilename(char *buffer)
 	Attempts to complete a portion of a filename, 'buffer'.  The function will append either the remainder of the complete filename, or if possible, some portion thereof.  The result simply depends on whether a good completion or partial completion exists.  'buffer' must of course be large enough to contain any potential filename completion.
 
 
-int vshCursorMenu(const char *prompt, char *items[], int numItems, int defaultSelection)
+void vshCompleteFilename(char *buffer)
 
-	This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
+	Attempts to complete a portion of a filename, 'buffer'.  The function will append either the remainder of the complete filename, or if possible, some portion thereof.  The result simply depends on whether a good completion or partial completion exists.  'buffer' must of course be large enough to contain any potential filename completion.
+
+
+int vshCursorMenu(const char *prompt, char *items[], int numItems, int maxRows, int defaultSelection)
+
+	This will create a cursor-selectable text menu with the supplied 'prompt' string at the stop.  The caller supplies a list of possible choices, an optional maximum number of rows to display on the screen, and the default selection.  If maxRows is set, and the number of choices is greater than maxRows, then the menu will be scrollable.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 
 
 int vshDeleteFile(const char *deleteFile)
@@ -50,14 +55,14 @@ void vshPasswordPrompt(const char *prompt, char *buffer)
 	Produces a text-mode prompt for the user to enter a password.  The prompt message is the first parameter, and a buffer to contain the result is the second parameter.
 
 
-void vshPrintDate(char *buffer, unsigned unformattedDate)
+void vshPrintDate(char *buffer, struct tm *date)
 
-	Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- into 'buffer' in a (for now, arbitrary) human-readable format.
+	Return the date value, specified by the tm structure 'date' -- such as that found in the file.modified field -- into 'buffer' in a (for now, arbitrary) human-readable format.
 
 
-void vshPrintTime(char *buffer, unsigned unformattedTime)
+void vshPrintTime(char *buffer, struct tm *theTime)
 
-	Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- into 'buffer' in a (for now, arbitrary) human-readable format to standard output.
+	Return the time value, specified by the tm structure 'time' -- such as that found in the file.modified field -- into 'buffer' in a (for now, arbitrary) human-readable format.
 
 
 int vshProgressBar(progress *tmpProg)
@@ -73,3 +78,4 @@ int vshProgressBarDestroy(progress *tmpProg)
 int vshSearchPath(const char *orig, char *new)
 
 	Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in 'orig', and place the complete, absolete pathname result in 'new'.  If a match is found, the function returns zero.  Otherwise, it returns a negative error code.  'new' must be large enough to hold the complete absolute filename of any match found.
+

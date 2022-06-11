@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -649,7 +649,7 @@ static int atapiStartup(kernelPhysicalDisk *physical)
 
 	// If there's no disk, the number of sectors will be illegal.	Set
 	// to the maximum value and quit
-	if ((physical->numSectors == 0) || (physical->numSectors == 0xFFFFFFFF))
+	if (!physical->numSectors || (physical->numSectors == 0xFFFFFFFF))
 	{
 		physical->numSectors = 0xFFFFFFFF;
 		physical->sectorSize = ATAPI_SECTORSIZE;
@@ -699,13 +699,13 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if (numSectors == 0)
+	if (!numSectors)
 		// Not an error we guess, but nothing to do
 		return (status = 0);
 
 	// Find the physical disk based on the disk number
 	physical = findDiskByNumber(diskNum);
-	if (physical == NULL)
+	if (!physical)
 	{
 		kernelError(kernel_error, "No such disk, device number %d", diskNum);
 		return (status = ERR_NOSUCHENTRY);
@@ -745,7 +745,7 @@ static int driverSetLockState(int diskNum, int locked)
 
 	// Find the physical disk based on the disk number
 	physical = findDiskByNumber(diskNum);
-	if (physical == NULL)
+	if (!physical)
 	{
 		kernelError(kernel_error, "No such disk, device number %d", diskNum);
 		return (status = ERR_NOSUCHENTRY);
@@ -779,7 +779,7 @@ static int driverSetDoorState(int diskNum, int open)
 
 	// Find the physical disk based on the disk number
 	physical = findDiskByNumber(diskNum);
-	if (physical == NULL)
+	if (!physical)
 	{
 		kernelError(kernel_error, "No such disk, device number %d", diskNum);
 		return (status = ERR_NOSUCHENTRY);
@@ -819,7 +819,7 @@ static int driverMediaPresent(int diskNum)
 
 	// Find the physical disk based on the disk number
 	physical = findDiskByNumber(diskNum);
-	if (physical == NULL)
+	if (!physical)
 	{
 		kernelError(kernel_error, "No such disk, device number %d", diskNum);
 		return (present = ERR_NOSUCHENTRY);
@@ -874,20 +874,20 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	kernelDebug(debug_usb, "USB ATAPI detect target 0x%08x", targetId);
 
 	dsk = kernelMalloc(sizeof(kernelUsbAtapiDisk));
-	if (dsk == NULL)
+	if (!dsk)
 		goto err_out;
 
 	dsk->busTarget = kernelBusGetTarget(bus_usb, targetId);
-	if (dsk->busTarget == NULL)
+	if (!dsk->busTarget)
 		goto err_out;
 
 	// Try to get the USB device for the target
 	dsk->usbDev = kernelUsbGetDevice(targetId);
-	if (dsk->usbDev == NULL)
+	if (!dsk->usbDev)
 		goto err_out;
 
 	physical = kernelMalloc(sizeof(kernelPhysicalDisk));
-	if (physical == NULL)
+	if (!physical)
 		goto err_out;
 
 	interface = (usbInterface *) &dsk->usbDev->interface[0];
@@ -957,8 +957,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 			dsk->vendorId[count + 1] = '\0';
 			break;
 		}
-		else if (count == 0)
+		else if (!count)
+		{
 			dsk->vendorId[0] = '\0';
+		}
 	}
 
 	strncpy(dsk->productId, inquiryData.productId, 16);
@@ -970,8 +972,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 			dsk->productId[count + 1] = '\0';
 			break;
 		}
-		else if (count == 0)
+		else if (!count)
+		{
 			dsk->productId[0] = '\0';
+		}
 	}
 	snprintf(dsk->vendorProductId, 26, "%s%s%s", dsk->vendorId,
 		(dsk->vendorId[0]? " " : ""), dsk->productId);
@@ -1154,14 +1158,14 @@ static int driverHotplug(void *parent, int busType __attribute__((unused)),
 	{
 		// Determine whether any new ATAPI disks have appeared on the USB bus
 		physical = detectTarget(parent, target, driver);
-		if (physical != NULL)
+		if (physical)
 			kernelDiskReadPartitions((char *) physical->name);
 	}
 	else
 	{
 		// Try to find the disk in our list
 		physical = findBusTarget(busType, target);
-		if (physical == NULL)
+		if (!physical)
 		{
 			// This can happen if ATAPI initialization did not complete
 			// successfully.  In that case, it could be that we're still the

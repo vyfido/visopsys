@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -54,7 +54,7 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
 		return (status = ERR_NULLPARAMETER);
 
 	if (!windowNewChoiceDialog(parentWindow, title, message,
-		(char *[]) { _("OK"), _("Cancel") }, 2, 0))
+		(char *[]){ _("OK"), _("Cancel") }, 2, 0))
 	{
 		// OK button
 		return (status = 1);

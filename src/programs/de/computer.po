@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,32 +140,32 @@ msgstr "Verbunden als %s%s\n"
 msgid " (read only)"
 msgstr " (Nur Lese-Rechte)"
 
-#: computer.c:577 computer.c:634
+#: computer.c:583 computer.c:640
 msgid "Error spawning browser thread"
 msgstr "Fehler beim erstellen von Browser-Einträgen"
 
-#: computer.c:590
+#: computer.c:596
 msgid "Error spawning mount as thread"
 msgstr "Fehler beim erstellen des Eintrags in Bezug auf die Verbindung"
 
-#: computer.c:602
+#: computer.c:608
 msgid "Error spawning unmount thread"
 msgstr ""
 "Fehler beim erstellen des Eintrags in Bezug auf die getrennte Verbindung"
 
-#: computer.c:615
+#: computer.c:621
 msgid "Error spawning properties thread"
 msgstr "Fehler beim erstellen von Einstellungs-Einträgen"
 
-#: computer.c:701
+#: computer.c:707
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicheraufteilung"
 
-#: computer.c:795
+#: computer.c:801
 msgid "Disk"
 msgstr "Disk"
 
-#: computer.c:837
+#: computer.c:843
 #, c-format
 msgid ""
 "\n"
@@ -174,7 +174,7 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: computer.c:861
+#: computer.c:868
 #, c-format
 msgid "Can't load icon image %s"
 msgstr "Das Bild für das Icon kann nicht geladen werden %s"

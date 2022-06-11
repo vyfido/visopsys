@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -89,7 +89,7 @@ static int viewFile(const char *fileName)
 
 	// Make sure the file isn't empty.  We don't want to try reading
 	// data from a nonexistent place on the disk.
-	if (theFile.size == 0)
+	if (!theFile.size)
 		// It is empty, so skip it
 		return (status = 0);
 

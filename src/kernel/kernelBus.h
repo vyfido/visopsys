@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,7 +44,7 @@ typedef struct {
 	int (*driverGetTargetInfo)(kernelBusTarget *, void *);
 	unsigned (*driverReadRegister)(kernelBusTarget *, int, int);
 	int (*driverWriteRegister)(kernelBusTarget *, int, int, unsigned);
-	void (*driverDeviceClaim) (kernelBusTarget *, kernelDriver *);
+	void (*driverDeviceClaim)(kernelBusTarget *, kernelDriver *);
 	int (*driverDeviceEnable)(kernelBusTarget *, int);
 	int (*driverSetMaster)(kernelBusTarget *, int);
 	int (*driverRead)(kernelBusTarget *, unsigned, void *);
@@ -74,3 +74,4 @@ int kernelBusWrite(kernelBusTarget *, unsigned, void *);
 
 #define _KERNELBUS_H
 #endif
+

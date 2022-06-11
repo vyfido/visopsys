@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -82,7 +82,7 @@ sighandler_t signal(int sig, sighandler_t handler)
 
 	// This is extra (non-spec).  We need this for the moment because we need
 	// to be able to terminate the signal thread
-	if ((sig == 0) && (handler == SIG_DFL))
+	if (!sig && (handler == SIG_DFL))
 	{
 		stop = 1;
 		return (SIG_ERR);

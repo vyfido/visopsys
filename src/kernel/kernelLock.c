@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -76,7 +76,7 @@ int kernelLockGet(lock *getLock)
 	int currentProcId = 0;
 
 	// Make sure the pointer we were given is not NULL
-	if (getLock == NULL)
+	if (!getLock)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the process Id of the current process
@@ -147,7 +147,7 @@ int kernelLockRelease(lock *relLock)
 	int currentProcId = 0;
 
 	// Make sure the pointer we were given is not NULL
-	if (relLock == NULL)
+	if (!relLock)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the process Id of the current process
@@ -182,11 +182,11 @@ int kernelLockVerify(lock *verLock)
 	processState tmpState;
 
 	// Make sure the pointer we were given is not NULL
-	if (verLock == NULL)
+	if (!verLock)
 		return (status = ERR_NULLPARAMETER);
 
 	// Make sure there's really a lock here
-	if (verLock->processId == 0)
+	if (!verLock->processId)
 		return (status = 0);
 
 	// Get the current state of the owning process

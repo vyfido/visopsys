@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,6 +52,7 @@ Options:
 #include <sys/api.h>
 #include <sys/ascii.h>
 #include <sys/env.h>
+#include <sys/lang.h>
 #include <sys/paths.h>
 #include <sys/user.h>
 #include <sys/vsh.h>
@@ -60,7 +61,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE		_("Install")
-#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2015 " \
+#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2016 " \
 	"J. Andrew McLaughlin")
 #define INSTALL_DISK		_("[ Installing on disk %s ]")
 #define BASIC_INSTALL		_("Basic install")
@@ -223,54 +224,10 @@ static void makeDiskList(void)
 			continue;
 
 		// Otherwise, we will put this in the list
-		memcpy(&(diskInfo[numberDisks++]), &(tmpDiskInfo[count]),
-			sizeof(disk));
+		memcpy(&diskInfo[numberDisks++], &tmpDiskInfo[count], sizeof(disk));
 	}
 
 	free(tmpDiskInfo);
-}
-
-
-static void refreshWindow(void)
-{
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
-
-	char tmp[40];
-
-	// Re-get the language setting
-	setlocale(LC_ALL, getenv(ENV_LANG));
-	textdomain("install");
-
-	// Refresh the 'title' label
-	windowComponentSetData(titleLabel, TITLE_STRING, strlen(TITLE_STRING),
-		1 /* redraw */);
-
-	// Refresh the 'install disk' label
-	sprintf(tmp, INSTALL_DISK, diskName);
-	windowComponentSetData(installDiskLabel, tmp, strlen(tmp), 1 /* redraw */);
-
-	// Refresh the 'install type' radio
-	windowComponentSetData(installTypeRadio,
-		(char *[])	{ BASIC_INSTALL, FULL_INSTALL }, 2, 1 /* redraw */);
-
-	// Refresh the 'format disk' checkbox
-	sprintf(tmp, FORMAT_DISK, diskName);
-	windowComponentSetData(formatCheckbox, tmp, strlen(tmp), 1 /* redraw */);
-
-	// Refresh the 'choose filesystem' checkbox
-	windowComponentSetData(fsTypeCheckbox, CHOOSE_FILESYSTEM,
-		strlen(CHOOSE_FILESYSTEM), 1 /* redraw */);
-
-	// Refresh the 'install' button
-	windowComponentSetData(installButton, INSTALL, strlen(INSTALL),
-		1 /* redraw */);
-
-	// Refresh the 'quit' button
-	windowComponentSetData(quitButton, QUIT, strlen(QUIT), 1 /* redraw */);
-
-	// Refresh the window title
-	windowSetTitle(window, WINDOW_TITLE);
 }
 
 
@@ -317,12 +274,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for window events.
 	if (key == window)
 	{
-		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
-			refreshWindow();
-
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		if (event->type == EVENT_WINDOW_CLOSE)
 			quit(0, NULL);
 	}
 
@@ -618,7 +571,7 @@ start:
 			diskStrings[count] = diskListParams[count].text;
 		diskStrings[numberDisks] = _(partitionString);
 		diskNumber = vshCursorMenu(_(chooseVolumeString), diskStrings,
-			(numberDisks + 1), 0 /* selected */);
+			(numberDisks + 1), 10 /* max rows */, 0 /* selected */);
 		if (diskNumber == numberDisks)
 		{
 			// The user wants to repartition the disks.  Run the disk
@@ -720,7 +673,7 @@ static int askFsType(void)
 	else
 	{
 		selectedType = vshCursorMenu(_("Choose the filesystem type:"),
-			fsTypes, 4, 0 /* selected */);
+			fsTypes, 4, 0 /* no max rows */, 0 /* selected */);
 	}
 
 	if (selectedType < 0)
@@ -925,7 +878,6 @@ static int copyFiles(const char *installFileName)
 		strcpy(tmpFileName, MOUNTPOINT);
 		strcat(tmpFileName, destFile);
 
-
 		if (theFile.type == dirT)
 		{
 			// It's a directory, create it in the desination
@@ -933,8 +885,10 @@ static int copyFiles(const char *installFileName)
 				status = fileMakeDir(tmpFileName);
 		}
 		else
+		{
 			// It's a file.  Copy it to the destination.
 			status = fileCopy(srcFile, tmpFileName);
+		}
 
 		if (status < 0)
 			goto done;
@@ -1154,16 +1108,16 @@ static void setAdminPassword(void)
 
 	// We have a password.  Copy the blank password file for the new system
 	// password file
-	status = fileCopy(MOUNTPOINT PATH_SYSTEM "/password.blank",
-		MOUNTPOINT PATH_SYSTEM "/password");
+	status = fileCopy(MOUNTPOINT USER_PASSWORDFILE_BLANK,
+		MOUNTPOINT USER_PASSWORDFILE);
 	if (status < 0)
 	{
 		error("%s", _("Unable to create the password file"));
 		return;
 	}
 
-	status = userFileSetPassword(MOUNTPOINT PATH_SYSTEM "/password", "admin",
-		"", newPassword);
+	status = userFileSetPassword(MOUNTPOINT USER_PASSWORDFILE, USER_ADMIN, "",
+		newPassword);
 	if (status < 0)
 	{
 		error("%s", _("Unable to set the \"admin\" password"));
@@ -1195,7 +1149,7 @@ int main(int argc, char *argv[])
 
 	// Set English as the default install language, unless some language is
 	// currently set
-	strcpy(installLanguage, "en");
+	strcpy(installLanguage, LANG_ENGLISH);
 	if (getenv(ENV_LANG))
 		strcpy(installLanguage, getenv(ENV_LANG));
 
@@ -1330,7 +1284,7 @@ int main(int argc, char *argv[])
 		((basicInstallSize + fullInstallSize) < diskSize))
 	{
 		status = vshCursorMenu(_("Please choose the install type:"),
-			(char *[]) { _("Basic"), _("Full") }, 2,
+			(char *[]){ _("Basic"), _("Full") }, 2, 0 /* no max rows */,
 			1 /* selected */);
 		if (status < 0)
 		{

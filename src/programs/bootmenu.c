@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -65,7 +65,7 @@ choices for the first hard disk, hd0.
 #define VBM_MAGIC			"VBM2"
 #define SLICESTRING_LENGTH	60
 #define TITLE				_("Visopsys Boot Menu Installer\n" \
-	"Copyright (C) 1998-2015 J. Andrew McLaughlin")
+	"Copyright (C) 1998-2016 J. Andrew McLaughlin")
 #define PERM				_("You must be a privileged user to use this " \
 	"command.\n(Try logging in as user \"admin\")")
 #define PARTITIONS			_("Partitions on the disk:")
@@ -306,7 +306,7 @@ static void editEntryLabel(int entryNumber)
 				string[count] = '\0';
 				textInputSetEcho(1);
 
-				if (count == 0)
+				if (!count)
 					// Assume they want to quit
 					return;
 
@@ -497,50 +497,6 @@ static void printPartitions(void)
 }
 
 
-static void refreshWindow(void)
-{
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
-
-	// Re-get the language setting
-	setlocale(LC_ALL, getenv(ENV_LANG));
-	textdomain("bootmenu");
-
-	// Refresh the window title
-	windowSetTitle(window, WINDOW_TITLE);
-
-	// Refresh the 'partitions' label
-	windowComponentSetData(partitionsLabel, PARTITIONS, strlen(PARTITIONS),
-		1 /* redraw */);
-
-	// Refresh the 'entries' label
-	windowComponentSetData(entriesLabel, ENTRIES, strlen(ENTRIES),
-		1 /* redraw */);
-
-	// Refresh the 'edit' button
-	windowComponentSetData(editButton, EDIT, strlen(EDIT), 1 /* redraw */);
-
-	// Refresh the 'default' button
-	windowComponentSetData(defaultButton, DEFAULT, strlen(DEFAULT),
-		1 /* redraw */);
-
-	// Refresh the 'delete' button
-	windowComponentSetData(deleteButton, DELETE, strlen(DELETE),
-		1 /* redraw */);
-
-	// Refresh the 'automatic boot' checkbox
-	windowComponentSetData(timeoutCheckbox, AUTOMATICALLY,
-		strlen(AUTOMATICALLY), 1 /* redraw */);
-
-	// Refresh the 'ok' button
-	windowComponentSetData(okButton, OK, strlen(OK), 1 /* redraw */);
-
-	// Refresh the 'cancel' button
-	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL),
-		1 /* redraw */);
-}
-
-
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int selected = 0;
@@ -548,12 +504,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for window events.
 	if (key == window)
 	{
-		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
-			refreshWindow();
-
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		if (event->type == EVENT_WINDOW_CLOSE)
 		{
 			quit();
 			exit(0);

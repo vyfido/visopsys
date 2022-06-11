@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -409,7 +409,8 @@ static int askFileName(char *fileName)
 	{
 		// Prompt for a file name
 		status = windowNewFileDialog(window, _("Enter filename"),
-			FILENAMEQUESTION, pwd, fileName, MAX_PATH_NAME_LENGTH, 0);
+			FILENAMEQUESTION, pwd, fileName, MAX_PATH_NAME_LENGTH, fileT,
+			0 /* no thumbnails */);
 		return (status);
 	}
 	else
@@ -964,7 +965,7 @@ static int askDiscardChanges(void)
 	if (graphics)
 	{
 		response = windowNewChoiceDialog(window, _("Discard changes?"),
-			DISCARDQUESTION, (char *[]) { _("Discard"), _("Cancel") }, 2, 1);
+			DISCARDQUESTION, (char *[]){ _("Discard"), _("Cancel") }, 2, 1);
 
 		if (!response)
 			return (1);
@@ -1074,6 +1075,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("edit");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh all the menu contents
 	refreshMenuContents();
@@ -1190,7 +1195,6 @@ static void handleMenuEvents(windowMenuContents *contents)
 
 static void constructWindow(void)
 {
-	int status = 0;
 	int rows = 25;
 	componentParameters params;
 
@@ -1217,12 +1221,8 @@ static void constructWindow(void)
 	params.orientationY = orient_middle;
 
 	// Set up the font for our main text area
-	fontGetDefault(&font);
-	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
-	if (status >= 0)
-		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&font, 1);
-	if (status < 0)
+	font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 10, NULL);
+	if (!font)
 		// We'll be using the system font we guess.  The system font can
 		// comfortably show more rows
 		rows = 40;
@@ -1242,9 +1242,7 @@ static void constructWindow(void)
 	params.flags &= ~WINDOW_COMPFLAG_STICKYFOCUS;
 	params.gridY += 1;
 	params.padBottom = 1;
-	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
-			&(params.font), 1);
+	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10, NULL);
 	statusLabel = windowNewTextLabel(window, "", &params);
 	windowComponentSetWidth(statusLabel, windowComponentGetWidth(textArea));
 

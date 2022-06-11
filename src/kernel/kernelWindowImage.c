@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,7 @@ static int draw(kernelWindowComponent *component)
 
 	kernelWindowImage *windowImage = component->data;
 
-	kernelGraphicDrawImage(component->buffer, (image *) &(windowImage->image),
+	kernelGraphicDrawImage(component->buffer, (image *) &windowImage->image,
 		windowImage->mode, component->xCoord, component->yCoord, 0, 0, 0, 0);
 
 	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
@@ -58,10 +58,10 @@ static int setData(kernelWindowComponent *component, void *buffer,
 
 	kernelDebug(debug_gui, "WindowImage set data");
 
-	kernelImageFree((image *) &(windowImage->image));
+	kernelImageFree((image *) &windowImage->image);
 
 	// Copy the image to kernel memory
-	status = kernelImageCopyToKernel(setImage, (image *) &(windowImage->image));
+	status = kernelImageCopyToKernel(setImage, (image *) &windowImage->image);
 	if (status < 0)
 		return (status);
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -198,7 +198,7 @@ static inline void debugQueueHead(ehciQueueHead *queueHead)
 		((queueHead->endpointCaps & EHCI_QHDW2_SPLTCOMPMASK) >> 8),
 		(queueHead->endpointCaps & EHCI_QHDW2_INTSCHEDMASK),
 		queueHead->currentQtd);
-	debugQtd(&(queueHead->overlay));
+	debugQtd(&queueHead->overlay);
 }
 
 static void debugTransError(ehciQtd *qtd)
@@ -266,7 +266,7 @@ static int releaseQueueHead(usbEhciData *ehci,
 
 	int status = 0;
 	kernelLinkedList *freeList =
-		(kernelLinkedList *) &(ehci->freeQueueHeadItems);
+		(kernelLinkedList *) &ehci->freeQueueHeadItems;
 
 	// Add it to the free list
 	if (kernelLinkedListAdd(freeList, queueHeadItem) < 0)
@@ -319,11 +319,11 @@ static int allocQueueHeads(kernelLinkedList *freeList)
 	physicalAddr = ioMem.physical;
 	for (count = 0; count < numQueueHeads; count ++)
 	{
-		queueHeadItems[count].queueHead = &(queueHeads[count]);
+		queueHeadItems[count].queueHead = &queueHeads[count];
 		queueHeadItems[count].physical = physicalAddr;
 		physicalAddr += sizeof(ehciQueueHead);
 
-		status = kernelLinkedListAdd(freeList, &(queueHeadItems[count]));
+		status = kernelLinkedListAdd(freeList, &queueHeadItems[count]);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Couldn't add new queue heads to free "
@@ -425,13 +425,13 @@ static int setQueueHeadEndpointState(usbDevice *usbDev,
 		// Port number, hub address, and split completion mask only set for
 		// a full- or low-speed device
 
-		// Find the parent USB 2.0 hub, if applicable.  Root hubs don't have
-		// constituent USB devices.
+		// Find the parent high speed hub, if applicable.  Root hubs don't
+		// have constituent USB devices.
 		parentHub = usbDev->hub->usbDev;
 		hubPort = usbDev->hubPort;
 		while (parentHub)
 		{
-			if (parentHub->usbVersion >= 0x0200)
+			if (parentHub->speed == usbspeed_high)
 			{
 				queueHead->endpointCaps |= (((hubPort + 1) << 23) &
 					EHCI_QHDW2_PORTNUMBER);
@@ -468,7 +468,7 @@ static ehciQueueHeadItem *allocQueueHead(usbController *controller,
 
 	usbEhciData *ehci = controller->data;
 	kernelLinkedList *freeList =
-		(kernelLinkedList *) &(ehci->freeQueueHeadItems);
+		(kernelLinkedList *) &ehci->freeQueueHeadItems;
 	ehciQueueHeadItem *queueHeadItem = NULL;
 	kernelLinkedListItem *iter = NULL;
 
@@ -945,7 +945,7 @@ static void hostSystemError(usbController *controller)
 	while (queueHeadItem)
 	{
 		queueHeadItem->queueHead->currentQtd = EHCI_LINK_TERM;
-		memset((void *) &(queueHeadItem->queueHead->overlay), 0,
+		memset((void *) &queueHeadItem->queueHead->overlay, 0,
 			sizeof(ehciQtd));
 
 		qtdItem = queueHeadItem->firstQtdItem;
@@ -1163,11 +1163,11 @@ static int allocQtds(kernelLinkedList *freeList)
 	physicalAddr = ioMem.physical;
 	for (count = 0; count < numQtds; count ++)
 	{
-		qtdItems[count].qtd = &(qtds[count]);
+		qtdItems[count].qtd = &qtds[count];
 		qtdItems[count].physical = physicalAddr;
 		physicalAddr += sizeof(ehciQtd);
 
-		status = kernelLinkedListAdd(freeList, &(qtdItems[count]));
+		status = kernelLinkedListAdd(freeList, &qtdItems[count]);
 		if (status < 0)
 			goto err_out;
 	}
@@ -1190,7 +1190,7 @@ static void releaseQtds(usbEhciData *ehci, ehciQtdItem **qtdItems, int numQtds)
 {
 	// Release qTDs back to the free pool after use
 
-	kernelLinkedList *freeList = (kernelLinkedList *) &(ehci->freeQtdItems);
+	kernelLinkedList *freeList = (kernelLinkedList *) &ehci->freeQtdItems;
 	int count;
 
 	for (count = 0; count < numQtds; count ++)
@@ -1217,7 +1217,7 @@ static ehciQtdItem **getQtds(usbEhciData *ehci, int numQtds)
 	// and chain them together.
 
 	ehciQtdItem **qtdItems = NULL;
-	kernelLinkedList *freeList = (kernelLinkedList *) &(ehci->freeQtdItems);
+	kernelLinkedList *freeList = (kernelLinkedList *) &ehci->freeQtdItems;
 	kernelLinkedListItem *iter = NULL;
 	int count;
 
@@ -2507,9 +2507,9 @@ static int queue(usbController *controller, usbDevice *usbDev,
 			buffPtr = trans[transCount].buffer;
 			bytesToTransfer = trans[transCount].length;
 
-			dataQtdItems = &(transQueues[transCount].qtdItems[0]);
+			dataQtdItems = &transQueues[transCount].qtdItems[0];
 			if (setupQtdItem)
-				dataQtdItems = &(transQueues[transCount].qtdItems[1]);
+				dataQtdItems = &transQueues[transCount].qtdItems[1];
 
 			for (qtdCount = 0; qtdCount < transQueues[transCount].numDataQtds;
 				qtdCount ++)
@@ -3086,7 +3086,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 
 	// Map the physical memory space pointed to by the decoder.
 	status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
-		(void **) &(ehci->capRegs), memSpaceSize);
+		(void **) &ehci->capRegs, memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("Error mapping memory");

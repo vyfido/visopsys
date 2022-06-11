@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,9 +21,9 @@
 
 #if !defined(_KERNELTEXT_H)
 
+#include "kernelFont.h"
 #include "kernelGraphic.h"
 #include "kernelStream.h"
-#include <sys/font.h>
 #include <sys/text.h>
 
 // Forward declarations, where necessary
@@ -68,7 +68,8 @@ typedef volatile struct {
 	volatile struct _kernelTextOutputStream *outputStream;
 	unsigned char *bufferData;
 	unsigned char *visibleData;
-	asciiFont *font;
+	kernelFont *font;
+	char *charSet;
 	volatile struct _kernelWindowComponent *windowComponent;
 	int noScroll;
 
@@ -77,17 +78,17 @@ typedef volatile struct {
 // This structure contains pointers to all the appropriate functions
 // to output text from a given text stream
 typedef struct {
-	void (*setCursor) (kernelTextArea *, int);
-	int (*getCursorAddress) (kernelTextArea *);
-	int (*setCursorAddress) (kernelTextArea *, int, int);
-	int (*setForeground) (kernelTextArea *, color *);
-	int (*setBackground) (kernelTextArea *, color *);
-	int (*print) (kernelTextArea *, const char *, textAttrs *);
-	int (*delete) (kernelTextArea *);
-	int (*screenDraw) (kernelTextArea *);
-	int (*screenClear) (kernelTextArea *);
-	int (*screenSave) (kernelTextArea *, textScreen *);
-	int (*screenRestore) (kernelTextArea *, textScreen *);
+	void (*setCursor)(kernelTextArea *, int);
+	int (*getCursorAddress)(kernelTextArea *);
+	int (*setCursorAddress)(kernelTextArea *, int, int);
+	int (*setForeground)(kernelTextArea *, color *);
+	int (*setBackground)(kernelTextArea *, color *);
+	int (*print)(kernelTextArea *, const char *, textAttrs *);
+	int (*delete)(kernelTextArea *);
+	int (*screenDraw)(kernelTextArea *);
+	int (*screenClear)(kernelTextArea *);
+	int (*screenSave)(kernelTextArea *, textScreen *);
+	int (*screenRestore)(kernelTextArea *, textScreen *);
 
 } kernelTextOutputDriver;
 

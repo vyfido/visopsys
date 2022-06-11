@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -110,31 +110,31 @@ msgstr "deaktivert"
 msgid "Disable"
 msgstr "Deaktivieren"
 
-#: ifconfig.c:205 ifconfig.c:428
+#: ifconfig.c:205 ifconfig.c:432
 msgid "Enable"
 msgstr "Aktivieren"
 
-#: ifconfig.c:338
+#: ifconfig.c:342
 msgid "Shutting down networking"
 msgstr "Das Netzwerk wird getrennt"
 
-#: ifconfig.c:339
+#: ifconfig.c:343
 msgid "Initializing networking"
 msgstr "Netzwerk wird initialisiert"
 
-#: ifconfig.c:339
+#: ifconfig.c:343
 msgid "One moment please..."
 msgstr "Einen Moment bitte..."
 
-#: ifconfig.c:423
+#: ifconfig.c:427
 msgid "Networking is disabled"
 msgstr "Netzwerk deaktiviert"
 
-#: ifconfig.c:583
+#: ifconfig.c:587
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:591
+#: ifconfig.c:595
 msgid "Can't get the count of network devices"
 msgstr "Die Anzahl der Netzlaufwerke konnte nicht ermittelt werden"

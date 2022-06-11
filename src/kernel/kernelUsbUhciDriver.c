@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -454,7 +454,7 @@ static int queueDescriptors(usbController *controller,
 
 		// Get the physical address of the TD
 		descPhysical = kernelPageGetPhysical(KERNELPROCID,
-			(void *) &(descs[count]));
+			(void *) &descs[count]);
 		if (!descPhysical)
 		{
 			kernelError(kernel_error, "Can't get xfer descriptor physical "
@@ -973,7 +973,7 @@ static int allocUhciMemory(usbController *controller)
 
 	// Allocate a blank transfer descriptor to attach to the terminating queue
 	// head
-	status = allocTransDescs(1, &transDescPhysical, &(uhci->termTransDesc));
+	status = allocTransDescs(1, &transDescPhysical, &uhci->termTransDesc);
 	if (status < 0)
 		goto err_out;
 
@@ -1348,7 +1348,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		if (trans[count].type == usbxfer_control)
 		{
 			// Get the transfer descriptor for the setup phase
-			setupDesc = &(descs[descCount++]);
+			setupDesc = &descs[descCount++];
 
 			// Begin setting up the device request
 
@@ -1388,7 +1388,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 			{
 				unsigned doBytes = min(bytesToTransfer, bytesPerTransfer);
 
-				dataDesc = &(descs[descCount++]);
+				dataDesc = &descs[descCount++];
 
 				// Point the data descriptor's buffer to the relevent portion
 				// of the transaction buffer
@@ -1427,7 +1427,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		{
 			// Setup the transfer descriptor for the status phase
 
-			statusDesc = &(descs[descCount++]);
+			statusDesc = &descs[descCount++];
 
 			// Data toggle is always 1 for the status transfer
 			*dataToggle = 1;

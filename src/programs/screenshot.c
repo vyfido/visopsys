@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 		// Prompt for a file name
 		status = windowNewFileDialog(NULL, _("Enter file name"),
 			_("Please enter the file name to use:"), NULL, fileName,
-			MAX_PATH_NAME_LENGTH, 1);
+			MAX_PATH_NAME_LENGTH, fileT, 1 /* show thumbnails */);
 		if (status != 1)
 		{
 			errno = status;

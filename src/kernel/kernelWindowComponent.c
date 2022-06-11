@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,9 +26,11 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
+#include "kernelMultitasker.h"
 #include "kernelWindowEventStream.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/env.h>
 
 extern kernelWindowVariables *windowVariables;
 
@@ -39,12 +41,12 @@ static int drawBorder(kernelWindowComponent *component, int draw)
 
 	if (draw)
 		kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->params.foreground),
+			(color *) &component->params.foreground,
 			draw_normal, (component->xCoord - 2), (component->yCoord - 2),
 			(component->width + 4), (component->height + 4), 1, 0);
 	else
 		kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->window->background),
+			(color *) &component->window->background,
 			draw_normal, (component->xCoord - 2), (component->yCoord - 2),
 			(component->width + 4),	(component->height + 4), 1, 0);
 
@@ -58,7 +60,7 @@ static int erase(kernelWindowComponent *component)
 	// window's background color over the component's area
 
 	kernelGraphicDrawRect(component->buffer,
-		(color *) &(component->window->background),	draw_normal,
+		(color *) &component->window->background, draw_normal,
 		component->xCoord, component->yCoord, component->width,
 		component->height, 1, 1);
 
@@ -76,9 +78,8 @@ static int grey(kernelWindowComponent *component)
 		component->grey(component);
 
 	kernelGraphicFilter(component->buffer,
-		(color *) &(component->params.background),
-		component->xCoord, component->yCoord, component->width,
-		component->height);
+		(color *) &component->params.background, component->xCoord,
+		component->yCoord, component->width, component->height);
 
 	return (0);
 }
@@ -116,6 +117,7 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 	int status = 0;
 	kernelWindowComponent *parentComponent = NULL;
 	kernelWindowComponent *component = NULL;
+	const char *charSet = NULL;
 
 	// Check params
 	if (!parent || !params)
@@ -130,9 +132,14 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 	component->subType = genericComponentType;
 	component->window = getWindow(parent);
 
+	// Use the window's character set by default
+	if (component->window)
+		strncpy((char *) component->charSet,
+			(char *) component->window->charSet, CHARSET_NAME_LEN);
+
 	// Use the window's buffer by default
 	if (component->window)
-		component->buffer = &(component->window->buffer);
+		component->buffer = &component->window->buffer;
 
 	// Visible and enabled by default
 	component->flags |= (WINFLAG_VISIBLE | WINFLAG_ENABLED);
@@ -143,32 +150,34 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 		component->flags |= WINFLAG_CANFOCUS;
 
 	// Copy the parameters into the component
-	memcpy((void *) &(component->params), params, sizeof(componentParameters));
+	memcpy((void *) &component->params, params, sizeof(componentParameters));
 
 	// If the default colors are requested, copy them into the component
 	// parameters
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
 	{
-		component->params.foreground.blue =
-			windowVariables->color.foreground.blue;
-		component->params.foreground.green =
-			windowVariables->color.foreground.green;
-		component->params.foreground.red =
-			windowVariables->color.foreground.red;
+		memcpy((void *) &component->params.foreground,
+			&windowVariables->color.foreground, sizeof(color));
 	}
 
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
 	{
-		component->params.background.blue =
-			windowVariables->color.background.blue;
-		component->params.background.green =
-			windowVariables->color.background.green;
-		component->params.background.red =
-			windowVariables->color.background.red;
+		memcpy((void *) &component->params.background,
+			&windowVariables->color.background, sizeof(color));
+	}
+
+	// Try to make sure we have the required character set.
+	if (params->font && kernelCurrentProcess)
+	{
+		charSet = kernelVariableListGet(kernelCurrentProcess->environment,
+			ENV_CHARSET);
+
+		if (charSet)
+			kernelWindowComponentSetCharSet(component, charSet);
 	}
 
 	// Initialize the event stream
-	status = kernelWindowEventStreamNew(&(component->events));
+	status = kernelWindowEventStreamNew(&component->events);
 	if (status < 0)
 	{
 		kernelFree((void *) component);
@@ -241,6 +250,32 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 
 	component->data = NULL;
 
+	// If this component's window is referencing it in any special way,
+	// we have to remove the reference
+	if (component->window)
+	{
+		if (component->window->titleBar == component)
+			component->window->titleBar = NULL;
+		if (component->window->borders[0] == component)
+			component->window->borders[0] = NULL;
+		if (component->window->borders[1] == component)
+			component->window->borders[1] = NULL;
+		if (component->window->borders[2] == component)
+			component->window->borders[2] = NULL;
+		if (component->window->borders[3] == component)
+			component->window->borders[3] = NULL;
+		if (component->window->menuBar == component)
+			component->window->menuBar = NULL;
+		if (component->window->sysContainer == component)
+			component->window->sysContainer = NULL;
+		if (component->window->mainContainer == component)
+			component->window->mainContainer = NULL;
+		if (component->window->focusComponent == component)
+			component->window->focusComponent = NULL;
+		if (component->window->mouseInComponent == component)
+			component->window->mouseInComponent = NULL;
+	}
+
 	// Deallocate generic things
 
 	// Free the component's event stream
@@ -250,6 +285,33 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 	kernelFree((void *) component);
 
 	return;
+}
+
+
+int kernelWindowComponentSetCharSet(kernelWindowComponent *component,
+	const char *charSet)
+{
+	// Sets the character set for a component
+
+	int status = 0;
+
+	if (!component)
+		return (status = ERR_NOSUCHENTRY);
+
+	// Set the character set
+	strncpy((char *) component->charSet, charSet, CHARSET_NAME_LEN);
+
+	// Try to make sure we have the required character set.
+	if (component->params.font &&
+		!kernelFontHasCharSet((kernelFont *) component->params.font, charSet))
+	{
+		kernelFontGet(((kernelFont *) component->params.font)->family,
+			((kernelFont *) component->params.font)->flags,
+			((kernelFont *) component->params.font)->points, charSet);
+	}
+
+	// Return success
+	return (status = 0);
 }
 
 
@@ -331,7 +393,7 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 	kernelWindow *window = NULL;
 	kernelWindowComponent **array = NULL;
 	int numComponents = 0;
-	int (*tmpDraw) (kernelWindowComponent *) = NULL;
+	int (*tmpDraw)(kernelWindowComponent *) = NULL;
 	kernelWindowComponent *tmpComponent = NULL;
 	int count;
 

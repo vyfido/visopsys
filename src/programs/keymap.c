@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,6 +48,8 @@ In text mode:
 
   The -s option will save the selected keymap using the supplied file name.
 
+  The -x option will convert a version 1 keymap to version 2.
+
   If a keymap is specified without the -p or -s options, then the keymap will
   be set as the current default.
 
@@ -61,6 +63,7 @@ Options:
 -p  : Print a detailed listing of the keymap (text mode).
 -s  : Save the specified keymap to the supplied file name (text mode).
 -T  : Force text mode operation
+-x  : Convert a version 1 keymap to version 2 (text mode).
 
 </help>
 */
@@ -75,6 +78,7 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/charset.h>
 #include <sys/env.h>
 #include <sys/font.h>
 #include <sys/keyboard.h>
@@ -85,24 +89,12 @@ Options:
 #define WINDOW_TITLE		_("Keyboard Map")
 #define CURRENT				_("Current:")
 #define NAME				_("Name:")
+#define LANGUAGE			_("Language:")
 #define SAVE				_("Save")
 #define SET_DEFAULT			_("Set as default")
 #define CLOSE				_("Close")
 #define KERNEL_CONF			PATH_SYSTEM_CONFIG "/kernel.conf"
-
-typedef struct {
-	int scanCode;
-	unsigned char regMap;
-	unsigned char shiftMap;
-	unsigned char controlMap;
-	unsigned char altGrMap;
-	objectKey button;
-	int buttonRow;
-	int buttonColumn;
-	int show;
-	int grey;
-
-} scanKey;
+#define KEYVAL_FIELDWIDTH	5
 
 static int graphics = 0;
 static char *cwd = NULL;
@@ -110,127 +102,18 @@ static char currentName[KEYMAP_NAMELEN];
 static keyMap *selectedMap = NULL;
 static listItemParameters *mapListParams = NULL;
 static int numMapNames = 0;
-static scanKey *keyArray = NULL;
 static objectKey window = NULL;
 static objectKey mapList = NULL;
 static objectKey currentLabel = NULL;
 static objectKey currentNameLabel = NULL;
 static objectKey nameLabel = NULL;
 static objectKey nameField = NULL;
-static objectKey diagContainer = NULL;
+static objectKey langLabel = NULL;
+static objectKey langField = NULL;
+static windowKeyboard *keyboard = NULL;
 static objectKey saveButton = NULL;
 static objectKey defaultButton = NULL;
 static objectKey closeButton = NULL;
-
-// A map of "universal" values.  -1 means unspecified.
-static keyMap univMap = {
-	KEYMAP_MAGIC,
-	"Universal",
-	// Regular map
-	{ 0, 0, 0, ASCII_SPACE,										// 00-03
-	  0, 0, 0, 0,												// 04-07
-	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_CRSRRIGHT, 0,		// 08-0B
-	  ASCII_DEL, ASCII_ENTER, 0, -1,							// 0C-0F
-	  -1, -1, -1, -1,											// 10-13
-	  -1, -1, -1, -1,											// 14-17
-	  -1, -1, 0, ASCII_CRSRUP,									// 18-1B
-	  0, ASCII_CRSRDOWN, ASCII_PAGEDOWN, 0,						// 1C-1F
-	  -1, -1, -1, -1,											// 20-23
-	  -1, -1, -1, -1,											// 24-27
-	  -1, -1, -1, -1,											// 28-2B
-	  ASCII_CRSRLEFT, 0, ASCII_CRSRRIGHT, '+',					// 2C-2F
-	  ASCII_TAB, -1, -1, -1,									// 30-33
-	  -1, -1, -1, -1,											// 34-37
-	  -1, -1, -1, -1,											// 38-3B
-	  -1, -1, ASCII_DEL, 0,										// 3C-3F
-	  ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
-	  -1, -1, -1, -1,											// 44-47
-	  -1, -1, -1, -1, -1, -1, -1, -1,							// 48-4F
-	  -1, ASCII_BACKSPACE, 0, ASCII_HOME,						// 50-53
-	  ASCII_PAGEUP, 0, '/', '*',								// 54-57
-	  '-', ASCII_ESC, 0, 0, 0, 0, 0, 0,							// 58-5F
-	  0, 0, 0, 0,												// 60-63
-	  0, 0, 0, 0, 0												// 64-68
-	},
-	// Shift map
-	{ 0, 0, 0, ASCII_SPACE,										// 00-03
-	  0, 0, 0, 0,												// 04-07
-	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_CRSRRIGHT, 0,		// 08-0B
-	  ASCII_DEL, ASCII_ENTER, 0, -1,							// 0C-0F
-	  -1, -1, -1, -1,											// 10-13
-	  -1, -1, -1, -1,											// 14-17
-	  -1, -1, 0, ASCII_CRSRUP,									// 18-1B
-	  0, ASCII_CRSRDOWN, ASCII_PAGEDOWN, 0,						// 1C-1F
-	  -1, -1, -1, -1,											// 20-23
-	  -1, -1, -1, -1,											// 24-27
-	  -1, -1, -1, -1,											// 28-2B
-	  ASCII_CRSRLEFT, 0, ASCII_CRSRRIGHT, '+',					// 2C-2F
-	  ASCII_TAB, -1, -1, -1,									// 30-33
-	  -1, -1, -1, -1,											// 34-37
-	  -1, -1, -1, -1,											// 38-3B
-	  -1, -1, ASCII_DEL, 0,										// 3C-3F
-	  ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
-	  -1, -1, -1, -1,											// 44-47
-	  -1, -1, -1, -1, -1, -1, -1, -1,							// 48-4F
-	  -1, ASCII_BACKSPACE, 0, ASCII_HOME,						// 50-53
-	  ASCII_PAGEUP, 0, '/', '*',								// 54-57
-	  '-', ASCII_ESC, 0, 0, 0, 0, 0, 0,							// 58-5F
-	  0, 0, 0, 0,												// 60-63
-	  0, 0, 0, 0, 0												// 64-68
-	},
-	// Control map
-	{ 0, 0, 0, ASCII_SPACE,										// 00-03
-	  0, 0, 0, 0,												// 04-07
-	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_CRSRRIGHT, 0,		// 08-0B
-	  ASCII_DEL, ASCII_ENTER, 0, -1,							// 0C-0F
-	  ASCII_SUB, ASCII_CAN, ASCII_ETX, ASCII_SYN,				// 10-13
-	  ASCII_STX, ASCII_SHIFTOUT, ASCII_ENTER, 0,				// 14-17
-	  -1, -1, 0, ASCII_CRSRUP,									// 18-1B
-	  0, ASCII_CRSRDOWN, ASCII_PAGEDOWN, 0,						// 1C-1F
-	  ASCII_SOH, ASCII_CRSRRIGHT, ASCII_ENDOFFILE, ASCII_ACK,	// 20-23
-	  ASCII_BEL, ASCII_BACKSPACE, ASCII_ENTER, ASCII_PAGEUP,	// 24-27
-	  ASCII_PAGEDOWN, -1, -1, -1,								// 28-2B
-	  ASCII_CRSRLEFT, 0, ASCII_CRSRRIGHT, '+',					// 2C-2F
-	  ASCII_TAB, ASCII_CRSRUP, ASCII_ETB, ASCII_ENQ,			// 30-33
-	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_EOM, ASCII_NAK,		// 34-37
-	  ASCII_TAB, ASCII_SHIFTIN, ASCII_DLE, -1,					// 38-3B
-	  -1, -1, ASCII_DEL, 0,										// 3C-3F
-	  ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
-	  -1, -1, -1, -1,											// 44-47
-	  -1, -1, -1, -1, -1, -1, -1, -1,							// 48-4F
-	  -1, ASCII_BACKSPACE, 0, ASCII_HOME,						// 50-53
-	  ASCII_PAGEUP, 0, '/', '*',								// 54-57
-	  '-', ASCII_ESC, 0, 0, 0, 0, 0, 0,							// 58-5F
-	  0, 0, 0, 0,												// 60-63
-	  0, 0, 0, 0, 0												// 64-68
-	},
-	// Alt-Gr map
-	{ 0, 0, 0, ASCII_SPACE,										// 00-03
-	  0, 0, 0, 0,												// 04-07
-	  ASCII_CRSRLEFT, ASCII_CRSRDOWN, ASCII_CRSRRIGHT, 0,		// 08-0B
-	  ASCII_DEL, ASCII_ENTER, 0, -1,							// 0C-0F
-	  -1, -1, -1, -1,											// 10-13
-	  -1, -1, -1, -1,											// 14-17
-	  -1, -1, 0, ASCII_CRSRUP,									// 18-1B
-	  0, ASCII_CRSRDOWN, ASCII_PAGEDOWN, 0,						// 1C-1F
-	  -1, -1, -1, -1,											// 20-23
-	  -1, -1, -1, -1,											// 24-27
-	  -1, -1, -1, -1,											// 28-2B
-	  ASCII_CRSRLEFT, 0, ASCII_CRSRRIGHT, '+',					// 2C-2F
-	  ASCII_TAB, -1, -1, -1,									// 30-33
-	  -1, -1, -1, -1,											// 34-37
-	  -1, -1, -1, -1,											// 38-3B
-	  -1, -1, ASCII_DEL, 0,										// 3C-3F
-	  ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
-	  -1, -1, -1, -1,											// 44-47
-	  -1, -1, -1, -1, -1, -1, -1, -1,							// 48-4F
-	  -1, ASCII_BACKSPACE, 0, ASCII_HOME,						// 50-53
-	  ASCII_PAGEUP, 0, '/', '*',								// 54-57
-	  '-', ASCII_ESC, 0, 0, 0, 0, 0, 0,							// 58-5F
-	  0, 0, 0, 0,												// 60-63
-	  0, 0, 0, 0, 0												// 64-68
-	}
-};
 
 static const char *scan2String[KEYBOARD_SCAN_CODES] = {
 	"LCtrl", "A0", "LAlt", "SpaceBar",							// 00-03
@@ -431,6 +314,9 @@ static int loadMap(const char *mapName)
 {
 	int status = 0;
 	char *fileName = NULL;
+	keyMapV1 *oldMap = NULL;
+	keyMap *newMap = NULL;
+	int count;
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
 	if (!fileName)
@@ -447,26 +333,50 @@ static int loadMap(const char *mapName)
 	// Read it in
 	status = readMap(fileName, selectedMap);
 
-out:
-	free(fileName);
-	return (status);
-}
-
-
-static void makeKeyArray(keyMap *map)
-{
-	int count;
-
-	for (count = 0; count < KEYBOARD_SCAN_CODES; count ++)
+	if (selectedMap->version != 0x0200)
 	{
-		keyArray[count].scanCode = count;
-		keyArray[count].regMap = map->regMap[count];
-		keyArray[count].shiftMap = map->shiftMap[count];
-		keyArray[count].controlMap = map->controlMap[count];
-		keyArray[count].altGrMap = map->altGrMap[count];
+		// Convert an old map file to a new one
+
+		oldMap = (keyMapV1 *) selectedMap;
+		newMap = malloc(sizeof(keyMap));
+		if (!newMap)
+		{
+			status = ERR_MEMORY;
+			goto out;
+		}
+
+		memcpy(newMap->magic, oldMap->magic, 8);
+		newMap->version = 0x0200;
+		memcpy(newMap->name, oldMap->name, KEYMAP_NAMELEN);
+		newMap->language[0] = tolower(oldMap->name[0]);
+		newMap->language[1] = tolower(oldMap->name[1]);
+
+		for (count = 0; count < KEYBOARD_SCAN_CODES; count ++)
+		{
+			newMap->regMap[count] = charsetToUnicode(CHARSET_NAME_ISO_8859_15,
+				oldMap->regMap[count]);
+			newMap->shiftMap[count] =
+				charsetToUnicode(CHARSET_NAME_ISO_8859_15,
+					oldMap->shiftMap[count]);
+			newMap->controlMap[count] =
+				charsetToUnicode(CHARSET_NAME_ISO_8859_15,
+					oldMap->controlMap[count]);
+			newMap->altGrMap[count] =
+				charsetToUnicode(CHARSET_NAME_ISO_8859_15,
+					oldMap->altGrMap[count]);
+			newMap->shiftAltGrMap[count] =
+				charsetToUnicode(CHARSET_NAME_ISO_8859_15,
+					oldMap->shiftMap[count]);
+		}
+
+		memcpy(selectedMap, newMap, sizeof(keyMap));
 	}
 
-	return;
+out:
+	if (newMap)
+		free(newMap);
+	free(fileName);
+	return (status);
 }
 
 
@@ -475,7 +385,6 @@ static int saveMap(const char *fileName)
 	int status = 0;
 	disk mapDisk;
 	fileStream theStream;
-	int count;
 
 	memset(&mapDisk, 0, sizeof(disk));
 	memset(&theStream, 0, sizeof(fileStream));
@@ -489,15 +398,11 @@ static int saveMap(const char *fileName)
 
 	if (graphics && nameField)
 		// Get the map name
-		windowComponentGetData(nameField, selectedMap->name, 32);
+		windowComponentGetData(nameField, selectedMap->name, KEYMAP_NAMELEN);
 
-	for (count = 0; count < KEYBOARD_SCAN_CODES; count ++)
-	{
-		selectedMap->regMap[count] = keyArray[count].regMap;
-		selectedMap->shiftMap[count] = keyArray[count].shiftMap;
-		selectedMap->controlMap[count] = keyArray[count].controlMap;
-		selectedMap->altGrMap[count] = keyArray[count].altGrMap;
-	}
+	if (graphics && langField)
+		// Get the map language
+		windowComponentGetData(langField, selectedMap->language, 2);
 
 	status = fileStreamOpen(fileName, (OPENMODE_CREATE | OPENMODE_WRITE |
 		OPENMODE_TRUNCATE), &theStream);
@@ -620,76 +525,6 @@ out:
 }
 
 
-static void getText(unsigned char ascii, char *output)
-{
-	// Convert an ASCII code into a printable character in the output.
-
-	if (ascii >= 33)
-		sprintf(output, "%c", ascii);
-	else
-		strcat(output, " ");
-}
-
-
-static void makeButtonString(scanKey *scan, char *string)
-{
-	string[0] = '\0';
-
-	switch (scan->scanCode)
-	{
-		case keyBackSpace:
-			strcpy(string, _("Backspace"));
-			return;
-
-		case keyTab:
-			strcpy(string, _("Tab"));
-			return;
-
-		case keyCapsLock:
-			strcpy(string, _("CapsLock"));
-			return;
-
-		case keyEnter:
-			strcpy(string, _("Enter"));
-			return;
-
-		case keyLShift:
-		case keyRShift:
-			strcpy(string, _("Shift"));
-			return;
-	}
-
-	// 'Normal' key
-	getText(scan->regMap, string);
-
-	if (scan->shiftMap && (scan->shiftMap != scan->regMap))
-		getText(scan->shiftMap, (string + strlen(string)));
-
-	if (scan->altGrMap && (scan->altGrMap != scan->regMap))
-		getText(scan->altGrMap, (string + strlen(string)));
-}
-
-
-static void updateKeyDiag(keyMap *map)
-{
-	char string[32];
-	int count;
-
-	windowComponentSetData(nameField, map->name, sizeof(map->name),
-		1 /* redraw */);
-
-	for (count = 0; count < 53; count ++)
-	{
-		if (keyArray[count].button)
-		{
-			makeButtonString(&keyArray[count], string);
-			windowComponentSetData(keyArray[count].button, string,
-				sizeof(string), 1 /* redraw */);
-		}
-	}
-}
-
-
 static void refreshWindow(void)
 {
 	// We got a 'window refresh' event (probably because of a language switch),
@@ -699,8 +534,9 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("keymap");
 
-	// Refresh the keyboard diagram
-	updateKeyDiag(selectedMap);
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the 'current' label
 	windowComponentSetData(currentLabel, CURRENT, strlen(CURRENT),
@@ -708,6 +544,10 @@ static void refreshWindow(void)
 
 	// Refresh the 'name' field
 	windowComponentSetData(nameLabel, NAME, strlen(NAME), 1 /* redraw */);
+
+	// Refresh the 'language' field
+	windowComponentSetData(langLabel, LANGUAGE, strlen(LANGUAGE),
+		1 /* redraw */);
 
 	// Refresh the 'save' button
 	windowComponentSetData(saveButton, SAVE, strlen(SAVE), 1 /* redraw */);
@@ -744,6 +584,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	int status = 0;
 	int selected = 0;
+	char charsetName[CHARSET_NAME_LEN];
 	char *fullName = NULL;
 	char *dirName = NULL;
 
@@ -764,10 +605,32 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		if (windowComponentGetSelected(mapList, &selected) < 0)
 			return;
+
 		if (loadMap(mapListParams[selected].text) < 0)
 			return;
-		makeKeyArray(selectedMap);
-		updateKeyDiag(selectedMap);
+
+		windowComponentSetData(nameField, selectedMap->name, KEYMAP_NAMELEN,
+			1 /* redraw */);
+
+		windowComponentSetData(langField, selectedMap->language, 2,
+			1 /* redraw */);
+
+		keyboard->setMap(keyboard, selectedMap);
+
+		// Try to get the character set for the keymap language
+		if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
+			selectedMap->language, charsetName, CHARSET_NAME_LEN) < 0)
+		{
+			strncpy(charsetName, CHARSET_NAME_ISO_8859_15, CHARSET_NAME_LEN);
+		}
+
+		keyboard->setCharset(keyboard, charsetName);
+	}
+
+	else if (key == keyboard->canvas)
+	{
+		// The event is for our keyboard widget
+		keyboard->eventHandler(keyboard, event);
 	}
 
 	else if ((key == saveButton) && (event->type == EVENT_MOUSE_LEFTUP))
@@ -780,7 +643,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 		status = windowNewFileDialog(window, _("Save as"),
 			_("Choose the output file:"), cwd, fullName, MAX_PATH_NAME_LENGTH,
-			0);
+			fileT, 0 /* no thumbnails */);
 		if (status != 1)
 		{
 			free(fullName);
@@ -831,18 +694,263 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
-static int changeKeyDialog(scanKey *scan)
+static int selectCharDialog(objectKey parentWindow)
+{
+	int selected = 0;
+	objectKey dialogWindow = NULL;
+	objectKey largeFont = NULL;
+	objectKey smallFont = NULL;
+	int charWidth = 0;
+	int charHeight = 0;
+	int smallHeight = 0;
+	objectKey canvas = NULL;
+	componentParameters params;
+	windowDrawParameters drawParams;
+	char string[80];
+	int charVal = 0;
+	char keyChar[4];
+	windowEvent event;
+	int rowCount, columnCount;
+
+	sprintf(string, "%s (%s)", _("Select character"), keyboard->charsetName);
+	dialogWindow = windowNewDialog(parentWindow, string);
+	if (!dialogWindow)
+		return (selected = ERR_NOCREATE);
+
+	// Try to load a larger font for displaying the charset characters
+	largeFont = fontGet(FONT_FAMILY_ARIAL, (FONT_STYLEFLAG_BOLD |
+		FONT_STYLEFLAG_FIXED), 20, keyboard->charsetName);
+
+	// Try to load a smaller font for displaying charset values
+	smallFont = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 8, NULL);
+
+	if (!largeFont || !smallFont)
+	{
+		selected = ERR_NOCREATE;
+		goto out;
+	}
+
+	charWidth = fontGetPrintedWidth(largeFont, NULL, "@");
+	charHeight = fontGetHeight(largeFont);
+	smallHeight = fontGetHeight(smallFont);
+	if ((charWidth <= 0) || (charHeight <= 0) || (smallHeight <= 0))
+	{
+		selected = ERR_NOCREATE;
+		goto out;
+	}
+
+	memset(&params, 0, sizeof(componentParameters));
+	params.gridWidth = 1;
+	params.gridHeight = 1;
+	params.padLeft = params.padRight = params.padTop = params.padBottom = 5;
+	params.orientationX = orient_center;
+	params.orientationY = orient_middle;
+	params.flags = WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+	windowGetColor(COLOR_SETTING_DESKTOP, &params.background);
+
+	// Make a canvas for drawing characters on
+	canvas = windowNewCanvas(dialogWindow, (charWidth * 16), (charHeight * 16),
+		&params);
+	if (!canvas)
+	{
+		selected = ERR_NOCREATE;
+		goto out;
+	}
+
+	// Set the correct character set
+	windowComponentSetCharSet(canvas, keyboard->charsetName);
+
+	// Draw the characters
+
+	memset(&drawParams, 0, sizeof(windowDrawParameters));
+	drawParams.mode = draw_normal;
+	drawParams.operation = draw_text;
+	drawParams.foreground = COLOR_WHITE;
+	windowGetColor(COLOR_SETTING_DESKTOP, &drawParams.background);
+
+	drawParams.width = charWidth;
+	drawParams.height = charHeight;
+	drawParams.thickness = 1;
+	drawParams.fill = 1;
+
+	for (rowCount = 0; rowCount < 16; rowCount ++)
+	{
+		for (columnCount = 0; columnCount < 16; columnCount ++)
+		{
+			drawParams.xCoord1 = (columnCount * charWidth);
+			drawParams.yCoord1 = (rowCount * charHeight);
+
+			charVal = ((rowCount * 16) + columnCount);
+
+			if (isgraph(charVal))
+			{
+				drawParams.font = largeFont;
+				sprintf(keyChar, "%c", charVal);
+			}
+			else
+			{
+				drawParams.font = smallFont;
+
+				switch (charVal)
+				{
+					case ASCII_NULL:
+						strcpy(keyChar, "NUL");
+						break;
+					case ASCII_BEL:
+						strcpy(keyChar, "BEL");
+						break;
+					case ASCII_BACKSPACE:
+						strcpy(keyChar, "BS");
+						break;
+					case ASCII_TAB:
+						strcpy(keyChar, "HT");
+						break;
+					case ASCII_ENTER:
+						strcpy(keyChar, "LF");
+						break;
+					case ASCII_VERTTAB:
+						strcpy(keyChar, "VT");
+						break;
+					case ASCII_FORMFEED:
+						strcpy(keyChar, "FF");
+						break;
+					case ASCII_CRGRET:
+						strcpy(keyChar, "CR");
+						break;
+					case ASCII_ESC:
+						strcpy(keyChar, "ESC");
+						break;
+					case ASCII_SPACE:
+						strcpy(keyChar, "SPC");
+						break;
+					case ASCII_DEL:
+						strcpy(keyChar, "DEL");
+						break;
+
+					default:
+						sprintf(keyChar, "%d",
+							charsetToUnicode(keyboard->charsetName, charVal));
+						break;
+				}
+
+				drawParams.xCoord1 += ((charWidth -
+					fontGetPrintedWidth(smallFont, NULL, keyChar)) / 2);
+				drawParams.yCoord1 += ((charHeight - smallHeight) / 2);
+			}
+
+			drawParams.data = keyChar;
+			windowComponentSetData(canvas, &drawParams, 1,
+				((rowCount == 15) && (columnCount == 15)));
+		}
+	}
+
+	windowCenterDialog(parentWindow, dialogWindow);
+	windowSetVisible(dialogWindow, 1);
+
+	while (1)
+	{
+		// Check for window close events
+		if ((windowComponentEventGet(dialogWindow, &event) > 0) &&
+			(event.type == EVENT_WINDOW_CLOSE))
+		{
+			selected = ERR_CANCELLED;
+			break;
+		}
+
+		else if ((windowComponentEventGet(canvas, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			selected = (((event.yPosition / charHeight) * 16) +
+				(event.xPosition / charWidth));
+			break;
+		}
+
+		// Not finished yet
+		multitaskerYield();
+	}
+
+out:
+	windowDestroy(dialogWindow);
+
+	if (selected >= 0)
+		return (charsetToUnicode(keyboard->charsetName, selected));
+	else
+		return (selected);
+}
+
+
+static void selectKeyValue(objectKey parentWindow, objectKey field,
+	objectKey label)
+{
+	int charVal = 0;
+	char string[KEYVAL_FIELDWIDTH + 1];
+
+	charVal = selectCharDialog(parentWindow);
+	if (charVal >= 0)
+	{
+		sprintf(string, "%d", charVal);
+		windowComponentSetData(field, string, strlen(string), 1 /* redraw */);
+
+		charVal = charsetFromUnicode(keyboard->charsetName, charVal);
+		if ((charVal < 0) || (charVal > 255))
+			charVal = 0;
+
+		sprintf(string, "%c", charVal);
+
+		if (string[0] == '\n')
+			string[0] = ' ';
+
+		windowComponentSetData(label, string, strlen(string), 1 /* redraw */);
+	}
+}
+
+
+static void typedKeyValue(objectKey field, objectKey label)
+{
+	int charVal = 0;
+	char string[KEYVAL_FIELDWIDTH + 1];
+
+	windowComponentGetData(field, string, KEYVAL_FIELDWIDTH);
+
+	charVal = atoi(string);
+	if (charVal >= 0)
+	{
+		charVal = charsetFromUnicode(keyboard->charsetName, charVal);
+		if ((charVal < 0) || (charVal > 255))
+			charVal = 0;
+
+		sprintf(string, "%c", charVal);
+
+		if (string[0] == '\n')
+			string[0] = ' ';
+
+		windowComponentSetData(label, string, strlen(string), 1 /* redraw */);
+	}
+}
+
+
+static int changeKeyDialog(keyScan scanCode)
 {
 	int status = 0;
 	objectKey dialogWindow = NULL;
+	objectKey largeFont = NULL;
+	objectKey smallFont = NULL;
+	objectKey regCharLabel = NULL;
+	objectKey shiftCharLabel = NULL;
+	objectKey altGrCharLabel = NULL;
+	objectKey shiftAltGrCharLabel = NULL;
+	objectKey ctrlCharLabel = NULL;
 	objectKey regField = NULL;
 	objectKey shiftField = NULL;
 	objectKey altGrField = NULL;
+	objectKey shiftAltGrField = NULL;
 	objectKey ctrlField = NULL;
 	objectKey buttonContainer = NULL;
 	objectKey _okButton = NULL;
 	objectKey _cancelButton = NULL;
+	int commit = 0;
 	char string[80];
+	color foreground = { 255, 255, 255 };
 	windowEvent event;
 	componentParameters params;
 
@@ -850,77 +958,165 @@ static int changeKeyDialog(scanKey *scan)
 	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
+	// Try to load a larger for for displaying the characters
+	largeFont = fontGet(FONT_FAMILY_ARIAL, (FONT_STYLEFLAG_BOLD |
+		FONT_STYLEFLAG_FIXED), 20, keyboard->charsetName);
+
+	// And a smaller one for the labels
+	smallFont = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10,
+		keyboard->charsetName);
+
 	memset(&params, 0, sizeof(componentParameters));
-	params.gridWidth = 2;
+	params.gridWidth = 5;
 	params.gridHeight = 1;
 	params.padTop = 5;
 	params.padLeft = 5;
 	params.padRight = 5;
-	params.orientationX = orient_left;
+	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
+	params.foreground = foreground;
+	windowGetColor(COLOR_SETTING_DESKTOP, &params.background);
 
-	snprintf(string, 80, _("Scan code: %d (0x%02x)"), scan->scanCode,
-		scan->scanCode);
+	// Show the current scan code
+	snprintf(string, 80, _("Scan code: 0x%02x (%s)"), scanCode,
+		scan2String[scanCode]);
 	windowNewTextLabel(dialogWindow, string, &params);
 
+	// Tell the user these are Unicode values.
 	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("ASCII codes:"), &params);
+	windowNewTextLabel(dialogWindow, _("Unicode"), &params);
 
+	// Labels for each of the map types
+
+	params.gridY += 1;
 	params.gridWidth = 1;
-	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("Regular code:"), &params);
+	params.orientationY = orient_bottom;
+	params.font = smallFont;
+	windowNewTextLabel(dialogWindow, _("Normal"), &params);
 
 	params.gridX += 1;
-	regField = windowNewTextField(dialogWindow, 10, &params);
-	snprintf(string, 10, "%d", scan->regMap);
-	windowComponentSetData(regField, string, 10, 1 /* redraw */);
+	windowNewTextLabel(dialogWindow, _("Shift"), &params);
+
+	params.gridX += 1;
+	windowNewTextLabel(dialogWindow, _("AltGr"), &params);
+
+	params.gridX += 1;
+	sprintf(string, "%s-\n%s", _("Shift"), _("AltGr"));
+	windowNewTextLabel(dialogWindow, string, &params);
+
+	params.gridX += 1;
+	windowNewTextLabel(dialogWindow, _("Ctrl"), &params);
+
+	// Labels to show the current ASCII value for each map type
 
 	params.gridX = 0;
 	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("Shift code:"), &params);
+	params.orientationY = orient_middle;
+	params.font = largeFont;
+	params.flags |= (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER);
+	regCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
+	windowComponentSetCharSet(regCharLabel, keyboard->charsetName);
+	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
+		selectedMap->regMap[scanCode]));
+	windowComponentSetData(regCharLabel, string, strlen(string),
+		0 /* no redraw */);
 
 	params.gridX += 1;
-	shiftField = windowNewTextField(dialogWindow, 10, &params);
-	snprintf(string, 10, "%d", scan->shiftMap);
-	windowComponentSetData(shiftField, string, 10, 1 /* redraw */);
+	shiftCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
+	windowComponentSetCharSet(shiftCharLabel, keyboard->charsetName);
+	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
+		selectedMap->shiftMap[scanCode]));
+	windowComponentSetData(shiftCharLabel, string, strlen(string),
+		0 /* no redraw */);
+
+	params.gridX += 1;
+	altGrCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
+	windowComponentSetCharSet(altGrCharLabel, keyboard->charsetName);
+	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
+		selectedMap->altGrMap[scanCode]));
+	windowComponentSetData(altGrCharLabel, string, strlen(string),
+		0 /* no redraw */);
+
+	params.gridX += 1;
+	shiftAltGrCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
+	windowComponentSetCharSet(shiftAltGrCharLabel, keyboard->charsetName);
+	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
+		selectedMap->shiftAltGrMap[scanCode]));
+	windowComponentSetData(shiftAltGrCharLabel, string, strlen(string),
+		0 /* no redraw */);
+
+	params.gridX += 1;
+	ctrlCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
+	windowComponentSetCharSet(ctrlCharLabel, keyboard->charsetName);
+	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
+		selectedMap->controlMap[scanCode]));
+	windowComponentSetData(ctrlCharLabel, string, strlen(string),
+		0 /* no redraw */);
+
+	// Text fields for entering new values for each map type
 
 	params.gridX = 0;
 	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("Alt Gr code:"), &params);
+	params.font = NULL;
+	params.flags = 0;
+	regField = windowNewTextField(dialogWindow, KEYVAL_FIELDWIDTH, &params);
+	snprintf(string, KEYVAL_FIELDWIDTH, "%u", selectedMap->regMap[scanCode]);
+	windowComponentSetData(regField, string, KEYVAL_FIELDWIDTH,
+		1 /* redraw */);
 
 	params.gridX += 1;
-	altGrField = windowNewTextField(dialogWindow, 10, &params);
-	snprintf(string, 10, "%d", scan->altGrMap);
-	windowComponentSetData(altGrField, string, 10, 1 /* redraw */);
-
-	params.gridX = 0;
-	params.gridY += 1;
-	windowNewTextLabel(dialogWindow, _("Ctrl code:"), &params);
+	shiftField = windowNewTextField(dialogWindow, KEYVAL_FIELDWIDTH, &params);
+	snprintf(string, KEYVAL_FIELDWIDTH, "%u", selectedMap->shiftMap[scanCode]);
+	windowComponentSetData(shiftField, string, KEYVAL_FIELDWIDTH,
+		1 /* redraw */);
 
 	params.gridX += 1;
-	ctrlField = windowNewTextField(dialogWindow, 10, &params);
-	snprintf(string, 10, "%d", scan->controlMap);
-	windowComponentSetData(ctrlField, string, 10, 1 /* redraw */);
+	altGrField = windowNewTextField(dialogWindow, KEYVAL_FIELDWIDTH, &params);
+	snprintf(string, KEYVAL_FIELDWIDTH, "%u", selectedMap->altGrMap[scanCode]);
+	windowComponentSetData(altGrField, string, KEYVAL_FIELDWIDTH,
+		1 /* redraw */);
 
+	params.gridX += 1;
+	shiftAltGrField = windowNewTextField(dialogWindow, KEYVAL_FIELDWIDTH,
+		&params);
+	snprintf(string, KEYVAL_FIELDWIDTH, "%u",
+		selectedMap->shiftAltGrMap[scanCode]);
+	windowComponentSetData(shiftAltGrField, string, KEYVAL_FIELDWIDTH,
+		1 /* redraw */);
+
+	params.gridX += 1;
+	ctrlField = windowNewTextField(dialogWindow, KEYVAL_FIELDWIDTH, &params);
+	snprintf(string, KEYVAL_FIELDWIDTH, "%u",
+		selectedMap->controlMap[scanCode]);
+	windowComponentSetData(ctrlField, string, KEYVAL_FIELDWIDTH,
+		1 /* redraw */);
+
+	// A container for buttons
 	params.gridX = 0;
 	params.gridY += 1;
-	params.gridWidth = 2;
+	params.gridWidth = 5;
 	params.padBottom = 5;
-	params.orientationX = orient_center;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-	buttonContainer =
-	windowNewContainer(dialogWindow, "buttonContainer", &params);
+	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.font = NULL;
+	buttonContainer = windowNewContainer(dialogWindow, "buttonContainer",
+		&params);
 
+	// Ok button
 	params.gridY = 0;
 	params.gridWidth = 1;
 	params.padTop = 0;
+	params.padLeft = 2;
+	params.padRight = 2;
 	params.padBottom = 0;
 	params.orientationX = orient_right;
 	_okButton = windowNewButton(buttonContainer, _("OK"), NULL, &params);
 
+	// Cancel button
 	params.gridX += 1;
 	params.orientationX = orient_left;
-	_cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL, &params);
+	_cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL,
+		&params);
 	windowComponentFocus(_cancelButton);
 
 	windowCenterDialog(window, dialogWindow);
@@ -928,29 +1124,6 @@ static int changeKeyDialog(scanKey *scan)
 
 	while (1)
 	{
-		// Check for the OK button, or 'enter' in any of the text fields
-		if (((windowComponentEventGet(_okButton, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP)) ||
-			((windowComponentEventGet(regField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)) ||
-			((windowComponentEventGet(shiftField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)) ||
-			((windowComponentEventGet(altGrField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)) ||
-			((windowComponentEventGet(ctrlField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)))
-			{
-				windowComponentGetData(regField, string, 10);
-				scan->regMap = atoi(string);
-				windowComponentGetData(shiftField, string, 10);
-				scan->shiftMap = atoi(string);
-				windowComponentGetData(altGrField, string, 10);
-				scan->altGrMap = atoi(string);
-				windowComponentGetData(ctrlField, string, 10);
-				scan->controlMap = atoi(string);
-				break;
-			}
-
 		// Check for Cancel button or window close events
 		if (((windowComponentEventGet(_cancelButton, &event) > 0) &&
 				(event.type == EVENT_MOUSE_LEFTUP)) ||
@@ -960,8 +1133,124 @@ static int changeKeyDialog(scanKey *scan)
 			break;
 		}
 
-		// Done
+		// Check for the OK button
+		else if ((windowComponentEventGet(_okButton, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			commit = 1;
+		}
+
+		// Clicks in the 'normal' character label
+		else if ((windowComponentEventGet(regCharLabel, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			selectKeyValue(dialogWindow, regField, regCharLabel);
+		}
+
+		// Clicks in the 'shifted' character label
+		else if ((windowComponentEventGet(shiftCharLabel, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			selectKeyValue(dialogWindow, shiftField, shiftCharLabel);
+		}
+
+		// Clicks in the 'AltGr' character label
+		else if ((windowComponentEventGet(altGrCharLabel, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			selectKeyValue(dialogWindow, altGrField, altGrCharLabel);
+		}
+
+		// Clicks in the 'Shift-AltGr' character label
+		else if ((windowComponentEventGet(shiftAltGrCharLabel, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			selectKeyValue(dialogWindow, shiftAltGrField, shiftAltGrCharLabel);
+		}
+
+		// Clicks in the 'control' character label
+		else if ((windowComponentEventGet(ctrlCharLabel, &event) > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP))
+		{
+			selectKeyValue(dialogWindow, ctrlField, ctrlCharLabel);
+		}
+
+		// Key presses in the 'normal' field
+		else if ((windowComponentEventGet(regField, &event) > 0) &&
+			(event.type == EVENT_KEY_DOWN))
+		{
+			if (event.key == keyEnter)
+				commit = 1;
+			else
+				typedKeyValue(regField, regCharLabel);
+		}
+
+		// Key presses in the 'shifted' field
+		else if ((windowComponentEventGet(shiftField, &event) > 0) &&
+			(event.type == EVENT_KEY_DOWN))
+		{
+			if (event.key == keyEnter)
+				commit = 1;
+			else
+				typedKeyValue(shiftField, shiftCharLabel);
+		}
+
+		// Key presses in the 'AltGr' field
+		else if ((windowComponentEventGet(altGrField, &event) > 0) &&
+			(event.type == EVENT_KEY_DOWN))
+		{
+			if (event.key == keyEnter)
+				commit = 1;
+			else
+				typedKeyValue(altGrField, altGrCharLabel);
+		}
+
+		// Key presses in the 'Shift-AltGr' field
+		else if ((windowComponentEventGet(shiftAltGrField, &event) > 0) &&
+			(event.type == EVENT_KEY_DOWN))
+		{
+			if (event.key == keyEnter)
+				commit = 1;
+			else
+				typedKeyValue(shiftAltGrField, shiftAltGrCharLabel);
+		}
+
+		// Key presses in the 'control' field
+		else if ((windowComponentEventGet(ctrlField, &event) > 0) &&
+			(event.type == EVENT_KEY_DOWN))
+		{
+			if (event.key == keyEnter)
+				commit = 1;
+			else
+				typedKeyValue(ctrlField, ctrlCharLabel);
+		}
+
+		// Finished?
+		if (commit)
+			break;
+
+		// Not finished yet
 		multitaskerYield();
+	}
+
+	if (commit)
+	{
+		windowComponentGetData(regField, string, KEYVAL_FIELDWIDTH);
+		selectedMap->regMap[scanCode] = atoi(string);
+
+		windowComponentGetData(shiftField, string, KEYVAL_FIELDWIDTH);
+		selectedMap->shiftMap[scanCode] = atoi(string);
+
+		windowComponentGetData(altGrField, string, KEYVAL_FIELDWIDTH);
+		selectedMap->altGrMap[scanCode] = atoi(string);
+
+		windowComponentGetData(shiftAltGrField, string, KEYVAL_FIELDWIDTH);
+		selectedMap->shiftAltGrMap[scanCode] = atoi(string);
+
+		windowComponentGetData(ctrlField, string, KEYVAL_FIELDWIDTH);
+		selectedMap->controlMap[scanCode] = atoi(string);
+
+		keyboard->setMap(keyboard, selectedMap);
 	}
 
 	windowDestroy(dialogWindow);
@@ -969,160 +1258,30 @@ static int changeKeyDialog(scanKey *scan)
 }
 
 
-static void editKeyHandler(objectKey key, windowEvent *event)
+static int keyCallback(int eventType, keyScan scanCode)
 {
-	char string[32];
-	int count;
-
-	if (event->type == EVENT_MOUSE_LEFTUP)
+	if (eventType == EVENT_KEY_UP)
 	{
-		// Search through our array and see if it's one of our key buttons
-		for (count = 0; count < KEYBOARD_SCAN_CODES; count ++)
+		switch (scanCode)
 		{
-			if (key == keyArray[count].button)
-			{
-				changeKeyDialog(&keyArray[count]);
-				makeButtonString(&keyArray[count], string);
-				windowComponentSetData(keyArray[count].button, string,
-					sizeof(string), 1 /* redraw */);
+			case keySLck:
+			case keyNLck:
+			case keyCapsLock:
+			case keyLShift:
+			case keyRShift:
+			case keyLCtrl:
+			case keyLAlt:
+			case keyA2:
+			case keyRCtrl:
 				break;
-			}
-		}
-	}
-}
 
-
-static objectKey constructKeyDiag(objectKey parent, keyMap *map,
-	componentParameters *mainParams)
-{
-	objectKey mainContainer = NULL;
-	objectKey nameContainer = NULL;
-	objectKey rowContainer[4];
-	char string[32];
-	componentParameters params;
-	int count = 0;
-
-	mainContainer = windowNewContainer(parent, "diagContainer", mainParams);
-	if (!mainContainer)
-		return (mainContainer);
-
-	memset(&params, 0, sizeof(componentParameters));
-	params.gridWidth = 1;
-	params.gridHeight = 1;
-	params.padTop = 5;
-	params.padLeft = 5;
-	params.padRight = 5;
-	params.orientationX = orient_left;
-	params.orientationY = orient_middle;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-
-	if (fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL) >= 0)
-		fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&(params.font), 1);
-
-	// Make a container for the name field
-	nameContainer = windowNewContainer(mainContainer, "nameContainer", &params);
-
-	// The name label and field
-	params.padLeft = 0;
-	nameLabel = windowNewTextLabel(nameContainer, NAME, &params);
-	params.gridX += 1;
-	nameField = windowNewTextField(nameContainer, 30, &params);
-	windowComponentSetData(nameField, map->name, MAX_PATH_LENGTH,
-		1 /* redraw */);
-
-	// Make containers for the rows
-	params.gridX = 0;
-	params.padTop = 0;
-	params.padBottom = 0;
-	params.padLeft = 5;
-	params.padRight = 5;
-	params.orientationX = orient_center;
-	params.orientationY = orient_middle;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
-	for (count = 0; count < 4; count ++)
-	{
-		params.gridY += 1;
-		if (count == 3)
-			params.padBottom = 5;
-		rowContainer[count] =
-			windowNewContainer(mainContainer, "rowContainer", &params);
-	}
-
-	// Loop through the key array and set their columns and rows
-
-	// 2nd row
-	for (count = keyE0; count <= keyBackSpace; count ++)
-	{
-		keyArray[count].buttonColumn = (count - keyE0);
-		keyArray[count].buttonRow = 0;
-		keyArray[count].show = 1;
-	}
-
-	// 3rd row
-	for (count = keyTab; count <= keyD13; count ++)
-	{
-		keyArray[count].buttonColumn = (count - keyTab);
-		keyArray[count].buttonRow = 1;
-		keyArray[count].show = 1;
-	}
-
-	// 4th row
-	for (count = keyCapsLock; count <= keyC12; count ++)
-	{
-		keyArray[count].buttonColumn = (count - keyCapsLock);
-		keyArray[count].buttonRow = 2;
-		keyArray[count].show = 1;
-	}
-
-	keyArray[keyEnter].buttonColumn = (count - keyCapsLock);
-	keyArray[keyEnter].buttonRow = 2;
-	keyArray[keyEnter].show = 1;
-
-	// Fourth row
-	for (count = keyLShift; count <= keyRShift; count ++)
-	{
-		keyArray[count].show = 1;
-		keyArray[count].buttonColumn = (count - keyLShift);
-		keyArray[count].buttonRow = 3;
-	}
-
-	for (count = 0; count < KEYBOARD_SCAN_CODES; count ++)
-		if (univMap.regMap[count] != (unsigned char) -1)
-			keyArray[count].grey = 1;
-
-	params.padTop = 0;
-	params.padBottom = 0;
-	params.padLeft = 0;
-	params.padRight = 0;
-
-	// Now put the buttons in their containers
-	for (count = 0; count < KEYBOARD_SCAN_CODES; count ++)
-	{
-		if (keyArray[count].show)
-		{
-			makeButtonString(&keyArray[count], string);
-			params.gridX = keyArray[count].buttonColumn;
-			keyArray[count].button =
-				windowNewButton(rowContainer[keyArray[count].buttonRow],
-					string, NULL, &params);
-
-			windowRegisterEventHandler(keyArray[count].button,
-				&editKeyHandler);
-
-			if (fontGetPrintedWidth(params.font, string) <
-				fontGetPrintedWidth(params.font, "@@@"))
-			{
-				windowComponentSetWidth(keyArray[count].button,
-					fontGetPrintedWidth(params.font, "@@@"));
-			}
-
-			if (keyArray[count].grey)
-				windowComponentSetEnabled(keyArray[count].button, 0);
+			default:
+				changeKeyDialog(scanCode);
+				break;
 		}
 	}
 
-	return (mainContainer);
+	return (0);
 }
 
 
@@ -1132,6 +1291,7 @@ static void constructWindow(void)
 	// command line.
 
 	objectKey rightContainer = NULL;
+	objectKey nameContainer = NULL;
 	objectKey bottomContainer = NULL;
 	componentParameters params;
 
@@ -1168,19 +1328,44 @@ static void constructWindow(void)
 	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
 	currentLabel = windowNewTextLabel(rightContainer, CURRENT, &params);
 	params.gridY += 1;
-	currentNameLabel = windowNewTextLabel(rightContainer, currentName,
-		&params);
+	currentNameLabel = windowNewTextLabel(rightContainer, currentName, &params);
 
-	// Create the diagram of the selected map
+	// Make a container for the name and language
+	params.gridX = 0;
+	params.gridWidth = 2;
+	nameContainer = windowNewContainer(window, "nameContainer", &params);
+
+	// The name label and field
+	params.gridWidth = 1;
+	params.padLeft = 0;
+	params.orientationY = orient_middle;
+	nameLabel = windowNewTextLabel(nameContainer, NAME, &params);
+	params.gridX += 1;
+	params.padLeft = 5;
+	nameField = windowNewTextField(nameContainer, (KEYMAP_NAMELEN + 1),
+		&params);
+	windowComponentSetData(nameField, selectedMap->name, KEYMAP_NAMELEN,
+		1 /* redraw */);
+
+	// The language label and field
+	params.gridX += 1;
+	langLabel = windowNewTextLabel(nameContainer, LANGUAGE, &params);
+	params.gridX += 1;
+	langField = windowNewTextField(nameContainer, 3, &params);
+	windowComponentSetData(langField, selectedMap->language, 2,
+		1 /* redraw */);
+
+	// Create the keyboard widget for the selected map
 	params.gridX = 0;
 	params.gridY += 1;
 	params.gridWidth = 2;
-	params.padTop = 5;
 	params.orientationX = orient_center;
-	params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
-	diagContainer = constructKeyDiag(window, selectedMap, &params);
+	keyboard = windowNewKeyboard(window, 0 /* min width */, 0 /* min height */,
+		&keyCallback, &params);
 
-	params.gridX = 0;
+	// Register an event handler to catch keyboard events
+	windowRegisterEventHandler(keyboard->canvas, &eventHandler);
+
 	params.gridY += 1;
 	params.padBottom = 5;
 	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
@@ -1222,7 +1407,7 @@ static void constructWindow(void)
 }
 
 
-static void printRow(int start, int end, unsigned char *map)
+static void printRow(int start, int end, unsigned *map, char *charsetName)
 {
 	int printed = 0;
 	int count;
@@ -1232,7 +1417,7 @@ static void printRow(int start, int end, unsigned char *map)
 	{
 		printf("%s=", scan2String[count]);
 		if (isgraph(map[count]))
-			printf("'%c' ", map[count]);
+			printf("'%c' ", charsetFromUnicode(charsetName, map[count]));
 		else
 			printf("%x ", map[count]);
 
@@ -1251,20 +1436,20 @@ static void printRow(int start, int end, unsigned char *map)
 }
 
 
-static void printMap(unsigned char *map)
+static void printMap(unsigned *map, char *charsetName)
 {
 	printf("%s\n", _("1st row"));
-	printRow(keyEsc, keyPause, map);
+	printRow(keyEsc, keyPause, map, charsetName);
 	printf("%s\n", _("2nd row"));
-	printRow(keyE0, keyMinus, map);
+	printRow(keyE0, keyMinus, map, charsetName);
 	printf("%s\n", _("3rd row"));
-	printRow(keyTab, keyNine, map);
+	printRow(keyTab, keyNine, map, charsetName);
 	printf("%s\n", _("4th row"));
-	printRow(keyCapsLock, keyPlus, map);
+	printRow(keyCapsLock, keyPlus, map, charsetName);
 	printf("%s\n", _("5th row"));
-	printRow(keyLShift, keyThree, map);
+	printRow(keyLShift, keyThree, map, charsetName);
 	printf("%s\n", _("6th row"));
-	printRow(keyLCtrl, keyEnter, map);
+	printRow(keyLCtrl, keyEnter, map, charsetName);
 	printf("\n");
 }
 
@@ -1272,15 +1457,27 @@ static void printMap(unsigned char *map)
 static void printKeyboard(void)
 {
 	// Print out the detail of the selected keymap
+
+	char charsetName[CHARSET_NAME_LEN];
+
+	// Try to get the character set for the keymap language
+	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
+		selectedMap->language, charsetName, CHARSET_NAME_LEN) < 0)
+	{
+		strncpy(charsetName, CHARSET_NAME_ISO_8859_15, CHARSET_NAME_LEN);
+	}
+
 	printf(_("\nPrinting out keymap \"%s\"\n\n"), selectedMap->name);
 	printf("-- %s --\n", _("Regular map"));
-	printMap(selectedMap->regMap);
+	printMap(selectedMap->regMap, charsetName);
 	printf("-- %s --\n", _("Shift map"));
-	printMap(selectedMap->shiftMap);
+	printMap(selectedMap->shiftMap, charsetName);
 	printf("-- %s --\n", _("Ctrl map"));
-	printMap(selectedMap->controlMap);
+	printMap(selectedMap->controlMap, charsetName);
 	printf("-- %s --\n", _("AltGr map"));
-	printMap(selectedMap->altGrMap);
+	printMap(selectedMap->altGrMap, charsetName);
+	printf("-- %s --\n", _("Shift-AltGr map"));
+	printMap(selectedMap->shiftAltGrMap, charsetName);
 }
 
 
@@ -1288,6 +1485,7 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	int print = 0;
+	int convert = 0;
 	char *mapName = NULL;
 	char *saveName = NULL;
 	char *dirName = NULL;
@@ -1301,7 +1499,7 @@ int main(int argc, char *argv[])
 	graphics = graphicsAreEnabled();
 
 	// Check options
-	while (strchr("psT:?", (opt = getopt(argc, argv, "ps:T"))))
+	while (strchr("psTx:?", (opt = getopt(argc, argv, "ps:Tx"))))
 	{
 		switch (opt)
 		{
@@ -1325,6 +1523,11 @@ int main(int argc, char *argv[])
 			case 'T':
 				// Force text mode
 				graphics = 0;
+				break;
+
+			case 'x':
+				// Convert from version 1 to version 2
+				convert = 1;
 				break;
 
 			case ':':
@@ -1371,6 +1574,9 @@ int main(int argc, char *argv[])
 
 			mapName = selectedMap->name;
 
+			if (convert)
+				saveName = argv[optind];
+
 			dirName = dirname(argv[optind]);
 			if (dirName)
 			{
@@ -1384,7 +1590,7 @@ int main(int argc, char *argv[])
 			mapName = argv[optind];
 		}
 
-		if (!graphics && !saveName && !print)
+		if (!graphics && !saveName && !print && !convert)
 		{
 			// The user wants to set the current keyboard map to the supplied
 			// name.
@@ -1397,16 +1603,6 @@ int main(int argc, char *argv[])
 		if (status < 0)
 			goto out;
 	}
-
-	keyArray = malloc(KEYBOARD_SCAN_CODES * sizeof(scanKey));
-	if (!keyArray)
-	{
-		status = ERR_MEMORY;
-		goto out;
-	}
-
-	// Make the initial key array based on the current map.
-	makeKeyArray(selectedMap);
 
 	if (saveName)
 	{
@@ -1459,8 +1655,6 @@ out:
 		free(selectedMap);
 	if (mapListParams)
 		free(mapListParams);
-	if (keyArray)
-		free(keyArray);
 
 	return (status);
 }

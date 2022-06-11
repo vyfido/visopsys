@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -74,7 +74,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	call loaderPrintNewline
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, NOTELF
@@ -100,7 +100,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	call loaderPrintNewline
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, NOTEXEC
@@ -171,7 +171,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	call loaderPrintNewline
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, SEGLAYOUT
@@ -194,7 +194,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	call loaderPrintNewline
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, SEGALIGN
@@ -252,7 +252,7 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	call loaderPrintNewline
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, SEGALIGN
@@ -327,7 +327,7 @@ layoutKernel:
 	add ESI, dword [DATA_OFFSET]
 	mov EDI, dword [DATA_VIRTADDR]
 	sub EDI, dword [CODE_VIRTADDR]
-	mov dword [DATA_OFFSET], EDI    ;; This will be different now
+	mov dword [DATA_OFFSET], EDI	;; This will be different now
 	add EDI, KERNELLOADADDRESS
 
 	push ECX
@@ -367,7 +367,7 @@ evaluateLoadError:
 
 	;; Use the error color
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, LOADFAIL
 	call loaderPrint
 

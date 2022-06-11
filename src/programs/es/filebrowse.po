@@ -1,12 +1,12 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: 2014-01-22 17:57-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,24 +28,24 @@ msgstr "Archivo"
 msgid "View"
 msgstr "Vista"
 
-#: filebrowse.c:73
+#: filebrowse.c:75
 msgid "Quit"
 msgstr "Cerrar"
 
-#: filebrowse.c:81
+#: filebrowse.c:83
 msgid "Refresh"
 msgstr "Actualizar"
 
-#: filebrowse.c:121
+#: filebrowse.c:123
 msgid "Error"
 msgstr "Error"
 
-#: filebrowse.c:223
+#: filebrowse.c:237
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:419
+#: filebrowse.c:437
 #, c-format
 msgid ""
 "\n"
@@ -54,15 +54,15 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: filebrowse.c:433
+#: filebrowse.c:451
 msgid "Memory allocation error"
 msgstr "Error de memoria"
 
-#: filebrowse.c:448
+#: filebrowse.c:466
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr "No se puede cambiar al directorio \"%s\""
 
-#: filebrowse.c:455
+#: filebrowse.c:473
 msgid "Can't determine current directory"
 msgstr "No se puede determinar el directorio actual"

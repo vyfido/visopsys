@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,10 +34,13 @@
 #define USB_HID_KEYBOARD_LEFTSHIFT	0x02
 #define USB_HID_KEYBOARD_LEFTCTRL	0x01
 
+// The size of the boot protocol keyboard buffer
+#define USB_HID_KEYBOARD_BUFFSIZE	6
+
 typedef struct {
 	unsigned char modifier;
 	unsigned char res;
-	unsigned char code[6];
+	unsigned char code[USB_HID_KEYBOARD_BUFFSIZE];
 
 } __attribute__((packed)) usbKeyboardData;
 

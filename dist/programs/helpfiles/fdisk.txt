@@ -6,7 +6,7 @@ It can create, delete, format, resize, and move partitions and modify their
 attributes.  It can copy entire hard disks from one to another.
 
 Usage:
-  fdisk [-T] [-o] [disk_name]
+  fdisk [-T] [disk_name]
 
 The fdisk program is interactive, and can be used in either text or graphics
 mode.  It provides the same functionality in both modes; text mode operation
@@ -17,5 +17,4 @@ the 'disks' command) as the last argument.
 
 Options:
 -T              : Force text mode operation
--o <disk_name>  : Clear the partition table of the specified disk
 

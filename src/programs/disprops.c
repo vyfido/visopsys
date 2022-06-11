@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,9 +44,11 @@ the background wallpaper, and the base colors used by the window manager.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/color.h>
+#include <sys/desktop.h>
 #include <sys/env.h>
-#include <sys/image.h>
 #include <sys/paths.h>
+#include <sys/user.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -66,24 +68,10 @@ the background wallpaper, and the base colors used by the window manager.
 #define SHOW_CLOCK				_("Show a clock on the desktop")
 #define OK						_("OK")
 #define CANCEL					_("Cancel")
-#define WINDOW_CONFIG			"window.conf"
-#define DESKTOP_CONFIG			"desktop.conf"
-#define CLOCK_VARIABLE			"program.clock"
-#define WALLPAPER_VARIABLE		"background.image"
+#define CLOCK_VARIABLE			DESKTOP_PROGRAM "clock"
 #define CLOCK_PROGRAM			PATH_PROGRAMS "/clock"
 #define WALLPAPER_PROGRAM		PATH_PROGRAMS "/wallpaper"
 #define MAX_IMAGE_DIMENSION		128
-
-// Variable names from window.conf
-#define COLOR_FOREGROUND_RED	"color.foreground.red"
-#define COLOR_FOREGROUND_GREEN	"color.foreground.green"
-#define COLOR_FOREGROUND_BLUE	"color.foreground.blue"
-#define COLOR_BACKGROUND_RED	"color.background.red"
-#define COLOR_BACKGROUND_GREEN	"color.background.green"
-#define COLOR_BACKGROUND_BLUE	"color.background.blue"
-#define COLOR_DESKTOP_RED		"color.desktop.red"
-#define COLOR_DESKTOP_GREEN		"color.desktop.green"
-#define COLOR_DESKTOP_BLUE		"color.desktop.blue"
 
 typedef struct {
 	char description[32];
@@ -94,6 +82,7 @@ typedef struct {
 static int readOnly = 1;
 static int processId = 0;
 static int privilege = 0;
+static char currentUser[USER_MAX_NAMELENGTH + 1];
 static int numberModes = 0;
 static int showingClock = 0;
 static videoMode currentMode;
@@ -116,10 +105,93 @@ static objectKey bootGraphicsCheckbox = NULL;
 static objectKey showClockCheckbox = NULL;
 static objectKey okButton = NULL;
 static objectKey cancelButton = NULL;
-static color foreground = { 171, 93, 40 };
-static color background = { 200, 200, 200 };
-static color desktop = { 230, 60, 35 };
+static color foreground = COLOR_DEFAULT_FOREGROUND;
+static color background = COLOR_DEFAULT_BACKGROUND;
+static color desktop = COLOR_DEFAULT_DESKTOP;
 static int colorsChanged = 0;
+
+#if 0
+static void chooseVideoMode(void)
+{
+	// This is the original C version of the algorithm used to automatically
+	// select a video mode in src/osloader/loaderVideo.s, in case we ever need
+	// to debug it.
+
+	unsigned screenArea = 0;
+	unsigned bestScreenArea = 0;
+	int fallbackMode = -1;
+	unsigned aspect = 0;
+	unsigned bestAspect = 0;
+	int bestMode = -1;
+	int count;
+
+	for (count = 0; count < numberModes; count ++)
+	{
+		if ((videoModes[count].xRes < 640) || (videoModes[count].yRes < 480))
+			continue;
+
+		if ((fallbackMode >= 0) && (videoModes[count].xRes > 1500))
+			continue;
+
+		screenArea = (videoModes[count].xRes * videoModes[count].yRes);
+
+		if ((fallbackMode < 0) ||
+			(videoModes[fallbackMode].xRes > 1500) ||
+			(screenArea > bestScreenArea) ||
+			((screenArea >= bestScreenArea) &&
+				(videoModes[count].bitsPerPixel >
+					videoModes[fallbackMode].bitsPerPixel)))
+		{
+			bestScreenArea = screenArea;
+			fallbackMode = count;
+		}
+	}
+
+	if (fallbackMode < 0)
+		return;
+
+	for (count = 0; count < numberModes; count ++)
+	{
+		if ((videoModes[count].xRes < 800) || (videoModes[count].yRes < 600))
+			continue;
+
+		aspect = ((videoModes[count].xRes << 8) / videoModes[count].yRes);
+
+		if (aspect > bestAspect)
+			bestAspect = aspect;
+	}
+
+	bestScreenArea = 0;
+	for (count = 0; count < numberModes; count ++)
+	{
+		aspect = ((videoModes[count].xRes << 8) / videoModes[count].yRes);
+		if (aspect != bestAspect)
+			continue;
+
+		if ((bestMode >= 0) && (videoModes[count].xRes > 1500))
+			continue;
+
+		screenArea = (videoModes[count].xRes * videoModes[count].yRes);
+
+		if ((bestMode < 0) ||
+			(videoModes[bestMode].xRes > 1500) ||
+			(screenArea > bestScreenArea) ||
+			((screenArea >= bestScreenArea) &&
+				(videoModes[count].bitsPerPixel >
+					videoModes[bestMode].bitsPerPixel)))
+		{
+			bestScreenArea = screenArea;
+			bestMode = count;
+		}
+	}
+
+	if (bestMode < 0)
+		bestMode = fallbackMode;
+
+	printf("Chose %dx%d %dbpp\n", videoModes[bestMode].xRes,
+		videoModes[bestMode].yRes, videoModes[bestMode].bitsPerPixel);
+}
+#endif
 
 
 static int getVideoModes(void)
@@ -196,9 +268,18 @@ static void getColors(void)
 
 	char fileName[MAX_PATH_NAME_LENGTH];
 
-	// Read the values from the system config.
-	sprintf(fileName, PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
+	// First read the values from the system config.
+	sprintf(fileName, PATH_SYSTEM_CONFIG "/" WINDOW_CONFIGFILE);
 	getFileColors(fileName);
+
+	if (strcmp(currentUser, USER_ADMIN))
+	{
+		// Now, if the user has their own config, read that too (overrides
+		// any values we read previously)
+		sprintf(fileName, PATH_USERS_CONFIG "/" WINDOW_CONFIGFILE,
+			currentUser);
+		getFileColors(fileName);
+	}
 }
 
 
@@ -211,15 +292,36 @@ static void setColors(void)
 	char value[16];
 
 	// Set the colors in the window system for the current session
-	windowSetColor("foreground", &foreground);
-	windowSetColor("background", &background);
-	windowSetColor("desktop", &desktop);
+	windowSetColor(COLOR_SETTING_FOREGROUND, &foreground);
+	windowSetColor(COLOR_SETTING_BACKGROUND, &background);
+	windowSetColor(COLOR_SETTING_DESKTOP, &desktop);
 	windowResetColors();
 
 	if (!readOnly)
 	{
 		// Set the colors in the window configuration.
-		sprintf(fileName, PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
+
+		if (!strcmp(currentUser, USER_ADMIN))
+		{
+			// The user 'admin' doesn't have user settings.  Use the system
+			// one.
+			sprintf(fileName, PATH_SYSTEM_CONFIG "/" WINDOW_CONFIGFILE);
+		}
+		else
+		{
+			// Does the user have a config dir?
+			sprintf(fileName, PATH_USERS_CONFIG, currentUser);
+			if (fileFind(fileName, NULL) < 0)
+			{
+				// No, try to create it.
+				if (fileMakeDir(fileName) < 0)
+					return;
+			}
+
+			// Use the user's window config file?
+			sprintf(fileName, PATH_USERS_CONFIG "/" WINDOW_CONFIGFILE,
+				currentUser);
+		}
 
 		if (fileFind(fileName, NULL) < 0)
 		{
@@ -293,6 +395,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("disprops");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the 'screen resolution' label
 	windowComponentSetData(resolutionLabel, SCREEN_RESOLUTION,
 		strlen(SCREEN_RESOLUTION), 1 /* redraw */);
@@ -303,7 +409,7 @@ static void refreshWindow(void)
 
 	// Refresh the 'colors' radio button
 	windowComponentSetData(colorsRadio,
-		(char *[]) { FOREGROUND, BACKGROUND, DESKTOP }, 3, 1 /* redraw */);
+		(char *[]){ FOREGROUND, BACKGROUND, DESKTOP }, 3, 1 /* redraw */);
 
 	// Refresh the 'change color' button
 	windowComponentSetData(changeColorsButton, CHANGE, strlen(CHANGE),
@@ -375,8 +481,23 @@ static int readDesktopVariable(const char *variable, char *value, int len)
 	int status = 0;
 	char fileName[MAX_PATH_NAME_LENGTH];
 
-	// Try to read from the system desktop config
-	sprintf(fileName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG);
+	if (strcmp(currentUser, USER_ADMIN))
+	{
+		// First try the user's desktop config file
+		sprintf(fileName, PATH_USERS_CONFIG "/" DESKTOP_CONFIGFILE,
+			currentUser);
+
+		status = fileFind(fileName, NULL);
+		if (status >= 0)
+		{
+			status = configGet(fileName, variable, value, len);
+			if (status >= 0)
+				return (status);
+		}
+	}
+
+	// Now try to read from the system desktop config
+	sprintf(fileName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIGFILE);
 
 	status = configGet(fileName, variable, value, len);
 
@@ -397,7 +518,41 @@ static int writeDesktopVariable(const char *variable, char *value)
 
 	memset(&f, 0, sizeof(file));
 
-	sprintf(fileName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG);
+	if (!strcmp(currentUser, USER_ADMIN))
+	{
+		// The user 'admin' doesn't have user settings.  Use the system one.
+		sprintf(fileName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIGFILE);
+	}
+	else
+	{
+		// Does the user have a config dir?
+		sprintf(fileName, PATH_USERS_CONFIG, currentUser);
+
+		status = fileFind(fileName, NULL);
+		if (status < 0)
+		{
+			// No, try to create it.
+			status = fileMakeDir(fileName);
+			if (status < 0)
+				return (status);
+		}
+
+		// Write the user's window config file
+		sprintf(fileName, PATH_USERS_CONFIG "/" DESKTOP_CONFIGFILE,
+			currentUser);
+
+		status = fileFind(fileName, NULL);
+		if (status < 0)
+		{
+			// The file doesn't exist.  Try to create it.
+			status = fileOpen(fileName, (OPENMODE_WRITE | OPENMODE_CREATE), &f);
+			if (status < 0)
+				return (status);
+
+			// Now close the file
+			fileClose(&f);
+		}
+	}
 
 	if (value)
 		status = configSet(fileName, variable, value);
@@ -440,7 +595,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowComponentSetEnabled(wallpaperButton, selected);
 		if (selected)
 		{
-			if ((readDesktopVariable(WALLPAPER_VARIABLE, string,
+			if ((readDesktopVariable(DESKTOP_BACKGROUND, string,
 					sizeof(string)) >= 0) &&
 				(fileFind(string, NULL) >= 0))
 			{
@@ -460,7 +615,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		loaderLoadAndExec(WALLPAPER_PROGRAM, privilege, 1);
 
-		if ((readDesktopVariable(WALLPAPER_VARIABLE, string,
+		if ((readDesktopVariable(DESKTOP_BACKGROUND, string,
 				sizeof(string)) >= 0) &&
 			(fileFind(string, NULL) >= 0))
 		{
@@ -526,7 +681,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowComponentGetSelected(modeList, &mode);
 		if ((mode >= 0) && (videoModes[mode].mode != currentMode.mode))
 		{
-			if (!graphicSetMode(&(videoModes[mode])))
+			if (!graphicSetMode(&videoModes[mode]))
 			{
 				sprintf(string, _("The resolution has been changed to %dx%d, "
 					"%dbpp\nThis will take effect after you reboot."),
@@ -631,7 +786,7 @@ static void constructWindow(void)
 	params.padTop = 5;
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
 	colorsRadio = windowNewRadioButton(container, 3, 1,
-		(char *[]) { FOREGROUND, BACKGROUND, DESKTOP }, 3 , &params);
+		(char *[]){ FOREGROUND, BACKGROUND, DESKTOP }, 3 , &params);
 	windowRegisterEventHandler(colorsRadio, &eventHandler);
 
 	// The canvas to show the current color
@@ -705,7 +860,7 @@ static void constructWindow(void)
 	windowRegisterEventHandler(wallpaperCheckbox, &eventHandler);
 
 	// Try to get the wallpaper image name
-	if ((readDesktopVariable(WALLPAPER_VARIABLE, value, 128) >= 0) &&
+	if ((readDesktopVariable(DESKTOP_BACKGROUND, value, 128) >= 0) &&
 		(fileFind(value, NULL) >= 0))
 	{
 		windowThumbImageUpdate(wallpaperImage, value, wallpaperImageWidth,
@@ -825,6 +980,9 @@ int main(int argc __attribute__((unused)), char *argv[])
 	// We need our process ID and privilege to create the windows
 	processId = multitaskerGetCurrentProcessId();
 	privilege = multitaskerGetProcessPrivilege(processId);
+
+	// Need the user name for saving settings
+	userGetCurrent(currentUser, USER_MAX_NAMELENGTH);
 
 	// Get the list of supported video modes
 	status = getVideoModes();

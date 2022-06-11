@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -439,7 +439,7 @@ updateProgress:
 	mov word [PROGRESSCHARS], AX
 
 	;; Print the character on the screen
-	mov DL, 2
+	mov DL, GOODCOLOR
 	mov CX, 1
 	mov SI, PROGRESSCHAR
 	call loaderPrint
@@ -613,7 +613,7 @@ loadFile:
 	;; Couldn't copy the data into high memory
 	call killProgress
 	call loaderPrintNewline
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 	mov SI, INT15ERR
 	call loaderPrint
 	call loaderPrintNewline
@@ -929,9 +929,9 @@ CLUSTERSEGMENT	dw 0		;; The segment of the buffer for cluster data
 FILEDATABUFFER	dd 0		;; The buffer for general file data
 DIRSECTORS		dw 0		;; The size of the root directory, in sectors
 BYTESPERCLUST	dd 0		;; Bytes per cluster
-ENTRYSTART		dw 0 		;; Directory entry start
+ENTRYSTART		dw 0		;; Directory entry start
 FILESIZE		dd 0		;; Size of the file we're loading
-BYTESREAD		dd 0    	;; Number of bytes read so far
+BYTESREAD		dd 0		;; Number of bytes read so far
 NEXTCLUSTER		dd 0		;; Next cluster to load
 
 ;; For int13 disk ops

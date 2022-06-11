@@ -1,3 +1,248 @@
+-------------
+ Version 0.8   16/09/2016
+-------------
+
+  Overview: This major release offers an updated look, touch support, new
+  programs and GUI features, better widescreen viewing, and improved
+  performance.  It includes new icons, a basic compression library, FAT
+  filesystem resizing, improved internationalization including Russian and
+  Turkish translations, and an OHCI (USB 1) driver - reaching the milestone of
+  supporting all existing USB controller types.
+
+- All of the icons have been replaced with ones from (or adapted from) the
+Oxygen icon set.
+- All of the desktop background (wallpaper) images are new.
+- There are new default colours, making for a slightly darker theme.
+- The login and first boot screens have had a facelift; they're now full-
+screen windows with a new splash image.
+- Window title bars are thicker, and checkboxes and radio buttons have been
+enlarged.
+- Added a Virtual Keyboard ('keyboard') program for touchscreen input, which
+can also be clicked with the mouse.  It is located in the Programs area, and
+is started automatically in an iconified mode when touchscreen hardware has
+been detected.  The icon shows in the right corner of the top taskbar menu,
+and can be tapped/clicked to show or hide the virtual keyboard.
+- Added a new, basic Image Editor ('imgedit') program, which features zoomable
+viewing, color picking, freehand drawing, lines, rectangles, and squares
+(filled or outline).
+- Added a new, graphical Font Editor program - to replace the old command-line
+'fontutil' program - that enables the viewing and editing of Visopsys'
+proprietary bitmapped font format (.vbf).  By default, it presents a list of
+fonts installed in the /system/fonts directory.  Otherwise, clicking on any
+font file in the File Browser will load it using the Font Editor.  Extra
+command-line-only functionality for creating, importing, and converting .vbf
+files is still supported.
+- Added a simple Archive Manager ('archman') program, which can open and
+display compressed archives supported by the compression library.  This
+initial version is limited to extracting files.
+- Added a System Diagnostics ('sysdiag') program for testing memory and disks.
+- Added 'libmono' monospace fonts, replacing the 'xterm' font in most
+instances.  Adapted from Liberation Mono.
+- Improved support for Windows ICO icon format images, including XOR mapping
+(alpha channel translucency) for 32-bit images, and AND-masking for
+transparency.
+- The mouse pointer, button images, and icons are now drawn using alpha
+channel blending.
+- The window library's file list widget now attempts to use the icon itself,
+when choosing an icon for an icon file.  Supported image types now appear as
+small thumbnails in their icons.
+- The 'clock' program has been updated so that it shows as a label in the
+top taskbar menu, rather than a small window at the bottom of the screen.
+- The operating system loader now attempts to select a video mode that matches
+the hardware's native/best aspect ratio, for wide-screen displays.  The user
+can override this in the Display Settings window, or at boot time by pressing
+'Esc' during kernel loading, and selecting a mode from a menu.
+- The Keyboard Mapping ('keymap') program has been updated to use the
+graphical keyboard from the window library.  Editing maps now selects the
+appropriate character set for the keyboard language.
+- The Devices ('lsdev') program has been updated to use the new window tree
+component, rather than just displaying a flat listing of devices.
+- Added per-user window system configuration (colors, sizes, fonts, etc).
+- Added per-user desktop configuration (wallpaper, taskbar, icons, etc).
+- Added a graphical keyboard widget to the window library, with dynamic size
+and the ability to change keymaps.  Used by the 'keymap' and 'keyboard'
+programs.
+- Added a pixel editor widget to the window library, allowing images to be
+viewed and/or edited at a fine level of detail.
+- Added a window 'tree' component for displaying expandable/collapsable
+hierarchies of items, such as files and directories.  Used by the 'lsdev'
+program.
+- Added an 'archive list' widget to the window library.  It is analogous to
+the file list used by the file selection dialog and the file browser, but
+operates on the contents of archives as implemented by the compression
+library.
+- Programs can now add icon and label components to the top taskbar menu.
+Used by the 'clock' and 'keyboard' programs.  Programs can now iconify so that
+they are minimized, and don't appear in the normal Window menu, but show an
+icon in the taskbar menu (similar to the Windows 'tray').
+- The mouse pointer can now be hidden (for touch operation).
+- Pressing the keyboard 'menu' key will raise any applicable context menu
+for the focused component.
+- For best performance, the kernel no longer loads a splash image during
+initialization.
+- Container components can now contain an 'active' sub-component; like a focus
+component, it should receive things like keyboard events, even if it doesn't
+actually have the focus ('sub-focus' or focus-within-a-focus).  The
+designation of the active component is implementation-specific, depending on
+the type of container.
+- The window library's file selection dialog now allows for selecting
+directories, and requires the type (file or directory) to be specified at
+creation time.
+- The window shell now uses the kernel's linked lists to manage its
+collections of menu items and menu bar components.
+- Removed the kernelFontGetDefault() function (fontGetDefault() in user space)
+and replaced it with kernelFontGetSystem() (not exported to user space) to
+return the kernel's built-in basic font.  Added a default small fixed-width
+font variable to the window system, which defaults to xterm-normal-10.
+- A number of icon files have been renamed to remove the word 'icon'.
+- The Disk Manager now has the option to write a new, empty partition table,
+of any supported type (currently DOS/MBR and GPT).
+- The Disk Manager can now copy disks and partitions even when there are read
+or write errors; this way it can be used to recover data from a failing disk.
+If a large read or write operation fails, after prompting the user about
+whether to continue, it will restart from the failure point and attempt each
+sector of the failed operation individually.
+- The Disk Manager now has a checkbox in graphics mode, to show or hide
+removable disks.  It is un-checked by default.
+- The Disk Manager now offers a way to view 'raw' partition table data via the
+new 'Disk info' item in the Disk menu.
+- The Disk Manager now shows slices for reserved areas, instead of showing all
+un-partitioned space as empty.
+- Added FAT filesystem resizing capability, available in the Disk Manager.
+- Added a kernelFileGetTempName() function (fileGetTempName() in user space)
+for generating names for temporary files and directories.
+- The kernel's file handling code now uses the CPU timestamp for recording
+the last access to a file or directory, instead of the system timer.
+- Added USB touchscreen support and a touchscreen abstraction layer, akin to
+but distinct from the generic mouse functionality.
+- Added an OHCI (USB 1) host controller driver.  All 4 USB controller types
+are now supported.
+- The kernel's Linear Framebuffer graphics driver can now do 15/16 bits-per-
+pixel alpha channel blending.
+- The XHCI (USB 3) driver is now aware of extra 'scratchpad buffer' bits
+introduced in the 1.1 specification.
+- The entire operating system is generally more internationalized, and aware
+of appropriate character sets (a.k.a code pages) and fonts to use for keyboard
+mappings and translation strings.
+- Added per-user keymap and character set settings, using the environment
+variables ENV_KEYMAP and ENV_CHARSET.
+- Added a new Russian translation, and fonts and character set data for
+iso-8859-5 (Russian).
+- Added a new Turkish translation, and fonts and character set data for
+iso-8859-9 (Turkish).
+- Added Russian and Turkish keyboard mappings.
+- Added language-specific kernel.conf files for Russian and Turkish.
+- Automatic keymap selection mapped to language codes in
+/system/config/keymap.conf.
+- The kernel's keyboard code will now use the character set appropriate to the
+language specified in the keymap data.
+- New kernel functions kernelCharsetToUnicode() and kernelCharsetFromUnicode()
+(charsetToUnicode and charsetFromUnicode in user space), and a configuration
+file /system/config/charset.conf to map language codes to character sets.
+- The new keymap file format version 2 adds a version number, and the mapped
+values are now stored as unicode.  Keymap files now include shift-altgr maps.
+- New character set handling - <sys/charset.h>.
+- Added per-window and per-component character set selection, and new kernel
+functions kernelWindowSetCharSet() and kernelWindowComponentSetCharSet()
+(windowSetCharSet and windowComponentSetCharSet in user space) for setting
+them.
+- Implemented a compression/decompression library, libcompress, with initial
+support for the DEFLATE algorithm and Gzip and Tar file formats.
+Functionality is defined in <sys/compress.h>, <sys/deflate.h>, <sys/gzip.h>,
+and <sys/tar.h>.
+- The kernel loader can now recognize/classify TAR archive files.
+- Overhauled the fonts system.  Version 2 of VBF font file headers have been
+modified to contain standardized information about the font family, style,
+points, charset, dimensions, etc.  Kernel fonts are now dynamic and Unicode-
+based, and contain information about what character sets are supported by the
+in-memory instance.
+- There is a new kernelFontGet() function replacing kernelFontLoadSystem(),
+where the caller specifies the font family, style, size, and perhaps desired
+character set (otherwise that can be determined from the environment) and
+receives a kernel pointer/object key.  kernelFontGet() scans the in-memory
+structures for the desired qualities, character set, etc., and dynamically
+loads more from individual font files as necessary to supplement the in-memory
+version.  That way, VBF fonts can contain smaller character sets (ASCII 0-127,
+ISO-8859-X 128-255, etc.).
+- Added a performance timer library (libtimer) that can be used to measure
+time spent in individual functions.  See <sys/timer.h>.
+- Integrated PPM image support courtesy of Giuseppe Gatta (nextvolume on the
+Visopsys forum).  The kernel loader can now recognize/classify PPM images.
+- Added scrolling to the text-mode vshCursorMenu so that we can use it to do
+things like partition type selection for MS-DOS labels in the Disk Manager (has
+way too many choices for the current vshCursorMenu).
+- The 'mkdir' command now accepts a -p option to create parent directories
+recursively.
+- Added a -h (halt) command line option to the 'shutdown' program,which
+behaves like the -r (reboot) option and shuts down and/or powers off the
+system without prompting the user in graphics mode.
+- The 32-bit build will now compile on a 64-bit OS.
+- Added <sys/bmp.h>, <sys/ico.h>, and <sys/jpg.h> header files, which replace
+a lot of what was previously found in the corresponding kernel headers.
+- Moved a number of additional definitions for both kernel and user space into
+system header files.  These include values and strings for colors
+<sys/color.h>, mouse input <sys/mouse.h>, user logins <sys/user.h>,
+and the GUI <sys/desktop.h> and <sys/window.h>.
+- Added <sys/lang.h> with a number of 2-letter language codes.
+- Added the system header file <sys/png.h>.
+- Tidied up the kernelProcessorX86.h macros and moved them to
+<sys/processor.h> for use by user space and library code (such as memcpy(),
+memset(), crt0.c, and the timer library).  Each X86 instruction used is a
+macro.  To the extent possible, more complex operations are composed
+exclusively of other macros.  Also added a macro for copying data backwards
+(direction flag set) and processor macros are now used in the libc memmove()
+function.
+- Changed the name of the 'Lance' ethernet driver (kernelLanceDriver) to
+kernelNetworkPcNetDriver.
+- Implemented the strtol(), strtoll(), strtoul(), and strtoull() C library
+functions.
+- The C library's stat() function now sets the st_mode field using the standard
+S_IF* flags, and the macros for interpreting them such as S_ISREG() have been
+added to <sys/stat.h>.
+- The kernelGraphicDrawText() function now has an (optional) character set
+parameter.
+- Added a kernelPageMapped() function, for drivers such as the APIC driver, to
+determine whether a physical address has already been mapped to virtual
+memory.
+- kernelWindowShellRefresh() now returns void.
+- Fixed: The Disk Manager now checks for mounted partitions before doing
+'delete all'.
+- Fixed: Destroying a component from a still-live window could cause crashes
+as soon as the user moved the mouse.
+- Fixed: The Calculator program was not correctly performing square root and
+factorial operations.
+- Fixed: The 'clock' program was was showing the weekday (+1) and day of the
+month (-1) incorrectly since 0.77.
+- Fixed: Error messages from the 'iconwin' program attempting to load non-
+existent language-specific versions of config files.
+- Fixed: The EXT filesystem driver's interpretation of the inode 'blocks'
+field was incorrect.
+- Fixed: EHCI handling of full-speed USB 2.0 hubs was incorrect due to an
+error in the specification.
+- Fixed: The USB keyboard driver no longer assumes any particular buffer
+ordering of keystroke data.
+- Fixed: A small issue in the setting of endpoint contexts while configuring
+XHCI device slots.
+- Fixed: A bug in the XHCI driver in which certain class-specific device
+requests could be confused with standard USB requests.  In particular, setting
+keyboard lights would cause keyboard devices to be erroneously re-configured.
+- Fixed: Booting from a debug build ISO image could fail.  Removed the
+processorRepInPortXX() and processorRepOutPortXX() macros from
+<sys/processor.h>.  They were only being used by the IDE driver, and seemed to
+be causing corruption in debug mode.
+- Fixed: A bug in the kernelWindowFocus() function wherein the focusWindow
+variable would remain set to the previous value if the new window can't focus.
+- Fixed: The kernelWindowSetSize() function wasn't working correctly unless
+window layout had already been done, and kernelWindowSetVisible() was called
+afterward.
+- Fixed: The kernelStackTrace() function has been corrected for live-tracing
+the current process.
+- Fixed: The C library function 'dirname' was always returning '.' if any '/'
+appeared in the path, and crashing if only a trailing '/' was present.
+- Fixed: Several subtle off-by-one errors in kernelPage.c that could prevent
+userspace applications from accessing the uppermost pages in their address
+space (the last page table).
+
 --------------
  Version 0.77   16/06/2015
 --------------

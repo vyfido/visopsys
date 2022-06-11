@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -27,6 +27,7 @@ else
 endif
 
 CNAMES = adduser \
+	archman \
 	bootmenu \
 	cal \
 	calc \
@@ -60,7 +61,9 @@ CNAMES = adduser \
 	iconwin \
 	ifconfig \
 	imgboot \
+	imgedit \
 	install \
+	keyboard \
 	keymap \
 	kill \
 	login \
@@ -88,16 +91,19 @@ CNAMES = adduser \
 	shutdown \
 	snake \
 	sync \
+	sysdiag \
 	telnet \
 	test \
 	touch \
 	umount \
 	uname \
+	unzip \
 	uptime \
 	users \
 	view \
 	vsh \
-	wallpaper
+	wallpaper \
+	zip
 
 COBJS = $(addprefix ${BUILDDIR}/, ${CNAMES})
 C++OBJS = $(addprefix ${BUILDDIR}/, ${C++NAMES})
@@ -108,6 +114,8 @@ all: target-dirs strip
 	${MAKE} -C fdisk
 	${MAKE} -C de
 	${MAKE} -C es
+	${MAKE} -C ru
+	${MAKE} -C tr
 
 target-dirs:
 	mkdir -p ${BUILDDIR}
@@ -125,13 +133,24 @@ clean:
 	${MAKE} -C fdisk clean
 	${MAKE} -C de clean
 	${MAKE} -C es clean
+	${MAKE} -C ru clean
+	${MAKE} -C tr clean
 	rm -Rf *~ *.o core ${COBJS} ${C++OBJS}
 
 # Object files with explicit rules
+
+${BUILDDIR}/archman: archman.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lwindow -lintl -lc -o $@
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lintl -lc -o $@
 
 ${BUILDDIR}/format: format.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lntfs -lwindow -lintl -lvsh -lc -o $@
+
+${BUILDDIR}/unzip: unzip.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -o $@
+
+${BUILDDIR}/zip: zip.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -o $@
 

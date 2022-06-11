@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-06-30 02:02+0100\n"
 "PO-Revision-Date: 2014-01-22 18:39-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,27 +21,27 @@ msgstr ""
 msgid "Calculator"
 msgstr "Taschenrechner"
 
-#: calc.c:226 calc.c:249
+#: calc.c:230 calc.c:253
 msgid "Division by zero"
 msgstr "Teilung durch Null"
 
-#: calc.c:227 calc.c:250
+#: calc.c:231 calc.c:254
 msgid "Error: division by zero!"
 msgstr "Fehler: Teilung durch Null!"
 
-#: calc.c:337 calc.c:345
+#: calc.c:341 calc.c:349
 msgid "Invalid number"
 msgstr "Ungültige Zahl"
 
-#: calc.c:338
+#: calc.c:342
 msgid "Negative number!"
 msgstr "Negative Zahl!"
 
-#: calc.c:346
+#: calc.c:350
 msgid "Number is not integer!"
 msgstr "Zahl ist kein Integer!"
 
-#: calc.c:529
+#: calc.c:533
 #, c-format
 msgid ""
 "\n"

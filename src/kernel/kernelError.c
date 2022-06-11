@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -169,13 +169,11 @@ static void errorDialogThread(int argc, void *argv[])
 	}
 
 	params.orientationX = orient_right;
-	status = kernelImageLoad(ERRORIMAGE_NAME, 0, 0, &errorImage);
-	if (status == 0)
+	status = kernelImageLoad(ERRORIMAGE_NAME, 64, 64, &errorImage);
+	if (!status)
 	{
-		errorImage.transColor.red = 0;
-		errorImage.transColor.green = 255;
-		errorImage.transColor.blue = 0;
-		kernelWindowNewImage(messageContainer, &errorImage, draw_translucent,
+		errorImage.transColor.green = 0xFF;
+		kernelWindowNewImage(messageContainer, &errorImage, draw_alphablend,
 			&params);
 		kernelImageFree(&errorImage);
 	}

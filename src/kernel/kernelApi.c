@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 // get called from external locations.
 
 #include "kernelApi.h"
+#include "kernelCharset.h"
 #include "kernelDebug.h"
 #include "kernelDisk.h"
 #include "kernelEncrypt.h"
@@ -498,6 +499,9 @@ static kernelArgInfo args_fileTimestamp[] =
 static kernelArgInfo args_fileSetSize[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_fileGetTempName[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
 static kernelArgInfo args_fileGetTemp[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_fileGetFullPath[] =
@@ -577,6 +581,8 @@ static kernelFunctionIndex fileFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_fileTimestamp, type_val },
 	{ _fnum_fileSetSize, kernelFileSetSize,
 		PRIVILEGE_USER, 2, args_fileSetSize, type_val },
+	{ _fnum_fileGetTempName, kernelFileGetTempName,
+		PRIVILEGE_USER, 2, args_fileGetTempName, type_val },
 	{ _fnum_fileGetTemp, kernelFileGetTemp,
 		PRIVILEGE_USER, 1, args_fileGetTemp, type_val },
 	{ _fnum_fileGetFullPath, kernelFileGetFullPath,
@@ -1029,6 +1035,7 @@ static kernelArgInfo args_graphicDrawText[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_ANYPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL },
@@ -1087,7 +1094,7 @@ static kernelFunctionIndex graphicFunctionIndex[] = {
 	{ _fnum_graphicDrawImage, kernelGraphicDrawImage,
 		PRIVILEGE_USER, 9, args_graphicDrawImage, type_val },
 	{ _fnum_graphicDrawText, kernelGraphicDrawText,
-		PRIVILEGE_USER, 8, args_graphicDrawText, type_val },
+		PRIVILEGE_USER, 9, args_graphicDrawText, type_val },
 	{ _fnum_graphicCopyArea, kernelGraphicCopyArea,
 		PRIVILEGE_USER, 7, args_graphicCopyArea, type_val },
 	{ _fnum_graphicClearArea, kernelGraphicClearArea,
@@ -1150,19 +1157,14 @@ static kernelFunctionIndex imageFunctionIndex[] = {
 
 // Font functions (0xE000-0xEFFF range)
 
-static kernelArgInfo args_fontGetDefault[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_fontLoadSystem[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
-static kernelArgInfo args_fontLoadUser[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_fontGet[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_val, API_ARG_NONZEROVAL },
+		{ 1, type_val, API_ARG_ANYPTR } };
 static kernelArgInfo args_fontGetPrintedWidth[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR },
+		{ 1, type_ptr, API_ARG_ANYPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_fontGetWidth[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR } };
@@ -1170,14 +1172,10 @@ static kernelArgInfo args_fontGetHeight[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR } };
 
 static kernelFunctionIndex fontFunctionIndex[] = {
-	{ _fnum_fontGetDefault, kernelFontGetDefault,
-		PRIVILEGE_USER, 1, args_fontGetDefault, type_val },
-	{ _fnum_fontLoadSystem, kernelFontLoadSystem,
-		PRIVILEGE_USER, 4, args_fontLoadSystem, type_val },
-	{ _fnum_fontLoadUser, kernelFontLoadUser,
-		PRIVILEGE_USER, 3, args_fontLoadUser, type_val },
+	{ _fnum_fontGet, kernelFontGet,
+		PRIVILEGE_USER, 4, args_fontGet, type_ptr },
 	{ _fnum_fontGetPrintedWidth, kernelFontGetPrintedWidth,
-		PRIVILEGE_USER, 2, args_fontGetPrintedWidth, type_val },
+		PRIVILEGE_USER, 3, args_fontGetPrintedWidth, type_val },
 	{ _fnum_fontGetWidth, kernelFontGetWidth,
 		PRIVILEGE_USER, 1, args_fontGetWidth, type_val },
 	{ _fnum_fontGetHeight, kernelFontGetHeight,
@@ -1202,6 +1200,9 @@ static kernelArgInfo args_windowUpdateBuffer[] =
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_windowSetCharSet[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetTitle[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -1275,6 +1276,16 @@ static kernelArgInfo args_windowShellTileBackground[] =
 	{ { 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_windowShellCenterBackground[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowShellNewTaskbarIcon[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowShellNewTaskbarTextLabel[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowShellDestroyTaskbarComp[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
+static kernelArgInfo args_windowShellIconify[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_windowScreenShot[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSaveScreenShot[] =
@@ -1296,6 +1307,9 @@ static kernelArgInfo args_windowSwitchPointer[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowComponentDestroy[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
+static kernelArgInfo args_windowComponentSetCharSet[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowComponentSetVisible[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
@@ -1358,7 +1372,7 @@ static kernelArgInfo args_windowNewDivider[] =
 static kernelArgInfo args_windowNewIcon[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowNewImage[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
@@ -1432,6 +1446,12 @@ static kernelArgInfo args_windowNewTextLabel[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowNewTree[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 
 static kernelFunctionIndex windowFunctionIndex[] = {
 	{ _fnum_windowLogin, kernelWindowLogin,
@@ -1446,6 +1466,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_windowDestroy, type_val },
 	{ _fnum_windowUpdateBuffer, kernelWindowUpdateBuffer,
 		PRIVILEGE_USER, 5, args_windowUpdateBuffer, type_val },
+	{ _fnum_windowSetCharSet, kernelWindowSetCharSet,
+		PRIVILEGE_USER, 2, args_windowSetCharSet, type_val },
 	{ _fnum_windowSetTitle, kernelWindowSetTitle,
 		PRIVILEGE_USER, 2, args_windowSetTitle, type_val },
 	{ _fnum_windowGetSize, kernelWindowGetSize,
@@ -1500,6 +1522,15 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_windowShellTileBackground, type_val },
 	{ _fnum_windowShellCenterBackground, kernelWindowShellCenterBackground,
 		PRIVILEGE_USER, 1, args_windowShellCenterBackground, type_val },
+	{ _fnum_windowShellNewTaskbarIcon, kernelWindowShellNewTaskbarIcon,
+		PRIVILEGE_USER, 1, args_windowShellNewTaskbarIcon, type_ptr },
+	{ _fnum_windowShellNewTaskbarTextLabel,
+		kernelWindowShellNewTaskbarTextLabel,
+		PRIVILEGE_USER, 1, args_windowShellNewTaskbarTextLabel, type_ptr },
+	{ _fnum_windowShellDestroyTaskbarComp, kernelWindowShellDestroyTaskbarComp,
+		PRIVILEGE_USER, 1, args_windowShellDestroyTaskbarComp, type_void },
+	{ _fnum_windowShellIconify, kernelWindowShellIconify,
+		PRIVILEGE_USER, 3, args_windowShellIconify, type_ptr },
 	{ _fnum_windowScreenShot, kernelWindowScreenShot,
 		PRIVILEGE_USER, 1, args_windowScreenShot, type_val },
 	{ _fnum_windowSaveScreenShot, kernelWindowSaveScreenShot,
@@ -1520,6 +1551,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_windowComponentDestroy, kernelWindowComponentDestroy,
 		PRIVILEGE_USER, 1, args_windowComponentDestroy, type_val },
+	{ _fnum_windowComponentSetCharSet, kernelWindowComponentSetCharSet,
+		PRIVILEGE_USER, 2, args_windowComponentSetCharSet, type_val },
 	{ _fnum_windowComponentSetVisible, kernelWindowComponentSetVisible,
 		PRIVILEGE_USER, 2, args_windowComponentSetVisible, type_val },
 	{ _fnum_windowComponentSetEnabled, kernelWindowComponentSetEnabled,
@@ -1585,7 +1618,9 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 	{ _fnum_windowNewTextField, kernelWindowNewTextField,
 		PRIVILEGE_USER, 3, args_windowNewTextField, type_ptr },
 	{ _fnum_windowNewTextLabel, kernelWindowNewTextLabel,
-		PRIVILEGE_USER, 3, args_windowNewTextLabel, type_ptr }
+		PRIVILEGE_USER, 3, args_windowNewTextLabel, type_ptr },
+	{ _fnum_windowNewTree, kernelWindowNewTree,
+		PRIVILEGE_USER, 5, args_windowNewTree, type_ptr }
 };
 
 // User functions (0x10000-0x10FFF range)
@@ -1801,6 +1836,12 @@ static kernelArgInfo args_mouseLoadPointer[] =
 static kernelArgInfo args_pageGetPhysical[] =
 	{ { 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_ANYPTR } };
+static kernelArgInfo args_charsetToUnicode[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR },
+		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_charsetFromUnicode[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR },
+		{ 1, type_val, API_ARG_ANYVAL } };
 
 static kernelFunctionIndex miscFunctionIndex[] = {
 	{ _fnum_shutdown, kernelShutdown,
@@ -1846,7 +1887,11 @@ static kernelFunctionIndex miscFunctionIndex[] = {
 	{ _fnum_mouseLoadPointer, kernelMouseLoadPointer,
 		PRIVILEGE_USER, 2, args_mouseLoadPointer, type_val },
 	{ _fnum_pageGetPhysical, kernelPageGetPhysical,
-		PRIVILEGE_USER, 2, args_pageGetPhysical, type_ptr }
+		PRIVILEGE_USER, 2, args_pageGetPhysical, type_ptr },
+	{ _fnum_charsetToUnicode, kernelCharsetToUnicode,
+		PRIVILEGE_USER, 2, args_charsetToUnicode, type_val },
+	{ _fnum_charsetFromUnicode, kernelCharsetFromUnicode,
+		PRIVILEGE_USER, 2, args_charsetFromUnicode, type_val }
 };
 
 static kernelFunctionIndex *functionIndex[] = {
@@ -1914,7 +1959,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 
 	if ((functionNumber < 0x1000) || (functionNumber > 0xFFFFF))
 	{
-		kernelError(kernel_error, "Illegal function number (%d) in API call",
+		kernelError(kernel_error, "Illegal function number %x in API call",
 			functionNumber);
 		status = ERR_NOSUCHENTRY;
 		goto out;
@@ -1934,7 +1979,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 	// Is there such a function?
 	if (!functionEntry || (functionEntry->functionNumber != functionNumber))
 	{
-		kernelError(kernel_error, "No such API function %d in API call",
+		kernelError(kernel_error, "No such API function %x in API call",
 			functionNumber);
 		status = ERR_NOSUCHFUNCTION;
 		goto out;
@@ -1947,7 +1992,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 	if (currentPriv < 0)
 	{
 		kernelError(kernel_error, "Couldn't determine current privilege level "
-			"in call to API function %d", functionEntry->functionNumber);
+			"in call to API function %x", functionEntry->functionNumber);
 		if (functionEntry->returnType == type_ptr)
 			status = NULL;
 		else
@@ -1957,7 +2002,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 	else if (currentPriv > functionEntry->privilege)
 	{
 		kernelError(kernel_error, "Insufficient privilege to invoke API "
-			"function %d", functionEntry->functionNumber);
+			"function %x", functionEntry->functionNumber);
 		if (functionEntry->returnType == type_ptr)
 			status = NULL;
 		else
@@ -1971,7 +2016,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 
 	#if defined(DEBUG)
 	symbolName = kernelLookupClosestSymbol(NULL, functionPointer);
-	kernelDebug(debug_api, "Kernel API function %d (%s), %d args ",
+	kernelDebug(debug_api, "Kernel API function %x (%s), %d args ",
 		functionNumber, symbolName, functionEntry->argCount);
 	for (count = 0; count < functionEntry->argCount; count ++)
 		kernelDebug(debug_api, "arg %d=%u", count, functionArgs[count]);
@@ -1992,7 +2037,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 						if (functionEntry->args[count].content &
 							API_ARG_NONNULLPTR)
 						{
-							kernelError(kernel_error, "API function %d "
+							kernelError(kernel_error, "API function %x "
 								"argument %d: Pointer is not allowed to be "
 								"NULL",	functionEntry->functionNumber, count);
 							if (functionEntry->returnType == type_ptr)
@@ -2007,8 +2052,8 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 					if ((functionArgs[count] >= KERNEL_VIRTUAL_ADDRESS) &&
 						(functionEntry->args[count].content & API_ARG_USERPTR))
 					{
-						kernelError(kernel_error, "API function %d argument %d: "
-							"Pointer must point to user memory",
+						kernelError(kernel_error, "API function %x argument "
+							"%d: Pointer must point to user memory",
 							functionEntry->functionNumber, count);
 						if (functionEntry->returnType == type_ptr)
 							status = NULL;
@@ -2019,8 +2064,8 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 					if ((functionArgs[count] < KERNEL_VIRTUAL_ADDRESS) &&
 						(functionEntry->args[count].content & API_ARG_KERNPTR))
 					{
-						kernelError(kernel_error, "API function %d argument %d: "
-							"Pointer must point to kernel memory",
+						kernelError(kernel_error, "API function %x argument "
+							"%d: Pointer must point to kernel memory",
 							functionEntry->functionNumber, count);
 						if (functionEntry->returnType == type_ptr)
 							status = NULL;
@@ -2031,12 +2076,12 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 					break;
 
 				case type_val:
-					if ((functionArgs[count] == 0) &&
+					if (!functionArgs[count] &&
 						(functionEntry->args[count].content &
 							API_ARG_NONZEROVAL))
 					{
-						kernelError(kernel_error, "API function %d argument %d: "
-							"Value must be non-zero",
+						kernelError(kernel_error, "API function %x argument "
+							"%d: Value must be non-zero",
 							functionEntry->functionNumber, count);
 						if (functionEntry->returnType == type_ptr)
 							status = NULL;
@@ -2048,8 +2093,8 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 						(functionEntry->args[count].content &
 							API_ARG_POSINTVAL))
 					{
-						kernelError(kernel_error, "API function %d argument %d: "
-							"Value must be a positive integer",
+						kernelError(kernel_error, "API function %x argument "
+							"%d: Value must be a positive integer",
 							functionEntry->functionNumber, count);
 						if (functionEntry->returnType == type_ptr)
 							status = NULL;

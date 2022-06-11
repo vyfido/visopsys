@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,20 +24,9 @@
 #if !defined(_KERNELGRAPHIC_H)
 
 #include "kernelDevice.h"
-#include <sys/font.h>
+#include "kernelFont.h"
 #include <sys/graphic.h>
 #include <sys/image.h>
-
-// Definitions
-#define DEFAULT_FOREGROUND_RED		40
-#define DEFAULT_FOREGROUND_GREEN	93
-#define DEFAULT_FOREGROUND_BLUE		171
-#define DEFAULT_BACKGROUND_RED		200
-#define DEFAULT_BACKGROUND_GREEN	200
-#define DEFAULT_BACKGROUND_BLUE		200
-#define DEFAULT_DESKTOP_RED			35
-#define DEFAULT_DESKTOP_GREEN		60
-#define DEFAULT_DESKTOP_BLUE		230
 
 // Types of borders
 typedef enum {
@@ -76,6 +65,7 @@ typedef struct {
 	int yRes;
 	int bitsPerPixel;
 	int bytesPerPixel;
+	int scanLineBytes;
 	int numberModes;
 	videoMode supportedModes[MAXVIDEOMODES];
 	kernelDriver *driver;
@@ -102,8 +92,8 @@ int kernelGraphicDrawOval(graphicBuffer *, color *, drawMode, int, int, int,
 int kernelGraphicGetImage(graphicBuffer *, image *, int, int, int, int);
 int kernelGraphicDrawImage(graphicBuffer *, image *, drawMode, int, int, int,
 	int, int, int);
-int kernelGraphicDrawText(graphicBuffer *, color *, color *, asciiFont *,
-	const char *, drawMode, int, int);
+int kernelGraphicDrawText(graphicBuffer *, color *, color *, kernelFont *,
+	const char *, const char *, drawMode, int, int);
 int kernelGraphicCopyArea(graphicBuffer *, int, int, int, int, int, int);
 int kernelGraphicClearArea(graphicBuffer *, color *, int, int, int, int);
 int kernelGraphicCopyBuffer(graphicBuffer *, graphicBuffer *, int, int);

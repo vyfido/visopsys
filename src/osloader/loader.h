@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -47,14 +47,14 @@
 
 ;; Some checks, to make sure the data above is correct
 
-%if ((KERNELLOADADDRESS % 4096) != 0)
-%error "Kernel code must start on 4Kb boundary"
+%if (KERNELLOADADDRESS % 4096)
+	%error "Kernel code must start on 4Kb boundary"
 %endif
-%if ((KERNELSTACKSIZE % 4096) != 0)
-%error "Kernel stack size must be a multiple of 4Kb"
+%if (KERNELSTACKSIZE % 4096)
+	%error "Kernel stack size must be a multiple of 4Kb"
 %endif
-%if ((LDRPAGINGDATA % 4096) != 0)
-%error "Loader paging data must be a multiple of 4Kb"
+%if (LDRPAGINGDATA % 4096)
+	%error "Loader paging data must be a multiple of 4Kb"
 %endif
 
 ;; Segment descriptor information for the temporary GDT
@@ -74,9 +74,28 @@
 %define VIDEOPAGE				0
 %define ROWS					50
 %define COLUMNS					80
-%define FOREGROUNDCOLOR			7
-%define BACKGROUNDCOLOR			1
-%define ERRORCOLOR				6
+
+%define BIOSCOLOR_BLACK			0
+%define BIOSCOLOR_BLUE			1
+%define BIOSCOLOR_GREEN			2
+%define BIOSCOLOR_CYAN			3
+%define BIOSCOLOR_RED			4
+%define BIOSCOLOR_MAGENTA		5
+%define BIOSCOLOR_BROWN			6
+%define BIOSCOLOR_LIGHTGREY		7
+%define BIOSCOLOR_DARKGREY		8
+%define BIOSCOLOR_LIGHTBLUE		9
+%define BIOSCOLOR_LIGHTGREEN	10
+%define BIOSCOLOR_LIGHTCYAN		11
+%define BIOSCOLOR_LIGHTRED		12
+%define BIOSCOLOR_LIGHTMAGENTA	13
+%define BIOSCOLOR_YELLOW		14
+%define BIOSCOLOR_WHITE			15
+
+%define FOREGROUNDCOLOR			BIOSCOLOR_LIGHTGREY
+%define BACKGROUNDCOLOR			BIOSCOLOR_BLUE
+%define GOODCOLOR				BIOSCOLOR_GREEN
+%define BADCOLOR				BIOSCOLOR_BROWN
 
 ;; Selectors in the GDT
 %define PRIV_CODESELECTOR		0x0008
@@ -108,7 +127,7 @@
 %define MEMORYMAPSIZE			50
 
 ;; Maximum number of graphics modes we check
-%define MAXVIDEOMODES			20
+%define MAXVIDEOMODES			100
 
 ;; Our data structures that we pass to the kernel, mostly having to do with
 ;; hardware
@@ -119,6 +138,7 @@ STRUC graphicsInfoBlock
 	.xRes			resd 1 ;; Current X resolution
 	.yRes			resd 1 ;; Current Y resolution
 	.bitsPerPixel	resd 1 ;; Bits per pixel
+	.scanLineBytes	resd 1 ;; Scan line length in bytes
 	.numberModes	resd 1 ;; Number of graphics modes in the following list
 	.supportedModes	resd (MAXVIDEOMODES * 4)
 ENDSTRUC

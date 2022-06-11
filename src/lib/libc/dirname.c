@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -55,7 +55,7 @@ char *dirname(char *path)
 	int count;
 
 	// Get the memory to return.  Always a maxed-out pathname.
-	newPath = malloc(MAX_PATH_NAME_LENGTH);
+	newPath = malloc(MAX_PATH_LENGTH);
 	if (!newPath)
 	{
 		// Nothing much we can do here.
@@ -64,14 +64,14 @@ char *dirname(char *path)
 	}
 
 	// Look for NULL, empty string, or no '/'
-	if (!path || (path[0] == '\0') || strrchr(path, '/'))
+	if (!path || !path[0] || !strrchr(path, '/'))
 	{
 		newPath[0] = '.';
 		newPath[1] = '\0';
 		return (newPath);
 	}
 
-	strncpy(newPath, path, MAX_PATH_NAME_LENGTH);
+	strncpy(newPath, path, MAX_PATH_LENGTH);
 
 	// Remove any trailing separators, not including the first character
 	for (count = (strlen(newPath) - 1);
@@ -82,6 +82,14 @@ char *dirname(char *path)
 
 	// Look for the last instance of '/'
 	lastSlash = strrchr(newPath, '/');
+
+	if (!lastSlash)
+	{
+		// The only '/' was a trailing one, which we removed
+		newPath[0] = '.';
+		newPath[1] = '\0';
+		return (newPath);
+	}
 
 	// Terminate it there.
 	if (lastSlash != newPath)

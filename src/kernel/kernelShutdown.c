@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,7 @@
 
 #include "kernelShutdown.h"
 #include "kernelCpu.h"
+#include "kernelEnvironment.h"
 #include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelFont.h"
@@ -46,11 +47,12 @@
 #define SHUTDOWN_MSG_POWER		_("OK to power off now.")
 
 
-static void messageBox(asciiFont *font, int numLines, char *message[])
+static void messageBox(kernelFont *font, int numLines, char *message[])
 {
 	// Prints a blue box, with lines of white text centered in it.
 	// Useful for final shutdown messages.
 
+	const char *charSet = NULL;
 	unsigned screenWidth = kernelGraphicGetScreenWidth();
 	unsigned screenHeight = kernelGraphicGetScreenHeight();
 	unsigned messageWidth = 0;
@@ -60,9 +62,16 @@ static void messageBox(asciiFont *font, int numLines, char *message[])
 	// The default desktop color
 	extern color kernelDefaultDesktop;
 
+	if (kernelCurrentProcess)
+		charSet = kernelVariableListGet(kernelCurrentProcess->environment,
+			ENV_CHARSET);
+
+	if (!charSet)
+		charSet = CHARSET_NAME_DEFAULT;
+
 	for (count = 0; count < numLines; count ++)
 	{
-		tmp = kernelFontGetPrintedWidth(font, message[count]);
+		tmp = kernelFontGetPrintedWidth(font, charSet, message[count]);
 		if (tmp > messageWidth)
 			messageWidth = tmp;
 	}
@@ -85,8 +94,9 @@ static void messageBox(asciiFont *font, int numLines, char *message[])
 	for (count = 0; count < numLines; count ++)
 	{
 		kernelGraphicDrawText(NULL, &COLOR_WHITE, &kernelDefaultDesktop, font,
-			message[count], draw_normal, ((screenWidth -
-				kernelFontGetPrintedWidth(font, message[count])) / 2),
+			charSet, message[count], draw_normal,
+			((screenWidth -
+				kernelFontGetPrintedWidth(font, charSet, message[count])) / 2),
 			(((screenHeight - messageHeight) / 2) +
 				(font->glyphHeight * count)));
 	}
@@ -104,9 +114,9 @@ static void messageBox(asciiFont *font, int numLines, char *message[])
 int kernelShutdown(int reboot, int force)
 {
 	// This function will shut down the kernel, and reboot the computer
-	// if the shutdownType argument dictates.  This function must include
+	// if the 'reboot' argument dictates.  This function must include
 	// shutdown invocations for all of the major subsystems that support
-	// and/or require such activity
+	// and/or require it.
 
 	int status = 0;
 	int graphics = 0;
@@ -114,7 +124,7 @@ int kernelShutdown(int reboot, int force)
 	char *finalMessage = NULL;
 
 	// We only use these if grapics are enabled
-	asciiFont *font = NULL;
+	kernelFont *font = NULL;
 	kernelWindow *window = NULL;
 	componentParameters params;
 	unsigned screenWidth = 0;
@@ -126,6 +136,7 @@ int kernelShutdown(int reboot, int force)
 		kernelError(kernel_error, "The system is already shutting down");
 		return (status = ERR_ALREADY);
 	}
+
 	shutdownInProgress = 1;
 
 	// Are grapics enabled?  If so, we will try to output our initial message
@@ -138,17 +149,13 @@ int kernelShutdown(int reboot, int force)
 		screenHeight = kernelGraphicGetScreenHeight();
 
 		// Try to load a nice-looking font
-		status = kernelFileFind(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE, NULL);
-		if (status >= 0)
-		{
-			status = kernelFontLoadSystem(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-				WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &font, 0);
-		}
-		if (status < 0)
-		{
-			// Font's not there, we suppose.  There's always a default.
-			kernelFontGetDefault(&font);
-		}
+		font = kernelFontGet(WINDOW_DEFAULT_VARFONT_MEDIUM_FAMILY,
+			WINDOW_DEFAULT_VARFONT_MEDIUM_FLAGS,
+			WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS, NULL);
+
+		if (!font)
+			// Font's not there, we suppose.  Use the system one.
+			kernelFontGetSystem(&font);
 
 		window = kernelWindowNew(kernelMultitaskerGetCurrentProcessId(),
 			_("Shutting down"));
@@ -311,7 +318,7 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
 	// This is a quick shutdown for kernel panic which puts nice messages
 	// on the screen in graphics mode as well.
 
-	asciiFont *font = NULL;
+	kernelFont *font = NULL;
 	char panicMessage[MAX_ERRORTEXT_LENGTH];
 	char errorText[MAX_ERRORTEXT_LENGTH];
 	va_list list;
@@ -329,7 +336,7 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
 	if (kernelGraphicsAreEnabled())
 	{
 		// Draw a box with the panic message
-		kernelFontGetDefault(&font);
+		kernelFontGetSystem(&font);
 		messageBox(font, 2, (char *[]){ panicMessage, errorText } );
 	}
 	else

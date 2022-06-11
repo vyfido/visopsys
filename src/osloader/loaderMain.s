@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,7 @@
 	EXTERN loaderDetectHardware
 	EXTERN loaderLoadKernel
 	EXTERN loaderEnableA20
+	EXTERN loaderQueryGraphicMode
 	EXTERN loaderSetGraphicDisplay
 	EXTERN loaderPrint
 	EXTERN loaderPrintNumber
@@ -97,7 +98,7 @@ loaderMain:
 	;; should have put a pointer to the MBR record for this partition
 	;; in SI.  Copy the partition entry.
 	cmp word [DRIVENUMBER], 80h
-	jb .notHDD
+	jb .setTextDisplay
 	push DS
 	push 0
 	pop DS
@@ -107,7 +108,7 @@ loaderMain:
 	rep movsb
 	pop DS
 
-	.notHDD:
+	.setTextDisplay:
 	;; Set the text display to a good mode, clearing the screen
 	push word 0
 	call loaderSetTextDisplay
@@ -175,6 +176,9 @@ loaderMain:
 
 	;; Check for fatal errors before attempting to start the kernel
 	call fatalErrorCheck
+
+	;; Check for user requesting a boot menu
+	call bootMenu
 
 	;; Did we find a good graphics mode?
 	cmp word [KERNELGMODE], 0
@@ -304,7 +308,7 @@ bootDevice:
 	;; Print out the fatal error message
 
 	;; Change to the error color
-	mov DL, ERRORCOLOR
+	mov DL, BADCOLOR
 
 	mov SI, SAD
 	call loaderPrint
@@ -438,7 +442,7 @@ printBootDevice:
 
 	pusha
 
-	mov DL, 02h						; Use green color
+	mov DL, GOODCOLOR				; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, BOOTDEV1
@@ -516,6 +520,40 @@ printBootDevice:
 	call loaderPrintNewline
 
 	.done:
+	popa
+	ret
+
+
+bootMenu:
+	;; This gets called to check whether the user has pressed the ESC key
+	;; during the loading process, to give them a menu of options.
+	;;
+	;; At the moment, it's only for video mode selection.
+
+	pusha
+
+	;; Check for a key press
+	mov AX, 0100h
+	int 16h
+	jz .out
+
+	;; Read the key press
+	mov AX, 0000h
+	int 16h
+
+	cmp AH, 01h		; ESC
+	jne .out
+
+	call loaderPrintNewline
+	mov SI, MENUMSG
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
+	call loaderPrintNewline
+	call loaderPrintNewline
+
+	call loaderQueryGraphicMode
+
+	.out:
 	popa
 	ret
 
@@ -953,8 +991,8 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.77' , 0
-LOADMSG2	db 'Copyright (C) 1998-2015 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.8', 0
+LOADMSG2	db 'Copyright (C) 1998-2016 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
 BOOTHDD		db 'hd', 0
@@ -970,6 +1008,7 @@ LOADING		db 'Loading Visopsys', 0
 PRESSREBOOT	db 'Press any key to reboot.', 0
 REBOOTING	db '  ...Rebooting', 0
 BOOTINFO	db 'BOOTINFO   ', 0
+MENUMSG		db 'Boot Menu', 0
 
 ;;
 ;; The error messages

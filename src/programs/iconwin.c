@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,6 +48,7 @@ custom icons for each.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/desktop.h>
 #include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -57,7 +58,7 @@ custom icons for each.
 
 #define DEFAULT_ROWS		4
 #define DEFAULT_COLUMNS		5
-#define EXECICON_FILE		PATH_SYSTEM_ICONS "/execicon.ico"
+#define EXECICON_FILE		PATH_SYSTEM_ICONS "/execable.ico"
 
 typedef struct {
 	char name[WINDOW_MAX_LABEL_LENGTH + 1];
@@ -117,12 +118,12 @@ static int readConfig(const char *fileName, variableList *config)
 	// language-specific config file that matches it.
 	if (getenv(ENV_LANG))
 	{
-		status = fileFind(fileName, &f);
+		sprintf(langFileName, "%s/%s/%s", PATH_SYSTEM_CONFIG,
+			getenv(ENV_LANG), f.name);
+
+		status = fileFind(langFileName, &f);
 		if (status >= 0)
 		{
-			sprintf(langFileName, "%s/%s/%s", PATH_SYSTEM_CONFIG,
-				getenv(ENV_LANG), f.name);
-
 			status = configRead(langFileName, &langConfig);
 			if (status >= 0)
 			{
@@ -147,14 +148,12 @@ static int readConfig(const char *fileName, variableList *config)
 
 static int processConfig(variableList *config)
 {
-	/*
-	window.title=xxx
-	list.rows=xxx
-	list.columns=xxx
-	icon.name.xxx=<text to display>
-	icon.xxx.image=<icon image>
-	icon.xxx.command=<command to run>
-	*/
+	// window.title=xxx
+	// list.rows=xxx
+	// list.columns=xxx
+	// icon.name.xxx=<text to display>
+	// icon.xxx.image=<icon image>
+	// icon.xxx.command=<command to run>
 
 	int status = 0;
 	const char *variable = NULL;
@@ -187,8 +186,11 @@ static int processConfig(variableList *config)
 	for (count = 0; count < config->numVariables; count ++)
 	{
 		variable = variableListGetVariable(config, count);
-		if (variable && !strncmp(variable, "icon.name.", 10))
+		if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
+			strlen(DESKTOP_ICON_NAME)))
+		{
 			numIcons += 1;
+		}
 	}
 
 	// Allocate memory for our list of listItemParameters structures and the
@@ -221,7 +223,8 @@ static int processConfig(variableList *config)
 	for (count = 0; count < config->numVariables; count ++)
 	{
 		variable = variableListGetVariable(config, count);
-		if (variable && !strncmp(variable, "icon.name.", 10))
+		if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
+			strlen(DESKTOP_ICON_NAME)))
 		{
 			name = (variable + 10);
 
@@ -232,7 +235,7 @@ static int processConfig(variableList *config)
 				WINDOW_MAX_LABEL_LENGTH);
 
 			// Get the image name
-			sprintf(tmp, "icon.%s.image", name);
+			sprintf(tmp, DESKTOP_ICON_IMAGE, name);
 			value = variableListGet(config, tmp);
 			if (value)
 			{
@@ -241,13 +244,13 @@ static int processConfig(variableList *config)
 			}
 
 			if (!value || (fileFind(icons[numIcons].imageFile, NULL) < 0) ||
-				(imageLoad(icons[numIcons].imageFile, 0, 0,
-					&(iconParams[numIcons].iconImage)) < 0))
+				(imageLoad(icons[numIcons].imageFile, 64, 64,
+					&iconParams[numIcons].iconImage) < 0))
 			{
 				// Try the standard 'program' icon
 				if ((fileFind(EXECICON_FILE, NULL) < 0) ||
-					(imageLoad(EXECICON_FILE, 0, 0,
-						&(iconParams[numIcons].iconImage)) < 0))
+					(imageLoad(EXECICON_FILE, 64, 64,
+						&iconParams[numIcons].iconImage) < 0))
 				{
 					// Can't load an icon.  We won't be showing this one.
 					continue;
@@ -255,7 +258,7 @@ static int processConfig(variableList *config)
 			}
 
 			// Get the command string
-			sprintf(tmp, "icon.%s.command", name);
+			sprintf(tmp, DESKTOP_ICON_COMMAND, name);
 			value = variableListGet(config, tmp);
 			if (value)
 				strncpy(icons[numIcons].command, value, MAX_PATH_NAME_LENGTH);
@@ -282,13 +285,13 @@ static int processConfig(variableList *config)
 
 static void execProgram(int argc, char *argv[])
 {
-	windowSwitchPointer(window, "busy");
+	windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
 	// Exec the command, no block
 	if (argc == 2)
 		loaderLoadAndExec(argv[1], privilege, 0);
 
-	windowSwitchPointer(window, "default");
+	windowSwitchPointer(window, MOUSE_POINTER_DEFAULT);
 	multitaskerTerminate(0);
 }
 
@@ -308,6 +311,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("iconwin");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	memset(&tmpConfig, 0, sizeof(variableList));
 
 	// Try to read the config file(s)
@@ -324,7 +331,8 @@ static void refreshWindow(void)
 		for (count1 = 0; count1 < tmpConfig.numVariables; count1 ++)
 		{
 			variable = variableListGetVariable(&tmpConfig, count1);
-			if (variable && !strncmp(variable, "icon.name.", 10))
+			if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
+				strlen(DESKTOP_ICON_NAME)))
 			{
 				name = (variable + 10);
 

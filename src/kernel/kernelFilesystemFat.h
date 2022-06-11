@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,6 +32,7 @@
 
 typedef enum {
 	fat12, fat16, fat32, fatUnknown
+
 } fatType;
 
 typedef volatile struct {
@@ -63,7 +64,6 @@ typedef volatile struct {
 
 	// Bitmap of free clusters
 	unsigned char *freeClusterBitmap;
-	unsigned freeBitmapSize;
 	unsigned freeClusters;
 	lock freeBitmapLock;
 
@@ -73,9 +73,13 @@ typedef volatile struct {
 } fatInternalData;
 
 #define fatClusterToLogical(fatData, clusterNum) \
-	(((clusterNum - 2) * fatData->bpb.sectsPerClust) + \
-	fatData->bpb.rsvdSectCount + \
-	(fatData->bpb.numFats * fatData->fatSects) + fatData->rootDirSects)
+	((uquad_t)(((clusterNum) - 2) * (fatData)->bpb.sectsPerClust) + \
+	(fatData)->bpb.rsvdSectCount + \
+	((fatData)->bpb.numFats * (fatData)->fatSects) + (fatData)->rootDirSects)
+
+#define fatClusterBytes(fatData) \
+	((fatData)->bpb.bytesPerSect * (fatData)->bpb.sectsPerClust)
 
 #define _KERNELFILESYSTEMFAT_H
 #endif
+

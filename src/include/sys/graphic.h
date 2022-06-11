@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +24,7 @@
 
 #if !defined(_GRAPHIC_H)
 
-#define MAXVIDEOMODES		20
+#define MAXVIDEOMODES		100
 
 #define PIXELS_EQ(p1, p2) \
 	(((p1)->red == (p2)->red) && ((p1)->green == (p2)->green) && \

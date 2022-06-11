@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -91,19 +91,19 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 	if (wc)
 	{
 		if (numBytes == 1)
-			*wc = (wchar_t) (bytes[0] & 0x7F);
+			*wc = (wchar_t)(bytes[0] & 0x7F);
 		else if (numBytes == 2)
-			*wc = ((((wchar_t) (bytes[0] & 0x1F)) >> 2) |
-				((wchar_t) (bytes[1] & 0x3F)));
+			*wc = ((((wchar_t)(bytes[0] & 0x1F)) >> 2) |
+				((wchar_t)(bytes[1] & 0x3F)));
 		else if (numBytes == 3)
-			*wc = ((((wchar_t) (bytes[0] & 0x0F)) >> 4) |
-				(((wchar_t) (bytes[1] & 0x3F)) >> 2) |
-				((wchar_t) (bytes[2] & 0x3F)));
+			*wc = ((((wchar_t)(bytes[0] & 0x0F)) >> 4) |
+				(((wchar_t)(bytes[1] & 0x3F)) >> 2) |
+				((wchar_t)(bytes[2] & 0x3F)));
 		else if (numBytes == 4)
-			*wc = ((((wchar_t) (bytes[0] & 0x07)) >> 6) |
-				(((wchar_t) (bytes[1] & 0x3F)) >> 4) |
-				(((wchar_t) (bytes[2] & 0x3F)) >> 2) |
-				((wchar_t) (bytes[3] & 0x3F)));
+			*wc = ((((wchar_t)(bytes[0] & 0x07)) >> 6) |
+				(((wchar_t)(bytes[1] & 0x3F)) >> 4) |
+				(((wchar_t)(bytes[2] & 0x3F)) >> 2) |
+				((wchar_t)(bytes[3] & 0x3F)));
 	}
 
 	return (numBytes);

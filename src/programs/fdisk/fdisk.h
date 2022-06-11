@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,7 +33,7 @@
 
 #define BACKUP_MBR						PATH_SYSTEM_BOOT "/backup-%s.mbr"
 #define SIMPLE_MBR_FILE					PATH_SYSTEM_BOOT "/mbr.simple"
-#define MAX_SLICES						((DISK_MAX_PARTITIONS * 2) + 1)
+#define MAX_SLICES						((DISK_MAX_PARTITIONS * 2) + 3)
 #define MAX_DESCSTRING_LENGTH			128
 
 // Label flags
@@ -98,9 +98,8 @@ typedef struct {
 	sliceType type;
 	unsigned flags;
 	unsigned tag;
-	uquad_t startLogical;
-	uquad_t sizeLogical;
-	rawGeom geom;
+	uquad_t startSector;
+	uquad_t numSectors;
 
 	// For GPT
 	guid typeGuid;
@@ -142,6 +141,7 @@ typedef struct {
 
 	// Disk label operations
 	int (*detect)(const disk *);
+	int (*create)(const disk *);
 	int (*readTable)(const disk *, rawSlice *, int *);
 	int (*writeTable)(const disk *, rawSlice *, int);
 	int (*getSliceDesc)(rawSlice *, char *);
@@ -193,6 +193,8 @@ typedef struct {
 void pause(void);
 void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 void warning(const char *, ...) __attribute__((format(printf, 1, 2)));
+void getChsValues(const disk *, rawSlice *, rawGeom *);
+
 
 #define _FDISK_H
 #endif

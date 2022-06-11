@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -137,7 +137,7 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 
 				*pointer = kernelRealloc(*pointer, ((numTargets + status) *
 					sizeof(kernelBusTarget)));
-				if (*pointer == NULL)
+				if (!(*pointer))
 					return (status = ERR_MEMORY);
 
 				memcpy(&((*pointer)[numTargets]), tmpTargets,
@@ -189,7 +189,7 @@ kernelBusTarget *kernelBusGetTarget(kernelBusType type, int id)
 			kernelDebug(debug_io, "BUS target found");
 
 			target = kernelMalloc(sizeof(kernelBusTarget));
-			if (target == NULL)
+			if (!target)
 				break;
 
 			memcpy(target, &targets[count], sizeof(kernelBusTarget));
@@ -223,7 +223,7 @@ int kernelBusGetTargetInfo(kernelBusTarget *target, void *pointer)
 
 	kernelDebug(debug_io, "BUS get target id=0x%08x info", target->id);
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));
@@ -342,7 +342,7 @@ void kernelBusDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 		return;
 	}
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));
@@ -420,7 +420,7 @@ int kernelBusSetMaster(kernelBusTarget *target, int master)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((target->bus == NULL) || (target->bus->ops == NULL))
+	if (!target->bus || !target->bus->ops)
 	{
 		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
 			target->bus, (target->bus? target->bus->ops : NULL));

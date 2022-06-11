@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -132,11 +132,8 @@ static int detect(const char *fileName, void *dataPtr, unsigned dataLength,
 
 	jpgJfifHeader *header = NULL;
 
-	if ((fileName == NULL) || (dataPtr == NULL) || !dataLength ||
-		(class == NULL))
-	{
+	if (!fileName || !dataPtr || !dataLength || !class)
 		return (0);
-	}
 
 	// Make sure there's enough data here for our detection
 	if (dataLength < (sizeof(JFIF_START) + sizeof(jpgJfifHeader)))
@@ -789,7 +786,7 @@ static void arrangeMcu(int hBlocks, int vBlocks, short *coeff)
 	int count1, count2, count3;
 
 	tmpCoeff = kernelMalloc(hBlocks * vBlocks * 64 * sizeof(short));
-	if (tmpCoeff == NULL)
+	if (!tmpCoeff)
 		return;
 
 	for (count1 = 0; count1 < vBlocks; count1 ++)
@@ -937,7 +934,7 @@ static int decode(jpgData *jpg, pixel *imageData)
 	yCoeff = kernelMalloc((Y_BLOCKSPERMCU * 64) * sizeof(short));
 	cbCoeff = kernelMalloc((Y_BLOCKSPERMCU * 64) * sizeof(short));
 	crCoeff = kernelMalloc((Y_BLOCKSPERMCU * 64) * sizeof(short));
-	if ((yCoeff == NULL) || (cbCoeff == NULL) || (crCoeff == NULL))
+	if (!yCoeff || !cbCoeff || !crCoeff)
 		return (status = ERR_MEMORY);
 
 	kernelDebug(debug_misc, "Y_BLOCKSPERMCU=%d CB_BLOCKSPERMCU=%d "
@@ -1120,12 +1117,12 @@ static int load(unsigned char *imageFileData, int dataLength,
 	int count1, count2;
 
 	// Check params
-	if ((imageFileData == NULL) || !dataLength || (loadImage == NULL))
+	if (!imageFileData || !dataLength || !loadImage)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get memory for the JPEG data
 	jpg = kernelMalloc(sizeof(jpgData));
-	if (jpg == NULL)
+	if (!jpg)
 		return (status = ERR_MEMORY);
 
 	// Loop through the file data and get pointers to the various tables we
@@ -1228,7 +1225,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 				case JPG_DRI:
 					// A restart header is here
 					jpg->restartHeader =
-						(jpgRestartHeader *) (imageFileData + count1 + 1);
+						(jpgRestartHeader *)(imageFileData + count1 + 1);
 					jpg->restartHeader->length =
 						 processorSwap16(jpg->restartHeader->length);
 					jpg->restartHeader->interval =
@@ -1363,8 +1360,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 		genHuffTable(defaultHuffAcChromSizes, defaultHuffAcChromValues,
 			&jpg->huffTable[JPG_HUFF_AC_CHROM]);
 
-	if ((jpg->numQuantTables != JPG_QUANT_TABLES) ||
-		(jpg->frameHeader == NULL))
+	if ((jpg->numQuantTables != JPG_QUANT_TABLES) || !jpg->frameHeader)
 	{
 		kernelError(kernel_error, "Image table data missing");
 		return (status = ERR_BADDATA);
@@ -1414,7 +1410,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 	loadImage->dataLength = (loadImage->pixels * sizeof(pixel));
 
 	imageData = kernelMemoryGet(loadImage->dataLength, "image data");
-	if (imageData == NULL)
+	if (!imageData)
 	{
 		status = ERR_MEMORY;
 		goto error_out;

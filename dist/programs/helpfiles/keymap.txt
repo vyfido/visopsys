@@ -22,6 +22,8 @@ In text mode:
 
   The -s option will save the selected keymap using the supplied file name.
 
+  The -x option will convert a version 1 keymap to version 2.
+
   If a keymap is specified without the -p or -s options, then the keymap will
   be set as the current default.
 
@@ -35,4 +37,5 @@ Options:
 -p  : Print a detailed listing of the keymap (text mode).
 -s  : Save the specified keymap to the supplied file name (text mode).
 -T  : Force text mode operation
+-x  : Convert a version 1 keymap to version 2 (text mode).
 

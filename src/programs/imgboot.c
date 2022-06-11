@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,16 +48,19 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 #include <sys/api.h>
 #include <sys/env.h>
 #include <sys/font.h>
+#include <sys/keyboard.h>
+#include <sys/lang.h>
 #include <sys/paths.h>
+#include <sys/user.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2015 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2016 J. Andrew McLaughlin")
 #define GPL				_( \
-	"  This program is free software; you can redistribute it and/or modify it  \n" \
+	"  This program is free software; you can redistribute it and/or modify it\n" \
 	"  under the terms of the GNU General Public License as published by the\n" \
 	"  Free Software Foundation; either version 2 of the License, or (at your\n" \
 	"  option) any later version.\n\n" \
@@ -85,14 +88,63 @@ static char *adminString	= gettext_noop("Using the administrator account "
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
+static objectKey welcomeLabel = NULL;
 static objectKey copyrightLabel = NULL;
-static objectKey gplLabel = NULL;
 static objectKey instLabel = NULL;
 static objectKey instButton = NULL;
 static objectKey contButton = NULL;
 static objectKey langButton = NULL;
 static objectKey goAwayCheckbox = NULL;
 static image flagImage;
+
+
+static void setDefaults(void)
+{
+	char language[6];
+	char charsetName[CHARSET_NAME_LEN];
+	char keyMapName[KEYMAP_NAMELEN];
+	char keyMapFile[MAX_PATH_NAME_LENGTH + 1];
+
+	if (getenv(ENV_LANG))
+	{
+		strncpy(language, getenv(ENV_LANG), (sizeof(language) - 1));
+	}
+	else
+	{
+		if (configGet(PATH_SYSTEM_CONFIG "/environment.conf", ENV_LANG,
+			language, (sizeof(language) - 1)) < 0)
+		{
+			strcpy(language, LANG_ENGLISH);
+		}
+
+		setenv(ENV_LANG, language, 1);
+	}
+
+	// Based on the default language, try to set an appropriate character
+	// set variable
+	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf", language, charsetName,
+		CHARSET_NAME_LEN) >= 0)
+	{
+		setenv(ENV_CHARSET, charsetName, 1);
+	}
+
+	// Based on the default language, try to set an appropriate keymap
+	// variable
+	if (configGet(PATH_SYSTEM_CONFIG "/keymap.conf", language, keyMapName,
+		KEYMAP_NAMELEN) >= 0)
+	{
+		sprintf(keyMapFile, PATH_SYSTEM_KEYMAPS "/%s.map", keyMapName);
+
+		if (fileFind(keyMapFile, NULL) >= 0)
+		{
+			keyboardSetMap(keyMapFile);
+			setenv(ENV_KEYMAP, keyMapName, 1);
+		}
+	}
+
+	setlocale(LC_ALL, language);
+	textdomain("imgboot");
+}
 
 
 __attribute__((noinline)) // crashes
@@ -153,9 +205,9 @@ static int rebootNow(void)
 	if (graphics)
 	{
 		response = windowNewChoiceDialog(window, _("Reboot?"),
-			_(rebootQuestion), (char *[]) { _("Reboot"), _("Continue") },
+			_(rebootQuestion), (char *[]){ _("Reboot"), _("Continue") },
 			2, 0);
-		if (response == 0)
+		if (!response)
 			return (1);
 		else
 			return (0);
@@ -253,12 +305,13 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("imgboot");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the 'copyright' label
 	windowComponentSetData(copyrightLabel, COPYRIGHT, strlen(COPYRIGHT),
 		1 /* redraw */);
-
-	// Refresh the 'gpl' label
-	windowComponentSetData(gplLabel, GPL, strlen(GPL), 1 /* redraw */);
 
 	if (haveInstall)
 	{
@@ -299,10 +352,29 @@ static void refreshWindow(void)
 static void chooseLanguage(void)
 {
 	char pickedLanguage[6];
+	char charsetName[CHARSET_NAME_LEN];
+	char keyMapName[KEYMAP_NAMELEN];
 
 	if (windowNewLanguageDialog(window, pickedLanguage) >= 0)
 	{
 		setenv(ENV_LANG, pickedLanguage, 1);
+
+		// Based on the chosen language, try to set an appropriate character
+		// set variable
+		if (configGet(PATH_SYSTEM_CONFIG "/charset.conf", pickedLanguage,
+			charsetName, CHARSET_NAME_LEN) >= 0)
+		{
+			setenv(ENV_CHARSET, charsetName, 1);
+		}
+
+		// Based on the chosen language, try to set an appropriate keymap
+		// variable
+		if (configGet(PATH_SYSTEM_CONFIG "/keymap.conf", pickedLanguage,
+			keyMapName, KEYMAP_NAMELEN) >= 0)
+		{
+			setenv(ENV_KEYMAP, keyMapName, 1);
+		}
+
 		refreshWindow();
 	}
 }
@@ -353,18 +425,29 @@ static void constructWindow(void)
 
 	int status = 0;
 	char versionString[32];
-	char title[80];
+	char welcome[80];
+	color background = { COLOR_DEFAULT_DESKTOP_BLUE,
+		COLOR_DEFAULT_DESKTOP_GREEN, COLOR_DEFAULT_DESKTOP_RED };
+	image splashImage;
 	objectKey buttonContainer = NULL;
 	file langDir;
 	componentParameters params;
 
 	getVersion(versionString, sizeof(versionString));
-	sprintf(title, WELCOME, versionString);
+	sprintf(welcome, WELCOME, versionString);
 
 	// Create a new window
-	window = windowNew(processId, title);
+	window = windowNew(processId, welcome);
 	if (!window)
 		quit(ERR_NOCREATE, "%s", _("Can't create window!"));
+
+	// No title bar or border for the login window
+	windowSetHasTitleBar(window, 0);
+	windowSetHasBorder(window, 0);
+
+	// Background color same as the desktop
+	windowGetColor(COLOR_SETTING_DESKTOP, &background);
+	windowSetBackgroundColor(window, &background);
 
 	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
@@ -374,16 +457,30 @@ static void constructWindow(void)
 	params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
-	copyrightLabel = windowNewTextLabel(window, COPYRIGHT, &params);
+	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.foreground = COLOR_WHITE;
+	memcpy(&params.background, &background, sizeof(color));
+	welcomeLabel = windowNewTextLabel(window, welcome, &params);
 
 	params.gridY += 1;
-	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
-			&(params.font), 0);
-	gplLabel = windowNewTextLabel(window, GPL, &params);
+	memcpy(&params.background, &background, sizeof(color));
+	copyrightLabel = windowNewTextLabel(window, COPYRIGHT, &params);
 
+	// Try to load a splash image to go at the top of the window
 	params.orientationX = orient_center;
-	params.font = NULL;
+	memset(&splashImage, 0, sizeof(image));
+	if (fileFind(PATH_SYSTEM "/visopsys.jpg", NULL) >= 0)
+	{
+		status = imageLoad(PATH_SYSTEM "/visopsys.jpg", 0, 0, &splashImage);
+		if (status >= 0)
+		{
+			// Create an image component from it, and add it to the window
+			params.gridY += 1;
+			windowNewImage(window, &splashImage, draw_normal, &params);
+		}
+	}
+
 	if (haveInstall)
 	{
 		params.gridY += 1;
@@ -391,7 +488,7 @@ static void constructWindow(void)
 	}
 
 	params.gridY += 1;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 	if (buttonContainer)
 	{
@@ -406,7 +503,9 @@ static void constructWindow(void)
 			params.orientationX = orient_center;
 		}
 		else
+		{
 			params.orientationX = orient_right;
+		}
 
 		contButton = windowNewButton(buttonContainer, CONTINUE, NULL, &params);
 		windowRegisterEventHandler(contButton, &eventHandler);
@@ -420,13 +519,15 @@ static void constructWindow(void)
 			if (getenv(ENV_LANG))
 				status = loadFlagImage(getenv(ENV_LANG), &flagImage);
 			else
-				status = loadFlagImage("en", &flagImage);
+				status = loadFlagImage(LANG_ENGLISH, &flagImage);
+
 			if (status >= 0)
 				langButton = windowNewButton(buttonContainer, NULL, &flagImage,
 					&params);
 			else
 				langButton = windowNewButton(buttonContainer, LANGUAGE, NULL,
 					&params);
+
 			windowRegisterEventHandler(langButton, &eventHandler);
 		}
 	}
@@ -435,13 +536,13 @@ static void constructWindow(void)
 	params.gridY += 1;
 	params.padBottom = 5;
 	params.orientationX = orient_center;
+	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.foreground = COLOR_WHITE;
+	memcpy(&params.background, &background, sizeof(color));
 	goAwayCheckbox = windowNewCheckbox(window, DONTASK, &params);
 	if (readOnly)
 		windowComponentSetEnabled(goAwayCheckbox, 0);
-
-	// No minimize or close buttons on the window
-	windowRemoveMinimizeButton(window);
-	windowRemoveCloseButton(window);
 
 	windowSetVisible(window, 1);
 }
@@ -467,8 +568,8 @@ int main(int argc, char *argv[])
 	char *optionStrings[3] = { NULL, NULL, NULL };
 	int selected = 0;
 
-	setlocale(LC_ALL, getenv(ENV_LANG));
-	textdomain("imgboot");
+	// Default language, character set, etc.
+	setDefaults();
 
 	processId = multitaskerGetCurrentProcessId();
 
@@ -505,7 +606,7 @@ int main(int argc, char *argv[])
 		haveInstall = 1;
 
 	// Is there a password on the administrator account?
-	if (userAuthenticate("admin", "") < 0)
+	if (userAuthenticate(USER_ADMIN, "") < 0)
 		passwordSet = 1;
 
 	if (graphics)
@@ -558,7 +659,8 @@ int main(int argc, char *argv[])
 		if (numOptions > 1)
 		{
 			selected = vshCursorMenu(_("\nPlease select from the following "
-				"options"), optionStrings, numOptions, defOption);
+				"options"), optionStrings, numOptions, 10 /* max rows */,
+				defOption);
 		}
 		else
 		{

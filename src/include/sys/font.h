@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,14 +24,14 @@
 #include <sys/ascii.h>
 #include <sys/image.h>
 
-// The font data structure for ascii-oriented fonts
-typedef struct {
-	char name[32];
-	int glyphWidth;
-	int glyphHeight;
-	image glyphs[ASCII_CHARS];
+#define FONT_FAMILY_ARIAL			"arial"
+#define FONT_FAMILY_LIBMONO			"libmono"
+#define FONT_FAMILY_XTERM			"xterm"
 
-} asciiFont;
+#define FONT_STYLEFLAG_ITALIC		0x00000004
+#define FONT_STYLEFLAG_BOLD			0x00000002
+#define FONT_STYLEFLAG_FIXED		0x00000001
+#define FONT_STYLEFLAG_NORMAL		0x00000000
 
 #define _FONT_H
 #endif

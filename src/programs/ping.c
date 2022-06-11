@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -145,7 +145,7 @@ static void responseThread(void)
 	}
 
 	ipHeader = (networkIpHeader *) buffer;
-	srcAddress = (networkAddress *) &(ipHeader->srcAddress);
+	srcAddress = (networkAddress *) &ipHeader->srcAddress;
 	pingPacket = ((void *) ipHeader + sizeof(networkIpHeader));
 
 	while (!stop)
@@ -156,9 +156,9 @@ static void responseThread(void)
 			if (bytes > 0)
 			{
 				// Byte-swap any things we need
-				swab(&(ipHeader->totalLength), &(ipHeader->totalLength),
+				swab(&ipHeader->totalLength, &ipHeader->totalLength,
 					sizeof(unsigned short));
-				swab(&(pingPacket->sequenceNum), &(pingPacket->sequenceNum),
+				swab(&pingPacket->sequenceNum, &pingPacket->sequenceNum,
 					sizeof(unsigned short));
 
 				printf(_("%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d "
@@ -186,6 +186,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ping");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -231,10 +235,7 @@ static void constructWindow(void)
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
 	windowNewTextLabel(window, pingWhom, &params);
-
-	if (fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL) >= 0)
-		fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&(params.font), 1);
+	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 8, NULL);
 
 	// Create a text area to show our ping activity
 	params.gridY = 1;
@@ -359,7 +360,7 @@ int main(int argc, char *argv[])
 
 	// Fill out our ping data.  56 ASCII characters: 'A' through 'x'
 	for (count = 0; count < NETWORK_PING_DATASIZE; count ++)
-		pingData[count] = (char) (count + 65);
+		pingData[count] = (char)(count + 65);
 
 	// Clear out our filter and ask for the network the headers we want
 	memset(&filter, 0, sizeof(networkFilter));

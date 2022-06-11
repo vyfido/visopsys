@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,38 +140,38 @@ msgstr ""
 msgid " (read only)"
 msgstr ""
 
-#: computer.c:577 computer.c:634
+#: computer.c:583 computer.c:640
 msgid "Error spawning browser thread"
 msgstr ""
 
-#: computer.c:590
+#: computer.c:596
 msgid "Error spawning mount as thread"
 msgstr ""
 
-#: computer.c:602
+#: computer.c:608
 msgid "Error spawning unmount thread"
 msgstr ""
 
-#: computer.c:615
+#: computer.c:621
 msgid "Error spawning properties thread"
 msgstr ""
 
-#: computer.c:701
+#: computer.c:707
 msgid "Memory allocation error"
 msgstr ""
 
-#: computer.c:795
+#: computer.c:801
 msgid "Disk"
 msgstr ""
 
-#: computer.c:837
+#: computer.c:843
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: computer.c:861
+#: computer.c:868
 #, c-format
 msgid "Can't load icon image %s"
 msgstr ""

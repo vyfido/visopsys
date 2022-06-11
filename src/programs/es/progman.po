@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2015 J. Andrew McLaughlin
+# Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,48 +87,48 @@ msgstr "zombie "
 msgid "unknown "
 msgstr "desconocido "
 
-#: progman.c:337
+#: progman.c:336
 msgid "Enter command"
 msgstr "Ingrese el comando"
 
-#: progman.c:338
+#: progman.c:337
 msgid "Please enter a command to run:"
 msgstr "Por favor ingrese un comando para ejecutar:"
 
-#: progman.c:367
+#: progman.c:366
 msgid "Unable to execute program"
 msgstr "No se puede ejecutar"
 
-#: progman.c:404 progman.c:607
+#: progman.c:403 progman.c:612
 msgid "Set priority"
 msgstr "Configurar prioridad"
 
-#: progman.c:405
+#: progman.c:404
 msgid "Please enter the desired priority"
 msgstr "Ingrese la prioridad deseada"
 
-#: progman.c:497
+#: progman.c:500
 msgid "Unable to launch file dialog"
 msgstr "No se puede abrir dialogo de archivos"
 
-#: progman.c:566
+#: progman.c:571
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr "Proceso                   PID PPID UID Pri Priv CPU% STATUS   "
 
-#: progman.c:580
+#: progman.c:585
 msgid "Show all sub-processes"
 msgstr "Mostrar subprocesos"
 
-#: progman.c:600
+#: progman.c:605
 msgid "Run program"
 msgstr "Ejecutar Programa"
 
-#: progman.c:613
+#: progman.c:618
 msgid "Kill process"
 msgstr "Matar proceso"
 
-#: progman.c:636
+#: progman.c:641
 #, c-format
 msgid ""
 "\n"
@@ -137,6 +137,6 @@ msgstr ""
 "\n"
 "El comando \"%s\" solo funciona en modo grafico\n"
 
-#: progman.c:655
+#: progman.c:660
 msgid "Error getting memory"
 msgstr "Error al obtener memoria"

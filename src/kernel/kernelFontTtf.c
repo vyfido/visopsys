@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -159,7 +159,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	unsigned short tableEntries = 0;
 
 	// Check params
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
 
 	// Make sure there's enough data here for our detection
@@ -214,13 +214,13 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 
 	// Find the 'head' or 'bhed' table
 	tableDirEntry = findTableDirEntry(tableDir, numTables, TTF_TABLETAG_BHED);
-	if (tableDirEntry == NULL)
+	if (!tableDirEntry)
 	{
 		kernelDebug(debug_misc, "TTF has no BHED, looking for HEAD");
 		tableDirEntry =
 			findTableDirEntry(tableDir, numTables, TTF_TABLETAG_HEAD);
 	}
-	if (tableDirEntry == NULL)
+	if (!tableDirEntry)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF font file has no 'head' or 'bhed' table");
@@ -242,7 +242,7 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 
 	// Find the 'maxp' table
 	tableDirEntry = findTableDirEntry(tableDir, numTables, TTF_TABLETAG_MAXP);
-	if (tableDirEntry == NULL)
+	if (!tableDirEntry)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF font file has no 'maxp' table");
@@ -268,7 +268,7 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 
 	// Find the EBDT table
 	tableDirEntry = findTableDirEntry(tableDir, numTables, TTF_TABLETAG_EBDT);
-	if (tableDirEntry == NULL)
+	if (!tableDirEntry)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF font file has no 'EBDT' table");
@@ -291,7 +291,7 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 
 	// Find the EBLC table
 	tableDirEntry = findTableDirEntry(tableDir, numTables, TTF_TABLETAG_EBLC);
-	if (tableDirEntry == NULL)
+	if (!tableDirEntry)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF font file has no 'EBLC' table");
@@ -326,7 +326,7 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 
 	font->indexSubTables =
 		kernelMalloc(font->numIndexSubTables * sizeof(ttfIndexSubTable));
-	if (font->indexSubTables == NULL)
+	if (!font->indexSubTables)
 		return (status = ERR_MEMORY);
 
 	indexSubTableArray = ((void *) eblcTable +
@@ -372,7 +372,7 @@ static int load(unsigned char *fontFileData, int dataLength,
 	int count;
 
 	// Check params
-	if ((fontFileData == NULL) || !dataLength || (pointer == NULL))
+	if (!fontFileData || !dataLength || !pointer)
 		return (status = ERR_NULLPARAMETER);
 
 	kernelMemClear(&font, sizeof(ttfFont));
@@ -389,7 +389,7 @@ static int load(unsigned char *fontFileData, int dataLength,
 	// Get memory for the font structure and the images data.
 	newFont = kernelMalloc(sizeof(kernelAsciiFont));
 	fontData = kernelMalloc(font.charBytes * ASCII_PRINTABLES);
-	if ((newFont == NULL) || (fontData == NULL))
+	if (!newFont || !fontData)
 	{
 		kernelError(kernel_error, "Unable to get memory to hold the font data");
 		status = ERR_MEMORY;

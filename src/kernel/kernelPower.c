@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,7 +51,7 @@ int kernelPowerInitialize(kernelDevice *dev)
 
 	systemPower = dev;
 
-	if ((systemPower->driver == NULL) || (systemPower->driver->ops == NULL))
+	if (!systemPower->driver || !systemPower->driver->ops)
 	{
 		kernelError(kernel_error, "The power driver or ops are NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -70,11 +70,11 @@ int kernelPowerOff(void)
 
 	int status = 0;
 
-	if (systemPower == NULL)
+	if (!systemPower)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'power off' function has been installed
-	if (ops->driverPowerOff == NULL)
+	if (!ops->driverPowerOff)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);

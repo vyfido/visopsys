@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2015 J. Andrew McLaughlin
+#  Copyright (C) 1998-2016 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-16 01:26+0100\n"
+"POT-Creation-Date: 2015-10-02 00:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,11 +25,11 @@ msgstr "Bearbeiten der Konfiguration"
 msgid "File"
 msgstr "Datei"
 
-#: confedit.c:66 confedit.c:371
+#: confedit.c:66 confedit.c:370
 msgid "Save"
 msgstr "Speichern"
 
-#: confedit.c:67 confedit.c:371
+#: confedit.c:67 confedit.c:370
 msgid "Quit"
 msgstr "Beenden"
 
@@ -79,19 +79,19 @@ msgstr "Wert:"
 msgid "OK"
 msgstr "OK"
 
-#: confedit.c:279 confedit.c:371
+#: confedit.c:279 confedit.c:370
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: confedit.c:369
+#: confedit.c:368
 msgid "Unsaved changes"
 msgstr "Ungespeicherte Änderungen"
 
-#: confedit.c:370
+#: confedit.c:369
 msgid "Quit without saving changes?"
 msgstr "Beenden ohne speichern der Änderungen?"
 
-#: confedit.c:611
+#: confedit.c:612
 #, c-format
 msgid ""
 "\n"
@@ -100,15 +100,15 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: confedit.c:623
+#: confedit.c:624
 msgid "Enter filename"
 msgstr "Dateiname eingeben"
 
-#: confedit.c:624
+#: confedit.c:625
 msgid "Please enter a configuration file to edit:"
 msgstr "Bitte geben Sie eine Konfigurationsdatei zum bearbeiten ein:"
 
-#: confedit.c:646
+#: confedit.c:648
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr "Fehler %d beim erstellen einer neuen Konfigurationsdatei."

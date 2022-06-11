@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -105,7 +105,8 @@ static int draw(kernelWindowComponent *component)
 		{
 			// Don't draw text outside our component area
 			while (((int) kernelFontGetPrintedWidth(
-				(asciiFont *) component->params.font, textBuffer) >
+				(kernelFont *) component->params.font,
+				(char *) component->charSet, textBuffer) >
 				(component->width - 2)) && strlen(textBuffer))
 			{
 				textBuffer[strlen(textBuffer) - 1] = '\0';
@@ -123,9 +124,9 @@ static int draw(kernelWindowComponent *component)
 				kernelGraphicDrawText(component->buffer,
 					(color *) &component->params.background,
 					(color *) &component->params.foreground,
-					(asciiFont *) component->params.font, textBuffer,
-					draw_normal, (component->xCoord + 1),
-					(component->yCoord + 1));
+					(kernelFont *) component->params.font,
+					(char *) component->charSet, textBuffer, draw_normal,
+					(component->xCoord + 1), (component->yCoord + 1));
 		}
 		else
 		{
@@ -133,9 +134,9 @@ static int draw(kernelWindowComponent *component)
 				kernelGraphicDrawText(component->buffer,
 					(color *) &component->params.foreground,
 					(color *) &component->params.background,
-					(asciiFont *) component->params.font, textBuffer,
-					draw_normal, (component->xCoord + 1),
-					(component->yCoord + 1));
+					(kernelFont *) component->params.font,
+					(char *) component->charSet, textBuffer, draw_normal,
+					(component->xCoord + 1), (component->yCoord + 1));
 		}
 
 		kernelFree(textBuffer);
@@ -201,14 +202,15 @@ static int setData(kernelWindowComponent *component, void *itemParams,
 		component->width = 2;
 		if (component->params.font)
 		{
-			component->width += kernelFontGetPrintedWidth((asciiFont *)
-				component->params.font, (char *) listItem->params.text);
+			component->width += kernelFontGetPrintedWidth((kernelFont *)
+				component->params.font, (char *) component->charSet,
+				(char *) listItem->params.text);
 		}
 
 		component->height = 2;
 		if (component->params.font)
 		{
-			component->height += ((asciiFont *)
+			component->height += ((kernelFont *)
 				component->params.font)->glyphHeight;
 		}
 	}

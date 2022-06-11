@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -67,6 +67,10 @@ static void refreshWindow(void)
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cmdwin");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -139,17 +143,10 @@ int main(int argc, char *argv[])
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 	params.flags |= WINDOW_COMPFLAG_STICKYFOCUS;
-
-	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
-	if (status >= 0)
-		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
-			&(params.font), 1);
-	if (status < 0)
-	{
-		params.font = NULL;
-		// The system font can comfortably show more rows
+	params.font = fontGet(FONT_FAMILY_XTERM, FONT_STYLEFLAG_FIXED, 10, NULL);
+	if (!params.font)
+		// The default/system fonts can comfortably show more rows
 		rows = 40;
-	}
 
 	textArea = windowNewTextArea(window, 80, rows, 200, &params);
 	windowComponentFocus(textArea);

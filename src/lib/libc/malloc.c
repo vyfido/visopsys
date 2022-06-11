@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -746,7 +746,7 @@ void *_doMalloc(unsigned size, const char *function)
 
 	// If the requested block size is zero, forget it.  We can probably
 	// assume something has gone wrong in the calling program
-	if (size == 0)
+	if (!size)
 	{
 		error("Can't allocate zero bytes (%s)", function);
 		errno = ERR_INVALID;
@@ -951,7 +951,7 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
 	// Loop through the used block list
 	for (count = 0; (block && (count < doBlocks)); count ++)
 	{
-		mallocBlock2MemoryBlock(block, &(blocksArray[count]));
+		mallocBlock2MemoryBlock(block, &blocksArray[count]);
 		block = block->next;
 	}
 

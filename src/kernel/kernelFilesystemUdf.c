@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,125 +24,13 @@
 
 #include "kernelFilesystemUdf.h"
 #include "kernelDebug.h"
+#include "kernelDriver.h"
 #include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelMalloc.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/iso.h>
-
-
-static void makeSystemTime(udfTimestamp *timestamp, unsigned *sysDate,
-	unsigned *sysTime)
-{
-	// This function takes a UDF date/time value and returns the equivalent in
-	// packed-BCD system format.
-
-	// The year
-	*sysDate = (timestamp->year << 9);
-	// The month (1-12)
-	*sysDate |= (timestamp->month << 5);
-	// Day of the month (1-31)
-	*sysDate |= timestamp->day;
-	// The hour
-	*sysTime = (timestamp->hour << 12);
-	// The minute
-	*sysTime |= (timestamp->minute << 6);
-	// The second
-	*sysTime |= timestamp->second;
-
-	return;
-}
-
-
-static void fillEntry(udfInternalData *udfData, udfFileEntry *udfEntry,
-	kernelFileEntry *entry)
-{
-	// Given pointers to a UDF 'file entry' structure and a kernelFileEntry,
-	// fill in the kernelFileEntry.
-
-	switch(udfEntry->icbTag.fileType)
-	{
-		case 3:
-			entry->type = linkT;
-			break;
-		case 4:
-			entry->type = dirT;
-			break;
-		case 5:
-			entry->type = fileT;
-			break;
-		default:
-			entry->type = unknownT;
-			break;
-	}
-
-	entry->creationTime = udfData->recordTime;
-	entry->creationDate = udfData->recordDate;
-	makeSystemTime(&udfEntry->accessTime, (unsigned *) &entry->accessedDate,
-		(unsigned *) &entry->accessedTime);
-	makeSystemTime(&udfEntry->modifiedTime, (unsigned *) &entry->modifiedDate,
-		(unsigned *) &entry->modifiedTime);
-	entry->size = udfEntry->length;
-	entry->blocks = udfEntry->blocks;
-}
-
-
-static int readEntry(udfInternalData *udfData, unsigned icbLogical,
-	udfFileEntry *udfEntry, kernelFileEntry *entry)
-{
-	// Read the UDF file entry located at sector 'icbLogical' and call fillEntry
-	// to save the relevant data in the kernelFileEntry
-
-	int status = 0;
-	udfFileData *fileData = NULL;
-	udfShortAllocDesc *allocDesc = NULL;
-
-	kernelDebug(debug_fs, "UDF: Read ICB for %s at %u", entry->name,
-		icbLogical);
-
-	status = kernelDiskReadSectors((char *) udfData->disk->name, icbLogical, 1,
-		udfEntry);
-	if (status < 0)
-		return (status);
-
-	// Make sure that we've loaded an ICB file entry
-	if (udfEntry->tag.tagId != UDF_TAGID_FILEENTRYDESC)
-	{
-		kernelError(kernel_error, "File entry for %s is not valid "
-			"(tag %d != %d)", entry->name, udfEntry->tag.tagId,
-			UDF_TAGID_FILEENTRYDESC);
-		return (status = ERR_BADDATA);
-	}
-
-	fillEntry(udfData, udfEntry, entry);
-
-	if (udfEntry->allocDescsLength != sizeof(udfShortAllocDesc))
-	{
-		kernelError(kernel_warn, "File %s has alloc desc length %u not %u",
-			entry->name, udfEntry->allocDescsLength, sizeof(udfShortAllocDesc));
-		kernelDebug(debug_fs, "UDF: FileEntry\n"
-			"  tag %u maxEntries %u linkCount %u recordLength %u\n"
-			"  length %llu blocks %llu",
-			udfEntry->tag.tagId, udfEntry->icbTag.maxEntries,
-			udfEntry->linkCount, udfEntry->recordLength,
-			udfEntry->length, udfEntry->blocks);
-	}
-
-	if (!entry->driverData)
-	{
-		kernelError(kernel_error, "File %s has no private data", entry->name);
-		return (status = ERR_NODATA);
-	}
-
-	fileData = (udfFileData *) entry->driverData;
-	allocDesc =
-		(udfShortAllocDesc *) (udfEntry->extdAttrs + udfEntry->extdAttrsLength);
-
-	fileData->blockNumber = (udfData->partLogical + allocDesc->location);
-
-	return (status);
-}
 
 
 static void decodeDstring(char *dest, const char *src, int length)
@@ -174,7 +62,7 @@ static void decodeDstring(char *dest, const char *src, int length)
 				break;
 
 			case 16:
-				dest[count] = (char) ((short *) src)[count + 1];
+				dest[count] = (char)((short *) src)[count + 1];
 				break;
 		}
 
@@ -183,6 +71,29 @@ static void decodeDstring(char *dest, const char *src, int length)
 	}
 
 	dest[length] = '\0';
+}
+
+
+static void makeSystemTime(udfTimestamp *timestamp, unsigned *sysDate,
+	unsigned *sysTime)
+{
+	// This function takes a UDF date/time value and returns the equivalent in
+	// packed-BCD system format.
+
+	// The year
+	*sysDate = (timestamp->year << 9);
+	// The month (1-12)
+	*sysDate |= (timestamp->month << 5);
+	// Day of the month (1-31)
+	*sysDate |= timestamp->day;
+	// The hour
+	*sysTime = (timestamp->hour << 12);
+	// The minute
+	*sysTime |= (timestamp->minute << 6);
+	// The second
+	*sysTime |= timestamp->second;
+
+	return;
 }
 
 
@@ -269,7 +180,7 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 	// Scan the prim volume desriptor sequence
 	for (count = 0; count < primVolDescSeqSectors; count ++)
 	{
-		tag = (udfDescTag *) (buffer + (count * theDisk->physical->sectorSize));
+		tag = (udfDescTag *)(buffer + (count * theDisk->physical->sectorSize));
 
 		if (tag->tagId == UDF_TAGID_PRIMARYVOLDESC)
 		{
@@ -277,15 +188,18 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 				(buffer + (count * theDisk->physical->sectorSize));
 			decodeDstring((char *) theDisk->filesystem.label,
 				primDesc->identifier, 32);
+
 			// Remove unnecessary whitespace at the end
 			while ((len = strlen((char *) theDisk->filesystem.label)) &&
 				(theDisk->filesystem.label[len - 1] == ' '))
 			{
 				theDisk->filesystem.label[len - 1] = '\0';
 			}
+
 			makeSystemTime(&primDesc->recordTime,
 				(unsigned *) &udfData->recordDate,
 				(unsigned *) &udfData->recordTime);
+
 			kernelDebug(debug_fs, "UDF: Volume label \"%s\"",
 				theDisk->filesystem.label);
 		}
@@ -362,7 +276,101 @@ out:
 
 	if (buffer)
 		kernelFree(buffer);
+
 	return (udfData);
+}
+
+
+static void fillEntry(udfInternalData *udfData, udfFileEntry *udfEntry,
+	kernelFileEntry *entry)
+{
+	// Given pointers to a UDF 'file entry' structure and a kernelFileEntry,
+	// fill in the kernelFileEntry.
+
+	switch(udfEntry->icbTag.fileType)
+	{
+		case 3:
+			entry->type = linkT;
+			break;
+		case 4:
+			entry->type = dirT;
+			break;
+		case 5:
+			entry->type = fileT;
+			break;
+		default:
+			entry->type = unknownT;
+			break;
+	}
+
+	entry->creationTime = udfData->recordTime;
+	entry->creationDate = udfData->recordDate;
+
+	makeSystemTime(&udfEntry->accessTime, (unsigned *) &entry->accessedDate,
+		(unsigned *) &entry->accessedTime);
+
+	makeSystemTime(&udfEntry->modifiedTime, (unsigned *) &entry->modifiedDate,
+		(unsigned *) &entry->modifiedTime);
+
+	entry->size = udfEntry->length;
+	entry->blocks = udfEntry->blocks;
+}
+
+
+static int readEntry(udfInternalData *udfData, unsigned icbLogical,
+	udfFileEntry *udfEntry, kernelFileEntry *entry)
+{
+	// Read the UDF file entry located at sector 'icbLogical' and call fillEntry
+	// to save the relevant data in the kernelFileEntry
+
+	int status = 0;
+	udfFileData *fileData = NULL;
+	udfShortAllocDesc *allocDesc = NULL;
+
+	kernelDebug(debug_fs, "UDF: Read ICB for %s at %u", entry->name,
+		icbLogical);
+
+	status = kernelDiskReadSectors((char *) udfData->disk->name, icbLogical, 1,
+		udfEntry);
+	if (status < 0)
+		return (status);
+
+	// Make sure that we've loaded an ICB file entry
+	if (udfEntry->tag.tagId != UDF_TAGID_FILEENTRYDESC)
+	{
+		kernelError(kernel_error, "File entry for %s is not valid "
+			"(tag %d != %d)", entry->name, udfEntry->tag.tagId,
+			UDF_TAGID_FILEENTRYDESC);
+		return (status = ERR_BADDATA);
+	}
+
+	fillEntry(udfData, udfEntry, entry);
+
+	if (udfEntry->allocDescsLength != sizeof(udfShortAllocDesc))
+	{
+		kernelError(kernel_warn, "File %s has alloc desc length %u not %u",
+			entry->name, udfEntry->allocDescsLength, sizeof(udfShortAllocDesc));
+		kernelDebug(debug_fs, "UDF: FileEntry\n"
+			"  tag %u maxEntries %u linkCount %u recordLength %u\n"
+			"  length %llu blocks %llu",
+			udfEntry->tag.tagId, udfEntry->icbTag.maxEntries,
+			udfEntry->linkCount, udfEntry->recordLength,
+			udfEntry->length, udfEntry->blocks);
+	}
+
+	if (!entry->driverData)
+	{
+		kernelError(kernel_error, "File %s has no private data", entry->name);
+		return (status = ERR_NODATA);
+	}
+
+	fileData = (udfFileData *) entry->driverData;
+	allocDesc = (udfShortAllocDesc *)(udfEntry->extdAttrs +
+		udfEntry->extdAttrsLength);
+
+	fileData->blockNumber = (udfData->partLogical + allocDesc->location);
+
+	return (status);
 }
 
 
@@ -391,16 +399,15 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 	}
 
 	// Allocate a buffer for the directory contents
-	buffer =
-		kernelMalloc(dirEntry->blocks * udfData->disk->physical->sectorSize);
+	buffer = kernelMalloc(dirEntry->blocks *
+		udfData->disk->physical->sectorSize);
 	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	// Read the directory contents
-	status =
-		kernelDiskReadSectors((char *) udfData->disk->name,
-			((udfFileData *) dirEntry->driverData)->blockNumber,
-			dirEntry->blocks, buffer);
+	status = kernelDiskReadSectors((char *) udfData->disk->name,
+		((udfFileData *) dirEntry->driverData)->blockNumber, dirEntry->blocks,
+		buffer);
 	if (status < 0)
 		goto out;
 
@@ -428,7 +435,9 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 		{
 			// NULL (terminating) entry?
 			if (!fileId->tag.tagId)
+			{
 				break;
+			}
 			else
 			{
 				kernelError(kernel_error, "File identifier for %s is not valid "
@@ -463,9 +472,8 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 			fileId->idLength, fileId->charx);
 
 		// Read the entry
-		status =
-			readEntry(udfData, (udfData->partLogical + fileId->icb.location),
-				udfEntry, entry);
+		status = readEntry(udfData, (udfData->partLogical +
+			fileId->icb.location), udfEntry, entry);
 		if (status < 0)
 			goto out;
 
@@ -496,6 +504,14 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 	return (status);
 }
 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard filesystem driver functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 static int detect(kernelDisk *theDisk)
 {
@@ -568,7 +584,9 @@ static int detect(kernelDisk *theDisk)
 		// descriptor, stop looking.
 		if (!strncmp(beaDesc->identifier, UDF_STANDARD_IDENTIFIER_BEA, 5) ||
 			strncmp(beaDesc->identifier, ISO_STANDARD_IDENTIFIER , 5))
-		break;
+		{
+			break;
+		}
 	}
 
 	if (strncmp(beaDesc->identifier, UDF_STANDARD_IDENTIFIER_BEA, 5) ||
@@ -805,9 +823,9 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 	if (!udfData)
 		return (status = ERR_BADDATA);
 
-	status =
-		kernelDiskReadSectors((char *) udfData->disk->name,
-			(dirRec->blockNumber + blockNum), blocks, buffer);
+	status = kernelDiskReadSectors((char *) udfData->disk->name,
+		(dirRec->blockNumber + blockNum), blocks, buffer);
+
 	return (status);
 }
 

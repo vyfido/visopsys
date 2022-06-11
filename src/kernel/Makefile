@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2015 J. Andrew McLaughlin
+##  Copyright (C) 1998-2016 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -33,6 +33,7 @@ endif
 NAMES = kernelMain \
 	kernelApi \
 	kernelBus \
+	kernelCharset \
 	kernelCpu \
 	kernelDebug \
 	kernelDescriptor \
@@ -60,6 +61,7 @@ NAMES = kernelMain \
 	kernelImageBmp \
 	kernelImageIco \
 	kernelImageJpg \
+	kernelImagePpm \
 	kernelInitialize \
 	kernelInterrupt \
 	kernelKeyboard \
@@ -87,6 +89,7 @@ NAMES = kernelMain \
 	kernelStream \
 	kernelSysTimer \
 	kernelText \
+	kernelTouch \
 	kernelUser \
 	kernelVariableList \
 	kernelWindow \
@@ -104,6 +107,7 @@ NAMES = kernelMain \
 	kernelWindowListItem \
 	kernelWindowMenu \
 	kernelWindowMenuBar \
+	kernelWindowMenuBarIcon \
 	kernelWindowMenuItem \
 	kernelWindowPasswordField \
 	kernelWindowProgressBar \
@@ -115,7 +119,8 @@ NAMES = kernelMain \
 	kernelWindowTextArea \
 	kernelWindowTextField \
 	kernelWindowTextLabel \
-	kernelWindowTitleBar
+	kernelWindowTitleBar \
+	kernelWindowTree
 
 DRIVERNAMES = kernelAcpiDriver \
 	kernelApicDriver \
@@ -125,7 +130,7 @@ DRIVERNAMES = kernelAcpiDriver \
 	kernelFramebufferGraphicDriver \
 	kernelGraphicConsoleDriver \
 	kernelIdeDriver \
-	kernelLanceDriver \
+	kernelNetworkPcNetDriver \
 	kernelPciDriver \
 	kernelPicDriver \
 	kernelPs2KeyboardDriver \
@@ -145,6 +150,7 @@ DRIVERNAMES = kernelAcpiDriver \
 	kernelUsbMouseDriver \
 	kernelUsbHubDriver \
 	kernelUsbOhciDriver \
+	kernelUsbTouchscreenDriver \
 	kernelUsbUhciDriver \
 	kernelUsbXhciDriver
 
@@ -157,6 +163,8 @@ KERNEL = ${BUILDDIR}/visopsys
 all: target-dirs ${KERNEL} strip
 	${MAKE} -C de
 	${MAKE} -C es
+	${MAKE} -C ru
+	${MAKE} -C tr
 
 target-dirs:
 	mkdir -p obj
@@ -182,5 +190,7 @@ obj/kernelMisc.o: kernelMisc.c ${STDDEPS}
 clean:
 	${MAKE} -C de clean
 	${MAKE} -C es clean
+	${MAKE} -C ru clean
+	${MAKE} -C tr clean
 	rm -Rf *~ *.o core obj ${KERNEL}
 

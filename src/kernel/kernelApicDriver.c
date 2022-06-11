@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -145,7 +145,7 @@ static int timerIrqMapped(kernelDevice *mpDevice)
 
 			// Is it the timer interrupt?
 			if ((intEntry->intType == MULTIPROC_INTTYPE_INT) &&
-				(intEntry->busIrq == 0))
+				!intEntry->busIrq)
 			{
 				return (1);
 			}

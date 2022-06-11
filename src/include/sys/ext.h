@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -374,7 +374,7 @@ typedef struct {
 	unsigned dtime;						// 0x14
 	unsigned short gid;					// 0x18
 	unsigned short links_count;			// 0x1A
-	unsigned blocks;					// 0x1C
+	unsigned blocks512;					// 0x1C
 	unsigned flags;						// 0x20
 	unsigned osd1;						// 0x24
 	union {								// 0x28

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,26 +29,35 @@
 A command for shutting down (and/or rebooting) the computer.
 
 Usage:
-  shutdown [-T] [-e] [-f] [-r]
+  shutdown [-T] [-e] [-f] [-h] [-r]
 
-This command causes the system to shut down.  If the (optional) '-e'
-parameter is supplied, then 'shutdown' will attempt to eject the boot
-medium (if applicable, such as a CD-ROM).  If the (optional) '-f' parameter
-is supplied, then it will attempt to ignore errors and shut down
-regardless.  Use this flag with caution if filesystems do not appear to be
-unmounting correctly; you may need to back up unsaved data before shutting
-down.  If the (optional) '-r' parameter is supplied, then it will reboot
-the computer rather than simply halting.
+This command causes the system to shut down.
 
-In graphics mode, the program prompts the user to select 'reboot' or
-'shut down'.  If the system is currently booted from a CD-ROM, the dialog
-box also offers a checkbox to eject the disc.  If the '-r' parameter is
-used, the dialog will not appear and the computer will reboot.
+If the (optional) '-e' parameter is supplied, then 'shutdown' will attempt
+to eject the boot medium (if applicable, such as a CD-ROM).
+
+If the (optional) '-f' parameter is supplied, then it will attempt to ignore
+errors and shut down regardless.  Use this with caution if filesystems do not
+appear to be unmounting correctly; you may need to back up unsaved data before
+shutting down.
+
+If the (optional) '-h' parameter is supplied, then it will shut down and power
+off the system, if possible.  This is the default in text mode.
+
+If the (optional) '-r' parameter is supplied, then it will reboot the computer
+rather than simply halting.
+
+In graphics mode, if the '-h' and '-r' parameters are not supplied, the
+program prompts the user to select 'reboot' or 'shut down'.  If the system is
+currently booted from a CD-ROM, the dialog box also offers a checkbox to eject
+the disc.  If the '-h' or '-r' parameters are used, the dialog will not appear
+and the computer will halt or reboot.
 
 Options:
 -T  : Force text mode operation.
 -e  : Eject the boot medium.
 -f  : Force shutdown and ignore errors.
+-h  : Halt.
 -r  : Reboot.
 
 </help>
@@ -78,7 +87,6 @@ Options:
 
 static int graphics = 0;
 static int eject = 0;
-static int reboot = 0;
 static objectKey window = NULL;
 static objectKey rebootIcon = NULL;
 static objectKey shutdownIcon = NULL;
@@ -163,6 +171,10 @@ static void refreshWindow(void)
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("shutdown");
 
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
 	// Refresh the 'reboot' icon
 	windowComponentSetData(rebootIcon, REBOOT, strlen(REBOOT), 1 /* redraw */);
 
@@ -245,16 +257,12 @@ static void constructWindow(void)
 	params.orientationY = orient_middle;
 	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
 		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_CANFOCUS);
-	params.foreground.red = 255;
-	params.foreground.green = 255;
-	params.foreground.blue = 255;
-	params.background.red = 35;
-	params.background.green = 60;
-	params.background.blue = 230;
+	params.foreground = COLOR_WHITE;
+	windowGetColor("desktop", &params.background);
 
 	// Create a reboot icon
 	memset(&iconImage, 0, sizeof(image));
-	if (imageLoad(PATH_SYSTEM_ICONS "/rebticon.bmp", 0, 0, &iconImage) >= 0)
+	if (imageLoad(PATH_SYSTEM_ICONS "/reboot.ico", 64, 64, &iconImage) >= 0)
 	{
 		rebootIcon = windowNewIcon(window, &iconImage, REBOOT, &params);
 		windowRegisterEventHandler(rebootIcon, &eventHandler);
@@ -263,7 +271,7 @@ static void constructWindow(void)
 
 	// Create a shut down icon
 	memset(&iconImage, 0, sizeof(image));
-	if (imageLoad(PATH_SYSTEM_ICONS "/shuticon.bmp", 0, 0, &iconImage) >= 0)
+	if (imageLoad(PATH_SYSTEM_ICONS "/shutdown.ico", 64, 64, &iconImage) >= 0)
 	{
 		params.gridX = 1;
 		shutdownIcon =
@@ -298,6 +306,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	char opt;
 	int force = 0;
+	int reboot = 0;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("shutdown");
@@ -306,7 +315,7 @@ int main(int argc, char *argv[])
 	graphics = graphicsAreEnabled();
 
 	// Check options
-	while (strchr("efrT?", (opt = getopt(argc, argv, "efrT"))))
+	while (strchr("efhrT?", (opt = getopt(argc, argv, "efhrT"))))
 	{
 		switch (opt)
 		{
@@ -318,6 +327,11 @@ int main(int argc, char *argv[])
 			case 'f':
 				// Shut down forcefully
 				force = 1;
+				break;
+
+			case 'h':
+				// Halt
+				graphics = 0;
 				break;
 
 			case 'r':

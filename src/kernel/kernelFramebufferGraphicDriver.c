@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,7 @@ static kernelGraphicAdapter *adapter = NULL;
 static graphicBuffer wholeScreen;
 
 
-static inline void alphaBlend(pixel *pix, float alpha, pixel *buf)
+static inline void alphaBlend32(pixel *pix, float alpha, pixel *buf)
 {
 	// Given a pixel from an image with an alpha channel value, blend it into
 	// the buffer.
@@ -48,13 +48,45 @@ static inline void alphaBlend(pixel *pix, float alpha, pixel *buf)
 }
 
 
+static inline void alphaBlend16(pixel *pix, float alpha, short *buf)
+{
+	// Given a pixel from an image with an alpha channel value, blend it into
+	// the buffer.
+
+	short pixRed, pixGreen, pixBlue;
+	short bufRed, bufGreen, bufBlue;
+
+	pixRed = ((short)(alpha * pix->red) >> 3);
+	pixBlue = ((short)(alpha * pix->blue) >> 3);
+	bufBlue = ((short)((1.0 - alpha) * ((*buf & 0x1F) << 3)) >> 3);
+
+	if (adapter->bitsPerPixel == 16)
+	{
+		pixGreen = ((short)(alpha * pix->green) >> 2);
+		bufRed = ((short)((1.0 - alpha) * ((*buf & 0xF800) >> 8)) >> 3);
+		bufGreen = ((short)((1.0 - alpha) * ((*buf & 0x07E0) >> 3)) >> 2);
+
+		*buf = (((bufRed + pixRed) << 11) | ((bufGreen + pixGreen) << 5) |
+			(bufBlue + pixBlue));
+	}
+	else
+	{
+		pixGreen = ((short)(alpha * pix->green) >> 3);
+		bufRed = ((short)((1.0 - alpha) * ((*buf & 0x7C00) >> 7)) >> 3);
+		bufGreen = ((short)((1.0 - alpha) * ((*buf & 0x03E0) >> 2)) >> 3);
+
+		*buf = (((bufRed + pixRed) << 10) | ((bufGreen + pixGreen) << 5) |
+			(bufBlue + pixBlue));
+	}
+}
+
+
 static int driverClearScreen(color *background)
 {
 	// Resets the whole screen to the background color
 
 	int status = 0;
-	int pixels = (adapter->xRes * adapter->yRes);
-	int count;
+	int lineCount, count;
 
 	// Set everything to the background color
 
@@ -63,16 +95,25 @@ static int driverClearScreen(color *background)
 		unsigned pix = ((background->red << 16) | (background->green << 8) |
 			background->blue);
 
-		processorWriteDwords(pix, adapter->framebuffer, pixels);
+		for (lineCount = 0; lineCount < adapter->yRes; lineCount ++)
+			processorWriteDwords(pix, (adapter->framebuffer +
+				(lineCount * adapter->scanLineBytes)), adapter->xRes);
 	}
 
 	else if (adapter->bitsPerPixel == 24)
 	{
-		for (count = 0; count < (pixels * adapter->bytesPerPixel); )
+		char *linePointer = (char *) adapter->framebuffer;
+
+		for (lineCount = 0; lineCount < adapter->yRes; lineCount ++)
 		{
-			((char *) adapter->framebuffer)[count++] = background->blue;
-			((char *) adapter->framebuffer)[count++] = background->green;
-			((char *) adapter->framebuffer)[count++] = background->red;
+			for (count = 0; count < (adapter->xRes * adapter->bytesPerPixel); )
+			{
+				linePointer[count++] = background->blue;
+				linePointer[count++] = background->green;
+				linePointer[count++] = background->red;
+			}
+
+			linePointer += adapter->scanLineBytes;
 		}
 	}
 
@@ -91,8 +132,9 @@ static int driverClearScreen(color *background)
 				((background->green >> 3) << 5) | (background->blue >> 3));
 		}
 
-		for (count = 0; count < pixels; count ++)
-			((short *) adapter->framebuffer)[count] = pix;
+		for (lineCount = 0; lineCount < adapter->yRes; lineCount ++)
+			processorWriteWords(pix, (adapter->framebuffer +
+				(lineCount * adapter->scanLineBytes)), adapter->xRes);
 	}
 
 	return (status = 0);
@@ -126,6 +168,8 @@ static int driverDrawPixel(graphicBuffer *buffer, color *foreground,
 		return (status = 0);
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	// Draw the pixel using the supplied color
 	framebufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
@@ -200,6 +244,8 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 		buffer = &wholeScreen;
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	// Is it a horizontal line?
 	if (startY == endY)
@@ -465,6 +511,8 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 		return (status = ERR_BOUNDS);
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	if (fill)
 	{
@@ -766,6 +814,8 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 	}
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	// Make sure it's a mono image
 	if (drawImage->type != IMAGETYPE_MONO)
@@ -928,6 +978,8 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 		return (status = ERR_INVALID);
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	if (width)
 		lineLength = width;
@@ -991,7 +1043,8 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 			for (count = 0; count < lineBytes; )
 			{
 				if ((mode == draw_translucent) &&
-					PIXELS_EQ(&imageData[pixelCounter], &drawImage->transColor))
+					PIXELS_EQ(&imageData[pixelCounter],
+						&drawImage->transColor))
 				{
 					// Translucent pixel, just skip it.
 					count += adapter->bytesPerPixel;
@@ -1001,11 +1054,13 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 					 (drawImage->alpha[pixelCounter] < 1.0))
 				{
 					if (drawImage->alpha[pixelCounter] > 0)
-					// Partially-opaque pixel.  Alpha blend it with the contents
-					// of the buffer.
-					alphaBlend(&imageData[pixelCounter],
-						drawImage->alpha[pixelCounter],
-						(pixel *) &framebufferPointer[count]);
+					{
+						// Partially-opaque pixel.  Alpha blend it with the
+						// contents of the buffer.
+						alphaBlend32(&imageData[pixelCounter],
+							drawImage->alpha[pixelCounter],
+							(pixel *) &framebufferPointer[count]);
+					}
 
 					count += adapter->bytesPerPixel;
 				}
@@ -1025,29 +1080,46 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 
 		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
 		{
-			for (count = 0; count < lineLength; count ++)
+			for (count = 0; count < lineLength; count ++, pixelCounter ++)
 			{
-				if (adapter->bitsPerPixel == 16)
+				if ((mode == draw_translucent) &&
+					PIXELS_EQ(&imageData[pixelCounter],
+						&drawImage->transColor))
 				{
-					pix = (((imageData[pixelCounter].red >> 3) << 11) |
-						((imageData[pixelCounter].green >> 2) << 5) |
-						(imageData[pixelCounter].blue >> 3));
+					// Translucent pixel, just skip it.
+					continue;
 				}
+
+				else if ((mode == draw_alphablend) && drawImage->alpha &&
+					 (drawImage->alpha[pixelCounter] < 1.0))
+				{
+					if (drawImage->alpha[pixelCounter] > 0)
+					{
+						// Partially-opaque pixel.  Alpha blend it with the
+						// contents of the buffer.
+						alphaBlend16(&imageData[pixelCounter],
+							drawImage->alpha[pixelCounter],
+							(short *)(framebufferPointer + (count * 2)));
+					}
+				}
+
 				else
 				{
-					pix = (((imageData[pixelCounter].red >> 3) << 10) |
-						((imageData[pixelCounter].green >> 3) << 5) |
-						(imageData[pixelCounter].blue >> 3));
-				}
+					if (adapter->bitsPerPixel == 16)
+					{
+						pix = (((imageData[pixelCounter].red >> 3) << 11) |
+							((imageData[pixelCounter].green >> 2) << 5) |
+							(imageData[pixelCounter].blue >> 3));
+					}
+					else
+					{
+						pix = (((imageData[pixelCounter].red >> 3) << 10) |
+							((imageData[pixelCounter].green >> 3) << 5) |
+							(imageData[pixelCounter].blue >> 3));
+					}
 
-				if ((mode != draw_translucent) ||
-					!PIXELS_EQ(&imageData[pixelCounter],
-					&drawImage->transColor))
-				{
 					((short *) framebufferPointer)[count] = pix;
 				}
-
-				pixelCounter += 1;
 			}
 		}
 
@@ -1093,6 +1165,8 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 	}
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	// If the clip goes off the right edge of the buffer, only grab what exists.
 	if ((xCoord + width) < buffer->width)
@@ -1196,6 +1270,8 @@ static int driverCopyArea(graphicBuffer *buffer, int xCoord1, int yCoord1,
 		buffer = &wholeScreen;
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	// Make sure we're not going outside the buffer
 	if (xCoord1 < 0)
@@ -1303,16 +1379,15 @@ static int driverRenderBuffer(graphicBuffer *buffer, int drawX, int drawY,
 		adapter->bytesPerPixel)) + (clipX * adapter->bytesPerPixel));
 
 	// Calculate the starting offset on the screen
-	screenPointer = wholeScreen.data +
-		(((wholeScreen.width * (drawY + clipY)) + drawX + clipX) *
-			adapter->bytesPerPixel);
+	screenPointer = (wholeScreen.data + ((drawY + clipY) *
+		adapter->scanLineBytes) + ((drawX + clipX) * adapter->bytesPerPixel));
 
 	// Start copying lines
 	for ( ; height > 0; height --)
 	{
 		memcpy(screenPointer, bufferPointer, (width * adapter->bytesPerPixel));
 		bufferPointer += (buffer->width * adapter->bytesPerPixel);
-		screenPointer += (wholeScreen.width * adapter->bytesPerPixel);
+		screenPointer += adapter->scanLineBytes;
 	}
 
 	return (status = 0);
@@ -1341,6 +1416,8 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 		return (status = ERR_BOUNDS);
 
 	scanLineBytes = (buffer->width * adapter->bytesPerPixel);
+	if (buffer->data == adapter->framebuffer)
+		scanLineBytes = adapter->scanLineBytes;
 
 	// Off the left edge of the buffer?
 	if (xCoord < 0)
@@ -1405,7 +1482,7 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 						(filterColor->red >> 3)) >> 1) & 0x001F);
 					green = (((((ptr[count] & 0x07E0) >> 5) +
 						(filterColor->green >> 2)) >> 1) & 0x003F);
-					ptr[count] = (short) ((red << 11) | (green << 5) | blue);
+					ptr[count] = (short)((red << 11) | (green << 5) | blue);
 				}
 				else
 				{
@@ -1413,7 +1490,7 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 						(filterColor->red >> 3)) >> 1) & 0x001F);
 					green = (((((ptr[count] & 0x03E0) >> 5) +
 						(filterColor->green >> 3)) >> 1) & 0x001F);
-					ptr[count] = (short) ((red << 10) | (green << 5) | blue);
+					ptr[count] = (short)((red << 10) | (green << 5) | blue);
 				}
 			}
 		}
@@ -1451,6 +1528,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		adapter->bytesPerPixel = 2;
 	else
 		adapter->bytesPerPixel = (adapter->bitsPerPixel / 8);
+	adapter->scanLineBytes = kernelOsLoaderInfo->graphicsInfo.scanLineBytes;
 	adapter->numberModes = kernelOsLoaderInfo->graphicsInfo.numberModes;
 	memcpy(&adapter->supportedModes,
 		&kernelOsLoaderInfo->graphicsInfo.supportedModes,
@@ -1469,7 +1547,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		// memory
 		status = kernelPageMapToFree(KERNELPROCID,
 			(unsigned) adapter->framebuffer, &adapter->framebuffer,
-			(adapter->xRes * adapter->yRes * adapter->bytesPerPixel));
+			(adapter->yRes * adapter->scanLineBytes));
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Unable to map linear framebuffer");

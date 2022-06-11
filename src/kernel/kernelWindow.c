@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2015 J. Andrew McLaughlin
+//  Copyright (C) 1998-2016 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -135,17 +135,17 @@ static void addBorder(kernelWindow *window)
 
 	memset(&params, 0, sizeof(componentParameters));
 
-	window->borders[0] =
-		kernelWindowNewBorder(window->sysContainer, border_top, &params);
+	window->borders[0] = kernelWindowNewBorder(window->sysContainer,
+		border_top, &params);
 
-	window->borders[1] =
-		kernelWindowNewBorder(window->sysContainer, border_left, &params);
+	window->borders[1] = kernelWindowNewBorder(window->sysContainer,
+		border_left, &params);
 
-	window->borders[2] =
-		kernelWindowNewBorder(window->sysContainer, border_bottom, &params);
+	window->borders[2] = kernelWindowNewBorder(window->sysContainer,
+		border_bottom, &params);
 
-	window->borders[3] =
-		kernelWindowNewBorder(window->sysContainer, border_right, &params);
+	window->borders[3] = kernelWindowNewBorder(window->sysContainer,
+		border_right, &params);
 
 	window->flags |= WINFLAG_HASBORDER;
 
@@ -631,7 +631,7 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 
 		if (doAreasIntersect(&((screenArea)
 			{ xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ),
-			&((screenArea) { (component->xCoord - 2), (component->yCoord - 2),
+			&((screenArea){ (component->xCoord - 2), (component->yCoord - 2),
 				(component->xCoord + component->width + 3),
 				(component->yCoord + component->height + 3) } )))
 		{
@@ -734,7 +734,7 @@ static int windowUpdate(kernelWindow *window, int clipX, int clipY, int width,
 		return (status = 0);
 
 	// Render the parts of this window's buffer that are currently visible.
-	renderVisiblePortions(window, &((screenArea) { clipX, clipY,
+	renderVisiblePortions(window, &((screenArea){ clipX, clipY,
 		(clipX + (width - 1)), (clipY + (height - 1)) } ));
 
 	// If the mouse is in this window, redraw it.
@@ -1060,8 +1060,8 @@ static void focusFirstComponent(kernelWindow *window)
 	int count;
 
 	if (!window->mainContainer->numComps ||
-		!(numComponents = window->mainContainer
-			->numComps(window->mainContainer)))
+		!(numComponents = window->mainContainer->
+			numComps(window->mainContainer)))
 	{
 		return;
 	}
@@ -1121,9 +1121,9 @@ static int focusNextComponent(kernelWindow *window)
 	if (!array)
 		return (status = ERR_MEMORY);
 
-	window->mainContainer
-		->flatten(window->mainContainer, array, &numComponents,
-			(WINFLAG_VISIBLE | WINFLAG_ENABLED | WINFLAG_CANFOCUS));
+	window->mainContainer->flatten(window->mainContainer, array,
+		&numComponents, (WINFLAG_VISIBLE | WINFLAG_ENABLED |
+			WINFLAG_CANFOCUS));
 
 	for (count = 0; count < numComponents; count ++)
 	{
@@ -1326,7 +1326,8 @@ static void mouseEnterExit(objectKey key, int enter)
 		{
 			mouseInWindow = NULL;
 			if (window->pointer)
-				kernelMouseSetPointer(kernelMouseGetPointer("default"));
+				kernelMouseSetPointer(kernelMouseGetPointer(
+					MOUSE_POINTER_DEFAULT));
 			window->mouseInComponent = NULL;
 		}
 		else
@@ -1415,6 +1416,7 @@ static void processInputEvents(void)
 	windowEvent tmpEvent;
 	kernelWindow *window = NULL;
 	kernelWindowComponent *targetComponent = NULL;
+	kernelWindowComponent *subComponent = NULL;
 
 	while (kernelWindowEventStreamRead(&mouseEvents, &event) > 0)
 	{
@@ -1661,6 +1663,19 @@ static void processInputEvents(void)
 					}
 				}
 
+				if ((event.key == keyA4) && (event.type == EVENT_KEY_DOWN))
+				{
+					// The user pressed the 'menu' key.  If there's a context
+					// menu, raise it.
+					subComponent = NULL;
+					if (targetComponent && targetComponent->activeComp)
+						subComponent = targetComponent->
+							activeComp(targetComponent);
+
+					raiseContextMenu(focusWindow, targetComponent,
+						subComponent, NULL /* no event */);
+				}
+
 				// Finally, if the window has a 'key event' function defined,
 				// call it
 				if (focusWindow->keyEvent)
@@ -1766,7 +1781,7 @@ static int spawnWindowThread(void)
 }
 
 
-static kernelWindow *findTopmostWindow(void)
+static kernelWindow *findTopmostWindow(unsigned flags)
 {
 	int topmostLevel = MAXINT;
 	kernelWindow *topmostWindow = NULL;
@@ -1779,7 +1794,7 @@ static kernelWindow *findTopmostWindow(void)
 	// Find the topmost window
 	for (count = 0; count < numberWindows; count ++)
 	{
-		if ((windowList[count]->flags & WINFLAG_VISIBLE) &&
+		if (((windowList[count]->flags & flags) == flags) &&
 			(windowList[count]->level < topmostLevel))
 		{
 			topmostWindow = windowList[count];
@@ -1855,73 +1870,125 @@ static int readFileVariables(const char *fileName)
 	{
 		windowVariables->color.desktop.blue = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "window.minwidth")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_MINWIDTH)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->window.minWidth = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "window.minheight")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_MINHEIGHT)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->window.minHeight = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "window.minrest.tracers")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_MINREST_TRACERS)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->window.minRestTracers = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "titlebar.height")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_TITLEBAR_HEIGHT)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->titleBar.height = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "titlebar.minwidth")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_TITLEBAR_MINWIDTH)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->titleBar.minWidth = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "border.thickness")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_BORDER_THICKNESS)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->border.thickness = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		"border.shadingincrement")) && (atoi(value) >= 0))
+		WINDOW_BORDER_SHADINGINCREMENT)) && (atoi(value) >= 0))
 	{
 		windowVariables->border.shadingIncrement = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "radiobutton.size")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_RADIOBUTTON_SIZE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->radioButton.size = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "checkbox.size")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_CHECKBOX_SIZE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->checkbox.size = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "slider.width")) &&
+	if ((value = kernelVariableListGet(&settings, WINDOW_SLIDER_WIDTH)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->slider.width = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, "font.varwidth.small.file")))
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_FIXWIDTH_SMALL_FAMILY)))
 	{
-		strncpy(windowVariables->font.varWidth.small.file, value, 128);
+		strncpy(windowVariables->font.fixWidth.small.family, value,
+			FONT_FAMILY_LEN);
 	}
-	if ((value = kernelVariableListGet(&settings, "font.varwidth.small.name")))
+	windowVariables->font.fixWidth.small.flags = FONT_STYLEFLAG_FIXED;
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_FIXWIDTH_SMALL_FLAGS)))
 	{
-		strncpy(windowVariables->font.varWidth.small.name, value, 128);
+		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
+			windowVariables->font.fixWidth.small.flags |= FONT_STYLEFLAG_BOLD;
 	}
 	if ((value = kernelVariableListGet(&settings,
-		"font.varwidth.medium.file")))
+		WINDOW_FONT_FIXWIDTH_SMALL_POINTS)) && (atoi(value) >= 0))
 	{
-		strncpy(windowVariables->font.varWidth.medium.file, value, 128);
+		windowVariables->font.fixWidth.small.points = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		"font.varwidth.medium.name")))
+		WINDOW_FONT_FIXWIDTH_MEDIUM_FAMILY)))
 	{
-		strncpy(windowVariables->font.varWidth.medium.name, value, 128);
+		strncpy(windowVariables->font.fixWidth.medium.family, value,
+			FONT_FAMILY_LEN);
+	}
+	windowVariables->font.fixWidth.medium.flags = FONT_STYLEFLAG_FIXED;
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_FIXWIDTH_MEDIUM_FLAGS)))
+	{
+		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
+			windowVariables->font.fixWidth.medium.flags |= FONT_STYLEFLAG_BOLD;
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_FIXWIDTH_MEDIUM_POINTS)) && (atoi(value) >= 0))
+	{
+		windowVariables->font.fixWidth.medium.points = atoi(value);
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_VARWIDTH_SMALL_FAMILY)))
+	{
+		strncpy(windowVariables->font.varWidth.small.family, value,
+			FONT_FAMILY_LEN);
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_VARWIDTH_SMALL_FLAGS)))
+	{
+		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
+			windowVariables->font.varWidth.small.flags |= FONT_STYLEFLAG_BOLD;
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_VARWIDTH_SMALL_POINTS)) && (atoi(value) >= 0))
+	{
+		windowVariables->font.varWidth.small.points = atoi(value);
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_VARWIDTH_MEDIUM_FAMILY)))
+	{
+		strncpy(windowVariables->font.varWidth.medium.family, value,
+			FONT_FAMILY_LEN);
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_VARWIDTH_MEDIUM_FLAGS)))
+	{
+		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
+			windowVariables->font.varWidth.medium.flags |= FONT_STYLEFLAG_BOLD;
+	}
+	if ((value = kernelVariableListGet(&settings,
+		WINDOW_FONT_VARWIDTH_MEDIUM_POINTS)) && (atoi(value) >= 0))
+	{
+		windowVariables->font.varWidth.medium.points = atoi(value);
 	}
 
 	kernelVariableListDestroy(&settings);
@@ -1949,12 +2016,6 @@ static int setupWindowVariables(void)
 
 	// Set defaults
 
-	// The default system font
-	status = kernelFontGetDefault(&windowVariables->font.defaultFont);
-	if (status < 0)
-		// This would be sort of serious
-		return (status);
-
 	// Variables for colors
 	memcpy(&windowVariables->color.foreground, &kernelDefaultForeground,
 		sizeof(color));
@@ -1964,70 +2025,105 @@ static int setupWindowVariables(void)
 		sizeof(color));
 
 	// Variables for windows
-	windowVariables->window.minWidth = WINDOW_MIN_WIDTH;
-	windowVariables->window.minHeight = WINDOW_MIN_HEIGHT;
-	windowVariables->window.minRestTracers = WINDOW_MINREST_TRACERS;
+	windowVariables->window.minWidth = WINDOW_DEFAULT_MIN_WIDTH;
+	windowVariables->window.minHeight = WINDOW_DEFAULT_MIN_HEIGHT;
+	windowVariables->window.minRestTracers = WINDOW_DEFAULT_MINREST_TRACERS;
 
 	// Variables for title bars
-	windowVariables->titleBar.height = WINDOW_TITLEBAR_HEIGHT;
-	windowVariables->titleBar.minWidth = WINDOW_TITLEBAR_MINWIDTH;
+	windowVariables->titleBar.height = WINDOW_DEFAULT_TITLEBAR_HEIGHT;
+	windowVariables->titleBar.minWidth = WINDOW_DEFAULT_TITLEBAR_MINWIDTH;
 
 	// Variables for borders
-	windowVariables->border.thickness = WINDOW_BORDER_THICKNESS;
-	windowVariables->border.shadingIncrement = WINDOW_SHADING_INCREMENT;
+	windowVariables->border.thickness = WINDOW_DEFAULT_BORDER_THICKNESS;
+	windowVariables->border.shadingIncrement =
+		WINDOW_DEFAULT_SHADING_INCREMENT;
 
 	// Variables for radio buttons
-	windowVariables->radioButton.size = WINDOW_RADIOBUTTON_SIZE;
+	windowVariables->radioButton.size = WINDOW_DEFAULT_RADIOBUTTON_SIZE;
 
 	// Variables for checkboxes
-	windowVariables->checkbox.size = WINDOW_CHECKBOX_SIZE;
+	windowVariables->checkbox.size = WINDOW_DEFAULT_CHECKBOX_SIZE;
 
 	// Variables for sliders and scroll bars
-	windowVariables->slider.width = WINDOW_SLIDER_WIDTH;
+	windowVariables->slider.width = WINDOW_DEFAULT_SLIDER_WIDTH;
+
+	// The small fixed-width font
+	strcpy(windowVariables->font.fixWidth.small.family,
+		WINDOW_DEFAULT_FIXFONT_SMALL_FAMILY);
+	windowVariables->font.fixWidth.small.flags =
+		WINDOW_DEFAULT_FIXFONT_SMALL_FLAGS;
+	windowVariables->font.fixWidth.small.points =
+		WINDOW_DEFAULT_FIXFONT_SMALL_POINTS;
+
+	// The medium fixed-width font
+	strcpy(windowVariables->font.fixWidth.medium.family,
+		WINDOW_DEFAULT_FIXFONT_MEDIUM_FAMILY);
+	windowVariables->font.fixWidth.medium.flags =
+		WINDOW_DEFAULT_FIXFONT_MEDIUM_FLAGS;
+	windowVariables->font.fixWidth.medium.points =
+		WINDOW_DEFAULT_FIXFONT_MEDIUM_POINTS;
 
 	// The small variable-width font
-	strcpy(windowVariables->font.varWidth.small.file,
-		WINDOW_DEFAULT_VARFONT_SMALL_FILE);
-	strcpy(windowVariables->font.varWidth.small.name,
-		WINDOW_DEFAULT_VARFONT_SMALL_NAME);
+	strcpy(windowVariables->font.varWidth.small.family,
+		WINDOW_DEFAULT_VARFONT_SMALL_FAMILY);
+	windowVariables->font.varWidth.small.flags =
+		WINDOW_DEFAULT_VARFONT_SMALL_FLAGS;
+	windowVariables->font.varWidth.small.points =
+		WINDOW_DEFAULT_VARFONT_SMALL_POINTS;
 
 	// The medium variable-width font
-	strcpy(windowVariables->font.varWidth.medium.file,
-		WINDOW_DEFAULT_VARFONT_MEDIUM_FILE);
-	strcpy(windowVariables->font.varWidth.medium.name,
-		WINDOW_DEFAULT_VARFONT_MEDIUM_NAME);
+	strcpy(windowVariables->font.varWidth.medium.family,
+		WINDOW_DEFAULT_VARFONT_MEDIUM_FAMILY);
+	windowVariables->font.varWidth.medium.flags =
+		WINDOW_DEFAULT_VARFONT_MEDIUM_FLAGS;
+	windowVariables->font.varWidth.medium.points =
+		WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS;
 
 	// Now read the system window config file to let it overrides our defaults.
-	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
+	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIGFILE);
 
 	// Load fonts.  Don't fail the whole initialization just because we can't
 	// read one, or anything like that.
 
-	status = kernelFileFind(windowVariables->font.varWidth.small.file, NULL);
-	if (status >= 0)
+	windowVariables->font.fixWidth.small.font =
+		kernelFontGet(windowVariables->font.fixWidth.small.family,
+			windowVariables->font.fixWidth.small.flags,
+			windowVariables->font.fixWidth.small.points, NULL);
+
+	if (!windowVariables->font.fixWidth.small.font)
 	{
-		status = kernelFontLoadSystem(
-			windowVariables->font.varWidth.small.file,
-			windowVariables->font.varWidth.small.name,
-			&windowVariables->font.varWidth.small.font, 0);
-	}
-	if (status < 0)
-	{
-		windowVariables->font.varWidth.small.font =
-			windowVariables->font.defaultFont;
+		// Try the built-in system font
+		status = kernelFontGetSystem(
+			&windowVariables->font.fixWidth.small.font);
+		if (status < 0)
+			// This would be sort of serious
+			return (status);
 	}
 
-	status = kernelFileFind(windowVariables->font.varWidth.medium.file, NULL);
-	if (status >= 0)
-	{
-		status = kernelFontLoadSystem(
-			windowVariables->font.varWidth.medium.file,
-			windowVariables->font.varWidth.medium.name,
-			&windowVariables->font.varWidth.medium.font, 0);
-	}
-	if (status < 0)
+	// Use this as our default
+	windowVariables->font.defaultFont =
+		windowVariables->font.fixWidth.small.font;
+
+	windowVariables->font.fixWidth.medium.font =
+		kernelFontGet(windowVariables->font.fixWidth.medium.family,
+			windowVariables->font.fixWidth.medium.flags,
+			windowVariables->font.fixWidth.medium.points, NULL);
+
+	windowVariables->font.varWidth.small.font =
+		kernelFontGet(windowVariables->font.varWidth.small.family,
+			windowVariables->font.varWidth.small.flags,
+			windowVariables->font.varWidth.small.points, NULL);
+	if (!windowVariables->font.varWidth.small.font)
+		windowVariables->font.varWidth.small.font =
+			windowVariables->font.defaultFont;
+
+	windowVariables->font.varWidth.medium.font =
+		kernelFontGet(windowVariables->font.varWidth.medium.family,
+			windowVariables->font.varWidth.medium.flags,
+			windowVariables->font.varWidth.medium.points, NULL);
+	if (!windowVariables->font.varWidth.medium.font)
 		windowVariables->font.varWidth.medium.font =
-			windowVariables->font.varWidth.small.font;
+			windowVariables->font.defaultFont;
 
 	return (status = 0);
 }
@@ -2100,6 +2196,15 @@ static kernelWindow *createWindow(int processId, const char *title)
 	// Set the process Id
 	window->processId = processId;
 
+	// Try to determine what character set we'll be using for this window
+	if (kernelEnvironmentGet(ENV_CHARSET, (char *) window->charSet,
+		CHARSET_NAME_LEN) < 0)
+	{
+		strcpy((char *) window->charSet, CHARSET_NAME_DEFAULT);
+	}
+
+	kernelWindowSetCharSet(window, (char *) window->charSet);
+
 	// The title
 	strncpy((char *) window->title, title, WINDOW_MAX_TITLE_LENGTH);
 	window->title[WINDOW_MAX_TITLE_LENGTH - 1] = '\0';
@@ -2157,7 +2262,7 @@ static kernelWindow *createWindow(int processId, const char *title)
 		return (window = NULL);
 	}
 
-	window->pointer = kernelMouseGetPointer("default");
+	window->pointer = kernelMouseGetPointer(MOUSE_POINTER_DEFAULT);
 
 	// Add top-level containers for other components
 	window->sysContainer = kernelWindowNewSysContainer(window, &params);
@@ -2236,7 +2341,7 @@ int kernelWindowInitialize(void)
 		return (status);
 
 	// Switch to the 'default' mouse pointer
-	kernelWindowSwitchPointer(NULL, "default");
+	kernelWindowSwitchPointer(NULL, MOUSE_POINTER_DEFAULT);
 
 	kernelLog("Window system initialization complete");
 
@@ -2248,11 +2353,16 @@ int kernelWindowLogin(const char *userName)
 {
 	// This gets called after the user has logged in.
 
+	char fileName[MAX_PATH_NAME_LENGTH];
 	int winShellPid = 0;
 
 	// Make sure we've been initialized
 	if (!initialized)
 		return (ERR_NOTINITIALIZED);
+
+	// Read any user-specific config variables
+	sprintf(fileName, PATH_USERS_CONFIG "/" WINDOW_CONFIGFILE, userName);
+	readFileVariables(fileName);
 
 	// Start the window shell thread
 	winShellPid = kernelWindowShell(userName);
@@ -2311,6 +2421,9 @@ int kernelWindowLogout(void)
 	}
 
 	kernelLockRelease(&windowListLock);
+
+	// Re-read the system config variables
+	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIGFILE);
 
 	return (status = 0);
 }
@@ -2558,7 +2671,7 @@ int kernelWindowUpdateBuffer(graphicBuffer *buffer, int clipX, int clipY,
 	kernelWindow *window = NULL;
 	int count;
 
-	// Check parameters
+	// Check params
 	if (!buffer)
 		return (status = ERR_NULLPARAMETER);
 
@@ -2586,6 +2699,91 @@ int kernelWindowUpdateBuffer(graphicBuffer *buffer, int clipX, int clipY,
 }
 
 
+int kernelWindowSetCharSet(kernelWindow *window, const char *charSet)
+{
+	// Sets the character set for a window
+
+	int status = 0;
+	kernelWindowComponent **array = NULL;
+	int numComponents = 0;
+	int count;
+
+	// Make sure we've been initialized
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!window)
+		return (status = ERR_NULLPARAMETER);
+
+	// Set the character set
+	strncpy((char *) window->charSet, charSet, CHARSET_NAME_LEN);
+
+	// Try to make sure we have the required character set.
+
+	if (windowVariables->font.varWidth.small.font &&
+		!kernelFontHasCharSet(windowVariables->font.varWidth.small.font,
+			charSet))
+	{
+		kernelFontGet(windowVariables->font.varWidth.small.font->family,
+			windowVariables->font.varWidth.small.font->flags,
+			windowVariables->font.varWidth.small.font->points,
+			charSet);
+	}
+
+	if (windowVariables->font.varWidth.medium.font &&
+		!kernelFontHasCharSet(windowVariables->font.varWidth.medium.font,
+			charSet))
+	{
+		kernelFontGet(windowVariables->font.varWidth.medium.font->family,
+			windowVariables->font.varWidth.medium.font->flags,
+			windowVariables->font.varWidth.medium.font->points,
+			charSet);
+	}
+
+	// Loop through all the regular window components and set the charSet
+
+	if (window->sysContainer)
+	{
+		array = kernelMalloc(window->sysContainer->
+			numComps(window->sysContainer) * sizeof(kernelWindowComponent *));
+
+		if (array)
+		{
+			numComponents = 0;
+			window->sysContainer->flatten(window->sysContainer, array,
+				&numComponents, 0);
+
+			for (count = 0; count < numComponents; count ++)
+				kernelWindowComponentSetCharSet(array[count], charSet);
+
+			kernelFree(array);
+		}
+	}
+
+	if (window->mainContainer)
+	{
+		array = kernelMalloc(window->mainContainer->
+			numComps(window->mainContainer) * sizeof(kernelWindowComponent *));
+
+		if (array)
+		{
+			numComponents = 0;
+			window->mainContainer->flatten(window->mainContainer, array,
+				&numComponents, 0);
+
+			for (count = 0; count < numComponents; count ++)
+				kernelWindowComponentSetCharSet(array[count], charSet);
+
+			kernelFree(array);
+		}
+	}
+
+	// Return success
+	return (status = 0);
+}
+
+
 int kernelWindowSetTitle(kernelWindow *window, const char *title)
 {
 	// Sets the title on a window
@@ -2596,8 +2794,9 @@ int kernelWindowSetTitle(kernelWindow *window, const char *title)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	// Set the title
 	strcpy((char *) window->title, title);
@@ -2611,7 +2810,7 @@ int kernelWindowSetTitle(kernelWindow *window, const char *title)
 		window->draw(window);
 
 	// Return success
-	return (status);
+	return (status = 0);
 }
 
 
@@ -2625,7 +2824,7 @@ int kernelWindowGetSize(kernelWindow *window, int *width, int *height)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters
+	// Check params
 	if (!window || !width || !height)
 		return (status = ERR_NULLPARAMETER);
 
@@ -2658,32 +2857,51 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters
+	// Check params
 	if (!window)
 		return (status = ERR_NULLPARAMETER);
+
+	// If layout has not been done, do it now
+	if (!window->sysContainer->doneLayout)
+	{
+		status = layoutWindow(window);
+		if (status < 0)
+			return (status);
+
+		status = autoSizeWindow(window);
+		if (status < 0)
+			return (status);
+	}
 
 	status = setWindowSize(window, width, height);
 	if (status < 0)
 		return (status);
 
-	// See if we need to call the 'resize' operation for the main container
-	if (window->mainContainer->doneLayout)
+	width = (window->buffer.width - window->mainContainer->xCoord);
+	height = (window->buffer.height - window->mainContainer->yCoord);
+
+	// Adjust for any borders
+	if (window->flags & WINFLAG_HASBORDER)
 	{
-		width = (window->buffer.width - window->mainContainer->xCoord);
-		height = (window->buffer.height - window->mainContainer->yCoord);
+		width -= windowVariables->border.thickness;
+		height -= windowVariables->border.thickness;
+	}
 
-		// Adjust for any borders
-		if (window->flags & WINFLAG_HASBORDER)
+	status = window->mainContainer->resize(window->mainContainer, width,
+		height);
+
+	window->mainContainer->width = width;
+	window->mainContainer->height = height;
+
+	if (window->flags & WINFLAG_VISIBLE)
+	{
+		if (window->draw)
 		{
-			width -= windowVariables->border.thickness;
-			height -= windowVariables->border.thickness;
+			// Draw the window
+			status = window->draw(window);
+			if (status < 0)
+				return (status);
 		}
-
-		status = window->mainContainer->resize(window->mainContainer, width,
-			height);
-
-		window->mainContainer->width = width;
-		window->mainContainer->height = height;
 	}
 
 	return (status);
@@ -2720,8 +2938,9 @@ int kernelWindowSetLocation(kernelWindow *window, int xCoord, int yCoord)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	// Erase any visible bits of the window
 	if (window->flags & WINFLAG_VISIBLE)
@@ -2757,8 +2976,9 @@ int kernelWindowCenter(kernelWindow *window)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	if (window->buffer.width < screenWidth)
 		xCoord = ((screenWidth - window->buffer.width) / 2);
@@ -2855,8 +3075,9 @@ int kernelWindowSetHasBorder(kernelWindow *window, int trueFalse)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	// Whether true or false, we need to remove any existing border components,
 	// since even if true we don't want any existing ones hanging
@@ -2888,8 +3109,9 @@ int kernelWindowSetHasTitleBar(kernelWindow *window, int trueFalse)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	if (trueFalse)
 		addTitleBar(window);
@@ -2910,8 +3132,9 @@ int kernelWindowSetMovable(kernelWindow *window, int trueFalse)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	if (trueFalse)
 		window->flags |= WINFLAG_MOVABLE;
@@ -2933,8 +3156,9 @@ int kernelWindowSetResizable(kernelWindow *window, int trueFalse)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	if (trueFalse)
 		window->flags |= WINFLAG_RESIZABLE;
@@ -2944,9 +3168,9 @@ int kernelWindowSetResizable(kernelWindow *window, int trueFalse)
 	if (window->flags & WINFLAG_HASBORDER)
 	{
 		window->borders[0]->pointer = window->borders[2]->pointer =
-			(trueFalse? kernelMouseGetPointer("resizev") : NULL);
+			(trueFalse? kernelMouseGetPointer(MOUSE_POINTER_RESIZEV) : NULL);
 		window->borders[1]->pointer = window->borders[3]->pointer =
-			(trueFalse? kernelMouseGetPointer("resizeh") : NULL);
+			(trueFalse? kernelMouseGetPointer(MOUSE_POINTER_RESIZEH) : NULL);
 	}
 
 	// Return success
@@ -2964,8 +3188,9 @@ int kernelWindowSetFocusable(kernelWindow *window, int trueFalse)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
 	if (!window)
-		return (status = ERR_NOSUCHENTRY);
+		return (status = ERR_NULLPARAMETER);
 
 	if (trueFalse)
 		window->flags |= WINFLAG_CANFOCUS;
@@ -3046,8 +3271,7 @@ int kernelWindowFocus(kernelWindow *window)
 	int status = 0;
 	int count;
 
-	// If there's a window to focus, but it can't focus, just skip this, and
-	// leave the focus where it was
+	// If there's a window to focus, but it can't focus, we're finished
 	if (window && !(window->flags & WINFLAG_CANFOCUS))
 		return (status = 0);
 
@@ -3173,7 +3397,8 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
 	{
 		// Take away the focus, if applicable
 		if (window == focusWindow)
-			kernelWindowFocus(findTopmostWindow());
+			kernelWindowFocus(findTopmostWindow(WINFLAG_VISIBLE |
+				WINFLAG_CANFOCUS));
 
 		// Make sure the window is not the 'mouse in' window
 		if (window == mouseInWindow)
@@ -3184,6 +3409,7 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
 		kernelWindowRedrawArea(window->xCoord, window->yCoord,
 			 window->buffer.width, window->buffer.height);
 
+		// If erasing the window erased the mouse pointer, redraw it
 		if (isPointInside(kernelMouseGetX(), kernelMouseGetY(),
 			makeWindowScreenArea(window)))
 		{
@@ -3380,12 +3606,21 @@ int kernelWindowGetColor(const char *colorName, color *getColor)
 	if (!colorName || !getColor)
 		return (status = ERR_NULLPARAMETER);
 
-	if (!strncasecmp(colorName, "foreground", 11))
+	if (!strncasecmp(colorName, COLOR_SETTING_FOREGROUND,
+		strlen(COLOR_SETTING_FOREGROUND)))
+	{
 		memcpy(getColor, &windowVariables->color.foreground, sizeof(color));
-	if (!strncasecmp(colorName, "background", 11))
+	}
+	if (!strncasecmp(colorName, COLOR_SETTING_BACKGROUND,
+		strlen(COLOR_SETTING_BACKGROUND)))
+	{
 		memcpy(getColor, &windowVariables->color.background, sizeof(color));
-	if (!strncasecmp(colorName, "desktop", 8))
+	}
+	if (!strncasecmp(colorName, COLOR_SETTING_DESKTOP,
+		strlen(COLOR_SETTING_DESKTOP)))
+	{
 		memcpy(getColor, &windowVariables->color.desktop, sizeof(color));
+	}
 
 	return (status = 0);
 }
@@ -3401,12 +3636,21 @@ int kernelWindowSetColor(const char *colorName, color *setColor)
 		return (status = ERR_NULLPARAMETER);
 
 	// Change the color
-	if (!strncasecmp(colorName, "foreground", 11))
+	if (!strncasecmp(colorName, COLOR_SETTING_FOREGROUND,
+		strlen(COLOR_SETTING_FOREGROUND)))
+	{
 		memcpy(&windowVariables->color.foreground, setColor, sizeof(color));
-	if (!strncasecmp(colorName, "background", 11))
+	}
+	if (!strncasecmp(colorName, COLOR_SETTING_BACKGROUND,
+		strlen(COLOR_SETTING_BACKGROUND)))
+	{
 		memcpy(&windowVariables->color.background, setColor, sizeof(color));
-	if (!strncasecmp(colorName, "desktop", 8))
+	}
+	if (!strncasecmp(colorName, COLOR_SETTING_DESKTOP,
+		strlen(COLOR_SETTING_DESKTOP)))
+	{
 		memcpy(&windowVariables->color.desktop, setColor, sizeof(color));
+	}
 
 	return (status = 0);
 }
@@ -3873,6 +4117,7 @@ int kernelWindowContextAdd(objectKey parent, windowMenuContents *contents)
 	}
 	else
 	{
+		parentComponent = parent;
 		parentWindow = parentComponent->window;
 		menu = parentComponent->contextMenu;
 	}
@@ -4034,9 +4279,9 @@ void kernelWindowMoveConsoleTextArea(kernelWindow *oldWindow,
 		return;
 
 	// Remove it from the old window
-	if (consoleTextArea->container && oldWindow->mainContainer->remove)
-		oldWindow->mainContainer
-			->remove(oldWindow->mainContainer, consoleTextArea);
+	if (consoleTextArea->container && oldWindow->mainContainer->delete)
+		oldWindow->mainContainer->delete(oldWindow->mainContainer,
+			consoleTextArea);
 
 	// Add it to the new window
 	if (newWindow->mainContainer->add)
@@ -4166,9 +4411,7 @@ int kernelWindowRefresh(void)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	status = kernelWindowShellRefresh();
-	if (status < 0)
-		return (status);
+	kernelWindowShellRefresh();
 
 	return (status = 0);
 }
