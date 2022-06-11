@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/sh
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2004 J. Andrew McLaughlin
@@ -21,6 +21,5 @@
 ##
 
 # Echoes the release number of Visopsys to the stdout
-
-echo "0.32"
+echo "0.33"
 exit 0

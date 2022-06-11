@@ -58,7 +58,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   int status;
   char welcomeMessage[512];
   static char bootDisk[DISK_MAX_NAMELENGTH];
-  int rootFilesystemId = -1;
+  kernelFilesystem *rootFilesystem = NULL;
 
   // Initialize the page manager
   status = kernelPageManagerInitialize(kernelMemory);
@@ -155,7 +155,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 
   // Initialize the disk functions.  This must be done AFTER the hardware
   // has been enumerated, and AFTER the drivers have been installed.
-  status = kernelDiskInitialize(info->bootDevice);
+  status = kernelDiskInitialize(info->bootDisk, info->bootSector);
   if (status < 0)
     {
       kernelError(kernel_error, "Disk functions initialization failed");
@@ -179,18 +179,25 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
     }
 
   // Mount the root filesystem.
-  rootFilesystemId = kernelFilesystemMount(bootDisk, "/");
-  if (rootFilesystemId < 0)
+  status = kernelFilesystemMount(bootDisk, "/");
+  if (status < 0)
     {
       kernelError(kernel_error, "Mounting root filesystem failed");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  // Open a kernel log file
-  status = kernelLogSetFile(DEFAULT_LOGFILE);
-  if (status < 0)
-    // Make a warning, but don't return error.  This is not fatal.
-    kernelError(kernel_warn, "Unable to open the kernel log file");
+  rootFilesystem = kernelFilesystemGet("/");
+  if (rootFilesystem == NULL)
+    return (status = ERR_INVALID);
+
+  // If the filesystem is not read-only, open a kernel log file
+  if (!(rootFilesystem->readOnly))
+    {
+      status = kernelLogSetFile(DEFAULT_LOGFILE);
+      if (status < 0)
+	// Make a warning, but don't return error.  This is not fatal.
+	kernelError(kernel_warn, "Unable to open the kernel log file");
+    }
 
   // Read the kernel's symbols from the kernel symbols file, if possible
   kernelReadSymbols(KERNEL_SYMBOLS_FILE);

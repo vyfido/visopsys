@@ -110,7 +110,7 @@ loaderMain:
 	;; should have put a pointer to the MBR record for this partition
 	;; in SI.  Copy the entry.
 	cmp word [DRIVENUMBER], 80h
-	jb .floppy
+	jb .notHDD
 	push DS
 	push 0
 	pop DS
@@ -118,8 +118,8 @@ loaderMain:
 	mov DI, PARTENTRY
 	rep movsb
 	pop DS
-	.floppy:
-
+	.notHDD:
+	
 	;; Initialize the 'fatal error' flag
 	mov byte [FATALERROR], 00h
 
@@ -185,7 +185,6 @@ loaderMain:
 	add byte [FATALERROR], 1
 	
 	.okLoad:
-				
 	;; Check for fatal errors before attempting to start the kernel
 	call fatalErrorCheck
 
@@ -1022,7 +1021,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.32' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.33' , 0
 LOADMSG2	db 'Copyright (C) 1998-2004 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0

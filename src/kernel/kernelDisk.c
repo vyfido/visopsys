@@ -1119,7 +1119,7 @@ int kernelDiskReadPartitions(void)
 }
 
 
-int kernelDiskInitialize(int bootDevice)
+int kernelDiskInitialize(const char *physicalBootDisk, unsigned bootSector)
 {
   // This is the "initialize" routine which invokes  the driver routine 
   // designed for that function.  Normally it returns zero, unless there
@@ -1128,6 +1128,7 @@ int kernelDiskInitialize(int bootDevice)
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
   kernelDisk *logicalDisk = NULL;
+  int found = 0;
   int count1, count2;
 
   // Check whether any disks have been registered.  If not, that's 
@@ -1152,17 +1153,13 @@ int kernelDiskInitialize(int bootDevice)
   if (status < 0)
     kernelError(kernel_error, "Unable to read disk partitions");
 
-  // Determine the name of the boot device based on the BIOS device number
-  if (bootDevice < 0x80)
-    // Floppy disk.
-    sprintf(bootDisk, "fd%d", bootDevice);
+  // Copy the name of the physical boot disk
+  strcpy(bootDisk, physicalBootDisk);
 
-  else
+  // If we booted from a hard disk, we need to find out which partition
+  // (logical disk) it was.
+  if (!strncmp(bootDisk, "hd", 2))
     {
-      // Hard disk
-      bootDevice -= 0x80;
-      sprintf(bootDisk, "hd%d", bootDevice);
-
       // Loop through the physical disks and find the one with this name
       for (count1 = 0; count1 < physicalDiskCounter; count1 ++)
 	{
@@ -1176,10 +1173,23 @@ int kernelDiskInitialize(int bootDevice)
 		  logicalDisk = &(physicalDisk->logical[count2]);
 		  // If the boot sector we booted from is in this partition,
 		  // save its name as our boot disk.
-		  if (physicalDisk->bootLBA == logicalDisk->startSector)
-		    strcpy(bootDisk, (char *) logicalDisk->name);
+		  if (logicalDisk->startSector == bootSector)
+		    {
+		      strcpy(bootDisk, (char *) logicalDisk->name);
+		      found = 1;
+		      break;
+		    }
 		}
+	      break;
 	    }
+	}
+
+      // Disk not found?  Perhaps it was really a CD-ROM.  Try that.
+      if (!found)
+	{
+	  kernelError(kernel_warn, "Boot device \"%s\" not found.  Trying cd0 "
+		      "instead");
+	  strcpy(bootDisk, "cd0");
 	}
     }
 

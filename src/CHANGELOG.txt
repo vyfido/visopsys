@@ -1,5 +1,26 @@
 
 ---------------
+Version 0.33
+---------------
+
+  Overview: This is primarily a bugfix release, with bootable CD-ROM support
+added as a new feature.
+
+- Added bootable ISO9660 (el-torito) CD-ROM support.
+- The 'no boot' boot sector code no longer reboots the system, but instead
+properly calls the next boot option
+- Fixed: Spurious error messages when booting from a read-only file system.
+- Fixed the kernel heap allocation code, which was losing and corrupting
+blocks of memory, and leaving small, odd-sized gaps of unused memory.
+- Polished up the scripts for creating floppy & CD-ROM images
+- Fixed: No longer attempt to recalibrate ATAPI disks.
+- If a CD-ROM read fails because there is no disk, the driver no longer
+leaves the number of sectors at zero, since that will stop all subsequent
+read attempts
+- The CD-ROM driver code can determine more elegantly whether there is a data
+CD in the drive and if not, print a friendly error message.
+
+---------------
 Version 0.32
 ---------------
 

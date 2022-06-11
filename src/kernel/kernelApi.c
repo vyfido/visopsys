@@ -150,10 +150,6 @@ static kernelFunctionIndex filesystemFunctionIndex[] = {
   { _fnum_filesystemUnmount, kernelFilesystemUnmount, 1, PRIVILEGE_USER },
   { _fnum_filesystemNumberMounted, kernelFilesystemNumberMounted,
     0, PRIVILEGE_USER },
-  { _fnum_filesystemFirstFilesystem, kernelFilesystemFirstFilesystem,
-    1, PRIVILEGE_USER },
-  { _fnum_filesystemNextFilesystem, kernelFilesystemNextFilesystem,
-    1, PRIVILEGE_USER },
   { _fnum_filesystemGetFree, kernelFilesystemGetFree, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetBlockSize, kernelFilesystemGetBlockSize,
     1, PRIVILEGE_USER }

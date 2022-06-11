@@ -131,8 +131,7 @@ int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
 int kernelFilesystemUnmountAll(void);
 int kernelFilesystemNumberMounted(void);
-void kernelFilesystemFirstFilesystem(char *);
-void kernelFilesystemNextFilesystem(char *);
+kernelFilesystem *kernelFilesystemGet(char *);
 unsigned kernelFilesystemGetFree(const char *);
 unsigned kernelFilesystemGetBlockSize(const char *);
 

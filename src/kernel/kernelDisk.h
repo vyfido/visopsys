@@ -122,7 +122,6 @@ typedef volatile struct
 
   // Misc
   unsigned biosType;     // Needed for floppy detection
-  unsigned bootLBA;      // Needed for hard disk booting
   unsigned lastSession;  // Needed for multisession CD-ROM
   void *driverData;
   kernelLock lock;
@@ -146,7 +145,7 @@ int kernelIdeDriverInitialize(void);
 // Functions exported by kernelDisk.c
 int kernelDiskRegisterDevice(kernelPhysicalDisk *);
 int kernelDiskReadPartitions(void);
-int kernelDiskInitialize(int);
+int kernelDiskInitialize(const char *, unsigned);
 int kernelDiskSync(void);
 int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);

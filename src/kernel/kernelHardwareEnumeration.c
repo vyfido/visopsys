@@ -289,8 +289,6 @@ static int enumerateHardDiskDevices(void)
 			  "assuming 512", deviceNumber);
 	      hardDiskDevices[numberHardDisks].sectorSize = 512;
 	    }
-	  hardDiskDevices[numberHardDisks].bootLBA =
-	    systemInfo->hddInfo[numberHardDisks].bootLBA;
 	  hardDiskDevices[numberHardDisks].motorState = 1;
 
 	  // Register the hard disk device

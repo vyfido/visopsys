@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/sh
 ##
 ##  Visopsys
 ##  Copyright (C) 1998-2004 J. Andrew McLaughlin
@@ -26,8 +26,8 @@
 
 echo -n "Installing boot sector...  "
 
-set INPUT=$1
-set OUTPUT=$2
+INPUT=$1
+OUTPUT=$2
 
 rm -f bootsect.inp bootsect.out bootsect.tmp
 
@@ -39,7 +39,15 @@ tail --bytes 509 bootsect.out >> bootsect.tmp
 head --bytes 62 bootsect.tmp > bootsect.out
 
 tail --bytes 450 bootsect.inp >> bootsect.out
-cat bootsect.out > $OUTPUT
+
+ISLOOP=`grep "$OUTPUT" /etc/fstab | grep loop`
+if [ "$ISLOOP" != "" ] ; then
+	dd skip=1 if=$OUTPUT of=bootsect.tmp >& /dev/null
+	cat bootsect.out > $OUTPUT
+	cat bootsect.tmp >> $OUTPUT
+else
+	dd if=bootsect.out of=$OUTPUT count=1 >& /dev/null
+fi
 
 rm -f bootsect.inp bootsect.out bootsect.tmp
 

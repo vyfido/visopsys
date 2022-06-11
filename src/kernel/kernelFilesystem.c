@@ -646,8 +646,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   if (!strcmp(mountPoint, "/"))
     {
-      strcpy((char *) theFilesystem->filesystemRoot->name, "/");
-
       // The root directory is its own parent
       theFilesystem->filesystemRoot->parentDirectory = (void *)
 	theFilesystem->filesystemRoot;
@@ -662,9 +660,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
     }
   else
     {
-      // Set the name of the mount point directory
-      strcpy((char *) theFilesystem->filesystemRoot->name, mountDirName);
-
       // If this is not the root filesystem, insert the filesystem's
       // root directory into the file entry tree.
       status = kernelFileInsertEntry(theFilesystem->filesystemRoot, parentDir);
@@ -715,6 +710,12 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	  return (status);
 	}
     }
+
+  // Set the name of the mount point directory
+  if (!strcmp(mountPoint, "/"))
+    strcpy((char *) theFilesystem->filesystemRoot->name, "/");
+  else
+    strcpy((char *) theFilesystem->filesystemRoot->name, mountDirName);
 
   // If the disk is removable and has a 'lock' function, lock it
   if ((physicalDisk->fixedRemovable == removable) &&
@@ -956,44 +957,11 @@ int kernelFilesystemNumberMounted(void)
 }
 
 
-void kernelFilesystemFirstFilesystem(char *fsName)
+kernelFilesystem *kernelFilesystemGet(char *fsName)
 {
-  // This function will return the filesystem name of the first
-  // filesystem in the list.  Returns NULL in the first character
-  // of the filesystem name if there are no filesystems mounted.
+  // This function will return the named filesystem.
 
-  // Do not look for filesystems until we have been initialized
-  if (!initialized)
-    {
-      kernelError(kernel_error, "The filesystem manager has not been "
-		  "initialized.");
-      fsName[0] = NULL;
-      return;
-    }  
-
-  // Make sure the filesystem name buffer we have been passed is not NULL
-  if (fsName == NULL)
-    return;
-
-  if (filesystemCounter == 0)
-    // There are NO filesystems mounted
-    fsName[0] = NULL;
-  else
-    // Return the appropriate filesystem name
-    strcpy(fsName, (char *) filesystemPointerArray[0]->mountPoint);
-
-  return;
-}
-
-
-void kernelFilesystemNextFilesystem(char *fsName)
-{
-  // This function will find the indicated filesytem in the filesystem
-  // list, and return the one that follows it.  Returns a NULL as the
-  // first name character if there are no more filesystems
-
-  int status = 0;
-  char mountPoint[MAX_PATH_LENGTH];
+  kernelFilesystem *theFilesystem = NULL;
   int count;
 
   // Do not look for filesystems until we have been initialized
@@ -1001,42 +969,21 @@ void kernelFilesystemNextFilesystem(char *fsName)
     {
       kernelError(kernel_error, "The filesystem manager has not been "
 		  "initialized.");
-      fsName[0] = NULL;
-      return;
+      return (theFilesystem = NULL);
     }  
 
-  // Make sure the previous name buffer isn't NULL
+  // Make sure the filesystem name buffer we have been passed is not NULL
   if (fsName == NULL)
-    return;
+    return (theFilesystem = NULL);
 
-  // Are there ANY filesystems mounted?
-  if (filesystemCounter <= 1)
-    {
-      fsName[0] = NULL;
-      return;
-    }
-
-  // Initialize the buffer we will use for holding the "official" mount point
-  mountPoint[0] = NULL;
-
-  // Fix up the path of the mount point, get the "official" version
-  status = kernelFileFixupPath(fsName, mountPoint);
-  if (status < 0)
-    return;
-
-  // Scan through the list of filesystems for the previous one
   for (count = 0; count < filesystemCounter; count ++)
-    if (strcmp((char *) filesystemPointerArray[count]->mountPoint, 
-		     mountPoint) == 0)
-      break;
+    if (!strcmp((char *) filesystemPointerArray[count]->mountPoint, fsName))
+      {
+	theFilesystem = filesystemPointerArray[count];
+	break;
+      }
 
-  // Did we find it?  Is there at least one more?
-  if (count < (filesystemCounter - 1))
-    strcpy(fsName, (char *) filesystemPointerArray[count + 1]->mountPoint);
-  else
-    fsName[0] = NULL;
-
-  return;
+  return (theFilesystem);
 }
 
 

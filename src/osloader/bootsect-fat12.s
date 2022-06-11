@@ -64,23 +64,22 @@ VolumeID	dd 0		    	; 27 - 2A Volume ID
 VolumeName	times 11 db ' '		; 2B - 35 Volume name
 FSType		times 8 db ' '   	; 36 - 3D Filesystem type
 
-	
+
 bootCode:
 
 	cli
-	
+
 	;; Make the data segment registers be the same as the code segment
-	mov AX, CS
+	xor AX, AX
 	mov DS, AX
 	mov ES, AX
 
 	;; Set the stack to be at the top of the code
-	xor AX, AX
 	mov SS, AX
 	mov SP, 7C00h
-	
+
 	sti
-	
+
 	;; The BIOS will pass the boot device number to us in the DL
 	;; register.  Make sure that our 'DriveNumber' value from the
 	;; boot sector is the correct drive number.
@@ -107,10 +106,10 @@ bootCode:
 	call read
 	pop ES
 
-	;; Now we must do a loop to walk through the FAT table
-	;; gathering the loader's cluster numbers.  We have the
-	;; starting cluster.  We're going to load the kernel
-	;; starting at memory location 00001000 or 0100:0000
+	;; Now we must do a loop to walk through the FAT table gathering the
+	;; loader's cluster numbers.  We have the starting cluster.  We're
+	;; going to load the kernel starting at memory location 00001000 or
+	;; 0100:0000
 
 	mov word [NEXTCLUSTER], STARTCLUSTER
 	mov word [MEMORYMARKER], 0000h
@@ -169,8 +168,8 @@ bootCode:
 	mov AX, word [BytesPerSect]
 	add word [MEMORYMARKER], AX
 	loop .incrementPointer
-	jmp .FATLoop
 
+	jmp .FATLoop
 
 	.done:
 	;; Before we turn over control to the kernel loader, we need to
@@ -224,8 +223,8 @@ clusterToLogical:
 	
 	
 headTrackSector:
-	;; This routine accepts the logical sector number in EAX.
-	;; It calculates the head, track and sector number on disk.
+	;; This routine accepts the logical sector number in EAX.  It
+	;; calculates the head, track and sector number on disk.
 
 	;; We destroy a bunch of registers, so save them
 	pusha
@@ -251,8 +250,8 @@ headTrackSector:
 
 
 read:
-	;; Takes the stored logical sector number, segment in ES,
-	;; offset in BX, count in CX, and does the read.
+	;; Takes the stored logical sector number, segment in ES, offset in
+	;; BX, count in CX, and does the read.
 
 	pusha
 	
@@ -306,26 +305,25 @@ read:
 	ret
 
 	.IOError:
-	;; If we got a fatal IO error or something, we just have
-	;; to stop.  This isn't very helpful, but unfortunately this
-	;; piece of code is too small to do very much else.
+	;; If we got a fatal IO error or something, we just have to stop.
+	;; This isn't very helpful, but unfortunately this piece of code
+	;; is too small to do very much else.
 
 	mov SI, IOERR
+	.charLoop:
 	mov AH, 0Eh
 	xor BH, BH
-	
-	.characterLoop:
 	mov AL, byte [SI]
 	cmp AL, 0
 	je .endPrint
 	int 10h
 	inc SI
-	jmp .characterLoop
+	jmp .charLoop
 	.endPrint:
 
-	;; We used to stop here, but according to the docs by
-	;; compaq/intel, we should issue an int 18h instead to allow
-	;; the BIOS to attempt loading some other operating system
+	;; We used to stop here, but according to the docs by compaq/intel,
+	;; we should issue an int 18h instead to allow the BIOS to attempt
+	;; loading some other operating system
 	int 18h
 
 	;; Stop, just in case

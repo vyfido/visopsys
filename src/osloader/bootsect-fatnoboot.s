@@ -54,121 +54,70 @@ FSType		times 8 db ' '   	; 36 - 3D Filesystem type
 	
 bootCode:
 
-	cli
-	
-	;; Make the data segment registers be the same as the code segment
-	mov AX, CS
-	mov DS, AX
-	mov ES, AX
+	;; Make the data segment be zero
+	pusha
+	push DS
+	push word 0
+	pop DS
 
-	;; Set the stack to be at the top of the code
-	;; xor AX, AX
-	;; mov SS, AX
-	;; mov SP, 7C00h
-	
-	sti
-	
 	mov SI, NOBOOT
 	call print
 
-	call int9_hook
+	;; Hook the keyboard interrupt 9.
 
-	.wait:
-	cmp byte [GOTKEY], 0
-	je .wait
-	
-	;; Restore the old interrupt 9 handler
-	call int9_unhook		
-
-	;; According to the docs by compaq/intel, we should issue an 
-	;; int 18h instead to allow the BIOS to attempt loading some other
-	;; operating system
-	;; int 18h
-
-	;; If that fails...
-	mov SI, REBOOTING
-	call print
-
-	;; Write the reset command to the keyboard controller
-	mov AL, 0FEh
-	out 64h, AL
-	jecxz $+2
-	jecxz $+2
-
-	;; Done.  The computer is now rebooting.
-
-	;; Just in case.  Should never get here.
-	hlt
-	
-
-int9_hook:
-	;; This routine hooks the interrupt 9 key pressed event.
-	;; This will only be used in case we want to reboot the
-	;; machine, so we won't bother saving addresses, etc.
-	pusha
-
-	;; Set ES so that it points to the beginning of memory
-	push ES
-	xor AX, AX
-	mov ES, AX
-
-	;; Get the address of the current interrupt 9 handler
-	;; and save it
-	mov AX, word [ES:0024h]		;; The offset of the routine
+	;; Get the address of the current interrupt 9 handler and save it
+	mov AX, word [0024h]			;; The offset
 	mov word [OLDINT9], AX
-	mov AX, word [ES:0026h]		;; The segment of the routine
-	mov word [(OLDINT9 + 2)], AX
-
-	cli
+	mov AX, word [0026h]			;; The segment
+	mov word [OLDINT9 + 2], AX
 
 	;; Move the address of our new handler into the interrupt
 	;; table
-	mov word [ES:0024h], int9_handler	;; The offset
-	mov word [ES:0026h], CS			;; The segment
+	mov word [0024h], int9_handler		;; The offset
+	mov word [0026h], CS			;; The segment
 
-	sti
-
-	;; Restore ES
-	pop ES
-
-	popa
-	ret
+	;; Wait for a key press
+	.wait:
+	cmp byte [GOTKEY], 1
+	jne .wait
 	
+	;; Restore the old interrupt 9 handler
+	mov AX, word [OLDINT9]
+	mov word [0024h], AX			;; The offset
+	mov AX, word [OLDINT9 + 2]
+	mov word [0026h], AX			;; The segment
+	
+	pop DS
+	popa
+	
+	;; According to the docs by compaq/intel, we should issue an 
+	;; int 18h instead to allow the BIOS to attempt loading some other
+	;; operating system
+	int 18h
 
+	;; Just in case
+	cli
+	hlt
+
+	
 int9_handler:
 	;; This routine handles the interrupt 9 key pressed event
 
 	cli
+	push DS
+	push word 0
+	pop DS
 	mov byte [GOTKEY], 1
-	sti
-	iret
+	mov AX, word [OLDINT9 + 2]
+	mov BX, word [OLDINT9]
+	pop DS
+
+	;; Call the original handler
+	push AX
+	push BX
+	retf
 
 		
-int9_unhook:
-	;; This routine unhooks the interrupt 9 key pressed event.
-	pusha
-
-	;; Set ES so that it points to the beginning of memory
-	push ES
-	xor AX, AX
-	mov ES, AX
-		
-	cli
-
-	mov AX, word [OLDINT9] 
-	mov word [ES:0024h], AX		;; The offset of the routine
-	mov AX, word [(OLDINT9 + 2)]
-	mov word [ES:0026h], AX		;; The segment of the routine
-
-	sti
-
-	;; Restore ES
-	pop ES
-
-	popa
-	ret
-	
-
 print:
 	;; The offset to the chars should already be in SI
 
@@ -193,8 +142,7 @@ print:
 ;; Data.  There is no data segment, so this space will have to do
 
 NOBOOT		db 'This is not a bootable Visopsys disk.', 0Dh, 0Ah
-		db 'Press any key to reboot.', 0Dh, 0Ah, 0
-REBOOTING	db 0Dh, 0Ah, 'Rebooting.', 0Dh, 0Ah, 0
+		db 'Press any key to continue.', 0Dh, 0Ah, 0
 OLDINT9		dd 0	;; Address of the interrupt 9 handler
 GOTKEY		db 0
 	

@@ -30,6 +30,7 @@
 #include "kernelVariableList.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
+#include "kernelFilesystem.h"
 #include "kernelFileStream.h"
 #include "kernelUser.h"
 #include "kernelMiscFunctions.h"
@@ -3336,19 +3337,23 @@ int kernelWindowManagerShutdown(void)
     if (windowList[count]->buffer.updates > 0)
       updateBuffer(windowList[count]);
 
-  // Write out the configuration file
-  status = kernelFileStreamOpen(DEFAULT_WINDOWMANAGER_CONFIG,
- 				(OPENMODE_WRITE | OPENMODE_CREATE |
- 				 OPENMODE_TRUNCATE), &configFile);
-  if (status >= 0)
+  // If the root filesystem is not read-only, write out the configuration file
+  if (!(kernelFilesystemGet("/")->readOnly))
     {
-      // Put a little message at the beginning of the file.
-      kernelFileStreamWriteLine(&configFile, "# Do not manually edit this "
-				"file while the window manager is running.");
-      kernelFileStreamWriteLine(&configFile, "# It is automatically "
-				"overwritten during shutdown.");
-      status = kernelConfigurationWriter(settings, &configFile);
-      kernelFileStreamClose(&configFile);
+      status = kernelFileStreamOpen(DEFAULT_WINDOWMANAGER_CONFIG,
+				    (OPENMODE_WRITE | OPENMODE_CREATE |
+				     OPENMODE_TRUNCATE), &configFile);
+      if (status >= 0)
+	{
+	  // Put a little message at the beginning of the file.
+	  kernelFileStreamWriteLine(&configFile, "# Do not manually edit this "
+				    "file while the window manager is "
+				    "running.");
+	  kernelFileStreamWriteLine(&configFile, "# It is automatically "
+				    "overwritten during shutdown.");
+	  status = kernelConfigurationWriter(settings, &configFile);
+	  kernelFileStreamClose(&configFile);
+	}
     }
 
   // Don't actually "disable" the window manager, as the shutdown routine

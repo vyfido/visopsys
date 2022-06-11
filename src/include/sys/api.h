@@ -118,10 +118,8 @@ extern int visopsys_in_kernel;
 #define _fnum_filesystemMount                        3003
 #define _fnum_filesystemUnmount                      3004
 #define _fnum_filesystemNumberMounted                3005
-#define _fnum_filesystemFirstFilesystem              3006
-#define _fnum_filesystemNextFilesystem               3007
-#define _fnum_filesystemGetFree                      3008
-#define _fnum_filesystemGetBlockSize                 3009
+#define _fnum_filesystemGetFree                      3006
+#define _fnum_filesystemGetBlockSize                 3007
 
 // File functions.  All are in the 4000-4999 range.
 #define _fnum_fileFixupPath                          4000
@@ -927,18 +925,6 @@ static inline int filesystemNumberMounted(void)
 {
   // Proto: int kernelFilesystemNumberMounted(void);
   return (sysCall_0(_fnum_filesystemNumberMounted));
-}
-
-static inline void filesystemFirstFilesystem(char *buff)
-{
-  // Proto: void kernelFilesystemFirstFilesystem(char *);
-  sysCall_1(_fnum_filesystemFirstFilesystem, buff);
-}
-
-static inline void filesystemNextFilesystem(char *buff)
-{
-  // Proto: void kernelFilesystemNextFilesystem(char *);
-  sysCall_1(_fnum_filesystemNextFilesystem, buff);
 }
 
 static inline int filesystemGetFree(const char *fs)

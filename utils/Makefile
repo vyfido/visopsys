@@ -28,6 +28,6 @@ all:
 	make -C dist all
 
 clean:
-	rm -f *~ core *.zip *.tar.gz
+	rm -f *~ core *.zip *.iso *.img
 	make -C src-mgmt clean
 	make -C dist clean

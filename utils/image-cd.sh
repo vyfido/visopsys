@@ -17,11 +17,11 @@
 ##  with this program; if not, write to the Free Software Foundation, Inc.,
 ##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 ##
-##  image-floppy.sh
+##  image-cd.sh
 ##
 
 echo ""
-echo "Making Visopsys FLOPPY IMAGE file"
+echo "Making Visopsys CD-ROM IMAGE file"
 echo ""
 
 # Are we doing a release version?  If the argument is "-r" then we use
@@ -32,29 +32,60 @@ if [ "$1" == "-r" ] ; then
 	echo ""
 	# What is the current release version?
 	RELEASE=`./release.sh`
+	RELFLAG=-r
 else
 	echo "(doing INTERIM version -- use -r flag for RELEASES)"
 	echo ""
 	# What is the date?
 	RELEASE=`date +%Y-%m-%d`
+	RELFLAG=
 fi
 
 NAME=visopsys-$RELEASE
-IMAGEFILE=floppy.img #$NAME.img
-ZIPFILE=$NAME-img.zip
+FLOPPYIMAGE=floppy.img #$NAME.img
+SOURCEDIR=$NAME-src
+ISOIMAGE=visopsys.iso #$NAME.iso
+ZIPFILE=$NAME-iso.zip
+TMPDIR=/tmp/iso$$.tmp
 
-rm -f $IMAGEFILE
-cp blankfloppy.gz $IMAGEFILE.gz
-gunzip $IMAGEFILE.gz
+echo -n "Making floppy image... "
+./image-floppy.sh $RELFLAG >& /dev/null
+echo Done
 
-./install.sh $IMAGEFILE
+# Get the basic files from the floppy image
+echo -n "Copying base files... "
+mount $FLOPPYIMAGE
+rm -Rf $TMPDIR
+mkdir $TMPDIR
+pushd /mnt/floppy >& /dev/null
+tar cf - * | (cd $TMPDIR; tar xf - )
+popd >& /dev/null
+umount /mnt/floppy
+cp $FLOPPYIMAGE $TMPDIR
+echo Done
 
-echo "Visopsys $RELEASE Image Release" > /tmp/comment
+echo -n "Making source archive... "
+./archive-source.sh $RELFLAG >& /dev/null
+echo Done
+
+# Copy sources
+echo -n "Copying source files... "
+unzip $SOURCEDIR.zip >& /dev/null
+mkdir -p $TMPDIR/source
+mv $SOURCEDIR $TMPDIR/source/
+echo Done
+
+rm -f $ISOIMAGE
+mkisofs -U -D -floppy-boot -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE -hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 -L -o $ISOIMAGE $TMPDIR
+
+echo "Visopsys $RELEASE CD-ROM Release" > /tmp/comment
 echo "Copyright (C) 1998-2004 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
-zip -9 -z -r $ZIPFILE $IMAGEFILE < /tmp/comment >& /dev/null
+zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment >& /dev/null
 
-rm /tmp/comment
+rm -f /tmp/comment
+#rm -f $FLOPPYIMAGE $ISOIMAGE
+rm -Rf $TMPDIR
 
 echo ""
 echo "File is: $ZIPFILE"

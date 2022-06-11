@@ -78,7 +78,6 @@ typedef struct
   unsigned sectorsPerCylinder;
   unsigned bytesPerSector;
   unsigned totalSectors;
-  unsigned bootLBA;
 
 } hddInfoBlock;
 
@@ -112,6 +111,8 @@ typedef struct
   memoryInfoBlock memoryMap[50];
   graphicsInfoBlock graphicsInfo;
   int bootDevice;
+  unsigned bootSector;
+  char bootDisk[4];
   int floppyDisks;
   fddInfoBlock fddInfo[2];
   int hardDisks;

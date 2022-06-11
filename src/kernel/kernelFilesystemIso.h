@@ -54,23 +54,14 @@ typedef volatile struct {
 
 typedef volatile struct {
 
-  unsigned char dirRecLength;
-  unsigned char extAttrRecLength;
   unsigned blockNumber;
-  unsigned fileSize;
-  unsigned char dateTime[7];
-  unsigned char flags;
-  unsigned char unitSize;
-  unsigned char intrGapSize;
-  unsigned char nameLength;
+  unsigned flags;
+  unsigned unitSize;
+  unsigned intrGapSize;
   unsigned volSeqNumber;
-  char name[255];
   unsigned versionNumber;
 
-  // For keeping a list of free directory record memory
-  void *next;
-
-} isoDirectoryRecord;
+} isoFileData;
 
 // Global filesystem data
 typedef volatile struct {
@@ -80,7 +71,6 @@ typedef volatile struct {
   unsigned blockSize;
   unsigned pathTableSize;
   unsigned pathTableBlock;
-  isoDirectoryRecord rootDirRec;
   const kernelDisk *disk;
 
 } isoInternalData;

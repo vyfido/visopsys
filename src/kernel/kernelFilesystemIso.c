@@ -59,10 +59,6 @@ static kernelFilesystemDriver defaultIsoDriver = {
   NULL // driverTimestamp
 };
 
-// These hold free private data memory
-//static isoDirectoryRecord *freeDirectoryRecords = NULL;
-//static unsigned numFreeDirectoryRecords = 0;
-
 static int initialized = 0;
 
 
@@ -106,37 +102,89 @@ static int readPrimaryVolDesc(const kernelDisk *theDisk, unsigned char *buffer)
 }
 
 
-static void readDirRecord(unsigned char *buffer, isoDirectoryRecord *dirRec)
+static void makeSystemTime(unsigned char *isoTime, unsigned *date,
+			   unsigned *time)
+{
+  // This function takes an ISO date/time value and returns the equivalent in
+  // packed-BCD system format.
+
+  // The year
+  *date = ((isoTime[0] + 1900) << 9);
+
+  // The month (1-12)
+  *date |= ((isoTime[1] & 0x0F) << 5);
+
+  // Day of the month (1-31)
+  *date |= (isoTime[2] & 0x1F);
+
+  // The hour
+  *time = ((isoTime[3] & 0x3F) << 12);
+
+  // The minute
+  *time |= ((isoTime[4] & 0x3F) << 6);
+
+  // The second
+  *time |= (isoTime[5] & 0x3F);
+
+  return;
+}
+
+
+static void readDirRecord(unsigned char *buffer, kernelFileEntry *fileEntry,
+			  unsigned blockSize)
 {
   // Reads a directory record from the on-disk structure in 'buffer' to
   // our structure
 
+  isoFileData *fileData = (isoFileData *) fileEntry->driverData;
+  unsigned nameLength = 0;
   int count;
 
-  // Get root directory record from the buffer
-  dirRec->dirRecLength = *((unsigned char *) buffer);
-  dirRec->extAttrRecLength = *((unsigned char *)(buffer + 1));
-  dirRec->blockNumber = *((unsigned *)(buffer + 2)); // 8 bytes - fix.
-  dirRec->fileSize = *((unsigned *)(buffer + 10));   // 8 bytes - fix.
-  strncpy((unsigned char *) dirRec->dateTime, (buffer + 18), 7);
-  dirRec->flags = *((unsigned char *)(buffer + 25));
-  dirRec->unitSize = *((unsigned char *)(buffer + 26));
-  dirRec->intrGapSize = *((unsigned char *)(buffer + 27));
-  dirRec->nameLength = *((unsigned char *)(buffer + 32));
-  dirRec->volSeqNumber = *((unsigned *)(buffer + 28));
-  strncpy((char *) dirRec->name, (buffer + 33), dirRec->nameLength);
-  dirRec->name[dirRec->nameLength] = '\0';
+  // Get the name length
+  nameLength = (unsigned) *(buffer + 32);
+
+  // Additional stuff that is only in our private structure
+  fileData->blockNumber = *((unsigned *)(buffer + 2));
+  fileData->flags = *(buffer + 25);
+  fileData->unitSize = *(buffer + 26);
+  fileData->intrGapSize = *(buffer + 27);
+  fileData->volSeqNumber = *((unsigned *)(buffer + 28));
+
+  // Copy the name into the file entry
+  kernelMemCopy((buffer + 33), (char *) fileEntry->name, nameLength);
+  fileEntry->name[nameLength] = '\0';
 
   // Find the semicolon (if any) at the end of the name
-  for (count = (dirRec->nameLength - 1); count > 0; count --)
-    if (dirRec->name[count] == ';')
+  for (count = (nameLength - 1); count > 0; count --)
+    if (fileEntry->name[count] == ';')
       {
-	dirRec->name[count] = '\0';
+	fileEntry->name[count] = '\0';
+	fileData->versionNumber = atoi((char *)(fileEntry->name + count + 1));
 	break;
       }
 
-  dirRec->versionNumber =
-    atoi((char *)(dirRec->name + strlen((char *) dirRec->name) + 1));
+  // Get the type
+  fileEntry->type = fileT;
+
+  if (fileData->flags & ISO_FLAGMASK_DIRECTORY)
+    fileEntry->type = dirT;
+
+  if (fileData->flags & ISO_FLAGMASK_ASSOCIATED)
+    fileEntry->type = linkT;
+
+  // Get the date and time
+  makeSystemTime((buffer + 18), (unsigned *) &(fileEntry->creationDate),
+		 (unsigned *) &(fileEntry->creationTime));
+  fileEntry->accessedTime = fileEntry->creationTime;
+  fileEntry->accessedDate = fileEntry->creationDate;
+  fileEntry->modifiedTime = fileEntry->creationTime;
+  fileEntry->modifiedDate = fileEntry->creationDate;
+
+  fileEntry->size = *((unsigned *)(buffer + 10));
+  fileEntry->blocks = (fileEntry->size / blockSize);
+  if (fileEntry->size % blockSize)
+    fileEntry->blocks += 1;
+  fileEntry->lastAccess = kernelSysTimerRead();
 }
 
 
@@ -199,12 +247,8 @@ static isoInternalData *getIsoData(kernelFilesystem *filesystem)
   isoData->pathTableBlock = *((unsigned *)(buffer + 140));
 
   // Get the root directory record
-  readDirRecord((buffer + 156), &(isoData->rootDirRec));
-
-  // How many blocks for the root directory?
-  unsigned rootDirBlocks = (isoData->rootDirRec.fileSize / isoData->blockSize);
-  if (isoData->rootDirRec.fileSize % isoData->blockSize)
-    rootDirBlocks += 1;
+  readDirRecord((buffer + 156), filesystem->filesystemRoot,
+		isoData->blockSize);
 
   // We don't need this any more.
   kernelFree(buffer);
@@ -222,43 +266,14 @@ static isoInternalData *getIsoData(kernelFilesystem *filesystem)
 }
 
 
-static void makeSystemTime(unsigned char *isoTime, unsigned *date,
-			   unsigned *time)
-{
-  // This function takes an ISO date/time value and returns the equivalent in
-  // packed-BCD system format.
-
-  // The year
-  *date = ((isoTime[0] + 1900) << 9);
-
-  // The month (1-12)
-  *date |= ((isoTime[1] & 0x0F) << 5);
-
-  // Day of the month (1-31)
-  *date |= (isoTime[2] & 0x1F);
-
-  // The hour
-  *time = ((isoTime[3] & 0x3F) << 12);
-
-  // The minute
-  *time |= ((isoTime[4] & 0x3F) << 6);
-
-  // The second
-  *time |= (isoTime[5] & 0x3F);
-
-  return;
-}
-
-
 static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 {
   int status = 0;
-  isoDirectoryRecord *scanDirRec = NULL;
+  isoFileData *scanDirRec = NULL;
   unsigned bufferSize = 0;
   void *buffer = NULL;
   void *ptr = NULL;
   kernelFileEntry *fileEntry = NULL;
-  isoDirectoryRecord entryDirRec;
 
   // Make sure it's really a directory, and not a regular file
   if (dirEntry->type != dirT)
@@ -267,16 +282,23 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
       return (status = ERR_NOTADIR);
     }
 
+  // Make sure it's not zero-length
+  if ((dirEntry->blocks == 0) || (isoData->blockSize == 0))
+    {
+      kernelError(kernel_error, "Directory or blocksize is NULL");
+      return (status = ERR_NODATA);
+    }
+
   // Manufacture some "." and ".." entries
   status = kernelFileMakeDotDirs(dirEntry->parentDirectory, dirEntry);
   if (status < 0)
     kernelError(kernel_warn, "Unable to create '.' and '..' directory "
  		"entries");
 
-  scanDirRec = (isoDirectoryRecord *) dirEntry->driverData;
+  scanDirRec = (isoFileData *) dirEntry->driverData;
 
   bufferSize = (dirEntry->blocks * isoData->blockSize);
-  if (bufferSize < scanDirRec->fileSize)
+  if (bufferSize < dirEntry->size)
     {
       kernelError(kernel_error, "Wrong buffer size for directory!");
       return (status = ERR_BADDATA);
@@ -303,10 +325,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
   ptr = buffer; 
   while (ptr < (buffer + bufferSize))
     {
-      kernelMemClear((void *) &entryDirRec, sizeof(isoDirectoryRecord));
-      readDirRecord(ptr, &entryDirRec);
-
-      if (!(entryDirRec.dirRecLength))
+      if (!((unsigned char *) ptr)[0])
 	{
 	  // This is a NULL entry.  If the next entry doesn't fit within
 	  // the same logical sector, it is placed in the next one.  Thus,
@@ -322,18 +341,6 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 	    break;
 	}
 
-      if ((entryDirRec.name[0] < 32) || (entryDirRec.name[0] > 126))
-	{
-          if ((entryDirRec.name[0] != 0) && (entryDirRec.name[0] != 1))
-            // Not the current directory, or the parent directory.  Warn about
-            // funny ones like this.
-            kernelError(kernel_warn, "Unknown directory entry type in %s",
-                        dirEntry->name);
-	  ptr += entryDirRec.dirRecLength;
-	  continue;
-	}
-
-      // Normal entry
       fileEntry = kernelFileNewEntry(dirEntry->filesystem);
       if ((fileEntry == NULL) || (fileEntry->driverData == NULL))
         {
@@ -342,35 +349,22 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
           kernelFree(buffer);
           return (status = ERR_NOCREATE);
         }
-     
-      // Copy the name into the file entry
-      strncpy((char *) fileEntry->name, (char *) entryDirRec.name,
-              MAX_NAME_LENGTH);
 
-      fileEntry->type = fileT;
+      readDirRecord(ptr, fileEntry, isoData->blockSize);
 
-      if (entryDirRec.flags & ISO_FLAGMASK_DIRECTORY)
-        fileEntry->type = dirT;
+      if ((fileEntry->name[0] < 32) || (fileEntry->name[0] > 126))
+	{
+          if ((fileEntry->name[0] != 0) && (fileEntry->name[0] != 1))
+            // Not the current directory, or the parent directory.  Warn about
+            // funny ones like this.
+            kernelError(kernel_warn, "Unknown directory entry type in %s",
+                        dirEntry->name);
+	  kernelFileReleaseEntry(fileEntry);
+	  ptr += (unsigned) ((unsigned char *) ptr)[0];
+	  continue;
+	}
 
-      if (entryDirRec.flags & ISO_FLAGMASK_ASSOCIATED)
-        fileEntry->type = linkT;
-
-      makeSystemTime((unsigned char *) entryDirRec.dateTime,
-                     (unsigned *) &(fileEntry->creationDate),
-                     (unsigned *) &(fileEntry->creationTime));
-      fileEntry->accessedTime = fileEntry->creationTime;
-      fileEntry->accessedDate = fileEntry->creationDate;
-      fileEntry->modifiedTime = fileEntry->creationTime;
-      fileEntry->modifiedDate = fileEntry->creationDate;
-      fileEntry->size = entryDirRec.fileSize;
-      fileEntry->blocks = (entryDirRec.fileSize / isoData->blockSize);
-      if (entryDirRec.fileSize % isoData->blockSize)
-        fileEntry->blocks += 1;
-      fileEntry->lastAccess = kernelSysTimerRead();
-
-      // Copy the directory record data into the private data area
-      kernelMemCopy((void *) &entryDirRec, fileEntry->driverData,
-                    sizeof(isoDirectoryRecord)); 
+      // Normal entry
 
       // Add it to the directory
       status = kernelFileInsertEntry(fileEntry, dirEntry);
@@ -380,40 +374,11 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
           return (status);
         }
 
-      ptr += entryDirRec.dirRecLength;
+      ptr += (unsigned) ((unsigned char *) ptr)[0];
     }
-
+  
   kernelFree(buffer);
   return (status = 0);
-}
-
-
-static int readRootDir(isoInternalData *isoData, kernelFilesystem *filesystem)
-{
-  // This function reads the root directory and attaches it to the
-  // filesystem structure.
-
-  int status = 0;
-  isoDirectoryRecord *rootDirRec =
-    (isoDirectoryRecord *) filesystem->filesystemRoot->driverData;
-  if (rootDirRec == NULL)
-    {
-      kernelError(kernel_error, "Root entry has no private data");
-      return (status = ERR_NODATA);
-    }
-
-  // Copy the directory record for the root directory from the isoData
-  kernelMemCopy((void *) &(isoData->rootDirRec), (void *) rootDirRec,
-		sizeof(isoDirectoryRecord));
-
-  // Set the directory size
-  filesystem->filesystemRoot->size = rootDirRec->fileSize;
-  filesystem->filesystemRoot->blocks =
-    (rootDirRec->fileSize / isoData->blockSize);
-  if (rootDirRec->fileSize % isoData->blockSize)
-    filesystem->filesystemRoot->blocks += 1;
-
-  return (status = scanDirectory(isoData, filesystem->filesystemRoot));
 }
 
 
@@ -489,7 +454,6 @@ int kernelFilesystemIsoDetect(const kernelDisk *theDisk)
     isIso = 1;
 
   kernelFree(buffer);
-
   return (isIso);
 }
 
@@ -523,9 +487,8 @@ int kernelFilesystemIsoMount(kernelFilesystem *filesystem)
   if (isoData == NULL)
     return (status = ERR_BADDATA);
 
-  // Read the filesystem's root directory and attach it to the filesystem
-  // structure
-  status = readRootDir(isoData, filesystem);
+  // Read the filesystem's root directory
+  status = scanDirectory(isoData, filesystem->filesystemRoot);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to read the filesystem's root "
@@ -559,8 +522,12 @@ int kernelFilesystemIsoUnmount(kernelFilesystem *filesystem)
       kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_NULLPARAMETER);
     }
+  
+  // Free the filesystem data
+  if (filesystem->filesystemData)
+    status = kernelFree(filesystem->filesystemData);
 
-  return (status = 0);
+  return (status);
 }
 
 
@@ -580,8 +547,9 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
   // to attach ISO-specific data to the file entry
 
   int status = 0;
-  //isoDirectoryRecord *directoryRecord = NULL;
-  //isoDirectoryRecord *newDirectoryRecords = NULL;
+
+  //isoFileData *directoryRecord = NULL;
+  //isoFileData *newDirectoryRecords = NULL;
   //int count;
   
   if (!initialized)
@@ -613,7 +581,7 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
   if (freeDirectoryRecords == 0)
     {
       // Allocate memory for directory records
-      newDirectoryRecords = kernelMalloc(sizeof(isoDirectoryRecord) *
+      newDirectoryRecords = kernelMalloc(sizeof(isoFileData) *
 					 MAX_BUFFERED_FILES);
       if (newDirectoryRecords == NULL)
 	{
@@ -622,7 +590,7 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
 	  return (status = ERR_MEMORY);
 	}
 
-      // Initialize the new isoDirectoryRecord structures.
+      // Initialize the new isoFileData structures.
 
       for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
 	newDirectoryRecords[count].next = (void *)
@@ -636,12 +604,18 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
     }
 
   directoryRecord = freeDirectoryRecords;
-  freeDirectoryRecords = (isoDirectoryRecord *) directoryRecord->next;
+  freeDirectoryRecords = (isoFileData *) directoryRecord->next;
   numFreeDirectoryRecords -= 1;
   newEntry->driverData = (void *) directoryRecord;
   */
 
-  newEntry->driverData = kernelMalloc(sizeof(isoDirectoryRecord));
+  newEntry->driverData = kernelMalloc(sizeof(isoFileData));
+  if (newEntry->driverData == NULL)
+    {
+      kernelError(kernel_error, "Error allocating memory for ISO "
+		  "directory record");
+      return (status = ERR_MEMORY);
+    }
 
   return (status = 0);
 }
@@ -710,7 +684,7 @@ int kernelFilesystemIsoReadFile(kernelFileEntry *theFile, unsigned blockNum,
 
   int status = 0;
   isoInternalData *isoData = NULL;
-  isoDirectoryRecord *dirRec = NULL;
+  isoFileData *dirRec = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -723,7 +697,7 @@ int kernelFilesystemIsoReadFile(kernelFileEntry *theFile, unsigned blockNum,
     }
 
   // Make sure there's a directory record  attached
-  dirRec = (isoDirectoryRecord *) theFile->driverData;
+  dirRec = (isoFileData *) theFile->driverData;
   if (dirRec == NULL)
     {
       kernelError(kernel_error, "File \"%s\" has no private data",

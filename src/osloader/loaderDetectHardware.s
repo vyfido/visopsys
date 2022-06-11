@@ -83,12 +83,60 @@ loaderDetectHardware:
 	mov AX, word [DRIVENUMBER]
 	mov dword [BOOTDEVICE], EAX
 	
+	;; Record the Visopsys name for the boot disk
+
+	;; Check for CD-ROM emulation stuffs
+	mov AX, 4B01h
+	mov DX, word [DRIVENUMBER]
+	mov SI, EMUL_SAVE
+	int 13h
+	jc .notCDROM
+	mov AL, byte [EMUL_SAVE + 1]
+	and AL, 0Fh
+	cmp AL, 0
+	je .notCDROM
+
+	;; Make note that there's emulation
+	mov byte [EMULATION], 1
+
+	mov dword [BOOTDISK], 00306463h ; ("cd0")
+	jmp .doneBootName
+	
+	.notCDROM:
+	cmp word [DRIVENUMBER], 80h
+	jb .notHDD
+
+	mov word [BOOTDISK], 6468h ; ("hd")
+	mov AX, word [DRIVENUMBER]
+	sub AL, 80h
+	add AL, 30h		; ("0")
+	mov byte [BOOTDISK + 2], AL
+	jmp .doneBootName
+		
+	.notHDD:
+	mov word [BOOTDISK], 6466h ; ("fd")
+	mov AX, word [DRIVENUMBER]
+	add AL, 30h		; ("0")
+	mov byte [BOOTDISK + 2], AL
+
+	.doneBootName:
+	
 	;; Detect floppy drives, if any
 	call detectFloppies
 
 	;; Detect Fixed disk drives, if any
 	call detectHardDisks
 
+	;; If we were doing CD-ROM emulation, turn it back on
+	cmp byte [EMULATION], 1
+	jne .noEmul
+
+	;; Put the real information into the disk hardware information
+	mov EAX, [FDD1TYPE]
+	mov dword [FDD0TYPE], EAX
+		
+	.noEmul:	
+	
 	;; Serial ports
 	call detectSerial
 
@@ -506,7 +554,7 @@ detectHardDisks:
 	jne .notBoot		; This is not the boot device
 	mov SI, PARTENTRY
 	mov EAX, dword [SI + 8]
-	mov dword [EDI + (HDD0BOOT - HDD0HEADS)], EAX
+	mov dword [BOOTSECT], EAX
 
 	.notBoot:
 	;; This interrupt call will destroy ES, so save it
@@ -979,6 +1027,8 @@ HARDWAREINFO:
 	VIDEOY		dd 0	;; maximum Y resolution
 	VIDEOBPP	dd 0	;; maximum bits per pixel
 	BOOTDEVICE	dd 0	;; BIOS boot device number
+	BOOTSECT	dd 0	;; Booted sector
+	BOOTDISK        db 0, 0, 0, 0  ;; Boot disk string 
 	;; This is an array of info about up to 2 floppy disks in the system
 	FLOPPYDISKS	dd 0	;; Number present
 	;; Floppy 0
@@ -999,28 +1049,24 @@ HARDWAREINFO:
 	HDD0SECPERCYL	dd 0	;; Sectors per cylinder, disk 0
 	HDD0SECSIZE	dd 0	;; Bytes per sector, disk 0
 	HDD0TOTALSECS	dd 0	;; Total sectors, disk 0
-	HDD0BOOT	dd 0	;; Booted sector, disk 0
 	;; Disk 1
 	HDD1HEADS	dd 0	;; Number of heads, disk 1
 	HDD1CYLS	dd 0	;; Number of cylinders, disk 1
 	HDD1SECPERCYL	dd 0	;; Sectors per cylinder, disk 1
 	HDD1SECSIZE	dd 0	;; Bytes per sector, disk 1
 	HDD1TOTALSECS	dd 0	;; Total sectors, disk 1
-	HDD1BOOT	dd 0	;; Booted sector, disk 1
 	;; Disk 2
 	HDD2HEADS	dd 0	;; Number of heads, disk 2
 	HDD2CYLS	dd 0	;; Number of cylinders, disk 2
 	HDD2SECPERCYL	dd 0	;; Sectors per cylinder, disk 2
 	HDD2SECSIZE	dd 0	;; Bytes per sector, disk 2
 	HDD2TOTALSECS	dd 0	;; Total sectors, disk 2
-	HDD2BOOT	dd 0	;; Booted sector, disk 2
 	;; Disk 3
 	HDD3HEADS	dd 0	;; Number of heads, disk 3
 	HDD3CYLS	dd 0	;; Number of cylinders, disk 3
 	HDD3SECPERCYL	dd 0	;; Sectors per cylinder, disk 3
 	HDD3SECSIZE	dd 0	;; Bytes per sector, disk 3
 	HDD3TOTALSECS	dd 0	;; Total sectors, disk 3
-	HDD3BOOT	dd 0	;; Booted sector, disk 3
 	;; Info about the serial ports
 	SERIAL1		dd 0	;; Port address
 	SERIAL2		dd 0	;; Port address
@@ -1034,6 +1080,7 @@ HARDWAREINFO:
 ;; These are general messages related to hardware detection
 ;;
 
+EMULATION	db 0
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
 PROCESSOR	db 'Processor    ', 10h, ' ', 0
@@ -1055,6 +1102,7 @@ SECTS		db ' sects   ', 0
 MEGA		db ' Mbytes', 0
 NOGRAPHICS	db 'NOGRAPH    ', 0
 
+EMUL_SAVE	times 20 db 0
 	
 ;;
 ;; These are error messages related to hardware detection
