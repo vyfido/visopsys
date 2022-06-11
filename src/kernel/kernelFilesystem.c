@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,6 +45,7 @@ static void populateDriverArray(void)
       driverArray[driverCounter++] = kernelDriverGet(isoDriver);
       driverArray[driverCounter++] = kernelDriverGet(linuxSwapDriver);
       driverArray[driverCounter++] = kernelDriverGet(ntfsDriver);
+      driverArray[driverCounter++] = kernelDriverGet(udfDriver);
     }
 }
 
@@ -94,13 +95,33 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
   if (!driverCounter)
     populateDriverArray();
 
-  // If it's a CD-ROM, only check ISO
+  // If it's a CD-ROM, only check UDF and ISO.
   if (theDisk->physical->type & DISKTYPE_CDROM)
     {
+      // Do UDF first because DVDs can have apparently-valid ISO filesystems
+      // on them as well.
+
+      tmpDriver = getDriver(FSNAME_UDF);
+      if (tmpDriver)
+	{
+	  status = tmpDriver->driverDetect(theDisk);
+	  if (status < 0)
+	    goto finished;
+
+	  if (status == 1)
+	    {
+	      driver = tmpDriver;
+	      goto finished;
+	    }
+	}
+
       tmpDriver = getDriver(FSNAME_ISO);
       if (tmpDriver)
 	{
 	  status = tmpDriver->driverDetect(theDisk);
+	  if (status < 0)
+	    goto finished;
+
 	  if (status == 1)
 	    {
 	      driver = tmpDriver;
@@ -115,6 +136,9 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
       for (count = 0; count < driverCounter; count ++)
 	{
 	  status = driverArray[count]->driverDetect(theDisk);
+	  if (status < 0)
+	    goto finished;
+
 	  if (status == 1)
 	    {
 	      driver = driverArray[count];
@@ -127,11 +151,6 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 
   if (driver)
     {
-      // Copy this filesystem type name into the disk structure.  The
-      // filesystem driver can change it if desired.
-      strncpy((char *) theDisk->fsType, driver->driverTypeName,
-	      FSTYPE_MAX_NAMELENGTH);
-
       // Set the operation flags based on which filesystem functions are
       // non-NULL.
       theDisk->opFlags = 0;
@@ -325,6 +344,56 @@ int kernelFilesystemClobber(const char *diskName)
 }
 
 
+int kernelFilesystemCheck(const char *diskName, int force, int repair,
+			  progress *prog)
+{
+  // This function is a wrapper for the filesystem driver's 'check' function,
+  // if applicable.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+ 
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  theDisk = kernelDiskGetByName(diskName);
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
+  if (theDisk->filesystem.driver == NULL)
+    {
+      // Try a scan before we error out.
+      if (kernelFilesystemScan(theDisk) < 0)
+	{
+	  kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
+		      "unknown", theDisk->name);
+	  return (status = ERR_NOTIMPLEMENTED);
+	}
+    }
+
+  theDriver = theDisk->filesystem.driver;
+
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverCheck == NULL)
+    {
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'check' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Check the filesystem
+  return (status = theDriver->driverCheck(theDisk, force, repair, prog));
+}
+
+
 int kernelFilesystemDefragment(const char *diskName, progress *prog)
 {
   // This function is a wrapper for the filesystem driver's 'defragment'
@@ -423,9 +492,8 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 }
 
 
-int kernelFilesystemResizeConstraints(const char *diskName,
-				      unsigned *minBlocks,
-				      unsigned *maxBlocks)
+int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
+				      uquad_t *maxBlocks)
 {
   // This function is a wrapper for the filesystem driver's 'get resize
   // constraints' function, if applicable.
@@ -469,13 +537,13 @@ int kernelFilesystemResizeConstraints(const char *diskName,
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  // Resize the filesystem
+  // Get the constraints from the driver
   return (status = theDriver->driverResizeConstraints(theDisk, minBlocks,
 						      maxBlocks));
 }
 
 
-int kernelFilesystemResize(const char *diskName, unsigned blocks,
+int kernelFilesystemResize(const char *diskName, uquad_t blocks,
 			   progress *prog)
 {
   // This function is a wrapper for the filesystem driver's 'resize'
@@ -512,7 +580,7 @@ int kernelFilesystemResize(const char *diskName, unsigned blocks,
 
   theDriver = theDisk->filesystem.driver;
 
-  // Make sure the driver's checking routine is not NULL
+  // Make sure the driver's resizing routine is not NULL
   if (theDriver->driverResize == NULL)
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
@@ -550,6 +618,14 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       return (status = ERR_NULLPARAMETER);
     }
 
+  // Make sure that the disk hasn't already been mounted 
+  if (theDisk->filesystem.mounted)
+    {
+      kernelError(kernel_error, "The disk is already mounted at %s",
+		  theDisk->filesystem.mountPoint);
+      return (status = ERR_ALREADY);
+    }
+
   if (theDisk->physical->type & DISKTYPE_REMOVABLE)
     checkRemovable(theDisk);
 
@@ -566,18 +642,18 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   theDriver = theDisk->filesystem.driver;
 
+  // Make sure the driver's mounting routine is not NULL
+  if (theDriver->driverMount == NULL)
+    {
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'mount' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+  
   // Fix up the path of the mount point
   status = kernelFileFixupPath(path, mountPoint);
   if (status < 0)
     return (status);
-
-  // Make sure that the disk hasn't already been mounted 
-  if (theDisk->filesystem.mounted)
-    {
-      kernelError(kernel_error, "The disk is already mounted at %s",
-		  theDisk->filesystem.mountPoint);
-      return (status = ERR_ALREADY);
-    }
 
   // If this is NOT the root filesystem we're mounting, we need to make
   // sure that the mount point doesn't already exist.  This is because
@@ -610,14 +686,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	}
     }
 
-  // Make sure the driver's mounting routine is not NULL
-  if (theDriver->driverMount == NULL)
-    {
-      kernelError(kernel_error, "The filesystem driver does not support the "
-		  "'mount' operation");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-  
   kernelLog("Mounting %s filesystem on disk %s", mountPoint, theDisk->name);
 
   // Fill in any information that we already know for this filesystem
@@ -766,6 +834,7 @@ int kernelFilesystemUnmount(const char *path)
   // It doesn't matter whether the unmount call was "successful".  If it
   // wasn't, there's really nothing we can do about it from here.
 
+  // Clear some filesystem info
   theDisk->filesystem.mounted = 0;
   theDisk->filesystem.mountPoint[0] = '\0';
   theDisk->filesystem.filesystemRoot = NULL;
@@ -773,6 +842,14 @@ int kernelFilesystemUnmount(const char *path)
   theDisk->filesystem.filesystemData = NULL;
   theDisk->filesystem.caseInsensitive = 0;
   theDisk->filesystem.readOnly = 0;
+  
+  // If it's a removable device, clear everything
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    {
+      kernelMemClear((void *) &theDisk->filesystem,
+		     sizeof(theDisk->filesystem));
+      strcpy((char *) theDisk->fsType, "unknown");
+    }
 
   // Sync the disk cache
   status = kernelDiskSync((char *) theDisk->name);
@@ -800,64 +877,14 @@ int kernelFilesystemUnmount(const char *path)
 }
 
 
-int kernelFilesystemCheck(const char *diskName, int force, int repair,
-			  progress *prog)
-{
-  // This function is a wrapper for the filesystem driver's 'check' function,
-  // if applicable.
-
-  int status = 0;
-  kernelDisk *theDisk = NULL;
-  kernelFilesystemDriver *theDriver = NULL;
- 
-  // Check params
-  if (diskName == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  theDisk = kernelDiskGetByName(diskName);
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "No such disk \"%s\"", diskName);
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
-    checkRemovable(theDisk);
-
-  if (theDisk->filesystem.driver == NULL)
-    {
-      // Try a scan before we error out.
-      if (kernelFilesystemScan(theDisk) < 0)
-	{
-	  kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
-		      "unknown", theDisk->name);
-	  return (status = ERR_NOTIMPLEMENTED);
-	}
-    }
-
-  theDriver = theDisk->filesystem.driver;
-
-  // Make sure the driver's checking routine is not NULL
-  if (theDriver->driverCheck == NULL)
-    {
-      kernelError(kernel_error, "The filesystem driver does not support the "
-		  "'check' operation");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Check the filesystem
-  return (status = theDriver->driverCheck(theDisk, force, repair, prog));
-}
-
-
-unsigned kernelFilesystemGetFree(const char *path)
+uquad_t kernelFilesystemGetFreeBytes(const char *path)
 {
   // This is merely a wrapper function for the equivalent function
   // in the requested filesystem's own driver.  It takes nearly-identical
   // arguments and returns the same status as the driver function.
 
   int status = 0;
-  unsigned freeSpace = 0;
+  uquad_t freeSpace = 0;
   char mountPoint[MAX_PATH_LENGTH];
   kernelFileEntry *fileEntry = NULL;
   kernelDisk *theDisk = NULL;
@@ -906,16 +933,16 @@ unsigned kernelFilesystemGetFree(const char *path)
 
   // OK, we just have to check on the filsystem driver function we want
   // to call
-  if (theDriver->driverGetFree == NULL)
+  if (theDriver->driverGetFreeBytes == NULL)
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
-		  "'getFree' operation");
+		  "'getFreeBytes' operation");
       // Report NO free space
       return (freeSpace = 0);
     }
 
   // Lastly, we can call our target function
-  return (freeSpace = theDriver->driverGetFree(theDisk));
+  return (freeSpace = theDriver->driverGetFreeBytes(theDisk));
 }
 
 

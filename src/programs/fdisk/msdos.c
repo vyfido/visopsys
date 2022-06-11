@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,12 @@
 #include "fdisk.h"
 #include "msdos.h"
 #include <errno.h>
+#include <libintl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 
 static inline int checkSignature(unsigned char *sectorData)
@@ -42,8 +46,9 @@ static inline int checkSignature(unsigned char *sectorData)
 }
 
 
-static int readTable(const disk *theDisk, unsigned sector,
-		     unsigned extendedStart, rawSlice *slices, int *numSlices)
+static int doReadTable(const disk *theDisk, unsigned sector,
+		       unsigned extendedStart, rawSlice *slices,
+		       int *numSlices)
 {
   // This function (recursively) reads partition table sectors and populates
   // the array of raw slices.
@@ -62,14 +67,14 @@ static int readTable(const disk *theDisk, unsigned sector,
   status = diskReadSectors(theDisk->name, sector, 1, sectorData);
   if (status < 0)
     {
-      error("Couldn't read partition table sector %u", sector);
+      error(_("Couldn't read partition table sector %u"), sector);
       free(sectorData);
       return (status);
     }
 
   if (!checkSignature(sectorData))
     {
-      error("Table at %u has no signature", sector);
+      error(_("Table at %u has no signature"), sector);
       free(sectorData);
       return (status = ERR_INVALID);
     }
@@ -86,7 +91,7 @@ static int readTable(const disk *theDisk, unsigned sector,
   for (count = 0; count < maxEntries; count ++)
     {
       // If this is an entry for an extended partition, skip it for the moment.
-      if (PARTITION_TYPEID_IS_EXTD(table->entries[count].tag))
+      if (MSDOS_TAG_IS_EXTD(table->entries[count].tag))
 	continue;
 
       // If the tag is NULL, and we are in the primary table, we have to
@@ -179,18 +184,18 @@ static int readTable(const disk *theDisk, unsigned sector,
   // Loop through the entries one more time, looking for extended entries
   // (we skipped them, above).
   for (count = 0; count < maxEntries; count ++)
-    if (PARTITION_TYPEID_IS_EXTD(table->entries[count].tag))
+    if (MSDOS_TAG_IS_EXTD(table->entries[count].tag))
       {
 	// This is an extended entry.  Recurse for it.
 	if (sector)
 	  status =
-	    readTable(theDisk, (table->entries[count].startLogical +
-				extendedStart), extendedStart, slices,
-		      numSlices);
+	    doReadTable(theDisk, (table->entries[count].startLogical +
+				  extendedStart), extendedStart, slices,
+			numSlices);
 	else
 	  status =
-	    readTable(theDisk, table->entries[count].startLogical,
-		      table->entries[count].startLogical, slices, numSlices);
+	    doReadTable(theDisk, table->entries[count].startLogical,
+			table->entries[count].startLogical, slices, numSlices);
 	break;
       }
 
@@ -248,8 +253,8 @@ static void formatTableEntry(rawSlice *origRaw, msdosEntry *entry)
 }
 
 
-static int writeTable(const disk *theDisk, unsigned sector,
-		      unsigned extendedStart, rawSlice *slices)
+static int doWriteTable(const disk *theDisk, unsigned sector,
+			unsigned extendedStart, rawSlice *slices)
 {
   // This function (recursively) writes partition table sectors from the
   // array of slices.
@@ -270,7 +275,7 @@ static int writeTable(const disk *theDisk, unsigned sector,
   status = diskReadSectors(theDisk->name, sector, 1, sectorData);
   if (status < 0)
     {
-      error("Couldn't read partition table sector %u", sector);
+      error(_("Couldn't read partition table sector %u"), sector);
       goto out;
     }
 
@@ -323,7 +328,8 @@ static int writeTable(const disk *theDisk, unsigned sector,
 	  // the logical partition should start one 'track' after that.
 	  if (!tmpSlice.geom.startHead)
 	    {
-	      error("Logical partition cannot start on a cylinder boundary");
+	      error("%s", _("Logical partition cannot start on a cylinder "
+			    "boundary"));
 	      status = ERR_ALIGN;
 	      goto out;
 	    }
@@ -343,14 +349,14 @@ static int writeTable(const disk *theDisk, unsigned sector,
 
 	  if (sector)
 	    status =
-	      writeTable(theDisk,
-			 (table->entries[numEntries].startLogical +
-			  extendedStart), extendedStart, &slices[count]);
+	      doWriteTable(theDisk,
+			   (table->entries[numEntries].startLogical +
+			    extendedStart), extendedStart, &slices[count]);
 	  else
 	    status =
-	      writeTable(theDisk, table->entries[numEntries].startLogical,
-			 table->entries[numEntries].startLogical,
-			 &slices[count]);
+	      doWriteTable(theDisk, table->entries[numEntries].startLogical,
+			   table->entries[numEntries].startLogical,
+			   &slices[count]);
 
 	  // If we are in the main table, skip to the end of all the logical
 	  // slices.  If we're not in the main table, we are finished.
@@ -385,7 +391,7 @@ static int writeTable(const disk *theDisk, unsigned sector,
   // Write back the sector.
   status = diskWriteSectors(theDisk->name, sector, 1, sectorData);
   if (status < 0)
-    error("Couldn't write partition table sector %u", sector);
+    error(_("Couldn't write partition table sector %u"), sector);
 
  out:
   free(sectorData);
@@ -426,20 +432,39 @@ static int detect(const disk *theDisk)
 }
 
 
-static int read(const disk *theDisk, rawSlice *slices, int *numSlices)
+static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 {
   // Recursively read the partition tables, starting with the MBR in sector
   // zero.
   *numSlices = 0;
-  return (readTable(theDisk, 0, 0, slices, numSlices));
+  return (doReadTable(theDisk, 0, 0, slices, numSlices));
 }
 
 
-static int write(const disk *theDisk, rawSlice *slices)
+static int writeTable(const disk *theDisk, rawSlice *slices,
+		      int numSlices __attribute__((unused)))
 {
   // Recursively write the partition tables, starting with the MBR in sector
   // zero.
-  return (writeTable(theDisk, 0, 0, slices));
+  return (doWriteTable(theDisk, 0, 0, slices));
+}
+
+
+static int getSliceDesc(rawSlice *slc, char *string)
+{
+  // Given a pointer to a raw slice, return a string description based on
+  // the partition type.  For MS-DOS we call the kernel to ask for the tag
+  // description, if known.
+
+  int status = 0;
+  msdosPartType type;
+
+  status = diskGetMsdosPartType(slc->tag, &type);
+  if (status < 0)
+    return (status);
+
+  strncpy(string, type.description, FSTYPE_MAX_NAMELENGTH);
+  return (status = 0);
 }
 
 
@@ -522,21 +547,107 @@ static sliceType canCreate(slice *slices, int numSlices, int sliceNumber)
   if ((int) returnType == ERR_NOFREE)
     // The partition table is full of entries, in its current
     // configuration.
-    error("The partition table is full of primary partitions.  Use "
-	  "more\nlogical partitions in order to create more.");
+    error("%s", _("The partition table is full of primary partitions.  Use "
+		  "more\nlogical partitions in order to create more."));
 
   return (returnType);
 }
 
 
+static int canHide(slice *slc)
+{
+  // This will return 1 if the given slice is hideable.  For MS-DOS that means
+  // we return 1 if the tag is a hideable tag, or a hidden tag.
+
+  if (MSDOS_TAG_IS_HIDEABLE(slc->raw.tag) || MSDOS_TAG_IS_HIDDEN(slc->raw.tag))
+    return (1);
+  else
+    return (0);
+}
+
+
+static void hide(slice *slc)
+{
+  // This will hide or unhide the slice.
+
+  if (MSDOS_TAG_IS_HIDDEN(slc->raw.tag))
+    slc->raw.tag -= 0x10;
+  else if (MSDOS_TAG_IS_HIDEABLE(slc->raw.tag))
+    slc->raw.tag += 0x10;
+}
+
+
+static int getTypes(listItemParameters **typeListParams)
+{
+  // Get the list of supported partition types as an array of
+  // listItemParameters structures
+
+  msdosPartType *types = NULL;
+  int numberTypes = 0;
+  int count;
+
+  // Get the list of types
+  types = diskGetMsdosPartTypes();
+  if (types == NULL)
+    return (numberTypes = ERR_NODATA);
+
+  for (count = 0; (types[count].tag != 0); count ++)
+    numberTypes += 1;
+  
+  // Make an array of list item parameters
+
+  *typeListParams = malloc(numberTypes * sizeof(listItemParameters));
+  if (*typeListParams == NULL)
+    {
+      numberTypes = ERR_MEMORY;
+      goto out;
+    }
+
+  for (count = 0; count < numberTypes; count ++)
+    snprintf((*typeListParams)[count].text, WINDOW_MAX_LABEL_LENGTH,
+	     "%02x  %s", types[count].tag, types[count].description);
+
+ out:
+  memoryRelease(types);
+  return (numberTypes);
+}
+
+
+static int setType(slice *slc, int typeNum)
+{
+  // Given a slice and the number of a type (returned in the list by the
+  // function getTypes()), set the type.
+
+  int status = 0;
+  msdosPartType *types = NULL;
+
+  // Get the list of types
+  types = diskGetMsdosPartTypes();
+  if (types == NULL)
+    return (status = ERR_NODATA);
+
+  slc->raw.tag = types[typeNum].tag;
+
+  memoryRelease(types);
+  return (status = 0);
+}
+
+
 diskLabel msdosLabel = {
-  label_msdos,                                       // type
-  (LABELFLAG_PRIMARYPARTS | LABELFLAG_LOGICALPARTS), // flags
+  label_msdos, // type
+  (LABELFLAG_PRIMARYPARTS | // flags
+   LABELFLAG_LOGICALPARTS |
+   LABELFLAG_USETAGS),
   // Functions
   &detect,
-  &read,
-  &write,
-  &canCreate
+  &readTable,
+  &writeTable,
+  &getSliceDesc,
+  &canCreate,
+  &canHide,
+  &hide,
+  &getTypes,
+  &setType
 };
 
 

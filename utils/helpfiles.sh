@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  helpfiles.sh
 ##
@@ -42,7 +42,7 @@ for INSTFILE in $INST_FILES ; do
 
 				# Make sure it has an entry in the main help
 				# file
-				elif [ "`grep \"^$NAME \" $TEXTDIR/help.txt`" == "" ]
+				elif [ "`grep \"^$NAME \" $TEXTDIR/help.txt`" = "" ]
 				then
 					echo - $FILE does not have a help summary entry
 				fi

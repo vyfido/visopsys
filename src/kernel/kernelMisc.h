@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,31 +22,19 @@
 #if !defined(_KERNELMISC_H)
 
 #include "kernelFileStream.h"
+#include "kernelMultitasker.h"
 #include "kernelVariableList.h"
 #include <time.h>
+#include <sys/guid.h>
 #include <sys/utsname.h>
 
 #define MAX_SYMBOL_LENGTH 80
 
 typedef struct {
-  unsigned address;
-  char symbol[MAX_SYMBOL_LENGTH];
+  unsigned value;
+  char name[MAX_SYMBOL_LENGTH];
 
 } kernelSymbol;
-
-typedef struct {
-  union {
-    struct {
-      unsigned timeLow;
-      unsigned short timeMid;
-      unsigned short timeHighVers;
-      unsigned char clockSeqRes;
-      unsigned char clockSeqLow;
-      unsigned char node[6];
-    } fields;
-    unsigned char bytes[16];
-  };
-} kernelGuid;
 
 static inline int POW(int x, int y)
 {
@@ -70,13 +58,17 @@ void kernelMemCopy(const void *, void *, unsigned);
 void kernelMemSet(void *, unsigned char, unsigned);
 #define kernelMemClear(ptr, num) kernelMemSet(ptr, 0, num)
 int kernelMemCmp(const void *, const void *, unsigned);
-void kernelStackTrace(void *, void *);
+int kernelStackTrace(kernelProcess *, char *, int);
 void kernelConsoleLogin(void);
-int kernelConfigurationReader(const char *, variableList *);
-int kernelConfigurationWriter(const char *, variableList *);
+int kernelConfigRead(const char *, variableList *);
+int kernelConfigWrite(const char *, variableList *);
+int kernelConfigGet(const char *, const char *, char *, unsigned);
+int kernelConfigSet(const char *, const char *, const char *);
+int kernelConfigUnset(const char *, const char *);
 int kernelReadSymbols(const char *);
 time_t kernelUnixTime(void);
-int kernelGuidGenerate(kernelGuid *);
+int kernelGuidGenerate(guid *);
+unsigned kernelCrc32(void *, unsigned, unsigned *);
 
 #define _KERNELMISC_H
 #endif

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,6 +26,8 @@
 #include <sys/api.h>
 #include <sys/errors.h>
 
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
 
 static volatile image questImage;
 
@@ -53,6 +55,9 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
   int choice = ERR_INVALID;
   int count;
   
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL) || (choiceStrings == NULL))
     return (status = ERR_NULLPARAMETER);
@@ -82,9 +87,9 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 
   if (status == 0)
     {
-      questImage.translucentColor.red = 0;
-      questImage.translucentColor.green = 255;
-      questImage.translucentColor.blue = 0;
+      questImage.transColor.red = 0;
+      questImage.transColor.green = 255;
+      questImage.transColor.blue = 0;
       imageComp = windowNewImage(dialogWindow, (image *) &questImage,
 				 draw_translucent, &params);
     }

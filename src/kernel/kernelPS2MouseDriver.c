@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,7 @@
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelGraphic.h"
 #include "kernelInterrupt.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
@@ -34,19 +35,19 @@
 #include <errno.h>
 #include <string.h>
 
-#define MOUSETIMEOUT 0xFFFFFF
+#define MOUSETIMEOUT 0xFFFFFFF
 
 typedef enum {
   keyboard_input = 0x01,
   mouse_input = 0x21
 } inputType;
 
-typedef struct {
-  unsigned char byte1;
-  unsigned char byte2;
-  unsigned char byte3;
-
-} mousePacket;
+static int enabled = 0;
+static volatile int gotInterrupt = 0;
+static int bytesPerPacket = 3;
+static int packetByte = 0;
+static unsigned char packet[4];
+static unsigned char button1 = 0, button2 = 0, button3 = 0;
 
 
 static inline int isData(inputType type)
@@ -57,28 +58,23 @@ static inline int isData(inputType type)
 
   kernelProcessorInPort8(0x64, status);
 
-  if ((status & type) == type)
+  if ((status & 0x21) == type)
     return (1);
   else
     return (0);
 }
 
 
-static int inPort60(unsigned char *data, inputType type, int timeOut)
+static int inPort60(unsigned char *data, inputType type)
 {
   // Input a value from the keyboard controller's data port, after checking
-  // to make sure that there's some data there for us (port 0x60).
-  // We maybe can't use the same timeout mechanism here as the functions
-  // below, since we need to be able to operate without interrupts enabled.
+  // to make sure that there's some data of the correct type waiting for us
+  // (port 0x60).
 
-  int interrupts = 0;
-  unsigned startTime = 0;
-  int count;
+  unsigned char status = 0;
+  unsigned count;
 
-  kernelProcessorIntStatus(interrupts);
-  if (interrupts)
-    startTime = kernelSysTimerRead();
-
+  // Wait until the controller says it's got data of the requested type
   for (count = 0; count < MOUSETIMEOUT; count ++)
     {
       if (isData(type))
@@ -86,47 +82,64 @@ static int inPort60(unsigned char *data, inputType type, int timeOut)
 	  kernelProcessorInPort8(0x60, *data);
 	  return (0);
 	}
-
-      if (interrupts && (kernelSysTimerRead() >= (startTime + timeOut)))
-	break;
+      else
+	kernelProcessorDelay();
     }
 
-  kernelError(kernel_error, "Timeout reading port 60");
+  kernelProcessorInPort8(0x64, status);
+  kernelError(kernel_error, "Timeout reading port 60, port 64=%02x", status);
   return (ERR_TIMEOUT);
 }
 
 
-static int waitControllerReady(int timeOut)
+static int waitControllerReady(void)
 {
   // Wait for the controller to be ready
 
-  unsigned char status = 0x02;
-  unsigned startTime = kernelSysTimerRead();
+  unsigned char status = 0;
+  unsigned count;
 
-  while (1)
+  for (count = 0; count < MOUSETIMEOUT; count ++)
     {
       kernelProcessorInPort8(0x64, status);
 
       if (!(status & 0x02))
 	return (0);
-
-      if (kernelSysTimerRead() >= (startTime + timeOut))
-	break;
     }
 
-  kernelError(kernel_error, "Controller not ready timeout");
+  kernelError(kernel_error, "Controller not ready timeout, port 64=%02x",
+	      status);
   return (ERR_TIMEOUT);
 }
 
 
-static int outPort60(unsigned char data, int timeOut)
+static int waitCommandReceived(void)
+{
+  unsigned char status = 0;
+  unsigned count;
+
+  for (count = 0; count < MOUSETIMEOUT; count ++)
+    {
+      kernelProcessorInPort8(0x64, status);
+
+      if (status & 0x08)
+	return (0);
+    }
+
+  kernelError(kernel_error, "Controller receive command timeout, port 64=%02x",
+	      status);
+  return (ERR_TIMEOUT);
+}
+
+
+static int outPort60(unsigned char data)
 {
   // Output a value to the keyboard controller's data port, after checking
   // that it's able to receive data (port 0x60).
 
   int status = 0;
 
-  status = waitControllerReady(timeOut);
+  status = waitControllerReady();
   if (status < 0)
     return (status);
 
@@ -136,197 +149,150 @@ static int outPort60(unsigned char data, int timeOut)
 }
 
 
-static int outPort64(unsigned char data, int timeOut)
+static int outPort64(unsigned char data)
 {
   // Output a value to the keyboard controller's command port, after checking
   // that it's able to receive data (port 0x64).
 
   int status = 0;
 
-  status = waitControllerReady(timeOut);
+  status = waitControllerReady();
   if (status < 0)
     return (status);
 
   kernelProcessorOutPort8(0x64, data);
 
+  // Wait until the controller believes it has received it.
+  status = waitCommandReceived();
+  if (status < 0)
+    return (status);
+
   return (status = 0);
 }
 
 
-static inline int buttonEntropy(mousePacket *packet1, mousePacket *packet2)
+static int waitForInterrupt(void)
 {
-  int entropy = 0;
+  int status = 0;
+  unsigned startTime = kernelSysTimerRead();
 
-  if ((packet1->byte1 & 0x04) != (packet2->byte1 & 0x04))
-    entropy += 1;
-  if ((packet1->byte1 & 0x02) != (packet2->byte1 & 0x02))
-    entropy += 1;
-  if ((packet1->byte1 & 0x01) != (packet2->byte1 & 0x01))
-    entropy += 1;
+  kernelDebug(debug_io, "Ps2Mouse: wait for interrupt");
 
-  return (entropy);
+  while (!gotInterrupt)
+    {
+      if (kernelSysTimerRead() > (startTime + 10))
+	{
+	  kernelError(kernel_error, "No interrupt -- timeout");
+	  return (status = ERR_TIMEOUT);
+	}
+    }
+
+  return (status = 0);
 }
 
 
-static inline void drain(void)
+static void ackInterrupt(void)
 {
-  // Just keep reading the data port until it doesn't think there's any more
-  // data for us.
-
-  unsigned char data = 0;
-  unsigned drained = 0;
-
-  while (isData(mouse_input) && (inPort60(&data, mouse_input, 0) >= 0))
-    drained += 1;
-
-  if (drained)
-    kernelDebug(debug_io, "PS2MOUSE: Discarded %u bytes ", drained);
+  kernelDebug(debug_io, "Ps2Mouse: ack interrupt");
+  gotInterrupt -= 1;
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
 }
 
 
-static int readPacket(mousePacket *packet)
+static int readData(void)
 {
   // Read a standard 3-byte PS/2 mouse packet.
 
   int status = 0;
-  static mousePacket lastPacket;
-  static int lastPacketValid = 0;
-  int syncRetries = 0;
+  int xChange = 0, yChange = 0, zChange = 0;
 
   // Disable keyboard output here, because our data reads are not atomic
-  status = outPort64(0xAD, 20);
+  status = outPort64(0xAD);
   if (status < 0)
     goto out;
 
-  while (1)
+  while (isData(mouse_input))
     {
-      status = inPort60(&packet->byte1, mouse_input, 4);
+      status = inPort60(&packet[packetByte], mouse_input);
       if (status < 0)
 	goto out;
 
-      // Check to see whether we think this is a valid first byte.
+      kernelDebug(debug_io, "Ps2Mouse: Read byte %02x", packet[packetByte]);
 
-      // First, we know that byte 1, bit 3 is always on..
-      if (!(packet->byte1 & 0x08) ||
-	  (lastPacketValid && (buttonEntropy(packet, &lastPacket) > 1)))
+      // Byte 1, bit 3 is always supposed to be on.  Wait until that's true.
+      if ((packetByte == 0) && (!(packet[0] & 0x08) || (packet[0] >= 0x40)))
 	{
-	  if (isData(mouse_input) && (syncRetries < 4))
-	    {
-	      syncRetries += 1;
-	      continue;
-	    }
-	  else
-	    {
-	      kernelDebug(debug_io, "PS2MOUSE: Out of sync");
-	      drain();
-	      status = ERR_BADDATA;
-	      goto out;
-	    }
+	  kernelDebug(debug_io, "Ps2Mouse: Out-of-sync byte %02x",
+		      packet[0]);
+	  continue;
 	}
-      else
-	break;
+
+      packetByte += 1;
+
+      if (packetByte >= bytesPerPacket)
+	{
+	  kernelDebug(debug_io, "Ps2Mouse: Got packet %02x/%02x/%02x/%02x: ",
+		      packet[0], packet[1], packet[2], packet[3]);
+
+	  if ((packet[0] & 0x01) != button1)
+	    {
+	      button1 = (packet[0] & 0x01);
+	      kernelDebug(debug_io, "Ps2Mouse: Button1");
+	      kernelMouseButtonChange(1, button1);
+	    }
+
+	  if ((packet[0] & 0x04) != button2)
+	    {
+	      button2 = (packet[0] & 0x04);
+	      kernelDebug(debug_io, "Ps2Mouse: Button2");
+	      kernelMouseButtonChange(2, button2);
+	    }
+
+	  if ((packet[0] & 0x02) != button3)
+	    {
+	      button3 = (packet[0] & 0x02);
+	      kernelDebug(debug_io, "Ps2Mouse: Button3");
+	      kernelMouseButtonChange(3, button3);
+	    }
+
+	  if (packet[1] || packet[2])
+	    {
+	      // Sign them
+	      if (packet[0] & 0x10)
+		xChange = (int) ((256 - packet[1]) * -1);
+	      else
+		xChange = (int) packet[1];
+
+	      if (packet[0] & 0x20)
+		yChange = (int) (256 - packet[2]);
+	      else
+		yChange = (int) (packet[2] * -1);
+
+	      kernelDebug(debug_io, "Ps2Mouse: Move (%d,%d)", xChange,
+			  yChange);
+	      kernelMouseMove(xChange, yChange);
+	    }
+
+	  if (packet[3])
+	    {
+	      zChange = (char) packet[3];
+	      kernelDebug(debug_io, "Ps2Mouse: Scroll (%d)", zChange);
+	      kernelMouseScroll(zChange);
+	    }
+
+	  packetByte = 0;
+	}
     }
-
-  // Arbitrary checks here.  If the values are too large we're probably out
-  // of synch, so ignore them.
-
-  status = inPort60(&packet->byte2, mouse_input, 4);
-  if (status < 0)
-    goto out;
-
-  if (((packet->byte1 & 0x10) && (packet->byte2 < 128)) ||
-      (!(packet->byte1 & 0x10) && (packet->byte2 > 128)))
-    {
-      status = ERR_BADDATA;
-      goto out;
-    }
-
-  status = inPort60(&packet->byte3, mouse_input, 4);
-  if (status < 0)
-    goto out;
-
-  if (((packet->byte1 & 0x20) && (packet->byte3 < 128)) ||
-      (!(packet->byte1 & 0x20) && (packet->byte3 > 128)))
-    {
-      status = ERR_BADDATA;
-      goto out;
-    }
-
-  kernelDebug(debug_io, "PS2MOUSE: %02x/%02x/%02x: ", packet->byte1,
-	      packet->byte2, packet->byte3);
-
-  kernelMemCopy(packet, &lastPacket, sizeof(mousePacket));
-  lastPacketValid = 1;
 
   status = 0;
 
  out:
+  ackInterrupt();
 
   // Re-enable keyboard output
-  outPort64(0xAE, 20);
+  outPort64(0xAE);
 
   return (status);
-}
-
-
-static void readData(void)
-{
-  // This gets called whenever there is a mouse interrupt
-
-  int status = 0;
-  static unsigned char button1 = 0, button2 = 0, button3 = 0;
-  mousePacket packet;
-  int xChange = 0, yChange = 0;
-
-  while (isData(mouse_input))
-    {
-      // The first byte contains button information and sign information
-      // for the next two bytes.  The second byte is the change in X position,
-      // and the third is the change in Y position
-      status = readPacket(&packet);
-      if (status < 0)
-	return;
-
-      if ((packet.byte1 & 0x01) != button1)
-	{
-	  button1 = (packet.byte1 & 0x01);
-	  kernelDebug(debug_io, "PS2MOUSE: Button1 ");
-	  kernelMouseButtonChange(1, button1);
-	}
-
-      if ((packet.byte1 & 0x04) != button2)
-	{
-	  button2 = (packet.byte1 & 0x04);
-	  kernelDebug(debug_io, "PS2MOUSE: Button2 ");
-	  kernelMouseButtonChange(2, button2);
-	}
-
-      if ((packet.byte1 & 0x02) != button3)
-	{
-	  button3 = (packet.byte1 & 0x02);
-	  kernelDebug(debug_io, "PS2MOUSE: Button3 ");
-	  kernelMouseButtonChange(3, button3);
-	}
-
-      if (packet.byte2 ||  packet.byte3)
-	{
-	  // Sign them
-	  if (packet.byte1 & 0x10)
-	    xChange = (int) ((256 - packet.byte2) * -1);
-	  else
-	    xChange = (int) packet.byte2;
-
-	  if (packet.byte1 & 0x20)
-	    yChange = (int) (256 - packet.byte3);
-	  else
-	    yChange = (int) (packet.byte3 * -1);
-
-	  kernelDebug(debug_io, "PS2MOUSE: Move (%d,%d) ", xChange, yChange);
-	  kernelMouseMove(xChange, yChange);
-	}
-    }
-
-  return;
 }
 
 
@@ -340,17 +306,20 @@ static void mouseInterrupt(void)
   kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
-  // Call the routine to read the data
-  readData();
+  gotInterrupt += 1;
+  kernelDebug(debug_io, "Ps2Mouse: Mouse interrupt");
 
-  kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
+  if (enabled)
+    // Call the routine to read the data
+    readData();
+
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit(address);
 }
 
 
 static int command(unsigned char cmd, int numParams, unsigned char *inParams,
-		   unsigned char *outParams, int timeOut)
+		   unsigned char *outParams)
 {
   // Send a mouse command to the keyboard controller
 
@@ -358,157 +327,308 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
   unsigned char data = 0;
   int count;
 
-  kernelDebug(debug_io, "PS2MOUSE: Mouse command %02x... ", cmd);
+  kernelDebug(debug_io, "Ps2Mouse: Mouse command %02x... ", cmd);
 
   // Mouse command...
-  status = outPort64(0xD4, timeOut);
+  kernelDebug(debug_io, "Ps2Mouse: MC");
+  status = outPort64(0xD4);
   if (status < 0)
     {
       kernelError(kernel_error, "Error writing command");
-      return (status);
+      goto out;
     }
-  kernelDebug(debug_io, "PS2MOUSE: MC, ");
 
-  // Send command
-  status = outPort60(cmd, timeOut);
-  if (status < 0)
+  while (1)
     {
-      kernelError(kernel_error, "Error writing command");
-      return (status);
-    }
-  kernelDebug(debug_io, "PS2MOUSE: cmd, ");
+      // Send command
+      kernelDebug(debug_io, "Ps2Mouse: cmd");
+      status = outPort60(cmd);
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Error writing command");
+	  goto out;
+	}
 
-  // Read the ack 0xFA
-  status = inPort60(&data, mouse_input, timeOut);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Error reading ack");
-      return (status);
+      status = waitForInterrupt();
+      if (status < 0)
+	{
+	  // Check for error
+	  kernelProcessorInPort8(0x64, data);
+	  if (data & 0xC0)
+	    {
+	      // Read error status
+	      kernelSysTimerWaitTicks(1);
+	      inPort60(&data, mouse_input);
+	      kernelDebugError("Ps2Mouse: command error %02x", data);
+	    }
+
+	  goto out;
+	}
+
+      kernelDebug(debug_io, "Ps2Mouse: got response interrupt");
+      kernelSysTimerWaitTicks(1);
+
+      // Read the ack 0xFA
+      status = inPort60(&data, mouse_input);
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Error reading ack");
+	  goto out;
+	}
+
+      ackInterrupt();
+
+      if (data == 0xFA)
+	{
+	  kernelDebug(debug_io, "Ps2Mouse: ack");
+	  break;
+	}
+      else if ((data == 0xFE) && (cmd == 0xFF))
+	{
+	  // Don't resend if we were doing a reset.  I think this is an
+	  // indication that there's no mouse.
+	  kernelDebugError("Ps2Mouse: not resending reset");
+	  status = ERR_IO;
+	  goto out;
+	}
+      else if (data == 0xFE)
+	{
+	  // Resend
+	  kernelDebug(debug_io, "Ps2Mouse: resend");
+	  continue;
+	}
+      else
+	{
+	  kernelDebugError("Ps2Mouse: No command ack, response=%02x", data);
+	  status = ERR_IO;
+	  goto out;
+	}
     }
-  if (data != 0xFA)
-    {
-      kernelDebug(debug_io, "PS2MOUSE: No command ack, response=%02x", data);
-      return (status = ERR_IO);
-    }
-  kernelDebug(debug_io, "PS2MOUSE: ack, ");
+
+  // If this is a reset command, wait a little bit for the operation to
+  // complete
+  if (cmd == 0xFF)
+    kernelSysTimerWaitTicks(5);
 
   // Now, if there are parameters to this command...
   for (count = 0; count < numParams; count ++)
     {
       if (inParams)
 	{
-	  status = inPort60(&data, mouse_input, timeOut);
+	  status = waitForInterrupt();
+	  if (status < 0)
+	    goto out;
+
+	  kernelDebug(debug_io, "Ps2Mouse: got parameter interrupt");
+
+	  status = inPort60(&data, mouse_input);
 	  if (status < 0)
 	    {
 	      kernelError(kernel_error, "Error reading command parameter %d",
 			  count);
-	      return (status);
+	      goto out;
 	    }
-	  
+
+	  ackInterrupt();
+
 	  inParams[count] = data;
-	  kernelDebug(debug_io, "PS2MOUSE: p%d=%02x, ", count, data);
+	  kernelDebug(debug_io, "Ps2Mouse: in p%d=%02x (%d)", count, data,
+		      data);
 	}
 
       else if (outParams)
 	{
-	  status = outPort60(outParams[count], timeOut);
+	  // Mouse command...
+	  status = outPort64(0xD4);
 	  if (status < 0)
 	    {
-	      kernelError(kernel_error, "Error writing parameter %d", count);
-	      return (status);
+	      kernelError(kernel_error, "Error writing command");
+	      goto out;
 	    }
-	  kernelDebug(debug_io, "PS2MOUSE: p%d=%02x, ", count,
-		      outParams[count]);
+	  kernelDebug(debug_io, "Ps2Mouse: MC");
 
-	  /*
-	  // Read the ack 0xFA
-	  status = inPort60(&data, mouse_input, timeOut);
-	  if (status < 0)
+	  while (1)
 	    {
-	      kernelError(kernel_error, "Error reading ack");
-	      return (status);
+	      status = outPort60(outParams[count]);
+	      if (status < 0)
+		{
+		  kernelError(kernel_error, "Error writing parameter %d",
+			      count);
+		  goto out;
+		}
+	      kernelDebug(debug_io, "Ps2Mouse: out p%d=%02x (%d)", count,
+			  outParams[count], outParams[count]);
+
+	      status = waitForInterrupt();
+	      if (status < 0)
+		{
+		  // Check for error
+		  kernelProcessorInPort8(0x64, data);
+		  if (data & 0xC0)
+		    {
+		      // Read error status
+		      kernelSysTimerWaitTicks(1);
+		      inPort60(&data, mouse_input);
+		      kernelDebugError("Ps2Mouse: command error %02x", data);
+		    }
+
+		  goto out;
+		}
+
+	      kernelDebug(debug_io, "Ps2Mouse: got parameter interrupt");
+  
+	      // Read the ack 0xFA
+	      status = inPort60(&data, mouse_input);
+	      if (status < 0)
+		{
+		  kernelError(kernel_error, "Error reading ack");
+		  goto out;
+		}
+
+	      ackInterrupt();
+
+	      if (data == 0xFA)
+		{
+		  kernelDebug(debug_io, "Ps2Mouse: ack, ");
+		  break;
+		}
+	      else if (data == 0xFE)
+		{
+		  // Resend
+		  kernelDebug(debug_io, "Ps2Mouse: resend, ");
+		  continue;
+		}
+	      else
+		{
+		  kernelDebugError("Ps2Mouse: No ack, response=%02x", data);
+		  status = ERR_IO;
+		  goto out;
+		}
 	    }
-	  if (data != 0xFA)
-	    {
-	      kernelDebug(debug_io, "PS2MOUSE: no ack data=%02x", data);
-	      return (status = ERR_IO);
-	    }
-	  kernelDebug(debug_io, "PS2MOUSE: ack, ");
-	  */
 	}
     }
 
-  kernelDebug(debug_io, "PS2MOUSE: done");
-  return (status = 0);
+  kernelDebug(debug_io, "Ps2Mouse: done");
+  status = 0;
+
+ out:
+  if (gotInterrupt)
+    kernelError(kernel_warn, "%d unserviced interrupts", gotInterrupt);
+
+  return (status);
+}
+
+
+static int detect(void)
+{
+  int status = ERR_IO;
+  unsigned char data[2];
+
+  kernelDebug(debug_io, "Ps2Mouse: Mouse detection");
+
+  // Mask off keyboard interrupts
+  kernelPicMask(INTERRUPT_NUM_KEYBOARD, 0);
+
+  do {
+    // Send the reset command
+    if (command(0xFF, 2, data, NULL) < 0)
+      break;
+
+    // Should be 'self test passed' 0xAA and device ID 0 for normal
+    // PS/2 mouse
+    if ((data[0] != 0xAA) || (data[1] != 0))
+      break;
+
+    // Read device type.
+    if (command(0xF2, 1, data, NULL) < 0)
+      break;
+      
+    // Should be type 0.
+    if (data[0] != 0)
+      break;
+  
+    status = 0;
+
+  } while (0);
+
+  // Restore keyboard interrupts
+  kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
+
+  return (status);
 }
 
 
 static int initialize(void)
 {
-  int status = 0;
+  int status = ERR_IO;
   unsigned char data[2];
-  int retries = 0;
 
-  kernelDebug(debug_io, "PS2MOUSE: Mouse intialize");
+  kernelDebug(debug_io, "Ps2Mouse: Mouse intialize");
 
-  for (retries = 0; retries < 5; retries ++)
-    { 
-      // Send the reset command
-      if (command(0xFF, 2, data, NULL, 20) < 0)
-	continue;
+  kernelMemClear(packet, sizeof(packet));
 
-      // Should be 'self test passed' 0xAA and device ID 0 for normal
-      // PS/2 mouse
-      if ((data[0] != 0xAA) || (data[1] != 0))
-	continue;
+  // Mask off keyboard interrupts
+  kernelPicMask(INTERRUPT_NUM_KEYBOARD, 0);
 
-      /*
-      // Set sample rate (decimal 10);
-      data[0] = 10;
-      if (command(0xF3, 1, NULL, data, 20) < 0)
-	continue;
-
-      // Read device type.
-      if (command(0xF2, 1, data, NULL, 20) < 0)
-	continue;
-      
-      // Should be type 0.
-      if (data[0] != 0)
-	continue;
-
-      // Set resolution.  100 dpi, 4 counts/mm, decimal 2.
-      data[0] = 2;
-      if (command(0xE8, 1, NULL, data, 20) < 0)
-	continue;
-      */
-
-      // Set scaling to 2:1
-      if (command(0xE7, 0, NULL, NULL, 20) < 0)
-	continue;
-
-      /*
-      // Set sample rate (decimal 40);
-      data[0] = 40;
-      if (command(0xF3, 1, NULL, data, 20) < 0)
-	continue;
-      */
-
-      // Set stream mode.
-      if (command(0xEA, 0, NULL, NULL, 20) < 0)
-	continue;
-
-      // Enable data reporting.
-      if (command(0xF4, 0, NULL, NULL, 20) < 0)
-	continue;
-
-      // Success
+  do {
+    // Set defaults.  Sample rate 100, Scaling 1:1, resolution 4 counts/mm,
+    // disable data reporting.
+    if (command(0xF6, 0, NULL, NULL) < 0)
       break;
-    }
 
-  if (retries < 5)
-    return (status = 0);
-  else
-    return (status = ERR_IO);
+    // Set stream mode.
+    if (command(0xEA, 0, NULL, NULL) < 0)
+      break;
+
+    // Set scaling to 2:1
+    if (command(0xE7, 0, NULL, NULL) < 0)
+      break;
+
+    // Set resolution 200 dpi, 8 counts/mm
+    data[0] = 3;
+    if (command(0xE8, 1, NULL, data) < 0)
+      break;
+
+    // Try to determine whether this is a scroll-wheel mouse.  It involves
+    // doing a little magic sequence of setting different sample rates and
+    // then asking for the device type again
+    do {
+      data[0] = 200;
+      if (command(0xF3, 1, NULL, data) < 0)
+	break;
+
+      data[0] = 100;
+      if (command(0xF3, 1, NULL, data) < 0)
+	break;
+
+      data[0] = 80;
+      if (command(0xF3, 1, NULL, data) < 0)
+	break;
+
+      if (command(0xF2, 1, data, NULL) < 0)
+	break;
+      
+      // Should be type 3 now.
+      if (data[0] == 3)
+	{
+	  bytesPerPacket = 4;
+	  kernelDebug(debug_io, "Ps2Mouse: scroll-wheel mouse");
+	}
+
+    } while (0);
+
+    // Enable data reporting.
+    if (command(0xF4, 0, NULL, NULL) < 0)
+      break;
+
+    status = 0;
+
+  } while (0);
+
+  // Restore keyboard interrupts
+  kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
+
+  return (status);
 }
 
 
@@ -519,57 +639,54 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // the keyboard controller a little bit to initialize the mouse
 
   int status = 0;
+  int interrupts = 0;
   unsigned char data = 0;
   kernelDevice *dev = NULL;
-  int interrupts = 0;
-
-  // Do the hardware initialization.
 
   // Disable keyboard output here, because our data reads are not atomic
-  status = outPort64(0xAD, 20);
+  status = outPort64(0xAD);
   if (status < 0)
     goto exit;
-
-  // Enable the mouse port
-  status = outPort64(0xA8, 20);
-  if (status < 0)
-    goto exit;
-
-  status = initialize();
-  if (status < 0)
-    {
-      // Perhaps there is no mouse
-      status = 0;
-      goto exit;
-    }
 
   kernelProcessorSuspendInts(interrupts);
 
-  // Don't worry about the timeout values for these 'inPort' and 'outPort'
-  // commands whilst interrupts are disabled -- as long as the value is non-
-  // zero it will not time out (no sys timer interrupt).
+  // Make sure the controller is set to issue mouse interrupts and make sure
+  // the 'disable mouse' bit is clear
+  outPort64(0x20);
+  inPort60(&data, keyboard_input);
 
-  // Tell the controller to issue mouse interrupts
-  kernelDebug(debug_io, "PS2MOUSE: Turn on mouse interrupts...");
-  outPort64(0x20, 1);
-  inPort60(&data, keyboard_input, 1);
-  data |= 0x02;
-  outPort64(0x60, 1);
-  outPort60(data, 1);
-  kernelDebug(debug_io, "PS2MOUSE: done");
+  if ((data & 0x20) || !(data & 0x02))
+    {
+      kernelDebug(debug_io, "Ps2Mouse: Turn on mouse interrupts...");
+      data &= ~0x20;
+      data |= 0x02;
+      outPort64(0x60);
+      outPort60(data);
+    }
+
+  // Clear any pending interrupts
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
 
   kernelProcessorRestoreInts(interrupts);
 
-  // Re-enable keyboard output
-  outPort64(0xAE, 20);
-
   // Register our interrupt handler
+  kernelDebug(debug_io, "Ps2Mouse: Hook interrupt...");
   status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt);
   if (status < 0)
     goto exit;
 
   // Turn on the interrupt
+  kernelDebug(debug_io, "Ps2Mouse: Turn on interrupt...");
   kernelPicMask(INTERRUPT_NUM_MOUSE, 1);
+
+  // See whether we've got a mouse response to our queries
+  status = detect();
+  if (status < 0)
+    {
+      // Perhaps there is no PS/2 mouse
+      status = 0;
+      goto exit;
+    }
 
   // Allocate memory for the device
   dev = kernelMalloc(sizeof(kernelDevice));
@@ -584,23 +701,42 @@ static int driverDetect(void *parent, kernelDriver *driver)
   dev->driver = driver;
 
   // Add the device
+  kernelDebug(debug_io, "Ps2Mouse: Add device...");
   status = kernelDeviceAdd(parent, dev);
   if (status < 0)
     goto exit;
 
-  kernelDebug(debug_io, "PS2MOUSE: Successfully detected mouse");
+  if (kernelGraphicsAreEnabled())
+    {
+      // Do the hardware initialization.
+      status = initialize();
+      if (status < 0)
+	{
+	  // Perhaps there is no PS/2 mouse
+	  status = 0;
+	  goto exit;
+	}
+
+      enabled = 1;
+    }
+
+  kernelDebug(debug_io, "Ps2Mouse: Successfully detected mouse");
   status = 0;
 
 exit:
 
   // Re-enable keyboard output
-  outPort64(0xAE, 20);
+  outPort64(0xAE);
 
   if (status < 0)
     {
-      kernelDebug(debug_io, "PS2MOUSE: Error %d detecting mouse", status);
+      kernelDebug(debug_io, "Ps2Mouse: Error %d detecting mouse", status);
+
       if (dev)
-	kernelFree(dev);
+	{
+	  kernelDeviceRemove(dev);
+	  kernelFree(dev);
+	}
     }
 
   return (status);

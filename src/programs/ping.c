@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,14 +42,19 @@ Options:
 </help>
 */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
+#include <sys/font.h>
 #include <sys/network.h>
+
+#define _(string) gettext(string)
 
 static int graphics = 0;
 static char pingWhom[80];
@@ -77,7 +82,7 @@ static void error(const char *format, ...)
   va_end(list);
 
   if (graphics)
-    windowNewErrorDialog(window, "Error", output);
+    windowNewErrorDialog(window, _("Error"), output);
   else
     printf("\n%s\n", output);
 }
@@ -85,7 +90,7 @@ static void error(const char *format, ...)
 
 static void usage(char *name)
 {
-  error("usage:\n%s [-T] <address | hostname>\n", name);
+  error(_("usage:\n%s [-T] <address | hostname>\n"), name);
   return;
 }
 
@@ -153,8 +158,8 @@ static void responseThread(void)
 	      swab(&(pingPacket->sequenceNum), &(pingPacket->sequenceNum),
 		   sizeof(unsigned short));
 
-	      printf("%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=X "
-		     "ms\n", ipHeader->totalLength,  srcAddress->bytes[0],
+	      printf(_("%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=X "
+		       "ms\n"), ipHeader->totalLength,  srcAddress->bytes[0],
 		     srcAddress->bytes[1], srcAddress->bytes[2],
 		     srcAddress->bytes[3], pingPacket->sequenceNum,
 		     ipHeader->timeToLive);
@@ -186,7 +191,7 @@ static void constructWindow(void)
   componentParameters params;
 
   // Create a new window
-  window = windowNew(multitaskerGetCurrentProcessId(), "Ping");
+  window = windowNew(multitaskerGetCurrentProcessId(), _("Ping"));
   if (window == NULL)
     return;
 
@@ -202,9 +207,8 @@ static void constructWindow(void)
   params.orientationY = orient_middle;
   windowNewTextLabel(window, pingWhom, &params);
 
-  if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
-	       &(params.font), 1) < 0)
-    params.font = NULL;
+  if (fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL) >= 0)
+    fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
 
   // Create a text area to show our ping activity
   params.gridY = 1;
@@ -219,9 +223,9 @@ static void constructWindow(void)
   params.orientationX = orient_center;
   params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   params.font = NULL;
-  stopButton = windowNewButton(window, "Stop", NULL, &params);
-  windowComponentFocus(stopButton);
+  stopButton = windowNewButton(window, _("Stop"), NULL, &params);
   windowRegisterEventHandler(stopButton, &eventHandler);
+  windowComponentFocus(stopButton);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -235,6 +239,7 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   char opt;
   int length = 0;
   char addressBuffer[18];
@@ -244,6 +249,12 @@ int main(int argc, char *argv[])
   unsigned currentTime = rtcUptimeSeconds();
   unsigned tmpTime = 0;
   int count;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("ping");
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -258,7 +269,7 @@ int main(int argc, char *argv[])
   // Make sure networking is enabled
   if (!networkInitialized())
     {
-      error("Networking is not currently enabled");
+      error("%s", _("Networking is not currently enabled"));
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -274,9 +285,9 @@ int main(int argc, char *argv[])
     {
       if (argc < 2)
 	{
-	  status = windowNewPromptDialog(window, "Enter Address", "Enter the "
-					 "network address to ping:", 1, 18,
-					 addressBuffer);
+	  status = windowNewPromptDialog(window, _("Enter Address"),
+					 _("Enter the network address to "
+					   "ping:"), 1, 18, addressBuffer);
 	  if (status <= 0)
 	    quit(status);
 
@@ -311,7 +322,7 @@ int main(int argc, char *argv[])
   pingData = malloc(NETWORK_PING_DATASIZE);
   if (pingData == NULL)
     {
-      error("Memory allocation error");
+      error("%s", _("Memory allocation error"));
       quit(errno = ERR_MEMORY);
     }
 
@@ -330,11 +341,11 @@ int main(int argc, char *argv[])
   connection = networkOpen(NETWORK_MODE_READWRITE, &address, &filter);
   if (connection == NULL)
     {
-      error("Error opening network connection");
+      error("%s", _("Error opening network connection"));
       quit(errno = ERR_IO);
     }
 
-  sprintf(pingWhom, "Ping %d.%d.%d.%d %d bytes of data\n", address.bytes[0],
+  sprintf(pingWhom, _("Ping %d.%d.%d.%d %d bytes of data\n"), address.bytes[0],
 	  address.bytes[1], address.bytes[2], address.bytes[3],
 	  NETWORK_PING_DATASIZE);
 
@@ -348,7 +359,7 @@ int main(int argc, char *argv[])
       // Set up the signal handler for catching CTRL-C interrupt
       if (signal(SIGINT, &interrupt) == SIG_ERR)
 	{
-	  error("Error setting signal handler");
+	  error("%s", _("Error setting signal handler"));
 	  quit(errno = ERR_NOTINITIALIZED);
 	}
 
@@ -361,7 +372,7 @@ int main(int argc, char *argv[])
     multitaskerSpawn(responseThread, "ping receive thread", 0, NULL);
   if (threadPid < 0)
     {
-      error("Error starting response thread");
+      error("%s", _("Error starting response thread"));
       quit(errno = threadPid);
     }
 
@@ -370,7 +381,7 @@ int main(int argc, char *argv[])
       status = networkPing(connection, count, pingData, NETWORK_PING_DATASIZE);
       if (status < 0)
 	{
-	  error("Error pinging host");
+	  error("%s", _("Error pinging host"));
 	  quit(errno = status);
 	}
 
@@ -388,10 +399,10 @@ int main(int argc, char *argv[])
   // Wait for the receive thread to finish.
   while (multitaskerProcessIsAlive(threadPid));
 
-  printf("\n--- %d.%d.%d.%d ping statistics ---\n", address.bytes[0],
+  printf(_("\n--- %d.%d.%d.%d ping statistics ---\n"), address.bytes[0],
 	 address.bytes[1], address.bytes[2], address.bytes[3]);
-  printf("%d packets transmitted, %d received, %d%% packet loss, time Xms\n",
-	 packetsSent, packetsReceived,
+  printf(_("%d packets transmitted, %d received, %d%% packet loss, "
+	   "time Xms\n"), packetsSent, packetsReceived,
 	 (packetsSent?
 	  (((packetsSent - packetsReceived) * 100) / packetsSent) : 0));
 

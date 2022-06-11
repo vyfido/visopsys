@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,9 +52,10 @@ Options:
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/window.h>
-#include <sys/errors.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
+#include <sys/errors.h>
+#include <sys/window.h>
 
 #define LOGIN_SHELL "/programs/vsh"
 #define AUTHFAILED  "Authentication failed"
@@ -69,6 +70,7 @@ Options:
 // The following are only used if we are running a graphics mode login window.
 static int graphics = 0;
 static int readOnly = 1;
+static image splashImage;
 static objectKey window = NULL;
 static objectKey textLabel = NULL;
 static objectKey loginField = NULL;
@@ -164,7 +166,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	shutdown(halt, 0);
     }
 
-  else if ((event->type == EVENT_KEY_DOWN) && (event->key == 10))
+  else if ((event->type == EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))
     {
       // Get the data from our field
       if (stage == 0)
@@ -195,10 +197,7 @@ static void constructWindow(int myProcessId)
   // If we are in graphics mode, make a window rather than operating on the
   // command line.
 
-  int status = 0;
   componentParameters params;
-  static image splashImage;
-  objectKey imageComponent = NULL;
 
   // This function can be called multiple times.  Clear any event handlers
   // from previous calls
@@ -220,17 +219,13 @@ static void constructWindow(int myProcessId)
 
   if (splashImage.data == NULL)
     // Try to load a splash image to go at the top of the window
-    status = imageLoad("/system/visopsys.bmp", 0, 0, &splashImage);
+    imageLoad("/system/visopsys.jpg", 0, 0, &splashImage);
+
   if (splashImage.data != NULL)
     {
-      splashImage.translucentColor.red = 0;
-      splashImage.translucentColor.green = 0xFF;
-      splashImage.translucentColor.blue = 0;
-
       // Create an image component from it, and add it to the window
       params.gridY = 0;
-      imageComponent = windowNewImage(window, &splashImage, draw_translucent,
-				      &params);
+      windowNewImage(window, &splashImage, draw_normal, &params);
     }
 
   // Put text labels in the window to prompt the user
@@ -239,7 +234,6 @@ static void constructWindow(int myProcessId)
 
   // Add a login field
   params.gridY = 2;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   loginField = windowNewTextField(window, 30, &params);
   windowRegisterEventHandler(loginField, &eventHandler);
 
@@ -253,7 +247,6 @@ static void constructWindow(int myProcessId)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   rebootButton = windowNewButton(window, "Reboot", NULL, &params);
   windowRegisterEventHandler(rebootButton, &eventHandler);
@@ -355,6 +348,9 @@ int main(int argc, char *argv[])
   // mode or not.
   graphics = graphicsAreEnabled();
 
+  if (graphics)
+    bzero(&splashImage, sizeof(image));
+
   // Check for options
   while (strchr("Tf:", (opt = getopt(argc, argv, "Tf:"))))
     {
@@ -380,10 +376,11 @@ int main(int argc, char *argv[])
   // Outer loop, from which we never exit
   while(1)
     {
-      if (graphics && !skipLogin)
+      if (graphics)
 	{
 	  constructWindow(myPid);
-	  windowSetVisible(window, 1);
+	  if (!skipLogin)
+	    windowSetVisible(window, 1);
 	}
 
       // Inner loop, which goes until we authenticate successfully
@@ -402,6 +399,8 @@ int main(int argc, char *argv[])
 		windowNewErrorDialog(window, "Error", AUTHFAILED);
 	      else
 		printf("\n*** " AUTHFAILED " ***\n\n");
+	      if (graphics)
+		windowSetVisible(window, 1);
 	      continue;
 	    }
 
@@ -413,8 +412,9 @@ int main(int argc, char *argv[])
       
       if (graphics)
 	{
-	  // Get rid of the login window
-	  windowDestroy(window);
+	  if (window)
+	    // Get rid of the login window
+	    windowDestroy(window);
 	  
 	  // Log the user into the window manager
 	  shellPid = windowLogin(login);

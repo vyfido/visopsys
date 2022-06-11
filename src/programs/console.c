@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,11 +40,15 @@ in other windows.
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 objectKey window = NULL;
 
@@ -61,12 +65,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   int processId = 0;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("console");
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n",
+      printf(_("\nThe \"%s\" command only works in graphics mode\n"),
 	     (argc? argv[0] : ""));
       errno = ERR_NOTINITIALIZED;
       return (status = errno);
@@ -75,7 +86,7 @@ int main(int argc, char *argv[])
   processId = multitaskerGetCurrentProcessId();
 
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, "Console Window");
+  window = windowNew(processId, _("Console Window"));
 
   // Put the console text area in the window
   status = windowAddConsoleTextArea(window);
@@ -83,12 +94,12 @@ int main(int argc, char *argv[])
     {
       if (status == ERR_ALREADY)
 	// There's already a console window open somewhere
-	windowNewErrorDialog(NULL, "Error", "Cannot open more than one "
-			     "console window!");
+	windowNewErrorDialog(NULL, _("Error"), _("Cannot open more than one "
+						 "console window!"));
       
       else
-	windowNewErrorDialog(NULL, "Error", "Error opening the console "
-			     "window!");
+	windowNewErrorDialog(NULL, _("Error"), _("Error opening the console "
+						 "window!"));
 
       windowDestroy(window);
       return (status);

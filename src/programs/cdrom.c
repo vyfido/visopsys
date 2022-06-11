@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,13 +47,14 @@ command to print out the names of all disks.
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/api.h>
 
 
 static int numberDisks = 0;
-static disk diskInfo[DISK_MAXDEVICES];
+static disk *diskInfo = NULL;
 static disk *selectedDisk = NULL;
 
 
@@ -61,19 +62,30 @@ static int scanDisks(void)
 {
   int status = 0;
   int tmpNumberDisks = 0;
-  disk tmpDiskInfo[DISK_MAXDEVICES];
+  disk *tmpDiskInfo = NULL;
   int count;
 
   // Call the kernel to give us the number of available disks
   tmpNumberDisks = diskGetPhysicalCount();
   if (tmpNumberDisks <= 0)
-    return (status = ERR_NOSUCHENTRY);
+    {
+      status = ERR_NOSUCHENTRY;
+      goto out;
+    }
+
+  tmpDiskInfo = malloc(tmpNumberDisks * sizeof(disk));
+  diskInfo = malloc(tmpNumberDisks * sizeof(disk));
+  if (!diskInfo || !tmpDiskInfo)
+    {
+      status = ERR_MEMORY;
+      goto out;
+    }
 
   // Read disk info into our temporary structure
-  status = diskGetAllPhysical(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
+  status = diskGetAllPhysical(tmpDiskInfo, (tmpNumberDisks * sizeof(disk)));
   if (status < 0)
     // Eek.  Problem getting disk info
-    return (status);
+    goto out;
 
   // Loop through these disks, figuring out which ones are CD-ROMS
   // and putting them into the regular array
@@ -84,7 +96,19 @@ static int scanDisks(void)
 	numberDisks ++;
       }
 
-  return (status = 0);
+  status = 0;
+
+ out:
+  if (tmpDiskInfo)
+    free(tmpDiskInfo);
+
+  if ((status < 0) && diskInfo)
+    {
+      free(diskInfo);
+      diskInfo = NULL;
+    }
+
+  return (status);
 }
 
 
@@ -109,23 +133,22 @@ int main(int argc, char *argv[])
   if (status < 0)
     {
       printf("\n\nProblem getting CD-ROM info\n\n");
-      errno = status;
-      return (status);
+      goto out;
     }
 
   if (argc < 2)
     {
       printDisks();
-      errno = 0;
-      return (status = 0);
+      status = 0;
+      goto out;
     }
 
   // There needs to be at least one CD-ROM to continue
   if (numberDisks < 1)
     {
       printf("\n\nNo CD-ROMS registered\n\n");
-      errno = ERR_NOSUCHENTRY;
-      return (status = errno);
+      status = ERR_NOSUCHENTRY;
+      goto out;
     }
 
   // Determine which disk is requested.  If there's only one it's easy
@@ -162,10 +185,7 @@ int main(int argc, char *argv[])
       status = ERR_INVALID;
     }
 
-  errno = status;
-
-  if (status < 0)
-    perror(argv[0]);
-
+ out:
+  free(diskInfo);
   return (status);
 }

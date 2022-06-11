@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,15 +39,20 @@ Options:
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/font.h>
 
 #define COLUMNS           60
 #define NORMAL_ROWS       25
 #define MORE_ROWS         40
 #define SCROLLBACK_LINES  200
+
+#define _(string) gettext(string)
 
 static int graphics = 0;
 static int rows = NORMAL_ROWS;
@@ -84,7 +89,7 @@ static void printTree(device *dev, int level)
       if (dev->subClass.name[0])
 	printf("%s ", dev->subClass.name);
 
-      printf("%s\n", dev->class.name);
+      printf("%s\n", dev->devClass.name);
 
       // Print any additional attributes
       for (count1 = 0; count1 < dev->attrs.numVariables; count1 ++)
@@ -140,17 +145,21 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 static void constructWindow(void)
 {
+  int status = 0;
   objectKey textArea = NULL;
   componentParameters params;
 
   // Create a new window
   window = windowNew(multitaskerGetCurrentProcessId(),
-		     "System Device Information");
+		     _("System Device Information"));
   if (window == NULL)
     return;
 
-  if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
-	       &(params.font), 1) < 0)
+  status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
+  if (status >= 0)
+    status =
+      fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
+  if (status < 0)
     {
       params.font = NULL;
       // The system font can comfortably show more rows
@@ -161,10 +170,10 @@ static void constructWindow(void)
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
-  params.padLeft = 5;
-  params.padRight = 5;
-  params.padTop = 5;
-  params.padBottom = 5;
+  params.padLeft = 1;
+  params.padRight = 1;
+  params.padTop = 1;
+  params.padBottom = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
   textArea =
@@ -176,8 +185,6 @@ static void constructWindow(void)
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
 
-  windowSetVisible(window, 1);
-
   return;
 }
 
@@ -186,8 +193,15 @@ __attribute__((noreturn))
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   char opt;
   device dev;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("lsdev");
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -209,7 +223,10 @@ int main(int argc, char *argv[])
   printTree(&dev, 0);
 
   if (graphics)
-    windowGuiRun();
+    {
+      windowSetVisible(window, 1);
+      windowGuiRun();
+    }
   else
     printf("\n");
 

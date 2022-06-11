@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,15 +22,16 @@
 // This file contains the routines designed for managing user access
 
 #include "kernelUser.h"
-#include "kernelFile.h"
 #include "kernelDisk.h"
+#include "kernelEncrypt.h"
+#include "kernelError.h"
+#include "kernelFile.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
+#include "kernelShutdown.h"
 #include "kernelVariableList.h"
-#include "kernelMisc.h"
-#include "kernelEncrypt.h"
-#include "kernelMemory.h"
-#include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -42,79 +43,14 @@ static int initialized = 0;
 static int readPasswordFile(const char *fileName, variableList *userList)
 {
   // Open and read the password file
-
-  int status = 0;
-  kernelFileEntry *fileEntry = NULL;
-  variableList tmpUserList;
-  int count;
-
-  if (!strcmp(fileName, USER_PASSWORDFILE))
-    {
-      // Check whether the password file exists
-      fileEntry = kernelFileLookup(fileName);
-      if (fileEntry == NULL)
-	{
-	  // Try to use the blank one instead
-	  fileEntry = kernelFileLookup(USER_PASSWORDFILE ".blank");
-	  if (fileEntry)
-	    {
-	      status = kernelConfigurationReader(USER_PASSWORDFILE ".blank",
-						 &tmpUserList);
-
-	      if(!((kernelDisk *) fileEntry->disk)->filesystem.readOnly)
-		// Try to make a copy for next time
-		kernelFileCopy(USER_PASSWORDFILE ".blank", fileName);
-	    }
-	}
-      else
-	status = kernelConfigurationReader(fileName, &tmpUserList);
-
-      if (status < 0)
-	// The password file doesn't exist, and neither does the blank one.
-	// Create a blank variable list.
-	kernelVariableListCreate(&tmpUserList);
-    }
-  else
-    {
-      status = kernelConfigurationReader(fileName, &tmpUserList);
-      if (status < 0)
-	{
-	  kernelError(kernel_error, "Password file %s not found", fileName);
-	  return (status);
-	}
-    }
-
-  // Now create a variable list big enough to hold our maximum number of
-  // user entries
-  status = kernelVariableListCreate(userList);
-  if (status < 0)
-    {
-      kernelVariableListDestroy(&tmpUserList);
-      return (status);
-    }
-
-  // Now transfer all the data from the temporary list to the permanent one
-  for (count = 0; count < tmpUserList.numVariables; count ++)
-    {
-      status = kernelVariableListSet(userList, tmpUserList.variables[count],
-				     tmpUserList.values[count]);
-      if (status < 0)
-	{
-	  kernelVariableListDestroy(&tmpUserList);
-	  kernelVariableListDestroy(userList);
-	  return (status);
-	}
-    }
-
-  kernelVariableListDestroy(&tmpUserList);
-  return (status = 0);
+  return (kernelConfigRead(fileName, userList));
 }
 
 
 static int writePasswordFile(const char *fileName, variableList *userList)
 {
   // Writes the password data in memory out to the password file
-  return (kernelConfigurationWriter(fileName, userList));
+  return (kernelConfigWrite(fileName, userList));
 }
 
 
@@ -265,13 +201,49 @@ int kernelUserInitialize(void)
   // about users
   
   int status = 0;
+  kernelDisk *rootDisk = NULL;
+  char tmp[33];
 
+  kernelMemClear(&systemUserList, sizeof(variableList));
   kernelMemClear(&currentUser, sizeof(kernelUser));
 
   // Try to read the password file.
-  status = readPasswordFile(USER_PASSWORDFILE, &systemUserList);
-  if (status < 0)
-    return (status);
+
+  // Does it exist?
+  if (kernelFileFind(USER_PASSWORDFILE, NULL) >= 0)
+    {
+      status = readPasswordFile(USER_PASSWORDFILE, &systemUserList);
+      if (status < 0)
+	// This is bad, but we don't want to fail the whole kernel startup
+	// because of it.
+	kernelError(kernel_warn, "Error reading password file %s",
+		    USER_PASSWORDFILE);
+    }
+
+  // Make sure there's a list, and least one user
+  if ((status < 0) || (systemUserList.numVariables <= 0))
+    {
+      // Create a variable list
+      status = kernelVariableListCreate(&systemUserList);
+      if (status < 0)
+	return (status);
+    }
+
+  // Make sure there's a user called 'admin'
+  if (kernelVariableListGet(&systemUserList, "admin", tmp, 33) < 0)
+    {
+      // Create a user entry for 'admin' with a blank password.
+      status = addUser(&systemUserList, "admin", "");
+      if (status < 0)
+	return (status);
+
+      // If the root filesystem is not read-only, write it out, so that
+      // there's a valid password file next time.
+      if ((kernelDiskGetBoot(tmp) >= 0) &&
+	  ((rootDisk = kernelDiskGetByName(tmp)) != NULL) &&
+	  !rootDisk->filesystem.readOnly)
+	writePasswordFile(USER_PASSWORDFILE, &systemUserList);
+    }
 
   initialized = 1;
   return (status = 0);
@@ -544,6 +516,13 @@ int kernelUserSetPid(const char *userName, int loginPid)
   // Set the login PID for the named user.  This is just a kludge for now.
 
   int status = 0;
+
+  #ifdef PLUS
+  extern int kernelIsLicensed;
+  if (!kernelIsLicensed)
+    kernelPanicOutput("License key", "", 0,
+		      "The license key you entered is not valid");
+  #endif
 
   // Check initialization
   if (!initialized)

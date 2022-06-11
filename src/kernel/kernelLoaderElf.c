@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,15 +24,16 @@
 
 #include "kernelLoader.h"
 #include "kernelLoaderElf.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
-#include "kernelMisc.h"
-#include "kernelError.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 
 static Elf32SectionHeader *getSectionHeader(void *data, const char *name)
@@ -85,7 +86,7 @@ static Elf32SectionHeader *getSectionHeaderByNumber(void *data, int number)
 }
 
 
-static int detect(const char *fileName, void *dataPtr, int size,
+static int detect(const char *fileName, void *dataPtr, unsigned size,
 		  loaderFileClass *class)
 {
   // This function returns 1 and fills the fileClass structure if the data
@@ -105,37 +106,55 @@ static int detect(const char *fileName, void *dataPtr, int size,
       // This is an ELF file.
       sprintf(class->className, "%s %s ", FILECLASS_NAME_ELF,
 	      FILECLASS_NAME_BIN);
-      class->flags = LOADERFILECLASS_BIN;
+      class->class = LOADERFILECLASS_BIN;
 
       // Is it an executable, object file, shared library, or core?
       switch (header->e_type)
 	{
 	case ELFTYPE_RELOC:
-	  strcat(class->className, FILECLASS_NAME_OBJ);
-	  class->flags |= LOADERFILECLASS_OBJ;
-	  break;
+	  {
+	    strcat(class->className, FILECLASS_NAME_OBJ);
+	    class->class |= LOADERFILECLASS_OBJ;
+	    break;
+	  }
 	case ELFTYPE_EXEC:
-	  sectionHeaders =
-	    (Elf32SectionHeader *) ((void *) dataPtr + header->e_shoff);
-	  for (count = 1; count < header->e_shnum; count ++)
-	    if (sectionHeaders[count].sh_type == ELFSHT_DYNAMIC)
+	  {
+	    sectionHeaders =
+	      (Elf32SectionHeader *) ((void *) dataPtr + header->e_shoff);
+
+	    for (count = 1; count < header->e_shnum; count ++)
 	      {
-		strcat(class->className, FILECLASS_NAME_DYNAMIC " ");
-		class->flags |= LOADERFILECLASS_DYNAMIC;
-		break;
+		// Don't scan the section headers if they're located beyond
+		// the limits of the buffer we've been given
+		if (((void *) &sectionHeaders[count] +
+		     sizeof(Elf32SectionHeader)) > (dataPtr + size))
+		  break;
+
+		if (sectionHeaders[count].sh_type == ELFSHT_DYNAMIC)
+		  {
+		    strcat(class->className, FILECLASS_NAME_DYNAMIC " ");
+		    class->subClass |= LOADERFILESUBCLASS_DYNAMIC;
+		    break;
+		  }
 	      }
-	  strcat(class->className, FILECLASS_NAME_EXEC);
-	  class->flags |= LOADERFILECLASS_EXEC;
-	  break;
+	    strcat(class->className, FILECLASS_NAME_EXEC);
+	    class->class |= LOADERFILECLASS_EXEC;
+	    break;
+	  }
 	case ELFTYPE_SHARED:
-	  strcat(class->className,
-		 FILECLASS_NAME_DYNAMIC " " FILECLASS_NAME_LIB);
-	  class->flags |= (LOADERFILECLASS_DYNAMIC | LOADERFILECLASS_LIB);
-	  break;
+	  {
+	    strcat(class->className,
+		   FILECLASS_NAME_DYNAMIC " " FILECLASS_NAME_LIB);
+	    class->class |= LOADERFILECLASS_LIB;
+	    class->subClass |= LOADERFILESUBCLASS_DYNAMIC;
+	    break;
+	  }
 	case ELFTYPE_CORE:
-	  strcat(class->className, FILECLASS_NAME_CORE);
-	  class->flags |= LOADERFILECLASS_DATA;
-	  break;
+	  {
+	    strcat(class->className, FILECLASS_NAME_CORE);
+	    class->class |= LOADERFILECLASS_DATA;
+	    break;
+	  }
 	}
 
       return (1);
@@ -145,7 +164,7 @@ static int detect(const char *fileName, void *dataPtr, int size,
 }
 
 
-static loaderSymbolTable *getSymbols(void *data, int dynamic, int kernel)
+static loaderSymbolTable *getSymbols(void *data, int kernel)
 {
   // Returns the symbol table of the file, dynamic or static symbols.
 
@@ -167,28 +186,28 @@ static loaderSymbolTable *getSymbols(void *data, int dynamic, int kernel)
   // Store a pointer to the start of the section headers
   sectionHeaders = (Elf32SectionHeader *) (data + header->e_shoff);
 
-  // Get the symbol and string tables
-  if (dynamic)
+  // Try to use the static symbol and string tables (since they should be
+  // supersets of the dynamic ones).  If the statics are not there, use the
+  // dynamics.
+
+  // Symbol table
+  symbolTableHeader = getSectionHeader(data, ".symtab");
+  // String table
+  stringTableHeader = getSectionHeader(data, ".strtab");
+  
+  if (!symbolTableHeader || !stringTableHeader)
     {
       // Symbol table
       symbolTableHeader = getSectionHeader(data, ".dynsym");
       // String table
       stringTableHeader = getSectionHeader(data, ".dynstr");
-    }
-  else
-    {
-      // Symbol table
-      symbolTableHeader = getSectionHeader(data, ".symtab");
-      // String table
-      stringTableHeader = getSectionHeader(data, ".strtab");
-    }
 
-  if (!symbolTableHeader || !stringTableHeader)
-    {
-      // No symbols or no strings
-      kernelError(kernel_error, "%s symbols or strings missing",
-		  (dynamic? "Dynamic" : "Static")); 
-      return (symTable = NULL);
+      if (!symbolTableHeader || !stringTableHeader)
+	{
+	  // No symbols or no strings
+	  kernelError(kernel_error, "Symbols or strings missing"); 
+	  return (symTable = NULL);
+	}
     }
 
   symbols = (data + symbolTableHeader->sh_offset);
@@ -434,28 +453,7 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 }
 
 
-static loaderSymbol *getSymbol(const char *name, loaderSymbolTable *symbols)
-{
-  // Returns a pointer to a symbol if it exists in the table and is defined
-  // there
-  
-  loaderSymbol *symbol = NULL;
-  int count;
-
-  for (count = 0; count < symbols->numSymbols; count ++)
-    {
-      if (!strcmp(symbols->symbols[count].name, name))
-	{
-	  symbol = &(symbols->symbols[count]);
-	  break;
-	}
-    }
-
-  return (symbol);
-}
-
-
-static int resolveLibrarySymbols(loaderSymbolTable **symbolTable,
+static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 				 kernelDynamicLibrary *library)
 {
   // Given 2 symbol tables, replace the first one with a version that
@@ -471,7 +469,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symbolTable,
   int count;
 
   // First get memory for the new combined table
-  newTableSize = ((*symbolTable)->tableSize + library->symbolTable->tableSize);
+  newTableSize = ((*symTable)->tableSize + library->symbolTable->tableSize);
   newTable = kernelMalloc(newTableSize);
   if (newTable == NULL)
     return (status = ERR_MEMORY);
@@ -479,13 +477,13 @@ static int resolveLibrarySymbols(loaderSymbolTable **symbolTable,
   newTable->tableSize = newTableSize;
   newTableData = (void *)
     (((unsigned) newTable + sizeof(loaderSymbolTable)) +
-     (((*symbolTable)->numSymbols + library->symbolTable->numSymbols) *
+     (((*symTable)->numSymbols + library->symbolTable->numSymbols) *
       sizeof(loaderSymbol)));
 
   // Copy over the symbols of the first table
-  for (count = 0; count < (*symbolTable)->numSymbols; count ++)
+  for (count = 0; count < (*symTable)->numSymbols; count ++)
     {
-      symbol = &((*symbolTable)->symbols[count]);
+      symbol = &((*symTable)->symbols[count]);
       if (!symbol->name[0])
 	continue;
 
@@ -511,21 +509,16 @@ static int resolveLibrarySymbols(loaderSymbolTable **symbolTable,
 	continue;
 
       // Get any symbol entry with the same name from the new table
-      newSymbol = getSymbol(symbol->name, newTable);
+      newSymbol = kernelLoaderFindSymbol(symbol->name, newTable);
 
       if (newSymbol)
 	{
 	  if (!newSymbol->defined)
 	    {
-	      newSymbol->defined = symbol->defined;
-	      newSymbol->value =
-		(symbol->value + (unsigned) library->codeVirtual);
-	      newSymbol->size = symbol->size;
-	      newSymbol->binding = symbol->binding;
-	      newSymbol->type = symbol->type;
+	      kernelMemCopy(symbol, newSymbol, sizeof(loaderSymbol));
+	      newSymbol->value += (unsigned) library->codeVirtual;
 	    }
 	}
-
       else
 	{
 	  // Put the symbol in the new table
@@ -540,8 +533,8 @@ static int resolveLibrarySymbols(loaderSymbolTable **symbolTable,
     }
 
   // Deallocate the first table, and assign the new one to the pointer
-  kernelFree(*symbolTable);
-  *symbolTable = newTable;
+  kernelFree(*symTable);
+  *symTable = newTable;
 
   return (status = 0);
 }
@@ -719,8 +712,9 @@ static int doRelocations(void *dataAddress, void *codeVirtualAddress,
       type = (int) ELF32_R_TYPE(relocTable->relocations[count1].info);
       if (relocTable->relocations[count1].symbolName)
 	{
-	  symbol = getSymbol(relocTable->relocations[count1].symbolName,
-			     globalSymTable);
+	  symbol =
+	    kernelLoaderFindSymbol(relocTable->relocations[count1].symbolName,
+				   globalSymTable);
 	  if (symbol == NULL)
 	    {
 	      kernelError(kernel_error, "Symbol %s not found",
@@ -746,8 +740,10 @@ static int doRelocations(void *dataAddress, void *codeVirtualAddress,
 	  // library that has this symbol defined
 	  for (count2 = 0; count2 < libArray->numLibraries; count2 ++)
 	    {
-	      copySymbol = getSymbol(symbol->name,
-				     libArray->libraries[count2].symbolTable);
+	      copySymbol =
+		kernelLoaderFindSymbol(symbol->name,
+				       libArray->libraries[count2]
+				       .symbolTable);
 	      if (copySymbol && copySymbol->defined)
 		break;
 	    }
@@ -870,10 +866,12 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
     (library->codeVirtual + (library->data - library->code));
   library->dataSize = libImage.dataSize;
   library->imageSize = libImage.imageSize;
-  library->symbolTable =
-    getSymbols(loadAddress, 1 /* dynamic */, 1 /* kernel */);
+  library->symbolTable = getSymbols(loadAddress, 1 /* kernel */);
   library->relocationTable =
     getRelocations(loadAddress, library->symbolTable, 0);
+
+  kernelDebug(debug_loader, "ELF libary codeVirtual=%p codePhysical=%p",
+	      library->codeVirtual, library->codePhysical);
 
   return (status = 0);
 }
@@ -910,6 +908,8 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
   void *dataMem = NULL;
   void *libraryDataPhysical = NULL;
 
+  kernelDebug(debug_loader, "ELF pull in library %s", library->name);
+
   // Get memory for a copy of the library's data
   dataMem = kernelMemoryGet(kernelPageRoundUp(library->dataSize),
 			    "dynamic library data");
@@ -925,12 +925,21 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
       return (status = ERR_MEMORY);
     }
 
+  kernelDebug(debug_loader, "ELF library->dataVirtual=%p "
+	      "library->codeVirtual=%p library->codeSize=%u",
+	      library->dataVirtual, library->codeVirtual, library->codeSize);
+
   // Calculate the offset of the data start within its memory page
   dataOffset = ((library->dataVirtual - library->codeVirtual) -
 		kernelPageRoundUp(library->codeSize));
 
+  kernelDebug(debug_loader, "ELF got libraryDataPhysical=%p dataOffset=%u",
+	      libraryDataPhysical, dataOffset);
+
   // Make a copy of the data
   kernelMemCopy(library->data, (dataMem + dataOffset), library->dataSize);
+
+  kernelDebug(debug_loader, "ELF copied library data");
 
   // Find enough free pages for the whole library image
   library->codeVirtual = kernelPageFindFree(processId, library->imageSize);
@@ -942,6 +951,10 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 
   library->dataVirtual += (unsigned) library->codeVirtual;
 
+  kernelDebug(debug_loader, "ELF got library->codeVirtual=%p "
+	      "library->dataVirtual=%p", library->codeVirtual,
+	      library->dataVirtual);
+
   // Map the kernel's library code into the process' address space
   status =
     kernelPageMap(processId, library->codePhysical, library->codeVirtual,
@@ -951,6 +964,8 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
       kernelMemoryRelease(dataMem);
       return (status);
     }
+
+  kernelDebug(debug_loader, "ELF mapped library code");
 
   // Map the data memory into the process' address space, right after the
   // end of the code.
@@ -967,6 +982,10 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
   // the offset to the actual data start)
   library->data = (dataMem + dataOffset);
 
+  kernelDebug(debug_loader, "ELF mapped library data copy to %p, "
+	      "library->data=%p", (library->dataVirtual - dataOffset),
+	      library->data);
+
   // Code should be read-only
   kernelPageSetAttrs(processId, 0, PAGEFLAG_WRITABLE, library->codeVirtual,
 		     kernelPageRoundUp(library->codeSize));
@@ -976,13 +995,17 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
       return (status);
     }
 
+  kernelDebug(debug_loader, "ELF set code page attrs");
+
   // Resolve symbols
   status = resolveLibrarySymbols(symbols, library);
   if (status < 0)
     {
-      kernelMemoryRelease(library->code);
+      kernelMemoryRelease(dataMem);
       return (status);
     }
+
+  kernelDebug(debug_loader, "ELF resolved library symbols");
 
   return (status = 0);
 }
@@ -1023,14 +1046,14 @@ static int resolveLibraryDependencies(int processId,
 }
 
 
-static int link(int processId, void *loadAddress, processImage *execImage)
+static int link(int processId, void *loadAddress, processImage *execImage,
+		loaderSymbolTable **symbols)
 {
   // This function does runtime linking for dynamically-linked executables.
   // 'loadAddress' is the raw file data, and 'execImage' describes the
   // laid-out (using 'layoutExecutable()') version.
 
   int status = 0;
-  loaderSymbolTable *symbols = NULL;
   elfLibraryArray libArray;
   kernelRelocationTable *relocations = NULL;
   int count;
@@ -1040,33 +1063,36 @@ static int link(int processId, void *loadAddress, processImage *execImage)
   // will not check the magic number stuff at the head of the file.
 
   // Get the dynamic symbols for the program
-  symbols = getSymbols(loadAddress, 1 /* dynamic */, 1 /* kernel */);
-  if (symbols == NULL)
+  *symbols = getSymbols(loadAddress, 1 /* kernel */);
+  if (*symbols == NULL)
     return (status = ERR_NODATA);
 
   // Get any library dependencies
   status = getLibraryDependencies(loadAddress, &libArray);
   if (status < 0)
     {
-      kernelFree(symbols);
+      kernelFree(*symbols);
+      *symbols = NULL;
       return (status);
     }
 
   // Resolve the dependencies
-  status = resolveLibraryDependencies(processId, &symbols, &libArray);
+  status = resolveLibraryDependencies(processId, symbols, &libArray);
   if (status < 0)
     {
-      kernelFree(symbols);
+      kernelFree(*symbols);
+      *symbols = NULL;
       kernelFree(libArray.libraries);
       return (status);
     }
 
   // Get the relocations for the program code
   relocations =
-    getRelocations(loadAddress, symbols, execImage->virtualAddress);
+    getRelocations(loadAddress, *symbols, execImage->virtualAddress);
   if (relocations == NULL)
     {
-      kernelFree(symbols);
+      kernelFree(*symbols);
+      *symbols = NULL;
       kernelFree(libArray.libraries);
       return (status = ERR_NODATA);
     }
@@ -1075,16 +1101,17 @@ static int link(int processId, void *loadAddress, processImage *execImage)
   status = doRelocations(execImage->data, execImage->virtualAddress,
 			 (execImage->virtualAddress +
 			  (execImage->data - execImage->code)),
-			 symbols, relocations, &libArray);
+			 *symbols, relocations, &libArray);
   if (status < 0)
     {
-      kernelFree(symbols);
+      kernelFree(*symbols);
+      *symbols = NULL;
       kernelFree(libArray.libraries);
       return (status);
     }
 
-  // Make the process own the memory for each library, and unmap it from the
-  // memory of this process.
+  // Make the process own the memory for each library's data, and unmap it
+  // from the memory of this process.
   for (count = 0; count < libArray.numLibraries; count ++)
     {
       kernelMemoryChangeOwner(kernelCurrentProcess->processId, processId, 0,
@@ -1096,10 +1123,42 @@ static int link(int processId, void *loadAddress, processImage *execImage)
 		      kernelPageRoundUp(libArray.libraries[count].dataSize));
     }
 
-  kernelFree(symbols);
   kernelFree(libArray.libraries);
   kernelFree(relocations);
-  return (status);
+  return (status = 0);
+}
+
+
+static int hotLink(kernelDynamicLibrary *library)
+{
+  // This function allows a running program to link in a new library
+  
+  int status = 0;
+  elfLibraryArray libArray;
+  loaderSymbolTable *symbols = NULL;
+
+  libArray.numLibraries = 1;
+  libArray.libraries = library;
+  
+  // Get the current symbol table
+  symbols = kernelMultitaskerGetSymbols(kernelCurrentProcess->processId);
+  if (symbols == NULL)
+    {
+      kernelDebugError("Couldn't get symbols for process %d",
+		       kernelCurrentProcess->processId);
+      return (status = ERR_NODATA);
+    }
+
+  // Resolve the dependencies
+  status = resolveLibraryDependencies(kernelCurrentProcess->processId,
+				      &symbols, &libArray);
+  if (status < 0)
+    return (status);
+
+  // Set the symbol table
+  kernelMultitaskerSetSymbols(kernelCurrentProcess->processId, symbols);
+
+  return (status = 0);
 }
 
 
@@ -1128,10 +1187,11 @@ kernelFileClass *kernelFileClassElf(void)
 
   if (!filled)
     {
-      elfFileClass.executable.getSymbols = getSymbols;
-      elfFileClass.executable.layoutLibrary = layoutLibrary;
-      elfFileClass.executable.layoutExecutable = layoutExecutable;
-      elfFileClass.executable.link = link;
+      elfFileClass.executable.getSymbols = &getSymbols;
+      elfFileClass.executable.layoutLibrary = &layoutLibrary;
+      elfFileClass.executable.layoutExecutable = &layoutExecutable;
+      elfFileClass.executable.link = &link;
+      elfFileClass.executable.hotLink = &hotLink;
       filled = 1;
     }
 

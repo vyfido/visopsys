@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -314,7 +314,6 @@ int kernelDescriptorSetUnformatted(volatile kernelSelector selector,
   // Initialize the descriptor we're changing
   kernelMemClear((kernelDescriptor *) &globalDescriptorTable[entryNumber],
 	      sizeof(kernelDescriptor));
-  
 
   // Now, simply copy the data we were passed into the requested entry
   globalDescriptorTable[entryNumber].segSizeByte1 = segSizeByte1;
@@ -457,7 +456,6 @@ int kernelDescriptorGet(kernelSelector selector, kernelDescriptor *descriptor)
   if (descriptor == NULL)
     return (status = ERR_NULLPARAMETER);
 
-
   // OK, let's get the values from the requested table entry and fill out
   // the structure as requested
   descriptor->segSizeByte1 = globalDescriptorTable[entryNumber].segSizeByte1;
@@ -554,7 +552,7 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
   // Initialize the descriptor we're changing
   kernelMemClear((kernelDescriptor *) 
 		&interruptDescriptorTable[number], sizeof(kernelDescriptor));
-  
+
   // Now we can begin constructing the descriptor.  Start working through
   // each of the descriptor's bytes.
   interruptDescriptorTable[number].segSizeByte1 = (unsigned char) 0;

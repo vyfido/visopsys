@@ -14,5 +14,5 @@ the program will prompt for the name of the file.  You can add, delete, and
 modify variables.
 
 Examples of configuration files include the kernel configuration,
-kernel.conf, and the window manager configuration, windowmanager.conf.
+kernel.conf, and the window manager configuration, window.conf.
 

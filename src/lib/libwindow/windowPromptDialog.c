@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,15 +21,22 @@
 
 // This contains functions for user programs to operate GUI components.
 
+#include <libintl.h>
 #include <string.h>
-#include <sys/window.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 #include <sys/errors.h>
+#include <sys/window.h>
 
+#define _(string) gettext(string)
 
 typedef enum {
   promptDialog, passwordDialog
 } dialogType;
+
+
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
 
 
 static int dialog(dialogType type, objectKey parentWindow, const char *title,
@@ -47,6 +54,9 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
   windowEvent event;
+
+  if (!libwindow_initialized)
+    libwindowInitialize();
 
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL) || (buffer == NULL))
@@ -76,12 +86,6 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 
   params.gridY = 1;
   params.padTop = 5;
-  params.flags =
-    (WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
-  params.background.red = 255;
-  params.background.green = 255;
-  params.background.blue = 255;
-
   if (type == passwordDialog)
     field = windowNewPasswordField(dialogWindow, columns, &params);
   else
@@ -91,6 +95,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
       else
 	field = windowNewTextArea(dialogWindow, columns, rows, 0, &params);
     }
+  windowComponentFocus(field);
 
   // Create the OK button
   params.gridY = 2;
@@ -98,14 +103,14 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.padBottom = 5;
   params.orientationX = orient_right;
   params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-  okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
+  okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
 
   // Create the Cancel button
   params.gridX = 1;
   params.padLeft = 0;
   params.padRight = 5;
   params.orientationX = orient_left;
-  cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
+  cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
 
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);
@@ -147,7 +152,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
       if (status < 0)
 	break;
       else if ((event.type == EVENT_KEY_DOWN) &&
-	       (event.key == (unsigned char) 10))
+	       (event.key == (unsigned char) ASCII_ENTER))
 	{
 	  status = windowComponentGetData(field, buffer, (rows * columns));
 	  if (status < 0)

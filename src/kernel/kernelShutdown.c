@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,9 @@
 #include "kernelShutdown.h"
 #include "kernelError.h"
 #include "kernelFilesystem.h"
+#include "kernelFont.h"
 #include "kernelGraphic.h"
+#include "kernelLocale.h"
 #include "kernelLog.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
@@ -36,8 +38,14 @@
 #include "kernelWindow.h"
 #include <stdio.h>
 
+#define _(string) kernelGetText(string)
+#define SHUTDOWN_MSG1        _("Shutting down Visopsys, please wait...")
+#define SHUTDOWN_MSG2        _("[ Wait for \"OK to power off\" message ]")
+#define SHUTDOWN_MSG_REBOOT  _("Rebooting.")
+#define SHUTDOWN_MSG_POWER   _("OK to power off now.")
 
-static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
+
+static void messageBox(asciiFont *font, int numLines, char *message[])
 {
   // Prints a blue box, with lines of white text centered in it.
   // Useful for final shutdown messages.
@@ -107,7 +115,7 @@ int kernelShutdown(int reboot, int force)
   char *finalMessage = NULL;
 
   // We only use these if grapics are enabled
-  kernelAsciiFont *font = NULL;
+  asciiFont *font = NULL;
   kernelWindow *window = NULL;
   componentParameters params;
   kernelWindowComponent *label1 = NULL;
@@ -133,8 +141,13 @@ int kernelShutdown(int reboot, int force)
       screenHeight = kernelGraphicGetScreenHeight();
 
       // Try to load a nice-looking font
-      status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-			      WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &font, 0);
+      status = kernelFileFind(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE, NULL);
+      if (status >= 0)
+	{
+	  status =
+	    kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+			   WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &font, 0);
+	}
       if (status < 0)
 	{
 	  // Font's not there, we suppose.  There's always a default.
@@ -142,7 +155,7 @@ int kernelShutdown(int reboot, int force)
 	}
  
       window = kernelWindowNew(kernelMultitaskerGetCurrentProcessId(),
-			       "Shutting down");
+			       _("Shutting down"));
       if (window)
 	{
 	  kernelMemClear(&params, sizeof(componentParameters));
@@ -176,7 +189,7 @@ int kernelShutdown(int reboot, int force)
   // Echo the appropriate message(s) to the console [as well]
   kernelTextPrintLine("\n%s", SHUTDOWN_MSG1);
   if (!reboot)
-    kernelTextPrintLine(SHUTDOWN_MSG2);
+    kernelTextPrintLine("%s", SHUTDOWN_MSG2);
 
   // Stop networking
   status = kernelNetworkShutdown();
@@ -296,15 +309,15 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
   // This is a quick shutdown for kernel panic which puts nice messages
   // on the screen in graphics mode as well.
 
-  kernelAsciiFont *font = NULL;
+  asciiFont *font = NULL;
   char panicMessage[MAX_ERRORTEXT_LENGTH];
   char errorText[MAX_ERRORTEXT_LENGTH];
   va_list list;
 
   kernelProcessorDisableInts();
 
-  snprintf(panicMessage, MAX_ERRORTEXT_LENGTH, "SYSTEM HALTED: Panic at "
-	   "%s:%s(%d)", fileName, function, line);
+  snprintf(panicMessage, MAX_ERRORTEXT_LENGTH,
+	   _("SYSTEM HALTED: Panic at %s:%s(%d)"), fileName, function, line);
 
   // Expand the message if there were any parameters
   va_start(list, message);
@@ -319,8 +332,8 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
     }
   else
     {
-      kernelTextPrintLine(panicMessage);
-      kernelTextPrintLine(errorText);
+      kernelTextPrintLine("%s", panicMessage);
+      kernelTextPrintLine("%s", errorText);
     }
 
   kernelProcessorStop();

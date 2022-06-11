@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,12 +25,17 @@
 
 #include "kernelPciDriver.h"
 #include "kernelBus.h"
+#include "kernelDebug.h"
 #include "kernelDevice.h"
-#include "kernelProcessorX86.h"
-#include "kernelMalloc.h"
-#include "kernelLog.h"
 #include "kernelError.h"
+#include "kernelLog.h"
+#include "kernelMalloc.h"
+#include "kernelProcessorX86.h"
 #include <string.h>
+
+#if defined(DEBUG)
+#include "kernelPciCodes.h"
+#endif
 
 static pciSubClass subclass_old[] = {
   { 0x00, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
@@ -38,12 +43,14 @@ static pciSubClass subclass_old[] = {
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClass subclass_disk[] = {
-  { 0x00, "SCSI", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI },
-  { 0x01, "IDE", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_IDE },
-  { 0x02, "floppy", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_FLOPPY },
-  { 0x03, "IPI", DEVICECLASS_DISK, DEVICECLASS_NONE },
-  { 0x04, "RAID", DEVICECLASS_DISK, DEVICECLASS_NONE },
+static pciSubClass subclass_diskctrl[] = {
+  { 0x00, "SCSI", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SCSI },
+  { 0x01, "IDE", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_IDE },
+  { 0x02, "floppy", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
+  { 0x03, "IPI", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
+  { 0x04, "RAID", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
+  { 0x05, "ATA", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
+  { 0x06, "SATA", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SATA },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
@@ -133,7 +140,7 @@ static pciSubClass subclass_serial[] = {
 
 static pciClass pciClassNames[] = {
   { 0x00, "before PCI 2.0", subclass_old },
-  { 0x01, "disk controller", subclass_disk },
+  { 0x01, "disk controller", subclass_diskctrl },
   { 0x02, "network interface", subclass_net },
   { 0x03, "graphics adapter", subclass_graphics },
   { 0x04, "multimedia adapter", subclass_mma },
@@ -148,7 +155,7 @@ static pciClass pciClassNames[] = {
   { PCI_INVALID_CLASSCODE, "", NULL }
 };
 
-static const char *invalidDevice = "invalid device";
+static const char *unknownDevice = "unknown";
 static const char *otherDevice = "other";
 
 static kernelBusTarget *targets = NULL;
@@ -317,7 +324,7 @@ static int getClassName(int classCode, int subClassCode, char **className,
   getClass(classCode, &class);
   if (class == NULL)
     {
-      *className = (char *) invalidDevice;
+      *className = (char *) unknownDevice;
       return (status = PCI_INVALID_CLASSCODE);
     }
 
@@ -333,13 +340,62 @@ static int getClassName(int classCode, int subClassCode, char **className,
   getSubClass(class, subClassCode, &subClass);
   if (subClass == NULL)
     {
-      *subClassName = (char *) invalidDevice;
+      *subClassName = (char *) unknownDevice;
       return (status = PCI_INVALID_SUBCLASSCODE);
     }
 
   *subClassName = (char *) subClass->name;
   return (status = 0);
 }
+
+
+#if defined(DEBUG)
+static const char *getVendorFromCode(unsigned short vendorCode
+				     __attribute__((unused)),
+				     int longDesc __attribute__((unused)))
+{
+  const char *vendor = "";
+  unsigned count;
+
+  for (count = 0; count < PCI_VENTABLE_LEN; count ++)
+    if (PciVenTable[count].VenId == vendorCode)
+      {
+	if (longDesc)
+	  vendor = PciVenTable[count].VenFull;
+	else
+	  vendor = PciVenTable[count].VenShort;
+
+	break;
+      }
+
+  return (vendor);
+}
+
+
+static const char *getDeviceFromCode(unsigned short vendorCode
+				     __attribute__((unused)),
+				     unsigned short deviceCode
+				     __attribute__((unused)),
+				     int longDesc __attribute__((unused)))
+{
+  const char *dev = "";
+  unsigned count;
+
+  for (count = 0; count < PCI_DEVTABLE_LEN; count ++)
+    if ((PciDevTable[count].VenId == vendorCode) &&
+	(PciDevTable[count].DevId == deviceCode))
+      {
+	if (longDesc)
+	  dev = PciDevTable[count].ChipDesc;
+	else
+	  dev = PciDevTable[count].Chip;
+
+	break;
+      }
+
+  return (dev);
+}
+#endif
 
 
 static void deviceInfo2BusTarget(int bus, int dev, int function,
@@ -393,7 +449,7 @@ static unsigned driverReadRegister(int target, int reg, int bitWidth)
 
   unsigned contents = 0;
   int bus, dev, function;
-  
+
   makeBusDevFunc(target, bus, dev, function);
 
   switch (bitWidth)
@@ -427,10 +483,10 @@ static void driverWriteRegister(int target, int reg, int bitWidth,
   switch (bitWidth)
     {
     case 8:
-      writeConfig8(bus, dev, function, reg, contents);
+      writeConfig8(bus, dev, function, reg, (unsigned char) contents);
       break;
     case 16:
-      writeConfig16(bus, dev, function, reg, contents);
+      writeConfig16(bus, dev, function, reg, (unsigned short) contents);
       break;
     case 32:
       writeConfig32(bus, dev, function, reg, contents);
@@ -456,8 +512,14 @@ static int driverDeviceEnable(int target, int enable)
   readConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, &commandReg);
   
   if (enable)
-    // Turn on I/O access, memory access, and bus master enable.
-    commandReg |= (PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
+    {
+      if (enable & PCI_COMMAND_IOENABLE)
+	// Turn on I/O access
+	commandReg |= PCI_COMMAND_IOENABLE;
+      if (enable & PCI_COMMAND_MEMORYENABLE)
+	// Turn on memory access
+	commandReg |= PCI_COMMAND_MEMORYENABLE;
+    }
   else
     // Turn off I/O access and memory access
     commandReg &= ~(PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
@@ -581,18 +643,23 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		       pciDevice.device.subClassCode, &className,
 		       &subclassName);
 
-	  kernelLog("PCI: %s %s %u:%u:%u dev:%04x, vend:%04x, class:%02x, "
+	  kernelLog("PCI: %s %s %u:%u:%u vend:%04x, dev:%04x, class:%02x, "
 		    "sub:%02x", subclassName, className, busCount,
-		    deviceCount, functionCount, pciDevice.device.deviceID,
-		    pciDevice.device.vendorID, pciDevice.device.classCode,
-		    pciDevice.device.subClassCode); 
+		    deviceCount, functionCount, pciDevice.device.vendorID,
+		    pciDevice.device.deviceID, pciDevice.device.classCode,
+		    pciDevice.device.subClassCode);
+
+	  kernelDebug(debug_pci, "PCI: vendor=\"%s\" device=\"%s\"",
+		      getVendorFromCode(pciDevice.device.vendorID, 1),
+		      getDeviceFromCode(pciDevice.device.vendorID,
+					pciDevice.device.deviceID, 1));
 
 	  deviceInfo2BusTarget(busCount, deviceCount, functionCount,
 			       &pciDevice, &targets[numTargets]);
 	  numTargets += 1;
 	}
 
-  // Allocate memory for the device
+  // Allocate memory for the PCI bus device
   dev = kernelMalloc(sizeof(kernelDevice));
   if (dev == NULL)
     return (status = ERR_MEMORY);

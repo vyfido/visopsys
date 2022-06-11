@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -481,8 +481,8 @@ static int driverDetect(void *parent __attribute__((unused)),
       // After this point, we know we have a supported device.
 
       // Enable the device on the PCI bus as a bus master
-      if ((kernelBusDeviceEnable(bus_pci, busTargets[deviceCount].target, 1)
-	   < 0) ||
+      if ((kernelBusDeviceEnable(bus_pci, busTargets[deviceCount].target,
+				 PCI_COMMAND_IOENABLE) < 0) ||
 	  (kernelBusSetMaster(bus_pci, busTargets[deviceCount].target, 1) < 0))
 	continue;
 

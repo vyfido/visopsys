@@ -1,0 +1,29 @@
+
+ -- fontutil --
+
+A program for editing and converting Visopsys fonts.
+
+Usage:
+  fontutil [options] <VBF_file>
+
+Example:
+
+This command is of only marginal usefulness to most users.  It is primarily
+intended for developers modifying font definitions.
+
+Options:
+-a <code>       : Add a glyph to the font using the supplied code number
+                  Use with a mandatory -f flag to specify the image file
+-c <codepage>   : Set the code page
+-d [code]       : Dump (print) the font data, or else a representation of
+                : the glyph with the supplied code number
+-i <img_file>   : Import a new font from the specified image file, which will
+                : be a table 16x12 glyphs representing codes 32-127 and
+		: 160-255 read left-to-right and top-to-bottom.
+-f <file_name>  : Used for supplying a file name to commands that require one
+-n <font_name>  : Set the font name
+-p <points>     : Set the number of points
+-r <code>       : Remove the glyph with the supplied code number
+-v              : Verbose; print out more information about what's happening
+-x <font_file>  : Convert an old-style font file to VBF
+

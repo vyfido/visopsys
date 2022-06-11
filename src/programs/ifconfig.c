@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,14 +39,18 @@ Options:
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/api.h>
 
+#define _(string) gettext(string)
+
 #define KERNELCONF  "/system/config/kernel.conf"
-#define NODEVS      "No supported network devices."
+#define NODEVS      _("No supported network devices.")
 
 static int graphics = 0;
 static int numDevices = 0;
@@ -78,7 +82,7 @@ static void error(const char *format, ...)
   va_end(list);
 
   if (graphics)
-    windowNewErrorDialog(NULL, "Error", output);
+    windowNewErrorDialog(NULL, _("Error"), output);
   else
     printf("\n%s\n", output);
 }
@@ -93,25 +97,27 @@ static int devString(char *name, char *buffer)
   status = networkDeviceGet(name, &dev);
   if (status < 0)
     {
-      error("Can't get info for device %s", name);
+      error(_("Can't get info for device %s"), name);
       return (status);
     }
 
   switch (dev.linkProtocol)
     {
     case NETWORK_LINKPROTOCOL_ETHERNET:
-      link = "Ethernet";
+      link = _("Ethernet");
       break;
     default:
-      link = "Unknown";
+      link = _("Unknown");
       break;
     }
 
-  sprintf(buffer, "%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
-	  "       inet addr:%d.%d.%d.%d  Bcast:%d.%d.%d.%d  Mask:%d.%d.%d.%d\n"
-	  "       RX packets:%u errors:%u dropped:%u overruns:%u\n"
-	  "       TX packets:%u errors:%u dropped:%u overruns:%u\n"
-	  "       %s, %s collisions:%u txqueuelen:%u Interrupt:%d",
+  sprintf(buffer, 
+	  _("%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
+	    "       inet addr:%d.%d.%d.%d  Bcast:%d.%d.%d.%d  Mask:%d.%d.%d."
+	    "%d\n"
+	    "       RX packets:%u errors:%u dropped:%u overruns:%u\n"
+	    "       TX packets:%u errors:%u dropped:%u overruns:%u\n"
+	    "       %s, %s collisions:%u txqueuelen:%u Interrupt:%d"),
 	  dev.name, link,
 	  dev.hardwareAddress.bytes[0], dev.hardwareAddress.bytes[1],
 	  dev.hardwareAddress.bytes[2], dev.hardwareAddress.bytes[3],
@@ -125,8 +131,8 @@ static int devString(char *name, char *buffer)
 	  dev.recvPackets, dev.recvErrors, dev.recvDropped, dev.recvOverruns,
 	  dev.transPackets, dev.transErrors, dev.transDropped,
 	  dev.transOverruns,
-	  ((dev.flags & NETWORK_ADAPTERFLAG_LINK)? "LINK" : "NOLINK"),
-	  ((dev.flags & NETWORK_ADAPTERFLAG_RUNNING)? "UP" : "DOWN"),
+	  ((dev.flags & NETWORK_ADAPTERFLAG_LINK)? _("LINK") : _("NOLINK")),
+	  ((dev.flags & NETWORK_ADAPTERFLAG_RUNNING)? _("UP") : _("DOWN")),
 	  dev.collisions, dev.transQueueLen, dev.interruptNum);
 
   return (status = 0);
@@ -168,7 +174,7 @@ static int printDevices(char *arg)
 	    }
 	}
       else
-	printf(NODEVS "\n\n");
+	printf("%s\n\n", NODEVS);
     }
 
   return (status = 0);
@@ -184,11 +190,11 @@ static void updateEnabled(void)
   char tmp[128];
   int count;
 
-  snprintf(tmp, 128, "Networking is %s",
-	   (networkEnabled? "enabled" : "disabled"));
+  snprintf(tmp, 128, _("Networking is %s"),
+	   (networkEnabled? _("enabled") : _("disabled")));
   windowComponentSetData(enabledLabel, tmp, strlen(tmp));
-  windowComponentSetData(enableButton, (networkEnabled? "Disable" : "Enable"),
-			 8);
+  windowComponentSetData(enableButton,
+			 (networkEnabled? _("Disable") : _("Enable")), 8);
 
   // Update the device strings as well.
   buffer = malloc(MAXSTRINGLENGTH);
@@ -224,7 +230,7 @@ static void updateHostName(void)
     }
   else
     {
-      if (configurationReader(KERNELCONF, &kernelConf) >= 0)
+      if (configRead(KERNELCONF, &kernelConf) >= 0)
 	{
 	  bzero(hostName, NETWORK_MAX_HOSTNAMELENGTH);
 	  bzero(domainName, NETWORK_MAX_DOMAINNAMELENGTH);
@@ -272,9 +278,9 @@ static void eventHandler(objectKey key, windowEvent *event)
       // dialog while we're doing this because enabling can take a few seconds
       enableDialog =
 	windowNewBannerDialog(window,
-			      (networkEnabled? "Shutting down networking" :
-			       "Initializing networking"),
-			      "One moment please...");
+			      (networkEnabled? _("Shutting down networking") :
+			       _("Initializing networking")),
+			      _("One moment please..."));
 
       if (networkEnabled)
 	networkShutdown();
@@ -301,12 +307,12 @@ static void eventHandler(objectKey key, windowEvent *event)
       networkSetDomainName(domainName, NETWORK_MAX_DOMAINNAMELENGTH);
 
       // Try to read and change the kernel config
-      if (!readOnly && configurationReader(KERNELCONF, &kernelConf) >= 0)
+      if (!readOnly && configRead(KERNELCONF, &kernelConf) >= 0)
 	{
 	  variableListSet(&kernelConf, "network", (selected? "yes" : "no"));
 	  variableListSet(&kernelConf, "network.hostname", hostName);
 	  variableListSet(&kernelConf, "network.domainname", domainName);
-	  configurationWriter(KERNELCONF, &kernelConf);
+	  configWrite(KERNELCONF, &kernelConf);
 	  variableListDestroy(&kernelConf);
 	}
 
@@ -323,14 +329,13 @@ static int constructWindow(char *arg)
   int status = 0;
   componentParameters params;
   objectKey container = NULL;
-  variableList kernelConf;
   char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
   char *buffer = NULL;
   char tmp[8];
   int count;
 
   // Create a new window
-  window = windowNew(multitaskerGetCurrentProcessId(), "Network Devices");
+  window = windowNew(multitaskerGetCurrentProcessId(), _("Network Devices"));
   if (window == NULL)
     return (status = ERR_NOTINITIALIZED);
 
@@ -352,28 +357,26 @@ static int constructWindow(char *arg)
   params.padTop = 0;
   params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   enabledLabel =
-    windowNewTextLabel(container, "Networking is disabled", &params);
+    windowNewTextLabel(container, _("Networking is disabled"), &params);
 
   // Make a button for enabling/disabling networking
   params.gridX = 1;
-  enableButton = windowNewButton(container, "Enable", NULL, &params);
+  enableButton = windowNewButton(container, _("Enable"), NULL, &params);
   windowRegisterEventHandler(enableButton, &eventHandler);
 
   // Make a checkbox so the user can choose to always enable/disable
   params.gridX = 2;
-  enableCheckbox = windowNewCheckbox(container, "Enabled at startup", &params);
+  enableCheckbox =
+    windowNewCheckbox(container, _("Enabled at startup"), &params);
   params.gridY += 1;
 
-  // Try to read the kernel config
-  if (configurationReader(KERNELCONF, &kernelConf) >= 0)
+  // Try to find out whether networking is enabled
+  if (configGet(KERNELCONF, "network", tmp, 8) >= 0)
     {
-      variableListGet(&kernelConf, "network", tmp, 8);
       if (!strncmp(tmp, "yes", 8))
 	windowComponentSetSelected(enableCheckbox, 1);
       else
 	windowComponentSetSelected(enableCheckbox, 0);
-      
-      variableListDestroy(&kernelConf);
     }
   
   if (readOnly)
@@ -389,16 +392,15 @@ static int constructWindow(char *arg)
   container = windowNewContainer(window, "hostname", &params);
 
   params.gridWidth = 1;
-  hostLabel = windowNewTextLabel(container, "Host name", &params);
+  hostLabel = windowNewTextLabel(container, _("Host name"), &params);
 
   params.gridX = 1;
   params.padTop = 0;
-  domainLabel = windowNewTextLabel(container, "Domain name", &params);
+  domainLabel = windowNewTextLabel(container, _("Domain name"), &params);
   params.gridY += 1;
 
   params.gridX = 0;
   params.padBottom = 5;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   hostField = windowNewTextField(container, 16, &params);
   windowRegisterEventHandler(hostField, &eventHandler);
 
@@ -415,7 +417,7 @@ static int constructWindow(char *arg)
   params.padTop = 5;
   params.padBottom = 0;
   params.orientationX = orient_center;
-  params.flags &= ~(WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_FIXEDWIDTH);
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
 
   buffer = malloc(MAXSTRINGLENGTH);
   if (buffer == NULL)
@@ -470,14 +472,14 @@ static int constructWindow(char *arg)
   params.padBottom = 5;
   params.orientationX = orient_right;
   params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-  okButton = windowNewButton(window, "OK", NULL, &params);
+  okButton = windowNewButton(window, _("OK"), NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
   windowComponentFocus(okButton);
 
   // Create a 'Cancel' button
   params.gridX = 1;
   params.orientationX = orient_left;
-  cancelButton = windowNewButton(window, "Cancel", NULL, &params);
+  cancelButton = windowNewButton(window, _("Cancel"), NULL, &params);
   windowRegisterEventHandler(cancelButton, &eventHandler);
 
   // Register an event handler to catch window close events
@@ -492,9 +494,16 @@ static int constructWindow(char *arg)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   char *arg = NULL;
   char opt;
   disk sysDisk;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("ifconfig");
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -509,7 +518,7 @@ int main(int argc, char *argv[])
   numDevices = networkDeviceGetCount();
   if (numDevices < 0)
     {
-      error("Can't get the count of network devices");
+      error("%s", _("Can't get the count of network devices"));
       return (numDevices);
     }
 

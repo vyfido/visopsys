@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,16 +22,33 @@
 // Driver for standard PC system timer chip
 
 #include "kernelDriver.h" // Contains my prototypes
-#include "kernelSysTimer.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
-#include "kernelError.h"
+#include "kernelSysTimer.h"
 #include <string.h>
 
 static int portNumber[] = { 0x40, 0x41, 0x42 };
-static unsigned char latchCommand[] = { 0x00, 0x04, 0x08 };
-static unsigned char dataCommand[] = { 0x03, 0x07, 0x0B };
+static char timerMode[3] = { -1, -1, -1 };
 static int timerTicks = 0;
+
+
+static unsigned char readBackStatus(int counter)
+{
+  unsigned char data, commandByte;
+
+  // Calculate the command to use (read-back, 'status' value)
+  commandByte = (0xE0 | (0x02 << counter));
+
+  // Send the command to the general command port
+  kernelProcessorOutPort8(0x43, commandByte);
+
+  // Read the status byte
+  kernelProcessorInPort8(portNumber[counter], data);
+
+  return (data);
+}
 
 
 static void driverTick(void)
@@ -49,29 +66,29 @@ static int driverRead(void)
   // Returns the value of the system timer tick counter.
   return (timerTicks);
 }
-	
-	
+
+
 static int driverReadValue(int counter)
 {
   // This function is used to select and read one of the system 
   // timer counters
 
   int timerValue = 0;
-  unsigned char data, commandByte;
+  unsigned char commandByte = 0, data = 0;
 
   // Make sure the timer number is not greater than 2.  This driver only
   // supports timers 0 through 2 (since that's all most systems will have)
   if (counter > 2)
     return (timerValue = ERR_BOUNDS);
 
-  // Before we can read the timer reliably, we must send a command
-  // to cause it to latch the current value.  Calculate which latch 
-  // command to use
-  commandByte = latchCommand[counter];
-  // Shift the commandByte left by 4 bits
-  commandByte <<= 4;
+  // Make sure we've set the timer at some point previously
+  if (timerMode[counter] < 0)
+    return (timerValue = 0);
 
-  // We can send the command to the general command port
+  // Calculate the command to use (read-back, 'count' value)
+  commandByte = (0xD0 | (0x02 << counter));
+
+  // Send the command to the general command port
   kernelProcessorOutPort8(0x43, commandByte);
 
   // The counter will now be expecting us to read two bytes from
@@ -80,8 +97,12 @@ static int driverReadValue(int counter)
   // Read the low byte first, followed by the high byte
   kernelProcessorInPort8(portNumber[counter], data);
   timerValue = data;
+
   kernelProcessorInPort8(portNumber[counter], data);
   timerValue |= (data << 8);
+
+  kernelDebug(debug_misc, "PIT: read counter %d count=%d", counter,
+	      timerValue);
 
   return (timerValue);
 }
@@ -95,6 +116,9 @@ static int driverSetupTimer(int counter, int mode, int count)
   int status = 0;
   unsigned char data, commandByte;
 
+  kernelDebug(debug_misc, "PIT: setting counter %d mode=%d count=%d", counter,
+	      mode, count);
+
   // Make sure the timer number is not greater than 2.  This driver only
   // supports timers 0 through 2 (since that's all most systems will have)
   if (counter > 2)
@@ -104,27 +128,28 @@ static int driverSetupTimer(int counter, int mode, int count)
   if (mode > 5)
     return (status = ERR_BOUNDS);
 
-  // Calculate the data command to use
-  commandByte = dataCommand[counter];
-  // Shift the commandByte left by 4 bits
-  commandByte <<= 4;
+  // Calculate the command to use
+  commandByte = ((counter << 6) | 0x30 | (mode << 1));
 
-  // Or the command with the mode (shifted left by one).  The
-  // result is the formatted command byte we'll send to the timer
-  commandByte |= ((unsigned char) mode << 1);
-
-  // We can send the command to the general command port
+  // Send the command to the general command port
   kernelProcessorOutPort8(0x43, commandByte);
 
-  // The timer is now expecting us to send two bytes which represent
-  // the initial count of the timer.  We will get this value from
-  // the parameters.
+  // The timer is now expecting us to send two bytes which represent the
+  // initial count of the timer.
 
   // Send low byte first, followed by the high byte to the data
   data = (unsigned char) (count & 0xFF);
   kernelProcessorOutPort8(portNumber[counter], data);
+
   data = (unsigned char) ((count >> 8) & 0xFF);
   kernelProcessorOutPort8(portNumber[counter], data);
+
+  // Wait until the count is loaded (NULL count is zero)
+  while (readBackStatus(counter) & 0x40);
+
+  timerMode[counter] = mode;
+
+  kernelDebug(debug_misc, "PIT: set counter cmd=%02x", commandByte);
 
   return (status = 0);
 }

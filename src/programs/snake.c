@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,6 +38,7 @@ Usage:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 
 #define SCREENWIDTH      20
 #define SCREENHEIGHT     9
@@ -329,22 +330,22 @@ static int moveSnake(void)
 
 	  switch (c)
 	    {
-	    case 17:
+	    case ASCII_CRSRUP:
 	      // Cursor up
 	      if (snakeDirection != south)
 		snakeDirection = north;
 	      break;
-	    case 20:
+	    case ASCII_CRSRDOWN:
 	      // Cursor down
 	      if (snakeDirection != north)
 		snakeDirection = south;
 	      break;
-	    case 18:
+	    case ASCII_CRSRLEFT:
 	      // Cursor left
 	      if (snakeDirection != east)
 		snakeDirection = west;
 	      break;
-	    case 19:
+	    case ASCII_CRSRRIGHT:
 	      // Cursor right
 	      if (snakeDirection != west)
 		snakeDirection = east;
@@ -645,22 +646,22 @@ static void eventHandler(objectKey key, windowEvent *event)
     {
       switch (event->key)
 	{
-	case 17:
+	case ASCII_CRSRUP:
 	  // Cursor up
 	  if (snakeArray[0].dir != south)
 	    snakeDirection = north;
 	  break;
-	case 20:
+	case ASCII_CRSRDOWN:
 	  // Cursor down
 	  if (snakeArray[0].dir != north)
 	    snakeDirection = south;
 	  break;
-	case 18:
+	case ASCII_CRSRLEFT:
 	  // Cursor left
 	  if (snakeArray[0].dir != east)
 	    snakeDirection = west;
 	  break;
-	case 19:
+	case ASCII_CRSRRIGHT:
 	  // Cursor right
 	  if (snakeArray[0].dir != west)
 	    snakeDirection = east;
@@ -679,7 +680,6 @@ static int constructWindow(void)
   int status = 0;
   componentParameters params;
   windowDrawParameters drawParams;
-
   int count;
 
   // Try to load all the images
@@ -689,7 +689,7 @@ static int constructWindow(void)
       if (status < 0)
 	return (status);
 
-      images[count].translucentColor.green = 255;
+      images[count].transColor.green = 255;
 
       if (images[count].width > imageWidth)
 	imageWidth = images[count].width;
@@ -821,7 +821,7 @@ static int play(void)
 	{
 	  textSetColumn(0);
 	  textSetRow(0);
-	  printf(tmpChar);
+	  printf("%s", tmpChar);
 	}
     }
 
@@ -835,6 +835,7 @@ int main(int argc, char *argv[])
   char opt;
   textScreen screen;
   char tmpChar[80];
+  int count;
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -886,6 +887,8 @@ int main(int argc, char *argv[])
 
   free(grid);
   free(snakeArray);
+  for (count = 0; count < NUM_IMAGES; count ++)
+    imageFree(&images[count]);
 
   return (status = 0);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,15 +46,40 @@ The currently-supported file formats are:
 </help>
 */
 
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <sys/api.h>
+#include <sys/font.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
-#include <sys/api.h>
 
+#define WINDOW_TITLE  "View \"%s\""
+
+// Right-click menu for images
+#define IMAGEMENU_ZOOMIN      0
+#define IMAGEMENU_ZOOMOUT     1
+#define IMAGEMENU_ACTUAL      2
+static windowMenuContents imageMenuContents = {
+  3,
+  {
+    { "Zoom in", NULL },
+    { "Zoom out", NULL },
+    { "Actual size", NULL },
+  }
+};
+
+static int graphics = 0;
+static char *fileName = NULL;
+static char *shortName = NULL;
+static char *windowTitle = NULL;
+static image origImage;
+static image showImage;
 static objectKey window = NULL;
+static objectKey windowImage = NULL;
+static objectKey imageMenu = NULL;
+static double imageScale = 0;
 
 
 __attribute__((format(printf, 1, 2)))
@@ -69,7 +94,10 @@ static void error(const char *format, ...)
   vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
-  windowNewErrorDialog(NULL, "Error", output);
+  if (graphics)
+    windowNewErrorDialog(NULL, "Error", output);
+  else
+    printf("ERROR: %s\n", output);
 }
 
 
@@ -120,12 +148,196 @@ static void printTextLines(char *data, int size)
 }
 
 
+static int resizeImage(double scale)
+{
+  int status = 0;
+  componentParameters params;
+
+  if (scale == imageScale)
+    return (status = 0);
+
+  status = imageCopy(&origImage, &showImage);
+  if (status >= 0)
+    {
+      if (scale == 1.0)
+	{
+	  // Already original size
+	  imageScale = scale;
+	}
+      else
+	{
+	  status = imageResize(&showImage,
+			       (unsigned)((double) showImage.width * scale),
+			       (unsigned)((double) showImage.height * scale));
+	  if (status >= 0)
+	    imageScale = ((double) showImage.width / (double) origImage.width);
+	}
+    }
+
+  if (windowImage)
+    windowComponentDestroy(windowImage);
+
+  bzero(&params, sizeof(componentParameters));
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+
+  windowImage = windowNewImage(window, &showImage, draw_normal, &params);
+  windowContextSet(windowImage, imageMenu);
+
+  windowLayout(window);
+
+  sprintf(windowTitle, WINDOW_TITLE " (%d%%)", shortName,
+	  (int)(imageScale * 100));
+  windowSetTitle(window, windowTitle);
+
+  return (status);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
-  // This is just to handle a window shutdown event.
+  // Handle GUI events.
+
+  objectKey selectedItem = 0;
 
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
     windowGuiStop();
+
+  // Check for right-click events in our image menu.
+  else if ((key == imageMenu) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetData(imageMenu, &selectedItem, 1);
+      if (selectedItem)
+	{
+	  if (selectedItem == imageMenuContents.items[IMAGEMENU_ZOOMIN].key)
+	    resizeImage(imageScale * 1.25);
+	  else if (selectedItem ==
+		   imageMenuContents.items[IMAGEMENU_ZOOMOUT].key)
+	    resizeImage(imageScale * 0.75);
+	  
+	  else if (selectedItem ==
+		   imageMenuContents.items[IMAGEMENU_ACTUAL].key)
+	    resizeImage(1.0);
+	}
+    }
+}
+
+
+static int viewImage(void)
+{
+  int status = 0;
+  unsigned screenWidth = graphicGetScreenWidth();
+  unsigned screenHeight = graphicGetScreenHeight();
+  double xScale = 0, yScale = 0;
+  objectKey bannerDialog = NULL;
+  componentParameters params;
+
+  bzero(&origImage, sizeof(image));
+  bzero(&showImage, sizeof(image));
+
+  bannerDialog = windowNewBannerDialog(NULL, "Loading", "Loading image...");
+
+  // Try to load the image file
+  status = imageLoad(fileName, 0, 0, &origImage);
+  if (status < 0)
+    {
+      if (origImage.data)
+	error("Error loading the image \"%s\"\n", fileName);
+      else
+	{
+	  error("Unable to load the image \"%s\"\n", fileName);
+	  return (status);
+	}
+    }
+
+  if (bannerDialog)
+    windowDestroy(bannerDialog);
+
+  // Copy the original image to one we can mess with.
+  imageCopy(&origImage, &showImage);
+  imageScale = 1.0;
+
+  bzero(&params, sizeof(componentParameters));
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+
+  windowImage = windowNewImage(window, &showImage, draw_normal, &params);
+
+  imageMenu = windowNewMenu(window, "Image", &imageMenuContents, &params);
+  windowRegisterEventHandler(imageMenu, &eventHandler);
+  windowContextSet(windowImage, imageMenu);
+
+  // If the image is big, shrink it by default, to 2/3 of the screen.
+  if (showImage.width > ((screenWidth * 2) / 3))
+    xScale = ((double)((screenWidth * 2) / 3) / (double) showImage.width);
+  if (showImage.height > ((screenHeight * 2) / 3))
+    yScale = ((double)((screenHeight * 2) / 3) / (double) showImage.height);
+
+  if (xScale || yScale)
+    resizeImage(min(xScale, yScale));
+
+  return (status = 0);
+}
+
+
+static int viewText(void)
+{
+  // Try to load the text data
+
+  int status = 0;
+  file showFile;
+  char *textData = NULL;
+  int rows = 25;
+  int textLines = 0;
+  objectKey textAreaComponent = NULL;
+  componentParameters params;
+
+  bzero(&showFile, sizeof(file));
+
+  textData = loaderLoad(fileName, &showFile);
+  if (textData == NULL)
+    {
+      error("Unable to load the file \"%s\"\n", fileName);
+      return (status = ERR_IO);
+    }
+
+  textLines = countTextLines(80, textData, showFile.size);
+
+  bzero(&params, sizeof(componentParameters));
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+
+  status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
+  if (status >= 0)
+    status =
+      fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
+  if (status < 0)
+    {
+      // Use the system font.  It can comfortably show more rows.
+      params.font = NULL;
+      rows = 40;
+    }
+
+  textAreaComponent =
+    windowNewTextArea(window, 80, rows, textLines, &params);
+
+  // Put the data into the component
+  windowSetTextOutput(textAreaComponent);
+  textSetCursor(0);
+  textInputSetEcho(0);
+  printTextLines(textData, showFile.size);
+ 
+  // Scroll back to the very top
+  textScroll(-(textLines / rows));
+
+  memoryRelease(textData);
+  return (status = 0);
 }
 
 
@@ -133,25 +345,21 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int processId = 0;
-  char *fileName = NULL;
-  char *windowTitle = NULL;
-  file tmpFile;
   loaderFileClass class;
-  componentParameters params;
+
+  graphics = graphicsAreEnabled();
 
   // Only work in graphics mode
-  if (!graphicsAreEnabled())
+  if (!graphics)
     {
       printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
+      return (status = ERR_NOTINITIALIZED);
     }
 
   processId = multitaskerGetCurrentProcessId();
 
   fileName = malloc(MAX_PATH_NAME_LENGTH);
   windowTitle = malloc(MAX_PATH_NAME_LENGTH + 8);
-
   if ((fileName == NULL) || (windowTitle == NULL))
     {
       status = ERR_MEMORY;
@@ -162,9 +370,9 @@ int main(int argc, char *argv[])
   if (argc < 2)
     {
       status =
-	windowNewFileDialog(NULL, "Enter filename", "Please enter the name "
-			    "of the file to view:", NULL, fileName,
-			    MAX_PATH_NAME_LENGTH);
+	windowNewFileDialog(NULL, "Enter filename", "Please choose the file "
+			    "to view:", NULL, fileName, MAX_PATH_NAME_LENGTH,
+			    1);
       if (status != 1)
 	{
 	  if (status != 0)
@@ -177,11 +385,13 @@ int main(int argc, char *argv[])
     strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
   // Make sure the file exists
-  if (fileFind(fileName, &tmpFile) < 0)
+  if (fileFind(fileName, NULL) < 0)
     {
       error("The file \"%s\" was not found", fileName);
       goto deallocate;
     }
+
+  shortName = basename(fileName);
 
   // Get the classification of the file.
   if (loaderClassifyFile(fileName, &class) == NULL)
@@ -190,81 +400,34 @@ int main(int argc, char *argv[])
       goto deallocate;
     }
 
-  bzero(&params, sizeof(componentParameters));
-  params.gridWidth = 1;
-  params.gridHeight = 1;
-  params.orientationX = orient_center;
-  params.orientationY = orient_middle;
+  if (!(class.class & LOADERFILECLASS_IMAGE) &&
+      !(class.class & LOADERFILECLASS_TEXT))
+    {
+      error("Can't display the file type of \"%s\" (%s)", fileName,
+	    class.className);
+      goto deallocate;
+    }
 
-  // Create a new window, with small, arbitrary size and location
-  sprintf(windowTitle, "View \"%s\"", fileName);
+  // Create a new window
+  sprintf(windowTitle, WINDOW_TITLE, shortName);
   window = windowNew(processId, windowTitle);
 
-  if (class.flags & LOADERFILECLASS_IMAGE)
+  if (class.class & LOADERFILECLASS_IMAGE)
+    status = viewImage();
+  else if (class.class & LOADERFILECLASS_TEXT)
+    status = viewText();
+
+  if (status >= 0)
     {
-      image showImage;
+      // Go live.
+      windowSetVisible(window, 1);
 
-      // Try to load the image file
-      status = imageLoad(fileName, 0, 0, &showImage);
-      if (status < 0)
-	{
-	  error("Unable to load the image \"%s\"\n", fileName);
-	  goto deallocate;
-	}
-  
-      windowNewImage(window, &showImage, draw_normal, &params);
+      // Register an event handler to catch window close events
+      windowRegisterEventHandler(window, &eventHandler);
+
+      // Run the GUI
+      windowGuiRun();
     }
-
-  else if (class.flags & LOADERFILECLASS_TEXT)
-    {
-      // Try to load the text data
-
-      file showFile;
-      char *textData = NULL;
-      int rows = 25;
-      int textLines = 0;
-      objectKey textAreaComponent = NULL;
-
-      textData = loaderLoad(fileName, &showFile);
-      if (textData == NULL)
-	{
-	  error("Unable to load the file \"%s\"\n", fileName);
-	  goto deallocate;
-	}
-
-      textLines = countTextLines(80, textData, showFile.size);
-
-      if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
-		   &(params.font), 1) < 0)
-	{
-	  // Use the system font.  It can comfortably show more rows.
-	  params.font = NULL;
-	  rows = 40;
-	}
-
-      textAreaComponent =
-	windowNewTextArea(window, 80, rows, textLines, &params);
-
-      // Put the data into the component
-      windowSetTextOutput(textAreaComponent);
-      textSetCursor(0);
-      textInputSetEcho(0);
-      printTextLines(textData, showFile.size);
- 
-      // Scroll back to the very top
-      textScroll(-(textLines / rows));
-
-      memoryRelease(textData);
-    }
-
-  // Go live.
-  windowSetVisible(window, 1);
-
-  // Register an event handler to catch window close events
-  windowRegisterEventHandler(window, &eventHandler);
-
-  // Run the GUI
-  windowGuiRun();
 
   // Destroy the window
   windowDestroy(window);
@@ -274,9 +437,12 @@ int main(int argc, char *argv[])
  deallocate:
   if (fileName)
     free(fileName);
+  if (shortName)
+    free(shortName);
   if (windowTitle)
     free(windowTitle);
+  imageFree(&origImage);
+  imageFree(&showImage);
 
-  errno = status;
   return (status);
 }

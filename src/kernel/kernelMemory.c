@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,15 +26,14 @@
 // advantage but do imply significant overhead.
 
 #include "kernelMemory.h"
-#include "kernelMain.h"
-#include "kernelParameters.h"
-#include "kernelText.h"
-#include "kernelPage.h"
-#include "kernelMultitasker.h"
-#include "kernelLock.h"
-#include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
+#include "kernelLock.h"
+#include "kernelMain.h"
+#include "kernelMalloc.h"
+#include "kernelMultitasker.h"
+#include "kernelMisc.h"
+#include "kernelPage.h"
+#include "kernelParameters.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -64,8 +63,11 @@ static memoryBlock reservedBlocks[] =
   { KERNELPROCID, "video memory", VIDEO_MEMORY, 
     (VIDEO_MEMORY + VIDEO_MEMORY_SIZE - 1) },
 
-  { KERNELPROCID, "conventional memory", (VIDEO_MEMORY + VIDEO_MEMORY_SIZE),
-    (KERNEL_LOAD_ADDRESS - 1) },
+  { KERNELPROCID, "video BIOS memory", VIDEO_BIOS_MEMORY, 
+    (VIDEO_BIOS_MEMORY + VIDEO_BIOS_MEMORY_SIZE - 1) },
+
+  { KERNELPROCID, "conventional memory",
+    (VIDEO_BIOS_MEMORY + VIDEO_BIOS_MEMORY_SIZE), (KERNEL_LOAD_ADDRESS - 1) },
 
   // Ending value is set during initialization, since it is variable
   { KERNELPROCID, "kernel memory", KERNEL_LOAD_ADDRESS, 0 },
@@ -365,7 +367,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 
   // Calculate the size of the free-block bitmap, based on the total
   // number of memory blocks we'll be managing
-  bitmapSize = (totalBlocks / 8);
+  bitmapSize = ((totalBlocks + 7) / 8);
 
   // Make sure the bitmap is allocated to block boundaries
   bitmapSize += (MEMORY_BLOCK_SIZE - (bitmapSize % MEMORY_BLOCK_SIZE));
@@ -598,6 +600,192 @@ void *kernelMemoryGetPhysical(unsigned requestedSize, unsigned alignment,
 }
 
 
+int kernelMemoryRelease(void *virtualAddress)
+{
+  // This routine will determine the blockId of the block that contains
+  // the memory location pointed to by the parameter, unmap it from the
+  // relevant page table, and deallocate it.
+
+  int status = 0;
+  int pid = 0;
+  void *physicalAddress = NULL;
+  memoryBlock *block = NULL;
+  unsigned count;
+
+  // Make sure the memory manager has been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (virtualAddress == NULL)
+    {
+      kernelError(kernel_error, "The memory pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  pid = kernelMultitaskerGetCurrentProcessId();
+
+  // Permission check: This function can only be used to release system
+  // blocks by privileged processes because it is accessible to user functions
+  if ((virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS) &&
+      (pid != KERNELPROCID) &&
+      (kernelMultitaskerGetProcessPrivilege(pid) != PRIVILEGE_SUPERVISOR))
+    {
+      kernelError(kernel_error, "Cannot release system memory block from "
+		  "unprivileged user process %d", pid);
+      return (status = ERR_PERMISSION);
+    }
+
+  if (virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS)
+    pid = KERNELPROCID;    
+
+  // The caller will be pass memoryPointer as a virtual address.  Turn the 
+  // memoryPointer into a physical address.  We could simply unmap it
+  // here except that we don't yet know the size of the block.
+  physicalAddress = kernelPageGetPhysical(pid, virtualAddress);
+  if (physicalAddress == NULL)
+    {
+      kernelError(kernel_error, "The memory pointer is not mapped");
+      return (status = ERR_NOSUCHENTRY);
+    }
+  
+  // Obtain a lock on the memory data
+  status = kernelLockGet(&memoryLock);
+  if (status < 0)
+    return (status);
+
+  // Now we can go through the "used" block list watching for a start
+  // value that matches this pointer
+  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
+       count ++)
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
+      {
+	// This is the one.
+	block = usedBlockList[count];
+	break;
+      }
+
+  if (block)
+    // Call the releaseBlock routine with this block's blockId.
+    releaseBlock(count);
+
+  // Release the lock on the memory data
+  kernelLockRelease(&memoryLock);
+
+  if (block)
+    {
+      //  Now that we know the size of the memory block, we can unmap it
+      // from the virtual address space.
+      status =
+	kernelPageUnmap(pid, virtualAddress,
+			(block->endLocation - block->startLocation + 1));
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Unable to unmap memory from the "
+		      "virtual address space");
+	  return (status);
+	}
+	
+      // Return success
+      return (status = 0);
+    }
+  else
+    return (status = ERR_NOSUCHENTRY);
+}
+
+
+int kernelMemoryReleasePhysical(void *physicalAddress)
+{
+  // This routine will determine the blockId of the block that contains
+  // the memory location pointed to by the parameter.  After it has done
+  // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
+  // 0 if successful, negative otherwise.
+
+  int status = 0;
+  memoryBlock *block = NULL;
+  unsigned count;
+
+  // Make sure the memory manager has been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // It's not OK for physicalAddress to be NULL.
+  if (physicalAddress == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  // Obtain a lock on the memory data
+  status = kernelLockGet(&memoryLock);
+  if (status < 0)
+    return (status);
+
+  // Now we can go through the "used" block list watching for a start
+  // value that matches this pointer
+  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
+       count ++)
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
+      {
+	// This is the one
+	block = usedBlockList[count];
+	break;
+      }
+
+  if (block)
+    // Call the releaseBlock routine with this block's blockId.
+    status = releaseBlock(count);
+  
+  // Release the lock on the memory data
+  kernelLockRelease(&memoryLock);
+
+  if (block)
+    return (status);
+  else
+    return (status = ERR_NOSUCHENTRY);
+}
+
+
+int kernelMemoryReleaseAllByProcId(int procId)
+{
+  // This routine will find all memory blocks owned by a particular
+  // process and call releaseBlock to remove each one.  It returns 0 
+  // on success, negative otherwise.
+
+  int status = 0;
+  unsigned count;
+
+  // Make sure the memory manager has been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Obtain a lock on the memory data
+  status = kernelLockGet(&memoryLock);
+  if (status < 0)
+    return (status);
+
+  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
+       count ++)
+    if (usedBlockList[count]->processId == procId)
+      {
+	// This is one.
+	status = releaseBlock(count);
+	if (status < 0)
+	  {
+	    kernelLockRelease(&memoryLock);
+	    return (status);
+	  }
+
+	// Reduce "count" by one, since the block it points at now
+	// will be one forward of where we want to be
+	count  -= 1;
+      }
+
+  // Release the lock on the memory data
+  kernelLockRelease(&memoryLock);
+
+  // Return success
+  return (status = 0);
+}
+
+
 int kernelMemoryChangeOwner(int oldPid, int newPid, int remap, 
 			    void *oldVirtualAddress, void **newVirtualAddress)
 {
@@ -789,192 +977,6 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
     }
   else
     return (status = ERR_NOSUCHENTRY);
-}
-
-
-int kernelMemoryRelease(void *virtualAddress)
-{
-  // This routine will determine the blockId of the block that contains
-  // the memory location pointed to by the parameter, unmap it from the
-  // relevant page table, and deallocate it.
-
-  int status = 0;
-  int pid = 0;
-  void *physicalAddress = NULL;
-  memoryBlock *block = NULL;
-  unsigned count;
-
-  // Make sure the memory manager has been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (virtualAddress == NULL)
-    {
-      kernelError(kernel_error, "The memory pointer is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  pid = kernelMultitaskerGetCurrentProcessId();
-
-  // Permission check: This function can only be used to release system
-  // blocks by privileged processes because it is accessible to user functions
-  if ((virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS) &&
-      (pid != KERNELPROCID) &&
-      (kernelMultitaskerGetProcessPrivilege(pid) != PRIVILEGE_SUPERVISOR))
-    {
-      kernelError(kernel_error, "Cannot release system memory block from "
-		  "unprivileged user process %d", pid);
-      return (status = ERR_PERMISSION);
-    }
-
-  if (virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS)
-    pid = KERNELPROCID;    
-
-  // The caller will be pass memoryPointer as a virtual address.  Turn the 
-  // memoryPointer into a physical address.  We could simply unmap it
-  // here except that we don't yet know the size of the block.
-  physicalAddress = kernelPageGetPhysical(pid, virtualAddress);
-  if (physicalAddress == NULL)
-    {
-      kernelError(kernel_error, "The memory pointer is not mapped");
-      return (status = ERR_NOSUCHENTRY);
-    }
-  
-  // Obtain a lock on the memory data
-  status = kernelLockGet(&memoryLock);
-  if (status < 0)
-    return (status);
-
-  // Now we can go through the "used" block list watching for a start
-  // value that matches this pointer
-  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
-       count ++)
-    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
-      {
-	// This is the one.
-	block = usedBlockList[count];
-	break;
-      }
-
-  if (block)
-    // Call the releaseBlock routine with this block's blockId.
-    releaseBlock(count);
-
-  // Release the lock on the memory data
-  kernelLockRelease(&memoryLock);
-
-  if (block)
-    {
-      //  Now that we know the size of the memory block, we can unmap it
-      // from the virtual address space.
-      status =
-	kernelPageUnmap(pid, virtualAddress,
-			(block->endLocation - block->startLocation + 1));
-      if (status < 0)
-	{
-	  kernelError(kernel_error, "Unable to unmap memory from the "
-		      "virtual address space");
-	  return (status);
-	}
-	
-      // Return success
-      return (status = 0);
-    }
-  else
-    return (status = ERR_NOSUCHENTRY);
-}
-
-
-int kernelMemoryReleasePhysical(void *physicalAddress)
-{
-  // This routine will determine the blockId of the block that contains
-  // the memory location pointed to by the parameter.  After it has done
-  // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
-  // 0 if successful, negative otherwise.
-
-  int status = 0;
-  memoryBlock *block = NULL;
-  unsigned count;
-
-  // Make sure the memory manager has been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // It's not OK for physicalAddress to be NULL.
-  if (physicalAddress == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
-  // Obtain a lock on the memory data
-  status = kernelLockGet(&memoryLock);
-  if (status < 0)
-    return (status);
-
-  // Now we can go through the "used" block list watching for a start
-  // value that matches this pointer
-  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
-       count ++)
-    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
-      {
-	// This is the one
-	block = usedBlockList[count];
-	break;
-      }
-
-  if (block)
-    // Call the releaseBlock routine with this block's blockId.
-    status = releaseBlock(count);
-  
-  // Release the lock on the memory data
-  kernelLockRelease(&memoryLock);
-
-  if (block)
-    return (status);
-  else
-    return (status = ERR_NOSUCHENTRY);
-}
-
-
-int kernelMemoryReleaseAllByProcId(int procId)
-{
-  // This routine will find all memory blocks owned by a particular
-  // process and call releaseBlock to remove each one.  It returns 0 
-  // on success, negative otherwise.
-
-  int status = 0;
-  unsigned count;
-
-  // Make sure the memory manager has been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Obtain a lock on the memory data
-  status = kernelLockGet(&memoryLock);
-  if (status < 0)
-    return (status);
-
-  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
-       count ++)
-    if (usedBlockList[count]->processId == procId)
-      {
-	// This is one.
-	status = releaseBlock(count);
-	if (status < 0)
-	  {
-	    kernelLockRelease(&memoryLock);
-	    return (status);
-	  }
-
-	// Reduce "count" by one, since the block it points at now
-	// will be one forward of where we want to be
-	count  -= 1;
-      }
-
-  // Release the lock on the memory data
-  kernelLockRelease(&memoryLock);
-
-  // Return success
-  return (status = 0);
 }
 
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -139,28 +139,33 @@ static void textCalendar(void)
 }
 
 
-static void getUpdate(void)
+static void initCalListParams(void)
 {
   int days = getDays((month - 1), year);
   int firstDay  = rtcDayOfWeek(1, month, year);
-  char yearString[5];
   int count;
 
   for(count = 0; count < 49; count++)
     sprintf(calListParams[count].text, "  ");
-    
+
   for (count = 0; count < 7; count++)
     sprintf(calListParams[count].text, "%s", weekDay[count]);
 
   for (count = 1; count <= days; count++)
     sprintf(calListParams[count + 6 + firstDay].text, "%2i", count);
+}
+
+
+static void getUpdate(void)
+{
+  char yearString[5];
+
+  initCalListParams();
 
   itoa(year, yearString);
   windowComponentSetData(calList, calListParams, 49);
   windowComponentSetData(monthLabel, monthName[month-1], 10);
   windowComponentSetData(yearLabel, yearString, 4);
-
-  return;
 }
 
 
@@ -235,9 +240,10 @@ static void constructWindow(void)
   params.gridY = 1;
   params.gridWidth = 6;
   params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-  getUpdate();
+  initCalListParams();
   calList = windowNewList(window, windowlist_textonly, 7, 7, 0, calListParams,
 			  49, &params);
+  getUpdate();
     
   bzero(&theTime, sizeof(struct tm));
   rtcDateTime(&theTime);

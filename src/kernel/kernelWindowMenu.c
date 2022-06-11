@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -295,6 +295,8 @@ static int focus(kernelWindowComponent *component, int yesNo)
   // We just want to know when we've lost the focus, so we can make the
   // menu disappear
 
+  kernelWindowMenu *menu = component->data;
+
   kernelDebug(debug_gui, "menu %s %s focus",
 	      ((kernelWindowContainer *) ((kernelWindowMenu *) component->data)
 	       ->container->data)->name, (yesNo? "got" : "lost"));
@@ -308,6 +310,8 @@ static int focus(kernelWindowComponent *component, int yesNo)
       
       kernelWindowComponentSetVisible(component, 0);
     }
+
+  menu->selectedItem = -1;
 
   return (0);
 }
@@ -371,6 +375,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	{
 	  clickedComponent = container->components[count];
 	  clickedItem = clickedComponent->data;
+	  menu->selectedItem = count;
 	  break;
 	}
     }
@@ -402,6 +407,111 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
   if (event->type & EVENT_MOUSE_LEFTUP)
     kernelWindowComponentUnfocus(component);
+
+  return (0);
+}
+
+
+static int keyEvent(kernelWindowComponent *component, windowEvent *event)
+{
+  // If the user presses the up/down cursor keys when the window is in focus,
+  // we use it to select menu items.
+
+  kernelWindowMenu *menu = component->data;
+  kernelWindowContainer *container = menu->container->data;
+  kernelWindowComponent *itemComponent = NULL;
+  kernelWindowMenuItem *item = NULL;
+  int tmpSelected = menu->selectedItem;
+  int newSelected = menu->selectedItem;
+  int count;
+
+  kernelDebug(debug_gui, "menu keyEvent");
+
+  if (event->type == EVENT_KEY_DOWN)
+    {
+      if ((event->key == ASCII_CRSRUP) || (event->key == ASCII_CRSRDOWN))
+	{
+	  for (count = 0; count < container->numComponents; count ++)
+	    {
+	      if (event->key == ASCII_CRSRUP)
+		{
+		  // Cursor up
+		  if (tmpSelected <= 0)
+		    tmpSelected = (container->numComponents - 1);
+		  else
+		    tmpSelected -= 1;
+		}
+	      else
+		{
+		  // Cursor down
+		  if (tmpSelected >= (container->numComponents - 1))
+		    tmpSelected = 0;
+		  else
+		    tmpSelected += 1;
+		}
+
+	      itemComponent = container->components[tmpSelected];
+	      item = itemComponent->data;
+
+	      if (itemComponent && (itemComponent->flags & WINFLAG_VISIBLE) &&
+		  (itemComponent->flags & WINFLAG_ENABLED))
+		{
+		  kernelDebug(debug_gui, "menu selected item %s",
+			      item->params.text);
+		  newSelected = tmpSelected;
+		  break;
+		}
+	    }
+
+	  if (newSelected != menu->selectedItem)
+	    {
+	      if (menu->selectedItem >= 0)
+		{
+		  itemComponent = container->components[menu->selectedItem];
+		  item = itemComponent->data;
+		  if (itemComponent->setSelected)
+		    itemComponent->setSelected(itemComponent, 0);
+		}
+	      if (newSelected >= 0)
+		{
+		  itemComponent = container->components[newSelected];
+		  item = itemComponent->data;
+		  if (itemComponent->setSelected)
+		    itemComponent->setSelected(itemComponent, 1);
+		}
+
+	      kernelGraphicRenderBuffer(component->buffer,
+					(component->window->xCoord +
+					 component->xCoord),
+					(component->window->yCoord +
+					 component->yCoord), 0, 0,
+					component->width, component->height);
+	      kernelMouseDraw();
+	      menu->selectedItem = newSelected;
+	    }
+	}
+
+      else if (event->key == ASCII_ENTER)
+	{
+	  // ENTER.  Is any item currently selected?
+	  if (tmpSelected >= 0)
+	    {
+	      // We will make this also a 'selection' event.
+	      event->type |= EVENT_SELECTION;
+
+	      itemComponent = container->components[tmpSelected];
+
+	      // Copy the event into the event stream of the menu item
+	      kernelWindowEventStreamWrite(&(itemComponent->events), event);
+	    }
+
+	  kernelWindowComponentUnfocus(component);
+	}
+
+      else if (event->key == ASCII_ESC)
+	// Quit
+	kernelWindowComponentUnfocus(component);
+    }
 
   return (0);
 }
@@ -484,6 +594,7 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
   component->getData = &getData;
   component->getSelected = &getSelected;
   component->mouseEvent = &mouseEvent;
+  component->keyEvent = &keyEvent;
   component->destroy = &destroy;
 
   // Get our container component
@@ -512,6 +623,8 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
 	    }
 	}
     }
+
+  menu->selectedItem = -1;
 
   return (component);
 }

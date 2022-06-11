@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -121,7 +121,7 @@ loaderDetectHardware:
 	;; If we're booting from CD-ROM in emulation mode, print a message
 	cmp byte [CD_EMULATION], 1
 	jne .noEmul
-	mov DL, 02h
+	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, CDCHECK
@@ -355,11 +355,11 @@ detectMemory:
 	add DI, 20
 	cmp DI, (MEMORYMAP + (MEMORYMAPSIZE * 20))
 	jl .smapLoop
-	
+
 	.doneSmap:
 	;; Restore ES
 	pop ES
-	
+
 	;; Restore regs
 	popa
 	ret
@@ -611,7 +611,13 @@ detectHardDisks:
 	mov EDI, HD0
 
 	.driveLoop:
-	
+
+	;; Test here instead of at the end, since some BIOSes can return
+	;; success from the 'get drive parameters' call, above, but with
+	;; the number of disks reported as zero
+	cmp ECX, dword [HARDDISKS]
+	jae near .done
+
 	;; If we are booting from this disk, record the boot sector LBA
 	mov AX, CX
 	add AX, 80h
@@ -681,7 +687,6 @@ detectHardDisks:
 	;; Restore ECX
 	pop ECX
 
-	.gotInfo:
 	;; Calculate the disk size.  EDI contains the pointer...
 	call diskSize
 
@@ -701,12 +706,9 @@ detectHardDisks:
 	pop ECX
 
 	.nextDisk:	
-	;; Any more disks to inventory?
+	;; Prepare for the next disk.  Counter is checked at the beginning
+	;; of the loop.
 	inc ECX
-	cmp ECX, dword [HARDDISKS]
-	jae .done
-
-	;; Go to the next drive
 	add EDI, hddInfoBlock_size
 	jmp .driveLoop
 
@@ -770,7 +772,9 @@ diskSize:
 	;; Recalculate the number of cylinders
 	mov EAX, dword [EDI + hddInfoBlock.heads]	; heads
 	mul dword [EDI + hddInfoBlock.sectors]		; sectors per cyl
-	mov ECX, EAX					; total secs per cyl 
+	mov ECX, EAX					; total secs per cyl
+	test dword ECX, 0
+	jz .done
 	xor EDX, EDX
 	mov EAX, dword [EDI + hddInfoBlock.totalSectors]
 	div ECX
@@ -829,7 +833,6 @@ printCpuInfo:
 	.printType:
 	call loaderPrint
 
-	
 	;; If we have a pentium or better, we can find out some more
 	;; information using the cpuid instruction
 	cmp dword [CPUTYPE], i486
@@ -843,7 +846,7 @@ printCpuInfo:
 	mov dword [CPUVEND], EBX
 	mov dword [(CPUVEND + 4)], EDX
 	mov dword [(CPUVEND + 8)], ECX
-	mov byte [(CPUVEND + 12)], 0
+	;; There are already 4 bytes of NULLs at the end of this
 	
 	;; Print the CPU vendor string
 	mov SI, CPUVEND
@@ -960,6 +963,13 @@ printHddInfo:
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, SECTS
+	call loaderPrint
+
+	mov EAX, dword [EBX + hddInfoBlock.bytesPerSector]
+	call loaderPrintNumber
+
+	mov DL, FOREGROUNDCOLOR
+	mov SI, BPSECT
 	call loaderPrint
 
 	mov EAX, dword [EBX + hddInfoBlock.totalSectors]
@@ -1091,7 +1101,7 @@ HDDINFO		times 42h  db 0	;; Space for info ret by EBIOS
 
 HARDWAREINFO:
 	CPUTYPE		dd 0	;; See %defines at top
-	CPUVEND		dd 0, 0, 0 ;; CPU vendor string, if supported
+	CPUVEND		dd 0, 0, 0, 0 ;; CPU vendor string, if supported
 	MMXEXT		dd 0	;; Boolean; 1 or zero
 	EXTENDEDMEMORY	dd 0	;; In Kbytes
 	
@@ -1143,11 +1153,6 @@ HARDWAREINFO:
 	times serialInfoBlock_size db 0
 	IEND
 	
-	;; Info about mouses
-	MOUSE: ISTRUC mouseInfoBlock
-	times mouseInfoBlock_size db 0
-	IEND
-	
 ;; 
 ;; These are general messages related to hardware detection
 ;;
@@ -1171,8 +1176,9 @@ DISKCHECK	db ' disk(s)', 0
 HEADS		db ' heads, ', 0
 TRACKS		db ' tracks, ', 0
 CYLS		db ' cyls, ', 0
-SECTS		db ' sects  ', 0
-MEGA		db ' Mbytes', 0
+SECTS		db ' sects, ', 0
+BPSECT		db ' bps  ', 0
+MEGA		db ' MBytes', 0
 NOGRAPHICS	db 'NOGRAPH    ', 0
 
 CD_EMULATION	db 0

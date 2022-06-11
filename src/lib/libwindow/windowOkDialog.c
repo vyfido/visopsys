@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,18 +21,20 @@
 
 // This contains functions for user programs to operate GUI components.
 
+#include <libintl.h>
 #include <string.h>
 #include <sys/window.h>
 #include <sys/api.h>
 #include <sys/errors.h>
 
+#define _(string) gettext(string)
 
 typedef enum {
   infoDialog, errorDialog
 } dialogType;
 
-static volatile image infoImage;
-static volatile image errorImage;
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
 
 
 static int okDialog(dialogType type, objectKey parentWindow, const char *title,
@@ -43,14 +45,16 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 
   int status = 0;
   objectKey dialogWindow = NULL;
-  char *imageName = NULL;
-  image *myImage = NULL;
+  image iconImage;
   objectKey imageComp = NULL;
   objectKey mainLabel = NULL;
   objectKey okButton = NULL;
   componentParameters params;
   windowEvent event;
   
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL))
     return (status = ERR_NULLPARAMETER);
@@ -74,27 +78,18 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 
   // If our 'info' image hasn't been loaded, try to load it
   if (type == infoDialog)
-    {
-      imageName = INFOIMAGE_NAME;
-      myImage = (image *) &infoImage;
-    }
-  else if (type == errorDialog)
-    {
-      imageName = ERRORIMAGE_NAME;
-      myImage = (image *) &errorImage;
-    }
+    status = imageLoad(INFOIMAGE_NAME, 0, 0, &iconImage);
+  else
+    status = imageLoad(ERRORIMAGE_NAME, 0, 0, &iconImage);
 
-  if (myImage->data == NULL)
-    status = imageLoad(imageName, 0, 0, myImage);
-
-  if (status == 0)
+  if ((status == 0) && iconImage.data)
     {
-      myImage->translucentColor.red = 0;
-      myImage->translucentColor.green = 255;
-      myImage->translucentColor.blue = 0;
+      iconImage.transColor.red = 0;
+      iconImage.transColor.green = 255;
+      iconImage.transColor.blue = 0;
       params.padRight = 0;
-      imageComp = windowNewImage(dialogWindow, myImage, draw_translucent,
-				 &params);
+      imageComp =
+	windowNewImage(dialogWindow, &iconImage, draw_translucent, &params);
     }
 
   // Create the label
@@ -110,9 +105,10 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
   params.gridWidth = 2;
   params.padBottom = 5;
   params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-  okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
+  okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);
+  windowComponentFocus(okButton);
 
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);

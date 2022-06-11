@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 #include "kernelText.h"
 #include "kernelVariableList.h"
 #include <string.h>
+#include <sys/font.h>
 #include <sys/window.h>
 
 // Definitions
@@ -45,9 +46,9 @@
 #define WINDOW_MINREST_TRACERS              20
 #define WINDOW_DEFAULT_CONFIG               "/system/config/window.conf"
 #define WINDOW_DEFAULT_DESKTOP_CONFIG       "/system/config/desktop.conf"
-#define WINDOW_DEFAULT_VARFONT_SMALL_FILE   "/system/fonts/arial-bold-10.bmp"
+#define WINDOW_DEFAULT_VARFONT_SMALL_FILE   FONT_SYSDIR "/arial-bold-10.vbf"
 #define WINDOW_DEFAULT_VARFONT_SMALL_NAME   "arial-bold-10"
-#define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE  "/system/fonts/arial-bold-12.bmp"
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE  FONT_SYSDIR "/arial-bold-12.vbf"
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_NAME  "arial-bold-12"
 
 #define WINFLAG_VISIBLE                     0x0200
@@ -66,6 +67,12 @@
 #define WINNAME_ROOTWINDOW                  "root window"
 
 typedef struct {
+  struct {
+    color foreground;
+    color background;
+    color desktop;
+  } color;
+
   struct {
     int minWidth;
     int minHeight;
@@ -91,17 +98,17 @@ typedef struct {
   } checkbox;
 
   struct {
-    kernelAsciiFont *defaultFont;
+    asciiFont *defaultFont;
     struct {
       struct {
 	char file[MAX_PATH_NAME_LENGTH];
 	char name[MAX_NAME_LENGTH];
-	kernelAsciiFont *font;
+	asciiFont *font;
       } small;
       struct {
 	char file[MAX_PATH_NAME_LENGTH];
 	char name[MAX_NAME_LENGTH];
-	kernelAsciiFont *font;
+	asciiFont *font;
       } medium;
     } varWidth;
   } font;
@@ -157,6 +164,7 @@ typedef volatile struct _kernelWindowComponent {
   void (*eventHandler)(volatile struct _kernelWindowComponent *,
 		       windowEvent *);
   int doneLayout;
+  kernelMousePointer *pointer;
   void *data;
 
   // Routines for managing this component.  These are set by the
@@ -233,6 +241,7 @@ typedef volatile struct {
 typedef volatile struct {
   int selected;
   image iconImage;
+  image selectedImage;
   char label[2][WINDOW_MAX_LABEL_LENGTH];
   int labelLines;
   int labelWidth;
@@ -276,6 +285,7 @@ typedef volatile struct {
 typedef volatile struct {
   kernelGraphicBuffer buffer;
   kernelWindowComponent *container;
+  int selectedItem;
 
 } kernelWindowMenu;
 
@@ -305,7 +315,9 @@ typedef volatile struct {
 typedef volatile struct {
   scrollBarType type;
   scrollBarState state;
+  int sliderX;
   int sliderY;
+  int sliderWidth;
   int sliderHeight;
 
 } kernelWindowScrollBar;
@@ -316,6 +328,9 @@ typedef volatile struct {
   kernelTextArea *area;
   int areaWidth;
   kernelWindowComponent *scrollBar;
+
+  // For derived kernelWindowTextField use
+  char *fieldBuffer;
 
 } kernelWindowTextArea;
 
@@ -355,6 +370,7 @@ typedef volatile struct _kernelWindow {
   kernelWindowComponent *mainContainer;
   kernelWindowComponent *focusComponent;
   kernelWindowComponent *oldFocusComponent;
+  kernelWindowComponent *mouseInComponent;
   kernelMousePointer *pointer;
 
   volatile struct _kernelWindow *parentWindow;
@@ -379,21 +395,16 @@ typedef struct {
 
 } screenArea;
 
-#define makeWindowScreenArea(windowP)                                 \
-   &((screenArea) { windowP->xCoord, windowP->yCoord,                 \
-                   (windowP->xCoord + (windowP->buffer.width - 1)),   \
-                   (windowP->yCoord + (windowP->buffer.height - 1)) } )
+#define makeWindowScreenArea(w)                    \
+  (&((screenArea) { (w)->xCoord, (w)->yCoord,      \
+	 ((w)->xCoord + ((w)->buffer.width - 1)),  \
+	 ((w)->yCoord + ((w)->buffer.height - 1)) } ))
 
-static inline screenArea *
-makeComponentScreenArea(kernelWindowComponent *component)
-{
-  return (&((screenArea) {
-    (component->window->xCoord + component->xCoord),
-      (component->window->yCoord + component->yCoord),
-      (component->window->xCoord + component->xCoord + (component->width - 1)),
-      (component->window->yCoord + component->yCoord + (component->height - 1))
-      }));
-}
+#define makeComponentScreenArea(c)                                \
+  (&((screenArea) { ((c)->window->xCoord + (c)->xCoord),          \
+	 ((c)->window->yCoord + (c)->yCoord),                     \
+	 ((c)->window->xCoord + (c)->xCoord + ((c)->width - 1)),  \
+	 ((c)->window->yCoord + (c)->yCoord + ((c)->height - 1)) } ))
 
 static inline kernelWindow *getWindow(objectKey object)
 {
@@ -528,7 +539,6 @@ int kernelWindowShell(int, int);
 void kernelWindowShellUpdateList(kernelWindow *[], int);
 int kernelWindowLogin(const char *);
 int kernelWindowLogout(void);
-void kernelWindowRefresh(void);
 kernelWindow *kernelWindowNew(int, const char *);
 kernelWindow *kernelWindowNewDialog(kernelWindow *, const char *);
 int kernelWindowDestroy(kernelWindow *);
@@ -546,18 +556,20 @@ int kernelWindowSetMovable(kernelWindow *, int);
 int kernelWindowSetResizable(kernelWindow *, int);
 int kernelWindowRemoveMinimizeButton(kernelWindow *);
 int kernelWindowRemoveCloseButton(kernelWindow *);
-int kernelWindowSetColors(kernelWindow *, color *);
 int kernelWindowSetVisible(kernelWindow *, int);
 void kernelWindowSetMinimized(kernelWindow *, int);
 int kernelWindowAddConsoleTextArea(kernelWindow *);
 void kernelWindowRedrawArea(int, int, int, int);
 void kernelWindowDrawAll(void);
+int kernelWindowGetColor(const char *, color *);
+int kernelWindowSetColor(const char *, color *);
 void kernelWindowResetColors(void);
 void kernelWindowProcessEvent(windowEvent *);
 int kernelWindowRegisterEventHandler(kernelWindowComponent *,
 				     void (*)(kernelWindowComponent *,
 					      windowEvent *));
 int kernelWindowComponentEventGet(objectKey, windowEvent *);
+int kernelWindowSetBackgroundColor(kernelWindow *, color *);
 int kernelWindowSetBackgroundImage(kernelWindow *, image *);
 int kernelWindowTileBackground(const char *);
 int kernelWindowCenterBackground(const char *);
@@ -570,6 +582,8 @@ int kernelWindowContextAdd(objectKey, windowMenuContents *);
 int kernelWindowContextSet(objectKey, kernelWindowComponent *);
 int kernelWindowSwitchPointer(objectKey, const char *);
 void kernelWindowMoveConsoleTextArea(kernelWindow *, kernelWindow *);
+int kernelWindowRaiseCurrentMenu(void);
+int kernelWindowRaiseWindowMenu(void);
 
 // Functions for managing components.  This first batch is from
 // kernelWindowComponent.c
@@ -601,6 +615,8 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey, const char *,
 					       componentParameters *);
 kernelWindowComponent *kernelWindowNewContainer(objectKey, const char *,
 						componentParameters *);
+kernelWindowComponent *kernelWindowNewDivider(objectKey, dividerType,
+					      componentParameters *);
 kernelWindowComponent *kernelWindowNewIcon(objectKey, image *,
 					   const char *,
 					   componentParameters *);

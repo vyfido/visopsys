@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -433,17 +433,9 @@ static int setOsLoaderParams(const char *outputName,
 	findUnusedCluster(outputName, fatHeader->common2.fsSignature,
 			  &(fatHeader->common1));
 
-      // We may need a hack here, since Fedora's VFAT driver seems to put
-      // the OS loader in the *second* free cluster
 #ifndef VISOPSYS
-      struct utsname u;
-      uname(&u);
-      if (strcasestr(u.release, "fc"))
-	{
-	  firstUnusedCluster += 1;
-	  DEBUG("Using second unused cluster (%u) hack for OS release %s\n",
-		firstUnusedCluster, u.release);
-	}
+      // For some reason the Linux driver gives us the second unused cluster
+      firstUnusedCluster += 1;
 #endif
 
       *firstUserSector =

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,6 +40,7 @@ static void *filesystemDriverInits[] = {
   kernelFilesystemIsoInitialize,
   kernelFilesystemLinuxSwapInitialize,
   kernelFilesystemNtfsInitialize,
+  kernelFilesystemUdfInitialize,
   (void *) -1
 };
 
@@ -60,13 +61,15 @@ static struct {
   kernelFilesystemDriver *isoDriver;
   kernelFilesystemDriver *linuxSwapDriver;
   kernelFilesystemDriver *ntfsDriver;
+  kernelFilesystemDriver *udfDriver;
 
 } filesystemDrivers = {
   NULL, // EXT filesystem driver
   NULL, // FAT filesystem driver
   NULL, // ISO filesystem driver
   NULL, // Linux swap filesystem driver
-  NULL  // NTFS filesystem driver
+  NULL, // NTFS filesystem driver
+  NULL  // UDF filesystem driver
 };
 
 
@@ -159,6 +162,9 @@ int kernelDriverRegister(kernelDriverType type, void *driver)
     case ntfsDriver:
       filesystemDrivers.ntfsDriver = driver;
       break;
+    case udfDriver:
+      filesystemDrivers.udfDriver = driver;
+      break;
     case textConsoleDriver:
       consoleDrivers.textConsoleDriver = driver;
       break;
@@ -193,6 +199,9 @@ void *kernelDriverGet(kernelDriverType type)
     case ntfsDriver:
       // Return the NTFS filesystem driver
       return (filesystemDrivers.ntfsDriver);
+    case udfDriver:
+      // Return the UDF filesystem driver
+      return (filesystemDrivers.udfDriver);
     case textConsoleDriver:
       // Return the text mode console driver
       return (consoleDrivers.textConsoleDriver);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,31 +45,30 @@ static kernelTextOutputStream *consoleOutput = &originalConsoleOutput;
 static kernelTextInputStream *currentInput = NULL;
 static kernelTextOutputStream *currentOutput = NULL;
 
-static kernelTextArea consoleArea =
-  {
-    0,                            // xCoord
-    0,                            // yCoord;
-    80,                           // columns
-    50,                           // rows
-    2,                            // bytes per char
-    0,                            // cursor column
-    0,                            // cursor row
-    1,                            // cursor state
-    0,                            // max buffer lines
-    0,                            // scrollback lines
-    0,                            // scrolled back lines
-    0,                            // hidden
-    TEXT_DEFAULT_FOREGROUND,      // foreground
-    TEXT_DEFAULT_BACKGROUND,      // background
-    0,                            // pcColor
-    NULL,                         // inputStream
-    NULL,                         // outputStream
-    NULL,                         // buffer data
-    (unsigned char *) 0x000B8000, // Text screen address (visible data)
-    NULL,                         // font
-    NULL,                         // window component
-    0                             // no-scroll flag
-  };
+static kernelTextArea consoleArea = {
+  0,                            // xCoord
+  0,                            // yCoord;
+  80,                           // columns
+  50,                           // rows
+  2,                            // bytes per char
+  0,                            // cursor column
+  0,                            // cursor row
+  1,                            // cursor state
+  0,                            // max buffer lines
+  0,                            // scrollback lines
+  0,                            // scrolled back lines
+  0,                            // hidden
+  TEXT_DEFAULT_FOREGROUND,      // foreground
+  TEXT_DEFAULT_BACKGROUND,      // background
+  0,                            // pcColor
+  NULL,                         // inputStream
+  NULL,                         // outputStream
+  NULL,                         // buffer data
+  (unsigned char *) 0x000B8000, // Text screen address (visible data)
+  NULL,                         // font
+  NULL,                         // window component
+  0                             // no-scroll flag
+};
 
 // So nobody can use us until we're ready
 static int initialized = 0;

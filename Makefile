@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -12,6 +12,7 @@ BUILDDIR	= build
 all:
 	mkdir -p ${BUILDDIR}/system
 	cp COPYING.txt ${BUILDDIR}/system/
+	mkdir -p ${BUILDDIR}/system/locale
 	make -C dist
 	make -C utils
 	make -C src

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,12 +31,13 @@
 #define FSNAME_ISO          "iso"
 #define FSNAME_LINUXSWAP    "linux-swap"
 #define FSNAME_NTFS         "ntfs"
+#define FSNAME_UDF          "udf"
 #define MAX_FILESYSTEMS     32
 #define MAX_FS_NAME_LENGTH  64
 
 typedef struct {
-  unsigned usedSectors;
-  unsigned freeSectors;
+  uquad_t usedSectors;
+  uquad_t freeSectors;
   unsigned blockSize;
 
 } kernelFilesystemStats;
@@ -52,11 +53,11 @@ typedef struct _kernelFilesystemDriver {
   int (*driverCheck) (kernelDisk *, int, int, progress *);
   int (*driverDefragment) (kernelDisk *, progress *);
   int (*driverStat) (kernelDisk *, kernelFilesystemStats *);
-  int (*driverResizeConstraints) (kernelDisk *, unsigned *, unsigned *);
-  int (*driverResize) (kernelDisk *, unsigned, progress *);
+  uquad_t (*driverGetFreeBytes) (kernelDisk *);
+  int (*driverResizeConstraints) (kernelDisk *, uquad_t *, uquad_t *);
+  int (*driverResize) (kernelDisk *, uquad_t, progress *);
   int (*driverMount) (kernelDisk *);
   int (*driverUnmount) (kernelDisk *);
-  unsigned (*driverGetFree) (kernelDisk *);
   int (*driverNewEntry) (kernelFileEntry *);
   int (*driverInactiveEntry) (kernelFileEntry *);
   int (*driverResolveLink) (kernelFileEntry *);
@@ -72,6 +73,7 @@ typedef struct _kernelFilesystemDriver {
   int (*driverMakeDir) (kernelFileEntry *);
   int (*driverRemoveDir) (kernelFileEntry *);
   int (*driverTimestamp) (kernelFileEntry *);
+  int (*driverSetBlocks) (kernelFileEntry *, unsigned);
 
 } kernelFilesystemDriver;
 
@@ -81,21 +83,22 @@ int kernelFilesystemFatInitialize(void);
 int kernelFilesystemIsoInitialize(void);
 int kernelFilesystemLinuxSwapInitialize(void);
 int kernelFilesystemNtfsInitialize(void);
+int kernelFilesystemUdfInitialize(void);
 
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemScan(kernelDisk *);
 int kernelFilesystemFormat(const char *, const char *, const char *, int,
 			   progress *);
 int kernelFilesystemClobber(const char *);
+int kernelFilesystemCheck(const char *, int, int, progress *);
 int kernelFilesystemDefragment(const char *, progress *);
 int kernelFilesystemStat(const char *, kernelFilesystemStats *);
-int kernelFilesystemResizeConstraints(const char *, unsigned *, unsigned *);
-int kernelFilesystemResize(const char *, unsigned, progress *);
+int kernelFilesystemResizeConstraints(const char *, uquad_t *, uquad_t *);
+int kernelFilesystemResize(const char *, uquad_t, progress *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
-int kernelFilesystemCheck(const char *, int, int, progress *);
 kernelDisk *kernelFilesystemGet(char *);
-unsigned kernelFilesystemGetFree(const char *);
+uquad_t kernelFilesystemGetFreeBytes(const char *);
 unsigned kernelFilesystemGetBlockSize(const char *);
 
 #define _KERNELFILESYSTEM_H

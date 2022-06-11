@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,30 +21,33 @@
 
 #include "kernelInitialize.h"
 #include "kernelDebug.h"
-#include "kernelDisk.h"
-#include "kernelFile.h"
-#include "kernelFilesystem.h"
-#include "kernelImage.h"
-#include "kernelMisc.h"
-#include "kernelPage.h"
-#include "kernelMemory.h"
-#include "kernelText.h"
-#include "kernelLog.h"
 #include "kernelDescriptor.h"
+#include "kernelDisk.h"
+#include "kernelError.h"
+#include "kernelFileStream.h"
+#include "kernelFilesystem.h"
 #include "kernelInterrupt.h"
+#include "kernelKeyboard.h"
+#include "kernelLocale.h"
+#include "kernelLog.h"
+#include "kernelMain.h"
 #include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelMouse.h"
 #include "kernelMultitasker.h"
+#include "kernelNetwork.h"
+#include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelRandom.h"
-#include "kernelKeyboard.h"
-#include "kernelNetwork.h"
+#include "kernelText.h"
 #include "kernelUsbDriver.h"
 #include "kernelUser.h"
 #include "kernelWindow.h"
-#include "kernelError.h"
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#define _(string) kernelGetText(string)
 
 
 static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
@@ -77,6 +80,103 @@ static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 }
 
 
+static void logLoaderInfo(void)
+{
+  // Log the information supplied to us by the OS loader
+
+  char *memType = NULL;
+  int count;
+
+  kernelLog("OS Loader: CPU type=%d", kernelOsLoaderInfo->cpuType);
+  kernelLog("OS Loader: CPU vendor=%s", kernelOsLoaderInfo->cpuVendor);
+  kernelLog("OS Loader: MMS extensions=%s",
+	    (kernelOsLoaderInfo->mmxExtensions? "yes" : "no"));
+  kernelLog("OS Loader: Extended mem=%uK",
+	    kernelOsLoaderInfo->extendedMemory);
+
+  for (count = 0; (kernelOsLoaderInfo->memoryMap[count].type &&
+		   (count < (int)(sizeof(kernelOsLoaderInfo->memoryMap) /
+				  sizeof(memoryInfoBlock)))); count ++)
+    {
+      switch(kernelOsLoaderInfo->memoryMap[count].type)
+	{
+	case available:
+	  memType = "available";
+	  break;
+	case reserved:
+	  memType = "reserved";
+	  break;
+	case reclaim:
+	  memType = "reclaim";
+	  break;
+	case nvs:
+	  memType = "nvs";
+	  break;
+	default:
+	  memType = "unknown";
+	  break;
+	}
+      kernelLog("OS Loader: memory range %s: %lldK->%lldK", memType,
+		(kernelOsLoaderInfo->memoryMap[count].start >> 10),
+		((kernelOsLoaderInfo->memoryMap[count].start +
+		  kernelOsLoaderInfo->memoryMap[count].size - 1) >> 10));
+    }
+
+  if (kernelOsLoaderInfo->graphicsInfo.videoMemory)
+    {
+      kernelLog("OS Loader: video memory=%uK",
+		kernelOsLoaderInfo->graphicsInfo.videoMemory);
+      kernelLog("OS Loader: video framebuffer=%p",
+		kernelOsLoaderInfo->graphicsInfo.framebuffer);
+      kernelLog("OS Loader: video mode=0x%x: %dx%d @%dbpp",
+		kernelOsLoaderInfo->graphicsInfo.mode,
+		kernelOsLoaderInfo->graphicsInfo.xRes,
+		kernelOsLoaderInfo->graphicsInfo.yRes,
+		kernelOsLoaderInfo->graphicsInfo.bitsPerPixel);
+      kernelLog("OS Loader: video supported modes=%d",
+		kernelOsLoaderInfo->graphicsInfo.numberModes);
+
+      for (count = 0; count < kernelOsLoaderInfo->graphicsInfo.numberModes;
+	   count ++)
+	kernelLog("OS Loader: video supports mode 0x%x=%dx%d @%dbpp",
+		  kernelOsLoaderInfo->graphicsInfo.supportedModes[count].mode,
+		  kernelOsLoaderInfo->graphicsInfo.supportedModes[count].xRes,
+		  kernelOsLoaderInfo->graphicsInfo.supportedModes[count].yRes,
+		  kernelOsLoaderInfo->graphicsInfo.supportedModes[count]
+		  .bitsPerPixel);
+    }
+
+  kernelLog("OS Loader: boot device=0x%02x", kernelOsLoaderInfo->bootDevice);
+  kernelLog("OS Loader: boot sector=%u", kernelOsLoaderInfo->bootSector);
+  kernelLog("OS Loader: boot disk=%s", kernelOsLoaderInfo->bootDisk);
+  kernelLog("OS Loader: floppy disks=%d", kernelOsLoaderInfo->floppyDisks);
+
+  for (count = 0; count < kernelOsLoaderInfo->floppyDisks; count ++)
+    kernelLog("OS Loader: floppy %d type=%d heads=%d tracks=%d sects=%d",
+	      count, kernelOsLoaderInfo->fddInfo[count].type,
+	      kernelOsLoaderInfo->fddInfo[count].heads,
+	      kernelOsLoaderInfo->fddInfo[count].tracks,
+	      kernelOsLoaderInfo->fddInfo[count].sectors);
+
+  kernelLog("OS Loader: hard disks=%d", kernelOsLoaderInfo->hardDisks);
+
+  for (count = 0; count < kernelOsLoaderInfo->hardDisks; count ++)
+    kernelLog("OS Loader: hard disk %d heads=%d cyls=%d sects=%d bps=%d "
+	      "total=%u", count,
+	      kernelOsLoaderInfo->hddInfo[count].heads,
+	      kernelOsLoaderInfo->hddInfo[count].cylinders,
+	      kernelOsLoaderInfo->hddInfo[count].sectorsPerCylinder,
+	      kernelOsLoaderInfo->hddInfo[count].bytesPerSector,
+	      kernelOsLoaderInfo->hddInfo[count].totalSectors);
+
+  kernelLog("OS Loader: serial ports 0x%04x 0x%04x 0x%04x 0x%04x",
+	    kernelOsLoaderInfo->serialPorts.port1,
+	    kernelOsLoaderInfo->serialPorts.port2,
+	    kernelOsLoaderInfo->serialPorts.port3,
+	    kernelOsLoaderInfo->serialPorts.port4);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -86,7 +186,8 @@ static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelInitialize(unsigned kernelMemory)
+int kernelInitialize(unsigned kernelMemory, void *kernelStack,
+		     unsigned kernelStackSize)
 {
   // Does a bunch of calls involved in initializing the kernel.
   // kernelMain passes all of the kernel's arguments to this function
@@ -97,6 +198,7 @@ int kernelInitialize(unsigned kernelMemory)
   int graphics = 0;
   char welcomeMessage[512];
   static char rootDiskName[DISK_MAX_NAMELENGTH];
+  char tmpRootDiskName[DISK_MAX_NAMELENGTH];
   kernelDisk *rootDisk = NULL;
   char value[128];
   char splashName[128];
@@ -188,12 +290,15 @@ int kernelInitialize(unsigned kernelMemory)
   kernelLogSetToConsole(0);
 
   // Log a starting message
-  sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2007 J. Andrew "
+  sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2011 J. Andrew "
 	  "McLaughlin", kernelVersion[0], kernelVersion[1]);
-  kernelLog(welcomeMessage);
+  kernelLog("%s", welcomeMessage);
 
   // Print the welcome message.
   kernelTextPrintLine("%s\nStarting, one moment please...", welcomeMessage);
+
+  // Log the hardware information passed to us by the BIOS
+  logLoaderInfo();
 
   // Do general device detection
   status = kernelDeviceDetect();
@@ -204,7 +309,7 @@ int kernelInitialize(unsigned kernelMemory)
     }
 
   // Initialize the multitasker
-  status = kernelMultitaskerInitialize();
+  status = kernelMultitaskerInitialize(kernelStack, kernelStackSize);
   if (status < 0)
     {
       kernelError(kernel_error, "Multitasker initialization failed");
@@ -272,12 +377,15 @@ int kernelInitialize(unsigned kernelMemory)
 	{
 	  for (count = 1; count < MAXHARDDISKS; count ++)
 	    {
-	      sprintf(rootDiskName, "cd%d", count);
-	      if (kernelDiskGetByName(rootDiskName))
+	      sprintf(tmpRootDiskName, "cd%d", count);
+	      if (kernelDiskGetByName(tmpRootDiskName))
 		{
-		  status = kernelFilesystemMount(rootDiskName, "/");
+		  status = kernelFilesystemMount(tmpRootDiskName, "/");
 		  if (status == 0)
-		    break;
+		    {
+		      strcpy(rootDiskName, tmpRootDiskName);
+		      break;
+		    }
 		}
 	    }
 	}
@@ -285,6 +393,19 @@ int kernelInitialize(unsigned kernelMemory)
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Mounting root filesystem failed");
+
+	  // Is the root disk a SATA disk?  If so we can print an error
+	  // message that might be useful
+	  rootDisk = kernelDiskGetByName(rootDiskName);
+	  if (rootDisk && rootDisk->physical &&
+	      ((rootDisk->physical->type & DISKTYPE_SATADISK) ||
+	       (rootDisk->physical->type & DISKTYPE_SATACDROM)))
+	    kernelTextPrintLine("%s", _("\n *** Your boot disk appears to be "
+				  "running in unsupported native-SATA mode.\n"
+				  " *** You may be able to temporarily enable "
+				  "ATA or 'legacy' IDE mode in\n *** your "
+				  "BIOS setup.\n"));
+
 	  return (status = ERR_NOTINITIALIZED);
 	}
     }
@@ -297,11 +418,14 @@ int kernelInitialize(unsigned kernelMemory)
       return (status = ERR_INVALID);
     }
 
+  // See whether any other disks should be auto-mounted.
+  kernelDiskAutoMountAll();
+
   // Are we in a graphics mode?
   graphics = kernelGraphicsAreEnabled();
 
   // Read the kernel config file
-  status = kernelConfigurationReader(DEFAULT_KERNEL_CONFIG, kernelVariables);
+  status = kernelConfigRead(DEFAULT_KERNEL_CONFIG, kernelVariables);
   if (status < 0)
     kernelVariables = NULL;
 
@@ -312,45 +436,50 @@ int kernelInitialize(unsigned kernelMemory)
       if (value[0] != '\0')
 	kernelKeyboardSetMap(value);
 
+      // Get the messages locale
+      kernelVariableListGet(kernelVariables, "locale.messages", value, 128);
+      if (value[0] != '\0')
+	kernelSetLocale(LC_ALL, value);
+
       if (graphics)
 	{
 	  // Get the default color values, if they're set in this file
-	  kernelVariableListGet(kernelVariables, "foreground.color.red",
+	  kernelVariableListGet(kernelVariables, "color.foreground.red",
 				value, 128);
 	  if (value[0] != '\0')
 	    kernelDefaultForeground.red = atoi(value);
-	  kernelVariableListGet(kernelVariables, "foreground.color.green",
+	  kernelVariableListGet(kernelVariables, "color.foreground.green",
 				value, 128);
 	  if (value[0] != '\0')
 	    kernelDefaultForeground.green = atoi(value);
-	  kernelVariableListGet(kernelVariables, "foreground.color.blue",
+	  kernelVariableListGet(kernelVariables, "color.foreground.blue",
 				value, 128);
 	  if (value[0] != '\0')
 	    kernelDefaultForeground.blue = atoi(value);
 
 
-          kernelVariableListGet(kernelVariables, "background.color.red",
+          kernelVariableListGet(kernelVariables, "color.background.red",
 				value, 128);
           if (value[0] != '\0')
             kernelDefaultBackground.red = atoi(value);
-          kernelVariableListGet(kernelVariables, "background.color.green",
+          kernelVariableListGet(kernelVariables, "color.background.green",
                                 value, 128);
           if (value[0] != '\0')
             kernelDefaultBackground.green = atoi(value);
-          kernelVariableListGet(kernelVariables, "background.color.blue",
+          kernelVariableListGet(kernelVariables, "color.background.blue",
                                 value, 128);
           if (value[0] != '\0')
             kernelDefaultBackground.blue = atoi(value);
 
-          kernelVariableListGet(kernelVariables, "desktop.color.red",
+          kernelVariableListGet(kernelVariables, "color.desktop.red",
 				value, 128);
           if (value[0] != '\0')
             kernelDefaultDesktop.red = atoi(value);
-          kernelVariableListGet(kernelVariables, "desktop.color.green",
+          kernelVariableListGet(kernelVariables, "color.desktop.green",
                                 value, 128);
           if (value[0] != '\0')
             kernelDefaultDesktop.green = atoi(value);
-          kernelVariableListGet(kernelVariables, "desktop.color.blue",
+          kernelVariableListGet(kernelVariables, "color.desktop.blue",
                                 value, 128);
           if (value[0] != '\0')
             kernelDefaultDesktop.blue = atoi(value);
@@ -371,20 +500,29 @@ int kernelInitialize(unsigned kernelMemory)
     {
       // Clear the screen with our default background color
       kernelGraphicClearScreen(&kernelDefaultDesktop);
+      kernelMemClear(&splashImage, sizeof(image));
 
-      if (splashName[0] != '\0')
+      if ((splashName[0] != '\0') && !kernelFileFind(splashName, NULL))
 	{
 	  // Try to load the default splash image to use when starting/
 	  // restarting
-	  kernelMemClear(&splashImage, sizeof(image));
 	  kernelImageLoad(splashName, 0, 0, &splashImage);
 	  if (splashImage.data)
-	    // Loaded successfully.  Put it in the middle of the screen.
-	    kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
-				   ((kernelGraphicGetScreenWidth() -
-				     splashImage.width) / 2),
-				   ((kernelGraphicGetScreenHeight() -
-				     splashImage.height) / 2), 0, 0, 0, 0);
+	    {
+	      // Loaded successfully.  Put it in the middle of the screen.
+	      kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
+				     ((kernelGraphicGetScreenWidth() -
+				       splashImage.width) / 2),
+				     ((kernelGraphicGetScreenHeight() -
+				       splashImage.height) / 2), 0, 0, 0, 0);
+	      kernelGraphicDrawRect(NULL, &COLOR_BLACK, draw_normal,
+				    ((kernelGraphicGetScreenWidth() -
+				      splashImage.width) / 2),
+				    ((kernelGraphicGetScreenHeight() -
+				      splashImage.height) / 2),
+				    splashImage.width, splashImage.height,
+				    1, 0);
+	    }
 	}
 
       // Initialize mouse operations
@@ -442,7 +580,7 @@ int kernelInitialize(unsigned kernelMemory)
       // Clear the screen with our default background color
       kernelGraphicClearScreen(&kernelDefaultDesktop);
       if (splashImage.data)
-	kernelMemoryRelease(splashImage.data);
+	kernelImageFree(&splashImage);
     }
   else
     kernelTextPrint("\nGraphics are not enabled.  Operating in text mode.\n");

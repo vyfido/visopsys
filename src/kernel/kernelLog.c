@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,6 +26,7 @@
 #include "kernelError.h"
 #include "kernelFileStream.h"
 #include "kernelLock.h"
+#include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelRtc.h"
@@ -37,7 +38,7 @@ static volatile int loggingInitialized = 0;
 static int updaterPID = 0;
 
 static stream logStream;
-static fileStream * volatile logFileStream;
+static fileStream * volatile logFileStream = NULL;
 static lock logLock;
 
 
@@ -53,6 +54,12 @@ static int flushLogStream(void)
   status = kernelLockGet(&logLock);
   if (status < 0)
     return (status = ERR_NOLOCK);
+
+  if (!logFileStream)
+    {
+      logToFile = 0;
+      goto out;
+    }
 
   // Take the contents of the log stream...
   while (logStream.popN(&logStream, 512, buffer) > 0)
@@ -137,6 +144,9 @@ int kernelLogInitialize(void)
   if (status < 0)
     return (status);
 
+  // Get memory for the log file stream
+  logFileStream = kernelMalloc(sizeof(fileStream));
+
   // Make a note that we've been initialized
   loggingInitialized = 1;
 
@@ -153,7 +163,6 @@ int kernelLogSetFile(const char *logFileName)
   // file specified.  Returns 0 on success, negative otherwise.
 
   int status = 0;
-  static fileStream theStream;
 
   // Do not accept this call unless logging has been initialized
   if (!loggingInitialized)
@@ -162,7 +171,7 @@ int kernelLogSetFile(const char *logFileName)
       return (status = ERR_NOTINITIALIZED);
     }
 
-  if (logFileName == NULL)
+  if ((logFileName == NULL) || (logFileStream == NULL))
     {
       // No more logging to a file
       logToFile = 0;
@@ -172,7 +181,7 @@ int kernelLogSetFile(const char *logFileName)
   // Initialize the fileStream structure that we'll be using for a log file
   status =
     kernelFileStreamOpen(logFileName, (OPENMODE_WRITE | OPENMODE_CREATE),
-			 &theStream);
+			 logFileStream);
   if (status < 0)
     {
       // We couldn't open or create a log file, for whatever reason.
@@ -180,8 +189,6 @@ int kernelLogSetFile(const char *logFileName)
       logToFile = 0;
       return (status);
     }
-
-  logFileStream = &theStream;
 
   // We will be logging to a file, so we don't need to log to the console
   // any more
@@ -260,7 +267,7 @@ int kernelLog(const char *format, ...)
 
   // Are we logging to the console?  Just print the message itself.
   if (logToConsole)
-    kernelTextPrintLine(output);
+    kernelTextPrintLine("%s", output);
 
   // Get the current date/time so we can prepend it to the logging output
   status = kernelRtcDateTime(&theTime);
@@ -296,11 +303,16 @@ int kernelLogShutdown(void)
       // Flush the file stream of any remaining data
       flushLogStream();
 
-      // Close the log file
-      status = kernelFileStreamClose(logFileStream);
-      if (status < 0)
-	kernelError(kernel_warn, "Unable to close the kernel log file");
-      
+      if (logFileStream)
+	{
+	  // Close the log file
+	  status = kernelFileStreamClose(logFileStream);
+	  if (status < 0)
+	    kernelError(kernel_warn, "Unable to close the kernel log file");
+
+	  kernelFree(logFileStream);
+	}
+
       logToFile = 0;
     }
 

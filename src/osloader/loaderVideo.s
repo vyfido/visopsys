@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -753,6 +753,7 @@ loaderSetGraphicDisplay:
 	;; Get the information about this graphic mode
 	mov AX, 4F01h
 	mov CX, word [CURRENTGMODE]
+	or CX, 4000h			; Use linear frame buffer
 	mov DI, MODEINFO
 	int 10h
 
@@ -762,7 +763,7 @@ loaderSetGraphicDisplay:
 	;; Here's where we actually change to the selected graphics mode
 	mov AX, 4F02h			; SVGA function 4F, subfunction 2
 	mov BX, word [CURRENTGMODE]	; Mode number
-	or BX, 4000h			; Clear, use linear frame buffer
+	or BX, 4000h			; Use linear frame buffer
 	int 10h
 
 	cmp AX, 004Fh			; Returns this value if successful
@@ -833,8 +834,10 @@ GRAPHICSMODE	db 'GRPHMODE   ', 0
 ;; 
 
 VIDEOMODES:
+	dw 1280, 800, 32	; 1280 x 800 x 32 bpp ; Preferred mode
+	dw 1280, 800, 24	; 1280 x 800 x 24 bpp ; (widescreen)
 	dw 1024, 768, 32	; 1024 x 768 x 32 bpp ; Preferred mode
-	dw 1024, 768, 24	; 1024 x 768 x 24 bpp
+	dw 1024, 768, 24	; 1024 x 768 x 24 bpp ; (normal screen)
 	dw 1400, 1050, 32	; 1400 x 1050 x 32 bpp
 	dw 1400, 1050, 24	; 1400 x 1050 x 24 bpp
 	dw 1280, 1024, 32	; 1280 x 1024 x 32 bpp

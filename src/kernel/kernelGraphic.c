@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,39 +23,114 @@
 // the screen
 
 #include "kernelGraphic.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
+#include "kernelFile.h"
+#include "kernelFont.h"
+#include "kernelLog.h"
+#include "kernelMalloc.h"
+#include "kernelMisc.h"
+#include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
-#include "kernelFile.h"
-#include "kernelDisk.h"
-#include "kernelMalloc.h"
-#include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelWindow.h"
-#include "kernelError.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/image.h>
 
 // The global default colors
 color kernelDefaultForeground = {
-  DEFAULT_FOREGROUND_BLUE,
-  DEFAULT_FOREGROUND_GREEN,
-  DEFAULT_FOREGROUND_RED
+  DEFAULT_FOREGROUND_BLUE, DEFAULT_FOREGROUND_GREEN, DEFAULT_FOREGROUND_RED
 };
 color kernelDefaultBackground = {
-  DEFAULT_BACKGROUND_BLUE,
-  DEFAULT_BACKGROUND_GREEN,
-  DEFAULT_BACKGROUND_RED
+  DEFAULT_BACKGROUND_BLUE, DEFAULT_BACKGROUND_GREEN, DEFAULT_BACKGROUND_RED
 };
 color kernelDefaultDesktop = {
-  DEFAULT_DESKTOP_BLUE,
-  DEFAULT_DESKTOP_GREEN,
-  DEFAULT_DESKTOP_RED
+  DEFAULT_DESKTOP_BLUE, DEFAULT_DESKTOP_GREEN, DEFAULT_DESKTOP_RED
 };
 
 static kernelDevice *systemAdapter = NULL;
 static kernelGraphicAdapter *adapterDevice = NULL;
 static kernelGraphicOps *ops = NULL;
+
+#define VBE_PMINFOBLOCK_SIG "PMID"
+
+typedef struct {
+  char signature[4];
+  unsigned short entryOffset;
+  unsigned short initOffset;
+  unsigned short dataSelector;
+  unsigned short A0000Selector;
+  unsigned short B0000Selector;
+  unsigned short B8000Selector;
+  unsigned short codeSelector;
+  unsigned char protMode;
+  unsigned char checksum;
+
+} __attribute__((packed)) vbePmInfoBlock;
+
+
+static int detectVbe(void)
+{
+  int status = 0;
+  void *biosOrig = NULL;
+  vbePmInfoBlock *pmInfo = NULL;
+  char checkSum = 0;
+  char *tmp = NULL;
+  int count1, count2;
+
+  kernelDebug(debug_io, "VBE: detecting VBE protected mode interface");
+
+  // Map the video BIOS image into memory.  Starts at 0xC0000 and 'normally' is
+  // 32Kb according to the VBE 3.0 spec (but not really in my experience)
+  status = kernelPageMapToFree(KERNELPROCID, (void *) VIDEO_BIOS_MEMORY,
+			       &biosOrig, VIDEO_BIOS_MEMORY_SIZE);
+  if (status < 0)
+    return (status);
+
+  // Scan the video BIOS memory for the "protected mode info block" structure
+  kernelDebug(debug_io, "VBE: searching for VBE BIOS pmInfo signature");
+  for (count1 = 0; count1 < VIDEO_BIOS_MEMORY_SIZE; count1 ++)
+    {
+      tmp = (biosOrig + count1);
+
+      if (strncmp((char *) tmp, VBE_PMINFOBLOCK_SIG, 4))
+	continue;
+
+      // Maybe we found it
+      kernelDebug(debug_io, "VBE: found possible pmInfo signature at %x",
+		  count1);
+
+      // Check the checksum
+      for (count2 = 0; count2 < (int) sizeof(vbePmInfoBlock); count2 ++)
+	checkSum += tmp[count2];
+      if (checkSum)
+	{
+	  kernelDebug(debug_io, "VBE: pmInfo checksum failed (%d)", checkSum);
+	  continue;
+	}
+
+      // Found it
+      pmInfo = (vbePmInfoBlock *) tmp;
+      kernelLog("VBE: VESA BIOS extension signature found at %x", count1);
+      break;
+    }
+  
+  if (!pmInfo)
+    {
+      kernelDebug(debug_io, "VBE: pmInfo signature not found");
+      status = 0;
+      goto out;
+    }
+
+  status = 0;
+
+ out:
+  // Unmap the video BIOS
+  kernelPageUnmap(KERNELPROCID, biosOrig, VIDEO_BIOS_MEMORY_SIZE);
+
+  return (status);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -165,13 +240,16 @@ int kernelGraphicInitialize(kernelDevice *dev)
     }
 
   // Assign the default system font to our console text area
-  kernelFontGetDefault((kernelAsciiFont **) &(tmpConsole->font));
+  kernelFontGetDefault((asciiFont **) &(tmpConsole->font));
 
   // Switch the console
   kernelTextSwitchToGraphics(tmpConsole);
 
   // Clear the screen with our default background color
   ops->driverClearScreen(&kernelDefaultDesktop);
+
+  // Try to detect VBE BIOS extensions
+  detectVbe();
 
   // Return success
   return (status = 0);
@@ -293,79 +371,6 @@ int kernelGraphicClearScreen(color *background)
 
   // Ok, now we can call the routine.
   status = ops->driverClearScreen(background);
-  return (status);
-}
-
-
-int kernelGraphicGetColor(const char *colorName, color *getColor)
-{
-  // Given the color name, get it.
-
-  int status = 0;
-
-  if ((colorName == NULL) || (getColor == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  if (!strcmp(colorName, "foreground"))
-    kernelMemCopy(&kernelDefaultForeground, getColor, sizeof(color));
-  if (!strcmp(colorName, "background"))
-    kernelMemCopy(&kernelDefaultBackground, getColor, sizeof(color));
-  if (!strcmp(colorName, "desktop"))
-    kernelMemCopy(&kernelDefaultDesktop, getColor, sizeof(color));
-
-  return (status = 0);
-}
-
-
-int kernelGraphicSetColor(const char *colorName, color *setColor)
-{
-  // Given the color name, set it.
-
-  int status = 0;
-  kernelFileEntry *fileEntry = NULL;
-  char fullColorName[128];
-  char value[4];
-
-  // The kernel config file.
-  extern variableList *kernelVariables;
-
-  if ((colorName == NULL) || (setColor == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  // Try to set the variables
-
-  sprintf(fullColorName, "%s.color.red", colorName);
-  sprintf(value, "%d", setColor->red);
-  status = kernelVariableListSet(kernelVariables, fullColorName, value);
-  if (status < 0)
-    return (status);
-
-  sprintf(fullColorName, "%s.color.green", colorName);
-  sprintf(value, "%d", setColor->green);
-  status = kernelVariableListSet(kernelVariables, fullColorName, value);
-  if (status < 0)
-    return (status);
-
-  sprintf(fullColorName, "%s.color.blue", colorName);
-  sprintf(value, "%d", setColor->blue);
-  status = kernelVariableListSet(kernelVariables, fullColorName, value);
-  if (status < 0)
-    return (status);
-
-  // Set the current color values
-  if (!strcmp(colorName, "foreground"))
-    kernelMemCopy(setColor, &kernelDefaultForeground, sizeof(color));
-  else if (!strcmp(colorName, "background"))
-    kernelMemCopy(setColor, &kernelDefaultBackground, sizeof(color));
-  else if (!strcmp(colorName, "desktop"))
-    kernelMemCopy(setColor, &kernelDefaultDesktop, sizeof(color));
-
-  // Save the values
-  fileEntry = kernelFileLookup(DEFAULT_KERNEL_CONFIG);
-  if (fileEntry && fileEntry->disk &&
-      !((kernelDisk *) fileEntry->disk)->filesystem.readOnly)
-    status = kernelConfigurationWriter(DEFAULT_KERNEL_CONFIG, kernelVariables);
-
   return (status);
 }
 
@@ -497,131 +502,6 @@ int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 }
 
 
-int kernelGraphicImageToKernel(image *convImage)
-{
-  // Given an image received from the kernelGraphicGetImage function, above,
-  // which has its memory in application space, convert the memory to
-  // globally-accessible kernel memory
-
-  int status = 0;
-  void *savePtr = NULL;
-
-  // Make sure we've been initialized
-  if (systemAdapter == NULL)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check parameters
-  if ((convImage == NULL) || (convImage->data == NULL) ||
-      !convImage->dataLength)
-    return (status = ERR_NULLPARAMETER);
-  
-  // If the image memory is already in kernel space...
-  if (convImage->data >= (void *) KERNEL_VIRTUAL_ADDRESS)
-    // Don't make it an error
-    return (status = 0);
-
-  // Save the current pointer
-  savePtr = convImage->data;
-
-  // Get new memory
-  convImage->data = kernelMalloc(convImage->dataLength);
-  if (convImage->data == NULL)
-    {
-      convImage->data = savePtr;
-      return (status = ERR_MEMORY);
-    }
-
-  // Copy the data
-  kernelMemCopy(savePtr, convImage->data, convImage->dataLength);
-
-  // Free the old memory
-  kernelMemoryRelease(savePtr);
-
-  return (status = 0);
-}
-
-
-int kernelGraphicNewImage(image *blankImage, int width, int height)
-{
-  // This allocates a new image of the specified size, with a blank grey
-  // background.
-  
-  int status = 0;
-  kernelGraphicBuffer tmpBuffer;
-  
-  // Get a temporary buffer to clear with our desired color
-  tmpBuffer.data =
-    kernelMalloc(kernelGraphicCalculateAreaBytes(width, height));
-  if (tmpBuffer.data == NULL)
-    return (status = ERR_MEMORY);
-  tmpBuffer.width = width;
-  tmpBuffer.height = height;
-  
-  // Clear our buffer with our background color
-  kernelGraphicDrawRect(&tmpBuffer, &kernelDefaultBackground, draw_normal,
-			0, 0, width, height, 1, 1);
-  
-  // Get an image of the correct size
-  status = kernelGraphicGetImage(&tmpBuffer, blankImage, 0, 0, width, height);
-  
-  // Free our buffer data
-  kernelFree(tmpBuffer.data);
-  tmpBuffer.data = NULL;
-
-  return (status);
-}
-
-
-int kernelGraphicNewKernelImage(image *blankImage, int width, int height)
-{
-  // This is a wrapper for the kernelGraphicNewImage and
-  // kernelGraphicImageToKernel functions, that should be used in the
-  // kernel if one wants the image memory to be in kernel space (i.e.
-  // window system components and the like)
-  
-  int status = 0;
-  
-  // Don't need to check parameters here.
-  status = kernelGraphicNewImage(blankImage, width, height);
-  if (status < 0)
-    return (status);
-
-  status = kernelGraphicImageToKernel(blankImage);
-  return (status);
-}
-
-
-int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
-			   drawMode mode, int xCoord, int yCoord, int xOffset,
-			   int yOffset, int width, int height)
-{
-  // This is a generic routine for drawing an image
-
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (systemAdapter == NULL)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check parameters
-  if (drawImage == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Now make sure the device driver drawImage routine has been 
-  // installed
-  if (ops->driverDrawImage == NULL)
-    {
-      kernelError(kernel_error, "The driver routine is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Ok, now we can call the routine.
-  status = ops->driverDrawImage(buffer, drawImage, mode, xCoord, yCoord,
-				xOffset, yOffset, width, height);
-  return (status);
-}
-
-
 int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
 			  int xCoord, int yCoord, int width, int height)
 {
@@ -650,45 +530,61 @@ int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
   // Ok, now we can call the routine.
   status =
     ops->driverGetImage(buffer, getImage, xCoord, yCoord, width, height);
+
   return (status);
 }
 
 
-int kernelGraphicGetKernelImage(kernelGraphicBuffer *buffer, image *getImage,
-				int xCoord, int yCoord, int width, int height)
+int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
+			   drawMode mode, int xCoord, int yCoord, int xOffset,
+			   int yOffset, int width, int height)
 {
-  // This is a wrapper for the kernelGraphicGetImage and
-  // kernelGraphicImageToKernel functions, that should be used in the
-  // kernel if one wants the image memory to be in kernel space (i.e.
-  // window system icons and the like)
+  // This is a generic routine for drawing an image
 
   int status = 0;
 
-  // The functions we're calling will check parameters
+  // Make sure we've been initialized
+  if (systemAdapter == NULL)
+    return (status = ERR_NOTINITIALIZED);
 
-  // Get the application space image
-  status =
-    kernelGraphicGetImage(buffer, getImage, xCoord, yCoord, width, height);
-  if (status < 0)
-    return (status);
+  // Check parameters
+  if (drawImage == NULL)
+    return (status = ERR_NULLPARAMETER);
 
-  // Convert it to kernel space
-  status = kernelGraphicImageToKernel(getImage);
+  // Now make sure the device driver drawImage routine has been 
+  // installed
+  if (ops->driverDrawImage == NULL)
+    {
+      kernelError(kernel_error, "The driver routine is NULL");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Do we need to gather alpha channel data?
+  if ((mode == draw_alphablend) && !drawImage->alpha)
+    {
+      status = kernelImageGetAlpha(drawImage);
+      if (status < 0)
+	return (status);
+    }
+
+  // Ok, now we can call the routine.
+  status = ops->driverDrawImage(buffer, drawImage, mode, xCoord, yCoord,
+				xOffset, yOffset, width, height);
   return (status);
 }
 
 
 int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
-			  color *background, kernelAsciiFont *font,
-			  const char *text, drawMode mode,
-			  int xCoord, int yCoord)
+			  color *background, asciiFont *font,
+			  const char *text, drawMode mode, int xCoord,
+			  int yCoord)
 {
   // Draws a line of text using the supplied ASCII font at the requested
   // coordinates.  Uses the default foreground and background colors.
 
   int status = 0;
   int length = 0;
-  int idx = 0;
+  unsigned idx = 0;
   int count;
 
   // Make sure we've been initialized
@@ -712,16 +608,13 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
   // Loop through the string
   for (count = 0; count < length; count ++)
     {
-      idx = (((int) text[count]) - 32);
+      idx = (unsigned char) text[count];
 
-      if ((idx < 0) || (idx >= ASCII_PRINTABLES))
-	// Not printable.  Print a space, which is index zero.
-	idx = 0;
-      
-      // Call the driver routine to draw the character
-      status =
-	ops->driverDrawMonoImage(buffer, &(font->chars[idx]), mode,
-				 foreground, background, xCoord, yCoord);
+      if (font->chars[idx].data)
+	// Call the driver routine to draw the character
+	status =
+	  ops->driverDrawMonoImage(buffer, &(font->chars[idx]), mode,
+				   foreground, background, xCoord, yCoord);
 
       xCoord += font->chars[idx].width;
     }
@@ -879,11 +772,8 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
   if (drawColor)
     kernelMemCopy(drawColor, &tmpColor, sizeof(color));
   else
-    {
-      tmpColor.red = kernelDefaultBackground.red;
-      tmpColor.green = kernelDefaultBackground.green;
-      tmpColor.blue = kernelDefaultBackground.blue;
-    }
+    kernelMemCopy(&kernelDefaultBackground, &tmpColor, sizeof(color));
+
   drawColor = &tmpColor;
 
   // These are the starting points of the 'inner' border lines
@@ -961,6 +851,97 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 	kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
 			      draw_normal, (rightX + count), (topY - count),
 			      (rightX + count), (bottomY + count));
+    }
+
+  return;
+}
+
+
+void kernelGraphicConvexShade(kernelGraphicBuffer *buffer, color *drawColor,
+			      int drawX, int drawY, int width, int height,
+			      shadeType type)
+{
+  // Given an buffer, area, color, and shading mode, shade the area as a
+  // 3D-like, convex object.
+
+  color tmpColor;
+  int outerDiff = 30;
+  int centerDiff = 10;
+  int increment = ((outerDiff - centerDiff) / (height / 2));
+  int limit = 0;
+  int count;
+
+  if (drawColor)
+    kernelMemCopy(drawColor, &tmpColor, sizeof(color));
+  else
+    kernelMemCopy(&kernelDefaultBackground, &tmpColor, sizeof(color));
+
+  drawColor = &tmpColor;
+
+  if ((type == shade_fromtop) || (type == shade_frombottom))
+    limit = height;
+  else
+    limit = width;
+
+  increment = max(((outerDiff - centerDiff) / (limit / 2)), 3);
+  outerDiff = max(outerDiff, (centerDiff + (increment * (limit / 2))));
+
+  if ((type == shade_fromtop) || (type == shade_fromleft))
+    {
+      drawColor->red = min((drawColor->red + outerDiff), 0xFF);
+      drawColor->green = min((drawColor->green + outerDiff), 0xFF);
+      drawColor->blue = min((drawColor->blue + outerDiff), 0xFF);
+    }
+  else
+    {
+      drawColor->red = max((drawColor->red - outerDiff), 0);
+      drawColor->green = max((drawColor->green - outerDiff), 0);
+      drawColor->blue = max((drawColor->blue - outerDiff), 0);
+    }
+
+  for (count = 0; count < limit; count ++)
+    {
+      if ((type == shade_fromtop) || (type == shade_frombottom))
+	kernelGraphicDrawLine(buffer, drawColor, draw_normal, drawX,
+			      (drawY + count), (drawX + width - 1),
+			      (drawY + count));
+      else
+	kernelGraphicDrawLine(buffer, drawColor, draw_normal,
+			      (drawX + count), drawY, (drawX + count),
+			      (drawY + height - 1));
+
+      if ((type == shade_fromtop) || (type == shade_fromleft))
+	{
+	  if (count == ((limit / 2) - 1))
+	    {
+	      drawColor->red = max((drawColor->red - (centerDiff * 2)), 0);
+	      drawColor->green = max((drawColor->green - (centerDiff * 2)), 0);
+	      drawColor->blue =	max((drawColor->blue - (centerDiff * 2)), 0);
+	    }
+	  else
+	    {
+	      drawColor->red = max((drawColor->red - increment), 0);
+	      drawColor->green = max((drawColor->green - increment), 0);
+	      drawColor->blue = max((drawColor->blue - increment), 0);
+	    }
+	}
+      else
+	{
+	  if (count == ((limit / 2) - 1))
+	    {
+	      drawColor->red = min((drawColor->red + (centerDiff  * 2)), 0xFF);
+	      drawColor->green =
+		min((drawColor->green + (centerDiff * 2)), 0xFF);
+	      drawColor->blue =
+		min((drawColor->blue + (centerDiff * 2)), 0xFF);
+	    }
+	  else
+	    {
+	      drawColor->red = min((drawColor->red + increment), 0xFF);
+	      drawColor->green = min((drawColor->green + increment), 0xFF);
+	      drawColor->blue = min((drawColor->blue + increment), 0xFF);
+	    }
+	}
     }
 
   return;

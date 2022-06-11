@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,14 +29,13 @@
 #include "kernelWindowEventStream.h"
 #include <stdlib.h>
 
-extern color kernelDefaultForeground;
-extern color kernelDefaultBackground;
+extern kernelWindowVariables *windowVariables;
 
 
 static int drawBorder(kernelWindowComponent *component, int draw)
 {
   // Draw or erase a simple little border around the supplied component
-  
+
   if (draw)
     kernelGraphicDrawRect(component->buffer,
 			  (color *) &(component->params.foreground),
@@ -135,16 +134,20 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
   // parameters
   if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
     {
-      component->params.foreground.blue = kernelDefaultForeground.blue;
-      component->params.foreground.green = kernelDefaultForeground.green;
-      component->params.foreground.red = kernelDefaultForeground.red;
+      component->params.foreground.blue =
+	windowVariables->color.foreground.blue;
+      component->params.foreground.green =
+	windowVariables->color.foreground.green;
+      component->params.foreground.red = windowVariables->color.foreground.red;
     }
 
   if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
-      component->params.background.blue = kernelDefaultBackground.blue;
-      component->params.background.green = kernelDefaultBackground.green;
-      component->params.background.red = kernelDefaultBackground.red;
+      component->params.background.blue =
+	windowVariables->color.background.blue;
+      component->params.background.green =
+	windowVariables->color.background.green;
+      component->params.background.red = windowVariables->color.background.red;
     }
 
   // Initialize the event stream
@@ -185,12 +188,11 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
       kernelFree((void *) component);
       return (component = NULL);
     }
-  else
-    {
-      if (component->container == NULL)
-	component->container = parentComponent;
-      return (component);
-    }
+
+  if (component->container == NULL)
+    component->container = parentComponent;
+
+  return (component);
 }
 
 
@@ -220,11 +222,9 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
   component->data = NULL;
 
   // Deallocate generic things
-  if (component->events.s.buffer)
-    {
-      kernelFree((void *)(component->events.s.buffer));
-      component->events.s.buffer = NULL;
-    }
+
+  // Free the component's event stream
+  kernelStreamDestroy(&component->events);
 
   // Free the component itself
   kernelFree((void *) component);
@@ -271,18 +271,17 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
     {
       tmpComponent = array[count];
 
-      if (visible && !(tmpComponent->flags & WINFLAG_VISIBLE))
+      if (visible)
 	{
 	  tmpComponent->flags |= WINFLAG_VISIBLE;
 	  if (tmpComponent->draw)
 	    tmpComponent->draw(tmpComponent);
 	}
-      else if (!visible && (tmpComponent->flags & WINFLAG_VISIBLE))
+      else // Not visible
 	{
-	  if ((window->focusComponent == tmpComponent) &&
-	      window->focusNextComponent)
+	  if (window->focusComponent == tmpComponent)
 	    // Make sure it doesn't have the focus
-	    window->focusNextComponent(window);
+	    kernelWindowComponentUnfocus(tmpComponent);
 
 	  tmpComponent->flags &= ~WINFLAG_VISIBLE;
 	  if (tmpComponent->erase)
@@ -295,11 +294,8 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 
   // Redraw a clip of that part of the window
   if (window->drawClip)
-    window->drawClip(window, component->xCoord, component->yCoord,
-		     component->width, component->height);
-
-  // Redraw the mouse just in case it was within this area
-  kernelMouseDraw();
+    window->drawClip(window, (component->xCoord - 2), (component->yCoord - 2),
+		     (component->width + 4), (component->height + 4));
 
   return (status = 0);
 }
@@ -346,24 +342,31 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
     {
       tmpComponent = array[count];
 
-      if (enabled && !(tmpComponent->flags & WINFLAG_ENABLED))
+      if (enabled)
 	{
+	  if (!(tmpComponent->flags & WINFLAG_ENABLED))
+	    {
+	      tmpDraw = tmpComponent->grey;
+	      tmpComponent->grey = tmpComponent->draw;
+	      tmpComponent->draw = tmpDraw;
+	    }
+
 	  tmpComponent->flags |= WINFLAG_ENABLED;
-	  tmpDraw = tmpComponent->grey;
-	  tmpComponent->grey = tmpComponent->draw;
-	  tmpComponent->draw = tmpDraw;
 	}
-      else if (!enabled && (tmpComponent->flags & WINFLAG_ENABLED))
+      else // disabled
 	{
-	  if ((window->focusComponent == tmpComponent) &&
-	      window->focusNextComponent)
-	    // Make sure it doesn't have the focus
-	    window->focusNextComponent(window);
+	  if (tmpComponent->flags & WINFLAG_ENABLED)
+	    {
+	      tmpDraw = tmpComponent->grey;
+	      tmpComponent->grey = tmpComponent->draw;
+	      tmpComponent->draw = tmpDraw;
+	    }
 
 	  tmpComponent->flags &= ~WINFLAG_ENABLED;
-	  tmpDraw = tmpComponent->grey;
-	  tmpComponent->grey = tmpComponent->draw;
-	  tmpComponent->draw = tmpDraw;
+
+	  if (window->focusComponent == tmpComponent)
+	    // Make sure it doesn't have the focus
+	    kernelWindowComponentUnfocus(tmpComponent);
 	}
     }
 
@@ -371,12 +374,9 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
     kernelFree(array);
 
   // Redraw a clip of that part of the window
-  if (window->drawClip)
-    window->drawClip(window, component->xCoord, component->yCoord,
-		     component->width, component->height);
-
-  // Redraw the mouse just in case it was within this area
-  kernelMouseDraw();
+  if ((component->flags & WINFLAG_VISIBLE) && window->drawClip)
+    window->drawClip(window, (component->xCoord - 2), (component->yCoord - 2),
+		     (component->width + 4), (component->height + 4));
 
   return (status = 0);
 }
@@ -481,9 +481,7 @@ int kernelWindowComponentFocus(kernelWindowComponent *component)
       return (status = ERR_NODATA);
     }
 
-  window->changeComponentFocus(window, component);
-
-  return (status = 0);
+  return (window->changeComponentFocus(window, component));
 }
 
 
@@ -506,12 +504,7 @@ int kernelWindowComponentUnfocus(kernelWindowComponent *component)
       return (status = ERR_NODATA);
     }
 
-  if (window->oldFocusComponent)
-    window->changeComponentFocus(window, window->oldFocusComponent);
-  else
-    window->focusNextComponent(window);
-
-  return (status = 0);
+  return (window->changeComponentFocus(window, NULL));
 }
 
 

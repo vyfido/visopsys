@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,10 +35,6 @@ int errno = 0;
 // within the kernel.
 int visopsys_in_kernel = 0;
 
-// Pointer to the current locale
-extern struct lconv _c_locale;
-struct lconv *_current_locale = &_c_locale;
-
 
 void _start(void)
 {
@@ -64,6 +60,8 @@ void _start(void)
   //          (AKA stack or 'local') variables in this function might be
   //          problematic without changes because the stack frame is about
   //          to be erased.
+
+  setlocale(LC_ALL, "C");
 
   // Clear the stack frame
   __asm__ __volatile__ ("movl %%ebp, %%esp \n\t" \

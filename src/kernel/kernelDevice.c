@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,6 +57,7 @@ static kernelDeviceClass allSubClasses[] = {
   { DEVICESUBCLASS_BUS_PCI,             "PCI"           },
   { DEVICESUBCLASS_BUS_USB,             "USB"           },
   { DEVICESUBCLASS_DISKCTRL_IDE,        "IDE"           },
+  { DEVICESUBCLASS_DISKCTRL_SATA,       "SATA"          },
   { DEVICESUBCLASS_KEYBOARD_PS2,        "PS/2"          },
   { DEVICESUBCLASS_KEYBOARD_USB,        "USB"           },
   { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"          },
@@ -64,6 +65,7 @@ static kernelDeviceClass allSubClasses[] = {
   { DEVICESUBCLASS_MOUSE_USB,           "USB"           },
   { DEVICESUBCLASS_DISK_FLOPPY,         "floppy"        },
   { DEVICESUBCLASS_DISK_IDE,            "IDE"           },
+  { DEVICESUBCLASS_DISK_SATA,           "SATA"          },
   { DEVICESUBCLASS_DISK_SCSI,           "SCSI"          },
   { DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer"   },
   { DEVICESUBCLASS_NETWORK_ETHERNET,    "ethernet"      },
@@ -75,7 +77,8 @@ static kernelDeviceClass allSubClasses[] = {
 // Our static list of built-in display drivers
 static kernelDriver displayDrivers[] = {
   { DEVICECLASS_GRAPHIC, DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER,
-    kernelFramebufferGraphicDriverRegister, NULL, NULL, NULL           }
+    kernelFramebufferGraphicDriverRegister, NULL, NULL, NULL           },
+  { 0, 0, NULL, NULL, NULL, NULL }
 };
 
 // Our static list of built-in drivers
@@ -106,9 +109,13 @@ static kernelDriver deviceDrivers[] = {
     kernelPs2KeyboardDriverRegister, NULL, NULL, NULL                  },
   { DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_USB,
     kernelUsbKeyboardDriverRegister, NULL, NULL, NULL                  },
+  { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_RAMDISK,
+    kernelRamDiskDriverRegister, NULL, NULL, NULL                      },
   { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_FLOPPY,
     kernelFloppyDriverRegister, NULL, NULL, NULL                       },
-  { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_IDE,
+  { DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SATA,
+    kernelSataAhciDriverRegister, NULL, NULL, NULL                     },
+  { DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_IDE,
     kernelIdeDriverRegister, NULL, NULL, NULL                          },
   { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI,
     kernelScsiDiskDriverRegister, NULL, NULL, NULL                     },
@@ -188,13 +195,14 @@ static void device2user(kernelDevice *kernel, device *user)
 
   if (kernel->device.class)
     {
-      user->class.class = kernel->device.class->class;
-      strncpy(user->class.name, kernel->device.class->name, DEV_CLASSNAME_MAX);
+      user->devClass.classNum = kernel->device.class->class;
+      strncpy(user->devClass.name, kernel->device.class->name,
+	      DEV_CLASSNAME_MAX);
     }
 
   if (kernel->device.subClass)
     {
-      user->subClass.class = kernel->device.subClass->class;
+      user->subClass.classNum = kernel->device.subClass->class;
       strncpy(user->subClass.name, kernel->device.subClass->name,
 	      DEV_CLASSNAME_MAX);
     }

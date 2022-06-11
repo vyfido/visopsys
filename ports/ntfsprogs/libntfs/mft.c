@@ -1938,6 +1938,7 @@ int ntfs_mft_add_index(struct ntfs_dir *dir)
 
 
 #endif /* NTFS_RICH */
+#endif /* __VISOPSYS__ */
 
 /**
  * ntfs_mft_usn_dec - Decrement USN by one
@@ -1961,5 +1962,3 @@ int ntfs_mft_usn_dec(MFT_RECORD *mrec)
 
 	return 0;
 }
-
-#endif /* __VISOPSYS__ */

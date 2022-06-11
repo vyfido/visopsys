@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,8 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelFont.h"
+#include "kernelGraphic.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include <string.h>
@@ -89,7 +91,7 @@ static int draw(kernelWindowComponent *component)
 
   if (!item->selected)
     kernelGraphicDrawRect(component->buffer, (color *)
-			  &(component->params.background), draw_normal,
+			  &component->params.background, draw_normal,
 			  component->xCoord, component->yCoord,
 			  component->width, component->height, 1, 1);
 
@@ -101,37 +103,42 @@ static int draw(kernelWindowComponent *component)
       strncpy(textBuffer, (char *) item->params.text,
 	      strlen((char *) item->params.text));
       
-      // Don't draw text outside our component area
-      while (((int) kernelFontGetPrintedWidth((kernelAsciiFont *)
-					      component->params.font,
-					      textBuffer) >
-	      (component->width - 2)) && strlen(textBuffer))
-	textBuffer[strlen(textBuffer) - 1] = '\0';
+      if (component->params.font)
+	// Don't draw text outside our component area
+	while (((int) kernelFontGetPrintedWidth(
+		(asciiFont *) component->params.font, textBuffer) >
+		(component->width - 2)) && strlen(textBuffer))
+	  textBuffer[strlen(textBuffer) - 1] = '\0';
 
       if (item->selected)
 	{
 	  kernelGraphicDrawRect(component->buffer,
-				(color *) &(component->params.foreground),
+				(color *) &component->params.foreground,
 				draw_normal, component->xCoord,
 				component->yCoord, component->width,
 				component->height, 1, 1);
 
-	  kernelGraphicDrawText(component->buffer,
-				(color *) &(component->params.background),
-				(color *) &(component->params.foreground),
-				(kernelAsciiFont *) component->params.font,
-				textBuffer, draw_normal,
-				(component->xCoord + 1),
-				(component->yCoord + 1));
+	  if (component->params.font)
+	    kernelGraphicDrawText(component->buffer,
+				  (color *) &component->params.background,
+				  (color *) &component->params.foreground,
+				  (asciiFont *) component->params.font,
+				  textBuffer, draw_normal,
+				  (component->xCoord + 1),
+				  (component->yCoord + 1));
 	}
       else
-	kernelGraphicDrawText(component->buffer,
-			      (color *) &(component->params.foreground),
-			      (color *) &(component->params.background),
-			      (kernelAsciiFont *) component->params.font,
-			      textBuffer, draw_normal, (component->xCoord + 1),
-			      (component->yCoord + 1));
-      
+	{
+	  if (component->params.font)
+	    kernelGraphicDrawText(component->buffer,
+				  (color *) &component->params.foreground,
+				  (color *) &component->params.background,
+				  (asciiFont *) component->params.font,
+				  textBuffer, draw_normal,
+				  (component->xCoord + 1),
+				  (component->yCoord + 1));
+	}
+
       kernelFree(textBuffer);
     }
 
@@ -139,7 +146,7 @@ static int draw(kernelWindowComponent *component)
     {
       if (item->selected)
 	kernelGraphicDrawRect(component->buffer, (color *)
-			      &(component->params.foreground),
+			      &component->params.foreground,
 			      draw_normal, (item->icon->xCoord - 1),
 			      (item->icon->yCoord - 1),
 			      (item->icon->width + 2),
@@ -198,6 +205,9 @@ static int setSelected(kernelWindowComponent *component, int selected)
   kernelDebug(debug_gui, "listItem \"%s\" %sselected", item->params.text,
 	      (selected? "" : "de"));
 
+  if (item->icon)
+    ((kernelWindowIcon *) item->icon->data)->selected = selected;
+
   if (component->flags & WINFLAG_VISIBLE)
     {
       if (component->draw)
@@ -205,7 +215,7 @@ static int setSelected(kernelWindowComponent *component, int selected)
 
       // List items are also menu items, and menu items have their own buffers,
       // so only render the buffer here if we're using the normal window buffer
-      if (component->buffer == &(component->window->buffer))
+      if (component->buffer == &component->window->buffer)
 	{
 	  component->window
 	    ->update(component->window, component->xCoord, component->yCoord,
@@ -283,11 +293,8 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
   // If default colors were requested, override the standard background color
   // with the one we prefer (white)
   if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-    {
-      component->params.background.blue = 0xFF;
-      component->params.background.green = 0xFF;
-      component->params.background.red = 0xFF;
-    }
+    kernelMemCopy(&COLOR_WHITE, (color *) &component->params.background,
+		  sizeof(color));
 
   // If font is NULL, use the default
   if (component->params.font == NULL)
@@ -302,25 +309,30 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
     }
 
   listItem->type = type;
-  kernelMemCopy(item, (listItemParameters *) &(listItem->params),
+  kernelMemCopy(item, (listItemParameters *) &listItem->params,
 		sizeof(listItemParameters));
 
   component->type = listItemComponentType;
   if (listItem->type == windowlist_textonly)
     {
-      component->width =
-	(kernelFontGetPrintedWidth((kernelAsciiFont *)
-				   component->params.font,
-				   (char *) listItem->params.text) + 2);
-      component->height =
-	(((kernelAsciiFont *) component->params.font)->charHeight + 2);
+      component->width = 2;
+      if (component->params.font)
+	component->width += 
+	  kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+				    (char *) listItem->params.text);
+
+      component->height = 2;
+      if (component->params.font)
+	component->height +=
+	  ((asciiFont *) component->params.font)->charHeight;
     }
 
   else if (listItem->type == windowlist_icononly)
     {
       listItem->icon =
-	kernelWindowNewIcon(parent, (image *) &(listItem->params.iconImage),
-			    (char *) listItem->params.text, params);
+	kernelWindowNewIcon(parent, (image *) &listItem->params.iconImage,
+			    (char *) listItem->params.text,
+			    (componentParameters *) &component->params);
       if (listItem->icon == NULL)
 	{
 	  kernelFree((void *) listItem);

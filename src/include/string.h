@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +25,7 @@
 
 #include <stddef.h>
 
-#define MAXSTRINGLENGTH 1024
+#define MAXSTRINGLENGTH 4096
 
 #ifndef NULL
 #define NULL
@@ -35,6 +35,7 @@
 void bcopy(const void *, void *, size_t n);
 void bzero(void *, size_t);
 int ffs(int);
+int fls(int);
 int memcmp(const void *, const void *, size_t);
 void *memcpy(void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
@@ -55,6 +56,7 @@ char *strncpy(char *, const char *, size_t);
 size_t strnlen(const char *, size_t);
 char *strrchr(const char *, int);
 size_t strspn(const char *, const char *);
+char *strtok(char *, const char *);
 
 // These have identical definitions to functions above
 #define index(str, chr) strchr(str, chr)

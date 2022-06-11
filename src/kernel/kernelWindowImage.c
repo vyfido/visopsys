@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,8 +22,8 @@
 // This code is for managing kernelWindowImage objects.
 // These are just images that appear inside windows and buttons, etc
 
-
 #include "kernelWindow.h"     // Our prototypes are here
+#include "kernelDebug.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include <string.h>
@@ -39,9 +39,41 @@ static int draw(kernelWindowComponent *component)
 			 windowImage->mode, component->xCoord,
 			 component->yCoord, 0, 0, 0, 0);
 
-  if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) ||
-      (component->flags & WINFLAG_HASFOCUS))
+  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder(component, 1);
+
+  return (0);
+}
+
+
+static int setData(kernelWindowComponent *component, void *buffer,
+		   int size __attribute__((unused)))
+{
+  // Resets the subcomponents
+
+  int status = 0;
+  kernelWindowImage *windowImage = component->data;
+  image *setImage = (image *) buffer;
+
+  kernelDebug(debug_gui, "windowImage set data");
+
+  kernelImageFree((image *) &(windowImage->image));
+
+  // Copy the image to kernel memory
+  status = kernelImageCopyToKernel(setImage, (image *) &(windowImage->image));
+  if (status < 0)
+    return (status);
+
+  if (component->erase)
+    component->erase(component);
+
+  // Re-draw the image
+  if (component->draw)
+    component->draw(component);
+
+  component->window
+    ->update(component->window, component->xCoord, component->yCoord,
+	     component->width, component->height);
 
   return (0);
 }
@@ -54,11 +86,7 @@ static int destroy(kernelWindowComponent *component)
   // Release all our memory
   if (windowImage)
     {
-      if (windowImage->image.data)
-	{
-	  kernelFree(windowImage->image.data);
-	  windowImage->image.data = NULL;
-	}
+      kernelImageFree((image *) &windowImage->image);
 
       kernelFree(component->data);
       component->data = NULL;
@@ -110,16 +138,13 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
       return (component = NULL);
     }
 
-  // Copy the image data into it
-  kernelMemCopy(imageCopy, (void *) &(windowImage->image), sizeof(image));
-  windowImage->image.data = kernelMalloc(windowImage->image.dataLength);
-  if (windowImage->image.data == NULL)
+  // Copy the image to kernel memory
+  if (kernelImageCopyToKernel(imageCopy, (image *) &windowImage->image) < 0)
     {
       kernelFree((void *) component);
+      kernelFree((void *) windowImage);
       return (component = NULL);
     }
-  kernelMemCopy(imageCopy->data, windowImage->image.data,
-		windowImage->image.dataLength);
 
   // Set the drawing mode
   windowImage->mode = mode;
@@ -128,6 +153,7 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
 
   // The functions
   component->draw = &draw;
+  component->setData = &setData;
   component->destroy = &destroy;
 
   return (component);

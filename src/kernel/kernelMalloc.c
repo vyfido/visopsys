@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,6 +30,7 @@
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelError.h"
+#include <stdlib.h>
 #include <sys/memory.h>
 
 static int initialized = 0;
@@ -97,6 +98,42 @@ int _kernelFree(void *start, const char *function)
 
   _doFree(start, function);
   return (0);
+}
+
+
+void *_kernelRealloc(void *oldAddress, size_t size, const char *function)
+{
+  // Just like realloc(), for kernel memory.
+
+  int status = 0;
+  memoryBlock oldBlock;
+  void *address = NULL;
+
+  if (oldAddress == NULL)
+    return (address = _kernelMalloc(size, function));
+
+  else if (!size)
+    {
+      _kernelFree(oldAddress, function);
+      return (address = NULL);
+    }
+
+  // Get stats about the old memory
+  status = _mallocBlockInfo(oldAddress, &oldBlock);
+  if (status < 0)
+    return (address = NULL);
+  
+  address = _kernelMalloc(size, function);
+
+  if (address)
+    {
+      size = min(size, ((oldBlock.endLocation - oldBlock.startLocation) + 1));
+      kernelMemCopy(oldAddress, address, size);
+      _kernelFree(oldAddress, function);
+    }
+
+  // Return this value, whether or not we were successful
+  return (address);
 }
 
 

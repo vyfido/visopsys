@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,8 +23,9 @@
 
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelMalloc.h"
 #include "kernelError.h"
+#include "kernelFont.h"
+#include "kernelMalloc.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -43,39 +44,54 @@ static int draw(kernelWindowComponent *component)
   yCoord = (component->yCoord + ((component->height - checkboxSize) / 2));
 
   // Draw the white center of the check box
-  kernelGraphicDrawRect(component->buffer, &((color){255, 255, 255}),
-			draw_normal, component->xCoord, yCoord,
-			checkboxSize, checkboxSize, 1, 1);
+  kernelGraphicDrawRect(component->buffer, &COLOR_WHITE, draw_normal,
+			component->xCoord, yCoord, checkboxSize, checkboxSize,
+			1, 1);
+
   // Draw a border around it
-  kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->params.foreground),
-			draw_normal, component->xCoord, yCoord, checkboxSize,
-			checkboxSize, 1, 0);
+  kernelGraphicDrawGradientBorder(component->buffer, component->xCoord,
+				  yCoord, checkboxSize, checkboxSize,
+				  windowVariables->border.thickness,
+				  (color *) &(component->params.background),
+				  windowVariables->border.shadingIncrement,
+				  draw_reverse, border_all);
 
   if (checkbox->selected)
     {
       // Draw a cross in the box
       kernelGraphicDrawLine(component->buffer,
-			    &((color){0, 0, 0}), draw_normal,
-			    (component->xCoord + 2), (yCoord + 2),
-			    (component->xCoord + (checkboxSize - 3)),
-			    (yCoord + (checkboxSize - 3)));
+			    &COLOR_BLACK, draw_normal,
+			    (component->xCoord +
+			     windowVariables->border.thickness + 1),
+			    (yCoord + windowVariables->border.thickness + 1),
+			    (component->xCoord +
+			     (checkboxSize -
+			      windowVariables->border.thickness - 1)),
+			    (yCoord +
+			     (checkboxSize -
+			      windowVariables->border.thickness - 1)));
       kernelGraphicDrawLine(component->buffer,
-			    &((color){0, 0, 0}), draw_normal,
-			    (component->xCoord + 2),
-			    (yCoord + (checkboxSize - 3)),
-			    (component->xCoord + (checkboxSize - 3)),
-			    (yCoord + 2));
+			    &COLOR_BLACK, draw_normal,
+			    (component->xCoord +
+			     windowVariables->border.thickness + 1),
+			    (yCoord +
+			     (checkboxSize -
+			      windowVariables->border.thickness - 1)),
+			    (component->xCoord +
+			     (checkboxSize -
+			      windowVariables->border.thickness - 1)),
+			    (yCoord + windowVariables->border.thickness + 1));
     }
 
-  // Now draw the text next to the box
-  kernelGraphicDrawText(component->buffer,
-			(color *) &(component->params.foreground),
-			(color *) &(component->params.background),
-			(kernelAsciiFont *) component->params.font,
-			checkbox->text, draw_normal,
-			(component->xCoord + checkboxSize + 3),
-			(component->yCoord));
+  if (component->params.font)
+    // Now draw the text next to the box
+    kernelGraphicDrawText(component->buffer,
+			  (color *) &(component->params.foreground),
+			  (color *) &(component->params.background),
+			  (asciiFont *) component->params.font,
+			  checkbox->text, draw_normal,
+			  (component->xCoord + checkboxSize + 3),
+			  (component->yCoord));
 
   if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder(component, 1);
@@ -151,7 +167,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
   int status = 0;
 
   // Translate this into a mouse event.
-  if ((event->type & EVENT_MASK_KEY) && (event->key == 32))
+  if ((event->type & EVENT_MASK_KEY) && (event->key == ASCII_SPACE))
     {
       if (event->type == EVENT_KEY_DOWN)
 	event->type = EVENT_MOUSE_LEFTDOWN;
@@ -249,15 +265,18 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 
   // The width of the checkbox is the width of the checkbox, plus a bit
   // of padding, plus the printed width of the text
-  component->width =
-    (windowVariables->checkbox.size + 3 +
-     kernelFontGetPrintedWidth((kernelAsciiFont *) component->params.font,
-			       checkbox->text));
+  component->width = (windowVariables->checkbox.size + 3);
+  if (component->params.font)
+    component->width += 
+      kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+				checkbox->text);
 
   // The height of the checkbox is the height of the font, or the height
   // of the checkbox, whichever is greater
-  component->height = max(((kernelAsciiFont *) component->params.font)
-			  ->charHeight, windowVariables->checkbox.size);
+  component->height = windowVariables->checkbox.size;
+  if (component->params.font)
+    component->height = max(((asciiFont *) component->params.font)
+			    ->charHeight, windowVariables->checkbox.size);
   
   component->minWidth = component->width;
   component->minHeight = component->height;

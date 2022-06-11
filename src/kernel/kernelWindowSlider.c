@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -64,14 +64,13 @@ static int focus(kernelWindowComponent *component, int yesNo)
 
 static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
-  int status = 0;
   kernelWindowSlider *slider = component->data;
 
   if (event->type != EVENT_KEY_DOWN)
-    return (status = 0);
+    return (0);
 
   if (!component->mouseEvent)
-    return (status = 0);
+    return (0);
 
   // If the key event is for an applicable key, convert the event into
   // the appropriate kind of mouse event to make the scrollbar do what
@@ -84,44 +83,72 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
   switch (event->key)
     {
-    case 17:
-    case 20:
-      event->type = EVENT_MOUSE_DRAG;
-      event->yPosition += (slider->sliderY + 2);
-      component->mouseEvent(component, event);
+    case ASCII_CRSRLEFT:
+    case ASCII_CRSRRIGHT:
+      if (slider->type == scrollbar_horizontal)
+	{
+	  event->type = EVENT_MOUSE_DRAG;
+	  event->xPosition += (slider->sliderX + 2);
+	  component->mouseEvent(component, event);
       
-      if (event->key == 17)
-	// Cursor up, so we make it like it was dragged up by 1 pixel
-	event->yPosition -= 1;
-      else
-	// Cursor down, so we make it like it was dragged down by 1 pixel
-	event->yPosition += 1;
+	  if (event->key == ASCII_CRSRLEFT)
+	    // Cursor left, so we make it like it was dragged left by 1 pixel
+	    event->xPosition -= 1;
+	  else
+	    // Cursor right, so we make it like it was dragged right by 1 pixel
+	    event->xPosition += 1;
 
-      event->type = EVENT_MOUSE_DRAG;
-      component->mouseEvent(component, event);
-      event->type = EVENT_MOUSE_LEFTUP;
-      component->mouseEvent(component, event);
+	  event->type = EVENT_MOUSE_DRAG;
+	  component->mouseEvent(component, event);
+	  event->type = EVENT_MOUSE_LEFTUP;
+	  component->mouseEvent(component, event);
+	}
+      break;
+
+    case ASCII_CRSRUP:
+    case ASCII_CRSRDOWN:
+      if (slider->type == scrollbar_vertical)
+	{
+	  event->type = EVENT_MOUSE_DRAG;
+	  event->yPosition += (slider->sliderY + 2);
+	  component->mouseEvent(component, event);
+      
+	  if (event->key == ASCII_CRSRUP)
+	    // Cursor up, so we make it like it was dragged up by 1 pixel
+	    event->yPosition -= 1;
+	  else
+	    // Cursor down, so we make it like it was dragged down by 1 pixel
+	    event->yPosition += 1;
+
+	  event->type = EVENT_MOUSE_DRAG;
+	  component->mouseEvent(component, event);
+	  event->type = EVENT_MOUSE_LEFTUP;
+	  component->mouseEvent(component, event);
+	}
       break;
 	  
-    case 11:
-    case 12:
-      event->type = EVENT_MOUSE_LEFTDOWN;
+    case ASCII_PAGEUP:
+    case ASCII_PAGEDOWN:
+      if (slider->type == scrollbar_vertical)
+	{
+	  event->type = EVENT_MOUSE_LEFTDOWN;
 
-      if (event->key == 11)
-	// Page up, so we make it like there was a click above
-	event->yPosition += 1;
-      else
-	// Page down, so we make it like there was a click below
-	event->yPosition += (slider->sliderY + slider->sliderHeight + 1);
+	  if (event->key == ASCII_PAGEUP)
+	    // Page up, so we make it like there was a click above
+	    event->yPosition += 1;
+	  else
+	    // Page down, so we make it like there was a click below
+	    event->yPosition += (slider->sliderY + slider->sliderHeight + 1);
 
-      component->mouseEvent(component, event);
+	  component->mouseEvent(component, event);
+	}
       break;
 	  
     default:
-      return (status = 0);
+      break;
     }
 
-  return (status);
+  return (0);
 }
 
 

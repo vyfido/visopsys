@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,7 @@ unsigned kernelRandomUnformatted(void);
 unsigned kernelRandomFormatted(unsigned, unsigned);
 unsigned kernelRandomSeededUnformatted(unsigned);
 unsigned kernelRandomSeededFormatted(unsigned, unsigned, unsigned);
+void kernelRandomBytes(unsigned char *, unsigned);
 
 #define _KERNELRANDOM_H
 #endif

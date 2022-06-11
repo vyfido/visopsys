@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -310,7 +310,7 @@ typedef volatile struct _usbController {
 
   // Functions provided by the specific USB root hub driver
   void (*reset) (volatile struct _usbController *);
-  void (*interrupt)(volatile struct _usbController *);
+  int (*interrupt)(volatile struct _usbController *);
   int (*queue) (volatile struct _usbController *, usbDevice *,
 		usbTransaction *, int);
   int (*schedInterrupt)(volatile struct _usbController *, usbDevice *,

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -150,6 +150,8 @@ static void windowMenuEvent(kernelWindowComponent *component,
 	  if (component == winMenuItems[count].itemComponent)
 	    {
 	      // Restore it
+	      kernelDebug(debug_gui, "Restore window %s",
+			  winMenuItems[count].window->title);
 	      kernelWindowSetMinimized(winMenuItems[count].window, 0);
 
 	      // If it has a dialog box, restore that too
@@ -175,7 +177,7 @@ static void runPrograms(void)
   int count;
 
   // Read the config file
-  if (kernelConfigurationReader(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings) < 0)
+  if (kernelConfigRead(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings) < 0)
     return;
 
   // Loop for variables with "program.*"
@@ -294,15 +296,12 @@ kernelWindow *kernelWindowMakeRoot(void)
   char propertyValue[128];
   char itemLabel[128];
   char menuLabel[128];
-  file tmpFile;
   image tmpImage;
   kernelWindowComponent *iconComponent = NULL;
   kernelWindowComponent *menuComponent = NULL;
   componentParameters params;
+  disk configDisk;
   int count1, count2;
-
-  // We get default colors from here
-  extern color kernelDefaultDesktop;
 
   // Get a new window
   rootWindow = kernelWindowNew(KERNELPROCID, WINNAME_ROOTWINDOW);
@@ -330,12 +329,12 @@ kernelWindow *kernelWindowMakeRoot(void)
   rootWindow->level = WINDOW_MAXWINDOWS;
 
   // Set our background color preference
-  rootWindow->background.red = kernelDefaultDesktop.red;
-  rootWindow->background.green = kernelDefaultDesktop.green;
-  rootWindow->background.blue = kernelDefaultDesktop.blue;
+  rootWindow->background.red = windowVariables->color.desktop.red;
+  rootWindow->background.green = windowVariables->color.desktop.green;
+  rootWindow->background.blue = windowVariables->color.desktop.blue;
 
   // Read the config file
-  status = kernelConfigurationReader(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
+  status = kernelConfigRead(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
   if (status < 0)
     {
       // Argh.  No file?  Create a reasonable, empty list for us to use
@@ -346,7 +345,7 @@ kernelWindow *kernelWindowMakeRoot(void)
 
   // Try to load the background image
   if (!kernelVariableListGet(&settings, "background.image", propertyValue,
-			     128) && strncmp(propertyValue, "", 128))
+			     128) && propertyValue[0])
     {
       kernelDebug(debug_gui, "Loading background image \"%s\"", propertyValue);
       status = kernelImageLoad(propertyValue, 0, 0, &tmpImage);
@@ -361,12 +360,8 @@ kernelWindow *kernelWindowMakeRoot(void)
 	kernelError(kernel_error, "Error loading background image %s",
 		    propertyValue);
 
-      if (tmpImage.data)
-	{
-	  // Release the image memory
-	  kernelMemoryRelease(tmpImage.data);
-	  tmpImage.data = NULL;
-	}
+      // Release the image memory
+      kernelImageFree(&tmpImage);
     }
 
   // Make a task menu at the top
@@ -374,9 +369,9 @@ kernelWindow *kernelWindowMakeRoot(void)
   params.foreground.red = 255;
   params.foreground.green = 255;
   params.foreground.blue = 255;
-  params.background.red = kernelDefaultDesktop.red;
-  params.background.green = kernelDefaultDesktop.green;
-  params.background.blue = kernelDefaultDesktop.blue;
+  params.background.red = windowVariables->color.foreground.red;
+  params.background.green = windowVariables->color.foreground.green;
+  params.background.blue = windowVariables->color.foreground.blue;
   params.flags |=
     (WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
   params.font = windowVariables->font.varWidth.medium.font;
@@ -487,6 +482,12 @@ kernelWindow *kernelWindowMakeRoot(void)
   params.padRight = 5;
   params.padTop = 5;
   params.padBottom = 0;
+  params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		  WINDOW_COMPFLAG_CUSTOMBACKGROUND |
+		  WINDOW_COMPFLAG_CANFOCUS);
+  kernelMemCopy(&COLOR_WHITE, &params.foreground, sizeof(color));
+  kernelMemCopy(&windowVariables->color.desktop, &params.background,
+		sizeof(color));
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
 
@@ -506,7 +507,7 @@ kernelWindow *kernelWindowMakeRoot(void)
 	  status =
 	    kernelVariableListGet(&settings, propertyName, propertyValue, 128);
 	  if ((status < 0) ||
-	      (kernelFileFind(propertyValue, &tmpFile) < 0) ||
+	      (kernelFileFind(propertyValue, NULL) < 0) ||
 	      (kernelImageLoad(propertyValue, 0, 0, &tmpImage) < 0))
 	    continue;
 
@@ -533,8 +534,7 @@ kernelWindow *kernelWindowMakeRoot(void)
 					   &iconEvent);
 	  
 	  // Release the image memory
-	  kernelMemoryRelease(tmpImage.data);
-	  tmpImage.data = NULL;
+	  kernelImageFree(&tmpImage);
 	}
     }
 
@@ -547,12 +547,11 @@ kernelWindow *kernelWindowMakeRoot(void)
 
   kernelLog("Desktop icons loaded");
 
-  kernelDisk *configDisk = kernelDiskGetByPath(WINDOW_DEFAULT_DESKTOP_CONFIG);
-  if (configDisk && !configDisk->filesystem.readOnly)
+  status = kernelFileGetDisk(WINDOW_DEFAULT_DESKTOP_CONFIG, &configDisk);
+  if ((status >= 0) && !configDisk.readOnly)
     {
       // Re-write the config file
-      status =
-	kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
+      status = kernelConfigWrite(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
       if (status >= 0)
 	kernelLog("Updated desktop configuration");
     }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,36 +31,33 @@ int kernelProcessingInterrupt = 0;
 static int initialized = 0;
 
 
-static inline void exHandlerX(int exceptionNum)
-{
-  unsigned stackAddress = 0;
-  unsigned exceptionAddress = 0;
-
-  kernelProcessorExceptionEnter(stackAddress, exceptionAddress);
-  kernelException(exceptionNum, exceptionAddress);
-  kernelProcessorExceptionExit(stackAddress);
+#define EXHANDLERX(exceptionNum) {			  \
+  unsigned exAddress = 0;				  \
+  int exInterrupts = 0;					  \
+  kernelProcessorExceptionEnter(exAddress, exInterrupts); \
+  kernelException(exceptionNum, exAddress);		  \
+  kernelProcessorExceptionExit(exInterrupts);		  \
 }
 
-
-static void exHandler0(void) { exHandlerX(0); }
-static void exHandler1(void) { exHandlerX(1); }
-static void exHandler2(void) { exHandlerX(2); }
-static void exHandler3(void) { exHandlerX(3); }
-static void exHandler4(void) { exHandlerX(4); }
-static void exHandler5(void) { exHandlerX(5); }
-static void exHandler6(void) { exHandlerX(6); }
-static void exHandler7(void) { exHandlerX(7); }
-static void exHandler8(void) { exHandlerX(8); }
-static void exHandler9(void) { exHandlerX(9); }
-static void exHandler10(void) { exHandlerX(10); }
-static void exHandler11(void) { exHandlerX(11); }
-static void exHandler12(void) { exHandlerX(12); }
-static void exHandler13(void) { exHandlerX(13); }
-static void exHandler14(void) { exHandlerX(14); }
-static void exHandler15(void) { exHandlerX(15); }
-static void exHandler16(void) { exHandlerX(16); }
-static void exHandler17(void) { exHandlerX(17); }
-static void exHandler18(void) { exHandlerX(18); }
+static void exHandler0(void) EXHANDLERX(EXCEPTION_DIVBYZERO)
+static void exHandler1(void) EXHANDLERX(EXCEPTION_DEBUG)
+static void exHandler2(void) EXHANDLERX(EXCEPTION_NMI)
+static void exHandler3(void) EXHANDLERX(EXCEPTION_BREAK)
+static void exHandler4(void) EXHANDLERX(EXCEPTION_OVERFLOW)
+static void exHandler5(void) EXHANDLERX(EXCEPTION_BOUNDS)
+static void exHandler6(void) EXHANDLERX(EXCEPTION_OPCODE)
+static void exHandler7(void) EXHANDLERX(EXCEPTION_DEVNOTAVAIL)
+static void exHandler8(void) EXHANDLERX(EXCEPTION_DOUBLEFAULT)
+static void exHandler9(void) EXHANDLERX(EXCEPTION_COPROCOVER)
+static void exHandler10(void) EXHANDLERX(EXCEPTION_INVALIDTSS)
+static void exHandler11(void) EXHANDLERX(EXCEPTION_SEGNOTPRES)
+static void exHandler12(void) EXHANDLERX(EXCEPTION_STACK)
+static void exHandler13(void) EXHANDLERX(EXCEPTION_GENPROTECT)
+static void exHandler14(void) EXHANDLERX(EXCEPTION_PAGE)
+static void exHandler15(void) EXHANDLERX(EXCEPTION_RESERVED)
+static void exHandler16(void) EXHANDLERX(EXCEPTION_FLOAT)
+static void exHandler17(void) EXHANDLERX(EXCEPTION_ALIGNCHECK)
+static void exHandler18(void) EXHANDLERX(EXCEPTION_MACHCHECK)
 
 
 static void intHandlerUnimp(void)
@@ -122,25 +119,25 @@ int kernelInterruptInitialize(void)
   int count;
     
   // Set all the exception handlers
-  kernelDescriptorSetIDTInterruptGate(0, &exHandler0);
-  kernelDescriptorSetIDTInterruptGate(1, &exHandler1);
-  kernelDescriptorSetIDTInterruptGate(2, &exHandler2);
-  kernelDescriptorSetIDTInterruptGate(3, &exHandler3);
-  kernelDescriptorSetIDTInterruptGate(4, &exHandler4);
-  kernelDescriptorSetIDTInterruptGate(5, &exHandler5);
-  kernelDescriptorSetIDTInterruptGate(6, &exHandler6);
-  kernelDescriptorSetIDTInterruptGate(7, &exHandler7);
-  kernelDescriptorSetIDTInterruptGate(8, &exHandler8);
-  kernelDescriptorSetIDTInterruptGate(9, &exHandler9);
-  kernelDescriptorSetIDTInterruptGate(10, &exHandler10);
-  kernelDescriptorSetIDTInterruptGate(11, &exHandler11);
-  kernelDescriptorSetIDTInterruptGate(12, &exHandler12);
-  kernelDescriptorSetIDTInterruptGate(13, &exHandler13);
-  kernelDescriptorSetIDTInterruptGate(14, &exHandler14);
-  kernelDescriptorSetIDTInterruptGate(15, &exHandler15);
-  kernelDescriptorSetIDTInterruptGate(16, &exHandler16);
-  kernelDescriptorSetIDTInterruptGate(17, &exHandler17);
-  kernelDescriptorSetIDTInterruptGate(18, &exHandler18);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_DIVBYZERO, &exHandler0);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_DEBUG, &exHandler1);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_NMI, &exHandler2);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_BREAK, &exHandler3);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_OVERFLOW, &exHandler4);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_BOUNDS, &exHandler5);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_OPCODE, &exHandler6);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_DEVNOTAVAIL, &exHandler7);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_DOUBLEFAULT, &exHandler8);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_COPROCOVER, &exHandler9);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_INVALIDTSS, &exHandler10);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_SEGNOTPRES, &exHandler11);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_STACK, &exHandler12);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_GENPROTECT, &exHandler13);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_PAGE, &exHandler14);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_RESERVED, &exHandler15);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_FLOAT, &exHandler16);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_ALIGNCHECK, &exHandler17);
+  kernelDescriptorSetIDTInterruptGate(EXCEPTION_MACHCHECK, &exHandler18);
 
   // Initialize the rest of the table with the vector for the standard
   // "unimplemented" interrupt vector

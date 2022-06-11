@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,10 +21,16 @@
 
 // This contains functions for user programs to operate GUI components.
 
-#include <string.h>
 #include <errno.h>
-#include <sys/window.h>
+#include <libintl.h>
+#include <string.h>
 #include <sys/api.h>
+#include <sys/window.h>
+
+#define _(string) gettext(string)
+
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
 
 static volatile image waitImage;
 static objectKey dialogWindow = NULL;
@@ -47,10 +53,16 @@ static void progressThread(void)
 
   // Copy the supplied progress structure so we'll notice changes
   memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
+  if (lockGet(&prog->progLock) >= 0)
+    {
+      // Set initial display values.  After this we only watch for changes to
+      // these.
+      windowComponentSetData(progressBar, (void *) prog->percentFinished, 1);
+      windowComponentSetData(statusLabel, (char *) prog->statusMessage,
+			     strlen((char *) prog->statusMessage));
+      lockRelease(&prog->progLock);
+    }
 
-  windowComponentSetData(progressBar, (void *) prog->percentFinished, 1);
-  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
-			 strlen((char *) prog->statusMessage));
   windowComponentSetEnabled(cancelButton, prog->canCancel);
   if (prog->canCancel)
     windowSwitchPointer(dialogWindow, "default");
@@ -59,7 +71,7 @@ static void progressThread(void)
 
   while (1)
     {
-      if (lockGet(&(prog->lock)) >= 0)
+      if (lockGet(&prog->progLock) >= 0)
 	{
 	  // Did the status change?
 	  if (memcmp((void *) &lastProg, (void *) prog, sizeof(progress)))
@@ -94,8 +106,9 @@ static void progressThread(void)
 	      // Look for 'need confirmation' flag changes
 	      if (prog->needConfirm)
 		{
-		  status = windowNewQueryDialog(dialogWindow, "Confirmation",
-						(char *) prog->confirmMessage);
+		  status =
+		    windowNewQueryDialog(dialogWindow, _("Confirmation"),
+					 (char *) prog->confirmMessage);
 		  prog->needConfirm = 0;
 		  if (status == 1)
 		    prog->confirm = 1;
@@ -106,7 +119,7 @@ static void progressThread(void)
 	      // Look for 'error' flag changes
 	      if (prog->error)
 		{
-		  windowNewErrorDialog(dialogWindow, "Error",
+		  windowNewErrorDialog(dialogWindow, _("Error"),
 				       (char *) prog->statusMessage);
 		  prog->error = 0;
 		}
@@ -115,7 +128,7 @@ static void progressThread(void)
 	      memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 	    }
 
-	  lockRelease(&(prog->lock));
+	  lockRelease(&prog->progLock);
 	}
 
       // Check for our Cancel button
@@ -131,7 +144,7 @@ static void progressThread(void)
       multitaskerYield();
     }
 
-  lockRelease(&(prog->lock));
+  lockRelease(&prog->progLock);
 
   // Exit.
   multitaskerTerminate(0);
@@ -155,6 +168,9 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   objectKey imageComp = NULL;
   componentParameters params;
     
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (tmpProg == NULL))
     return (dialogWindow = NULL);
@@ -181,9 +197,9 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
       status = imageLoad(WAITIMAGE_NAME, 0, 0, (image *) &waitImage);
       if (status >= 0)
 	{
-	  waitImage.translucentColor.red = 0;
-	  waitImage.translucentColor.green = 255;
-	  waitImage.translucentColor.blue = 0;
+	  waitImage.transColor.red = 0;
+	  waitImage.transColor.green = 255;
+	  waitImage.transColor.blue = 0;
 	}
     }
   if (waitImage.data)
@@ -219,7 +235,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   params.padBottom = 5;
   params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   params.orientationX = orient_center;
-  cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
+  cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
   if (cancelButton == NULL)
     {
       windowDestroy(dialogWindow);
@@ -254,22 +270,36 @@ _X_ int windowProgressDialogDestroy(objectKey window)
 
   int status = 0;
 
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   if (window == NULL)
     return (status = ERR_NULLPARAMETER);
 
   if (window != dialogWindow)
     return (status = ERR_INVALID);
 
-  windowComponentSetData(progressBar, (void *) 100, 1);
-  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
-			 strlen((char *) prog->statusMessage));
+  if (prog)
+    {
+      // Get a final lock on the progress structure
+      status = lockGet(&prog->progLock);
+      if (status < 0)
+	return (status);
 
-  if (multitaskerProcessIsAlive(threadPid))
+      windowComponentSetData(progressBar, (void *) 100, 1);
+      windowComponentSetData(statusLabel, (char *) prog->statusMessage,
+			     strlen((char *) prog->statusMessage));
+    }
+
+  if (threadPid && multitaskerProcessIsAlive(threadPid))
     // Kill our thread
     status = multitaskerKillProcess(threadPid, 1);
 
   // Destroy the window
   windowDestroy(dialogWindow);
+
+  if (prog)
+    lockRelease(&prog->progLock);
 
   dialogWindow = NULL;
   progressBar = NULL;

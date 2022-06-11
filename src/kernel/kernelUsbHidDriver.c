@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,23 +22,16 @@
 // Driver for USB HIDs (human interface devices) such as keyboards and meeses.
 
 #include "kernelDriver.h" // Contains my prototypes
-#include "kernelBus.h"
 #include "kernelDebug.h"
-#include "kernelDevice.h"
 #include "kernelError.h"
-#include "kernelFile.h"
 #include "kernelKeyboard.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMouse.h"
-#include "kernelMultitasker.h"
-#include "kernelShutdown.h"
 #include "kernelUsbHidDriver.h"
-#include "kernelWindow.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <sys/window.h>
 
 // Flags for keyboard state
 #define INSERT_FLAG       0x0800
@@ -52,6 +45,7 @@
 #define CONTROL_FLAG      0x0011
 
 // Some particular (USB) scan codes we're interested in
+#define TAB_KEY           43
 #define CAPSLOCK_KEY      57
 #define F1_KEY            58
 #define F2_KEY            59
@@ -154,40 +148,6 @@ static int setBootProtocol(hidDevice *hidDev)
   // Write the command
   return (kernelBusWrite(bus_usb, hidDev->target, sizeof(usbTransaction),
 			 (void *) &usbTrans));
-}
-
-
-__attribute__((noreturn))
-static void rebootThread(void)
-{
-  // This gets called when the user presses CTRL-ALT-DEL.
-
-  // Reboot, force
-  kernelShutdown(1, 1);
-  while(1);
-}
-
-
-static void screenshotThread(void)
-{
-  // This gets called when the user presses the 'print screen' key
-
-  char fileName[32];
-  file theFile;
-  int count = 1;
-
-  // Determine the file name we want to use
-
-  strcpy(fileName, "/screenshot1.bmp");
-
-  // Loop until we get a filename that doesn't already exist
-  while (!kernelFileFind(fileName, &theFile))
-    {
-      count += 1;
-      sprintf(fileName, "/screenshot%d.bmp", count);
-    }
-
-  kernelMultitaskerTerminate(kernelWindowSaveScreenShot(fileName));
 }
 
 
@@ -296,7 +256,17 @@ static void interrupt(usbDevice *usbDev, void *buffer, unsigned length)
 		  keyboardData->code[5]);
       */
 
-      // Get the modifier flags
+      // Check for ALT presses and releases in the modifier flags
+      if (!(hidDev->keyboardFlags & ALT_FLAG) &&
+	  (keyboardData->modifier & ALT_FLAG))
+	// ALT was pressed
+	kernelKeyboardSpecial(keyboardEvent_altPress);
+      else if ((hidDev->keyboardFlags & ALT_FLAG) &&
+	       !(keyboardData->modifier & ALT_FLAG))
+	// ALT was released
+	kernelKeyboardSpecial(keyboardEvent_altRelease);
+
+      // Set the new modifier flags
       hidDev->keyboardFlags =
 	((hidDev->keyboardFlags & ~MODIFIER_FLAGS) | keyboardData->modifier);
 
@@ -316,7 +286,7 @@ static void interrupt(usbDevice *usbDev, void *buffer, unsigned length)
 	      (hidDev->keyboardFlags & ALT_FLAG))
 	    {
 	      // CTRL-ALT-DEL means reboot
-	      kernelMultitaskerSpawn(rebootThread, "reboot", 0, NULL);
+	      kernelKeyboardSpecial(keyboardEvent_ctrlAltDel);
 	    }
 	  else
 	    {
@@ -342,15 +312,20 @@ static void interrupt(usbDevice *usbDev, void *buffer, unsigned length)
 	    {
 	      // Check for some special cases
 	    case F1_KEY:
-	      kernelConsoleLogin();
+	      kernelKeyboardSpecial(keyboardEvent_f1);
 	      break;
 
 	    case F2_KEY:
-	      kernelMultitaskerDumpProcessList();
+	      kernelKeyboardSpecial(keyboardEvent_f2);
 	      break;
 
 	    case PRINTSCREEN_KEY:
-	      kernelMultitaskerSpawn(screenshotThread, "screenshot", 0, NULL);
+	      kernelKeyboardSpecial(keyboardEvent_printScreen);
+	      break;
+
+	    case TAB_KEY:
+	      if (keyboardData->modifier & ALT_FLAG)
+		kernelKeyboardSpecial(keyboardEvent_altTab);
 	      break;
 
 	    case CAPSLOCK_KEY:

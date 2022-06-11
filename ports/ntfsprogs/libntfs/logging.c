@@ -486,7 +486,7 @@ int ntfs_log_handler_fprintf(const char *function, const char *logfile,
 	}
 
 	if (col_prefix)
-		ret += fprintf(strm, col_prefix);
+		ret += fprintf(strm, "%s", col_prefix);
 
 	if ((ntfs_log.flags & NTFS_LOG_FLAG_ONLYNAME) &&
 	    (strchr(logfile, PATH_SEP)))		/* Abbreviate the filename */
@@ -515,7 +515,7 @@ int ntfs_log_handler_fprintf(const char *function, const char *logfile,
 	}
 
 	if (col_suffix)
-		ret += fprintf(strm, col_suffix);
+		ret += fprintf(strm, "%s", col_suffix);
 
 
 	fflush(strm);

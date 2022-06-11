@@ -326,7 +326,6 @@ s64 ntfs_mst_pread(struct ntfs_device *dev, const s64 pos, s64 count,
 	return count;
 }
 
-#ifndef __VISOPSYS__
 /**
  * ntfs_mst_pwrite - multi sector transfer (mst) positioned write
  * @dev:	device to write to
@@ -393,6 +392,7 @@ s64 ntfs_mst_pwrite(struct ntfs_device *dev, const s64 pos, s64 count,
 	return written / bksize;
 }
 
+#ifndef __VISOPSYS__
 /**
  * ntfs_cluster_read - read ntfs clusters
  * @vol:	volume to read from
@@ -554,7 +554,6 @@ s64 ntfs_device_size_get(struct ntfs_device *dev, int block_size)
 	return (low + 1LL) / block_size;
 }
 
-#ifndef __VISOPSYS__
 /**
  * ntfs_device_partition_start_sector_get - get starting sector of a partition
  * @dev:	open device
@@ -689,7 +688,6 @@ int ntfs_device_sector_size_get(struct ntfs_device *dev)
 #endif
 	return -1;
 }
-#endif /* __VISOPSYS__ */
 
 /**
  * ntfs_device_block_size_set - set block size of a device

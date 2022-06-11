@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,15 +23,14 @@
 // -equipped graphics adapter
 
 #include "kernelGraphic.h"
-#include "kernelMemory.h"
+#include "kernelError.h"
+#include "kernelImage.h"
 #include "kernelMalloc.h"
 #include "kernelMain.h"
 #include "kernelMisc.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelProcessorX86.h"
-#include "kernelError.h"
-#include <string.h>
 
 static kernelGraphicAdapter *adapter = NULL;
 static kernelGraphicBuffer wholeScreen;
@@ -181,7 +180,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
     {     
       // This is an easy line to draw.
 
-      // If the Y location is off the screen, skip it
+      // If the Y location is off the buffer, skip it
       if ((startY < 0) || (startY >= buffer->height))
 	return (status = 0);
 
@@ -189,7 +188,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
       if (startX > endX)
 	SWAP(startX, endX);
 
-      // If the line goes off the edge of the screen, only attempt to
+      // If the line goes off the edge of the buffer, only attempt to
       // display what will fit
       if (startX < 0)
 	startX = 0;
@@ -273,7 +272,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
     {
       // This is an easy line to draw.
 
-      // If the X location is off the screen, skip it
+      // If the X location is off the buffer, skip it
       if ((startX < 0) || (startX >= buffer->width))
 	return (status = 0);
 
@@ -281,7 +280,7 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
       if (startY > endY)
 	SWAP(startY, endY);
 
-      // If the line goes off the bottom edge of the screen, only attempt to
+      // If the line goes off the bottom edge of the buffer, only attempt to
       // display what will fit
       if (startY < 0)
 	startY = 0;
@@ -431,11 +430,9 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
       for (count = start; count <= end; count++)
 	{
 	  if (start == startY)
-	    driverDrawPixel(buffer, foreground, mode,
-		      var, count);
+	    driverDrawPixel(buffer, foreground, mode, var, count);
 	  else
-	    driverDrawPixel(buffer, foreground, mode,
-		      count, var);
+	    driverDrawPixel(buffer, foreground, mode, count, var);
 
 	  if (e < 0)
 	    e += e_noinc;
@@ -455,7 +452,7 @@ static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 			  drawMode mode, int xCoord, int yCoord, int width,
 			  int height, int thickness, int fill)
 {
-  // Draws a rectangle on the screen using the preset foreground color
+  // Draws a rectangle into the buffer using the supplied foreground color
 
   int status = 0;
   int endX = (xCoord + (width - 1));
@@ -592,7 +589,7 @@ static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 			  drawMode mode, int centerX, int centerY, int width,
 			  int height, int thickness, int fill)
 {
-  // Draws an oval on the screen using the preset foreground color.  We use
+  // Draws an oval into the buffer using the supplied foreground color.  We use
   // a version of the Bresenham circle algorithm, but in the case of an
   // (unfilled) oval with (thickness > 1) we calculate inner and outer ovals,
   // and draw lines between the inner and outer X coordinates of both, for
@@ -739,10 +736,10 @@ static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 
 
 static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
-			       drawMode mode,color *foreground,
+			       drawMode mode, color *foreground,
 			       color *background, int xCoord, int yCoord)
 {
-  // Draws the supplied image on the screen at the requested coordinates
+  // Draws the supplied image into the buffer at the requested coordinates
 
   int status = 0;
   unsigned lineLength = 0;
@@ -769,14 +766,14 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
   if (drawImage->type != IMAGETYPE_MONO)
     return (status = ERR_INVALID);
 
-  // If the image goes off the right edge of the screen, only attempt to
+  // If the image goes off the right edge of the buffer, only attempt to
   // display what will fit
   if ((int)(xCoord + drawImage->width) < buffer->width)
     lineLength = drawImage->width;
   else
     lineLength = (buffer->width - xCoord);
 
-  // If the image goes off the bottom of the screen, only show the
+  // If the image goes off the bottom of the buffer, only show the
   // lines that will fit
   if ((int)(yCoord + drawImage->height) < buffer->height)
     numberLines = drawImage->height;
@@ -875,14 +872,24 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
       // Move to the next line in the framebuffer
       framebufferPointer += (buffer->width * adapter->bytesPerPixel);
       
-      // Are we skipping any because it's off the screen?
+      // Are we skipping any because it's off the buffer?
       if (drawImage->width > lineLength)
 	pixelCounter += (drawImage->width - lineLength);
     }
 
-
   // Success
   return (status = 0);
+}
+
+
+static inline void alphaBlend(pixel *pix, float alpha, pixel *buf)
+{
+  // Given a pixel from an image with an alpha channel value, blend it into
+  // the buffer.
+
+  buf->red = (((1.0 - alpha) * buf->red) + (alpha * pix->red));
+  buf->green = (((1.0 - alpha) * buf->green) + (alpha * pix->green));
+  buf->blue = (((1.0 - alpha) * buf->blue) + (alpha * pix->blue));
 }
 
 
@@ -890,7 +897,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 			   drawMode mode, int xCoord, int yCoord, int xOffset,
 			   int yOffset, int width, int height)
 {
-  // Draws the requested width and height of the supplied image on the screen
+  // Draws the requested width and height of the supplied image into the buffer
   // at the requested coordinates, with the requested offset
 
   int status = 0;
@@ -900,7 +907,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
   unsigned char *framebufferPointer = NULL;
   pixel *imageData = NULL;
   int lineCounter = 0;
-  unsigned pixelCounter = 0;
+  register unsigned pixelCounter = 0;
   short pix = 0;
   unsigned count;
 
@@ -922,7 +929,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
   else
     lineLength = drawImage->width;
 
-  // If the image goes off the sides of the screen, only attempt to display
+  // If the image goes off the sides of the buffer, only attempt to display
   // the pixels that will fit
   if (xCoord < 0)
     {
@@ -940,7 +947,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
   else
     numberLines = drawImage->height;
 
-  // If the image goes off the top or bottom of the screen, only show the
+  // If the image goes off the top or bottom of the buffer, only show the
   // lines that will fit
   if (yCoord < 0)
     {
@@ -968,7 +975,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
   // Loop for each line
 
   for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
-    {	  
+    {
       // Do a loop through the line, copying the color values from the
       // image into the framebuffer
       
@@ -976,13 +983,25 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 	for (count = 0; count < lineBytes; )
 	  {
 	    if ((mode == draw_translucent) &&
-		(imageData[pixelCounter].red ==
-		 drawImage->translucentColor.red) &&
-		(imageData[pixelCounter].green ==
-		 drawImage->translucentColor.green) &&
-		(imageData[pixelCounter].blue ==
-		 drawImage->translucentColor.blue))
-	      count += adapter->bytesPerPixel;
+		PIXELS_EQ(&imageData[pixelCounter], &drawImage->transColor))
+	      {
+		// Translucent pixel, just skip it.
+		count += adapter->bytesPerPixel;
+	      }
+
+	    else if ((mode == draw_alphablend) && drawImage->alpha &&
+		     (drawImage->alpha[pixelCounter] < 1.0))
+	      {
+		if (drawImage->alpha[pixelCounter] > 0)
+		  // Partially-opaque pixel.  Alpha blend it with the contents
+		  // of the buffer.
+		  alphaBlend(&imageData[pixelCounter],
+			     drawImage->alpha[pixelCounter],
+			     (pixel *) &framebufferPointer[count]);
+
+		count += adapter->bytesPerPixel;
+	      }
+
 	    else
 	      {
 		framebufferPointer[count++] = imageData[pixelCounter].blue;
@@ -1009,12 +1028,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 		       (imageData[pixelCounter].blue >> 3));
 
 	      if ((mode != draw_translucent) ||
-		  ((imageData[pixelCounter].red !=
-		    drawImage->translucentColor.red) ||
-		   (imageData[pixelCounter].green !=
-		    drawImage->translucentColor.green) ||
-		   (imageData[pixelCounter].blue !=
-		    drawImage->translucentColor.blue)))
+		  !PIXELS_EQ(&imageData[pixelCounter], &drawImage->transColor))
 		((short *) framebufferPointer)[count] = pix;
 	      
 	      pixelCounter += 1;
@@ -1024,7 +1038,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
       // Move to the next line in the framebuffer
       framebufferPointer += (buffer->width * adapter->bytesPerPixel);
       
-      // Are we skipping any of this line because it's off the screen?
+      // Are we skipping any of this line because it's off the buffer?
       if (drawImage->width > lineLength)
 	pixelCounter += (drawImage->width - lineLength);
     }
@@ -1037,7 +1051,7 @@ static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
 			  int xCoord, int yCoord, int width, int height)
 {
-  // Draws the supplied image on the screen at the requested coordinates
+  // From a clip of the supplied buffer, make an image from its contents.
 
   int status = 0;
   unsigned numberPixels = 0;
@@ -1060,33 +1074,25 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
       (yCoord < 0) || (yCoord >= buffer->height))
     return (status = ERR_BOUNDS);
 
-  // If the buffer goes off the right edge of the screen, only attempt to
-  // grab what we're really showing
+  // If the clip goes off the right edge of the buffer, only grab what exists.
   if ((xCoord + width) < buffer->width)
     lineLength = width;
   else
     lineLength = (buffer->width - xCoord);
 
-  // If the buffer goes off the bottom of the screen, only attempt to
-  // grab what we're really showing
+  // If the clip goes off the bottom of the buffer, only grab what exists.
   if ((height + yCoord) < buffer->height)
     numberLines = height;
   else
     numberLines = (buffer->height - yCoord);
   
-  // How many pixels will there be?
-  numberPixels = lineLength * numberLines;
-  theImage->dataLength = (numberPixels * sizeof(pixel));
+  // Get an image
+  status = kernelImageNew(theImage, lineLength, numberLines);
+  if (status < 0)
+    return (status);
 
-  // If the image was previously holding data, release it
-  if (theImage->data == NULL)
-    {
-      // Allocate enough memory to hold the image data
-      theImage->data = kernelMemoryGet(theImage->dataLength, "image data");
-      if (theImage->data == NULL)
-	// Eek, no memory
-	return (status = ERR_MEMORY);
-    }
+  // How many pixels will there be?
+  numberPixels = (lineLength * numberLines);
 
   // How many bytes in a line of data?
   lineBytes = (adapter->bytesPerPixel * lineLength);
@@ -1125,15 +1131,21 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
 	      
 	      if (adapter->bitsPerPixel == 16)
 		{
-		  imageData[pixelCounter].red = ((pix & 0xF800) >> 8);
-		  imageData[pixelCounter].green = ((pix & 0x07E0) >> 3);
-		  imageData[pixelCounter].blue = ((pix & 0x001F) << 3);
+		  imageData[pixelCounter].red = (unsigned char)
+		    (((pix & 0xF800) >> 11) * 8.225806452);
+		  imageData[pixelCounter].green = (unsigned char)
+		    (((pix & 0x07E0) >> 5) * 4.047619048);
+		  imageData[pixelCounter].blue = (unsigned char)
+		    ((pix & 0x001F) * 8.225806452);
 		}
 	      else
 		{
-		  imageData[pixelCounter].red = ((pix & 0x7C00) >> 7);
-		  imageData[pixelCounter].green = ((pix & 0x03E0) >> 2);
-		  imageData[pixelCounter].blue = ((pix & 0x001F) << 3);
+		  imageData[pixelCounter].red = (unsigned char)
+		    (((pix & 0x7C00) >> 10) * 8.225806452);
+		  imageData[pixelCounter].green = (unsigned char)
+		    (((pix & 0x03E0) >> 5) * 8.225806452);
+		  imageData[pixelCounter].blue = (unsigned char)
+		    ((pix & 0x001F) * 8.225806452);
 		}
 
 	      pixelCounter += 1;
@@ -1144,19 +1156,13 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
       framebufferPointer += (buffer->width * adapter->bytesPerPixel);
     }
 
-  // Fill in the image's vitals
-  theImage->type = IMAGETYPE_COLOR;
-  theImage->pixels = numberPixels;
-  theImage->width = lineLength;
-  theImage->height = numberLines;
-
   return (status = 0);
 }
 
 
-static int driverCopyArea(kernelGraphicBuffer *buffer,
-			  int xCoord1, int yCoord1, int width, int height,
-			  int xCoord2, int yCoord2)
+static int driverCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
+			  int yCoord1, int width, int height, int xCoord2,
+			  int yCoord2)
 {
   // Copy a clip of data from one area of the buffer to another
 
@@ -1220,9 +1226,9 @@ static int driverCopyArea(kernelGraphicBuffer *buffer,
 }
 
 
-static int driverRenderBuffer(kernelGraphicBuffer *buffer,
-			      int drawX, int drawY, int clipX, int clipY,
-			      int width, int height)
+static int driverRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
+			      int drawY, int clipX, int clipY, int width,
+			      int height)
 {
   // Take the supplied graphic buffer and render it onto the screen.
 
@@ -1411,8 +1417,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
   else
     adapter->bytesPerPixel = (adapter->bitsPerPixel / 8);
   adapter->numberModes = kernelOsLoaderInfo->graphicsInfo.numberModes;
-  kernelMemCopy(&(kernelOsLoaderInfo->graphicsInfo.supportedModes),
-		&(adapter->supportedModes),
+  kernelMemCopy(&kernelOsLoaderInfo->graphicsInfo.supportedModes,
+		&adapter->supportedModes,
 		(sizeof(videoMode) * MAXVIDEOMODES));
 
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_GRAPHIC);
@@ -1427,7 +1433,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
       // Map the supplied physical linear framebuffer address into kernel
       // memory
       status = kernelPageMapToFree(KERNELPROCID, adapter->framebuffer,
-				   &(adapter->framebuffer),
+				   &adapter->framebuffer,
 				   (adapter->xRes * adapter->yRes *
 				    adapter->bytesPerPixel));
       if (status < 0)

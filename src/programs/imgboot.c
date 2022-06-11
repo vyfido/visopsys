@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,12 +38,13 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 </help>
 */
 
+#include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <unistd.h>
 #include <sys/api.h>
+#include <sys/font.h>
 #include <sys/vsh.h>
 
 #define LOGINPROGRAM    "/programs/login"
@@ -51,7 +52,9 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 
 static int processId = 0;
 static int readOnly = 1;
-static char *titleString     = "Copyright (C) 1998-2007 J. Andrew McLaughlin";
+static int haveInstall = 0;
+static int passwordSet = 0;
+static char *titleString     = "Copyright (C) 1998-2011 J. Andrew McLaughlin";
 static char *gplString       =
 "  This program is free software; you can redistribute it and/or modify it  \n"
 "  under the terms of the GNU General Public License as published by the\n"
@@ -68,8 +71,8 @@ static char *adminString     = "Using the administrator account 'admin'.\n"
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
-static objectKey installButton = NULL;
-static objectKey runButton = NULL;
+static objectKey instButton = NULL;
+static objectKey contButton = NULL;
 static objectKey goAwayCheckbox = NULL;
 
 
@@ -170,28 +173,67 @@ static int rebootNow(void)
 }
 
 
+static void doEject(void)
+{
+  static disk sysDisk;
+
+  bzero(&sysDisk, sizeof(disk));
+
+  if (fileGetDisk("/", &sysDisk) >= 0)
+    if (sysDisk.type & DISKTYPE_CDROM)
+      if (diskSetLockState(sysDisk.name, 0) >= 0)
+	{
+	  if (diskSetDoorState(sysDisk.name, 1) < 0)
+	    // Try a second time.  Sometimes 2 attempts seems to help.
+	    diskSetDoorState(sysDisk.name, 1);
+	}
+}
+
+
+static int runLogin(void)
+{
+  int pid = 0;
+
+  if (!passwordSet)
+    pid = loaderLoadProgram(LOGINPROGRAM " -f admin", 0);
+  else
+    pid = loaderLoadProgram(LOGINPROGRAM, 0);
+
+  if (!graphics)
+    // Give the login program a copy of the I/O streams
+    multitaskerDuplicateIO(processId, pid, 0);
+
+  loaderExecProgram(pid, 0);
+
+  return (pid);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
   // Check for the 'Install' button
-  if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
+  if ((key == instButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Stop the GUI here and run the install program
       windowSetVisible(window, 0);
       loaderLoadAndExec(INSTALLPROGRAM, 0, 1);
       if (rebootNow())
-	shutdown(1, 1);
+	{
+	  doEject();
+	  shutdown(1, 1);
+	}
       else
 	{
-	  loaderLoadAndExec(LOGINPROGRAM " -f admin", 0, 0);
+	  runLogin();
 	  windowGuiStop();
 	}
     }
 
   // Check for the 'Run' button
-  else if ((key == runButton) && (event->type == EVENT_MOUSE_LEFTUP))
+  else if ((key == contButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Stop the GUI here and run the login program
-      loaderLoadAndExec(LOGINPROGRAM " -f admin", 0, 0);
+      runLogin();
       windowGuiStop();
     }
 }
@@ -215,7 +257,6 @@ static void constructWindow(void)
     quit(ERR_NOCREATE, "Can't create window!");
 
   bzero(&params, sizeof(componentParameters));
-
   params.gridWidth = 2;
   params.gridHeight = 1;
   params.padTop = 5;
@@ -225,35 +266,43 @@ static void constructWindow(void)
   params.orientationY = orient_middle;
   windowNewTextLabel(window, titleString, &params);
 
-  params.gridY = 1;
-  fontLoad("/system/fonts/arial-bold-10.bmp", "arial-bold-10",
-	   &(params.font), 0);
+  params.gridY += 1;
+  if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+    fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
   windowNewTextLabel(window, gplString, &params);
 
-  params.gridY = 2;
   params.orientationX = orient_center;
   params.font = NULL;
-  windowNewTextLabel(window, "Would you like to install Visopsys, or just run "
-  		     "it now?", &params);
+  if (haveInstall)
+    {
+      params.gridY += 1;
+      windowNewTextLabel(window, "Would you like to install Visopsys?\n"
+			 "(Choose continue to skip installing)", &params);
+    }
 
-  params.gridY = 3;
-  params.gridWidth = 1;
-  params.padBottom = 5;
-  params.orientationX = orient_right;
+  params.gridY += 1;
   params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
-  installButton = windowNewButton(window, "Install", NULL, &params);
-  windowRegisterEventHandler(installButton, &eventHandler);
+  if (haveInstall)
+    {
+      params.gridWidth = 1;
+      params.orientationX = orient_right;
+      instButton = windowNewButton(window, "Install", NULL, &params);
+      windowRegisterEventHandler(instButton, &eventHandler);
 
-  params.gridX = 1;
-  params.orientationX = orient_left;
-  runButton = windowNewButton(window, "Run now", NULL, &params);
-  windowRegisterEventHandler(runButton, &eventHandler);
+      params.gridX += 1;
+      params.orientationX = orient_left;
+    }
+
+  contButton = windowNewButton(window, "Continue", NULL, &params);
+  windowRegisterEventHandler(contButton, &eventHandler);
+  windowComponentFocus(contButton);
 
   params.gridX = 0;
-  params.gridY = 4;
+  params.gridY += 1;
   params.gridWidth = 2;
+  params.padBottom = 5;
   params.orientationX = orient_center;
-  params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+
   goAwayCheckbox =
     windowNewCheckbox(window, "Don't ask me this again", &params);
   if (readOnly)
@@ -268,16 +317,9 @@ static void constructWindow(void)
 }
 
 
-static void changeStartProgram(void)
+static inline void changeStartProgram(void)
 {
-  variableList kernelConf;
-
-  if (configurationReader("/system/config/kernel.conf", &kernelConf) < 0)
-    return;
-
-  variableListSet(&kernelConf, "start.program", "/programs/login");
-  configurationWriter("/system/config/kernel.conf", &kernelConf);
-  variableListDestroy(&kernelConf);
+  configSet("/system/config/kernel.conf", "start.program", LOGINPROGRAM);
 }
 
 
@@ -285,13 +327,13 @@ __attribute__((noreturn))
 int main(int argc, char *argv[])
 {
   disk sysDisk;
-  int options = 3;
+  int numOptions = 0;
+  int defOption = 0;
+  char *instOption = "o Install                    ";
+  char *contOption = "o Continue                   ";
+  char *naskOption = "o Always continue (never ask)";
+  char *optionStrings[3] = { NULL, NULL, NULL };
   int selected = 0;
-  char *optionStrings[] =
-    { "o Install                          ",
-      "o Run now                          ",
-      "o Always run (never ask to install)"
-    };
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -312,6 +354,14 @@ int main(int argc, char *argv[])
   if (!fileGetDisk("/system", &sysDisk))
     readOnly = sysDisk.readOnly;
 
+  // Find out whether we have an install program.
+  if (fileFind(INSTALLPROGRAM, NULL) >= 0)
+    haveInstall = 1;
+
+  // Is there a password on the administrator account?
+  if (userAuthenticate("admin", "") < 0)
+    passwordSet = 1;
+
   if (graphics)
     {
       constructWindow();
@@ -325,9 +375,10 @@ int main(int argc, char *argv[])
 	  changeStartProgram();
 
 	  windowSetVisible(window, 0);
-
-	  // Tell the user about the admin account
-	  windowNewInfoDialog(window, "Administrator account", adminString);
+	  
+	  if (!passwordSet)
+	    // Tell the user about the admin account
+	    windowNewInfoDialog(window, "Administrator account", adminString);
 	}
     }
   else
@@ -335,41 +386,58 @@ int main(int argc, char *argv[])
       // Print title message, and ask whether to install or run
       printf("\n%s\n", gplString);
 
-      if (readOnly)
-	options -= 1;
+      if (haveInstall)
+	{
+	  optionStrings[numOptions] = instOption;
+	  defOption = numOptions;
+	  numOptions += 1;
+	}
 
-      selected = vshCursorMenu("\nPlease select from the following "
-			       "options", optionStrings, options, 0);
+      optionStrings[numOptions] = contOption;
+      defOption = numOptions;
+      numOptions += 1;
+
+      if (!readOnly)
+	{
+	  optionStrings[numOptions] = naskOption;
+	  numOptions += 1;
+	}
+
+      if (numOptions > 1)
+	selected = vshCursorMenu("\nPlease select from the following options",
+				 optionStrings, numOptions, defOption);
+      else
+	selected = defOption;
+
       if (selected < 0)
-	shutdown(1, 1);
+	{
+	  doEject();
+	  shutdown(1, 1);
+	}
 
-      else if (selected == 0)
+      else if (optionStrings[selected] == instOption)
 	{
 	  // Install
 	  loaderLoadAndExec(INSTALLPROGRAM, 0, 1);
 	  if (rebootNow())
-	    shutdown(1, 1);
-	  else
 	    {
-	      int pid = loaderLoadProgram(LOGINPROGRAM " -f admin", 0);
-	      // Give the login program a copy of the I/O streams
-	      multitaskerDuplicateIO(processId, pid, 0);
-	      loaderExecProgram(pid, 0);
+	      doEject();
+	      shutdown(1, 1);
 	    }
+	  else
+	    runLogin();
 	}
-
       else
 	{
-	  if (selected == 2)
+	  if (optionStrings[selected] == naskOption)
 	    {
 	      changeStartProgram();
-	      printf("\n%s\n", adminString);
+	      if (!passwordSet)
+		// Tell the user about the admin account
+		printf("\n%s\n", adminString);
 	    }
 	  
-	  int pid = loaderLoadProgram(LOGINPROGRAM " -f admin", 0);
-	  // Give the login program a copy of the I/O streams
-	  multitaskerDuplicateIO(processId, pid, 0);
-	  loaderExecProgram(pid, 0);
+	  runLogin();
 	}
     }
 

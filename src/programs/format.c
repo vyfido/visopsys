@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,6 +57,7 @@ Some currently-supported arguments to the -t option are:
   ext         : Linux EXT
     ext2      : Linux EXT2 (EXT3 not yet supported)
   linux-swap  : Linux swap
+  ntfs        : Windows NTFS
 
 The third (optional) parameter is the name of a (logical) disk to format
 (use the 'disks' command to list the disks).  A format can only proceed if
@@ -77,6 +78,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/ntfs.h>
 #include <sys/vsh.h>
 
 static int graphics = 0;
@@ -184,7 +186,7 @@ static int chooseDisk(void)
   bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
     snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
-	     diskInfo[count].name, diskInfo[count].partType.description);
+	     diskInfo[count].name, diskInfo[count].partType);
   
   if (graphics)
     {
@@ -195,6 +197,7 @@ static int chooseDisk(void)
       params.gridY = 1;
       diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
 			       diskListParams, numberDisks, &params);
+      windowComponentFocus(diskList);
 
       // Make 'OK' and 'cancel' buttons
       params.gridY = 2;
@@ -331,7 +334,6 @@ static int copyBootSector(disk *theDisk, const char *fsType)
   int status = 0;
   char bootSectFilename[MAX_PATH_NAME_LENGTH];
   char command[MAX_PATH_NAME_LENGTH];
-  file bootSectFile;
 
   if (!strncasecmp(fsType, "fat", 3))
     {
@@ -344,7 +346,7 @@ static int copyBootSector(disk *theDisk, const char *fsType)
     return (status = 0);
 
   // Find the boot sector
-  status = fileFind(bootSectFilename, &bootSectFile);
+  status = fileFind(bootSectFilename, NULL);
   if (status < 0)
     {
       // Isn't one.  No worries.
@@ -465,7 +467,7 @@ int main(int argc, char *argv[])
 
   if (!graphics && !silentMode)
     // Print a message
-    printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2007 J. Andrew "
+    printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2011 J. Andrew "
 	   "McLaughlin\n");
 
   if (argc > 1)
@@ -540,7 +542,7 @@ int main(int argc, char *argv[])
   bzero((void *) &prog, sizeof(progress));
   if (graphics)
     progressDialog = windowNewProgressDialog(NULL, "Formatting...", &prog);
-  else
+  else if (!silentMode)
     vshProgressBar(&prog);
 
   if (!strcasecmp(type, "none"))
@@ -548,11 +550,13 @@ int main(int argc, char *argv[])
       status = filesystemClobber(diskInfo[diskNumber].name);
       prog.percentFinished = 100;
     }
+  else if (!strcasecmp(type, "ntfs"))
+    status = ntfsFormat(diskInfo[diskNumber].name, volName, longFormat, &prog);
   else
     status = filesystemFormat(diskInfo[diskNumber].name, type, volName,
 			      longFormat, &prog);
 
-  if (!graphics)
+  if (!graphics && !silentMode)
     vshProgressBarDestroy(&prog);
   
   if (status >= 0)

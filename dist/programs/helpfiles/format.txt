@@ -32,6 +32,7 @@ Some currently-supported arguments to the -t option are:
   ext         : Linux EXT
     ext2      : Linux EXT2 (EXT3 not yet supported)
   linux-swap  : Linux swap
+  ntfs        : Windows NTFS
 
 The third (optional) parameter is the name of a (logical) disk to format
 (use the 'disks' command to list the disks).  A format can only proceed if

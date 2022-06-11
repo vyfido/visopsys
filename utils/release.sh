@@ -1,11 +1,11 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  release.sh
 ##
 
 # Just echos the release number of Visopsys
-echo "0.69"
+echo "0.7"
 exit 0

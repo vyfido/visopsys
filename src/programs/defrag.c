@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -160,7 +160,7 @@ static int chooseDisk(void)
   bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
     snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
-	     diskInfo[count].name, diskInfo[count].partType.description);
+	     diskInfo[count].name, diskInfo[count].partType);
   
   if (graphics)
     {
@@ -171,6 +171,7 @@ static int chooseDisk(void)
       params.gridY = 1;
       diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
 			       diskListParams, numberDisks, &params);
+      windowComponentFocus(diskList);
 
       // Make 'OK' and 'cancel' buttons
       params.gridY = 2;
@@ -339,7 +340,7 @@ int main(int argc, char *argv[])
 
   if (!graphics && !silentMode)
     // Print a message
-    printf("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2007 J. Andrew "
+    printf("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2011 J. Andrew "
 	   "McLaughlin\n");
 
   if (argc > 1)

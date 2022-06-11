@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -36,11 +36,11 @@
 #define F_SETFL     0x10  // Set file status flags. 
 #define F_GETLK     0x11  // Get record locking information. 
 #define F_SETLK     0x12  // Set record locking information. 
-#define F_SETLKW    0x14  // Set record locking information; wait if blocked. 
+#define F_SETLKW    0x14  // Set record locking information; wait if blocked.
 
 // File descriptor flags used for fcntl(): 
-#define FD_CLOEXEC  0x01   // Close the file descriptor upon execution of an
-                           // exec family function. 
+#define FD_CLOEXEC  0x01  // Close the file descriptor upon execution of an
+                          // exec family function. 
 
 // Values for l_type used for record locking with fcntl() (the following
 // values are unique): 
@@ -51,30 +51,28 @@
 // The values used for l_whence, SEEK_SET, SEEK_CUR and SEEK_END are
 // defined as described in <unistd.h>. 
 
-// The following four sets of values for oflag are bitwise distinct: 
+// The following three sets of values for oflag are bitwise distinct: 
 
-#define O_CREAT     0x01  // Create file if it does not exist. 
-#define O_EXCL      0x02  // Exclusive use flag. 
-#define O_NOCTTY    0x04  // Do not assign controlling terminal. 
-#define O_TRUNC     0x08  // Truncate flag. 
-#define O_DIRECTORY 0x10  // Fail if not a directory
+#define O_CREAT     0x0001  // Create file if it does not exist. 
+#define O_EXCL      0x0002  // Exclusive use flag. 
+#define O_NOCTTY    0x0004  // Do not assign controlling terminal. 
+#define O_TRUNC     0x0008  // Truncate flag. 
+#define O_DIRECTORY 0x0010  // Fail if not a directory
 
 // File status flags used for open() and fcntl(): 
-#define O_APPEND    0x11  // Set append mode. 
-#define O_DSYNC     0x12  // Write according to synchronised I/O data
-                          // integrity completion. 
-#define O_NONBLOCK  0x14  // Non-blocking mode. 
-#define O_RSYNC     0x18  // Synchronised read I/O operations. 
-#define O_SYNC      0x20  // Write according to synchronised I/O file
-                          // integrity completion. 
-
-// Mask for use with file access modes: 
-#define O_ACCMODE   0x21  // Mask for file access modes. 
+#define O_APPEND    0x0020  // Set append mode. 
+#define O_DSYNC     0x0040  // Write according to synchronised I/O data
+                            // integrity completion. 
+#define O_NONBLOCK  0x0080  // Non-blocking mode. 
+#define O_RSYNC     0x0100  // Synchronised read I/O operations. 
+#define O_SYNC      0x0200  // Write according to synchronised I/O file
+                            // integrity completion. 
 
 // File access modes used for open() and fcntl(): 
-#define O_RDONLY    0x22  // Open for reading only. 
-#define O_RDWR      0x24  // Open for reading and writing. 
-#define O_WRONLY    0x28  // Open for writing only. 
+#define O_RDONLY    0x0400  // Open for reading only. 
+#define O_RDWR      0x0800  // Open for reading and writing. 
+#define O_WRONLY    0x1000  // Open for writing only. 
+#define O_ACCMODE   0x1C00  // Mask for file access modes. 
 
 // The off_t, pid_t, and mode_t types are defined as described in
 // <sys/types.h>.

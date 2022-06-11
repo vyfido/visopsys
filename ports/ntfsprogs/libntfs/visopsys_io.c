@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -143,7 +143,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
       goto error_out;
     }
 
-  fd->partLength = ((s64) fd->disk.numSectors * (s64) fd->disk.sectorSize);
+  fd->partLength = (fd->disk.numSectors * fd->disk.sectorSize);
 
   dev->d_private = fd;
   NDevSetBlock(dev);
@@ -313,7 +313,7 @@ static s64 ntfs_device_visopsys_read(struct ntfs_device *dev, void *buff,
   if ((fd->position % (s64) fd->disk.sectorSize) ||
       (count % (s64) fd->disk.sectorSize))
     {
-      Vdebug("Doing off-kilter read");
+      Vdebug("Doing off-kilter read\n");
 
       saveBuff = buff;
 
@@ -333,8 +333,7 @@ static s64 ntfs_device_visopsys_read(struct ntfs_device *dev, void *buff,
     }
 
   // Read sectors
-  status = diskReadSectors(fd->disk.name, (unsigned) startSector,
-			   (unsigned) sectorCount, buff);
+  status = diskReadSectors(fd->disk.name, startSector, sectorCount, buff);
   if (status < 0)
     {
       ntfs_log_trace("Error %d doing disk read\n", status);
@@ -397,7 +396,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
   if ((fd->position % (s64) fd->disk.sectorSize) ||
       (count % (s64) fd->disk.sectorSize))
     {
-      Vdebug("Doing off-kilter write");
+      Vdebug("Doing off-kilter write\n");
 
       saveBuff = (void *) buff;
 
@@ -419,8 +418,8 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 	{
 	  // The current position is not a multiple of the sector size.
 	  // Read the first sector into the buffer
-	  status = diskReadSectors(fd->disk.name, (unsigned) startSector, 1,
-				   (void *) buff);
+	  status =
+	    diskReadSectors(fd->disk.name, startSector, 1, (void *) buff);
 	  if (status < 0)
 	    {
 	      ntfs_log_trace("Error %d doing disk read\n", status);
@@ -437,7 +436,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 	  s64 lastSector = (startSector + (sectorCount - 1));
 
 	  status =
-	    diskReadSectors(fd->disk.name, (unsigned) lastSector, 1, (void *)
+	    diskReadSectors(fd->disk.name, lastSector, 1, (void *)
 			    (buff + ((lastSector - startSector) *
 				     fd->disk.sectorSize)));
 	  if (status < 0)
@@ -457,8 +456,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
   NDevSetDirty(dev);
 
   // Write sectors
-  status = diskWriteSectors(fd->disk.name, (unsigned) startSector,
-			    (unsigned) sectorCount, buff);
+  status = diskWriteSectors(fd->disk.name, startSector, sectorCount, buff);
 
   if (saveBuff)
     free((void *) buff);

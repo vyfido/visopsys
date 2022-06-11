@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,11 +26,13 @@
 
 #include "kernelWindow.h"
 
+#define WINDOW_EVENT_DWORDS (sizeof(windowEvent) / sizeof(unsigned))
+
 // Functions exported by kernelWindowEventStream.c
-int kernelWindowEventStreamNew(volatile windowEventStream *);
-int kernelWindowEventStreamPeek(volatile windowEventStream *);
-int kernelWindowEventStreamRead(volatile windowEventStream *, windowEvent *);
-int kernelWindowEventStreamWrite(volatile windowEventStream *, windowEvent *);
+int kernelWindowEventStreamNew(windowEventStream *);
+int kernelWindowEventStreamPeek(windowEventStream *);
+int kernelWindowEventStreamRead(windowEventStream *, windowEvent *);
+int kernelWindowEventStreamWrite(windowEventStream *, windowEvent *);
 
 #define _KERNELWINDOWEVENTSTREAM_H
 #endif

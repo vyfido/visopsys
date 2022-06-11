@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,11 @@
 #if !defined(_FDISK_H)
 
 #include <sys/disk.h>
+#include <sys/guid.h>
 #include <sys/image.h>
 #include <sys/progress.h>
+#include <sys/types.h>
+#include <sys/window.h>
 
 #define TEMP_DIR                       "/temp"
 #define BOOT_DIR                       "/system/boot"
@@ -51,9 +54,9 @@
 #define SLICESTRING_DISKFIELD_WIDTH    5
 #endif
 #define SLICESTRING_LABELFIELD_WIDTH   22
-#define SLICESTRING_FSTYPEFIELD_WIDTH  11
+#define SLICESTRING_FSTYPEFIELD_WIDTH  12
 #define SLICESTRING_CYLSFIELD_WIDTH    14
-#define SLICESTRING_SIZEFIELD_WIDTH    9
+#define SLICESTRING_SIZEFIELD_WIDTH    10
 #define SLICESTRING_ATTRIBFIELD_WIDTH  15
 #define SLICESTRING_LENGTH             (SLICESTRING_DISKFIELD_WIDTH +   \
 					SLICESTRING_LABELFIELD_WIDTH +  \
@@ -95,9 +98,14 @@ typedef struct {
   sliceType type;
   unsigned flags;
   unsigned tag;
-  unsigned startLogical;
-  unsigned sizeLogical;
+  uquad_t startLogical;
+  uquad_t sizeLogical;
   rawGeom geom;
+
+  // For GPT
+  guid typeGuid;
+  guid partGuid;
+  uquad_t attributes;
 
 } rawSlice;
 
@@ -127,6 +135,12 @@ typedef enum {
 // Label flags
 #define LABELFLAG_PRIMARYPARTS  0x01
 #define LABELFLAG_LOGICALPARTS  0x02
+#define LABELFLAG_USETAGS       0x04
+#define LABELFLAG_USEGUIDS      0x08
+
+// A default GUID for partition creation: "Windows or Linux data"
+#define DEFAULT_GUID ((guid) { 0xEBD0A0A2, 0xB9E5, 0x4433, 0x87, 0xC0, \
+			  { 0x68, 0xB6, 0xB7, 0x26, 0x99, 0xC7 } })
 
 struct _partitionTable;
 
@@ -137,9 +151,14 @@ typedef struct {
 
   // Disk label operations
   int (*detect) (const disk *);
-  int (*read) (const disk *, rawSlice *, int *);
-  int (*write) (const disk *, rawSlice *);
+  int (*readTable) (const disk *, rawSlice *, int *);
+  int (*writeTable) (const disk *, rawSlice *, int);
+  int (*getSliceDesc)(rawSlice *, char *);
   sliceType (*canCreate) (slice *, int, int);
+  int (*canHide) (slice *);
+  void (*hide) (slice *);
+  int (*getTypes) (listItemParameters **);
+  int (*setType) (slice *, int);
 
 } diskLabel;
 
@@ -172,8 +191,8 @@ typedef struct {
 // copies
 typedef struct {
   disk *theDisk;
-  unsigned startSector;
-  unsigned numSectors;
+  uquad_t startSector;
+  uquad_t numSectors;
   ioBuffer *buffer;
   progress *prog;
 

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,11 +34,12 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
   int inCount = 0;
   int outCount = 0;
   int formatLen = 0;
-  long long argument = NULL;
   int zeroPad = 0;
   int leftJust = 0;
   int fieldWidth = 0; 
   int isLong = 0;
+  long long intArg = 0;
+  double doubleArg; // Don't initialize unnecessarily
   int digits = 0;
 
   // How long is the format string?
@@ -120,13 +121,26 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	isLong = 0;
 
       // We have some format characters.  Get the corresponding argument.
+
+      // If it's a long long value, we need to get two 32-bit values
+      // and combine them.
       if (isLong)
 	{
-	  argument = (long long) va_arg(list, unsigned);
-	  argument |= (((long long) va_arg(list, unsigned)) << 32);
+	  intArg = (long long) va_arg(list, unsigned);
+	  intArg |= (((long long) va_arg(list, unsigned)) << 32);
+	}
+      // If it's a double (or float), we need to gather the argument
+      // differently as well.
+      else if ((format[inCount] == 'e') || (format[inCount] == 'E') ||
+	       (format[inCount] == 'f') || (format[inCount] == 'F') ||
+	       (format[inCount] == 'g') || (format[inCount] == 'G'))
+	{
+	  // Do it in the following switch statement so that we don't need
+	  // to initialize the variable prematurely, above, causing an
+	  // FPU operation.
 	}
       else
-	argument = va_arg(list, unsigned);
+	intArg = va_arg(list, unsigned);
 
       // What is it?
       switch(format[inCount])
@@ -138,17 +152,17 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
           if (fieldWidth)
             {
 	      if (isLong)
-		digits = _ldigits(argument, 10, 1);
+		digits = _ldigits(intArg, 10, 1);
 	      else
-		digits = _digits(argument, 10, 1);
+		digits = _digits(intArg, 10, 1);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
             }
 	  if (isLong)
-	    lltoa(argument, (output + outCount));
+	    lltoa(intArg, (output + outCount));
 	  else
-	    itoa(argument, (output + outCount));
+	    itoa(intArg, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)
@@ -161,17 +175,17 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  if (fieldWidth)
 	    {
 	      if (isLong)
-		digits = _ldigits(argument, 10, 0);
+		digits = _ldigits(intArg, 10, 0);
 	      else
-		digits = _digits(argument, 10, 0);
+		digits = _digits(intArg, 10, 0);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
 	  if (isLong)
-	    ulltoa(argument, (output + outCount));
+	    ulltoa(intArg, (output + outCount));
 	  else
-	    utoa(argument, (output + outCount));
+	    utoa(intArg, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)
@@ -180,16 +194,16 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 
 	case 'c':
 	  // A character.
-	  output[outCount++] = (char) ((unsigned int) argument);
+	  output[outCount++] = (unsigned char) intArg;
 	  break;
 
 	case 's':
 	  // This is a string.  Copy the string from the next argument
 	  // to the destnation string and increment outCount appropriately
-	  if (argument)
+	  if (intArg)
 	    {
-	      strcpy((output + outCount), (char *) ((unsigned) argument));
-	      outCount += strlen((char *) ((unsigned) argument));
+	      strcpy((output + outCount), (char *) ((unsigned) intArg));
+	      outCount += strlen((char *) ((unsigned) intArg));
 	    }
 	  else
 	    {
@@ -205,16 +219,16 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  output[outCount++] = 'x';
 	  fieldWidth = (2 * sizeof(void *));
 	  if (isLong)
-	    digits = _ldigits(argument, 16, 0);
+	    digits = _ldigits(intArg, 16, 0);
 	  else
-	    digits = _digits(argument, 16, 0);
+	    digits = _digits(intArg, 16, 0);
 	  if (!leftJust)
 	    while (digits++ < fieldWidth)
 	      output[outCount++] = '0';
 	  if (isLong)
-	    lltoux(argument, (output + outCount));
+	    lltoux(intArg, (output + outCount));
 	  else
-	    itoux(argument, (output + outCount));
+	    itoux(intArg, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)
@@ -226,21 +240,41 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  if (fieldWidth)
 	    {
 	      if (isLong)
-		digits = _ldigits(argument, 16, 0);
+		digits = _ldigits(intArg, 16, 0);
 	      else
-		digits = _digits(argument, 16, 0);
+		digits = _digits(intArg, 16, 0);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
 	  if (isLong)
-	    lltoux(argument, (output + outCount));
+	    lltoux(intArg, (output + outCount));
 	  else
-	    itoux(argument, (output + outCount));
+	    itoux(intArg, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)
 	      output[outCount++] = ' ';
+	  break;
+
+	case 'e':
+	case 'E':
+	case 'f':
+	case 'F':
+	case 'g':
+	case 'G':
+	  // This is a double.  Doubles are a special case, and we get the
+	  // argument here instead of above.
+	  doubleArg = (double) va_arg(list, double);
+	  // Skip the next word of arguments, since it was part of our
+	  // double.
+	  list += sizeof(int);
+	  // Put the characters for the double into the destination string
+	  if (fieldWidth)
+	    dtoa(doubleArg, (output + outCount), fieldWidth);
+	  else
+	    dtoa(doubleArg, (output + outCount), 6);
+	  outCount = strlen(output);
 	  break;
 
 	default:

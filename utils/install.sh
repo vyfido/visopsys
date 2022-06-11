@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  install.sh
 ##
@@ -24,10 +24,10 @@ echo ""
 echo "Visopsys installation script for UNIX"
 echo ""
 
-if [ "$1" == "-basic" ] ; then
+if [ "$1" = "-basic" ] ; then
 	INSTTYPE=basic
 	shift
-elif [ "$1" == "-isoboot" ] ; then
+elif [ "$1" = "-isoboot" ] ; then
 	INSTTYPE=isoboot
 	shift
 fi
@@ -72,13 +72,14 @@ MNTARGS=
 if [ -b "$DEVICE" ] ; then
 	echo -n "Formatting...  "
 	# Format the disk.  Stop if the command fails.
-	/sbin/mkdosfs -n Visopsys -v $DEVICE >& $MKDOSFSLOG
+	/sbin/mkdosfs -n Visopsys -v $DEVICE > $MKDOSFSLOG 2>&1
 	RET=$? 
 	if [ $RET -ne 0 ] ; then
 		if [ `grep -c "too large" $MKDOSFSLOG` -ne 0 ] ; then
 			# Wait, will specifying FAT32 work?
 			echo -n "(trying FAT32)...  "
-			/sbin/mkdosfs -F32 -n Visopsys -v $DEVICE >& $MKDOSFSLOG
+			/sbin/mkdosfs -F32 -n Visopsys -v $DEVICE \
+				>> $MKDOSFSLOG 2>&1
 			RET=$?
 		fi
 	fi
@@ -105,7 +106,7 @@ rm -f $MKDOSFSLOG
 
 # Install the boot sector.
 echo -n "Copying boot sector...  "
-./copy-boot $BOOTSECTOR $DEVICE >& $COPYBOOTLOG
+./copy-boot $BOOTSECTOR $DEVICE > $COPYBOOTLOG 2>&1
 if [ $? -ne 0 ] ; then
 	echo ""
 	echo -n "Not able to copy boot sector to $DEVICE.  "

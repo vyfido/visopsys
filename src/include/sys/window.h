@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,6 +24,7 @@
 
 #if !defined(_WINDOW_H)
 
+#include <sys/file.h>
 #include <sys/image.h>
 #include <sys/loader.h>
 #include <sys/progress.h>
@@ -36,32 +37,32 @@
 // Window events/masks.  This first batch are "tier 2" events, produced by
 // windows, widgets, etc. to indicate that some more abstract thing has
 // happened.
-#define EVENT_MASK_WINDOW                 0x00F00000
-#define EVENT_WINDOW_RESIZE               0x00400000
-#define EVENT_WINDOW_CLOSE                0x00200000
-#define EVENT_WINDOW_MINIMIZE             0x00100000
-#define EVENT_SELECTION                   0x00020000
-#define EVENT_CURSOR_MOVE                 0x00010000
+#define EVENT_MASK_WINDOW                 0x0F000000
+#define EVENT_WINDOW_RESIZE               0x04000000
+#define EVENT_WINDOW_CLOSE                0x02000000
+#define EVENT_WINDOW_MINIMIZE             0x01000000
+#define EVENT_SELECTION                   0x00200000
+#define EVENT_CURSOR_MOVE                 0x00100000
 // And these are "tier 1" events, produced by direct actions of the user.
-#define EVENT_MASK_KEY                    0x0000F000
-#define EVENT_KEY_UP                      0x00002000
-#define EVENT_KEY_DOWN                    0x00001000
-#define EVENT_MASK_MOUSE                  0x00000FFF
-#define EVENT_MOUSE_ENTER                 0x00000200
-#define EVENT_MOUSE_EXIT                  0x00000100
-#define EVENT_MOUSE_DRAG                  0x00000080
-#define EVENT_MOUSE_MOVE                  0x00000040
-#define EVENT_MOUSE_RIGHTUP               0x00000020
-#define EVENT_MOUSE_RIGHTDOWN             0x00000010
-#define EVENT_MOUSE_RIGHT                 (EVENT_MOUSE_RIGHTUP |    \
+#define EVENT_MASK_KEY                    0x000F0000
+#define EVENT_KEY_UP                      0x00020000
+#define EVENT_KEY_DOWN                    0x00010000
+#define EVENT_MASK_MOUSE                  0x0000FFFF
+#define EVENT_MOUSE_ENTER                 0x00002000
+#define EVENT_MOUSE_EXIT                  0x00001000
+#define EVENT_MOUSE_DRAG                  0x00000800
+#define EVENT_MOUSE_MOVE                  0x00000400
+#define EVENT_MOUSE_RIGHTUP               0x00000200
+#define EVENT_MOUSE_RIGHTDOWN             0x00000100
+#define EVENT_MOUSE_RIGHT                 (EVENT_MOUSE_RIGHTUP |	\
 					   EVENT_MOUSE_RIGHTDOWN)
-#define EVENT_MOUSE_MIDDLEUP              0x00000008
-#define EVENT_MOUSE_MIDDLEDOWN            0x00000004
-#define EVENT_MOUSE_MIDDLE                (EVENT_MOUSE_MIDDLEUP |   \
+#define EVENT_MOUSE_MIDDLEUP              0x00000080
+#define EVENT_MOUSE_MIDDLEDOWN            0x00000040
+#define EVENT_MOUSE_MIDDLE                (EVENT_MOUSE_MIDDLEUP |	\
 					   EVENT_MOUSE_MIDDLEDOWN)
-#define EVENT_MOUSE_LEFTUP                0x00000002
-#define EVENT_MOUSE_LEFTDOWN              0x00000001
-#define EVENT_MOUSE_LEFT                  (EVENT_MOUSE_LEFTUP |     \
+#define EVENT_MOUSE_LEFTUP                0x00000020
+#define EVENT_MOUSE_LEFTDOWN              0x00000010
+#define EVENT_MOUSE_LEFT                  (EVENT_MOUSE_LEFTUP |		\
 					   EVENT_MOUSE_LEFTDOWN)
 #define EVENT_MOUSE_DOWN                  (EVENT_MOUSE_LEFTDOWN |   \
 					   EVENT_MOUSE_MIDDLEDOWN | \
@@ -69,6 +70,16 @@
 #define EVENT_MOUSE_UP                    (EVENT_MOUSE_LEFTUP |     \
 					   EVENT_MOUSE_MIDDLEUP |   \
 					   EVENT_MOUSE_RIGHTUP)
+#define EVENT_MOUSE_SCROLLUP              0x00000008
+#define EVENT_MOUSE_SCROLLDOWN            0x00000004
+#define EVENT_MOUSE_SCROLLVERT            (EVENT_MOUSE_SCROLLUP |	\
+					   EVENT_MOUSE_SCROLLDOWN)
+#define EVENT_MOUSE_SCROLLLEFT            0x00000002
+#define EVENT_MOUSE_SCROLLRIGHT           0x00000001
+#define EVENT_MOUSE_SCROLLHORIZ           (EVENT_MOUSE_SCROLLLEFT |	\
+					   EVENT_MOUSE_SCROLLRIGHT)
+#define EVENT_MOUSE_SCROLL                (EVENT_MOUSE_SCROLLVERT |	\
+					   EVENT_MOUSE_SCROLLHORIZ)
 
 // The maximum numbers of window things
 #define WINDOW_MAXWINDOWS                 256
@@ -78,14 +89,15 @@
 #define WINDOW_MAX_LABEL_LENGTH           80
 
 // Flags for window components
-#define WINDOW_COMPFLAG_CLICKABLECURSOR   0x80
-#define WINDOW_COMPFLAG_CUSTOMBACKGROUND  0x40
-#define WINDOW_COMPFLAG_CUSTOMFOREGROUND  0x20
-#define WINDOW_COMPFLAG_STICKYFOCUS       0x10
-#define WINDOW_COMPFLAG_HASBORDER         0x08
-#define WINDOW_COMPFLAG_CANFOCUS          0x04
-#define WINDOW_COMPFLAG_FIXEDHEIGHT       0x02
-#define WINDOW_COMPFLAG_FIXEDWIDTH        0x01
+#define WINDOW_COMPFLAG_NOSCROLLBARS      0x0100
+#define WINDOW_COMPFLAG_CLICKABLECURSOR   0x0080
+#define WINDOW_COMPFLAG_CUSTOMBACKGROUND  0x0040
+#define WINDOW_COMPFLAG_CUSTOMFOREGROUND  0x0020
+#define WINDOW_COMPFLAG_STICKYFOCUS       0x0010
+#define WINDOW_COMPFLAG_HASBORDER         0x0008
+#define WINDOW_COMPFLAG_CANFOCUS          0x0004
+#define WINDOW_COMPFLAG_FIXEDHEIGHT       0x0002
+#define WINDOW_COMPFLAG_FIXEDWIDTH        0x0001
 
 // Flags for file browsing widgets/dialogs.
 #define WINFILEBROWSE_CAN_CD              0x01
@@ -94,10 +106,10 @@
                                            WINFILEBROWSE_CAN_DEL)
 
 // Some image file names for dialog boxes
-#define INFOIMAGE_NAME                    "/system/icons/infoicon.bmp"
-#define ERRORIMAGE_NAME                   "/system/icons/bangicon.bmp"
-#define QUESTIMAGE_NAME                   "/system/icons/questicon.bmp"
-#define WAITIMAGE_NAME                    "/system/mouse/mousebsy.bmp"
+#define INFOIMAGE_NAME                    "/system/icons/infoicon.ico"
+#define ERRORIMAGE_NAME                   "/system/icons/bangicon.ico"
+#define QUESTIMAGE_NAME                   "/system/icons/questicon.ico"
+#define WAITIMAGE_NAME                    "/system/mouse/busy.bmp"
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
@@ -141,14 +153,10 @@ typedef struct {
   int yPosition;
   unsigned key;
 
-} windowEvent;
+} __attribute__((packed)) windowEvent;
 
 // A structure for a queue of window events as a stream.
-typedef struct {
-  objectKey component;
-  stream s;
-
-} windowEventStream;
+typedef stream windowEventStream;
 
 // Types of drawing operations
 typedef enum {
@@ -178,6 +186,11 @@ typedef struct {
 typedef enum {
   scrollbar_vertical, scrollbar_horizontal
 } scrollBarType;
+
+// Types of dividers
+typedef enum {
+  divider_vertical, divider_horizontal
+} dividerType;
 
 // A structure for specifying display percentage and display position
 // in scroll bar components
@@ -238,11 +251,13 @@ int windowNewChoiceDialog(objectKey, const char *, const char *, char *[],
 int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, const char *,
-			char *, unsigned);
+			char *, unsigned, int);
 windowFileList *windowNewFileList(objectKey, windowListType, int, int,
 				  const char *, int, void *,
 				  componentParameters *);
 int windowNewInfoDialog(objectKey, const char *, const char *);
+int windowNewNumberDialog(objectKey, const char *, const char *, int, int,
+			  int, int *);
 int windowNewPasswordDialog(objectKey, const char *, const char *, int,
 			    char *);
 objectKey windowNewProgressDialog(objectKey, const char *, progress *);
@@ -251,8 +266,11 @@ int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 int windowNewQueryDialog(objectKey, const char *, const char *);
 int windowNewRadioDialog(objectKey, const char *, const char *, char *[],
 			 int, int);
+objectKey windowNewThumbImage(objectKey, const char *, unsigned, unsigned,
+			      componentParameters *);
 int windowProgressDialogDestroy(objectKey);
 int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
+int windowThumbImageUpdate(objectKey, const char *, unsigned, unsigned);
 
 #define _WINDOW_H
 #endif

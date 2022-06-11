@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -81,9 +81,11 @@ char *dirname(char *path)
   // Look for the last instance of '/'
   lastSlash = strrchr(newPath, '/');
 
+  // Terminate it there.
   if (lastSlash != newPath)
-    // Terminate it there.
     lastSlash[0] = '\0';
+  else
+    lastSlash[1] = '\0';
 
   return (newPath);
 }

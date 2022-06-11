@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,10 +22,14 @@
 // This contains utility functions for managing fonts.
 
 #include "kernelFont.h"
-#include "kernelMalloc.h"
-#include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
+#include "kernelFile.h"
+#include "kernelImage.h"
+#include "kernelLoader.h"
+#include "kernelMalloc.h"
+#include "kernelMisc.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int initialized = 0;
@@ -130,16 +134,10 @@ static unsigned char chars[][8] = {
   { 64, 168, 168, 16, 0, 0, 0, 0 }  // ~
 };
 
-static kernelAsciiFont systemFont;
-
-static kernelAsciiFont *defaultFont = NULL;
-static kernelAsciiFont *fontList[MAX_FONTS];
+static asciiFont *systemFont = NULL;
+static asciiFont *defaultFont = NULL;
+static asciiFont *fontList[MAX_FONTS];
 static int numFonts = 0;
-
-static inline int asciiToIndex(int ascii)
-{
-  return (ascii - 32);
-}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -159,27 +157,38 @@ int kernelFontInitialize(void)
   int count;
 
   // Clear out our font list
-  kernelMemClear(&fontList, (sizeof(kernelAsciiFont *) * MAX_FONTS));
+  kernelMemClear(&fontList, (sizeof(asciiFont *) * MAX_FONTS));
 
   // Create the default system font
 
-  strcpy(systemFont.name, "system");
-
-  for (count = 0; count < ASCII_PRINTABLES; count ++)
+  systemFont = kernelMalloc(sizeof(asciiFont));
+  if (!systemFont)
     {
-      systemFont.chars[count].type = IMAGETYPE_MONO;
-      systemFont.chars[count].pixels = 64;
-      systemFont.chars[count].width = 8;
-      systemFont.chars[count].height = 8;
-      systemFont.chars[count].dataLength = 8;
-      systemFont.chars[count].data = chars[count];
+      kernelError(kernel_error, "Couldn't get memory for system font");
+      return (status = ERR_MEMORY);
+    }
+
+  strcpy(systemFont->name, "system");
+
+  for (count = 0; count < ASCII_CHARS; count ++)
+    {
+      systemFont->chars[count].type = IMAGETYPE_MONO;
+      systemFont->chars[count].pixels = 64;
+      systemFont->chars[count].width = 8;
+      systemFont->chars[count].height = 8;
+
+      if ((count >= 32) && (count < (ASCII_PRINTABLES + 32)))
+	{
+	  systemFont->chars[count].dataLength = 8;
+	  systemFont->chars[count].data = chars[count - 32];
+	}
     }
   
-  systemFont.charWidth = 8;
-  systemFont.charHeight = 8;
+  systemFont->charWidth = 8;
+  systemFont->charHeight = 8;
 
   // Set the system font to be our default
-  defaultFont = &systemFont;
+  defaultFont = systemFont;
 
   initialized = 1;
 
@@ -187,7 +196,7 @@ int kernelFontInitialize(void)
 }
 
 
-int kernelFontGetDefault(kernelAsciiFont **pointer)
+int kernelFontGetDefault(asciiFont **pointer)
 {
   // Return a pointer to the default system font
   
@@ -238,43 +247,40 @@ int kernelFontSetDefault(const char *name)
 }
 
 
-int kernelFontLoad(const char* filename, const char *fontname,
-		   kernelAsciiFont **pointer, int fixedWidth)
+int kernelFontLoad(const char *fileName, const char *fontName,
+		   asciiFont **pointer, int fixedWidth)
 {
   // Takes the name of a image file containing a font definition and turns
-  // it into our internal representation of a kernelAsciiFont.  The image
-  // should have pure green as its background; every other color gets turned
-  // 'on' in our mono font scheme.  If the operation is successful the
-  // supplied pointer is set to point to the new font.
+  // it into our internal representation of an asciiFont.  The image should
+  // have pure green as its background; every other color gets turned 'on'
+  // in our mono font scheme.  If the operation is successful the supplied
+  // pointer is set to point to the new font.
 
   int status = 0;
-  image fontImage;
-  unsigned charWidth, charHeight, charBytes;
-  int pixels;
-  kernelAsciiFont *newFont = NULL;
-  pixel *imageData = NULL;
-  unsigned sourcePixel = 0;
-  unsigned char *fontData = NULL;
-  unsigned firstOnPixel, lastOnPixel, currentPixel;
-  int count1, count2, count3;
+  char *fixedName = NULL;
+  file fontFile;
+  unsigned char *fileData = NULL;
+  loaderFileClass loaderClass;
+  kernelFileClass *fileClassDriver = NULL;
+  int count;
 
   // Make sure we've been initialized
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
-  if ((filename == NULL) || (fontname == NULL) || (pointer == NULL))
+  if ((fileName == NULL) || (fontName == NULL) || (pointer == NULL))
     return (status = ERR_NULLPARAMETER);
   
   // Until we've accomplished everything successfully...
   *pointer = NULL;
 
   // Check to see if its been loaded already.  If not, just return it.
-  for (count1 = 0; count1 < numFonts; count1 ++)
-    if (!strcmp(fontList[count1]->name, fontname))
+  for (count = 0; count < numFonts; count ++)
+    if (!strcmp(fontList[count]->name, fontName))
       {
 	// Already a font by that name.
-	*pointer = fontList[count1];
+	*pointer = fontList[count];
 	return (status = 0);
       }
 
@@ -282,161 +288,86 @@ int kernelFontLoad(const char* filename, const char *fontname,
   if (numFonts >= MAX_FONTS)
     return (status = ERR_NOFREE);
 
-  // Try to load the font image
-  status = kernelImageLoad(filename, 0, 0, &fontImage);
+  fixedName = kernelMalloc(MAX_PATH_NAME_LENGTH);
+  if (fixedName == NULL)
+    return (status = ERR_MEMORY);
+
+  strncpy(fixedName, fileName, MAX_PATH_NAME_LENGTH);
+
+  // 'Fix' the file name if neccessary.
+  status = kernelFileFind(fixedName, &fontFile);
   if (status < 0)
-    return (status = ERR_NOSUCHFILE);
-
-  // The font file is a "vertical" concatenation of the character images.
-  // The width of the image describes the width of a character, whereas
-  // the height of a character is the division of the image height and the
-  // ASCII_PRINTABLES value
-  charWidth = fontImage.width;
-  charHeight = (fontImage.height / ASCII_PRINTABLES);
-  // How many bytes per char in our mono version?
-  charBytes = ((charWidth * charHeight) / 8);
-  if ((charWidth * charHeight) % 8)
-    charBytes += 1;
-
-  // Get memory for the font structure and the images data.
-  newFont = kernelMalloc(sizeof(kernelAsciiFont));
-  fontData = kernelMalloc(charBytes * ASCII_PRINTABLES);
-  if ((newFont == NULL) || (fontData == NULL))
     {
-      kernelError(kernel_error, "Unable to get memory to hold the font data");
-      return (status = ERR_MEMORY);
+      // If the filename is not absolute, try prepending the name of the
+      // system font directory
+      if (fixedName[0] != '/')
+	{
+	  snprintf(fixedName, MAX_PATH_NAME_LENGTH, FONT_SYSDIR "/%s",
+		   fileName);
+	  status = kernelFileFind(fixedName, &fontFile);
+	}
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Font file \"%s\" not found", fileName);
+	  status = ERR_NOSUCHENTRY;
+	  goto out;
+	}
     }
 
-  // Set some values in the new font
-  strcpy(newFont->name, fontname);
-  newFont->charWidth = charWidth;
-  newFont->charHeight = charHeight;
-
-  // Loop through all of the composite image data, turning it into a mono
-  // bitmap.
-  
-  imageData = fontImage.data;
-
-  // Now we do a loop to separate the individual characters from the composite
-  // image data, turning them into mono bitmaps as we go.
-  for (count1 = 0; count1 < ASCII_PRINTABLES; count1 ++)
+  // Load the font file into memory
+  fileData = kernelLoaderLoad(fixedName, &fontFile);
+  if (fileData == NULL)
     {
-      // Stuff that won't change in the rest of the code for this character,
-      // below (things like width can change -- see below)
-      newFont->chars[count1].type = IMAGETYPE_MONO;
-      newFont->chars[count1].width = charWidth;
-      newFont->chars[count1].height = charHeight;
-      newFont->chars[count1].pixels = (charWidth * charHeight);
-      newFont->chars[count1].dataLength = charBytes;
-      newFont->chars[count1].data = (fontData + (count1 * charBytes));
+      status = ERR_BADDATA;
+      goto out;
+    }
+    
+  // Get the file class of the file.
+  fileClassDriver =
+    kernelLoaderClassify(fixedName, fileData, fontFile.size, &loaderClass);
+  if (fileClassDriver == NULL)
+    {
+      status = ERR_INVALID;
+      goto out;
+    }
 
-      pixels = (charWidth * charHeight);
-
-      // These allow us to keep track of the leftmost and rightmost 'on'
-      // pixels for this character.  We can use these for narrowing the
-      // image if we want a variable-width font
-      firstOnPixel = (charWidth - 1);
-      lastOnPixel = 0;
-
-      // Loop through the pixels of the color image, mapping them to
-      // 'on' or 'off' pixels.  Anything in pure green is off, everything
-      // else is on.
-      for (count2 = 0; count2 < pixels; count2 ++)
+  if (loaderClass.class & LOADERFILECLASS_FONT)
+    {
+      if (!fileClassDriver->font.load)
 	{
-	  sourcePixel = ((count1 * pixels) + count2);
-
-	  if ((imageData[sourcePixel].red == 0) &&
-	      (imageData[sourcePixel].green == 255) &&
-	      (imageData[sourcePixel].blue == 0))
-	    // Off
-	    continue;
-
-	  // Otherwise, 'on'.
-
-	  // Watch for leftmost or rightmost 'on' pixel
-	  currentPixel = (count2 % charWidth);
-	  if (currentPixel < firstOnPixel)
-	    firstOnPixel = currentPixel;
-	  if (currentPixel > lastOnPixel)
-	    lastOnPixel = currentPixel;
-
-	  // Set the bit.
-	  ((unsigned char *) newFont->chars[count1].data)[count2 / 8] |=
-	    (((unsigned char) 0x80) >> (count2 % 8));
+	  status = ERR_NOTIMPLEMENTED;
+	  goto out;
 	}
 
-      if (!fixedWidth)
-	{
-	  // For variable-width fonts, we want no empty columns before the
-	  // character data, and only one after.  Make sure we don't get
-	  // buggered up by anything with no 'on' pixels such as the space
-	  // character
+      // Call the appropriate 'load' function
+      status = fileClassDriver->font
+	.load(fileData, fontFile.size, pointer, fixedWidth);
+      if (status < 0)
+	goto out;
+    }
+  else
+    status = ERR_INVALID;
 
-	  if ((firstOnPixel > 0) || (lastOnPixel < (charWidth - 2)))
-	    {
-	      if (firstOnPixel > lastOnPixel)
-		{
-		  // This has no pixels.  Probably a space character.  Give it
-		  // a width of approximately 1/5th the char width
-		  firstOnPixel = 0;
-		  lastOnPixel = ((charWidth / 5) - 1);
-		}
+  if (status < 0)
+    goto out;
 
-	      // We will strip bits from each row of the character image.  This
-	      // is a little bit of bit bashing.  The count2 counter counts
-	      // through all of the bits.  The count3 one only counts bits that
-	      // aren't being skipped, and sets/clears them.
-
-	      count3 = 0;
-	      for (count2 = 0; count2 < pixels; count2 ++)
-		{
-		  currentPixel = (count2 % charWidth);
-		  if ((currentPixel < firstOnPixel) ||
-		      (currentPixel > (lastOnPixel + 1)))
-		    // Skip this pixel.  It's from a column we're deleting.
-		    continue;
-		  
-		  if (((unsigned char *) newFont
-		       ->chars[count1].data)[count2 / 8] &
-		      (((unsigned char) 0x80) >> (count2 % 8)))
-		    // The bit is on
-		    ((unsigned char *) newFont
-		     ->chars[count1].data)[count3 / 8] |=
-		      (((unsigned char) 0x80) >> (count3 % 8));
-		  else
-		    // The bit is off
-		    ((unsigned char *) newFont
-		     ->chars[count1].data)[count3 / 8] &=
-		      ~(((unsigned char) 0x80) >> (count3 % 8));
-		  
-		  count3++;
-		}
-
-	      // Adjust the character image information
-	      newFont->chars[count1].width -=
-		(firstOnPixel + (((charWidth - 2) - lastOnPixel)));
-	      newFont->chars[count1].pixels =
-		(newFont->chars[count1].width * charHeight);
-	    }
-	}
-      // Finished with this character.
-    }	
-					    				    
-  // Release the memory from our composite font image
-  kernelMemoryRelease(fontImage.data);
+  strcpy((*pointer)->name, fontName);
 
   // Success.  Add the font to our list
-  fontList[numFonts++] = newFont;
+  fontList[numFonts++] = *pointer;
       
-  // Set the pointer to the new font.
-  *pointer = newFont;
+  // Success
+  status = 0;
 
-  // Return success
-  return (status = 0);
+ out:
+  if (fixedName)
+    kernelFree(fixedName);
+
+  return (status);
 } 
 
 
-int kernelFontGetPrintedWidth(kernelAsciiFont *font, const char *string)
+int kernelFontGetPrintedWidth(asciiFont *font, const char *string)
 {
   // This function takes a font pointer and a pointer to a string, and
   // calculates/returns the width of screen real-estate that the string
@@ -445,6 +376,7 @@ int kernelFontGetPrintedWidth(kernelAsciiFont *font, const char *string)
   
   int printedWidth = 0;
   int stringLength = 0;
+  unsigned idx = 0;
   int count;
 
   // Make sure we've been initialized
@@ -460,13 +392,16 @@ int kernelFontGetPrintedWidth(kernelAsciiFont *font, const char *string)
   // Loop through the characters of the string, adding up their individual
   // character widths
   for (count = 0; count < stringLength; count ++)
-    printedWidth += font->chars[((unsigned) string[count]) - 32].width;
+    {
+      idx = (unsigned char) string[count];
+      printedWidth += font->chars[idx].width;
+    }
 
   return (printedWidth);
 }
 
 
-int kernelFontGetWidth(kernelAsciiFont *font)
+int kernelFontGetWidth(asciiFont *font)
 {
   // Returns the character width of the supplied font.  Only useful when the
   // font is fixed-width.
@@ -482,7 +417,7 @@ int kernelFontGetWidth(kernelAsciiFont *font)
 }
 
 
-int kernelFontGetHeight(kernelAsciiFont *font)
+int kernelFontGetHeight(asciiFont *font)
 {
   // Returns the character height of the supplied font.
   

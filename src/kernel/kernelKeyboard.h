@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,11 +27,25 @@
 
 extern keyMap *kernelKeyMap;
 
+// An enum for 'special' keyboard events such as CTRL/ALT/DEL and anything
+// else we care about that isn't translatable into an ASCII code.
+typedef enum {
+  keyboardEvent_altPress,
+  keyboardEvent_altRelease,
+  keyboardEvent_altTab,
+  keyboardEvent_ctrlAltDel,
+  keyboardEvent_printScreen,
+  keyboardEvent_f1,
+  keyboardEvent_f2
+
+} kernelKeyboardEvent;
+
 // Functions exported by kernelKeyboard.c
 int kernelKeyboardInitialize(void);
-int kernelKeyboardGetMaps(char *, unsigned);
+int kernelKeyboardGetMap(keyMap *);
 int kernelKeyboardSetMap(const char *);
 int kernelKeyboardSetStream(stream *);
+int kernelKeyboardSpecial(kernelKeyboardEvent);
 int kernelKeyboardInput(int, int);
 
 #define _KERNELKEYBOARD_H

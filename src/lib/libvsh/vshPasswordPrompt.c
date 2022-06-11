@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -38,7 +38,7 @@ _X_ void vshPasswordPrompt(const char *prompt, char *buffer)
   
   while (!okay)
     {
-      printf(prompt);
+      printf("%s", prompt);
       
       // This loop grabs characters
       for (count = 0; count < 17; count ++)

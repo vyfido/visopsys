@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +21,10 @@
 
 // This contains functions for user programs to operate GUI components.
 
+#include <errno.h>
+#include <libintl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
 
@@ -35,10 +36,20 @@ typedef volatile struct {
 
 } callBack;
 
+int libwindow_initialized = 0;
+void libwindowInitialize(void);
+
 static callBack *callBacks = NULL;
 static volatile int numCallBacks = 0;
 static volatile int run = 0;
 static volatile int guiThreadPid = 0;
+
+
+void libwindowInitialize(void)
+{
+  bindtextdomain("libwindow", GETTEXT_LOCALEDIR_PREFIX);
+  libwindow_initialized = 1;
+}
 
 
 static void guiRun(void)
@@ -201,6 +212,8 @@ _X_ void windowGuiStop(void)
   
   if (guiThreadPid && (multitaskerGetCurrentProcessId() != guiThreadPid))
     multitaskerKillProcess(guiThreadPid, 0);
+
+  multitaskerYield();
 
   guiThreadPid = 0;
   

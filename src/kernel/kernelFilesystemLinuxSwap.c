@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -122,6 +122,8 @@ static int detect(kernelDisk *theDisk)
     {
       // Linux-swap
       strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
+      strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel,
+	      16);
       return (status = 1);
     }
   else
@@ -149,10 +151,10 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
       return (status = ERR_INVALID);
     }
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Formatting");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   // Get memory for the signature page
@@ -187,16 +189,16 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
   strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Syncing disk");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       prog->percentFinished = 100;
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   return (status = 0);
@@ -204,8 +206,8 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
 
 static int format(kernelDisk *theDisk, const char *type,
-		  const char *label __attribute((unused)),
-		  int longFormat __attribute((unused)), progress *prog)
+		  const char *label __attribute__((unused)),
+		  int longFormat __attribute__((unused)), progress *prog)
 {
   // This function does a basic format of a linux swap filesystem.
 
@@ -255,8 +257,20 @@ static int clobber(kernelDisk *theDisk)
 }
 
 
-static int resizeConstraints(kernelDisk *theDisk, unsigned *minSectors,
-			     unsigned *maxSectors)
+static uquad_t getFreeBytes(kernelDisk *theDisk __attribute__((unused)))
+{
+  // This function returns the amount of free disk space, in bytes,
+  // which is always zero.
+
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  return (0);
+}
+
+
+static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
+			     uquad_t *maxSectors)
 {
   // Return the minimum and maximum resize values
 
@@ -273,7 +287,7 @@ static int resizeConstraints(kernelDisk *theDisk, unsigned *minSectors,
 }
 
 
-static int resize(kernelDisk *theDisk, unsigned sectors, progress *prog)
+static int resize(kernelDisk *theDisk, uquad_t sectors, progress *prog)
 {
   // This is a dummy resize function, since all we do is format the disk
   // to the requested size
@@ -282,7 +296,7 @@ static int resize(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
   if (sectors > theDisk->numSectors)
     {
-      kernelError(kernel_error, "Resize value (%u) exceeds disk size (%u)",
+      kernelError(kernel_error, "Resize value (%llu) exceeds disk size (%llu)",
 		  sectors, theDisk->numSectors);
       return (status = ERR_RANGE);
     }
@@ -336,6 +350,7 @@ static int mount(kernelDisk *theDisk)
 
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
+  linuxSwapHeader *header = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -353,11 +368,11 @@ static int mount(kernelDisk *theDisk)
   physicalDisk = theDisk->physical;
 
   // Attach our new FS data
-  theDisk->filesystem.filesystemData = kernelMalloc(sizeof(linuxSwapHeader));
-  if (theDisk->filesystem.filesystemData == NULL)
+  header = kernelMalloc(sizeof(linuxSwapHeader));
+  if (header == NULL)
     return (status = ERR_MEMORY);
 
-  status = readSwapHeader(theDisk, theDisk->filesystem.filesystemData);
+  status = readSwapHeader(theDisk, header);
   if (status < 0)
     return (status);
 
@@ -365,11 +380,16 @@ static int mount(kernelDisk *theDisk)
   if (status < 0)
     return (status);
 
+  theDisk->filesystem.filesystemData = header;
+
+  // Get the label
+  strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel, 16);
+
   // Specify the filesystem block size
   theDisk->filesystem.blockSize = physicalDisk->sectorSize;
 
-  resizeConstraints(theDisk, (unsigned *) &theDisk->filesystem.minSectors,
-			     (unsigned *) &theDisk->filesystem.maxSectors);
+  resizeConstraints(theDisk, (uquad_t *) &theDisk->filesystem.minSectors,
+		    (uquad_t *) &theDisk->filesystem.maxSectors);
 
   // Read-only
   theDisk->filesystem.readOnly = 1;
@@ -406,18 +426,6 @@ static int unmount(kernelDisk *theDisk)
 }
 
 
-static unsigned getFree(kernelDisk *theDisk __attribute__((unused)))
-{
-  // This function returns the amount of free disk space, in bytes,
-  // which is always zero.
-
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
-  return (0);
-}
-
-
 static kernelFilesystemDriver defaultLinuxSwapDriver = {
   FSNAME_LINUXSWAP, // Driver name
   detect,
@@ -426,11 +434,11 @@ static kernelFilesystemDriver defaultLinuxSwapDriver = {
   NULL,  // driverCheck
   NULL,  // driverDefragment
   NULL,  // driverStat
+  getFreeBytes,
   resizeConstraints,
   resize,
   mount,
   unmount,
-  getFree,
   NULL,  // driverNewEntry
   NULL,  // driverInactiveEntry
   NULL,  // driverResolveLink
@@ -443,7 +451,8 @@ static kernelFilesystemDriver defaultLinuxSwapDriver = {
   NULL,  // driverWriteDir
   NULL,  // driverMakeDir
   NULL,  // driverRemoveDir
-  NULL   // driverTimestamp
+  NULL,  // driverTimestamp
+  NULL   // driverSetBlocks
 };
 
 

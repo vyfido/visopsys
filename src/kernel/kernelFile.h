@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -73,13 +73,13 @@ kernelFileEntry *kernelFileNewEntry(volatile struct _kernelDisk *);
 void kernelFileReleaseEntry(kernelFileEntry *);
 int kernelFileInsertEntry(kernelFileEntry *, kernelFileEntry *);
 int kernelFileRemoveEntry(kernelFileEntry *);
-int kernelFileGetFullName(kernelFileEntry *, char *);
+int kernelFileGetFullName(kernelFileEntry *, char *, int);
 kernelFileEntry *kernelFileLookup(const char *);
 kernelFileEntry *kernelFileResolveLink(kernelFileEntry *);
 int kernelFileCountDirEntries(kernelFileEntry *);
 int kernelFileMakeDotDirs(kernelFileEntry *, kernelFileEntry *);
 int kernelFileUnbufferRecursive(kernelFileEntry *);
-int kernelFileSetSize(kernelFileEntry *, unsigned);
+int kernelFileEntrySetSize(kernelFileEntry *, unsigned);
 int kernelFileSeparateLast(const char *, char *, char *);
 // More functions, but also exported to user space
 int kernelFileFixupPath(const char *, char *);
@@ -101,7 +101,9 @@ int kernelFileCopy(const char *, const char *);
 int kernelFileCopyRecursive(const char *, const char *);
 int kernelFileMove(const char *, const char *);
 int kernelFileTimestamp(const char *);
+int kernelFileSetSize(file *, unsigned);
 int kernelFileGetTemp(file *);
+int kernelFileGetFullPath(file *, char *, int);
 
 #define _KERNELFILE_H
 #endif

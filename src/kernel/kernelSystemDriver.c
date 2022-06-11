@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -225,7 +225,7 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
   int status = 0;
   void *biosArea = NULL;
   char *ptr = NULL;
-  kernelBios *dataStruct = NULL;
+  kernelBiosHeader *dataStruct = NULL;
   char checkSum = 0;
   kernelDevice *dev = NULL;
   int count;
@@ -237,11 +237,11 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
     return (status = 0);
 
   for (ptr = biosArea ; ptr < (char *) (biosArea + BIOSAREA_SIZE);
-       ptr += sizeof(kernelBios))
+       ptr += sizeof(kernelBiosHeader))
     {
       if (!strncmp(ptr, BIOSAREA_SIG, 4))
 	{
-	  dataStruct = (kernelBios *) ptr;
+	  dataStruct = (kernelBiosHeader *) ptr;
 	  break;
 	}
     }
@@ -250,14 +250,14 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
     goto out;
 
   // Check the checksum
-  for (count = 0; count < (int) sizeof(kernelBios); count ++)
+  for (count = 0; count < (int) sizeof(kernelBiosHeader); count ++)
     checkSum += ptr[count];
   if (checkSum)
     kernelLog("32-bit BIOS checksum failed (%d)", checkSum);
 
-  kernelLog("32-bit BIOS found at %08x, entry point %08x",
-	    (unsigned) (BIOSAREA_START + ((void *) dataStruct - biosArea)),
-	    (unsigned) dataStruct->entryPoint);
+  kernelLog("32-bit BIOS found at %p, entry point %p",
+	    (void *)(BIOSAREA_START + ((void *) dataStruct - biosArea)),
+	    dataStruct->entryPoint);
 
   // Allocate memory for the device
   dev = kernelMalloc(sizeof(kernelDevice));
@@ -268,12 +268,12 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
   dev->driver = driver;
 
   // Allocate memory for driver data
-  dev->data = kernelMalloc(sizeof(kernelBios));
+  dev->data = kernelMalloc(sizeof(kernelBiosHeader));
   if (dev->data == NULL)
     goto out;
 
   // Copy the data we found into the driver's data structure
-  kernelMemCopy(dataStruct, dev->data, sizeof(kernelBios));
+  kernelMemCopy(dataStruct, dev->data, sizeof(kernelBiosHeader));
 
   // Register the device
   status = kernelDeviceAdd(parent, dev);

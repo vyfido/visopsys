@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,6 +26,9 @@
 #include <sys/api.h>
 #include <sys/errors.h>
 
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
+
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -43,6 +46,9 @@ _X_ objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, c
   objectKey dialogWindow = NULL;
   componentParameters params;
   
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL))
     return (dialogWindow = NULL);

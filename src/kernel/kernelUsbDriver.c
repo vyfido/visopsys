@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -214,7 +214,7 @@ static int usbThreadId = 0;
 static void usbInterrupt(void)
 {
   // This is the USB interrupt handler.
- 
+
   usbController *controller = NULL;
   void *address = NULL;
   int interruptNum = 0;
@@ -236,9 +236,14 @@ static void usbInterrupt(void)
       if (controller->interruptNum == interruptNum)
 	{
 	  if (controller->interrupt)
-	    controller->interrupt(controller);
-	  
-	  break;
+	    {
+	      if (controller->interrupt(controller) != ERR_NODATA)
+		// Sometimes multiple controllers (even ones of different
+		// types) can share the same interrupt number.  If this wasn't
+		// the right controller, it will return the 'no data' error
+		// code.  Otherwise we're finished.
+		break;
+	    }
 	}
 
       controller = kernelLinkedListIterNext(&controllers);
@@ -807,15 +812,6 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 
   debugConfigDesc(usbDev->configDesc);
 
-  // Set the configuration
-  kernelDebug(debug_usb, "Set configuration for new device %d",
-	      usbDev->address);
-  status =
-    kernelUsbControlTransfer(usbDev, USB_SET_CONFIGURATION,
-			     usbDev->configDesc->confValue, 0, 0, NULL, NULL);
-  if (status < 0)
-    goto err_out;
-
   ptr = ((void *) usbDev->configDesc + usbDev->configDesc->descLength);
   for (count1 = 0; ((count1 < usbDev->configDesc->numInterfaces) &&
 		    (count1 < USB_MAX_INTERFACES)); )
@@ -866,6 +862,15 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 
       count1 += 1;
     }
+
+  // Set the configuration
+  kernelDebug(debug_usb, "Set configuration %d for new device %d",
+	      usbDev->configDesc->confValue, usbDev->address);
+  status =
+    kernelUsbControlTransfer(usbDev, USB_SET_CONFIGURATION,
+			     usbDev->configDesc->confValue, 0, 0, NULL, NULL);
+  if (status < 0)
+    goto err_out;
 
   // Ok, we will add this device.
 

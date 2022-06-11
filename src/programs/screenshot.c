@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,22 +43,33 @@ Currently only the uncompressed, 24-bit bitmap format is supported.
 </help>
 */
 
-#include <stdio.h>
 #include <errno.h>
+#include <libintl.h>
+#include <locale.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/api.h>
 #include <sys/window.h>
+
+#define _(string) gettext(string)
 
 
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   char fileName[MAX_PATH_NAME_LENGTH];
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("screenshot");
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
       errno = ERR_NOTINITIALIZED;
       return (status = errno);
     }
@@ -71,9 +82,9 @@ int main(int argc, char *argv[])
     {
       // Prompt for a file name
       status =
-	windowNewFileDialog(NULL, "Enter file name", "Please enter the file "
-			    "name to use:", NULL, fileName,
-			    MAX_PATH_NAME_LENGTH);
+	windowNewFileDialog(NULL, _("Enter file name"),
+			    _("Please enter the file name to use:"), NULL,
+			    fileName, MAX_PATH_NAME_LENGTH, 1);
       if (status != 1)
 	{
 	  errno = status;
@@ -87,8 +98,9 @@ int main(int argc, char *argv[])
   status = windowSaveScreenShot(fileName);
   if (status < 0)
     {
-      windowNewErrorDialog(NULL, "Error", "Couldn't save the screenshot.\n"
-			   "I'm sure it would have been nice.");
+      windowNewErrorDialog(NULL, _("Error"),
+			   _("Couldn't save the screenshot.\n"
+			     "I'm sure it would have been nice."));
       errno = status;
       perror(argv[0]);
     }

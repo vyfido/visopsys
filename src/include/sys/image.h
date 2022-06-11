@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,10 +35,26 @@
 
 #define MAXVIDEOMODES    20
 
+#define PIXELS_EQ(p1, p2)                                       \
+  (((p1)->red == (p2)->red) && ((p1)->green == (p2)->green) &&  \
+   ((p1)->blue == (p2)->blue))
+#define PIXEL_COPY(src, dest) do { \
+    (dest)->red = (src)->red;	   \
+    (dest)->green = (src)->green;  \
+    (dest)->blue = (src)->blue;	   \
+} while (0)
+
 // An enumeration for different drawing modes.
 typedef enum {
-  draw_normal, draw_reverse, draw_or, draw_xor, draw_translucent
+  draw_normal, draw_reverse, draw_or, draw_xor, draw_translucent,
+  draw_alphablend
+
 } drawMode;
+
+typedef enum {
+  shade_fromtop, shade_frombottom, shade_fromleft, shade_fromright
+
+} shadeType;
 
 // Structures for manipulating generic images.
 
@@ -46,12 +62,13 @@ typedef color pixel;
 
 typedef struct {
   int type;
-  color translucentColor;
+  color transColor;
   unsigned pixels;
   unsigned width;
   unsigned height;
   unsigned dataLength;
   void *data;
+  float *alpha;
 
 } image;
 

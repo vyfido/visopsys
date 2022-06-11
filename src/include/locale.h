@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -46,11 +46,14 @@ struct lconv {
 
 #define LC_COLLATE  0x01
 #define LC_CTYPE    0x02
-#define LC_MONETARY 0x04
-#define LC_NUMERIC  0x08
-#define LC_TIME     0x10
-#define LC_ALL      (LC_COLLATE & LC_CTYPE & LC_MONETARY & LC_NUMERIC & \
-                     LC_TIME)
+#define LC_MESSAGES 0x04
+#define LC_MONETARY 0x08
+#define LC_NUMERIC  0x10
+#define LC_TIME     0x20
+#define LC_ALL      (LC_COLLATE | LC_CTYPE | LC_MESSAGES | LC_MONETARY | \
+		     LC_NUMERIC | LC_TIME)
+
+char *setlocale(int, const char *);
 
 #define _LOCALE_H
 #endif

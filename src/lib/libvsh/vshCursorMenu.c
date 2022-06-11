@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,8 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/vsh.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
+#include <sys/vsh.h>
 
 
 _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defaultSelection)
@@ -37,6 +38,7 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
   char *buffer = NULL;
   int selectedOption = defaultSelection;
   textAttrs attrs;
+  char c = '\0';
   int count1, count2;
 
   // Check params
@@ -89,24 +91,24 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 
       printf("\n  [Cursor up/down to change, Enter to select, 'Q' to quit]\n");
       textInputSetEcho(0);
-      char c = getchar();
+      c = getchar();
       textInputSetEcho(1);
 
       switch(c)
 	{
-	case (unsigned char) 17:
+	case (char) ASCII_CRSRUP:
 	  // Cursor up.
 	  if (selectedOption > 0)
 	    selectedOption -= 1;
 	  break;
 
-	case (unsigned char) 20:
+	case (char) ASCII_CRSRDOWN:
 	  // Cursor down.
 	  if (selectedOption < (numItems - 1))
 	    selectedOption += 1;
 	  break;
 
-	case (unsigned char) 10:
+	case (char) ASCII_ENTER:
 	  // Enter
 	  textSetCursor(1);
 	  free(buffer);

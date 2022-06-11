@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,10 @@
 
 #include <sys/api.h>
 
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
+
+
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -40,6 +44,9 @@ _X_ void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
   int parentX = 0, parentY = 0;
   int myWidth = 0, myHeight = 0, parentWidth = 0, parentHeight = 0;
   int diffWidth, diffHeight;
+
+  if (!libwindow_initialized)
+    libwindowInitialize();
 
   if (parentWindow)
     {

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -244,7 +244,11 @@ loadDirectory:
 	cmp word [FSTYPE], FS_FAT32
 	jne .notFat32
 
+	;; Obviously I was intending to put something here for finding the
+	;; root directory sector here in FAT32?
+
 	.notFat32:
+	;; Add the partition starting sector if applicable
 	cmp word [DRIVENUMBER], 80h
 	jb .noOffset
 	add EAX, dword [PARTENTRY + 8]

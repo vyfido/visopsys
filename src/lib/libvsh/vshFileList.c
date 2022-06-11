@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -51,7 +51,7 @@ _X_ int vshFileList(const char *itemName)
     return (errno = status);
     
   // Get the bytes free for the filesystem
-  bytesFree = filesystemGetFree(theFile.filesystem);
+  bytesFree = filesystemGetFreeBytes(theFile.filesystem);
 
   // We do things differently depending upon whether the target is a 
   // file or a directory

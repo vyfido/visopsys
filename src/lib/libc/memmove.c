@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,6 +21,7 @@
 
 // This is the standard "memmove" function, as found in standard C libraries
 
+#include <errno.h>
 #include <string.h>
 
 
@@ -31,31 +32,33 @@ void *memmove(void *dest, const void *src, size_t len)
 
   size_t count = 0;
 
-  if (dest == src)
-    // ...Okay then...
-    return (dest);
-
-  // In case the memory areas overlap, we will copy the data differently
-  // depending on the position of the src and dest pointers
-  else if (dest < src)
+  if ((dest == NULL) || (src == NULL))
     {
-      for (count = 0; count < len; count ++)
-	((char *) dest)[count] = ((char *) src)[count];
+      errno = ERR_NULLPARAMETER;
+      return (dest);
     }
-  else
+
+  if (len)
     {
-      count = (len - 1);
-      while(1)
+      // In case the memory areas overlap, we will copy the data differently
+      // depending on the position of the src and dest pointers
+      if (dest < src)
 	{
-	  ((char *) dest)[count] = ((char *) src)[count];
+	  for (count = 0; count < len; count ++)
+	    ((char *) dest)[count] = ((char *) src)[count];
+	}
+      else if (dest > src)
+	{
+	  for (count = (len - 1); ; count --)
+	    {
+	      ((char *) dest)[count] = ((char *) src)[count];
 
-	  if (count == 0)
-	    break;
-
-	  count--;
+	      // Can't do this easily in the 'for' above because it's unsigned
+	      if (!count)
+		break;
+	    }
 	}
     }
-
       
   return (dest);
 }

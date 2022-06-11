@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -145,6 +145,9 @@ typedef struct {
   usbDevice *usbDev;
   usbUhciQueueHead *queueHead;
   usbUhciTransDesc *transDesc;
+  unsigned char endpoint;
+  int interval;
+  unsigned maxLen;
   void (*callback)(usbDevice *, void *, unsigned);
 
 } usbUhciInterruptReg;

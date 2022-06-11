@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,9 +23,12 @@
 
 #include "kernelMouse.h"
 #include "kernelError.h"
+#include "kernelFile.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
+#include "kernelMisc.h"
 #include "kernelMemory.h"
+#include "kernelMultitasker.h"
 #include "kernelWindow.h"
 #include <string.h>
 
@@ -62,7 +65,7 @@ static inline void draw(void)
     return;
   
   // Draw the mouse pointer
-  kernelGraphicDrawImage(NULL, &(currentPointer->pointerImage),
+  kernelGraphicDrawImage(NULL, &currentPointer->pointerImage,
 			 draw_translucent, mouseStatus.xPosition,
 			 mouseStatus.yPosition, 0, 0, 0, 0);
 }
@@ -118,11 +121,13 @@ int kernelMouseInitialize(void)
   char value[128];
   int count;
 
-  // When you load a mouse pointer it automatically switches to it, so load
-  // the 'busy' one last
+  // The list of default mouse pointers and their image files.
   char *mousePointerTypes[][2] = {
     { "default", MOUSE_DEFAULT_POINTER_DEFAULT },
-    { "busy", MOUSE_DEFAULT_POINTER_BUSY }
+    { "busy", MOUSE_DEFAULT_POINTER_BUSY },
+    { "resizeh", MOUSE_DEFAULT_POINTER_RESIZEH },
+    { "resizev", MOUSE_DEFAULT_POINTER_RESIZEV },
+    { NULL, NULL }
   };
 
   extern variableList *kernelVariables;
@@ -138,7 +143,7 @@ int kernelMouseInitialize(void)
   initialized = 1;
 
   // Load the mouse pointers
-  for (count = 0; count < 2; count ++)
+  for (count = 0; mousePointerTypes[count][0]; count ++)
     {
       strcpy(name, "mouse.pointer.");
       strcat(name, mousePointerTypes[count][0]);
@@ -147,11 +152,12 @@ int kernelMouseInitialize(void)
 	{
 	  // Nothing specified.  Use the default.
 	  strcpy(value, mousePointerTypes[count][1]);
+
 	  // Save it
 	  kernelVariableListSet(kernelVariables, name, value);
 	}
 
-      status = kernelMouseLoadPointer(mousePointerTypes[count][0],value);
+      status = kernelMouseLoadPointer(mousePointerTypes[count][0], value);
       if (status < 0)
 	kernelError(kernel_warn, "Unable to load mouse pointer %s=\"%s\"",
 		    name, value);
@@ -176,6 +182,7 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
 
   int status = 0;
   kernelMousePointer *newPointer = NULL;
+  image tmpImage;
   int pointerSlot = -1;
   
   // Make sure we've been initialized
@@ -186,25 +193,47 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   if ((pointerName == NULL) || (fileName == NULL))
     return (status = ERR_NULLPARAMETER);
 
+  kernelMemClear(&tmpImage, sizeof(image));
+
   newPointer = kernelMalloc(sizeof(kernelMousePointer));
   if (newPointer == NULL)
     return (status = ERR_MEMORY);
 
-  status = kernelImageLoad(fileName, 0, 0, &(newPointer->pointerImage));
+  // Does the image file exist?  If not, use the default.
+  if (kernelFileFind(fileName, NULL))
+    {
+      // Not found.  Try the default pointer name.
+      kernelLog("Mouse pointer \"%s\" image file %s not found.  Trying "
+		"default.", pointerName, fileName);
+      fileName = MOUSE_DEFAULT_POINTER_DEFAULT;
+
+      if (kernelFileFind(fileName, NULL))
+	{
+	  kernelError(kernel_error, "Error loading mouse pointer \"%s\" "
+		      "image %s", pointerName, fileName);
+	  return (status);
+	}
+    }
+
+  status = kernelImageLoad(fileName, 0, 0, &tmpImage);
   if (status < 0)
     {
-      kernelError(kernel_error, "Error loading mouse pointer image %s",
-		  pointerName);
+      kernelError(kernel_error, "Error loading mouse pointer \"%s\" image "
+		  "file %s", pointerName, fileName);
       return (status);
     }
+  
+  // Copy the image to kernel memory
+  kernelImageCopyToKernel(&tmpImage, &newPointer->pointerImage);
+  kernelImageFree(&tmpImage);
 
   // Save the name
   strncpy(newPointer->name, pointerName, MOUSE_POINTER_NAMELEN);
 
   // Mouse pointers are translucent, and the translucent color is pure green
-  newPointer->pointerImage.translucentColor.red = 0;
-  newPointer->pointerImage.translucentColor.green = 255;
-  newPointer->pointerImage.translucentColor.blue = 0;
+  newPointer->pointerImage.transColor.red = 0;
+  newPointer->pointerImage.transColor.green = 255;
+  newPointer->pointerImage.transColor.blue = 0;
 
   // Let's see whether this is a new pointer, or whether this will replace
   // an existing one
@@ -218,7 +247,7 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
 	{
 	  kernelError(kernel_error, "Can't exceed max number of mouse "
 		      "pointers (%d)", MOUSE_MAX_POINTERS);
-	  kernelMemoryRelease(newPointer->pointerImage.data);
+	  kernelImageFree(&newPointer->pointerImage);
 	  kernelFree(newPointer);
 	  return (status = ERR_BOUNDS);
 	}
@@ -228,7 +257,7 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   else
     {
       // Replace the existing pointer with this one
-      kernelMemoryRelease(pointerList[pointerSlot]->pointerImage.data);
+      kernelImageFree(&pointerList[pointerSlot]->pointerImage);
       kernelFree(pointerList[pointerSlot]);
       pointerList[pointerSlot] = newPointer;
     }
@@ -337,7 +366,6 @@ void kernelMouseMove(int xChange, int yChange)
   else if (mouseStatus.yPosition > (screenHeight - 3))
     mouseStatus.yPosition = (screenHeight - 3);
 
-  
   if (mouseStatus.button1 || mouseStatus.button2 || mouseStatus.button3)
     mouseStatus.eventMask = EVENT_MOUSE_DRAG;
   else
@@ -390,6 +418,31 @@ void kernelMouseButtonChange(int buttonNumber, int status)
     }
 
   // Tell the window manager
+  status2event(&event);
+  kernelWindowProcessEvent(&event);
+
+  return;
+}
+
+
+void kernelMouseScroll(int zChange)
+{
+  // The user is using the mouse scroll wheel
+
+  windowEvent event;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return;
+
+  if (zChange < 0)
+    mouseStatus.eventMask = EVENT_MOUSE_SCROLLUP;
+  else if (zChange > 0)
+    mouseStatus.eventMask = EVENT_MOUSE_SCROLLDOWN;
+  else
+    mouseStatus.eventMask = EVENT_MOUSE_SCROLL; // ??
+
+  // Tell the window manager, if it cares
   status2event(&event);
   kernelWindowProcessEvent(&event);
 

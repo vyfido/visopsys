@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,9 +39,8 @@ _X_ int vshDumpFile(const char *fileName)
   // Make sure file name isn't NULL
   if (fileName == NULL)
     return (errno = ERR_NULLPARAMETER);
-  
-  for (count = 0; count < sizeof(file); count ++)
-    ((char *) &theFile)[count] = NULL;
+
+  bzero(&theFile, sizeof(file));
 
   // Call the "find file" routine to see if we can get the first file
   status = fileFind(fileName, &theFile);

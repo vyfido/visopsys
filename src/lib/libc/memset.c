@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +24,6 @@
 // The description from the GNU man page reads as follows:
 // The  memset() function fills the first n bytes of the memory area pointed
 // to by s with the constant byte c. Returns a pointer to the memory area s.
-
 
 #include <string.h>
 #include <errno.h>

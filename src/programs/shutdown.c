@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,6 +54,8 @@ Options:
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,10 +63,12 @@ Options:
 #include <sys/api.h>
 #include <sys/window.h>
 
-#define EJECT_MESS     "Ejecting, please wait..."
-#define NOUNLOCK_MESS  "Unable to unlock the media door"
-#define NOEJECT_MESS   "Can't seem to eject.  Try pushing\nthe 'eject' " \
-                       "button now."
+#define _(string) gettext(string)
+
+#define EJECT_MESS     _("Ejecting, please wait...")
+#define NOUNLOCK_MESS  _("Unable to unlock the media door")
+#define NOEJECT_MESS   _("Can't seem to eject.  Try pushing\nthe 'eject' " \
+			 "button now.")
 
 static int graphics = 0;
 static int eject = 0;
@@ -82,9 +86,9 @@ static void doEject(void)
   objectKey bannerDialog = NULL;
 
   if (graphics)
-    bannerDialog = windowNewBannerDialog(window, "Ejecting", EJECT_MESS);
+    bannerDialog = windowNewBannerDialog(window, _("Ejecting"), EJECT_MESS);
   else
-    printf("\n"EJECT_MESS" ");
+    printf("\n%s ", EJECT_MESS);
 
   if (diskSetLockState(sysDisk.name, 0) < 0)
     {
@@ -93,10 +97,10 @@ static void doEject(void)
 	  if (bannerDialog)
 	    windowDestroy(bannerDialog);
       
-	  windowNewErrorDialog(window, "Error", NOUNLOCK_MESS);
+	  windowNewErrorDialog(window, _("Error"), NOUNLOCK_MESS);
 	}
       else
-	printf("\n\n"NOUNLOCK_MESS"\n");
+	printf("\n\n%s\n", NOUNLOCK_MESS);
     }
   else
     {
@@ -116,7 +120,7 @@ static void doEject(void)
 		  windowNewInfoDialog(window, "Hmm", NOEJECT_MESS);
 		}
 	      else
-		printf("\n\n"NOEJECT_MESS"\n");
+		printf("\n\n%s\n", NOEJECT_MESS);
 	    }
 	}
       else
@@ -175,7 +179,7 @@ static void constructWindow(void)
   image iconImage;
 
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(multitaskerGetCurrentProcessId(), "Shut down");
+  window = windowNew(multitaskerGetCurrentProcessId(), _("Shut down"));
   if (window == NULL)
     return;
 
@@ -188,25 +192,34 @@ static void constructWindow(void)
   params.padRight = 20;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
+  params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		  WINDOW_COMPFLAG_CUSTOMBACKGROUND |
+		  WINDOW_COMPFLAG_CANFOCUS);
+  params.foreground.red = 255;
+  params.foreground.green = 255;
+  params.foreground.blue = 255;
+  params.background.red = 35;
+  params.background.green = 60;
+  params.background.blue = 230;
 
   // Create a reboot icon
   bzero(&iconImage, sizeof(image));
-  if (!imageLoad("/system/icons/rebticon.bmp", 0, 0, &iconImage))
+  if (imageLoad("/system/icons/rebticon.bmp", 0, 0, &iconImage) >= 0)
     {
-      rebootIcon = windowNewIcon(window, &iconImage, "Reboot", &params);
+      rebootIcon = windowNewIcon(window, &iconImage, _("Reboot"), &params);
       windowRegisterEventHandler(rebootIcon, &eventHandler);
-      memoryRelease(iconImage.data);
+      imageFree(&iconImage);
     }
 
   // Create a shut down icon
   bzero(&iconImage, sizeof(image));
-  if (!imageLoad("/system/icons/shuticon.bmp", 0, 0, &iconImage))
+  if (imageLoad("/system/icons/shuticon.bmp", 0, 0, &iconImage) >= 0)
     {
       params.gridX = 1;
       shutdownIcon =
-	windowNewIcon(window, &iconImage, "Shut down", &params);
+	windowNewIcon(window, &iconImage, _("Shut down"), &params);
       windowRegisterEventHandler(shutdownIcon, &eventHandler);
-      memoryRelease(iconImage.data);
+      imageFree(&iconImage);
     }
 
   // Find out whether we are currently running from a CD-ROM
@@ -217,21 +230,13 @@ static void constructWindow(void)
       params.gridY = 1;
       params.gridWidth = 2;
       params.padTop = 0;
-      params.flags |= WINDOW_COMPFLAG_CUSTOMFOREGROUND;
-      params.foreground.red = 255;
-      params.foreground.green = 255;
-      params.foreground.blue = 255;
-      params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
-      params.background.red = 40;
-      params.background.green = 93;
-      params.background.blue = 171;
-      ejectCheckbox = windowNewCheckbox(window, "Eject CD-ROM", &params);
+      ejectCheckbox = windowNewCheckbox(window, _("Eject CD-ROM"), &params);
     }
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
 
-  windowSetColors(window, &((color){ 171, 93, 40}));
+  windowSetBackgroundColor(window, &params.background);
   windowSetVisible(window, 1);
 
   return;
@@ -241,8 +246,15 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   char opt;
   int force = 0;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("shutdown");
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -292,7 +304,7 @@ int main(int argc, char *argv[])
       if (status < 0)
 	{
 	  if (!force)
-	    printf("Use \"%s -f\" to force.\n", argv[0]);
+	    printf(_("Use \"%s -f\" to force.\n"), argv[0]);
 	  return (status);
 	}
 

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,5 +39,5 @@ long ftell(FILE *theStream)
   if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
     return (errno = ERR_NOTAFILE);
 
-  return ((theStream->block * theStream->f.blockSize) + theStream->s.last);
+  return (theStream->offset);
 }

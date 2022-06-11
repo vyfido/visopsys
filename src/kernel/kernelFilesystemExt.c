@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -188,6 +188,10 @@ static extInternalData *getExtData(kernelDisk *theDisk)
 
   // Attach our new FS data to the filesystem structure
   theDisk->filesystem.filesystemData = (void *) extData;
+
+  // The volume label
+  strncpy((char *) theDisk->filesystem.label,
+	  (char *) extData->superblock.volume_name, 16);
 
   // Specify the filesystem block size
   theDisk->filesystem.blockSize = extData->blockSize;
@@ -681,6 +685,7 @@ static int detect(kernelDisk *theDisk)
     {
       // EXT
       strcpy((char *) theDisk->fsType, FSNAME_EXT);
+      strncpy((char *) theDisk->filesystem.label, superblock.volume_name, 16);
       return (status = 1);
     }
   else
@@ -747,7 +752,7 @@ static inline void setBitmap(unsigned char *bitmap, int idx, int onOff)
 
 
 static int format(kernelDisk *theDisk, const char *type, const char *label,
-		  int longFormat __attribute((unused)), progress *prog)
+		  int longFormat __attribute__((unused)), progress *prog)
 {
   // This function does a basic format of an EXT2 filesystem.
 
@@ -794,10 +799,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       return (status = ERR_INVALID);
     }
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Calculating parameters");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   // Clear memory
@@ -834,7 +839,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   superblock.first_ino = EXT_GOOD_OLD_FIRST_INODE;
   superblock.inode_size = EXT_GOOD_OLD_INODE_SIZE;
   superblock.feature_ro_compat = EXT_ROCOMPAT_SPARSESUPER;
-  kernelGuidGenerate((kernelGuid *) &superblock.uuid);
+  kernelGuidGenerate((guid *) &superblock.uuid);
   if (label)
     strncpy(superblock.volume_name, label, 16);
 
@@ -862,10 +867,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if ((groupDescs == NULL) || (bitmaps == NULL) || (inodeTable == NULL))
     return (status = ERR_MEMORY);
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Creating group descriptors");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   // Create the group descriptors
@@ -916,10 +921,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       superblock.free_inodes_count += groupDescs[count1].free_inodes_count;
     }
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Writing block groups");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   // Clear/write the blocks of all control sectors, block groups, etc
@@ -1016,20 +1021,20 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
 			     (inodeTableBlocks * sectsPerBlock), inodeTable);
 
-      if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+      if (prog && (kernelLockGet(&prog->progLock) >= 0))
 	{
 	  prog->percentFinished = ((count1 * 100) / blockGroups);
-	  kernelLockRelease(&(prog->lock));
+	  kernelLockRelease(&prog->progLock);
 	}
     }
 
   kernelFree(groupDescs);
   kernelFree(bitmaps);
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Initializing inodes");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   // Create the root inode
@@ -1061,10 +1066,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 			 ((3 + groupDescBlocks) * sectsPerBlock),
 			 sectsPerBlock, inodeTable);
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Creating directories");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   // Create the root directory
@@ -1130,10 +1135,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   strcpy((char *) theDisk->fsType, FSNAME_EXT"2");
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       strcpy((char *) prog->statusMessage, "Syncing disk");
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   kernelLog("Format: Type: %s  Total blocks: %u  Bytes per block: %u  "
@@ -1142,10 +1147,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	    (blockSize / physicalDisk->sectorSize),
 	    superblock.blocks_per_group, blockGroups);
 
-  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
     {
       prog->percentFinished = 100;
-      kernelLockRelease(&(prog->lock));
+      kernelLockRelease(&prog->progLock);
     }
 
   return (status = 0);
@@ -1178,6 +1183,31 @@ static int clobber(kernelDisk *theDisk)
 
   status = writeSuperblock(theDisk, &superblock);
   return (status);
+}
+
+
+static uquad_t getFreeBytes(kernelDisk *theDisk)
+{
+  // This function returns the amount of free disk space, in bytes.
+
+  extInternalData *extData = NULL;
+
+  if (!initialized)
+    return (0);
+
+  // Check params
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "NULL disk structure");
+      return (0);
+    }
+
+  // Get the EXT data for the requested filesystem
+  extData = getExtData(theDisk);
+  if (extData == NULL)
+    return (0);
+  
+  return (extData->superblock.free_blocks_count * extData->blockSize);
 }
 
 
@@ -1261,31 +1291,6 @@ static int unmount(kernelDisk *theDisk)
   theDisk->filesystem.filesystemData = NULL;
 
   return (status = 0);
-}
-
-
-static unsigned getFreeBytes(kernelDisk *theDisk)
-{
-  // This function returns the amount of free disk space, in bytes.
-
-  extInternalData *extData = NULL;
-
-  if (!initialized)
-    return (0);
-
-  // Check params
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "NULL disk structure");
-      return (0);
-    }
-
-  // Get the EXT data for the requested filesystem
-  extData = getExtData(theDisk);
-  if (extData == NULL)
-    return (0);
-  
-  return (extData->superblock.free_blocks_count * extData->blockSize);
 }
 
 
@@ -1440,7 +1445,8 @@ static int resolveLink(kernelFileEntry *linkEntry)
   if (fileName[0] != '/')
     {
       char tmpPath[MAX_PATH_LENGTH];
-      kernelFileGetFullName(linkEntry->parentDirectory, tmpPath);
+      kernelFileGetFullName(linkEntry->parentDirectory, tmpPath,
+			    MAX_PATH_LENGTH);
       sprintf(tmpName, "%s/%s", tmpPath, fileName);
       kernelFileFixupPath(tmpName, fileName);
     }
@@ -1555,11 +1561,11 @@ static kernelFilesystemDriver defaultExtDriver = {
   NULL,  // driverCheck
   NULL,  // driverDefragment
   NULL,  // driverStat
+  getFreeBytes,
   NULL,  // driverResizeConstraints
   NULL,  // driverResize
   mount,
   unmount,
-  getFreeBytes,
   newEntry,
   inactiveEntry,
   resolveLink,
@@ -1572,7 +1578,8 @@ static kernelFilesystemDriver defaultExtDriver = {
   NULL,  // driverWriteDir
   NULL,  // driverMakeDir
   NULL,  // driverRemoveDir
-  NULL   // driverTimestamp
+  NULL,  // driverTimestamp
+  NULL   // driverSetBlocks
 };
 
 

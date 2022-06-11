@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,6 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argCount, char *a
   // Desc: Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argCount' will receive the number of argument pointers placed in the 'args' array.  Returns 0 on success, negative otherwise.
 
   int status = 0;
-  file theFile;
   int count;
 
   // Check params
@@ -102,8 +101,7 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argCount, char *a
     vshMakeAbsolutePath(args[0], command);
 
   // Can we find the file with the name, "as is"?
-  bzero(&theFile, sizeof(file));
-  status = fileFind(command, &theFile);
+  status = fileFind(command, NULL);
   if (status < 0)
     {
       // Not found in the current directory.  Try to search the PATH for

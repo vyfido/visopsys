@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -49,16 +49,19 @@ void *_calloc(size_t, size_t, const char *);
 void exit(int) __attribute__((noreturn));
 void _free(void *, const char *);
 #define free(ptr) _free(ptr, __FUNCTION__)
+char *getenv(const char *);
 long int labs(long int);
 void *_malloc(size_t, const char *);
 #define malloc(size) _malloc(size, __FUNCTION__)
 int mbtowc(wchar_t *, const char *, size_t);
 size_t mbstowcs(wchar_t *dest, const char *src, size_t n);
 int rand(void);
+#define random() rand()
 void *_realloc(void *, size_t, const char *);
 #define realloc(ptr, size) _realloc(ptr, size, __FUNCTION__)
 char *realpath(const char *, char *);
 void srand(unsigned int);
+#define srandom(arg) srand(arg)
 int system(const char *);
 int wctomb(char *, wchar_t);
 
@@ -71,6 +74,8 @@ int wctomb(char *, wchar_t);
 // paradigm.
 #define atou(string) ((unsigned) _str2num(string, 10, 0))
 #define atoull(string) _str2num(string, 10, 0)
+#define dtoa(num, string, round) _dbl2str(num, string, round)
+#define ftoa(num, string) _flt2str(num, string, round)
 #define itoa(num, string) _num2str(num, string, 10, 1)
 #define itoux(num, string) _num2str(num, string, 16, 0)
 #define itox(num, string) _num2str(num, string, 16, 1)

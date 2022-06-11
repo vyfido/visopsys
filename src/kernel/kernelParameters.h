@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,6 +29,8 @@
 // Reserved memory blocks at boot time
 #define VIDEO_MEMORY              0x000A0000
 #define VIDEO_MEMORY_SIZE         0x00020000
+#define VIDEO_BIOS_MEMORY         0x000C0000
+#define VIDEO_BIOS_MEMORY_SIZE    0x00010000
 #define KERNEL_LOAD_ADDRESS       0x00100000
 #define KERNEL_PAGING_DATA_SIZE   0x00004000
 

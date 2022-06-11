@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -42,7 +42,9 @@
 #include <sys/device.h>
 #include <sys/disk.h>
 #include <sys/file.h>
+#include <sys/guid.h>
 #include <sys/image.h>
+#include <sys/keyboard.h>
 #include <sys/loader.h>
 #include <sys/lock.h>
 #include <sys/memory.h>
@@ -130,16 +132,20 @@ extern int visopsys_in_kernel;
 #define _fnum_diskGetAll                             2008
 #define _fnum_diskGetAllPhysical                     2009
 #define _fnum_diskGetFilesystemType                  2010
-#define _fnum_diskGetPartType                        2011
-#define _fnum_diskGetPartTypes                       2012
-#define _fnum_diskSetFlags                           2013
-#define _fnum_diskSetLockState                       2014
-#define _fnum_diskSetDoorState                       2015
-#define _fnum_diskGetMediaState                      2016
-#define _fnum_diskReadSectors                        2017
-#define _fnum_diskWriteSectors                       2018
-#define _fnum_diskEraseSectors                       2019
-#define _fnum_diskGetStats                           2020
+#define _fnum_diskGetMsdosPartType                   2011
+#define _fnum_diskGetMsdosPartTypes                  2012
+#define _fnum_diskGetGptPartType                     2013
+#define _fnum_diskGetGptPartTypes                    2014
+#define _fnum_diskSetFlags                           2015
+#define _fnum_diskSetLockState                       2016
+#define _fnum_diskSetDoorState                       2017
+#define _fnum_diskGetMediaState                      2018
+#define _fnum_diskReadSectors                        2019
+#define _fnum_diskWriteSectors                       2020
+#define _fnum_diskEraseSectors                       2021
+#define _fnum_diskGetStats                           2022
+#define _fnum_diskRamDiskCreate                      2023
+#define _fnum_diskRamDiskDestroy                     2024
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -150,7 +156,7 @@ extern int visopsys_in_kernel;
 #define _fnum_filesystemResize                       3005
 #define _fnum_filesystemMount                        3006
 #define _fnum_filesystemUnmount                      3007
-#define _fnum_filesystemGetFree                      3008
+#define _fnum_filesystemGetFreeBytes                 3008
 #define _fnum_filesystemGetBlockSize                 3009
 
 // File functions.  All are in the 4000-4999 range.
@@ -173,26 +179,27 @@ extern int visopsys_in_kernel;
 #define _fnum_fileCopyRecursive                      4016
 #define _fnum_fileMove                               4017
 #define _fnum_fileTimestamp                          4018
-#define _fnum_fileGetTemp                            4019
-#define _fnum_fileStreamOpen                         4020
-#define _fnum_fileStreamSeek                         4021
-#define _fnum_fileStreamRead                         4022
-#define _fnum_fileStreamReadLine                     4023
-#define _fnum_fileStreamWrite                        4024
-#define _fnum_fileStreamWriteStr                     4025
-#define _fnum_fileStreamWriteLine                    4026
-#define _fnum_fileStreamFlush                        4027
-#define _fnum_fileStreamClose                        4028
+#define _fnum_fileSetSize                            4019
+#define _fnum_fileGetTemp                            4020
+#define _fnum_fileGetFullPath                        4021
+#define _fnum_fileStreamOpen                         4022
+#define _fnum_fileStreamSeek                         4023
+#define _fnum_fileStreamRead                         4024
+#define _fnum_fileStreamReadLine                     4025
+#define _fnum_fileStreamWrite                        4026
+#define _fnum_fileStreamWriteStr                     4027
+#define _fnum_fileStreamWriteLine                    4028
+#define _fnum_fileStreamFlush                        4029
+#define _fnum_fileStreamClose                        4030
+#define _fnum_fileStreamGetTemp                      4031
 
 // Memory manager functions.  All are in the 5000-5999 range.
 #define _fnum_memoryGet                              5000
-#define _fnum_memoryGetPhysical                      5001
-#define _fnum_memoryRelease                          5002
-#define _fnum_memoryReleaseAllByProcId               5003
-#define _fnum_memoryChangeOwner                      5004
-#define _fnum_memoryGetStats                         5005
-#define _fnum_memoryGetBlocks                        5006
-#define _fnum_memoryBlockInfo                        5007
+#define _fnum_memoryRelease                          5001
+#define _fnum_memoryReleaseAllByProcId               5002
+#define _fnum_memoryGetStats                         5003
+#define _fnum_memoryGetBlocks                        5004
+#define _fnum_memoryBlockInfo                        5005
 
 // Multitasker functions.  All are in the 6000-6999 range.
 #define _fnum_multitaskerCreateProcess               6000
@@ -225,6 +232,7 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerSignalRead                  6027
 #define _fnum_multitaskerGetIOPerm                   6028
 #define _fnum_multitaskerSetIOPerm                   6029
+#define _fnum_multitaskerStackTrace                  6030
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
@@ -234,8 +242,11 @@ extern int visopsys_in_kernel;
 #define _fnum_loaderCheckCommand                     7004
 #define _fnum_loaderLoadProgram                      7005
 #define _fnum_loaderLoadLibrary                      7006
-#define _fnum_loaderExecProgram                      7007
-#define _fnum_loaderLoadAndExec                      7008
+#define _fnum_loaderGetLibrary                       7007
+#define _fnum_loaderLinkLibrary                      7008
+#define _fnum_loaderGetSymbol                        7009
+#define _fnum_loaderExecProgram                      7010
+#define _fnum_loaderLoadAndExec                      7011
 
 // Real-time clock functions.  All are in the 8000-8999 range.
 #define _fnum_rtcReadSeconds                         8000
@@ -253,6 +264,7 @@ extern int visopsys_in_kernel;
 #define _fnum_randomFormatted                        9001
 #define _fnum_randomSeededUnformatted                9002
 #define _fnum_randomSeededFormatted                  9003
+#define _fnum_randomBytes                            9004
 
 // Environment functions.  All are in the 10000-10999 range.
 #define _fnum_environmentGet                         10000
@@ -269,18 +281,16 @@ extern int visopsys_in_kernel;
 #define _fnum_graphicGetScreenHeight                 11005
 #define _fnum_graphicCalculateAreaBytes              11006
 #define _fnum_graphicClearScreen                     11007
-#define _fnum_graphicGetColor                        11008
-#define _fnum_graphicSetColor                        11009
-#define _fnum_graphicDrawPixel                       11010
-#define _fnum_graphicDrawLine                        11011
-#define _fnum_graphicDrawRect                        11012
-#define _fnum_graphicDrawOval                        11013
-#define _fnum_graphicDrawImage                       11014
-#define _fnum_graphicGetImage                        11015
-#define _fnum_graphicDrawText                        11016
-#define _fnum_graphicCopyArea                        11017
-#define _fnum_graphicClearArea                       11018
-#define _fnum_graphicRenderBuffer                    11019
+#define _fnum_graphicDrawPixel                       11008
+#define _fnum_graphicDrawLine                        11009
+#define _fnum_graphicDrawRect                        11010
+#define _fnum_graphicDrawOval                        11011
+#define _fnum_graphicGetImage                        11012
+#define _fnum_graphicDrawImage                       11013
+#define _fnum_graphicDrawText                        11014
+#define _fnum_graphicCopyArea                        11015
+#define _fnum_graphicClearArea                       11016
+#define _fnum_graphicRenderBuffer                    11017
 
 // Windowing system functions.  All are in the 12000-12999 range
 #define _fnum_windowLogin                            12000
@@ -302,57 +312,61 @@ extern int visopsys_in_kernel;
 #define _fnum_windowSetResizable                     12016
 #define _fnum_windowRemoveMinimizeButton             12017
 #define _fnum_windowRemoveCloseButton                12018
-#define _fnum_windowSetColors                        12019
-#define _fnum_windowSetVisible                       12020
-#define _fnum_windowSetMinimized                     12021 
-#define _fnum_windowAddConsoleTextArea               12022
-#define _fnum_windowRedrawArea                       12023
-#define _fnum_windowDrawAll                          12024
-#define _fnum_windowResetColors                      12025
-#define _fnum_windowProcessEvent                     12026
-#define _fnum_windowComponentEventGet                12027
-#define _fnum_windowTileBackground                   12028
-#define _fnum_windowCenterBackground                 12029
-#define _fnum_windowScreenShot                       12030
-#define _fnum_windowSaveScreenShot                   12031
-#define _fnum_windowSetTextOutput                    12032
-#define _fnum_windowLayout                           12033
-#define _fnum_windowDebugLayout                      12034
-#define _fnum_windowContextAdd                       12035
-#define _fnum_windowContextSet                       12036
-#define _fnum_windowSwitchPointer                    12037
-#define _fnum_windowComponentDestroy                 12038
-#define _fnum_windowComponentSetVisible              12039
-#define _fnum_windowComponentSetEnabled              12040
-#define _fnum_windowComponentGetWidth                12041
-#define _fnum_windowComponentSetWidth                12042
-#define _fnum_windowComponentGetHeight               12043
-#define _fnum_windowComponentSetHeight               12044
-#define _fnum_windowComponentFocus                   12045
-#define _fnum_windowComponentDraw                    12046
-#define _fnum_windowComponentGetData                 12047
-#define _fnum_windowComponentSetData                 12048
-#define _fnum_windowComponentGetSelected             12049
-#define _fnum_windowComponentSetSelected             12050
-#define _fnum_windowNewButton                        12051
-#define _fnum_windowNewCanvas                        12052
-#define _fnum_windowNewCheckbox                      12053
-#define _fnum_windowNewContainer                     12054
-#define _fnum_windowNewIcon                          12055
-#define _fnum_windowNewImage                         12056
-#define _fnum_windowNewList                          12057
-#define _fnum_windowNewListItem                      12058
-#define _fnum_windowNewMenu                          12059
-#define _fnum_windowNewMenuBar                       12060
-#define _fnum_windowNewMenuItem                      12061
-#define _fnum_windowNewPasswordField                 12062
-#define _fnum_windowNewProgressBar                   12063
-#define _fnum_windowNewRadioButton                   12064
-#define _fnum_windowNewScrollBar                     12065
-#define _fnum_windowNewSlider                        12066
-#define _fnum_windowNewTextArea                      12067
-#define _fnum_windowNewTextField                     12068
-#define _fnum_windowNewTextLabel                     12069
+#define _fnum_windowSetVisible                       12019
+#define _fnum_windowSetMinimized                     12020 
+#define _fnum_windowAddConsoleTextArea               12021
+#define _fnum_windowRedrawArea                       12022
+#define _fnum_windowDrawAll                          12023
+#define _fnum_windowGetColor                         12024
+#define _fnum_windowSetColor                         12025
+#define _fnum_windowResetColors                      12026
+#define _fnum_windowProcessEvent                     12027
+#define _fnum_windowComponentEventGet                12028
+#define _fnum_windowSetBackgroundColor               12029
+#define _fnum_windowTileBackground                   12030
+#define _fnum_windowCenterBackground                 12031
+#define _fnum_windowScreenShot                       12032
+#define _fnum_windowSaveScreenShot                   12033
+#define _fnum_windowSetTextOutput                    12034
+#define _fnum_windowLayout                           12035
+#define _fnum_windowDebugLayout                      12036
+#define _fnum_windowContextAdd                       12037
+#define _fnum_windowContextSet                       12038
+#define _fnum_windowSwitchPointer                    12039
+#define _fnum_windowComponentDestroy                 12040
+#define _fnum_windowComponentSetVisible              12041
+#define _fnum_windowComponentSetEnabled              12042
+#define _fnum_windowComponentGetWidth                12043
+#define _fnum_windowComponentSetWidth                12044
+#define _fnum_windowComponentGetHeight               12045
+#define _fnum_windowComponentSetHeight               12046
+#define _fnum_windowComponentFocus                   12047
+#define _fnum_windowComponentUnfocus                 12048
+#define _fnum_windowComponentDraw                    12049
+#define _fnum_windowComponentGetData                 12050
+#define _fnum_windowComponentSetData                 12051
+#define _fnum_windowComponentGetSelected             12052
+#define _fnum_windowComponentSetSelected             12053
+#define _fnum_windowNewButton                        12054
+#define _fnum_windowNewCanvas                        12055
+#define _fnum_windowNewCheckbox                      12056
+#define _fnum_windowNewContainer                     12057
+#define _fnum_windowNewDivider                       12058
+#define _fnum_windowNewIcon                          12059
+#define _fnum_windowNewImage                         12060
+#define _fnum_windowNewList                          12061
+#define _fnum_windowNewListItem                      12062
+#define _fnum_windowNewMenu                          12063
+#define _fnum_windowNewMenuBar                       12064
+#define _fnum_windowNewMenuItem                      12065
+#define _fnum_windowNewPasswordField                 12066
+#define _fnum_windowNewProgressBar                   12067
+#define _fnum_windowNewRadioButton                   12068
+#define _fnum_windowNewScrollBar                     12069
+#define _fnum_windowNewSlider                        12070
+#define _fnum_windowNewTextArea                      12071
+#define _fnum_windowNewTextField                     12072
+#define _fnum_windowNewTextLabel                     12073
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -393,2513 +407,464 @@ extern int visopsys_in_kernel;
 #define _fnum_fontGetPrintedWidth                    99003
 #define _fnum_fontGetWidth                           99004
 #define _fnum_fontGetHeight                          99005
-#define _fnum_imageLoad                              99006
-#define _fnum_imageSave                              99007
-#define _fnum_shutdown                               99008
-#define _fnum_getVersion                             99009
-#define _fnum_systemInfo                             99010
-#define _fnum_encryptMD5                             99011
-#define _fnum_lockGet                                99012
-#define _fnum_lockRelease                            99013
-#define _fnum_lockVerify                             99014
-#define _fnum_variableListCreate                     99015
-#define _fnum_variableListDestroy                    99016
-#define _fnum_variableListGet                        99017
-#define _fnum_variableListSet                        99018
-#define _fnum_variableListUnset                      99019
-#define _fnum_configurationReader                    99020
-#define _fnum_configurationWriter                    99021
-#define _fnum_keyboardGetMaps                        99022
-#define _fnum_keyboardSetMap                         99023
-#define _fnum_deviceTreeGetCount                     99024
-#define _fnum_deviceTreeGetRoot                      99025
-#define _fnum_deviceTreeGetChild                     99026
-#define _fnum_deviceTreeGetNext                      99027
-#define _fnum_mouseLoadPointer                       99028
-
-// For convenience
-#define syscall_0(fnum, arg...) _syscall(fnum, 0, ##arg)
-#define syscall_1(fnum, arg...) _syscall(fnum, 1, ##arg)
-#define syscall_2(fnum, arg...) _syscall(fnum, 2, ##arg)
-#define syscall_3(fnum, arg...) _syscall(fnum, 3, ##arg)
-#define syscall_4(fnum, arg...) _syscall(fnum, 4, ##arg)
-#define syscall_5(fnum, arg...) _syscall(fnum, 5, ##arg)
-#define syscall_6(fnum, arg...) _syscall(fnum, 6, ##arg)
-#define syscall_7(fnum, arg...) _syscall(fnum, 7, ##arg)
-#define syscall_8(fnum, arg...) _syscall(fnum, 8, ##arg)
-#define syscall_9(fnum, arg...) _syscall(fnum, 9, ##arg)
-
-
-// These inline functions are used to call specific kernel functions.  
-// There will be one of these for every API function.
+#define _fnum_imageNew                               99006
+#define _fnum_imageFree                              99007
+#define _fnum_imageLoad                              99008
+#define _fnum_imageSave                              99009
+#define _fnum_imageResize                            99010
+#define _fnum_imageCopy                              99011
+#define _fnum_shutdown                               99012
+#define _fnum_getVersion                             99013
+#define _fnum_systemInfo                             99014
+#define _fnum_encryptMD5                             99015
+#define _fnum_lockGet                                99016
+#define _fnum_lockRelease                            99017
+#define _fnum_lockVerify                             99018
+#define _fnum_variableListCreate                     99019
+#define _fnum_variableListDestroy                    99020
+#define _fnum_variableListGet                        99021
+#define _fnum_variableListSet                        99022
+#define _fnum_variableListUnset                      99023
+#define _fnum_configRead                             99024
+#define _fnum_configWrite                            99025
+#define _fnum_configGet                              99026
+#define _fnum_configSet                              99027
+#define _fnum_configUnset                            99028
+#define _fnum_guidGenerate                           99029
+#define _fnum_crc32                                  99030
+#define _fnum_keyboardGetMap                         99031
+#define _fnum_keyboardSetMap                         99032
+#define _fnum_deviceTreeGetCount                     99033
+#define _fnum_deviceTreeGetRoot                      99034
+#define _fnum_deviceTreeGetChild                     99035
+#define _fnum_deviceTreeGetNext                      99036
+#define _fnum_mouseLoadPointer                       99037
+#define _fnum_pageGetPhysical                        99038
+#define _fnum_setLicensed                            99039
 
 
 //
 // Text input/output functions
 //
-
-_X_ static inline objectKey textGetConsoleInput(void)
-{
-  // Proto: kernelTextInputStream *kernelTextGetConsoleInput(void);
-  // Desc : Returns a reference to the console input stream.  This is where keyboard input goes by default.
-  return ((objectKey) syscall_0(_fnum_textGetConsoleInput));
-}
-
-_X_ static inline int textSetConsoleInput(objectKey newStream)
-{
-  // Proto: int kernelTextSetConsoleInput(kernelTextInputStream *);
-  // Desc : Changes the console input stream.  GUI programs can use this function to redirect input to a text area or text field, for example.
-  return (syscall_1(_fnum_textSetConsoleInput, newStream));
-}
-
-_X_ static inline objectKey textGetConsoleOutput(void)
-{
-  // Proto: kernelTextOutputStream *kernelTextGetConsoleOutput(void);
-  // Desc : Returns a reference to the console output stream.  This is where kernel logging output goes by default.
-  return ((objectKey) syscall_0(_fnum_textGetConsoleOutput));
-}
-
-_X_ static inline int textSetConsoleOutput(objectKey newStream)
-{
-  // Proto: int kernelTextSetConsoleOutput(kernelTextOutputStream *);
-  // Desc : Changes the console output stream.  GUI programs can use this function to redirect output to a text area or text field, for example.
-  return (syscall_1(_fnum_textSetConsoleOutput, newStream));
-}
-
-_X_ static inline objectKey textGetCurrentInput(void)
-{
-  // Proto: kernelTextInputStream *kernelTextGetCurrentInput(void);
-  // Desc : Returns a reference to the input stream of the current process.  This is where standard input (for example, from a getc() call) is received.
-  return ((objectKey) syscall_0(_fnum_textGetCurrentInput));
-}
-
-_X_ static inline int textSetCurrentInput(objectKey newStream)
-{
-  // Proto: int kernelTextSetCurrentInput(kernelTextInputStream *);
-  // Desc : Changes the current input stream.  GUI programs can use this function to redirect input to a text area or text field, for example.
-  return (syscall_1(_fnum_textSetCurrentInput, newStream));
-}
-
-_X_ static inline objectKey textGetCurrentOutput(void)
-{
-  // Proto: kernelTextOutputStream *kernelTextGetCurrentOutput(void);
-  // Desc : Returns a reference to the console output stream.
-  return ((objectKey) syscall_0(_fnum_textGetCurrentOutput));
-}
-
-_X_ static inline int textSetCurrentOutput(objectKey newStream)
-{
-  // Proto: int kernelTextSetCurrentOutput(kernelTextOutputStream *);
-  // Desc : Changes the current output stream.  This is where standard output (for example, from a putc() call) goes.
-  return (syscall_1(_fnum_textSetCurrentOutput, newStream));
-}
-
-_X_ static inline int textGetForeground(color *foreground)
-{
-  // Proto: int kernelTextGetForeground(color *);
-  // Desc : Return the current foreground color in the color structure 'foreground'.
-  return (syscall_1(_fnum_textGetForeground, foreground));
-}
-
-_X_ static inline int textSetForeground(color *foreground)
-{
-  // Proto: int kernelTextSetForeground(color *);
-  // Desc : Set the current foreground color to the one represented in the color structure 'foreground'.  Some standard color values (as in PC text-mode values) can be found in <sys/color.h>.
-  return (syscall_1(_fnum_textSetForeground, foreground));
-}
-
-_X_ static inline int textGetBackground(color *background)
-{
-  // Proto: int kernelTextGetBackground(color *);
-  // Desc : Return the current background color in the color structure 'background'.
-  return (syscall_1(_fnum_textGetBackground, background));
-}
-
-_X_ static inline int textSetBackground(color *background)
-{
-  // Proto: int kernelTextSetBackground(color *);
-  // Desc : Set the current background color to the one represented in the color structure 'background'.  Some standard color values (as in PC text-mode values) can be found in <sys/color.h>.
-  return (syscall_1(_fnum_textSetBackground, background));
-}
-
-_X_ static inline int textPutc(int ascii)
-{
-  // Proto: int kernelTextPutc(int);
-  // Desc : Print a single character
-  return (syscall_1(_fnum_textPutc, (void*)ascii));
-}
-
-_X_ static inline int textPrint(const char *str)
-{
-  // Proto: int kernelTextPrint(const char *);
-  // Desc : Print a string
-  return (syscall_1(_fnum_textPrint, (void *) str));
-}
-
-_X_ static inline int textPrintAttrs(textAttrs *attrs, const char *str)
-{
-  // Proto: int kernelTextPrintAttrs(textAttrs *, const char *, ...);
-  // Desc : Print a string, with attributes.  See <sys/text.h> for the definition of the textAttrs structure.
-  return (syscall_2(_fnum_textPrintAttrs, attrs, (void *) str));
-}
-
-_X_ static inline int textPrintLine(const char *str)
-{
-  // Proto: int kernelTextPrintLine(const char *);
-  // Desc : Print a string with a newline at the end
-  return (syscall_1(_fnum_textPrintLine, (void *) str));
-}
-
-_X_ static inline void textNewline(void)
-{
-  // Proto: void kernelTextNewline(void);
-  // Desc : Print a newline
-  syscall_0(_fnum_textNewline);
-}
-
-_X_ static inline int textBackSpace(void)
-{
-  // Proto: void kernelTextBackSpace(void);
-  // Desc : Backspace the cursor, deleting any character there
-  return (syscall_0(_fnum_textBackSpace));
-}
-
-_X_ static inline int textTab(void)
-{
-  // Proto: void kernelTextTab(void);
-  // Desc : Print a tab
-  return (syscall_0(_fnum_textTab));
-}
-
-_X_ static inline int textCursorUp(void)
-{
-  // Proto: void kernelTextCursorUp(void);
-  // Desc : Move the cursor up one row.  Doesn't affect any characters there.
-  return (syscall_0(_fnum_textCursorUp));
-}
-
-_X_ static inline int textCursorDown(void)
-{
-  // Proto: void kernelTextCursorDown(void);
-  // Desc : Move the cursor down one row.  Doesn't affect any characters there.
-  return (syscall_0(_fnum_textCursorDown));
-}
-
-_X_ static inline int textCursorLeft(void)
-{
-  // Proto: void kernelTextCursorLeft(void);
-  // Desc : Move the cursor left one column.  Doesn't affect any characters there.
-  return (syscall_0(_fnum_ternelTextCursorLeft));
-}
-
-_X_ static inline int textCursorRight(void)
-{
-  // Proto: void kernelTextCursorRight(void);
-  // Desc : Move the cursor right one column.  Doesn't affect any characters there.
-  return (syscall_0(_fnum_textCursorRight));
-}
-
-_X_ static inline int textEnableScroll(int enable)
-{
-  // Proto: int kernelTextEnableScroll(int);
-  // Desc : Enable or disable screen scrolling for the current text output stream
-  return (syscall_1(_fnum_textEnableScroll, (void *) enable));
-}
-
-_X_ static inline void textScroll(int upDown)
-{
-  // Proto: void kernelTextScroll(int upDown)
-  // Desc : Scroll the current text area up 'upDown' screenfulls, if negative, or down 'upDown' screenfulls, if positive.
-  syscall_1(_fnum_textScroll, (void *) upDown);
-}
-
-_X_ static inline int textGetNumColumns(void)
-{
-  // Proto: int kernelTextGetNumColumns(void);
-  // Desc : Get the total number of columns in the text area.
-  return (syscall_0(_fnum_textGetNumColumns));
-}
-
-_X_ static inline int textGetNumRows(void)
-{
-  // Proto: int kernelTextGetNumRows(void);
-  // Desc : Get the total number of rows in the text area.
-  return (syscall_0(_fnum_textGetNumRows));
-}
-
-_X_ static inline int textGetColumn(void)
-{
-  // Proto: int kernelTextGetColumn(void);
-  // Desc : Get the number of the current column.  Zero-based.
-  return (syscall_0(_fnum_textGetColumn));
-}
-
-_X_ static inline void textSetColumn(int c)
-{
-  // Proto: void kernelTextSetColumn(int);
-  // Desc : Set the number of the current column.  Zero-based.  Doesn't affect any characters there.
-  syscall_1(_fnum_textSetColumn, (void *) c);
-}
-
-_X_ static inline int textGetRow(void)
-{
-  // Proto: int kernelTextGetRow(void);
-  // Desc : Get the number of the current row.  Zero-based.
-  return (syscall_0(_fnum_textGetRow));
-}
-
-_X_ static inline void textSetRow(int r)
-{
-  // Proto: void kernelTextSetRow(int);
-  // Desc : Set the number of the current row.  Zero-based.  Doesn't affect any characters there.
-  syscall_1(_fnum_textSetRow, (void *) r);
-}
-
-_X_ static inline void textSetCursor(int on)
-{
-  // Proto: void kernelTextSetCursor(int);
-  // Desc : Turn the cursor on (1) or off (0)
-  syscall_1(_fnum_textSetCursor, (void *) on);
-}
-
-_X_ static inline int textScreenClear(void)
-{
-  // Proto: void kernelTextScreenClear(void);
-  // Desc : Erase all characters in the text area and set the row and column to (0, 0)
-  return (syscall_0(_fnum_textScreenClear));
-}
-
-_X_ static inline int textScreenSave(textScreen *screen)
-{
-  // Proto: int kernelTextScreenSave(textScreen *);
-  // Desc : Save the current screen in the supplied structure.  Use with the textScreenRestore function.
-  return (syscall_1(_fnum_textScreenSave, screen));
-}
-
-_X_ static inline int textScreenRestore(textScreen *screen)
-{
-  // Proto: int kernelTextScreenRestore(textScreen *);
-  // Desc : Restore the screen previously saved in the structure with the textScreenSave function
-  return (syscall_1(_fnum_textScreenRestore, screen));
-}
-
-_X_ static inline int textInputStreamCount(objectKey strm)
-{
-  // Proto: int kernelTextInputStreamCount(kernelTextInputStream *);
-  // Desc : Get the number of characters currently waiting in the specified input stream
-  return (syscall_1(_fnum_textInputStreamCount, strm));
-}
-
-_X_ static inline int textInputCount(void)
-{
-  // Proto: int kernelTextInputCount(void);
-  // Desc : Get the number of characters currently waiting in the current input stream
-  return (syscall_0(_fnum_textInputCount));
-}
-
-_X_ static inline int textInputStreamGetc(objectKey strm, char *cp)
-{
-  // Proto: int kernelTextInputStreamGetc(kernelTextInputStream *, char *);
-  // Desc : Get one character from the specified input stream (as an integer value).
-  return (syscall_2(_fnum_textInputStreamGetc, strm, cp));
-}
-
-_X_ static inline int textInputGetc(char *cp)
-{
-  // Proto: char kernelTextInputGetc(void);
-  // Desc : Get one character from the default input stream (as an integer value).
-  return (syscall_1(_fnum_textInputGetc, cp));
-}
-
-_X_ static inline int textInputStreamReadN(objectKey strm, int num, char *buff)
-{
-  // Proto: int kernelTextInputStreamReadN(kernelTextInputStream *, int, char *);
-  // Desc : Read up to 'num' characters from the specified input stream into 'buff'
-  return (syscall_3(_fnum_textInputStreamReadN, strm, (void *) num, buff));
-}
-
-_X_ static inline int textInputReadN(int num, char *buff)
-{
-  // Proto: int kernelTextInputReadN(int, char *);
-  // Desc : Read up to 'num' characters from the default input stream into 'buff'
-  return (syscall_2(_fnum_textInputReadN, (void *)num, buff));
-}
-
-_X_ static inline int textInputStreamReadAll(objectKey strm, char *buff)
-{
-  // Proto: int kernelTextInputStreamReadAll(kernelTextInputStream *, char *);
-  // Desc : Read all of the characters from the specified input stream into 'buff'
-  return (syscall_2(_fnum_textInputStreamReadAll, strm, buff));
-}
-
-_X_ static inline int textInputReadAll(char *buff)
-{
-  // Proto: int kernelTextInputReadAll(char *);
-  // Desc : Read all of the characters from the default input stream into 'buff'
-  return (syscall_1(_fnum_textInputReadAll, buff));
-}
-
-_X_ static inline int textInputStreamAppend(objectKey strm, int ascii)
-{
-  // Proto: int kernelTextInputStreamAppend(kernelTextInputStream *, int);
-  // Desc : Append a character (as an integer value) to the end of the specified input stream.
-  return (syscall_2(_fnum_textInputStreamAppend, strm, (void *) ascii));
-}
-
-_X_ static inline int textInputAppend(int ascii)
-{
-  // Proto: int kernelTextInputAppend(int);
-  // Desc : Append a character (as an integer value) to the end of the default input stream.
-  return (syscall_1(_fnum_textInputAppend, (void *) ascii));
-}
-
-_X_ static inline int textInputStreamAppendN(objectKey strm, int num, char *str)
-{
-  // Proto: int kernelTextInputStreamAppendN(kernelTextInputStream *, int, char *);
-  // Desc : Append 'num' characters to the end of the specified input stream from 'str'
-  return (syscall_3(_fnum_textInputStreamAppendN, strm, (void *) num, str));
-}
-
-_X_ static inline int textInputAppendN(int num, char *str)
-{
-  // Proto: int kernelTextInputAppendN(int, char *);
-  // Desc : Append 'num' characters to the end of the default input stream from 'str'
-  return (syscall_2(_fnum_textInputAppendN, (void *) num, str));
-}
-
-_X_ static inline int textInputStreamRemove(objectKey strm)
-{
-  // Proto: int kernelTextInputStreamRemove(kernelTextInputStream *);
-  // Desc : Remove one character from the start of the specified input stream.
-  return (syscall_1(_fnum_textInputStreamRemove, strm));
-}
-
-_X_ static inline int textInputRemove(void)
-{
-  // Proto: int kernelTextInputRemove(void);
-  // Desc : Remove one character from the start of the default input stream.
-  return (syscall_0(_fnum_textInputRemove));
-}
-
-_X_ static inline int textInputStreamRemoveN(objectKey strm, int num)
-{
-  // Proto: int kernelTextInputStreamRemoveN(kernelTextInputStream *, int);
-  // Desc : Remove 'num' characters from the start of the specified input stream.
-  return (syscall_2(_fnum_textInputStreamRemoveN, strm, (void *) num));
-}
-
-_X_ static inline int textInputRemoveN(int num)
-{
-  // Proto: int kernelTextInputRemoveN(int);
-  // Desc : Remove 'num' characters from the start of the default input stream.
-  return (syscall_1(_fnum_textInputRemoveN, (void *) num));
-}
-
-_X_ static inline int textInputStreamRemoveAll(objectKey strm)
-{
-  // Proto: int kernelTextInputStreamRemoveAll(kernelTextInputStream *);
-  // Desc : Empty the specified input stream.
-  return (syscall_1(_fnum_textInputStreamRemoveAll, strm));
-}
-
-_X_ static inline int textInputRemoveAll(void)
-{
-  // Proto: int kernelTextInputRemoveAll(void);
-  // Desc : Empty the default input stream.
-  return (syscall_0(_fnum_textInputRemoveAll));
-}
-
-_X_ static inline void textInputStreamSetEcho(objectKey strm, int onOff)
-{
-  // Proto: void kernelTextInputStreamSetEcho(kernelTextInputStream *, int);
-  // Desc : Set echo on (1) or off (0) for the specified input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.
-  syscall_2(_fnum_textInputStreamSetEcho, strm, (void *) onOff);
-}
-
-_X_ static inline void textInputSetEcho(int onOff)
-{
-  // Proto: void kernelTextInputSetEcho(int);
-  // Desc : Set echo on (1) or off (0) for the default input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.
-  syscall_1(_fnum_textInputSetEcho, (void *) onOff);
-}
-
+objectKey textGetConsoleInput(void);
+int textSetConsoleInput(objectKey);
+objectKey textGetConsoleOutput(void);
+int textSetConsoleOutput(objectKey);
+objectKey textGetCurrentInput(void);
+int textSetCurrentInput(objectKey);
+objectKey textGetCurrentOutput(void);
+int textSetCurrentOutput(objectKey);
+int textGetForeground(color *);
+int textSetForeground(color *);
+int textGetBackground(color *);
+int textSetBackground(color *);
+int textPutc(int);
+int textPrint(const char *);
+int textPrintAttrs(textAttrs *, const char *);
+int textPrintLine(const char *);
+void textNewline(void);
+int textBackSpace(void);
+int textTab(void);
+int textCursorUp(void);
+int textCursorDown(void);
+int textCursorLeft(void);
+int textCursorRight(void);
+int textEnableScroll(int);
+void textScroll(int);
+int textGetNumColumns(void);
+int textGetNumRows(void);
+int textGetColumn(void);
+void textSetColumn(int);
+int textGetRow(void);
+void textSetRow(int);
+void textSetCursor(int);
+int textScreenClear(void);
+int textScreenSave(textScreen *);
+int textScreenRestore(textScreen *);
+int textInputStreamCount(objectKey);
+int textInputCount(void);
+int textInputStreamGetc(objectKey, char *);
+int textInputGetc(char *);
+int textInputStreamReadN(objectKey, int, char *);
+int textInputReadN(int, char *);
+int textInputStreamReadAll(objectKey, char *);
+int textInputReadAll(char *);
+int textInputStreamAppend(objectKey, int);
+int textInputAppend(int);
+int textInputStreamAppendN(objectKey, int, char *);
+int textInputAppendN(int, char *);
+int textInputStreamRemove(objectKey);
+int textInputRemove(void);
+int textInputStreamRemoveN(objectKey, int);
+int textInputRemoveN(int);
+int textInputStreamRemoveAll(objectKey);
+int textInputRemoveAll(void);
+void textInputStreamSetEcho(objectKey, int);
+void textInputSetEcho(int);
 
 // 
 // Disk functions
 //
-
-_X_ static inline int diskReadPartitions(const char *name)
-{
-  // Proto: int kernelDiskReadPartitions(const char *);
-  // Desc : Tells the kernel to (re)read the partition table of disk 'name'.
-  return (syscall_1(_fnum_diskReadPartitions, name));
-}
-
-_X_ static inline int diskReadPartitionsAll(void)
-{
-  // Proto: int kernelDiskReadPartitionsAll(void);
-  // Desc : Tells the kernel to (re)read all the disks' partition tables.
-  return (syscall_0(_fnum_diskReadPartitionsAll));
-}
-
-_X_ static inline int diskSync(const char *name)
-{
-  // Proto: int kernelDiskSync(const char *);
-  // Desc : Tells the kernel to synchronize  the named disk, flushing any output.
-    return (syscall_1(_fnum_diskSync, name));
-}
-
-_X_ static inline int diskSyncAll(void)
-{
-  // Proto: int kernelDiskSyncAll(void);
-  // Desc : Tells the kernel to synchronize all the disks, flushing any output.
-  return (syscall_0(_fnum_diskSyncAll));
-}
-
-_X_ static inline int diskGetBoot(char *name)
-{
-  // Proto: int kernelDiskGetBoot(char *)
-  // Desc : Get the disk name of the boot device.  Normally this will contain the root filesystem.
-  return (syscall_1(_fnum_diskGetBoot, name));
-}
-
-_X_ static inline int diskGetCount(void)
-{
-  // Proto: int kernelDiskGetCount(void);
-  // Desc : Get the number of logical disk volumes recognized by the system
-  return (syscall_0(_fnum_diskGetCount));
-}
-
-_X_ static inline int diskGetPhysicalCount(void)
-{
-  // Proto: int kernelDiskGetPhysicalCount(void);
-  // Desc : Get the number of physical disk devices recognized by the system
-  return (syscall_0(_fnum_diskGetPhysicalCount));
-}
-
-_X_ static inline int diskGet(const char *name, disk *userDisk)
-{
-  // Proto: int kernelDiskGet(const char *, disk *);
-  // Desc : Given a disk name string 'name', fill in the corresponding user space disk structure 'userDisk.
-  return(syscall_2(_fnum_diskGet, (void *) name, userDisk));
-}
-
-_X_ static inline int diskGetAll(disk *userDiskArray, unsigned buffSize)
-{
-  // Proto: int kernelDiskGetAll(disk *, unsigned);
-  // Desc : Return user space disk structures in 'userDiskArray' for each logical disk, up to 'buffSize' bytes.
-  return(syscall_2(_fnum_diskGetAll, userDiskArray, (void *) buffSize));
-}
-
-_X_ static inline int diskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
-{
-  // Proto: int kernelDiskGetAllPhysical(disk *, unsigned);
-  // Desc : Return user space disk structures in 'userDiskArray' for each physical disk, up to 'buffSize' bytes.
-  return(syscall_2(_fnum_diskGetAllPhysical, userDiskArray,
-		   (void *) buffSize));
-}
-
-_X_ static inline int diskGetFilesystemType(const char *name, char *buf, unsigned bufSize)
-{
-  // Proto: int kernelDiskGetFilesystemType(const char *, char *, unsigned);
-  // Desc : This function attempts to explicitly detect the filesystem type on disk 'name', and copy up to 'bufSize' bytes of the filesystem type name into 'buf'.  Particularly useful for things like removable media where the correct info may not be automatically provided in the disk structure.
-  return (syscall_3(_fnum_diskGetFilesystemType, (void *) name, buf,
-		    (void *) bufSize));
-}
-
-_X_ static inline int diskGetPartType(int code, partitionType *p)
-{
-  // Proto: int kernelDiskGetPartType(int, partitionType *);
-  // Desc : Gets the partition type data for the corresponding code.  This function was added specifically by use by programs such as 'fdisk' to get descriptions of different types known to the kernel.
-  return (syscall_2(_fnum_diskGetPartType, (void *) code, p));
-}
-
-_X_ static inline partitionType *diskGetPartTypes(void)
-{
-  // Proto: partitionType *kernelDiskGetPartTypes(void);
-  // Desc : Like diskGetPartType(), but returns a pointer to a list of all known types.  The memory is allocated dynamically and should be deallocated with a call to memoryRelease()
-  return ((partitionType *) syscall_0(_fnum_diskGetPartTypes));
-}
-
-_X_ static inline int diskSetFlags(const char *name, unsigned flags, int set)
-{
-  // Proto: int kernelDiskSetFlags(const char *, unsigned, int);
-  // Desc : Set or clear the (user-settable) disk flags bits in 'flags' of the disk 'name'.
-  return (syscall_3(_fnum_diskSetFlags, (void *) name, (void *) flags,
-		    (void *) set));
-}
-
-_X_ static inline int diskSetLockState(const char *name, int state)
-{
-  // Proto: int kernelDiskSetLockState(const char *diskName, int state);
-  // Desc : Set the locked state of the disk 'name' to either unlocked (0) or locked (1)
-  return (syscall_2(_fnum_diskSetLockState, (void *) name, (void *) state));
-}
-
-_X_ static inline int diskSetDoorState(const char *name, int state)
-{
-  // Proto: int kernelDiskSetDoorState(const char *, int);
-  // Desc : Open (1) or close (0) the disk 'name'.  May require a unlocking the door first, see diskSetLockState().
-  return (syscall_2(_fnum_diskSetDoorState, (void *) name, (void *) state));
-}
-
-_X_ static inline int diskGetMediaState(const char *diskName)
-{
-  // Proto: int kernelDiskGetMediaState(const char *diskName)
-  // Desc : Returns 1 if the removable disk 'diskName' is known to have media present.
-  return (syscall_1(_fnum_diskGetMediaState, (void *) diskName));
-}
-
-_X_ static inline int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
-{
-  // Proto: int kernelDiskReadSectors(const char *, unsigned, unsigned, void *)
-  // Desc : Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege.
-  return (syscall_4(_fnum_diskReadSectors, (void *) name, (void *) sect,
-		    (void *) count, buf));
-}
-
-_X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned count, const void *buf)
-{
-  // Proto: int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *)
-  // Desc : Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege.
-  return (syscall_4(_fnum_diskWriteSectors, (void *) name, (void *) sect,
-		    (void *) count, (void *) buf));
-}
-
-_X_ static inline int diskEraseSectors(const char *name, unsigned sect, unsigned count, int passes)
-{
-  // Proto: int kernelDiskEraseSectors(const char *, unsigned, unsigned, int);
-  // Desc : Synchronously and securely erases disk sectors.  It writes ('passes' - 1) successive passes of random data followed by a final pass of NULLs, to disk 'name' starting at (zero-based) logical sector number 'sect'.  This function requires supervisor privilege.
-  return (syscall_4(_fnum_diskEraseSectors, (void *) name, (void *) sect,
-		    (void *) count, (void *) passes));
-}
-
-_X_ static inline int diskGetStats(const char *name, diskStats *stats)
-{
-  // Proto: int kernelDiskGetStats(const char *, diskStats *);
-  // Desc: Return performance stats about the disk 'name' (if non-NULL,
-  // otherwise about all the disks combined).
-  return (syscall_2(_fnum_diskGetStats, (void *) name, stats));
-}
-
+int diskReadPartitions(const char *);
+int diskReadPartitionsAll(void);
+int diskSync(const char *);
+int diskSyncAll(void);
+int diskGetBoot(char *);
+int diskGetCount(void);
+int diskGetPhysicalCount(void);
+int diskGet(const char *, disk *);
+int diskGetAll(disk *, unsigned);
+int diskGetAllPhysical(disk *, unsigned);
+int diskGetFilesystemType(const char *, char *, unsigned);
+int diskGetMsdosPartType(int, msdosPartType *);
+msdosPartType *diskGetMsdosPartTypes(void);
+int diskGetGptPartType(guid *, gptPartType *);
+gptPartType *diskGetGptPartTypes(void);
+int diskSetFlags(const char *, unsigned, int);
+int diskSetLockState(const char *, int);
+int diskSetDoorState(const char *, int);
+int diskGetMediaState(const char *);
+int diskReadSectors(const char *, uquad_t, uquad_t, void *);
+int diskWriteSectors(const char *, uquad_t, uquad_t, const void *);
+int diskEraseSectors(const char *, uquad_t, uquad_t, int);
+int diskGetStats(const char *, diskStats *);
+int diskRamDiskCreate(unsigned, char *);
+int diskRamDiskDestroy(const char *);
 
 //
 // Filesystem functions
 //
-
-_X_ static inline int filesystemFormat(const char *theDisk, const char *type, const char *label, int longFormat, progress *prog)
-{
-  // Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int, progress *);
-  // Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
-  return (syscall_5(_fnum_filesystemFormat, (void *) theDisk, (void *) type,
-		    (void *) label, (void *) longFormat, (void *) prog));
-}
-
-_X_ static inline int filesystemClobber(const char *theDisk)
-{
-  // Proto: int kernelFilesystemClobber(const char *);
-  // Desc : Clobber all known filesystem types on the logical volume 'theDisk'.  It is optional for filesystem drivers to implement this function.
-  return (syscall_1(_fnum_filesystemClobber, (void *) theDisk));
-}
-
-_X_ static inline int filesystemCheck(const char *name, int force, int repair, progress *prog)
-{
-  // Proto: int kernelFilesystemCheck(const char *, int, int, progress *)
-  // Desc : Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
-  return (syscall_4(_fnum_filesystemCheck, (void *) name, (void *) force,
-		    (void *) repair, (void *) prog));
-}
-
-_X_ static inline int filesystemDefragment(const char *name, progress *prog)
-{
-  // Proto: int kernelFilesystemDefragment(const char *, progress *)
-  // Desc : Defragment the filesystem on disk 'name'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
-  return (syscall_2(_fnum_filesystemDefragment, (void *) name, (void *) prog));
-}
-
-_X_ static inline int filesystemResizeConstraints(const char *name, unsigned *minBlocks, unsigned *maxBlocks)
-{
-  // Proto: int kernelFilesystemResizeConstraints(const char *, unsigned *, unsigned *);
-  // Desc : Get the minimum ('minBlocks') and maximum ('maxBlocks') number of blocks for a filesystem resize on disk 'name'.  It is optional for filesystem drivers to implement this function.
-  return (syscall_3(_fnum_filesystemResizeConstraints, (void *) name,
-		    (void *) minBlocks, (void *) maxBlocks));
-}
-
-_X_ static inline int filesystemResize(const char *name, unsigned blocks, progress *prog)
-{
-  // Proto: int kernelFilesystemResize(const char *, unsigned, progress *);
-  // Desc : Resize the filesystem on disk 'name' to the given number of blocks 'blocks'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
-  return (syscall_3(_fnum_filesystemResize, (void *) name, (void *) blocks,
-		    (void *) prog));
-}
-
-_X_ static inline int filesystemMount(const char *name, const char *mp)
-{
-  // Proto: int kernelFilesystemMount(const char *, const char *)
-  // Desc : Mount the filesystem on disk 'name', using the mount point specified by the absolute pathname 'mp'.  Note that no file or directory called 'mp' should exist, as the mount function will expect to be able to create it.
-  return (syscall_2(_fnum_filesystemMount, (void *) name, (void *) mp));
-}
-
-_X_ static inline int filesystemUnmount(const char *mp)
-{
-  // Proto: int kernelFilesystemUnmount(const char *);
-  // Desc : Unmount the filesystem mounted represented by the mount point 'fs'.
-  return (syscall_1(_fnum_filesystemUnmount, (void *)mp));
-}
-
-_X_ static inline int filesystemGetFree(const char *fs)
-{
-  // Proto: unsigned kernelFilesystemGetFree(const char *);
-  // Desc : Returns the amount of free space on the filesystem represented by the mount point 'fs'.
-  return (syscall_1(_fnum_filesystemGetFree, (void *) fs));
-}
-
-_X_ static inline unsigned filesystemGetBlockSize(const char *fs)
-{
-  // Proto: unsigned kernelFilesystemGetBlockSize(const char *);
-  // Desc : Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.
-  return (syscall_1(_fnum_filesystemGetBlockSize, (void *) fs));
-}
-
+int filesystemFormat(const char *, const char *, const char *, int,
+		     progress *);
+int filesystemClobber(const char *);
+int filesystemCheck(const char *, int, int, progress *);
+int filesystemDefragment(const char *, progress *);
+int filesystemResizeConstraints(const char *, uquad_t *, uquad_t *);
+int filesystemResize(const char *, uquad_t, progress *);
+int filesystemMount(const char *, const char *);
+int filesystemUnmount(const char *);
+uquad_t filesystemGetFreeBytes(const char *);
+unsigned filesystemGetBlockSize(const char *);
 
 //
 // File functions
 //
-
-_X_ static inline int fileFixupPath(const char *orig, char *new)
-{
-  // Proto: int kernelFileFixupPath(const char *, char *);
-  // Desc : Take the absolute pathname in 'orig' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
-  return (syscall_2(_fnum_fileFixupPath, (void *) orig, new));
-}
-
-_X_ static inline int fileGetDisk(const char *path, disk *d)
-{
-  // Proto: int kernelFileGetDisk(const char *, disk *);
-  // Desc : Given the file name 'path', return the user space structure for the logical disk that the file resides on.
-  return (syscall_2(_fnum_fileGetDisk, (void *) path, (void *) d));
-}
-
-_X_ static inline int fileCount(const char *path)
-{
-  // Proto: int kernelFileCount(const char *);
-  // Desc : Get the count of file entries from the directory referenced by 'path'.
-  return (syscall_1(_fnum_fileCount, (void *) path));
-}
-
-_X_ static inline int fileFirst(const char *path, file *f)
-{
-  // Proto: int kernelFileFirst(const char *, file *);
-  // Desc : Get the first file from the directory referenced by 'path'.  Put the information in the file structure 'f'.
-  return (syscall_2(_fnum_fileFirst, (void *) path, (void *) f));
-}
-
-_X_ static inline int fileNext(const char *path, file *f)
-{
-  // Proto: int kernelFileNext(const char *, file *);
-  // Desc : Get the next file from the directory referenced by 'path'.  'f' should be a file structure previously filled by a call to either fileFirst() or fileNext().
-  return (syscall_2(_fnum_fileNext, (void *) path, (void *) f));
-}
-
-_X_ static inline int fileFind(const char *name, file *f)
-{
-  // Proto: int kernelFileFind(const char *, kernelFile *);
-  // Desc : Find the file referenced by 'name', and fill the file data structure 'f' with the results if successful.
-  return (syscall_2(_fnum_fileFind, (void *) name, (void *) f));
-}
-
-_X_ static inline int fileOpen(const char *name, int mode, file *f)
-{
-  // Proto: int kernelFileOpen(const char *, int, file *);
-  // Desc : Open the file referenced by 'name' using the file open mode 'mode' (defined in <sys/file.h>).  Update the file data structure 'f' if successful.
-  return (syscall_3(_fnum_fileOpen, (void *) name, (void *) mode, 
-		    (void *) f));
-}
-
-_X_ static inline int fileClose(file *f)
-{
-  // Proto: int kernelFileClose(const char *, file *);
-  // Desc : Close the previously opened file 'f'.
-  return (syscall_1(_fnum_fileClose, (void *) f));
-}
-
-_X_ static inline int fileRead(file *f, unsigned blocknum, unsigned blocks, void *buff)
-{
-  // Proto: int kernelFileRead(file *, unsigned int, unsigned int, void *);
-  // Desc : Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
-  return (syscall_4(_fnum_fileRead, (void *) f, (void *) blocknum, 
-		    (void *) blocks, buff));
-}
-
-_X_ static inline int fileWrite(file *f, unsigned blocknum, unsigned blocks, void *buff)
-{
-  // Proto: int kernelFileWrite(file *, unsigned, unsigned, void *);
-  // Desc : Write data to the previously opened file 'f'.  'f' should have been opened in a write or read/write mode.  Write 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) from the buffer 'buff'.
-  return (syscall_4(_fnum_fileWrite, (void *) f, (void *) blocknum, 
-		    (void *) blocks, buff));
-}
-
-_X_ static inline int fileDelete(const char *name)
-{
-  // Proto: int kernelFileDelete(const char *);
-  // Desc : Delete the file referenced by the pathname 'name'.
-  return (syscall_1(_fnum_fileDelete, (void *) name));
-}
-
-_X_ static inline int fileDeleteRecursive(const char *name)
-{
-  // Proto: int kernelFileDeleteRecursive(const char *);
-  // Desc : Recursively delete filesystem items, starting with the one referenced by the pathname 'name'.
-  return (syscall_1(_fnum_fileDeleteRecursive, (void *) name));
-}
-
-_X_ static inline int fileDeleteSecure(const char *name, int passes)
-{
-  // Proto: int kernelFileDeleteSecure(const char *);
-  // Desc : Securely delete the file referenced by the pathname 'name'.  'passes' indicates the number of times to overwrite the file.  The file is overwritten (number - 1) times with random data, and then NULLs.  A larger number of passes is more secure but takes longer.
-  return (syscall_2(_fnum_fileDeleteSecure, (void *) name, (void *) passes));
-}
-
-_X_ static inline int fileMakeDir(const char *name)
-{
-  // Proto: int kernelFileMakeDir(const char *);
-  // Desc : Create a directory to be referenced by the pathname 'name'.
-  return (syscall_1(_fnum_fileMakeDir, (void *)name));
-}
-
-_X_ static inline int fileRemoveDir(const char *name)
-{
-  // Proto: int kernelFileRemoveDir(const char *);
-  // Desc : Remove the directory referenced by the pathname 'name'.
-  return (syscall_1(_fnum_fileRemoveDir, (void *)name));
-}
-
-_X_ static inline int fileCopy(const char *src, const char *dest)
-{
-  // Proto: int kernelFileCopy(const char *, const char *);
-  // Desc : Copy the file referenced by the pathname 'src' to the pathname 'dest'.  This will overwrite 'dest' if it already exists.
-  return (syscall_2(_fnum_fileCopy, (void *) src, (void *) dest));
-}
-
-_X_ static inline int fileCopyRecursive(const char *src, const char *dest)
-{
-  // Proto: int kernelFileCopyRecursive(const char *, const char *);
-  // Desc : Recursively copy the file referenced by the pathname 'src' to the pathname 'dest'.  If 'src' is a regular file, the result will be the same as using the non-recursive call.  However if it is a directory, all contents of the directory and its subdirectories will be copied.  This will overwrite any files in the 'dest' tree if they already exist.
-  return (syscall_2(_fnum_fileCopyRecursive, (void *) src, (void *) dest));
-}
-
-_X_ static inline int fileMove(const char *src, const char *dest)
-{
-  // Proto: int kernelFileMove(const char *, const char *);
-  // Desc : Move (rename) a file referenced by the pathname 'src' to the pathname 'dest'.
-  return (syscall_2(_fnum_fileMove, (void *) src, (void *) dest));
-}
-
-_X_ static inline int fileTimestamp(const char *name)
-{
-  // Proto: int kernelFileTimestamp(const char *);
-  // Desc : Update the time stamp on the file referenced by the pathname 'name'
-  return (syscall_1(_fnum_fileTimestamp, (void *) name));
-}
-
-_X_ static inline int fileGetTemp(file *f)
-{
-  // Proto: int kernelFileGetTemp(void);
-  // Desc : Create and open a temporary file in write mode.
-  return (syscall_1(_fnum_fileGetTemp, f));
-}
-
-_X_ static inline int fileStreamOpen(const char *name, int mode, fileStream *f)
-{
-  // Proto: int kernelFileStreamOpen(const char *, int, fileStream *);
-  // Desc : Open the file referenced by the pathname 'name' for streaming operations, using the open mode 'mode' (defined in <sys/file.h>).  Fills the fileStream data structure 'f' with information needed for subsequent filestream operations.
-  return (syscall_3(_fnum_fileStreamOpen, (char *) name, (void *) mode,
-		    (void *) f));
-}
-
-_X_ static inline int fileStreamSeek(fileStream *f, int offset)
-{
-  // Proto: int kernelFileStreamSeek(fileStream *, int);
-  // Desc : Seek the filestream 'f' to the absolute position 'offset'
-  return (syscall_2(_fnum_fileStreamSeek, (void *) f, (void *) offset));
-}
-
-_X_ static inline int fileStreamRead(fileStream *f, unsigned bytes, char *buff)
-{
-  // Proto: int kernelFileStreamRead(fileStream *, unsigned, char *);
-  // Desc : Read 'bytes' bytes from the filestream 'f' and put them into 'buff'.
-  return (syscall_3(_fnum_fileStreamRead, (void *) f, (void *) bytes, buff));
-}
-
-_X_ static inline int fileStreamReadLine(fileStream *f, unsigned bytes, char *buff)
-{
-  // Proto: int kernelFileStreamReadLine(fileStream *, unsigned, char *);
-  // Desc : Read a complete line of text from the filestream 'f', and put up to 'bytes' characters into 'buff'
-  return (syscall_3(_fnum_fileStreamReadLine, (void *) f, (void *) bytes,
-		    buff));
-}
-
-_X_ static inline int fileStreamWrite(fileStream *f, unsigned bytes, char *buff)
-{
-  // Proto: int kernelFileStreamWrite(fileStream *, unsigned, char *);
-  // Desc : Write 'bytes' bytes from the buffer 'buff' to the filestream 'f'.
-  return (syscall_3(_fnum_fileStreamWrite, (void *) f, (void *) bytes, buff));
-}
-
-_X_ static inline int fileStreamWriteStr(fileStream *f, char *buff)
-{
-  // Proto: int kernelFileStreamWriteStr(fileStream *, char *);
-  // Desc : Write the string in 'buff' to the filestream 'f'
-  return (syscall_2(_fnum_fileStreamWriteStr, (void *) f, buff));
-}
-
-_X_ static inline int fileStreamWriteLine(fileStream *f, char *buff)
-{
-  // Proto: int kernelFileStreamWriteLine(fileStream *, char *);
-  // Desc : Write the string in 'buff' to the filestream 'f', and add a newline at the end
-  return (syscall_2(_fnum_fileStreamWriteLine, (void *) f, buff));
-}
-
-_X_ static inline int fileStreamFlush(fileStream *f)
-{
-  // Proto: int kernelFileStreamFlush(fileStream *);
-  // Desc : Flush filestream 'f'.
-  return (syscall_1(_fnum_fileStreamFlush, (void *) f));
-}
-
-_X_ static inline int fileStreamClose(fileStream *f)
-{
-  // Proto: int kernelFileStreamClose(fileStream *);
-  // Desc : [Flush and] close the filestream 'f'.
-  return (syscall_1(_fnum_fileStreamClose, (void *) f));
-}
-
+int fileFixupPath(const char *, char *);
+int fileGetDisk(const char *, disk *);
+int fileCount(const char *);
+int fileFirst(const char *, file *);
+int fileNext(const char *, file *);
+int fileFind(const char *, file *);
+int fileOpen(const char *, int, file *);
+int fileClose(file *);
+int fileRead(file *, unsigned, unsigned, void *);
+int fileWrite(file *, unsigned, unsigned, void *);
+int fileDelete(const char *);
+int fileDeleteRecursive(const char *);
+int fileDeleteSecure(const char *, int);
+int fileMakeDir(const char *);
+int fileRemoveDir(const char *);
+int fileCopy(const char *, const char *);
+int fileCopyRecursive(const char *, const char *);
+int fileMove(const char *, const char *);
+int fileTimestamp(const char *);
+int fileSetSize(file *, unsigned);
+int fileGetTemp(file *);
+int fileGetFullPath(file *, char *, int);
+int fileStreamOpen(const char *, int, fileStream *);
+int fileStreamSeek(fileStream *, unsigned);
+int fileStreamRead(fileStream *, unsigned, char *);
+int fileStreamReadLine(fileStream *, unsigned, char *);
+int fileStreamWrite(fileStream *, unsigned, char *);
+int fileStreamWriteStr(fileStream *, char *);
+int fileStreamWriteLine(fileStream *, char *);
+int fileStreamFlush(fileStream *);
+int fileStreamClose(fileStream *);
+int fileStreamGetTemp(fileStream *);
 
 //
 // Memory functions
 //
-
-_X_ static inline void *memoryGet(unsigned size, const char *desc)
-{
-  // Proto: void *kernelMemoryGet(unsigned, const char *);
-  // Desc : Return a pointer to a new block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'.  If no specific alignment is required, use '0'.  Memory allocated using this function is automatically cleared (like 'calloc').
-  return ((void *) syscall_2(_fnum_memoryGet, (void *) size, (void *) desc));
-}
-
-_X_ static inline void *memoryGetPhysical(unsigned size, unsigned align, const char *desc)
-{
-  // Proto: void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);
-  // Desc : Return a pointer to a new physical block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'.  If no specific alignment is required, use '0'.  Memory allocated using this function is NOT automatically cleared.  'Physical' refers to an actual physical memory address, and is not necessarily useful to external programs.
-  return ((void *) syscall_3(_fnum_memoryGetPhysical, (void *) size,
-			     (void *) align, (void *) desc));
-}
-
-_X_ static inline int memoryRelease(void *p)
-{
-  // Proto: int kernelMemoryRelease(void *);
-  // Desc : Release the memory block starting at the address 'p'.  Must have been previously allocated using the memoryRequestBlock() function.
-  return (syscall_1(_fnum_memoryRelease, p));
-}
-
-_X_ static inline int memoryReleaseAllByProcId(int pid)
-{
-  // Proto: int kernelMemoryReleaseAllByProcId(int);
-  // Desc : Release all memory allocated to/by the process referenced by process ID 'pid'.  Only privileged functions can release memory owned by other processes.
-  return (syscall_1(_fnum_memoryReleaseAllByProcId, (void *) pid));
-}
-
-_X_ static inline int memoryChangeOwner(int opid, int npid, void *addr, void **naddr)
-{
-  // Proto: int kernelMemoryChangeOwner(int, int, void *, void **);
-  // Desc : Change the ownership of an allocated block of memory beginning at address 'addr'.  'opid' is the process ID of the currently owning process, and 'npid' is the process ID of the intended new owner.  'naddr' is filled with the new address of the memory (since it changes address spaces in the process).  Note that only a privileged process can change memory ownership.
-  return (syscall_4(_fnum_memoryChangeOwner, (void *) opid, (void *) npid, 
-		    addr, (void *) naddr));
-}
-
-_X_ static inline int memoryGetStats(memoryStats *stats, int kernel)
-{
-  // Proto: int kernelMemoryGetStats(memoryStats *, int);
-  // Desc : Returns the current memory totals and usage values to the current output stream.  If non-zero, the flag 'kernel' will return kernel heap statistics instead of overall system statistics.
-  return (syscall_2(_fnum_memoryGetStats, stats, (void *) kernel));
-}
-
-_X_ static inline int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize, int kernel)
-{
-  // Proto: int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
-  // Desc : Returns a copy of the array of used memory blocks in 'blocksArray', up to 'buffSize' bytes.  If non-zero, the flag 'kernel' will return kernel heap blocks instead of overall heap allocations.
-  return (syscall_3(_fnum_memoryGetBlocks, blocksArray, (void *) buffSize,
-		    (void *) kernel));
-}
-
-_X_ static inline int memoryBlockInfo(void *p, memoryBlock *block)
-{
-  // Proto: int kernelMemoryBlockInfo(void *, memoryBlock *);
-  // Desc : Fills in the structure 'block' with information about the allocated memory block starting at virtual address 'p'
-  return (syscall_2(_fnum_memoryBlockInfo, p, block));
-}
-
+void *memoryGet(unsigned, const char *);
+int memoryRelease(void *);
+int memoryReleaseAllByProcId(int);
+int memoryGetStats(memoryStats *, int);
+int memoryGetBlocks(memoryBlock *, unsigned, int);
+int memoryBlockInfo(void *, memoryBlock *);
 
 //
 // Multitasker functions
 //
-
-_X_ static inline int multitaskerCreateProcess(const char *name, int privilege, processImage *execImage)
-{
-  // Proto: int kernelMultitaskerCreateProcess(const char *, int, processImage *);
-  // Desc : Create a new process.  'name' will be the new process' name.  'privilege' is the privilege level.  'execImage' is a processImage structure that describes the loaded location of the file, the program's desired virtual address, entry point, size, etc.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
-  return (syscall_3(_fnum_multitaskerCreateProcess, (void *) name,
-		    (void *) privilege, execImage));
-}
-
-_X_ static inline int multitaskerSpawn(void *addr, const char *name, int numargs, void *args[])
-{
-  // Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *[]);
-  // Desc : Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and made runnable, so there is no need to change its state to activate it.
-  return (syscall_4(_fnum_multitaskerSpawn, addr, (void *) name, 
-		    (void *) numargs, args));
-}
-
-_X_ static inline int multitaskerGetCurrentProcessId(void)
-{
-  // Proto: int kernelMultitaskerGetCurrentProcessId(void);
-  // Desc : Returns the process ID of the calling program.
-  return (syscall_0(_fnum_multitaskerGetCurrentProcessId));
-}
-
-_X_ static inline int multitaskerGetProcess(int pid, process *proc)
-{
-  // Proto: int kernelMultitaskerGetProcess(int, process *);
-  // Desc : Returns the process structure for the supplied process ID.
-  return (syscall_2(_fnum_multitaskerGetProcess, (void *) pid, proc));
-}
-
-_X_ static inline int multitaskerGetProcessByName(const char *name, process *proc)
-{
-  // Proto: int kernelMultitaskerGetProcessByName(const char *, process *);
-  // Desc : Returns the process structure for the supplied process name
-  return (syscall_2(_fnum_multitaskerGetProcessByName, (void *) name, proc));
-}
-
-_X_ static inline int multitaskerGetProcesses(void *buffer, unsigned buffSize)
-{
-  // Proto: int kernelMultitaskerGetProcesses(void *, unsigned);
-  // Desc : Fills 'buffer' with up to 'buffSize' bytes' worth of process structures, and returns the number of structures copied.
-  return (syscall_2(_fnum_multitaskerGetProcesses, buffer, (void *) buffSize));
-}
-
-_X_ static inline int multitaskerSetProcessState(int pid, int state)
-{
-  // Proto: int kernelMultitaskerSetProcessState(int, kernelProcessState);
-  // Desc : Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
-  return (syscall_2(_fnum_multitaskerSetProcessState, (void *) pid,
-		    (void *) state));
-}
-
-_X_ static inline int multitaskerProcessIsAlive(int pid)
-{
-  // Proto: int kernelMultitaskerProcessIsAlive(int);
-  // Desc : Returns 1 if the process with the id 'pid' still exists and is in a 'runnable' (viable) state.  Returns 0 if the process does not exist or is in a 'finished' state.
-  return (syscall_1(_fnum_multitaskerProcessIsAlive, (void *) pid));
-}
-
-_X_ static inline int multitaskerSetProcessPriority(int pid, int priority)
-{
-  // Proto: int kernelMultitaskerSetProcessPriority(int, int);
-  // Desc : Sets the priority of the process referenced by process ID 'pid' to 'priority'.
-  return (syscall_2(_fnum_multitaskerSetProcessPriority, (void *) pid, 
-		    (void *) priority));
-}
-
-_X_ static inline int multitaskerGetProcessPrivilege(int pid)
-{
-  // Proto: kernelMultitaskerGetProcessPrivilege(int);
-  // Desc : Gets the privilege level of the process referenced by process ID 'pid'.
-  return (syscall_1(_fnum_multitaskerGetProcessPrivilege, (void *) pid));
-}
-
-_X_ static inline int multitaskerGetCurrentDirectory(char *buff, int buffsz)
-{
-  // Proto: int kernelMultitaskerGetCurrentDirectory(char *, int);
-  // Desc : Returns the absolute pathname of the calling process' current directory.  Puts the value in the buffer 'buff' which is of size 'buffsz'.
-  return (syscall_2(_fnum_multitaskerGetCurrentDirectory, buff,
-		    (void *) buffsz));
-}
-
-_X_ static inline int multitaskerSetCurrentDirectory(const char *buff)
-{
-  // Proto: int kernelMultitaskerSetCurrentDirectory(const char *);
-  // Desc : Sets the current directory of the calling process to the absolute pathname 'buff'.
-  return (syscall_1(_fnum_multitaskerSetCurrentDirectory, (void *) buff));
-}
-
-_X_ static inline objectKey multitaskerGetTextInput(void)
-{
-  // Proto: kernelTextInputStream *kernelMultitaskerGetTextInput(void);
-  // Desc : Get an object key to refer to the current text input stream of the calling process.
-  return((objectKey) syscall_0(_fnum_multitaskerGetTextInput));
-}
-
-_X_ static inline int multitaskerSetTextInput(int processId, objectKey key)
-{
-  // Proto: int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
-  // Desc : Set the text input stream of the process referenced by process ID 'processId' to a text stream referenced by the object key 'key'.
-  return (syscall_2(_fnum_multitaskerSetTextInput, (void *) processId, key));
-}
-
-_X_ static inline objectKey multitaskerGetTextOutput(void)
-{
-  // Proto: kernelTextOutputStream *kernelMultitaskerGetTextOutput(void);
-  // Desc : Get an object key to refer to the current text output stream of the calling process.
-  return((objectKey) syscall_0(_fnum_multitaskerGetTextOutput));
-}
-
-_X_ static inline int multitaskerSetTextOutput(int processId, objectKey key)
-{
-  // Proto: int kernelMultitaskerSetTextOutput(int, kernelTextOutputStream *);
-  // Desc : Set the text output stream of the process referenced by process ID 'processId' to a text stream referenced by the object key 'key'.
-  return (syscall_2(_fnum_multitaskerSetTextOutput, (void *) processId, key));
-}
-
-_X_ static inline int multitaskerDuplicateIO(int pid1, int pid2, int clear)
-{
-  // Proto: int kernelMultitaskerDuplicateIO(int, int, int);
-  // Desc : Set 'pid2' to use the same input and output streams as 'pid1', and if 'clear' is non-zero, clear any pending input or output.
-  return (syscall_3(_fnum_multitaskerDuplicateIO, (void *) pid1, (void *) pid2,
-		    (void *) clear));
-}
-
-_X_ static inline int multitaskerGetProcessorTime(clock_t *clk)
-{
-  // Proto: int kernelMultitaskerGetProcessorTime(clock_t *);
-  // Desc : Fill the clock_t structure with the amount of processor time consumed by the calling process.
-  return (syscall_1(_fnum_multitaskerGetProcessorTime, clk));
-}
-
-_X_ static inline void multitaskerYield(void)
-{
-  // Proto: void kernelMultitaskerYield(void);
-  // Desc : Yield the remainder of the current processor timeslice back to the multitasker's scheduler.  It's nice to do this when you are waiting for some event, so that your process is not 'hungry' (i.e. hogging processor cycles unnecessarily).
-  syscall_0(_fnum_multitaskerYield);
-}
-
-_X_ static inline void multitaskerWait(unsigned ticks)
-{
-  // Proto: void kernelMultitaskerWait(unsigned int);
-  // Desc : Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again.  On the PC, one second is approximately 20 system timer ticks.
-  syscall_1(_fnum_multitaskerWait, (void *) ticks);
-}
-
-_X_ static inline int multitaskerBlock(int pid)
-{
-  // Proto: int kernelMultitaskerBlock(int);
-  // Desc : Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and block on the process referenced by process ID 'pid'.  This means that the calling process will not run again until process 'pid' has terminated.  The return value of this function is the return value of process 'pid'.
-  return (syscall_1(_fnum_multitaskerBlock, (void *) pid));
-}
-
-_X_ static inline int multitaskerDetach(void)
-{
-  // Proto: int kernelMultitaskerDetach(void);
-  // Desc : This allows a program to 'daemonize', detaching from the IO streams of its parent and, if applicable, the parent stops blocking.  Useful for a process that want to operate in the background, or that doesn't want to be killed if its parent is killed.
-  return (syscall_0(_fnum_multitaskerDetach));
-}
-
-_X_ static inline int multitaskerKillProcess(int pid, int force)
-{
-  // Proto: int kernelMultitaskerKillProcess(int);
-  // Desc : Terminate the process referenced by process ID 'pid'.  If 'force' is non-zero, the multitasker will attempt to ignore any errors and dismantle the process with extreme prejudice.  The 'force' flag also has the necessary side effect of killing any child threads spawned by process 'pid'.  (Otherwise, 'pid' is left in a stopped state until its threads have terminated normally).
-  return (syscall_2(_fnum_multitaskerKillProcess, (void *) pid,
-		    (void *) force));
-}
-
-_X_ static inline int multitaskerKillByName(const char *name, int force)
-{
-  // Proto: int kernelMultitaskerKillByName(const char *name, int force)
-  // Desc : Like multitaskerKillProcess, except that it attempts to kill all instances of processes whose names match 'name'
-  return (syscall_2(_fnum_multitaskerKillByName, (void *) name,
-		    (void *) force));
-}
-
-_X_ static inline int multitaskerTerminate(int code)
-{
-  // Proto: int kernelMultitaskerTerminate(int);
-  // Desc : Terminate the calling process, returning the exit code 'code'
-  return (syscall_1(_fnum_multitaskerTerminate, (void *) code));
-}
-
-_X_ static inline int multitaskerSignalSet(int processId, int sig, int on)
-{
-  // Proto: int kernelMultitaskerSignalSet(int, int, int);
-  // Desc : Set the current process' signal handling enabled (on) or disabled for the specified signal number 'sig'
-  return (syscall_3(_fnum_multitaskerSignalSet, (void *) processId,
-		    (void *) sig, (void *) on));
-}
-
-_X_ static inline int multitaskerSignal(int processId, int sig)
-{
-  // Proto: int kernelMultitaskerSignal(int, int);
-  // Desc : Send the requested signal 'sig' to the process 'processId'
-  return (syscall_2(_fnum_multitaskerSignal, (void *) processId,
-		    (void *) sig));
-}
-
-_X_ static inline int multitaskerSignalRead(int processId)
-{
-  // Proto: int kernelMultitaskerSignalRead(int);
-  // Desc : Returns the number code of the next pending signal for the current process, or 0 if no signals are pending.
-  return (syscall_1(_fnum_multitaskerSignalRead, (void *) processId));
-}
-
-_X_ static inline int multitaskerGetIOPerm(int processId, int portNum)
-{
-  // Proto: int kernelMultitaskerGetIOPerm(int, int);
-  // Desc : Returns 1 if the process with process ID 'processId' can do I/O on port 'portNum'
-  return (syscall_2(_fnum_multitaskerGetIOPerm, (void *) processId,
-		    (void *) portNum));
-}
-
-_X_ static inline int multitaskerSetIOPerm(int processId, int portNum, int yesNo)
-{
-  // Proto: int kernelMultitaskerSetIOPerm(int, int, int);
-  // Desc : Set I/O permission port 'portNum' for the process with process ID 'processId'.  If 'yesNo' is non-zero, permission will be granted.
-  return (syscall_3(_fnum_multitaskerSetIOPerm, (void *) processId,
-		    (void *) portNum, (void *) yesNo));
-}
-
+int multitaskerCreateProcess(const char *, int, processImage *);
+int multitaskerSpawn(void *, const char *, int, void *[]);
+int multitaskerGetCurrentProcessId(void);
+int multitaskerGetProcess(int, process *);
+int multitaskerGetProcessByName(const char *, process *);
+int multitaskerGetProcesses(void *, unsigned);
+int multitaskerSetProcessState(int, int);
+int multitaskerProcessIsAlive(int);
+int multitaskerSetProcessPriority(int, int);
+int multitaskerGetProcessPrivilege(int);
+int multitaskerGetCurrentDirectory(char *, int);
+int multitaskerSetCurrentDirectory(const char *);
+objectKey multitaskerGetTextInput(void);
+int multitaskerSetTextInput(int, objectKey);
+objectKey multitaskerGetTextOutput(void);
+int multitaskerSetTextOutput(int, objectKey);
+int multitaskerDuplicateIO(int, int, int);
+int multitaskerGetProcessorTime(clock_t *);
+void multitaskerYield(void);
+void multitaskerWait(unsigned);
+int multitaskerBlock(int);
+int multitaskerDetach(void);
+int multitaskerKillProcess(int, int);
+int multitaskerKillByName(const char *, int);
+int multitaskerTerminate(int);
+int multitaskerSignalSet(int, int, int);
+int multitaskerSignal(int, int);
+int multitaskerSignalRead(int);
+int multitaskerGetIOPerm(int, int);
+int multitaskerSetIOPerm(int, int, int);
+int multitaskerStackTrace(int);
 
 //
 // Loader functions
 //
-
-_X_ static inline void *loaderLoad(const char *filename, file *theFile)
-{
-  // Proto: void *kernelLoaderLoad(const char *, file *);
-  // Desc : Load a file referenced by the pathname 'filename', and fill the file data structure 'theFile' with the details.  The pointer returned points to the resulting file data.
-  return ((void *) syscall_2(_fnum_loaderLoad, (void *) filename,
-			     (void *) theFile));
-}
-
-_X_ static inline objectKey loaderClassify(const char *fileName, void *fileData, int size, loaderFileClass *class)
-{
-  // Proto: kernelFileClass *kernelLoaderClassify(const char *, void *, int, loaderFileClass *);
-  // Desc : Given a file by the name 'fileName', the contents 'fileData', of size 'size', get the kernel loader's idea of the file type.  If successful, the return  value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
-  return ((objectKey) syscall_4(_fnum_loaderClassify, (char *) fileName,
-				fileData, (void *) size, class));
-}
-
-_X_ static inline objectKey loaderClassifyFile(const char *fileName, loaderFileClass *class)
-{
-  // Proto: kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
-  // Desc : Like loaderClassify(), except the first argument 'fileName' is a file name to classify.  Returns the kernel loader's idea of the file type.  If successful, the return value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
-  return ((objectKey) syscall_2(_fnum_loaderClassifyFile, (void *) fileName,
-				class));
-}
-
-_X_ static inline loaderSymbolTable *loaderGetSymbols(const char *fileName, int dynamic)
-{
-  // Proto: loaderSymbolTable *kernelLoaderGetSymbols(const char *, int);
-  // Desc : Given a binary executable, library, or object file 'fileName' and a flag 'dynamic', return a loaderSymbolTable structure filled out with the loader symbols from the file.  If 'dynamic' is non-zero, only symbols used in dynamic linking will be returned (if the file is not a dynamic library or executable, NULL will be returned).  If 'dynamic' is zero, return all symbols found in the file.
-  return ((loaderSymbolTable *) syscall_2(_fnum_loaderGetSymbols,
-				  (void *) fileName, (void *) dynamic));
-}
-
-_X_ static inline int loaderCheckCommand(const char *command)
-{
-  // Proto: int kernelLoaderCheckCommand(const char *);
-  // Desc : Takes a command line string 'command' and ensures that the program (the first part of the string) exists.
-  return (syscall_1(_fnum_loaderCheckCommand, (void *) command));
-}
-
-_X_ static inline int loaderLoadProgram(const char *command, int privilege)
-{
-  // Proto: int kernelLoaderLoadProgram(const char *, int);
-  // Desc : Run 'command' as a process with the privilege level 'privilege'.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
-  return (syscall_2(_fnum_loaderLoadProgram, (void *) command,
-		    (void *) privilege));
-}
-
-_X_ static inline int loaderLoadLibrary(const char *libraryName)
-{
-  // Proto: int kernelLoaderLoadLibrary(const char *);
-  // Desc : This takes the name of a library file 'libraryName' to load and creates a shared library in the kernel.  This function is not especially useful to user programs, since normal shared library loading happens automatically as part of the 'loaderLoadProgram' process.
-  return (syscall_1(_fnum_loaderLoadLibrary, (void *) libraryName));
-}
-
-_X_ static inline int loaderExecProgram(int processId, int block)
-{
-  // Proto: int kernelLoaderExecProgram(int, int);
-  // Desc : Execute the process referenced by process ID 'processId'.  If 'block' is non-zero, the calling process will block until process 'pid' has terminated, and the return value of the call is the return value of process 'pid'.
-  return (syscall_2(_fnum_loaderExecProgram, (void *) processId,
-		    (void *) block));
-}
-
-_X_ static inline int loaderLoadAndExec(const char *command, int privilege, int block)
-{
-  // Proto: int kernelLoaderLoadAndExec(const char *, int, int);
-  // Desc : This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
-  return (syscall_3(_fnum_loaderLoadAndExec, (void *) command,
-		    (void *) privilege, (void *) block));
-}
-
+void *loaderLoad(const char *, file *);
+objectKey loaderClassify(const char *, void *, int, loaderFileClass *);
+objectKey loaderClassifyFile(const char *, loaderFileClass *);
+loaderSymbolTable *loaderGetSymbols(const char *);
+int loaderCheckCommand(const char *);
+int loaderLoadProgram(const char *, int);
+int loaderLoadLibrary(const char *);
+void *loaderGetLibrary(const char *);
+void *loaderLinkLibrary(const char *);
+void *loaderGetSymbol(const char *);
+int loaderExecProgram(int, int);
+int loaderLoadAndExec(const char *, int, int);
 
 //
 // Real-time clock functions
 //
-
-_X_ static inline int rtcReadSeconds(void)
-{
-  // Proto: int kernelRtcReadSeconds(void);
-  // Desc : Get the current seconds value.
-  return (syscall_0(_fnum_rtcReadSeconds));
-}
-
-_X_ static inline int rtcReadMinutes(void)
-{
-  // Proto: int kernelRtcReadMinutes(void);
-  // Desc : Get the current minutes value.
-  return (syscall_0(_fnum_rtcReadMinutes));
-}
-
-_X_ static inline int rtcReadHours(void)
-{
-  // Proto: int kernelRtcReadHours(void);
-  // Desc : Get the current hours value.
-  return (syscall_0(_fnum_rtcReadHours));
-}
-
-_X_ static inline int rtcDayOfWeek(unsigned day, unsigned month, unsigned year)
-{
-  // Proto: int kernelRtcDayOfWeek(unsigned, unsigned, unsigned);
-  // Desc : Get the current day of the week value.
-  return (syscall_3(_fnum_rtcDayOfWeek, (void *) day, (void *) month,
-		    (void *) year));
-}
-
-_X_ static inline int rtcReadDayOfMonth(void)
-{
-  // Proto: int kernelRtcReadDayOfMonth(void);
-  // Desc : Get the current day of the month value.
-  return (syscall_0(_fnum_rtcReadDayOfMonth));
-}
-
-_X_ static inline int rtcReadMonth(void)
-{
-  // Proto: int kernelRtcReadMonth(void);
-  // Desc : Get the current month value.
-  return (syscall_0(_fnum_rtcReadMonth));
-}
-
-_X_ static inline int rtcReadYear(void)
-{
-  // Proto: int kernelRtcReadYear(void);
-  // Desc : Get the current year value.
-  return (syscall_0(_fnum_rtcReadYear));
-}
-
-_X_ static inline unsigned rtcUptimeSeconds(void)
-{
-  // Proto: unsigned kernelRtcUptimeSeconds(void);
-  // Desc : Get the number of seconds the system has been running.
-  return (syscall_0(_fnum_rtcUptimeSeconds));
-}
-
-
-_X_ static inline int rtcDateTime(struct tm *theTime)
-{
-  // Proto: int kernelRtcDateTime(struct tm *);
-  // Desc : Get the current data and time as a tm data structure in 'theTime'.
-  return (syscall_1(_fnum_rtcDateTime, (void *) theTime));
-}
-
+int rtcReadSeconds(void);
+int rtcReadMinutes(void);
+int rtcReadHours(void);
+int rtcDayOfWeek(unsigned, unsigned, unsigned);
+int rtcReadDayOfMonth(void);
+int rtcReadMonth(void);
+int rtcReadYear(void);
+unsigned rtcUptimeSeconds(void);
+int rtcDateTime(struct tm *);
 
 //
 // Random number functions
 //
-
-_X_ static inline unsigned randomUnformatted(void)
-{
-  // Proto: unsigned kernelRandomUnformatted(void);
-  // Desc : Get an unformatted random unsigned number.  Just any unsigned number.
-  return (syscall_0(_fnum_randomUnformatted));
-}
-
-_X_ static inline unsigned randomFormatted(unsigned start, unsigned end)
-{
-  // Proto: unsigned kernelRandomFormatted(unsigned int, unsigned int);
-  // Desc : Get a random unsigned number between the start value 'start' and the end value 'end', inclusive.
-  return (syscall_2(_fnum_randomFormatted, (void *) start, (void *) end));
-}
-
-_X_ static inline unsigned randomSeededUnformatted(unsigned seed)
-{
-  // Proto: unsigned kernelRandomSeededUnformatted(unsigned int);
-  // Desc : Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed.
-  return (syscall_1(_fnum_randomSeededUnformatted, (void *) seed));
-}
-
-_X_ static inline unsigned randomSeededFormatted(unsigned seed, unsigned start, unsigned end)
-{
-  // Proto: unsigned kernelRandomSeededFormatted(unsigned int, unsigned int, unsigned int);
-  // Desc : Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
-  return (syscall_3(_fnum_randomSeededFormatted, (void *) seed,
-		    (void *) start, (void *) end));
-}
-
+unsigned randomUnformatted(void);
+unsigned randomFormatted(unsigned, unsigned);
+unsigned randomSeededUnformatted(unsigned);
+unsigned randomSeededFormatted(unsigned, unsigned, unsigned);
+void randomBytes(unsigned char *, unsigned);
 
 //
 // Environment functions
 //
-
-_X_ static inline int environmentGet(const char *var, char *buf, unsigned bufsz)
-{
-  // Proto: int kernelEnvironmentGet(const char *, char *, unsigned int);
-  // Desc : Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful.
-  return (syscall_3(_fnum_environmentGet, (void *) var, buf, (void *) bufsz));
-}
-
-_X_ static inline int environmentSet(const char *var, const char *val)
-{
-  // Proto: int kernelEnvironmentSet(const char *, const char *);
-  // Desc : Set the environment variable 'var' to the value 'val', overwriting any old value that might have been previously set.
-  return (syscall_2(_fnum_environmentSet, (void *) var, (void *) val));
-}
-
-_X_ static inline int environmentUnset(const char *var)
-{
-  // Proto: int kernelEnvironmentUnset(const char *);
-  // Desc : Delete the environment variable 'var'.
-  return (syscall_1(_fnum_environmentUnset, (void *) var));
-}
-
-_X_ static inline void environmentDump(void)
-{
-  // Proto: void kernelEnvironmentDump(void);
-  // Desc : Print a listing of all the currently set environment variables in the calling process' environment space to the current text output stream.
-  syscall_0(_fnum_environmentDump);
-}
-
+int environmentGet(const char *, char *, unsigned);
+int environmentSet(const char *, const char *);
+int environmentUnset(const char *);
+void environmentDump(void);
 
 //
 // Raw graphics functions
 //
-
-_X_ static inline int graphicsAreEnabled(void)
-{
-  // Proto: int kernelGraphicsAreEnabled(void);
-  // Desc : Returns 1 if the kernel is operating in graphics mode.
-  return (syscall_0(_fnum_graphicsAreEnabled));
-}
-
-_X_ static inline int graphicGetModes(videoMode *buffer, unsigned size)
-{
-  // Proto: int kernelGraphicGetModes(videoMode *, unsigned);
-  // Desc : Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware.
-  return (syscall_2(_fnum_graphicGetModes, buffer, (void *) size));
-}
-
-_X_ static inline int graphicGetMode(videoMode *mode)
-{
-  // Proto: int kernelGraphicGetMode(videoMode *);
-  // Desc : Get the current video mode in 'mode'
-  return (syscall_1(_fnum_graphicGetMode, mode));
-}
-
-_X_ static inline int graphicSetMode(videoMode *mode)
-{
-  // Proto: int kernelGraphicSetMode(videoMode *);
-  // Desc : Set the video mode in 'mode'.  Generally this will require a reboot in order to take effect.
-  return (syscall_1(_fnum_graphicSetMode, mode));
-}
-
-_X_ static inline int graphicGetScreenWidth(void)
-{
-  // Proto: int kernelGraphicGetScreenWidth(void);
-  // Desc : Returns the width of the graphics screen.
-  return (syscall_0(_fnum_graphicGetScreenWidth));
-}
-
-_X_ static inline int graphicGetScreenHeight(void)
-{
-  // Proto: int kernelGraphicGetScreenHeight(void);
-  // Desc : Returns the height of the graphics screen.
-  return (syscall_0(_fnum_graphicGetScreenHeight));
-}
-
-_X_ static inline int graphicCalculateAreaBytes(int width, int height)
-{
-  // Proto: int kernelGraphicCalculateAreaBytes(int, int);
-  // Desc : Returns the number of bytes required to allocate a graphic buffer of width 'width' and height 'height'.  This is a function of the screen resolution, etc.
-  return (syscall_2(_fnum_graphicCalculateAreaBytes, (void *) width,
-		    (void *) height));
-}
-
-_X_ static inline int graphicClearScreen(color *background)
-{
-  // Proto: int kernelGraphicClearScreen(color *);
-  // Desc : Clear the screen to the background color 'background'.
-  return (syscall_1(_fnum_graphicClearScreen, background));
-}
-
-_X_ static inline int graphicGetColor(const char *colorName, color *getColor)
-{
-  // Proto: int kernelGraphicGetColor(const char *, color *);
-  // Desc : Get the system color 'colorName' and place its values in the color structure 'getColor'.  Examples of system color names include 'foreground', 'background', and 'desktop'.
-  return (syscall_2(_fnum_graphicGetColor, (void *) colorName, getColor));
-}
-
-_X_ static inline int graphicSetColor(const char *colorName, color *setColor)
-{
-  // Proto: int kernelGraphicSetColor(const char *, color *);
-  // Desc : Set the system color 'colorName' to the values in the color structure 'getColor'.  Examples of system color names include 'foreground', 'background', and 'desktop'.
-  return (syscall_2(_fnum_graphicSetColor, (void *) colorName, setColor));
-}
-
-_X_ static inline int graphicDrawPixel(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord)
-{
-  // Proto: int kernelGraphicDrawPixel(kernelGraphicBuffer *, color *, drawMode, int, int);
-  // Desc : Draw a single pixel into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the X coordinate 'xCoord' and the Y coordinate 'yCoord'.  If 'buffer' is NULL, draw directly onto the screen.
-  return (syscall_5(_fnum_graphicDrawPixel, buffer, foreground, (void *) mode,
-		    (void *) xCoord, (void *) yCoord));
-}
-
-_X_ static inline int graphicDrawLine(objectKey buffer, color *foreground, drawMode mode, int startX, int startY, int endX, int endY)
-{
-  // Proto: int kernelGraphicDrawLine(kernelGraphicBuffer *, color *, drawMode, int, int, int, int);
-  // Desc : Draw a line into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'startX', the starting Y coordinate 'startY', the ending X coordinate 'endX' and the ending Y coordinate 'endY'.  At the time of writing, only horizontal and vertical lines are supported by the linear framebuffer graphic driver.  If 'buffer' is NULL, draw directly onto the screen.
-  return (syscall_7(_fnum_graphicDrawLine, buffer, foreground, (void *) mode,
-		    (void *) startX, (void *) startY, (void *) endX,
-		    (void *) endY));
-}
-
-_X_ static inline int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, int width, int height, int thickness, int fill)
-{
-  // Proto: int kernelGraphicDrawRect(kernelGraphicBuffer *, color *, drawMode, int, int, int, int, int, int);
-  // Desc : Draw a rectangle into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the rectangle.   If 'buffer' is NULL, draw directly onto the screen.
-  return (syscall_9(_fnum_graphicDrawRect, buffer, foreground, (void *) mode,
-		    (void *) xCoord, (void *) yCoord, (void *) width,
-		    (void *) height, (void *) thickness, (void *) fill));
-}
-
-_X_ static inline int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, int width, int height, int thickness, int fill)
-{
-  // Proto: int kernelGraphicDrawOval(kernelGraphicBuffer *, color *, drawMode, int, int, int, int, int, int);
-  // Desc : Draw an oval (circle, whatever) into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the oval.   If 'buffer' is NULL, draw directly onto the screen.  Currently not supported by the linear framebuffer graphic driver.
-  return (syscall_9(_fnum_graphicDrawOval, buffer, foreground, (void *) mode,
-		    (void *) xCoord, (void *) yCoord, (void *) width,
-		    (void *) height, (void *) thickness, (void *) fill));
-}
-
-_X_ static inline int graphicDrawImage(objectKey buffer, image *drawImage, drawMode mode, int xCoord, int yCoord, int xOffset, int yOffset, int width, int height)
-{
-  // Proto: int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, drawMode, int, int, int, int, int, int);
-  // Desc : Draw the image 'drawImage' into the graphic buffer 'buffer', using the drawing mode 'mode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord' and the starting Y coordinate 'yCoord'.   The 'xOffset' and 'yOffset' parameters specify an offset into the image to start the drawing (0, 0 to draw the whole image).  Similarly the 'width' and 'height' parameters allow you to specify a portion of the image (0, 0 to draw the whole image -- minus any X or Y offsets from the previous parameters).  So, for example, to draw only the middle pixel of a 3x3 image, you would specify xOffset=1, yOffset=1, width=1, height=1.  If 'buffer' is NULL, draw directly onto the screen.
-  return (syscall_9(_fnum_graphicDrawImage, buffer, drawImage, (void *) mode,
-		    (void *) xCoord, (void *) yCoord, (void *) xOffset,
-		    (void *) yOffset, (void *) width, (void *) height));
-}
-
-_X_ static inline int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, int width, int height)
-{
-  // Proto: int kernelGraphicGetImage(kernelGraphicBuffer *, image *, int, int, int, int);
-  // Desc : Grab a new image 'getImage' from the graphic buffer 'buffer', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.   If 'buffer' is NULL, grab the image directly from the screen.
-  return (syscall_6(_fnum_graphicGetImage, buffer, getImage, (void *) xCoord,
-		    (void *) yCoord, (void *) width, (void *) height));
-}
-
-_X_ static inline int graphicDrawText(objectKey buffer, color *foreground, color *background, objectKey font, const char *text, drawMode mode, int xCoord, int yCoord)
-{
-  // Proto: int kernelGraphicDrawText(kernelGraphicBuffer *, color *, color *, kernelAsciiFont *, const char *, drawMode, int, int);
-  // Desc : Draw the text string 'text' into the graphic buffer 'buffer', using the colors 'foreground' and 'background', the font 'font', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'.   If 'buffer' is NULL, draw directly onto the screen.  If 'font' is NULL, use the default font.
-  return (syscall_8(_fnum_graphicDrawText, buffer, foreground, background,
-		    font, (void *) text, (void *) mode, (void *) xCoord,
-		    (void *) yCoord));
-}
-
-_X_ static inline int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, int width, int height, int xCoord2, int yCoord2)
-{
-  // Proto: int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int, int, int, int, int);
-  // Desc : Within the graphic buffer 'buffer', copy the area bounded by ('xCoord1', 'yCoord1'), width 'width' and height 'height' to the starting X coordinate 'xCoord2' and the starting Y coordinate 'yCoord2'.  If 'buffer' is NULL, copy directly to and from the screen.
-  return (syscall_7(_fnum_graphicCopyArea, buffer, (void *) xCoord1,
-		    (void *) yCoord1, (void *) width, (void *) height,
-		    (void *) xCoord2, (void *) yCoord2));
-}
-
-_X_ static inline int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, int width, int height)
-{
-  // Proto: int kernelGraphicClearArea(kernelGraphicBuffer *, color *, int, int, int, int);
-  // Desc : Clear the area of the graphic buffer 'buffer' using the background color 'background', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.  If 'buffer' is NULL, clear the area directly on the screen.
-  return (syscall_6(_fnum_graphicClearArea, buffer, background,
-		    (void *) xCoord, (void *) yCoord, (void *) width,
-		    (void *) height));
-}
-
-_X_ static inline int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, int clipWidth, int clipHeight)
-{
-  // Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int, int); 
-  // Desc : Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
-  return (syscall_7(_fnum_graphicRenderBuffer, buffer, (void *) drawX,
-		    (void *) drawY, (void *) clipX, (void *) clipY,
-		    (void *) clipWidth, (void *) clipHeight));
-}
-
+int graphicsAreEnabled(void);
+int graphicGetModes(videoMode *, unsigned);
+int graphicGetMode(videoMode *);
+int graphicSetMode(videoMode *);
+int graphicGetScreenWidth(void);
+int graphicGetScreenHeight(void);
+int graphicCalculateAreaBytes(int, int);
+int graphicClearScreen(color *);
+int graphicDrawPixel(objectKey, color *, drawMode, int, int);
+int graphicDrawLine(objectKey, color *, drawMode, int, int, int, int);
+int graphicDrawRect(objectKey, color *, drawMode, int, int, int, int, int,
+		    int);
+int graphicDrawOval(objectKey, color *, drawMode, int, int, int, int, int,
+		    int);
+int graphicGetImage(objectKey, image *, int, int, int, int);
+int graphicDrawImage(objectKey, image *, drawMode, int, int, int, int, int,
+		     int);
+int graphicDrawText(objectKey, color *, color *, objectKey, const char *,
+		    drawMode, int, int);
+int graphicCopyArea(objectKey, int, int, int, int, int, int);
+int graphicClearArea(objectKey, color *, int, int, int, int);
+int graphicRenderBuffer(objectKey, int, int, int, int, int, int);
 
 //
 // Windowing system functions
 //
-
-_X_ static inline int windowLogin(const char *userName)
-{
-  // Proto: kernelWindowLogin(const char *, const char *);
-  // Desc : Log the user into the window environment with 'userName'.  The return value is the PID of the window shell for this session.  The calling program must have supervisor privilege in order to use this function.
-  return (syscall_1(_fnum_windowLogin, (void *) userName));
-}
-
-_X_ static inline int windowLogout(void)
-{
-  // Proto: kernelWindowLogout(void);
-  // Desc : Log the current user out of the windowing system.  This kills the window shell process returned by windowLogin() call.
-  return (syscall_0(_fnum_windowLogout));
-}
-
-_X_ static inline objectKey windowNew(int processId, const char *title)
-{
-  // Proto: kernelWindow *kernelWindowNew(int, const char *);
-  // Desc : Create a new window, owned by the process 'processId', and with the title 'title'.  Returns an object key to reference the window, needed by most other window functions below (such as adding components to the window)
-  return ((objectKey) syscall_2(_fnum_windowNew, (void *) processId,
-				(void *) title));
-}
-
-_X_ static inline objectKey windowNewDialog(objectKey parent, const char *title)
-{
-  // Proto: kernelWindow *kernelWindowNewDialog(kernelWindow *, const char *);
-  // Desc : Create a dialog window to associate with the parent window 'parent', using the supplied title.  In the current implementation, dialog windows are modal, which is the main characteristic distinguishing them from regular windows.
-  return ((objectKey) syscall_2(_fnum_windowNewDialog, parent,
-				(void *) title));
-}
-
-_X_ static inline int windowDestroy(objectKey window)
-{
-  // Proto: int kernelWindowDestroy(kernelWindow *);
-  // Desc : Destroy the window referenced by the object key 'window'
-  return (syscall_1(_fnum_windowDestroy, window));
-}
-
-_X_ static inline int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, int width, int height)
-{
-  // Proto: kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, int, int);
-  // Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
-  return (syscall_5(_fnum_windowUpdateBuffer, buffer, (void *) xCoord,
-		    (void *) yCoord, (void *) width, (void *) height));
-}
-
-_X_ static inline int windowSetTitle(objectKey window, const char *title)
-{
-  // Proto: int kernelWindowSetTitle(kernelWindow *, const char *);
-  // Desc : Set the new title of window 'window' to be 'title'.
-  return (syscall_2(_fnum_windowSetTitle, window, (void *) title));
-}
-
-
-_X_ static inline int windowGetSize(objectKey window, int *width, int *height)
-{
-  // Proto: int kernelWindowGetSize(kernelWindow *, int *, int *);
-  // Desc : Get the size of the window 'window', and put the results in 'width' and 'height'.
-  return (syscall_3(_fnum_windowGetSize, window, width, height));
-}
-
-_X_ static inline int windowSetSize(objectKey window, int width, int height)
-{
-  // Proto: int kernelWindowSetSize(kernelWindow *, int, int);
-  // Desc : Resize the window 'window' to the width 'width' and the height 'height'.
-  return (syscall_3(_fnum_windowSetSize, window, (void *) width,
-		    (void *) height));
-}
-
-_X_ static inline int windowGetLocation(objectKey window, int *xCoord, int *yCoord)
-{
-  // Proto: int kernelWindowGetLocation(kernelWindow *, int *, int *);
-  // Desc : Get the current screen location of the window 'window' and put it into the coordinate variables 'xCoord' and 'yCoord'.
-  return (syscall_3(_fnum_windowGetLocation, window, xCoord, yCoord));
-}
-
-_X_ static inline int windowSetLocation(objectKey window, int xCoord, int yCoord)
-{
-  // Proto: int kernelWindowSetLocation(kernelWindow *, int, int);
-  // Desc : Set the screen location of the window 'window' using the coordinate variables 'xCoord' and 'yCoord'.
-  return (syscall_3(_fnum_windowSetLocation, window, (void *) xCoord,
-		    (void *) yCoord));
-}
-
-_X_ static inline int windowCenter(objectKey window)
-{
-  // Proto: int kernelWindowCenter(kernelWindow *);
-  // Desc : Center 'window' on the screen.
-  return (syscall_1(_fnum_windowCenter, window));
-}
-
-_X_ static inline int windowSnapIcons(objectKey parent)
-{
-  // Proto: void kernelWindowSnapIcons(void *);
-  // Desc : If 'parent' (either a window or a windowContainer) has icon components inside it, this will snap them to a grid.
-  return (syscall_1(_fnum_windowSnapIcons, parent));
-}
-
-_X_ static inline int windowSetHasBorder(objectKey window, int trueFalse)
-{
-  // Proto: int kernelWindowSetHasBorder(kernelWindow *, int);
-  // Desc : Tells the windowing system whether to draw a border around the window 'window'.  'trueFalse' being non-zero means draw a border.  Windows have borders by default.
-  return (syscall_2(_fnum_windowSetHasBorder, window, (void *) trueFalse));
-}
-
-_X_ static inline int windowSetHasTitleBar(objectKey window, int trueFalse)
-{
-  // Proto: int kernelWindowSetHasTitleBar(kernelWindow *, int);
-  // Desc : Tells the windowing system whether to draw a title bar on the window 'window'.  'trueFalse' being non-zero means draw a title bar.  Windows have title bars by default.
-  return (syscall_2(_fnum_windowSetHasTitleBar, window, (void *) trueFalse));
-}
-
-_X_ static inline int windowSetMovable(objectKey window, int trueFalse)
-{
-  // Proto: int kernelWindowSetMovable(kernelWindow *, int);
-  // Desc : Tells the windowing system whether the window 'window' should be movable by the user (i.e. clicking and dragging it).  'trueFalse' being non-zero means the window is movable.  Windows are movable by default.
-  return (syscall_2(_fnum_windowSetMovable, window, (void *) trueFalse));
-}
-
-_X_ static inline int windowSetResizable(objectKey window, int trueFalse)
-{
-  // Proto: int kernelWindowSetResizable(kernelWindow *, int);
-  // Desc : Tells the windowing system whether to allow 'window' to be resized by the user.  'trueFalse' being non-zero means the window is resizable.  Windows are resizable by default.
-  return (syscall_2(_fnum_windowSetResizable, window, (void *) trueFalse));
-}
-
-_X_ static inline int windowRemoveMinimizeButton(objectKey window)
-{
-  // Proto: int kernelWindowRemoveMinimizeButton(kernelWindow *);
-  // Desc : Tells the windowing system not to draw a minimize button on the title bar of the window 'window'.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
-  return (syscall_1(_fnum_windowRemoveMinimizeButton, window));
-}  
-
-_X_ static inline int windowRemoveCloseButton(objectKey window)
-{
-  // Proto: int kernelWindowRemoveCloseButton(kernelWindow *);
-  // Desc : Tells the windowing system not to draw a close button on the title bar of the window 'window'.  Windows have close buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
-  return (syscall_1(_fnum_windowRemoveCloseButton, window));
-}
-
-_X_ static inline int windowSetColors(objectKey window, color *background)
-{
-  // Proto: int kernelWindowSetColors(kernelWindow *, color *);
-  // Desc : Set the background color of 'window'.  If 'color' is NULL, use the default.
-  return (syscall_2(_fnum_windowSetColors, window, background));
-}
-
-_X_ static inline int windowSetVisible(objectKey window, int visible)
-{
-  // Proto: int kernelWindowSetVisible(kernelWindow *, int);
-  // Desc : Tell the windowing system whether to make 'window' visible or not.  Non-zero 'visible' means make the window visible.  When windows are created, they are not visible by default so you can add components, do layout, set the size, etc.
-  return (syscall_2(_fnum_windowSetVisible, window, (void *) visible));
-}
-
-_X_ static inline void windowSetMinimized(objectKey window, int minimized)
-{
-  // Proto: void kernelWindowSetMinimized(kernelWindow *, int);
-  // Desc : Tell the windowing system whether to make 'window' minimized or not.  Non-zero 'minimized' means make the window non-visible, but accessible via the task bar.  Zero 'minimized' means restore a minimized window to its normal, visible size.
-  syscall_2(_fnum_windowSetMinimized, window, (void *) minimized);
-}
-
-_X_ static inline int windowAddConsoleTextArea(objectKey window)
-{
-  // Proto: int kernelWindowAddConsoleTextArea(kernelWindow *);
-  // Desc : Add a console text area component to 'window'.  The console text area is where most kernel logging and error messages are sent, particularly at boot time.  Note that there is only one instance of the console text area, and thus it can only exist in one window at a time.  Destroying the window is one way to free the console area to be used in another window.
-  return (syscall_1(_fnum_windowAddConsoleTextArea, window));
-}
-
-_X_ static inline void windowRedrawArea(int xCoord, int yCoord, int width, int height)
-{
-  // Proto: void kernelWindowRedrawArea(int, int, int, int);
-  // Desc : Tells the windowing system to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates.  This might be useful if you were drawing non-window-based things (i.e., things without their own independent graphics buffer) directly onto the screen and you wanted to restore an area to its original contents.  For example, the mouse driver uses this method to erase the pointer from its previous position.
-  syscall_4(_fnum_windowRedrawArea, (void *) xCoord, (void *) yCoord,
-	    (void *) width, (void *) height);
-}
-
-_X_ static inline void windowDrawAll(void)
-{
-  // Proto: void kernelWindowDrawAll(void);
-  // Desc : Tells the windowing system to (re)draw all the windows.
-  syscall_0(_fnum_windowDrawAll);
-}
-
-_X_ static inline void windowResetColors(void)
-{
-  // Proto: void kernelWindowResetColors(void);
-  // Desc : Tells the windowing system to reset the colors of all the windows and their components, and then re-draw all the windows.  Useful for example when the user has changed the color scheme.
-  syscall_0(_fnum_windowResetColors);
-}
-
-_X_ static inline void windowProcessEvent(objectKey event)
-{
-  // Proto: void kernelWindowProcessEvent(windowEvent *);
-  // Desc : Creates a window event using the supplied event structure.  This function is most often used within the kernel, particularly in the mouse and keyboard functions, to signify clicks or key presses.  It can, however, be used by external programs to create 'artificial' events.  The windowEvent structure specifies the target component and event type.
-  syscall_1(_fnum_windowProcessEvent, event);
-}
-
-_X_ static inline int windowComponentEventGet(objectKey key, windowEvent *event)
-{
-  // Proto: int kernelWindowComponentEventGet(objectKey, windowEvent *);
-  // Desc : Gets a pending window event, if any, applicable to component 'key', and puts the data into the windowEvent structure 'event'.  If an event was received, the function returns a positive, non-zero value (the actual value reflects the amount of raw data read from the component's event stream -- not particularly useful to an application).  If the return value is zero, no event was pending.
-  return(syscall_2(_fnum_windowComponentEventGet, key, event));
-}
-
-_X_ static inline int windowTileBackground(const char *theFile)
-{
-  // Proto: int kernelWindowTileBackground(const char *);
-  // Desc : Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
-  return (syscall_1(_fnum_windowTileBackground, (void *) theFile));
-}
-
-_X_ static inline int windowCenterBackground(const char *theFile)
-{
-  // Proto: int kernelWindowCenterBackground(const char *);
-  // Desc : Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
-  return (syscall_1(_fnum_windowCenterBackground, (void *) theFile));
-}
-
-_X_ static inline int windowScreenShot(image *saveImage)
-{
-  // Proto: int kernelWindowScreenShot(image *);
-  // Desc : Get an image representation of the entire screen in the image data structure 'saveImage'.  Note that it is not necessary to allocate memory for the data pointer of the image structure beforehand, as this is done automatically.  You should, however, deallocate the data field of the image structure when you are finished with it.
-  return (syscall_1(_fnum_windowScreenShot, saveImage));
-}
-
-_X_ static inline int windowSaveScreenShot(const char *filename)
-{
-  // Proto: int kernelWindowSaveScreenShot(const char *);
-  // Desc : Save a screenshot of the entire screen to the file specified by the pathname 'filename'.
-  return (syscall_1(_fnum_windowSaveScreenShot, (void *) filename));
-}
-
-_X_ static inline int windowSetTextOutput(objectKey key)
-{
-  // Proto: int kernelWindowSetTextOutput(kernelWindowComponent *);
-  // Desc : Set the text output (and input) of the calling process to the object key of some window component, such as a TextArea or TextField component.  You'll need to use this if you want to output text to one of these components or receive input from one.
-  return (syscall_1(_fnum_windowSetTextOutput, key));
-}
-
-_X_ static inline int windowLayout(objectKey window)
-{
-  // Proto: int kernelWindowLayout(kernelWindow *);
-  // Desc : Layout, or re-layout, the requested window 'window'.  This function can be used when components are added to or removed from and already laid-out window.
-  return (syscall_1(_fnum_windowLayout, window));
-}
-
-_X_ static inline void windowDebugLayout(objectKey window)
-{
-  // Proto: void kernelWindowDebugLayout(kernelWindow *);
-  // Desc : This function draws grid boxes around all the grid cells containing components (or parts thereof).
-  syscall_1(_fnum_windowDebugLayout, window);
-}
-
-_X_ static inline int windowContextAdd(objectKey parent, windowMenuContents *contents)
-{
-  // Proto: int kernelWindowContextAdd(objectKey, windowMenuContents *);
-  // Desc : This function allows the caller to add context menu items in the 'content' structure to the supplied parent object 'parent' (can be a window or a component).  The function supplies the pointers to the new menu items in the caller's structure, which can then be manipulated to some extent (enable/disable, destroy, etc) using regular component functions.
-  return (syscall_2(_fnum_windowContextAdd, parent, contents));
-}
-
-_X_ static inline int windowContextSet(objectKey parent, objectKey menu)
-{
-  // Proto: int kernelWindowContextSet(objectKey, kernelWindowComponent *);
-  // Desc : This function allows the caller to set the context menu of the the supplied parent object 'parent' (can be a window or a component).
-  return (syscall_2(_fnum_windowContextSet, parent, menu));
-}
-
-_X_ static inline int windowSwitchPointer(objectKey parent, const char *pointerName)
-{
-  // Proto: int kernelWinowSwitchPointer(objectKey, const char *)
-  // Desc : Switch the mouse pointer for the parent window or component object 'parent' to the pointer represented by the name 'pointerName'.  Examples of pointer names are "default" and "busy".
-  return (syscall_2(_fnum_windowSwitchPointer, parent, (char *) pointerName));
-}
-
-_X_ static inline void windowComponentDestroy(objectKey component)
-{
-  // Proto: void kernelWindowComponentDestroy(kernelWindowComponent *);
-  // Desc : Deallocate and destroy a window component.
-  syscall_1(_fnum_windowComponentDestroy, component);
-}
-
-_X_ static inline int windowComponentSetVisible(objectKey component, int visible)
-{
-  // Proto: int kernelWindowComponentSetVisible(kernelWindowComponent *, int);
-  // Desc : Set 'component' visible or non-visible.
-  return (syscall_2(_fnum_windowComponentSetVisible, component,
-		    (void *) visible));
-}
-
-_X_ static inline int windowComponentSetEnabled(objectKey component, int enabled)
-{
-  // Proto: int kernelWindowComponentSetEnabled(kernelWindowComponent *, int);
-  // Desc : Set 'component' enabled or non-enabled; non-enabled components appear greyed-out.
-  return (syscall_2(_fnum_windowComponentSetEnabled, component,
-		    (void *) enabled));
-}
-
-_X_ static inline int windowComponentGetWidth(objectKey component)
-{
-  // Proto: int kernelWindowComponentGetWidth(kernelWindowComponent *);
-  // Desc : Get the pixel width of the window component 'component'.
-  return (syscall_1(_fnum_windowComponentGetWidth, component));
-}
-
-_X_ static inline int windowComponentSetWidth(objectKey component, int width)
-{
-  // Proto: int kernelWindowComponentSetWidth(kernelWindowComponent *, int);
-  // Desc : Set the pixel width of the window component 'component'
-  return (syscall_2(_fnum_windowComponentSetWidth, component, (void *) width));
-}
-
-_X_ static inline int windowComponentGetHeight(objectKey component)
-{
-  // Proto: int kernelWindowComponentGetHeight(kernelWindowComponent *);
-  // Desc : Get the pixel height of the window component 'component'.
-  return (syscall_1(_fnum_windowComponentGetHeight, component));
-}
-
-_X_ static inline int windowComponentSetHeight(objectKey component, int height)
-{
-  // Proto: int kernelWindowComponentSetHeight(kernelWindowComponent *, int);
-  // Desc : Set the pixel height of the window component 'component'.
-  return (syscall_2(_fnum_windowComponentSetHeight, component,
-		    (void *) height));
-}
-
-_X_ static inline int windowComponentFocus(objectKey component)
-{
-  // Proto: int kernelWindowComponentFocus(kernelWindowComponent *);
-  // Desc : Give window component 'component' the focus of its window.
-  return (syscall_1(_fnum_windowComponentFocus, component));
-}
-
-_X_ static inline int windowComponentDraw(objectKey component)
-{
-  // Proto: int kernelWindowComponentDraw(kernelWindowComponent *)
-  // Desc : Calls the window component 'component' to redraw itself.
-  return (syscall_1(_fnum_windowComponentDraw, component));
-}
-
-_X_ static inline int windowComponentGetData(objectKey component, void *buffer, int size)
-{
-  // Proto: int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
-  // Desc : This is a generic call to get data from the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will return is totally dependent upon the type and implementation of the component.
-  return (syscall_3(_fnum_windowComponentGetData, component, buffer,
-		    (void *) size));
-}
-
-_X_ static inline int windowComponentSetData(objectKey component, void *buffer, int size)
-{
-  // Proto: int kernelWindowComponentSetData(kernelWindowComponent *, void *, int);
-  // Desc : This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
-  return (syscall_3(_fnum_windowComponentSetData, component, buffer,
-		    (void *) size));
-}
-
-_X_ static inline int windowComponentGetSelected(objectKey component, int *selection)
-{
-  // Proto: int kernelWindowComponentGetSelected(kernelWindowComponent *);
-  // Desc : This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number(s) of its selected item(s).  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
-  return (syscall_2(_fnum_windowComponentGetSelected, component, selection));
-}
-
-_X_ static inline int windowComponentSetSelected(objectKey component, int selected)
-{
-  // Proto: int kernelWindowComponentSetSelected(kernelWindowComponent *, int);
-  // Desc : This is a call to set the 'selected' value of the window component 'component'.  The type of value accepted depends upon the type of component; a list component, for example, will use the 0-based number to select one of its items.  On the other hand, a boolean component such as a checkbox will clear itself if 'selected' is 0, and set itself otherwise.
-  return (syscall_2(_fnum_windowComponentSetSelected, component,
-		    (void *) selected));
-}
-
-_X_ static inline objectKey windowNewButton(objectKey parent, const char *label, image *buttonImage, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewButton(objectKey, const char *, image *, componentParameters *);
-  // Desc : Get a new button component to be placed inside the parent object 'parent', with the given component parameters, and with the (optional) label 'label', or the (optional) image 'buttonImage'.  Either 'label' or 'buttonImage' can be used, but not both.
-  return ((objectKey) syscall_4(_fnum_windowNewButton, parent, (void *) label,
-				buttonImage, params));
-}
-
-_X_ static inline objectKey windowNewCanvas(objectKey parent, int width, int height, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewCanvas(objectKey, int, int, componentParameters *);
-  // Desc : Get a new canvas component, to be placed inside the parent object 'parent', using the supplied width and height, with the given component parameters.  Canvas components are areas which will allow drawing operations, for example to show line drawings or unique graphical elements.
-  return ((objectKey) syscall_4(_fnum_windowNewCanvas, parent,
-				(void *) width, (void *) height, params));
-}
-
-_X_ static inline objectKey windowNewCheckbox(objectKey parent, const char *text, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewCheckbox(objectKey, const char *, componentParameters *);
-  // Desc : Get a new checkbox component, to be placed inside the parent object 'parent', using the accompanying text 'text', and with the given component parameters.
-  return ((objectKey) syscall_3(_fnum_windowNewCheckbox, parent, (void *) text,
-				params));
-}
-
-_X_ static inline objectKey windowNewContainer(objectKey parent, const char *name, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewContainer(objectKey, const char *, componentParameters *);
-  // Desc : Get a new container component, to be placed inside the parent object 'parent', using the name 'name', and with the given component parameters.  Containers are useful for layout when a simple grid is not sufficient.  Each container has its own internal grid layout (for components it contains) and external grid parameters for placing it inside a window or another container.  Containers can be nested arbitrarily.  This allows limitless control over a complex window layout.
-  return ((objectKey) syscall_3(_fnum_windowNewContainer, parent,
-				(void *) name, params));
-}
-
-_X_ static inline objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewIcon(objectKey, image *, const char *, const char *, componentParameters *);
-  // Desc : Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'.
-  return ((objectKey) syscall_4(_fnum_windowNewIcon, parent, iconImage,
-				(void *) label, params));
-}
-
-_X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, drawMode mode, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewImage(objectKey, image *, drawMode, componentParameters *);
-  // Desc : Get a new image component to be placed inside the parent object 'parent', using the image data structure 'baseImage', and with the given component parameters 'params'.
-  return ((objectKey) syscall_4(_fnum_windowNewImage, parent, baseImage,
-				(void *) mode, params));
-}
-
-_X_ static inline objectKey windowNewList(objectKey parent, windowListType type, int rows, int columns, int multiple, listItemParameters *items, int numItems, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewList(objectKey, windowListType, int, int, int, listItemParameters *, int, componentParameters *);
-  // Desc : Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'type' specifies the type of list (see <sys/window.h> for possibilities), 'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'items' is an array of 'numItems' list item parameters.
-  return ((objectKey) syscall_8(_fnum_windowNewList, parent, (void *) type,
-				(void *) rows, (void *) columns,
-				(void *) multiple, items, (void *) numItems,
-				params));
-}
-
-_X_ static inline objectKey windowNewListItem(objectKey parent, listItemParameters *item, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewListItem(objectKey, windowListType, listItemParameters *, componentParameters *);
-  // Desc : Get a new list item component to be placed inside the parent object 'parent', using the list item parameters 'item', and the component parameters 'params'.
-  return ((objectKey) syscall_3(_fnum_windowNewListItem, parent, item,
-				params));
-}
-
-_X_ static inline objectKey windowNewMenu(objectKey parent, const char *name, windowMenuContents *contents, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewMenu(objectKey, const char *, windowMenuContents *, componentParameters *);
-  // Desc : Get a new menu component to be placed inside the parent object 'parent', using the name 'name' (which will be the header of the menu in a menu bar, for example), the menu contents structure 'contents', and the component parameters 'params'.  A menu component is an instance of a container, typically contains menu item components, and is typically added to a menu bar component.
-  return ((objectKey) syscall_4(_fnum_windowNewMenu, parent, (void *) name,
-				contents, params));
-}
-
-_X_ static inline objectKey windowNewMenuBar(objectKey window, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *, componentParameters *);
-  // Desc : Get a new menu bar component to be placed inside the window 'window', using the component parameters 'params'.  A menu bar component is an instance of a container, and typically contains menu components.
-  return ((objectKey) syscall_2(_fnum_windowNewMenuBar, window, params));
-}
-
-_X_ static inline objectKey windowNewMenuItem(objectKey parent, const char *text, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewMenuItem(objectKey, const char *, componentParameters *);
-  // Desc : Get a new menu item component to be placed inside the parent object 'parent', using the string 'text' and the component parameters 'params'.  A menu item  component is typically added to menu components, which are in turn added to menu bar components.
-  return ((objectKey) syscall_3(_fnum_windowNewMenuItem, parent, (void *) text,
-				params));
-}
-
-_X_ static inline objectKey windowNewPasswordField(objectKey parent, int columns, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewPasswordField(objectKey, int, componentParameters *);
-  // Desc : Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns and the component parameters 'params'.  A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*).
-  return ((objectKey) syscall_3(_fnum_windowNewPasswordField, parent,
-				(void *) columns, params));
-}
-
-_X_ static inline objectKey windowNewProgressBar(objectKey parent, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewProgressBar(objectKey, componentParameters *);
-  // Desc : Get a new progress bar component to be placed inside the parent object 'parent', using the component parameters 'params'.  Use the windowComponentSetData() function to set the percentage of progress.
-  return ((objectKey) syscall_2(_fnum_windowNewProgressBar, parent, params));
-}
-
-_X_ static inline objectKey windowNewRadioButton(objectKey parent, int rows, int columns, char *items[], int numItems, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewRadioButton(objectKey, int, int, const char **, int, componentParameters *);
-  // Desc : Get a new radio button component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices.  The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items').
-  return ((objectKey) syscall_6(_fnum_windowNewRadioButton, parent,
-				(void *) rows, (void *) columns,
-				items, (void *) numItems, params));
-}
-
-_X_ static inline objectKey windowNewScrollBar(objectKey parent, scrollBarType type, int width, int height, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewScrollBar(objectKey, scrollBarType, int, int, componentParameters *);
-  // Desc : Get a new scroll bar component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
-  return ((objectKey) syscall_5(_fnum_windowNewScrollBar, parent,
-				(void *) type, (void *) width, (void *) height,
-				params));
-}
-
-_X_ static inline objectKey windowNewSlider(objectKey parent, scrollBarType type, int width, int height, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewSlider(objectKey, scrollBarType, int, int, componentParameters *);
-  // Desc : Get a new slider component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
-  return ((objectKey) syscall_5(_fnum_windowNewSlider, parent, (void *) type,
-				(void *) width, (void *) height, params));
-}
-
-_X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int rows, int bufferLines, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewTextArea(objectKey, int, int, int, componentParameters *);
-  // Desc : Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params'.  The 'columns' and 'rows' are the visible portion, and 'bufferLines' is the number of extra lines of scrollback memory.  If 'font' is NULL, the default font will be used.
-  return ((objectKey) syscall_5(_fnum_windowNewTextArea, parent,
-				(void *) columns, (void *) rows,
-				(void *) bufferLines, params));
-}
-
-_X_ static inline objectKey windowNewTextField(objectKey parent, int columns, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewTextField(objectKey, int, componentParameters *);
-  // Desc : Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and with the given component parameters 'params'.  Text field components are essentially 1-line 'text area' components.  If the params 'font' is NULL, the default font will be used.
-  return ((objectKey) syscall_3(_fnum_windowNewTextField, parent,
-				(void *) columns, params));
-}
-
-_X_ static inline objectKey windowNewTextLabel(objectKey parent, const char *text, componentParameters *params)
-{
-  // Proto: kernelWindowComponent *kernelWindowNewTextLabel(objectKey, const char *, componentParameters *);
-  // Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
-  return ((objectKey) syscall_3(_fnum_windowNewTextLabel, parent,
-				(void *) text, params));
-}
-
+int windowLogin(const char *);
+int windowLogout(void);
+objectKey windowNew(int, const char *);
+objectKey windowNewDialog(objectKey, const char *);
+int windowDestroy(objectKey);
+int windowUpdateBuffer(void *, int, int, int, int);
+int windowSetTitle(objectKey, const char *);
+int windowGetSize(objectKey, int *, int *);
+int windowSetSize(objectKey, int, int);
+int windowGetLocation(objectKey, int *, int *);
+int windowSetLocation(objectKey, int, int);
+int windowCenter(objectKey);
+int windowSnapIcons(objectKey);
+int windowSetHasBorder(objectKey, int);
+int windowSetHasTitleBar(objectKey, int);
+int windowSetMovable(objectKey, int);
+int windowSetResizable(objectKey, int);
+int windowRemoveMinimizeButton(objectKey);
+int windowRemoveCloseButton(objectKey);
+int windowSetVisible(objectKey, int);
+void windowSetMinimized(objectKey, int);
+int windowAddConsoleTextArea(objectKey);
+void windowRedrawArea(int, int, int, int);
+void windowDrawAll(void);
+int windowGetColor(const char *, color *);
+int windowSetColor(const char *, color *);
+void windowResetColors(void);
+void windowProcessEvent(objectKey);
+int windowComponentEventGet(objectKey, windowEvent *);
+int windowSetBackgroundColor(objectKey, color *);
+int windowTileBackground(const char *);
+int windowCenterBackground(const char *);
+int windowScreenShot(image *);
+int windowSaveScreenShot(const char *);
+int windowSetTextOutput(objectKey);
+int windowLayout(objectKey);
+void windowDebugLayout(objectKey);
+int windowContextAdd(objectKey, windowMenuContents *);
+int windowContextSet(objectKey, objectKey);
+int windowSwitchPointer(objectKey, const char *);
+void windowComponentDestroy(objectKey);
+int windowComponentSetVisible(objectKey, int);
+int windowComponentSetEnabled(objectKey, int);
+int windowComponentGetWidth(objectKey);
+int windowComponentSetWidth(objectKey, int);
+int windowComponentGetHeight(objectKey);
+int windowComponentSetHeight(objectKey, int);
+int windowComponentFocus(objectKey);
+int windowComponentUnfocus(objectKey);
+int windowComponentDraw(objectKey);
+int windowComponentGetData(objectKey, void *, int);
+int windowComponentSetData(objectKey, void *, int);
+int windowComponentGetSelected(objectKey, int *);
+int windowComponentSetSelected(objectKey, int );
+objectKey windowNewButton(objectKey, const char *, image *,
+			  componentParameters *);
+objectKey windowNewCanvas(objectKey, int, int, componentParameters *);
+objectKey windowNewCheckbox(objectKey, const char *, componentParameters *);
+objectKey windowNewContainer(objectKey, const char *, componentParameters *);
+objectKey windowNewDivider(objectKey, dividerType, componentParameters *);
+objectKey windowNewIcon(objectKey, image *, const char *,
+			componentParameters *);
+objectKey windowNewImage(objectKey, image *, drawMode, componentParameters *);
+objectKey windowNewList(objectKey, windowListType, int, int, int,
+			listItemParameters *, int, componentParameters *);
+objectKey windowNewListItem(objectKey, windowListType, listItemParameters *,
+			    componentParameters *);
+objectKey windowNewMenu(objectKey, const char *, windowMenuContents *,
+			componentParameters *);
+objectKey windowNewMenuBar(objectKey, componentParameters *);
+objectKey windowNewMenuItem(objectKey, const char *, componentParameters *);
+objectKey windowNewPasswordField(objectKey, int, componentParameters *);
+objectKey windowNewProgressBar(objectKey, componentParameters *);
+objectKey windowNewRadioButton(objectKey, int, int, char *[], int,
+			       componentParameters *);
+objectKey windowNewScrollBar(objectKey, scrollBarType, int, int,
+			     componentParameters *);
+objectKey windowNewSlider(objectKey, scrollBarType, int, int,
+			  componentParameters *);
+objectKey windowNewTextArea(objectKey, int, int, int, componentParameters *);
+objectKey windowNewTextField(objectKey, int, componentParameters *);
+objectKey windowNewTextLabel(objectKey, const char *, componentParameters *);
 
 //
 // User functions
 //
-
-_X_ static inline int userAuthenticate(const char *name, const char *password)
-{
-  // Proto: int kernelUserAuthenticate(const char *, const char *);
-  // Desc : Given the user 'name', return 0 if 'password' is the correct password.
-  return (syscall_2(_fnum_userAuthenticate, (void *) name, (void *) password));
-}
-
-_X_ static inline int userLogin(const char *name, const char *password)
-{
-  // Proto: int kernelUserLogin(const char *, const char *);
-  // Desc : Log the user 'name' into the system, using the password 'password'.  Calling this function requires supervisor privilege level.
-  return (syscall_2(_fnum_userLogin, (void *) name, (void *) password));
-}
-
-_X_ static inline int userLogout(const char *name)
-{
-  // Proto: int kernelUserLogout(const char *);
-  // Desc : Log the user 'name' out of the system.  This can only be called by a process with supervisor privilege, or one running as the same user being logged out.
-  return (syscall_1(_fnum_userLogout, (void *) name));
-}
-
-_X_ static inline int userGetNames(char *buffer, unsigned bufferSize)
-{
-  // Proto: int kernelUserGetNames(char *, unsigned);
-  // Desc : Fill the buffer 'buffer' with the names of all users, up to 'bufferSize' bytes.
-  return (syscall_2(_fnum_userGetNames, buffer, (void *) bufferSize));
-}
-
-_X_ static inline int userAdd(const char *name, const char *password)
-{
-  // Proto: int kernelUserAdd(const char *, const char *);
-  // Desc : Add the user 'name' with the password 'password'
-  return (syscall_2(_fnum_userAdd, (void *) name, (void *) password));
-}
-
-_X_ static inline int userDelete(const char *name)
-{
-  // Proto: int kernelUserDelete(const char *);
-  // Desc : Delete the user 'name'
-  return (syscall_1(_fnum_userDelete, (void *) name));
-}
-
-_X_ static inline int userSetPassword(const char *name, const char *oldPass, const char *newPass)
-{
-  // Proto: int kernelUserSetPassword(const char *, const char *, const char *);
-  // Desc : Set the password of user 'name'.  If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'.  The new password is supplied in 'newPass'.
-  return (syscall_3(_fnum_userSetPassword, (void *) name, (void *) oldPass,
-		    (void *) newPass));
-}
-
-_X_ static inline int userGetPrivilege(const char *name)
-{
-  // Proto: int kernelUserGetPrivilege(const char *);
-  // Desc : Get the privilege level of the user represented by 'name'.
-  return (syscall_1(_fnum_userGetPrivilege, (void *) name));
-}
-
-_X_ static inline int userGetPid(void)
-{
-  // Proto: int kernelUserGetPid(void);
-  // Desc : Get the process ID of the current user's 'login process'.
-  return (syscall_0(_fnum_userGetPid));
-}
-
-_X_ static inline int userSetPid(const char *name, int pid)
-{
-  // Proto: int kernelUserSetPid(const char *, int);
-  // Desc : Set the login PID of user 'name' to 'pid'.  This is the process that gets killed when the user indicates that they want to logout.  In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell.
-  return (syscall_2(_fnum_userSetPid, (void *) name, (void *) pid));
-}
-
-_X_ static inline int userFileAdd(const char *passFile, const char *userName, const char *password)
-{
-  // Proto: int kernelUserFileAdd(const char *, const char *, const char *);
-  // Desc : Add a user to the designated password file, with the given name and password.  This can only be done by a privileged user.
-  return (syscall_3(_fnum_userFileAdd, (void *) passFile, (void *) userName,
-		    (void *) password));
-}
-
-_X_ static inline int userFileDelete(const char *passFile, const char *userName)
-{
-  // Proto: int kernelUserFileDelete(const char *, const char *);
-  // Desc : Remove a user from the designated password file.  This can only be done by a privileged user
-  return (syscall_2(_fnum_userFileDelete, (void *) passFile,
-		    (void *) userName));
-}
-
-_X_ static inline int userFileSetPassword(const char *passFile, const char *userName, const char *oldPass, const char *newPass)
-{
-  // Proto: int kernelUserFileSetPassword(const char *, const char *, const char *, const char *);
-  // Desc : Set the password of user 'userName' in the designated password file.  If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'.  The new password is supplied in 'newPass'.
-  return (syscall_4(_fnum_userFileSetPassword, (void *) passFile,
-		    (void *) userName, (void *) oldPass, (void *) newPass));
-}
-
+int userAuthenticate(const char *, const char *);
+int userLogin(const char *, const char *);
+int userLogout(const char *);
+int userGetNames(char *, unsigned);
+int userAdd(const char *, const char *);
+int userDelete(const char *);
+int userSetPassword(const char *, const char *, const char *);
+int userGetPrivilege(const char *);
+int userGetPid(void);
+int userSetPid(const char *, int);
+int userFileAdd(const char *, const char *, const char *);
+int userFileDelete(const char *, const char *);
+int userFileSetPassword(const char *, const char *, const char *,
+			const char *);
 
 //
 // Network functions
 //
-
-_X_ static inline int networkDeviceGetCount(void)
-{
-  // Proto: int kernelNetworkDeviceGetCount(void);
-  // Desc: Returns the count of network devices
-  return (syscall_0(_fnum_networkDeviceGetCount));
-}
-
-_X_ static inline int networkDeviceGet(const char *name, networkDevice *dev)
-{
-  // Proto: int kernelNetworkDeviceGet(int, networkDevice *);
-  // Desc: Returns the user-space portion of the requested (by 'name') network device in 'dev'.
-  return (syscall_2(_fnum_networkDeviceGet, (char *) name, dev));
-}
-
-_X_ static inline int networkInitialized(void)
-{
-  // Proto: int kernelNetworkInitialized(void);
-  // Desc: Returns 1 if networking is currently enabled.
-  return (syscall_0(_fnum_networkInitialized));
-}
-
-_X_ static inline int networkInitialize(void)
-{
-  // Proto: int kernelNetworkInitialize(void);
-  // Desc: Initialize and start networking.
-  return (syscall_0(_fnum_networkInitialize));
-}
-
-_X_ static inline int networkShutdown(void)
-{
-  // Proto: int kernelNetworkShutdown(void);
-  // Desc: Shut down networking.
-  return (syscall_0(_fnum_networkShutdown));
-}
-
-_X_ static inline objectKey networkOpen(int mode, networkAddress *address, networkFilter *filter)
-{
-  // Proto: kernelNetworkConnection *kernelNetworkOpen(int, networkAddress *, networkFilter *);
-  // Desc: Opens a connection for network communication.  The 'type' and 'mode' arguments describe the kind of connection to make (see possiblilities in the file <sys/network.h>.  If applicable, 'address' specifies the network address of the remote host to connect to.  If applicable, the 'localPort' and 'remotePort' arguments specify the TCP/UDP ports to use.
-  return ((objectKey) syscall_3(_fnum_networkOpen, (void *) mode, address,
-				filter));
-}
-
-_X_ static inline int networkClose(objectKey connection)
-{
-  // Proto: int kernelNetworkClose(kernelNetworkConnection *);
-  // Desc: Close the specified, previously-opened network connection.
-  return (syscall_1(_fnum_networkClose, connection));
-}
-
-_X_ static inline int networkCount(objectKey connection)
-{
-  // Proto: int kernelNetworkCount(kernelNetworkConnection *connection);
-  // Desc: Given a network connection, return the number of bytes currently pending in the input stream
-  return (syscall_1(_fnum_networkCount, connection));
-}
-
-_X_ static inline int networkRead(objectKey connection, unsigned char *buffer, unsigned bufferSize)
-{
-  // Proto: int kernelNetworkRead(kernelNetworkConnection *, unsigned char *, unsigned);
-  // Desc: Given a network connection, a buffer, and a buffer size, read up to 'bufferSize' bytes (or the number of bytes available in the connection's input stream) and return the number read.  The connection must be initiated using the networkConnectionOpen() function.
-  return (syscall_3(_fnum_networkRead, connection, buffer,
-		    (void *) bufferSize));
-}
-
-_X_ static inline int networkWrite(objectKey connection, unsigned char *buffer, unsigned bufferSize)
-{
-  // Proto: int kernelNetworkWrite(kernelNetworkConnection *, unsigned char *, unsigned);
-  // Desc: Given a network connection, a buffer, and a buffer size, write up to 'bufferSize' bytes from 'buffer' to the connection's output.  The connection must be initiated using the networkConnectionOpen() function.
-  return (syscall_3(_fnum_networkWrite, connection, buffer,
-		    (void *) bufferSize));
-}
-
-_X_ static inline int networkPing(objectKey connection, int seqNum, unsigned char *buffer, unsigned bufferSize)
-{
-  // Proto: int kernelNetworkPing(kernelNetworkConnection *, int, unsigned char *, unsigned);
-  // Desc: Send an ICMP "echo request" packet to the host at the network address 'destAddress', with the (optional) sequence number 'seqNum'.  The 'buffer' and 'bufferSize' arguments point to the location of data to send in the ping packet.  The content of the data is mostly irrelevant, except that it can be checked to ensure the same data is returned by the ping reply from the remote host.
-  return (syscall_4(_fnum_networkPing, connection, (void *) seqNum, buffer,
-		    (void *) bufferSize));
-}
-
-_X_ static inline int networkGetHostName(char *buffer, int bufferSize)
-{
-  // Proto: int kernelNetworkGetHostName(char *, int);
-  // Desc: Returns up to 'bufferSize' bytes of the system's network hostname in 'buffer' 
-  return (syscall_2(_fnum_networkGetHostName, buffer, (void *) bufferSize));
-}
-
-_X_ static inline int networkSetHostName(const char *buffer, int bufferSize)
-{
-  // Proto: int kernelNetworkSetHostName(const char *, int);
-  // Desc: Sets the system's network hostname using up to 'bufferSize' bytes from 'buffer'
-  return (syscall_2(_fnum_networkSetHostName, (char *) buffer,
-		    (void *) bufferSize));
-}
-
-_X_ static inline int networkGetDomainName(char *buffer, int bufferSize)
-{
-  // Proto: int kernelNetworkGetDomainName(char *, int);
-  // Desc: Returns up to 'bufferSize' bytes of the system's network domain name in 'buffer' 
-  return (syscall_2(_fnum_networkGetDomainName, buffer, (void *) bufferSize));
-}
-
-_X_ static inline int networkSetDomainName(const char *buffer, int bufferSize)
-{
-  // Proto: int kernelNetworkSetDomainName(const char *, int);
-  // Desc: Sets the system's network domain name using up to 'bufferSize' bytes from 'buffer'
-  return (syscall_2(_fnum_networkSetDomainName, (char *) buffer,
-		    (void *) bufferSize));
-}
-
+int networkDeviceGetCount(void);
+int networkDeviceGet(const char *, networkDevice *);
+int networkInitialized(void);
+int networkInitialize(void);
+int networkShutdown(void);
+objectKey networkOpen(int, networkAddress *, networkFilter *);
+int networkClose(objectKey);
+int networkCount(objectKey);
+int networkRead(objectKey, unsigned char *, unsigned);
+int networkWrite(objectKey, unsigned char *, unsigned);
+int networkPing(objectKey, int, unsigned char *, unsigned);
+int networkGetHostName(char *, int);
+int networkSetHostName(const char *, int);
+int networkGetDomainName(char *, int);
+int networkSetDomainName(const char *, int);
 
 //
 // Miscellaneous functions
 //
-
-_X_ static inline int fontGetDefault(objectKey *pointer)
-{
-  // Proto: int kernelFontGetDefault(kernelAsciiFont **);
-  // Desc : Get an object key in 'pointer' to refer to the current default font.
-  return (syscall_1(_fnum_fontGetDefault, pointer));
-}
-
-_X_ static inline int fontSetDefault(const char *name)
-{
-  // Proto: int kernelFontSetDefault(const char *);
-  // Desc : Set the default font for the system to the font with the name 'name'.  The font must previously have been loaded by the system, for example using the fontLoad()  function.
-  return (syscall_1(_fnum_fontSetDefault, (void *) name));
-}
-
-_X_ static inline int fontLoad(const char* filename, const char *fontname, objectKey *pointer, int fixedWidth)
-{
-  // Proto: int kernelFontLoad(const char*, const char*, kernelAsciiFont **, int);
-  // Desc : Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
-  return (syscall_4(_fnum_fontLoad, (void *) filename, (void *) fontname,
-		    pointer, (void *) fixedWidth));
-}
-
-_X_ static inline int fontGetPrintedWidth(objectKey font, const char *string)
-{
-  // Proto: int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
-  // Desc : Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
-  return (syscall_2(_fnum_fontGetPrintedWidth, font, (void *) string));
-}
-
-_X_ static inline int fontGetWidth(objectKey font)
-{
-  // Proto: int kernelFontGetWidth(kernelAsciiFont *font)
-  // Desc : Returns the character width of the supplied font.  Only useful when the font is fixed-width.
-  return (syscall_1(_fnum_fontGetWidth, font));
-}
-
-_X_ static inline int fontGetHeight(objectKey font)
-{
-  // Proto: int kernelFontGetHeight(kernelAsciiFont *font)
-  // Desc : Returns the character height of the supplied font.
-  return (syscall_1(_fnum_fontGetHeight, font));
-}
-
-_X_ static inline int imageLoad(const char *filename, int width, int height, image *loadImage)
-{
-  // Proto: int imageLoad(const char *, int, int, image *);
-  // Desc : Try to load the bitmap image file 'filename' (with the specified 'width' and 'height' if possible -- zeros indicate no preference), and if successful, save the data in the image data structure 'loadImage'.
-  return (syscall_4(_fnum_imageLoad, (void *) filename,(void *) width,
-		    (void *) height, loadImage));
-}
-
-_X_ static inline int imageSave(const char *filename, int format, image *saveImage)
-{
-  // Proto: int imageSave(const char *, int, image *);
-  // Desc : Save the image data structure 'saveImage' using the image format 'format' to the file 'fileName'.  Image format codes are found in the file <sys/image.h>
-  return (syscall_3(_fnum_imageSave, (void *) filename, (void *) format,
-		    saveImage));
-}
-
-_X_ static inline int shutdown(int reboot, int nice)
-{
-  // Proto: int kernelShutdown(int, int);
-  // Desc : Shut down the system.  If 'reboot' is non-zero, the system will reboot.  If 'nice' is zero, the shutdown will be orderly and will abort if serious errors are detected.  If 'nice' is non-zero, the system will go down like a kamikaze regardless of errors.
-  return (syscall_2(_fnum_shutdown, (void *) reboot, (void *) nice));
-}
-
-_X_ static inline void getVersion(char *buff, int buffSize)
-{
-  // Proto: void kernelGetVersion(char *, int);
-  // Desc : Get the kernel's version string int the buffer 'buff', up to 'buffSize' bytes
-  syscall_2(_fnum_getVersion, buff, (void *) buffSize);
-}
-
-_X_ static inline int systemInfo(struct utsname *uname)
-{
-  // Proto: int kernelSystemInfo(void *);
-  // Desc : Gathers some info about the system and puts it into the utsname structure 'uname', just like the one returned by the system call 'uname' in Unix.
-  return (syscall_1(_fnum_systemInfo, uname));
-}
-
-_X_ static inline int encryptMD5(const char *in, char *out)
-{
-  // Proto: int kernelEncryptMD5(const char *, char *);
-  // Desc : Given the input string 'in', return the encrypted numerical message digest in the buffer 'out'.
-  return (syscall_2(_fnum_encryptMD5, (void *) in, out));
-}
-
-_X_ static inline int lockGet(lock *getLock)
-{
-  // Proto: int kernelLockGet(lock *);
-  // Desc : Get an exclusive lock based on the lock structure 'getLock'.
-  return (syscall_1(_fnum_lockGet, (void *) getLock));
-}
-
-_X_ static inline int lockRelease(lock *relLock)
-{
-  // Proto: int kernelLockRelease(lock *);
-  // Desc : Release a lock on the lock structure 'lock' previously obtained with a call to the lockGet() function.
-  return (syscall_1(_fnum_lockRelease, (void *) relLock));
-}
-
-_X_ static inline int lockVerify(lock *verLock)
-{
-  // Proto: int kernelLockVerify(lock *);
-  // Desc : Verify that a lock on the lock structure 'verLock' is still valid.  This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock.
-  return (syscall_1(_fnum_lockVerify, (void *) verLock));
-}
-
-_X_ static inline int variableListCreate(variableList *list)
-{
-  // Proto: int kernelVariableListCreate(variableList *);
-  // Desc : Set up a new variable list structure.
-  return (syscall_1(_fnum_variableListCreate, list));
-}
-  
-_X_ static inline int variableListDestroy(variableList *list)
-{
-  // Proto: int kernelVariableListDestroy(variableList *);
-  // Desc : Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
-  return (syscall_1(_fnum_variableListDestroy, list));
-}
-
-_X_ static inline int variableListGet(variableList *list, const char *var, char *buffer, unsigned buffSize)
-{
-  // Proto: int kernelVariableListGet(variableList *, const char *, char *, unsigned);
-  // Desc : Get the value of the variable 'var' from the variable list 'list' in the buffer 'buffer', up to 'buffSize' bytes.
-  return (syscall_4(_fnum_variableListGet, list, (void *) var, buffer,
-		    (void *) buffSize));
-}
-
-_X_ static inline int variableListSet(variableList *list, const char *var, const char *value)
-{
-  // Proto: int kernelVariableListSet(variableList *, const char *, const char *);
-  // Desc : Set the value of the variable 'var' to the value 'value'.
-  return (syscall_3(_fnum_variableListSet, list, (void *) var,
-		    (void *) value));
-}
-
-_X_ static inline int variableListUnset(variableList *list, const char *var)
-{
-  // Proto: int kernelVariableListUnset(variableList *, const char *);
-  // Desc : Remove the variable 'var' from the variable list 'list'.
-  return (syscall_2(_fnum_variableListUnset, list, (void *) var));
-}
-
-_X_ static inline int configurationReader(const char *fileName, variableList *list)
-{
-  // Proto: int kernelConfigurationReader(const char *, variableList *);
-  // Desc : Read the contents of the configuration file 'fileName', and return the data in the variable list structure 'list'.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
-  return (syscall_2(_fnum_configurationReader, (void *) fileName, list));
-}
-
-_X_ static inline int configurationWriter(const char *fileName, variableList *list)
-{
-  // Proto: int kernelConfigurationWriter(const char *, variableList *);
-  // Desc : Write the contents of the variable list 'list' to the configuration file 'fileName'.  Configuration files are simple properties files, consisting of lines of the format "variable=value".  If the configuration file already exists, the configuration writer will attempt to preserve comment lines (beginning with '#') and formatting whitespace.
-  return (syscall_2(_fnum_configurationWriter, (void *) fileName, list));
-}
-
-_X_ static inline int keyboardGetMaps(char *buffer, unsigned size)
-{
-  // Proto: int kernelKeyboardGetMaps(char *, unsigned);
-  // Desc : Get a listing of the names of all available keyboard mappings.  The buffer is filled up to 'size' bytes with descriptive names, such as "English (UK)".  Each string is NULL-terminated, and the return value of the call is the number of strings copied.  The first string returned is the current map.
-  return (syscall_2(_fnum_keyboardGetMaps, buffer, (void *) size));
-}
-
-_X_ static inline int keyboardSetMap(const char *name)
-{
-  // Proto: int kernelKeyboardSetMap(const char *);
-  // Desc : Set the keyboard mapping to the supplied 'name'.  The normal procedure would be to first call the keyboardGetMaps() function, get the list of supported mappings, and then call this function with one of those names.  Only a name returned by the keyboardGetMaps function is valid in this scenario.
-  return (syscall_1(_fnum_keyboardSetMap, (void *) name));
-}
-
-_X_ static inline int deviceTreeGetCount(void)
-{
-  // Proto: int kernelDeviceTreeGetCount(void);
-  // Desc : Returns the number of devices in the kernel's device tree.
-  return (syscall_0(_fnum_deviceTreeGetCount));
-}
-
-_X_ static inline int deviceTreeGetRoot(device *rootDev)
-{
-  // Proto: int kernelDeviceTreeGetRoot(device *);
-  // Desc : Returns the user-space portion of the device tree root device in the structure 'rootDev'.
-  return (syscall_1(_fnum_deviceTreeGetRoot, rootDev));
-}
-
-_X_ static inline int deviceTreeGetChild(device *parentDev, device *childDev)
-{
-  // Proto: int kernelDeviceTreeGetChild(device *, device *);
-  // Desc : Returns the user-space portion of the first child device of 'parentDev' in the structure 'childDev'.
-  return (syscall_2(_fnum_deviceTreeGetChild, parentDev, childDev));
-}
-
-_X_ static inline int deviceTreeGetNext(device *siblingDev)
-{
-  // Proto: int kernelDeviceTreeGetNext(device *);
-  // Desc : Returns the user-space portion of the next sibling device of the supplied device 'siblingDev' in the same data structure.
-  return (syscall_1(_fnum_deviceTreeGetNext, siblingDev));
-}
-
-_X_ static inline int mouseLoadPointer(const char *pointerName, const char *fileName)
-{
-  // Proto: int kernelMouseLoadPointer(const char *, const char *)
-  // Desc : Tells the mouse driver code to load the mouse pointer 'pointerName' from the file 'fileName'.
-  return (syscall_2(_fnum_mouseLoadPointer, (char *) pointerName,
-		    (char *) fileName));
-}
+int fontGetDefault(objectKey *);
+int fontSetDefault(const char *);
+int fontLoad(const char *, const char *, objectKey *, int);
+int fontGetPrintedWidth(objectKey, const char *);
+int fontGetWidth(objectKey);
+int fontGetHeight(objectKey);
+int imageNew(image *, unsigned, unsigned);
+int imageFree(image *);
+int imageLoad(const char *, unsigned, unsigned, image *);
+int imageSave(const char *, int, image *);
+int imageResize(image *, unsigned, unsigned);
+int imageCopy(image *, image *);
+int shutdown(int, int);
+void getVersion(char *, int);
+int systemInfo(struct utsname *);
+int encryptMD5(const char *, char *);
+int lockGet(lock *);
+int lockRelease(lock *);
+int lockVerify(lock *);
+int variableListCreate(variableList *);
+int variableListDestroy(variableList *);
+int variableListGet(variableList *, const char *, char *, unsigned);
+int variableListSet(variableList *, const char *, const char *);
+int variableListUnset(variableList *, const char *);
+int configRead(const char *, variableList *);
+int configWrite(const char *, variableList *);
+int configGet(const char *, const char *, char *, unsigned);
+int configSet(const char *, const char *, const char *);
+int configUnset(const char *, const char *);
+int guidGenerate(guid *);
+unsigned crc32(void *, unsigned, unsigned *);
+int keyboardGetMap(keyMap *);
+int keyboardSetMap(const char *);
+int deviceTreeGetCount(void);
+int deviceTreeGetRoot(device *);
+int deviceTreeGetChild(device *, device *);
+int deviceTreeGetNext(device *);
+int mouseLoadPointer(const char *, const char *);
+void *pageGetPhysical(int, void *);
+void setLicensed(int);
 
 #define _API_H
 #endif

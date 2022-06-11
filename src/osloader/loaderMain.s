@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -27,8 +27,8 @@
 	EXTERN loaderEnableA20
 	EXTERN loaderSetGraphicDisplay
 	EXTERN loaderPrint
-	EXTERN loaderPrintNewline
 	EXTERN loaderPrintNumber
+	EXTERN loaderPrintNewline
 	EXTERN PARTENTRY
 	EXTERN HARDWAREINFO
 	EXTERN KERNELGMODE
@@ -42,6 +42,7 @@
 	GLOBAL ROOTDIRENTS
 	GLOBAL FSTYPE
 	GLOBAL RESSECS
+	GLOBAL FATS
 	GLOBAL FATSECS
 	GLOBAL HEADS
 	GLOBAL CYLINDERS
@@ -97,6 +98,7 @@ loaderMain:
 	pop DS
 	mov CX, 16
 	mov DI, PARTENTRY
+	cld
 	rep movsb
 	pop DS
 	.notHDD:
@@ -129,9 +131,9 @@ loaderMain:
 	;; Before we print any other info, determine whether the user wants
 	;; to see any hardware info messages.  If the BOOTINFO file exists,
 	;; then we print the messages
-        push word BOOTINFO
-        call loaderFindFile
-        add SP, 2
+	push word BOOTINFO
+	call loaderFindFile
+	add SP, 2
 	mov word [PRINTINFO], AX
 
 	;; Print out the boot device information
@@ -183,7 +185,7 @@ loaderMain:
 	mov CX, 2000h
 	mov AH, 01h
 	int 10h
-	
+
 	;; Disable interrupts.  The kernel's initial state will be with
 	;; interrupts disabled.  It will have to do the appropriate setup
 	;; before re-enabling them.
@@ -231,6 +233,14 @@ loaderMain:
 	
 	;; First the hardware structure
 	push dword (LDRCODESEGMENTLOCATION + HARDWAREINFO)
+
+	;; Next the kernel stack size
+	push dword KERNELSTACKSIZE
+	
+	;; Next the kernel stack location
+	mov EAX, KERNELVIRTUALADDRESS
+	add EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
+	push EAX
 
 	;; Next the amount of used kernel memory.  We need to add the
 	;; size of the stack we allocated to the kernel image size
@@ -936,8 +946,8 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.69' , 0
-LOADMSG2	db 'Copyright (C) 1998-2007 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.7' , 0
+LOADMSG2	db 'Copyright (C) 1998-2011 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
 BOOTHDD		db 'hd', 0

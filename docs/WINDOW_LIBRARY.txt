@@ -1,5 +1,4 @@
-THE VISOPSYS WINDOW LIBRARY (Version 0.6)
-
+THE VISOPSYS WINDOW LIBRARY (Version 0.7)
 
 The window library is a set of functions to aid GUI development on the Visopsys platform. At present the list of functions is small, but it does provide very useful functionality. This includes an interface for registering window event callbacks for GUI components, and a 'run' function to poll for such events.
 
@@ -26,24 +25,14 @@ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	Create an 'color chooser' dialog box, with the parent window 'parentWindow', and a pointer to the color structure 'pickedColor'.  Currently the window consists of red/green/blue sliders and a canvas displaying the current color.  The initial color displayed will be whatever is supplied in 'pickedColor'.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
-int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength)
+int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength, int thumb)
 
-	Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  The dialog will have a file selection area, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the filename into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+	Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  If 'fileName' contains data (i.e. the string's first character is non-NULL), the file name field of the dialog will contain that string.  If 'thumb' is non-zero, an area will display image thumbnails when image files are clicked.  The dialog will have a file selection area, a file name field, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the file name into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
 
-objectKey windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
+windowFileList *windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
 
 	Create a new file list widget with the parent window 'parent', the window list type 'type' (windowlist_textonly or windowlist_icononly is currently supported), of height 'rows' and width 'columns', the name of the starting location 'directory', flags (such as WINFILEBROWSE_CAN_CD or WINFILEBROWSE_CAN_DEL -- see sys/window.h), a function 'callback' for when the status changes, and component parameters 'params'.
-
-
-int windowUpdateFileList(objectKey fileList, const char *directory)
-
-	Update the supplied file list 'fileList', with the location 'directory'.  This is useful for changing the current directory, for example.
-
-
-int windowDestroyFileList(objectKey fileList)
-
-	Clear the event handler for the file list widget 'fileList', and destroy and deallocate the widget.
 
 
 int windowClearEventHandlers(void)
@@ -81,6 +70,11 @@ void windowGuiStop(void)
 	Stop GUI event polling which has been started by a previous call to one of the 'run' functions, such as windowGuiRun() or windowGuiThread().
 
 
+int windowNewNumberDialog(objectKey parentWindow, const char *title, const char *message, int minVal, int maxVal, int defaultVal, int *value)
+
+	Create a 'number' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a text field for the user to enter data using the keyboard, and a slider component for adjusting it with the mouse.  Minimum, maximum, and default values should be supplied.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+
+
 int windowNewInfoDialog(objectKey parentWindow, const char *title, const char *message)
 
 	Create an 'info' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single 'OK' button for the user to acknowledge.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
@@ -114,3 +108,18 @@ int windowNewPasswordDialog(objectKey parentWindow, const char *title, const cha
 int windowNewQueryDialog(objectKey parentWindow, const char *title, const char *message)
 
 	Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+
+
+int windowNewRadioDialog(objectKey parentWindow, const char *title, const char *message, char *choiceStrings[], int numChoices, int defaultChoice)
+
+	Create a dialog window with a radio button widget with the parent window 'parentWindow', the given titlebar text and main message, and 'numChoices' choices, as specified by the 'choiceStrings'.  'default' is the default focussed selection.  The dialog's radio button widget will have items for each choice.  If the user chooses one of the choices, the function returns the 0-based index of the choice.  Otherwise it returns negative.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+
+
+objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsigned maxWidth, unsigned maxHeight, componentParameters *params)
+
+	Create a new window image component from the supplied image file name 'fileName', with the given 'parent' window or container, and component parameters 'params'.  Dimension values 'maxWidth' and 'maxHeight' constrain the maximum image size.  The resulting image will be scaled down, if necessary, with the aspect ratio intact.  If 'fileName' is NULL, a blank image will be created.
+
+
+int windowThumbImageUpdate(objectKey thumbImage, const char *fileName, unsigned maxWidth, unsigned maxHeight)
+
+	Update an existing window image component 'thumbImage', previously created with a call to windowNewThumbImage(), from the supplied image file name 'fileName'.  Dimension values 'maxWidth' and 'maxHeight' constrain the maximum image size.  The resulting image will be scaled down, if necessary, with the aspect ratio intact.  If 'fileName' is NULL, the image will become blank.

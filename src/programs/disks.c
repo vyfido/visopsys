@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,23 +55,30 @@ hd0.  Logical partitions are specified with letters, in partition table order
 #include <sys/api.h>
 
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   int status = 0;
   int availableDisks = 0;
-  disk diskInfo[DISK_MAXDEVICES];
+  disk *diskInfo = NULL;
   int count;
 
   // Call the kernel to give us the number of available disks
   availableDisks = diskGetCount();
+
+  diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
+  if (diskInfo == NULL)
+    {
+      perror(argv[0]);
+      return (status = ERR_MEMORY);
+    }
 
   status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     {
       // Eek.  Problem getting disk info
       errno = status;
-      if (argc)
-	perror(argv[0]);
+      perror(argv[0]);
+      free(diskInfo);
       return (status);
     }
 
@@ -86,7 +93,7 @@ int main(int argc, char *argv[])
       // Print disk info
       printf("%s: ", diskInfo[count].name);
       textSetColumn(6);
-      printf("%s", diskInfo[count].partType.description);
+      printf("%s", diskInfo[count].partType);
       if (strcmp(diskInfo[count].fsType, "unknown"))
 	{
 	  textSetColumn(30);
@@ -101,5 +108,6 @@ int main(int argc, char *argv[])
     }
 
   errno = 0;
+  free(diskInfo);
   return (status = errno);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,16 +39,23 @@ Options:
 </help>
 */
 
-#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/font.h>
 #include <sys/text.h>
 #include <sys/vsh.h>
 
-#define UNTITLED_FILENAME "Untitled"
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
+
+#define UNTITLED_FILENAME _("Untitled")
+#define DISCARDQUESTION _("File has been modified.  Discard changes?")
+#define FILENAMEQUESTION _("Please enter the name of the file to edit:")
 
 typedef struct {
   unsigned filePos;
@@ -63,8 +70,9 @@ typedef struct {
 static int processId = 0;
 static int screenColumns = 0;
 static int screenRows = 0;
+static char *tempFileName = NULL;
 static char *editFileName = NULL;
-static file editFile;
+static fileStream editFileStream;
 static unsigned fileSize = 0;
 static char *buffer = NULL;
 static unsigned bufferSize = 0;
@@ -79,8 +87,7 @@ static unsigned screenLine = 0;
 static unsigned numLines = 0;
 static int readOnly = 0;
 static int modified = 0;
-static char *discardQuestion  = "File has been modified.  Discard changes?";
-static char *fileNameQuestion = "Please enter the name of the file to edit:";
+static int stop = 0;
 
 // GUI stuff
 static int graphics = 0;
@@ -96,9 +103,9 @@ static objectKey statusLabel = NULL;
 windowMenuContents fileMenuContents = {
   3,
   {
-    { "Open", NULL },
-    { "Save", NULL },
-    { "Quit", NULL }
+    { gettext_noop("Open"), NULL },
+    { gettext_noop("Save"), NULL },
+    { gettext_noop("Quit"), NULL }
   }
 };
 
@@ -116,7 +123,7 @@ static void error(const char *format, ...)
   va_end(list);
 
   if (graphics)
-    windowNewErrorDialog(window, "Error", output);
+    windowNewErrorDialog(window, _("Error"), output);
   else
     {
     }
@@ -137,10 +144,10 @@ static void updateStatus(void)
 
   if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
     sprintf(statusMessage, "%s%s  %u/%u", UNTITLED_FILENAME,
-	    (modified? " (modified)" : ""), line, numLines);
+	    (modified? _(" (modified)") : ""), line, numLines);
   else
-    sprintf(statusMessage, "%s%s  %u/%u", editFile.name,
-	    (modified? " (modified)" : ""), line, numLines);
+    sprintf(statusMessage, "%s%s  %u/%u", editFileStream.f.name,
+	    (modified? _(" (modified)") : ""), line, numLines);
 
   if (graphics)
     windowComponentSetData(statusLabel, statusMessage, strlen(statusMessage));
@@ -305,42 +312,47 @@ static int doLoadFile(const char *fileName)
 {
   int status = 0;
   disk theDisk;
+  file tmpFile;
   int openFlags = OPENMODE_READWRITE;
 
   // Initialize the file structure
-  bzero(&editFile, sizeof(file));
+  bzero(&tmpFile, sizeof(file));
+  bzero(&editFileStream, sizeof(fileStream));
 
   if (buffer)
     free(buffer);
 
+  // Find out whether the file is on a read-only filesystem
+  if (!fileGetDisk(fileName, &theDisk))
+    readOnly = theDisk.readOnly;
+
   // Call the "find file" routine to see if we can get the file.
-  status = fileFind(fileName, &editFile);
+  status = fileFind(fileName, &tmpFile);
 
   if (status >= 0)
     {
-      // Find out whether we are currently running on a read-only
-      // filesystem
-      if (!fileGetDisk(fileName, &theDisk))
-	readOnly = theDisk.readOnly;
-
       if (readOnly)
 	openFlags = OPENMODE_READ;
     }
 
-  if ((status < 0) || (editFile.size == 0))
+  if ((status < 0) || (tmpFile.size == 0))
     {
       // The file either doesn't exist or is zero-length.
+
+      // If the file doesn't exist, and the filesystem is read-only, quit here
+      if ((status < 0) && readOnly)
+	return (status = ERR_NOWRITE);
 
       if (status < 0)
 	// The file doesn't exist; try to create one
 	openFlags |= OPENMODE_CREATE;
 
-      status = fileOpen(fileName, openFlags, &editFile);
+      status = fileStreamOpen(fileName, openFlags, &editFileStream);
       if (status < 0)
 	return (status);
 
       // Use a default initial buffer size of one file block
-      bufferSize = editFile.blockSize;
+      bufferSize = editFileStream.f.blockSize;
       buffer = malloc(bufferSize);
       if (buffer == NULL)
 	return (status = ERR_MEMORY);
@@ -349,17 +361,17 @@ static int doLoadFile(const char *fileName)
     {
       // The file exists and has data in it
 
-      status = fileOpen(fileName, openFlags, &editFile);
+      status = fileStreamOpen(fileName, openFlags, &editFileStream);
       if (status < 0)
 	return (status);
 
       // Allocate a buffer to store the file contents in
-      bufferSize = (editFile.blocks * editFile.blockSize);
+      bufferSize = (editFileStream.f.blocks * editFileStream.f.blockSize);
       buffer = malloc(bufferSize);
       if (buffer == NULL)
 	return (status = ERR_MEMORY);
 
-      status = fileRead(&editFile, 0, editFile.blocks, buffer);
+      status = fileStreamRead(&editFileStream, editFileStream.f.size, buffer);
       if (status < 0)
 	return (status);
     }
@@ -379,8 +391,9 @@ static int askFileName(char *fileName)
   if (graphics)
     {
       // Prompt for a file name
-      status = windowNewFileDialog(window, "Enter filename", fileNameQuestion,
-				   pwd, fileName, MAX_PATH_NAME_LENGTH);
+      status =
+	windowNewFileDialog(window, _("Enter filename"), FILENAMEQUESTION,
+			    pwd, fileName, MAX_PATH_NAME_LENGTH, 0);
       return (status);
     }
   else
@@ -391,6 +404,7 @@ static int askFileName(char *fileName)
 static int loadFile(const char *fileName)
 {
   int status = 0;
+  disk rootDisk;
 
   // Did the user specify a file name?
   if (fileName)
@@ -404,16 +418,31 @@ static int loadFile(const char *fileName)
     {
       // No.  Try to open a new temporary file to use as an 'untitled' file
       // that we will prompt for a file name later when it gets saved.
-      status = fileGetTemp(&editFile);
-      if (status >= 0)
+
+      if (!fileGetDisk("/", &rootDisk) && !rootDisk.readOnly &&
+	  (fileStreamGetTemp(&editFileStream) >= 0))
 	{
 	  // Use a default initial buffer size of one file block.
-	  bufferSize = editFile.blockSize;
+	  bufferSize = editFileStream.f.blockSize;
 	  buffer = malloc(bufferSize);
 	  if (buffer == NULL)
 	    return (status = ERR_MEMORY);
 
 	  strncpy(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH);
+
+	  // Try to remember the name of the temp file, so we can delete it
+	  // later if it doesn't get saved.
+
+	  tempFileName = malloc(MAX_PATH_NAME_LENGTH);
+	  if (tempFileName == NULL)
+	    return (status = ERR_MEMORY);
+
+	  if (fileGetFullPath(&editFileStream.f, tempFileName,
+			      MAX_PATH_NAME_LENGTH) < 0)
+	    {
+	      free(tempFileName);
+	      tempFileName = NULL;
+	    }
 	}
       else
 	{
@@ -422,7 +451,12 @@ static int loadFile(const char *fileName)
 	  // open, otherwise there's no point really.
 	  status = askFileName(editFileName);
 	  if (status != 1)
-	    return (status = ERR_NOSUCHFILE);
+	    {
+	      if (status < 0)
+		return (status);
+	      else
+		return (status = ERR_CANCELLED);
+	    }
 
 	  fileName = editFileName;
 
@@ -433,7 +467,7 @@ static int loadFile(const char *fileName)
 	}
     }
 
-  fileSize = editFile.size;
+  fileSize = editFileStream.f.size;
   firstLineFilePos = 0;
   lastLineFilePos = 0;
   cursorLineFilePos = 0;
@@ -462,9 +496,7 @@ static int loadFile(const char *fileName)
 static int saveFile(void)
 {
   int status = 0;
-  int blocks = ((fileSize / editFile.blockSize) +
-		((fileSize % editFile.blockSize)? 1 : 0));
-  file tmpFile;
+  fileStream tmpFileStream;
 
   if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
     {
@@ -472,7 +504,6 @@ static int saveFile(void)
 	{
 	  // Prompt for a file name
 	  status = askFileName(editFileName);
-
 	  if (status != 1)
 	    {
 	      if (status < 0)
@@ -483,17 +514,33 @@ static int saveFile(void)
 	}
 
       // Open the file (truncate if necessary)
-      status = fileOpen(editFileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
-				       OPENMODE_READWRITE), &tmpFile);
+      status = fileStreamOpen(editFileName,
+			      (OPENMODE_CREATE | OPENMODE_TRUNCATE |
+			       OPENMODE_READWRITE), &tmpFileStream);
       if (status < 0)
 	return (status);
 
       // Close the temp file and swap the info.
-      fileClose(&editFile);
-      memcpy(&editFile, &tmpFile, sizeof(file));
+      fileStreamClose(&editFileStream);
+      if (tempFileName)
+	{
+	  fileDelete(tempFileName);
+	  free(tempFileName);
+	  tempFileName = NULL;
+	}
+
+      memcpy(&editFileStream, &tmpFileStream, sizeof(fileStream));
     }
 
-  status = fileWrite(&editFile, 0, blocks, buffer);
+  status = fileStreamSeek(&editFileStream, 0);
+  if (status < 0)
+    return (status);
+
+  status = fileStreamWrite(&editFileStream, fileSize, buffer);
+  if (status < 0)
+    return (status);
+
+  status = fileStreamFlush(&editFileStream);
   if (status < 0)
     return (status);
 
@@ -647,9 +694,10 @@ static int expandBuffer(unsigned length)
   char *tmpBuffer = NULL;
 
   // Allocate more buffer, rounded up to the nearest block size of the file
-  tmpBufferSize = (bufferSize + (((length / editFile.blockSize) +
-				  ((length % editFile.blockSize)? 1 : 0)) *
-				 editFile.blockSize));
+  tmpBufferSize =
+    (bufferSize + (((length / editFileStream.f.blockSize) +
+		    ((length % editFileStream.f.blockSize)? 1 : 0)) *
+		   editFileStream.f.blockSize));
   tmpBuffer = realloc(buffer, tmpBufferSize);
   if (tmpBuffer == NULL)
     return (status = ERR_MEMORY);
@@ -790,33 +838,38 @@ static int edit(void)
   int oldRow = 0;
   int endLine = 0;
   
-  while (1)
+  while (!stop)
     {
+      if (!textInputCount())
+	{
+	  multitaskerYield();
+	  continue;
+	}
       textInputGetc(&character);
 
       switch (character)
 	{
-	case (char) 17:
+	case (char) ASCII_CRSRUP:
 	  // UP cursor key
 	  cursorUp();
 	  break;
 
-	case (char) 20:
+	case (char) ASCII_CRSRDOWN:
 	  // DOWN cursor key
 	  cursorDown();
 	  break;
 
-	case (char) 18:
+	case (char) ASCII_CRSRLEFT:
 	  // LEFT cursor key
 	  cursorLeft();
 	  break;
 
-	case (char) 19:
+	case (char) ASCII_CRSRRIGHT:
 	  // RIGHT cursor key
 	  cursorRight();
 	  break;
 
-	case (char) 8:
+	case (char) ASCII_BACKSPACE:
 	  // BACKSPACE key
 	  oldRow = screenLines[screenLine].screenStartRow;
 	  cursorLeft();
@@ -830,7 +883,7 @@ static int edit(void)
 	  setCursorColumn(cursorColumn);
 	  break;
 
-	case (char) 127:
+	case (char) ASCII_DEL:
 	  // DEL key
 	  endLine = (cursorColumn >= screenLines[screenLine].length);
 	  deleteChars(1);
@@ -843,7 +896,7 @@ static int edit(void)
 	  setCursorColumn(cursorColumn);
 	  break;
 
-	case (char) 10:
+	case (char) ASCII_ENTER:
 	  // ENTER key
 	  status = insertChars(&character, 1);
 	  if (status < 0)
@@ -866,6 +919,15 @@ static int edit(void)
       updateStatus();
     }
 
+  status = fileStreamClose(&editFileStream);
+
+  if (tempFileName)
+    {
+      fileDelete(tempFileName);
+      free(tempFileName);
+      tempFileName = NULL;
+    }
+
   return (status);
 }
 
@@ -877,8 +939,8 @@ static int askDiscardChanges(void)
   if (graphics)
     {
       response =
-	windowNewChoiceDialog(window, "Discard changes?", discardQuestion,
-			      (char *[]) { "Discard", "Cancel" }, 2, 1);
+	windowNewChoiceDialog(window, _("Discard changes?"), DISCARDQUESTION,
+			      (char *[]) { _("Discard"), _("Cancel") }, 2, 1);
       if (response == 0)
 	return (1);
       else
@@ -902,11 +964,20 @@ static void openFileThread(void)
 
   status = askFileName(fileName);
   if (status != 1)
-    goto out;
+    {
+      if (status >= 0)
+	status = ERR_CANCELLED;
+      goto out;
+    }
 
   status = loadFile(fileName);
   if (status < 0)
-    error("Error %d loading file", status);
+    {
+      if (status == ERR_NOWRITE)
+	error("%s", _("Couldn't create file in a read-only filesystem"));
+      else if (status != ERR_CANCELLED)
+	error(_("Error %d loading file"), status);
+    }
 
  out:
   if (fileName)
@@ -939,10 +1010,7 @@ static int calcCursorColumn(int screenColumn)
 static void quit(void)
 {
   if (!modified || askDiscardChanges())
-    {
-      windowGuiStop();
-      multitaskerKillProcess(processId, 0 /* no force */);
-    }
+    stop = 1;
 }
 
 
@@ -980,14 +1048,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 		{
 		  if (multitaskerSpawn(&openFileThread, "open file", 0, NULL)
 		      < 0)
-		    error("Unable to launch file dialog");
+		    error("%s", _("Unable to launch file dialog"));
 		}
 	    }
 	  else if (selectedItem == fileMenuContents.items[FILEMENU_SAVE].key)
 	    {
 	      status = saveFile();
 	      if (status < 0)
-		error("Error %d saving file", status);
+		error(_("Error %d saving file"), status);
 	    }
 	  else if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
 	    quit();
@@ -1023,19 +1091,34 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
+static void initMenuContents(windowMenuContents *contents)
+{
+  int count;
+
+  for (count = 0; count < contents->numItems; count ++)
+    {
+      strncpy(contents->items[count].text, _(contents->items[count].text),
+	      WINDOW_MAX_LABEL_LENGTH);
+      contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
+    }
+}
+
+
 static void constructWindow(void)
 {
+  int status = 0;
   int rows = 25;
   componentParameters params;
 
   // Create a new window
-  window = windowNew(processId, "Edit");
+  window = windowNew(processId, _("Edit"));
 
   bzero(&params, sizeof(componentParameters));
 
   // Create the top 'file' menu
   objectKey menuBar = windowNewMenuBar(window, &params);
-  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  initMenuContents(&fileMenuContents);
+  fileMenu = windowNewMenu(menuBar, _("File"), &fileMenuContents, &params);
   windowRegisterEventHandler(fileMenu, &eventHandler);
 
   params.gridWidth = 1;
@@ -1048,8 +1131,10 @@ static void constructWindow(void)
 
   // Set up the font for our main text area
   fontGetDefault(&font);
-  if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
-	       &font, 1) < 0)
+  status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
+  if (status >= 0)
+    status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &font, 1);
+  if (status < 0)
     // We'll be using the system font we guess.  The system font can
     // comfortably show more rows
     rows = 40;
@@ -1060,6 +1145,7 @@ static void constructWindow(void)
   params.font = font;
   textArea = windowNewTextArea(window, 80, rows, 0, &params);
   windowRegisterEventHandler(textArea, &eventHandler);
+  windowComponentFocus(textArea);
 
   // Use the text area for all our input and output
   windowSetTextOutput(textArea);
@@ -1068,8 +1154,8 @@ static void constructWindow(void)
   params.flags &= ~WINDOW_COMPFLAG_STICKYFOCUS;
   params.gridY += 1;
   params.padBottom = 1;
-  fontLoad("/system/fonts/arial-bold-10.bmp", "arial-bold-10",
-	   &(params.font), 1);
+  if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+    fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 1);
   statusLabel = windowNewTextLabel(window, "", &params);
   windowComponentSetWidth(statusLabel, windowComponentGetWidth(textArea));
 
@@ -1087,9 +1173,16 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   char opt;
   char *fileName = NULL;
   textScreen screen;  
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("edit");
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -1099,10 +1192,9 @@ int main(int argc, char *argv[])
   // For the moment, only operate in graphics mode
   if (!graphics)
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n",
+      printf(_("\nThe \"%s\" command only works in graphics mode\n"),
 	     (argc? argv[0] : ""));
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
+      return (status = ERR_NOTINITIALIZED);
     }
 
   while (strchr("T", (opt = getopt(argc, argv, "T"))))
@@ -1136,23 +1228,22 @@ int main(int argc, char *argv[])
   editFileName = malloc(MAX_PATH_NAME_LENGTH);
   if ((screenLines == NULL) || (editFileName == NULL))
     {
-      errno = status = ERR_MEMORY;
-      perror(argv[0]);
+      status = ERR_MEMORY;
       goto out;
     }
 
   status = loadFile(fileName);
   if (status < 0)
     {
-      errno = status;
-      perror(argv[0]);
+      if (status == ERR_NOWRITE)
+	error("%s", _("Couldn't create file in a read-only filesystem"));
+      else if (status != ERR_CANCELLED)
+	error(_("Error %d loading file"), status);
       goto out;
     }
 
   // Go
   status = edit();
-  if (status < 0)
-    errno = status;
 
  out:
 

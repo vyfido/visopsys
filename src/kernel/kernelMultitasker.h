@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,8 @@
 #include "kernelPage.h"
 #include "kernelText.h"
 #include <time.h>
+#include <sys/file.h>
+#include <sys/loader.h>
 #include <sys/process.h>
 #include <sys/variable.h>
 
@@ -33,8 +35,8 @@
 #define PRIORITY_LEVELS           8
 #define DEFAULT_STACK_SIZE        (32 * 1024)
 #define DEFAULT_SUPER_STACK_SIZE  (32 * 1024)
-#define TIME_SLICE_LENGTH         0x00002000
-#define CPU_PERCENT_TIMESLICES    300
+#define TIME_SLICE_LENGTH         0x4000
+#define CPU_PERCENT_TIMESLICES    150
 #define PRIORITY_RATIO            3
 #define PRIORITY_DEFAULT          ((PRIORITY_LEVELS / 2) - 1)
 #define FPU_STATE_LEN             108
@@ -98,7 +100,8 @@ typedef volatile struct {
 
 // A structure for processes
 typedef volatile struct {
-  char processName[MAX_PROCNAME_LENGTH];
+  char name[MAX_PROCNAME_LENGTH];
+  processImage execImage;
   int userId;
   int processId;
   processType type;
@@ -129,9 +132,9 @@ typedef volatile struct {
   kernelTextOutputStream *textOutputStream;
   unsigned signalMask;
   stream signalStream;
-  int fpuInUse;
   unsigned char fpuState[FPU_STATE_LEN];
-  int fpuStateValid;
+  int fpuStateSaved;
+  loaderSymbolTable *symbols;
   
 } kernelProcess;
 
@@ -140,7 +143,7 @@ typedef volatile struct {
 extern kernelProcess *kernelCurrentProcess;
 
 // Functions exported by kernelMultitasker.c
-int kernelMultitaskerInitialize(void);
+int kernelMultitaskerInitialize(void *, unsigned);
 int kernelMultitaskerShutdown(int);
 void kernelException(int, unsigned);
 void kernelMultitaskerDumpProcessList(void);
@@ -180,6 +183,9 @@ int kernelMultitaskerSignalRead(int);
 int kernelMultitaskerGetIOPerm(int, int);
 int kernelMultitaskerSetIOPerm(int, int, int);
 kernelPageDirectory *kernelMultitaskerGetPageDir(int);
+loaderSymbolTable *kernelMultitaskerGetSymbols(int);
+int kernelMultitaskerSetSymbols(int, loaderSymbolTable *);
+int kernelMultitaskerStackTrace(int);
 
 #define _KERNELMULTITASKER_H
 #endif

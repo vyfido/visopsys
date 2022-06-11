@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,17 +40,24 @@ the program will prompt for the name of the file.  You can add, delete, and
 modify variables.
 
 Examples of configuration files include the kernel configuration,
-kernel.conf, and the window manager configuration, windowmanager.conf.
+kernel.conf, and the window manager configuration, window.conf.
 
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
+#include <sys/font.h>
 #include <sys/vsh.h>
+
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
 
 static int processId = 0;
 static int privilege = 0;
@@ -71,8 +78,8 @@ static objectKey deleteVariableButton = NULL;
 windowMenuContents fileMenuContents = {
   2,
   {
-    { "Save", NULL },
-    { "Quit", NULL }
+    { gettext_noop("Save"), NULL },
+    { gettext_noop("Quit"), NULL }
   }
 };
 
@@ -89,7 +96,7 @@ static void error(const char *format, ...)
   vsnprintf(output, MAXSTRINGLENGTH, format, args);
   va_end(args);
 
-  windowNewErrorDialog(window, "Error", output);
+  windowNewErrorDialog(window, _("Error"), output);
 }
 
 
@@ -99,10 +106,10 @@ static int readConfigFile(void)
 
   int status = 0;
 
-  status = configurationReader(fileName, &list);
+  status = configRead(fileName, &list);
   if (status < 0)
     {
-      error("Error %d reading configuration file.", status);
+      error(_("Error %d reading configuration file."), status);
       return (status);
     }
 
@@ -117,9 +124,9 @@ static int writeConfigFile(void)
 
   int status = 0;
 
-  status = configurationWriter(fileName, &list);
+  status = configWrite(fileName, &list);
   if (status < 0)
-    error("Error %d writing configuration file.", status);
+    error(_("Error %d writing configuration file."), status);
   else
     changesPending = 0;
 
@@ -144,9 +151,17 @@ static void fillList(void)
 	snprintf(listItemParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s=%s",
 		 list.variables[count], list.values[count]);
     }
+  else
+    {
+      // Create an empty list + list item params
+      variableListCreate(&list);
+      listItemParams = malloc(sizeof(listItemParameters));
+    }
 
-  windowComponentSetEnabled(changeVariableButton, list.numVariables);
-  windowComponentSetEnabled(deleteVariableButton, list.numVariables);
+  if (changeVariableButton)
+    windowComponentSetEnabled(changeVariableButton, list.numVariables);
+  if (deleteVariableButton)
+    windowComponentSetEnabled(deleteVariableButton, list.numVariables);
 }
 
 
@@ -174,12 +189,12 @@ static void setVariableDialog(char *variable)
   // Create the dialog
   if (variable)
     {
-      dialogWindow = windowNewDialog(window, "Change Variable");
+      dialogWindow = windowNewDialog(window, _("Change Variable"));
       strncpy(variableBuff, variable, 128);
       variable = variableBuff;
     }
   else
-    dialogWindow = windowNewDialog(window, "Add Variable");
+    dialogWindow = windowNewDialog(window, _("Add Variable"));
   if (dialogWindow == NULL)
     return;
 
@@ -193,7 +208,7 @@ static void setVariableDialog(char *variable)
   params.orientationY = orient_middle;
 
   params.orientationX = orient_right;
-  windowNewTextLabel(dialogWindow, "Variable name:", &params);
+  windowNewTextLabel(dialogWindow, _("Variable name:"), &params);
 
   if (variable)
     {
@@ -209,23 +224,24 @@ static void setVariableDialog(char *variable)
     windowNewTextLabel(dialogWindow, variable, &params);
   else
     {
-      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       variableField = windowNewTextField(dialogWindow, fieldWidth, &params);
+      windowComponentFocus(variableField);
     }
 
   params.gridX = 0;
   params.gridY = 1;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
-  windowNewTextLabel(dialogWindow, "value:", &params);
+  windowNewTextLabel(dialogWindow, _("value:"), &params);
 
   params.gridX = 1;
   params.padRight = 5;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
   if (variable)
-    windowComponentSetData(valueField, value, 128);
+    {
+      windowComponentSetData(valueField, value, 128);
+      windowComponentFocus(valueField);
+    }
 
   // Create the OK button
   params.gridX = 0;
@@ -233,15 +249,14 @@ static void setVariableDialog(char *variable)
   params.padBottom = 5;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-  okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
+  okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
 
   // Create the Cancel button
   params.gridX = 1;
   params.padRight = 5;
   params.orientationX = orient_left;
-  cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
+  cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
 
   windowCenterDialog(window, dialogWindow);
   windowSetVisible(dialogWindow, 1);
@@ -256,13 +271,13 @@ static void setVariableDialog(char *variable)
       // Check for pressing enter in either of the text fields
       status = windowComponentEventGet(valueField, &event);
       if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-	  (event.key == (unsigned char) 10))
+	  (event.key == (unsigned char) ASCII_ENTER))
 	okay = 1;
       if (!variable)
 	{
 	  status = windowComponentEventGet(variableField, &event);
 	  if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-	      (event.key == (unsigned char) 10))
+	      (event.key == (unsigned char) ASCII_ENTER))
 	    okay = 1;
 	}
 
@@ -323,9 +338,9 @@ static void quit(void)
   if (changesPending && !readOnly)
     {
       selected =
-	windowNewChoiceDialog(window, "Unsaved changes",
-			      "Quit without saving changes?",
-			      (char *[]) { "Save", "Quit", "Cancel" },
+	windowNewChoiceDialog(window, _("Unsaved changes"),
+			      _("Quit without saving changes?"),
+			      (char *[]) { _("Save"), _("Quit"), _("Cancel") },
 			      3, 0);
 
       if ((selected < 0) || (selected == 2))
@@ -383,6 +398,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
+static void initMenuContents(windowMenuContents *contents)
+{
+  int count;
+
+  for (count = 0; count < contents->numItems; count ++)
+    {
+      strncpy(contents->items[count].text, _(contents->items[count].text),
+	      WINDOW_MAX_LABEL_LENGTH);
+      contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
+    }
+}
+
+
 static void constructWindow(void)
 {
   // If we are in graphics mode, make a window rather than operating on the
@@ -392,7 +420,7 @@ static void constructWindow(void)
   objectKey buttonContainer = NULL;
 
   // Create a new window
-  window = windowNew(processId, "Configuration Editor");
+  window = windowNew(processId, _("Configuration Editor"));
   if (window == NULL)
     return;
 
@@ -400,7 +428,8 @@ static void constructWindow(void)
 
   // Create the top 'file' menu
   objectKey menuBar = windowNewMenuBar(window, &params);
-  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  initMenuContents(&fileMenuContents);
+  fileMenu = windowNewMenu(menuBar, _("File"), &fileMenuContents, &params);
   windowRegisterEventHandler(fileMenu, &eventHandler);
   if (privilege || readOnly)
     windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key, 0);
@@ -414,10 +443,12 @@ static void constructWindow(void)
   params.orientationY = orient_middle;
 
   params.orientationX = orient_center;
-  fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+  if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+    fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
   listList =
     windowNewList(window, windowlist_textonly, min(10, list.numVariables),
 		  1, 0, listItemParams, list.numVariables, &params);
+  windowComponentFocus(listList);
 
   // Make a container component for the buttons
   params.gridX += 1;
@@ -437,21 +468,21 @@ static void constructWindow(void)
   params.padBottom = 0;
   params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   addVariableButton =
-    windowNewButton(buttonContainer, "Add variable", NULL, &params);
+    windowNewButton(buttonContainer, _("Add variable"), NULL, &params);
   windowRegisterEventHandler(addVariableButton, &eventHandler);
 
   // Create a 'change variable' button
   params.gridY += 1;
   params.padTop = 5;
   changeVariableButton =
-    windowNewButton(buttonContainer, "Change variable", NULL, &params);
+    windowNewButton(buttonContainer, _("Change variable"), NULL, &params);
   windowRegisterEventHandler(changeVariableButton, &eventHandler);
   windowComponentSetEnabled(changeVariableButton, list.numVariables);
       
   // Create a 'delete variable' button
   params.gridY += 1;
   deleteVariableButton =
-    windowNewButton(buttonContainer, "Delete variable", NULL, &params);
+    windowNewButton(buttonContainer, _("Delete variable"), NULL, &params);
   windowRegisterEventHandler(deleteVariableButton, &eventHandler);
   windowComponentSetEnabled(deleteVariableButton, list.numVariables);
 
@@ -467,13 +498,20 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   disk theDisk;
   file tmpFile;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("confedit");
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -485,14 +523,20 @@ int main(int argc, char *argv[])
     {
       // Start in the config dir by default
       status =
-	windowNewFileDialog(NULL, "Enter filename", "Please enter a "
-			    "configuration file to edit:", "/system/config",
-			    fileName, MAX_PATH_NAME_LENGTH);
+	windowNewFileDialog(NULL, _("Enter filename"),
+			    _("Please enter a configuration file to edit:"),
+			    "/system/config", fileName, MAX_PATH_NAME_LENGTH,
+			    0);
       if (status != 1)
-	return (status);
+	{
+	  if (status != 0)
+	    perror(argv[0]);
+	  
+	  return (status);
+	}
     }
   else
-    strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
+    strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
   // See whether the file exists
   status = fileFind(fileName, &tmpFile);
@@ -501,7 +545,7 @@ int main(int argc, char *argv[])
       status = fileOpen(fileName, OPENMODE_CREATE, &tmpFile);
       if (status < 0)
 	{
-	  error("Error %d creating new configuration file.", status);
+	  error(_("Error %d creating new configuration file."), status);
 	  return (status);
 	}
 

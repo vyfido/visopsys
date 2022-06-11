@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,16 +21,42 @@
 
 // This is the standard "getenv" function, as found in standard C libraries
 
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/api.h>
 
 
 char *getenv(const char *variable)
 {
-  // From GNU: The getenv() function searches the environment list for a
-  // string that matches the string pointed to by name.
+  // Get a pointer to the value of an environment variable, or NULL if it
+  // isn't set.
 
-  errno = ERR_NOTIMPLEMENTED;
-  return (NULL);
+  int status = 0;
+  char *value = NULL;
+
+  if (visopsys_in_kernel)
+    {
+      errno = ERR_BUG;
+      return (value =NULL);
+    }
+
+  if (!variable)
+    {
+      errno = ERR_NULLPARAMETER;
+      return (value = NULL);
+    }
+
+  value = malloc(MAXSTRINGLENGTH);
+  if (value)
+    {
+      status = environmentGet(variable, value, MAXSTRINGLENGTH);
+      if (status < 0)
+	{
+	  errno = status;
+	  free(value);
+	  return (value = NULL);
+	}
+    }
+
+  return (value);
 }

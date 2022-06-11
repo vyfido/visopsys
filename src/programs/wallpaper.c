@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,36 +37,43 @@ This command will set the background wallpaper image from the (optional)
 image file name parameter or, if no image file name is supplied, the program
 will prompt the user.
 
-Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported. 
+Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported. 
 
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
 #include <sys/api.h>
+
+#define _(string) gettext(string)
 
 
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   int processId = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
-  file tmpFile;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("wallpaper");
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
+      printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
+      return (status = ERR_NOTINITIALIZED);
     }
 
   bzero(fileName, MAX_PATH_NAME_LENGTH);
-  bzero(&tmpFile, sizeof(file));
 
   // We need our process ID to create the windows
   processId = multitaskerGetCurrentProcessId();
@@ -74,33 +81,38 @@ int main(int argc, char *argv[])
   if (argc < 2)
     {
       // The user did not specify a file.  We will prompt them.
-
       status =
-	windowNewFileDialog(NULL, "Enter filename", "Please enter the "
-			    "background image\nfile name:",
+	windowNewFileDialog(NULL, _("Enter filename"),
+			    _("Please choose the background image:"),
 			    "/system/wallpaper", fileName,
-			    MAX_PATH_NAME_LENGTH);
+			    MAX_PATH_NAME_LENGTH, 1);
       if (status != 1)
 	{
 	  if (status == 0)
 	    return (status);
 
-	  printf("No filename specified\n");
-	  return (errno = status);
+	  printf("%s", _("No filename specified\n"));
+	  return (status);
 	}
     }
-  
+
   else
     strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
 
-  status = fileFind(fileName, &tmpFile);
-  if (status < 0)
+  if (strncmp(fileName, "none", MAX_PATH_NAME_LENGTH))
     {
-      printf("File not found\n");
-      return (errno = status);
+      status = fileFind(fileName, NULL);
+      if (status < 0)
+	{
+	  printf("%s", _("File not found\n"));
+	  return (status);
+	}
+
+      status = windowTileBackground(fileName);
     }
 
-  status = windowTileBackground(fileName);
+  else
+    status = windowTileBackground(NULL);
 
-  return (errno = status);
+  return (status);
 }

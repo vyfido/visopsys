@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,13 +25,13 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelFont.h"
 #include "kernelMalloc.h"
-#include "kernelWindowEventStream.h"
-#include <string.h>
 
 static int (*saveMenuFocus) (kernelWindowComponent *, int) = NULL;
 static int (*saveMenuMouseEvent) (kernelWindowComponent *, windowEvent *)
   = NULL;
+static int (*saveMenuKeyEvent) (kernelWindowComponent *, windowEvent *) = NULL;
 
 extern kernelWindowVariables *windowVariables;
 
@@ -39,20 +39,31 @@ extern kernelWindowVariables *windowVariables;
 static inline int menuTitleWidth(kernelWindowComponent *component, int num)
 {
   kernelWindowMenuBar *menuBar = component->data;
-  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
+  asciiFont *font = (asciiFont *) component->params.font;
   kernelWindowContainer *menuBarContainer = menuBar->container->data;
   kernelWindowComponent *menuComponent = menuBarContainer->components[num];
   kernelWindowMenu *menu = menuComponent->data;
   kernelWindowContainer *container = menu->container->data;
-  return (kernelFontGetPrintedWidth(font, (const char *) container->name)
-	  + (windowVariables->border.thickness * 2));
+
+  int width = (windowVariables->border.thickness * 2);
+
+  if (font)
+    width += kernelFontGetPrintedWidth(font, (const char *) container->name);
+
+  return (width);
 }
 
 
 static inline int menuTitleHeight(kernelWindowComponent *component)
 {
-  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
-  return (font->charHeight + (windowVariables->border.thickness * 2));
+  asciiFont *font = (asciiFont *) component->params.font;
+
+  int height = (windowVariables->border.thickness * 2);
+
+  if (font)
+    height += font->charHeight;
+
+  return (height);
 }
 
 
@@ -92,19 +103,13 @@ static int menuFocus(kernelWindowComponent *component, int focus)
 
   kernelDebug(debug_gui, "menuBar menu %s focus", (focus? "got" : "lost"));
 
-  if (!focus)
-    {
-      if (saveMenuFocus)
-	// Pass the event on.
-	saveMenuFocus(component, focus);
+  if (saveMenuFocus)
+    // Pass the event on.
+    saveMenuFocus(component, focus);
 
-      if (component == menuBar->visibleMenu)
-	{
-	  // No longer visible
-	  menuBar->visibleMenu = NULL;
-	  changedVisible(menuBarComponent);
-	}
-    }
+  if (!focus && (component == menuBar->visibleMenu))
+    // No longer visible
+    changedVisible(menuBarComponent);
 
   return (0);
 }
@@ -129,6 +134,79 @@ static int menuMouseEvent(kernelWindowComponent *component, windowEvent *event)
       // No longer visible
       menuBar->visibleMenu = NULL;
       changedVisible(menuBarComponent);
+    }
+
+  return (0);
+}
+
+
+static int menuKeyEvent(kernelWindowComponent *component, windowEvent *event)
+{
+  kernelWindowComponent *containerComponent = component->container;
+  kernelWindowComponent *menuBarComponent = containerComponent->container;
+  kernelWindowMenuBar *menuBar = menuBarComponent->data;
+  kernelWindowContainer *menuBarContainer = menuBar->container->data;
+  int menuNumber = -1;
+  kernelWindowComponent *menuComponent = NULL;
+  int count;
+
+  kernelDebug(debug_gui, "menuBar menu key event");
+
+  if (saveMenuKeyEvent)
+    // Pass the event on.
+    saveMenuKeyEvent(component, event);
+
+  // If the user has pressed the left or right cursor keys, that means they
+  // want to switch menus
+  if ((event->type == EVENT_KEY_DOWN) &&
+      ((event->key == ASCII_CRSRLEFT) || (event->key == ASCII_CRSRRIGHT)))
+    {
+      if (menuBar->visibleMenu)
+	{
+	  for (count = 0; count < menuBarContainer->numComponents; count ++)
+	    if (menuBarContainer->components[count] == menuBar->visibleMenu)
+	      {
+		menuNumber = count;
+		break;
+	      }
+
+	  if (event->key == ASCII_CRSRLEFT)
+	    {
+	      // Cursor left
+	      if (menuNumber > 0)
+		{
+		  menuNumber -= 1;
+		  menuComponent = menuBarContainer->components[menuNumber];
+		}
+	    }
+	  else
+	    {
+	      // Cursor right
+	      if (menuNumber < (menuBarContainer->numComponents - 1))
+		{
+		  menuNumber += 1;
+		  menuComponent = menuBarContainer->components[menuNumber];
+		}
+	    }
+
+	  if (menuComponent && (menuComponent != menuBar->visibleMenu))
+	    {
+	      kernelDebug(debug_gui, "menuBar show new menu");
+
+	      menuComponent->xCoord =
+		(menuBarComponent->xCoord +
+		 menuXCoord(menuBarComponent, menuNumber));
+	      menuComponent->yCoord =
+		(menuBarComponent->yCoord + menuTitleHeight(menuBarComponent));
+
+	      if (menuBar->visibleMenu)
+		kernelWindowComponentUnfocus(menuBar->visibleMenu);
+
+	      kernelWindowComponentSetVisible(menuComponent, 1);
+	      menuBar->visibleMenu = menuComponent;
+	      changedVisible(menuBarComponent);
+	    }
+	}
     }
 
   return (0);
@@ -218,16 +296,21 @@ static int layout(kernelWindowComponent *menuBarComponent)
 
       menu = menuComponent->data;
 
-      // If we don't have the menu component's mouseEvent() function pointer
+      // If we don't have the menu component's focus() function pointer
       // saved, save it now
+      if ((saveMenuFocus == NULL) && (menuComponent->focus != NULL))
+	saveMenuFocus = menuComponent->focus;
+      menuComponent->focus = menuFocus;
+
+      // Likewise for the menu component's mouseEvent() function pointer
       if ((saveMenuMouseEvent == NULL) && (menuComponent->mouseEvent != NULL))
 	saveMenuMouseEvent = menuComponent->mouseEvent;
       menuComponent->mouseEvent = menuMouseEvent;
 
-      // Likewise for the menu component's focus() function pointer
-      if ((saveMenuFocus == NULL) && (menuComponent->focus != NULL))
-	saveMenuFocus = menuComponent->focus;
-      menuComponent->focus = menuFocus;
+      // Likewise for the menu component's keyEvent() function pointer
+      if ((saveMenuKeyEvent == NULL) && (menuComponent->keyEvent != NULL))
+	saveMenuKeyEvent = menuComponent->keyEvent;
+      menuComponent->keyEvent = menuKeyEvent;
 
       // Do the layout for the menu itself.
       if (!menuComponent->doneLayout && menuComponent->layout)
@@ -296,9 +379,10 @@ static int draw(kernelWindowComponent *component)
       titleWidth = menuTitleWidth(component, count);
       titleHeight = menuTitleHeight(component);
 
-      if (menuComponent == menuBar->visibleMenu)
+      if ((menuComponent == menuBar->visibleMenu) &&
+	  (menuComponent->flags & WINFLAG_VISIBLE))
 	{
-	  kernelDebug(debug_gui, "menuBar title \"%s\" is visible",
+	  kernelDebug(debug_gui, "menuBar title %d \"%s\" is visible", count,
 		      container->name);
 	  kernelGraphicDrawGradientBorder(component->buffer,
 		  (component->xCoord + xCoord), component->yCoord, titleWidth,
@@ -308,15 +392,16 @@ static int draw(kernelWindowComponent *component)
 		  border_all);
 	}
 
-      kernelGraphicDrawText(component->buffer,
-			    (color *) &(component->params.foreground),
-			    (color *) &(component->params.background),
-			    (kernelAsciiFont *) component->params.font,
-			    (const char *) container->name, draw_normal,
-			    (component->xCoord + xCoord +
-			     windowVariables->border.thickness),
-			    (component->yCoord +
-			     windowVariables->border.thickness));
+      if (component->params.font)
+	kernelGraphicDrawText(component->buffer,
+			      (color *) &(component->params.foreground),
+			      (color *) &(component->params.background),
+			      (asciiFont *) component->params.font,
+			      (const char *) container->name, draw_normal,
+			      (component->xCoord + xCoord +
+			       windowVariables->border.thickness),
+			      (component->yCoord +
+			       windowVariables->border.thickness));
     }
 
   return (status);
@@ -339,7 +424,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   kernelWindowContainer *menuBarContainer = menuBar->container->data;
   kernelWindowComponent *menuComponent = NULL;
   kernelWindowMenu *menu = NULL;
-  kernelWindowComponent *visibleMenu = NULL;
   int xCoord = 0, width = 0;
   int count;
 
@@ -353,10 +437,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
   kernelDebug(debug_gui, "menuBar mouse event");
 
-  // Remember any visible menu and clear it
-  visibleMenu = menuBar->visibleMenu;
-  menuBar->visibleMenu = NULL;
-
   // Determine whether to set a menu visible now by figuring out whether a
   // menu title was clicked.
   for (count = 0; count < menuBarContainer->numComponents; count ++)
@@ -368,22 +448,33 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
       width = menuTitleWidth(component, count);
 
       if ((event->xPosition >= (component->window->xCoord + xCoord)) &&
-	  (event->xPosition < (component->window->xCoord + xCoord + width)) &&
-	  (menuComponent != visibleMenu))
+	  (event->xPosition < (component->window->xCoord + xCoord + width)))
 	{
-	  // The menu was not previously visible, so we will show it.
-	  kernelDebug(debug_gui, "menuBar show menu");
-	  menuComponent->xCoord = xCoord;
-	  menuComponent->yCoord =
-	    (component->yCoord + menuTitleHeight(component));
-	  kernelWindowComponentSetVisible(menuComponent, 1);
-	  menuBar->visibleMenu = menuComponent;
+	  if ((menuComponent != menuBar->visibleMenu) ||
+	      !(menuComponent->flags & WINFLAG_VISIBLE))
+	    {
+	      // The menu was not previously visible, so we will show it.
+	      kernelDebug(debug_gui, "menuBar show menu %d", count);
+
+	      menuComponent->xCoord = xCoord;
+	      menuComponent->yCoord =
+		(component->yCoord + menuTitleHeight(component));
+
+	      kernelWindowComponentSetVisible(menuComponent, 1);
+	      menuBar->visibleMenu = menuComponent;
+	    }
+	  else
+	    {
+	      // The menu was previously visible, so we will hide it.
+	      kernelDebug(debug_gui, "menuBar hide menu %d", count);
+	      kernelWindowComponentUnfocus(menuComponent);
+	      menuBar->visibleMenu = NULL;
+	    }
 	}
     }
 
-  if (menuBar->visibleMenu != visibleMenu)
-    // We have either hidden a menu or made one visible
-    changedVisible(component);
+  // We have either hidden a menu or made one visible
+  changedVisible(component);
 
   return (0);
 }
@@ -439,8 +530,9 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
   component->data = (void *) menuBar;
 
   component->width = window->buffer.width;
-  component->height = (((kernelAsciiFont *) component->params.font)
-		       ->charHeight + (windowVariables->border.thickness * 2));
+  component->height = (windowVariables->border.thickness * 2);
+  if (component->params.font)
+    component->height += ((asciiFont *) component->params.font)->charHeight;
   component->minWidth = component->width;
   component->minHeight = component->height;
 

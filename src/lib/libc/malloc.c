@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -41,7 +41,7 @@ static lock blocksLock;
 unsigned mallocHeapMultiple = USER_MEMORY_HEAP_MULTIPLE;
 mallocKernelOps mallocKernOps;
 
-#define blockEnd(block) (block->start + block->size - 1)
+#define blockEnd(block) (block->start + (block->size - 1))
 
 #if defined(DEBUG)
 #define debug(message, arg...) do {                                    \
@@ -145,8 +145,9 @@ static inline void appendBlock(mallocBlock *appBlock, mallocBlock *prevBlock)
 {
   // Stick the first block behind the second block
 
-  debug("Append block %u->%u after %u->%u", appBlock->start,
-	blockEnd(appBlock), prevBlock->start, blockEnd(prevBlock));
+  debug("Append block %u->%u (%u) after %u->%u (%u)", appBlock->start,
+	blockEnd(appBlock), appBlock->size, prevBlock->start,
+	blockEnd(prevBlock), prevBlock->size);
 
   appBlock->prev = prevBlock;
   appBlock->next = prevBlock->next;
@@ -294,6 +295,8 @@ static int addBlock(int used, unsigned start, unsigned size,
   int status = 0;
   mallocBlock *block = NULL;
 
+  debug("Add block %u-%u of size %u", start, (start + (size - 1)), size);
+
   block = getBlock();
   if (block == NULL)
     return (status = ERR_NOFREE);
@@ -370,10 +373,15 @@ static void *allocateBlock(unsigned size, const char *function)
 
   int status = 0;
   mallocBlock *block = NULL;
+  unsigned remainder = 0;
 
   // Make sure we do allocations on nice boundaries
   if (size % sizeof(int))
-    size += (sizeof(int) - (size % sizeof(int)));
+    {
+      debug("%s increase size from %u to %u", __FUNCTION__, size,
+	    (size + (sizeof(int) - (size % sizeof(int)))));
+      size += (sizeof(int) - (size % sizeof(int)));
+    }
 
   // Make sure there's enough heap memory.  This will get called the first
   // time we're invoked, as totalMemory will be zero.
@@ -391,8 +399,7 @@ static void *allocateBlock(unsigned size, const char *function)
       if (block == NULL)
 	{
 	  // Something really wrong.
-	  error("Unable to allocate block of size %u (%s)", size,
-		function);
+	  error("Unable to allocate block of size %u (%s)", size, function);
 	  return (NULL);
 	}
     }
@@ -405,10 +412,15 @@ static void *allocateBlock(unsigned size, const char *function)
   // block for the remainder
   if (block->size > size)
     {
-      if (addBlock(0 /* unused */, (block->start + size),
-		   (block->size - size), block->heapAlloc) < 0)
-	return (NULL);
+      remainder = (block->size - size);
       block->size = size;
+
+      debug("%s split block of size %u from remainder of size %u",
+	    __FUNCTION__, size, remainder);
+
+      if (addBlock(0 /* unused */, (block->start + size), remainder,
+		   block->heapAlloc) < 0)
+	return (NULL);
     }
 
   usedMemory += size;
@@ -516,6 +528,82 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 }
 
 
+#if defined(DEBUG)
+static int checkBlocks(void)
+{
+  int status = 0;
+  mallocBlock *block = blockList;
+  mallocBlock *prev = NULL;
+  mallocBlock *next = NULL;
+
+  while (block)
+    {
+      if (block->prev)
+	{
+	  prev = block->prev;
+
+	  if (prev->next != block)
+	    {
+	      error("Previous block %u->%u does not point to current block "
+		    "%u->%u", prev->start, blockEnd(prev), block->start,
+		    blockEnd(block));
+	      return (status = ERR_BADDATA);
+	    }
+
+	  if (prev->start >= block->start)
+	    {
+	      error("Previous block %u->%u does not start before current "
+		    "block %u->%u", prev->start,  blockEnd(prev), block->start,
+		    blockEnd(block));
+	      return (status = ERR_BADDATA);
+	    }
+
+	  if (blockEnd(prev) >= block->start)
+	    {
+	      error("Previous block %u->%u end overlaps current block "
+		    "%u->%u", prev->start,  blockEnd(prev), block->start,
+		    blockEnd(block));
+	      return (status = ERR_BADDATA);
+	    }
+	}
+
+      if (block->next)
+	{
+	  next = block->next;
+
+	  if (next->prev != block)
+	    {
+	      error("Next block %u->%u does not point to current block "
+		    "%u->%u", next->start, blockEnd(next), block->start,
+		    blockEnd(block));
+	      return (status = ERR_BADDATA);
+	    }
+
+	  if (block->start >= next->start)
+	    {
+	      error("Next block %u->%u does not start after current "
+		    "block %u->%u", next->start,  blockEnd(next), block->start,
+		    blockEnd(block));
+	      return (status = ERR_BADDATA);
+	    }
+
+	  if (blockEnd(block) >= next->start)
+	    {
+	      error("Current block %u->%u end overlaps next block "
+		    "%u->%u", block->start, blockEnd(block), next->start,
+		    blockEnd(next));
+	      return (status = ERR_BADDATA);
+	    }
+	}
+      
+      block = block->next;
+    }
+
+  return (status = 0);
+}
+#endif // defined(DEBUG)
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -525,12 +613,14 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 /////////////////////////////////////////////////////////////////////////
 
 
-void *_doMalloc(unsigned size, const char *function __attribute__((unused)))
+void *_doMalloc(unsigned size, const char *function)
 {
   // These are the guts of malloc() and kernelMalloc()
 
   int status = 0;
   void *address = NULL;
+
+  debug("%s alloc %u", function, size);
 
   // If the requested block size is zero, forget it.  We can probably
   // assume something has gone wrong in the calling program
@@ -563,17 +653,26 @@ void *_malloc(size_t size, const char *function)
   // User space wrapper for _doMalloc() so we can ensure kernel-space calls
   // use kernelMalloc()
 
+  void *ptr = NULL;
+
   if (visopsys_in_kernel)
     {
       error("Cannot call malloc() directly from kernel space (%s)", function);
       return (NULL);
     }
-  else
-    return (_doMalloc(size, function));
+
+  ptr = _doMalloc(size, function);
+
+  #if defined(DEBUG)
+  if (checkBlocks())
+    while (1);
+  #endif
+
+  return (ptr);
 }
 
 
-void _doFree(void *start, const char *function __attribute__((unused)))
+void _doFree(void *start, const char *function)
 {
   // These are the guts of free() and kernelFree()
 
@@ -603,6 +702,11 @@ void _doFree(void *start, const char *function __attribute__((unused)))
     }
 
   status = deallocateBlock(start, function);
+
+  #if defined(DEBUG)
+  if (checkBlocks())
+    while (1);
+  #endif
 
   lock_release(&blocksLock);
 

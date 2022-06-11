@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +23,7 @@
 #if !defined(_STDIO_H)
 
 #include <stdarg.h>
-#include <sys/stream.h>
+#include <sys/file.h>
 
 // Make FILE be the same as a Visopsys 'fileStream'
 #define FILE fileStream

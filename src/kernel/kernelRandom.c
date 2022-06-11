@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -198,4 +198,26 @@ unsigned kernelRandomSeededFormatted(unsigned seed, unsigned start,
     limit = ~0U;
 
   return ((random(seed) % limit) + start);
+}
+
+
+void kernelRandomBytes(unsigned char *buffer, unsigned size)
+{
+  // Fill the supplied buffer with random data.  Saves applications from 
+  // calling into the kernel millions of times.
+  
+  unsigned count;
+
+  for (count = (size / 4); count > 0; count --)
+    {
+      kernelRandomSeed = random(kernelRandomSeed);
+      *((unsigned *) buffer) = kernelRandomSeed;
+      buffer += sizeof(unsigned);
+    }
+  for (count = (size % 4); count > 0; count --)
+    {
+      kernelRandomSeed = random(kernelRandomSeed);
+      *buffer = (kernelRandomSeed & 0xFF);
+      buffer += 1;
+    }
 }

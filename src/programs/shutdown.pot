@@ -1,0 +1,56 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-05-13 02:19+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: shutdown.c:70
+msgid ""
+"Can't seem to eject.  Try pushing\n"
+"the 'eject' button now."
+msgstr ""
+
+#: shutdown.c:232
+msgid "Eject CD-ROM"
+msgstr ""
+
+#: shutdown.c:89
+msgid "Ejecting"
+msgstr ""
+
+#: shutdown.c:68
+msgid "Ejecting, please wait..."
+msgstr ""
+
+#: shutdown.c:100
+msgid "Error"
+msgstr ""
+
+#: shutdown.c:208
+msgid "Reboot"
+msgstr ""
+
+#: shutdown.c:182 shutdown.c:219
+msgid "Shut down"
+msgstr ""
+
+#: shutdown.c:69
+msgid "Unable to unlock the media door"
+msgstr ""
+
+#: shutdown.c:306
+#, c-format
+msgid "Use \"%s -f\" to force.\n"
+msgstr ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,19 +23,20 @@
 // in the "device independent bitmap" (.bmp) format, commonly used in
 // MS(R)-Windows(R), etc.
 
-#include "kernelImage.h"
 #include "kernelImageBmp.h"
-#include "kernelLoader.h"
-#include "kernelMemory.h"
-#include "kernelMalloc.h"
-#include "kernelFile.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
-#include <string.h>
+#include "kernelFile.h"
+#include "kernelGraphic.h"
+#include "kernelImage.h"
+#include "kernelLoader.h"
+#include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include <stdio.h>
+#include <string.h>
 
 
-static int detect(const char *fileName, void *dataPtr, int size,
+static int detect(const char *fileName, void *dataPtr, unsigned size,
 		  loaderFileClass *class)
 {
   // This function returns 1 and fills the fileClass structure if the data
@@ -51,7 +52,8 @@ static int detect(const char *fileName, void *dataPtr, int size,
       // We will say this is a BMP file.
       sprintf(class->className, "%s %s", FILECLASS_NAME_BMP,
 	      FILECLASS_NAME_IMAGE);
-      class->flags = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
+      class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
+
       return (1);
     }
   else
@@ -83,7 +85,7 @@ static int load(unsigned char *imageFileData, int dataLength,
   int count1, count2;
   
   // Check params
-  if ((imageFileData == NULL) || !dataLength || loadImage == NULL)
+  if ((imageFileData == NULL) || !dataLength || (loadImage == NULL))
     return (status = ERR_NULLPARAMETER);
 
   // Point our header pointer at the start of the file
@@ -97,19 +99,12 @@ static int load(unsigned char *imageFileData, int dataLength,
 
   palette = (imageFileData + sizeof(bmpHeader) + 2);
 
-  // Figure out how much memory we need for the array of pixels that
-  // we'll attach to the image, and allocate it.  The size is a
-  // product of the image height and width.
-  loadImage->pixels = (width * height);
-  loadImage->dataLength = (loadImage->pixels * sizeof(pixel));
+  // Get a blank image of sufficient size
+  status = kernelImageNew(loadImage, width, height);
+  if (status < 0)
+    return (status);
 
-  imageData = kernelMemoryGet(loadImage->dataLength, "image data");
-  if (imageData == NULL)
-    {
-      // Release the file data memory
-      kernelMemoryRelease(imageFileData);
-      return (status = ERR_MEMORY);
-    }
+  imageData = loadImage->data;
 
   // Ok.  Now we need to loop through the bitmap data and turn each bit
   // of data into a pixel.  The method we use will depend on whether
@@ -194,8 +189,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 
 		  if (colorIndex >= colors)
 		    {
-		      kernelMemoryRelease(imageFileData);
-		      kernelMemoryRelease(imageData);
+		      kernelImageFree((image *) &loadImage);
 		      return (status = ERR_INVALID);
 		    }
 
@@ -249,8 +243,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 			  // Code for delta.
 			  kernelError(kernel_error, "RLE bitmap deltas not "
 				      "yet supported");
-			  kernelMemoryRelease(imageFileData);
-			  kernelMemoryRelease(imageData);
+			  kernelImageFree((image *) &loadImage);
 			  return (status = ERR_NOTIMPLEMENTED);
 
 			default:
@@ -282,8 +275,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 			    {
 			      kernelError(kernel_error, "Illegal color index "
 					  "%d", colorIndex);
-			      kernelMemoryRelease(imageFileData);
-			      kernelMemoryRelease(imageData);
+			      kernelImageFree((image *) &loadImage);
 			      return (status = ERR_INVALID);
 			    }
 			  
@@ -314,8 +306,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 			{
 			  kernelError(kernel_error, "Illegal color index %d",
 				      colorIndex);
-			  kernelMemoryRelease(imageFileData);
-			  kernelMemoryRelease(imageData);
+			  kernelImageFree((image *) &loadImage);
 			  return (status = ERR_INVALID);
 			}
 		      
@@ -343,29 +334,62 @@ static int load(unsigned char *imageFileData, int dataLength,
 	  // Not supported.  Release the file data and image data memory
 	  kernelError(kernel_error, "Unsupported compression type %d",
 		      compression);
-	  kernelMemoryRelease(imageFileData);
-	  kernelMemoryRelease(imageData);
+	  kernelImageFree((image *) &loadImage);
 	  return (status = ERR_INVALID);
 	}
     }
+
+  else if (header->bitsPerPixel == BMP_BPP_MONO)
+    {
+      // Monochrome bitmap.  The palette contains 2 values.  Each bit of data
+      // in the file is an index into the color palette (at the end of the
+      // header).
+
+      // There might be padding bytes at the end of a line in the file to
+      // make each one have a multiple of 4 bytes
+      fileLineWidth = ((width + 7) / 8);
+      if (fileLineWidth % 4)
+	fileLineWidth = (fileLineWidth + (4 - (fileLineWidth % 4)));
+
+      // This outer loop is repeated once for each row of pixels
+      for (count1 = (height - 1); count1 >= 0; count1 --)
+	{
+	  fileOffset = (dataStart + (count1 * fileLineWidth));
+	      
+	  // This inner loop is repeated for each pixel in a row
+	  for (pixelRowCounter = 0; pixelRowCounter < width;
+	       pixelRowCounter++)
+	    {
+	      // Get the byte that indexes the color
+	      colorIndex =
+		((imageFileData[fileOffset + (pixelRowCounter / 8)] &
+		  (0x80 >> (pixelRowCounter % 8))) > 0);
+
+	      if (colorIndex >= colors)
+		{
+		  kernelImageFree((image *) &loadImage);
+		  return (status = ERR_INVALID);
+		}
+
+	      // Convert it to a pixel
+	      imageData[pixelCounter].blue = palette[colorIndex * 4];
+	      imageData[pixelCounter].green =
+		palette[(colorIndex * 4) + 1];
+	      imageData[pixelCounter++].red =
+		palette[(colorIndex * 4) + 2];
+	    }
+	}
+    }
+
   else
     {
       // Not supported.  Release the file data and image data memory
-      kernelMemoryRelease(imageFileData);
-      kernelMemoryRelease(imageData);
+      kernelError(kernel_error, "Unsupported bits per pixel value %d",
+		  header->bitsPerPixel);
+      kernelImageFree((image *) &loadImage);
       return (status = ERR_INVALID);
     }
       
-  // Release the file data memory
-  kernelMemoryRelease(imageFileData);
-
-  // Set the image's info fields
-  loadImage->width = width;
-  loadImage->height = height;
-
-  // Assign the image data to the image
-  loadImage->data = imageData;
-
   // Success
   return (status = 0);
 }

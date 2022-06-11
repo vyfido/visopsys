@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  Makefile.include
 ##
@@ -9,15 +9,20 @@
 
 NASM		= nasm
 CC		= gcc
+CC++		= g++
 AR		= ar
 LD		= ld
 OPT		= -O2
-ARCH		= -march=pentium# -mtune=pentium
+ARCH		= -march=pentium
 CODEGEN		= -pipe -fno-omit-frame-pointer -fno-strict-aliasing \
-		-ffreestanding
+		-fno-stack-protector -fno-builtin
+CCODEGEN	= ${CODEGEN} -ffreestanding
+C++CODEGEN	= ${CODEGEN} -fno-rtti -fno-exceptions
 WARN		= -Wall -W -Wshadow -Wcast-align -Wsign-compare \
-		-Waggregate-return -Wstrict-prototypes -Wmissing-prototypes \
-		-Wmissing-declarations -Wmissing-noreturn \
-		-Wmissing-format-attribute -Wredundant-decls -Werror
+		-Waggregate-return  -Wmissing-format-attribute \
+		-Wredundant-decls -Werror
+CWARN		= ${WARN} -Wstrict-prototypes -Wmissing-prototypes \
+		-Wmissing-declarations
+C++WARN		= ${WARN}
 
-export 		NASM CC AR LD OPT ARCH CODEGEN WARN
+export 		NASM CC CC++ AR LD OPT ARCH CCODEGEN C++CODEGEN CWARN C++WARN

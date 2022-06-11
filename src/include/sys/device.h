@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -66,6 +66,8 @@
 
 // Sub-classes of disk controllers
 #define DEVICESUBCLASS_DISKCTRL_IDE         (DEVICECLASS_DISKCTRL | 0x01)
+#define DEVICESUBCLASS_DISKCTRL_SATA        (DEVICECLASS_DISKCTRL | 0x02)
+#define DEVICESUBCLASS_DISKCTRL_SCSI        (DEVICECLASS_DISKCTRL | 0x03)
 
 // Sub-classes of keyboards
 #define DEVICESUBCLASS_KEYBOARD_PS2         (DEVICECLASS_KEYBOARD | 0x01)
@@ -77,10 +79,12 @@
 #define DEVICESUBCLASS_MOUSE_USB            (DEVICECLASS_MOUSE | 0x03)
 
 // Sub-classes of disks
-#define DEVICESUBCLASS_DISK_FLOPPY          (DEVICECLASS_DISK | 0x01)
-#define DEVICESUBCLASS_DISK_IDE             (DEVICECLASS_DISK | 0x02)
-#define DEVICESUBCLASS_DISK_SCSI            (DEVICECLASS_DISK | 0x03)
-#define DEVICESUBCLASS_DISK_CDDVD           (DEVICECLASS_DISK | 0x04)
+#define DEVICESUBCLASS_DISK_RAMDISK         (DEVICECLASS_DISK | 0x01)
+#define DEVICESUBCLASS_DISK_FLOPPY          (DEVICECLASS_DISK | 0x02)
+#define DEVICESUBCLASS_DISK_IDE             (DEVICECLASS_DISK | 0x03)
+#define DEVICESUBCLASS_DISK_SATA            (DEVICECLASS_DISK | 0x04)
+#define DEVICESUBCLASS_DISK_SCSI            (DEVICECLASS_DISK | 0x05)
+#define DEVICESUBCLASS_DISK_CDDVD           (DEVICECLASS_DISK | 0x06)
 
 // Sub-classes of graphics adapters
 #define DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER  (DEVICECLASS_GRAPHIC | 0x01)
@@ -106,7 +110,7 @@
 // A structure for device classes and subclasses, which just allows us to
 // associate the different types with string names.
 typedef struct {
-  int class;
+  int classNum;
   char name[DEV_CLASSNAME_MAX];
 
 } deviceClass;
@@ -114,7 +118,7 @@ typedef struct {
 // The generic hardware device structure
 typedef struct {
   // Device class and subclass.  Subclass optional.
-  deviceClass class;
+  deviceClass devClass;
   deviceClass subClass;
 
   // Optional list of text attributes

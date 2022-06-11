@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -45,7 +45,7 @@ int vfscanf(FILE *theStream, const char *format, va_list list)
 
   // Read a line of input
   status = fileStreamReadLine(theStream, MAXSTRINGLENGTH, input);
-  if (status < 0)
+  if (status <= 0)
     {
       // We matched zero items
       errno = status;

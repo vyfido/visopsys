@@ -46,6 +46,7 @@ Usage:
 
 static objectKey window = NULL;
 static objectKey gridButtons[GRID_DIM][GRID_DIM];
+static objectKey gridOtherStuff[GRID_DIM][GRID_DIM];
 static int mineField[GRID_DIM][GRID_DIM];
 static image mineImage;
 static int numUncovered = 0;
@@ -53,38 +54,13 @@ static int numUncovered = 0;
 
 static inline void uncover(int x, int y)
 {
-  componentParameters params;
-  char tmpChar[2];
-
   if (gridButtons[x][y])
     {
       windowComponentSetVisible(gridButtons[x][y], 0);
+      if (gridOtherStuff[x][y])
+	windowComponentSetVisible(gridOtherStuff[x][y], 1);
       gridButtons[x][y] = NULL;
       numUncovered += 1;
-
-      if (mineField[x][y] > 0)
-	{
-	  bzero(&params, sizeof(componentParameters));
-	  params.gridX = x;
-	  params.gridY = y;
-	  params.gridWidth = 1;
-	  params.gridHeight = 1;
-	  params.orientationX = orient_center;
-	  params.orientationY = orient_middle;
-
-	  if (mineField[x][y] < 9)
-	    {
-	      sprintf(tmpChar, "%d", mineField[x][y]);
-	      windowNewTextLabel(window, tmpChar, &params);
-	      
-	    }
-	  else
-	    // Place an image of a mine there
-	    windowNewImage(window, &mineImage, draw_translucent, &params);
-
-	  windowLayout(window);
-	  windowSetVisible(window, 1);
-	}
     }
 }
 
@@ -146,6 +122,8 @@ static void clickEmpties(int x, int y)
 	    clickEmpties((x - 1), y);
 	}
     }
+
+  return;
 }
 
 
@@ -155,62 +133,63 @@ static void gameOver(int win)
 
   windowNewInfoDialog(window, "Game over", (win? "You win!" : "You lose."));
 
-  windowGuiStop();
+  return;
 }
 
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
   int x = 0;
-  int y  = 0;
+  int y = 0;
 
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
     windowGuiStop();
    
-  // Only go through the array of buttons if the even was a mouse click
+  // Only go through the array of buttons if the event was a mouse click
   else if (event->type == EVENT_MOUSE_LEFTUP)
-    {
-      for (x = 0; x < GRID_DIM; x++)
-	for (y = 0; y < GRID_DIM; y++)
+    for (x = 0; x < GRID_DIM; x++)
+      for (y = 0; y < GRID_DIM; y++)
+	if (key == gridButtons[x][y])
 	  {
-            if (key == gridButtons[x][y])
+	    // If this spot is empty, invoke the clickEmpties function
+	    if (mineField[x][y] == -1)
 	      {
-		// If this spot is empty, invoke the clickEmpties function
-		if (mineField[x][y] == -1)
-                  clickEmpties(x, y);
-
+		clickEmpties(x, y);
+	      }
+	    else
+	      {
+		if (mineField[x][y] == 9)
+		  {
+		    gameOver(0);
+		  }
 		else
 		  {
-		    if (mineField[x][y] == 9)
-		      gameOver(0);
-
-		    else
-		      {
-			uncover(x, y);
+		    uncover(x, y);
 			
-			if (numUncovered >=
-			    ((GRID_DIM * GRID_DIM) - NUM_MINES))
-			  gameOver(1);
-		      }
+		    if (numUncovered >=
+			((GRID_DIM * GRID_DIM) - NUM_MINES))
+		      gameOver(1);
 		  }
-              
-		break;  
 	      }
+              
+	    return;  
 	  }
-    }
+	  
 }
 
 
-static void initializeField(void)
+static void initialize(void)
 {
   // Zeros out the array, assigns mines to random squares, and figures out
   // how many mines adjacent
 
-  int randomX = 0;
-  int randomY = 0;    // X and Y coord's for random mines
-  int mineCount = 0;  // Holds the running total of surrounding mines
   int x = 0;
   int y = 0;
+  int randomX = 0;    // X and Y coords for random mines
+  int randomY = 0;
+  int mineCount = 0;  // Holds the running total of surrounding mines
+  componentParameters params;
+  char tmpChar[2];
  
   // First, let's zero it out
   for (x = 0; x < GRID_DIM; x++)
@@ -218,82 +197,83 @@ static void initializeField(void)
       mineField[x][y] = -1;
   
   // Now we randomly scatter the mines
-  for (x = 0; x < NUM_MINES; x++)
+  for (x = 0; x < NUM_MINES; )
     {
-      randomX = 0;
-      randomY = 0;
-
-      while (!randomX && !randomY)
-	{
-	  randomX = (randomUnformatted() % GRID_DIM);
-	  randomY = (randomUnformatted() % GRID_DIM);
-	}
+      randomX = (randomUnformatted() % GRID_DIM);
+      randomY = (randomUnformatted() % GRID_DIM);
 
       // If this one's already a mine, we won't count it
       if (mineField[randomX][randomY] == 9)
-	x--;
-         
+	continue;
+
       mineField[randomX][randomY] = 9;
+      x += 1;
     }
     
-  // Now that there are some mines scattered, we can establish the values of
-  // the elements which have mines surrounding them
-  for (x = 0; x < GRID_DIM; x++)
-    for (y = 0; y < GRID_DIM; y++)
-      {
-	// We don't want to count mines if this position is a mine itself
-	if (mineField[x][y] == 9)
-	  continue;
-	
-	mineCount = 0;
-
-	// Ok, we'll go clockwise starting from the mine to the immediate left
-	if (((y - 1) >= 0) && (mineField[x][y - 1] == 9))   
-	  mineCount++;
-	if (((x - 1) >= 0) && ((y - 1) >= 0) &&
-	    (mineField[x - 1][y - 1] == 9))  
-	  mineCount++;
-	if (((x - 1) >= 0) && (mineField[x - 1][y] == 9))  
-	  mineCount++;
-	if (((x - 1) >= 0) && ((y + 1) <= 7) &&
-	    (mineField[x - 1][y + 1] == 9))
-	  mineCount++;
-	if (((y + 1) <= 7) && (mineField[x][y + 1] == 9))  
-	  mineCount++;
-	if (((x + 1) <= 7) && ((y + 1) <= 7) &&
-	    (mineField[x + 1][y + 1] == 9))
-	  mineCount++;
-	if (((x + 1) <= 7) && (mineField[x + 1][y] == 9))
-	  mineCount++;
-	if (((x + 1) <= 7) && ((y - 1) >= 0) &&
-	    (mineField[x + 1][y - 1] == 9))
-	  mineCount++;
-	
-	// Finally, we can assign a value to the current position
-	if (mineCount != 0)
-	  mineField[x][y] = mineCount;
-      }
-}
-
-
-static void drawField(void)
-{
-  // Populates the window with our minefield and buttons
-
-  componentParameters params;
-  int x = 0;
-  int y = 0;
-   
-  // Set up the buttons.  We set up an array, just like the actual minefield.
-
   bzero(&params, sizeof(componentParameters));
-  params.gridX = x;
-  params.gridY = y;
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
 
+  // Now that there are some mines scattered, we can establish the values of
+  // the elements which have mines surrounding them
+  for (x = 0; x < GRID_DIM; x++)
+    for (y = 0; y < GRID_DIM; y++)
+      {
+	params.gridX = x;
+	params.gridY = y;
+
+	// We don't want to count mines if this position is a mine itself
+	if (mineField[x][y] == 9)
+	  {
+	    // Place an image of a mine there
+	    gridOtherStuff[x][y] =
+	      windowNewImage(window, &mineImage, draw_translucent, &params);
+	    windowComponentSetVisible(gridOtherStuff[x][y], 0);
+	  }
+	else
+	  {
+	    mineCount = 0;
+
+	    // Ok, we'll go clockwise starting from the mine to the immediate
+	    // left
+	    if (((y - 1) >= 0) && (mineField[x][y - 1] == 9))   
+	      mineCount++;
+	    if (((x - 1) >= 0) && ((y - 1) >= 0) &&
+		(mineField[x - 1][y - 1] == 9))  
+	      mineCount++;
+	    if (((x - 1) >= 0) && (mineField[x - 1][y] == 9))  
+	      mineCount++;
+	    if (((x - 1) >= 0) && ((y + 1) <= 7) &&
+		(mineField[x - 1][y + 1] == 9))
+	      mineCount++;
+	    if (((y + 1) <= 7) && (mineField[x][y + 1] == 9))  
+	      mineCount++;
+	    if (((x + 1) <= 7) && ((y + 1) <= 7) &&
+		(mineField[x + 1][y + 1] == 9))
+	      mineCount++;
+	    if (((x + 1) <= 7) && (mineField[x + 1][y] == 9))
+	      mineCount++;
+	    if (((x + 1) <= 7) && ((y - 1) >= 0) &&
+		(mineField[x + 1][y - 1] == 9))
+	      mineCount++;
+
+	    if ((mineCount > 0) && (mineCount < 9))
+	      {
+		sprintf(tmpChar, "%d", mineCount);
+		gridOtherStuff[x][y] =
+		  windowNewTextLabel(window, tmpChar, &params);
+		windowComponentSetVisible(gridOtherStuff[x][y], 0);
+	      }
+	
+	    // Finally, we can assign a value to the current position
+	    if (mineCount != 0)
+	      mineField[x][y] = mineCount;
+	  }
+      }
+
+  // Set up the buttons.  We set up an array, just like the actual minefield.
   for (y = 0; y < GRID_DIM; y++)
     {
       params.gridY = y;
@@ -306,8 +286,6 @@ static void drawField(void)
 	  windowRegisterEventHandler(gridButtons[x][y], &eventHandler);
 	}
     }
-
-  numUncovered = 0;
 }
 
 
@@ -329,21 +307,16 @@ int main(int argc __attribute__((unused)), char *argv[])
       printf("\nCan't load %s\n", MINE_IMAGE);
       return (errno = status);
     }
-  mineImage.translucentColor.red = 0;
-  mineImage.translucentColor.green = 255;
-  mineImage.translucentColor.blue = 0;
+  mineImage.transColor.green = 255;
 
   // Create a new window
   window = windowNew(multitaskerGetCurrentProcessId(), "Mines");
 
-  // Register an event handler to catch window close events
+  // Register an event handler to catch window events.
   windowRegisterEventHandler(window, &eventHandler);
   
   // Generate mine field
-  initializeField();
-   
-  // Make a pretty window
-  drawField();
+  initialize();
    
   // Go live.
   windowSetVisible(window, 1);
@@ -353,6 +326,8 @@ int main(int argc __attribute__((unused)), char *argv[])
    
   // Destroy the window
   windowDestroy(window);
+
+  imageFree(&mineImage);
    
   // Done
   return (0);

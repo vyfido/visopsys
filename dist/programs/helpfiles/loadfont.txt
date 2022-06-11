@@ -12,11 +12,15 @@ This command will switch the current default font to the one specified.
 The first parameter is the name of the file containing the font definition.
 The second parameter is a symbolic name to assign to the font.
 
-Example:
-  loadfont /system/fonts/arial-bold-12.bmp arial-bold-12
+Examples:
+  loadfont xterm-normal-10.vbf xterm-normal-10
+  loadfont /system/fonts/arial-bold-12.vbf arial-bold-12
 
 This command is of only marginal usefulness to most users.  It is primarily
 intended for testing new font definitions.
+
+If the full path to the font file is not specified, the default system font
+directory (/system/fonts) will be searched.
 
 Options:
 -f  : Display the font in fixed-width mode

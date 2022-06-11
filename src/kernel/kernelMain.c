@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,7 +52,8 @@ static variableList variables;
 variableList *kernelVariables = &variables;
 
 
-void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
+void kernelMain(unsigned kernelMemory, void *kernelStack,
+		unsigned kernelStackSize, loaderInfoStruct *info)
 {
   // This is the kernel entry point -- and main routine --
   // which starts the entire show and, of course, never returns.
@@ -65,7 +66,7 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
   kernelMemCopy(info, kernelOsLoaderInfo, sizeof(loaderInfoStruct));
 
   // Call the kernel initialization routine
-  status = kernelInitialize(kernelMemory);
+  status = kernelInitialize(kernelMemory, kernelStack, kernelStackSize);
   if (status < 0)
     {
       // Kernel initialization failed.  Crap.  We don't exactly know
@@ -109,7 +110,7 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 		{
 		  // Attach the start program to the console text streams
 		  kernelMultitaskerDuplicateIO(KERNELPROCID, pid, 1); // Clear
-		  
+
 		  // Execute the start program.  Don't block.
 		  kernelLoaderExecProgram(pid, 0);
 		}

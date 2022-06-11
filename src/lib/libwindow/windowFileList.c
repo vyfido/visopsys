@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,11 +22,14 @@
 // This contains functions for user programs to operate GUI components.
 
 #include <errno.h>
+#include <libintl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 #include <sys/window.h>
 
+#define _(string) gettext(string)
 #define FILEBROWSE_CONFIG        "/system/config/filebrowse.conf"
 #define DEFAULT_FOLDERICON_VAR   "icon.folder"
 #define DEFAULT_FOLDERICON_FILE  "/system/icons/foldicon.bmp"
@@ -36,19 +39,32 @@
 #define DEFAULT_IMAGEICON_FILE   "/system/icons/imageicon.bmp"
 #define DEFAULT_EXECICON_VAR     "icon.executable"
 #define DEFAULT_EXECICON_FILE    "/system/icons/execicon.bmp"
+#define DEFAULT_MESSAGEICON_VAR  "icon.message"
+#define DEFAULT_MESSAGEICON_FILE "/system/icons/mesgicon.ico"
 #define DEFAULT_OBJICON_VAR      "icon.object"
 #define DEFAULT_OBJICON_FILE     "/system/icons/objicon.bmp"
-#define DEFAULT_CONFIGICON_VAR   "icon.config"
-#define DEFAULT_CONFIGICON_FILE  "/system/icons/conficon.bmp"
 #define DEFAULT_BOOTICON_VAR     "icon.boot"
 #define DEFAULT_BOOTICON_FILE    "/system/icons/booticon.bmp"
+#define DEFAULT_KEYMAPICON_VAR   "icon.keymap"
+#define DEFAULT_KEYMAPICON_FILE  "/system/icons/kmapicon.ico"
+#define DEFAULT_PDFICON_VAR      "icon.pdf"
+#define DEFAULT_PDFICON_FILE     "/system/icons/pdficon.ico"
+#define DEFAULT_ARCHICON_VAR     "icon.archive"
+#define DEFAULT_ARCHICON_FILE    "/system/icons/archicon.ico"
+#define DEFAULT_FONTICON_VAR     "icon.font"
+#define DEFAULT_FONTICON_FILE    "/system/icons/fonticon.ico"
+#define DEFAULT_CONFIGICON_VAR   "icon.config"
+#define DEFAULT_CONFIGICON_FILE  "/system/icons/conficon.bmp"
+#define DEFAULT_HTMLICON_VAR     "icon.html"
+#define DEFAULT_HTMLICON_FILE    "/system/icons/htmlicon.bmp"
 #define DEFAULT_TEXTICON_VAR     "icon.text"
 #define DEFAULT_TEXTICON_FILE    "/system/icons/texticon.bmp"
 #define DEFAULT_BINICON_VAR      "icon.binary"
 #define DEFAULT_BINICON_FILE     "/system/icons/binicon.bmp"
 
 typedef struct {
-  int classFlags;
+  int class;
+  int subClass;
   const char *imageVariable;
   const char *imageFile;
   image *image;
@@ -64,48 +80,77 @@ typedef struct {
 
 } fileEntry;
 
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
+
 static variableList config;
-static int initialized = 0;
 
 // Our list of icon images
 static image folderImage;
 static image fileImage;
-static image configImage;
-static image textImage;
 static image imageImage;
 static image bootImage;
+static image keymapImage;
+static image pdfImage;
+static image archImage;
+static image fontImage;
 static image execImage;
+static image messageImage;
 static image objImage;
+static image configImage;
+static image htmlImage;
+static image textImage;
 static image binImage;
 
 #define FOLDER_ICON \
- { 0, DEFAULT_FOLDERICON_VAR, DEFAULT_FOLDERICON_FILE, &folderImage }
+  { LOADERFILECLASS_NONE, LOADERFILESUBCLASS_NONE, DEFAULT_FOLDERICON_VAR, \
+    DEFAULT_FOLDERICON_FILE, &folderImage }
+#define TEXT_ICON \
+  { LOADERFILECLASS_TEXT, LOADERFILESUBCLASS_NONE, DEFAULT_TEXTICON_VAR, \
+    DEFAULT_TEXTICON_FILE, &textImage }
+#define BIN_ICON \
+  { LOADERFILECLASS_BIN, LOADERFILESUBCLASS_NONE, DEFAULT_BINICON_VAR, \
+    DEFAULT_BINICON_FILE, &binImage }
 #define FILE_ICON \
- { 0xFFFFFFFF, DEFAULT_FILEICON_VAR, DEFAULT_FILEICON_FILE, &fileImage }
+ { 0xFFFFFFFF, 0xFFFFFFFF, DEFAULT_FILEICON_VAR, DEFAULT_FILEICON_FILE, \
+   &fileImage }
 
 static icon folderIcon = FOLDER_ICON;
+static icon textIcon = TEXT_ICON;
+static icon binIcon = BIN_ICON;
 static icon fileIcon = FILE_ICON;
 
 static icon iconList[] = {
   // These get traversed in order; the first matching file class flags get
   // the icon.  So, for example, if you want to make an icon for a type
   // of binary file, put it *before* the icon for plain binaries.
-  { LOADERFILECLASS_CONFIG, DEFAULT_CONFIGICON_VAR, DEFAULT_CONFIGICON_FILE,
-    &configImage },
-  { LOADERFILECLASS_TEXT, DEFAULT_TEXTICON_VAR, DEFAULT_TEXTICON_FILE,
-    &textImage },
-  { LOADERFILECLASS_IMAGE, DEFAULT_IMAGEICON_VAR, DEFAULT_IMAGEICON_FILE,
-    &imageImage },
-  { LOADERFILECLASS_BOOT, DEFAULT_BOOTICON_VAR, DEFAULT_BOOTICON_FILE,
-    &bootImage },
-  { LOADERFILECLASS_EXEC, DEFAULT_EXECICON_VAR, DEFAULT_EXECICON_FILE,
-    &execImage },
-  { (LOADERFILECLASS_OBJ | LOADERFILECLASS_LIB), DEFAULT_OBJICON_VAR,
-    DEFAULT_OBJICON_FILE, &objImage },
-  { LOADERFILECLASS_BIN, DEFAULT_BINICON_VAR, DEFAULT_BINICON_FILE,
-    &binImage },
+  { LOADERFILECLASS_IMAGE, LOADERFILESUBCLASS_NONE, DEFAULT_IMAGEICON_VAR,
+    DEFAULT_IMAGEICON_FILE, &imageImage },
+  { LOADERFILECLASS_BOOT, LOADERFILESUBCLASS_NONE, DEFAULT_BOOTICON_VAR,
+    DEFAULT_BOOTICON_FILE, &bootImage },
+  { LOADERFILECLASS_KEYMAP, LOADERFILESUBCLASS_NONE, DEFAULT_KEYMAPICON_VAR,
+    DEFAULT_KEYMAPICON_FILE, &keymapImage },
+  { LOADERFILECLASS_DOC, LOADERFILESUBCLASS_PDF, DEFAULT_PDFICON_VAR,
+    DEFAULT_PDFICON_FILE, &pdfImage },
+  { LOADERFILECLASS_ARCHIVE, LOADERFILESUBCLASS_NONE, DEFAULT_ARCHICON_VAR,
+    DEFAULT_ARCHICON_FILE, &archImage },
+  { LOADERFILECLASS_FONT, LOADERFILESUBCLASS_NONE, DEFAULT_FONTICON_VAR,
+    DEFAULT_FONTICON_FILE, &fontImage },
+  { LOADERFILECLASS_EXEC, LOADERFILESUBCLASS_NONE, DEFAULT_EXECICON_VAR,
+    DEFAULT_EXECICON_FILE, &execImage },
+  { LOADERFILECLASS_OBJ, LOADERFILESUBCLASS_MESSAGE, DEFAULT_MESSAGEICON_VAR,
+    DEFAULT_MESSAGEICON_FILE, &messageImage },
+  { (LOADERFILECLASS_OBJ | LOADERFILECLASS_LIB), LOADERFILESUBCLASS_NONE,
+    DEFAULT_OBJICON_VAR, DEFAULT_OBJICON_FILE, &objImage },
+  { LOADERFILECLASS_DATA, LOADERFILESUBCLASS_CONFIG, DEFAULT_CONFIGICON_VAR,
+    DEFAULT_CONFIGICON_FILE, &configImage },
+  { LOADERFILECLASS_DOC, LOADERFILESUBCLASS_HTML, DEFAULT_HTMLICON_VAR,
+    DEFAULT_HTMLICON_FILE, &htmlImage },
+  TEXT_ICON,
+  BIN_ICON,
   // This one goes last, because the flags match every file class.
-  FILE_ICON
+  FILE_ICON,
+  { NULL, NULL, NULL, NULL, NULL }
 };
     
 
@@ -125,7 +170,7 @@ static void error(const char *format, ...)
   vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
-  windowNewErrorDialog(NULL, "Error", output);
+  windowNewErrorDialog(NULL, _("Error"), output);
   free(output);
 }
 
@@ -138,7 +183,6 @@ static int loadIcon(const char *variableName, const char *defaultIcon,
 
   int status = 0;
   char variableValue[MAX_PATH_NAME_LENGTH];
-  file tmpFile;
 
   // First try the variable
   status = variableListGet(&config, variableName, variableValue,
@@ -147,7 +191,7 @@ static int loadIcon(const char *variableName, const char *defaultIcon,
     defaultIcon = variableValue;
 
   // Try to load the image
-  status = fileFind(defaultIcon, &tmpFile);
+  status = fileFind(defaultIcon, NULL);
   if (status < 0)
     return (status);
 
@@ -157,28 +201,48 @@ static int loadIcon(const char *variableName, const char *defaultIcon,
 
 static void getFileIcon(fileEntry *entry)
 {
+  // Choose the appropriate icon for the class of file, and load it if
+  // necessary.
+
   int count;
 
   entry->icon = &fileIcon;
 
-  for (count = 0; count < (int) (sizeof(iconList) / sizeof(icon)); count ++)
+  // Try to find an exact match.  If there isn't one, this should default
+  // to the 'file' type at the end of the list.
+  for (count = 0; iconList[count].image ; count ++)
     {
-      if (entry->class.flags & iconList[count].classFlags)
+      if (((iconList[count].class == LOADERFILECLASS_NONE) ||
+	   (entry->class.class & iconList[count].class)) &&
+	  ((iconList[count].subClass == LOADERFILESUBCLASS_NONE) ||
+	   (entry->class.subClass & iconList[count].subClass)))
 	{
 	  entry->icon = &iconList[count];
 	  break;
 	}
     }
 
+  // Do we need to load the image data?
   while (entry->icon->image->data == NULL)
     {
       if (loadIcon(entry->icon->imageVariable, entry->icon->imageFile,
 		   entry->icon->image) < 0)
 	{
+	  // Even the 'file' icon image failed.
 	  if (entry->icon == &fileIcon)
 	    return;
 
-	  entry->icon = &fileIcon;
+	  // If it's a binary file, try the binary icon image
+	  if ((entry->icon != &binIcon) &&
+	      (entry->class.class & LOADERFILECLASS_BIN))
+	    entry->icon = &binIcon;
+
+	  else if ((entry->icon != &textIcon) &&
+		   (entry->class.class & LOADERFILECLASS_TEXT))
+	    entry->icon = &textIcon;
+
+	  else
+	    entry->icon = &fileIcon;
 	}
       else
 	break;
@@ -201,7 +265,7 @@ static int classifyEntry(fileEntry *entry)
     {
     case dirT:
       if (!strcmp(entry->file.name, ".."))
-	strcpy(entry->iconParams.text, "(up)");
+	strcpy(entry->iconParams.text, _("(up)"));
       entry->icon = &folderIcon;
       if (entry->icon->image->data == NULL)
 	{
@@ -225,7 +289,7 @@ static int classifyEntry(fileEntry *entry)
     case linkT:
       if (!strcmp(entry->file.name, ".."))
 	{
-	  strcpy(entry->iconParams.text, "(up)");
+	  strcpy(entry->iconParams.text, _("(up)"));
 	  entry->icon = &folderIcon;
 	  if (entry->icon->image->data == NULL)
 	    {
@@ -267,7 +331,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
   totalFiles = fileCount(path);
   if (totalFiles < 0)
     {
-      error("Can't access directory \"%s\"", path);
+      error(_("Can't get directory \"%s\" file count"), path);
       return (totalFiles);
     }
 
@@ -278,7 +342,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
       tmpFileEntries = malloc(totalFiles * sizeof(fileEntry));
       if (tmpFileEntries == NULL)
 	{
-	  error("Memory allocation error");
+	  error("%s", _("Memory allocation error"));
 	  return (status = ERR_MEMORY);
 	}
   
@@ -291,7 +355,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 
 	  if (status < 0)
 	    {
-	      error("Error reading files in \"%s\"", path);
+	      error(_("Error reading files in \"%s\""), path);
 	      free(tmpFileEntries);
 	      return (status);
 	    }
@@ -331,7 +395,7 @@ static listItemParameters *allocateIconParameters(windowFileList *fileList)
 	malloc(fileList->numFileEntries * sizeof(listItemParameters));
       if (newIconParams == NULL)
 	{
-	  error("Memory allocation error creating icon parameters");
+	  error("%s", _("Memory allocation error creating icon parameters"));
 	  return (newIconParams);
 	}
 
@@ -379,8 +443,10 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
       return (status = ERR_MEMORY);
     }
 
-  windowComponentSetSelected(fileList->key, 0);
+  // Clear the list
+  windowComponentSetData(fileList->key, NULL, 0);
   windowComponentSetData(fileList->key, iconParams, fileList->numFileEntries);
+  windowComponentSetSelected(fileList->key, 0);
 
   windowSwitchPointer(fileList->key, "default");
 
@@ -402,10 +468,22 @@ static int destroy(windowFileList *fileList)
 {
   // Detroy and deallocate the file list.
 
+  int count;
+
   if (fileList->fileEntries)
     free(fileList->fileEntries);
 
   free(fileList);
+
+  if (folderImage.data)
+    imageFree(&folderImage);
+
+  for (count = 0; iconList[count].image ; count ++)
+    if (iconList[count].image->data)
+      imageFree(iconList[count].image);
+
+  variableListDestroy(&config);
+
   return (0);
 }
 
@@ -420,56 +498,32 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
   // Get the selected item
   windowComponentGetSelected(fileList->key, &selected);
   if (selected < 0)
-    {
-      error("Can't get selected item");
-      return (status = selected);
-    }
+    return (status = selected);
 
   // Check for events in our icon list.  We consider the icon 'clicked'
   // if it is a mouse click selection, or an ENTER key selection
   if ((event->type & EVENT_SELECTION) &&
       ((event->type & EVENT_MOUSE_LEFTUP) ||
-       ((event->type & EVENT_KEY_DOWN) && (event->key == 10))))
+       ((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))))
     {
       memcpy(&saveEntry, &fileEntries[selected], sizeof(fileEntry));
 
-      switch (fileEntries[selected].file.type)
+      if ((fileEntries[selected].file.type == linkT) &&
+	  !strcmp((char *) fileEntries[selected].file.name, ".."))
+	saveEntry.file.type = dirT;
+
+      if ((saveEntry.file.type == dirT) &&
+	  (fileList->browseFlags & WINFILEBROWSE_CAN_CD))
 	{
-	case dirT:
-	  if (fileList->browseFlags & WINFILEBROWSE_CAN_CD)
+	  // Change to the directory, get the list of icon
+	  // parameters, and update our window list.
+	  status =
+	    changeDirWithLock(fileList, saveEntry.fullName);
+	  if (status < 0)
 	    {
-	      // Change to the directory, get the list of icon
-	      // parameters, and update our window list.
-	      status =
-		changeDirWithLock(fileList, fileEntries[selected].fullName);
-	      if (status < 0)
-		{
-		  error("Can't change to directory %s",
-			fileEntries[selected].file.name);
-		  return (status);
-		}
+	      error(_("Can't change to directory %s"), saveEntry.file.name);
+	      return (status);
 	    }
-	  break;
-		  
-	case linkT:
-	  if ((fileList->browseFlags & WINFILEBROWSE_CAN_CD) &&
-	      !strcmp((char *) fileEntries[selected].file.name, ".."))
-	    {
-	      // Change to the directory, get the list of icon
-	      // parameters, and update our window list.
-	      status =
-		changeDirWithLock(fileList, fileEntries[selected].fullName);
-	      if (status < 0)
-		{
-		  error("Can't change to directory %s",
-			fileEntries[selected].file.name);
-		  return (status);
-		}
-	    }
-	  break;
-		  
-	default:
-	  break;
 	}
 
       if (fileList->selectionCallback)
@@ -478,7 +532,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 				    (loaderFileClass *) &saveEntry.class);
     }
 
-  else if ((event->type & EVENT_KEY_DOWN) && (event->key == 127))
+  else if ((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_DEL))
     {
       if ((fileList->browseFlags & WINFILEBROWSE_CAN_DEL) &&
 	  strcmp((char *) fileEntries[selected].file.name, ".."))
@@ -491,7 +545,8 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 	  windowSwitchPointer(fileList->key, "default");
 
 	  if (status < 0)
-	    error("Error deleting file %s", fileEntries[selected].file.name);
+	    error(_("Error deleting file %s"),
+		  fileEntries[selected].file.name);
 
 	  status = update(fileList);
 	  if (status < 0)
@@ -526,6 +581,9 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
   listItemParameters *iconParams = NULL;
   int count;
 
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   // Check params.  Callback can be NULL.
   if ((parent == NULL) || (directory == NULL) || (params == NULL))
     {
@@ -533,24 +591,18 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
       return (fileList = NULL);
     }
 
-  if (!initialized)
-    {
-      // Clear some memory
-      bzero(&folderImage, sizeof(image));
-      for (count = 0; count < (int) (sizeof(iconList) / sizeof(icon));
-	   count ++)
-	bzero(iconList[count].image, sizeof(image));
-  
-      // Try to read our config file
-      status = configurationReader(FILEBROWSE_CONFIG, &config);
-      if (status < 0)
-	{
-	  error("Can't locate configuration file %s", FILEBROWSE_CONFIG);
-	  errno = ERR_NODATA;
-	  return (fileList = NULL);
-	}
+  // Initialize the images
+  bzero(&folderImage, sizeof(image));
+  for (count = 0; iconList[count].image ; count ++)
+    bzero(iconList[count].image, sizeof(image));
 
-      initialized = 1;
+  // Try to read our config file
+  status = configRead(FILEBROWSE_CONFIG, &config);
+  if (status < 0)
+    {
+      error(_("Can't locate configuration file %s"), FILEBROWSE_CONFIG);
+      errno = ERR_NODATA;
+      return (fileList = NULL);
     }
 
   // Allocate memory for our file list

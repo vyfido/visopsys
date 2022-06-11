@@ -1,6 +1,6 @@
 
 	Visopsys
-	Copyright (C) 1998-2007 J. Andrew McLaughlin
+	Copyright (C) 1998-2011 J. Andrew McLaughlin
 
 Unless otherwise stated, all aspects of Visopsys are created/authored by
 Andy McLaughlin.  Other contributions are as follows (please notify me
@@ -12,11 +12,17 @@ support, and German keyboard layouts and 'Alt-Gr' key support.  See the
 directories contrib/jonas-net, contrib/jonas-pci, and contrib/jonas-key.
 
 - Davide Airaghi <davide.airaghi@gmail.com> provided some initial work on
-FPU state saves and an Italian keyboard mapping.  See the directories
-contrib/davide-fpu and contrib/davide-key.
+FPU state saves, an Italian keyboard mapping, and implementations of
+I/O privilege mapping and RAM disks.  See the directories
+contrib/davide-fpu, contrib/davide-key, contrib/davide-priv-io, and
+contrib/davide-ramdisk
 
 - Bauer Vladislav <bauer@ccfit.nsu.ru> contributed the original 'cal'
 calendar program.  See the directory contrib/vlad-calendar.
+
+- A number of icons were designed by Leency <leency@mail.ru>.  Many other
+icons are based on his contributions.  See the directory
+contrib/leency-icons.
 
 - Grzesiek (Greg) <reqst@o2.pl> contributed an FPU exception handler fix
 to the multitasker.  See the directory contrib/greg-fpu.
@@ -25,19 +31,32 @@ to the multitasker.  See the directory contrib/greg-fpu.
 (C) 2002 Carles Carbonell Bernadó (Carlitus) <mail@carlitus.net>
 http://www.carlitus.net
 
-- Folder icon adapted from Jakub 'jimmac' Steiner's <jimmac@ximian.com>
-"Gorilla" folder icon at http://jimmac.musichall.cz/icons.php
-
 - Some of the descriptions in fcntl.h are Copyright (C) 1997 The Open Group
 from http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html  
 
 - The values float.h are intelligent guesses based on reconciling the float.h
-files from linux and solaris on i386 machines, and based on the 'Standard C'
+files from Linux and Solaris on i386 machines, and based on the 'Standard C'
 specification Copyright (C) 1989-1996 P.J. Plauger and Jim Brodie.
 
 - sqrt.c is Copyright (C) 1996-2004 Paul Hsieh.  Paul's square root page is
 here: http://www.azillionmonkeys.com/qed/sqroot.html
 
+- cos.c, cosf.c, sin.c, and sinf.c use algorithms adapted from the web page
+at http://www.dontletgo.com/planets/math.html by Asaph Engel
+<ace@dontletgo.com>.
+
+- JPEG inverse discrete cosine transform (IDCT) algorithm is Copyright (C)
+1996, MPEG Software Simulation Group.  See the function inverseDctBlock()
+in the file src/kernel/kernelImageJpg.c
+
+- Bresenham lines algorithm in kernelFramebufferGraphicDriver.c is a  heavily
+customized version of the code published here:
+http://www.funducode.com/freec/graphics/graphics2.htm, the original author of
+which seems to be Abhijit Roychoudhuri
+
+- kernelPciCodes.h is a fixed version of the one created automatically from
+the web using the following URL: http://pcidatabase.com/  Software to create
+and maintain the PCICODE List written by: Jim Boemler <jboemler@halcyon.com>
+
 - Thanks to Hugh Anderson <hugh@comp.nus.edu.sg> for debugging installation
 issues on Fedora FC5.
-

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -177,7 +177,7 @@ static int waitOperationComplete(void)
   else
     {
       // No interrupt -- timed out.
-      kernelError(kernel_error, errorMessages[FLOPPY_TIMEOUT]);
+      kernelError(kernel_error, "%s", errorMessages[FLOPPY_TIMEOUT]);
       return (status = ERR_IO);
     }
 }
@@ -394,8 +394,8 @@ static int setMotorState(int driveNum, int onOff)
 }
 
 
-static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
-			    unsigned numSectors, void *buffer, int read)
+static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
+			    uquad_t numSectors, void *buffer, int read)
 {
   // Reads or writes data to/from the disk.  Both types of operation are
   // combined here since the functionality is nearly identical.  Returns 0
@@ -849,8 +849,8 @@ static int driverDiskChanged(int driveNum)
 }
 
 
-static int driverReadSectors(int driveNum, unsigned logicalSector,
-			     unsigned numSectors, void *buffer)
+static int driverReadSectors(int driveNum, uquad_t logicalSector,
+			     uquad_t numSectors, void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
@@ -861,8 +861,8 @@ static int driverReadSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int driverWriteSectors(int driveNum, unsigned logicalSector,
-			      unsigned numSectors, const void *buffer)
+static int driverWriteSectors(int driveNum, uquad_t logicalSector,
+			      uquad_t numSectors, const void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
@@ -893,9 +893,6 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // Loop for each device
   for (count = 0; count < numberFloppies; count ++)
     {
-      // The device name and filesystem type
-      sprintf((char *) disks[count].name, "fd%d", count);
-
       // The head, track and sector values we got from the loader
       disks[count].heads = kernelOsLoaderInfo->fddInfo[count].heads;
       disks[count].cylinders = kernelOsLoaderInfo->fddInfo[count].tracks;
@@ -944,7 +941,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	
 	case 2:
 	  // This is a 1.2 MB 5.25" Disk.  Yuck.
-	  disks[count].description = "1.2 Mb 5.25\" floppy"; 
+	  disks[count].description = "1.2 MB 5.25\" floppy"; 
 	  floppyData->stepRate = 0x0D;
 	  floppyData->gapLength = 0x2A;
 	  break;
@@ -959,7 +956,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	case 5:
 	case 6:
 	  // This is a 2.88 MB 3.5" Disk.
-	  disks[count].description = "2.88 Mb 3.5\" floppy"; 
+	  disks[count].description = "2.88 MB 3.5\" floppy"; 
 	  floppyData->stepRate = 0x0A;
 	  floppyData->gapLength = 0x1B;
 	  break;
@@ -968,12 +965,12 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  // Oh oh.  This is an unexpected value.  Make a warning and fall
 	  // through to 1.44 MB.
 	  kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
-		      "Assuming 1.44 Mb.", disks[count].deviceNumber,
+		      "Assuming 1.44 MB.", disks[count].deviceNumber,
 		      kernelOsLoaderInfo->fddInfo[count].type);
 
 	case 4:
 	  // This is a 1.44 MB 3.5" Disk.
-	  disks[count].description = "1.44 Mb 3.5\" floppy"; 
+	  disks[count].description = "1.44 MB 3.5\" floppy"; 
 	  floppyData->stepRate = 0x0A;
 	  floppyData->gapLength = 0x1B;
 	  break;

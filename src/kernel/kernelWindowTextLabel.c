@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,10 @@
 
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelMalloc.h"
 #include "kernelError.h"
+#include "kernelFont.h"
+#include "kernelGraphic.h"
+#include "kernelMalloc.h"
 #include <string.h>
 
 extern kernelWindowVariables *windowVariables;
@@ -38,7 +40,8 @@ static int setText(kernelWindowComponent *component, const char *text,
   
   int status = 0;
   kernelWindowTextLabel *label = component->data;
-  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
+  asciiFont *font = (asciiFont *) component->params.font;
+  int width = 0;
   int count;
 
   // Set the text
@@ -68,14 +71,17 @@ static int setText(kernelWindowComponent *component, const char *text,
   char *tmp  = label->text;
   for (count = 0; count < label->lines; count ++)
     {
-      int width = kernelFontGetPrintedWidth(font, tmp);
+      width = 0;
+      if (font)
+	width = kernelFontGetPrintedWidth(font, tmp);
       if (width > component->width)
 	component->width = width;
       
       tmp += (strlen(tmp) + 1);
     }
 
-  component->height = (font->charHeight * label->lines);
+  if (font)
+    component->height = (font->charHeight * label->lines);
   component->minWidth = component->width;
   component->minHeight = component->height;
 
@@ -89,21 +95,24 @@ static int draw(kernelWindowComponent *component)
 
   int status = 0;
   kernelWindowTextLabel *label = component->data;
-  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
+  asciiFont *font = (asciiFont *) component->params.font;
   int count;
 
   char *tmp = label->text;
   for (count = 0; count < label->lines; count ++)
     {
-      status =
-	kernelGraphicDrawText(component->buffer,
-			      (color *) &(component->params.foreground),
-			      (color *) &(component->params.background),
-			      font,  tmp, draw_normal, component->xCoord,
-			      (component->yCoord +
-			       (font->charHeight * count)));
-      if (status < 0)
-	break;
+      if (font)
+	{
+	  status =
+	    kernelGraphicDrawText(component->buffer,
+				  (color *) &(component->params.foreground),
+				  (color *) &(component->params.background),
+				  font, tmp, draw_normal, component->xCoord,
+				  (component->yCoord +
+				   (font->charHeight * count)));
+	  if (status < 0)
+	    break;
+	}
 
       tmp += (strlen(tmp) + 1);
     }

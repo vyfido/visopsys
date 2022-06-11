@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -12,10 +12,16 @@ INCDIR=../../include
 
 include ${ROOT}/Makefile.include
 
+ifneq (${BUILDLANG},)
+	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
+	MAKELANG = make -C ${BUILDLANG}
+	MAKELANGCLEAN = make -C ${BUILDLANG} clean
+endif
+
 STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG}
 LFLAGS		= -nostdlib
 
 NAMES		= windowBannerDialog \
@@ -25,11 +31,13 @@ NAMES		= windowBannerDialog \
 		windowFileDialog \
 		windowFileList \
 		windowMain \
+		windowNumberDialog \
 		windowOkDialog \
 		windowProgressDialog \
 		windowPromptDialog \
+		windowQueryDialog \
 		windowRadioDialog \
-		windowQueryDialog
+		windowThumbImage
 
 OBJDIR = obj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
@@ -42,6 +50,7 @@ SHAREDLIB = ${BUILDDIR}/${SONAME}
 # Targets
 
 all: target-dirs ${LIBRARY} ${SHAREDLIB}
+	${MAKELANG}
 
 target-dirs:
 	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
@@ -60,3 +69,4 @@ ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 
 clean:
 	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}
+	${MAKELANGCLEAN}

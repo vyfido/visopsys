@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -18,13 +18,21 @@ include ${ROOT}/Makefile.include
 ifeq (${RELEASE},)
 	RELEASE = $(shell ${UTILSDIR}/release.sh)
 endif
+ifneq (${PLUS},)
+	PLUSNAMES = kernelLicense kernelFilesystemFatPlus
+endif
+ifneq (${BUILDLANG},)
+	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
+	MAKELANG = make -C ${BUILDLANG}
+	MAKELANGCLEAN = make -C ${BUILDLANG} clean
+endif
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
 		${INCDIR}/*.h ${LIBDIR}/libc.a
 INCLUDE		= -nostdinc -I. -I${INCDIR}
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL \
-		${DEBUG}
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL \
+		${DEBUG} ${PLUS}
 LFLAGS		= -L${LIBDIR} -nostdlib -static \
 		-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
@@ -49,7 +57,10 @@ NAMES =	kernelMain \
 	kernelFilesystemIso \
 	kernelFilesystemLinuxSwap \
 	kernelFilesystemNtfs \
+	kernelFilesystemUdf \
 	kernelFont \
+	kernelFontTtf \
+	kernelFontVbf \
 	kernelGraphic \
 	kernelImage \
 	kernelImageBmp \
@@ -62,12 +73,13 @@ NAMES =	kernelMain \
 	kernelLoader \
 	kernelLoaderClass \
 	kernelLoaderElf \
+	kernelLocale \
 	kernelLock \
 	kernelLog \
 	kernelMalloc \
 	kernelMemory \
-	kernelMouse \
 	kernelMisc \
+	kernelMouse \
 	kernelMultitasker \
 	kernelNetwork \
 	kernelNetworkDevice \
@@ -89,6 +101,7 @@ NAMES =	kernelMain \
 	kernelWindowCheckbox \
 	kernelWindowComponent \
 	kernelWindowContainer \
+	kernelWindowDivider \
 	kernelWindowEventStream \
 	kernelWindowIcon \
 	kernelWindowImage \
@@ -119,7 +132,9 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelPicDriver \
 	kernelPs2KeyboardDriver \
 	kernelPs2MouseDriver \
+	kernelRamDiskDriver \
 	kernelRtcDriver \
+	kernelSataAhciDriver \
 	kernelScsiDiskDriver \
 	kernelSysTimerDriver \
 	kernelSystemDriver \
@@ -131,7 +146,7 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelUsbOhciDriver \
 	kernelUsbUhciDriver
 
-ALLNAMES = ${NAMES} ${DRIVERNAMES}
+ALLNAMES = ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
 
 OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
 KERNEL = ${BUILDDIR}/visopsys
@@ -140,6 +155,7 @@ SYMBOLS = ${BUILDDIR}/system/kernelSymbols.txt
 # Targets
 
 all: target-dirs ${KERNEL} strip
+	${MAKELANG}
 
 target-dirs:
 	mkdir -p obj
@@ -157,6 +173,7 @@ obj/%.o: %.c ${STDDEPS}
 
 clean:
 	rm -Rf *~ *.o core obj ${KERNEL} ${SYMBOLS}
+	${MAKELANGCLEAN}
 
 # Object files with explicit rules
 

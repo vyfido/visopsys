@@ -440,7 +440,7 @@ ntfs_volume *ntfs_volume_startup(struct ntfs_device *dev, unsigned long flags)
 		NVolSetNoATime(vol);
 	ntfs_log_debug("Reading bootsector... ");
 	if (dev->d_ops->open(dev, NVolReadOnly(vol) ? O_RDONLY: O_RDWR)) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Error opening partition device");
 		goto error_exit;
 	}
@@ -449,7 +449,7 @@ ntfs_volume *ntfs_volume_startup(struct ntfs_device *dev, unsigned long flags)
 	/* Now read the bootsector. */
 	br = ntfs_pread(dev, 0, sizeof(NTFS_BOOT_SECTOR), bs);
 	if (br != sizeof(NTFS_BOOT_SECTOR)) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		if (br != -1)
 			errno = EINVAL;
 		if (!br)
@@ -459,7 +459,7 @@ ntfs_volume *ntfs_volume_startup(struct ntfs_device *dev, unsigned long flags)
 			ntfs_log_perror("Error reading bootsector");
 		goto error_exit;
 	}
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 	if (!ntfs_boot_sector_is_ntfs(bs, !debug)) {
 		ntfs_log_debug("Error: %s is not a valid NTFS partition!\n",
 				dev->d_name);
@@ -557,20 +557,20 @@ ntfs_volume *ntfs_volume_startup(struct ntfs_device *dev, unsigned long flags)
 	/* Need to setup $MFT so we can use the library read functions. */
 	ntfs_log_debug("Loading $MFT... ");
 	if (ntfs_mft_load(vol) < 0) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to load $MFT");
 		goto error_exit;
 	}
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 
 	/* Need to setup $MFTMirr so we can use the write functions, too. */
 	ntfs_log_debug("Loading $MFTMirr... ");
 	if (ntfs_mftmirr_load(vol) < 0) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to load $MFTMirr");
 		goto error_exit;
 	}
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 	return vol;
 error_exit:
 	eo = errno;
@@ -868,13 +868,13 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 			}
 		}
 		if (memcmp(mrec, mrec2, ntfs_mft_record_get_data_size(mrec))) {
-			ntfs_log_debug(FAILED);
+			ntfs_log_debug("%s", FAILED);
 			ntfs_log_debug("$MFTMirr does not match $MFT. Run "
 					"chkdsk.\n");
 			goto io_error_exit;
 		}
 	}
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 
 	free(m2);
 	free(m);
@@ -884,32 +884,32 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	ntfs_log_debug("Loading $Bitmap... ");
 	vol->lcnbmp_ni = ntfs_inode_open(vol, FILE_Bitmap);
 	if (!vol->lcnbmp_ni) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open inode");
 		goto error_exit;
 	}
 	/* Get an ntfs attribute for $Bitmap/$DATA. */
 	vol->lcnbmp_na = ntfs_attr_open(vol->lcnbmp_ni, AT_DATA, AT_UNNAMED, 0);
 	if (!vol->lcnbmp_na) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open ntfs attribute");
 		goto error_exit;
 	}
 	/* Done with the $Bitmap mft record. */
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 
 	/* Now load the upcase table from $UpCase. */
 	ntfs_log_debug("Loading $UpCase... ");
 	ni = ntfs_inode_open(vol, FILE_UpCase);
 	if (!ni) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open inode");
 		goto error_exit;
 	}
 	/* Get an ntfs attribute for $UpCase/$DATA. */
 	na = ntfs_attr_open(ni, AT_DATA, AT_UNNAMED, 0);
 	if (!na) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open ntfs attribute");
 		goto error_exit;
 	}
@@ -920,7 +920,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	 * characters.
 	 */
 	if (na->data_size & ~0x1ffffffffULL) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Error: Upcase table is too big (max 32-bit "
 				"allowed).\n");
 		errno = EINVAL;
@@ -932,7 +932,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 		free(vol->upcase);
 		vol->upcase = (ntfschar*)malloc(na->data_size);
 		if (!vol->upcase) {
-			ntfs_log_debug(FAILED);
+			ntfs_log_debug("%s", FAILED);
 			ntfs_log_debug("Not enough memory to load $UpCase.\n");
 			goto error_exit;
 		}
@@ -940,14 +940,14 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	/* Read in the $DATA attribute value into the buffer. */
 	l = ntfs_attr_pread(na, 0, na->data_size, vol->upcase);
 	if (l != na->data_size) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Amount of data read does not correspond to expected "
 				"length!\n");
 		errno = EIO;
 		goto error_exit;
 	}
 	/* Done with the $UpCase mft record. */
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 	ntfs_attr_close(na);
 	if (ntfs_inode_close(ni))
 		ntfs_log_perror("Failed to close inode, leaking memory");
@@ -959,21 +959,21 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	ntfs_log_debug("Loading $Volume... ");
 	vol->vol_ni = ntfs_inode_open(vol, FILE_Volume);
 	if (!vol->vol_ni) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open inode");
 		goto error_exit;
 	}
 	/* Get a search context for the $Volume/$VOLUME_INFORMATION lookup. */
 	ctx = ntfs_attr_get_search_ctx(vol->vol_ni, NULL);
 	if (!ctx) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to allocate attribute search context");
 		goto error_exit;
 	}
 	/* Find the $VOLUME_INFORMATION attribute. */
 	if (ntfs_attr_lookup(AT_VOLUME_INFORMATION, AT_UNNAMED, 0, 0, 0, NULL,
 			0, ctx)) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("$VOLUME_INFORMATION attribute not found in "
 				"$Volume?!?\n");
 		goto error_exit;
@@ -981,7 +981,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	a = ctx->attr;
 	/* Has to be resident. */
 	if (a->non_resident) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Error: Attribute $VOLUME_INFORMATION must be "
 				"resident (and it isn't)!\n");
 		errno = EIO;
@@ -994,7 +994,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 			le32_to_cpu(ctx->mrec->bytes_in_use) ||
 			le16_to_cpu(a->value_offset) + le32_to_cpu(
 			a->value_length) > le32_to_cpu(a->length)) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Error: Attribute $VOLUME_INFORMATION in $Volume is "
 				"corrupt!\n");
 		errno = EIO;
@@ -1013,7 +1013,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	if (ntfs_attr_lookup(AT_VOLUME_NAME, AT_UNNAMED, 0, 0, 0, NULL, 0,
 			ctx)) {
 		if (errno != ENOENT) {
-			ntfs_log_debug(FAILED);
+			ntfs_log_debug("%s", FAILED);
 			ntfs_log_debug("Error: Lookup of $VOLUME_NAME attribute in "
 					"$Volume failed.  This probably means "
 					"something is corrupt.  Run chkdsk.\n");
@@ -1026,7 +1026,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 		 */
 		vol->vol_name = malloc(1);
 		if (!vol->vol_name) {
-			ntfs_log_debug(FAILED);
+			ntfs_log_debug("%s", FAILED);
 			ntfs_log_debug("Error: Unable to allocate memory for volume "
 					"name!\n");
 			goto error_exit;
@@ -1036,7 +1036,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 		a = ctx->attr;
 		/* Has to be resident. */
 		if (a->non_resident) {
-			ntfs_log_debug(FAILED);
+			ntfs_log_debug("%s", FAILED);
 			ntfs_log_debug("Error: Attribute $VOLUME_NAME must be "
 					"resident!\n");
 			errno = EIO;
@@ -1057,7 +1057,7 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 				"non-ASCII characters with underscores.\n");
 			vol->vol_name = malloc(u + 1);
 			if (!vol->vol_name) {
-				ntfs_log_debug(FAILED);
+				ntfs_log_debug("%s", FAILED);
 				ntfs_log_debug("Error: Unable to allocate memory for "
 						"volume name!\n");
 				goto error_exit;
@@ -1071,27 +1071,27 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 			vol->vol_name[u] = '\0';
 		}
 	}
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 	ntfs_attr_put_search_ctx(ctx);
 	ctx = NULL;
 	/* Now load the attribute definitions from $AttrDef. */
 	ntfs_log_debug("Loading $AttrDef... ");
 	ni = ntfs_inode_open(vol, FILE_AttrDef);
 	if (!ni) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open inode");
 		goto error_exit;
 	}
 	/* Get an ntfs attribute for $AttrDef/$DATA. */
 	na = ntfs_attr_open(ni, AT_DATA, AT_UNNAMED, 0);
 	if (!na) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_perror("Failed to open ntfs attribute");
 		goto error_exit;
 	}
 	/* Check we don't overflow 32-bits. */
 	if (na->data_size > 0xffffffffLL) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Error: Attribute definition table is too big (max "
 				"32-bit allowed).\n");
 		errno = EINVAL;
@@ -1100,21 +1100,21 @@ ntfs_volume *ntfs_device_mount(struct ntfs_device *dev, unsigned long flags)
 	vol->attrdef_len = na->data_size;
 	vol->attrdef = (ATTR_DEF*)malloc(na->data_size);
 	if (!vol->attrdef) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Not enough memory to load $AttrDef.\n");
 		goto error_exit;
 	}
 	/* Read in the $DATA attribute value into the buffer. */
 	l = ntfs_attr_pread(na, 0, na->data_size, vol->attrdef);
 	if (l != na->data_size) {
-		ntfs_log_debug(FAILED);
+		ntfs_log_debug("%s", FAILED);
 		ntfs_log_debug("Amount of data read does not correspond to expected "
 				"length!\n");
 		errno = EIO;
 		goto error_exit;
 	}
 	/* Done with the $AttrDef mft record. */
-	ntfs_log_debug(OK);
+	ntfs_log_debug("%s", OK);
 	ntfs_attr_close(na);
 	if (ntfs_inode_close(ni))
 		ntfs_log_perror("Failed to close inode, leaking memory");

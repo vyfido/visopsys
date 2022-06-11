@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -82,8 +82,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	  
       snprintf(lineBuffer, 160, "\"%s\"  PID=%d UID=%d priority=%d "
 	       "priv=%d parent=%d\n        %d%% CPU State=",
-	       tmpProcess->processName, tmpProcess->processId,
-	       tmpProcess->userId, tmpProcess->priority, tmpProcess->privilege,
+	       tmpProcess->name, tmpProcess->processId, tmpProcess->userId,
+	       tmpProcess->priority, tmpProcess->privilege,
 	       tmpProcess->parentProcessId, tmpProcess->cpuPercent);
 
       // Get the state
@@ -93,6 +93,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	  strcat(lineBuffer, "running");
 	  break;
 	case proc_ready:
+	case proc_ioready:
 	  strcat(lineBuffer, "ready");
 	  break;
 	case proc_waiting:

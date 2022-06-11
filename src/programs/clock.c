@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,13 +36,15 @@ Usage:
 </help>
 */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <errno.h>
-#include <sys/window.h>
+#include <unistd.h>
 #include <sys/api.h>
+#include <sys/font.h>
+#include <sys/window.h>
 
 static char *weekDay[] = { "Mon ", "Tue ", "Wed ", "Thu ", "Fri ",  "Sat ",
 			   "Sun "};
@@ -103,14 +105,14 @@ int main(int argc __attribute__((unused)), char *argv[])
   params.padBottom = 2;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+  if (fileFind(FONT_SYSDIR "/arial-bold-10.vbf", NULL) >= 0)
+    fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
 
   makeTime();
   label = windowNewTextLabel(window, timeString, &params);
   
   // No title bar
-  // TEMP TEMP TEMP -- Crashes things
-  // windowSetHasTitleBar(window, 0);
+  windowSetHasTitleBar(window, 0);
 
   // Put it in the bottom right corner
   windowGetSize(window, &width, &height);
@@ -124,6 +126,6 @@ int main(int argc __attribute__((unused)), char *argv[])
     {
       makeTime();
       windowComponentSetData(label, timeString, (strlen(timeString) + 1));
-      multitaskerWait(20);
+      sleep(1);
     }
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,14 +27,6 @@
 #include "kernelPciDriver.h"
 #include "kernelVariableList.h"
 #include <string.h>
-
-#ifdef DEBUG
-// Since the kernelDebug() API doesn't have debugging levels, this will
-// just output warning messages when DEBUG is defined.
-#define debugError(message, arg...) kernelError(kernel_warn, message, ##arg)
-#else
-  #define debugError(message, arg...) do { } while (0)
-#endif // DEBUG
 
 
 kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
@@ -63,7 +55,8 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
   // After this point, we believe we have a supported device.
 
   // Enable the device on the PCI bus as a bus master
-  if ((kernelBusDeviceEnable(bus_pci, busTarget->target, 1) < 0) ||
+  if ((kernelBusDeviceEnable(bus_pci, busTarget->target,
+			     PCI_COMMAND_IOENABLE) < 0) ||
       (kernelBusSetMaster(bus_pci, busTarget->target, 1) < 0))
     goto err_out;
 
@@ -102,8 +95,8 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
     }
   else
     {
-      debugError("OHCI: Unsupported USB controller header type %d",
-		 pciDevInfo.device.headerType);
+      kernelDebugError("OHCI: Unsupported USB controller header type %d",
+		       pciDevInfo.device.headerType);
       goto err_out;
     }
 
@@ -117,7 +110,7 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
 
   if (controller->ioAddress == NULL)
     {
-      debugError("OHCI: Unknown USB controller I/O address");
+      kernelDebugError("OHCI: Unknown USB controller I/O address");
       goto err_out;
     }
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,35 +19,28 @@
 //  gpt.h
 //
 
-// This is a header for the Visopsys Disk Manager program, that describes
-// things related to EFI GPT disk labels.
+// This is the header for the handling of GPT disk labels
 
 #if !defined(_GPT_H)
 
-// EFI GPT GUID.
-typedef struct {
-  unsigned timeLow;
-  unsigned short timeMid;
-  unsigned short timeHiAndVersion;
-  unsigned char clockHiAndReserved;
-  unsigned char clockLow;
-  unsigned char node[6];
+#include <sys/guid.h>
+#include <sys/types.h>
 
-} __attribute__((packed)) gptGuid;
+#define GPT_SIG  "EFI PART"
 
-// EFI GPT disk label.
+// The header for the disk label
 typedef struct {
   char signature[8];
   unsigned revision;
   unsigned headerBytes;
   unsigned headerCRC32;
   unsigned reserved1;
-  unsigned long long myLBA;
-  unsigned long long altLBA;
-  unsigned long long firstUsableLBA;
-  unsigned long long lastUsableLBA;
-  gptGuid diskGUID;
-  unsigned long long partEntriesLBA;
+  uquad_t myLBA;
+  uquad_t altLBA;
+  uquad_t firstUsableLBA;
+  uquad_t lastUsableLBA;
+  guid diskGUID;
+  uquad_t partEntriesLBA;
   unsigned numPartEntries;
   unsigned partEntryBytes;
   unsigned partEntriesCRC32;
@@ -55,16 +48,19 @@ typedef struct {
 
 } __attribute__((packed)) gptHeader;
 
-// EFI GPT partition table entry */
+// An individual partition entry
 typedef struct {
-  gptGuid partTypeGUID;
-  gptGuid partGUID;
-  unsigned long long startingLBA;
-  unsigned long long endingLBA;
-  unsigned long long attributes;
+  guid typeGuid;
+  guid partGuid;
+  uquad_t startingLBA;
+  uquad_t endingLBA;
+  uquad_t attributes;
   char partName[72];
 
-} __attribute__((packed)) gptEntry;	
+} __attribute__((packed)) gptEntry;
+
+// Function to get the disk label structure
+diskLabel *getLabelGpt(void);
 
 #define _GPT_H
 #endif

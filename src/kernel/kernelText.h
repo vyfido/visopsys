@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,8 +22,8 @@
 #if !defined(_KERNELTEXT_H)
 
 #include "kernelStream.h"
-#include "kernelFont.h"
 #include "kernelGraphic.h"
+#include <sys/font.h>
 #include <sys/text.h>
 
 // Forward declarations, where necessary
@@ -62,7 +62,7 @@ typedef volatile struct {
   volatile struct _kernelTextOutputStream *outputStream;
   unsigned char *bufferData;
   unsigned char *visibleData;
-  kernelAsciiFont *font;
+  asciiFont *font;
   volatile struct _kernelWindowComponent *windowComponent;
   int noScroll;
 

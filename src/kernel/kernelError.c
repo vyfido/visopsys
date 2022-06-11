@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,6 +26,7 @@
 #include "kernelMultitasker.h"
 #include "kernelWindow.h"
 #include "kernelMisc.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -35,72 +36,57 @@ static char *warningConst = "Warning";
 static char *messageConst = "Message";
 
 
-static void errorDialogThread(int argc, void *argv[])
+static int errorDialogDetails(kernelWindow *parent, const char *details)
 {
   int status = 0;
-  const char *title = NULL;
-  const char *message = NULL;
-  kernelWindow *dialogWindow = NULL;
-  image errorImage;
+  kernelWindow *dialog = NULL;
   kernelWindowComponent *okButton = NULL;
+  kernelWindowComponent *detailsArea = NULL;
   componentParameters params;
   windowEvent event;
 
-  if (argc < 3)
-    goto exit;
-
-  title = argv[1];
-  message = argv[2];
- 
-  kernelMemClear(&errorImage, sizeof(image));
   kernelMemClear(&params, sizeof(componentParameters));
 
-  // Create the dialog.
-  dialogWindow = kernelWindowNew(kernelCurrentProcess->processId, title);
-  if (dialogWindow == NULL)
+  dialog = kernelWindowNewDialog(parent, "Error details");
+  if (dialog == NULL)
     {
       status = ERR_NOCREATE;
-      goto exit;
+      goto out;
     }
 
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 5;
+  params.padRight = 5;
   params.padTop = 5;
+  params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
 
-  status = kernelImageLoad(ERRORIMAGE_NAME, 0, 0, &errorImage);
-
-  if (status == 0)
+  // Create the details area
+  detailsArea = kernelWindowNewTextArea(dialog, 60, 25, 200, &params);
+  if (detailsArea == NULL)
     {
-      errorImage.translucentColor.red = 0;
-      errorImage.translucentColor.green = 255;
-      errorImage.translucentColor.blue = 0;
-      params.padRight = 0;
-      kernelWindowNewImage(dialogWindow, &errorImage, draw_translucent,
-			   &params);
+      status = ERR_NOCREATE;
+      goto out;
     }
 
-  // Create the label
-  params.gridX = 1;
-  params.padRight = 5;
-  kernelWindowNewTextLabel(dialogWindow, message, &params);
+  kernelWindowComponentSetData(detailsArea, (void *) details, strlen(details));
+  kernelTextStreamSetCursor(((kernelWindowTextArea *) detailsArea->data)
+			    ->area->outputStream, 0);
 
-  // Create the button
-  params.gridX = 0;
-  params.gridY = 1;
-  params.gridWidth = 2;
+  // Create the OK button
+  params.gridY += 1;
   params.padBottom = 5;
-  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-  okButton = kernelWindowNewButton(dialogWindow, "OK", NULL, &params);
+  okButton = kernelWindowNewButton(dialog, "OK", NULL, &params);
   if (okButton == NULL)
     {
       status = ERR_NOCREATE;
-      goto exit;
+      goto out;
     }
 
-  kernelWindowSetVisible(dialogWindow, 1);
+  kernelWindowComponentFocus(okButton);
+  kernelWindowSetVisible(dialog, 1);
 
   while(1)
     {
@@ -110,7 +96,153 @@ static void errorDialogThread(int argc, void *argv[])
 	break;
 
       // Check for window close events
-      status = kernelWindowComponentEventGet((objectKey) dialogWindow, &event);
+      status = kernelWindowComponentEventGet((objectKey) dialog, &event);
+      if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
+	break;
+
+      // Done
+      kernelMultitaskerYield();
+    }
+
+  status = 0;
+
+ out:
+  if (dialog)
+    kernelWindowDestroy(dialog);
+
+  return (status);
+}
+
+
+static void errorDialogThread(int argc, void *argv[])
+{
+  int status = 0;
+  const char *title = NULL;
+  const char *message = NULL;
+  const char *details = NULL;
+  kernelWindow *window = NULL;
+  image errorImage;
+  kernelWindowComponent *messageContainer = NULL;
+  kernelWindowComponent *buttonContainer = NULL;
+  kernelWindowComponent *okButton = NULL;
+  kernelWindowComponent *detailsButton = NULL;
+  componentParameters params;
+  windowEvent event;
+
+  if (argc < 4)
+    {
+      status = ERR_ARGUMENTCOUNT;
+      goto exit;
+    }
+
+  kernelMemClear(&errorImage, sizeof(image));
+  kernelMemClear(&params, sizeof(componentParameters));
+
+  title = argv[1];
+  message = argv[2];
+  details = argv[3];
+ 
+  // Create the dialog.
+  window = kernelWindowNew(kernelCurrentProcess->processId, title);
+  if (window == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+
+  // Create the container for the message
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.padLeft = 5;
+  params.padRight = 5;
+  params.padTop = 5;
+  params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+  messageContainer =
+    kernelWindowNewContainer(window, "messageContainer", &params);
+  if (messageContainer == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+  
+  params.orientationX = orient_right;
+  status = kernelImageLoad(ERRORIMAGE_NAME, 0, 0, &errorImage);
+  if (status == 0)
+    {
+      errorImage.transColor.red = 0;
+      errorImage.transColor.green = 255;
+      errorImage.transColor.blue = 0;
+      kernelWindowNewImage(messageContainer, &errorImage, draw_translucent,
+			   &params);
+      kernelImageFree(&errorImage);
+    }
+
+  // Create the label
+  params.gridX += 1;
+  params.orientationX = orient_left;
+  kernelWindowNewTextLabel(messageContainer, message, &params);
+
+  // Create the container for the buttons
+  params.gridX = 0;
+  params.gridY += 1;
+  params.padBottom = 5;
+  params.orientationX = orient_center;
+  buttonContainer =
+    kernelWindowNewContainer(window, "buttonContainer", &params);
+  if (messageContainer == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+
+  // Create the OK button
+  params.padBottom = 0;
+  params.orientationX = orient_right;
+  okButton = kernelWindowNewButton(buttonContainer, "OK", NULL, &params);
+  if (okButton == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+
+  // Create the details button
+  params.gridX += 1;
+  params.orientationX = orient_left;
+  detailsButton =
+    kernelWindowNewButton(buttonContainer, "Details", NULL, &params);
+  if (detailsButton == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+  kernelWindowComponentSetEnabled(detailsButton, (details != NULL));
+
+  kernelWindowComponentFocus(okButton);
+  kernelWindowSetVisible(window, 1);
+
+  while(1)
+    {
+      // Check for our OK button
+      status = kernelWindowComponentEventGet((objectKey) okButton, &event);
+      if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+	break;
+
+      // Check for our details button
+      status =
+	kernelWindowComponentEventGet((objectKey) detailsButton, &event);
+      if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+	{
+	  status = errorDialogDetails(window, details);
+	  if (status < 0)
+	    kernelWindowComponentSetEnabled(detailsButton, 0);
+	  else
+	    break;
+	}
+
+      // Check for window close events
+      status = kernelWindowComponentEventGet((objectKey) window, &event);
       if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
 	break;
 
@@ -118,10 +250,12 @@ static void errorDialogThread(int argc, void *argv[])
       kernelMultitaskerYield();
     }
       
-  kernelWindowDestroy(dialogWindow);
   status = 0;
 
  exit:
+  if (window)
+    kernelWindowDestroy(window);
+
   kernelMultitaskerTerminate(status);
 }
 
@@ -169,18 +303,18 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
   if (kernelProcessingInterrupt && ((interrupt = kernelPicGetActive()) >= 0))
     sprintf(processName, "interrupt %02X", interrupt);
   else if (kernelCurrentProcess)
-    strncpy(processName, (char *) kernelCurrentProcess->processName,
+    strncpy(processName, (char *) kernelCurrentProcess->name,
 	    MAX_PROCNAME_LENGTH);
 
   sprintf(errorText, "%s:%s:%s:%s(%d):", errorType, processName, fileName,
 	  function, line);
 
   // Log the context of the message
-  kernelLog(errorText);
+  kernelLog("%s", errorText);
 
   if (printErrors)
     // Output the context of the message to the screen
-    kernelTextPrintLine(errorText);
+    kernelTextPrintLine("%s", errorText);
   
   // Initialize the argument list
   va_start(list, message);
@@ -191,41 +325,33 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
   va_end(list);
 
   // Log the message
-  kernelLog(errorText);
+  kernelLog("%s", errorText);
 
   if (printErrors)
     // Output the message to the screen
-    kernelTextPrintLine(errorText);
+    kernelTextPrintLine("%s", errorText);
 
   return;
 }
 
 
-void kernelErrorDialog(const char *title, const char *message, ...)
+void kernelErrorDialog(const char *title, const char *message,
+		       const char *details)
 {
   // This will make a simple error dialog message, and wait until the button
   // has been pressed.
 
-  va_list list;
-  char errorText[MAX_ERRORTEXT_LENGTH];
   void *args[] = {
     (void *) title,
-    (void *) errorText
+    (void *) message,
+    (void *) details
   };
 
-  // Check params
+  // Check params.  Details can be NULL.
   if ((title == NULL) || (message == NULL))
     return;
 
-  // Initialize the argument list
-  va_start(list, message);
-
-  // Expand the message if there were any parameters
-  vsnprintf(errorText, MAX_ERRORTEXT_LENGTH, message, list);
-
-  va_end(list);
-
   kernelMultitaskerSpawnKernelThread(&errorDialogThread,
-				     ERRORDIALOG_THREADNAME, 2, args);
+				     ERRORDIALOG_THREADNAME, 3, args);
   return;
 }

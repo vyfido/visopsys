@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -296,10 +296,7 @@ typedef struct {
   unsigned cmdSpecific;
   unsigned char addlCode;
   unsigned char addlCodeQual;
-  unsigned char fieldRepUnitCode;
-  unsigned char sksvKeySpecific;
-  unsigned short keySpecific;
-  unsigned char addlBytes[234];
+  unsigned res;
 
 } __attribute__((packed)) scsiSenseData;
 

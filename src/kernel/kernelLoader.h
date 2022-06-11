@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 
 #if !defined(_KERNELLOADER_H)
 
+#include <sys/font.h>
 #include <sys/loader.h>
 #include <sys/file.h>
 #include <sys/image.h>
@@ -39,14 +40,29 @@
 #define FILECLASS_NAME_CORE     "core"
 #define FILECLASS_NAME_IMAGE    "image"
 #define FILECLASS_NAME_DATA     "data"
+#define FILECLASS_NAME_DOC      "document"
+#define FILECLASS_NAME_ARCHIVE  "archive"
+#define FILECLASS_NAME_FONT     "font"
 
-#define FILECLASS_NAME_ELF      "ELF"
 #define FILECLASS_NAME_BMP      "bitmap"
 #define FILECLASS_NAME_ICO      "icon"
 #define FILECLASS_NAME_JPG      "JPEG"
-#define FILECLASS_NAME_CONFIG   "configuration"
+#define FILECLASS_NAME_GIF      "GIF"
+#define FILECLASS_NAME_PNG      "PNG"
 #define FILECLASS_NAME_BOOT     "boot"
-#define LOADER_NUM_FILECLASSES  8
+#define FILECLASS_NAME_KEYMAP   "keymap"
+#define FILECLASS_NAME_PDF      "PDF"
+#define FILECLASS_NAME_ELF      "ELF"
+#define FILECLASS_NAME_ZIP      "zip"
+#define FILECLASS_NAME_GZIP     "gzip"
+#define FILECLASS_NAME_AR       "ar"
+#define FILECLASS_NAME_PCF      "PCF"
+#define FILECLASS_NAME_TTF      "TTF"
+#define FILECLASS_NAME_VBF      "VBF"
+#define FILECLASS_NAME_MESSAGE  "message"
+#define FILECLASS_NAME_CONFIG   "configuration"
+#define FILECLASS_NAME_HTML     "HTML"
+#define LOADER_NUM_FILECLASSES  20
 
 // A generic structure to represent a relocation entry
 typedef struct {
@@ -65,6 +81,33 @@ typedef struct {
 
 } kernelRelocationTable;
 
+// Forward declarations, where necessary
+struct _kernelDynamicLibrary;
+
+// This is a structure for a file class.  It contains a standard name for
+// the file class and function pointers for managing that class of file.
+typedef struct {
+  char *className;
+  int (*detect)(const char *, void *, unsigned, loaderFileClass *);
+  union {
+    struct {
+      loaderSymbolTable * (*getSymbols)(void *, int);
+      int (*layoutLibrary)(void *, struct _kernelDynamicLibrary *);
+      int (*layoutExecutable)(void *, processImage *);
+      int (*link)(int, void *, processImage *, loaderSymbolTable **);
+      int (*hotLink)(struct _kernelDynamicLibrary *);
+    } executable;
+    struct {
+      int (*load)(unsigned char *, int, int, int, image *);
+      int (*save)(const char *, image *);
+    } image;
+    struct {
+      int (*load)(unsigned char *, int, asciiFont **, int);
+    } font;
+  };
+  
+} kernelFileClass;
+
 // The structure that describes a dynamic library ready for use by the loader
 typedef struct _kernelDynamicLibrary {
   char name[MAX_NAME_LENGTH];
@@ -79,28 +122,9 @@ typedef struct _kernelDynamicLibrary {
   loaderSymbolTable *symbolTable;
   kernelRelocationTable *relocationTable;
   struct _kernelDynamicLibrary *next;
-  
-} kernelDynamicLibrary;
+  kernelFileClass *classDriver;
 
-// This is a structure for a file class.  It contains a standard name for
-// the file class and function pointers for managing that class of file.
-typedef struct {
-  char *className;
-  int (*detect)(const char *, void *, int, loaderFileClass *);
-  union {
-    struct {
-      loaderSymbolTable * (*getSymbols)(void *, int, int);
-      int (*layoutLibrary)(void *, kernelDynamicLibrary *);
-      int (*layoutExecutable)(void *, processImage *);
-      int (*link)(int, void *, processImage *);
-    } executable;
-    struct {
-      int (*load)(unsigned char *, int, int, int, image *);
-      int (*save)(const char *, image *);
-    } image;
-  };
-  
-} kernelFileClass;
+} kernelDynamicLibrary;
 
 // Functions exported by kernelLoader.c
 void *kernelLoaderLoad(const char *, file *);
@@ -108,21 +132,36 @@ kernelFileClass *kernelLoaderGetFileClass(const char *);
 kernelFileClass *kernelLoaderClassify(const char *, void *, int,
 				      loaderFileClass *);
 kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
-loaderSymbolTable *kernelLoaderGetSymbols(const char *, int);
+loaderSymbolTable *kernelLoaderGetSymbols(const char *);
+loaderSymbol *kernelLoaderFindSymbol(const char *, loaderSymbolTable *);
 int kernelLoaderCheckCommand(const char *);
 int kernelLoaderLoadProgram(const char *, int);
 int kernelLoaderLoadLibrary(const char *);
 kernelDynamicLibrary *kernelLoaderGetLibrary(const char *);
+kernelDynamicLibrary *kernelLoaderLinkLibrary(const char *);
+void *kernelLoaderGetSymbol(const char *);
 int kernelLoaderExecProgram(int, int);
 int kernelLoaderLoadAndExec(const char *, int, int);
 
 // These are format-specific file class functions
-kernelFileClass *kernelFileClassElf(void);
 kernelFileClass *kernelFileClassBmp(void);
 kernelFileClass *kernelFileClassIco(void);
 kernelFileClass *kernelFileClassJpg(void);
-kernelFileClass *kernelFileClassConfig(void);
+kernelFileClass *kernelFileClassGif(void);
+kernelFileClass *kernelFileClassPng(void);
 kernelFileClass *kernelFileClassBoot(void);
+kernelFileClass *kernelFileClassKeymap(void);
+kernelFileClass *kernelFileClassPdf(void);
+kernelFileClass *kernelFileClassZip(void);
+kernelFileClass *kernelFileClassGzip(void);
+kernelFileClass *kernelFileClassAr(void);
+kernelFileClass *kernelFileClassPcf(void);
+kernelFileClass *kernelFileClassTtf(void);
+kernelFileClass *kernelFileClassVbf(void);
+kernelFileClass *kernelFileClassElf(void);
+kernelFileClass *kernelFileClassMessage(void);
+kernelFileClass *kernelFileClassConfig(void);
+kernelFileClass *kernelFileClassHtml(void);
 kernelFileClass *kernelFileClassText(void);
 kernelFileClass *kernelFileClassBinary(void);
 

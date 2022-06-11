@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -46,7 +46,7 @@ typedef enum {
 
 // These are a little bit more specific
 #define ERR_NOTINITIALIZED -9  // The resource hasn't been initialized
-#define ERR_NOTIMPLEMENTED -10  // Functionality that hasn't been implemented
+#define ERR_NOTIMPLEMENTED -10 // Functionality that hasn't been implemented
 #define ERR_NULLPARAMETER  -11 // NULL pointer passsed as a parameter
 #define ERR_NODATA         -12 // There's no data on which to operate
 #define ERR_BADDATA        -13 // The data being operated on is corrupt

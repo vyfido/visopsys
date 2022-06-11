@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -123,7 +123,7 @@ static void setMessage(volatile char *message, int pause, int confirm)
 
   textSetRow(textProgressBarRow + 2);
   textSetColumn(0);
-  printf(output);
+  printf("%s", output);
 
   if (pause)
     snprintf(output, PROGRESS_MAX_MESSAGELEN, "%s\nPress any key to continue.",
@@ -135,7 +135,7 @@ static void setMessage(volatile char *message, int pause, int confirm)
 
   textSetRow(textProgressBarRow + 2);
   textSetColumn(0);
-  printf(output);
+  printf("%s", output);
 
   if (pause)
     {
@@ -182,11 +182,19 @@ static void progressThread(void)
   char character = '\0';
 
   memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
+  if (lockGet(&prog->progLock) >= 0)
+    {
+      // Set initial display values.  After this we only watch for changes to
+      // these.
+      setPercent(prog->percentFinished);
+      setMessage(prog->statusMessage, 0, 0);
+      lockRelease(&prog->progLock);
+    }
 
   while (1)
     {
       // Try to get a lock on the progress structure
-      if (lockGet(&(prog->lock)) >= 0)
+      if (lockGet(&prog->progLock) >= 0)
 	{
 	  if (prog->canCancel && textInputCount())
 	    {
@@ -234,14 +242,14 @@ static void progressThread(void)
 	      memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 	    }
 
-	  lockRelease(&(prog->lock));
+	  lockRelease(&prog->progLock);
 	}
 
       // Done
       multitaskerYield();
     }
 
-  lockRelease(&(prog->lock));
+  lockRelease(&prog->progLock);
 
   // Exit.
   multitaskerTerminate(0);
@@ -291,16 +299,27 @@ _X_ int vshProgressBarDestroy(progress *tmpProg)
   if (tmpProg != prog)
     return (status = ERR_INVALID);
 
-  setPercent(100);
-  setMessage(prog->statusMessage, 0, 0);
+  if (prog)
+    {
+      // Get a final lock on the progress structure
+      status = lockGet(&prog->progLock);
+      if (status < 0)
+	return (status);
 
-  if (multitaskerProcessIsAlive(threadPid))
+      setPercent(100);
+      setMessage(prog->statusMessage, 0, 0);
+    }
+
+  if (threadPid && multitaskerProcessIsAlive(threadPid))
     // Kill our thread
     status = multitaskerKillProcess(threadPid, 1);
+
+  if (prog)
+    lockRelease(&prog->progLock);
 
   prog = NULL;
   textProgressBarRow = 0;
   threadPid = 0;
-
+  
   return (status);
 }

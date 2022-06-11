@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,29 +26,39 @@
 
 int strncmp(const char *s1, const char *s2, size_t length)
 {
-  int result = 0;
+  // The strncmp() function compares the first (at most) n characters of s1
+  // and s2.  It returns an integer less than, equal to, or greater than zero
+  // if s1 is found, respectively, to be less than, to match, or be greater
+  // than s2.
 
-  // Go through the strings, counting as we go.  If we get to the end, or
-  // "length" and everything matches, we return 0.  Otherwise, if the strings
-  // match partially, we return the count at which they diverge.  If they
-  // don't match at all, we return -1
+  size_t count = 0;
 
-  for (result = 0; ((result < MAXSTRINGLENGTH) &&
-		    ((unsigned) result < length)); result ++)
+  // The spec doesn't really make it clear what to do with NULL parameters here
+  if (!s1 || !s2)
     {
-      if ((s1[result] == '\0') && (s2[result] == '\0'))
-	return (result = 0);
+      if (!s1 && s2)
+	return -1;
+      if (s1 && !s2)
+	return (1);
+      else
+	// Both NULL.  Fine.
+	return (0);
+    }
 
-      else if (s1[result] != s2[result])
+  for (count = 0; ((count < MAXSTRINGLENGTH) && (count < length)); count ++)
+    {
+      if ((s1[count] == '\0') && (s2[count] == '\0'))
+	// We're stopping early and the strings are identical
+	return (0);
+
+      else if (s1[count] != s2[count])
 	{
-	  if (result == 0) 
-	    return (result = -1);
-
-	  else
-	    return (result);
+	  // The strings stop matching here.  Is the s1 character in question
+	  // 'less than' or 'greater than' the s2 character?
+	  return ((s1[count] > s2[count])? 1 : -1);
 	}
     }
 
   // If we fall through to here, we matched as many as we could
-  return (result = 0);
+  return (0);
 }

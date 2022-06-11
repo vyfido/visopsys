@@ -1,0 +1,90 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-05-13 01:37+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ping.c:402
+#, c-format
+msgid ""
+"\n"
+"--- %d.%d.%d.%d ping statistics ---\n"
+msgstr ""
+
+#: ping.c:160
+#, c-format
+msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=X ms\n"
+msgstr ""
+
+#: ping.c:404
+#, c-format
+msgid "%d packets transmitted, %d received, %d%% packet loss, time Xms\n"
+msgstr ""
+
+#: ping.c:288
+msgid "Enter Address"
+msgstr ""
+
+#: ping.c:289
+msgid "Enter the network address to ping:"
+msgstr ""
+
+#: ping.c:84
+msgid "Error"
+msgstr ""
+
+#: ping.c:344
+msgid "Error opening network connection"
+msgstr ""
+
+#: ping.c:384
+msgid "Error pinging host"
+msgstr ""
+
+#: ping.c:362
+msgid "Error setting signal handler"
+msgstr ""
+
+#: ping.c:375
+msgid "Error starting response thread"
+msgstr ""
+
+#: ping.c:325
+msgid "Memory allocation error"
+msgstr ""
+
+#: ping.c:272
+msgid "Networking is not currently enabled"
+msgstr ""
+
+#: ping.c:193
+msgid "Ping"
+msgstr ""
+
+#: ping.c:348
+#, c-format
+msgid "Ping %d.%d.%d.%d %d bytes of data\n"
+msgstr ""
+
+#: ping.c:226
+msgid "Stop"
+msgstr ""
+
+#: ping.c:92
+#, c-format
+msgid ""
+"usage:\n"
+"%s [-T] <address | hostname>\n"
+msgstr ""

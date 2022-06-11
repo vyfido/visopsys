@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,9 @@
 %define DISKPACKET		(CYLINDER + CYLINDER_SZ)
 %define DISKPACKET_SZ		(BYTE * 16)
 
+;; Space for the partition table entry
+%define PARTENTRY		(DISKPACKET + DISKPACKET_SZ)
+%define PARTENTRY_SZ		(BYTE * 16)
 
 main:
 	jmp short bootCode			; 00 - 01 Jump instruction
@@ -90,6 +93,12 @@ bootCode:
 	jb .noOffset
 	mov EAX, dword [SI + 8]
 	add dword [LOADERSTARTSECTOR], EAX
+
+	mov DI, PARTENTRY
+	mov CX, 16
+	cld
+	rep movsb 
+	
 	.noOffset:
 
 	;; Get disk parameters
@@ -104,6 +113,8 @@ bootCode:
 
 	popa
 
+	mov SI, PARTENTRY
+	
 	jmp (LDRCODESEGMENTLOCATION / 16):0
 
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,12 +24,12 @@
 // to use C instead, except in one or two places where we need asm.
 
 #include "kernelText.h"
-#include "kernelProcessorX86.h"
-#include "kernelMisc.h"
-#include "kernelMemory.h"
 #include "kernelError.h"
-#include <string.h>
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelProcessorX86.h"
 #include <stdlib.h>
+#include <string.h>
 
 
 static void scrollBuffer(kernelTextArea *area, int lines)
@@ -156,7 +156,7 @@ static int getCursorAddress(kernelTextArea *area)
 }
 
 
-static int drawScreen(kernelTextArea *area)
+static int screenDraw(kernelTextArea *area)
 {
   // Draws the current screen as specified by the area data
 
@@ -187,7 +187,7 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
   if (area->scrolledBackLines)
     {
       area->scrolledBackLines = 0;
-      drawScreen(area);
+      screenDraw(area);
     }
 
   if (cursorState)
@@ -256,7 +256,7 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
   if (area->scrolledBackLines)
     {
       area->scrolledBackLines = 0;
-      drawScreen(area);
+      screenDraw(area);
     }
 
   if (cursorState)
@@ -324,7 +324,7 @@ static int delete(kernelTextArea *area)
   if (area->scrolledBackLines)
     {
       area->scrolledBackLines = 0;
-      drawScreen(area);
+      screenDraw(area);
     }
 
   if (cursorState)
@@ -345,7 +345,7 @@ static int delete(kernelTextArea *area)
 }
 
 
-static int clearScreen(kernelTextArea *area)
+static int screenClear(kernelTextArea *area)
 {
   // Clears the screen, and puts the cursor in the top left (starting)
   // position
@@ -378,7 +378,7 @@ static int clearScreen(kernelTextArea *area)
 }
 
 
-static int saveScreen(kernelTextArea *area, textScreen *screen)
+static int screenSave(kernelTextArea *area, textScreen *screen)
 {
   // This routine saves the current contents of the screen
 
@@ -398,7 +398,7 @@ static int saveScreen(kernelTextArea *area, textScreen *screen)
 }
 
 
-static int restoreScreen(kernelTextArea *area, textScreen *screen)
+static int screenRestore(kernelTextArea *area, textScreen *screen)
 {
   // This routine restores the saved contents of the screen
 
@@ -428,10 +428,10 @@ static kernelTextOutputDriver textModeDriver = {
   setBackground,
   print,
   delete,
-  drawScreen,
-  clearScreen,
-  saveScreen,
-  restoreScreen
+  screenDraw,
+  screenClear,
+  screenSave,
+  screenRestore
 };
 
 

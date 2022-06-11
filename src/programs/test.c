@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,6 +22,7 @@
 // This is a test driver program.
 
 #include <ctype.h>
+#include <dlfcn.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +95,7 @@ static int format_strings(void)
 	      if (types[typeCount].bits == 64)
 		{
 		  val[0] <<= 32;
-		  val[0] |= randomUnformatted();
+		  val[0] |= (unsigned long long) randomUnformatted();
 		}
 
 	      if (types[typeCount].bits == 32)
@@ -216,8 +217,9 @@ static int crashThread(void)
 
   int a = 1;
   int b = 0;
+  int c = (a / b);
 
-  return (a / b);
+  exit(c);
 }
 
 
@@ -506,6 +508,98 @@ static int text_colors(void)
 }
 
 
+static int xtra_chars(void)
+{
+  // Just print out the 'extended ASCII' (actually ISO 8859-15) characters
+  // so we can see whether or not they're appearing properly in our fonts
+
+  int status = 0;
+  int graphics = graphicsAreEnabled();
+  objectKey window = NULL;
+  componentParameters params;
+  char lineBuffer[80];
+  int count;
+
+  // Save the current text screen
+  status = textScreenSave(&screen);
+  if (status < 0)
+    goto out;
+
+  if (graphics)
+    {
+      // Create a new window
+      window = windowNew(multitaskerGetCurrentProcessId(),
+			 "Xtra chars test window");
+      if (window == NULL)
+	{
+	  FAILMESS("Error getting window");
+	  status = ERR_NOTINITIALIZED;
+	  goto out;
+	}
+
+      bzero(&params, sizeof(componentParameters));
+      params.gridWidth = 1;
+      params.gridHeight = 1;
+      params.padLeft = 5;
+      params.padRight = 5;
+      params.padTop = 5;
+      params.padBottom = 5;
+      params.orientationX = orient_center;
+      params.orientationY = orient_middle;
+
+      status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
+			&(params.font), 0);
+      if (status < 0)
+	{
+	  FAILMESS("Error %d getting font", status);
+	  goto out;
+	}
+    }
+
+  printf("\n");
+  lineBuffer[0] = '\0';
+  for (count = 160; count <= 255; count ++)
+    {
+      sprintf((lineBuffer + strlen(lineBuffer)), "%d='%c' ", count, count);
+      if (!((count + 1) % 8))
+	{
+	  printf("%s\n", lineBuffer);
+
+	  if (window)
+	    {
+	      windowNewTextLabel(window, lineBuffer, &params);
+	      params.gridY += 1;
+	    }
+
+	  lineBuffer[0] = '\0';
+	}
+    }
+  printf("\n");
+
+  if (window)
+    {
+      status = windowSetVisible(window, 1);
+      if (status < 0)
+	{
+	  FAILMESS("Error %d setting window visible", status);
+	  goto out;
+	}
+    }
+
+  sleep(3);
+  status = 0;
+
+ out:
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  if (window)
+    windowDestroy(window);
+
+  return (status);
+}
+
+
 static int port_io(void)
 {
   // Test IO ports & related stuff!  Davide Airaghi
@@ -567,7 +661,7 @@ static int disk_reads(disk *theDisk)
   unsigned char *buffer = NULL;
   int count;
 
-  printf("\nTest reads from disk %s, numSectors %u ", theDisk->name,
+  printf("\nTest reads from disk %s, numSectors %llu ", theDisk->name,
 	 theDisk->numSectors);
 
   for (count = 0; count < 1024; count ++)
@@ -997,6 +1091,343 @@ static int file_ops(void)
 }
 
 
+static int divide64(void)
+{
+  // Test 64-bit division
+
+  struct {
+    long long dividend;
+    long long divisor;
+    long long result;
+    long long remainder;
+  } array[] = {
+    { 0x99LL, 0x11LL, 0x9LL, 0x0LL },
+    { 0x99999999LL, 0x11111111LL, 0x9LL, 0x0LL },
+    { 0x999999999LL, 0x11111111LL, 0x90LL, 0x9LL },
+    { 0x999999999LL, 0x111111111LL, 0x9LL, 0x0LL },
+    { 0x4321432143214321LL, 0x1234123412341234LL, 0x3LL, 0xC850C850C850C85LL },
+    { 0xF00F00F00F00LL, 0xABCABCABCLL, 0x165BLL, 0x72C72D62CLL },
+    { 0xF00F00F00F00LL, 0xF00F00F00LL, 0x1000LL, 0xF00LL },
+    { 0, 0, 0, 0 }
+  };
+
+  int status = 0;
+  long long res = 0;
+  long long rem = 0;
+  int count;
+
+  status = textScreenSave(&screen);
+  if (status < 0)
+    {
+      FAILMESS("Error %d saving screen", status);
+      goto out;
+    }
+
+  for (count = 0; array[count].dividend; count ++)
+    {
+      res = (array[count].dividend / array[count].divisor);
+      rem = (array[count].dividend % array[count].divisor);
+
+      if ((res != array[count].result) || (rem != array[count].remainder))
+	{
+	  FAILMESS("%llx / %llx != %llx r %llx (%llx r %llx)",
+	  	   array[count].dividend, array[count].divisor,
+		   array[count].result, array[count].remainder,
+		   res, rem);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  status = 0;
+
+ out:
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
+static int sines(void)
+{
+  // Test the sin() and sinf() functions against some hard-coded values and 
+  // some random values.
+  
+  int status = 0;
+  float rad = 0;
+  float fres = 0;
+  double dres = 0;
+  int count;
+
+  struct {
+    float rad;
+    float res;
+  } farray[]= {
+    { -8.0, -0.989358246 },
+    { -7.0, -0.656986594 },
+    { -6.0, 0.279815882 },
+    { -5.0, 0.958932817 },
+    { -4.5, 0.977531254 },
+    { -4.0, 0.756802499 },
+    { -3.5, 0.350783199 },
+    { -3.0, -0.141119972 },
+    { -2.5, -0.598472118 },
+    { -2.0, -0.909297466 },
+    { -1.5, -0.997495055 },
+    { -1.0, -0.841470957 },
+    { -0.5, -0.479425519 },
+    { 0.5, 0.479425519 },
+    { 1.0, 0.84147095 },
+    { 1.5, 0.997495055 },
+    { 2.0, 0.909297466 },
+    { 2.5, 0.598472118 },
+    { 3.0, 0.141119972 },
+    { 3.5, -0.350783199 },
+    { 4.0, -0.756802499 },
+    { 4.5, -0.977531254 },
+    { 5.0, -0.958932817 },
+    { 6.0, -0.279815882 },
+    { 7.0, 0.656986594 },
+    { 8.0, 0.989358246 },
+    { 0.0, 0.0 }
+  };
+
+  struct {
+    double rad;
+    double res;
+  } darray[]= {
+    { -8.0, -0.9893582466233817867 },
+    { -7.0, -0.6569865987187892825 },
+    { -6.0, 0.2794154980429556230 },
+    { -5.0, 0.9589242746625863393 },
+    { -4.5, 0.9775301176650759142 },
+    { -4.0, 0.7568024953079276465 },
+    { -3.5, 0.3507832276896200023 },
+    { -3.0, -0.1411200080598672135 },
+    { -2.5, -0.5984721441039563265 },
+    { -2.0, -0.9092974268256817094 },
+    { -1.5, -0.9974949866040545557 },
+    { -1.0, -0.8414709848078965049 },
+    { -0.5, -0.4794255386042030054 },
+    { 0.5, 0.4794255386042030054 },
+    { 1.0, 0.8414709848078965049 },
+    { 1.5, 0.9974949866040545557 },
+    { 2.0, 0.9092974268256817094 },
+    { 2.5, 0.5984721441039563265 },
+    { 3.0, 0.1411200080598672135 },
+    { 3.5, -0.3507832276896200023 },
+    { 4.0, -0.7568024953079276465 },
+    { 4.5, -0.9775301176650759142 },
+    { 5.0, -0.9589242746625863393 },
+    { 6.0, -0.2794154980429556230 },
+    { 7.0, 0.6569865987187892825 },
+    { 8.0, 0.9893582466233817867 },
+    { 0.0, 0.0 }
+  };
+
+  status = textScreenSave(&screen);
+  if (status < 0)
+    {
+      FAILMESS("Error %d saving screen", status);
+      goto out;
+    }
+
+  // Test some fixed values from the array above using floats
+  for (count = 0; farray[count].res; count ++)
+    {
+      fres = sinf(farray[count].rad);
+      if (fres != farray[count].res)
+	{
+	  FAILMESS("Sine of float %f is incorrect (%f != %f)",
+		   farray[count].rad, fres, farray[count].res);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  // Do a similar list using doubles
+  for (count = 0; darray[count].res; count ++)
+    {
+      dres = sin(darray[count].rad);
+      if (dres != darray[count].res)
+	{
+	  FAILMESS("Sine of double %f is incorrect (%f != %f)",
+		   darray[count].rad, dres, darray[count].res);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  // Test some additional random values to make sure they're in the correct
+  // range.
+  for (count = 0; count < 2000; count ++)
+    {
+      rad = (float) randomFormatted(5, 100);
+      if (count % 2)
+	rad *= -1.0;
+
+      fres = sinf(rad);
+      if ((fres < -1) || (fres == 0) || (fres > 1))
+	{
+	  FAILMESS("Sine of %f is incorrect (%f)", rad, fres);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  status = 0;
+
+ out:
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
+static int cosines(void)
+{
+  // Test the cos() and cosf() functions against some hard-coded values and 
+  // some random values.
+  
+  int status = 0;
+  float rad = 0;
+  float fres = 0;
+  double dres = 0;
+  int count;
+
+  struct {
+    float rad;
+    float res;
+  } farray[]= {
+    { -8.0, -0.145499974 },
+    { -7.0, 0.753902254 },
+    { -6.0, 0.958777964 },
+    { -5.0, 0.283625454 },
+    { -4.5, -0.210800409 },
+    { -4.0, -0.653643906 },
+    { -3.5, -0.936456680 },
+    { -3.0, -0.989992439 },
+    { -2.5, -0.801143587 },
+    { -2.0, -0.416146845 },
+    { -1.5, 0.070737205 },
+    { -1.0, 0.540302277 },
+    { -0.5, 0.877582609 },
+    { 0.0, 1.000000000 },
+    { 0.5, 0.877582609 },
+    { 1.0, 0.540302277 },
+    { 1.5, 0.070737205 },
+    { 2.0, -0.416146845 },
+    { 2.5, -0.801143587 },
+    { 3.0, -0.989992439 },
+    { 3.5, -0.936456680 },
+    { 4.0, -0.653643906 },
+    { 4.5, -0.210800409 },
+    { 5.0, 0.283625454 },
+    { 6.0, 0.958777964 },
+    { 7.0, 0.753902254 },
+    { 8.0, -0.145499974 },
+    { 0.0, 0.0 }
+  };
+
+  struct {
+    double rad;
+    double res;
+  } darray[]= {
+    { -8.0, -0.1455000338086137870 },
+    { -7.0, 0.7539022543433044892 },
+    { -6.0, 0.9601702874545081640 },
+    { -5.0, 0.2836621854666496179 },
+    { -4.5, -0.2107957994306340058 },
+    { -4.0, -0.6536436208636079431 },
+    { -3.5, -0.9364566872907962297 },
+    { -3.0, -0.9899924966004455255 },
+    { -2.5, -0.8011436155469335842 },
+    { -2.0, -0.4161468365471424069 },
+    { -1.5, 0.0707372016677029064 },
+    { -1.0, 0.5403023058681396534 },
+    { -0.5, 0.8775825618903727587 },
+    { 0.0, 1.0000000000000000000 },
+    { 0.5, 0.8775825618903727587 },
+    { 1.0, 0.5403023058681396534 },
+    { 1.5, 0.0707372016677029064 },
+    { 2.0, -0.4161468365471424069 },
+    { 2.5, -0.8011436155469335842 },
+    { 3.0, -0.9899924966004455255 },
+    { 3.5, -0.9364566872907962297 },
+    { 4.0, -0.6536436208636079431 },
+    { 4.5, -0.2107957994306340058 },
+    { 5.0, 0.2836621854666496179 },
+    { 6.0, 0.9601702874545081640 },
+    { 7.0, 0.7539022543433044892 },
+    { 8.0, -0.1455000338086137870 },
+    { 0.0, 0.0 }
+  };
+
+  status = textScreenSave(&screen);
+  if (status < 0)
+    {
+      FAILMESS("Error %d saving screen", status);
+      goto out;
+    }
+
+  // Test some fixed values from the array above using floats
+  for (count = 0; farray[count].res; count ++)
+    {
+      fres = cosf(farray[count].rad);
+      if (fres != farray[count].res)
+	{
+	  FAILMESS("Cosine of float %f is incorrect (%f != %f)",
+		   farray[count].rad, fres, farray[count].res);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  // Do a similar list using doubles
+  for (count = 0; darray[count].res; count ++)
+    {
+      dres = cos(darray[count].rad);
+      if (dres != darray[count].res)
+	{
+	  FAILMESS("Cosine of double %f is incorrect (%f != %f)",
+		   darray[count].rad, dres, darray[count].res);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  // Test some additional random values to make sure they're in the correct
+  // range.
+  for (count = 0; count < 2000; count ++)
+    {
+      rad = (float) randomFormatted(5, 100);
+      if (count % 2)
+	rad *= -1.0;
+
+      fres = cosf(rad);
+      if ((fres < -1) || (fres == 0) || (fres > 1))
+	{
+	  FAILMESS("Cosine of %f is incorrect (%f)", rad, fres);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  status = 0;
+
+ out:
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
 static int floats(void)
 {
   // Do calculations with floats (test's the kernel's FPU exception handling
@@ -1010,39 +1441,86 @@ static int floats(void)
   int y = 0;
   float tempValue = 0;
   float temp[64];
-
-  for (x = 0; x < 64; x ++)
-    coefficients[x] = rand();
+  int count;
 
   bzero(coefficients, (64 * sizeof(int)));
   bzero(temp, (64 * sizeof(float)));
 
-  for (x = 0; x < 8; x++)
-    for (y = 0; y < 8; y++)
-      for (u = 0; u < 8; u++)
-	for (v = 0; v < 8; v++)
+  for (count = 0; count < 64; count ++)
+    coefficients[count] = rand();
+
+  for (count = 0; count < 1000; count ++)
+    {
+      for (x = 0; x < 8; x++)
+	for (y = 0; y < 8; y++)
+	  for (u = 0; u < 8; u++)
+	    for (v = 0; v < 8; v++)
+	      {
+		tempValue = coefficients[(u * 8) + v] *
+		  cosf((2 * x + 1) * u * (float) M_PI / 16.0) *
+		  cosf((2 * y + 1) * v * (float) M_PI / 16.0);
+
+		if (!u)
+		  tempValue *= (float) M_SQRT1_2;
+		if (!v)
+		  tempValue *= (float) M_SQRT1_2;
+
+		temp[(x * 8) + y] += tempValue;
+	      }
+
+      for (y = 0; y < 8; y++)
+	for (x = 0; x < 8; x++)
 	  {
-	    tempValue = coefficients[(u * 8) + v] *
-	      cosf((2 * x + 1) * u * (float) M_PI / 16.0) *
-	      cosf((2 * y + 1) * v * (float) M_PI / 16.0);
-
-	    if (!u)
-	      tempValue *= (float) M_SQRT1_2;
-	    if (!v)
-	      tempValue *= (float) M_SQRT1_2;
-
-	    temp[(x * 8) + y] += tempValue;
+	    coefficients[(y * 8) + x] = (int) (temp[(y * 8) + x] / 4.0 + 0.5);
+	    coefficients[(y * 8) + x] += 128;
 	  }
-
-  for (y = 0; y < 8; y++)
-    for (x = 0; x < 8; x++)
-      {
-	coefficients[(y * 8) + x] = (int) (temp[(y * 8) + x] / 4.0 + 0.5);
-	coefficients[(y * 8) + x] += 128;
-      }
+    }
 
   // If we get this far without crashing, we're golden
   return (0);
+}
+
+
+static int libdl(void)
+{
+  int status = 0;
+  char *libName = NULL;
+  void *libHandle = NULL;
+  char *symbolName = NULL;
+  int (*fn)(const char *format, ...) = NULL;
+
+  status = textScreenSave(&screen);
+  if (status < 0)
+    {
+      FAILMESS("Error %d saving screen", status);
+      goto out;
+    }
+
+  libName = "libc.so";
+  libHandle = dlopen(libName, RTLD_NOW);
+  if (libHandle == NULL)
+    {
+      FAILMESS("Error getting library %s", libName);
+      status = ERR_NODATA;
+      goto out;
+    }
+
+  symbolName = "printf";
+  fn = dlsym(libHandle, symbolName);
+  if (fn == NULL)
+    {
+      FAILMESS("Error getting library symbol %s", symbolName);
+      status = ERR_NODATA;
+      goto out;
+    }
+
+  fn("If you can read this, it works\n", libName, symbolName, fn);
+
+ out:
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
 }
 
 
@@ -1112,12 +1590,11 @@ static int gui(void)
   params.padLeft = 5;
   params.padTop = 5;
   params.padBottom = 5;
-  params.orientationX = orient_left;
+  params.orientationX = orient_center;
   params.orientationY = orient_middle;
 
-  params.orientationX = orient_center;
 
-  status = fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+  status = fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
   if (status < 0)
     {
       FAILMESS("Error %d getting font", status);
@@ -1283,6 +1760,155 @@ static int gui(void)
 }
 
 
+static int icons(void)
+{
+  int status = 0;
+  int numIcons = 0;
+  file iconFile;
+  char *fileName = NULL;
+  image iconImage;
+  objectKey window = NULL;
+  componentParameters params;
+  int count;
+
+  #define ICON_DIR "/system/icons"
+
+  bzero(&iconFile, sizeof(file));
+  bzero(&iconImage, sizeof(image));
+  bzero(&params, sizeof(componentParameters));
+
+  // Save the current text screen
+  status = textScreenSave(&screen);
+  if (status < 0)
+    {
+      FAILMESS("Error %d saving screen", status);
+      goto out;
+    }
+
+  fileName = malloc(MAX_PATH_NAME_LENGTH);
+  if (fileName == NULL)
+    {
+      FAILMESS("Error getting file name memory");
+      status = ERR_MEMORY;
+      goto out;
+    }
+
+  // Get the number of icons
+  numIcons = fileCount(ICON_DIR);
+  if (numIcons < 0)
+    {
+      FAILMESS("Error getting icon count");
+      status = numIcons;
+      goto out;
+    }
+
+  // Create a new window
+  window = windowNew(multitaskerGetCurrentProcessId(), "Icon test window");
+  if (window == NULL)
+    {
+      FAILMESS("Error getting window");
+      status = ERR_NOTINITIALIZED;
+      goto out;
+    }
+
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.padLeft = 2;
+  params.padRight = 2;
+  params.padTop = 2;
+  params.padBottom = 2;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+  params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+  params.background.red = 255;
+  params.background.green = 255;
+  params.background.blue = 255;
+
+  for (count = 0; count < numIcons; count ++)
+    {
+      if (count)
+	status = fileNext(ICON_DIR, &iconFile);
+      else
+	status = fileFirst(ICON_DIR, &iconFile);
+      
+      if (status < 0)
+	{
+	  FAILMESS("Error getting next icon");
+	  goto out;
+	}
+
+      if (iconFile.type != fileT)
+	continue;
+
+      if (params.gridX >= 10)
+	{
+	  params.gridX = 0;
+	  params.gridY += 1;
+	}
+
+      sprintf(fileName, "%s/%s", ICON_DIR, iconFile.name);
+
+      // Try to load the image
+      status = imageLoad(fileName, 0, 0, &iconImage);
+      if (status < 0)
+	{
+	  FAILMESS("Error loading icon image %s", fileName);
+	  goto out;
+	}
+
+      if (windowNewIcon(window, &iconImage, iconFile.name, &params) == NULL)
+	{
+	  FAILMESS("Error creating icon component for %s", iconFile.name);
+	  status = ERR_NOCREATE;
+	  imageFree(&iconImage);
+	  goto out;
+	}
+
+      imageFree(&iconImage);
+
+      params.gridX += 1;      
+    }
+
+  status = windowSetBackgroundColor(window, &params.background);
+  if (status < 0)
+    {
+      FAILMESS("Error %d setting window background color", status);
+      goto out;
+    }
+
+  windowDebugLayout(window);
+
+  status = windowSetVisible(window, 1);
+  if (status < 0)
+    {
+      FAILMESS("Error %d showing window", status);
+      goto out;
+    }
+
+  status = windowDestroy(window);
+  window = NULL;
+  if (status < 0)
+    {
+      FAILMESS("Error %d destroying window", status);
+      goto out;
+    }
+
+  status = 0;
+
+ out:
+  if (fileName)
+    free(fileName);
+
+  if (window)
+    windowDestroy(window);
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
 // This table describes all of the functions to run
 struct {
   int (*function)(void);
@@ -1297,11 +1923,17 @@ struct {
   { exceptions,      "exceptions",      0,  0 },
   { text_output,     "text output",     0,  0 },
   { text_colors,     "text colors",     0,  0 },
+  { xtra_chars,      "xtra chars",      0,  0 },
   { port_io,         "port io",         0,  0 },
   { disk_io,         "disk io",         0,  0 },
   { file_ops,        "file ops",        0,  0 },
+  { divide64,        "divide64",        0,  0 },
+  { sines,           "sines",           0,  0 },
+  { cosines,         "cosines",         0,  0 },
   { floats,          "floats",          0,  0 },
+  { libdl,           "libdl",           0,  0 },
   { gui,             "gui",             0,  1 },
+  { icons,           "icons",           0,  1 },
   { NULL, NULL, 0, 0 }
 };
 

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,23 +33,29 @@ float cosf(float radians)
   float sign = 0;
   float x2n = 0;
   float factorial = 0;
-  int n, count;
+  float n, count;
 
-  for (n = 0; n < 10; n ++)
+  while (radians > (M_PI * 2))
+    radians -= (M_PI * 2);
+  while (radians < -(M_PI * 2))
+    radians += (M_PI * 2);
+
+  for (n = 0; n < 10; n += 1)
     {
       sign = 1.0;
-      for (count = 0; count < n; count ++)
-	sign *= (float) -1;
+      for (count = 0; count < n; count += 1)
+	sign *= -1;
 
       x2n = 1.0;
-      for (count = 0; count < (2 * n); count ++)
+      for (count = 0; count < (2 * n); count += 1)
 	x2n *= radians;
 
       factorial = 1.0;
-      for (count = (2 * n); count > 0; count --)
-	factorial *= (float) count;
+      for (count = (2 * n); count > 0; count -= 1)
+	factorial *= count;
 
-      result += (sign * (x2n / factorial));
+      if (factorial)
+	result += (sign * (x2n / factorial));
     }
 
   return (result);

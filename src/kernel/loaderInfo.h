@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -96,20 +96,12 @@ typedef struct
 
 } serialInfoBlock;
 
-// The data structure created by the loader to hold info about the mouse
-typedef struct
-{
-  unsigned port;
-  unsigned idByte;
-
-} mouseInfoBlock;
-
 // The data structure created by the loader to describe the system's hardware
 // to the kernel
 typedef struct
 {
   int cpuType;
-  char cpuVendor[12];
+  char cpuVendor[16];
   int mmxExtensions;
   unsigned extendedMemory;
   memoryInfoBlock memoryMap[50];
@@ -122,9 +114,8 @@ typedef struct
   int hardDisks;
   hddInfoBlock hddInfo[4];
   serialInfoBlock serialPorts;
-  mouseInfoBlock mouseInfo;
 
-} loaderInfoStruct;
+} __attribute__((packed)) loaderInfoStruct;
 
 #define _LOADERINFO_H
 #endif

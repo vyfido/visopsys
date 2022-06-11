@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,9 +49,10 @@ double-quotes (").
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/vsh.h>
-#include <sys/file.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
+#include <sys/file.h>
+#include <sys/vsh.h>
 
 #define SIMPLESHELLPROMPT "> "
 #define MAX_ARGS          100
@@ -391,7 +392,7 @@ static void simpleShell(void)
       // codes that make use of 'unused' spots.  Specifically the DC1-DC4
       // codes are used for cursor control
       
-      if (bufferCharacter == (unsigned char) 17)
+      if (bufferCharacter == (unsigned char) ASCII_CRSRUP)
 	{
 	  // This is the UP cursor key, G's addition - bash style press up +
 	  // repeat the last command.  It allows users to cycle backwards
@@ -418,13 +419,13 @@ static void simpleShell(void)
 	  // command
 	  strcpy(commandBuffer, commandHistory[selectedCommand]);
 	  // Print result to the screen
-	  printf(commandBuffer);
+	  printf("%s", commandBuffer);
 	  // Correct currentCharacter length so that
 	  // it's as if we've typed it ourselves.
 	  currentCharacter = strlen(commandBuffer);
 	}
 	  
-      else if (bufferCharacter == (unsigned char) 20)
+      else if (bufferCharacter == (unsigned char) ASCII_CRSRDOWN)
 	{
 	  // This is the DOWN cursor key, which allows users to cycle forwards
 	  // through their command history
@@ -467,7 +468,7 @@ static void simpleShell(void)
 	  // command
 	  strcpy(commandBuffer, commandHistory[selectedCommand]);
 	  // Print result to the screen
-	  printf(commandBuffer);
+	  printf("%s", commandBuffer);
 	  // Correct currentCharacter length so that it's as if we've typed
 	  // it ourselves.
 	  currentCharacter = strlen(commandBuffer);
@@ -475,16 +476,16 @@ static void simpleShell(void)
 
       /*
       // This is not useful without line editing, and can confuse people
-      else if (bufferCharacter == (unsigned char) 18)
+      else if (bufferCharacter == (unsigned char) ASCII_CRSRLEFT)
 	// This is the LEFT cursor key
 	textCursorLeft();
 	  
-      else if (bufferCharacter == (unsigned char) 19)
+      else if (bufferCharacter == (unsigned char) ASCII_CRSRRIGHT)
 	// This is the RIGHT cursor key
 	textCursorRight();
       */
 	  
-      else if (bufferCharacter == (unsigned char) 13)
+      else if (bufferCharacter == (unsigned char) ASCII_HOME)
 	{
 	  // This is the HOME key, which normally puts the cursor at
 	  // the beginning of the line, but we use it to clear the screen
@@ -494,7 +495,7 @@ static void simpleShell(void)
 	  showPrompt();
 	}
       
-      else if (bufferCharacter == (unsigned char) 8)
+      else if (bufferCharacter == (unsigned char) ASCII_BACKSPACE)
 	{
 	  // This is the BACKSPACE key
 	  if (currentCharacter > 0)
@@ -511,7 +512,7 @@ static void simpleShell(void)
 	    putchar(' ');
 	}
 
-      else if (bufferCharacter == (unsigned char) 9)
+      else if (bufferCharacter == (unsigned char) ASCII_TAB)
 	{
 	  // This is the TAB key.  Attempt to complete a filename.
 	  
@@ -539,11 +540,11 @@ static void simpleShell(void)
 	  vshCompleteFilename(commandBuffer + count);
 	  textSetColumn(0);
 	  showPrompt();
-	  printf(commandBuffer);
+	  printf("%s", commandBuffer);
 	  currentCharacter = strlen(commandBuffer);
 	}
       
-      else if (bufferCharacter == (unsigned char) 10)
+      else if (bufferCharacter == (unsigned char) ASCII_ENTER)
 	{
 	  // This is the ENTER key
 
@@ -606,7 +607,7 @@ static void simpleShell(void)
 	  showPrompt();
 	}
       
-      else if (bufferCharacter == (unsigned char) 4)
+      else if (bufferCharacter == (unsigned char) ASCII_ENDOFFILE)
 	{
 	  // CTRL-D.  Logout
 	  printf("logout\n");
@@ -650,7 +651,6 @@ int main(int argc, char *argv[])
   int status = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
   char *fullCommand = NULL;
-  file theFile;
   int count;
 
   // What is my process id?
@@ -670,7 +670,7 @@ int main(int argc, char *argv[])
       vshMakeAbsolutePath(argv[2], fileName);
 
       // Does the file exist?
-      status = fileFind(argv[2], &theFile);
+      status = fileFind(argv[2], NULL);
       if (status < 0)
         {
           // Not found in the current directory.  Let's try searching the

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,8 +33,7 @@
 void kernelErrorOutput(const char *, const char *, int, kernelErrorKind, 
 		       const char *, ...)
      __attribute__((format(printf, 5, 6)));
-void kernelErrorDialog(const char *, const char *, ...)
-     __attribute__((format(printf, 2, 3)));
+void kernelErrorDialog(const char *, const char *, const char *);
 
 // This macro should be used to invoke all kernel errors
 #define kernelError(kind, message, arg...) \

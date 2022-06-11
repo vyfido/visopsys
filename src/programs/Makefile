@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -10,23 +10,34 @@ UTILSDIR=${ROOT}/utils
 BUILDDIR=${ROOT}/build/programs
 INCDIR=../include
 LIBDIR=${ROOT}/build/system/libraries
+MSGDIR=${ROOT}/build/system/locale
 
 include ${ROOT}/Makefile.include
 
+ifneq (${PLUS},)
+	PLUSNAMES = sysdiag
+endif
+ifneq (${BUILDLANG},)
+	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
+	MAKEMSGS = ${UTILSDIR}/makemsgs.sh ${BUILDLANG} ${MSGDIR}
+endif
+
 STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
-INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
+INCLUDE         = -nostdinc -I${INCDIR} -I${INCDIR}/c++
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG}
+C++FLAGS	= ${OPT} ${ARCH} ${C++CODEGEN} ${C++WARN} ${INCLUDE}
 LFLAGS		= -L${LIBDIR} -nostdlib \
 		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 
-NAMES	= adduser \
+CNAMES	= adduser \
 	bootmenu \
 	cal \
 	cat \
 	cdrom \
 	chkdisk \
 	clock \
+	cmdwin \
 	computer \
 	confedit \
 	console \
@@ -41,9 +52,12 @@ NAMES	= adduser \
 	edit \
 	file \
 	filebrowse \
+	filesys \
 	find \
+	fontutil \
 	format \
 	help \
+	hexdump \
 	hostname \
 	iconwin \
 	ifconfig \
@@ -68,6 +82,7 @@ NAMES	= adduser \
 	ping \
 	progman \
 	ps \
+	ramdisk \
 	reboot \
 	renice \
 	rm \
@@ -86,24 +101,36 @@ NAMES	= adduser \
 	view \
 	vsh \
 	wallpaper \
-	window
+	${PLUSNAMES}
 
-OBJS = $(addprefix ${BUILDDIR}/, ${NAMES})
+COBJS = $(addprefix ${BUILDDIR}/, ${CNAMES})
+C++OBJS = $(addprefix ${BUILDDIR}/, ${C++NAMES})
 
 # Targets
 
-all: target-dirs ${OBJS}
+all: target-dirs strip messages
 	make -C fdisk
-	strip -s ${OBJS}
 
 target-dirs:
 	mkdir -p ${BUILDDIR}
 
+${BUILDDIR}/format: format.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lntfs -lwindow -lintl -lvsh -lc -o $@
+
 ${BUILDDIR}/%: %.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvsh -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -lvsh -ldl -lc -lgcc -o $@
+
+${BUILDDIR}/%: %.cpp ${STDDEPS}
+	${CC++} ${C++FLAGS} -nostartfiles ${LFLAGS} $< -lstdc++ -lc -lgcc -o $@
+
+strip: ${COBJS} ${C++OBJS}
+	strip -s ${COBJS} ${C++OBJS}
+
+messages: ${OBJS}
+	${MAKEMSGS}
 
 clean:
-	rm -Rf *~ *.o core ${OBJS}
+	rm -Rf *~ *.o core ${COBJS} ${C++OBJS}
 	make -C fdisk clean
 
 # Object files with explicit rules

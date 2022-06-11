@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -139,7 +139,7 @@ delay:
 	ret
 
 
-keyboardRead60
+keyboardRead60:
 	;; Wait for the controller to be ready for a command
 	call keyboardCommandWait
 
@@ -160,7 +160,7 @@ keyboardRead60
 	ret
 	
 
-keyboardWrite60
+keyboardWrite60:
 	;; Save AX on the stack for the moment
 	push AX
 	

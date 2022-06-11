@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,7 +35,6 @@
   int pathCount = 0;
   char *pathElement = NULL;
   int pathElementCount = 0;
-  file theFile;
 
   // Check params
   if ((orig == NULL) || (new == NULL))
@@ -83,8 +82,7 @@
       strcat(pathElement, orig);
 
       // Does the file exist in the PATH directory?
-      bzero(&theFile, sizeof(file));
-      status = fileFind(pathElement, &theFile);
+      status = fileFind(pathElement, NULL);
       if (status >= 0)
         {
           // Copy the full path into the buffer supplied

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,11 +46,13 @@ custom icons for each.
 #include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 #include <sys/vsh.h>
 
 #define DEFAULT_WINDOWTITLE  "Icon Window"
 #define DEFAULT_ROWS         4
 #define DEFAULT_COLUMNS      5
+#define EXECICON_FILE        "/system/icons/execicon.ico"
 
 typedef struct {
   char imageFile[MAX_PATH_NAME_LENGTH];
@@ -93,10 +95,9 @@ static int readConfig(const char *fileName)
   char *name = NULL;
   char variable[128];
   char fullCommand[128];
-  file tmpFile;
   int count;
 
-  status = configurationReader(fileName, &config);
+  status = configRead(fileName, &config);
   if (status < 0)
     {
       error("Can't locate configuration file %s", fileName);
@@ -107,10 +108,9 @@ static int readConfig(const char *fileName)
     window.title=xxx
     list.rows=xxx
     list.columns=xxx
-    icons=xxx,xxx
-    icon.xxx.text=xxx
-    icon.xxx.image=xxx
-    icon.xxx.command=xxx
+    icon.name.xxx=<text to display>
+    icon.xxx.image=<icon image>
+    icon.xxx.command=<command to run>
   */
 
   // Is the window title specified?
@@ -180,18 +180,16 @@ static int readConfig(const char *fileName)
 	status = variableListGet(&config, variable, icons[numIcons].imageFile,
 				 MAX_PATH_NAME_LENGTH);
 	if ((status < 0) ||
-	    (fileFind(icons[numIcons].imageFile, &tmpFile) < 0) ||
+	    (fileFind(icons[numIcons].imageFile, NULL) < 0) ||
 	    (imageLoad(icons[numIcons].imageFile, 0, 0,
 		       &(iconParams[numIcons].iconImage)) < 0))
 	  {
-	    // Try the default image.
-	    strcpy(icons[numIcons].imageFile, "/system/icons/execicon.ico");
-	    if ((fileFind(icons[numIcons].imageFile, &tmpFile) < 0) ||
-		(imageLoad(icons[numIcons].imageFile, 0, 0,
+	    // Try the standard 'program' icon
+	    if ((fileFind(EXECICON_FILE, NULL) < 0) ||
+		(imageLoad(EXECICON_FILE, 0, 0,
 			   &(iconParams[numIcons].iconImage)) < 0))
-	      if (status < 0)
-		// Can't get an icon image.  We won't be showing this one.
-		continue;
+	      // Can't load an icon.  We won't be showing this one.
+	      continue;
 	  }
 
 	// Get the command string
@@ -199,14 +197,14 @@ static int readConfig(const char *fileName)
 	status = variableListGet(&config, variable, icons[numIcons].command,
 				 MAX_PATH_NAME_LENGTH);
 	if (status < 0)
-	  // We won't be showing this one.
+	  // Can't get the command.  We won't be showing this one.
 	  continue;
 	
 	strncpy(fullCommand, icons[numIcons].command, 128);
 
 	// See whether the command exists
 	if (loaderCheckCommand(fullCommand) < 0)
-	  // We won't be showing this one.
+	  // Command doesn't exist.  We won't be showing this one.
 	  continue;
 
 	// OK.
@@ -243,7 +241,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   // if it is a mouse click selection, or an ENTER key selection
   else if ((key == iconList) && (event->type & EVENT_SELECTION) &&
       ((event->type & EVENT_MOUSE_LEFTUP) ||
-      ((event->type & EVENT_KEY_DOWN) && (event->key == 10))))
+      ((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))))
     {
       // Get the selected item
       windowComponentGetSelected(iconList, &clickedIcon);
@@ -281,6 +279,7 @@ static int constructWindow(void)
   iconList = windowNewList(window, windowlist_icononly, rows, columns, 0,
 			   iconParams, numIcons, &params);
   windowRegisterEventHandler(iconList, &eventHandler);
+  windowComponentFocus(iconList);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -293,8 +292,14 @@ static int constructWindow(void)
 
 static void deallocateMemory(void)
 {
+  int count;
+
   if (iconParams)
-    free(iconParams);
+    {
+      for (count = 0; count < numIcons; count ++)
+	imageFree(&iconParams[count].iconImage);
+      free(iconParams);
+    }
   if (icons)
     free(icons);
 }
@@ -326,7 +331,7 @@ int main(int argc, char *argv[])
     }
   
   // Try to read the specified config file
-  status = readConfig(argv[1]);
+  status = readConfig(argv[argc - 1]);
   if (status < 0)
     {
       deallocateMemory();
@@ -336,7 +341,7 @@ int main(int argc, char *argv[])
   // Make sure there were some icons successfully specified.
   if (numIcons <= 0)
     {
-      error("Config file %s specifies no valid icons", argv[1]);
+      error("Config file %s specifies no valid icons", argv[argc - 1]);
       return (errno = ERR_INVALID);
     }
 

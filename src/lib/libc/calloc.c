@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -41,8 +41,8 @@ void *_calloc(size_t items, size_t itemSize, const char *function)
   memoryPointer = _malloc(totalSize, function);
 
   if (memoryPointer)
-    // We must clear the memory
-    bzero(memoryPointer, totalSize);
+    // Clear the memory
+    memset(memoryPointer, 0, totalSize);
 
   // Return this value, whether or not we were successful
   return (memoryPointer);

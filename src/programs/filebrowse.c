@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,8 @@ filebrowse will attempt to execute it -- etc.
 </help>
 */
 
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,11 +54,17 @@ filebrowse will attempt to execute it -- etc.
 #include <sys/vsh.h>
 #include <sys/window.h>
 
+#define EXECPROG_VIEW      "/programs/view"
+#define EXECPROG_KEYMAP    "/programs/keymap"
+#define EXECPROG_CONFEDIT  "/programs/confedit"
+#define _(string) gettext(string)
+#define gettext_noop(string) (string)
+
 #define FILEMENU_QUIT 0
 windowMenuContents fileMenuContents = {
   1,
   {
-    { "Quit", NULL }
+    { gettext_noop("Quit"), NULL }
   }
 };
 
@@ -64,7 +72,7 @@ windowMenuContents fileMenuContents = {
 windowMenuContents viewMenuContents = {
   1,
   {
-    { "Refresh", NULL }
+    { gettext_noop("Refresh"), NULL }
   }
 };
 
@@ -104,7 +112,7 @@ static void error(const char *format, ...)
   vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
-  windowNewErrorDialog(window, "Error", output);
+  windowNewErrorDialog(window, _("Error"), output);
   free(output);
 }
 
@@ -177,14 +185,26 @@ static void doFileSelection(file *theFile, char *fullName,
     {
     case fileT:
       {
-	if (loaderClass->flags & LOADERFILECLASS_EXEC)
+	if (loaderClass->class & LOADERFILECLASS_EXEC)
 	  strcpy(command, fullName);
-	else if (loaderClass->flags & LOADERFILECLASS_IMAGE)
-	  sprintf(command, "/programs/view %s", fullName);
-	else if (loaderClass->flags & LOADERFILECLASS_CONFIG)
-	  sprintf(command, "/programs/confedit %s", fullName);
-	else if (loaderClass->flags & LOADERFILECLASS_TEXT)
-	  sprintf(command, "/programs/view %s", fullName);
+
+	else if ((loaderClass->class & LOADERFILECLASS_IMAGE) &&
+		 !fileFind(EXECPROG_VIEW, NULL))
+	  sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
+
+	else if ((loaderClass->class & LOADERFILECLASS_KEYMAP) &&
+		 !fileFind(EXECPROG_KEYMAP, NULL))
+	  sprintf(command, EXECPROG_KEYMAP " \"%s\"", fullName);
+
+	else if (((loaderClass->class & LOADERFILECLASS_DATA) &&
+		  (loaderClass->subClass & LOADERFILESUBCLASS_CONFIG)) &&
+		 !fileFind(EXECPROG_CONFEDIT, NULL))
+	  sprintf(command, EXECPROG_CONFEDIT " \"%s\"", fullName);
+
+	else if ((loaderClass->class & LOADERFILECLASS_TEXT) &&
+		 !fileFind(EXECPROG_VIEW, NULL))
+	  sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
+
 	else
 	  return;
 	
@@ -251,13 +271,26 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
+static void initMenuContents(windowMenuContents *contents)
+{
+  int count;
+
+  for (count = 0; count < contents->numItems; count ++)
+    {
+      strncpy(contents->items[count].text, _(contents->items[count].text),
+	      WINDOW_MAX_LABEL_LENGTH);
+      contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
+    }
+}
+
+
 static int constructWindow(const char *directory)
 {
   int status = 0;
   componentParameters params;
 
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, "File Browser");
+  window = windowNew(processId, _("File Browser"));
   if (window == NULL)
     return (status = ERR_NOTINITIALIZED);
 
@@ -266,10 +299,12 @@ static int constructWindow(const char *directory)
   // Create the top menu bar
   objectKey menuBar = windowNewMenuBar(window, &params);
   // The 'file' menu
-  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  initMenuContents(&fileMenuContents);
+  fileMenu = windowNewMenu(menuBar, _("File"), &fileMenuContents, &params);
   windowRegisterEventHandler(fileMenu, &eventHandler);
   // The 'view' menu
-  viewMenu = windowNewMenu(menuBar, "View", &viewMenuContents, &params);
+  initMenuContents(&viewMenuContents);
+  viewMenu = windowNewMenu(menuBar, _("View"), &viewMenuContents, &params);
   windowRegisterEventHandler(viewMenu, &eventHandler);
 
   params.gridWidth = 1;
@@ -281,7 +316,6 @@ static int constructWindow(const char *directory)
   params.orientationY = orient_middle;
 
   // Create the location text field
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   locationField = windowNewTextField(window, 40, &params);
   windowComponentSetData(locationField, (char *) directory, strlen(directory));
   windowRegisterEventHandler(locationField, &eventHandler);
@@ -293,6 +327,7 @@ static int constructWindow(const char *directory)
   fileList = windowNewFileList(window, windowlist_icononly, 4, 5, directory,
 			       WINFILEBROWSE_ALL, doFileSelection, &params);
   windowRegisterEventHandler(fileList->key, &eventHandler);
+  windowComponentFocus(fileList->key);  
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -306,13 +341,20 @@ static int constructWindow(const char *directory)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   int guiThreadPid = 0;
   file cwdFile;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("filebrowse");
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      fprintf(stderr, "\nThe \"%s\" command only works in graphics mode\n",
+      fprintf(stderr, _("\nThe \"%s\" command only works in graphics mode\n"),
 	     (argc? argv[0] : ""));
       return (status = ERR_NOTINITIALIZED);
     }
@@ -326,7 +368,7 @@ int main(int argc, char *argv[])
   dirStack = malloc(MAX_PATH_LENGTH * sizeof(dirRecord));
   if (dirStack == NULL)
     {
-      error("Memory allocation error");
+      error("%s", _("Memory allocation error"));
       status = ERR_MEMORY;
       goto out;
     }
@@ -339,7 +381,7 @@ int main(int argc, char *argv[])
       status = multitaskerSetCurrentDirectory(argv[argc - 1]);
       if (status < 0)
 	{
-	  error("Can't change to directory \"%s\"", argv[argc - 1]);
+	  error(_("Can't change to directory \"%s\""), argv[argc - 1]);
 	  goto out;
 	}
     }
@@ -348,7 +390,7 @@ int main(int argc, char *argv[])
 					  MAX_PATH_LENGTH);
   if (status < 0)
     {
-      error("Can't determine current directory");
+      error("%s", _("Can't determine current directory"));
       goto out;
     }
 
@@ -360,6 +402,12 @@ int main(int argc, char *argv[])
   // updates.
   guiThreadPid = windowGuiThread();
 
+  if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
+    {
+      cwdModifiedDate = cwdFile.modifiedDate;
+      cwdModifiedTime = cwdFile.modifiedTime;
+    }
+
   // Loop, looking for changes in the current directory
   while (!stop && multitaskerProcessIsAlive(guiThreadPid))
     {
@@ -370,7 +418,7 @@ int main(int argc, char *argv[])
 	{
 	  if ((cwdFile.modifiedDate != cwdModifiedDate) ||
 	      (cwdFile.modifiedTime != cwdModifiedTime))
-	    {
+	{
 	      fileList->update(fileList);
 	      windowComponentSetSelected(fileList->key,
 					 dirStack[dirStackCurr].selected);

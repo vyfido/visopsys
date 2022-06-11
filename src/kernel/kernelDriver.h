@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,7 +40,7 @@ typedef struct _kernelDriver {
 
 // An enumeration of driver types
 typedef enum {
-  extDriver, fatDriver, isoDriver, linuxSwapDriver, ntfsDriver,
+  extDriver, fatDriver, isoDriver, linuxSwapDriver, ntfsDriver, udfDriver,
   textConsoleDriver, graphicConsoleDriver
 } kernelDriverType;
 
@@ -65,7 +65,9 @@ void kernelPciDriverRegister(kernelDriver *);
 void kernelPicDriverRegister(kernelDriver *);
 void kernelPs2KeyboardDriverRegister(kernelDriver *);
 void kernelPs2MouseDriverRegister(kernelDriver *);
+void kernelRamDiskDriverRegister(kernelDriver *);
 void kernelRtcDriverRegister(kernelDriver *);
+void kernelSataAhciDriverRegister(kernelDriver *);
 void kernelScsiDiskDriverRegister(kernelDriver *);
 void kernelSysTimerDriverRegister(kernelDriver *);
 void kernelUsbDriverRegister(kernelDriver *);

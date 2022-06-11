@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,8 +43,10 @@ domainname        Prints or sets the system's network domain name.
 fdisk             Manage hard disks (must be user "admin")
 file              Show the type of a file
 find              Traverse directory hierarchies
+fontutil          Edit and convert Visopsys fonts
 format            Create new, empty filesystems
 help              Show this summary of help entries
+hexdump           View files as hexadecimal listings
 hostname          Prints or sets the system's network host name
 ifconfig          Network device information and control
 imgboot           The program launched at first system boot
@@ -66,6 +68,7 @@ passwd            Set the password on a user account
 ping              'Ping' a host on the network
 ps                Show list of current processes
 pwd               Show the current directory
+ramdisk           Creates or destroys RAM disks
 reboot            Exits to real mode and reboots the computer
 renice            Change the priority of a running process
 rm (or del)       Delete a file
@@ -73,6 +76,7 @@ rmdir             Remove a directory
 shutdown          Stops the computer
 snake             A 'snake' game like the one found on mobile phones
 sync              Synchronize all filesystems on disk
+sysdiag           Perform diagnostics on hardware such as RAM or hard disks
 touch             Update a file or create a new (empty) file
 umount            Unmount a filesystem
 uname             Prints system information
@@ -82,12 +86,14 @@ vsh               Start a new command shell
  -- Additional (graphics mode only) --
 
 clock             Show a simple clock in the corner of the screen
+cmdwin            Open a new command window
 computer          Navigate the resources of the computer
 confedit          Edit Visopsys configuration files
 console           Show the console window
 disprops          View or change the display settings
 edit              Simple text editor
 filebrowse        Navigate the file system
+filesys           Set mount points and other filesystem properties
 iconwin           A program for displaying custom icon windows
 loadfont          Load a new default font
 mines             A mine sweeper game
@@ -96,7 +102,6 @@ screenshot        Take a screenshot
 users             User manager for creating/deleting user accounts
 view              Display a file in a new window
 wallpaper         Load a new background wallpaper image
-window            Open a new command window
 
 </help>
 */
@@ -113,7 +118,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   char command[MAX_PATH_NAME_LENGTH];
-  file tmpFile;
   int count;
 
   if (argc < 2)
@@ -126,7 +130,7 @@ int main(int argc, char *argv[])
 	{
 	  // See if there is a help file for the argument
 	  sprintf(command, "%s/%s.txt", HELPFILES_DIR, argv[count]);
-	  status = fileFind(command, &tmpFile);
+	  status = fileFind(command, NULL);
 	  if (status < 0)
 	    {
 	      // No help file

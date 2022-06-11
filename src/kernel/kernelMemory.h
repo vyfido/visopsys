@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,15 +28,15 @@
 
 // Functions from kernelMemory.c
 int kernelMemoryInitialize(unsigned);
-void *kernelMemoryGet(unsigned, const char *);
 void *kernelMemoryGetSystem(unsigned, const char *);
 void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);
-int kernelMemoryRelease(void *);
-//int kernelMemoryReleaseSystem(void *);
 int kernelMemoryReleasePhysical(void *);
-int kernelMemoryReleaseAllByProcId(int);
 int kernelMemoryChangeOwner(int, int, int, void *, void **);
 int kernelMemoryShare(int, int, void *, void **);
+// Functions exported to userspace
+void *kernelMemoryGet(unsigned, const char *);
+int kernelMemoryRelease(void *);
+int kernelMemoryReleaseAllByProcId(int);
 int kernelMemoryGetStats(memoryStats *, int);
 int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
 int kernelMemoryBlockInfo(void *, memoryBlock *);

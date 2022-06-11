@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,11 +25,11 @@
 
 #if !defined(_KERNELFILESTREAM_H)
 
-#include <sys/stream.h>
+#include <sys/file.h>
 
 // Functions exported by kernelFileStream.c
 int kernelFileStreamOpen(const char *, int, fileStream *);
-int kernelFileStreamSeek(fileStream *, int);
+int kernelFileStreamSeek(fileStream *, unsigned);
 int kernelFileStreamRead(fileStream *, unsigned, char *);
 int kernelFileStreamReadLine(fileStream *, unsigned, char *);
 int kernelFileStreamWrite(fileStream *, unsigned, char *);
@@ -37,6 +37,7 @@ int kernelFileStreamWriteStr(fileStream *, char *);
 int kernelFileStreamWriteLine(fileStream *, char *);
 int kernelFileStreamFlush(fileStream *);
 int kernelFileStreamClose(fileStream *);
+int kernelFileStreamGetTemp(fileStream *);
 
 #define _KERNELFILESTREAM_H
 #endif

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,28 +21,18 @@
 
 #if !defined(_KERNELFONT_H)
 
-#include "kernelImage.h"
+#include <sys/font.h>
 
-#define ASCII_PRINTABLES 95
 #define MAX_FONTS 16
-
-// The font data structure for ascii-oriented fonts
-typedef struct {
-  char name[32];
-  int charWidth;
-  int charHeight;
-  image chars[ASCII_PRINTABLES]; // printable ascii characters
-
-} kernelAsciiFont;
 
 // Functions exported from kernelFont.c
 int kernelFontInitialize(void);
-int kernelFontGetDefault(kernelAsciiFont **);
+int kernelFontGetDefault(asciiFont **);
 int kernelFontSetDefault(const char *);
-int kernelFontLoad(const char *, const char *, kernelAsciiFont **, int);
-int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
-int kernelFontGetWidth(kernelAsciiFont *);
-int kernelFontGetHeight(kernelAsciiFont *);
+int kernelFontLoad(const char *, const char *, asciiFont **, int);
+int kernelFontGetPrintedWidth(asciiFont *, const char *);
+int kernelFontGetWidth(asciiFont *);
+int kernelFontGetHeight(asciiFont *);
 
 #define _KERNELFONT_H
 #endif

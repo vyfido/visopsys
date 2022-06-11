@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,28 +23,44 @@
 // program loader.
 
 #include "kernelLoader.h"
-#include "kernelFile.h"
-#include "kernelMemory.h"
-#include "kernelMalloc.h"
-#include "kernelMultitasker.h"
-#include "kernelMisc.h"
-#include "kernelPage.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
-#include <string.h>
+#include "kernelFile.h"
+#include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelPage.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // This is the static list of file class registration functions.  If you
 // add any to this, remember to update the LOADER_NUM_FILECLASSES value
 // in the header file.
 static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES]) (void) = {
-  kernelFileClassConfig,
-  kernelFileClassText,
+  // Binary formats with magic numbers
   kernelFileClassBmp,
   kernelFileClassIco,
   kernelFileClassJpg,
+  kernelFileClassGif,
+  kernelFileClassPng,
   kernelFileClassBoot,
+  kernelFileClassKeymap,
+  kernelFileClassPdf,
+  kernelFileClassZip,
+  kernelFileClassGzip,
+  kernelFileClassAr,
+  kernelFileClassPcf,
+  kernelFileClassTtf,
+  kernelFileClassVbf,
   kernelFileClassElf,
+  kernelFileClassMessage,
+  // Text formats
+  kernelFileClassConfig,
+  kernelFileClassHtml,
+  // Generic text and binary
+  kernelFileClassText,
   kernelFileClassBinary
 };
 kernelFileClass emptyFileClass = { FILECLASS_NAME_EMPTY, NULL, { } };
@@ -135,8 +151,7 @@ static void *load(const char *filename, file *theFile, int kernel)
   if (status < 0)
     {
       // Don't make an official error.  Print a message instead.
-      kernelError(kernel_error, "The file '%s' could not be found.",
-		  filename);
+      kernelError(kernel_error, "The file '%s' could not be found.", filename);
       return (fileData = NULL);
     }
 
@@ -264,7 +279,8 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
   if ((fileData == NULL) || !size)
     {
       strcpy(class->className, FILECLASS_NAME_EMPTY);
-      class->flags = LOADERFILECLASS_EMPTY;
+      class->class = LOADERFILECLASS_NONE;
+      class->subClass = LOADERFILESUBCLASS_NONE;
       return (&emptyFileClass);
     }
 
@@ -334,7 +350,7 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 }
 
 
-loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName, int dynamic)
+loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName)
 {
   // Given a file name, get symbols.
 
@@ -368,11 +384,35 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName, int dynamic)
 
   if (fileClassDriver->executable.getSymbols)
     // Get the symbols
-    symTable = fileClassDriver->executable
-      .getSymbols(loadAddress, dynamic, 0 /* not kernel */);
+    symTable =
+      fileClassDriver->executable.getSymbols(loadAddress, 0 /* not kernel */);
 
   kernelFree(loadAddress);
   return (symTable);
+}
+
+
+loaderSymbol *kernelLoaderFindSymbol(const char *name,
+				     loaderSymbolTable *symTable)
+{
+  // Returns a pointer to a symbol if it exists in the table and is defined
+  // there
+  
+  loaderSymbol *symbol = NULL;
+  int count;
+
+  // Check params
+  if ((name == NULL) || (symTable == NULL))
+    return (symbol = NULL);
+
+  for (count = 0; count < symTable->numSymbols; count ++)
+    if (!strcmp(symTable->symbols[count].name, name))
+      {
+	symbol = &(symTable->symbols[count]);
+	break;
+      }
+
+  return (symbol);
 }
 
 
@@ -383,7 +423,6 @@ int kernelLoaderCheckCommand(const char *command)
 
   int status = 0;
   processImage checkImage;
-  file tmpFile;
   
   // Check params
   if (command == NULL)
@@ -400,7 +439,8 @@ int kernelLoaderCheckCommand(const char *command)
     return (status = ERR_NOSUCHFILE);
 
   // Does the command portion exist?
-  status = kernelFileFind(checkImage.argv[0], &tmpFile);
+  status = kernelFileFind(checkImage.argv[0], NULL);
+
   return (status);
 }
 
@@ -412,6 +452,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
   // by this function.
 
   int status = 0;
+  processImage execImage;
   file theFile;
   void *loadAddress = NULL;
   kernelFileClass *fileClassDriver = NULL;
@@ -419,7 +460,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
   char procName[MAX_NAME_LENGTH];
   char tmp[MAX_PATH_NAME_LENGTH];
   int newProcId = 0;
-  processImage execImage;
+  loaderSymbolTable *symTable = NULL;
 
   // Check params
   if (command == NULL)
@@ -453,7 +494,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
     }
 
   // Make sure it's an executable
-  if (!(class.flags & LOADERFILECLASS_EXEC))
+  if (!(class.class & LOADERFILECLASS_EXEC))
     {
       kernelError(kernel_error, "File \"%s\" is not an executable program",
 		  command);
@@ -489,14 +530,14 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
       return (newProcId);
     }
 
-  if (class.flags & LOADERFILECLASS_DYNAMIC)
+  if (class.subClass & LOADERFILESUBCLASS_DYNAMIC)
     {
       // It's a dynamically-linked program, so we need to link in the required
       // libraries
       if (fileClassDriver->executable.link)
 	{
 	  status = fileClassDriver->executable
-	    .link(newProcId, loadAddress, &execImage);
+	    .link(newProcId, loadAddress, &execImage, &symTable);
 	  if (status < 0)
 	    {
 	      kernelMemoryRelease(loadAddress);
@@ -505,6 +546,11 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	    }
 	}
     }
+  else
+    symTable = kernelLoaderGetSymbols(execImage.argv[0]);
+
+  if (symTable)
+    kernelMultitaskerSetSymbols(newProcId, symTable);
 
   // Unmap the new process' image memory from this process' address space.
   status = kernelPageUnmap(kernelCurrentProcess->processId, execImage.code,
@@ -542,6 +588,8 @@ int kernelLoaderLoadLibrary(const char *libraryName)
       return (status = ERR_NULLPARAMETER);
     }
 
+  kernelDebug(debug_loader, "Load library %s", libraryName);
+
   kernelMemClear(&libImage, sizeof(processImage));
 
   // Load the program code/data into memory
@@ -559,8 +607,8 @@ int kernelLoaderLoadLibrary(const char *libraryName)
     }
 
   // Make sure it's a dynamic library
-  if (!(class.flags & LOADERFILECLASS_DYNAMIC) ||
-      !(class.flags & LOADERFILECLASS_LIB))
+  if (!(class.class & LOADERFILECLASS_LIB) ||
+      !(class.subClass & LOADERFILESUBCLASS_DYNAMIC))
     {
       kernelError(kernel_error, "File \"%s\" is not a shared library",
 		  libraryName);
@@ -599,6 +647,8 @@ int kernelLoaderLoadLibrary(const char *libraryName)
   library->next = libraryList;
   libraryList = library;
 
+  library->classDriver = fileClassDriver;
+
   // Get rid of the old memory
   kernelFree(loadAddress);
 
@@ -614,8 +664,8 @@ kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
   // kernelLoaderLoadLibrary() function to try and load it, before searching
   // the list again.
 
-  kernelDynamicLibrary *library = libraryList;
   char shortName[MAX_NAME_LENGTH];
+  kernelDynamicLibrary *library = libraryList;
   char tmp[MAX_PATH_NAME_LENGTH];
   int count;
 
@@ -643,6 +693,9 @@ kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
 
       // If we fall through, it wasn't found.  Try to load it.
       sprintf(tmp, "/system/libraries/%s", shortName);
+      if (kernelFileFind(tmp, NULL) < 0)
+	return (library = NULL);
+
       if (kernelLoaderLoadLibrary(tmp) < 0)
 	return (library = NULL);
 
@@ -652,6 +705,78 @@ kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
 
   // If we fall through, we don't have the library.
   return (library = NULL);
+}
+
+
+kernelDynamicLibrary *kernelLoaderLinkLibrary(const char *libraryName)
+{
+  // Searches through our list of loaded dynamic libraries for the requested
+  // one using the kernelLoaderGetLibrary() function (which tries to load it
+  // if it's not already).  Next, the library is linked into the current
+  // process.  The name can be either a full pathname, or just a short one
+  // such as 'libc.so'.
+
+  kernelDynamicLibrary *origLibrary = NULL;
+  kernelDynamicLibrary library;
+
+  // Check params
+  if (libraryName == NULL)
+    {
+      kernelError(kernel_error, "Library name is NULL");
+      return (NULL);
+    }
+
+  kernelDebug(debug_loader, "Link library %s", libraryName);
+
+  origLibrary = kernelLoaderGetLibrary(libraryName);
+  if (origLibrary == NULL)
+    {
+      kernelDebugError("Library %s not found", libraryName);
+      return (NULL);
+    }
+
+  kernelMemCopy(origLibrary, &library, sizeof(kernelDynamicLibrary));
+
+  kernelDebug(debug_loader, "Got library %s", libraryName);
+
+  // Pull the library into this process
+  if (library.classDriver)
+    {
+      if (library.classDriver->executable.hotLink(&library) < 0)
+	return (NULL);
+    }
+
+  kernelDebug(debug_loader, "Hot linked %s", libraryName);
+
+  return (origLibrary);
+}
+
+
+void *kernelLoaderGetSymbol(const char *symbolName)
+{
+  // Returns the address of a symbol in the current process' symbol table.
+
+  loaderSymbol *symbol = NULL;
+  loaderSymbolTable *symTable = NULL;
+  void *value = NULL;
+
+  // Check params
+  if (symbolName == NULL)
+    {
+      kernelError(kernel_error, "Symbol name is NULL");
+      return (value = NULL);
+    }
+
+  // Get the symbols for the current process
+  symTable = kernelMultitaskerGetSymbols(kernelCurrentProcess->processId);
+  if (symTable == NULL)
+    return (value = NULL);
+
+  symbol = kernelLoaderFindSymbol(symbolName, symTable);
+  if (symbol)
+    value = symbol->value;
+
+  return (value);
 }
 
 

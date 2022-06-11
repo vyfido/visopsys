@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,6 +45,7 @@ this command will prompt the user to set the password for the named user.
 #include <unistd.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 
 static int processId = 0;
 static int privilege = 0;
@@ -183,7 +184,6 @@ static int setPasswordDialog(int userNumber)
       params.gridX = 1;
       params.orientationX = orient_left;
       params.padRight = 5;
-      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       oldPasswordField = windowNewPasswordField(dialogWindow, 17, &params);
     }
 
@@ -192,33 +192,33 @@ static int setPasswordDialog(int userNumber)
   params.gridWidth = 1;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
   params.gridX = 1;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   params.padRight = 5;
   params.orientationX = orient_left;
   passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
+
+  if (oldPasswordField)
+    windowComponentFocus(oldPasswordField);
+  else
+    windowComponentFocus(passwordField1);
 
   params.gridX = 0;
   params.gridY = 3;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
   params.gridX = 1;
   params.orientationX = orient_left;
   params.padRight = 5;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 
   params.gridX = 0;
   params.gridY = 4;
   params.gridWidth = 2;
   params.orientationX = orient_center;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
   				    "match", &params);
   windowComponentSetVisible(noMatchLabel, 0);
@@ -271,14 +271,14 @@ static int setPasswordDialog(int userNumber)
 	{
 	  status = windowComponentEventGet(oldPasswordField, &event);
 	  if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-	      (event.key == (unsigned char) 10))
+	      (event.key == (unsigned char) ASCII_ENTER))
 	    break;
 	}
 
       status = windowComponentEventGet(passwordField1, &event);
       if ((status > 0) && (event.type == EVENT_KEY_DOWN))
 	{
-	  if (event.key == (unsigned char) 10)
+	  if (event.key == (unsigned char) ASCII_ENTER)
 	    break;
 	  else
 	    {
@@ -300,7 +300,7 @@ static int setPasswordDialog(int userNumber)
       status = windowComponentEventGet(passwordField2, &event);
       if ((status > 0) && (event.type == EVENT_KEY_DOWN))
 	{
-	  if (event.key == (unsigned char) 10)
+	  if (event.key == (unsigned char) ASCII_ENTER)
 	    break;
 	  else
 	    {
@@ -493,6 +493,7 @@ static void constructWindow(void)
   params.orientationY = orient_top;
   userList = windowNewList(window, windowlist_textonly, 5, 1, 0,
 			   userListParams, numUserNames, &params);
+  windowComponentFocus(userList);
 
   // A container for the buttons
   params.gridX = 1;

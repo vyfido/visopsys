@@ -1,5 +1,349 @@
 
 --------------
+ Version 0.7    16/02/2011
+--------------
+
+  Overview: This new release offers an updated look and a number of new
+  features, including JPEG image support, image resizing, 64-bit disk
+  support, UDF (DVD) filesystem support, and GPT partition table support,
+  as well as lots of new icons, wallpaper images, and file browsing
+  functionality.  New administrative applications and functionality have
+  been added, and the ATA/IDE driver has been enhanced, including the
+  ability to better support backwards-compatible SATA controllers.  FPU
+  context saving has been improved, and a number of tweaks and bug fixes
+  are also included. 
+
+- Updated the appearance of windows and several types of widgets.
+- Added JPEG image format support.
+- Added image resizing code.
+- Added 64-bit disk support.
+- Added UDF (DVD-ROM) filesystem support.
+- Added GPT disk label support to the kernel and to the Disk Manager
+program.
+- Included a quantity of new icons based on contributions provided by
+Leency <leency@mail.ru>, including the folder icon, and all of the
+file browser icons for different file types.
+- Implemented keyboard navigation of the GUI menus using 'Alt' to activate
+them, and the cursor and 'Enter' keys to navigate and select.
+- Alt-Tab now raises the root window's 'window' menu for keyboard
+navigation between open windows, in a way somewhat analogous to the way
+Windows and other GUIs do it.
+- Created new icons for the 'cal' (Calendar), 'mines', and 'snake' programs,
+as well as for the 'lsdev' (Devices), 'install', and 'users' (User Manager)
+administration programs.
+- Added loader file class support for the ability to recognise GIF and PNG
+images, Zip, Gzip, and Ar archives, and PDF and HTML documents.  Also added
+file browser icons for PDF, HTML and archive files.
+- Designed and implemented a new proprietary font file format that enables
+sparsely-mapped, bitmapped fonts.  Added a 'fontutil' utility program for
+editing and managing the new format.
+- New splash image for the 0.7x series.
+- New default background pattern wallpaper image, and three additional,
+full-sized ones.
+- Redesigned the 'bangicon', 'infoicon', and 'questicon' images.
+- Changed the visual effect which clicking on, or dragging icons.  Instead
+of reverse-video (xor), the icons now tint yellow.  Additionally, when
+dragging icons, the icon image now appears instead of a box outline.
+- Changed the way icon text is drawn, so that it no longer has a solid box
+behind it, but instead has a little drop shadow.
+- Icon components are now optionally focus-able, enabling keyboard
+navigation of (for example) the desktop icons, or the icons in the shutdown
+program
+- Implemented image alpha channels and blending, with support for resizing.
+- Added support for reading monochrome windows bitmap (.bmp) images.
+- Added support for some new (non-4:3 aspect) graphics modes.
+- Implemented horizontal window scroll bars.
+- Added a 'divider' window component, for placing simple little lines in
+a window.  Useful for separating sections of components.
+- Window components can now be created with a flag to suppress the use of
+scroll bars.
+- Improved the IDE driver so that it can detect and operate multiple
+controllers, correctly use PCI I/O port remappings, and PCI interrupts,
+as well as adding improved support for things like backwards-compatible
+SATA disks/controllers.
+- Added initial, very basic detection of AHCI SATA controllers (operating
+in native AHCI mode) and their disks.
+- Reimplemented the kernel API interface.  It now supports variable-sized
+arguments and return values, and does checking on argument types and values
+(for example user vs. kernel pointers, NULL values, etc).
+- Reimplemented the kernel's file stream subsystem for character-based file
+I/O as a simple buffered mechanism with a file pointer, instead of using
+the kernel's streams.
+- Added an 'I/O ready' state to the multitasker, so that processes waiting
+for (for example) disk I/O can go into a 'waiting' state and be awoken as
+soon as possible when the I/O arrives, rather than polling for interrupts
+as they had been doing previously.  The 'idle thread' now loops through the
+process list, looking for any I/O-ready processes and yields its timeslice
+when it finds one.  The scheduler gives such processes high priority.
+- Added more efficient power management, idling the processor during spare
+cycles.
+- Moved common keyboard functionality out of the drivers and into the
+abstraction layer, with an interface for handling of specific keyboard
+'special' events such as PrtScn or Ctrl-Alt-Del.
+- Added basic internationalization library support (libintl), modeled on
+the GNU gettext system.
+- Added 32-bit CRC calculation to the kernel.
+- Added RAM disk support, courtesy of contributions from Davide Airaghi
+<davide.airaghi@gmail.com>.
+- Implemented 'lazy'  FPU context saving; the context is only saved or
+restored if a different process tries to use it.
+- Added new keyboard mappings: French, Belgian, and Spanish.
+- Keyboard mappings are now stored in files, rather than hardcoded in the
+kernel.  The 'keymap' (Keyboard Mapping) program has been enhanced to
+facilitate the editing and saving of new keymaps.  In addition, the file
+browser will now use it to open keymap files when they're clicked.
+- Added a new configuration file /system/config/mount.conf containing
+variables for specifying mount points of filesystems (like Unix fstab) and
+whether or not to auto-mount them.  The 'mount' and 'computer' programs use
+the file (as well as the kernel's automounting), and there is also a new
+'filesys' program in the Administration window for editing it.
+- Added some extra error checking in the filesystem detection code.
+- The FAT boot sector now copies the partition table entry pointed to by
+the SI register, so that it is in a known/safe location for passing off
+in turn to the OS loader.
+- Added right-click context menus to the disk icons in the computer browser.
+The menu currently contains 'Browse', 'Mount as...', 'Unmount', and
+'Properties' choices.
+- The computer browser now shows the filesystem label, if applicable, in
+its icon text.
+- When a wallpaper image is chosen, it is now automatically resized to fit
+the the client area of the window.
+- When displaying an image, the 'view' program now scales large images down
+by default so that they use no more than 2/3 of the screen. 
+- The 'view' program now has a right-click context menu to zoom in and out
+on images, or show them actual size. 
+- The 'disprops' (Display Settings) program has been reorganized, and now
+shows a thumbnail preview of the selected background wallpaper image.
+- Added an option to the windowFileDialog to show image file thumbnail
+previews.
+- The 'imgboot' program now has 'run' as the default selection, instead of
+'install'
+- Added locking to the kernel's stream functions.
+- Added kernel logging of the OS loader's hardware info structure.
+- Added a 'model' string field to the kernel and user disk structures.
+- Window components now receive mouse enter/exit events.
+- Window components can now have custom mouse pointers, as windows do.
+- Added mouse pointers that indicate window resizing, and they are now
+switched to automatically when passing over window borders.
+- New default desktop color that goes better with the splash image
+- The window shell now uses the foreground color for the root window menu,
+instead of the desktop color (this way there's a contrast).
+- The foreground, background, and desktop colors are no longer specified
+exclusively in the kernel's configuration file.  They are still there as
+default values for boot time, but additional color settings are specified
+in the window configuration file, and those override the kernel ones when
+they're available.
+- Added windowNewThumbImage() and windowThumbImageUpdate() functions to
+the window library.  These can be used to create a thumbnail-sized window
+image object from an image file name.
+- Added a kernelFileGetFullPath() function (userspace fileGetFullPath) that
+will return the full path+name of a file referenced by a file structure.
+- The kernelFontLoad() (userspace fontLoad) function will now search the
+system's font directory (/system/fonts) for a font file, so it's not
+necessary to pass a complete pathname.
+- Removed /system/mount directory, as it wasn't being used.
+- The kernelFileFind() (userspace fileFind) function now acccepts a NULL
+file structure pointer, for instances in which the caller is really only
+interested in whether the file exists.
+- The windowFileDialog window library code now interprets a non-empty
+fileName argument as a value to show by default in the file name field.
+Additionally, the file name field no longer shows the fully-qualified
+names of files, just the short names.
+- Added a windowNumberDialog to the userspace window library, for
+requesting the user to enter a number value, and providing a graphical
+slider widged for setting the value with the mouse.
+- The boot menu installer program 'bootmenu' now checks for previous
+installations and remembers the old entries.
+- The 'imgboot' program now checks for the presense of the 'install'
+program before querying about whether to install.
+- The 'iconwin' program now skips any entry whose icon is missing.
+- Reduced the padding values of the text area in the 'lsdev' (Devices)
+program.  Also fixed it so that it doesn't scroll down and then back up
+again while it's visible.
+- The kernel configuration reader/writer functions have been augmented
+with get/set/unset convenience functions for quickly getting or changing
+individual configuration values from files.
+- Removed the title bar from the 'clock' program.
+- The 'window' (Command Window) program has been renamed 'cmdwin'.
+- Changed the runtime program name of the 'fdisk' program from "Visopsys
+Disk Manager" to just "Disk Manager".
+- Implemented proper stack backtraces for help with debugging.  Walks the
+stack frame, uses the process symbol table, etc.  Used by the exception
+handler and by calling kernelStackTrace().
+- Added a kernelDebugHexDwords() function for doing simple hex dumps of
+dword-oriented memory such as stacks.
+- Added a stack debugging output function kernelDebugStack().
+- Added a 'hexdump' command for examining the contents of binary files.
+- Added a 'Details' button to the kernel error dialog window, which brings
+up a dialog showing process debugging info and a stack trace.
+- Added a kernelRealloc() function like the C library realloc().
+- Added a generic kernelImageCopy() function which is exported to userspace
+as imageCopy().
+- The window canvas component now resizes itself properly, using the image
+resizing function.
+- Added a kernelDebugBinary() function for doing simple binary dumps.
+- Added the -fno-stack-protector argument to Makefile.include so we can
+link using gcc 4.1.3 (Ubuntu 7.10, etc).
+- Added tests for since and cosine calculation to the 'test' program, and
+made both do 'double' calculations, and some random ones also.
+- Added an fabsf() function to the C library.
+- Added a getenv() function to the C library.
+- Added _dbl2str() and _flt2str() C library functions for converting
+doubles and floats to strings, respectively, and added %f format specifier
+support to the _xpndfmt() function (used by the printf family of
+functions).
+- Added an fls() C library function and fixed up ffs().
+- Added a kernel API function kernelFileSetSize(), a driverSetBlocks()
+filesystem driver function for the back end, and ftruncate() and truncate()
+C library functions for the front end.
+- Added a sleep() C library function.
+- Added a strtok() C library function.
+- Added and exported a kernel API function randomBytes() for filling a
+buffer with random data.
+- Exported the kernelWindowComponentUnfocus() function via the kernel API.
+- Added a kernelDebugError() macro that reports errors only when debugging
+is turned on on.  Replaces several locally-defined debugError() macros in
+drivers, etc.
+- Added a new 'label' field to the kernel's generic logical disk filesystem
+structure.  The filesystem drivers fill it in, where applicable.
+- Added mouse support for scroll wheels.
+- Window event streams are now just plan kernel streams with wrapper
+functions that read or write only complete events -- the way they were
+originally intended to be.
+- The 'mines' game map now stays on the screen after the game, so you can
+have a look at it.
+- Fixed the cos(), cosf(), sin(), and sinf() functions so that they work
+periodically (i.e. for larger radians values that are greater than
+(PI * 2).
+- Exported the kernelPageGetPhysical() function to userspace programs as
+pageGetPhysical()
+- The multitasker now uses system timer mode 3
+- Added a sys/ascii.h include file to include definitions of commonly-used
+character codes.
+- Fixed: The OS loader could hang during disk detection (divide by zero
+error) if the BIOS 'get drive parameters' function returned success despite
+there being no such drive.
+- Fixed: The PS/2 mouse driver has been reworked to deal properly with
+mouse interrupts from various types of mouse hardware.
+- Fixed: Clicking outside of a context menu could fail to erase the menu
+if there were no other focusable components.
+- Fixed: After a window relayout, the mouse pointer was not being properly
+redrawn.
+- Fixed: Resizing any window to a larger size in a vertical direction
+caused the window thread to generate a divide-by-zero exception
+- Fixed: The C library's dirname() function didn't work correctly for
+items in the root directory.
+- Fixed: The C library's fread() and fwrite() functions were returning
+negative error codes as return values.  They now return a size_t of the
+number of items read/written, and any error is in errno.
+- Fixed: The C library's strcmp() and strncmp() functions were not dealing
+gracefully with NULL pointers, and the strncmp() function was returning
+nonstandard result codes.
+- Fixed: The kernel's kernelFileStreamRead function was overwriting
+properly-sized buffers by 1 byte, causing buffer overflows.
+- Fixed: Opening an existing file stream in read/write mode (using fopen()
+or kernelFileStreamOpen()) would cause the kernel to seek to the end of
+the file for writing, but begin reading at the beginning of the last file
+block.  Now all opens begin at offset 0 unless they're write-only.
+- Fixed: The FAT filesystem driver no longer sets the size of the file to
+a multiple of the block (cluster) size on every write.  Only if the number
+of blocks changed.
+- Fixed: The access mode flags in unistd.h were not bitwise-exclusive.
+- Fixed: open.c did not handle access mode flags correctly and was
+returning errno rather than -1 on error.
+- Fixed: Before multitasking was enabled, printing debug messages could
+crash because it printed the current process name without checking to see
+whether there *is* a current process.
+- Fixed: When a windowTextArea was being detroyed, it was not resetting
+the text input and output streams of the process in the multitasker.
+- Fixed: Intensive floating point operations (for example when displaying
+JPEGs or resizing images) could cause a system crash.  The exception entry
+end exit macros were incorrect.
+- Fixed: The _xpndfmt() code used for printf-style format strings was
+initializing a 'double' type unnecessarily, causing any attempt to print
+things inside the FPU exception handler to blow up.
+- Fixed: The sliders of the color choosers (e.g. in the display settings
+program) were 'backwards' in the sense that they should decrease to the
+left and increase to the right, intuitively.
+- Fixed: Clicking on a filename with embedded spaces failed to open the
+file in the file browser, because it wasn't quoting the name.
+- Fixed: The kernelWindowLayout() function now properly lays out and
+resizes the window, particularly if it's already been laid out previously.
+- Fixed: A bug with mixing types in the sinf() and cosf() functions could
+cause floating point operations to get into an endless loop of "device not
+available" exceptions.
+- Fixed: Booting was failing on Virtual PC.  VPC does not properly support
+the IA-32 architecture's "nested task" concept.  The multitasker no longer
+uses interrupt returns and nested tasks -- all task switches are done with
+far calls.  Mouse and keyboard still don't work properly in VPC.
+- Fixed: Text console error messages about not being able to find mouse
+pointer images.
+- Fixed: The 'cdrom' program was crashing with a page fault during device
+scanning.
+- Fixed: A kernel error message was showing in the console log when there
+was no boot splash image (a la Partition Logic) and the initialization
+code was trying to free the unallocated memory.
+- Fixed: The parititon diagram in the Disk Manager was showing extra
+border lines when clicked, that didn't appear until moused over and
+made stranger-looking by the phantom redrawing of invisible menu items at
+the same theoretical coordinates that caused them to be discontiguous.
+The superclass image component was unhelpfully drawing its border when
+focused.
+- Fixed: Detecting USB mice and keyboards at boot time could fail and
+prevent other devices such as PS/2 mice and keyboards from working
+properly.
+- Fixed: When using the 'disprops' program to enable the clock on the
+desktop, clicking OK after checking the box caused a page fault.
+- Fixed: When closing the console window opened from the command line,
+the following error message appeared:
+"Error:console:kernelWindowContainer.c:remove(401): No such component in
+container"
+- Fixed: The setData() function of the kernelWindowTextArea component was
+inserting a NULL 1 byte past the end of the supplied data buffer
+- Fixed: Opening the edit program when running from a read-only filesystem
+produced the following error in the window:
+"Error:edit:kernelFile.c:kernelFileGetTemp(3304) Filesystem is read-only"
+- Fixed: When running the edit program from a read-only filesystem,
+specifying a non-existent file would close the program without any message.
+- Fixed: The windowTextField widget now scrolls properly horizontally.
+- Fixed: Recursive copying of a directory into another directory using the
+'cp -R' command did not create the destination top-level directory, but
+instead merely copied the contents of the source directory.
+- Fixed: Added a NULL-parameter check to the strlen() C library function.
+- Fixed: the multitasker's createNewProcess() no longer crashes when the
+caller passes a NULL parameter in the argv[] array.
+- Fixed: The native installer program created an unbootable installation
+when using a FAT32 filesystem type.
+- Fixed: A disk caching bug wherein the cachePrune() function could be called
+in the middle of a mult-part cache read or write operation.
+- Fixed: A NULL-parameter kernel API call in the 'cal' Calendar program.
+- Fixed: A page fault exception that could occur when starting the
+'filebrowse' File Browser program.
+- Fixed: A bug in the C library 'memmove' function could cause a page fault
+when called to move 0 bytes.
+- Fixed: In the generic C library malloc() code, there was a bug that was
+causing partially-allocated blocks to not be split correctly.  Also added a
+consistency-checking function.
+- Fixed: The 'edit' program was creating temporary files that weren't being
+deleted on exit.
+- Fixed: A number of components were creating error messages and/or crashing
+when certain files (such as mouse pointer images and icons) aren't present.
+- Fixed: When using a FAT12 filesystem, writing any FAT sector after the
+first one was causing 2 sectors to be written - resulting in a write of the
+last FAT sector overwriting the first root directory sector.
+- Fixed: The kernelConfigRead() function could overrun its line buffer if
+the line was longer then 255 bytes.
+- Fixed: The FAT filesystem driver was under-calculating the correct size
+for the free-cluster bitmap in the case where the data clusters were not a
+multiple of 8.
+- Fixed: Assorted compiler and script errors when working with the source on
+an Ubuntu 10.10 system.
+- Fixed: Passing an empty string to the kernelFilesystemMount() command was
+resulting in the new filesystem being mounted over top of the current
+directory.
+- Fixed: The windowIcon initializer now error checks for NULL image data.
+
+--------------
  Version 0.69   24/09/2007
 --------------
 
@@ -256,6 +600,9 @@ using the 3 new functions, above.
 the kernel API function fileSeparateLast().
 - Removed the custom C library functions _div64(), _divdi3(),_moddi3(),
 _udivdi3(), and_umoddi3().  We now use the libgcc versions.
+- Made the 'progress' data structure 64-bit, and changed the text-mode
+version to show initial (0%) values and messages (as opposed to only when
+the first change occurs).
 - The GUI "menu bar" component is no longer a container.  It now *has* a
 container, so that it can also have state information about which menu is
 visible.  Previously, raising a right-click menu in the Disk Manager could

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,6 +45,8 @@ static kernelPhysicalDisk *physicalDisks[DISK_MAXDEVICES];
 static volatile int physicalDiskCounter = 0;
 static kernelDisk *logicalDisks[DISK_MAXDEVICES];
 static volatile int logicalDiskCounter = 0;
+static int numFloppyDisks = 0, numCdRoms = 0, numScsiDisks = 0,
+  numHardDisks = 0;
 
 // The name of the disk we booted from
 static char bootDisk[DISK_MAX_NAMELENGTH];
@@ -57,8 +59,9 @@ static char bootDisk[DISK_MAX_NAMELENGTH];
 // For the disk daemon
 static int diskdPID = 0;
 
-// This is a table for keeping known partition type codes and descriptions
-static partitionType partitionTypes[] = {
+// This is a table for keeping known MS-DOS partition type codes and
+// descriptions
+static msdosPartType msdosPartTypes[] = {
   { 0x01, "FAT12"},
   { 0x02, "XENIX root"},
   { 0x03, "XENIX /usr"},
@@ -156,6 +159,83 @@ static partitionType partitionTypes[] = {
   { 0xFD, "Linux RAID"},
   { 0xFE, "NT hidden"},
   { 0, "" }
+};
+
+// This is a table for keeping known GPT partition type GUIDs and descriptions
+static gptPartType gptPartTypes[] = {
+  { { 0x024DEE41, 0x33E7, 0x11D3, 0x9D, 0x69,
+      { 0x00, 0x08, 0xC7, 0x81, 0xF3, 0x9F } }, "MBR partition scheme" },
+  { { 0xC12A7328, 0xF81F, 0x11D2, 0xBA, 0x4B,
+      { 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B } }, "EFI System partition" },
+  { { 0xE3C9E316, 0x0B5C, 0x4DB8, 0x81, 0x7D,
+      { 0xF9, 0x2D, 0xF0, 0x02, 0x15, 0xAE } }, "Microsoft Reserved" },
+  { { 0xEBD0A0A2, 0xB9E5, 0x4433, 0x87, 0xC0,
+      { 0x68, 0xB6, 0xB7, 0x26, 0x99, 0xC7 } }, "Windows or Linux data" },
+  { { 0x5808C8AA, 0x7E8F, 0x42E0, 0x85, 0xD2,
+      { 0xE1, 0xE9, 0x04, 0x34, 0xCF, 0xB3 } }, "Windows LDM metadata" },
+  { { 0xAF9B60A0, 0x1431, 0x4F62, 0xBC, 0x68,
+      { 0x33, 0x11, 0x71, 0x4A, 0x69, 0xAD } }, "Windows LDM data" },
+  { { 0x75894C1E, 0x3AEB, 0x11D3, 0xB7, 0xC1,
+      { 0x7B, 0x03, 0xA0, 0x00, 0x00, 0x00 } }, "HP, UX data" },
+  { { 0xE2A1E728, 0x32E3, 0x11D6, 0xA6, 0x82,
+      { 0x7B, 0x03, 0xA0, 0x00, 0x00, 0x00 } }, "HP, UX service" },
+  { { 0xA19D880F, 0x05FC, 0x4D3B, 0xA0, 0x06,
+      { 0x74, 0x3F, 0x0F, 0x84, 0x91, 0x1E } }, "Linux RAID" },
+  { { 0x0657FD6D, 0xA4AB, 0x43C4, 0x84, 0xE5,
+      { 0x09, 0x33, 0xC8, 0x4B, 0x4F, 0x4F } }, "Linux swap" },
+  { { 0xE6D6D379, 0xF507, 0x44C2, 0xA2, 0x3C,
+      { 0x23, 0x8F, 0x2A, 0x3D, 0xF9, 0x28 } }, "Linux LVM" },
+  { { 0x8DA63339, 0x0007, 0x60C0, 0xC4, 0x36,
+      { 0x08, 0x3A, 0xC8, 0x23, 0x09, 0x08 } }, "Linux reserved" },
+  { { 0x516E7CB4, 0x6ECF, 0x11D6, 0x8F, 0xF8,
+      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD data" },
+  { { 0x516E7CB5, 0x6ECF, 0x11D6, 0x8F, 0xF8,
+      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD swap" },
+  { { 0x516E7CB6, 0x6ECF, 0x11D6, 0x8F, 0xF8,
+      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD Unix UFS" },
+  { { 0x516E7CB8, 0x6ECF, 0x11D6, 0x8F, 0xF8,
+      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD Vinum" },
+  { { 0x48465300, 0x0000, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "MacOS X HFS+" },
+  { { 0x55465300, 0x0000, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple UFS" },
+  { { 0x52414944, 0x0000, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple RAID" },
+  { { 0x52414944, 0x5F4F, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple RAID offline" },
+  { { 0x426F6F74, 0x0000, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple Boot" },
+  { { 0x4C616265, 0x6C00, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple label" },
+  { { 0x5265636F, 0x7665, 0x11AA, 0xAA, 0x11,
+      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple TV recovery" },
+  { { 0x6A82CB45, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris boot" },
+  { { 0x6A85CF4D, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris root" },
+  { { 0x6A87C46F, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris swap" },
+  { { 0x6A8B642B, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris backup" },
+  { { 0x6A898CC3, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris /usr" },
+  { { 0x6A8EF2E9, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris /var" },
+  { { 0x6A90BA39, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris /home" },
+  { { 0x6A9283A5, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris EFI_ALTSCTR" },
+  { { 0x6A945A3B, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
+  { { 0x6A9630D1, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
+  { { 0x6A980767, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
+  { { 0x6A96237F, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
+  { { 0x6A8D2AC7, 0x1DD2, 0x11B2, 0x99, 0xA6,
+      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
+  { GUID_BLANK, "" }
 };
 
 static int initialized = 0;
@@ -278,7 +358,7 @@ static int spawnDiskd(void)
 
 
 static int realReadWrite(kernelPhysicalDisk *physicalDisk,
-			 unsigned startSector, unsigned numSectors,
+			 uquad_t startSector, uquad_t numSectors,
 			 void *data, unsigned mode)
 {
   // This routine does all real, physical disk reads or writes.
@@ -305,7 +385,7 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk,
 
   // Do the actual read/write operation
 
-  kernelDebug(debug_io, "%s %s %u sectors at %u", physicalDisk->name,
+  kernelDebug(debug_io, "%s %s %llu sectors at %llu", physicalDisk->name,
 	      ((mode & IOMODE_READ)? "read" : "write"), numSectors,
 	      startSector);
 
@@ -316,9 +396,9 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk,
     status = ops->driverWriteSectors(physicalDisk->deviceNumber, startSector,
 				     numSectors, data);
 
-  kernelDebug(debug_io, "%s done %sing %u sectors at %u", physicalDisk->name,
-	      ((mode & IOMODE_READ)? "read" : "writ"), numSectors,
-	      startSector);
+  kernelDebug(debug_io, "%s done %sing %llu sectors at %llu",
+	      physicalDisk->name, ((mode & IOMODE_READ)? "read" : "writ"),
+	      numSectors, startSector);
 
   if (status < 0)
     {
@@ -330,9 +410,9 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk,
 	  physicalDisk->flags |= DISKFLAG_READONLY;
 	}
       else
-	kernelError(kernel_error, "Error %d %sing disk %s", status,
-		    ((mode & IOMODE_READ)? "read" : "writ"),
-		    physicalDisk->name);
+	kernelError(kernel_error, "Error %d %sing %llu sectors at %llu, "
+		    "disk %s", status, ((mode & IOMODE_READ)? "read" : "writ"),
+		    numSectors, startSector, physicalDisk->name);
     }
 
   return (status);
@@ -399,8 +479,8 @@ static int cacheSync(kernelPhysicalDisk *physicalDisk)
 
 
 static kernelDiskCacheBuffer *cacheGetBuffer(kernelPhysicalDisk *physicalDisk,
-					     unsigned startSector,
-					     unsigned numSectors)
+					     uquad_t startSector,
+					     uquad_t numSectors)
 {
   // Get a new cache buffer for the specified number of sectors.
 
@@ -474,13 +554,13 @@ static int cacheInvalidate(kernelPhysicalDisk *physicalDisk)
 
 
 static kernelDiskCacheBuffer *cacheFind(kernelPhysicalDisk *physicalDisk,
-					unsigned startSector,
-					unsigned numSectors)
+					uquad_t startSector,
+					uquad_t numSectors)
 {
   // Finds the first buffer that intersects the supplied range of sectors.
   // If not found, return NULL.
 
-  unsigned endSector = (startSector + numSectors - 1);
+  uquad_t endSector = (startSector + numSectors - 1);
   kernelDiskCacheBuffer *buffer = physicalDisk->cache.buffer;
 
   debugLockCheck(physicalDisk, __FUNCTION__);
@@ -511,14 +591,14 @@ static kernelDiskCacheBuffer *cacheFind(kernelPhysicalDisk *physicalDisk,
 
 
 static unsigned cacheQueryRange(kernelPhysicalDisk *physicalDisk,
-				unsigned startSector, unsigned numSectors,
-				unsigned *firstCached)
+				uquad_t startSector, uquad_t numSectors,
+				uquad_t *firstCached)
 {
   // Search the cache for a range of sectors.  If any of the range is cached,
   // return the *first* portion that is cached.
 
   kernelDiskCacheBuffer *buffer = NULL;
-  unsigned numCached = 0;
+  uquad_t numCached = 0;
 
   debugLockCheck(physicalDisk, __FUNCTION__);
 
@@ -529,13 +609,13 @@ static unsigned cacheQueryRange(kernelPhysicalDisk *physicalDisk,
       numCached = min((numSectors - (*firstCached - startSector)),
 		      (buffer->numSectors -
 		       (*firstCached - buffer->startSector)));
-      kernelDebug(debug_io, "%s found %u->%u in %u->%u, first=%u num=%u",
-		  physicalDisk->name, startSector,
+      kernelDebug(debug_io, "%s found %llu->%llu in %llu->%llu, first=%llu "
+		  "num=%llu", physicalDisk->name, startSector,
 		  (startSector + numSectors - 1), buffer->startSector,
 		  bufferEnd(buffer), *firstCached, numCached);
     }
   else
-    kernelDebug(debug_io, "%s %u->%u not found", physicalDisk->name, 
+    kernelDebug(debug_io, "%s %llu->%llu not found", physicalDisk->name, 
 		startSector, (startSector + numSectors - 1));
 
   return (numCached);
@@ -549,7 +629,7 @@ static void cachePrint(kernelPhysicalDisk *physicalDisk)
 
   while (buffer)
     {
-      kernelTextPrintLine("%s cache: %u->%u (%u sectors) %s",
+      kernelTextPrintLine("%s cache: %llu->%llu (%llu sectors) %s",
 			  physicalDisk->name, buffer->startSector,
 			  bufferEnd(buffer), buffer->numSectors,
 			  (buffer->dirty? "(dirty)" : ""));
@@ -561,8 +641,8 @@ static void cachePrint(kernelPhysicalDisk *physicalDisk)
 static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 {
   kernelDiskCacheBuffer *buffer = physicalDisk->cache.buffer;
-  unsigned cacheSize = 0;
-  unsigned numDirty = 0;
+  uquad_t cacheSize = 0;
+  uquad_t numDirty = 0;
   
   while (buffer)
     {
@@ -570,16 +650,18 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 	{
 	  if (buffer->startSector >= buffer->next->startSector)
 	    {
-	      kernelError(kernel_warn, "%s startSector <= next->startSector",
-			  physicalDisk->name);
+	      kernelError(kernel_warn, "%s startSector (%llu) >= "
+			  "next->startSector (%llu)", physicalDisk->name,
+			  buffer->startSector, buffer->next->startSector);
 	      cachePrint(physicalDisk); while(1);
 	    }
 
 	  if (bufferEnd(buffer) >= buffer->next->startSector)
 	    {
-	      kernelError(kernel_warn, "%s (startSector(%u) + numSectors(%u) "
-			  "= %u) > next->startSector(%u)", physicalDisk->name,
-			  buffer->startSector, buffer->numSectors,
+	      kernelError(kernel_warn, "%s (startSector(%llu) + "
+			  "numSectors(%llu) = %llu) > next->startSector(%llu)",
+			  physicalDisk->name, buffer->startSector,
+			  buffer->numSectors,
 			  (buffer->startSector + buffer->numSectors),
 			  buffer->next->startSector);
 	      cachePrint(physicalDisk); while(1);
@@ -589,8 +671,8 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 	  if ((bufferEnd(buffer) == (buffer->next->startSector - 1)) &&
 	      (buffer->dirty == buffer->next->dirty))
 	    {
-	      kernelError(kernel_warn, "%s buffer %u->%u should be joined "
-			  "with %u->%u (%s)", physicalDisk->name,
+	      kernelError(kernel_warn, "%s buffer %llu->%llu should be joined "
+			  "with %llu->%llu (%s)", physicalDisk->name,
 			  buffer->startSector, bufferEnd(buffer),
 			  buffer->next->startSector, bufferEnd(buffer->next),
 			  (buffer->dirty? "dirty" : "clean"));
@@ -625,16 +707,16 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
   
   if (cacheSize != physicalDisk->cache.size)
     {
-      kernelError(kernel_warn, "%s cacheSize(%u) != physicalDisk->cache.size"
-		  "(%u)", physicalDisk->name, cacheSize,
+      kernelError(kernel_warn, "%s cacheSize(%llu) != physicalDisk->cache.size"
+		  "(%llu)", physicalDisk->name, cacheSize,
 		  physicalDisk->cache.size);
       cachePrint(physicalDisk); while(1);
     }
 
   if (numDirty != physicalDisk->cache.dirty)
     {
-      kernelError(kernel_warn, "%s numDirty(%u) != physicalDisk->cache.dirty"
-		  "(%u)", physicalDisk->name, numDirty,
+      kernelError(kernel_warn, "%s numDirty(%llu) != physicalDisk->cache.dirty"
+		  "(%llu)", physicalDisk->name, numDirty,
 		  physicalDisk->cache.dirty);
       cachePrint(physicalDisk); while(1);
     }
@@ -700,13 +782,13 @@ static void cachePrune(kernelPhysicalDisk *physicalDisk)
       if (!oldestBuffer)
 	{
 	  kernelDebug(debug_io, "%s, no oldest buffer!", physicalDisk->name);
-	  while(1);
 	  break;
 	}
 
-      kernelDebug(debug_io, "%s uncache buffer %u->%u, dirty=%d",
+      kernelDebug(debug_io, "%s uncache buffer %llu->%llu, mem=%p, dirty=%d",
 		  physicalDisk->name, oldestBuffer->startSector,
-		  bufferEnd(oldestBuffer), oldestBuffer->dirty);
+		  bufferEnd(oldestBuffer), oldestBuffer->data,
+		  oldestBuffer->dirty);
 
       if (oldestBuffer->dirty)
 	{
@@ -716,7 +798,6 @@ static void cachePrune(kernelPhysicalDisk *physicalDisk)
 	    {
 	      kernelDebug(debug_io, "%s error writing dirty buffer",
 			  physicalDisk->name);
-	      while(1);
 	      return;
 	    }
 
@@ -731,8 +812,8 @@ static void cachePrune(kernelPhysicalDisk *physicalDisk)
 
 
 static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
-				       unsigned startSector,
-				       unsigned numSectors, void *data)
+				       uquad_t startSector,
+				       uquad_t numSectors, void *data)
 {
   // Add the supplied range of sectors to the cache.
 
@@ -740,14 +821,10 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
   kernelDiskCacheBuffer *nextBuffer = NULL;
   kernelDiskCacheBuffer *newBuffer = NULL;
 
-  //kernelDebug(debug_io, "%s adding %u->%u", physicalDisk->name,
-  //      startSector, (startSector + numSectors - 1));
+  //kernelDebug(debug_io, "%s adding %llu->%llu", physicalDisk->name,
+  //	      startSector, (startSector + numSectors - 1));
 
   debugLockCheck(physicalDisk, __FUNCTION__);
-
-  // Should we prune stuff out of the existing cache first?
-  if (physicalDisk->cache.size > DISK_MAX_CACHE)
-    cachePrune(physicalDisk);
 
   // Find out where in the order the new buffer would go.
   nextBuffer = physicalDisk->cache.buffer;
@@ -795,17 +872,17 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
 }
 
 
-static int cacheRead(kernelPhysicalDisk *physicalDisk, unsigned startSector,
-		     unsigned numSectors, void *data)
+static int cacheRead(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
+		     uquad_t numSectors, void *data)
 {
   // For ranges of sectors that are in the cache, copy them into the target
   // data buffer.  For ranges that are not in the cache, read the sectors
   // from disk and put a copy in a new cache buffer.
 
   int status = 0;
-  unsigned firstCached = 0;
-  unsigned numCached = 0;
-  unsigned notCached = 0;
+  uquad_t firstCached = 0;
+  uquad_t numCached = 0;
+  uquad_t notCached = 0;
   kernelDiskCacheBuffer *buffer = NULL;
 
   debugLockCheck(physicalDisk, __FUNCTION__);
@@ -868,25 +945,31 @@ static int cacheRead(kernelPhysicalDisk *physicalDisk, unsigned startSector,
 	  buffer = cacheAdd(physicalDisk, startSector, numSectors, data);
 	  if (buffer)
 	    buffer->lastAccess = kernelSysTimerRead();
+
 	  break;
 	}
     }
+
+  // Since we might have added something to the cache above, check whether
+  // we should prune it.
+  if (physicalDisk->cache.size > DISK_MAX_CACHE)
+    cachePrune(physicalDisk);
 
   return (status = 0);
 }
 
 
 static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
-					 unsigned startSector,
-					 unsigned numSectors, void *data,
+					 uquad_t startSector,
+					 uquad_t numSectors, void *data,
 					 kernelDiskCacheBuffer *buffer)
 {
   // Given a range of sectors, split them from the supplied buffer, resulting
   // in a previous buffer (if applicable), a next buffer(if applicable),
   // and the new split-off buffer which we return.
 
-  unsigned prevSectors = 0;
-  unsigned nextSectors = 0;
+  uquad_t prevSectors = 0;
+  uquad_t nextSectors = 0;
   kernelDiskCacheBuffer *prevBuffer = NULL;
   kernelDiskCacheBuffer *newBuffer = NULL;
   kernelDiskCacheBuffer *nextBuffer = NULL;
@@ -897,7 +980,7 @@ static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
 
   if (!prevSectors && !nextSectors)
     {
-      kernelError(kernel_error, "Cannot split %u sectors from a %u-sector"
+      kernelError(kernel_error, "Cannot split %llu sectors from a %llu-sector"
 		  "buffer", numSectors, buffer->numSectors);
       return (newBuffer = NULL);
     }
@@ -993,17 +1076,17 @@ static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
 }
 
 
-static int cacheWrite(kernelPhysicalDisk *physicalDisk, unsigned startSector,
-		      unsigned numSectors, void *data)
+static int cacheWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
+		      uquad_t numSectors, void *data)
 {
   // For ranges of sectors that are in the cache, overwrite the cache buffer
   // with the new data.  For ranges that are not in the cache, allocate a
   // new cache buffer for the new data.
 
   int status = 0;
-  unsigned firstCached = 0;
-  unsigned numCached = 0;
-  unsigned notCached = 0;
+  uquad_t firstCached = 0;
+  uquad_t numCached = 0;
+  uquad_t notCached = 0;
   kernelDiskCacheBuffer *buffer = NULL;
 
   debugLockCheck(physicalDisk, __FUNCTION__);
@@ -1076,13 +1159,18 @@ static int cacheWrite(kernelPhysicalDisk *physicalDisk, unsigned startSector,
 	}
     }
 
+  // Since we might have added something to the cache above, check whether
+  // we should prune it.
+  if (physicalDisk->cache.size > DISK_MAX_CACHE)
+    cachePrune(physicalDisk);
+
   return (status = 0);
 }
 #endif // DISK_CACHE
 
 
-static int readWrite(kernelPhysicalDisk *physicalDisk, unsigned startSector,
-		     unsigned numSectors, void *data, int mode)
+static int readWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
+		     uquad_t numSectors, void *data, int mode)
 {
   // This is the combined "read sectors" and "write sectors" routine.  Uses
   // the cache where available/permitted.
@@ -1167,6 +1255,8 @@ static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
   strncpy(userDisk->name, (char *) physicalDisk->name, DISK_MAX_NAMELENGTH);
   userDisk->deviceNumber = physicalDisk->deviceNumber;
   userDisk->type = physicalDisk->type;
+  strncpy(userDisk->model, (char *) physicalDisk->model, DISK_MAX_MODELLENGTH);
+  userDisk->model[DISK_MAX_MODELLENGTH - 1] = '\0';
   userDisk->flags = physicalDisk->flags;
   userDisk->heads = physicalDisk->heads;
   userDisk->cylinders = physicalDisk->cylinders;
@@ -1175,6 +1265,360 @@ static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
   userDisk->numSectors = physicalDisk->numSectors;
   userDisk->sectorSize = physicalDisk->sectorSize;
 
+  return (status = 0);
+}
+
+
+static inline int checkDosSignature(unsigned char *sectorData)
+{
+  // Returns 1 if the buffer contains an MSDOS signature.
+
+  if ((sectorData[510] != (unsigned char) 0x55) ||
+      (sectorData[511] != (unsigned char) 0xAA))
+    // No signature.  Return 0.
+    return (0);
+  else
+    // We'll say this has an MSDOS signature.
+    return (1);
+}
+
+
+static int isDosDisk(kernelPhysicalDisk *physicalDisk)
+{
+  // Return 1 if the physical disk appears to have an MS-DOS label on it.
+
+  int status = 0;
+  unsigned char *sectorData = NULL;
+
+  sectorData = kernelMalloc(physicalDisk->sectorSize);
+  if (sectorData == NULL)
+    return (status = ERR_MEMORY);
+
+  // Read the first sector of the device
+  status =
+    kernelDiskReadSectors((char *) physicalDisk->name, 0, 1, sectorData);
+  if (status < 0)
+    {
+      kernelFree(sectorData);
+      return (status);
+    }
+
+  // Is this a valid partition table?  Make sure the signature is at the end.
+  status = checkDosSignature(sectorData);
+
+  kernelFree(sectorData);
+
+  if (status == 1)
+    // Call this an MSDOS label.
+    return (status);
+  else
+    // Not an MSDOS label
+    return (status = 0);
+}
+
+
+static int isGptDisk(kernelPhysicalDisk *physicalDisk)
+{
+  // Return 1 if the physical disk appears to have a GPT label on it.
+
+  int status = 0;
+  unsigned char *sectorData = NULL;
+
+  // A GPT disk must have a "guard" MS-DOS table, so a call to the MS-DOS
+  // detect() function must succeed first.
+  if (isDosDisk(physicalDisk) != 1)
+    // Not a GPT label
+    return (status = 0);
+
+  sectorData = kernelMalloc(physicalDisk->sectorSize);
+  if (sectorData == NULL)
+    return (status = ERR_MEMORY);
+
+  // Read the header.  The guard MS-DOS table in the first sector.  Read
+  // the second sector.
+  status =
+    kernelDiskReadSectors((char *) physicalDisk->name, 1, 1, sectorData);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Can't read GPT header");
+      kernelFree(sectorData);
+      return (status);
+    }
+
+  // Check for the GPT signature 
+  if (kernelMemCmp(sectorData, "EFI PART", 8))
+    {
+      // No signature.
+      kernelFree(sectorData);
+      return (status = 0);
+    }
+
+  // Say it's GPT
+  kernelFree(sectorData);
+  return (status = 1);
+}
+
+
+static unsigned gptHeaderChecksum(unsigned char *sectorData)
+{
+  // Given a GPT header, compute the checksum
+
+  unsigned *headerBytesField = ((unsigned *)(sectorData + 12));
+  unsigned *checksumField = ((unsigned *)(sectorData + 16));
+  unsigned oldChecksum = 0;
+  unsigned checksum = 0;
+
+  // Zero the checksum field
+  oldChecksum = *checksumField;
+  *checksumField = 0;
+
+  // Get the checksum
+  checksum = kernelCrc32(sectorData, *headerBytesField, NULL);
+
+  *checksumField = oldChecksum;
+
+  return (checksum);
+}
+
+
+static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
+			     kernelDisk *newLogicalDisks[],
+			     int *newLogicalDiskCounter)
+{
+  int status = 0;
+  unsigned char *sectorData = NULL;
+  unsigned checksum = 0;
+  uquad_t entriesLogical = 0;
+  unsigned numEntries = 0;
+  unsigned entrySize = 0;
+  unsigned char *entry = NULL;
+  kernelDisk *logicalDisk = NULL;
+  guid *typeGuid = NULL;
+  gptPartType gptType;
+  unsigned count;
+
+  sectorData = kernelMalloc(physicalDisk->sectorSize);
+  if (sectorData == NULL)
+    return (status = ERR_MEMORY);
+
+  // Read the header.  The guard MS-DOS table in the first sector.  Read
+  // the second sector.
+  status =
+    kernelDiskReadSectors((char *) physicalDisk->name, 1, 1, sectorData);
+  if (status < 0)
+    {
+      kernelFree(sectorData);
+      return (status);
+    }
+
+  checksum = *((unsigned *)(sectorData + 16));
+  entriesLogical = *((uquad_t *)(sectorData + 72));
+  numEntries = *((unsigned *)(sectorData + 80));
+  entrySize = *((unsigned *)(sectorData + 84));
+
+  // Check the checksum
+  if (checksum != gptHeaderChecksum(sectorData))
+    {
+      kernelError(kernel_error, "GPT header bad checksum");
+      kernelFree(sectorData);
+      return (status = ERR_BADDATA);
+    }
+  
+  // Reallocate the buffer for reading the entries
+  kernelFree(sectorData);
+  sectorData = kernelMalloc(numEntries * entrySize);
+  if (sectorData == NULL)
+    return (status = ERR_MEMORY);
+
+  // Read the first sector of the entries.
+  status = kernelDiskReadSectors((char *) physicalDisk->name,
+				 (unsigned) entriesLogical,
+				 ((numEntries * entrySize) /
+				  physicalDisk->sectorSize), sectorData);
+  if (status < 0)
+    {
+      kernelFree(sectorData);
+      return (status);
+    }
+  
+  for (count = 0; ((count < numEntries) &&
+		   (physicalDisk->numLogical < DISK_MAX_PARTITIONS)); count ++)
+    {
+      entry = (sectorData + (count * entrySize));
+      logicalDisk = &(physicalDisk->logical[physicalDisk->numLogical]);
+
+      typeGuid = (guid *) entry;
+
+      if (!kernelMemCmp(typeGuid, &GUID_BLANK, sizeof(guid)))
+	// Empty
+	continue;
+
+      // We will add a logical disk corresponding to the partition we've
+      // discovered
+      sprintf((char *) logicalDisk->name, "%s%c", physicalDisk->name,
+	      ('a' + physicalDisk->numLogical));
+
+      // Assume UNKNOWN partition type for now.
+      strcpy((char *) logicalDisk->partType, physicalDisk->description);
+
+      // Now try to figure out the real one.
+      if (kernelDiskGetGptPartType((guid *) entry, &gptType) >= 0)
+	strncpy((char *) logicalDisk->partType, gptType.description,
+		FSTYPE_MAX_NAMELENGTH);
+
+      strncpy((char *) logicalDisk->fsType, "unknown", FSTYPE_MAX_NAMELENGTH);
+      logicalDisk->physical = physicalDisk;
+      logicalDisk->startSector = (unsigned) *((uquad_t *)(entry + 32));
+      logicalDisk->numSectors =
+	((unsigned) *((uquad_t *)(entry + 40)) - logicalDisk->startSector + 1);
+      logicalDisk->primary = 1;
+
+      newLogicalDisks[*newLogicalDiskCounter] = logicalDisk;
+      *newLogicalDiskCounter += 1;
+      physicalDisk->numLogical += 1;
+    }
+
+  kernelFree(sectorData);
+  return (status = 0);
+}
+
+
+static int readDosPartitions(kernelPhysicalDisk *physicalDisk,
+			     kernelDisk *newLogicalDisks[],
+			     int *newLogicalDiskCounter)
+{
+  // Given a disk with an MS-DOS label, read the partitions and construct
+  // the logical disks.
+
+  int status = 0;
+  unsigned char *sectorData = NULL;
+  unsigned char *partitionRecord = NULL;
+  unsigned char *extendedRecord = NULL;
+  int partition = 0;
+  kernelDisk *logicalDisk = NULL;
+  unsigned char msdosTag = 0;
+  msdosPartType msdosType;
+  uquad_t startSector = 0;
+  uquad_t extendedStartSector = 0;
+
+  sectorData = kernelMalloc(physicalDisk->sectorSize);
+  if (sectorData == NULL)
+    return (status = ERR_MEMORY);
+
+  // Read the first sector of the disk
+  status =
+    kernelDiskReadSectors((char *) physicalDisk->name, 0, 1, sectorData);
+  if (status < 0)
+    {
+      kernelFree(sectorData);
+      return (status);
+    }
+
+  while (physicalDisk->numLogical < DISK_MAX_PARTITIONS)
+    {
+      extendedRecord = NULL;
+
+      // Set this pointer to the first partition record in the
+      // master boot record
+      partitionRecord = (sectorData + 0x01BE);
+
+      // Loop through the partition records, looking for non-zero
+      // entries
+      for (partition = 0; partition < 4; partition ++)
+	{
+	  logicalDisk = &(physicalDisk->logical[physicalDisk->numLogical]);
+
+	  msdosTag = partitionRecord[4];
+	  if (msdosTag == 0)
+	    {
+	      // The "rules" say we must be finished with this
+	      // physical device.  But that is not the way things
+	      // often happen in real life -- empty records often
+	      // come before valid ones.
+	      partitionRecord += 16;
+	      continue;
+	    }
+
+	  if (MSDOS_TAG_IS_EXTD(msdosTag))
+	    {
+	      extendedRecord = partitionRecord;
+	      partitionRecord += 16;
+	      continue;
+	    }
+
+	  // Assume UNKNOWN (code 0) partition type for now.
+	  msdosType.tag = 0;
+	  strcpy((char *) msdosType.description, physicalDisk->description);
+
+	  // Now try to figure out the real one.
+	  kernelDiskGetMsdosPartType(msdosTag, &msdosType);
+	  
+	  // We will add a logical disk corresponding to the
+	  // partition we've discovered
+	  sprintf((char *) logicalDisk->name, "%s%c",
+		  physicalDisk->name,
+		  ('a' + physicalDisk->numLogical));
+	  strncpy((char *) logicalDisk->partType,
+		  msdosType.description, FSTYPE_MAX_NAMELENGTH);
+	  strncpy((char *) logicalDisk->fsType, "unknown",
+		  FSTYPE_MAX_NAMELENGTH);
+	  logicalDisk->physical = physicalDisk;
+	  logicalDisk->startSector =
+	    (startSector + *((unsigned *)(partitionRecord + 0x08)));
+	  logicalDisk->numSectors =
+	    *((unsigned *)(partitionRecord + 0x0C));
+	  if (!extendedStartSector)
+	    logicalDisk->primary = 1;
+		  
+	  newLogicalDisks[*newLogicalDiskCounter] = logicalDisk;
+	  *newLogicalDiskCounter += 1;
+	  physicalDisk->numLogical += 1;
+
+	  // If the partition's ending geometry values (heads and sectors) are
+	  // larger from what we've already recorded for the physical disk,
+	  // change the values in the physical disk to patch the partitions.
+	  if ((partitionRecord[5] >= physicalDisk->heads) ||
+	      ((partitionRecord[6] & 0x3F) > physicalDisk->sectorsPerCylinder))
+	    {
+	      physicalDisk->heads = (partitionRecord[5] + 1);
+	      physicalDisk->sectorsPerCylinder = (partitionRecord[6] & 0x3F);
+	      physicalDisk->cylinders =
+		(physicalDisk->numSectors /
+		 (physicalDisk->heads * physicalDisk->sectorsPerCylinder));
+	    }
+
+	  // Move to the next partition record
+	  partitionRecord += 16;
+	}
+
+      if (!extendedRecord)
+	break;
+
+      // Make sure the extended entry doesn't loop back on itself.
+      // It can happen.
+      if (extendedStartSector &&
+	  ((*((unsigned *)(extendedRecord + 0x08)) +
+	    extendedStartSector) == startSector))
+	{
+	  kernelError(kernel_error, "Extended partition links to itself");
+	  break;
+	}
+
+      // We have an extended partition chain.  We need to go through
+      // that as well.
+      startSector = *((unsigned *)(extendedRecord + 0x08));
+
+      if (!extendedStartSector)
+	extendedStartSector = startSector;
+      else
+	startSector += extendedStartSector;	
+
+      if (kernelDiskReadSectors((char *) physicalDisk->name, startSector,
+				1, sectorData) < 0)
+	break;
+    }
+
+  kernelFree(sectorData);
   return (status = 0);
 }
 
@@ -1273,6 +1717,16 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
       kernelError(kernel_error, "Max disk structures already registered");
       return (status = ERR_NOFREE);
     }
+
+  // Compute the name for the disk, depending on what type of device it is
+  if (physicalDisk->type & DISKTYPE_FLOPPY)
+    sprintf((char *) physicalDisk->name, "fd%d", numFloppyDisks++);
+  else if (physicalDisk->type & DISKTYPE_CDROM)
+    sprintf((char *) physicalDisk->name, "cd%d", numCdRoms++);
+  else if (physicalDisk->type & DISKTYPE_SCSIDISK)
+    sprintf((char *) physicalDisk->name, "sd%d", numScsiDisks++);
+  else if (physicalDisk->type & DISKTYPE_HARDDISK)
+    sprintf((char *) physicalDisk->name, "hd%d", numHardDisks++);
 
   // Disk cache initialization is deferred until cache use is attempted.
   // Otherwise we waste memory allocating caches for disks that might
@@ -1437,6 +1891,75 @@ int kernelDiskInitialize(void)
 }
 
 
+void kernelDiskAutoMount(kernelDisk *theDisk)
+{
+  // Given a disk, see if it is listed in the mount.conf file, whether it
+  // is supposed to be automounted, and if so, mount it.
+
+  int status = 0;
+  variableList mountConfig;
+  char variable[128];
+  char value[128];
+  char mountPoint[MAX_PATH_LENGTH];
+
+  // Already mounted?
+  if (theDisk->filesystem.mounted)
+    return;
+
+  // Try reading the mount configuration file
+  status = kernelConfigRead(DISK_MOUNT_CONFIG, &mountConfig);
+  if (status < 0)
+    return;
+
+  // See if a mount point is specified
+  snprintf(variable, 128, "%s.mountpoint", theDisk->name);
+  status = kernelVariableListGet(&mountConfig, variable, value, 128);
+  if (status < 0)
+    goto out;
+
+  status = kernelFileFixupPath(value, mountPoint);
+  if (status < 0)
+    goto out;
+
+  // See if we're supposed to automount it.
+  snprintf(variable, 128, "%s.automount", theDisk->name);
+  status = kernelVariableListGet(&mountConfig, variable, value, 128);
+  if (status < 0)
+    goto out;
+
+  if (strcasecmp(value, "yes"))
+    goto out;
+
+  if ((theDisk->physical->type & DISKTYPE_REMOVABLE) &&
+      // See if there's any media there
+      !kernelDiskGetMediaState((const char *) theDisk->name))
+    {
+      kernelError(kernel_error, "Can't automount %s on disk %s - no media",
+		  mountPoint, theDisk->name);
+      goto out;
+    }
+
+  kernelFilesystemMount((const char *) theDisk->name, mountPoint);
+
+ out:
+  kernelVariableListDestroy(&mountConfig);
+  return;
+}
+
+
+void kernelDiskAutoMountAll(void)
+{
+  int count;
+
+  // Loop through the logical disks and see whether they should be
+  // automounted.
+  for (count = 0; count < logicalDiskCounter; count ++)
+    kernelDiskAutoMount(logicalDisks[count]);
+
+  return;
+}
+
+
 int kernelDiskInvalidateCache(const char *diskName)
 {
   // Invalidate the cache of the named disk
@@ -1548,14 +2071,16 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   if (logical->primary)
     userDisk->type |= DISKTYPE_PRIMARY;
   userDisk->flags = logical->physical->flags;
-  kernelMemCopy((void *) &(logical->partType), &(userDisk->partType),
-		sizeof(partitionType));
+  strncpy(userDisk->partType, (char *) logical->partType,
+	  FSTYPE_MAX_NAMELENGTH);
   strncpy(userDisk->fsType, (char *) logical->fsType, FSTYPE_MAX_NAMELENGTH);
   userDisk->opFlags = logical->opFlags;
   userDisk->startSector = logical->startSector;
   userDisk->numSectors = logical->numSectors;
 
   // Filesystem-related
+  strncpy(userDisk->label, (char *) logical->filesystem.label,
+	  MAX_NAME_LENGTH);
   userDisk->blockSize = logical->filesystem.blockSize;
   userDisk->minSectors = logical->filesystem.minSectors;
   userDisk->maxSectors = logical->filesystem.maxSectors;
@@ -1563,7 +2088,7 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   if (userDisk->mounted)
     {
       userDisk->freeBytes =
-	kernelFilesystemGetFree((char *) logical->filesystem.mountPoint);
+	kernelFilesystemGetFreeBytes((char *) logical->filesystem.mountPoint);
       strncpy(userDisk->mountPoint, (char *) logical->filesystem.mountPoint,
 	      MAX_PATH_LENGTH);
     }
@@ -1603,41 +2128,6 @@ kernelDisk *kernelDiskGetByName(const char *name)
 }
 
 
-kernelDisk *kernelDiskGetByPath(const char *path)
-{
-  // This routine takes the name of a mount point and attempts to find a
-  // disk that is mounted there.  If no such disk exists, the function
-  // returns NULL
-
-  kernelDisk *theDisk = NULL;
-  int count;
-
-  if (!initialized)
-    return (theDisk = NULL);
-
-  // Check params
-  if (path == NULL)
-    {
-      kernelError(kernel_error, "Disk path is NULL");
-      return (theDisk = NULL);
-    }
-  
-  for (count = 0; count < logicalDiskCounter; count ++)
-    {
-      if (!logicalDisks[count]->filesystem.mounted)
-	continue;
-      
-      if (!strcmp(path, (char *) logicalDisks[count]->filesystem.mountPoint))
-	{
-	  theDisk = logicalDisks[count];
-	  break;
-	}
-    }
-
-  return (theDisk);
-}
-
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -1650,7 +2140,7 @@ kernelDisk *kernelDiskGetByPath(const char *path)
 
 int kernelDiskReadPartitions(const char *diskName)
 {
-  // Read the partition tables for all the registered physical disks, and
+  // Read the partition table for the requested physical disk, and
   // (re)build the list of logical disks.  This will be done initially at
   // startup time, but can be re-called during operation if the partitions
   // have been changed.
@@ -1661,14 +2151,7 @@ int kernelDiskReadPartitions(const char *diskName)
   int newLogicalDiskCounter = 0;
   int mounted = 0;
   kernelDisk *logicalDisk = NULL;
-  unsigned char sectBuf[512];
-  int partition = 0;
-  unsigned char *partitionRecord = NULL;
-  unsigned char *extendedRecord = NULL;
-  unsigned extendedStartSector = 0;
-  unsigned startSector = 0;
-  unsigned char partTypeCode = 0;
-  partitionType partType;
+  msdosPartType msdosType;
   int count;
 
   if (!initialized)
@@ -1690,8 +2173,8 @@ int kernelDiskReadPartitions(const char *diskName)
       newLogicalDisks[newLogicalDiskCounter++] = logicalDisks[count];
 
   // Assume UNKNOWN (code 0) partition type for now.
-  partType.code = 0;
-  strcpy((char *) partType.description, physicalDisk->description);
+  msdosType.tag = 0;
+  strcpy((char *) msdosType.description, physicalDisk->description);
 
   // If this is a hard disk, get the logical disks from reading the partitions.
   if (physicalDisk->type & DISKTYPE_HARDDISK)
@@ -1721,132 +2204,26 @@ int kernelDiskReadPartitions(const char *diskName)
 	  return (status = 1);
 	}
 
-      // Initialize the sector buffer
-      kernelMemClear(sectBuf, 512);
-
-      startSector = 0;
-      extendedStartSector = 0;
-      
       // Clear the logical disks
       physicalDisk->numLogical = 0;
       kernelMemClear(&(physicalDisk->logical),
 		     (sizeof(kernelDisk) * DISK_MAX_PARTITIONS));
 
-      // Read the first sector of the disk
-      status =
-	kernelDiskReadSectors((char *) physicalDisk->name, 0, 1, sectBuf);
+      // Check to see if it's a GPT disk first, since a GPT disk is also
+      // technically an MS-DOS disk.
+      if (isGptDisk(physicalDisk) == 1)
+	status = readGptPartitions(physicalDisk, newLogicalDisks,
+				   &newLogicalDiskCounter);
+
+      // Now check whether it's an MS-DOS disk.
+      else if (isDosDisk(physicalDisk) == 1)
+	status = readDosPartitions(physicalDisk, newLogicalDisks,
+				   &newLogicalDiskCounter);
+
       if (status < 0)
 	return (status);
-
-      while (physicalDisk->numLogical < DISK_MAX_PARTITIONS)
-	{
-	  extendedRecord = NULL;
-
-	  // Is this a valid MBR?
-	  if ((sectBuf[511] == (unsigned char) 0xAA) ||
-	      (sectBuf[510] == (unsigned char) 0x55))
-	    {
-	      // Set this pointer to the first partition record in the
-	      // master boot record
-	      partitionRecord = (sectBuf + 0x01BE);
-
-	      // Loop through the partition records, looking for non-zero
-	      // entries
-	      for (partition = 0; partition < 4; partition ++)
-		{
-		  logicalDisk =
-		    &(physicalDisk->logical[physicalDisk->numLogical]);
-
-		  partTypeCode = partitionRecord[4];
-		  if (partTypeCode == 0)
-		    {
-		      // The "rules" say we must be finished with this
-		      // physical device.  But that is not the way things
-		      // often happen in real life -- empty records often
-		      // come before valid ones.
-		      partitionRecord += 16;
-		      continue;
-		    }
-
-		  if (PARTITION_TYPEID_IS_EXTD(partTypeCode))
-		    {
-		      extendedRecord = partitionRecord;
-		      partitionRecord += 16;
-		      continue;
-		    }
-
-		  kernelDiskGetPartType(partTypeCode, &partType);
-	  
-		  // We will add a logical disk corresponding to the
-		  // partition we've discovered
-		  sprintf((char *) logicalDisk->name, "%s%c",
-			  physicalDisk->name,
-			  ('a' + physicalDisk->numLogical));
-		  kernelMemCopy(&partType, (void *) &(logicalDisk->partType),
-				sizeof(partitionType));
-		  strncpy((char *) logicalDisk->fsType, "unknown",
-			  FSTYPE_MAX_NAMELENGTH);
-		  logicalDisk->physical = physicalDisk;
-		  logicalDisk->startSector =
-		    (startSector + *((unsigned *)(partitionRecord + 0x08)));
-		  logicalDisk->numSectors =
-		    *((unsigned *)(partitionRecord + 0x0C));
-		  if (!extendedStartSector)
-		    logicalDisk->primary = 1;
-		  
-		  newLogicalDisks[newLogicalDiskCounter++] = logicalDisk;
-		      
-		  physicalDisk->numLogical++;
-
-		  // If the partition's ending geometry values (heads and
-		  // sectors) are larger than what we've already recorded for
-		  // the physical disk, change the values in the physical disk
-		  // to patch the partitions.
-		  if ((partitionRecord[5] >= physicalDisk->heads) ||
-		      ((partitionRecord[6] & 0x3F) >
-		       physicalDisk->sectorsPerCylinder))
-		    {
-		      physicalDisk->heads = (partitionRecord[5] + 1);
-		      physicalDisk->sectorsPerCylinder =
-			(partitionRecord[6] & 0x3F);
-		      physicalDisk->cylinders =
-			(physicalDisk->numSectors /
-			 (physicalDisk->heads *
-			  physicalDisk->sectorsPerCylinder));
-		    }
-
-		  // Move to the next partition record
-		  partitionRecord += 16;
-		}
-	    }
-
-	  if (!extendedRecord)
-	    break;
-
-	  // Make sure the extended entry doesn't loop back on itself.
-	  // It can happen.
-	  if (extendedStartSector &&
-	      ((*((unsigned *)(extendedRecord + 0x08)) +
-		extendedStartSector) == startSector))
-	    {
-	      kernelError(kernel_error, "Extended partition links to itself");
-	      break;
-	    }
-
-	  // We have an extended partition chain.  We need to go through
-	  // that as well.
-	  startSector = *((unsigned *)(extendedRecord + 0x08));
-
-	  if (!extendedStartSector)
-	    extendedStartSector = startSector;
-	  else
-	    startSector += extendedStartSector;	
-
-	  if (kernelDiskReadSectors((char *) physicalDisk->name, startSector,
-				    1, sectBuf) < 0)
-	    break;
-	}
     }
+
   else
     {
       // If this is a not a hard disk, make the logical disk be the same
@@ -1855,8 +2232,8 @@ int kernelDiskReadPartitions(const char *diskName)
       logicalDisk = &(physicalDisk->logical[0]);
       // Logical disk name same as device name
       strcpy((char *) logicalDisk->name, (char *) physicalDisk->name);
-      kernelMemCopy(&partType, (void *) &(logicalDisk->partType),
-		    sizeof(partitionType));
+      strncpy((char *) logicalDisk->partType, msdosType.description,
+	      FSTYPE_MAX_NAMELENGTH);
       if (logicalDisk->fsType[0] == '\0')
 	strncpy((char *) logicalDisk->fsType, "unknown",
 		FSTYPE_MAX_NAMELENGTH);
@@ -2034,8 +2411,7 @@ int kernelDiskGetBoot(char *boot)
 
 int kernelDiskGetCount(void)
 {
-  // Returns the number of registered logical disk structures.  Useful for
-  // iterating through calls to kernelGetDiskByName or kernelDiskGetInfo
+  // Returns the number of registered logical disk structures.
 
   if (!initialized)
     return (ERR_NOTINITIALIZED);
@@ -2046,8 +2422,7 @@ int kernelDiskGetCount(void)
 
 int kernelDiskGetPhysicalCount(void)
 {
-  // Returns the number of registered physical disk structures.  Useful for
-  // iterating through calls to kernelGetDiskByName or kernelDiskGetInfo
+  // Returns the number of registered physical disk structures.
 
   if (!initialized)
     return (ERR_NOTINITIALIZED);
@@ -2156,7 +2531,7 @@ int kernelDiskGetFilesystemType(const char *diskName, char *buffer,
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (diskName == NULL)
+  if ((diskName == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
   // There must exist a logical disk with this name.
@@ -2178,42 +2553,84 @@ int kernelDiskGetFilesystemType(const char *diskName, char *buffer,
 }
 
 
-int kernelDiskGetPartType(int code, partitionType *partType)
+int kernelDiskGetMsdosPartType(int tag, msdosPartType *type)
 {
   // This function takes the supplied code and returns a corresponding
-  // partition type structure in the memory provided.
+  // MS-DOS partition type structure in the memory provided.
 
   int status = 0;
   int count;
 
   // We don't check for initialization; the table is static.
 
-  if (partType == NULL)
+  if (type == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  for (count = 0; (partitionTypes[count].code != 0); count ++)
-    if (partitionTypes[count].code == code)
+  for (count = 0; (msdosPartTypes[count].tag != 0); count ++)
+    if (msdosPartTypes[count].tag == tag)
       {
-	kernelMemCopy(&(partitionTypes[count]), partType,
-		      sizeof(partitionType));
-	break;
+	kernelMemCopy(&msdosPartTypes[count], type, sizeof(msdosPartType));
+	return (status = 0);
       }
 
-  return (status = 0);
+  // Not found
+  return (status = ERR_NOSUCHENTRY);
 }
 
 
-partitionType *kernelDiskGetPartTypes(void)
+msdosPartType *kernelDiskGetMsdosPartTypes(void)
 {
-  // Allocate and return a copy of our table of known partition types
+  // Allocate and return a copy of our table of known MS-DOS partition types
   // We don't check for initialization; the table is static.
 
-  partitionType *types =
-    kernelMemoryGet(sizeof(partitionTypes), "partition types");
+  msdosPartType *types =
+    kernelMemoryGet(sizeof(msdosPartTypes), "partition types");
   if (types == NULL)
     return (types);
 
-  kernelMemCopy(partitionTypes, types, sizeof(partitionTypes));
+  kernelMemCopy(msdosPartTypes, types, sizeof(msdosPartTypes));
+  return (types);
+}
+
+
+int kernelDiskGetGptPartType(guid *g, gptPartType *type)
+{
+  // This function takes the supplied GUID and returns a corresponding
+  // GPT partition type structure in the memory provided.
+
+  int status = 0;
+  int count;
+
+  // We don't check for initialization; the table is static.
+
+  if (type == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  for (count = 0;
+       kernelMemCmp(&gptPartTypes[count].typeGuid, &GUID_BLANK, sizeof(guid));
+       count ++)
+    if (!kernelMemCmp(&gptPartTypes[count].typeGuid, g, sizeof(guid)))
+      {
+	kernelMemCopy(&gptPartTypes[count], type, sizeof(gptPartType));
+	return (status = 0);
+      }
+
+  // Not found
+  return (status = ERR_NOSUCHENTRY);
+}
+
+
+gptPartType *kernelDiskGetGptPartTypes(void)
+{
+  // Allocate and return a copy of our table of known GPT partition types
+  // We don't check for initialization; the table is static.
+
+  gptPartType *types =
+    kernelMemoryGet(sizeof(gptPartTypes), "partition types");
+  if (types == NULL)
+    return (types);
+
+  kernelMemCopy(gptPartTypes, types, sizeof(gptPartTypes));
   return (types);
 }
 
@@ -2541,8 +2958,8 @@ int kernelDiskChanged(const char *diskName)
 }
 
 
-int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
-			  unsigned numSectors, void *dataPointer)
+int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
+			  uquad_t numSectors, void *dataPointer)
 {
   // This routine is the user-accessible interface to reading data using
   // the various disk routines in this file.  Basically, it is a gatekeeper
@@ -2579,14 +2996,20 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
 	   (theDisk->startSector + theDisk->numSectors)))
 	{
 	  // Make a kernelError.
-	  kernelError(kernel_error, "Sector range %u-%u exceeds volume "
-		      "boundary of %u", logicalSector,
+	  kernelError(kernel_error, "Sector range %llu-%llu exceeds volume "
+		      "boundary of %llu", logicalSector,
 		      (logicalSector + numSectors - 1),
 		      (theDisk->startSector + theDisk->numSectors));
 	  return (status = ERR_BOUNDS);
 	}
 
       physicalDisk = theDisk->physical;
+
+      if (physicalDisk == NULL)
+	{
+	  kernelError(kernel_error, "Logical disk's physical disk is NULL");
+	  return (status = ERR_NOSUCHENTRY);
+	}
     }
 
   // Reset the 'last access' value
@@ -2611,8 +3034,8 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
 }
 
 
-int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector, 
-			   unsigned numSectors, const void *data)
+int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector, 
+			   uquad_t numSectors, const void *data)
 {
   // This routine is the user-accessible interface to writing data using
   // the various disk routines in this file.  Basically, it is a gatekeeper
@@ -2654,11 +3077,17 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
 	}
       
       physicalDisk = theDisk->physical;
+
+      if (physicalDisk == NULL)
+	{
+	  kernelError(kernel_error, "Logical disk's physical disk is NULL");
+	  return (status = ERR_NOSUCHENTRY);
+	}
     }
 
   // Reset the 'last access' value
   physicalDisk->lastAccess = kernelSysTimerRead();
-  
+
   // Lock the disk
   status = kernelLockGet(&physicalDisk->lock);
   if (status < 0)
@@ -2670,7 +3099,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
 
   // Reset the 'last access' value
   physicalDisk->lastAccess = kernelSysTimerRead();
-  
+
   // Unlock the disk
   kernelLockRelease(&physicalDisk->lock);
 
@@ -2678,8 +3107,8 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
 }
 
 
-int kernelDiskEraseSectors(const char *diskName, unsigned logicalSector, 
-			   unsigned numSectors, int passes)
+int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector, 
+			   uquad_t numSectors, int passes)
 {
   // This routine synchronously and securely erases disk sectors.  It writes
   // (passes - 1) successive passes of random data followed by a final pass

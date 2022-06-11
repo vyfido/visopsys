@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -89,19 +89,14 @@ static void makeSystemTime(unsigned char *isoTime, unsigned *date,
 
   // The year
   *date = ((isoTime[0] + 1900) << 9);
-
   // The month (1-12)
   *date |= ((isoTime[1] & 0x0F) << 5);
-
   // Day of the month (1-31)
   *date |= (isoTime[2] & 0x1F);
-
   // The hour
   *theTime = ((isoTime[3] & 0x3F) << 12);
-
   // The minute
   *theTime |= ((isoTime[4] & 0x3F) << 6);
-
   // The second
   *theTime |= (isoTime[5] & 0x3F);
 
@@ -167,6 +162,7 @@ static isoInternalData *getIsoData(kernelDisk *theDisk)
   // This function reads the filesystem parameters from the disk.
 
   int status = 0;
+  int len = 0;
   isoInternalData *isoData = theDisk->filesystem.filesystemData;
 
   // Have we already read the parameters for this filesystem?
@@ -197,9 +193,6 @@ static isoInternalData *getIsoData(kernelDisk *theDisk)
       return (isoData = NULL);
     }
 
-  // Put a NULL in the volume identifier
-  isoData->volDesc.volumeIdentifier[31] = '\0';
-
   // Get the root directory record
   readDirRecord((isoDirectoryRecord *) &(isoData->volDesc.rootDirectoryRecord),
 		theDisk->filesystem.filesystemRoot,
@@ -207,6 +200,15 @@ static isoInternalData *getIsoData(kernelDisk *theDisk)
 
   // Attach our new FS data to the filesystem structure
   theDisk->filesystem.filesystemData = (void *) isoData;
+
+  // Save the volume label
+  strncpy((char *) theDisk->filesystem.label,
+	  (char *) isoData->volDesc.volumeIdentifier, 32);
+
+  // Remove unnecessary whitespace at the end
+  while ((len = strlen((char *) theDisk->filesystem.label)) &&
+	 (theDisk->filesystem.label[len - 1] == ' '))
+    theDisk->filesystem.label[len - 1] = '\0';
 
   // Specify the filesystem block size
   theDisk->filesystem.blockSize = isoData->volDesc.blockSize;
@@ -250,6 +252,12 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
  		"entries");
 
   scanDirRec = (isoFileData *) dirEntry->driverData;
+  if (scanDirRec == NULL)
+    {
+      kernelError(kernel_error, "Directory \"%s\" has no private data",
+		  dirEntry->name);
+      return (status = ERR_NODATA);
+    }
 
   bufferSize = (dirEntry->blocks * isoData->volDesc.blockSize);
   if (bufferSize < dirEntry->size)
@@ -300,7 +308,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
       if ((fileEntry == NULL) || (fileEntry->driverData == NULL))
         {
           kernelError(kernel_error, "Unable to get new filesystem entry or "
-                          "entry has no private data");
+		      "entry has no private data");
           kernelFree(buffer);
           return (status = ERR_NOCREATE);
         }
@@ -373,12 +381,22 @@ static int detect(kernelDisk *theDisk)
     return (status = 0);
 
   strcpy((char *) theDisk->fsType, FSNAME_ISO);
+  strncpy((char *) theDisk->filesystem.label,
+	  (char *) isoData.volDesc.volumeIdentifier, 32);
 
   theDisk->filesystem.blockSize = isoData.volDesc.blockSize;
   theDisk->filesystem.minSectors = 0;
   theDisk->filesystem.maxSectors = 0;
   
   return (status = 1);
+}
+
+
+static uquad_t getFreeBytes(kernelDisk *theDisk __attribute__((unused)))
+{
+  // This function returns the amount of free disk space, in bytes,
+  // which is always zero.
+  return (0);
 }
 
 
@@ -446,19 +464,6 @@ static int unmount(kernelDisk *theDisk)
     status = kernelFree(theDisk->filesystem.filesystemData);
 
   return (status);
-}
-
-
-static unsigned getFree(kernelDisk *theDisk)
-{
-  // This function returns the amount of free disk space, in bytes,
-  // which is always zero.
-
-  // This is unnecessary, but keeps the compiler happy
-  if (theDisk == NULL)
-    return (0);
-
-  return (0);
 }
 
 
@@ -562,9 +567,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 		    unsigned blocks, unsigned char *buffer)
 {
   // This function is the "read file" function that the filesystem
-  // driver exports to the world.  It is mainly a wrapper for the
-  // internal function of the same purpose, but with some additional
-  // argument checking.  Returns 0 on success, negative otherwise.
+  // driver exports to the world.  Returns 0 on success, negative otherwise.
 
   int status = 0;
   isoInternalData *isoData = NULL;
@@ -641,11 +644,11 @@ static kernelFilesystemDriver defaultIsoDriver = {
   NULL,  // driverCheck
   NULL,  // driverDefragment
   NULL,  // driverStat
+  getFreeBytes,
   NULL,  // driverResizeConstraints
   NULL,  // driverResize
   mount,
   unmount,
-  getFree,
   newEntry,
   inactiveEntry,
   resolveLink,
@@ -658,7 +661,8 @@ static kernelFilesystemDriver defaultIsoDriver = {
   NULL,  // driverWriteDir
   NULL,  // driverMakeDir
   NULL,  // driverRemoveDir
-  NULL   // driverTimestamp
+  NULL,  // driverTimestamp
+  NULL   // driverSetBlocks
 };
 
 

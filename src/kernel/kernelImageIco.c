@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,18 +21,18 @@
 
 // This file contains code for manipulating windows .ico format icon files.
 
-#include "kernelImage.h"
 #include "kernelImageIco.h"
+#include "kernelError.h"
+#include "kernelGraphic.h"
+#include "kernelImage.h"
 #include "kernelImageBmp.h"
 #include "kernelLoader.h"
-#include "kernelMemory.h"
 #include "kernelMisc.h"
-#include "kernelError.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 
-static int detect(const char *fileName, void *dataPtr, int dataSize,
+static int detect(const char *fileName, void *dataPtr, unsigned dataSize,
 		  loaderFileClass *class)
 {
   // This function returns 1 and fills the fileClass structure if the data
@@ -61,7 +61,7 @@ static int detect(const char *fileName, void *dataPtr, int dataSize,
       // We will say this is an ICO file.
       sprintf(class->className, "%s %s", FILECLASS_NAME_ICO,
 	      FILECLASS_NAME_IMAGE);
-      class->flags = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
+      class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
       return (1);
     }
   else
@@ -141,15 +141,12 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 
   palette = ((void *) infoHeader + infoHeader->headerSize);
 
-  // Figure out how much memory we need for the array of pixels that
-  // we'll attach to the image, and allocate it.  The size is a
-  // product of the image height and width.
-  loadImage->pixels = (width * height);
-  loadImage->dataLength = (loadImage->pixels * sizeof(pixel));
+  // Get a blank image of sufficient size
+  status = kernelImageNew(loadImage, width, height);
+  if (status < 0)
+    return (status);
 
-  imageData = kernelMemoryGet(loadImage->dataLength, "image data");
-  if (imageData == NULL)
-    return (status = ERR_MEMORY);
+  imageData = loadImage->data;
  
   // Ok.  Now we need to loop through the bitmap data and turn each bit of
   // data into a pixel.  Note that bitmap data is "upside down" in the file.
@@ -233,7 +230,7 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 		    {
 		      kernelError(kernel_error, "Illegal color index %d",
 				  colorIndex);
-		      kernelMemoryRelease(imageData);
+		      kernelImageFree((image *) &loadImage);
 		      return (status = ERR_INVALID);
 		    }
 
@@ -250,7 +247,7 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 	{
 	  // Not supported.  Release the image data memory
 	  kernelError(kernel_error, "RLE compression not supported");
-	  kernelMemoryRelease(imageData);
+	  kernelImageFree((image *) &loadImage);
 	  return (status = ERR_INVALID);
 	}
     }
@@ -259,7 +256,7 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
       // Not supported.  Release the image data memory
       kernelError(kernel_error, "Unsupported bit depth %d",
 		  infoHeader->bitsPerPixel);
-      kernelMemoryRelease(imageData);
+      kernelImageFree((image *) &loadImage);
       return (status = ERR_INVALID);
     }
 

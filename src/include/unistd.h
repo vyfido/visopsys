@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -41,11 +41,14 @@ extern int optind, opterr, optopt;
 #include <sys/stat.h>
 
 int close(int);
+int ftruncate(int, off_t);
 int getopt(int, char *const[], const char *);
 off_t lseek(int, off_t, int);
 size_t read(int, void *, size_t);
+unsigned sleep(unsigned);
 int stat(const char *, struct stat *);
 void swab(const void *, void *, ssize_t);
+int truncate(const char *, off_t);
 size_t write(int, const void *, size_t);
 
 #define _UNISTD_H

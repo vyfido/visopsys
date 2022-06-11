@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -62,15 +62,18 @@ int open(const char *fileName, int flags)
   // We have to adapt the UNIX/POSIX flags to our flags
 
   if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+    {
+      errno = ERR_BUG;
+      return (-1);
+    }
 
   // First the 'exclusive' ones
   if (flags & O_RDONLY)
     newFlags |= OPENMODE_READ;
-  else if (flags & O_WRONLY)
-    newFlags |= OPENMODE_WRITE;
   else if (flags & O_RDWR)
     newFlags |= OPENMODE_READWRITE;
+  else if (flags & O_WRONLY)
+    newFlags |= OPENMODE_WRITE;
 
   // The rest
   if (flags & O_CREAT)
@@ -78,21 +81,24 @@ int open(const char *fileName, int flags)
   if (flags & O_TRUNC)
     newFlags |= OPENMODE_TRUNCATE;
   if ((newFlags & OPENMODE_CREATE) && (flags & O_EXCL))
-    newFlags |= ~OPENMODE_CREATE;
+    newFlags &= ~OPENMODE_CREATE;
   if ((newFlags & OPENMODE_TRUNCATE) && (flags & O_APPEND))
-    newFlags |= ~OPENMODE_TRUNCATE;
+    newFlags &= ~OPENMODE_TRUNCATE;
 
   // Get memory for the file stream
   theStream = malloc(sizeof(fileStream));
   if (theStream == NULL)
-    return (errno = ERR_MEMORY);
+    {
+      errno = ERR_MEMORY;
+      return (-1);
+    }
 
-  bzero(theStream, sizeof(fileStream));
   status = fileStreamOpen(fileName, newFlags, theStream);
   if (status < 0)
     {
       free(theStream);
-      return (errno = status);
+      errno = status;
+      return (-1);
     }
 
   if ((flags & O_DIRECTORY) && (theStream->f.type != dirT))
@@ -100,7 +106,8 @@ int open(const char *fileName, int flags)
       // Supposed to fail if not a directory
       fileStreamClose(theStream);
       free(theStream);
-      return (errno = ERR_NOTADIR);
+      errno = ERR_NOTADIR;
+      return (-1);
     }
 
   // If we're not appending, seek to the beginning of the file, since the
@@ -112,7 +119,8 @@ int open(const char *fileName, int flags)
 	{
 	  fileStreamClose(theStream);
 	  free(theStream);
-	  return (errno = status);
+	  errno = status;
+	  return (-1);
 	}
     }
 

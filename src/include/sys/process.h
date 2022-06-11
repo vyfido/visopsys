@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,8 +31,8 @@
 
 // An enumeration listing possible process states
 typedef enum {
-  proc_running, proc_ready, proc_waiting, proc_sleeping, proc_stopped,
-  proc_finished, proc_zombie
+  proc_running, proc_ready, proc_ioready, proc_waiting, proc_sleeping,
+  proc_stopped, proc_finished, proc_zombie
 } processState;
 
 // An enumeration listing possible process types
@@ -55,7 +55,7 @@ typedef struct {
 } processImage;
 
 typedef struct {
-  char processName[MAX_PROCNAME_LENGTH];
+  char name[MAX_PROCNAME_LENGTH];
   int userId;
   int processId;
   processType type;

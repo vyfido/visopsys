@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -434,7 +434,7 @@ static int findPageTableEntry(kernelPageDirectory *directory,
 static inline int getNumPages(unsigned size)
 {
   // Turn a size into a number of pages
-  return ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE) != 0));
+  return ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE)? 1 : 0));
 }
 
 
@@ -968,7 +968,7 @@ static int kernelPaging(unsigned kernelMemory)
   // loader might (presently DOES) map pages gratuitously, irrespective
   // of how many pages the kernel actually uses.  We will only copy the
   // pages that the kernel uses, based on the kernelSize.  The following
-  // code needs to assume that the kernel does not cross a 4-Mb boundary.
+  // code needs to assume that the kernel does not cross a 4-MB boundary.
   
   newPageTable = findPageTable(kernelPageDir, tableNumber);
   if (newPageTable == NULL)
@@ -1443,7 +1443,7 @@ void *kernelPageFindFree(int processId, unsigned size)
     return (address = NULL);
 
   // Calculate the desired number of pages
-  pages = ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE) != 0));
+  pages = getNumPages(size);
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
@@ -1482,8 +1482,8 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  // Calculate the number of pages
-  pages = ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE) != 0));
+  // Calculate the desired number of pages
+  pages = getNumPages(size);
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)

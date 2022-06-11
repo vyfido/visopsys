@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,8 @@
 extern loaderInfoStruct *kernelOsLoaderInfo;
 
 // The only function exported by kernelMain.c
-void kernelMain(unsigned, loaderInfoStruct *) __attribute__((noreturn));
+void kernelMain(unsigned, void *, unsigned, loaderInfoStruct *)
+  __attribute__((noreturn));
 
 #define _KERNELMAIN_H
 #endif

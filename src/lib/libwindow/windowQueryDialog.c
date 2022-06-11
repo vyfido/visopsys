@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +21,15 @@
 
 // This contains functions for user programs to operate GUI components.
 
+#include <libintl.h>
 #include <string.h>
-#include <sys/window.h>
 #include <sys/errors.h>
+#include <sys/window.h>
+
+#define _(string) gettext(string)
+
+extern int libwindow_initialized;
+extern void libwindowInitialize(void);
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -41,12 +47,15 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
 
   int status = 0;
   
+  if (!libwindow_initialized)
+    libwindowInitialize();
+
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL))
     return (status = ERR_NULLPARAMETER);
 
   if (windowNewChoiceDialog(parentWindow, title, message,
-			    (char *[]) { "OK", "Cancel" }, 2, 0) == 0)
+			    (char *[]) { _("OK"), _("Cancel") }, 2, 0) == 0)
     // OK button
     return (status = 1);
 

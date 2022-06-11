@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -67,9 +67,14 @@ typedef volatile struct {
   lock freeBitmapLock;
 
   // Miscellany
-  const kernelDisk *disk;
+  kernelDisk *disk;
   
 } fatInternalData;
+
+#define fatClusterToLogical(fatData, clusterNum)			\
+  (((clusterNum - 2) * fatData->bpb.sectsPerClust) +			\
+   fatData->bpb.rsvdSectCount + (fatData->bpb.numFats * fatData->fatSects) + \
+   fatData->rootDirSects) 
 
 #define _KERNELFILESYSTEMFAT_H
 #endif

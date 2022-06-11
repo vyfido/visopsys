@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +24,7 @@
 
 #if !defined(_STREAM_H)
 
-#include <sys/file.h>
+#include <sys/lock.h>
 
 // An enum for describing the size of each item in the stream
 typedef enum {
@@ -39,6 +39,7 @@ typedef volatile struct _stream {
   unsigned first;
   unsigned last;
   unsigned count;
+  lock lock;
 
   // Stream functions.  These are not for calling from user space.
   int (*clear) (volatile struct _stream *);
@@ -53,15 +54,6 @@ typedef volatile struct _stream {
 } stream;
 
 // Some specialized kinds of streams
-
-// A file stream, for character-based file IO
-typedef struct {
-  file f;
-  unsigned block;
-  int dirty;
-  stream s;
-
-} fileStream;
 
 typedef stream networkStream;
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,6 +48,7 @@ Options:
 #include <string.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 #include <sys/vsh.h>
 
 #define MOUNTPOINT               "/tmp_install"
@@ -61,7 +62,7 @@ static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2007 "
+static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2011 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
   "install:";
@@ -167,14 +168,16 @@ static void makeDiskList(void)
   // Make a list of disks on which we can install
 
   int status = 0;
-  // Call the kernel to give us the number of available disks
   int tmpNumberDisks = diskGetCount();
-  disk tmpDiskInfo[DISK_MAXDEVICES];
+  disk *tmpDiskInfo = NULL;
   int count;
 
   numberDisks = 0;
   bzero(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
-  bzero(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
+
+  tmpDiskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
+  if (tmpDiskInfo == NULL)
+    quit(status, "Memory allocation error.");
 
   status = diskGetAll(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
@@ -195,9 +198,10 @@ static void makeDiskList(void)
 	continue;
 
       // Otherwise, we will put this in the list
-      memcpy(&(diskInfo[numberDisks]), &(tmpDiskInfo[count]), sizeof(disk));
-      numberDisks += 1;
+      memcpy(&(diskInfo[numberDisks++]), &(tmpDiskInfo[count]), sizeof(disk));
     }
+
+  free(tmpDiskInfo);
 }
 
 
@@ -377,7 +381,7 @@ static int chooseDisk(void)
   bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
     snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
-	     diskInfo[count].name, diskInfo[count].partType.description);
+	     diskInfo[count].name, diskInfo[count].partType);
 
   if (graphics)
     {
@@ -388,6 +392,7 @@ static int chooseDisk(void)
       params.gridY = 1;
       diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
 			       diskListParams, numberDisks, &params);
+      windowComponentFocus(diskList);
 
       // Make 'OK', 'partition', and 'cancel' buttons
       params.gridY = 2;
@@ -506,7 +511,7 @@ static unsigned getInstallSize(const char *installFileName)
   bzero(buffer, BUFFSIZE);
 
   // See if the install file exists
-  status = fileFind(installFileName, &theFile);
+  status = fileFind(installFileName, NULL);
   if (status < 0)
     // Doesn't exist
     return (bytes = 0);
@@ -583,7 +588,7 @@ static void updateStatus(const char *message)
   
   int statusLength = 0;
 
-  if (lockGet(&(prog.lock)) >= 0)
+  if (lockGet(&prog.progLock) >= 0)
     {
       if (strlen((char *) prog.statusMessage) &&
 	  (prog.statusMessage[strlen((char *) prog.statusMessage) - 1] !=
@@ -605,7 +610,7 @@ static void updateStatus(const char *message)
 	windowComponentSetData(statusLabel, (char *) prog.statusMessage,
 			       statusLength);
 
-      lockRelease(&(prog.lock));
+      lockRelease(&prog.progLock);
     }
 }
 
@@ -647,7 +652,6 @@ static int copyBootSector(disk *theDisk)
   int status = 0;
   char bootSectFilename[MAX_PATH_NAME_LENGTH];
   char command[MAX_PATH_NAME_LENGTH];
-  file bootSectFile;
 
   updateStatus("Copying boot sector...  ");
 
@@ -670,11 +674,11 @@ static int copyBootSector(disk *theDisk)
     }
 
   strcpy(bootSectFilename, "/system/boot/bootsect.fat");
-  if (!strcmp(theDisk->fsType, "fat32"))
+  if (!strcasecmp(theDisk->fsType, "fat32"))
     strcat(bootSectFilename, "32");
 
   // Find the boot sector
-  status = fileFind(bootSectFilename, &bootSectFile);
+  status = fileFind(bootSectFilename, NULL);
   if (status < 0)
     {
       error("Unable to find the boot sector file \"%s\"", bootSectFilename);
@@ -711,14 +715,12 @@ static int copyFiles(const char *installFileName)
   unsigned percent = 0;
   char buffer[BUFFSIZE];
   char tmpFileName[128];
-  file tmpFile;
 
   // Clear stack data
   bzero(&installFile, sizeof(fileStream));
   bzero(&theFile, sizeof(file));
   bzero(buffer, BUFFSIZE);
   bzero(tmpFileName, 128);
-  bzero(&tmpFile, sizeof(file));
 
   // Open the install file
   status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
@@ -729,7 +731,7 @@ static int copyFiles(const char *installFileName)
     }
 
   sprintf(buffer, "Copying %s files...  ",
-	  ((installFileName == BASICINSTALL)? "basic" : "extra"));
+	  (!strcmp(installFileName, BASICINSTALL)? "basic" : "extra"));
   updateStatus(buffer);
 
   // Read it line by line
@@ -761,7 +763,7 @@ static int copyFiles(const char *installFileName)
       if (theFile.type == dirT)
 	{
 	  // It's a directory, create it in the desination
-	  if (fileFind(tmpFileName, &tmpFile) < 0)
+	  if (fileFind(tmpFileName, NULL) < 0)
 	    status = fileMakeDir(tmpFileName);
 	}
 
@@ -782,10 +784,10 @@ static int copyFiles(const char *installFileName)
 
       if (graphics)
 	windowComponentSetData(progressBar, (void *) percent, 1);
-      else if (lockGet(&(prog.lock)) >= 0)
+      else if (lockGet(&prog.progLock) >= 0)
 	{
 	  prog.percentFinished = percent;
-	  lockRelease(&(prog.lock));
+	  lockRelease(&prog.progLock);
 	}
     }
 
@@ -841,29 +843,26 @@ static void setAdminPassword(void)
       label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
       params.gridX = 1;
-      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       params.padRight = 5;
       params.orientationX = orient_left;
       passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
+      windowComponentFocus(passwordField1);
       
       params.gridX = 0;
       params.gridY = 2;
       params.padRight = 0;
       params.orientationX = orient_right;
-      params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
       label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
       params.padRight = 5;
-      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 	  
       params.gridX = 0;
       params.gridY = 3;
       params.gridWidth = 2;
       params.orientationX = orient_center;
-      params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
       noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
 					"match", &params);
       windowComponentSetVisible(noMatchLabel, 0);
@@ -901,26 +900,27 @@ static void setAdminPassword(void)
 	  
 	  // Check for the OK button
 	  status = windowComponentEventGet(okButton, &event);
-	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+	  if ((status >= 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	    break;
 	  
 	  // Check for the Cancel button
 	  status = windowComponentEventGet(cancelButton, &event);
 	  if ((status < 0) || ((status > 0) &&
-	      (event.type == EVENT_MOUSE_LEFTUP)))
+			       (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
 	      error("No password set.  It will be blank.");
 	      windowDestroy(dialogWindow);
 	      return;
 	    }
 	  
-	  if ((windowComponentEventGet(passwordField1, &event) &&
+	  if (((windowComponentEventGet(passwordField1, &event) > 0) &&
 	       (event.type == EVENT_KEY_DOWN)) ||
-	      (windowComponentEventGet(passwordField2, &event) &&
+	      ((windowComponentEventGet(passwordField2, &event) > 0) &&
 	       (event.type == EVENT_KEY_DOWN)))
 	    {
-	      if (event.key == (unsigned char) 10)
+	      if (event.key == (unsigned char) ASCII_ENTER)
 		break;
+
 	      else
 		{
 		  windowComponentGetData(passwordField1, newPassword, 16);
@@ -998,22 +998,6 @@ static void setAdminPassword(void)
 }
 
 
-static void changeStartProgram(void)
-{
-  // Change the target installation's start program to the login program
-
-  variableList kernelConf;
-
-  if (configurationReader(MOUNTPOINT "/system/config/kernel.conf",
-			  &kernelConf) < 0)
-    return;
-
-  variableListSet(&kernelConf, "start.program", "/programs/login");
-  configurationWriter(MOUNTPOINT "/system/config/kernel.conf", &kernelConf);
-  variableListDestroy(&kernelConf);
-}
-
-
 int main(int argc, char *argv[])
 {
   int status = 0;
@@ -1085,7 +1069,7 @@ int main(int argc, char *argv[])
   // Make sure the disk isn't mounted
   status = mountedCheck(&diskInfo[diskNumber]);
   if (status < 0)
-    quit(0, cancelString);
+    quit(0, "%s", cancelString);
 
   // Calculate the number of bytes that will be consumed by the various
   // types of install
@@ -1163,7 +1147,7 @@ int main(int argc, char *argv[])
 
   sprintf(tmpChar, "Installing on disk %s.  Are you SURE?", diskName);
   if (!yesOrNo(tmpChar))
-    quit(0, cancelString);
+    quit(0, "%s", cancelString);
 
   // Default filesystem formatting type is optimal/default FAT.
   strcpy(formatFsType, "fat");
@@ -1179,7 +1163,7 @@ int main(int argc, char *argv[])
     {
       if (!graphics || chooseFsType)
 	if (askFsType() < 0)
-	  quit(0, cancelString);
+	  quit(0, "%s", cancelString);
 
       updateStatus("Formatting... ");
 
@@ -1236,14 +1220,14 @@ int main(int argc, char *argv[])
 	  if (filesystemUnmount(MOUNTPOINT) < 0)
 	    error("Unable to unmount the target disk.");
 	  quit((status = ERR_NOFREE), "The filesystem on disk %s is too small "
-	       "(%dK) for\nthe selected Visopsys installation (%dK required).",
-	       diskName, (diskInfo[diskNumber].freeBytes / 1024),
+	       "(%lluK) for\nthe selected Visopsys installation (%uK "
+	       "required).", diskName, (diskInfo[diskNumber].freeBytes / 1024),
 	       (bytesToCopy / 1024));
 	}
       else
 	{
 	  sprintf(tmpChar, "There MAY not be enough free space on disk %s "
-		  "(%dK) for the\nselected Visopsys installation (%dK "
+		  "(%lluK) for the\nselected Visopsys installation (%uK "
 		  "required).  Continue?", diskName,
 		  (diskInfo[diskNumber].freeBytes / 1024),
 		  (bytesToCopy / 1024));
@@ -1251,7 +1235,7 @@ int main(int argc, char *argv[])
 	    {
 	      if (filesystemUnmount(MOUNTPOINT) < 0)
 		error("Unable to unmount the target disk.");
-	      quit(0, cancelString);
+	      quit(0, "%s", cancelString);
 	    }
 	}
     }
@@ -1276,7 +1260,8 @@ int main(int argc, char *argv[])
     {
       // Set the start program of the target installation to be the login
       // program
-      changeStartProgram();
+      configSet(MOUNTPOINT "/system/config/kernel.conf", "start.program",
+		"/programs/login");
 
       // Prompt the user to set the admin password
       setAdminPassword();
@@ -1293,15 +1278,15 @@ int main(int argc, char *argv[])
       // Couldn't copy the files
       message = "Unable to copy files.";
       if (graphics)
-	quit(status, message);
+	quit(status, "%s", message);
       else
-	error(message);
+	error("%s", message);
     }
   else
     {
       message = "Installation successful.";
       if (graphics)
-	quit(status, message);
+	quit(status, "%s", message);
       else
 	printf("\n%s\n", message);
     }

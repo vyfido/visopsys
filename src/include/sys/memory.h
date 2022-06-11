@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -72,7 +72,7 @@ typedef struct {
   int (*memoryRelease) (void *);
   int (*lockGet) (lock *);
   int (*lockRelease) (lock *);
-  void (*debug) (const char *, const char *, int, kernelDebugCategory, 
+  void (*debug) (const char *, const char *, int, debug_category, 
 		 const char *, ...) __attribute__((format(printf, 5, 6)));
   void (*error) (const char *, const char *, int, kernelErrorKind, 
 		 const char *, ...) __attribute__((format(printf, 5, 6)));

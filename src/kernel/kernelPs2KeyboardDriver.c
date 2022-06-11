@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,20 +22,19 @@
 // Driver for standard PS/2 PC keyboards
 
 #include "kernelDriver.h" // Contains my prototypes
+#include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelFile.h"
 #include "kernelInterrupt.h"
 #include "kernelKeyboard.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
-#include "kernelMultitasker.h"
+#include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPic.h"
 #include "kernelProcessorX86.h"
-#include "kernelShutdown.h"
-#include "kernelWindow.h"
-#include <stdio.h>
 #include <string.h>
+#include <sys/window.h>
+
+#define KEYTIMEOUT 0xFFFF
 
 // Some special scan values that we care about
 #define KEY_RELEASE      128
@@ -51,7 +50,9 @@
 #define CAPSLOCK_KEY     58
 #define NUMLOCK_KEY      69
 #define SCROLLLOCK_KEY   70
+#define TAB_KEY          15
 
+// Flags for keyboard state
 #define ALTGR_FLAG       0x0100
 #define INSERT_FLAG      0x0080
 #define CAPSLOCK_FLAG    0x0040
@@ -68,6 +69,127 @@
 static unsigned flags;
 
 
+static inline int isData(void)
+{
+  // Return 1 if there's data waiting
+  
+  unsigned char status = 0;
+
+  kernelProcessorInPort8(0x64, status);
+
+  if ((status & 0x21) == 0x01)
+    return (1);
+  else
+    return (0);
+}
+
+
+static int inPort60(unsigned char *data)
+{
+  // Input a value from the keyboard controller's data port, after checking
+  // to make sure that there's some data of the correct type waiting for us
+  // (port 0x60).
+
+  unsigned char status = 0;
+  unsigned count;
+
+  // Wait until the controller says it's got data of the requested type
+  for (count = 0; count < KEYTIMEOUT; count ++)
+    {
+      if (isData())
+	{
+	  kernelProcessorInPort8(0x60, *data);
+	  return (0);
+	}
+      else
+	kernelProcessorDelay();
+    }
+
+  kernelProcessorInPort8(0x64, status);
+  kernelError(kernel_error, "Timeout reading port 60, port 64=%02x", status);
+  return (ERR_TIMEOUT);
+}
+
+
+static int waitControllerReady(void)
+{
+  // Wait for the controller to be ready
+
+  unsigned char status = 0;
+  unsigned count;
+
+  for (count = 0; count < KEYTIMEOUT; count ++)
+    {
+      kernelProcessorInPort8(0x64, status);
+
+      if (!(status & 0x02))
+	return (0);
+    }
+
+  kernelError(kernel_error, "Controller not ready timeout, port 64=%02x",
+	      status);
+  return (ERR_TIMEOUT);
+}
+
+
+static int waitCommandReceived(void)
+{
+  unsigned char status = 0;
+  unsigned count;
+
+  for (count = 0; count < KEYTIMEOUT; count ++)
+    {
+      kernelProcessorInPort8(0x64, status);
+
+      if (status & 0x08)
+	return (0);
+    }
+
+  kernelError(kernel_error, "Controller receive command timeout, port 64=%02x",
+	      status);
+  return (ERR_TIMEOUT);
+}
+
+
+static int outPort60(unsigned char data)
+{
+  // Output a value to the keyboard controller's data port, after checking
+  // that it's able to receive data (port 0x60).
+
+  int status = 0;
+
+  status = waitControllerReady();
+  if (status < 0)
+    return (status);
+
+  kernelProcessorOutPort8(0x60, data);
+
+  return (status = 0);
+}
+
+
+static int outPort64(unsigned char data)
+{
+  // Output a value to the keyboard controller's command port, after checking
+  // that it's able to receive data (port 0x64).
+
+  int status = 0;
+
+  status = waitControllerReady();
+  if (status < 0)
+    return (status);
+
+  kernelProcessorOutPort8(0x64, data);
+
+  // Wait until the controller believes it has received it.
+  status = waitCommandReceived();
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
+}
+
+
 static void setLight(int whichLight, int onOff)
 {
   // Turns the keyboard lights on/off
@@ -75,70 +197,21 @@ static void setLight(int whichLight, int onOff)
   unsigned char data = 0;
   static unsigned char lights = 0x00;
 
-  // Wait for port 60h to be ready for a command.  We know it's
-  // ready when port 0x64 bit 1 is 0
-  data = 0x02;
-  while (data & 0x02)
-    kernelProcessorInPort8(0x64, data);
-
   // Tell the keyboard we want to change the light status
-  kernelProcessorOutPort8(0x60, 0xED);
+  outPort60(0xED);
 
   if (onOff)
     lights |= (0x01 << whichLight);
   else
     lights &= (0xFF ^ (0x01 << whichLight));
 
-  // Wait for port 60h to be ready for a command.  We know it's
-  // ready when port 0x64 bit 1 is 0
-  data = 0x02;
-  while (data & 0x02)
-    kernelProcessorInPort8(0x64, data);
-
   // Tell the keyboard to change the lights
-  kernelProcessorOutPort8(0x60, lights);
+  outPort60(lights);
 
   // Read the ACK
-  data = 0;
-  while (!(data & 0x01))
-    kernelProcessorInPort8(0x64, data);
-  kernelProcessorInPort8(0x60, data);
+  inPort60(&data);
   
   return;
-}
-
-
-__attribute__((noreturn))
-static void rebootThread(void)
-{
-  // This gets called when the user presses CTRL-ALT-DEL.
-
-  // Reboot, force
-  kernelShutdown(1, 1);
-  while(1);
-}
-
-
-static void screenshotThread(void)
-{
-  // This gets called when the user presses the 'print screen' key
-
-  char fileName[32];
-  file theFile;
-  int count = 1;
-
-  // Determine the file name we want to use
-
-  strcpy(fileName, "/screenshot1.bmp");
-
-  // Loop until we get a filename that doesn't already exist
-  while (!kernelFileFind(fileName, &theFile))
-    {
-      count += 1;
-      sprintf(fileName, "/screenshot%d.bmp", count);
-    }
-
-  kernelMultitaskerTerminate(kernelWindowSaveScreenShot(fileName));
 }
 
 
@@ -151,12 +224,9 @@ static void readData(void)
   int release = 0;
   static int extended = 0;
 
-  // Wait for keyboard data to be available
-  while (!(data & 0x01))
-    kernelProcessorInPort8(0x64, data);
-
   // Read the data from port 60h
-  kernelProcessorInPort8(0x60, data);
+  if (inPort60(&data) < 0)
+    return;
 
   // If an extended scan code is coming next...
   if (data == EXTENDED)
@@ -191,6 +261,7 @@ static void readData(void)
 	  else
 	    // Left Alt release.
 	    flags &= ~ALT_FLAG;
+	  kernelKeyboardSpecial(keyboardEvent_altRelease);
 	  return;
 	default:
 	  data -= KEY_RELEASE;
@@ -221,6 +292,7 @@ static void readData(void)
 	  else
 	    // Left alt press.
 	    flags |= ALT_FLAG;
+	  kernelKeyboardSpecial(keyboardEvent_altPress);
 	  return;
 	case CAPSLOCK_KEY:
 	  if (flags & CAPSLOCK_FLAG)
@@ -250,11 +322,15 @@ static void readData(void)
 	  setLight(SCROLLLOCK_LIGHT, (flags & SCROLLLOCK_FLAG));
 	  return;
 	case F1_KEY:
-	  kernelConsoleLogin();
+	  kernelKeyboardSpecial(keyboardEvent_f1);
 	  return;
 	case F2_KEY:
-	  kernelMultitaskerDumpProcessList();
+	  kernelKeyboardSpecial(keyboardEvent_f2);
 	  return;
+	case TAB_KEY:
+	  if (flags & ALT_FLAG)
+	    kernelKeyboardSpecial(keyboardEvent_altTab);
+	  break;
 	default:
 	  break;
 	}
@@ -264,7 +340,7 @@ static void readData(void)
   // or 'sys req'.
   if (extended && (data == ASTERISK_KEY) && !release)
     {
-      kernelMultitaskerSpawn(screenshotThread, "screenshot", 0, NULL);
+      kernelKeyboardSpecial(keyboardEvent_printScreen);
       // Clear the extended flag
       extended = 0;
       return;
@@ -283,7 +359,7 @@ static void readData(void)
       if ((flags & ALT_FLAG) && (data == DEL_KEY) && release)
 	{
 	  // CTRL-ALT-DEL means reboot
-	  kernelMultitaskerSpawn(rebootThread, "reboot", 0, NULL);
+	  kernelKeyboardSpecial(keyboardEvent_ctrlAltDel);
 	  return;
 	}
       else
@@ -292,20 +368,20 @@ static void readData(void)
 
   else if (flags & ALTGR_FLAG)
     data = kernelKeyMap->altGrMap[data - 1];
-  
+
   else
     data = kernelKeyMap->regMap[data - 1];
-      
+
   // If capslock is on, uppercase any alphabetic characters
   if ((flags & CAPSLOCK_FLAG) && ((data >= 'a') && (data <= 'z')))
     data -= 32;
-  
+
   // Notify the keyboard function of the event
   if (release)
     kernelKeyboardInput((int) data, EVENT_KEY_UP);
   else
     kernelKeyboardInput((int) data, EVENT_KEY_DOWN);
-  
+
   // Clear the extended flag
   extended = 0;
   return;
@@ -321,6 +397,7 @@ static void interrupt(void)
   kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
+  kernelDebug(debug_io, "Ps2Key: keyboard interrupt");
   readData();
 
   kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
@@ -337,7 +414,11 @@ static int driverDetect(void *parent, kernelDriver *driver)
   int status = 0;
   kernelDevice *dev = NULL;
   void *biosData = NULL;
-  unsigned char data;
+
+  // Initialize keyboard operations
+  status = kernelKeyboardInitialize();
+  if (status < 0)
+    goto out;
 
   // Allocate memory for the device
   dev = kernelMalloc(sizeof(kernelDevice));
@@ -347,6 +428,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_KEYBOARD);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_KEYBOARD_PS2);
   dev->driver = driver;
+
+  kernelDebug(debug_io, "Ps2Key: get flags data from BIOS");
 
   // Map the BIOS data area into our memory so we can get hardware information
   // from it.
@@ -360,32 +443,30 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // Unmap BIOS data
   kernelPageUnmap(KERNELPROCID, biosData, 0x1000);
 
-  // Wait for port 64h to be ready for a command.  We know it's ready when
-  // port 64 bit 1 is 0
-  data = 0x02;
-  while (data & 0x02)
-    kernelProcessorInPort8(0x64, data);
-
-  // Tell the keyboard to enable
-  kernelProcessorOutPort8(0x64, 0xAE);
-
-  // Initialize keyboard operations
-  status = kernelKeyboardInitialize();
-  if (status < 0)
-    goto out;
+  kernelDebug(debug_io, "Ps2Key: hook interrupt");
 
   // Register our interrupt handler
   status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt);
   if (status < 0)
     goto out;
 
+  kernelDebug(debug_io, "Ps2Key: turn on keyboard interrupt");
+
   // Turn on the interrupt
   kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
+
+  kernelDebug(debug_io, "Ps2Key: enable keyboard");
+
+  // Tell the keyboard to enable
+  outPort64(0xAE);
+
+  kernelDebug(debug_io, "Ps2Key: adding device");
 
   status = kernelDeviceAdd(parent, dev);
   if (status < 0)
     goto out;
 
+  kernelDebug(debug_io, "Ps2Key: finished PS/2 keyboard detection/setup");
   status = 0;
 
  out:

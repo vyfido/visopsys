@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -45,8 +45,10 @@
 typedef struct {
   unsigned char recordLength;
   unsigned char extAttrLength;
-  unsigned long long blockNumber;
-  unsigned long long size;
+  unsigned blockNumber;
+  unsigned bigEndianBlockNumber;
+  unsigned size;
+  unsigned bigEndianSize;
   unsigned char date[7];
   unsigned char flags;
   unsigned char unitSize;
@@ -95,6 +97,13 @@ typedef struct {
 
 } __attribute__((packed)) isoPrimaryDescriptor;
 
+typedef struct {
+  unsigned char type;
+  char identifier[5];
+  unsigned char version;
+  unsigned char res[2041];
+
+} __attribute__((packed)) isoTermDescriptor;
 
 #define _ISO_H
 #endif

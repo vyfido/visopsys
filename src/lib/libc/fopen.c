@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -120,9 +120,10 @@ FILE *fopen(const char *fileName, const char *mode)
       return (theStream = NULL);
     }
 
-  // If we're not appending, seek to the beginning of the file, since the
-  // fileStreamOpen() call is automatically in 'append' mode
-  if (!append)
+  // If we're writing, and not appending, seek to the beginning of the file,
+  // since the fileStreamOpen() call is automatically in 'append' mode
+  // when the mode is write-only.
+  if ((flags & OPENMODE_WRITE) && !append)
     {
       status = fileStreamSeek(theStream, 0);
       if (status < 0)

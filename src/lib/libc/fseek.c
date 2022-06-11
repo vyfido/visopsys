@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -40,15 +40,20 @@ int fseek(FILE *theStream, long offset, int whence)
   // to indicate the error.
 
   int status = 0;
-  long pos = 0;
   long new_pos = 0;
 
   // This call is not applicable for stdin, stdout, and stderr
   if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
-    return (errno = ERR_NOTAFILE);
+    {
+      errno = ERR_NOTAFILE;
+      return (-1);
+    }
 
   if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+    {
+      errno = ERR_BUG;
+      return (-1);
+    }
 
   // What is the position to which the user wants to seek?
 
@@ -58,11 +63,8 @@ int fseek(FILE *theStream, long offset, int whence)
 
   else if (whence == SEEK_CUR)
     {
-      // What is the current position in the file?
-      pos = ((theStream->block * theStream->f.blockSize) + theStream->s.last);
-
       // Set position to current location plus offset.
-      new_pos = (pos + offset);
+      new_pos = (theStream->offset + offset);
     }
 
   else if (whence == SEEK_END)

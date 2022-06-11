@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,35 +27,36 @@
 
 int strcmp(const char *s1, const char *s2)
 {
-  // The  strcmp() function compares the two strings s1 and s2.
+  // The strcmp() function compares the two strings s1 and s2.
   // It returns an integer less than, equal to, or greater than zero
   // if s1 is found, respectively, to be less than, to match, or be
   // greater than s2.
 
   int count = 0;
 
+  // The spec doesn't really make it clear what to do with NULL parameters here
+  if (!s1 || !s2)
+    {
+      if (!s1 && s2)
+	return -1;
+      if (s1 && !s2)
+	return (1);
+      else
+	// Both NULL.  Fine.
+	return (0);
+    }
+
   for (count = 0; count < MAXSTRINGLENGTH; count ++)
     {
       if ((s1[count] == '\0') && (s2[count] == '\0'))
-	// The strings match
+	// The strings are identical
 	return (0);
 
       else if (s1[count] != s2[count])
 	{
-	  // The strings stop matching here.
-
-	  // Is one of the characters a NULL character?  If so, that string
-	  // is 'less than' the other
-	  if (s1[count] == '\0')
-	    return (-1);
-	  else if (s2[count] == '\0')
-	    return (1);
-
-	  // Otherwise, is the s1 character in question 'less than' or
-	  // 'greater than' the s2 character?  This will return a positive
-	  // number if the s1 character is greater than s2, else a negative
-	  // number.
-	  return (s1[count] - s2[count]);
+	  // The strings stop matching here.  Is the s1 character in question
+	  // 'less than' or 'greater than' the s2 character?
+	  return ((s1[count] > s2[count])? 1 : -1);
 	}
     }
 

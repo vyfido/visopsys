@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,22 +44,25 @@ struct _kernelFilesystemDriver;
 // disk partition is a logical disk)
 typedef volatile struct _kernelDisk {
   char name[DISK_MAX_NAMELENGTH];
-  partitionType partType;
+  char partType[FSTYPE_MAX_NAMELENGTH];
   char fsType[FSTYPE_MAX_NAMELENGTH];
   unsigned opFlags;
   volatile struct _kernelPhysicalDisk *physical;
-  unsigned startSector;
-  unsigned numSectors;
+  uquad_t startSector;
+  uquad_t numSectors;
   int primary;
 
   // This part of the structure defines file systems
   struct {
     struct _kernelFilesystemDriver *driver;
 
+    // The volume label, if applicable for the FS type.
+    char label[MAX_NAME_LENGTH];
+
     // These should always be set by the driver upon successful detection
     unsigned blockSize;
-    unsigned minSectors;  // for
-    unsigned maxSectors;  // resize
+    uquad_t minSectors;  // for
+    uquad_t maxSectors;  // resize
 
     // These are set when mounted.  Should be cleared during unmount.
     int mounted;
@@ -81,8 +84,8 @@ typedef struct {
   int (*driverSetLockState) (int, int);
   int (*driverSetDoorState) (int, int);
   int (*driverDiskChanged) (int);
-  int (*driverReadSectors) (int, unsigned, unsigned, void *);
-  int (*driverWriteSectors) (int, unsigned, unsigned, const void *);
+  int (*driverReadSectors) (int, uquad_t, uquad_t, void *);
+  int (*driverWriteSectors) (int, uquad_t, uquad_t, const void *);
   int (*driverFlush) (int);
 
 } kernelDiskOps;
@@ -90,8 +93,8 @@ typedef struct {
 #if (DISK_CACHE)
 // This is for metadata about a range of data in a disk cache
 typedef volatile struct _kernelDiskCacheSector {
-  unsigned startSector;
-  unsigned numSectors;
+  uquad_t startSector;
+  uquad_t numSectors;
   void *data;
   int dirty;
   unsigned lastAccess;
@@ -103,8 +106,8 @@ typedef volatile struct _kernelDiskCacheSector {
 // This is for managing the data cache of a physical disk
 typedef volatile struct {
   kernelDiskCacheBuffer *buffer;
-  unsigned size;
-  unsigned dirty;
+  uquad_t size;
+  uquad_t dirty;
 
 } kernelDiskCache;
 #endif // DISK_CACHE
@@ -116,6 +119,7 @@ typedef volatile struct _kernelPhysicalDisk {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
   char *description;
+  char model[DISK_MAX_MODELLENGTH];
   unsigned type;
   unsigned flags;
 
@@ -123,7 +127,7 @@ typedef volatile struct _kernelPhysicalDisk {
   unsigned heads;
   unsigned cylinders;
   unsigned sectorsPerCylinder;
-  unsigned numSectors;
+  uquad_t numSectors;
   unsigned sectorSize;
 
   // The logical disks residing on this physical disk
@@ -153,11 +157,12 @@ typedef volatile struct _kernelPhysicalDisk {
 int kernelDiskRegisterDevice(kernelDevice *);
 int kernelDiskRemoveDevice(kernelDevice *);
 int kernelDiskInitialize(void);
+void kernelDiskAutoMount(kernelDisk *);
+void kernelDiskAutoMountAll(void);
 int kernelDiskInvalidateCache(const char *);
 int kernelDiskShutdown(void);
 int kernelDiskFromLogical(kernelDisk *, disk *);
 kernelDisk *kernelDiskGetByName(const char *);
-kernelDisk *kernelDiskGetByPath(const char *);
 // More functions, but also exported to user space
 int kernelDiskReadPartitions(const char *);
 int kernelDiskReadPartitionsAll(void);
@@ -170,17 +175,21 @@ int kernelDiskGet(const char *, disk *);
 int kernelDiskGetAll(disk *, unsigned);
 int kernelDiskGetAllPhysical(disk *, unsigned);
 int kernelDiskGetFilesystemType(const char *, char *, unsigned);
-int kernelDiskGetPartType(int, partitionType *);
-partitionType *kernelDiskGetPartTypes(void);
+int kernelDiskGetMsdosPartType(int, msdosPartType *);
+msdosPartType *kernelDiskGetMsdosPartTypes(void);
+int kernelDiskGetGptPartType(guid *, gptPartType *);
+gptPartType *kernelDiskGetGptPartTypes(void);
 int kernelDiskSetFlags(const char *, unsigned, int);
 int kernelDiskSetLockState(const char *, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskGetMediaState(const char *);
 int kernelDiskChanged(const char *);
-int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
-int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *);
-int kernelDiskEraseSectors(const char *, unsigned, unsigned, int);
+int kernelDiskReadSectors(const char *, uquad_t, uquad_t, void *);
+int kernelDiskWriteSectors(const char *, uquad_t, uquad_t, const void *);
+int kernelDiskEraseSectors(const char *, uquad_t, uquad_t, int);
 int kernelDiskGetStats(const char *, diskStats *);
+int kernelDiskRamDiskCreate(unsigned, char *);
+int kernelDiskRamDiskDestroy(const char *);
 
 #define _KERNELDISK_H
 #endif

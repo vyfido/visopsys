@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -38,7 +38,8 @@ typedef union  {
       int version;
       unsigned lastPage;
       unsigned numBadPages;
-      unsigned padding[125];
+      char volumeLabel[16];
+      unsigned padding[121];
       unsigned badPages[1];
 
     } info;

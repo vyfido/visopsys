@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,8 +44,14 @@ typedef struct {
     unsigned char bulkOutEndpoint;
     usbEndpointDesc *intrInDesc;
     unsigned char intrInEndpoint;
+    unsigned tag;
   } usb;
 } kernelScsiDisk;
+
+typedef struct {
+  unsigned char byte[12];
+
+} __attribute__((packed)) scsiUsbCmd12;
 
 typedef struct {
   scsiModeParamHeader header;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -190,9 +190,9 @@ void kernelEnvironmentDump(void)
   for (count = 0; count < kernelCurrentProcess->environment.numVariables;
        count ++)
     {
-      kernelTextPrint(kernelCurrentProcess->environment.variables[count]);
+      kernelTextPrint("%s", kernelCurrentProcess->environment.variables[count]);
       kernelTextPutc('=');
-      kernelTextPrintLine(kernelCurrentProcess->environment.values[count]);
+      kernelTextPrintLine("%s", kernelCurrentProcess->environment.values[count]);
     }
 
   return;

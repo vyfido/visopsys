@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -194,7 +194,7 @@ static int getCursorAddress(kernelTextArea *area)
 }
 
 
-static int drawScreen(kernelTextArea *area)
+static int screenDraw(kernelTextArea *area)
 {
   // Yup, draws the text area as currently specified
 
@@ -205,9 +205,8 @@ static int drawScreen(kernelTextArea *area)
   int count;
 
   // Clear the area
-  kernelGraphicClearArea(buffer, (color *) &(area->background),
-			 area->xCoord, area->yCoord,
-			 (area->columns * area->font->charWidth),
+  kernelGraphicClearArea(buffer, (color *) &(area->background), area->xCoord,
+			 area->yCoord, (area->columns * area->font->charWidth),
 			 (area->rows * area->font->charHeight));
 
   // Copy from the buffer to the visible area, minus any scrollback lines
@@ -248,7 +247,7 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
   if (area->scrolledBackLines)
     {
       area->scrolledBackLines = 0;
-      drawScreen(area);
+      screenDraw(area);
 
       updateComponent(area);
     }
@@ -308,7 +307,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
   if (area->scrolledBackLines)
     {
       area->scrolledBackLines = 0;
-      drawScreen(area);
+      screenDraw(area);
 
       updateComponent(area);
     }
@@ -326,10 +325,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
   for (inputCounter = 0; inputCounter < length; inputCounter++)
     {
       // Add this character to the lineBuffer
-      if (((unsigned char) text[inputCounter]) > 126)
-	lineBuffer[bufferCounter++] = '?';
-      else
-	lineBuffer[bufferCounter++] = text[inputCounter];
+      lineBuffer[bufferCounter++] = (unsigned char) text[inputCounter];
 
       // Is this the completion of the line?
 
@@ -417,7 +413,7 @@ static int delete(kernelTextArea *area)
   if (area->scrolledBackLines)
     {
       area->scrolledBackLines = 0;
-      drawScreen(area);
+      screenDraw(area);
 
       updateComponent(area);
     }
@@ -444,7 +440,7 @@ static int delete(kernelTextArea *area)
 }
 
 
-static int clearScreen(kernelTextArea *area)
+static int screenClear(kernelTextArea *area)
 {
   // Yup, clears the text area
 
@@ -483,7 +479,7 @@ static int clearScreen(kernelTextArea *area)
 }
 
 
-static int saveScreen(kernelTextArea *area, textScreen *screen)
+static int screenSave(kernelTextArea *area, textScreen *screen)
 {
   // This routine saves the current contents of the screen
 
@@ -503,7 +499,7 @@ static int saveScreen(kernelTextArea *area, textScreen *screen)
 }
 
 
-static int restoreScreen(kernelTextArea *area, textScreen *screen)
+static int screenRestore(kernelTextArea *area, textScreen *screen)
 {
   // This routine restores the saved contents of the screen
 
@@ -520,7 +516,7 @@ static int restoreScreen(kernelTextArea *area, textScreen *screen)
   area->cursorColumn = screen->column;
   area->cursorRow = screen->row;
 
-  drawScreen(area);
+  screenDraw(area);
 
   updateComponent(area);
 
@@ -536,10 +532,10 @@ static kernelTextOutputDriver graphicModeDriver = {
   NULL, // setBackground
   print,
   delete,
-  drawScreen,
-  clearScreen,
-  saveScreen,
-  restoreScreen
+  screenDraw,
+  screenClear,
+  screenSave,
+  screenRestore
 };
 
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -300,7 +300,8 @@ static void updateAllTimes(kernelFileEntry *entry)
 }
 
 
-static void buildFilenameRecursive(kernelFileEntry *theFile, char *buffer)
+static void buildFilenameRecursive(kernelFileEntry *theFile, char *buffer,
+				   int buffLen)
 {
   // Head-recurse back to the root of the filesystem, constructing the full
   // pathname of the file
@@ -311,12 +312,12 @@ static void buildFilenameRecursive(kernelFileEntry *theFile, char *buffer)
     isRoot = 1;
 
   if ((theFile->parentDirectory) && !isRoot)
-    buildFilenameRecursive(theFile->parentDirectory, buffer);
+    buildFilenameRecursive(theFile->parentDirectory, buffer, buffLen);
 
   if (!isRoot && (buffer[strlen(buffer) - 1] != '/'))
-    strcat(buffer, "/");
+    strncat(buffer, "/", (buffLen - (strlen(buffer) + 1)));
 
-  strcat(buffer, (char *) theFile->name);
+  strncat(buffer, (char *) theFile->name, (buffLen - (strlen(buffer) + 1)));
 }
 
 
@@ -331,6 +332,9 @@ static char *fixupPath(const char *originalPath)
   int originalLength = 0;
   int newLength = 0;
   int count;
+
+  if (!strlen(originalPath))
+    return (newPath = NULL);
 
   newPath = kernelMalloc(MAX_PATH_NAME_LENGTH);
   if (newPath == NULL)
@@ -1691,7 +1695,7 @@ int kernelFileRemoveEntry(kernelFileEntry *entry)
 }
 
 
-int kernelFileGetFullName(kernelFileEntry *theFile, char *buffer)
+int kernelFileGetFullName(kernelFileEntry *theFile, char *buffer, int buffLen)
 {
   // Given a kernelFileEntry, construct the fully qualified name
 
@@ -1702,7 +1706,7 @@ int kernelFileGetFullName(kernelFileEntry *theFile, char *buffer)
     }
 
   buffer[0] = '\0';
-  buildFilenameRecursive(theFile, buffer);
+  buildFilenameRecursive(theFile, buffer, buffLen);
   return (0);
 }
 
@@ -1903,7 +1907,7 @@ int kernelFileUnbufferRecursive(kernelFileEntry *dir)
 }
 
 
-int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
+int kernelFileEntrySetSize(kernelFileEntry *entry, unsigned newSize)
 {
   // This file allows the caller to specify the real size of a file, since
   // the other routines here must assume that the file consumes all of the
@@ -1911,6 +1915,7 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
 
   int status = 0;
   kernelDisk *theDisk = NULL;
+  unsigned newBlocks = 0;
 
   // Check parameters
   if (entry == NULL)
@@ -1925,32 +1930,29 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
       return (status = ERR_NOWRITE);
     }
 
-  // Make sure the new size is acceptable.  Basically, the number we are
-  // being given must fall within the possible values consistent with the
-  // number of blocks that are allocated to this file.
-  if (newSize || entry->blocks)
+  newBlocks = ((newSize + (theDisk->filesystem.blockSize - 1)) /
+	       theDisk->filesystem.blockSize);
+
+  // Does the new size change the number of blocks?
+  if (entry->blocks != newBlocks)
     {
-      if (newSize < ((entry->blocks - 1) * theDisk->filesystem.blockSize))
+      if (theDisk->filesystem.driver->driverSetBlocks)
 	{
-	  kernelError(kernel_error, "New size for file %s is too small",
-		      entry->name);
-	  return (status = ERR_INVALID);
+	  status =
+	    theDisk->filesystem.driver->driverSetBlocks(entry, newBlocks);
+	  if (status < 0)
+	    return (status);
 	}
-      else if (newSize > (entry->blocks * theDisk->filesystem.blockSize))
+      else
 	{
-	  kernelError(kernel_error, "New size for file %s is too large",
-		      entry->name);
-	  return (status = ERR_INVALID);
+	  kernelError(kernel_error, "Filesystem driver for %s cannot change "
+		      "the number of blocks", entry->name);
+	  return (status = ERR_NOSUCHFUNCTION);
 	}
     }
 
-  // The value is OK.  Try to set it in both the file structure and the
-  // kernelFileEntry structure.
-  
   entry->size = newSize;
-  entry->blocks = (entry->size / theDisk->filesystem.blockSize);
-  if (entry->size % theDisk->filesystem.blockSize)
-    entry->blocks += 1;
+  entry->blocks = newBlocks;
 
   if (theDisk->filesystem.driver->driverWriteDir)
     {
@@ -2096,7 +2098,7 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
 
 int kernelFileGetDisk(const char *path, disk *userDisk)
 {
-  // Given a filename, return the name of the disk it resides on
+  // Given a filename, return the the disk it resides on.
 
   int status = 0;
   kernelFileEntry *item = NULL;
@@ -2276,10 +2278,10 @@ int kernelFileFind(const char *path, file *fileStructure)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Check params
-  if ((path == NULL) || (fileStructure == NULL))
+  // Check params.  It's OK for the file structure to be NULL.
+  if (path == NULL)
     {
-      kernelError(kernel_error, "Path name or file structure is NULL");
+      kernelError(kernel_error, "Path name is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -2289,12 +2291,14 @@ int kernelFileFind(const char *path, file *fileStructure)
     // There is no such item
     return (status = ERR_NOSUCHFILE);
 
-  // Otherwise, we are OK, we got a good file.  We should now copy the
-  // relevant information from the kernelFileEntry structure into the user
-  // structure.
-
-  fileEntry2File(item, fileStructure);
-  fileStructure->handle = NULL;  // INVALID UNTIL OPENED
+  // Otherwise, we are OK, we got a good file.  If a file structure pointer
+  // was supplied, we should now copy the relevant information from the
+  // kernelFileEntry structure into the user structure.
+  if (fileStructure)
+    {
+      fileEntry2File(item, fileStructure);
+      fileStructure->handle = NULL;  // INVALID UNTIL OPENED
+    }
 
   // Return success
   return (status = 0);
@@ -2871,10 +2875,10 @@ int kernelFileCopy(const char *srcName, const char *destName)
 
   // Is there enough space in the destination filesystem for the copied
   // file?
-  unsigned freeSpace = kernelFilesystemGetFree(destFileStruct.filesystem);
+  uquad_t freeSpace = kernelFilesystemGetFreeBytes(destFileStruct.filesystem);
   if (srcFileStruct.size > freeSpace)
     {
-      kernelError(kernel_error, "Not enough space (%u < %u) in destination "
+      kernelError(kernel_error, "Not enough space (%llu < %u) in destination "
 		  "filesystem", freeSpace, srcFileStruct.size);
       status = ERR_NOFREE;
       goto out;
@@ -2898,7 +2902,8 @@ int kernelFileCopy(const char *srcName, const char *destName)
       // Set the size of the destination file so that it matches that of
       // the source file (as opposed to a multiple of the block size and
       // the number of blocks it consumes)
-      kernelFileSetSize(destFile, srcFileStruct.size);
+      kernelFileEntrySetSize((kernelFileEntry *) destFileStruct.handle,
+			     srcFileStruct.size);
     }
 
  out:
@@ -2949,9 +2954,51 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
       // recurse.
 
       dest = kernelFileLookup(destPath);
-      if (dest == NULL)
+      if (dest != NULL)
 	{
-	  // Create the directory
+	  // If the destination directory exists, but has a different filename
+	  // than the source directory, that means we might need to create the
+	  // new destination directory inside it with the original's name.
+	  if (strcmp((char *) dest->name, (char *) src->name))
+	    {
+	      tmpDestName = fixupPath(destPath);
+	      if (tmpDestName)
+		{
+		  strcat(tmpDestName, "/");
+		  strcat(tmpDestName, (char *) src->name);
+
+		  dest = kernelFileLookup(tmpDestName);
+
+		  if ((dest != NULL) && (dest->type != dirT))
+		    {
+		      // Some non-directory item is sitting there using our
+		      // desired destination name, blocking us.  Try to delete
+		      // it.
+		      fileDelete(dest);
+		      dest = NULL;
+		    }
+
+		  if (dest == NULL)
+		    {
+		      status = kernelFileMakeDir(tmpDestName);
+		      if (status < 0)
+			{
+			  kernelFree(tmpDestName);
+			  return (status);
+			}
+		    }
+
+		  status = kernelFileCopyRecursive(srcPath, tmpDestName);
+
+		  kernelFree(tmpDestName);
+
+		  return (status);
+		}
+	    }
+	}
+      else
+	{
+	  // Create the destination directory
 	  status = kernelFileMakeDir(destPath);
 	  if (status < 0)
 	    return (status);
@@ -3238,6 +3285,50 @@ int kernelFileTimestamp(const char *path)
 }
 
 
+int kernelFileSetSize(file *fileStructure, unsigned newSize)
+{
+  // This function is an externally-accessible wrapper for our
+  // kernelFileEntrySetSize function.
+
+  int status = 0;
+  
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (fileStructure == NULL)
+    {
+      kernelError(kernel_error, "NULL file structure");
+      return (status = ERR_NULLPARAMETER);
+    }
+  if (fileStructure->handle == NULL)
+    {
+      kernelError(kernel_error, "NULL file handle for set size.  Not opened "
+		  "first?");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Has the file been opened properly for writing?
+  if (!(fileStructure->openMode & OPENMODE_WRITE))
+    {
+      kernelError(kernel_error, "File %s has not been opened for writing %x",
+		  fileStructure->name, fileStructure->openMode);
+      return (status = ERR_INVALID);
+    }
+
+  status =
+    kernelFileEntrySetSize((kernelFileEntry *) fileStructure->handle, newSize);
+  if (status < 0)
+    return (status);
+  
+  // Make sure the file structure is up to date after the call
+  fileEntry2File(fileStructure->handle, fileStructure);
+  
+  // Return success
+  return (status = 0);
+}
+
+
 int kernelFileGetTemp(file *tmpFile)
 {
   // This will create and open a temporary file in write mode.
@@ -3281,5 +3372,30 @@ int kernelFileGetTemp(file *tmpFile)
   status = kernelFileOpen(fileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
 				     OPENMODE_READWRITE), tmpFile);
   kernelFree(fileName);
+  return (status);
+}
+
+
+int kernelFileGetFullPath(file *theFile, char *buffer, int buffLen)
+{
+  // Returns the full path name of a file.  This is an exported wrapper for the
+  // kernelFileGetFullName function.
+
+  int status = 0;
+
+  // Check params
+  if ((theFile== NULL) || (buffer == NULL))
+    {
+      kernelError(kernel_error, "File pointer or buffer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+  if (theFile->handle == NULL)
+    {
+      kernelError(kernel_error, "NULL file handle");
+      return (status = ERR_NULLPARAMETER);
+    }
+  
+  status = kernelFileGetFullName(theFile->handle, buffer, buffLen);
+
   return (status);
 }

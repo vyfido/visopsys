@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,9 +29,10 @@
 #include "kernelPic.h"
 #include "kernelText.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/cdefs.h>
 
-static kernelDebugCategory categories[MAX_DEBUG_CATEGORIES];
+static debug_category categories[MAX_DEBUG_CATEGORIES];
 static int numDebugCategories = 0;
 static const char *fileNames[MAX_DEBUG_FILENAMES];
 static int numDebugFileNames = 0;
@@ -41,7 +42,7 @@ static int showFile = 0;
 static int showFunction = 0;
 
 
-static int isCategory(kernelDebugCategory category)
+static int isCategory(debug_category category)
 {
   // Returns 1 if we're debugging a particular category
   
@@ -91,8 +92,10 @@ void kernelDebugInitialize(void)
   // kernelDebugAddCategory(debug_fs);
   // kernelDebugAddCategory(debug_gui);
   // kernelDebugAddCategory(debug_io);
+  // kernelDebugAddCategory(debug_loader);
   // kernelDebugAddCategory(debug_memory);
   // kernelDebugAddCategory(debug_misc);
+  // kernelDebugAddCategory(debug_multitasker);
   // kernelDebugAddCategory(debug_scsi);
   // kernelDebugAddCategory(debug_usb);
   // kernelDebugAddFile("kernelWindow.c");
@@ -117,7 +120,7 @@ void kernelDebugFlags(int flags)
 }
 
 
-void kernelDebugAddCategory(kernelDebugCategory category)
+void kernelDebugAddCategory(debug_category category)
 {
   // Used to turn on a category of debug messages
 
@@ -155,22 +158,18 @@ void kernelDebugAddFile(const char *fileName)
 
 
 void kernelDebugOutput(const char *fileName, const char *function, int line,
-		       kernelDebugCategory category, const char *message, ...)
+		       debug_category category, const char *message, ...)
 {
   // This routine takes a bunch of parameters and outputs the message,
   // depending on a couple of filtering parameters.
 
   va_list list;
-  char *debugText = NULL;
+  char debugText[MAX_DEBUGTEXT_LENGTH];
   kernelTextOutputStream *console = kernelTextGetConsoleOutput();
   int interrupt = 0;
 
   // See whether we should skip this message
   if (!debugAll && !isCategory(category) && !isFileName(fileName))
-    return;
-
-  debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
-  if (debugText == NULL)
     return;
 
   if (strlen(message) > (MAX_DEBUGTEXT_LENGTH - 80))
@@ -183,8 +182,13 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
 	  ((interrupt = kernelPicGetActive()) >= 0))
 	sprintf((debugText + strlen(debugText)), "interrupt %x", interrupt);
       else
-	sprintf((debugText + strlen(debugText)), "%s:",
-		kernelCurrentProcess->processName);
+	{
+	  if (kernelCurrentProcess)
+	    sprintf((debugText + strlen(debugText)), "%s:",
+		    kernelCurrentProcess->name);
+	  else
+	    strcat(debugText, "kernel:");
+	}
     }
   if (showFile)
     sprintf((debugText + strlen(debugText)), "%s(%d):", fileName, line);
@@ -202,7 +206,6 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
   va_end(list);
 
   kernelTextStreamPrintLine(console, debugText);
-  kernelFree(debugText);
 
   return;
 }
@@ -229,6 +232,105 @@ void kernelDebugHex(void *ptr, unsigned length)
 	sprintf((debugText + strlen(debugText)),
 		"%02x ", buff[(count1 * 16) + count2]);
       
+      kernelTextStreamPrintLine(console, debugText);
+    }
+
+  kernelFree(debugText);
+}
+
+
+void kernelDebugHexDwords(void *ptr, unsigned length)
+{
+  unsigned *buff = ptr;
+  char *debugText = NULL;
+  kernelTextOutputStream *console = kernelTextGetConsoleOutput();
+  unsigned count1, count2;
+
+  debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
+  if (debugText == NULL)
+    return;
+
+  for (count1 = 0; count1 < ((length / 4) + ((length % 4)? 1 : 0));
+       count1 ++)
+    {
+      strcpy(debugText, "DEBUG HEX " );
+
+      for (count2 = 0; (count2 < 4) && (((count1 * 4) + count2) < length);
+	   count2 ++)
+	sprintf((debugText + strlen(debugText)),
+		"%08x ", buff[(count1 * 4) + count2]);
+      
+      kernelTextStreamPrintLine(console, debugText);
+    }
+
+  kernelFree(debugText);
+}
+
+
+void kernelDebugBinary(void *ptr, unsigned length)
+{
+  unsigned char *buff = ptr;
+  char tmp = 0;
+  char *debugText = NULL;
+  kernelTextOutputStream *console = kernelTextGetConsoleOutput();
+  unsigned count1, count2, count3;
+
+  debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
+  if (debugText == NULL)
+    return;
+
+  for (count1 = 0; count1 < ((length / 4) + ((length % 4)? 1 : 0));
+       count1 ++)
+    {
+      strcpy(debugText, "DEBUG BINARY " );
+
+      for (count2 = 0; (count2 < 4) && (((count1 * 4) + count2) < length);
+	   count2 ++)
+	{
+	  tmp = buff[(count1 * 4) + count2];
+	  for (count3 = 0; count3 < 8; count3 ++)
+	    {
+	      strcat(debugText, ((tmp & 0x80)? "1" : "0"));
+	      tmp <<= 1;
+	    }
+	  strcat(debugText, " ");
+	}
+
+      kernelTextStreamPrintLine(console, debugText);
+    }
+
+  kernelFree(debugText);
+}
+
+
+void kernelDebugStack(void *stackMemory, unsigned stackSize, void *stackPtr,
+		      long memoryOffset, unsigned showMax)
+{
+  void *stackBase = (stackMemory + stackSize - sizeof(void *));
+  char *debugText = NULL;
+  kernelTextOutputStream *console = kernelTextGetConsoleOutput();
+  unsigned count;
+
+  debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
+  if (debugText == NULL)
+    return;
+
+  showMax = min(showMax, ((stackBase - stackPtr) / sizeof(void *)));
+  if (!showMax)
+    showMax = ((stackBase - stackPtr) / sizeof(void *));
+
+  for (count = 0; count < showMax; count ++)
+    {
+      strcpy(debugText, "DEBUG STACK ");
+
+      sprintf((debugText + strlen(debugText)), "%p: %08x",
+	      (stackPtr + (count * sizeof(void *))),
+	      *((unsigned *)(stackPtr + memoryOffset +
+			     (count * sizeof(void *)))));
+
+      if (!count)
+	strcat(debugText, " <- sp");
+
       kernelTextStreamPrintLine(console, debugText);
     }
 

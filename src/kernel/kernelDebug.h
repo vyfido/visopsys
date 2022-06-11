@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,16 +38,22 @@
 
 void kernelDebugInitialize(void);
 void kernelDebugFlags(int);
-void kernelDebugAddCategory(kernelDebugCategory);
+void kernelDebugAddCategory(debug_category);
 void kernelDebugAddFile(const char *);
-void kernelDebugOutput(const char *, const char *, int, kernelDebugCategory,
+void kernelDebugOutput(const char *, const char *, int, debug_category,
 		       const char *, ...)
      __attribute__((format(printf, 5, 6)));
 void kernelDebugHex(void *, unsigned);
+void kernelDebugHexDwords(void *, unsigned);
+void kernelDebugBinary(void *, unsigned);
+void kernelDebugStack(void *, unsigned, void *, long, unsigned);
 
-// These macro should be used for actual debug calls
+// These macros should be used for actual debug calls
 #define kernelDebug(category, message, arg...) \
   kernelDebugOutput(__FILE__, __FUNCTION__, __LINE__, category, message, ##arg)
+
+#define kernelDebugError(message, arg...) \
+  kernelError(kernel_warn, message, ##arg)
 
 #else // !defined(DEBUG)
 
@@ -56,7 +62,11 @@ void kernelDebugHex(void *, unsigned);
 #define kernelDebugAddCategory(...) do {} while (0)
 #define kernelDebugAddFile(...) do {} while (0)
 #define kernelDebug(...) do {} while (0)
+#define kernelDebugError(...) do {} while (0)
 #define kernelDebugHex(...) do {} while (0)
+#define kernelDebugHexDwords(...) do {} while (0)
+#define kernelDebugBinary(...) do {} while (0)
+#define kernelDebugStack(...) do {} while (0)
 
 #endif // defined(DEBUG)
 #define _KERNELDEBUG_H

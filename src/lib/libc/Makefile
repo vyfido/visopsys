@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -16,17 +16,18 @@ STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} ${DEBUG}
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 
-CDEFNAMES	= _digits \
+CDEFNAMES	= _dbl2str \
+		_digits \
+		_flt2str \
 		_fmtinpt \
+		_kernapi \
 		_ldigits \
 		_lnum2str \
 		_num2str \
 		_str2num \
-		_syscall \
-		_xpndfmt \
-		readline
+		_xpndfmt
 
 CTYPENAMES	= isalnum \
 		isalpha \
@@ -54,6 +55,7 @@ MATHNAMES	= ceil \
 		cos \
 		cosf \
 		fabs \
+		fabsf \
 		floor \
 		floorf \
 		fmod \
@@ -106,6 +108,7 @@ STDLIBNAMES	= abort \
 		abs \
 		calloc \
 		exit \
+		getenv \
 		labs \
 		malloc \
 		mbtowc \
@@ -120,6 +123,7 @@ STDLIBNAMES	= abort \
 STRINGNAMES	= bcopy \
 		bzero \
 		ffs \
+		fls \
 		memcmp \
 		memcpy \
 		memmove \
@@ -140,7 +144,8 @@ STRINGNAMES	= bcopy \
 		strnlen \
 		strrchr \
 		strspn \
-		strstr
+		strstr \
+		strtok
 
 TIMENAMES	= asctime \
 		clock \
@@ -148,16 +153,22 @@ TIMENAMES	= asctime \
 		time
 
 UNISTDNAMES	= close \
+		ftruncate \
 		getopt \
 		lseek \
 		read \
+		sleep \
 		stat \
 		swab \
+		truncate \
 		write
+
+MISCNAMES	= readline
 
 ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LIBGENNAMES} \
 	${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} \
-	${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
+	${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES} ${MISCNAMES}
+
 OBJDIR = obj
 PICOBJDIR = picobj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))

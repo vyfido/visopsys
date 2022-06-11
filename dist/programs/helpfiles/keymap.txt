@@ -4,7 +4,7 @@
 View or change the current keyboard mapping
 
 Usage:
-  keymap [-T] [map_name]
+  keymap [-T] [-s file_name] [map_name]
 
 The keymap program can be used to view the available keyboard mapping, or
 set the current map.  It works in both text and graphics modes:
@@ -19,5 +19,6 @@ In graphics mode, the program is interactive and the user can choose a new
 mapping simply by clicking.
 
 Options:
+-s  : Save the specified map to the specified file name.
 -T  : Force text mode operation
 

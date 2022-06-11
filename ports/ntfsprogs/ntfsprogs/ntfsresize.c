@@ -52,6 +52,9 @@
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
+#ifdef HAVE_LIBINTL_H
+#include <libintl.h>
+#endif
 
 #include <sys/ntfs.h>
 #include <sys/api.h>
@@ -131,6 +134,11 @@ static const char *many_bad_sectors_msg =
 "* other reason. We suggest to get a replacement disk as soon as possible. *\n"
 "***************************************************************************\n";
 #endif /* __VISOPSYS__ */
+
+#define _(string) gettext(string)
+
+int libntfs_initialized = 0;
+void libntfsInitialize(void);
 
 static const char *invalid_ntfs_msg =
 "The device or partition doesn't have a valid NTFS volume.";
@@ -659,11 +667,11 @@ static void progress_message(ntfs_resize_t *resize, const char *fmt, ...)
 	vsprintf(tmp, fmt, ap);
 	va_end(ap);
 
-	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
 	    strncpy((char *) resize->prog->statusMessage, tmp,
 		    PROGRESS_MAX_MESSAGELEN);
-	    lockRelease(&(resize->prog->lock));
+	    lockRelease(&resize->prog->progLock);
 	  }
 
 	ntfs_log_debug("%s\n", tmp);
@@ -685,13 +693,13 @@ static void _err_printf(ntfs_resize_t *resize, const char *function,
 	vsprintf((tmp + strlen(tmp)), fmt, ap);
 	va_end(ap);
 
-	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
 	    strncpy((char *) resize->prog->statusMessage, tmp,
 		    PROGRESS_MAX_MESSAGELEN);
 	    resize->prog->error = 1;
 
-	    lockRelease(&(resize->prog->lock));
+	    lockRelease(&resize->prog->progLock);
 
 	    while (resize->prog->error)
 	      multitaskerYield();
@@ -867,7 +875,7 @@ static int collect_relocation_info(ntfs_resize_t *resize, runlist *rl)
 	if (!opt.info || !resize->new_volume_size)
 		return (0);
 
-	progress_message(resize, "Relocation needed for inode %8lld", (long long)inode);
+	progress_message(resize, _("Relocation needed for inode %8lld"), (long long)inode);
 	return (0);
 }
 
@@ -995,7 +1003,7 @@ void progress_update(progress *prog, int myPercentIndex, u64 current,
   unsigned finished = 0;
   int count;
 
-  if (prog && (lockGet(&(prog->lock)) >= 0))
+  if (prog && (lockGet(&prog->progLock) >= 0))
     {
       for (count = 0; count < myPercentIndex; count ++)
 	finished += progressPercentages[count];
@@ -1008,7 +1016,7 @@ void progress_update(progress *prog, int myPercentIndex, u64 current,
       prog->finished = finished;
       prog->percentFinished = finished;
 
-      lockRelease(&(prog->lock));
+      lockRelease(&prog->progLock);
     }
 }
 
@@ -1025,7 +1033,7 @@ static int compare_bitmaps(ntfs_resize_t *resize, ntfs_volume *vol, struct bitma
 	int backup_boot = 0;
 	u8 *bm = NULL;
 
-	progress_message(resize, "Accounting clusters");
+	progress_message(resize, "%s", _("Accounting clusters"));
 
 	bm = calloc(NTFS_BUF_SIZE, 1);
 	if (bm == NULL)
@@ -1175,7 +1183,7 @@ static int build_allocation_bitmap(ntfs_resize_t *resize, ntfs_volume *vol, ntfs
 	nr_mft_records = vol->mft_na->initialized_size >>
 			vol->mft_record_size_bits;
 
-	progress_message(resize, "Checking filesystem consistency");
+	progress_message(resize, "%s", _("Checking filesystem consistency"));
 
 	for (; inode < nr_mft_records; inode++) {
 
@@ -1259,7 +1267,7 @@ static int set_resize_constraints(ntfs_resize_t *resize)
 	s64 nr_mft_records, inode;
 	ntfs_inode *ni;
 
-	progress_message(resize, "Collecting resizing constraints");
+	progress_message(resize, "%s", _("Collecting resizing constraints"));
 
 	nr_mft_records = resize->vol->mft_na->initialized_size >>
 			resize->vol->mft_record_size_bits;
@@ -1364,7 +1372,7 @@ static int replace_attribute_runlist(ntfs_resize_t *resize, ntfs_volume *vol,
 		s64 remains_size;
 		char *next_attr;
 
-		progress_message(resize, "Enlarging attribute header ...");
+		progress_message(resize, "%s", _("Enlarging attribute header ..."));
 
 		mp_size = (mp_size + 7) & ~7;
 
@@ -1786,7 +1794,7 @@ static int relocate_run(ntfs_resize_t *resize, runlist **rl, int run)
 	  }
 
 	/* FIXME: check $MFTMirr DATA isn't multi-run (or support it) */
-	progress_message(resize, "Relocate record %llu 0x%llx->0x%llx",
+	progress_message(resize, _("Relocate record %llu 0x%llx->0x%llx"),
 			 (unsigned long long)resize->mref,
 			 (unsigned long long)lcn,
 			 (unsigned long long)relocate_rl->lcn);
@@ -1974,7 +1982,7 @@ static int relocate_inodes(ntfs_resize_t *resize)
 	MFT_REF mref;
 	VCN highest_vcn;
 
-	progress_message(resize, "Relocating needed data");
+	progress_message(resize, "%s", _("Relocating needed data"));
 
 	resize->relocations = 0;
 
@@ -2345,7 +2353,7 @@ static int check_bad_sectors(ntfs_resize_t *resize, ntfs_volume *vol)
 	runlist *rl;
 	s64 i, badclusters = 0;
 
-	progress_message(resize, "Checking for bad sectors");
+	progress_message(resize, "%s", _("Checking for bad sectors"));
 
 	if (lookup_data_attr(resize, vol, FILE_BadClus, "$Bad", &ctx) != 0)
 		return (-1);
@@ -2413,7 +2421,7 @@ static int check_bad_sectors(ntfs_resize_t *resize, ntfs_volume *vol)
  */
 static int truncate_badclust_file(ntfs_resize_t *resize)
 {
-	progress_message(resize, "Updating $BadClust file");
+  	progress_message(resize, "%s", _("Updating $BadClust file"));
 
 	if (lookup_data_attr(resize, resize->vol, FILE_BadClus, "$Bad", &resize->ctx) != 0)
 		return (-1);
@@ -2439,7 +2447,7 @@ static int truncate_badclust_file(ntfs_resize_t *resize)
  */
 static int truncate_bitmap_file(ntfs_resize_t *resize)
 {
-	progress_message(resize, "Updating $Bitmap file");
+	progress_message(resize, "%s", _("Updating $Bitmap file"));
 
 	if (lookup_data_attr(resize, resize->vol, FILE_Bitmap, NULL, &resize->ctx) != 0)
 		return (-1);
@@ -2467,7 +2475,7 @@ static int truncate_bitmap_file(ntfs_resize_t *resize)
  */
 static int setup_lcn_bitmap(ntfs_resize_t *resize, struct bitmap *bm, s64 nr_clusters)
 {
-	progress_message(resize, "Set up LCN bitmap");
+	progress_message(resize, "%s", _("Set up LCN bitmap"));
 
 	/* Determine lcn bitmap byte size and allocate it. */
 	bm->size = rounded_up_division(nr_clusters, 8);
@@ -2490,7 +2498,7 @@ static int update_bootsector(ntfs_resize_t *r)
 	s64  bs_size = sizeof(NTFS_BOOT_SECTOR);
 	ntfs_volume *vol = r->vol;
 
-	progress_message(r, "Updating Boot record");
+	progress_message(r, "%s", _("Updating Boot record"));
 
 	if (vol->dev->d_ops->seek(vol->dev, 0, SEEK_SET) == (off_t)-1)
 	  {
@@ -2590,7 +2598,7 @@ static ntfs_volume *mount_volume(ntfs_resize_t *resize)
 	unsigned long mntflag;
 	ntfs_volume *vol = NULL;
 
-	progress_message(resize, "Mounting volume");
+	progress_message(resize, "%s", _("Mounting volume"));
 
 	if (ntfs_check_if_mounted(opt.volume, &mntflag)) {
 		err_printf(resize, "Failed to check '%s' mount state", opt.volume);
@@ -2673,8 +2681,8 @@ static int prepare_volume_fixup(ntfs_resize_t *resize, ntfs_volume *vol)
 
 	flags = vol->flags | VOLUME_IS_DIRTY;
 
-	progress_message(resize, "Schedule chkdsk for NTFS consistency check "
-			 "at Windows boot time");
+	progress_message(resize, "%s", _("Schedule chkdsk for NTFS consistency "
+			 "check at Windows boot time"));
 
 	if (ntfs_volume_write_flags(vol, flags))
 	  {
@@ -2688,7 +2696,7 @@ static int prepare_volume_fixup(ntfs_resize_t *resize, ntfs_volume *vol)
 		return (-1);
 	  }
 
-	progress_message(resize, "Resetting $LogFile (this might take a while)");
+	progress_message(resize, "%s", _("Resetting $LogFile (this might take a while)"));
 
 	if (ntfs_logfile_reset(vol, resize->prog, RSZPCNT_VOLFIXUP))
 	  {
@@ -2784,7 +2792,7 @@ static int check_cluster_allocation(ntfs_resize_t *resize, ntfs_volume *vol, ntf
 }
 
 static int get_minblocks(ntfs_resize_t *resize, disk *theDisk,
-			 unsigned *minBlocks)
+			 uquad_t *minBlocks)
 {
 	s64 new_b;
   
@@ -2807,8 +2815,8 @@ static int get_minblocks(ntfs_resize_t *resize, disk *theDisk,
 }
 
 
-static int _resize(const char *diskName, unsigned blocks, progress *prog,
-		   int info, unsigned *minBlocks, unsigned *maxBlocks)
+static int _resize(const char *diskName, uquad_t blocks, progress *prog,
+		   int info, uquad_t *minBlocks, uquad_t *maxBlocks)
 {
 	int status = 0;
 	disk theDisk;
@@ -2853,12 +2861,12 @@ static int _resize(const char *diskName, unsigned blocks, progress *prog,
 	opt.bytes = ((s64) blocks * (s64) theDisk.sectorSize);
 	opt.volume = theDisk.name;
 
-	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
 	    bzero((void *) resize->prog, sizeof(progress));
 	    resize->prog->total = 100;
 	    resize->prog->canCancel = 1;
-	    lockRelease(&(resize->prog->lock));
+	    lockRelease(&resize->prog->progLock);
 	  }
 
 	if ((vol = mount_volume(resize)) == NULL)
@@ -2957,16 +2965,16 @@ static int _resize(const char *diskName, unsigned blocks, progress *prog,
 	if (opt.info) {
 		if (get_minblocks(resize, &theDisk, minBlocks) < 0)
 			goto err_out;
-		*maxBlocks = theDisk.numSectors;
+		*maxBlocks = (resize->vol->cluster_size * 0xFFFFFFFF);
 		goto out;
 	}
 
 	CHECK_CANCEL();
 
-	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
 	    resize->prog->canCancel = 0;
-	    lockRelease(&(resize->prog->lock));
+	    lockRelease(&resize->prog->progLock);
 	  }
 
 	/* FIXME: performance - relocate logfile here if it's needed */
@@ -2995,21 +3003,21 @@ static int _resize(const char *diskName, unsigned blocks, progress *prog,
 	   partition will be split. The scheduled chkdsk will fix it */
 
 	/* WARNING: don't modify the texts, external tools grep for them */
-	progress_message(resize, "Syncing device");
+	progress_message(resize, "%s", _("Syncing device"));
 	if (vol->dev->d_ops->sync(vol->dev) == -1)
 	  {
 		err_printf(resize, "fsync failed");
 		goto err_out;
 	  }
 
-	progress_message(resize, "Successfully resized NTFS on device '%s'.",
+	progress_message(resize, _("Successfully resized NTFS on device '%s'."),
 			 vol->dev->d_name);
 
-	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
 	    resize->prog->finished = resize->prog->total;
 	    resize->prog->percentFinished = 100;
-	    lockRelease(&(resize->prog->lock));
+	    lockRelease(&resize->prog->progLock);
 	  }
 
  out:
@@ -3021,14 +3029,27 @@ static int _resize(const char *diskName, unsigned blocks, progress *prog,
 }
 
 
-int ntfsGetResizeConstraints(const char *diskName, unsigned *minBlocks,
-			     unsigned *maxBlocks)
+void libntfsInitialize(void)
 {
+  bindtextdomain("libntfs", GETTEXT_LOCALEDIR_PREFIX);
+  libntfs_initialized = 1;
+}
+
+
+int ntfsGetResizeConstraints(const char *diskName, uquad_t *minBlocks,
+			     uquad_t *maxBlocks)
+{
+  if (!libntfs_initialized)
+    libntfsInitialize();
+
   return (_resize(diskName, 0, NULL, 1, minBlocks, maxBlocks));
 }
 
 
-int ntfsResize(const char *diskName, unsigned blocks, progress *prog)
+int ntfsResize(const char *diskName, uquad_t blocks, progress *prog)
 {
+  if (!libntfs_initialized)
+    libntfsInitialize();
+
   return (_resize(diskName, blocks, prog, 0, NULL, NULL));
 }

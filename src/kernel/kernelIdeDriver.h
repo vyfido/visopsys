@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,7 @@
 
 #if !defined(_KERNELIDEDRIVER_H)
 
+#include "kernelDisk.h"
 #include "kernelLock.h"
 
 #define IDE_MAX_DISKS        4
@@ -51,7 +52,7 @@
 #define IDE_TRANSMODE_DMA2   0x22
 #define IDE_TRANSMODE_DMA1   0x21
 #define IDE_TRANSMODE_DMA0   0x20
-#define IDE_TRANSMODE_PIO    0x01
+#define IDE_TRANSMODE_PIO    0x00
 
 // Status register bits
 #define IDE_CTRL_BSY         0x80
@@ -98,7 +99,7 @@
 
 // ATAPI commands
 #define ATAPI_TESTREADY      0x00
-#define ATAPI_REQESTSENSE    0x03
+#define ATAPI_REQUESTSENSE   0x03
 #define ATAPI_INQUIRY        0x12
 #define ATAPI_STARTSTOP      0x1B
 #define ATAPI_PERMITREMOVAL  0x1E
@@ -139,7 +140,7 @@ typedef struct {
   char *name;
   unsigned char val;
   unsigned char identByte;
-  unsigned short supportedMask;
+  unsigned short suppMask;
   unsigned short enabledMask;
   int featureFlag;
 
@@ -158,8 +159,9 @@ typedef struct {
 
 typedef struct {
   int featureFlags;
-  int mediaChanged;
+  int packetMaster;
   char *dmaMode;
+  kernelPhysicalDisk physical;
 
 } ideDisk;
 
@@ -184,13 +186,31 @@ typedef volatile struct {
 } __attribute__((packed)) idePrd;
 
 typedef volatile struct {
+  unsigned char error;
+  unsigned char segNum;
+  unsigned char senseKey;
+  unsigned info;
+  unsigned char addlLength;
+  unsigned commandSpecInfo;
+  unsigned char addlSenseCode;
+  unsigned char addlSenseCodeQual;
+  unsigned char unitCode;
+  unsigned char senseKeySpec[3];
+  unsigned char addlSenseBytes[];
+
+} __attribute__((packed)) ideSenseData;
+
+typedef volatile struct {
   idePorts ports;
   int interrupt;
+  unsigned char intStatus;
   ideDisk disk[2];
   idePrd *prd;
   void *prdPhysical;
   int prdEntries;
+  int expectInterrupt;
   int gotInterrupt;
+  int ints, acks;
   lock lock;
 
 } ideChannel;
@@ -198,6 +218,7 @@ typedef volatile struct {
 typedef volatile struct {
   ideChannel channel[2];
   int busMaster;
+  int pciInterrupt;
   unsigned busMasterIo;
 
 } ideController;

@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ## 
 ##  archive-source.sh
 ##
@@ -41,22 +41,33 @@ mv /tmp/"$DESTDIR" ./
 
 # Make sure it's clean
 echo -n "Making clean... "
-make -C "$DESTDIR" clean >& /dev/null
+make -C "$DESTDIR" clean > /dev/null 2>&1
 # Remove all the things we don't want to distribute
 # CVS droppings
-find "$DESTDIR" -name CVS -exec rm -R {} \; >& /dev/null
+find "$DESTDIR" -name CVS -exec rm -R {} \; > /dev/null 2>&1
 # Other stuff
 rm -f "$DESTDIR"/*.patch
 rm -Rf "$DESTDIR"/work
 rm -f "$DESTDIR"/src/ISSUES.txt
 rm -Rf "$DESTDIR"/patches
+# Stuff from the 'plus' distribution
+rm -f "$DESTDIR"/src/kernel/kernelFilesystemFatPlus.c
+rm -f "$DESTDIR"/src/programs/sysdiag.c
+rm -f "$DESTDIR"/src/programs/sysdiag.pot
+rm -Rf "$DESTDIR"/src/lib/liblic/
+rm -f "$DESTDIR"/src/include/sys/keygen.h
+rm -Rf "$DESTDIR"/ports/ntfsprogs/de
+rm -Rf "$DESTDIR"/src/lib/libwindow/de
+rm -Rf "$DESTDIR"/src/kernel/de
+rm -Rf "$DESTDIR"/src/programs/fdisk/de
+rm -Rf "$DESTDIR"/src/programs/de
 echo Done
 
 echo -n "Archiving... "
 echo "Visopsys $RELEASE Source Release" > /tmp/comment
-echo "Copyright (C) 1998-2007 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2011 J. Andrew McLaughlin" >> /tmp/comment
 rm -f "$DESTDIR".zip
-zip -9 -z -r "$DESTDIR".zip "$DESTDIR" < /tmp/comment >& $ZIPLOG
+zip -9 -z -r "$DESTDIR".zip "$DESTDIR" < /tmp/comment > $ZIPLOG 2>&1
 if [ $? -ne 0 ] ; then
 	echo ""
 	echo -n "Not able to create zip file "$DESTDIR".zip.  "

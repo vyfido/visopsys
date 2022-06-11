@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -38,9 +38,9 @@
 ;; Use all the rest up to the start of video memory for the data buffer
 %define DATABUFFERSIZE          (000A0000h - LDRDATABUFFER)
 
-%define KERNELVIRTUALADDRESS    0C0000000h   ;; 3 Gb mark
-%define KERNELCODEDATALOCATION	00100000h    ;; 1 Mb mark
-%define KERNELSTACKSIZE	        00010000h    ;; 64 Kb
+%define KERNELVIRTUALADDRESS    0C0000000h   ;; 3 GB mark
+%define KERNELCODEDATALOCATION	00100000h    ;; 1 MB mark
+%define KERNELSTACKSIZE	        00010000h    ;; 64 KB
 
 ;; The length of the progress indicator during kernel load
 %define PROGRESSLENGTH 20
@@ -121,7 +121,6 @@ STRUC graphicsInfoBlock
  .bitsPerPixel:   resd 1 ;; Bits per pixel
  .numberModes:    resd 1 ;; Number of graphics modes in the following list
  .supportedModes: resd (MAXVIDEOMODES * 4)
-
 ENDSTRUC
 
 STRUC memoryInfoBlock
@@ -156,10 +155,4 @@ STRUC serialInfoBlock
  .port2 resd 1
  .port3 resd 1
  .port4 resd 1
-ENDSTRUC
-
-;; The data structure created by the loader to hold info about the mouse
-STRUC mouseInfoBlock
- .port   resd 1
- .idByte resd 1
 ENDSTRUC

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,12 +25,17 @@
 #include <errno.h>
 
 
-size_t strlen (const char *theInputString)
+size_t strlen(const char *string)
 {
   int count = 0;
 
-  while ((theInputString[count] != '\0') &&
-	 (count < MAXSTRINGLENGTH))
+  if (string == NULL)
+    {
+      errno = ERR_NULLPARAMETER;
+      return (count = 0);
+    }
+
+  while ((string[count] != '\0') && (count < MAXSTRINGLENGTH))
     count ++;
 
   // If this is true, then we probably have an unterminated string
@@ -39,7 +44,7 @@ size_t strlen (const char *theInputString)
   if (count >= MAXSTRINGLENGTH)
     {
       errno = ERR_BOUNDS;
-      return (count = ERR_BOUNDS);
+      return (count = 0);
     }
 
   return (count);

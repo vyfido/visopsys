@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -19,15 +19,17 @@
 //  debug.h
 //
 
-// This file contains definitions and structures for using and manipulating
-// memory in Visopsys.
+// This file contains definitions and structures for using kernel debugging
+// in Visopsys.
 
 #if !defined(_DEBUG_H)
 
 typedef enum {
-  debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_memory,
-  debug_misc, debug_multitasker, debug_scsi, debug_usb
-} kernelDebugCategory;
+  debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_loader,
+  debug_memory, debug_misc, debug_multitasker, debug_pci, debug_scsi,
+  debug_usb
+
+} debug_category;
 
 #define _DEBUG_H
 #endif

@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2007 J. Andrew McLaughlin
+##  Copyright (C) 1998-2011 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -13,16 +13,22 @@ SYSINCDIR=${ROOT}/src/include
 
 include ${ROOT}/Makefile.include
 
+ifneq (${BUILDLANG},)
+	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
+endif
+
 STDDEPS		= ${ROOT}/Makefile.include Makefile.visopsys ${INCDIR}/*.h \
 		${SYSINCDIR}/*.h ${SYSINCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR} -I${SYSINCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} \
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG} \
 		-DHAVE_CONFIG_H #-DDEBUG
 LFLAGS		= -nostdlib
 
 NAMES	= attrib \
+	attrdef \
 	attrlist \
 	bitmap \
+	boot \
 	bootsect \
 	collate \
 	compress \
@@ -36,10 +42,13 @@ NAMES	= attrib \
 	logfile \
 	logging \
 	mft \
+	mkntfs \
 	mst \
 	ntfsresize \
 	runlist \
+	sd \
 	unistr \
+	upcase \
 	volume
 
 OBJDIR = obj
@@ -70,10 +79,40 @@ ${OBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
 ${PICOBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
+${OBJDIR}/attrdef.o: ${PROGDIR}/attrdef.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${PICOBJDIR}/attrdef.o: ${PROGDIR}/attrdef.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
+${OBJDIR}/boot.o: ${PROGDIR}/boot.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${PICOBJDIR}/boot.o: ${PROGDIR}/boot.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
+${OBJDIR}/mkntfs.o: ${PROGDIR}/mkntfs.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${PICOBJDIR}/mkntfs.o: ${PROGDIR}/mkntfs.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
 ${OBJDIR}/ntfsresize.o: ${PROGDIR}/ntfsresize.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
 
 ${PICOBJDIR}/ntfsresize.o: ${PROGDIR}/ntfsresize.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
+${OBJDIR}/sd.o: ${PROGDIR}/sd.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${PICOBJDIR}/sd.o: ${PROGDIR}/sd.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
+${OBJDIR}/upcase.o: ${PROGDIR}/upcase.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${PICOBJDIR}/upcase.o: ${PROGDIR}/upcase.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}

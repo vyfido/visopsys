@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,8 +28,10 @@
 
 #define MOUSE_MAX_POINTERS             16
 #define MOUSE_POINTER_NAMELEN          64
-#define MOUSE_DEFAULT_POINTER_DEFAULT  "/system/mouse.bmp"
-#define MOUSE_DEFAULT_POINTER_BUSY     "/system/mouse/mousebsy.bmp"
+#define MOUSE_DEFAULT_POINTER_DEFAULT  "/system/mouse/default.bmp"
+#define MOUSE_DEFAULT_POINTER_BUSY     "/system/mouse/busy.bmp"
+#define MOUSE_DEFAULT_POINTER_RESIZEH  "/system/mouse/resizeh.bmp"
+#define MOUSE_DEFAULT_POINTER_RESIZEV  "/system/mouse/resizev.bmp"
 
 // A structure for holding pointers to the mouse driver functions
 typedef struct {
@@ -50,6 +52,7 @@ int kernelMouseSetPointer(kernelMousePointer *);
 void kernelMouseDraw(void);
 void kernelMouseMove(int, int);
 void kernelMouseButtonChange(int, int);
+void kernelMouseScroll(int);
 int kernelMouseGetX(void);
 int kernelMouseGetY(void);
 

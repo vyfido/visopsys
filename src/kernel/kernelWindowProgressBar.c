@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,8 +23,10 @@
 
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelMalloc.h"
 #include "kernelError.h"
+#include "kernelFont.h"
+#include "kernelGraphic.h"
+#include "kernelMalloc.h"
 #include <stdio.h>
 
 extern kernelWindowVariables *windowVariables;
@@ -37,7 +39,7 @@ static int draw(kernelWindowComponent *component)
   kernelWindowProgressBar *progressBar = component->data;
   int thickness = windowVariables->border.thickness;
   int shadingIncrement = windowVariables->border.shadingIncrement;
-  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
+  asciiFont *font = (asciiFont *) component->params.font;
   char prog[5];
 
   // Draw the background of the progress bar
@@ -71,17 +73,20 @@ static int draw(kernelWindowComponent *component)
 				  &(component->params.background),
 				  shadingIncrement, draw_normal, border_all);
 
-  // Print the progress percent
-  sprintf(prog, "%d%%", progressBar->progressPercent);
-  kernelGraphicDrawText(component->buffer,
-			(color *) &(component->params.foreground),
-			(color *) &(component->params.background),
-			font, prog, draw_translucent,
-			(component->xCoord +
-			 ((component->width -
-			   kernelFontGetPrintedWidth(font, prog)) / 2)),
-			(component->yCoord +
-			 ((component->height - font->charHeight) / 2)));
+  if (font)
+    {
+      // Print the progress percent
+      sprintf(prog, "%d%%", progressBar->progressPercent);
+      kernelGraphicDrawText(component->buffer,
+			    (color *) &(component->params.foreground),
+			    (color *) &(component->params.background),
+			    font, prog, draw_translucent,
+			    (component->xCoord +
+			     ((component->width -
+			       kernelFontGetPrintedWidth(font, prog)) / 2)),
+			    (component->yCoord +
+			     ((component->height - font->charHeight) / 2)));
+    }
 
   return (0);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,7 @@
 // buffers of variable size.
 
 #include "kernelStream.h"
+#include "kernelLock.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelError.h"
@@ -42,12 +43,18 @@ static int clear(stream *theStream)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // We clear the buffer and set first, next, and count to zero
   kernelMemClear(theStream->buffer, theStream->buffSize);
 
   theStream->first = 0;
   theStream->last = 0;
   theStream->count = 0;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -65,6 +72,10 @@ static int appendByte(stream *theStream, unsigned char byte)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Add the character
   theStream->buffer[theStream->last++] = byte;
 
@@ -74,6 +85,8 @@ static int appendByte(stream *theStream, unsigned char byte)
   // Watch for buffer-wrap
   if (theStream->last >= theStream->size)
     theStream->last = 0;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -91,6 +104,10 @@ static int appendDword(stream *theStream, unsigned dword)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Add the dword
   ((unsigned *) theStream->buffer)[theStream->last++] = dword;
 
@@ -100,6 +117,8 @@ static int appendDword(stream *theStream, unsigned dword)
   // Watch for buffer-wrap
   if (theStream->last >= theStream->size)
     theStream->last = 0;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -119,6 +138,10 @@ static int appendBytes(stream *theStream, unsigned number,
   if ((theStream == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Do a loop to add the characters
   while (added < number)
     {
@@ -132,6 +155,8 @@ static int appendBytes(stream *theStream, unsigned number,
 
   // Increase the count
   theStream->count = min((theStream->count + number), theStream->size);
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -150,6 +175,10 @@ static int appendDwords(stream *theStream, unsigned number, unsigned *buffer)
   if ((theStream == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Do a loop to add the dwords
   while (added < number)
     {
@@ -163,6 +192,8 @@ static int appendDwords(stream *theStream, unsigned number, unsigned *buffer)
 
   // Increase the count
   theStream->count = min((theStream->count + number), theStream->size);
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -180,6 +211,10 @@ static int pushByte(stream *theStream, unsigned char byte)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Move the head of the buffer backwards.  Watch out for backwards
   // wrap-around.
   if (theStream->first > 0)
@@ -192,6 +227,8 @@ static int pushByte(stream *theStream, unsigned char byte)
 
   // Increase the count
   theStream->count++;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -209,6 +246,10 @@ static int pushDword(stream *theStream, unsigned dword)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Move the head of the buffer backwards.  Watch out for backwards
   // wrap-around
   if (theStream->first > 0)
@@ -221,6 +262,8 @@ static int pushDword(stream *theStream, unsigned dword)
 
   // Increase the count
   theStream->count++;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -243,6 +286,10 @@ static int pushBytes(stream *theStream, unsigned number, unsigned char *buffer)
   if (number <= 0)
     return (status = ERR_INVALID);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Do a loop to add bytes
   while (number > 0)
     {
@@ -261,6 +308,8 @@ static int pushBytes(stream *theStream, unsigned number, unsigned char *buffer)
 
   // Increase the count
   theStream->count += added;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -283,6 +332,10 @@ static int pushDwords(stream *theStream, unsigned number, unsigned *buffer)
   if (number <= 0)
     return (status = ERR_INVALID);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Do a loop to add dwords
   while (number > 0)
     {
@@ -301,6 +354,8 @@ static int pushDwords(stream *theStream, unsigned number, unsigned *buffer)
 
   // Increase the count
   theStream->count += added;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -322,6 +377,10 @@ static int popByte(stream *theStream, unsigned char *byte)
   if (theStream->count == 0)
     return (status = ERR_NODATA);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Get the byte at the head of the buffer
   *byte = theStream->buffer[theStream->first];
 
@@ -334,6 +393,8 @@ static int popByte(stream *theStream, unsigned char *byte)
   
   // Decrease the count
   theStream->count--;
+
+  kernelLockRelease(&theStream->lock);
 
   // Return success
   return (status = 0);
@@ -355,6 +416,10 @@ static int popDword(stream *theStream, unsigned *dword)
   if (theStream->count == 0)
     return (status = ERR_NODATA);
 
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
+
   // Get the byte at the head of the buffer
   *dword = ((unsigned *) theStream->buffer)[theStream->first];
 
@@ -368,6 +433,8 @@ static int popDword(stream *theStream, unsigned *dword)
   // Decrease the count
   theStream->count--;
 
+  kernelLockRelease(&theStream->lock);
+
   // Return success
   return (status = 0);
 }
@@ -379,6 +446,7 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
   // and returns them in the buffer provided.  On success, it returns the
   // number of characters it actually removed.  Returns negative on error.
 
+  int status = 0;
   unsigned removed = 0;
 
   // Check parameters
@@ -388,6 +456,10 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
   // Make sure the buffer isn't empty
   if (theStream->count == 0)
     return (removed = 0);
+
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
 
   // Do a loop to remove bytes and place them in the buffer
   while (removed < number)
@@ -410,6 +482,8 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
       theStream->count--;
     }
 
+  kernelLockRelease(&theStream->lock);
+
   // Return the number of bytes we copied
   return (removed);
 }
@@ -421,6 +495,7 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
   // and returns them in the buffer provided.  On success, it returns the
   // number of dwords it actually removed.  Returns negative on error.
 
+  int status = 0;
   unsigned removed = 0;
 
   // Check parameters
@@ -430,6 +505,10 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
   // Make sure the buffer isn't empty
   if (theStream->count == 0)
     return (removed = 0);
+
+  status = kernelLockGet(&theStream->lock);
+  if (status < 0)
+    return (status);
 
   // Do a loop to remove dwords and place them in the buffer
   while (removed < number)
@@ -451,6 +530,8 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
       // Decrease the count
       theStream->count--;
     }
+
+  kernelLockRelease(&theStream->lock);
 
   // Return the number of bytes we copied
   return (removed);
@@ -479,6 +560,9 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
   // Items should be greater than zero
   if (size <= 0)
     return (status = ERR_BOUNDS);
+
+  // Clear out the stream structure
+  kernelMemClear((void *) theStream, sizeof(stream));
 
   theStream->size = size;
 
@@ -537,16 +621,17 @@ int kernelStreamDestroy(stream *theStream)
   // Frees memory and clears out the stream.
 
   int status = 0;
+  void *buffer = theStream->buffer;
 
   // Check parameters
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  // Free memory
-  kernelFree(theStream->buffer);
-
   // Clear it
   kernelMemClear((void *) theStream, sizeof(stream));
+
+  // Free memory
+  kernelFree(buffer);
 
   // Cool.
   return (status = 0);

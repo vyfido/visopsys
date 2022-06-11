@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,22 +41,26 @@ usage.  It is a graphical utility combining the same functionalities as the
 </help>
 */
 
+#include <errno.h>
+#include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
 
+#define _(string) gettext(string)
+
 #define SHOW_MAX_PROCESSES     100
 #define PROCESS_STRING_LENGTH  64
-#define USEDBLOCKS_STRING      "Memory blocks: "
-#define USEDMEM_STRING         "Used memory: "
-#define FREEMEM_STRING         "Free memory: "
-#define READPERF_STRING        "Read: "
-#define WRITEPERF_STRING       "Write: "
-#define IORATE_STRING          "K/tick"
+#define USEDBLOCKS_STRING      _("Memory blocks: ")
+#define USEDMEM_STRING         _("Used memory: ")
+#define FREEMEM_STRING         _("Free memory: ")
+#define READPERF_STRING        _("Read: ")
+#define WRITEPERF_STRING       _("Write: ")
+#define IORATE_STRING          _("K/tick")
 
 static int processId = 0;
 static int privilege = 0;
@@ -90,7 +94,7 @@ static void error(const char *format, ...)
   vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
-  windowNewErrorDialog(window, "Error", output);
+  windowNewErrorDialog(window, _("Error"), output);
 }
 
 
@@ -110,7 +114,7 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 
   for (count = 0; count < tmpNumProcesses; count ++)
     {
-      if ((tmpProcessArray[count].processName[0] == '\0') ||
+      if ((tmpProcessArray[count].name[0] == '\0') ||
 	  (tmpProcessArray[count].type != proc_thread) ||
 	  (tmpProcessArray[count].parentProcessId != parent->processId))
 	continue;
@@ -118,7 +122,7 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
       // Copy this thread into the regular array
       memcpy(&processes[numProcesses++], &tmpProcessArray[count],
 	     sizeof(process));
-      tmpProcessArray[count].processName[0] = '\0';
+      tmpProcessArray[count].name[0] = '\0';
 	    
       // Now sort any children behind it.
       sortChildren(tmpProcessArray, tmpNumProcesses);
@@ -163,20 +167,20 @@ static int getUpdate(void)
       // Assign the strings to our labels
       if (memoryBlocksLabel)
 	{
-	  sprintf(labelChar, USEDBLOCKS_STRING "%d", memStats.usedBlocks);
+	  sprintf(labelChar, "%s%d", USEDBLOCKS_STRING , memStats.usedBlocks);
 	  windowComponentSetData(memoryBlocksLabel, labelChar,
 				 strlen(labelChar));
 	}
       if (memoryUsedLabel)
 	{
-	  sprintf(labelChar, USEDMEM_STRING "%u Kb - %d%%",
+	  sprintf(labelChar, "%s%u Kb - %d%%", USEDMEM_STRING,
 		  memStats.usedMemory, percentUsed);
 	  windowComponentSetData(memoryUsedLabel, labelChar,
 				 strlen(labelChar));
 	}
       if (memoryFreeLabel)
 	{
-	  sprintf(labelChar, FREEMEM_STRING "%u Kb - %d%%", totalFree,
+	  sprintf(labelChar, "%s%u Kb - %d%%", FREEMEM_STRING, totalFree,
 		  (100 - percentUsed));
 	  windowComponentSetData(memoryFreeLabel, labelChar,
 				 strlen(labelChar));
@@ -186,21 +190,27 @@ static int getUpdate(void)
   status = diskGetStats(NULL, &dskStats);
   if (status >= 0)
     {
-      if (dskStats.readTime)
-	readPerf = (dskStats.readKbytes / dskStats.readTime);
-      if (dskStats.writeTime)
-	writePerf = (dskStats.writeKbytes / dskStats.writeTime);
+      if (!dskStats.readTime)
+	dskStats.readTime = 1;
+
+      if (!dskStats.writeTime)
+	dskStats.writeTime = 1;
+
+      readPerf = (dskStats.readKbytes / dskStats.readTime);
+      writePerf = (dskStats.writeKbytes / dskStats.writeTime);
 
       if (diskReadPerfLabel)
 	{
-	  sprintf(labelChar, READPERF_STRING "%u" IORATE_STRING, readPerf);
+	  sprintf(labelChar, "%s%u%s", READPERF_STRING, readPerf,
+		  IORATE_STRING);
 	  windowComponentSetData(diskReadPerfLabel, labelChar,
 				 strlen(labelChar));
 	}
 
       if (diskWritePerfLabel)
 	{
-	  sprintf(labelChar, WRITEPERF_STRING "%u" IORATE_STRING, writePerf);
+	  sprintf(labelChar, "%s%u%s", WRITEPERF_STRING, writePerf,
+		  IORATE_STRING);
 	  windowComponentSetData(diskWritePerfLabel, labelChar,
 				 strlen(labelChar));
 	}
@@ -209,7 +219,7 @@ static int getUpdate(void)
   tmpProcessArray = malloc(SHOW_MAX_PROCESSES * sizeof(process));
   if (tmpProcessArray == NULL)
     {
-      error("Can't get temporary memory for processes");
+      error("%s", _("Can't get temporary memory for processes"));
       return (status = ERR_MEMORY);
     }
 
@@ -230,14 +240,14 @@ static int getUpdate(void)
 
   for (count = 0; count < tmpNumProcesses; count ++)
     {
-      if ((tmpProcessArray[count].processName[0] == '\0') ||
+      if ((tmpProcessArray[count].name[0] == '\0') ||
 	  (tmpProcessArray[count].type == proc_thread))
 	continue;
 
       // Copy this process into the regular array
       memcpy(&processes[numProcesses++], &tmpProcessArray[count],
 	     sizeof(process));
-      tmpProcessArray[count].processName[0] = '\0';
+      tmpProcessArray[count].name[0] = '\0';
 
       if (showThreads)
 	// Now sort any children, grandchildren, etc., behind it.
@@ -254,7 +264,7 @@ static int getUpdate(void)
 
       sprintf(bufferPointer, "%s%s",
 	      ((tmpProcess->type == proc_thread)? " - " : ""),
-	      tmpProcess->processName);
+	      tmpProcess->name);
       bufferPointer[strlen(bufferPointer)] = ' ';
       sprintf((bufferPointer + 26), "%d", tmpProcess->processId);
        bufferPointer[strlen(bufferPointer)] = ' ';
@@ -273,28 +283,29 @@ static int getUpdate(void)
       switch(tmpProcess->state)
 	{
 	case proc_running:
-	  strcpy((bufferPointer + 53), "running ");
+	  strcpy((bufferPointer + 53), _("running "));
 	  break;
 	case proc_ready:
-	  strcpy((bufferPointer + 53), "ready ");
+	case proc_ioready:
+	  strcpy((bufferPointer + 53), _("ready "));
 	  break;
 	case proc_waiting:
-	  strcpy((bufferPointer + 53), "waiting ");
+	  strcpy((bufferPointer + 53), _("waiting "));
 	  break;
 	case proc_sleeping:
-	  strcpy((bufferPointer + 53), "sleeping ");
+	  strcpy((bufferPointer + 53), _("sleeping "));
 	  break;
 	case proc_stopped:
-	  strcpy((bufferPointer + 53), "stopped ");
+	  strcpy((bufferPointer + 53), _("stopped "));
 	  break;
 	case proc_finished:
-	  strcpy((bufferPointer + 53), "finished ");
+	  strcpy((bufferPointer + 53), _("finished "));
 	  break;
 	case proc_zombie:
-	  strcpy((bufferPointer + 53), "zombie ");
+	  strcpy((bufferPointer + 53), _("zombie "));
 	  break;
 	default:
-	  strcpy((bufferPointer + 53), "unknown ");
+	  strcpy((bufferPointer + 53), _("unknown "));
 	  break;
 	}
     }
@@ -316,9 +327,9 @@ static void runProgram(void)
   int count;
 
   status =
-    windowNewFileDialog(NULL, "Enter command", "Please enter a command to "
-			"run:", "/programs", commandLine,
-			MAX_PATH_NAME_LENGTH);
+    windowNewFileDialog(NULL, _("Enter command"),
+			_("Please enter a command to run:"), "/programs",
+			commandLine, MAX_PATH_NAME_LENGTH, 0);
   if (status != 1)
     goto out;
 
@@ -346,7 +357,7 @@ static void runProgram(void)
 
  out:
   if (status < 0)
-    error("Unable to execute program");
+    error("%s", _("Unable to execute program"));
   multitaskerTerminate(status);
 }
 
@@ -383,8 +394,8 @@ static int setPriority(int whichProcess)
   // Get the process to change
   changeProcess = &processes[whichProcess];
   
-  newPriority = getNumberDialog("Set priority", "Please enter the desired "
-				"priority");
+  newPriority =
+    getNumberDialog(_("Set priority"), _("Please enter the desired priority"));
   if (newPriority < 0)
     return (newPriority);
 
@@ -447,7 +458,7 @@ static void eventHandler(objectKey key, windowEvent *event)
       if ((key == runProgramButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
 	  if (multitaskerSpawn(&runProgram, "run program", 0, NULL) < 0)
-	    error("Unable to launch file dialog");
+	    error("%s", _("Unable to launch file dialog"));
 	}
 
       else if ((key == setPriorityButton) &&
@@ -468,9 +479,10 @@ static void constructWindow(void)
 
   componentParameters params;
   objectKey container = NULL;
+  char tmp[80];
 
   // Create a new window
-  window = windowNew(processId, "Program Manager");
+  window = windowNew(processId, _("Program Manager"));
   if (window == NULL)
     return;
 
@@ -494,16 +506,16 @@ static void constructWindow(void)
   params.gridX += 1;
   params.gridY = 0;
   params.padBottom = 0;
-  windowNewTextLabel(window, "Disk performance:", &params);
+  windowNewTextLabel(window, _("Disk performance:"), &params);
 
   params.gridY += 1;
-  diskReadPerfLabel =
-    windowNewTextLabel(window, READPERF_STRING "0" IORATE_STRING, &params);
+  sprintf(tmp, "%s0%s", READPERF_STRING, IORATE_STRING);
+  diskReadPerfLabel = windowNewTextLabel(window, tmp, &params);
 
   params.gridY += 1;
   params.padBottom = 10;
-  diskWritePerfLabel =
-    windowNewTextLabel(window, WRITEPERF_STRING "0" IORATE_STRING, &params);
+  sprintf(tmp, "%s0%s", WRITEPERF_STRING, IORATE_STRING);
+  diskWritePerfLabel = windowNewTextLabel(window, tmp, &params);
 
   params.gridX = 0;
   params.gridY += 2;
@@ -511,20 +523,22 @@ static void constructWindow(void)
   params.padBottom = 0;
   fontGetDefault(&(params.font));
   // Create the label of column headers for the list below
-  windowNewTextLabel(window, "Process                   PID PPID UID Pri Priv "
-		     "CPU% STATE   ", &params);
+  windowNewTextLabel(window, _("Process                   "
+			       "PID PPID UID Pri Priv CPU% STATE   "),
+		     &params);
 
   // Create the list of processes
   params.gridY += 1;
   processList = windowNewList(window, windowlist_textonly, 20, 1, 0,
 			      processListParams, numProcesses, &params);
+  windowComponentFocus(processList);
 
   // Create a 'show sub-processes' checkbox
   params.gridY += 1;
   params.padBottom = 5;
   params.font = NULL;
   showThreadsCheckbox =
-    windowNewCheckbox(window, "Show all sub-processes", &params);
+    windowNewCheckbox(window, _("Show all sub-processes"), &params);
   windowComponentSetSelected(showThreadsCheckbox, 1);
   windowRegisterEventHandler(showThreadsCheckbox, &eventHandler);
 
@@ -543,20 +557,21 @@ static void constructWindow(void)
   params.padRight = 0;
   params.padTop = 0;
   params.padBottom = 0;
-  runProgramButton = windowNewButton(container, "Run program", NULL, &params);
+  runProgramButton =
+    windowNewButton(container, _("Run program"), NULL, &params);
   windowRegisterEventHandler(runProgramButton, &eventHandler);
 
   // Create a 'set priority' button
   params.gridY += 1;
   params.padTop = 5;
   setPriorityButton =
-    windowNewButton(container, "Set priority", NULL, &params);
+    windowNewButton(container, _("Set priority"), NULL, &params);
   windowRegisterEventHandler(setPriorityButton, &eventHandler);
 
   // Create a 'kill process' button
   params.gridY += 1;
   killProcessButton =
-    windowNewButton(container, "Kill process", NULL, &params);
+    windowNewButton(container, _("Kill process"), NULL, &params);
   windowRegisterEventHandler(killProcessButton, &eventHandler);
 
   // Register an event handler to catch window close events
@@ -571,12 +586,19 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char *language = "";
   int guiThreadPid = 0;
+
+#ifdef BUILDLANG
+  language=BUILDLANG;
+#endif
+  setlocale(LC_ALL, language);
+  textdomain("progman");
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n",
+      printf(_("\nThe \"%s\" command only works in graphics mode\n"),
 	     (argc? argv[0] : ""));
       return (status = ERR_NOTINITIALIZED);
     }
@@ -595,7 +617,7 @@ int main(int argc, char *argv[])
 	free(processes);
       if (processListParams)
 	free(processListParams);
-      error("Error getting memory");
+      error("%s", _("Error getting memory"));
       return (status = ERR_MEMORY);
     }
 
@@ -622,7 +644,7 @@ int main(int argc, char *argv[])
       if (getUpdate() < 0)
 	break;
       windowComponentSetData(processList, processListParams, numProcesses);
-      multitaskerWait(20);
+      sleep(1);
     }
 
   free(processes);

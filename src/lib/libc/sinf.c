@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,23 +33,29 @@ float sinf(float radians)
   float sign = 0;
   float x2nplus1 = 0;
   float factorial = 0;
-  int n, count;
+  float n, count;
 
-  for (n = 0; n < 10; n++)
+  while (radians > (M_PI * 2))
+    radians -= (M_PI * 2);
+  while (radians < -(M_PI * 2))
+    radians += (M_PI * 2);
+
+  for (n = 0; n < 10; n += 1)
     {
       sign = 1.0;
-      for (count = 0; count < n; count ++)
-	sign *= (float) -1;
+      for (count = 0; count < n; count += 1)
+	sign *= -1;
 
       x2nplus1 = 1.0;
-      for (count = 0; count < ((2 * n) + 1); count ++)
+      for (count = 0; count < ((2 * n) + 1); count += 1)
 	x2nplus1 *= radians;
 
       factorial = 1.0;
-      for (count = ((2 * n) + 1); count > 0; count --)
-	factorial *= (float) count;
+      for (count = ((2 * n) + 1); count > 0; count -= 1)
+	factorial *= count;
 
-      result += (sign * (x2nplus1 / factorial));
+      if (factorial)
+	result += (sign * (x2nplus1 / factorial));
     }
 
   return (result);

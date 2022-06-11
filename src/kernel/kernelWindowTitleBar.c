@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,11 +24,12 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelFont.h"
+#include "kernelGraphic.h"
 #include "kernelMalloc.h"
-#include "kernelMemory.h"
 #include "kernelMisc.h"
-#include "kernelMultitasker.h"
 #include "kernelWindowEventStream.h"
+#include <stdlib.h>
 #include <string.h>
 
 static image minimizeImage;
@@ -60,9 +61,14 @@ static void createImages(int width, int height)
   // Create some standard, shared images for close buttons, etc.
   
   kernelGraphicBuffer graphicBuffer;
-  extern color kernelDefaultBackground;
+  image tmpImage;
+  color greenColor;
+  int crossSize, crossStartX, crossStartY, crossEndX, crossEndY;
 
   kernelMemClear((void *) &graphicBuffer, sizeof(kernelGraphicBuffer));
+
+  kernelMemClear(&greenColor, sizeof(color));
+  greenColor.green = 0xFF;
 
   // Get a buffer to draw our close button graphic
   graphicBuffer.width = width;
@@ -74,41 +80,46 @@ static void createImages(int width, int height)
     return;
 
   // Do the minimize button
-  kernelMemClear(&minimizeImage, sizeof(image));
-  kernelGraphicClearArea(&graphicBuffer, &kernelDefaultBackground,
-			 0, 0, graphicBuffer.width,
-			 graphicBuffer.height);
-  kernelGraphicDrawRect(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			((graphicBuffer.width - 4) / 2),
-			((graphicBuffer.height - 4) / 2), 4, 4, 1, 0);
-  kernelGraphicGetKernelImage(&graphicBuffer, &minimizeImage, 0, 0,
-			      graphicBuffer.width, graphicBuffer.height);
+  kernelGraphicClearArea(&graphicBuffer, &greenColor, 0, 0,
+			 graphicBuffer.width, graphicBuffer.height);
+  kernelGraphicDrawRect(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			((width - 4) / 2), ((height - 4) / 2), 4, 4, 1, 0);
+  kernelGraphicGetImage(&graphicBuffer, &tmpImage, 0, 0, graphicBuffer.width,
+			graphicBuffer.height);
+  kernelImageCopyToKernel(&tmpImage, &minimizeImage);
+  kernelImageFree(&tmpImage);
 
   // Do the close button
-  kernelMemClear(&closeImage, sizeof(image));
-  kernelGraphicClearArea(&graphicBuffer, &kernelDefaultBackground,
-			 0, 0, graphicBuffer.width,
-			 graphicBuffer.height);
-  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			0, 0, (graphicBuffer.width - 1),
-			(graphicBuffer.height - 1));
-  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			1, 0, (graphicBuffer.width - 1),
-			(graphicBuffer.height - 2));
-  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			0, 1, (graphicBuffer.width - 2),
-			(graphicBuffer.height - 1));
-  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			0, (graphicBuffer.width - 1),
-			(graphicBuffer.height - 1), 0);
-  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			0, (graphicBuffer.width - 2),
-			(graphicBuffer.height - 2), 0);
-  kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
-			1, (graphicBuffer.width - 1),
-			(graphicBuffer.height - 1), 1);
-  kernelGraphicGetKernelImage(&graphicBuffer, &closeImage, 0, 0,
-			      graphicBuffer.width, graphicBuffer.height);
+  crossSize = min(8, (width - 4));
+  crossStartX = ((width - crossSize) / 2);
+  crossStartY = ((height - crossSize) / 2);
+  crossEndX = (crossStartX + crossSize - 1);
+  crossEndY = (crossStartY + crossSize - 1);
+  kernelGraphicClearArea(&graphicBuffer, &greenColor, 0, 0,
+			 graphicBuffer.width, graphicBuffer.height);
+
+  kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			crossStartX, crossStartY, crossEndX, crossEndY);
+  kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			(crossStartX + 1), crossStartY, crossEndX,
+			(crossEndY - 1));
+  kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			crossStartX, (crossStartY + 1), (crossEndX - 1),
+			crossEndY);
+
+  kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			crossStartX, crossEndX, crossEndY, crossStartY);
+  kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			crossStartX, (crossEndX - 1), (crossEndY - 1),
+			crossStartY);
+  kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+			(crossStartX + 1), crossEndX, crossEndY,
+			(crossStartY + 1));
+
+  kernelGraphicGetImage(&graphicBuffer, &tmpImage, 0, 0,
+			graphicBuffer.width, graphicBuffer.height);
+  kernelImageCopyToKernel(&tmpImage, &closeImage);
+  kernelImageFree(&tmpImage);
 
   kernelFree(graphicBuffer.data);
   graphicBuffer.data = NULL;
@@ -151,12 +162,11 @@ static int draw(kernelWindowComponent *component)
   // Draw the title bar component atop the window
 
   kernelWindowTitleBar *titleBar = component->data;
-  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
+  asciiFont *font = (asciiFont *) component->params.font;
   int titleWidth = 0;
   char title[128];
   color foregroundColor;
   color backgroundColor;
-  int count;
 
   // The color will be different depending on whether the window has
   // the focus
@@ -165,9 +175,8 @@ static int draw(kernelWindowComponent *component)
       if (component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
 	{
 	  // Use user-supplied colors
-	  backgroundColor.red = component->params.background.red;
-	  backgroundColor.green = component->params.background.green;
-	  backgroundColor.blue = component->params.background.blue;
+	  kernelMemCopy((color *) &component->params.background,
+			&backgroundColor, sizeof(color));
 	}
       else
 	{
@@ -184,30 +193,17 @@ static int draw(kernelWindowComponent *component)
       backgroundColor.blue = 150;
     }
 
-  // We draw it inside the border as a series of lines.  It starts as a
-  // darker blue and lightens in color
-  for (count = 0; count < component->height; count ++)
-    {
-      kernelGraphicDrawLine(component->buffer, &backgroundColor, draw_normal,
-			    component->xCoord, (component->yCoord + count),
-			    (component->xCoord + component->width - 1),
-			    (component->yCoord + count));
-      if (backgroundColor.red > 0)
-	backgroundColor.red -= 5;
-      if (backgroundColor.green > 0)
-	backgroundColor.green -= 5;
-      if (backgroundColor.blue > 0)
-	backgroundColor.blue -= 5;
-    }
+  kernelGraphicConvexShade(component->buffer, &backgroundColor,
+			   component->xCoord, component->yCoord,
+			   component->width, component->height, shade_fromtop);
 
   // Put the title on the title bar
   
   if (component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
     {
       // Use user-supplied colors
-      foregroundColor.red = component->params.foreground.red;
-      foregroundColor.green = component->params.foreground.green;
-      foregroundColor.blue = component->params.foreground.blue;
+      kernelMemCopy((color *) &component->params.foreground, &foregroundColor,
+		    sizeof(color));
     }
   else
     {
@@ -217,20 +213,24 @@ static int draw(kernelWindowComponent *component)
       foregroundColor.blue = 255;
     }
 
-  strncpy(title, (char *) component->window->title, 128);
-  titleWidth = (component->width - 1);
-  if (titleBar->minimizeButton)
-    titleWidth -= titleBar->minimizeButton->width;
-  if (titleBar->closeButton)
-    titleWidth -= titleBar->closeButton->width;
+  if (font)
+    {
+      strncpy(title, (char *) component->window->title, 128);
+      titleWidth = (component->width - 1);
+      if (titleBar->minimizeButton)
+	titleWidth -= titleBar->minimizeButton->width;
+      if (titleBar->closeButton)
+	titleWidth -= titleBar->closeButton->width;
 
-  while (kernelFontGetPrintedWidth(font, title) > titleWidth)
-    title[strlen(title) - 2] = '\0';
+      while (kernelFontGetPrintedWidth(font, title) > titleWidth)
+	title[strlen(title) - 2] = '\0';
 
-  kernelGraphicDrawText(component->buffer, &foregroundColor, &backgroundColor,
-			font, title, draw_translucent, (component->xCoord + 5),
-			(component->yCoord +
-			 ((component->height - font->charHeight) / 2)));
+      kernelGraphicDrawText(component->buffer, &foregroundColor,
+			    &backgroundColor, font, title, draw_translucent,
+			    (component->xCoord + 5),
+			    (component->yCoord +
+			     ((component->height - font->charHeight) / 2)));
+    }
 
   if (titleBar->minimizeButton && titleBar->minimizeButton->draw)
     titleBar->minimizeButton->draw(titleBar->minimizeButton);

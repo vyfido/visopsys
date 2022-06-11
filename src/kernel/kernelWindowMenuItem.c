@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2007 J. Andrew McLaughlin
+//  Copyright (C) 1998-2011 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,7 +50,6 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindowComponent
   kernelWindowComponent *component = NULL;
   kernelWindowMenu *menu = NULL;
   listItemParameters itemParams;
-  extern color kernelDefaultBackground;
 
   // Check params
   if ((menuComponent == NULL) || (text == NULL) || (params == NULL))
@@ -87,8 +86,8 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindowComponent
   if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     // We use a different default background color than the window list
     // item component that the menu item is based upon
-    kernelMemCopy(&(kernelDefaultBackground), (color *)
-		  &(component->params.background), sizeof(color));
+    kernelMemCopy(&windowVariables->color.background, (color *)
+		  &component->params.background, sizeof(color));
 
   return (component);
 }
