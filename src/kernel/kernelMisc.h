@@ -64,6 +64,7 @@ static inline int POW(int x, int y)
 }
 
 void kernelGetVersion(char *, int);
+int kernelSystemInfo(void *);
 void kernelMemCopy(const void *, void *, unsigned);
 void kernelMemSet(void *, unsigned char, unsigned);
 #define kernelMemClear(ptr, num) kernelMemSet(ptr, 0, num);

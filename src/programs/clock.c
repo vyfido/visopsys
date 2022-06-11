@@ -106,8 +106,6 @@ int main(int argc, char *argv[])
   params.padBottom = 2;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
 
   makeTime();

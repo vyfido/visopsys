@@ -133,8 +133,8 @@ int kernelShutdown(int reboot, int force)
       screenHeight = kernelGraphicGetScreenHeight();
 
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &font, 0);
+      status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+			      WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &font, 0);
       if (status < 0)
 	{
 	  // Font's not there, we suppose.  There's always a default.
@@ -154,8 +154,6 @@ int kernelShutdown(int reboot, int force)
 	  params.padBottom = 5;
 	  params.orientationX = orient_center;
 	  params.orientationY = orient_top;
-	  params.useDefaultForeground = 1;
-	  params.useDefaultBackground = 1;
 	  label1 = kernelWindowNewTextLabel(window, SHUTDOWN_MSG1, &params);
 
 	  if (!reboot)

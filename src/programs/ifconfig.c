@@ -57,8 +57,13 @@ static objectKey window = NULL;
 static objectKey enabledLabel = NULL;
 static objectKey enableButton = NULL;
 static objectKey enableCheckbox = NULL;
+static objectKey hostLabel = NULL;
+static objectKey domainLabel = NULL;
+static objectKey hostField = NULL;
+static objectKey domainField = NULL;
 static objectKey deviceLabel[NETWORK_MAX_ADAPTERS];
 static objectKey okButton = NULL;
+static objectKey cancelButton = NULL;
 
 
 static void error(const char *format, ...)
@@ -174,36 +179,16 @@ static void updateEnabled(void)
 {
   // Update the networking enabled widgets
 
-  char enabled[80];
-  variableList kernelConf;
-  int haveConf = 0;
   char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
   char *buffer = NULL;
+  char tmp[128];
   int count;
 
-  snprintf(enabled, 80, "Networking is %s", (networkEnabled? "enabled" :
-					     "disabled"));
-  windowComponentSetData(enabledLabel, enabled, strlen(enabled));
+  snprintf(tmp, 128, "Networking is %s",
+	   (networkEnabled? "enabled" : "disabled"));
+  windowComponentSetData(enabledLabel, tmp, strlen(tmp));
   windowComponentSetData(enableButton, (networkEnabled? "Disable" : "Enable"),
 			 8);
-
-  // Try to read the kernel config
-  if (configurationReader(KERNELCONF, &kernelConf) >= 0)
-    haveConf = 1;
-
-  if (haveConf)
-    {
-      variableListGet(&kernelConf, "network", enabled, 128);
-      if (!strncmp(enabled, "yes", 80))
-	windowComponentSetSelected(enableCheckbox, 1);
-      else
-	windowComponentSetSelected(enableCheckbox, 0);
-
-      variableListDestroy(&kernelConf);
-    }
-
-  if (readOnly || !haveConf)
-    windowComponentSetEnabled(enableCheckbox, 0);
 
   // Update the device strings as well.
   buffer = malloc(MAXSTRINGLENGTH);
@@ -221,15 +206,60 @@ static void updateEnabled(void)
 }
 
 
+static void updateHostName(void)
+{
+  char hostName[NETWORK_MAX_HOSTNAMELENGTH];
+  char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
+  variableList kernelConf;
+
+  if (networkEnabled)
+    {
+      if (networkGetHostName(hostName, NETWORK_MAX_HOSTNAMELENGTH) >= 0)
+	windowComponentSetData(hostField, hostName,
+			       NETWORK_MAX_HOSTNAMELENGTH);
+
+      if (networkGetDomainName(domainName, NETWORK_MAX_DOMAINNAMELENGTH) >= 0)
+	windowComponentSetData(domainField, domainName,
+			       NETWORK_MAX_DOMAINNAMELENGTH);
+    }
+  else
+    {
+      if (configurationReader(KERNELCONF, &kernelConf) >= 0)
+	{
+	  bzero(hostName, NETWORK_MAX_HOSTNAMELENGTH);
+	  bzero(domainName, NETWORK_MAX_DOMAINNAMELENGTH);
+
+	  variableListGet(&kernelConf, "network.hostname", hostName,
+			  NETWORK_MAX_HOSTNAMELENGTH);
+	  if (hostName[0])
+	    windowComponentSetData(hostField, hostName,
+				   NETWORK_MAX_HOSTNAMELENGTH);
+
+	  variableListGet(&kernelConf, "network.domainname", domainName,
+			  NETWORK_MAX_DOMAINNAMELENGTH);
+	  if (domainName[0])
+	    windowComponentSetData(domainField, domainName,
+				   NETWORK_MAX_DOMAINNAMELENGTH);
+
+	  variableListDestroy(&kernelConf);
+	}
+    }
+
+  return;
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
   objectKey enableDialog = NULL;
   int selected = 0;
   variableList kernelConf;
+  char hostName[NETWORK_MAX_HOSTNAMELENGTH];
+  char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
 
   // Check for the window being closed by a GUI event.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+      ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
     {
       windowGuiStop();
       windowDestroy(window);
@@ -255,20 +285,33 @@ static void eventHandler(objectKey key, windowEvent *event)
 
       networkEnabled = networkInitialized();
       updateEnabled();
+      updateHostName();
     }
 
-  // Check for the user clicking the 'enable at startup' checkbox
-  if ((key == enableCheckbox) && (event->type & EVENT_SELECTION))
+  // Check for the user clicking the 'OK' buttom
+  if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       windowComponentGetSelected(enableCheckbox, &selected);
+      windowComponentGetData(hostField, hostName, NETWORK_MAX_HOSTNAMELENGTH);
+      windowComponentGetData(domainField, domainName,
+			     NETWORK_MAX_DOMAINNAMELENGTH);
 
-      // Try to read the kernel config
-      if (configurationReader(KERNELCONF, &kernelConf) >= 0)
+      // Set new values in the kernel
+      networkSetHostName(hostName, NETWORK_MAX_HOSTNAMELENGTH);
+      networkSetDomainName(domainName, NETWORK_MAX_DOMAINNAMELENGTH);
+
+      // Try to read and change the kernel config
+      if (!readOnly && configurationReader(KERNELCONF, &kernelConf) >= 0)
 	{
 	  variableListSet(&kernelConf, "network", (selected? "yes" : "no"));
+	  variableListSet(&kernelConf, "network.hostname", hostName);
+	  variableListSet(&kernelConf, "network.domainname", domainName);
 	  configurationWriter(KERNELCONF, &kernelConf);
 	  variableListDestroy(&kernelConf);
 	}
+
+      windowGuiStop();
+      windowDestroy(window);
     }
 
   return;
@@ -279,8 +322,11 @@ static int constructWindow(char *arg)
 {
   int status = 0;
   componentParameters params;
+  objectKey container = NULL;
+  variableList kernelConf;
   char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
   char *buffer = NULL;
+  char tmp[8];
   int count;
 
   // Create a new window
@@ -294,35 +340,82 @@ static int constructWindow(char *arg)
   params.padLeft = 5;
   params.padRight = 5;
   params.padTop = 5;
-  params.orientationX = orient_center;
+  params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.fixedWidth = 1;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
+
+  // A container for the 'enable networking' stuff
+  params.gridWidth = 2;
+  container = windowNewContainer(window, "enable", &params);
 
   // Make a label showing the status of networking
-  params.orientationX = orient_right;
-  enabledLabel = windowNewTextLabel(window, "Networking is disabled", &params);
+  params.gridWidth = 1;
+  params.padTop = 0;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+  enabledLabel =
+    windowNewTextLabel(container, "Networking is disabled", &params);
 
   // Make a button for enabling/disabling networking
   params.gridX = 1;
-  params.orientationX = orient_middle;
-  enableButton = windowNewButton(window, "Enable", NULL, &params);
+  enableButton = windowNewButton(container, "Enable", NULL, &params);
   windowRegisterEventHandler(enableButton, &eventHandler);
 
   // Make a checkbox so the user can choose to always enable/disable
   params.gridX = 2;
-  params.orientationX = orient_left;
-  enableCheckbox = windowNewCheckbox(window, "Enabled at startup", &params);
-  windowRegisterEventHandler(enableCheckbox, &eventHandler);
+  enableCheckbox = windowNewCheckbox(container, "Enabled at startup", &params);
   params.gridY += 1;
 
-  updateEnabled();
+  // Try to read the kernel config
+  if (configurationReader(KERNELCONF, &kernelConf) >= 0)
+    {
+      variableListGet(&kernelConf, "network", tmp, 8);
+      if (!strncmp(tmp, "yes", 8))
+	windowComponentSetSelected(enableCheckbox, 1);
+      else
+	windowComponentSetSelected(enableCheckbox, 0);
+      
+      variableListDestroy(&kernelConf);
+    }
+  
+  if (readOnly)
+    windowComponentSetEnabled(enableCheckbox, 0);
+
+ updateEnabled();
+
+  // A container for the host and domain name stuff
+  params.gridX = 0;
+  params.gridWidth = 2;
+  params.padTop = 5;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+  container = windowNewContainer(window, "hostname", &params);
+
+  params.gridWidth = 1;
+  hostLabel = windowNewTextLabel(container, "Host name", &params);
+
+  params.gridX = 1;
+  params.padTop = 0;
+  domainLabel = windowNewTextLabel(container, "Domain name", &params);
+  params.gridY += 1;
 
   params.gridX = 0;
-  params.gridWidth = 3;
+  params.padBottom = 5;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
+  hostField = windowNewTextField(container, 16, &params);
+  windowRegisterEventHandler(hostField, &eventHandler);
+
+  params.gridX = 1;
+  domainField = windowNewTextField(container, 16, &params);
+  windowRegisterEventHandler(domainField, &eventHandler);
+  params.gridY += 1;
+
+  updateHostName();
+
+  params.gridX = 0;
+  params.gridY += 1;
+  params.gridWidth = 2;
+  params.padTop = 5;
+  params.padBottom = 0;
   params.orientationX = orient_center;
-  params.fixedWidth = 0;
+  params.flags &= ~(WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_FIXEDWIDTH);
 
   buffer = malloc(MAXSTRINGLENGTH);
   if (buffer == NULL)
@@ -373,10 +466,19 @@ static int constructWindow(char *arg)
   free(buffer);
   
   // Create an 'OK' button
+  params.gridWidth = 1;
   params.padBottom = 5;
-  params.fixedWidth = 1;
+  params.orientationX = orient_right;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(window, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
+  windowComponentFocus(okButton);
+
+  // Create a 'Cancel' button
+  params.gridX = 1;
+  params.orientationX = orient_left;
+  cancelButton = windowNewButton(window, "Cancel", NULL, &params);
+  windowRegisterEventHandler(cancelButton, &eventHandler);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);

@@ -464,3 +464,34 @@ int kernelFontGetPrintedWidth(kernelAsciiFont *font, const char *string)
 
   return (printedWidth);
 }
+
+
+int kernelFontGetWidth(kernelAsciiFont *font)
+{
+  // Returns the character width of the supplied font.  Only useful when the
+  // font is fixed-width.
+  
+  if (!initialized)
+    return (-1);
+
+  // Check parameters
+  if (font == NULL)
+    return (-1);
+  
+  return (font->charWidth);
+}
+
+
+int kernelFontGetHeight(kernelAsciiFont *font)
+{
+  // Returns the character height of the supplied font.
+  
+  if (!initialized)
+    return (-1);
+
+  // Check parameters
+  if (font == NULL)
+    return (-1);
+  
+  return (font->charHeight);
+}

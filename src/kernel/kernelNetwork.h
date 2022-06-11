@@ -213,6 +213,10 @@ int kernelNetworkRead(kernelNetworkConnection *, unsigned char *, unsigned);
 int kernelNetworkWrite(kernelNetworkConnection *, unsigned char *, unsigned);
 int kernelNetworkPing(kernelNetworkConnection *, int, unsigned char *,
 		      unsigned);
+int kernelNetworkGetHostName(char *, int);
+int kernelNetworkSetHostName(const char *, int);
+int kernelNetworkGetDomainName(char *, int);
+int kernelNetworkSetDomainName(const char *, int);
 void kernelNetworkIpDebug(unsigned char *);
 
 #define _KERNELNETWORK_H

@@ -117,8 +117,6 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create labels for the red, green, and blue colors
   params.gridX = 1;
@@ -132,13 +130,12 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   // Get a canvas for drawing the color
   params.gridX = 0;
   params.gridY = 1;
-  params.hasBorder = 1;
+  params.flags = WINDOW_COMPFLAG_HASBORDER;
   canvas = windowNewCanvas(dialogWindow, CANVAS_WIDTH, CANVAS_HEIGHT, &params);
 
   // Create scroll bars for the red, green, and blue colors
   params.gridX = 1;
-  params.hasBorder = 0;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   redSlider = windowNewScrollBar(dialogWindow, scrollbar_vertical, 0,
 				 SLIDER_HEIGHT, &params);
   scrollState.displayPercent = 20;
@@ -162,7 +159,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.gridX = 1;
   params.gridY = 2;
   params.padRight = 0;
-  params.fixedWidth = 0;
+  params.flags = 0;
   redLabel = windowNewTextLabel(dialogWindow, "000", &params);
   params.gridX = 2;
   greenLabel = windowNewTextLabel(dialogWindow, "000", &params);
@@ -176,7 +173,6 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.padRight = 5;
   params.padTop = 5;
   params.padBottom = 5;
-  params.hasBorder = 0;
   buttonContainer =
     windowNewContainer(dialogWindow, "buttonContainer", &params);
 
@@ -187,7 +183,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.padBottom = 0;
   params.padLeft = 0;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(buttonContainer, "OK", NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);

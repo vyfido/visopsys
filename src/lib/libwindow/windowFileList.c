@@ -66,10 +66,7 @@ typedef struct {
 } fileEntry;
 
 static variableList config;
-static volatile fileEntry *fileEntries = NULL;
-static volatile int numFileEntries = 0;
-static int browseFlags = 0;
-static void (*selectionCallback)(file *, char *, loaderFileClass *) = NULL;
+static int initialized = 0;
 
 // Our list of icon images
 static image folderImage;
@@ -242,7 +239,7 @@ static int classifyEntry(fileEntry *entry)
 }
 
 
-static int changeDirectory(const char *rawPath)
+static int changeDirectory(windowFileList *fileList, const char *rawPath)
 {
   // Given a directory structure pointer, allocate memory, read all of the
   // required information into memory
@@ -320,23 +317,24 @@ static int changeDirectory(const char *rawPath)
     }
   
   // Commit, baby.
-  if (fileEntries)
-    free((void *) fileEntries);
-  fileEntries = tmpFileEntries;
-  numFileEntries = tmpNumFileEntries;
+  if (fileList->fileEntries)
+    free(fileList->fileEntries);
+  fileList->fileEntries = tmpFileEntries;
+  fileList->numFileEntries = tmpNumFileEntries;
 
   return (status = 0);
 }
 
 
-static listItemParameters *allocateIconParameters(void)
+static listItemParameters *allocateIconParameters(windowFileList *fileList)
 {
   listItemParameters *newIconParams = NULL;
   int count;
 
-  if (numFileEntries)
+  if (fileList->numFileEntries)
     {
-      newIconParams = malloc(numFileEntries * sizeof(listItemParameters));
+      newIconParams =
+	malloc(fileList->numFileEntries * sizeof(listItemParameters));
       if (newIconParams == NULL)
 	{
 	  error("Memory allocation error creating icon parameters");
@@ -346,21 +344,23 @@ static listItemParameters *allocateIconParameters(void)
       // Fill in an array of list item parameters structures for our file
       // entries.  It will get passed to the window list creation function
       // a moment
-      for (count = 0; count < numFileEntries; count ++)
+      for (count = 0; count < fileList->numFileEntries; count ++)
 	memcpy(&(newIconParams[count]), (listItemParameters *)
-	       &(fileEntries[count].iconParams), sizeof(listItemParameters));
+	       &(((fileEntry *) fileList->fileEntries)[count].iconParams),
+	       sizeof(listItemParameters));
     }
 
   return (newIconParams);
 }
 
 
-static int changeDirWithLock(objectKey fileList, const char *newDir)
+static int changeDirWithLock(objectKey fileListPtr, const char *newDir)
 {
   // Rescan the directory information and rebuild the file list, with locking
   // so that our GUI thread and main thread don't trash one another
 
   int status = 0;
+  windowFileList *fileList = (windowFileList *) fileListPtr;
   static lock dataLock;
   listItemParameters *iconParams = NULL;
 
@@ -370,7 +370,7 @@ static int changeDirWithLock(objectKey fileList, const char *newDir)
 
   mouseSwitchPointer("busy");
 
-  status = changeDirectory(newDir);
+  status = changeDirectory(fileList, newDir);
   if (status < 0)
     {
       mouseSwitchPointer("default");
@@ -378,7 +378,7 @@ static int changeDirWithLock(objectKey fileList, const char *newDir)
       return (status);
     }
 
-  iconParams = allocateIconParameters();
+  iconParams = allocateIconParameters(fileList);
   if (iconParams == NULL)
     {
       mouseSwitchPointer("default");
@@ -386,8 +386,8 @@ static int changeDirWithLock(objectKey fileList, const char *newDir)
       return (status = ERR_MEMORY);
     }
 
-  windowComponentSetSelected(fileList, 0);
-  windowComponentSetData(fileList, iconParams, numFileEntries);
+  windowComponentSetSelected(fileList->key, 0);
+  windowComponentSetData(fileList->key, iconParams, fileList->numFileEntries);
 
   mouseSwitchPointer("default");
 
@@ -397,15 +397,18 @@ static int changeDirWithLock(objectKey fileList, const char *newDir)
 }
 
 
-static void eventHandler(objectKey fileList, windowEvent *event)
+static int eventHandler(void *fileListPtr, windowEvent *event)
 {
+  int status = 0;
+  windowFileList *fileList = fileListPtr;
   int clickedIcon = -1;
+  fileEntry *fileEntries = (fileEntry *) fileList->fileEntries;
   listItemParameters *iconParams = NULL;
 
   // Get the selected item
-  windowComponentGetSelected(fileList, &clickedIcon);
+  windowComponentGetSelected(fileList->key, &clickedIcon);
   if (clickedIcon < 0)
-    return;
+    return (status = clickedIcon);
 
   // Check for events in our icon list.  We consider the icon 'clicked'
   // if it is a mouse click selection, or an ENTER key selection
@@ -413,35 +416,37 @@ static void eventHandler(objectKey fileList, windowEvent *event)
       ((event->type & EVENT_MOUSE_LEFTUP) ||
        ((event->type & EVENT_KEY_DOWN) && (event->key == 10))))
     {
-      if (selectionCallback)
-	selectionCallback((file *) &(fileEntries[clickedIcon].file),
-			  (char *) fileEntries[clickedIcon].fullName,
-			  (loaderFileClass *)
-			  &(fileEntries[clickedIcon].class));
+      if (fileList->selectionCallback)
+	fileList->selectionCallback((file *) &(fileEntries[clickedIcon].file),
+				(char *) fileEntries[clickedIcon].fullName,
+				(loaderFileClass *)
+				&(fileEntries[clickedIcon].class));
      
       switch (fileEntries[clickedIcon].file.type)
 	{
 	case dirT:
-	  if (browseFlags & WINFILEBROWSE_CAN_CD)
+	  if (fileList->browseFlags & WINFILEBROWSE_CAN_CD)
 	    {
 	      // Change to the directory, get the list of icon
 	      // parameters, and update our window list.
-	      if (changeDirWithLock(fileList, (char *) fileEntries[clickedIcon]
-				    .fullName) < 0)
-		return;
+	      status = changeDirWithLock(fileList,
+					 fileEntries[clickedIcon].fullName);
+	      if (status < 0)
+		return (status);
 	    }
 	  break;
 		  
 	case linkT:
-	  if ((browseFlags & WINFILEBROWSE_CAN_CD) &&
+	  if ((fileList->browseFlags & WINFILEBROWSE_CAN_CD) &&
 	      !strcmp((char *) fileEntries[clickedIcon].file
 		      .name, ".."))
 	    {
 	      // Change to the directory, get the list of icon
 	      // parameters, and update our window list.
-	      if (changeDirWithLock(fileList, (char *) fileEntries[clickedIcon]
-				    .fullName) < 0)
-		return;
+	      status = changeDirWithLock(fileList, 
+					 fileEntries[clickedIcon].fullName);
+	      if (status < 0)
+		return (status);
 	    }
 	  break;
 		  
@@ -451,51 +456,49 @@ static void eventHandler(objectKey fileList, windowEvent *event)
     }
   else if ((event->type & EVENT_KEY_DOWN) && (event->key == 127))
     {
-      if (browseFlags & WINFILEBROWSE_CAN_DEL)
+      if (fileList->browseFlags & WINFILEBROWSE_CAN_DEL)
 	{
 	  mouseSwitchPointer("busy");
 
 	  fileDeleteRecursive((char *) fileEntries[clickedIcon].fullName);
 
-	  iconParams = allocateIconParameters();
+	  iconParams = allocateIconParameters(fileList);
 
 	  mouseSwitchPointer("default");
 
 	  if (iconParams)
 	    {
 	      windowComponentSetSelected(fileList, 0);
-	      windowComponentSetData(fileList, iconParams, numFileEntries);
+	      windowComponentSetData(fileList, iconParams,
+				     fileList->numFileEntries);
 	      free(iconParams);
 	    }
 	}
     }
+
+  return (status = 0);
 }
 
 
-static void deallocateMemory(void)
+static int update(void *fileListPtr, const char *directory)
 {
-  int count;
+  // Update the supplied file list from the supplied directory.  This is
+  // useful for changing the current directory, for example.
+  return (changeDirWithLock((windowFileList *) fileListPtr, directory));
+}
 
-  if (fileEntries)
-    {
-      free((void * ) fileEntries);
-      fileEntries = NULL;
-    }
 
-  if (folderImage.data)
-    {
-      memoryRelease(folderImage.data);
-      folderImage.data = NULL;
-    }
+static int destroy(void *fileListPtr)
+{
+  // Detroy and deallocate the file list.
 
-  for (count = 0; count < (int) (sizeof(iconList) / sizeof(icon)); count ++)
-    if (iconList[count].image->data)
-      {
-	memoryRelease(iconList[count].image->data);
-	iconList[count].image->data = NULL;
-      }
+  windowFileList *fileList = (windowFileList *) fileListPtr;
 
-  variableListDestroy(&config);
+  if (fileList->fileEntries)
+    free(fileList->fileEntries);
+
+  free(fileList);
+  return (0);
 }
 
 
@@ -508,12 +511,12 @@ static void deallocateMemory(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-_X_ objectKey windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
+_X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
 {
   // Desc: Create a new file list widget with the parent window 'parent', the window list type 'type' (windowlist_textonly or windowlist_icononly is currently supported), of height 'rows' and width 'columns', the name of the starting location 'directory', flags (such as WINFILEBROWSE_CAN_CD or WINFILEBROWSE_CAN_DEL -- see sys/window.h), a function 'callback' for when the status changes, and component parameters 'params'.
 
   int status = 0;
-  objectKey fileList = NULL;
+  windowFileList *fileList = NULL;
   listItemParameters *iconParams = NULL;
   int count;
 
@@ -524,61 +527,56 @@ _X_ objectKey windowNewFileList(objectKey parent, windowListType type, int rows,
       return (fileList = NULL);
     }
 
-  // Clear some memory
-  bzero(&folderImage, sizeof(image));
-  for (count = 0; count < (int) (sizeof(iconList) / sizeof(icon)); count ++)
-    bzero(iconList[count].image, sizeof(image));
-  
-  // Try to read our config file
-  status = configurationReader(FILEBROWSE_CONFIG, &config);
-  if (status < 0)
+  if (!initialized)
     {
-      error("Can't locate configuration file %s", FILEBROWSE_CONFIG);
-      errno = ERR_NODATA;
-      return (fileList = NULL);
+      // Clear some memory
+      bzero(&folderImage, sizeof(image));
+      for (count = 0; count < (int) (sizeof(iconList) / sizeof(icon));
+	   count ++)
+	bzero(iconList[count].image, sizeof(image));
+  
+      // Try to read our config file
+      status = configurationReader(FILEBROWSE_CONFIG, &config);
+      if (status < 0)
+	{
+	  error("Can't locate configuration file %s", FILEBROWSE_CONFIG);
+	  errno = ERR_NODATA;
+	  return (fileList = NULL);
+	}
+
+      initialized = 1;
     }
 
+  // Allocate memory for our file list
+  fileList = malloc(sizeof(windowFileList));
+  if (fileList == NULL)
+    return (fileList);
+
   // Scan the directory
-  status = changeDirectory(directory);
+  status = changeDirectory(fileList, directory);
   if (status < 0)
     {
-      deallocateMemory();
+      fileList->destroy(fileList);
       errno = status;
       return (fileList = NULL);
     }
 
   // Get our array of icon parameters
-  iconParams = allocateIconParameters();
+  iconParams = allocateIconParameters(fileList);
 
   // Create a window list to hold the icons
-  fileList = windowNewList(parent, type, rows, columns, 0, iconParams,
-			   numFileEntries, params);
+  fileList->key = windowNewList(parent, type, rows, columns, 0, iconParams,
+				fileList->numFileEntries, params);
 
   if (iconParams)
     free(iconParams);
 
-  windowRegisterEventHandler(fileList, &eventHandler);
-  windowGuiThread();
+  fileList->selectionCallback = callback;
+  fileList->browseFlags = flags;
 
-  selectionCallback = callback;
-  browseFlags = flags;
+  fileList->eventHandler = &eventHandler;
+  fileList->update = &update;
+  fileList->destroy = &destroy;
 
   return (fileList);
-}
-
-
-_X_ int windowUpdateFileList(objectKey fileList, const char *directory)
-{
-  // Desc: Update the supplied file list 'fileList', with the location 'directory'.  This is useful for changing the current directory, for example.
-  return (changeDirWithLock(fileList, directory));
-}
-
-
-_X_ int windowDestroyFileList(objectKey fileList)
-{
-  // Desc: Clear the event handler for the file list widget 'fileList', and destroy and deallocate the widget.
-
-  int status = windowClearEventHandler(fileList);
-  deallocateMemory();
-  return (status);
 }

@@ -23,6 +23,13 @@
 
 #include "kernelUsbDriver.h"
 
+#define USB_HID_GET_REPORT    0x01
+#define USB_HID_GET_IDLE      0x02
+#define USB_HID_GET_PROTOCOL  0x03
+#define USB_HID_SET_REPORT    0x09
+#define USB_HID_SET_IDLE      0x0A
+#define USB_HID_SET_PROTOCOL  0x0B
+
 typedef struct {
   unsigned char descLength;     // Number of bytes in this descriptor
   unsigned char descType;       // Type, HID descriptor type
@@ -48,6 +55,14 @@ typedef struct {
   unsigned char intInEndpoint;
 
 } hidDevice;
+
+typedef struct {
+  unsigned char buttons;
+  unsigned char xChange;
+  unsigned char yChange;
+  unsigned char devSpec[9];
+
+} usbHidMouseData;
 
 #define _KERNELUSBHIDDRIVER_H
 #endif

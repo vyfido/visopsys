@@ -69,8 +69,6 @@ static inline void uncover(int x, int y)
 	  params.gridY = y;
 	  params.gridWidth = 1;
 	  params.gridHeight = 1;
-	  params.useDefaultForeground = 1;
-	  params.useDefaultBackground = 1;
 	  params.orientationX = orient_center;
 	  params.orientationY = orient_middle;
 
@@ -293,8 +291,6 @@ static void drawField(void)
   params.gridY = y;
   params.gridWidth = 1;
   params.gridHeight = 1;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
 

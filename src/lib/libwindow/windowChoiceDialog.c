@@ -47,7 +47,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
   objectKey dialogWindow = NULL;
   objectKey imageComp = NULL;
   objectKey buttonContainer = NULL;
-  objectKey buttons[WINDOW_MAX_COMPONENTS];
+  objectKey buttons[16];
   componentParameters params;
   windowEvent event;
   int choice = ERR_INVALID;
@@ -56,6 +56,9 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL) || (choiceStrings == NULL))
     return (status = ERR_NULLPARAMETER);
+
+  if (numChoices > 16)
+    return (status = ERR_BOUNDS);
 
   // Create the dialog.  Arbitrary size and coordinates
   if (parentWindow)
@@ -73,8 +76,6 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
   params.padTop = 5;
   params.orientationX = orient_right;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   if (questImage.data == NULL)
     status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
@@ -100,7 +101,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
   // Create the container for the buttons
   params.gridY = 1;
   params.padBottom = 5;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   params.orientationX = orient_center;
   buttonContainer =
     windowNewContainer(dialogWindow, "buttonContainer", &params);

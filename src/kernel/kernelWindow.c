@@ -48,8 +48,8 @@ static kernelAsciiFont *defaultFont = NULL;
 static kernelWindow *rootWindow = NULL;
 static kernelWindowComponent *consoleTextArea = NULL;
 static kernelWindow *consoleWindow = NULL;
-static int titleBarHeight = DEFAULT_TITLEBAR_HEIGHT;
-static int borderThickness = DEFAULT_BORDER_THICKNESS;
+static int titleBarHeight = WINDOW_TITLEBAR_HEIGHT;
+static int borderThickness = WINDOW_BORDER_THICKNESS;
 
 // Keeps the data for all the windows
 static kernelWindow *windowList[WINDOW_MAXWINDOWS];
@@ -205,8 +205,6 @@ static void addTitleBar(kernelWindow *window)
 
   // Standard parameters for a title bar
   kernelMemClear((void *) &params, sizeof(componentParameters));
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   window->titleBar =
     kernelWindowNewTitleBar(window->sysContainer, width, &params);
@@ -514,29 +512,56 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 }
 
 
-static void flattenContainer(kernelWindowContainer *originalContainer,
-			     kernelWindowContainer *flatContainer,
+static int countComponents(kernelWindowContainer *container)
+{
+  // Recursively count up the number of compontents in a container and any
+  // subcontainers.
+
+  int numComponents = 0;
+  kernelWindowComponent *component = NULL;
+  int count;
+
+  numComponents = container->numComponents;
+
+  for (count = 0; count < container->numComponents; count ++)
+    {
+      component = container->components[count];
+      
+      if (component->type == containerComponentType)
+	numComponents += countComponents(component->data);
+    }
+
+  return (numComponents);
+}
+
+
+static void flattenContainer(kernelWindowContainer *container,
+			     kernelWindowComponent **array, int *numItems,
 			     unsigned flags)
 {
   // Given a container, recurse through any of its subcontainers (if
-  // applicable) and return a flattened one
+  // applicable) and return a flattened array of components
 
   kernelWindowComponent *component = NULL;
   int count;
 
-  for (count = 0; count < originalContainer->numComponents; count ++)
+  for (count = 0; count < container->numComponents; count ++)
     {
-      component = originalContainer->components[count];
+      component = container->components[count];
 
       if ((component->flags & flags) == flags)
 	{
-	  flatContainer
-	    ->components[flatContainer->numComponents++] = component;
+	  // Don't include pure container components
+	  if ((component->type != containerComponentType) ||
+	      (component->subType != genericComponentType))
+	    {
+	      array[*numItems] = component;
+	      *numItems += 1;
+	    }
 
 	  // If this component is a container, recurse it
 	  if (component->type == containerComponentType)
-	    flattenContainer((kernelWindowContainer *) component->data,
-			     flatContainer, flags);
+	    flattenContainer(component->data, array, numItems, flags);
 	}
     }
 }
@@ -551,8 +576,8 @@ static int drawWindow(kernelWindow *window)
   int clientAreaY = 0;
   int clientAreaWidth = 0;
   int clientAreaHeight = 0;
-  kernelWindowContainer flatContainer;
-  kernelWindowComponent *component = NULL;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   int count;
 
   status = kernelWindowGetSize(window, &clientAreaWidth, &clientAreaHeight);
@@ -584,36 +609,30 @@ static int drawWindow(kernelWindow *window)
     tileBackgroundImage(window);
 
   // Loop through all the regular window components and draw them
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		   &flatContainer, WINFLAG_VISIBLE);
-  for (count = 0; count < flatContainer.numComponents; count ++)
-    {
-      component = flatContainer.components[count];
+  array = kernelMalloc(countComponents(window->mainContainer->data) *
+		       sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return (status = ERR_MEMORY);
 
-      if (component->draw)
-	component->draw((void *) component);
-    }
+  flattenContainer(window->mainContainer->data, array, &numComponents,
+		   WINFLAG_VISIBLE);
+
+  for (count = 0; count < numComponents; count ++)
+    if (array[count]->draw)
+      array[count]->draw((void *) array[count]);
+
+  kernelFree(array);
 
   // If the window has a titlebar, draw it
   if (window->titleBar)
-    {
-      status = window->titleBar->draw((void *) window->titleBar);
-      if (status < 0)
-	return (status);
-    }
+    window->titleBar->draw((void *) window->titleBar);
 
   // If the window has a border, draw it
   if (window->flags & WINFLAG_HASBORDER)
     {
       for (count = 0; count < 4; count ++)
 	if (window->borders[count])
-	  {
-	    status = window->borders[count]
-	      ->draw((void *) window->borders[count]);
-	    if (status < 0)
-	      return (status);
-	  }
+	  window->borders[count]->draw((void *) window->borders[count]);
     }
 
   if (window->flags & WINFLAG_DEBUGLAYOUT)
@@ -639,7 +658,8 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
   // requested.  Sort of the same.
 
   int status = 0;
-  kernelWindowContainer flatContainer;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   kernelWindowComponent *component = NULL;
   int xOffset, yOffset;
   int lowestLevel = 0;
@@ -707,15 +727,19 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 
   // Loop through all the regular window components that fall (partially)
   // within this space and draw them
+  array = kernelMalloc(countComponents(window->mainContainer->data) *
+		       sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return (status = ERR_MEMORY);
 
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		   &flatContainer, WINFLAG_VISIBLE);
+  flattenContainer(window->mainContainer->data, array, &numComponents,
+		   WINFLAG_VISIBLE);
 
   // NULL all components that are *not* at this location
-  for (count1 = 0; count1 < flatContainer.numComponents; count1 ++)
+  for (count1 = 0; count1 < numComponents; count1 ++)
     {
-      component = flatContainer.components[count1];
+      component = array[count1];
+
       if (!doAreasIntersect(&((screenArea)
       { xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1)} ),
 			    &((screenArea)
@@ -723,7 +747,7 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 			(component->xCoord + component->width - 1),
 			(component->yCoord + component->height - 1) } )))
 	{
-	  flatContainer.components[count1] = NULL;
+	  array[count1] = NULL;
 	}
       else
 	{
@@ -735,18 +759,21 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
   // Draw all the components by level
 
   for (count1 = lowestLevel; count1 >= 0; count1 --) 
-    for (count2 = 0; count2 < flatContainer.numComponents; count2 ++)
+    for (count2 = 0; count2 < numComponents; count2 ++)
       {
-        component = flatContainer.components[count2];
+        component = array[count2];
+
 	if ((component != NULL) && isComponentVisible(component) &&
 	    (component->level >= count1))
 	  {
 	    if (component->draw)
 	      component->draw((void *) component);
 
-	    flatContainer.components[count2] = NULL;
+	    array[count2] = NULL;
 	  }
       }
+
+  kernelFree(array);
 
   if (window->flags & WINFLAG_DEBUGLAYOUT)
     ((kernelWindowContainer *) window->mainContainer->data)
@@ -791,6 +818,12 @@ static int setWindowSize(kernelWindow *window, int width, int height)
   int status = 0;
   int newTitleBarWidth = 0;
   void *oldBufferData = NULL;
+
+  // Constrain to minimum width and height
+  if (width < WINDOW_MIN_WIDTH)
+    width = WINDOW_MIN_WIDTH;
+  if (height < WINDOW_MIN_HEIGHT)
+    height = WINDOW_MIN_HEIGHT;
 
   // Save the old graphic buffer data just in case
   oldBufferData = window->buffer.data;
@@ -925,13 +958,11 @@ static int makeConsoleWindow(void)
   params.gridHeight = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   params.font = defaultFont;
 
   consoleTextArea =
-    kernelWindowNewTextArea(consoleWindow, 80, 50, DEFAULT_SCROLLBACKLINES,
-			    &params);
+    kernelWindowNewTextArea(consoleWindow, 80, 50,
+			    TEXT_DEFAULT_SCROLLBACKLINES, &params);
   if (consoleTextArea == NULL)
     {
       kernelError(kernel_warn, "Unable to switch text areas to console "
@@ -1041,31 +1072,38 @@ static void focusFirstComponent(kernelWindow *window)
 {
   // Set the focus to the first focusable component
   
-  kernelWindowContainer flatContainer;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   int count;
   
   // Flatten the window container so we can iterate through it
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		   &flatContainer, (WINFLAG_VISIBLE | WINFLAG_ENABLED));
+  array = kernelMalloc(countComponents(window->mainContainer->data) *
+		       sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return;
+
+  flattenContainer(window->mainContainer->data, array, &numComponents,
+		   (WINFLAG_VISIBLE | WINFLAG_ENABLED));
   
   // If the window has any sort of text area or field inside it, set the
   // input/output streams to that process.
-  for (count = 0; count < flatContainer.numComponents; count ++)
-    if (flatContainer.components[count]->type == textAreaComponentType)
+  for (count = 0; count < numComponents; count ++)
+    if (array[count]->type == textAreaComponentType)
       {
-	changeComponentFocus(window, flatContainer.components[count]);
+	changeComponentFocus(window, array[count]);
 	break;
       }
 
   // Still no focus?  Give it to the first component that can focus
   if (!window->focusComponent)
-    for (count = 0; count < flatContainer.numComponents; count ++)
-      if (flatContainer.components[count]->flags & WINFLAG_CANFOCUS)
+    for (count = 0; count < numComponents; count ++)
+      if (array[count]->flags & WINFLAG_CANFOCUS)
 	{
-	  changeComponentFocus(window, flatContainer.components[count]);
+	  changeComponentFocus(window, array[count]);
 	  break;
 	}
+
+  kernelFree(array);
 }
 
 
@@ -1073,7 +1111,8 @@ static void focusNextComponent(kernelWindow *window)
 {
   // Change the focus the next component
   
-  kernelWindowContainer flatContainer;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   kernelWindowComponent *nextFocus = NULL;
   int count = 0;
 
@@ -1084,34 +1123,40 @@ static void focusNextComponent(kernelWindow *window)
     }
 
   // Get all the window components in a flat container
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		   &flatContainer, (WINFLAG_VISIBLE | WINFLAG_ENABLED));
+  array = kernelMalloc(countComponents(window->mainContainer->data) *
+		       sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return;
+
+  flattenContainer(window->mainContainer->data, array, &numComponents,
+		   (WINFLAG_VISIBLE | WINFLAG_ENABLED));
   
-  for (count = 0; count < flatContainer.numComponents; count ++)
-    if (flatContainer.components[count] == window->focusComponent)
+  for (count = 0; count < numComponents; count ++)
+    if (array[count] == window->focusComponent)
       {
 	count ++;
 
-	for ( ; count < flatContainer.numComponents; count ++)
+	for ( ; count < numComponents; count ++)
 	  {
-	    if (flatContainer.components[count]->flags & WINFLAG_CANFOCUS)
+	    if (array[count]->flags & WINFLAG_CANFOCUS)
 	      {
-		nextFocus = flatContainer.components[count];
+		nextFocus = array[count];
 		break;
 	      }
 	  }
 
 	if (!nextFocus)
-	  for (count = 0; count < flatContainer.numComponents; count ++)
+	  for (count = 0; count < numComponents; count ++)
 	    {
-	      if (flatContainer.components[count]->flags & WINFLAG_CANFOCUS)
+	      if (array[count]->flags & WINFLAG_CANFOCUS)
 		{
-		  nextFocus = flatContainer.components[count];
+		  nextFocus = array[count];
 		  break;
 		}
 	    }
       }
+
+  kernelFree(array);
   
   if (nextFocus == window->focusComponent)
     nextFocus = NULL;
@@ -1119,6 +1164,7 @@ static void focusNextComponent(kernelWindow *window)
   // 'nextFocus' might be NULL, but that's okay as it will simply unfocus
   // the currently focused component
   changeComponentFocus(window, nextFocus);
+
   return;
 }
 
@@ -1252,7 +1298,8 @@ static int componentGrey(void *componentData)
 static kernelWindowComponent *findTopmostComponent(kernelWindow *window,
 						   int xCoord, int yCoord)
 {
-  kernelWindowContainer flatContainer;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   int topmostLevel = MAXINT;
   kernelWindowComponent *topmostComponent = NULL;
   int count;
@@ -1269,22 +1316,27 @@ static kernelWindowComponent *findTopmostComponent(kernelWindow *window,
 	return (window->borders[count]);
 
   // Make a flat container so we can loop through all the components
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		   &flatContainer, (WINFLAG_VISIBLE | WINFLAG_ENABLED));
+  array = kernelMalloc(countComponents(window->mainContainer->data) *
+		       sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return (NULL);
+
+  flattenContainer(window->mainContainer->data, array, &numComponents,
+		   (WINFLAG_VISIBLE | WINFLAG_ENABLED));
 
   // Find the window's topmost component at this location
-  for (count = 0; count < flatContainer.numComponents; count ++)
+  for (count = 0; count < numComponents; count ++)
     {
-      if ((flatContainer.components[count]->level < topmostLevel) &&
-	  isPointInside(xCoord, yCoord,
-		makeComponentScreenArea(flatContainer.components[count])))
+      if ((array[count]->level < topmostLevel) &&
+	  isPointInside(xCoord, yCoord, makeComponentScreenArea(array[count])))
 	{
-	  topmostComponent = flatContainer.components[count];
-	  topmostLevel = flatContainer.components[count]->level;
+	  topmostComponent = array[count];
+	  topmostLevel = array[count]->level;
 	}
     }
-    
+
+  kernelFree(array);
+
   return (topmostComponent);
 }
 
@@ -1416,7 +1468,8 @@ static void processEvents(void)
 	{
 	  // If it was a [tab] down, focus the next component
 	  if (((focusWindow->focusComponent == NULL) ||
-	       !(focusWindow->focusComponent->parameters.stickyFocus)) &&
+	       !(focusWindow->focusComponent->parameters.flags &
+		 WINDOW_COMPFLAG_STICKYFOCUS)) &&
 	      ((event.type == EVENT_KEY_DOWN) && (event.key == 9)))
 	    focusNextComponent(focusWindow);
 	  
@@ -1562,8 +1615,8 @@ static int windowStart(void)
   int count;
 
   char *mousePointerTypes[][2] = {
-    { "default", DEFAULT_MOUSEPOINTER_DEFAULT },
-    { "busy", DEFAULT_MOUSEPOINTER_BUSY }
+    { "default", WINDOW_DEFAULT_MOUSEPOINTER_DEFAULT },
+    { "busy", WINDOW_DEFAULT_MOUSEPOINTER_BUSY }
   };
 
   // Make sure we've been initialized
@@ -1571,7 +1624,7 @@ static int windowStart(void)
     return (status = ERR_NOTINITIALIZED);
 
   // Read the config file
-  status = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+  status = kernelConfigurationReader(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
   if (status < 0)
     {
       // Argh.  No file?  Create a reasonable, empty list for us to use
@@ -1639,7 +1692,7 @@ static int windowStart(void)
   kernelMouseDraw();
 
   // Re-write config file
-  status = kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+  status = kernelConfigurationWriter(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
   if (status < 0)
     kernelError(kernel_error, "Error updating window configuration");
   else
@@ -2193,8 +2246,7 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
     return (status);
 
   // See if we need to call the 'resize' operation for the main container
-  if (!(window->flags & WINFLAG_PACKED) &&
-      (((kernelWindowContainer *) window->mainContainer->data)->doneLayout))
+  if (((kernelWindowContainer *) window->mainContainer->data)->doneLayout)
     {
       width = window->buffer.width;
       height = window->buffer.height;
@@ -2931,11 +2983,11 @@ int kernelWindowTileBackground(const char *filename)
   kernelMouseDraw();
 
   // Save the settings variable
-  status = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+  status = kernelConfigurationReader(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
   if (status >= 0)
     {
       kernelVariableListSet(&settings, "background.image", filename);
-      kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
+      kernelConfigurationWriter(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
       kernelVariableListDestroy(&settings);
     }
 
@@ -3025,8 +3077,6 @@ int kernelWindowSaveScreenShot(const char *name)
 	  params.padBottom = 5;
 	  params.orientationX = orient_center;
 	  params.orientationY = orient_middle;
-	  params.useDefaultForeground = 1;
-	  params.useDefaultBackground = 1;
 	  
 	  kernelWindowNewTextLabel(dialog, labelText, &params);
 	  kernelWindowSetVisible(dialog, 1);
@@ -3254,8 +3304,6 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
       params.gridHeight = 1;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
       ((kernelWindowTextArea *) component->data)
 	->area->graphicBuffer = &(consoleWindow->buffer);
       container = (kernelWindowContainer *) consoleWindow->mainContainer->data;
@@ -3456,7 +3504,8 @@ int kernelWindowComponentFocus(kernelWindowComponent *component)
   
   int status = 0;
   kernelWindow *window = NULL;
-  kernelWindowContainer flatContainer;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   int count;
 
   // Make sure we've been initialized
@@ -3475,19 +3524,24 @@ int kernelWindowComponentFocus(kernelWindowComponent *component)
       return (status = ERR_NODATA);
     }
 
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		   &flatContainer, 0 /* No flags/conditions */);
+  array = kernelMalloc(countComponents(window->mainContainer->data) *
+		       sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return (NULL);
+
+  flattenContainer(window->mainContainer->data, array, &numComponents, 0);
 
   // Find all the window's components at this location 
-  for (count = 0; count < flatContainer.numComponents; count ++)
-    if (flatContainer.components[count]->level <= component->level)
+  for (count = 0; count < numComponents; count ++)
+    if (array[count]->level <= component->level)
       {
 	if (doAreasIntersect(makeComponentScreenArea(component),
-		     makeComponentScreenArea(flatContainer.components[count])))
-	  flatContainer.components[count]->level++;
+			     makeComponentScreenArea(array[count])))
+	  array[count]->level++;
       }
   
+  kernelFree(array);
+
   component->level = 0;
 
   if (component->flags & WINFLAG_CANFOCUS)

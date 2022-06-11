@@ -97,7 +97,7 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
   // If it's a CD-ROM, only check ISO
   if (((kernelPhysicalDisk *) theDisk->physical)->flags & DISKFLAG_CDROM)
     {
-      tmpDriver = getDriver("iso");
+      tmpDriver = getDriver(FSNAME_ISO);
       if (tmpDriver)
 	{
 	  status = tmpDriver->driverDetect(theDisk);
@@ -220,10 +220,12 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
     }
 
   // Get a temporary filesystem driver to use for formatting
-  if (!strncasecmp(type, "fat", 3))
-    theDriver = getDriver("fat");
-  else if (!strncasecmp(type, "ext", 3))
-    theDriver = getDriver("ext");
+  if (!strncasecmp(type, FSNAME_FAT, strlen(FSNAME_FAT)))
+    theDriver = getDriver(FSNAME_FAT);
+  else if (!strncasecmp(type, FSNAME_EXT, strlen(FSNAME_EXT)))
+    theDriver = getDriver(FSNAME_EXT);
+  else if (!strncasecmp(type, FSNAME_LINUXSWAP, strlen(FSNAME_LINUXSWAP)))
+    theDriver = getDriver(FSNAME_LINUXSWAP);
 
   if (theDriver == NULL)
     {
@@ -861,7 +863,7 @@ unsigned kernelFilesystemGetFree(const char *path)
   // to call
   if (theDriver->driverGetFree == NULL)
     {
-      kernelError(kernel_error, "The filesystem driver does not support the"
+      kernelError(kernel_error, "The filesystem driver does not support the "
 		  "'getFree' operation");
       // Report NO free space
       return (freeSpace = 0);

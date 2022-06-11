@@ -74,8 +74,6 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_top;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   if (questImage.data == NULL)
     status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
@@ -115,7 +113,7 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
   params.gridY = 2;
   params.padBottom = 5;
   params.gridWidth = 2;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   params.orientationX = orient_center;
   buttonContainer =
     windowNewContainer(dialogWindow, "buttonContainer", &params);

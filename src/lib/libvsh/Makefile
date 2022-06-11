@@ -5,15 +5,16 @@
 ##  Makefile
 ##
 
+UTILSDIR=../../../utils
 BUILDDIR=../../../build/system/libraries
 INCDIR=../../include
 
-CC		= gcc
-AR		= ar
-LD		= ld
-CPU		= $(shell ../../../utils/cpu.sh)
+ifeq (${ARCH},)
+	ARCH	= $(shell ${UTILSDIR}/arch.sh)
+endif
+
 STDDEPS		= Makefile ../shared/* ${INCDIR}/*.h ${INCDIR}/sys/*.h
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror

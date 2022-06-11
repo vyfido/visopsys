@@ -453,18 +453,17 @@ static int driverDeviceEnable(int target, int enable)
   makeBusDevFunc(target, bus, dev, function);
 
   // Read the command register
-  readConfig16(bus, dev, function, PCI_CONFREG_COMMAND, &commandReg);
+  readConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, &commandReg);
   
   if (enable)
     // Turn on I/O access, memory access, and bus master enable.
-    commandReg |= (PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE |
-		   PCI_COMMAND_MASTERENABLE);
+    commandReg |= (PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
   else
     // Turn off I/O access and memory access
     commandReg &= ~(PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
 
   // Write back command register
-  writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND, commandReg);
+  writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, commandReg);
 
   return (0);
 }
@@ -481,7 +480,7 @@ static int driverSetMaster(int target, int master)
   makeBusDevFunc(target, bus, dev, function);
 
   // Read the command register
-  readConfig16(bus, dev, function, PCI_CONFREG_COMMAND, &commandReg);
+  readConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, &commandReg);
 
   // Toggle busmaster bit
   if (master)
@@ -490,15 +489,15 @@ static int driverSetMaster(int target, int master)
     commandReg &= ~PCI_COMMAND_MASTERENABLE;
 
   // Write back command register
-  writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND, commandReg);
+  writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, commandReg);
 
   // Check latency timer
-  readConfig8(bus, dev, function, PCI_CONFREG_LATENCY, &latency);
+  readConfig8(bus, dev, function, PCI_CONFREG_LATENCY_8, &latency);
 
   if (latency < 0x10)
     {
       latency = 0x40;
-      writeConfig8(bus, dev, function, PCI_CONFREG_LATENCY, latency);
+      writeConfig8(bus, dev, function, PCI_CONFREG_LATENCY_8, latency);
     }
 
   return (0);
@@ -524,7 +523,7 @@ static int driverDetect(void *parent, void *driver)
   kernelProcessorOutPort32(PCI_CONFIG_PORT, 0x80000000L);
   kernelProcessorInPort32(PCI_CONFIG_PORT, reply);
 
-  if (reply != 0x80000000)
+  if (reply != 0x80000000L)
     // No device that uses configuration mechanism #1.  Fine enough: No PCI
     // functionality for you.
     return (status = 0);

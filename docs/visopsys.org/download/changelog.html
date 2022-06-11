@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
 <title>Visopsys Downloads - Change Log</title>
-<meta name="Microsoft Border" content="lb">
+<meta name="Microsoft Border" content="lrb">
 </head>
 
 <body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00"
@@ -45,6 +45,77 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <p align="center">
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
+
+<p><font size="4">VERSION 0.63<br>
+</font><font size="2">15/08/2006</font></p>
+
+<p><font size="4">Overview: This is a maintenance and bugfix release, with 
+numerous small tweaks throughout the entire system. New features include the 
+ability to format and resize Linux swap partitions, more reliable OS loading, 
+more detailed CPU detection, and a simple text editor.</font></p>
+<ul>
+  <li><font size="4">Added formatting and resizing support for Linux swap 
+  partitions.</font></li>
+  <li><font size="4">Added a basic, simple text editor (currently only works in 
+  graphics mode).</font></li>
+  <li><font size="4">The OS loader now does improved memory moves to high memory 
+  for better reliability on more systems.</font></li>
+  <li><font size="4">Added improved CPU detection to the kernel 'system' driver.</font></li>
+  <li><font size="4">Added the beginnings of a 32-bit BIOS driver.</font></li>
+  <li><font size="4">The file list widget and the file dialog have been reworked 
+  so that they don't use a separate GUI thread, since that was unreliable and 
+  crashy.</font></li>
+  <li><font size="4">GUI applications can now enable click-driven cursor 
+  movements in text areas.</font></li>
+  <li><font size="4">Removed the hard limit on the maximum number of window 
+  components.</font></li>
+  <li><font size="4">The kernel now records and uses a network domain name, both 
+  via DHCP and via the kernel's config file.</font></li>
+  <li><font size="4">There are now kernel functions to get and set the host and 
+  domain names, as well as UNIX-style command line functions.</font></li>
+  <li><font size="4">Added a kernelSystemInfo() function, similar to the UNIX 'uname' 
+  syscall.</font></li>
+  <li><font size="4">Added a variable list of text-string attributes to all 
+  hardware device structures.</font></li>
+  <li><font size="4">The window 'component parameters' structure now has a 
+  'flags' field to be used for all boolean values.</font></li>
+  <li><font size="4">Added getWidth() and getHeight() functions for fonts.</font></li>
+  <li><font size="4">Text screen saving and restoring now uses caller-supplied 
+  pointers instead of storing a single instance in kernel memory.</font></li>
+  <li><font size="4">Added a text API function to enable or disable screen 
+  scrolling.</font></li>
+  <li><font size="4">Window resize events now go into the window's event stream 
+  so that applications can catch them.</font></li>
+  <li><font size="4">The scrollbar slider now has a minimum size, so that it's 
+  clickable even when there's lots of data to scroll through.</font></li>
+  <li><font size="4">The makefile variables for $CC, etc., are now settable from 
+  the top-level makefile.</font></li>
+  <li><font size="4">The 'ldd' program was really more like an 'nm' program, so 
+  it was renamed.</font></li>
+  <li><font size="4">Fixed: PS/2 mouse driver synchronization problems on some 
+  systems.</font></li>
+  <li><font size="4">Fixed: The Disk Manager's 'set type' menu item was failing 
+  to bring up the dialog.</font></li>
+  <li><font size="4">Fixed: After resizing a filesystem, the Disk Manager no 
+  longer shows the warning &quot;Can't write partition table backup in read-only 
+  mode&quot; (if booted from a CD, for example). This just scared people.</font></li>
+  <li><font size="4">Fixed: When entering the filesystem resizing value in the 
+  Disk Manager's text mode, it didn't allow you to append 'c' or 'm' for size in 
+  cylinders or megabytes.</font></li>
+  <li><font size="4">Fixed: The Disk Manager no longer continually pesters users 
+  about incorrect CHS values in partition entries; one 'no' answer now turns it 
+  off.</font></li>
+  <li><font size="4">Fixed: The FAT filesystem driver now ensures that items 
+  it's processing (when it's constructing short filenames, or writing 
+  directories) belong to its own filesystem (as opposed to mount points for 
+  other filesystems, for example).</font></li>
+  <li><font size="4">Fixed: If the 'imgboot' program's config files contained 
+  commands with arguments, the icons weren't shown because the program didn't 
+  separate off the arguments and therefore couldn't locate the commands.</font></li>
+  <li><font size="4">Fixed: Using the 'view' program to view a really small or 
+  really large image caused GUI crashiness.</font></li>
+</ul>
+<hr>
 
 <p><font size="4">VERSION 0.62<br>
 </font><font size="2">24/04/2006<br>
@@ -1561,7 +1632,34 @@ abstraction layer initialization</font></li>
 
 <p align="left"></p>
 
-<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+<!--msnavigation--></td><td valign="top" width="24"></td><td valign="top" width="1%">
+<div align="left">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+    <tr>
+      <td>
+        &nbsp;
+        <script type="text/javascript"><!--
+          google_ad_client = "pub-2784580927617241";
+          google_ad_width = 160;
+          google_ad_height = 600;
+          google_ad_format = "160x600_as";
+          google_ad_type = "text";
+          google_ad_channel ="";
+          google_color_border = "336699";
+          google_color_bg = "FFFFFF";
+          google_color_link = "0000FF";
+          google_color_url = "008000";
+          google_color_text = "000000";
+          //-->
+        </script>
+        <script type="text/javascript"
+          src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+        </script>
+      </td>
+    </tr>
+  </table>
+</div>
+</td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
 <blockquote>
   <blockquote>

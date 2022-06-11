@@ -22,12 +22,14 @@
 	GLOBAL loaderLoadKernel
 
 	EXTERN loaderLoadFile
-	EXTERN loaderBigRealMode
+	EXTERN loaderMemCopy
+	EXTERN loaderMemSet
 	EXTERN loaderPrint
 	EXTERN loaderPrintNewline
 	EXTERN loaderPrintNumber
 
 	EXTERN KERNELSIZE
+	EXTERN FILEDATABUFFER
 	
 	SEGMENT .text
 	BITS 16
@@ -38,8 +40,7 @@
 
 getElfHeaderInfo:
 	;; This function checks the ELF header of the kernel file and
-	;; saves the relevant information about the file.  Assumes that
-	;; GS describes a global segment for all of physical memory.
+	;; saves the relevant information about the file.
 
 	;; Save a word for our return code
 	sub SP, 2
@@ -50,9 +51,21 @@ getElfHeaderInfo:
 	;; Save the stack register
 	mov BP, SP
 
+	;; Copy the first sector of the ELF header into the file data buffer
+	push dword 512
+	push dword [FILEDATABUFFER]
+	push dword KERNELCODEDATALOCATION
+	call loaderMemCopy
+	add SP, 12
+
+	push ES
+	mov EAX, dword [FILEDATABUFFER]
+	shr EAX, 4
+	mov ES, EAX
+	
 	;; Make sure it's an ELF file (check the magic number)
-	mov ESI, KERNELCODEDATALOCATION
-	mov EAX, dword [GS:ESI]
+	mov ESI, 0
+	mov EAX, dword [ES:ESI]
 	cmp EAX, 464C457Fh	; ELF magic number (7Fh, 'ELF')
 	je .isElf
 
@@ -76,8 +89,8 @@ getElfHeaderInfo:
 	;; It's an ELF binary.  We will skip doing exhaustive checks, as we
 	;; would do in the case of loading some user binary.  We will,
 	;; however, make sure that it's an executable ELF binary
-	mov ESI, (KERNELCODEDATALOCATION + 16)
-	mov AX, word [GS:ESI]
+	mov ESI, 16
+	mov AX, word [ES:ESI]
 	cmp AX, 2		; ELF executable file type
 	je .isExec
 
@@ -102,60 +115,38 @@ getElfHeaderInfo:
 	;; that we care about.
 	
 	;; First the kernel entry point.
-	mov ESI, (KERNELCODEDATALOCATION + 24)
-	mov EAX, dword [GS:ESI]
+	mov ESI, 24
+	mov EAX, dword [ES:ESI]
 	mov dword [ENTRYPOINT], EAX
 
 	;; Now the offset of the program header
-	mov ESI, (KERNELCODEDATALOCATION + 28)
-	mov EAX, dword [GS:ESI]
+	mov ESI, 28
+	mov EAX, dword [ES:ESI]
 	mov dword [PROGHEADER], EAX
 
-	;; Now the number of program header entries.  It must be 2 (one
-	;; for code and one for data)
-	mov ESI, (KERNELCODEDATALOCATION + 44)
-	mov AX, word [GS:ESI]
-	cmp AX, 2
-	je .progHdr
-
-	;; The kernel image doesn't look the way we expected.  Newer versions
-	;; of GNU ld seem to create an extra, no-load, stack section.  Make
-	;; a warning but otherwise ignore it.
-	;; call loaderPrintNewline
-	;; call loaderPrintNewline
-	;; call loaderPrintNewline
-	;; mov DL, ERRORCOLOR
-	;; mov SI, THEFILE
-	;; call loaderPrint
-	;; mov SI, NUMSEGS
-	;; call loaderPrint
-	;; call loaderPrintNewline
-
-	.progHdr:
 	;; That is all the information we get directly from the ELF header.
 	;; Now, we need to get information from the program header.
-	mov ESI, KERNELCODEDATALOCATION
-	add ESI, dword [PROGHEADER]
+	mov ESI, dword [PROGHEADER]
 
 	;; Skip the segment type.
 
 	add ESI, 4
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [CODE_OFFSET], EAX
 
 	add ESI, 4
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [CODE_VIRTADDR], EAX
 
 	;; Skip the physical address.
 	
 	add ESI, 8
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [CODE_SIZEINFILE], EAX
 
 	;; Make sure the size in memory is the same in the file
 	add ESI, 4
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	cmp EAX, dword [CODE_SIZEINFILE]
 	je .codeFlags
 
@@ -181,7 +172,7 @@ getElfHeaderInfo:
 
 	;; Just check the alignment.  Must be 4096 (page size)
 	add ESI, 8
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	cmp EAX, 4096
 	je .dataSeg
 
@@ -208,27 +199,27 @@ getElfHeaderInfo:
 	;; Skip the segment type.
 
 	add ESI, 8
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [DATA_OFFSET], EAX
 
 	add ESI, 4
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [DATA_VIRTADDR], EAX
 
 	;; Skip the physical address.
 	
 	add ESI, 8
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [DATA_SIZEINFILE], EAX
 	
 	add ESI, 4
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	mov dword [DATA_SIZEINMEM], EAX
 
 	;; Skip the flags
 	
 	add ESI, 8
-	mov EAX, dword 	[GS:ESI]
+	mov EAX, dword [ES:ESI]
 	cmp EAX, 4096
 	je .success
 
@@ -254,6 +245,7 @@ getElfHeaderInfo:
 	mov word [SS:(BP + 16)], 0
 	
 	.done:
+	pop ES
 	popa
 	;; Pop our return code.
 	xor EAX, EAX
@@ -289,17 +281,12 @@ layoutKernel:
 	add ESI, dword [CODE_OFFSET]
 	mov EDI, KERNELCODEDATALOCATION
 
-	.codeLoop:
-	mov AL, byte [GS:ESI]
-	mov byte [GS:EDI], AL
-	inc ESI
-	inc EDI
-	;; Can't seem to get 'loop' instruction to play nicely with
-	;; 32-bit ECX register in 16-bit mode
-	dec ECX	
-	cmp ECX, 0
-	jne .codeLoop
-
+	push ECX
+	push EDI
+	push ESI
+	call loaderMemCopy
+	add SP, 12
+	
 	;; We do the same operation for the data segment, except we have to
 	;; first make sure that the difference between the code and data's
 	;; virtual address is the same as the difference between the offsets
@@ -314,6 +301,7 @@ layoutKernel:
 	;; it.  Move the initialized data forward from the original offset
 	;; so that it matches the difference between the code and data's
 	;; virtual addresses.
+
 	mov ECX, dword [DATA_SIZEINFILE]
 	mov ESI, KERNELCODEDATALOCATION
 	add ESI, dword [DATA_OFFSET]
@@ -322,17 +310,12 @@ layoutKernel:
 	mov dword [DATA_OFFSET], EDI    ;; This will be different now
 	add EDI, KERNELCODEDATALOCATION
 
-	.dataLoop:
-	mov AL, byte [GS:ESI]
-	mov byte [GS:EDI], AL
-	inc ESI
-	inc EDI
-	;; Can't seem to get 'loop' instruction to play nicely with
-	;; 32-bit ECX register in 16-bit mode
-	dec ECX	
-	cmp ECX, 0
-	jne .dataLoop
-
+	push ECX
+	push EDI
+	push ESI
+	call loaderMemCopy
+	add SP, 12
+	
 	.okDataOffset:
 	;; We need to zero out the memory that makes up the difference
 	;; between the data's file size and its size in memory.
@@ -341,16 +324,13 @@ layoutKernel:
 	mov EDI, KERNELCODEDATALOCATION
 	add EDI, dword [DATA_OFFSET]
 	add EDI, dword [DATA_SIZEINFILE]
-	
-	.zeroLoop:
-	mov byte [GS:EDI], 0
-	inc EDI
-	;; Can't seem to get 'loop' instruction to play nicely with
-	;; 32-bit ECX register in 16-bit mode
-	dec ECX	
-	cmp ECX, 0
-	jne .zeroLoop
 
+	push ECX
+	push EDI
+	push word 0
+	call loaderMemSet
+	add SP, 10
+	
 	.success:
 	;; Make 0 be our return code
 	mov word [SS:(BP + 16)], 0
@@ -497,9 +477,6 @@ loaderLoadKernel:
 	
 	.okLoad:
 	;; We were successful.  The kernel's size is in AX.  Ignore it.
-
-	;; Set up 'big real mode'
-	call loaderBigRealMode
 
 	;; Now we need to examine the elf header.
 	call getElfHeaderInfo

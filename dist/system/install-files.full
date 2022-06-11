@@ -1,7 +1,14 @@
 # This file contains the list of additional files that, in addition to the
 # basic ones, comprise the full Visopsys installation
 /programs/adduser
+/programs/cal
 /programs/chkdisk
+/programs/clock
+/programs/confedit
+/programs/date
+/programs/defrag
+/programs/domainname
+/programs/edit
 /programs/file
 /programs/helpfiles/adduser.txt
 /programs/helpfiles/bootmenu.txt
@@ -21,18 +28,20 @@
 /programs/helpfiles/defrag.txt
 /programs/helpfiles/disks.txt
 /programs/helpfiles/disprops.txt
+/programs/helpfiles/domainname.txt
+/programs/helpfiles/edit.txt
 /programs/helpfiles/fdisk.txt
 /programs/helpfiles/file.txt
 /programs/helpfiles/filebrowse.txt
 /programs/helpfiles/find.txt
 /programs/helpfiles/format.txt
+/programs/helpfiles/hostname.txt
 /programs/helpfiles/iconwin.txt
 /programs/helpfiles/ifconfig.txt
 /programs/helpfiles/imgboot.txt
 /programs/helpfiles/install.txt
 /programs/helpfiles/keymap.txt
 /programs/helpfiles/kill.txt
-/programs/helpfiles/ldd.txt
 /programs/helpfiles/loadfont.txt
 /programs/helpfiles/login.txt
 /programs/helpfiles/logout.txt
@@ -45,6 +54,7 @@
 /programs/helpfiles/more.txt
 /programs/helpfiles/mount.txt
 /programs/helpfiles/mv.txt
+/programs/helpfiles/nm.txt
 /programs/helpfiles/passwd.txt
 /programs/helpfiles/ping.txt
 /programs/helpfiles/progman.txt
@@ -67,13 +77,13 @@
 /programs/helpfiles/vsh.txt
 /programs/helpfiles/wallpaper.txt
 /programs/helpfiles/window.txt
-/programs/ldd
+/programs/hostname
 /programs/loadfont
 /programs/md5
-/programs/mem
 /programs/mines
 /programs/mines.dir/
 /programs/mines.dir/mine.bmp
+/programs/nm
 /programs/renice
 /programs/snake
 /programs/snake.dir/
@@ -94,7 +104,8 @@
 /programs/snake.dir/body-horiz.bmp
 /programs/snake.dir/body-vert.bmp
 /programs/testio
-/system/COPYING.txt
+/programs/uname
+/programs/uptime
 /system/fonts/arial-bold-20.bmp
 /system/fonts/haettenschweiler-bold-20.bmp
 /system/fonts/viner-bold-14.bmp
@@ -148,7 +159,9 @@
 /system/headers/sys/stat.h
 /system/headers/sys/stream.h
 /system/headers/sys/telnet.h
+/system/headers/sys/text.h
 /system/headers/sys/types.h
+/system/headers/sys/utsname.h
 /system/headers/sys/variable.h
 /system/headers/sys/vsh.h
 /system/headers/sys/window.h

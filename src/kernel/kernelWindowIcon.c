@@ -77,7 +77,7 @@ static int draw(void *componentData)
 			    draw_normal, labelX, labelY);
     }
 
-  if (component->parameters.hasBorder)
+  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder((void *) component, 1);
 
   return (0);
@@ -264,13 +264,13 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 
   // If default colors are requested, override the standard component colors
   // with the ones we prefer
-  if (component->parameters.useDefaultForeground)
+  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
     {
       component->parameters.foreground.blue = 255;
       component->parameters.foreground.green = 255;
       component->parameters.foreground.red = 255;
     }
-  if (component->parameters.useDefaultBackground)
+  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
       component->parameters.background.blue = 0xAB;
       component->parameters.background.green = 0x5D;
@@ -299,8 +299,8 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
   if (defaultFont == NULL)
     {
       // Try to get our favorite font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			      DEFAULT_VARIABLEFONT_SMALL_NAME,
+      status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
+			      WINDOW_DEFAULT_VARFONT_SMALL_NAME,
 			      &defaultFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.

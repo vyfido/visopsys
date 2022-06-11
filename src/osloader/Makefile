@@ -10,8 +10,10 @@
 BOOTBUILDDIR=../../build/system/boot
 LOADERBUILDDIR=../../build
 
-AS		= nasm
-CC		= gcc
+ifeq (${NASM},)
+	NASM	= nasm
+endif
+
 WARNOPTS	= -w+orphan-labels
 SECTOPTS	= -f bin ${WARNOPTS}
 LDROPTS		= -f aout ${WARNOPTS}
@@ -37,25 +39,25 @@ bootsectors: ${BOOTBUILDDIR}/mbr.simple ${BOOTBUILDDIR}/mbr.bootmenu ${BOOTBUILD
 #
 
 ${BOOTBUILDDIR}/mbr.simple: mbr-simple.s ${STDDEPEND}
-	${AS} ${SECTOPTS} $< -o $@
+	${NASM} ${SECTOPTS} $< -o $@
 
 ${BOOTBUILDDIR}/mbr.bootmenu: mbr-bootmenu.s ${STDDEPEND}
-	${AS} ${SECTOPTS} $< -o $@
+	${NASM} ${SECTOPTS} $< -o $@
 
 ${BOOTBUILDDIR}/bootmenu: bootmenu.s ${STDDEPEND}
-	${AS} ${SECTOPTS} $< -o $@
+	${NASM} ${SECTOPTS} $< -o $@
 
 ${BOOTBUILDDIR}/bootsect.fat: bootsect-fat.s bootsect-fatBPB.s ${STDDEPEND}
-	${AS} ${SECTOPTS} $< -o $@
+	${NASM} ${SECTOPTS} $< -o $@
 
 ${BOOTBUILDDIR}/bootsect.fat32: bootsect-fat.s bootsect-fatBPB.s ${STDDEPEND}
-	${AS} ${SECTOPTS} -DFAT32 $< -o $@
+	${NASM} ${SECTOPTS} -DFAT32 $< -o $@
 
 ${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
-	${AS} ${SECTOPTS} $< -o $@
+	${NASM} ${SECTOPTS} $< -o $@
 
 ${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
-	${AS} ${SECTOPTS} -DFAT32 $< -o $@
+	${NASM} ${SECTOPTS} -DFAT32 $< -o $@
 
 #
 # Loader files
@@ -64,8 +66,8 @@ ${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s bootsect-fatBPB.s ${S
 ${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPEND}
 	${CC} -nodefaultlibs -nostartfiles -O2 -Wall ${LINKOPTS} ${OBJS} -o $@
 
-obj/%.o: %.s ${STDDEPS}
-	${AS} ${LDROPTS} $< -o $@
+obj/%.o: %.s ${STDDEPEND}
+	${NASM} ${LDROPTS} $< -o $@
 
 #
 # Miscellany

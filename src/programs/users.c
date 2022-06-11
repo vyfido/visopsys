@@ -162,8 +162,6 @@ static int setPasswordDialog(int userNumber)
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   char labelText[64];
   sprintf(labelText, "User name: %s", userListParams[userNumber].text);
@@ -185,7 +183,7 @@ static int setPasswordDialog(int userNumber)
       params.gridX = 1;
       params.orientationX = orient_left;
       params.padRight = 5;
-      params.hasBorder = 1;
+      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       oldPasswordField = windowNewPasswordField(dialogWindow, 17, &params);
     }
 
@@ -194,11 +192,11 @@ static int setPasswordDialog(int userNumber)
   params.gridWidth = 1;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.hasBorder = 0;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
   params.gridX = 1;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   params.padRight = 5;
   params.orientationX = orient_left;
   passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
@@ -207,20 +205,20 @@ static int setPasswordDialog(int userNumber)
   params.gridY = 3;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.hasBorder = 0;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
   params.gridX = 1;
   params.orientationX = orient_left;
   params.padRight = 5;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 
   params.gridX = 0;
   params.gridY = 4;
   params.gridWidth = 2;
   params.orientationX = orient_center;
-  params.hasBorder = 0;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
   				    "match", &params);
   windowComponentSetVisible(noMatchLabel, 0);
@@ -232,7 +230,7 @@ static int setPasswordDialog(int userNumber)
   params.padLeft = 5;
   params.padRight = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
   // Create the Cancel button
@@ -493,15 +491,13 @@ static void constructWindow(void)
   params.padBottom = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   userList = windowNewList(window, windowlist_textonly, 5, 1, 0,
 			   userListParams, numUserNames, &params);
 
   // A container for the buttons
   params.gridX = 1;
   params.padRight = 5;
-  params.fixedHeight = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
   container = windowNewContainer(window, "button container", &params);
 
   // Create an 'add user' button
@@ -509,7 +505,7 @@ static void constructWindow(void)
   params.padLeft = 0;
   params.padRight = 0;
   params.padTop = 0;
-  params.fixedHeight = 0;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
   addUserButton = windowNewButton(container, "Add User", NULL, &params);
   windowRegisterEventHandler(addUserButton, &eventHandler);
   if (privilege || readOnly)

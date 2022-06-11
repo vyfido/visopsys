@@ -1512,8 +1512,14 @@ static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
   dirEntry = dirBuffer;
   listItemPointer = currentDir->contents;
 
-  while(listItemPointer)
+  while (listItemPointer)
     {
+      if (listItemPointer->disk != currentDir->disk)
+	{
+	  listItemPointer = listItemPointer->nextEntry;
+	  continue;
+	}
+
       realEntry = listItemPointer;
       if (listItemPointer->type == linkT)
         // Resolve links
@@ -2257,14 +2263,20 @@ static int makeShortAlias(kernelFileEntry *theFile)
 
   while (listItemPointer)
     {
+      if (listItemPointer->disk != theFile->disk)
+	{
+	  listItemPointer = listItemPointer->nextEntry;
+	  continue;
+	}
+
       if (listItemPointer != theFile)
 	{
 	  // Get the list item's data
 	  listItemData = (fatEntryData *) listItemPointer->driverData;
 	  if (listItemData == NULL)
 	    {
-	      kernelError(kernel_error, "File has no private filesystem "
-			  "data");
+	      kernelError(kernel_error, "File \"%s\" has no private "
+			  "filesystem data", listItemPointer->name);
 	      return (status = ERR_BUG);
 	    }
 	  
@@ -3243,13 +3255,13 @@ static int detect(kernelDisk *theDisk)
   // We will accept this as a FAT filesystem.  Gather some information.
 
   // Set the disk's fsType string, tentatively
-  strcpy((char *) theDisk->fsType, "fat");
+  strcpy((char *) theDisk->fsType, FSNAME_FAT);
   if (!strncmp(bpb.fat.fileSysType, "FAT12", 5))
-    strcpy((char *) theDisk->fsType, "fat12");
+    strcpy((char *) theDisk->fsType, FSNAME_FAT"12");
   else if (!strncmp(bpb.fat.fileSysType, "FAT16", 5))
-    strcpy((char *) theDisk->fsType, "fat16");
+    strcpy((char *) theDisk->fsType, FSNAME_FAT"16");
   else if (!strncmp(bpb.fat32.fileSysType, "FAT32", 5))
-    strcpy((char *) theDisk->fsType, "fat32");
+    strcpy((char *) theDisk->fsType, FSNAME_FAT"32");
 
   theDisk->filesystem.blockSize = (bpb.bytesPerSect * bpb.sectsPerClust);
   theDisk->filesystem.minSectors = 0;
@@ -3343,11 +3355,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   else
     fatData.bpb.media = 0xF0;
 
-  if (!strncasecmp(type, "fat12", 5))
+  if (!strncasecmp(type, FSNAME_FAT"12", 5))
     fatData.fsType = fat12;
-  else if (!strncasecmp(type, "fat16", 5))
+  else if (!strncasecmp(type, FSNAME_FAT"16", 5))
     fatData.fsType = fat16;
-  else if (!strncasecmp(type, "fat32", 5))
+  else if (!strncasecmp(type, FSNAME_FAT"32", 5))
     fatData.fsType = fat32;
   else if ((physicalDisk->flags & DISKFLAG_FLOPPY) ||
 	   (fatData.totalSects < 8400))
@@ -3613,16 +3625,16 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   switch (fatData.fsType)
     {
     case fat12:
-      strcpy((char *) theDisk->fsType, "fat12");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT"12");
       break;
     case fat16:
-      strcpy((char *) theDisk->fsType, "fat16");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT"16");
       break;
     case fat32:
-      strcpy((char *) theDisk->fsType, "fat32");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT"32");
       break;
     default:
-      strcpy((char *) theDisk->fsType, "fat");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT);
     }
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
@@ -3983,16 +3995,16 @@ static int mount(kernelDisk *theDisk)
   switch (fatData->fsType)
     {
     case fat12:
-      strcpy((char *) theDisk->fsType, "fat12");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT"12");
       break;
     case fat16:
-      strcpy((char *) theDisk->fsType, "fat16");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT"16");
       break;
     case fat32:
-      strcpy((char *) theDisk->fsType, "fat32");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT"32");
       break;
     default:
-      strcpy((char *) theDisk->fsType, "fat");
+      strcpy((char *) theDisk->fsType, FSNAME_FAT);
     }
 
   // Mark the filesystem as 'dirty'
@@ -4661,14 +4673,14 @@ static int timestamp(kernelFileEntry *theFile)
 
 
 static kernelFilesystemDriver defaultFatDriver = {
-  "fat", // Driver name
+  FSNAME_FAT, // Driver name
   detect,
   format,
   clobber,
   NULL, // driverCheck
   defragment,
   NULL, // driverStat
-  NULL, // driverGetResizeConstraints
+  NULL, // driverResizeConstraints
   NULL, // driverResize
   mount,
   unmount,

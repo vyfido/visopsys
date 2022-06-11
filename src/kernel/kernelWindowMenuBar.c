@@ -326,8 +326,9 @@ kernelWindowComponent *kernelWindowNewMenuBar(volatile void *parent,
   if (menuBarFont == NULL)
     {
       // Try to load a nice-looking font
-      if (kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			 DEFAULT_VARIABLEFONT_SMALL_NAME, &menuBarFont, 0) < 0)
+      if (kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
+			 WINDOW_DEFAULT_VARFONT_SMALL_NAME,
+			 &menuBarFont, 0) < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&menuBarFont);
     }

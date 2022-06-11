@@ -30,10 +30,15 @@ static int borderThickness = 3;
 static int borderShadingIncrement = 15;
 
 
-static void calcSliderHeightPos(kernelWindowScrollBar *scrollBar, int height)
+static void calcSliderSizePos(kernelWindowScrollBar *scrollBar, int height)
 {
   scrollBar->sliderHeight = (((height - (borderThickness * 2)) *
 			      scrollBar->state.displayPercent) / 100);
+
+  // Need a minimum height
+  scrollBar->sliderHeight =
+    max(scrollBar->sliderHeight, (borderThickness * 3));
+
   scrollBar->sliderY =
     ((((height - (borderThickness * 2)) - scrollBar->sliderHeight) *
       scrollBar->state.positionPercent) / 100);
@@ -78,14 +83,11 @@ static int draw(void *componentData)
 				  borderShadingIncrement, draw_reverse);
 
   // Draw the slider
-  scrollBar->sliderWidth = (component->width - (borderThickness * 2));
-  scrollBar->sliderHeight = (((component->height - (borderThickness * 2)) *
-			      scrollBar->state.displayPercent) / 100);
-
   kernelGraphicDrawGradientBorder(buffer,
 				  (component->xCoord + borderThickness),
 				  (component->yCoord + borderThickness +
-				   scrollBar->sliderY), scrollBar->sliderWidth,
+				   scrollBar->sliderY),
+				  (component->width - (borderThickness * 2)),
 				  scrollBar->sliderHeight, borderThickness,
 				  (color *)
 				  &(component->parameters.background),
@@ -94,15 +96,12 @@ static int draw(void *componentData)
 }
 
 
-static int resize(void *componentData, int width, int height)
+static int resize(void *componentData, int width __attribute__((unused)),
+		  int height)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
 
-  // Ignore width
-  if (width) { }
-
-  calcSliderHeightPos(scrollBar, height);
+  calcSliderSizePos((kernelWindowScrollBar *) component->data, height);
 
   return (0);
 }
@@ -133,7 +132,7 @@ static int setData(void *componentData, void *buffer, int size)
   kernelMemCopy(buffer, (void *) &(scrollBar->state),
 		max(size, (int) sizeof(scrollBarState)));
 
-  calcSliderHeightPos(scrollBar, component->height);
+  calcSliderSizePos(scrollBar, component->height);
 
   draw(componentData);
 
@@ -278,6 +277,7 @@ kernelWindowComponent *kernelWindowNewScrollBar(volatile void *parent,
   scrollBar->type = type;
   scrollBar->state.displayPercent = 100;
   scrollBar->state.positionPercent = 0;
+  calcSliderSizePos(scrollBar, height);
   
   component->width = width;
   component->height = height;

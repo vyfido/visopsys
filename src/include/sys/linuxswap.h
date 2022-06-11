@@ -24,16 +24,17 @@
 
 #if !defined(_LINUXSWAP_H)
 
-typedef struct {
-  union  {
+#define LINUXSWAP_MAXPAGES  (~0UL << 8)
+
+typedef union  {
     struct {
       char reserved[MEMORY_PAGE_SIZE - 10];
-      char magic[10]; /* SWAP-SPACE or SWAPSPACE2 */
+      char magic[10];       // SWAP-SPACE or SWAPSPACE2
       
     } magic;
     
     struct {
-      char bootbits[1024];    /* Space for disklabel etc. */
+      char bootbits[1024];  // Space for disk label etc.
       int version;
       unsigned lastPage;
       unsigned numBadPages;
@@ -41,7 +42,7 @@ typedef struct {
       unsigned badPages[1];
 
     } info;
-  };
+
 } __attribute__((packed)) linuxSwapHeader;
 
 #define _LINUXSWAP_H

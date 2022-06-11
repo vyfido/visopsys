@@ -41,29 +41,32 @@
 // PCI device info header types
 #define PCI_HEADERTYPE_NORMAL      0
 #define PCI_HEADERTYPE_BRIDGE      1
+#define PCI_HEADERTYPE_CARDBUS     2
 
 // PCI configuration register numbers.  Note that the registers are numbered
 // according to their bit widths.  For example, the command register is
 // a 16-bit word, so the register number is counted in words.  Base address
 // registers are 32-bit dwords, so they're counted in dwords.
-#define PCI_CONFREG_VENDORID       0
-#define PCI_CONFREG_DEVICEID       1
-#define PCI_CONFREG_COMMAND        2
-#define PCI_CONFREG_STATUS         3
-#define PCI_CONFREG_REVISIONID     8
-#define PCI_CONFREG_PROGIF         9
-#define PCI_CONFREG_SUBCLASSCODE   10
-#define PCI_CONFREG_CLASSCODE      11
-#define PCI_CONFREG_CACHELINESIZE  12
-#define PCI_CONFREG_LATENCY        13
-#define PCI_CONFREG_HEADERTYPE     14
-#define PCI_CONFREG_BIST           15
-#define PCI_CONFREG_BASEADDRESS0   4
-#define PCI_CONFREG_BASEADDRESS1   5
-#define PCI_CONFREG_BASEADDRESS2   6
-#define PCI_CONFREG_BASEADDRESS3   7
-#define PCI_CONFREG_BASEADDRESS4   8
-#define PCI_CONFREG_BASEADDRESS5   9
+#define PCI_CONFREG_VENDORID_16      0
+#define PCI_CONFREG_DEVICEID_16      1
+#define PCI_CONFREG_COMMAND_16       2
+#define PCI_CONFREG_STATUS_16        3
+#define PCI_CONFREG_REVISIONID_8     8
+#define PCI_CONFREG_PROGIF_8         9
+#define PCI_CONFREG_SUBCLASSCODE_8   10
+#define PCI_CONFREG_CLASSCODE_8      11
+#define PCI_CONFREG_CACHELINESIZE_8  12
+#define PCI_CONFREG_LATENCY_8        13
+#define PCI_CONFREG_HEADERTYPE_8     14
+#define PCI_CONFREG_BIST_8           15
+#define PCI_CONFREG_CLASSREG_32      2
+#define PCI_CONFREG_BASEADDRESS0_32  4
+#define PCI_CONFREG_BASEADDRESS1_32  5
+#define PCI_CONFREG_BASEADDRESS2_32  6
+#define PCI_CONFREG_BASEADDRESS3_32  7
+#define PCI_CONFREG_BASEADDRESS4_32  8
+#define PCI_CONFREG_BASEADDRESS5_32  9
+#define PCI_CONFREG_INTLINE_8        60
 
 // PCI device command bits
 #define PCI_COMMAND_FASTBACK2BACK  0x0200

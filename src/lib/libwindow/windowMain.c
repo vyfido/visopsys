@@ -97,7 +97,7 @@ _X_ int windowClearEventHandlers(void)
   numCallBacks = 0;
 
   if (callBacks)
-    bzero((void *) callBacks, (WINDOW_MAX_COMPONENTS * sizeof(callBack)));
+    bzero((void *) callBacks, (WINDOW_MAX_EVENTHANDLERS * sizeof(callBack)));
 
   return (0);
 }
@@ -116,7 +116,7 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
   if (callBacks == NULL)
     {
       // Get memory for our callbacks
-      callBacks = malloc(WINDOW_MAX_COMPONENTS * sizeof(callBack));
+      callBacks = malloc(WINDOW_MAX_EVENTHANDLERS * sizeof(callBack));
       if (callBacks == NULL)
 	{
 	  errno = ERR_MEMORY;
@@ -125,6 +125,9 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
 
       numCallBacks = 0;
     }
+
+  if (numCallBacks >= WINDOW_MAX_EVENTHANDLERS)
+    return (status = ERR_NOFREE);
 
   callBacks[numCallBacks].key = key;
   callBacks[numCallBacks].function = function;

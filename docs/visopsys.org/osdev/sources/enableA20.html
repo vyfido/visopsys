@@ -1,0 +1,316 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Enabling The x86 A20 Address Line</title>
+<meta name="Microsoft Border" content="lrb">
+</head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" bgproperties="fixed"
+background="../../img/background.jpg"><!--msnavigation--><table dir="ltr" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../../index.html">
+    <img src="../../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
+    <br>
+    <a href="../../about/index.html">
+    <img src="../../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="../../about/news.html">
+    <img border="0" src="../../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
+    <a href="../../about/screenshots.html">
+    <img border="0" src="../../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <br>
+    <a href="../../download/index.html">
+    <img src="../../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
+    <br>
+    <a href="../../developers/index.html">
+    <img src="../../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
+    <br>
+    <a href="../index.html">
+    <img src="../../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
+    <br>
+    <a href="../../search.html">
+    <img src="../../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center"><font size="5"><strong>
+<img src="../../img/banners/visopsys-logo.gif"
+align="middle" border="0" width="291" height="94"></strong></font><br>
+<img src="../../img/banners/visopsys-osdev.gif" align="middle" border="0" width="291" height="55"></p>
+
+<p align="left"><big><strong>ENABLING THE x86 A20 ADDRESS LINE&nbsp; </strong></big>
+(<a href="enableA20.s">download as a text file</a>)</p>
+
+<font SIZE="2">
+<pre>;;
+;; enableA20.s (adapted from Visopsys OS-loader)
+;;
+;; Copyright (c) 2000, J. Andrew McLaughlin
+;; You're free to use this code in any manner you like, as long as this
+;; notice is included (and you give credit where it is due), and as long
+;; as you understand and accept that it comes with NO WARRANTY OF ANY KIND.
+;; Contact me at &lt;andy@visopsys.org&gt; about any bugs or problems.
+;;
+
+enableA20:
+	;; This subroutine will enable the A20 address line in the keyboard
+	;; controller.  Takes no arguments.  Returns 0 in EAX on success, 
+	;; -1 on failure.  Written for use in 16-bit code, see lines marked
+	;; with 32-BIT for use in 32-bit code.
+
+	pusha
+
+	;; Make sure interrupts are disabled
+	cli
+
+	;; Keep a counter so that we can make up to 5 attempts to turn
+	;; on A20 if necessary
+	mov CX, 5
+
+	.startAttempt1:		
+	;; Wait for the controller to be ready for a command
+	.commandWait1:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 1
+	jc .commandWait1
+
+	;; Tell the controller we want to read the current status.
+	;; Send the command D0h: read output port.
+	mov AL, 0D0h
+	out 64h, AL
+
+	;; Wait for the controller to be ready with a byte of data
+	.dataWait1:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 0
+	jnc .dataWait1
+
+	;; Read the current port status from port 60h
+	xor AX, AX
+	in AL, 60h
+
+	;; Save the current value of (E)AX
+	push AX			; 16-BIT
+	;; push EAX		; 32-BIT
+
+	;; Wait for the controller to be ready for a command
+	.commandWait2:
+	in AL, 64h
+	bt AX, 1
+	jc .commandWait2
+
+	;; Tell the controller we want to write the status byte again
+	mov AL, 0D1h
+	out 64h, AL	
+
+	;; Wait for the controller to be ready for the data
+	.commandWait3:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 1
+	jc .commandWait3
+
+	;; Write the new value to port 60h.  Remember we saved the old
+	;; value on the stack
+	pop AX			; 16-BIT
+	;; pop EAX		; 32-BIT
+
+	;; Turn on the A20 enable bit
+	or AL, 00000010b
+	out 60h, AL
+
+	;; Finally, we will attempt to read back the A20 status
+	;; to ensure it was enabled.
+
+	;; Wait for the controller to be ready for a command
+	.commandWait4:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 1
+	jc .commandWait4
+
+	;; Send the command D0h: read output port.
+	mov AL, 0D0h
+	out 64h, AL	
+
+	;; Wait for the controller to be ready with a byte of data
+	.dataWait2:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 0
+	jnc .dataWait2
+
+	;; Read the current port status from port 60h
+	xor AX, AX
+	in AL, 60h
+
+	;; Is A20 enabled?
+	bt AX, 1
+
+	;; Check the result.  If carry is on, A20 is on.
+	jc .success
+
+	;; Should we retry the operation?  If the counter value in ECX
+	;; has not reached zero, we will retry
+	loop .startAttempt1
+
+
+	;; Well, our initial attempt to set A20 has failed.  Now we will
+	;; try a backup method (which is supposedly not supported on many
+	;; chipsets, but which seems to be the only method that works on
+	;; other chipsets).
+
+
+	;; Keep a counter so that we can make up to 5 attempts to turn
+	;; on A20 if necessary
+	mov CX, 5
+
+	.startAttempt2:
+	;; Wait for the keyboard to be ready for another command
+	.commandWait6:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 1
+	jc .commandWait6
+
+	;; Tell the controller we want to turn on A20
+	mov AL, 0DFh
+	out 64h, AL
+
+	;; Again, we will attempt to read back the A20 status
+	;; to ensure it was enabled.
+
+	;; Wait for the controller to be ready for a command
+	.commandWait7:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 1
+	jc .commandWait7
+
+	;; Send the command D0h: read output port.
+	mov AL, 0D0h
+	out 64h, AL	
+
+	;; Wait for the controller to be ready with a byte of data
+	.dataWait3:
+	xor AX, AX
+	in AL, 64h
+	bt AX, 0
+	jnc .dataWait3
+
+	;; Read the current port status from port 60h
+	xor AX, AX
+	in AL, 60h
+
+	;; Is A20 enabled?
+	bt AX, 1
+
+	;; Check the result.  If carry is on, A20 is on, but we might warn
+	;; that we had to use this alternate method
+	jc .warn
+
+	;; Should we retry the operation?  If the counter value in ECX
+	;; has not reached zero, we will retry
+	loop .startAttempt2
+
+
+	;; OK, we weren't able to set the A20 address line.  Do you want
+	;; to put an error message here?
+	jmp .fail
+
+
+	.warn:
+	;; Here you may or may not want to print a warning message about
+	;; the fact that we had to use the nonstandard alternate enabling
+	;; method
+
+	.success:
+	sti
+	popa
+	xor EAX, EAX
+	ret
+
+	.fail:
+	sti
+	popa
+	mov EAX, -1
+	ret
+</pre>
+</font>
+
+<p><big>&nbsp; </big>
+
+<!--msnavigation--></td><td valign="top" width="24"></td><td valign="top" width="1%">
+<div align="left">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+    <tr>
+      <td>
+        &nbsp;
+        <script type="text/javascript"><!--
+          google_ad_client = "pub-2784580927617241";
+          google_ad_width = 160;
+          google_ad_height = 600;
+          google_ad_format = "160x600_as";
+          google_ad_type = "text";
+          google_ad_channel ="";
+          google_color_border = "336699";
+          google_color_bg = "FFFFFF";
+          google_color_link = "0000FF";
+          google_color_url = "008000";
+          google_color_text = "000000";
+          //-->
+        </script>
+        <script type="text/javascript"
+          src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+        </script>
+      </td>
+    </tr>
+  </table>
+</div>
+</td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../../index.html">
+    <img
+    src="../../img/nav_buttons/home.gif" alt="Home" border="0"
+    align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="../../about/index.html">
+    <img src="../../img/nav_buttons/about.gif"
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="../../about/news.html">
+    <img border="0" src="../../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
+    <a href="../../about/screenshots.html">
+    <img border="0" src="../../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../../download/index.html">
+    <img
+    src="../../img/nav_buttons/download.gif" alt="Download"
+    border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="../../developers/index.html"><img
+    src="../../img/nav_buttons/developers.gif" alt="Developers"
+    border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../index.html">
+    <img
+    src="../../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../../search.html">
+    <img
+    src="../../img/nav_buttons/search.gif" alt="Search" align="middle"
+    border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Last updated on
+    November 29, 2005</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+
+</td></tr><!--msnavigation--></table></body>
+</html>

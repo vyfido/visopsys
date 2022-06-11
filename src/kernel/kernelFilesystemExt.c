@@ -684,7 +684,7 @@ static int detect(kernelDisk *theDisk)
   if (status == 0)
     {
       // EXT
-      strcpy((char *) theDisk->fsType, "ext");
+      strcpy((char *) theDisk->fsType, FSNAME_EXT);
       return (status = 1);
     }
   else
@@ -781,8 +781,8 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       return (status = ERR_NULLPARAMETER);
     }
   
-  if (strncasecmp(type, "ext", 3) ||
-      ((strlen(type) > 3) && strcasecmp(type, "ext2")))
+  if (strncasecmp(type, FSNAME_EXT, strlen(FSNAME_EXT)) ||
+      ((strlen(type) > strlen(FSNAME_EXT)) && strcasecmp(type, FSNAME_EXT"2")))
     {
       kernelError(kernel_error, "Filesystem type %s not supported", type);
       return (status = ERR_INVALID);
@@ -1132,7 +1132,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   kernelFree(inodeTable);
   kernelFree(dirBuffer);
 
-  strcpy((char *) theDisk->fsType, "ext2");
+  strcpy((char *) theDisk->fsType, FSNAME_EXT"2");
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
@@ -1227,7 +1227,7 @@ static int mount(kernelDisk *theDisk)
     }
 
   // Set the proper filesystem type name on the disk structure
-  strcpy((char *) theDisk->fsType, "ext2");
+  strcpy((char *) theDisk->fsType, FSNAME_EXT"2");
 
   // Read-only for now
   theDisk->filesystem.readOnly = 1;
@@ -1582,14 +1582,14 @@ static int readDir(kernelFileEntry *directory)
 
 
 static kernelFilesystemDriver defaultExtDriver = {
-  "ext", // Driver name
+  FSNAME_EXT, // Driver name
   detect,
   format,
   clobber,
   NULL,  // driverCheck
   NULL,  // driverDefragment
   NULL,  // driverStat
-  NULL,  // driverGetResizeConstraints
+  NULL,  // driverResizeConstraints
   NULL,  // driverResize
   mount,
   unmount,

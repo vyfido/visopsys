@@ -30,16 +30,19 @@
 #include <sys/window.h>
 
 // Definitions
-#define DEFAULT_TITLEBAR_HEIGHT           19
-#define DEFAULT_BORDER_THICKNESS          5
-#define DEFAULT_SHADING_INCREMENT         15
-#define DEFAULT_WINDOWMANAGER_CONFIG      "/system/config/windowmanager.conf"
-#define DEFAULT_VARIABLEFONT_SMALL_FILE   "/system/fonts/arial-bold-10.bmp"
-#define DEFAULT_VARIABLEFONT_SMALL_NAME   "arial-bold-10"
-#define DEFAULT_VARIABLEFONT_MEDIUM_FILE  "/system/fonts/arial-bold-12.bmp"
-#define DEFAULT_VARIABLEFONT_MEDIUM_NAME  "arial-bold-12"
-#define DEFAULT_MOUSEPOINTER_DEFAULT      "/system/mouse.bmp"
-#define DEFAULT_MOUSEPOINTER_BUSY         "/system/mouse/mousebsy.bmp"
+#define WINDOW_TITLEBAR_HEIGHT             19
+#define WINDOW_BORDER_THICKNESS            5
+#define WINDOW_SHADING_INCREMENT           15
+#define WINDOW_MIN_WIDTH                   (WINDOW_TITLEBAR_HEIGHT * 4)
+#define WINDOW_MIN_HEIGHT                  (WINDOW_TITLEBAR_HEIGHT + \
+                                            (WINDOW_BORDER_THICKNESS * 2))
+#define WINDOW_MANAGER_DEFAULT_CONFIG      "/system/config/windowmanager.conf"
+#define WINDOW_DEFAULT_VARFONT_SMALL_FILE   "/system/fonts/arial-bold-10.bmp"
+#define WINDOW_DEFAULT_VARFONT_SMALL_NAME   "arial-bold-10"
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE  "/system/fonts/arial-bold-12.bmp"
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_NAME  "arial-bold-12"
+#define WINDOW_DEFAULT_MOUSEPOINTER_DEFAULT "/system/mouse.bmp"
+#define WINDOW_DEFAULT_MOUSEPOINTER_BUSY    "/system/mouse/mousebsy.bmp"
 
 #define WINFLAG_VISIBLE                   0x1000
 #define WINFLAG_ENABLED                   0x0800
@@ -47,7 +50,6 @@
 #define WINFLAG_RESIZABLE                 0x0300
 #define WINFLAG_RESIZABLEX                0x0200
 #define WINFLAG_RESIZABLEY                0x0100
-#define WINFLAG_PACKED                    0x0080
 #define WINFLAG_HASMINIMIZEBUTTON         0x0040
 #define WINFLAG_HASCLOSEBUTTON            0x0020
 #define WINFLAG_HASBORDER                 0x0010
@@ -153,7 +155,8 @@ typedef volatile struct {
 
 typedef volatile struct {
   const char name[WINDOW_MAX_LABEL_LENGTH];
-  kernelWindowComponent *components[WINDOW_MAX_COMPONENTS];
+  kernelWindowComponent **components;
+  int maxComponents;
   int numComponents;
   int numColumns;
   int numRows;
@@ -236,7 +239,6 @@ typedef volatile struct {
   scrollBarType type;
   scrollBarState state;
   int sliderY;
-  int sliderWidth;
   int sliderHeight;
 
 } kernelWindowScrollBar;

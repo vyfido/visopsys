@@ -33,9 +33,9 @@
 %define TMPSCREENBUFFER         (LDRPAGINGDATA + LDRPAGINGDATASIZE)
 %define TMPSCREENSIZE           00002000h
 %define LDRDATABUFFER           (TMPSCREENBUFFER + TMPSCREENSIZE)
-%define DATABUFFERSIZE          (32 * 1024)
+;; Use all the rest up to the start of video memory for the data buffer
+%define DATABUFFERSIZE          (000A0000h - LDRDATABUFFER)
 
-%define PAGINGDATA              (LDRCODESEGMENTLOCATION + LDRPAGINGDATA)
 %define KERNELVIRTUALADDRESS    0C0000000h   ;; 3 Gb mark
 %define KERNELCODEDATALOCATION	00100000h    ;; 1 Mb mark
 %define KERNELSTACKSIZE	        00010000h    ;; 64 Kb
@@ -51,7 +51,7 @@
 %if ((KERNELSTACKSIZE % 4096) != 0)
 %error "Kernel stack size must be a multiple of 4Kb"
 %endif
-%if ((PAGINGDATA % 4096) != 0)
+%if ((LDRPAGINGDATA % 4096) != 0)
 %error "Loader paging data must be a multiple of 4Kb"
 %endif
 

@@ -34,7 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char hostName[NETWORK_MAX_HOSTNAMELENGTH];
+static char *hostName = NULL;
+static char *domainName = NULL;
 static kernelNetworkDevice *adapters[NETWORK_MAX_ADAPTERS];
 static int numDevices = 0;
 static int netThreadPid = 0;
@@ -1240,6 +1241,11 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
     setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_HOSTNAME,
 		  (strlen(hostName) + 1), hostName);
 
+  // If the server did not specify a domain name to us, specify one to it.
+  if (!getSpecificDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_DOMAIN))
+    setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_DOMAIN,
+		  (strlen(domainName) + 1), domainName);
+
   // Clear the 'your address' field
   kernelMemClear(&(sendDhcpPacket.yourLogicalAddr), NETWORK_ADDRLENGTH_IP);
 
@@ -1333,11 +1339,13 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
 	case NETWORK_DHCPOPTION_HOSTNAME:
 	  // The server supplied the host name
 	  strncpy(hostName, option->data,
-		  min(option->length, (NETWORK_MAX_HOSTNAMELENGTH - 1))); 
+		  min(option->length, (NETWORK_MAX_HOSTNAMELENGTH - 1)));
 	  break;
 
 	case NETWORK_DHCPOPTION_DOMAIN:
 	  // The server supplied the domain name
+	  strncpy(domainName, option->data,
+		  min(option->length, (NETWORK_MAX_DOMAINNAMELENGTH - 1))); 
 	  break;
 
 	case NETWORK_DHCPOPTION_BROADCAST:
@@ -1995,21 +2003,39 @@ int kernelNetworkInitialize(void)
   // Initialize global networking stuff.
 
   int status = 0;
-  char value[128];
   kernelNetworkDevice *adapter = NULL;
   int count;
 
   extern variableList *kernelVariables;
 
-  strcpy(hostName, "visopsys");
-
-  if (kernelVariables != NULL)
+  if (hostName == NULL)
     {
-      // Check for a user-specified host name.
-      value[0] = '\0';
-      kernelVariableListGet(kernelVariables, "network.hostname", value, 128);
-      if (value[0] != '\0')
-	strncpy(hostName, value, NETWORK_MAX_HOSTNAMELENGTH);
+      hostName = kernelMalloc(NETWORK_MAX_HOSTNAMELENGTH);
+      if (hostName == NULL)
+	return (status = ERR_MEMORY);
+      
+      // By default
+      strcpy(hostName, "visopsys");
+
+      if (kernelVariables != NULL)
+	// Check for a user-specified host name.
+	kernelVariableListGet(kernelVariables, "network.hostname", hostName,
+			      NETWORK_MAX_HOSTNAMELENGTH);
+    }
+
+  if (domainName == NULL)
+    {
+      domainName = kernelMalloc(NETWORK_MAX_DOMAINNAMELENGTH);
+      if (domainName == NULL)
+	return (status = ERR_MEMORY);
+
+      // By default, empty
+      domainName[0] = '\0';
+
+      if (kernelVariables != NULL)
+	// Check for a user-specified domain name.
+	kernelVariableListGet(kernelVariables, "network.domainname",
+			      domainName, NETWORK_MAX_DOMAINNAMELENGTH);
     }
 
   // Configure all the network adapters
@@ -2462,6 +2488,78 @@ int kernelNetworkPing(kernelNetworkConnection *connection, int sequenceNum,
     kernelProcessorSwap16(icmpChecksum(&(pingPacket.icmpHeader), packetSize));
 
   return (send(connection, (unsigned char *) &pingPacket, packetSize, 1, 1));
+}
+
+
+int kernelNetworkGetHostName(char *buffer, int bufferSize)
+{
+  // Get the system's network hostname
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (buffer == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(buffer, hostName, min(bufferSize, NETWORK_MAX_HOSTNAMELENGTH));
+  return (status = 0);
+}
+
+
+int kernelNetworkSetHostName(const char *buffer, int bufferSize)
+{
+  // Set the system's network hostname
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (buffer == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(hostName, buffer, min(bufferSize, NETWORK_MAX_HOSTNAMELENGTH));
+  return (status = 0);
+}
+
+
+int kernelNetworkGetDomainName(char *buffer, int bufferSize)
+{
+  // Get the system's network domain name
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (buffer == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(buffer, domainName, min(bufferSize, NETWORK_MAX_DOMAINNAMELENGTH));
+  return (status = 0);
+}
+
+
+int kernelNetworkSetDomainName(const char *buffer, int bufferSize)
+{
+  // Set the system's network domain name
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (buffer == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(domainName, buffer, min(bufferSize, NETWORK_MAX_DOMAINNAMELENGTH));
+  return (status = 0);
 }
 
 

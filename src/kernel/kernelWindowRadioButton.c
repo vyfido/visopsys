@@ -83,7 +83,7 @@ static int draw(void *componentData)
       tmp += (strlen(tmp) + 1);
     }
 
-  if (component->parameters.hasBorder)
+  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder((void *) component, 1);
 
   return (status);
@@ -286,8 +286,9 @@ kernelWindowComponent *kernelWindowNewRadioButton(volatile void *parent,
   if (radioFont == NULL)
     {
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			      DEFAULT_VARIABLEFONT_SMALL_NAME, &radioFont, 0);
+      status =
+	kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
+		       WINDOW_DEFAULT_VARFONT_SMALL_NAME, &radioFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&radioFont);

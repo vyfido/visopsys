@@ -203,13 +203,11 @@ static void editEntryLabel(int entryNumber)
       params.padTop = 5;
       params.orientationX = orient_left;
       params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
       windowNewTextLabel(dialogWindow, entryArray->entries[entryNumber].string,
 			 &params);
 
       params.gridY = 1;
-      params.hasBorder = 1;
+      params.flags = WINDOW_COMPFLAG_HASBORDER;
       newLabelField =
 	windowNewTextField(dialogWindow, (SLICESTRING_LENGTH - 1), &params);
 
@@ -219,7 +217,7 @@ static void editEntryLabel(int entryNumber)
       params.padBottom = 5;
       params.padRight = 0;
       params.orientationX = orient_right;
-      params.fixedWidth = 1;
+      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
       okBut = windowNewButton(dialogWindow, "OK", NULL, &params);
 
       // Create the Cancel button
@@ -507,13 +505,11 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   windowNewTextLabel(window, PARTITIONS, &params);
 
   params.gridY = 1;
   params.padTop = 5;
-  params.hasBorder = 1;
+  params.flags = WINDOW_COMPFLAG_HASBORDER;
   textArea = windowNewTextArea(window, 45, 20, 200, &params);
 
   // Use the text area for all our input and output
@@ -521,7 +517,7 @@ static void constructWindow(void)
   textSetCursor(0);
 
   params.gridY = 2;
-  params.hasBorder = 0;
+  params.flags = 0;
   windowNewTextLabel(window, ENTRIES, &params);
 
   params.gridY = 3;
@@ -552,7 +548,7 @@ static void constructWindow(void)
 
   params.gridX = 0;
   params.gridY = 6;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   timeoutContainer = windowNewContainer(window, "timeout container", &params);
 
   params.gridX = 0;
@@ -565,7 +561,7 @@ static void constructWindow(void)
   windowRegisterEventHandler(timeoutCheckbox, &eventHandler);
 
   params.gridX = 1;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   timeoutValueField = windowNewTextField(timeoutContainer, 4, &params);
   sprintf(tmp, "%d", entryArray->timeoutSeconds);
   windowComponentSetData(timeoutValueField, tmp, strlen(tmp));
@@ -575,7 +571,7 @@ static void constructWindow(void)
   params.gridWidth = 2;
   params.padBottom = 5;
   params.orientationX = orient_center;
-  params.hasBorder = 0;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   buttonContainer = windowNewContainer(window, "button container", &params);
 
   params.gridY = 0;

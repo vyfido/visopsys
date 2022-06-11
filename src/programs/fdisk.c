@@ -96,6 +96,8 @@ static ioThreadArgs readerArgs;
 static ioThreadArgs writerArgs;
 static int ioThreadsTerminate = 0;
 static int ioThreadsFinished = 0;
+static int checkTableAsk = 1;
+static textScreen screen;
 
 // GUI stuff
 static int graphics = 0;
@@ -186,7 +188,7 @@ static int quit(int force)
     }
   else
     {
-      textScreenRestore();
+      textScreenRestore(&screen);
       printf("\nQuitting.\n");
     }
 
@@ -1002,6 +1004,7 @@ static int checkTable(const disk *theDisk, partitionTable *table, int fix)
 
   sprintf(output, "%s table:\n", (table->extended? "Extended" : "Main"));
 
+  // Check that extended tables don't have too many entries
   if (table->extended && (table->numberEntries > table->maxEntries))
     {
       sprintf((output + strlen(output)), "Table has %d entries; max is %d",
@@ -1126,10 +1129,16 @@ static int checkTable(const disk *theDisk, partitionTable *table, int fix)
     {
       sprintf((output + strlen(output)), "\nFix th%s error%s?",
 	      ((errors == 1)? "is" : "ese"), ((errors == 1)? "" : "s"));
-      if (yesOrNo(output))
-	return (checkTable(theDisk, table, 1));
-      else
-	return (ERR_INVALID);
+
+      if (checkTableAsk)
+	{
+	  if (yesOrNo(output))
+	    return (checkTable(theDisk, table, 1));
+	  else
+	    // Don't ask about fixing stuff more than once.
+	    checkTableAsk = 0;
+	}
+      return (ERR_INVALID);
     }
   else
     return (0);
@@ -1369,7 +1378,8 @@ static int readPartitionTable(const disk *theDisk, unsigned sector)
 }
 
 
-static int writePartitionTable(const disk *theDisk, partitionTable *table)
+static int writePartitionTable(const disk *theDisk, partitionTable *table,
+			       int confirm)
 {
   // Write the partition table to the physical disk
 
@@ -1384,8 +1394,9 @@ static int writePartitionTable(const disk *theDisk, partitionTable *table)
 
   if (table == mainTable)
     {
-      if (readOnly && !yesOrNo("Can't create a partition table backup in\n"
-			       "read-only mode.  Proceed anyway?"))
+      if (readOnly && confirm &&
+	  !yesOrNo("Can't create a partition table backup in\n"
+		   "read-only mode.  Proceed anyway?"))
 	return (status = 0);
 
       if (tmpBackupName != NULL)
@@ -1404,7 +1415,8 @@ static int writePartitionTable(const disk *theDisk, partitionTable *table)
 
   // Do a check on the table
   status = checkTable(theDisk, table, 0);
-  if ((status < 0) && !yesOrNo("The consistency check failed.  Write anyway?"))
+  if ((status < 0) && !yesOrNo("Partition table consistency check failed.\n"
+			       "Write anyway?"))
     return (status);
 
   // Loop through the slice entries write them into the partition table
@@ -1429,7 +1441,7 @@ static int writePartitionTable(const disk *theDisk, partitionTable *table)
       // table(s) as well.
       if (entry.typeId && (entry.entryType == partition_extended))
 	{
-	  status = writePartitionTable(theDisk, entry.extendedTable);
+	  status = writePartitionTable(theDisk, entry.extendedTable, confirm);
 	  if (status < 0)
 	    // Don't want to fail here (thus making it impossible to write
 	    // any other table data).  Just make an error.
@@ -2038,7 +2050,7 @@ static void format(slice *formatSlice)
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
   windowEvent event;
-  char *fsTypes[] = { "FAT", "EXT2", "None" };
+  char *fsTypes[] = { "FAT", "EXT2", "Linux-swap", "None" };
   int selectedType = 0;
   char tmpChar[160];
 
@@ -2066,8 +2078,6 @@ static void format(slice *formatSlice)
       params.padRight = 5;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
       
       windowNewTextLabel(formatDialog, "Choose the filesystem type:", &params);
 
@@ -2081,7 +2091,7 @@ static void format(slice *formatSlice)
       params.gridWidth = 1;
       params.orientationX = orient_right;
       params.padBottom = 5;
-      params.fixedWidth = 1;
+      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
       okButton = windowNewButton(formatDialog, "OK", NULL, &params);
 
       params.gridX = 1;
@@ -2339,8 +2349,6 @@ static void listTypes(void)
       params.padRight = 5;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
 
       // Make a text area for our info
       textArea = windowNewTextArea(typesDialog, 60, ((numberTypes / 2) + 2), 0,
@@ -2509,7 +2517,7 @@ static void writeChanges(int confirm)
 	return;
 
       // Write out the partition table
-      status = writePartitionTable(selectedDisk, mainTable);
+      status = writePartitionTable(selectedDisk, mainTable, confirm);
       if (status < 0)
 	error("Unable to write the partition table of %s.",
 	      selectedDisk->name);
@@ -2963,8 +2971,6 @@ static void create(int sliceNumber)
 	  params.padRight = 5;
 	  params.orientationX = orient_right;
 	  params.orientationY = orient_middle;
-	  params.useDefaultForeground = 1;
-	  params.useDefaultBackground = 1;
       
 	  windowNewTextLabel(createDialog, "Partition\ntype:", &params);
 
@@ -2988,7 +2994,7 @@ static void create(int sliceNumber)
 	  windowNewTextLabel(createDialog, tmpChar, &params);
 
 	  params.gridY = 2;
-	  params.hasBorder = 1;
+	  params.flags |= WINDOW_COMPFLAG_HASBORDER;
 	  startCylField = windowNewTextField(createDialog, 10, &params);
 
 	  // A label and field for the ending cylinder
@@ -2996,11 +3002,11 @@ static void create(int sliceNumber)
 		  cylsToMb(selectedDisk, (endCylinder - startCylinder + 1)),
 		  (endCylinder - startCylinder + 1));
 	  params.gridY = 3;
-	  params.hasBorder = 0;
+	  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
 	  windowNewTextLabel(createDialog, tmpChar, &params);
 
 	  params.gridY = 4;
-	  params.hasBorder = 1;
+	  params.flags |= WINDOW_COMPFLAG_HASBORDER;
 	  endCylField = windowNewTextField(createDialog, 10, &params);
 
 	  // Make 'OK' and 'cancel' buttons
@@ -3008,8 +3014,8 @@ static void create(int sliceNumber)
 	  params.gridWidth = 1;
 	  params.padBottom = 5;
 	  params.orientationX = orient_right;
-	  params.hasBorder = 0;
-	  params.fixedWidth = 1;
+	  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+	  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
 	  okButton = windowNewButton(createDialog, "OK", NULL, &params);
 
 	  params.gridX = 1;
@@ -3478,12 +3484,10 @@ static int resize(int sliceId)
 	  params.padRight = 5;
 	  params.orientationX = orient_center;
 	  params.orientationY = orient_middle;
-	  params.useDefaultForeground = 1;
-	  params.useDefaultBackground = 1;
 
 	  if (haveResizeConstraints)
 	    {
-	      params.hasBorder = 1;
+	      params.flags |= WINDOW_COMPFLAG_HASBORDER;
 	      partCanvas = windowNewCanvas(resizeDialog, (canvasWidth / 2),
 					   canvasHeight, &params);
 	    }
@@ -3497,11 +3501,11 @@ static int resize(int sliceId)
 	  params.gridY++;
 	  params.padTop = 5;
 	  params.orientationX = orient_left;
-	  params.hasBorder = 0;
+	  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
 	  windowNewTextLabel(resizeDialog, tmpChar, &params);
       
 	  params.gridY++;
-	  params.hasBorder = 1;
+	  params.flags |= WINDOW_COMPFLAG_HASBORDER;
 	  endCylField = windowNewTextField(resizeDialog, 10, &params);
 
 	  // Make 'OK' and 'cancel' buttons
@@ -3509,8 +3513,8 @@ static int resize(int sliceId)
 	  params.gridWidth = 1;
 	  params.padBottom = 5;
 	  params.orientationX = orient_right;
-	  params.hasBorder = 0;
-	  params.fixedWidth = 1;
+	  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+	  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
 	  okButton = windowNewButton(resizeDialog, "OK", NULL, &params);
 
 	  params.gridX = 1;
@@ -3597,7 +3601,7 @@ static int resize(int sliceId)
 		 cylsToMb(selectedDisk, (maxEndCylinder - minEndCylinder + 1)),
 		 (maxEndCylinder - minEndCylinder + 1));
 	  
-	  status = readLine("0123456789Qq", newEndString, 10);
+	  status = readLine("0123456789CcMmQq", newEndString, 10);
 	  if (status < 0)
 	    continue;
 
@@ -3781,8 +3785,6 @@ static disk *chooseDiskDialog(void)
   params.padRight = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Make a window list with all the disk choices
   dList = windowNewList(chooseWindow, windowlist_textonly, numberDisks, 1, 0,
@@ -3793,7 +3795,7 @@ static disk *chooseDiskDialog(void)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
 
   params.gridX = 1;
@@ -4308,7 +4310,7 @@ static int copyDisk(void)
     }
 	
   // Write out the partition table
-  status = writePartitionTable(destDisk, mainTable);
+  status = writePartitionTable(destDisk, mainTable, 0);
 
   if (status >= 0)
     // Make sure the disk geometries of any FAT partitions are correct for
@@ -4417,8 +4419,6 @@ static void changePartitionOrder(void)
       params.padRight = 5;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
       
       // Make a window list with all the disk choices
       fontGetDefault(&params.font);
@@ -4431,7 +4431,7 @@ static void changePartitionOrder(void)
       params.gridHeight = 1;
       params.gridWidth = 1;
       params.font = NULL;
-      params.fixedWidth = 1;
+      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
       upButton = windowNewButton(orderDialog, "/\\", NULL, &params);
 
       params.gridY = 1;
@@ -4871,6 +4871,9 @@ static void eventHandler(objectKey key, windowEvent *event)
 	   ((key == menuDeleteAll) && (event->type & EVENT_SELECTION)))
     deleteAll();
 
+  else if ((key == menuSetType) && (event->type & EVENT_SELECTION))
+    setType(slices[selectedSlice].sliceId);
+
   else if (((key == resizeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
 	   ((key == menuResize) && (event->type & EVENT_SELECTION)))
     {
@@ -4911,8 +4914,6 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create the top 'file' menu
   objectKey menuBar = windowNewMenuBar(window, &params);
@@ -4966,7 +4967,7 @@ static void constructWindow(void)
 
   // Create a container for the disk icon image and the title label
   params.gridY = 1;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   container = windowNewContainer(window, "titleContainer", &params);
   if (container != NULL)
     {
@@ -4991,7 +4992,7 @@ static void constructWindow(void)
   // Make a list for the disks
   params.gridX = 0;
   params.gridY = 2;
-  params.fixedWidth = 0;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
   diskList = windowNewList(window, windowlist_textonly, numberDisks, 1, 0,
 			   diskListParams, numberDisks, &params);
   windowRegisterEventHandler(diskList, &eventHandler);
@@ -5015,7 +5016,7 @@ static void constructWindow(void)
   // Get a canvas for drawing the visual representation
   params.gridY = 3;
   params.padTop = 10;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   canvas = windowNewCanvas(window, canvasWidth, canvasHeight, &params);
   windowRegisterEventHandler(canvas, &eventHandler);
 
@@ -5025,7 +5026,7 @@ static void constructWindow(void)
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_center;
-  params.hasBorder = 0;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   container = windowNewContainer(window, "buttonContainer", &params);
   if (container != NULL)
     {
@@ -5334,6 +5335,9 @@ static void freeMemory(void)
 {
   // Free any malloc'ed global memory
 
+  if (screen.data)
+    memoryRelease(screen.data);
+
   if (diskInfo)
     free(diskInfo);
 
@@ -5473,7 +5477,7 @@ int main(int argc, char *argv[])
     }
   else
     {
-      textScreenSave();
+      textScreenSave(&screen);
       printBanner();
     }
 
@@ -5507,8 +5511,8 @@ int main(int argc, char *argv[])
 	  if (status < 0)
 	    {
 	      printf("\n\nNo disk selected.  Quitting.\n\n");
+	      textScreenRestore(&screen);
 	      freeMemory();
-	      textScreenRestore();
 	      return (errno = status);
 	    }
 	}
@@ -5532,7 +5536,7 @@ int main(int argc, char *argv[])
   else
     {
       status = textMenu();
-      textScreenRestore();
+      textScreenRestore(&screen);
     }
 
   freeMemory();

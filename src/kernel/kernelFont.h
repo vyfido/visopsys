@@ -41,6 +41,8 @@ int kernelFontGetDefault(kernelAsciiFont **);
 int kernelFontSetDefault(const char *);
 int kernelFontLoad(const char *, const char *, kernelAsciiFont **, int);
 int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
+int kernelFontGetWidth(kernelAsciiFont *);
+int kernelFontGetHeight(kernelAsciiFont *);
 
 #define _KERNELFONT_H
 #endif

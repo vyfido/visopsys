@@ -132,13 +132,16 @@ static int getHidDescriptor(hidDevice *hidDev)
 {
   int status = 0;
   usbTransaction usbTrans;
+  //usbHidMouseData mouseData;
 
-  // Set up the USB transaction to send the reset command
+  debug("USB_HID: Get HID descriptor for target %d, interface %d",
+	hidDev->target, hidDev->usbDev.interDesc[0]->interNum);
+
+  // Set up the USB transaction to send the 'get descriptor' command
   kernelMemClear(&usbTrans, sizeof(usbTrans));
   usbTrans.type = usbxfer_control;
   usbTrans.address = hidDev->usbDev.address;
-  usbTrans.control.requestType =
-    (USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_INTERFACE);
+  usbTrans.control.requestType = USB_DEVREQTYPE_INTERFACE;
   usbTrans.control.request = USB_GET_DESCRIPTOR;
   usbTrans.control.value = (USB_DESCTYPE_HID << 8);
   usbTrans.control.index = hidDev->usbDev.interDesc[0]->interNum;
@@ -149,6 +152,45 @@ static int getHidDescriptor(hidDevice *hidDev)
   status = kernelBusWrite(bus_usb, hidDev->target, &usbTrans);
   if (status < 0)
     return (status);
+
+  /*
+  kernelMemClear(&usbTrans, sizeof(usbTrans));
+  usbTrans.type = usbxfer_control;
+  usbTrans.address = hidDev->usbDev.address;
+  usbTrans.control.requestType =
+    (USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_INTERFACE);
+  usbTrans.control.request = USB_HID_SET_PROTOCOL;
+  usbTrans.control.index = hidDev->usbDev.interDesc[0]->interNum;
+  usbTrans.pid = USB_PID_OUT;
+
+  // Write the command
+  status = kernelBusWrite(bus_usb, hidDev->target, &usbTrans);
+  if (status < 0)
+    return (status);
+
+  while(0)
+    {
+      kernelMemClear(&usbTrans, sizeof(usbTrans));
+      kernelMemClear(&mouseData, sizeof(usbHidMouseData));
+      usbTrans.type = usbxfer_interrupt;
+      usbTrans.address = hidDev->usbDev.address;
+      usbTrans.endpoint = hidDev->intInEndpoint;
+      usbTrans.length = 8;//sizeof(usbHidMouseData);
+      usbTrans.buffer = &(mouseData);
+      usbTrans.pid = USB_PID_IN;
+
+      // Write the command
+      status = kernelBusWrite(bus_usb, hidDev->target, &usbTrans);
+      if (status < 0)
+	debug("USB_HID: transfer error");
+
+      if (usbTrans.bytes)
+	{
+	  debug("USB_HID: mouse buttons=%x xChange=%d yChange=%d",
+		mouseData.buttons, mouseData.xChange, mouseData.yChange);
+	}
+    }
+  */
 
   return (status = 0);
 }
@@ -209,7 +251,7 @@ static int mouseDetectTarget(void *parent, int target, void *driver)
 	  hidDev->intIn = hidDev->usbDev.endpointDesc[count];
 	  hidDev->intInEndpoint = (hidDev->intIn->endpntAddress & 0xF);
 	  debug("USB_HID: Got interrupt in endpoint %d",
-		hidDev->intInEndpoint);
+	 	hidDev->intInEndpoint);
 	}
     }
 
@@ -220,10 +262,6 @@ static int mouseDetectTarget(void *parent, int target, void *driver)
       removeHid(target);
       return (status);
     }
-
-  // Try to initialize mouse operations, just in case it hasn't already been
-  // done
-  kernelMouseInitialize();
 
   debug("USB_HID: Detected mouse");
 

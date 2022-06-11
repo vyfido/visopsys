@@ -70,16 +70,14 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_top;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   params.gridWidth = 2;
   textLabel = windowNewTextLabel(dialogWindow, message, &params);
 
   params.gridY = 1;
   params.padTop = 5;
-  params.hasBorder = 1;
-  params.useDefaultBackground = 0;
+  params.flags =
+    (WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
@@ -99,8 +97,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
-  params.useDefaultBackground = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
   // Create the Cancel button

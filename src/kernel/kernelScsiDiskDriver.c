@@ -643,7 +643,11 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_DISK_SCSI);
-  dev->device.model = dsk->vendorProductId;
+  kernelVariableListCreate(&(dev->device.attrs));
+  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_MODEL,
+			dsk->vendorId);
+  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_MODEL,
+			dsk->productId);
   dev->driver = driver;
   dev->data = (void *) physicalDisk;
 

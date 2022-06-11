@@ -23,8 +23,10 @@
 // These are just textareas that appear inside windows and buttons, etc
 
 #include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindowEventStream.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -77,7 +79,7 @@ static int draw(void *componentData)
   if (textArea->scrollBar && textArea->scrollBar->draw)
     textArea->scrollBar->draw((void *) textArea->scrollBar);
 
-  if (component->parameters.hasBorder)
+  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder((void *) component, 1);
 
   return (0);
@@ -230,11 +232,14 @@ static int mouseEvent(void *componentData, windowEvent *event)
 {
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
   kernelWindowScrollBar *scrollBar = NULL;
   int scrolledBackLines = 0;
+  windowEvent cursorEvent;
+  int cursorColumn = 0, cursorRow = 0;
 
-  // Is the event in one our scroll bar?
+  // Is the event in one of our scroll bars?
   if (textArea->scrollBar && isMouseInScrollBar(event, textArea->scrollBar) &&
       textArea->scrollBar->mouseEvent)
     {
@@ -255,6 +260,35 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  // positioning of the scroll bar.
 	  textArea->area->scrolledBackLines = scrolledBackLines;
 	  component->draw(componentData);
+	}
+    }
+  else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+	   (component->parameters.flags & WINDOW_COMPFLAG_CLICKABLECURSOR))
+    {
+      // The event was a click in the text area.  Move the cursor to the
+      // clicked location.
+
+      cursorColumn =
+	((event->xPosition - (window->xCoord + textArea->area->xCoord)) /
+	 textArea->area->font->charWidth);
+      cursorColumn = min(cursorColumn, textArea->area->columns);
+
+      cursorRow =
+	((event->yPosition - (window->yCoord + textArea->area->yCoord)) /
+	 textArea->area->font->charHeight);
+      cursorRow = min(cursorRow, textArea->area->rows);
+
+      if (textArea->area && textArea->area->outputStream &&
+	  textArea->area->font)
+	{
+	  kernelTextStreamSetColumn(textArea->area->outputStream,
+				    cursorColumn);
+	  kernelTextStreamSetRow(textArea->area->outputStream, cursorRow);
+
+	  // Write a 'cursor moved' event to the component event stream
+	  bzero(&cursorEvent, sizeof(windowEvent));
+	  cursorEvent.type = EVENT_CURSOR_MOVE;
+	  kernelWindowEventStreamWrite(&(component->events), &cursorEvent);
 	}
     }
 
@@ -350,7 +384,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
 
   // If the user wants the default colors, we change set them to the
   // default for a text area
-  if (component->parameters.useDefaultBackground)
+  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
       component->parameters.background.blue = 0xFF;
       component->parameters.background.green = 0xFF;
@@ -408,8 +442,8 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
     {
       // Standard parameters for a scroll bar
       kernelMemCopy(params, &subParams, sizeof(componentParameters));
-      subParams.useDefaultForeground = 1;
-      subParams.useDefaultBackground = 1;
+      subParams.flags &=
+	~(WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
 
       textArea->scrollBar =
 	kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,

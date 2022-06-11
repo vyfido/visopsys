@@ -163,8 +163,6 @@ static void constructWindow(void)
   params.padTop = 10;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   mapList = windowNewList(window, windowlist_textonly, 5, 1, 0, mapListParams,
 			  numMapNames, &params);
@@ -175,7 +173,7 @@ static void constructWindow(void)
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(window, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 

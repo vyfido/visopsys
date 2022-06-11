@@ -149,8 +149,6 @@ static void setVariableDialog(const char *variable)
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   params.orientationX = orient_right;
   windowNewTextLabel(dialogWindow, "Variable name:", &params);
@@ -171,7 +169,7 @@ static void setVariableDialog(const char *variable)
     }
   else
     {
-      params.hasBorder = 1;
+      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       variableField = windowNewTextField(dialogWindow, fieldWidth, &params);
     }
 
@@ -179,12 +177,12 @@ static void setVariableDialog(const char *variable)
   params.gridY = 1;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.hasBorder = 0;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   windowNewTextLabel(dialogWindow, "value:", &params);
 
   params.gridX = 1;
   params.padRight = 5;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
   if (variable)
     {
@@ -198,8 +196,8 @@ static void setVariableDialog(const char *variable)
   params.padBottom = 5;
   params.padRight = 0;
   params.orientationX = orient_right;
-  params.hasBorder = 0;
-  params.fixedWidth = 1;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
   // Create the Cancel button
@@ -357,8 +355,6 @@ static void constructWindow(void)
   params.padBottom = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create the top 'file' menu
   objectKey menuBar = windowNewMenuBar(window, &params);
@@ -383,7 +379,7 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
-  params.fixedHeight = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
   params.font = NULL;
   buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 
@@ -394,7 +390,7 @@ static void constructWindow(void)
   params.padRight = 0;
   params.padTop = 0;
   params.padBottom = 0;
-  params.fixedHeight = 0;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
   addVariableButton =
     windowNewButton(buttonContainer, "Add variable", NULL, &params);
   windowRegisterEventHandler(addVariableButton, &eventHandler);

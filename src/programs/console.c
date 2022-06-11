@@ -89,9 +89,6 @@ int main(int argc, char *argv[])
   params.padBottom = 0;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.hasBorder = 0;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Put the console text area in the window
   status = windowAddConsoleTextArea(window, &params);

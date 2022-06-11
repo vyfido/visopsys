@@ -156,7 +156,7 @@ static void runPrograms(void)
   int count;
 
   // Read the config file
-  if (kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG, &settings) < 0)
+  if (kernelConfigurationReader(WINDOW_MANAGER_DEFAULT_CONFIG, &settings) < 0)
     return;
 
   // Loop for variables with "program.*"
@@ -263,7 +263,6 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   // The window will have no border, title bar or close button, is not
   // movable or resizable, and is packed
   rootWindow->flags &= ~(WINFLAG_MOVABLE | WINFLAG_RESIZABLE);
-  rootWindow->flags |= WINFLAG_PACKED;
   kernelWindowSetHasTitleBar(rootWindow, 0);
   kernelWindowSetHasBorder(rootWindow, 0);
 
@@ -310,7 +309,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 
   // Make a task menu at the top
   kernelMemClear(&params, sizeof(componentParameters));
-  params.gridWidth = WINDOW_MAX_COMPONENTS;
+  params.gridWidth = 256;
   params.gridHeight = 1;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
@@ -320,8 +319,10 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.background.red = 40;
   params.background.green = 93;
   params.background.blue = 171;
-  kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-		 DEFAULT_VARIABLEFONT_MEDIUM_NAME,
+  params.flags |=
+    (WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+  kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+		 WINDOW_DEFAULT_VARFONT_MEDIUM_NAME,
 		 (kernelAsciiFont **) &(params.font), 0);
   taskMenuBar = kernelWindowNewMenuBar(rootWindow, &params);
   params.padLeft = 10;
@@ -330,8 +331,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   // Try to load taskbar menus and menu items
       
   // Allocate temporary memory for the normal menu items
-  tmpMenuItems = 
-    kernelMalloc(WINDOW_MAX_COMPONENTS * sizeof(windowMenuItem)); 
+  tmpMenuItems = kernelMalloc(256 * sizeof(windowMenuItem)); 
   if (tmpMenuItems == NULL)
     return (rootWindow = NULL);
 
@@ -422,9 +422,6 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.padBottom = 0;
   params.orientationX = orient_center;
   params.orientationY = orient_top;
-  params.hasBorder = 0;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Loop for variables with "icon.name.*"
   for (count1 = 0, count2 = 1; count1 < settings->numVariables; count1 ++)

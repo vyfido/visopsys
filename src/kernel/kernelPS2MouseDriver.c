@@ -30,6 +30,8 @@
 #include "kernelProcessorX86.h"
 #include <string.h>
 
+#define MOUSETIMEOUT 0xFFFF
+
 
 static unsigned char inPort60(void)
 {
@@ -42,7 +44,6 @@ static unsigned char inPort60(void)
     kernelProcessorInPort8(0x64, data);
 
   kernelProcessorInPort8(0x60, data);
-
   return (data);
 }
 
@@ -63,10 +64,8 @@ static void outPort60(unsigned char value)
   // Output a value to the keyboard controller's data port, after checking
   // to make sure it's ready for the data
 
-  unsigned char data = value;
-  
   waitControllerReady();
-  kernelProcessorOutPort8(0x60, data);
+  kernelProcessorOutPort8(0x60, value);
   return;
 }
 
@@ -76,32 +75,50 @@ static void outPort64(unsigned char value)
   // Output a value to the keyboard controller's command port, after checking
   // to make sure it's ready for the command
 
-  unsigned char data = value;
-  
   waitControllerReady();
-  kernelProcessorOutPort8(0x64, data);
+  kernelProcessorOutPort8(0x64, value);
   return;
 }
 
 
-static int getMouseData(void)
+static int getMouseData(unsigned char *byte1, unsigned char *byte2,
+			unsigned char *byte3)
 {
   // Input a value from the keyboard controller's data port, after checking
   // to make sure that there's some mouse data there for us
 
-  int data = 0;
+  int status = 0;
+  unsigned char data = 0;
   int count;
 
-  // Qemu can often time out here, so we need to check for it.
-  for (count = 0; (((data & 0x21) != 0x21) && (count < 1000)); count ++)
+  // Qemu can often time out, so we need to check for it.
+  for (count = 0; (!(data & 0x01) && (count < MOUSETIMEOUT)); count ++)
     kernelProcessorInPort8(0x64, data);
+  if (count >= MOUSETIMEOUT)
+    return (status = ERR_NODATA);
 
   kernelProcessorInPort8(0x60, data);
+  *byte1 = data;
 
-  if (count >= 1000)
-    data = -1;
+  data = 0;
+  for (count = 0; (!(data & 0x01) && (count < MOUSETIMEOUT)); count ++)
+    kernelProcessorInPort8(0x64, data);
+  if (count >= MOUSETIMEOUT)
+    return (status = ERR_NODATA);
 
-  return (data);
+  kernelProcessorInPort8(0x60, data);
+  *byte2 = data;
+
+  data = 0;
+  for (count = 0; (!(data & 0x01) && (count < MOUSETIMEOUT)); count ++)
+    kernelProcessorInPort8(0x64, data);
+  if (count >= MOUSETIMEOUT)
+    return (status = ERR_NODATA);
+
+  kernelProcessorInPort8(0x60, data);
+  *byte3 = data;
+
+  return (status = 0);
 }
 
 
@@ -109,40 +126,29 @@ static void readData(void)
 {
   // This gets called whenever there is a mouse interrupt
 
+  int status = 0;
   static volatile int button1 = 0, button2 = 0, button3 = 0;
-  int byte1 = 0, byte2 = 0, byte3 = 0;
+  unsigned char byte1 = 0, byte2 = 0, byte3 = 0;
   int xChange, yChange;
 
   // Disable keyboard output here, because our data reads are not atomic
   outPort64(0xAD);
 
   // The first byte contains button information and sign information
-  // for the next two bytes
-  byte1 = getMouseData();
-  if (byte1 == -1)
-    {
-      // Re-enable keyboard output
-      outPort64(0xAE);
-      return;
-    }
-
-  // The change in X position
-  byte2 = getMouseData();
-  if (byte2 == -1)
-    {
-      // Re-enable keyboard output
-      outPort64(0xAE);
-      return;
-    }
-
-  // The change in Y position
-  byte3 = getMouseData();
+  // for the next two bytes.  The second byte is the change in X position,
+  // and the third is the change in Y position
+  status = getMouseData(&byte1, &byte2, &byte3);
 
   // Re-enable keyboard output
   outPort64(0xAE);
 
-  if (byte3 == -1)
-    return;
+  if (status < 0)
+    {
+      // Send resend command
+      outPort64(0xD4);
+      outPort60(0xFE);
+      return;
+    }
 
   if ((byte1 & 0x01) != button1)
     {
@@ -209,6 +215,7 @@ static int driverDetect(void *parent, void *driver)
   int interrupts = 0;
   unsigned char response = 0;
   unsigned char deviceId = 0;
+  int count;
 
   // Do the hardware initialization.
 
@@ -217,30 +224,33 @@ static int driverDetect(void *parent, void *driver)
   // Disable keyboard output here, because our data reads are not atomic
   outPort64(0xAD);
 
-  // Send reset command
-  outPort64(0xD4);
-  outPort60(0xFF);
+  for (count = 0; count < 2; count ++)
+    {
+      // Send reset command
+      outPort64(0xD4);
+      outPort60(0xFF);
 
-  // Read the ack 0xFA
-  response = inPort60();
-  if (response != 0xFA)
-    goto exit;
+      // Read the ack 0xFA
+      response = inPort60();
+      if (response != 0xFA)
+	goto exit;
 
-  // Should be 'self test passed' 0xAA
-  response = inPort60();
-  if (response != 0xAA)
-    goto exit;
+      // Should be 'self test passed' 0xAA
+      response = inPort60();
+      if (response != 0xAA)
+	goto exit;
 
-  // Get the device ID.  0x00 for normal PS/2 mouse
-  deviceId = inPort60();
-  if (deviceId != 0)
-    goto exit;
+      // Get the device ID.  0x00 for normal PS/2 mouse
+      deviceId = inPort60();
+      if (deviceId != 0)
+	goto exit;
+    }
 
   // Set scaling to 2:1
   outPort64(0xD4);
   outPort60(0xE7);
 
-  // Read the ack
+  // Read the ack 0xFA
   response = inPort60();
   if (response != 0xFA)
     goto exit;
@@ -256,7 +266,7 @@ static int driverDetect(void *parent, void *driver)
   outPort64(0xD4);
   outPort60(0xF4);
 
-  // Read the ack
+  // Read the ack 0xFA
   response = inPort60();
   if (response != 0xFA)
     goto exit;
@@ -269,14 +279,6 @@ static int driverDetect(void *parent, void *driver)
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
   dev->driver = driver;
-
-  // Initialize mouse operations
-  status = kernelMouseInitialize();
-  if (status < 0)
-    {
-      kernelFree(dev);
-      goto exit;
-    }
 
   // Add the device
   status = kernelDeviceAdd(parent, dev);

@@ -79,8 +79,6 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   windowNewTextLabel(window, titleString, &params);
 
   params.gridY = 1;

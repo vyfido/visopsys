@@ -26,6 +26,7 @@
 #include "kernelLoader.h"
 #include "kernelMultitasker.h"
 #include "kernelMemory.h"
+#include "kernelNetwork.h"
 #include "kernelProcessorX86.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
@@ -35,12 +36,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/utsname.h>
 
 char *kernelVersion[] = {
   "Visopsys",
   _KVERSION_
-} ;
-  
+};
+
 volatile kernelSymbol *kernelSymbols = NULL;
 volatile int kernelNumberSymbols = 0;
 
@@ -63,6 +65,33 @@ void kernelGetVersion(char *buffer, int bufferSize)
   snprintf(buffer, bufferSize, "%s v%s", kernelVersion[0], kernelVersion[1]);
 
   return;
+}
+
+
+int kernelSystemInfo(void *buffer)
+{
+  // This function gathers some info about the system and puts it into
+  // a 'utsname' structure, just like the one returned by 'uname' in Unix.
+
+  int status = 0;
+  struct utsname *uname = (struct utsname *) buffer;
+  kernelDevice *cpuDevice = NULL;
+
+  // Check params
+  if (buffer == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(uname->sysname, kernelVersion[0], UTSNAME_MAX_SYSNAME_LENGTH);
+  kernelNetworkGetHostName(uname->nodename, NETWORK_MAX_HOSTNAMELENGTH);
+  strncpy(uname->release, kernelVersion[1], UTSNAME_MAX_RELEASE_LENGTH);
+  strncpy(uname->version, __DATE__" "__TIME__, UTSNAME_MAX_VERSION_LENGTH);
+  if ((kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_CPU), NULL,
+			    &cpuDevice, 1) > 0) && cpuDevice->device.subClass)
+    strncpy(uname->machine, cpuDevice->device.subClass->name,
+	    UTSNAME_MAX_MACHINE_LENGTH);
+  kernelNetworkGetDomainName(uname->domainname, NETWORK_MAX_DOMAINNAMELENGTH);
+
+  return (status = 0);
 }
 
 

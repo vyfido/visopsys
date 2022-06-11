@@ -103,9 +103,7 @@ int main(int argc, char *argv[])
   params.padBottom = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.stickyFocus = 1;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
+  params.flags |= WINDOW_COMPFLAG_STICKYFOCUS;
   if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
 	       &(params.font), 1) < 0)
     {

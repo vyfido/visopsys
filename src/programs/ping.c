@@ -199,8 +199,6 @@ static void constructWindow(void)
   params.padTop = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   windowNewTextLabel(window, pingWhom, &params);
 
   if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
@@ -218,8 +216,7 @@ static void constructWindow(void)
   params.gridY = 2;
   params.padBottom = 5;
   params.orientationX = orient_center;
-  params.useDefaultBackground = 1;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   params.font = NULL;
   stopButton = windowNewButton(window, "Stop", NULL, &params);
   windowComponentFocus(stopButton);

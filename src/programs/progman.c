@@ -447,8 +447,6 @@ static void constructWindow(void)
   params.padTop = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   memoryBlocksLabel = windowNewTextLabel(window, USEDBLOCKS_STRING, &params);
 
@@ -484,7 +482,7 @@ static void constructWindow(void)
   params.gridX = 1;
   params.gridY = 4;
   params.padRight = 5;
-  params.fixedHeight = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
   container = windowNewContainer(window, "rightContainer", &params);
   
   // Create a 'run program' button
@@ -494,7 +492,6 @@ static void constructWindow(void)
   params.padRight = 0;
   params.padTop = 0;
   params.padBottom = 0;
-  params.fixedHeight = 1;
   runProgramButton = windowNewButton(container, "Run program", NULL, &params);
   windowRegisterEventHandler(runProgramButton, &eventHandler);
 

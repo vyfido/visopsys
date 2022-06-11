@@ -19,11 +19,13 @@
 ;;  loaderLoadFile.s
 ;;
 
+	GLOBAL loaderCalcVolInfo
 	GLOBAL loaderFindFile
 	GLOBAL loaderLoadFile
 	GLOBAL PARTENTRY
- 
-	EXTERN loaderBigRealMode
+	GLOBAL FILEDATABUFFER
+
+	EXTERN loaderMemCopy
         EXTERN loaderPrint
         EXTERN loaderPrintNewline
 	EXTERN loaderDiskError
@@ -72,56 +74,6 @@ headTrackSector:
 	mov byte [HEAD], DL		; The remainder
 	mov word [CYLINDER], AX
 	
-	popa
-	ret
-
-
-calculateVolInfo:
-	;; This little routine will calculate some constant things that
-	;; are dependent upon the type of the current volume.  It stores
-	;; the results in the static data area for the use of the other
-	;; routines
-
-	pusha
-
-	;; Calculate the number of bytes per cluster in this volume
-	mov AX, word [BYTESPERSECT]
-	mul word [SECPERCLUST]
-	mov word [BYTESPERCLUST], AX
-
-	mov AX, word [FSTYPE]
-	cmp AX, FS_FAT32
-	je .fat32
-	
-	;; How many root directory sectors are there?
-	mov AX, FAT_BYTESPERDIRENTRY
-	mul word [ROOTDIRENTS]
-	xor DX, DX
-	div word [BYTESPERSECT]
-	mov word [DIRSECTORS], AX
-	jmp .doneRoot
-
-	.fat32:
-	;; Just do one cluster of the root dir
-	mov AX, word [SECPERCLUST]
-	mov word [DIRSECTORS], AX
-	
-	.doneRoot:
-	;; Calculate the segment where we will keep FAT (and directory)
-	;; data after loading them.  It comes at the beginning of the
-	;; LDRDATABUFFER
-	mov AX, (LDRDATABUFFER / 16)
-	mov word [FATSEGMENT], AX
-
-	;; Calculate the segment where we will keep cluster data
-	;; after each one is loaded.  It comes after the FAT data
-	;; in the LDRDATABUFFER
-	mov EAX, dword [FATSECS]
-	mul word [BYTESPERSECT]
-	add EAX, LDRDATABUFFER
-	shr EAX, 4
-	mov word [CLUSTERSEGMENT], AX
-
 	popa
 	ret
 
@@ -574,7 +526,7 @@ loadFile:
 	;; the requested memory location.  The FAT table must have previously
 	;; been loaded at memory location LDRDATABUFFER
 	;; Proto:
-	;;   int loadFile(dword cluster, dword memory-address); 
+	;;   int loadFile(dword cluster, dword memory_address); 
 
 	;; Save a word for our return code
 	push word 0
@@ -656,61 +608,15 @@ loadFile:
 	mov word [OLDPROGRESS], AX
 	call updateProgress
 	.noProgress:
+
+	xor EAX, EAX
+	mov AX, word [BYTESPERCLUST]
+	push dword EAX
+	push dword [MEMORYMARKER]
+	push dword [CLUSTERBUFFER]	; 32-bit source address 
+	call loaderMemCopy
+	add SP, 12
 	
-	;; This part of the function operates in "big real mode" so that it
-	;; can load the kernel at an arbitrary address in memory (not just
-	;; in the first megabyte).  To achieve big real mode, we need to
-	;; have a valid protected mode GDT (Global Descriptor Table) and
-	;; we need to switch to protected mode to load a data segment register
-	;; with the "global" data segment selector.  The GDT should have
-	;; already been set up, so now we do the other part.
-
-	;; Disable interrupts
-	cli
-
-	;; Switch to protected mode temporarily
-	mov EAX, CR0
-	or AL, 01h
-	mov CR0, EAX
-
-	BITS 32
-	
-	;; ES currently holds the segment of the cluster data.  Now load 
-	;; it with the global data segment selector
-	mov EAX, PRIV_DATASELECTOR
-	mov ES, AX
-
-	;; Return to real mode
-	mov EAX, CR0
-	and AL, 0FEh
-	mov CR0, EAX
-
-	BITS 16
-	
-	;; We need to make DS point to the portion of loader's data 
-	;; buffer that comes AFTER the FAT data.  This is where we will 
-	;; store each cluster's contents.
-	push DS
-	mov DS, word [CLUSTERSEGMENT]
-
-	;; Copy the data we just read to the appropriate target address.
-	;; This movsd instruction (combined with the "a32" prefix will use 
-	;; DS:ESI as the source address (the cluster buffer address) 
-	;; and ES:EDI as the destination (remember we modified ES, above).
-	xor ECX, ECX
-	mov CX, word [CS:BYTESPERCLUST]		; Cluster size
-	shr ECX, 2				; Divide by 4
-	xor ESI, ESI				; Source data is at 0
-	mov EDI, dword [CS:MEMORYMARKER]	; Destination address
-	cld					; Clear direction flag
-	a32 rep movsd				; Do the copy
-	
-	;; Restore DS
-	pop DS
-
-	;; Reenable interrupts
-	sti
-
 	;; Increment the buffer pointer
 	xor EAX, EAX
 	mov AX, word [BYTESPERCLUST]
@@ -792,6 +698,62 @@ loadFile:
 	ret
 
 
+loaderCalcVolInfo:
+	;; This routine will calculate some constant things that are dependent
+	;;  upon the type of the current volume.  It stores the results in
+	;; the static data area for the use of the other routines
+
+	pusha
+
+	;; Calculate the number of bytes per cluster in this volume
+	mov AX, word [BYTESPERSECT]
+	mul word [SECPERCLUST]
+	mov word [BYTESPERCLUST], AX
+
+	mov AX, word [FSTYPE]
+	cmp AX, FS_FAT32
+	je .fat32
+	
+	;; How many root directory sectors are there?
+	mov AX, FAT_BYTESPERDIRENTRY
+	mul word [ROOTDIRENTS]
+	xor DX, DX
+	div word [BYTESPERSECT]
+	mov word [DIRSECTORS], AX
+	jmp .doneRoot
+
+	.fat32:
+	;; Just do one cluster of the root dir
+	mov AX, word [SECPERCLUST]
+	mov word [DIRSECTORS], AX
+	
+	.doneRoot:
+	;; Calculate the segment where we will keep FAT (and directory)
+	;; data after loading them.  It comes at the beginning of the
+	;; LDRDATABUFFER
+	mov AX, (LDRDATABUFFER / 16)
+	mov word [FATSEGMENT], AX
+
+	;; Calculate a buffer where we will load cluster data.  It comes
+	;; after the FAT data in the LDRDATABUFFER
+	mov EAX, dword [FATSECS]
+	mul word [BYTESPERSECT]
+	add EAX, LDRDATABUFFER
+	mov dword [CLUSTERBUFFER], EAX
+	shr EAX, 4
+	mov word [CLUSTERSEGMENT], AX
+
+	;; Calculate a buffer for general file data.  It comes after the
+	;; buffer for cluster data
+	xor EAX, EAX
+	mov AX, word [BYTESPERCLUST]
+	add EAX, dword [CLUSTERBUFFER]
+	mov dword [FILEDATABUFFER], EAX
+
+	popa
+	ret
+
+
 loaderFindFile:
 	;; This routine is will simply search for the requested file, and
 	;; return the starting cluster number if it is present.  Returns
@@ -810,10 +772,6 @@ loaderFindFile:
 
 	;; The parameter is a pointer to an 11-character string
 	;; (FAT 8.3 format) containing the name of the file to find.
-
-	;; First we need to calculate a couple of values that will help
-	;; us deal with this filesystem volume correctly
-	call calculateVolInfo
 
 	;; We need to locate the file.  Read the root directory from 
 	;; the disk
@@ -874,10 +832,6 @@ loaderLoadFile:
 
 	;; The second parameter is a DWORD value representing the absolute
 	;; memory location at which we should load the file.
-
-	;; First we need to calculate a couple of values that will help
-	;; us deal with this filesystem volume correctly
-	call calculateVolInfo
 
 	;; We need to locate the file.  Read the root directory from 
 	;; the disk
@@ -966,7 +920,9 @@ loaderLoadFile:
 
 MEMORYMARKER	dd 0	;; Offset to load next data cluster
 FATSEGMENT	dw 0	;; The segment for FAT and directory data
-CLUSTERSEGMENT	dw 0	;; The segment for cluster data
+CLUSTERBUFFER	dd 0	;; The buffer for cluster data
+CLUSTERSEGMENT	dw 0	;; The segment of the buffer for cluster data
+FILEDATABUFFER	dd 0	;; The buffer for general file data
 DIRSECTORS	dw 0	;; The size of the root directory, in sectors
 BYTESPERCLUST   dw 0	;; Bytes per cluster
 ENTRYSTART	dw 0 	;; Directory entry start

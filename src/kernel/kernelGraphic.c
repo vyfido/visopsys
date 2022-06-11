@@ -102,7 +102,8 @@ int kernelGraphicInitialize(kernelDevice *dev)
   
   // Get a temporary text area for console output, and use the graphic screen
   // as a temporary output
-  tmpGraphicConsole = kernelTextAreaNew(80, 50, 1, DEFAULT_SCROLLBACKLINES);
+  tmpGraphicConsole =
+    kernelTextAreaNew(80, 50, 1, TEXT_DEFAULT_SCROLLBACKLINES);
   if (tmpGraphicConsole == NULL)
     // Better not try to print any error messages...
     return (status = ERR_NOTINITIALIZED);

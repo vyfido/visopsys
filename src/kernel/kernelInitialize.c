@@ -92,9 +92,7 @@ int kernelInitialize(unsigned kernelMemory)
   // for processing.  Returns 0 if successful, negative on error.
 
   int status;
-  kernelTextOutputStream *consoleOutput = NULL;
-  int bytesPerChar = 0;
-  char *savedScreen = NULL;
+  textScreen screen;
   int graphics = 0;
   char welcomeMessage[512];
   static char rootDiskName[DISK_MAX_NAMELENGTH];
@@ -160,14 +158,7 @@ int kernelInitialize(unsigned kernelMemory)
     return (status);
 
   // Save the current screen
-  kernelTextScreenSave();
-
-  consoleOutput = kernelTextGetConsoleOutput();
-  bytesPerChar = consoleOutput->textArea->bytesPerChar;
-  savedScreen = kernelMalloc(80 * 50 * bytesPerChar);
-  if (savedScreen)
-    kernelMemCopy(consoleOutput->textArea->savedScreen, savedScreen,
-		  (80 * 50 * bytesPerChar));
+  kernelTextScreenSave(&screen);
 
   // Do display device detection
   status = kernelDeviceDetectDisplay();
@@ -395,12 +386,12 @@ int kernelInitialize(unsigned kernelMemory)
 	// Make a warning, but don't return error.  This is not fatal.
 	kernelError(kernel_warn, "Unable to open the kernel log file");
 
-      if (savedScreen)
-	// Write the saved screen contents to a "boot log"
-	writeLoaderLog(savedScreen, (80 * 50), bytesPerChar);
+      // Write the saved screen contents to a "boot log"
+      writeLoaderLog(screen.data, (80 * 50),
+		     kernelTextGetConsoleOutput()->textArea->bytesPerChar);
     }
-  if (savedScreen)
-    kernelFree(savedScreen);
+  if (screen.data)
+    kernelMemoryRelease(screen.data);
 
   // Read the kernel's symbols from the kernel symbols file, if possible
   kernelReadSymbols(KERNEL_SYMBOLS_FILE);
@@ -428,6 +419,11 @@ int kernelInitialize(unsigned kernelMemory)
   // error code.
   if (graphics)
     {
+      // Initialize mouse operations
+      status = kernelMouseInitialize();
+      if (status < 0)
+	kernelError(kernel_warn, "Mouse initialization failed");
+
       status = kernelWindowInitialize();
       if (status < 0)
 	// Make a warning, but don't return error.  This is not fatal.

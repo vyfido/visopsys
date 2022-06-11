@@ -21,6 +21,12 @@
 
 #if !defined(_KERNELPROCESSORX86_H)
 
+#define kernelProcessorId(arg, rega, regb, regc, regd)                       \
+  __asm__ __volatile__ ("cpuid"                                              \
+			: "=a" (rega), "=b" (regb), "=c" (regc), "=d" (regd) \
+			: "a" (arg))
+
+
 #define kernelProcessorStop()      \
   __asm__ __volatile__ ("cli \n\t" \
 			"hlt")

@@ -46,6 +46,10 @@ the background wallpaper, and the base colors used by the window manager.
 #include <sys/window.h>
 #include <sys/api.h>
 
+#define WINDOW_MANAGER_CONFIG  "/system/config/windowmanager.conf"
+#define CLOCK_VARIABLE         "program.clock"
+#define CLOCK_PROGRAM          "/programs/clock"
+
 typedef struct {
   char description[32];
   videoMode mode; 
@@ -193,16 +197,16 @@ static void eventHandler(objectKey key, windowEvent *event)
       if ((!showingClock && clockSelected) || (showingClock && !clockSelected))
 	{
 	  if (!readOnly)
-	    configurationReader("/system/config/windowmanager.conf", &list);
+	    configurationReader(WINDOW_MANAGER_CONFIG, &list);
 
 	  if (!showingClock && clockSelected)
 	    {
 	      // Run the clock program now.  No block.
-	      loaderLoadAndExec("/programs/clock", privilege, 0);
+	      loaderLoadAndExec(CLOCK_PROGRAM, privilege, 0);
 	      
 	      if (list.memory)
 		// Add a variable for the clock
-		variableListSet(&list, "program.clock", "/programs/clock");
+		variableListSet(&list, CLOCK_VARIABLE, CLOCK_PROGRAM);
 	    }
 	  else
 	    {
@@ -210,13 +214,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 	      multitaskerKillByName("clock", 0);
 
 	      if (list.memory)
-		// Remove any 'program.clock=' variable
-		variableListUnset(&list, "program.clock");
+		// Remove any clock variable
+		variableListUnset(&list, CLOCK_VARIABLE);
 	    }
 
 	  if (list.memory)
 	    {
-	      configurationWriter("/system/config/windowmanager.conf", &list);
+	      configurationWriter(WINDOW_MANAGER_CONFIG, &list);
 	      variableListDestroy(&list);
 	    }
 	}
@@ -259,6 +263,7 @@ static void constructWindow(void)
   componentParameters params;
   objectKey container = NULL;
   process tmpProc;
+  file tmpFile;
   int count;
 
   // Create a new window, with small, arbitrary size and location
@@ -273,8 +278,6 @@ static void constructWindow(void)
   params.padLeft = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Make a container for the left hand side components
   container = windowNewContainer(window, "leftContainer", &params);
@@ -318,6 +321,9 @@ static void constructWindow(void)
       showingClock = 1;
       windowComponentSetSelected(showClockCheckbox, showingClock);
     }
+
+  if (fileFind(CLOCK_PROGRAM, &tmpFile) < 0)
+    windowComponentSetEnabled(showClockCheckbox, 0);
 
   // Make a container for the right hand side components
   params.gridX = 1;
@@ -364,7 +370,7 @@ static void constructWindow(void)
 
   // The canvas to show the current color
   params.gridY = 2;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   canvasWidth = windowComponentGetWidth(changeColorsButton);
   canvas = windowNewCanvas(container, canvasWidth, 50, &params);
 
@@ -377,8 +383,8 @@ static void constructWindow(void)
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_center;
-  params.fixedHeight = 1;
-  params.hasBorder = 0;
+  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   container = windowNewContainer(window, "buttonContainer", &params);
 
   // Create the OK button
@@ -388,7 +394,7 @@ static void constructWindow(void)
   params.padTop = 0;
   params.padBottom = 0;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(container, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 

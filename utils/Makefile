@@ -5,17 +5,20 @@
 ##  Makefile
 ##
 
-##  This is the Makefile for the Visopsys utilities.  
+##  Makefile for the Visopsys utilities.  
 
-CC		= gcc
-CFLAGS		= -O2 -mcpu=pentium -fno-strength-reduce -fno-strict-aliasing \
+ifeq (${ARCH},)
+	ARCH	= $(shell ./arch.sh)
+endif
+
+CFLAGS		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
 		-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 
 all: copy-boot
 
 copy-boot: ../src/programs/copy-boot.c Makefile
-	${CC} ${INCLUDES} ${CFLAGS} ../src/programs/copy-boot.c -lc -o $@
+	${CC} ${CFLAGS} ../src/programs/copy-boot.c -lc -o $@
 
 clean:
 	rm -f *~ core *.zip *.iso *.img copy-boot mkdosfs.*

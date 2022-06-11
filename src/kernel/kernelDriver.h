@@ -51,6 +51,7 @@ int kernelDriverRegister(kernelDriverType type, void *);
 void *kernelDriverGet(kernelDriverType);
 
 // Registration routines for our built-in drivers
+void kernelBiosDriverRegister(void *);
 void kernelCpuDriverRegister(void *);
 void kernelMemoryDriverRegister(void *);
 void kernelPicDriverRegister(void *);

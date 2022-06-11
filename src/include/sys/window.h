@@ -25,6 +25,7 @@
 #if !defined(_WINDOW_H)
 
 #include <sys/image.h>
+#include <sys/loader.h>
 #include <sys/progress.h>
 #include <sys/stream.h>
 
@@ -35,44 +36,54 @@
 // Window events/masks.  This first batch are "tier 2" events, produced by
 // windows, widgets, etc. to indicate that some more abstract thing has
 // happened.
-#define EVENT_MASK_WINDOW        0xF000
-#define EVENT_WINDOW_RESIZE      0x4000
-#define EVENT_WINDOW_CLOSE       0x2000
-#define EVENT_WINDOW_MINIMIZE    0x1000
-#define EVENT_SELECTION          0x0400
+#define EVENT_MASK_WINDOW                 0xF000
+#define EVENT_WINDOW_RESIZE               0x4000
+#define EVENT_WINDOW_CLOSE                0x2000
+#define EVENT_WINDOW_MINIMIZE             0x1000
+#define EVENT_SELECTION                   0x0800
+#define EVENT_CURSOR_MOVE                 0x0400
 // And these are "tier 1" events, produced by direct actions of the user.
-#define EVENT_MASK_KEY           0x0300
-#define EVENT_KEY_UP             0x0200
-#define EVENT_KEY_DOWN           0x0100
-#define EVENT_MASK_MOUSE         0x00FF
-#define EVENT_MOUSE_DRAG         0x0080
-#define EVENT_MOUSE_MOVE         0x0040
-#define EVENT_MOUSE_RIGHTUP      0x0020
-#define EVENT_MOUSE_RIGHTDOWN    0x0010
-#define EVENT_MOUSE_MIDDLEUP     0x0008
-#define EVENT_MOUSE_MIDDLEDOWN   0x0004
-#define EVENT_MOUSE_LEFTUP       0x0002
-#define EVENT_MOUSE_LEFTDOWN     0x0001
+#define EVENT_MASK_KEY                    0x0300
+#define EVENT_KEY_UP                      0x0200
+#define EVENT_KEY_DOWN                    0x0100
+#define EVENT_MASK_MOUSE                  0x00FF
+#define EVENT_MOUSE_DRAG                  0x0080
+#define EVENT_MOUSE_MOVE                  0x0040
+#define EVENT_MOUSE_RIGHTUP               0x0020
+#define EVENT_MOUSE_RIGHTDOWN             0x0010
+#define EVENT_MOUSE_MIDDLEUP              0x0008
+#define EVENT_MOUSE_MIDDLEDOWN            0x0004
+#define EVENT_MOUSE_LEFTUP                0x0002
+#define EVENT_MOUSE_LEFTDOWN              0x0001
 
 // The maximum numbers of window things
-#define WINDOW_MAXWINDOWS        256
-#define WINDOW_MAX_EVENTS        512
-#define WINDOW_MAX_TITLE_LENGTH  80
-#define WINDOW_MAX_COMPONENTS    256
-#define WINDOW_MAX_LABEL_LENGTH  80
-#define WINDOW_MAX_LISTITEMS     64
-#define WINDOW_MAX_MENUS         16
+#define WINDOW_MAXWINDOWS                 256
+#define WINDOW_MAX_EVENTS                 512
+#define WINDOW_MAX_EVENTHANDLERS          256
+#define WINDOW_MAX_TITLE_LENGTH           80
+#define WINDOW_MAX_LABEL_LENGTH           80
+#define WINDOW_MAX_MENUS                  16
+
+// Flags for window components
+#define WINDOW_COMPFLAG_CLICKABLECURSOR   0x40
+#define WINDOW_COMPFLAG_CUSTOMBACKGROUND  0x20
+#define WINDOW_COMPFLAG_CUSTOMFOREGROUND  0x10
+#define WINDOW_COMPFLAG_STICKYFOCUS       0x08
+#define WINDOW_COMPFLAG_HASBORDER         0x04
+#define WINDOW_COMPFLAG_FIXEDHEIGHT       0x02
+#define WINDOW_COMPFLAG_FIXEDWIDTH        0x01
 
 // Flags for file browsing widgets/dialogs.
-#define WINFILEBROWSE_CAN_CD     0x01
-#define WINFILEBROWSE_CAN_DEL    0x02
-#define WINFILEBROWSE_ALL        (WINFILEBROWSE_CAN_CD | WINFILEBROWSE_CAN_DEL)
+#define WINFILEBROWSE_CAN_CD              0x01
+#define WINFILEBROWSE_CAN_DEL             0x02
+#define WINFILEBROWSE_ALL                 (WINFILEBROWSE_CAN_CD | \
+                                           WINFILEBROWSE_CAN_DEL)
 
 // Some image file names for dialog boxes
-#define INFOIMAGE_NAME           "/system/icons/infoicon.bmp"
-#define ERRORIMAGE_NAME          "/system/icons/bangicon.bmp"
-#define QUESTIMAGE_NAME          "/system/icons/questicon.bmp"
-#define WAITIMAGE_NAME           "/system/mouse/mousebsy.bmp"
+#define INFOIMAGE_NAME                    "/system/icons/infoicon.bmp"
+#define ERRORIMAGE_NAME                   "/system/icons/bangicon.bmp"
+#define QUESTIMAGE_NAME                   "/system/icons/questicon.bmp"
+#define WAITIMAGE_NAME                    "/system/mouse/mousebsy.bmp"
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
@@ -100,15 +111,10 @@ typedef struct {
   int padRight;
   int padTop;
   int padBottom;
+  int flags;
   componentXOrientation orientationX;
   componentYOrientation orientationY;
-  int fixedWidth;
-  int fixedHeight;
-  int hasBorder;
-  int stickyFocus;
-  int useDefaultForeground;
   color foreground;
-  int useDefaultBackground;
   color background;
   objectKey font;
 
@@ -178,10 +184,23 @@ typedef struct {
 
 } listItemParameters;
 
+typedef struct {
+  objectKey key;
+  void *fileEntries;
+  int numFileEntries;
+  int browseFlags;
+  void (*selectionCallback)(file *, char *, loaderFileClass *);
+
+  // Externally-callable service routines
+  int (*eventHandler) (void *, windowEvent *);
+  int (*update) (void *, const char *);
+  int (*destroy) (void *);
+
+} windowFileList;
+
 void windowCenterDialog(objectKey, objectKey);
 int windowClearEventHandler(objectKey);
 int windowClearEventHandlers(void);
-int windowDestroyFileList(objectKey);
 void windowGuiRun(void);
 void windowGuiStop(void);
 int windowGuiThread(void);
@@ -193,8 +212,9 @@ int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, const char *,
 			char *, unsigned);
-objectKey windowNewFileList(objectKey, windowListType, int, int, const char *,
-			    int, void *, componentParameters *);
+windowFileList *windowNewFileList(objectKey, windowListType, int, int,
+				  const char *, int, void *,
+				  componentParameters *);
 int windowNewInfoDialog(objectKey, const char *, const char *);
 int windowNewPasswordDialog(objectKey, const char *, const char *, int,
 			    char *);
@@ -206,7 +226,6 @@ int windowNewRadioDialog(objectKey, const char *, const char *, char *[],
 			 int, int);
 int windowProgressDialogDestroy(objectKey);
 int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
-int windowUpdateFileList(objectKey, const char *);
 
 #define _WINDOW_H
 #endif

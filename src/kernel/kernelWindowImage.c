@@ -42,7 +42,7 @@ static int draw(void *componentData)
 			 windowImage->mode, component->xCoord,
 			 component->yCoord, 0, 0, 0, 0);
 
-  if (component->parameters.hasBorder)
+  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder((void *) component, 1);
 
   return (0);

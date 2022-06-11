@@ -213,17 +213,14 @@ static void populateList(kernelWindowComponent *listComponent,
   params.padRight = 0;
   params.orientationX = orient_top;
   params.orientationY = orient_left;
-  params.fixedWidth = 1;
-  params.fixedHeight = 1;
-  params.hasBorder = 0;
+  params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
 
   list->itemWidth = 0;
   list->itemHeight = 0;
 
   // Loop through the list item parameter list, creating kernelWindowListItem
   // components and adding them to this component
-  for (count = 0; ((count < numItems) && (count < WINDOW_MAX_LISTITEMS));
-       count ++)
+  for (count = 0; count < numItems; count ++)
     {
       listItemComponent = kernelWindowNewListItem(list->container, list->type,
 						  &(items[count]), &params);
@@ -349,7 +346,8 @@ static int draw(void *componentData)
   if (list->scrollBar && list->scrollBar->draw)
     list->scrollBar->draw((void *) list->scrollBar);
 
-  if (component->parameters.hasBorder || (component->flags & WINFLAG_HASFOCUS))
+  if ((component->parameters.flags & WINDOW_COMPFLAG_HASBORDER) ||
+      (component->flags & WINFLAG_HASFOCUS))
     component->drawBorder((void *) component, 1);
 
   return (status);
@@ -764,7 +762,7 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent,
 
   // If default colors were requested, override the standard background color
   // with the one we prefer (white)
-  if (component->parameters.useDefaultBackground)
+  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
       component->parameters.background.blue = 0xFF;
       component->parameters.background.green = 0xFF;
@@ -782,8 +780,9 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent,
   if (labelFont == NULL)
     {
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
+      status =
+	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);
@@ -831,8 +830,8 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent,
 
   // Standard parameters for a scroll bar
   kernelMemCopy(params, &subParams, sizeof(componentParameters));
-  subParams.useDefaultForeground = 1;
-  subParams.useDefaultBackground = 1;
+  subParams.flags &=
+    ~(WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
 
   // Get our scrollbar component
   list->scrollBar =

@@ -118,7 +118,7 @@ static int detect(kernelDisk *theDisk)
   if (!strncmp(bootFile.oemName, "NTFS    ", 8))
     {
       // NTFS
-      strcpy((char *) theDisk->fsType, "ntfs");
+      strcpy((char *) theDisk->fsType, FSNAME_NTFS);
       return (status = 1);
     }
   else
@@ -157,14 +157,14 @@ static int clobber(kernelDisk *theDisk)
 
 
 static kernelFilesystemDriver defaultNtfsDriver = {
-  "ntfs", // Driver name
+  FSNAME_NTFS, // Driver name
   detect,
   NULL,  // driverFormat
   clobber,
   NULL,  // driverCheck
   NULL,  // driverDefragment
   NULL,  // driverStat
-  NULL,  // driverGetResizeConstraints
+  NULL,  // driverResizeConstraints
   NULL,  // driverResize
   NULL,  // driverMount
   NULL,  // driverUnmount

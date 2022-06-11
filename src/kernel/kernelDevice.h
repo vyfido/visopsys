@@ -42,8 +42,8 @@ typedef struct {
     kernelDeviceClass *class;
     kernelDeviceClass *subClass;
 
-    // Optional, vendor-specific model name
-    char *model;
+    // Optional list of text attributes
+    variableList attrs;
 
     // Used for maintaining the list of devices as a tree
     void *parent;

@@ -51,8 +51,8 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
   if (menuItemFont == NULL)
     {
       // Try to load a nice-looking font
-      if (kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			 DEFAULT_VARIABLEFONT_SMALL_NAME,
+      if (kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
+			 WINDOW_DEFAULT_VARFONT_SMALL_NAME,
 			 &menuItemFont, 0) < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&menuItemFont);
@@ -74,7 +74,7 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
   if (component == NULL)
     return (component);
 
-  if (component->parameters.useDefaultBackground)
+  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
       // We use a different default background color than the window
       // list item component that the menu item is based upon

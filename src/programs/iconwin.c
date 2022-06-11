@@ -93,6 +93,10 @@ static int readConfig(const char *fileName)
   char tmp[MAXSTRINGLENGTH];
   char *icon = NULL;
   char variable[128];
+  char command[128];
+  char fullCommand[128];
+  int argc = 0;
+  char *argv[64];
   file tmpFile;
   int count;
 
@@ -189,7 +193,9 @@ static int readConfig(const char *fileName)
 		}
 
 	      // See whether the command exists
-	      if (fileFind(icons[count].command, &tmpFile) < 0)
+	      strncpy(fullCommand, icons[count].command, 128);
+	      if ((vshParseCommand(fullCommand, command, &argc, argv) < 0) ||
+		  (fileFind(command, &tmpFile) < 0))
 		{
 		  numIcons -= 1;
 		  count -= 1;
@@ -283,8 +289,6 @@ static int constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create a window list to hold the icons
   iconList = windowNewList(window, windowlist_icononly, rows, columns, 0,

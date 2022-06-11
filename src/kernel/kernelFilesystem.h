@@ -26,8 +26,13 @@
 #include <sys/progress.h>
 
 // Definitions
-#define MAX_FILESYSTEMS 32
-#define MAX_FS_NAME_LENGTH 64
+#define FSNAME_EXT          "ext"
+#define FSNAME_FAT          "fat"
+#define FSNAME_ISO          "iso"
+#define FSNAME_LINUXSWAP    "linux-swap"
+#define FSNAME_NTFS         "ntfs"
+#define MAX_FILESYSTEMS     32
+#define MAX_FS_NAME_LENGTH  64
 
 typedef struct {
   unsigned usedSectors;
@@ -46,8 +51,8 @@ typedef struct {
   int (*driverClobber) (kernelDisk *);
   int (*driverCheck) (kernelDisk *, int, int, progress *);
   int (*driverDefragment) (kernelDisk *, progress *);
-  int (*driverResizeConstraints) (kernelDisk *, unsigned *, unsigned *);
   int (*driverStat) (kernelDisk *, kernelFilesystemStats *);
+  int (*driverResizeConstraints) (kernelDisk *, unsigned *, unsigned *);
   int (*driverResize) (kernelDisk *, unsigned, progress *);
   int (*driverMount) (kernelDisk *);
   int (*driverUnmount) (kernelDisk *);

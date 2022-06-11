@@ -1,0 +1,293 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Querying VESA Video Modes</title>
+<meta name="Microsoft Border" content="lrb">
+</head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" bgproperties="fixed"
+background="../../img/background.jpg"><!--msnavigation--><table dir="ltr" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../../index.html">
+    <img src="../../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
+    <br>
+    <a href="../../about/index.html">
+    <img src="../../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="../../about/news.html">
+    <img border="0" src="../../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
+    <a href="../../about/screenshots.html">
+    <img border="0" src="../../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <br>
+    <a href="../../download/index.html">
+    <img src="../../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
+    <br>
+    <a href="../../developers/index.html">
+    <img src="../../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
+    <br>
+    <a href="../index.html">
+    <img src="../../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
+    <br>
+    <a href="../../search.html">
+    <img src="../../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center"><font size="5"><strong>
+<img src="../../img/banners/visopsys-logo.gif"
+align="middle" border="0" width="291" height="94"></strong></font><br>
+<img src="../../img/banners/visopsys-osdev.gif" align="middle" border="0" width="291" height="55"></p>
+
+<p align="left"><big><strong>QUERYING VESA VIDEO MODES&nbsp; </strong></big>
+(<a href="vesaModes.s">download as a text file</a>)</p>
+
+<font SIZE="2">
+<pre>;;
+;; vesaModes.s (adapted from Visopsys OS-loader)
+;;
+;; Copyright (c) 2000, J. Andrew McLaughlin
+;; You're free to use this code in any manner you like, as long as this
+;; notice is included (and you give credit where it is due), and as long
+;; as you understand and accept that it comes with NO WARRANTY OF ANY KIND.
+;; Contact me at &lt;andy@visopsys.org&gt; about any bugs or problems.
+;;
+
+	;; Change this to zero if you don't require Linear Framebuffer
+	;; abilities in your graphics modes.  This could be turned into
+	;; a function parameter of the routine below, if desired.
+	%define REQUIRELFB 1
+
+	
+	BITS 16
+	
+	
+findGraphicMode:
+	;; The VESA 2.0 specification states that they will no longer
+	;; create standard video mode numbers, and video card vendors are
+	;; no longer required to support the old numbers.  This routine
+	;; will dynamically find a supported mode number from the VIDEO BIOS,
+	;; according to the desired resolutions, etc.
+	
+	;; The function takes parameters that describe the desired graphic
+	;; mode, (X resolution, Y resolution, and Bits Per Pixel) and returns
+	; the VESA mode number in EAX, if found.  Returns 0 on error.
+	
+	;; The C prototype for this function would look like the following:
+	;; int findGraphicMode(short int x_res, short int y_res, 
+	;;                     short int bpp);
+	;; (Push bpp, then y_res, then x_res onto the 16-bit stack before
+	;; calling.  Caller pops them off again after the call.)
+
+	;; Save space on the stack for the mode number we're returning
+	sub SP, 2
+
+	;; Save regs
+	pusha
+
+	;; Save the stack pointer
+	mov BP, SP
+
+	;; By default, return the value 0 (failure)
+	mov word [SS:(BP + 16)], 0
+
+	;; Get the VESA info block.  Save ES, since this call could
+	;; destroy it
+        push ES
+        mov DI, VESAINFO
+        mov AX, 4F00h
+        int 10h
+        ;; Restore ES
+        pop ES
+
+        cmp AX, 004Fh
+	;; Fail
+        jne .done
+	
+	;; We need to get a far pointer to a list of graphics mode numbers
+	;; from the VESA info block we just retrieved.  Get the offset now,
+	;; and the segment inside the loop.
+	mov SI, [VESAINFO + 0Eh]
+
+	;; Do a loop through the supported modes
+	.modeLoop:
+	
+	;; Save ES
+	push ES
+
+	;; Now get the segment of the far pointer, as mentioned above
+	mov AX, [VESAINFO + 10h]
+	mov ES, AX
+
+	;; ES:SI is now a pointer to the next supported mode.  The list
+	;; terminates with the value FFFFh
+
+	;; Get the first/next mode number
+	mov DX, word [ES:SI]
+
+	;; Restore ES
+	pop ES
+
+	;; Is it the end of the mode number list?
+	cmp DX, 0FFFFh
+	je near .done
+
+	;; Increment the pointer for the next loop
+	add SI, 2
+
+	;; We have a mode number.  Now we need to do a VBE call to
+	;; determine whether this mode number suits our needs.
+	;; This call will put a bunch of info in the buffer pointed to
+	;; by ES:DI
+
+	mov CX, DX
+	mov AX, 4F01h
+	mov DI, MODEINFO
+	int 10h
+
+	;; Make sure the function call is supported
+	cmp AL, 4Fh
+	;; Fail
+	jne near .done
+	
+	;; Is the mode supported by this call? (sometimes, they're not)
+	cmp AH, 00h
+	jne .modeLoop
+
+	;; We need to look for a few features to determine whether this
+	;; is the mode we want.  First, it needs to be supported, and it
+	;; needs to be a graphics mode.  Next, it needs to match the
+	;; requested attributes of resolution and BPP
+
+	;; Get the first word of the buffer
+	mov AX, word [MODEINFO]
+	
+	;; Is the mode supported?
+	bt AX, 0
+	jnc .modeLoop
+
+	;; Is this mode a graphics mode?
+	bt AX, 4
+	jnc .modeLoop
+
+	%if REQUIRELFB
+	;; Does this mode support a linear frame buffer?
+	bt AX, 7
+	jnc .modeLoop
+	%endif
+
+	;; Does the horizontal resolution of this mode match the requested
+	;; number?
+	mov AX, word [MODEINFO + 12h]
+	cmp AX, word [SS:(BP + 20)]
+	jne near .modeLoop
+
+	;; Does the vertical resolution of this mode match the requested
+	;; number?
+	mov AX, word [MODEINFO + 14h]
+	cmp AX, word [SS:(BP + 22)]
+	jne near .modeLoop
+
+	;; Do the Bits Per Pixel of this mode match the requested number?
+	xor AX, AX
+	mov AL, byte [MODEINFO + 19h]
+	cmp AX, word [SS:(BP + 24)]
+	jne near .modeLoop
+
+	;; If we fall through to here, this is the mode we want.
+	mov word [SS:(BP + 16)], DX
+	
+	.done:
+	popa
+	;; Return the mode number
+	xor EAX, EAX
+	pop AX
+	ret
+
+
+;;
+;; The data segment
+;;
+
+	SEGMENT .data
+	ALIGN 4
+
+VESAINFO  	db 'VBE2'		;; Space for info ret by vid BIOS
+		times 508  db 0
+MODEINFO	times 256 db 0
+</pre>
+</font>
+
+<p><big>&nbsp; </big>
+
+<!--msnavigation--></td><td valign="top" width="24"></td><td valign="top" width="1%">
+<div align="left">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+    <tr>
+      <td>
+        &nbsp;
+        <script type="text/javascript"><!--
+          google_ad_client = "pub-2784580927617241";
+          google_ad_width = 160;
+          google_ad_height = 600;
+          google_ad_format = "160x600_as";
+          google_ad_type = "text";
+          google_ad_channel ="";
+          google_color_border = "336699";
+          google_color_bg = "FFFFFF";
+          google_color_link = "0000FF";
+          google_color_url = "008000";
+          google_color_text = "000000";
+          //-->
+        </script>
+        <script type="text/javascript"
+          src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+        </script>
+      </td>
+    </tr>
+  </table>
+</div>
+</td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../../index.html">
+    <img
+    src="../../img/nav_buttons/home.gif" alt="Home" border="0"
+    align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="../../about/index.html">
+    <img src="../../img/nav_buttons/about.gif"
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="../../about/news.html">
+    <img border="0" src="../../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
+    <a href="../../about/screenshots.html">
+    <img border="0" src="../../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../../download/index.html">
+    <img
+    src="../../img/nav_buttons/download.gif" alt="Download"
+    border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="../../developers/index.html"><img
+    src="../../img/nav_buttons/developers.gif" alt="Developers"
+    border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../index.html">
+    <img
+    src="../../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../../search.html">
+    <img
+    src="../../img/nav_buttons/search.gif" alt="Search" align="middle"
+    border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Last updated on
+    November 29, 2005</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+
+</td></tr><!--msnavigation--></table></body>
+</html>

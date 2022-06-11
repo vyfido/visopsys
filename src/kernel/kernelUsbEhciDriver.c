@@ -57,7 +57,7 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
 
   // After this point, we believe we have a supported device.
 
-  // Enable the device on the PCI bus as a bus msater
+  // Enable the device on the PCI bus as a bus master
   if ((kernelBusDeviceEnable(bus_pci, busTarget->target, 1) < 0) ||
       (kernelBusSetMaster(bus_pci, busTarget->target, 1) < 0))
     return (dev = NULL);
@@ -95,8 +95,8 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
   // Get the interrupt line
   usb->interrupt = (int) pciDevInfo.device.nonBridge.interruptLine;
 
-  kernelTextPrintLine("USB I/O addr %x int %x", usb->ioAddress,
-		      usb->interrupt);
+  //kernelTextPrintLine("USB I/O addr %x int %x", usb->ioAddress,
+  //	      usb->interrupt);
 
   // Create the USB kernel device
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);

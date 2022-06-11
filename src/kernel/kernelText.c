@@ -60,8 +60,8 @@ static kernelTextArea consoleArea =
     0,                            // scrollback lines
     0,                            // scrolled back lines
     0,                            // hidden
-    { 0, 0, DEFAULTFOREGROUND },  // foreground
-    { 0, 0, DEFAULTBACKGROUND },  // background
+    { 0, 0, TEXT_DEFAULT_FOREGROUND },  // foreground
+    { 0, 0, TEXT_DEFAULT_BACKGROUND },  // background
     NULL,                         // inputStream
     NULL,                         // outputStream
     NULL,                         // buffer data
@@ -69,9 +69,7 @@ static kernelTextArea consoleArea =
     NULL,                         // font
     NULL,                         // window component
     NULL,                         // graphic buffer
-    NULL,                         // saved screen
-    0,                            // saved cursor column
-    0                             // saved cursor row
+    0                             // no-scroll flag
   };
 
 // So nobody can use us until we're ready
@@ -170,11 +168,11 @@ int kernelTextInitialize(int columns, int rows)
 
   // Get some buffer space
   consoleArea.bufferData = (unsigned char *)
-    kernelMalloc((rows + DEFAULT_SCROLLBACKLINES) * columns *
+    kernelMalloc((rows + TEXT_DEFAULT_SCROLLBACKLINES) * columns *
 		 consoleArea.bytesPerChar);
   if (consoleArea.bufferData == NULL)
     return (status = ERR_MEMORY);
-  consoleArea.maxBufferLines = (rows + DEFAULT_SCROLLBACKLINES);
+  consoleArea.maxBufferLines = (rows + TEXT_DEFAULT_SCROLLBACKLINES);
 
   // Take the physical text screen address and turn it into a virtual
   // address in the kernel's address space.
@@ -202,15 +200,15 @@ int kernelTextInitialize(int columns, int rows)
   // Set the foreground/background colors
   if (consoleOutput->outputDriver->setForeground)
     consoleOutput->outputDriver
-      ->setForeground(consoleOutput->textArea, DEFAULTFOREGROUND);
+      ->setForeground(consoleOutput->textArea, TEXT_DEFAULT_FOREGROUND);
   if (consoleOutput->outputDriver->setBackground)
     consoleOutput->outputDriver
-      ->setBackground(consoleOutput->textArea, DEFAULTBACKGROUND);
+      ->setBackground(consoleOutput->textArea, TEXT_DEFAULT_BACKGROUND);
 
   consoleArea.outputStream = (void *) consoleOutput;
 
   // Set up our console input stream
-  status = kernelStreamNew((stream *) &(consoleInput->s), TEXTSTREAMSIZE,
+  status = kernelStreamNew((stream *) &(consoleInput->s), TEXT_STREAMSIZE,
 			   itemsize_byte);
   if (status < 0)
     return (status);
@@ -331,9 +329,6 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 
   if (area->visibleData)
     kernelFree(area->visibleData);
-
-  if (area->savedScreen)
-    kernelFree(area->savedScreen);
 
   kernelMemClear((void *) area, sizeof(kernelTextArea));
   kernelFree((void *) area);
@@ -592,7 +587,7 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
   if (newStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  status = kernelStreamNew((stream *) &(newStream->s), TEXTSTREAMSIZE,
+  status = kernelStreamNew((stream *) &(newStream->s), TEXT_STREAMSIZE,
 			   itemsize_byte);
   if (status < 0)
     return (status);
@@ -974,7 +969,7 @@ void kernelTextBackSpace(void)
 void kernelTextStreamTab(kernelTextOutputStream *outputStream)
 {
   int tabChars = 0;
-  char spaces[DEFAULT_TAB + 1];
+  char spaces[TEXT_DEFAULT_TAB + 1];
   int count;
 
   // Don't do anything unless we've been initialized
@@ -985,13 +980,14 @@ void kernelTextStreamTab(kernelTextOutputStream *outputStream)
     return;
 
   // Figure out how many characters the tab should be
-  tabChars = DEFAULT_TAB;
+  tabChars = TEXT_DEFAULT_TAB;
   if (outputStream->outputDriver->getCursorAddress)
-    tabChars -= (outputStream->outputDriver
-		 ->getCursorAddress(outputStream->textArea) % DEFAULT_TAB);
+    tabChars -=
+      (outputStream->outputDriver->getCursorAddress(outputStream->textArea) %
+       TEXT_DEFAULT_TAB);
 
   if (tabChars == 0)
-    tabChars = DEFAULT_TAB;
+    tabChars = TEXT_DEFAULT_TAB;
 
   // Fill up the spaces buffer with the appropriate number of spaces
   for (count = 0; count < tabChars; count ++)
@@ -1191,9 +1187,45 @@ void kernelTextCursorRight(void)
 }
 
 
+int kernelTextStreamEnableScroll(kernelTextOutputStream *outputStream,
+				 int enable)
+{
+  // Enable or disable screen scrolling for the supplied text output stream
+
+  int status = 0;
+
+  // Don't do anything unless we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  if (outputStream == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  if (enable)
+    outputStream->textArea->noScroll = 0;
+  else
+    outputStream->textArea->noScroll = 1;
+  
+  return (status = 0);
+}
+
+
+int kernelTextEnableScroll(int enable)
+{
+  // Enable or disable screen scrolling for the current text output stream
+
+  kernelTextOutputStream *outputStream = NULL;
+
+  // Get the text output stream for the current process
+  outputStream = kernelMultitaskerGetTextOutput();
+
+  return (kernelTextStreamEnableScroll(outputStream, enable));
+}
+
+
 void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 {
-  // Scroll the text area up (-1) or down (+1);
+  // Scroll the text area up (-upDown) or down (+upDown);
 
   // Don't do anything unless we've been initialized
   if (!initialized)
@@ -1201,21 +1233,21 @@ void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 
   if (outputStream == NULL)
     return;
-  
-  if ((upDown == -1) && (outputStream->textArea->scrolledBackLines <
-			 outputStream->textArea->scrollBackLines))
+    
+  if ((upDown < 0) && (outputStream->textArea->scrolledBackLines <
+		       outputStream->textArea->scrollBackLines))
     {
-      // Scroll up by one screenful
+      // Scroll up by upDown screenfuls
       outputStream->textArea->scrolledBackLines +=
-	min(outputStream->textArea->rows,
+	min((outputStream->textArea->rows * -upDown),
 	    (outputStream->textArea->scrollBackLines -
 	     outputStream->textArea->scrolledBackLines));
     }
-  else if ((upDown == 1) && outputStream->textArea->scrolledBackLines)
+  else if ((upDown > 0) && outputStream->textArea->scrolledBackLines)
     {
-      // Scroll down by one screenful
+      // Scroll down by upDown screenfuls
       outputStream->textArea->scrolledBackLines -=
-	min(outputStream->textArea->rows,
+	min((outputStream->textArea->rows * upDown),
 	    outputStream->textArea->scrolledBackLines);
     }
 
@@ -1479,7 +1511,7 @@ void kernelTextScreenClear(void)
 }
 
 
-int kernelTextScreenSave(void)
+int kernelTextScreenSave(textScreen *screen)
 {
   // This routine saves the current contents of the screen
 
@@ -1491,21 +1523,14 @@ int kernelTextScreenSave(void)
   
   textArea = outputStream->textArea;
 
-  // Check to see whether any saved screen data is already there.
-  if (textArea->savedScreen)
-    {
-      kernelFree(textArea->savedScreen);
-      textArea->savedScreen = NULL;
-    }
-  
   if (outputStream->outputDriver->screenSave)
-    outputStream->outputDriver->screenSave(textArea);
+    outputStream->outputDriver->screenSave(textArea, screen);
 
   return (0);
 }
 
 
-int kernelTextScreenRestore(void)
+int kernelTextScreenRestore(textScreen *screen)
 {
   // This routine restores the saved contents of the screen
 
@@ -1517,15 +1542,8 @@ int kernelTextScreenRestore(void)
   
   textArea = outputStream->textArea;
 
-  // Check to see whether any saved screen data is already there.
-  if (textArea->savedScreen)
-    {
-      if (outputStream->outputDriver->screenRestore)
-	outputStream->outputDriver->screenRestore(textArea);
-
-      kernelFree(textArea->savedScreen);
-      textArea->savedScreen = NULL;
-    }
+  if (outputStream->outputDriver->screenRestore)
+    outputStream->outputDriver->screenRestore(textArea, screen);
 
   return (0);
 }
@@ -1807,7 +1825,7 @@ int kernelTextInputStreamRemoveN(kernelTextInputStream *inputStream,
   // Removes the requested number of characters from the keyboard buffer.  
 
   int status = 0;
-  char junk[TEXTSTREAMSIZE];
+  char junk[TEXT_STREAMSIZE];
 
   // Don't do anything unless we've been initialized
   if (!initialized)

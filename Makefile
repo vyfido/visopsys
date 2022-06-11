@@ -5,9 +5,17 @@
 ##  Makefile
 ##
 
-# This is the top-level Makefile.
+# Top-level Makefile.
 
-BUILDDIR=build
+NASM		= nasm
+CC		= gcc
+AR		= ar
+LD		= ld
+RELEASE		= $(shell utils/release.sh)
+ARCH		= $(shell utils/arch.sh)
+export 		NASM CC AR LD RELEASE ARCH
+
+BUILDDIR	= build
 
 all:
 	mkdir -p ${BUILDDIR}/system

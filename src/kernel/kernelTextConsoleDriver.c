@@ -26,7 +26,7 @@
 #include "kernelText.h"
 #include "kernelProcessorX86.h"
 #include "kernelMisc.h"
-#include "kernelMalloc.h"
+#include "kernelMemory.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
@@ -258,9 +258,17 @@ static int print(kernelTextArea *area, const char *string)
       // Newline?
       if ((string[count] == '\n') || (area->cursorColumn >= area->columns))
 	{
+	  // Will this cause a scroll?
 	  if (area->cursorRow >= (area->rows - 1))
-	    scrollLine(area);
-	  area->cursorRow += 1;
+	    {
+	      if (!area->noScroll)
+		{
+		  scrollLine(area);
+		  area->cursorRow += 1;
+		}
+	    }
+	  else
+	    area->cursorRow += 1;
 	  area->cursorColumn = 0;
 	  bufferAddress =
 	    (TEXTAREA_FIRSTVISIBLE(area) + (TEXTAREA_CURSORPOS(area) * 2));
@@ -340,38 +348,39 @@ static int clearScreen(kernelTextArea *area)
 }
 
 
-static int saveScreen(kernelTextArea *area)
+static int saveScreen(kernelTextArea *area, textScreen *screen)
 {
   // This routine saves the current contents of the screen
 
   // Get memory for a new save area
-  area->savedScreen = kernelMalloc(area->columns * area->rows * 2);
-  if (area->savedScreen == NULL)
+  screen->data =
+    kernelMemoryGet((area->columns * area->rows * 2), "text screen data");
+  if (screen->data == NULL)
     return (ERR_MEMORY);
 
-  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->savedScreen,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), screen->data,
 		(area->rows * area->columns * 2));
 
-  area->savedCursorColumn = area->cursorColumn;
-  area->savedCursorRow = area->cursorRow;
+  screen->column = area->cursorColumn;
+  screen->row = area->cursorRow;
 
   return (0);
 }
 
 
-static int restoreScreen(kernelTextArea *area)
+static int restoreScreen(kernelTextArea *area, textScreen *screen)
 {
   // This routine restores the saved contents of the screen
 
-  kernelMemCopy(area->savedScreen, TEXTAREA_FIRSTVISIBLE(area), 
+  kernelMemCopy(screen->data, TEXTAREA_FIRSTVISIBLE(area), 
 		(area->rows * area->columns * 2));
 
   // Copy to the visible area
-  kernelMemCopy(area->savedScreen, area->visibleData, 
+  kernelMemCopy(screen->data, area->visibleData, 
 		(area->rows * area->columns * 2));
 
-  area->cursorColumn = area->savedCursorColumn;
-  area->cursorRow = area->savedCursorRow;
+  area->cursorColumn = screen->column;
+  area->cursorRow = screen->row;
   
   return (0);
 }

@@ -19,7 +19,7 @@
 //  view.c
 //
 
-// This command will display an image file in a new window.
+// This command will display supported file types in the appropriate way.
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -138,7 +138,6 @@ int main(int argc, char *argv[])
   file tmpFile;
   loaderFileClass class;
   componentParameters params;
-  int count;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -201,8 +200,6 @@ int main(int argc, char *argv[])
   params.gridHeight = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create a new window, with small, arbitrary size and location
   sprintf(windowTitle, "View \"%s\"", shortFileName);
@@ -211,7 +208,6 @@ int main(int argc, char *argv[])
   if (class.flags & LOADERFILECLASS_IMAGE)
     {
       image showImage;
-      objectKey imageComponent = NULL;
 
       // Try to load the image file
       status = imageLoad(fullFileName, 0, 0, &showImage);
@@ -221,8 +217,7 @@ int main(int argc, char *argv[])
 	  goto deallocate;
 	}
   
-      imageComponent =
-	windowNewImage(window, &showImage, draw_normal, &params);
+      windowNewImage(window, &showImage, draw_normal, &params);
     }
 
   else if (class.flags & LOADERFILECLASS_TEXT)
@@ -260,8 +255,8 @@ int main(int argc, char *argv[])
       textSetCursor(0);
       textInputSetEcho(0);
       printTextLines(textData, showFile.size);
-      for (count = 0; count <= (textLines / rows); count ++)
-	textScroll(-1);
+      // Scroll back to the very top
+      textScroll(-(textLines / rows));
 
       memoryRelease(textData);
     }

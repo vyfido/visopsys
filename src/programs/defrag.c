@@ -156,8 +156,6 @@ static int chooseDisk(void)
   params.padRight = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
@@ -179,7 +177,7 @@ static int chooseDisk(void)
       params.gridWidth = 1;
       params.padBottom = 5;
       params.orientationX = orient_right;
-      params.fixedWidth = 1;
+      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
       okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
 
       params.gridX = 1;

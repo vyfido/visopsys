@@ -56,7 +56,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   componentParameters params;
   char cwd[MAX_PATH_LENGTH];
   objectKey textLabel = NULL;
-  objectKey fileList = NULL;
+  windowFileList *fileList = NULL;
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
   windowEvent event;
@@ -79,8 +79,6 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.padTop = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   textLabel = windowNewTextLabel(dialogWindow, message, &params);
   if (textLabel == NULL)
     return (status = ERR_NOCREATE);
@@ -100,7 +98,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
   // Create the text field
   params.gridY = 2;
-  params.hasBorder = 1;
+  params.flags = WINDOW_COMPFLAG_HASBORDER;
   textField = windowNewTextField(dialogWindow, 30, &params);
   if (textField == NULL)
     return (status = ERR_NOCREATE);
@@ -113,8 +111,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.padRight = 5;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
-  params.hasBorder = 0;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);
@@ -130,11 +127,15 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);
-  windowComponentFocus(fileList);
+  windowComponentFocus(fileList->key);
   windowSetVisible(dialogWindow, 1);
   
   while(1)
     {
+      // Check for events to be passed to the file list widget
+      if (windowComponentEventGet(fileList->key, &event) > 0)
+	fileList->eventHandler(fileList, &event);
+
       // Check for the OK button, or 'enter' in the text field
       if (((windowComponentEventGet(okButton, &event) > 0) &&
 	   (event.type == EVENT_MOUSE_LEFTUP)) ||
@@ -171,7 +172,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
       multitaskerYield();
     }
 
-  windowDestroyFileList(fileList);
+  fileList->destroy(fileList);
   windowDestroy(dialogWindow);
 
   return (status);

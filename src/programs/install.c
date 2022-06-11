@@ -73,6 +73,7 @@ static install_type installType;
 static unsigned bytesToCopy = 0;
 static unsigned bytesCopied = 0;
 static progress prog;
+static textScreen screen;
 
 // GUI stuff
 static int graphics = 0;
@@ -127,7 +128,7 @@ static void quit(int status, const char *message, ...)
   if (graphics)
     windowGuiStop();
   else
-    textScreenRestore();
+    textScreenRestore(&screen);
 
   if (message != NULL)
     {
@@ -146,6 +147,9 @@ static void quit(int status, const char *message, ...)
     windowDestroy(window);
 
   errno = status;
+
+  if (screen.data)
+    memoryRelease(screen.data);
 
   exit(status);
 }
@@ -225,8 +229,6 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   textLabel = windowNewTextLabel(window, titleString, &params);
   
   params.gridY = 1;
@@ -251,7 +253,7 @@ static void constructWindow(void)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   installButton = windowNewButton(window, "Install", NULL, &params);
   windowRegisterEventHandler(installButton, &eventHandler);
   windowComponentSetEnabled(installButton, 0);
@@ -341,8 +343,6 @@ static int chooseDisk(void)
   params.padRight = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
@@ -799,8 +799,6 @@ static void setAdminPassword(void)
       params.padTop = 5;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
       label = windowNewTextLabel(dialogWindow, setPasswordString, &params);
 	  
       params.gridY = 1;
@@ -810,7 +808,7 @@ static void setAdminPassword(void)
       label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
       params.gridX = 1;
-      params.hasBorder = 1;
+      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       params.padRight = 5;
       params.orientationX = orient_left;
       passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
@@ -819,20 +817,20 @@ static void setAdminPassword(void)
       params.gridY = 2;
       params.padRight = 0;
       params.orientationX = orient_right;
-      params.hasBorder = 0;
+      params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
       label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
       params.padRight = 5;
-      params.hasBorder = 1;
+      params.flags |= WINDOW_COMPFLAG_HASBORDER;
       passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 	  
       params.gridX = 0;
       params.gridY = 3;
       params.gridWidth = 2;
       params.orientationX = orient_center;
-      params.hasBorder = 0;
+      params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
       noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
 					"match", &params);
       windowComponentSetVisible(noMatchLabel, 0);
@@ -1022,7 +1020,7 @@ int main(int argc, char *argv[])
 
   if (!graphics)
     {
-      textScreenSave();
+      textScreenSave(&screen);
       printBanner();
     }
 
@@ -1114,7 +1112,7 @@ int main(int argc, char *argv[])
 			     (char *[]) { "Basic", "Full" }, 1);
       if (status < 0)
 	{
-	  textScreenRestore();
+	  textScreenRestore(&screen);
 	  return (status);
 	}
 

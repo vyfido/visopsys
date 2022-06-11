@@ -7,15 +7,20 @@
 
 ##  This file is the Makefile for the Visopsys kernel itself.
 
+UTILSDIR=../../utils
 BUILDDIR=../../build
 INCDIR=../include
-LIBDIR=../../build/system/libraries
+LIBDIR=${BUILDDIR}/system/libraries
 
-CC		= gcc
-RELEASE		= $(shell ../../utils/release.sh)
-CPU		= $(shell ../../utils/cpu.sh)
+ifeq (${RELEASE},)
+	RELEASE	= $(shell ${UTILSDIR}/release.sh)
+endif
+ifeq (${ARCH},)
+	ARCH	= $(shell ${UTILSDIR}/arch.sh)
+endif
+
 STDDEPS		= Makefile *.h ${INCDIR}/sys/*.h ${INCDIR}/*.h ${LIBDIR}/libc.a
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
 		-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls \
@@ -136,7 +141,7 @@ target-dirs:
 
 ${KERNEL}: ${OBJS}
 	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lc -o $@
-	../../utils/kernel-symbols.sh ${KERNEL} ${SYMBOLS}
+	${UTILSDIR}/kernel-symbols.sh ${KERNEL} ${SYMBOLS}
 
 strip: ${KERNEL}
 	strip -s ${KERNEL}

@@ -5,15 +5,17 @@
 ##  Makefile
 ##
 
+UTILSDIR=../../utils
 BUILDDIR=../../build/programs
 INCDIR=../include
 LIBDIR=../../build/system/libraries
 
-CC		= gcc
-RELEASE		= $(shell ../../utils/release.sh)
-CPU		= $(shell ../../utils/cpu.sh)
+ifeq (${ARCH},)
+	ARCH	= $(shell ${UTILSDIR}/arch.sh)
+endif
+
 STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
@@ -39,19 +41,21 @@ NAMES	= adduser \
 	defrag \
 	disks \
 	disprops \
+	domainname \
+	edit \
 	fdisk \
 	file \
 	filebrowse \
 	find \
 	format \
 	help \
+	hostname \
 	iconwin \
 	ifconfig \
 	imgboot \
 	install \
 	keymap \
 	kill \
-	ldd \
 	loadfont \
 	login \
 	logout \
@@ -64,6 +68,7 @@ NAMES	= adduser \
 	more \
 	mount \
 	mv \
+	nm \
 	passwd \
 	ping \
 	progman \

@@ -709,21 +709,19 @@ static int constructWindow(void)
   params.padBottom = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.fixedWidth = 1;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   scoreLabel = windowNewTextLabel(window, "0000", &params);
 
   params.gridX += 1;
   params.orientationX = orient_right;
-  params.fixedWidth = 0;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
   treatImage =
     windowNewImage(window, &images[image_treat], draw_translucent, &params);
   windowComponentSetVisible(treatImage, 0);
 
   params.gridX += 1;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   treatLabel = windowNewTextLabel(window, "00", &params);
   windowComponentSetVisible(treatLabel, 0);
 
@@ -731,20 +729,20 @@ static int constructWindow(void)
   params.gridY += 1;
   params.gridWidth = 3;
   params.orientationX = orient_center;
-  params.fixedWidth = 0;
-  params.useDefaultBackground = 0;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+  params.flags |=
+    (WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER);
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
-  params.hasBorder = 1;
   canvas = windowNewCanvas(window, (screenWidth * imageWidth),
 			   (screenHeight * imageHeight), &params);
   windowRegisterEventHandler(canvas, &eventHandler);
 
   params.gridY += 1;
   params.orientationX = orient_left;
-  params.useDefaultBackground = 1;
-  params.hasBorder = 0;
+  params.flags &=
+    ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER);
   windowNewTextLabel(window, "Use cursor keys to change direction", &params);
 
   // Register an event handler to catch window close events
@@ -832,6 +830,7 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   char opt;
+  textScreen screen;
   char tmpChar[80];
 
   // Are graphics enabled?
@@ -851,7 +850,7 @@ int main(int argc, char *argv[])
     }
   else
     {
-      textScreenSave();
+      textScreenSave(&screen);
       textSetCursor(0);
       drawScreen();
     }
@@ -874,10 +873,13 @@ int main(int argc, char *argv[])
   else
     {
       textSetCursor(1);
-      textScreenRestore();
+      textScreenRestore(&screen);
       if (status)
 	printf("%s\n", tmpChar);
     }
+
+  if (screen.data)
+    memoryRelease(screen.data);
 
   free(grid);
   free(snakeArray);

@@ -306,8 +306,6 @@ static int constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create a window list to hold the icons
   iconList = windowNewList(window, windowlist_icononly, DEFAULT_ROWS,

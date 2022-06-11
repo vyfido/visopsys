@@ -24,8 +24,9 @@
 
 #if !defined(_DEVICE_H)
 
+#include <sys/variable.h>
+
 #define DEV_CLASSNAME_MAX                   32
-#define DEV_MODELNAME_MAX                   32
 
 // Hardware device classes and subclasses
 #define DEVICECLASS_NONE                    0
@@ -50,6 +51,9 @@
 
 #define DEVICESUBCLASS_NONE                 0
 #define DEVICESUBCLASS_UNKNOWN              (DEVICECLASS_UNKNOWN | 0x01)
+
+// System device subclasses                 
+#define DEVICESUBCLASS_SYSTEM_BIOS          (DEVICECLASS_SYSTEM | 0x01)
 
 // Sub-classes of CPUs
 #define DEVICESUBCLASS_CPU_X86              (DEVICECLASS_CPU | 0x01)
@@ -89,6 +93,10 @@
 #define DEVICECLASS_MASK                    0xFF00
 #define DEVICESUBCLASS_MASK                 0x00FF
 
+// A list of standard device attribute names
+#define DEVICEATTRNAME_VENDOR               "vendor.name"
+#define DEVICEATTRNAME_MODEL                "model.name"
+
 // A structure for device classes and subclasses, which just allows us to
 // associate the different types with string names.
 typedef struct {
@@ -103,8 +111,8 @@ typedef struct {
   deviceClass class;
   deviceClass subClass;
 
-  // Optional, vendor-specific model name
-  char model[DEV_MODELNAME_MAX];
+  // Optional list of text attributes
+  variableList attrs;
 
   // Used for maintaining the list of devices as a tree
   void *parent;

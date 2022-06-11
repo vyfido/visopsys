@@ -46,9 +46,11 @@ static int draw(void *componentData)
 
   yCoord = (component->yCoord + ((component->height - CHECKBOX_SIZE) / 2));
 
+  // Draw the white center of the check box
   kernelGraphicDrawRect(buffer, &((color){255, 255, 255}),
 			draw_normal, component->xCoord, yCoord,
 			CHECKBOX_SIZE, CHECKBOX_SIZE, 1, 1);
+  // Draw a border around it
   kernelGraphicDrawRect(&(window->buffer),
 			(color *) &(component->parameters.foreground),
 			draw_normal, component->xCoord, yCoord, CHECKBOX_SIZE,
@@ -56,6 +58,7 @@ static int draw(void *componentData)
 
   if (checkbox->selected)
     {
+      // Draw a cross in the box
       kernelGraphicDrawLine(buffer, &((color){0, 0, 0}), draw_normal,
 			    (component->xCoord + 2), (yCoord + 2),
 			    (component->xCoord + (CHECKBOX_SIZE - 3)),
@@ -67,13 +70,14 @@ static int draw(void *componentData)
 			    (yCoord + 2));
     }
 
+  // Now draw the text next to the box
   kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
 			(color *) &(component->parameters.background),
 			component->parameters.font, checkbox->text,
 			draw_normal, (component->xCoord + CHECKBOX_SIZE + 3),
 			(component->yCoord));
 
-  if (component->parameters.hasBorder)
+  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder((void *) component, 1);
   
   return (status = 0);
@@ -219,8 +223,8 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
   if (checkboxFont == NULL)
     {
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
-			      DEFAULT_VARIABLEFONT_SMALL_NAME,
+      status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
+			      WINDOW_DEFAULT_VARFONT_SMALL_NAME,
 			      &checkboxFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.

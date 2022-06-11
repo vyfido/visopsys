@@ -372,7 +372,7 @@ static int detect(kernelDisk *theDisk)
     // Not ISO
     return (status = 0);
 
-  strcpy((char *) theDisk->fsType, "iso9660");
+  strcpy((char *) theDisk->fsType, FSNAME_ISO);
 
   theDisk->filesystem.blockSize = isoData.volDesc.blockSize;
   theDisk->filesystem.minSectors = 0;
@@ -418,7 +418,7 @@ static int mount(kernelDisk *theDisk)
     }
 
   // Set the proper filesystem type name on the disk structure
-  strcpy((char *) theDisk->fsType, "iso9660");
+  strcpy((char *) theDisk->fsType, FSNAME_ISO);
 
   // Read-only
   theDisk->filesystem.readOnly = 1;
@@ -664,14 +664,14 @@ static int readDir(kernelFileEntry *directory)
 
 
 static kernelFilesystemDriver defaultIsoDriver = {
-  "iso", // Driver name
+  FSNAME_ISO, // Driver name
   detect,
   NULL,  // driverFormat
   NULL,  // driverClobber
   NULL,  // driverCheck
   NULL,  // driverDefragment
   NULL,  // driverStat
-  NULL,  // driverGetResizeConstraints
+  NULL,  // driverResizeConstraints
   NULL,  // driverResize
   mount,
   unmount,

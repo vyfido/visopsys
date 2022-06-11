@@ -44,28 +44,59 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 
+#define COLUMNS           60
+#define NORMAL_ROWS       25
+#define MORE_ROWS         40
+#define SCROLLBACK_LINES  200
+
 static int graphics = 0;
+static int rows = NORMAL_ROWS;
 static objectKey window = NULL;
-static objectKey okButton = NULL;
 
 
 static void printTree(device *dev, int level)
 {
   device child;
-  int count;
+  char vendor[64];
+  char model[64];
+  int count1, count2;
 
   while (1)
     {
-      for (count = 0; count < level; count ++)
+      for (count1 = 0; count1 < level; count1 ++)
 	printf("   ");
-      
-      if (dev->model[0])
-	printf("\"%s\" ", dev->model);
+
+      vendor[0] = '\0';
+      model[0] = '\0';
+      variableListGet(&(dev->attrs), DEVICEATTRNAME_VENDOR, vendor, 64);
+      variableListGet(&(dev->attrs), DEVICEATTRNAME_MODEL, model, 64);
+
+      if (vendor[0] || model[0])
+	{
+	  if (vendor[0] && model[0])
+	    printf("\"%s %s\" ", vendor, model);
+	  else if (vendor[0])
+	    printf("\"%s\" ", vendor);
+	  else if (model[0])
+	    printf("\"%s\" ", model);
+	}
 
       if (dev->subClass.name[0])
 	printf("%s ", dev->subClass.name);
 
       printf("%s\n", dev->class.name);
+
+      // Print any additional attributes
+      if (dev->attrs.numVariables > 2)
+	{
+	  for (count1 = 0; count1 < dev->attrs.numVariables; count1 ++)
+	    {
+	      for (count2 = 0; count2 <= level; count2 ++)
+		printf("   ");
+	      printf("%s=%s\n", dev->attrs.variables[count1],
+		     dev->attrs.values[count1]);
+	    }
+	}
 
       if (deviceTreeGetChild(dev, &child) >= 0)
 	printTree(&child, (level + 1));
@@ -73,6 +104,12 @@ static void printTree(device *dev, int level)
       if (deviceTreeGetNext(dev) < 0)
 	break;
     }
+
+  if (graphics)
+    // Scroll back to the very top
+    textScroll(-(SCROLLBACK_LINES / rows));
+
+  return;
 }
 
 
@@ -93,8 +130,7 @@ static void quit(int status)
 static void eventHandler(objectKey key, windowEvent *event)
 {
   // Check for the window being closed by a GUI event.
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
     quit(0);
 
   return;
@@ -103,7 +139,6 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 static void constructWindow(void)
 {
-  int rows = 25;
   objectKey textArea = NULL;
   componentParameters params;
 
@@ -118,7 +153,7 @@ static void constructWindow(void)
     {
       params.font = NULL;
       // The system font can comfortably show more rows
-      rows = 40;
+      rows = MORE_ROWS;
     }
 
   // Create a text area to show our stuff
@@ -128,25 +163,15 @@ static void constructWindow(void)
   params.padLeft = 5;
   params.padRight = 5;
   params.padTop = 5;
-  params.orientationX = orient_left;
+  params.padBottom = 5;
+  params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
-  textArea = windowNewTextArea(window, 60, rows, 200, &params);
+  textArea =
+    windowNewTextArea(window, COLUMNS, rows, SCROLLBACK_LINES, &params);
   windowSetTextOutput(textArea);
   textSetCursor(0);
   textInputSetEcho(0);
   
-  // Create a 'Stop' button
-  params.gridY = 1;
-  params.padBottom = 5;
-  params.orientationX = orient_center;
-  params.fixedWidth = 1;
-  params.font = NULL;
-  okButton = windowNewButton(window, "Ok", NULL, &params);
-  windowComponentFocus(okButton);
-  windowRegisterEventHandler(okButton, &eventHandler);
-
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
 

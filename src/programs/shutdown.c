@@ -188,8 +188,6 @@ static void constructWindow(void)
   params.padRight = 20;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create a reboot icon
   bzero(&iconImage, sizeof(image));
@@ -219,11 +217,11 @@ static void constructWindow(void)
       params.gridY = 1;
       params.gridWidth = 2;
       params.padTop = 0;
-      params.useDefaultForeground = 0;
+      params.flags |= WINDOW_COMPFLAG_CUSTOMFOREGROUND;
       params.foreground.red = 255;
       params.foreground.green = 255;
       params.foreground.blue = 255;
-      params.useDefaultBackground = 0;
+      params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
       params.background.red = 40;
       params.background.green = 93;
       params.background.blue = 171;

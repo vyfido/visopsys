@@ -208,8 +208,6 @@ static void constructWindow(void)
   params.padBottom = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   minusMonthButton = windowNewButton(window, "<", NULL, &params);
   windowRegisterEventHandler(minusMonthButton, &eventHandler);
@@ -236,7 +234,7 @@ static void constructWindow(void)
   params.gridX = 0;
   params.gridY = 1;
   params.gridWidth = 6;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   getUpdate();
   calList = windowNewList(window, windowlist_textonly, 7, 7, 0, calListParams,
 			  49, &params);

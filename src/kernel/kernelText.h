@@ -24,32 +24,7 @@
 #include "kernelStream.h"
 #include "kernelFont.h"
 #include "kernelGraphic.h"
-
-// Definitions
-#define TEXTSTREAMSIZE           32768
-#define DEFAULT_TAB              8
-#define DEFAULT_SCROLLBACKLINES  256
-
-// Colours for the text console
-// 0  = black
-// 1  = blue
-// 2  = green
-// 3  = cyan
-// 4  = red
-// 5  = magenta
-// 6  = brown
-// 7  = light grey
-// 8  = dark grey
-// 9  = light blue
-// 10 = light green
-// 11 = light cyan
-// 12 = light red
-// 13 = light magenta
-// 14 = yellow
-// 15 = white
-#define DEFAULTFOREGROUND        7
-#define DEFAULTBACKGROUND        1
-#define DEFAULTERRORFOREGROUND   6
+#include <sys/text.h>
 
 // A data structure to represent a text area on the screen which gets drawn
 // by the appropriate driver functions
@@ -75,9 +50,7 @@ typedef volatile struct {
   kernelAsciiFont *font;
   void *windowComponent;
   kernelGraphicBuffer *graphicBuffer;
-  unsigned char *savedScreen;
-  unsigned savedCursorColumn;
-  unsigned savedCursorRow;
+  int noScroll;
 
 } kernelTextArea;
 
@@ -95,8 +68,8 @@ typedef struct {
   int (*delete) (kernelTextArea *);
   int (*screenDraw) (kernelTextArea *);
   int (*screenClear) (kernelTextArea *);
-  int (*screenSave) (kernelTextArea *);
-  int (*screenRestore) (kernelTextArea *);
+  int (*screenSave) (kernelTextArea *, textScreen *);
+  int (*screenRestore) (kernelTextArea *, textScreen *);
 
 } kernelTextOutputDriver;
 
@@ -161,6 +134,8 @@ void kernelTextStreamCursorLeft(kernelTextOutputStream *);
 void kernelTextCursorLeft(void);
 void kernelTextStreamCursorRight(kernelTextOutputStream *);
 void kernelTextCursorRight(void);
+int kernelTextStreamEnableScroll(kernelTextOutputStream *, int);
+int kernelTextEnableScroll(int);
 void kernelTextStreamScroll(kernelTextOutputStream *, int);
 void kernelTextScroll(int);
 int kernelTextStreamGetNumColumns(kernelTextOutputStream *);
@@ -179,8 +154,8 @@ void kernelTextStreamSetCursor(kernelTextOutputStream *, int);
 void kernelTextSetCursor(int);
 void kernelTextStreamScreenClear(kernelTextOutputStream *);
 void kernelTextScreenClear(void);
-int kernelTextScreenSave(void);
-int kernelTextScreenRestore(void);
+int kernelTextScreenSave(textScreen *);
+int kernelTextScreenRestore(textScreen *);
 
 int kernelTextInputStreamCount(kernelTextInputStream *);
 int kernelTextInputCount(void);

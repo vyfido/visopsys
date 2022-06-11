@@ -168,9 +168,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   params.padTop = 5;
   params.orientationX = orient_right;
   params.orientationY = orient_middle;
-  params.fixedWidth = 1;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
 
   if (waitImage.data == NULL)
     status = imageLoad(WAITIMAGE_NAME, 0, 0, (image *) &waitImage);
@@ -188,7 +186,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   params.gridX = 1;
   params.padRight = 5;
   params.orientationX = orient_center;
-  params.fixedWidth = 0;
+  params.flags = 0;
   progressBar = windowNewProgressBar(dialogWindow, &params);
   if (progressBar == NULL)
     {
@@ -210,7 +208,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   // Create the Cancel button
   params.gridY = 2;
   params.padBottom = 5;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
   if (cancelButton == NULL)
     {

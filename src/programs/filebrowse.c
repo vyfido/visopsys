@@ -59,7 +59,7 @@ static int privilege;
 static objectKey window = NULL;
 static objectKey menuQuit = NULL;
 static objectKey menuRefresh = NULL;
-static objectKey fileList = NULL;
+static windowFileList *fileList = NULL;
 static char *cwd = NULL;
 static unsigned cwdModifiedDate = 0;
 static unsigned cwdModifiedTime = 0;
@@ -160,8 +160,13 @@ static void eventHandler(objectKey key, windowEvent *event)
       ((key == menuQuit) && (event->type & EVENT_SELECTION)))
     stop = 1;
 
+  // Check for events to be passed to the file list widget
+  else if (key == fileList->key)
+    fileList->eventHandler(fileList, event);
+
+  // Check for manual refresh requests
   else if ((key == menuRefresh) && (event->type & EVENT_SELECTION))
-    windowUpdateFileList(fileList, cwd);
+    fileList->update(fileList, cwd);
 }
 
 
@@ -184,8 +189,6 @@ static int constructWindow(const char *directory)
   params.padRight = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create the top menu bar
   objectKey menuBar = windowNewMenuBar(window, &params);
@@ -202,6 +205,7 @@ static int constructWindow(const char *directory)
   params.gridY = 1;
   fileList = windowNewFileList(window, windowlist_icononly, 4, 5, directory,
 			       WINFILEBROWSE_ALL, doFileSelection, &params);
+  windowRegisterEventHandler(fileList->key, &eventHandler);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -286,7 +290,7 @@ int main(int argc, char *argv[])
 	  if ((cwdFile.modifiedDate != cwdModifiedDate) ||
 	      (cwdFile.modifiedTime != cwdModifiedTime))
 	    {
-	      if (windowUpdateFileList(fileList, cwd) < 0)
+	      if (fileList->update(fileList, cwd) < 0)
 		break;
 
 	      cwdModifiedDate = cwdFile.modifiedDate;
@@ -302,7 +306,7 @@ int main(int argc, char *argv[])
 
   // We're back.
   windowGuiStop();
-  windowDestroyFileList(fileList);
+  fileList->destroy(fileList);
   windowDestroy(window);
   free(cwd);
 

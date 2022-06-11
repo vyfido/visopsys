@@ -50,6 +50,7 @@ static kernelDeviceClass allClasses[] = {
 
 // An array of device subclasses, with names
 static kernelDeviceClass allSubClasses[] = {
+  { DEVICESUBCLASS_SYSTEM_BIOS,         "BIOS"        },
   { DEVICESUBCLASS_CPU_X86,             "x86"         },
   { DEVICESUBCLASS_BUS_PCI,             "PCI"         },
   { DEVICESUBCLASS_BUS_USB,             "USB"         },
@@ -75,6 +76,8 @@ static kernelDriver displayDrivers[] = {
 
 // Our static list of built-in drivers
 static kernelDriver deviceDrivers[] = {
+  { DEVICECLASS_SYSTEM, DEVICESUBCLASS_SYSTEM_BIOS,
+    kernelBiosDriverRegister, NULL, NULL, NULL                         },
   { DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86,
     kernelCpuDriverRegister, NULL, NULL, NULL                          },
   { DEVICECLASS_MEMORY, 0,
@@ -151,7 +154,8 @@ static int findDeviceType(kernelDevice *dev, kernelDeviceClass *class,
       if (numDevices >= maxDevices)
 	return (numDevices);
 
-      if ((dev->device.class == class) && (dev->device.subClass == subClass))
+      if ((dev->device.class == class) &&
+	  (!subClass || (dev->device.subClass == subClass)))
 	devPointers[numDevices++] = dev;
 
       if (dev->device.firstChild)
@@ -168,7 +172,9 @@ static int findDeviceType(kernelDevice *dev, kernelDeviceClass *class,
 static void device2user(kernelDevice *kernel, device *user)
 {
   // Convert a kernelDevice structure to the user version
-  
+
+  int count;
+
   kernelMemClear(user, sizeof(device));
 
   if (kernel->device.class)
@@ -184,8 +190,11 @@ static void device2user(kernelDevice *kernel, device *user)
 	      DEV_CLASSNAME_MAX);
     }
 
-  if (kernel->device.model)
-    strncpy(user->model, kernel->device.model, DEV_MODELNAME_MAX);
+  kernelVariableListCreate(&(user->attrs));
+  for (count = 0; count < kernel->device.attrs.numVariables; count ++)
+    kernelVariableListSet(&(user->attrs),
+			  kernel->device.attrs.variables[count],
+			  kernel->device.attrs.values[count]);
 
   user->parent = kernel->device.parent;
   user->firstChild = kernel->device.firstChild;
@@ -375,8 +384,16 @@ int kernelDeviceFindType(kernelDeviceClass *class, kernelDeviceClass *subClass,
 {
   // Calls findDevice to return the first device it finds, with the
   // requested device class and subclass
-  return (findDeviceType(deviceTree, class, subClass, devPointers, maxDevices,
-			 0));
+
+  int status = 0;
+
+  // Check params.  subClass can be NULL.
+  if ((class == NULL) || (devPointers == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  status =
+    findDeviceType(deviceTree, class, subClass, devPointers, maxDevices, 0);
+  return (status);
 }
 
 
@@ -416,6 +433,8 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
   int status = 0;
   kernelDevice *listPointer = NULL;
+  char vendor[64];
+  char model[64];
   char driverString[128];
 
   // Check params
@@ -432,8 +451,23 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
   new->device.parent = parent;
 
   driverString[0] = '\0';
-  if (new->device.model)
-    sprintf(driverString, "\"%s\" ", new->device.model);
+
+  vendor[0] = '\0';
+  model[0] = '\0';
+  kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_VENDOR, vendor,
+			64);
+  kernelVariableListGet(&(new->device.attrs), DEVICEATTRNAME_MODEL, model,
+			64);
+  if (vendor[0] || model[0])
+    {
+      if (vendor[0] && model[0])
+	sprintf(driverString, "\"%s %s\"", vendor, model);
+      else if (vendor[0])
+	sprintf(driverString, "\"%s\"", vendor);
+      else if (model[0])
+	sprintf(driverString, "\"%s\"", model);
+    }
+
   if (new->device.subClass)
     sprintf((driverString + strlen(driverString)), "%s ",
 	    new->device.subClass->name);

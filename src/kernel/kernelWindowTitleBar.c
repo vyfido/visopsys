@@ -173,19 +173,19 @@ static int draw(void *componentData)
   // the focus
   if (window->flags & WINFLAG_HASFOCUS)
     {
-      if (component->parameters.useDefaultBackground)
-	{
-	  // Use default color blue
-	  backgroundColor.red = 0;
-	  backgroundColor.green = 0;
-	  backgroundColor.blue = 200;
-	}
-      else
+      if (component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
 	{
 	  // Use user-supplied colors
 	  backgroundColor.red = component->parameters.background.red;
 	  backgroundColor.green = component->parameters.background.green;
 	  backgroundColor.blue = component->parameters.background.blue;
+	}
+      else
+	{
+	  // Use default color blue
+	  backgroundColor.red = 0;
+	  backgroundColor.green = 0;
+	  backgroundColor.blue = 200;
 	}
     }
   else
@@ -213,19 +213,19 @@ static int draw(void *componentData)
 
   // Put the title on the title bar
   
-  if (component->parameters.useDefaultForeground)
-    {
-      // Use default color white
-      foregroundColor.red = 255;
-      foregroundColor.green = 255;
-      foregroundColor.blue = 255;
-    }
-  else
+  if (component->parameters.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
     {
       // Use user-supplied colors
       foregroundColor.red = component->parameters.foreground.red;
       foregroundColor.green = component->parameters.foreground.green;
       foregroundColor.blue = component->parameters.foreground.blue;
+    }
+  else
+    {
+      // Use default color white
+      foregroundColor.red = 255;
+      foregroundColor.green = 255;
+      foregroundColor.blue = 255;
     }
 
   strncpy(title, (char *) window->title, 128);
@@ -535,16 +535,16 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   if (titleBarFont == NULL)
     {
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME,
-			      &titleBarFont, 0);
+      status =
+	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &titleBarFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&titleBarFont);
     }
 
   if (!imagesCreated)
-    createImages((DEFAULT_TITLEBAR_HEIGHT - 4), (DEFAULT_TITLEBAR_HEIGHT - 4));
+    createImages((WINDOW_TITLEBAR_HEIGHT - 4), (WINDOW_TITLEBAR_HEIGHT - 4));
 
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
@@ -554,7 +554,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   // Now populate the main component
   component->type = titleBarComponentType;
   component->width = width;
-  component->height = DEFAULT_TITLEBAR_HEIGHT;
+  component->height = WINDOW_TITLEBAR_HEIGHT;
   component->minWidth = component->width;
   component->minHeight = component->height;
 
@@ -577,8 +577,6 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
   // Standard parameters for the buttons
   kernelMemClear((void *) &buttonParams, sizeof(componentParameters));
-  buttonParams.useDefaultForeground = 1;
-  buttonParams.useDefaultBackground = 1;
 
   titleBar->closeButton =
     kernelWindowNewButton(parent, NULL, ((closeImage.data == NULL)?
@@ -586,8 +584,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
   if (titleBar->closeButton)
     {
-      titleBar->closeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 4);
-      titleBar->closeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 4);
+      titleBar->closeButton->width = (WINDOW_TITLEBAR_HEIGHT - 4);
+      titleBar->closeButton->height = (WINDOW_TITLEBAR_HEIGHT - 4);
       titleBar->closeButton->minWidth = titleBar->closeButton->width;
       titleBar->closeButton->minHeight = titleBar->closeButton->height;
 
@@ -606,8 +604,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
   if (titleBar->minimizeButton)
     {
-      titleBar->minimizeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 4);
-      titleBar->minimizeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 4);
+      titleBar->minimizeButton->width = (WINDOW_TITLEBAR_HEIGHT - 4);
+      titleBar->minimizeButton->height = (WINDOW_TITLEBAR_HEIGHT - 4);
       titleBar->minimizeButton->minWidth = titleBar->minimizeButton->width;
       titleBar->minimizeButton->minHeight = titleBar->minimizeButton->height;
 

@@ -33,7 +33,7 @@
 #include <string.h>
 
 
-static int borderShadingIncrement = DEFAULT_SHADING_INCREMENT;
+static int borderShadingIncrement = WINDOW_SHADING_INCREMENT;
 static int newWindowX = 0;
 static int newWindowY = 0;
 static int newWindowWidth = 0;
@@ -59,6 +59,9 @@ static void resizeWindow(void *componentData, windowEvent *event)
 	  
       // Redraw the mouse
       kernelMouseDraw();
+
+      // Transfer this event into the window's event stream
+      kernelWindowEventStreamWrite(&(window->events), event);
     }
 
   return;
@@ -80,7 +83,7 @@ static int draw(void *componentData)
       component->xCoord = 0;
       component->yCoord = 0;
       component->width = window->buffer.width;
-      component->height = DEFAULT_BORDER_THICKNESS;
+      component->height = WINDOW_BORDER_THICKNESS;
       component->minWidth = component->width;
       component->minHeight = component->height;
     }
@@ -88,9 +91,9 @@ static int draw(void *componentData)
     {
       component->xCoord = 0;
       component->yCoord = 
-	(window->buffer.height - DEFAULT_BORDER_THICKNESS + 1);
+	(window->buffer.height - WINDOW_BORDER_THICKNESS + 1);
       component->width = window->buffer.width;
-      component->height = DEFAULT_BORDER_THICKNESS;
+      component->height = WINDOW_BORDER_THICKNESS;
       component->minWidth = component->width;
       component->minHeight = component->height;
     }
@@ -98,7 +101,7 @@ static int draw(void *componentData)
     {
       component->xCoord = 0;
       component->yCoord = 0;
-      component->width = DEFAULT_BORDER_THICKNESS;
+      component->width = WINDOW_BORDER_THICKNESS;
       component->height = window->buffer.height;
       component->minWidth = component->width;
       component->minHeight = component->height;
@@ -106,9 +109,9 @@ static int draw(void *componentData)
   else if (border->type == border_right)
     {
       component->xCoord =
-	(window->buffer.width - DEFAULT_BORDER_THICKNESS + 1);
+	(window->buffer.width - WINDOW_BORDER_THICKNESS + 1);
       component->yCoord = 0;
-      component->width = DEFAULT_BORDER_THICKNESS;
+      component->width = WINDOW_BORDER_THICKNESS;
       component->height = window->buffer.height;
       component->minWidth = component->width;
       component->minHeight = component->height;
@@ -120,7 +123,7 @@ static int draw(void *componentData)
 
   kernelGraphicDrawGradientBorder(buffer, 0, 0, window->buffer.width,
 				  window->buffer.height,
-				  DEFAULT_BORDER_THICKNESS,
+				  WINDOW_BORDER_THICKNESS,
 				  (color *) &(window->background),
 				  borderShadingIncrement, draw_normal);
   return (0);
@@ -187,18 +190,16 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	    }
 
 	  // Don't resize below reasonable minimums
-	  if (tmpWindowWidth < (DEFAULT_TITLEBAR_HEIGHT * 4))
-	    newWindowWidth = (DEFAULT_TITLEBAR_HEIGHT * 4);
+	  if (tmpWindowWidth < WINDOW_MIN_WIDTH)
+	    newWindowWidth = WINDOW_MIN_WIDTH;
 	  else
 	    {
 	      newWindowX = tmpWindowX;
 	      newWindowWidth = tmpWindowWidth;
 	    }
 
-	  if (tmpWindowHeight <
-	      (DEFAULT_TITLEBAR_HEIGHT + (DEFAULT_BORDER_THICKNESS * 2)))
-	    newWindowHeight =
-	      (DEFAULT_TITLEBAR_HEIGHT + (DEFAULT_BORDER_THICKNESS * 2));
+	  if (tmpWindowHeight < WINDOW_MIN_HEIGHT)
+	    newWindowHeight = WINDOW_MIN_HEIGHT;
 	  else
 	    {
 	      newWindowY = tmpWindowY;
@@ -220,6 +221,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 				newWindowWidth, newWindowHeight, 1, 0);
 
 	  // Write a resize event to the component event stream
+	  bzero(&resizeEvent, sizeof(windowEvent));
 	  resizeEvent.type = EVENT_WINDOW_RESIZE;
 	  kernelWindowEventStreamWrite(&(component->events), &resizeEvent);
 

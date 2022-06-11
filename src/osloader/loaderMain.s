@@ -20,6 +20,7 @@
 ;;
 
 	EXTERN loaderSetTextDisplay
+	EXTERN loaderCalcVolInfo
 	EXTERN loaderFindFile
 	EXTERN loaderDetectHardware
 	EXTERN loaderLoadKernel
@@ -33,7 +34,8 @@
 	EXTERN HDDINFO
 
 	GLOBAL loaderMain
-	GLOBAL loaderBigRealMode
+	GLOBAL loaderMemCopy
+	GLOBAL loaderMemSet
 	GLOBAL KERNELSIZE
 	GLOBAL BYTESPERSECT
 	GLOBAL ROOTDIRENTS
@@ -65,16 +67,16 @@ loaderMain:
 	
 	;; Make sure all of the data segment registers point to the same
 	;; segment as the code segment
-	mov AX, (LDRCODESEGMENTLOCATION / 16)
-	mov DS, AX
-	mov ES, AX
-	mov FS, AX
-	mov GS, AX
+	mov EAX, (LDRCODESEGMENTLOCATION / 16)
+	mov DS, EAX
+	mov ES, EAX
+	mov FS, EAX
+	mov GS, EAX
 
 	;; Now ensure the stack segment and stack pointer are set to 
 	;; something more appropriate for the loader
-	mov AX, (LDRSTCKSEGMENTLOCATION / 16)
-	mov SS, AX
+	mov EAX, (LDRSTCKSEGMENTLOCATION / 16)
+	mov SS, EAX
 	mov SP, LDRSTCKBASE
 
 	sti
@@ -168,6 +170,10 @@ loaderMain:
 	;; Gather information about the boot device
 	call bootDevice
 
+	;; Calculate values that will help us deal with the filesystem
+	;; volume correctly
+	call loaderCalcVolInfo
+	
 	;; Before we print any other info, determine whether the user wants
 	;; to see any hardware info messages.  If the BOOTINFO file exists,
 	;; then we print the messages
@@ -253,10 +259,10 @@ loaderMain:
 
 	;; First the data registers (all point to the whole memory as data)
 	mov EAX, PRIV_DATASELECTOR
-	mov DS, AX
-	mov ES, AX
-	mov FS, AX
-	mov GS, AX
+	mov DS, EAX
+	mov ES, EAX
+	mov FS, EAX
+	mov GS, EAX
 
 	;; Now the stack registers
 	mov EAX, PRIV_STCKSELECTOR
@@ -816,10 +822,62 @@ gdtSetup:
 	ret
 
 
-loaderBigRealMode:
-	;; Sets up GS with a global, 'big real mode', 32-bit selector
-
+loaderMemCopy:
+	;; Tries to use real mode interrupt 15h:87h to move data in extended
+	;; memory.  If that doesn't work it tries a 'big real mode' method.
+	;; Proto:
+	;;   void loaderMemCopy(dword *src, dword *dest, dword size);
+	
 	pusha
+
+	;; Save the stack pointer
+	mov BP, SP
+
+	push DS
+	push ES
+
+;;	mov EAX, CS
+;;	mov DS, EAX
+;;	mov ES, EAX
+;;	
+;;	;; Set up the temporary GDT
+;;	
+;;	;; Source descriptor
+;;	mov EBX, dword [SS:(BP + 18)]		; Source address
+;;	mov word [TMPGDT.srclow], BX		; Source address low word
+;;	shr EBX, 16
+;;	mov byte [TMPGDT.srcmid], BL		; Source address 3rd byte
+;;	mov byte [TMPGDT.srchi], BH		; Source address 4th byte
+;;
+;;	;; Destination descriptor
+;;	mov EBX, dword [SS:(BP + 22)]		; Dest address
+;;	mov word [TMPGDT.destlow], BX		; Dest address low word
+;;	shr EBX, 16
+;;	mov byte [TMPGDT.destmid], BL		; Dest address 3rd byte
+;;	mov byte [TMPGDT.desthi], BH		; Dest address 4th byte
+;;
+;;	mov AX, 8700h
+;;	mov ECX, dword [SS:(BP + 26)]	; Size in bytes
+;;	shr ECX, 1			; Size is in words
+;;	mov SI, TMPGDT
+;;	int 15h
+;;	
+;;	jc .fail
+;;	cmp AH, 0
+;;	jnz .fail
+;;	
+;;	pop ES
+;;	pop DS
+;;	jmp .out
+;;	
+
+	.fail:
+	;; That method didn't work.  Do it manually.
+
+	mov ESI, dword [SS:(BP + 18)]	; Source address
+	mov EDI, dword [SS:(BP + 22)]	; Dest address
+	mov ECX, dword [SS:(BP + 26)]	; Size in bytes
+	;; shr ECX, 2			; Divide by 4
 	
 	;; Disable interrupts
 	cli
@@ -831,10 +889,61 @@ loaderBigRealMode:
 
 	BITS 32
 	
-	;; Load GS with the global data segment selector
-	push dword PRIV_DATASELECTOR
-	pop GS
+	;; Load DS and ES with the global data segment selector
+	mov EAX, dword PRIV_DATASELECTOR
+	mov DS, EAX
+	mov ES, EAX
+	
+	;; Return to real mode
+	mov EAX, CR0
+	and AL, 0FEh
+	mov CR0, EAX
 
+	BITS 16
+	
+	cld				; Clear direction flag
+	a32 rep movsb			; Do the copy
+	
+	pop ES
+	pop DS
+	
+	;; Reenable interrupts
+	sti
+
+	.out:
+	popa
+	ret
+	
+
+loaderMemSet:
+	;; Tries to use real mode interrupt 15h:87h to move data in extended
+	;; memory.  If that doesn't work it tries a 'big real mode' method.
+	;; Proto:
+	;;   void loaderMemSet(byte value, dword *dest, dword size);
+	
+	pusha
+
+	;; Save the stack pointer
+	mov BP, SP
+
+	push DS
+	push ES
+
+	;; Disable interrupts
+	cli
+
+	;; Switch to protected mode temporarily
+	mov EAX, CR0
+	or AL, 01h
+	mov CR0, EAX
+
+	BITS 32
+	
+	;; Load DS and ES with the global data segment selector
+	mov EAX, dword PRIV_DATASELECTOR
+	mov DS, EAX
+	mov ES, EAX
+	
 	;; Return to real mode
 	mov EAX, CR0
 	and AL, 0FEh
@@ -842,13 +951,24 @@ loaderBigRealMode:
 
 	BITS 16
 
+	mov EAX, dword [SS:(BP + 18)]	; Value
+	mov EDI, dword [SS:(BP + 20)]	; Dest address
+	mov ECX, dword [SS:(BP + 24)]	; Size in bytes
+	
+	cld				; Clear direction flag
+	a32 rep stosb			; Do the copy
+	
+	pop ES
+	pop DS
+	
 	;; Reenable interrupts
 	sti
 
+	.out:
 	popa
 	ret
 	
-	
+
 pagingSetup:
 	;; This will setup a simple paging environment for the kernel and
 	;; enable it.  This involves making a master page directory plus
@@ -872,11 +992,11 @@ pagingSetup:
 	;; the system's memory.  This is so that the loader can operate
 	;; normally after paging has been enabled.  This is 1024 entries, 
 	;; each one representing 4Kb of real memory.  We will start the table
-	;; at the address (PAGINGDATA + 1000h)
+	;; at the address (LDRPAGINGDATA + 1000h)
 	
 	mov EBX, 0		; Location we're mapping
 	mov ECX, 1024		; 1024 entries
-	mov EDI, (PAGINGDATA + 1000h)
+	mov EDI, (LDRPAGINGDATA + 1000h)
 	
 	.entryLoop1:
 	;; Make one page table entry.
@@ -895,7 +1015,7 @@ pagingSetup:
 
 	mov EBX, KERNELCODEDATALOCATION		; Location we're mapping
 	mov ECX, 1024				; 1024 entries
-	mov EDI, (PAGINGDATA + 2000h)		; location in PAGINGDATA
+	mov EDI, (LDRPAGINGDATA + 2000h)	; location in LDRPAGINGDATA
 	
 	.entryLoop2:
 	;; Make one page table entry.
@@ -916,7 +1036,7 @@ pagingSetup:
 	;; to start
 	xor EAX, EAX
 	mov ECX, 1024
-	mov EDI, PAGINGDATA
+	mov EDI, LDRPAGINGDATA
 	rep stosd
 
 	;; The first entry we need to create in this table represents
@@ -924,19 +1044,19 @@ pagingSetup:
 	;; 4 megs of address space.  This will be the first entry in our
 	;; new table.
 	;; The address of the first table
-	mov EAX, (PAGINGDATA + 1000h)
+	mov EAX, (LDRPAGINGDATA + 1000h)
 	and AX, 0F000h			; Clear bits 0-11, just in case
 	;; Set the entry's page present bit, the writable bit, and the
 	;; write-through bit.
 	or AL, 00001011b
 	;; Put it in the first entry
-	mov EDI, PAGINGDATA
+	mov EDI, LDRPAGINGDATA
 	stosd
 	
 	;; We make the second entry based on the virtual address of the
 	;; kernel.
 	;; The address of the second table
-	mov EAX, (PAGINGDATA + 2000h)
+	mov EAX, (LDRPAGINGDATA + 2000h)
 	and AX, 0F000h			; Clear bits 0-11, just in case
 	;; Set the entry's page present bit, the writable bit, and the
 	;; write-through bit.
@@ -947,14 +1067,14 @@ pagingSetup:
 	;; table are multiples of 4 bytes
 	shr EDI, 20
 	;; Add the offset of the table
-	add EDI, PAGINGDATA
+	add EDI, LDRPAGINGDATA
 	stosd
 	
 	;; Move the base address of the master page directory into CR3
 	xor EAX, EAX		; CR3 supposed to be zeroed
 	or AL, 00001000b	; Set the page write-through bit
 	;; The address of the directory
-	mov EBX, PAGINGDATA
+	mov EBX, LDRPAGINGDATA
 	and EBX, 0FFFFF800h	; Clear bits 0-10, just in case
 	or EAX, EBX		; Combine them into the new CR3
 	mov CR3, EAX
@@ -1064,13 +1184,33 @@ ldrcode_desc	dw LDRCODESEGMENTSIZE
 		db 0			;; modified in the code
 GDTLENGTH	equ $-dummy_desc
 
+	ALIGN 4
+
+;;TMPGDT		times 8 db 0	; empty (used by BIOS)
+;;			times 8 db 0	; empty (used by BIOS)
+;;			dw 0FFFFh	; source segment length in bytes
+;;	TMPGDT.srclow	dw 0		; low word of linear source address
+;;	TMPGDT.srcmid	db 0		; middle byte of linear source address
+;;			db 93h		; source segment access rights
+;;			db 0		; source extended access rights
+;;	
+;;	TMPGDT.srchi	db 0		; high byte of source address
+;;			dw 0FFFFh	; dest segment length in bytes
+;;	TMPGDT.destlow	dw 0		; low word of linear dest address
+;;	TMPGDT.destmid	db 0		; middle byte of linear dest address
+;;			db 93h		; dest segment access rights
+;;			db 0		; dest extended access rights
+;;	TMPGDT.desthi	db 0		; high byte of dest address
+;;			times 8 db 0	; empty (used by BIOS)
+;;			times 8 db 0	; empty (used by BIOS)
+	
 ;;
 ;; The good/informational messages
 ;;
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.62' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.63' , 0
 LOADMSG2	db 'Copyright (C) 1998-2006 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0

@@ -29,6 +29,16 @@
 #include "kernelError.h"
 #include <string.h>
 
+//#define DEBUG
+
+#ifdef DEBUG
+  #include "kernelText.h"
+
+  #define debug(message, arg...) kernelTextPrintLine(message, ##arg)
+#else
+  #define debug(message, arg...) do { } while (0)
+#endif
+
 static usbSubClass subclass_hid[] = {
   { 0x01, "keyboard", DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_USB },
   { 0x02, "mouse", DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_USB },
@@ -75,6 +85,7 @@ static int numUsbControllers = 0;
 static int usbProcId = 0;
 
 
+/*
 static void usbInterrupt(void)
 {
   // This is the USB interrupt handler.
@@ -88,13 +99,14 @@ static void usbInterrupt(void)
   // Which interrupt number is active?
   interruptNum = kernelPicGetActive();
 
-  //kernelTextPrintLine("USB: interrupt %d", interruptNum);
+  //debug("USB: interrupt %d", interruptNum);
 
   kernelPicEndOfInterrupt(interruptNum);
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit(address);
 }
+*/
 
 
 static void getClass(int classCode, usbClass **class)
@@ -409,9 +421,12 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
       if ((dev = kernelUsbUhciDetect(pciDevice, &pciTargets[deviceCount],
 				     driver)))
 	; // empty
+
+      // See if it's an EHCI controller
       else if ((dev = kernelUsbEhciDetect(pciDevice, &pciTargets[deviceCount],
 					  driver)))
 	; // empty
+
       else
 	// Not a supported USB controller
 	continue;
@@ -421,6 +436,7 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
       usb->controller = numUsbControllers;
       addFuncPointers(usb);
 
+      /*
       // Register our interrupt handler
       status = kernelInterruptHook(usb->interrupt, &usbInterrupt);
       if (status < 0)
@@ -431,6 +447,7 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
 
       // Turn on the interrupt
       kernelPicMask(usb->interrupt, 1);
+      */
 
       // Call the thread function once now, so that it can do its device
       // enumeration

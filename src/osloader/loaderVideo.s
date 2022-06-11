@@ -19,13 +19,13 @@
 ;;  loaderVideo.s
 ;;
 
-	EXTERN loaderBigRealMode
 	EXTERN loaderPrint
 	EXTERN loaderPrintNumber
 	EXTERN loaderPrintNewline
 	EXTERN loaderFindFile
 	EXTERN loaderLoadFile
 	EXTERN PRINTINFO
+	EXTERN FILEDATABUFFER
 		
 	GLOBAL loaderSetTextDisplay
 	GLOBAL loaderDetectVideo
@@ -656,7 +656,7 @@ loaderDetectVideo:
 
 	;; Try to load our 'graphics mode' file
 	push dword 0		; No spinner
-	push dword KERNELCODEDATALOCATION
+	push dword [FILEDATABUFFER]
 	push word GRAPHICSMODE
 	call loaderLoadFile
 	add SP, 10
@@ -665,11 +665,15 @@ loaderDetectVideo:
 	jl near .selectMode
 
 	;; Get values
-	call loaderBigRealMode
-	mov ESI, KERNELCODEDATALOCATION
-	mov EDX, dword [GS:(ESI + 8)] ; BPP
-	mov ECX, dword [GS:(ESI + 4)] ; Y resolution
-	mov EBX, dword [GS:ESI]	; X resolution
+	push ES
+	mov EAX, dword [FILEDATABUFFER]
+	shr EAX, 4
+	mov ES, EAX
+	xor ESI, ESI
+	mov EDX, dword [ES:(ESI + 8)]	; BPP
+	mov ECX, dword [ES:(ESI + 4)]	; Y resolution
+	mov EBX, dword [ES:ESI]		; X resolution
+	pop ES
 
 	;; Check whether the mode is supported
 	push DX	; BPP

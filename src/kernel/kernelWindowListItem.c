@@ -100,7 +100,7 @@ static int draw(void *componentData)
 	item->icon->draw((void *) item->icon);
     }
 
-  if (component->parameters.hasBorder)
+  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder((void *) component, 1);
 
   return (status);
@@ -251,7 +251,7 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
 
   // If default colors were requested, override the standard background color
   // with the one we prefer (white)
-  if (component->parameters.useDefaultBackground)
+  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
       component->parameters.background.blue = 0xFF;
       component->parameters.background.green = 0xFF;
@@ -261,8 +261,9 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
   if (labelFont == NULL)
     {
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
+      status =
+	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);

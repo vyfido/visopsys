@@ -42,15 +42,17 @@
 #include <sys/disk.h>
 #include <sys/file.h>
 #include <sys/image.h>
-#include <sys/process.h>
 #include <sys/loader.h>
 #include <sys/lock.h>
 #include <sys/memory.h>
-#include <sys/variable.h>
-#include <sys/stream.h>
-#include <sys/window.h>
 #include <sys/network.h>
+#include <sys/process.h>
 #include <sys/progress.h>
+#include <sys/stream.h>
+#include <sys/text.h>
+#include <sys/utsname.h>
+#include <sys/variable.h>
+#include <sys/window.h>
 
 // Included in the Visopsys standard library to prevent API calls from
 // within kernel code.
@@ -79,37 +81,38 @@ extern int visopsys_in_kernel;
 #define _fnum_textCursorDown                         1019
 #define _fnum_ternelTextCursorLeft                   1020
 #define _fnum_textCursorRight                        1021
-#define _fnum_textScroll                             1022
-#define _fnum_textGetNumColumns                      1023
-#define _fnum_textGetNumRows                         1024
-#define _fnum_textGetColumn                          1025
-#define _fnum_textSetColumn                          1026
-#define _fnum_textGetRow                             1027
-#define _fnum_textSetRow                             1028
-#define _fnum_textSetCursor                          1029
-#define _fnum_textScreenClear                        1030
-#define _fnum_textScreenSave                         1031
-#define _fnum_textScreenRestore                      1032
-#define _fnum_textInputStreamCount                   1033
-#define _fnum_textInputCount                         1034
-#define _fnum_textInputStreamGetc                    1035
-#define _fnum_textInputGetc                          1036
-#define _fnum_textInputStreamReadN                   1037
-#define _fnum_textInputReadN                         1038
-#define _fnum_textInputStreamReadAll                 1039
-#define _fnum_textInputReadAll                       1040
-#define _fnum_textInputStreamAppend                  1041
-#define _fnum_textInputAppend                        1042
-#define _fnum_textInputStreamAppendN                 1043
-#define _fnum_textInputAppendN                       1044
-#define _fnum_textInputStreamRemove                  1045
-#define _fnum_textInputRemove                        1046
-#define _fnum_textInputStreamRemoveN                 1047
-#define _fnum_textInputRemoveN                       1048
-#define _fnum_textInputStreamRemoveAll               1049
-#define _fnum_textInputRemoveAll                     1050
-#define _fnum_textInputStreamSetEcho                 1051
-#define _fnum_textInputSetEcho                       1052
+#define _fnum_textEnableScroll                       1022
+#define _fnum_textScroll                             1023
+#define _fnum_textGetNumColumns                      1024
+#define _fnum_textGetNumRows                         1025
+#define _fnum_textGetColumn                          1026
+#define _fnum_textSetColumn                          1027
+#define _fnum_textGetRow                             1028
+#define _fnum_textSetRow                             1029
+#define _fnum_textSetCursor                          1030
+#define _fnum_textScreenClear                        1031
+#define _fnum_textScreenSave                         1032
+#define _fnum_textScreenRestore                      1033
+#define _fnum_textInputStreamCount                   1034
+#define _fnum_textInputCount                         1035
+#define _fnum_textInputStreamGetc                    1036
+#define _fnum_textInputGetc                          1037
+#define _fnum_textInputStreamReadN                   1038
+#define _fnum_textInputReadN                         1039
+#define _fnum_textInputStreamReadAll                 1040
+#define _fnum_textInputReadAll                       1041
+#define _fnum_textInputStreamAppend                  1042
+#define _fnum_textInputAppend                        1043
+#define _fnum_textInputStreamAppendN                 1044
+#define _fnum_textInputAppendN                       1045
+#define _fnum_textInputStreamRemove                  1046
+#define _fnum_textInputRemove                        1047
+#define _fnum_textInputStreamRemoveN                 1048
+#define _fnum_textInputRemoveN                       1049
+#define _fnum_textInputStreamRemoveAll               1050
+#define _fnum_textInputRemoveAll                     1051
+#define _fnum_textInputStreamSetEcho                 1052
+#define _fnum_textInputSetEcho                       1053
 
 // Disk functions.  All are in the 2000-2999 range.
 #define _fnum_diskReadPartitions                     2000
@@ -364,35 +367,42 @@ extern int visopsys_in_kernel;
 #define _fnum_networkRead                            14008
 #define _fnum_networkWrite                           14009
 #define _fnum_networkPing                            14010
+#define _fnum_networkGetHostName                     14011
+#define _fnum_networkSetHostName                     14012
+#define _fnum_networkGetDomainName                   14013
+#define _fnum_networkSetDomainName                   14014
 
 // Miscellaneous functions.  All are in the 99000-99999 range
 #define _fnum_fontGetDefault                         99000
 #define _fnum_fontSetDefault                         99001
 #define _fnum_fontLoad                               99002
 #define _fnum_fontGetPrintedWidth                    99003
-#define _fnum_imageLoad                              99004
-#define _fnum_imageSave                              99005
-#define _fnum_shutdown                               99006
-#define _fnum_getVersion                             99007
-#define _fnum_encryptMD5                             99008
-#define _fnum_lockGet                                99009
-#define _fnum_lockRelease                            99010
-#define _fnum_lockVerify                             99011
-#define _fnum_variableListCreate                     99012
-#define _fnum_variableListDestroy                    99013
-#define _fnum_variableListGet                        99014
-#define _fnum_variableListSet                        99015
-#define _fnum_variableListUnset                      99016
-#define _fnum_configurationReader                    99017
-#define _fnum_configurationWriter                    99018
-#define _fnum_keyboardGetMaps                        99019
-#define _fnum_keyboardSetMap                         99020
-#define _fnum_deviceTreeGetCount                     99021
-#define _fnum_deviceTreeGetRoot                      99022
-#define _fnum_deviceTreeGetChild                     99023
-#define _fnum_deviceTreeGetNext                      99024
-#define _fnum_mouseLoadPointer                       99025
-#define _fnum_mouseSwitchPointer                     99026
+#define _fnum_fontGetWidth                           99004
+#define _fnum_fontGetHeight                          99005
+#define _fnum_imageLoad                              99006
+#define _fnum_imageSave                              99007
+#define _fnum_shutdown                               99008
+#define _fnum_getVersion                             99009
+#define _fnum_systemInfo                             99010
+#define _fnum_encryptMD5                             99011
+#define _fnum_lockGet                                99012
+#define _fnum_lockRelease                            99013
+#define _fnum_lockVerify                             99014
+#define _fnum_variableListCreate                     99015
+#define _fnum_variableListDestroy                    99016
+#define _fnum_variableListGet                        99017
+#define _fnum_variableListSet                        99018
+#define _fnum_variableListUnset                      99019
+#define _fnum_configurationReader                    99020
+#define _fnum_configurationWriter                    99021
+#define _fnum_keyboardGetMaps                        99022
+#define _fnum_keyboardSetMap                         99023
+#define _fnum_deviceTreeGetCount                     99024
+#define _fnum_deviceTreeGetRoot                      99025
+#define _fnum_deviceTreeGetChild                     99026
+#define _fnum_deviceTreeGetNext                      99027
+#define _fnum_mouseLoadPointer                       99028
+#define _fnum_mouseSwitchPointer                     99029
 
 // Utility macros for stack manipulation
 #define stackPush(value) \
@@ -746,10 +756,17 @@ _X_ static inline int textCursorRight(void)
   return (sysCall_0(_fnum_textCursorRight));
 }
 
+_X_ static inline int textEnableScroll(int enable)
+{
+  // Proto: int kernelTextEnableScroll(int);
+  // Desc : Enable or disable screen scrolling for the current text output stream
+  return (sysCall_1(_fnum_textEnableScroll, (void *) enable));
+}
+
 _X_ static inline void textScroll(int upDown)
 {
   // Proto: void kernelTextScroll(int upDown)
-  // Desc : Scroll the current text area up (-1) or down (+1)
+  // Desc : Scroll the current text area up 'upDown' screenfulls, if negative, or down 'upDown' screenfulls, if positive.
   sysCall_1(_fnum_textScroll, (void *) upDown);
 }
 
@@ -809,18 +826,18 @@ _X_ static inline int textScreenClear(void)
   return (sysCall_0(_fnum_textScreenClear));
 }
 
-_X_ static inline int textScreenSave(void)
+_X_ static inline int textScreenSave(textScreen *screen)
 {
-  // Proto: int kernelTextScreenSave(void);
-  // Desc : Save the current screen in an internal buffer.  Use with the textScreenRestore function.
-  return (sysCall_0(_fnum_textScreenSave));
+  // Proto: int kernelTextScreenSave(textScreen *);
+  // Desc : Save the current screen in the supplied structure.  Use with the textScreenRestore function.
+  return (sysCall_1(_fnum_textScreenSave, screen));
 }
 
-_X_ static inline int textScreenRestore(void)
+_X_ static inline int textScreenRestore(textScreen *screen)
 {
-  // Proto: int kernelTextScreenRestore(void);
-  // Desc : Restore the screen previously saved with the textScreenSave function
-  return (sysCall_0(_fnum_textScreenRestore));
+  // Proto: int kernelTextScreenRestore(textScreen *);
+  // Desc : Restore the screen previously saved in the structure with the textScreenSave function
+  return (sysCall_1(_fnum_textScreenRestore, screen));
 }
 
 _X_ static inline int textInputStreamCount(objectKey strm)
@@ -2726,6 +2743,36 @@ _X_ static inline int networkPing(objectKey connection, int seqNum, unsigned cha
 		    (void *) bufferSize));
 }
 
+_X_ static inline int networkGetHostName(char *buffer, int bufferSize)
+{
+  // Proto: int kernelNetworkGetHostName(char *, int);
+  // Desc: Returns up to 'bufferSize' bytes of the system's network hostname in 'buffer' 
+  return (sysCall_2(_fnum_networkGetHostName, buffer, (void *) bufferSize));
+}
+
+_X_ static inline int networkSetHostName(const char *buffer, int bufferSize)
+{
+  // Proto: int kernelNetworkSetHostName(const char *, int);
+  // Desc: Sets the system's network hostname using up to 'bufferSize' bytes from 'buffer'
+  return (sysCall_2(_fnum_networkSetHostName, (char *) buffer,
+		    (void *) bufferSize));
+}
+
+_X_ static inline int networkGetDomainName(char *buffer, int bufferSize)
+{
+  // Proto: int kernelNetworkGetDomainName(char *, int);
+  // Desc: Returns up to 'bufferSize' bytes of the system's network domain name in 'buffer' 
+  return (sysCall_2(_fnum_networkGetDomainName, buffer, (void *) bufferSize));
+}
+
+_X_ static inline int networkSetDomainName(const char *buffer, int bufferSize)
+{
+  // Proto: int kernelNetworkSetDomainName(const char *, int);
+  // Desc: Sets the system's network domain name using up to 'bufferSize' bytes from 'buffer'
+  return (sysCall_2(_fnum_networkSetDomainName, (char *) buffer,
+		    (void *) bufferSize));
+}
+
 
 //
 // Miscellaneous functions
@@ -2760,6 +2807,20 @@ _X_ static inline int fontGetPrintedWidth(objectKey font, const char *string)
   return (sysCall_2(_fnum_fontGetPrintedWidth, font, (void *) string));
 }
 
+_X_ static inline int fontGetWidth(objectKey font)
+{
+  // Proto: int kernelFontGetWidth(kernelAsciiFont *font)
+  // Desc : Returns the character width of the supplied font.  Only useful when the font is fixed-width.
+  return (sysCall_1(_fnum_fontGetWidth, font));
+}
+
+_X_ static inline int fontGetHeight(objectKey font)
+{
+  // Proto: int kernelFontGetHeight(kernelAsciiFont *font)
+  // Desc : Returns the character height of the supplied font.
+  return (sysCall_1(_fnum_fontGetHeight, font));
+}
+
 _X_ static inline int imageLoad(const char *filename, int width, int height, image *loadImage)
 {
   // Proto: int imageLoad(const char *, int, int, image *);
@@ -2783,11 +2844,18 @@ _X_ static inline int shutdown(int reboot, int nice)
   return (sysCall_2(_fnum_shutdown, (void *) reboot, (void *) nice));
 }
 
-_X_ static inline const char *getVersion(char *buff, int buffSize)
+_X_ static inline void getVersion(char *buff, int buffSize)
 {
-  // Proto: const char *kernelGetVersion(char *, int);
+  // Proto: void kernelGetVersion(char *, int);
   // Desc : Get the kernel's version string int the buffer 'buff', up to 'buffSize' bytes
-  return ((const char *) sysCall_2(_fnum_getVersion, buff, (void *) buffSize));
+  sysCall_2(_fnum_getVersion, buff, (void *) buffSize);
+}
+
+_X_ static inline int systemInfo(struct utsname *uname)
+{
+  // Proto: int kernelSystemInfo(void *);
+  // Desc : Gathers some info about the system and puts it into the utsname structure 'uname', just like the one returned by the system call 'uname' in Unix.
+  return (sysCall_1(_fnum_systemInfo, uname));
 }
 
 _X_ static inline int encryptMD5(const char *in, char *out)

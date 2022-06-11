@@ -1,0 +1,10 @@
+
+ -- edit --
+
+Simple, interactive text editor.
+
+Usage:
+  edit <file>
+
+(Only available in graphics mode)
+

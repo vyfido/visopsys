@@ -57,8 +57,6 @@ _X_ objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, c
   params.padBottom = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   // Create the dialog.  Arbitrary size and coordinates
   if (parentWindow)

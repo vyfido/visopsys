@@ -773,71 +773,82 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
       req->index = trans->control.index;
       req->length = trans->length;
 
-      // What request are we doing?  Determine the correct requestType and
-      // whether there will be a data phase, etc.
-      switch (trans->control.request)
+      if (req->requestType & (USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_VENDOR))
+	// The request is class- or vendor-specific
+	debugNoNl("USB: do class/vendor-specific control transfer");
+
+      else
 	{
-	case USB_GET_STATUS:
-	  debugNoNl("USB: do USB_GET_STATUS");
-	  req->requestType |= USB_DEVREQTYPE_DEV2HOST;
-	  trans->pid = USB_PID_IN;
-	  break;
-	case USB_CLEAR_FEATURE:
-	  debugNoNl("USB: do USB_CLEAR_FEATURE");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	case USB_SET_FEATURE:
-	  debugNoNl("USB: do USB_SET_FEATURE");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	case USB_SET_ADDRESS:
-	  debugNoNl("USB: do USB_SET_ADDRESS");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	case USB_GET_DESCRIPTOR:
-	  debugNoNl("USB: do USB_GET_DESCRIPTOR");
-	  req->requestType |= USB_DEVREQTYPE_DEV2HOST;
-	  trans->pid = USB_PID_IN;
-	  break;
-	case USB_SET_DESCRIPTOR:
-	  debugNoNl("USB: do USB_SET_DESCRIPTOR");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	case USB_GET_CONFIGURATION:
-	  debugNoNl("USB: do USB_GET_CONFIGURATION");
-	  req->requestType |= USB_DEVREQTYPE_DEV2HOST;
-	  trans->pid = USB_PID_IN;
-	  break;
-	case USB_SET_CONFIGURATION:
-	  debugNoNl("USB: do USB_SET_CONFIGURATION");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	case USB_GET_INTERFACE:
-	  debugNoNl("USB: do USB_GET_INTERFACE");
-	  req->requestType |= USB_DEVREQTYPE_DEV2HOST;
-	  trans->pid = USB_PID_IN;
-	  break;
-	case USB_SET_INTERFACE:
-	  debugNoNl("USB: do USB_SET_INTERFACE");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	case USB_SYNCH_FRAME:
-	  debugNoNl("USB: do USB_SYNCH_FRAME");
-	  req->requestType |= USB_DEVREQTYPE_DEV2HOST;
-	  trans->pid = USB_PID_IN;
-	  break;
-	case USB_MASSSTORAGE_RESET:
-	  debugNoNl("USB: do USB_MASSSTORAGE_RESET");
-	  req->requestType |= USB_DEVREQTYPE_HOST2DEV;
-	  break;
-	default:
-	  // Perhaps a class-specific thing we don't know about.  Try to
-	  // proceed anyway.
-	  debugNoNl("USB: do unknown control transfer");
-	  break;
+	  // What request are we doing?  Determine the correct requestType and
+	  // whether there will be a data phase, etc.
+	  switch (trans->control.request)
+	    {
+	    case USB_GET_STATUS:
+	      debugNoNl("USB: do USB_GET_STATUS");
+	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
+	      trans->pid = USB_PID_IN;
+	      break;
+	    case USB_CLEAR_FEATURE:
+	      debugNoNl("USB: do USB_CLEAR_FEATURE");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    case USB_SET_FEATURE:
+	      debugNoNl("USB: do USB_SET_FEATURE");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    case USB_SET_ADDRESS:
+	      debugNoNl("USB: do USB_SET_ADDRESS");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    case USB_GET_DESCRIPTOR:
+	      debugNoNl("USB: do USB_GET_DESCRIPTOR");
+	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
+	      trans->pid = USB_PID_IN;
+	      break;
+	    case USB_SET_DESCRIPTOR:
+	      debugNoNl("USB: do USB_SET_DESCRIPTOR");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    case USB_GET_CONFIGURATION:
+	      debugNoNl("USB: do USB_GET_CONFIGURATION");
+	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
+	      trans->pid = USB_PID_IN;
+	      break;
+	    case USB_SET_CONFIGURATION:
+	      debugNoNl("USB: do USB_SET_CONFIGURATION");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    case USB_GET_INTERFACE:
+	      debugNoNl("USB: do USB_GET_INTERFACE");
+	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
+	      trans->pid = USB_PID_IN;
+	      break;
+	    case USB_SET_INTERFACE:
+	      debugNoNl("USB: do USB_SET_INTERFACE");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    case USB_SYNCH_FRAME:
+	      debugNoNl("USB: do USB_SYNCH_FRAME");
+	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
+	      trans->pid = USB_PID_IN;
+	      break;
+	    case USB_MASSSTORAGE_RESET:
+	      debugNoNl("USB: do USB_MASSSTORAGE_RESET");
+	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
+	      break;
+	    default:
+	      // Perhaps some thing we don't know about.  Try to proceed
+	      // anyway.
+	      debugNoNl("USB: do unknown control transfer");
+	      break;
+	    }
 	}
+
       debug(" for address %d", trans->address);
     }
+
+  else if (trans->type == usbxfer_interrupt)
+    ;
 
   else if (trans->type == usbxfer_bulk)
     ;
@@ -846,7 +857,6 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
     {
       kernelError(kernel_error, "Unsupported transaction type %d",
 		  trans->type);
-      putTransDesc(setupDesc, 1);
       return (status = ERR_NOTIMPLEMENTED);
     }
 
@@ -1230,7 +1240,6 @@ static void enumerateDisconnectedDevice(usbRootHub *usb)
     {
       dev = usb->devices[count1];
 
-      debug("Try device %d", dev->address);
       status = controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
 			       (USB_DESCTYPE_DEVICE << 8), 0, 8,
 			       &deviceDesc, NULL);
@@ -1445,10 +1454,6 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
   if (status < 0)
     return (dev = NULL);
 
-  // Make sure it's a non-bridge header
-  if (pciDevInfo.device.headerType != PCI_HEADERTYPE_NORMAL)
-    return (dev = NULL);
-
   // Make sure it's a UHCI controller (programming interface is 0 in the
   // PCI header)
   if (pciDevInfo.device.progIF != 0)
@@ -1456,7 +1461,7 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
 
   // After this point, we believe we have a supported device.
 
-  // Enable the device on the PCI bus as a bus msater
+  // Enable the device on the PCI bus as a bus master
   if ((kernelBusDeviceEnable(bus_pci, busTarget->target, 1) < 0) ||
       (kernelBusSetMaster(bus_pci, busTarget->target, 1) < 0))
     return (dev = NULL);
@@ -1478,6 +1483,32 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
   kernelLog("USB: UHCI bus version %d.%d", ((usb->usbVersion & 0xF0) >> 4),
 	    (usb->usbVersion & 0xF));
 
+  debugNoNl("USB: UHCI controller PCI type: ");
+  // Get the interrupt line
+  if (pciDevInfo.device.headerType == PCI_HEADERTYPE_NORMAL)
+    {
+      usb->interrupt = (int) pciDevInfo.device.nonBridge.interruptLine;
+      debug("normal");
+    }
+  else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_BRIDGE)
+    {
+      usb->interrupt = (int) pciDevInfo.device.bridge.interruptLine;
+      debug("bridge");
+    }
+  else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_CARDBUS)
+    {
+      usb->interrupt = (int) pciDevInfo.device.cardBus.interruptLine;
+      debug("cardbus");
+    }
+  else
+    {
+      debugError("\nUnsupported USB controller header type %d",
+		 pciDevInfo.device.headerType);
+      kernelFree(dev);
+      kernelFree(usb);
+      return (dev = NULL);
+    }
+
   // Get the I/O space base address.  For USB, it comes in the 5th
   // PCI base address register
   usb->ioAddress = (void *)
@@ -1485,14 +1516,11 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
 
   if (usb->ioAddress == NULL)
     {
-      kernelError(kernel_error, "Unknown USB controller I/O address");
+      debugError("Unknown USB controller I/O address");
       kernelFree(dev);
       kernelFree(usb);
       return (dev = NULL);
     }
-
-  // Get the interrupt line
-  usb->interrupt = (int) pciDevInfo.device.nonBridge.interruptLine;
 
   // Stop the controller
   startStop(usb, 0);

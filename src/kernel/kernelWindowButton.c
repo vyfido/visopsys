@@ -286,8 +286,9 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
   if (labelFont == NULL)
     {
       // Try to load a nice-looking font
-      status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
-			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont, 0);
+      status =
+	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &labelFont, 0);
       if (status < 0)
 	// Font's not there, we suppose.  There's always a default.
 	kernelFontGetDefault(&labelFont);

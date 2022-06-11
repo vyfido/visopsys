@@ -38,6 +38,23 @@
 #include <string.h>
 
 
+static struct {
+  unsigned version;
+  char *vendor;
+  char *model;
+} lanceVendorModel[] = {
+  { 0x2420, "AMD", "PCnet/PCI 79C970" },      // PCI
+  { 0x2621, "AMD", "PCnet/PCI II 79C970A" },  // PCI
+  { 0x2623, "AMD", "PCnet/FAST 79C971" },     // PCI
+  { 0x2624, "AMD", "PCnet/FAST+ 79C972" },    // PCI
+  { 0x2625, "AMD", "PCnet/FAST III 79C973" }, // PCI
+  { 0x2626, "AMD", "PCnet/Home 79C978" },     // PCI
+  { 0x2627, "AMD", "PCnet/FAST III 79C975" }, // PCI
+  { 0x2628, "AMD", "PCnet/PRO 79C976" },
+  { 0, NULL, NULL }
+};
+
+
 static void reset(lanceDevice *lance)
 {
   unsigned tmp;
@@ -462,13 +479,13 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
 
       // After this point, we know we have a supported device.
 
-      // Enable the device on the PCI bus as a bus msater
+      // Enable the device on the PCI bus as a bus master
       if ((kernelBusDeviceEnable(bus_pci, busTargets[deviceCount].target, 1)
 	   < 0) ||
 	  (kernelBusSetMaster(bus_pci, busTargets[deviceCount].target, 1) < 0))
 	continue;
 
-      // Check the first 2 base addresses for I/O and memory addresses.
+      // Check the first base address for I/O and memory addresses.
       // For the time being, we are only implementing I/O mapping, as opposed
       // to memory sharing.  Therefore we expect the first base address
       // register to contain an I/O address, which is signified by bit 0
@@ -508,19 +525,19 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
 
       // Determine the I/O space size.  Write all 1s to the register.
       kernelBusWriteRegister(bus_pci, busTargets[deviceCount].target,
-			     PCI_CONFREG_BASEADDRESS0, 32, 0xFFFFFFFF);
+			     PCI_CONFREG_BASEADDRESS0_32, 32, 0xFFFFFFFF);
 
       shift = 2;
       lance->ioSpaceSize = 4;
       ioSpaceSize =
 	kernelBusReadRegister(bus_pci, busTargets[deviceCount].target,
-			      PCI_CONFREG_BASEADDRESS0, 32);
+			      PCI_CONFREG_BASEADDRESS0_32, 32);
       while (!((ioSpaceSize >> shift++) & 1))
 	lance->ioSpaceSize *= 2;
 
       // Restore the register we clobbered.
       kernelBusWriteRegister(bus_pci, busTargets[deviceCount].target,
-			     PCI_CONFREG_BASEADDRESS0, 32,
+			     PCI_CONFREG_BASEADDRESS0_32, 32,
 			     pciDevInfo.device.nonBridge.baseAddress[0]);
 
       adapter->device.flags =
@@ -547,35 +564,23 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
       lance->chipVersion |=
 	((readCSR(lance, LANCE_CSR_MODEL1) & 0xF000) >> 12);
 
-      switch (lance->chipVersion)
+      kernelVariableListCreate(&(dev->device.attrs));
+      kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_VENDOR,
+			    "unknown");
+      kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_MODEL,
+			    "LANCE");
+      for (count = 0; lanceVendorModel[count].version; count ++)
 	{
-	case 0x2420:
-	  dev->device.model = "AMD PCnet/PCI 79C970"; // PCI 
-	  break;
-	case 0x2621:
-	  dev->device.model = "AMD PCnet/PCI II 79C970A"; // PCI 
-	  break;
-	case 0x2623:
-	  dev->device.model = "AMD PCnet/FAST 79C971"; // PCI 
-	  break;
-	case 0x2624:
-	  dev->device.model = "AMD PCnet/FAST+ 79C972"; // PCI 
-	  break;
-	case 0x2625:
-	  dev->device.model = "AMD PCnet/FAST III 79C973"; // PCI 
-	  break;
-	case 0x2626:
-	  dev->device.model = "AMD PCnet/Home 79C978"; // PCI 
-	  break;
-	case 0x2627:
-	  dev->device.model = "AMD PCnet/FAST III 79C975"; // PCI 
-	  break;
-	case 0x2628:
-	  dev->device.model = "AMD PCnet/PRO 79C976";
-	  break;
-	default:
-	  dev->device.model = "AMD LANCE";
-	  break;
+	  if (lanceVendorModel[count].version == lance->chipVersion)
+	    {
+	      kernelVariableListSet(&(dev->device.attrs),
+				    DEVICEATTRNAME_VENDOR,
+				    lanceVendorModel[count].vendor);
+	      kernelVariableListSet(&(dev->device.attrs),
+				    DEVICEATTRNAME_MODEL,
+				    lanceVendorModel[count].model);
+	      break;
+	    }
 	}
 
       // Get space for the buffers

@@ -70,8 +70,6 @@ static void errorDialogThread(int argc, void *argv[])
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   status = kernelImageLoad(ERRORIMAGE_NAME, 0, 0, &errorImage);
 
@@ -95,7 +93,7 @@ static void errorDialogThread(int argc, void *argv[])
   params.gridY = 1;
   params.gridWidth = 2;
   params.padBottom = 5;
-  params.fixedWidth = 1;
+  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = kernelWindowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
     {

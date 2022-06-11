@@ -216,8 +216,6 @@ static void constructWindow(int myProcessId)
   params.padTop = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_top;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
 
   if (splashImage.data == NULL)
     // Try to load a splash image to go at the top of the window
@@ -240,7 +238,7 @@ static void constructWindow(int myProcessId)
 
   // Add a login field
   params.gridY = 2;
-  params.hasBorder = 1;
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
   loginField = windowNewTextField(window, 30, &params);
   windowRegisterEventHandler(loginField, &eventHandler);
 
@@ -254,8 +252,8 @@ static void constructWindow(int myProcessId)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.hasBorder = 0;
-  params.fixedWidth = 1;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   rebootButton = windowNewButton(window, "Reboot", NULL, &params);
   windowRegisterEventHandler(rebootButton, &eventHandler);
 

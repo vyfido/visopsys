@@ -222,8 +222,6 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
   windowNewTextLabel(window, titleString, &params);
 
   params.gridY = 1;
@@ -241,8 +239,7 @@ static void constructWindow(void)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
-  params.fixedHeight = 1;
+  params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   installButton = windowNewButton(window, "Install", NULL, &params);
   windowRegisterEventHandler(installButton, &eventHandler);
 
@@ -255,8 +252,7 @@ static void constructWindow(void)
   params.gridY = 4;
   params.gridWidth = 2;
   params.orientationX = orient_center;
-  params.fixedWidth = 0;
-  params.fixedHeight = 0;
+  params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   goAwayCheckbox =
     windowNewCheckbox(window, "Don't ask me this again", &params);
   if (readOnly)
