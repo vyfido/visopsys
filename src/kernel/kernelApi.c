@@ -136,7 +136,8 @@ static kernelFunctionIndex diskFunctionIndex[] = {
     1, PRIVILEGE_SUPERVISOR },
   { _fnum_diskReadPartitionsAll, kernelDiskReadPartitionsAll,
     0, PRIVILEGE_SUPERVISOR },
-  { _fnum_diskSync, kernelDiskSync, 0, PRIVILEGE_USER },
+  { _fnum_diskSync, kernelDiskSync, 1, PRIVILEGE_USER },
+  { _fnum_diskSyncAll, kernelDiskSyncAll, 0, PRIVILEGE_USER },
   { _fnum_diskGetBoot, kernelDiskGetBoot, 1, PRIVILEGE_USER },
   { _fnum_diskGetCount, kernelDiskGetCount, 0, PRIVILEGE_USER },
   { _fnum_diskGetPhysicalCount, kernelDiskGetPhysicalCount,
@@ -144,15 +145,18 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskGet, kernelDiskGet, 2, PRIVILEGE_USER },
   { _fnum_diskGetAll, kernelDiskGetAll, 2, PRIVILEGE_USER },
   { _fnum_diskGetAllPhysical, kernelDiskGetAllPhysical, 2, PRIVILEGE_USER },
+  { _fnum_diskGetFilesystemType, kernelDiskGetFilesystemType,
+    3, PRIVILEGE_USER },
   { _fnum_diskGetPartType, kernelDiskGetPartType, 2, PRIVILEGE_USER },
   { _fnum_diskGetPartTypes, kernelDiskGetPartTypes, 0, PRIVILEGE_USER },
+  { _fnum_diskSetFlags, kernelDiskSetFlags, 3, PRIVILEGE_SUPERVISOR },
   { _fnum_diskSetLockState, kernelDiskSetLockState, 2, PRIVILEGE_USER },
   { _fnum_diskSetDoorState, kernelDiskSetDoorState, 2, PRIVILEGE_USER },
   { _fnum_diskGetMediaState, kernelDiskGetMediaState, 1, PRIVILEGE_USER },
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
   { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
-  { _fnum_diskGetFilesystemType, kernelDiskGetFilesystemType,
-    3, PRIVILEGE_USER }
+  { _fnum_diskEraseSectors, kernelDiskEraseSectors, 4, PRIVILEGE_SUPERVISOR },
+  { _fnum_diskGetStats, kernelDiskGetStats, 2, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex filesystemFunctionIndex[] = {
@@ -191,7 +195,7 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileWrite, kernelFileWrite, 4, PRIVILEGE_USER },
   { _fnum_fileDelete, kernelFileDelete, 1, PRIVILEGE_USER },
   { _fnum_fileDeleteRecursive, kernelFileDeleteRecursive, 1, PRIVILEGE_USER },
-  { _fnum_fileDeleteSecure, kernelFileDeleteSecure, 1, PRIVILEGE_USER },
+  { _fnum_fileDeleteSecure, kernelFileDeleteSecure, 2, PRIVILEGE_USER },
   { _fnum_fileMakeDir, kernelFileMakeDir, 1, PRIVILEGE_USER },
   { _fnum_fileRemoveDir, kernelFileRemoveDir, 1, PRIVILEGE_USER },
   { _fnum_fileCopy, kernelFileCopy, 2, PRIVILEGE_USER },

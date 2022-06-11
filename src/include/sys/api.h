@@ -122,20 +122,24 @@ extern int visopsys_in_kernel;
 #define _fnum_diskReadPartitions                     2000
 #define _fnum_diskReadPartitionsAll                  2001
 #define _fnum_diskSync                               2002
-#define _fnum_diskGetBoot                            2003
-#define _fnum_diskGetCount                           2004
-#define _fnum_diskGetPhysicalCount                   2005
-#define _fnum_diskGet                                2006
-#define _fnum_diskGetAll                             2007
-#define _fnum_diskGetAllPhysical                     2008
-#define _fnum_diskGetPartType                        2009
-#define _fnum_diskGetPartTypes                       2010
-#define _fnum_diskSetLockState                       2011
-#define _fnum_diskSetDoorState                       2012
-#define _fnum_diskGetMediaState                      2013
-#define _fnum_diskReadSectors                        2014
-#define _fnum_diskWriteSectors                       2015
-#define _fnum_diskGetFilesystemType                  2016
+#define _fnum_diskSyncAll                            2003
+#define _fnum_diskGetBoot                            2004
+#define _fnum_diskGetCount                           2005
+#define _fnum_diskGetPhysicalCount                   2006
+#define _fnum_diskGet                                2007
+#define _fnum_diskGetAll                             2008
+#define _fnum_diskGetAllPhysical                     2009
+#define _fnum_diskGetFilesystemType                  2010
+#define _fnum_diskGetPartType                        2011
+#define _fnum_diskGetPartTypes                       2012
+#define _fnum_diskSetFlags                           2013
+#define _fnum_diskSetLockState                       2014
+#define _fnum_diskSetDoorState                       2015
+#define _fnum_diskGetMediaState                      2016
+#define _fnum_diskReadSectors                        2017
+#define _fnum_diskWriteSectors                       2018
+#define _fnum_diskEraseSectors                       2019
+#define _fnum_diskGetStats                           2020
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -824,7 +828,7 @@ _X_ static inline void textInputSetEcho(int onOff)
 // Disk functions
 //
 
-_X_ static inline int diskReadPartitions(char *name)
+_X_ static inline int diskReadPartitions(const char *name)
 {
   // Proto: int kernelDiskReadPartitions(const char *);
   // Desc : Tells the kernel to (re)read the partition table of disk 'name'.
@@ -838,11 +842,18 @@ _X_ static inline int diskReadPartitionsAll(void)
   return (syscall_0(_fnum_diskReadPartitionsAll));
 }
 
-_X_ static inline int diskSync(void)
+_X_ static inline int diskSync(const char *name)
 {
-  // Proto: int kernelDiskSync(void);
+  // Proto: int kernelDiskSync(const char *);
+  // Desc : Tells the kernel to synchronize  the named disk, flushing any output.
+    return (syscall_1(_fnum_diskSync, name));
+}
+
+_X_ static inline int diskSyncAll(void)
+{
+  // Proto: int kernelDiskSyncAll(void);
   // Desc : Tells the kernel to synchronize all the disks, flushing any output.
-  return (syscall_0(_fnum_diskSync));
+  return (syscall_0(_fnum_diskSyncAll));
 }
 
 _X_ static inline int diskGetBoot(char *name)
@@ -888,6 +899,14 @@ _X_ static inline int diskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
 		   (void *) buffSize));
 }
 
+_X_ static inline int diskGetFilesystemType(const char *name, char *buf, unsigned bufSize)
+{
+  // Proto: int kernelDiskGetFilesystemType(const char *, char *, unsigned);
+  // Desc : This function attempts to explicitly detect the filesystem type on disk 'name', and copy up to 'bufSize' bytes of the filesystem type name into 'buf'.  Particularly useful for things like removable media where the correct info may not be automatically provided in the disk structure.
+  return (syscall_3(_fnum_diskGetFilesystemType, (void *) name, buf,
+		    (void *) bufSize));
+}
+
 _X_ static inline int diskGetPartType(int code, partitionType *p)
 {
   // Proto: int kernelDiskGetPartType(int, partitionType *);
@@ -900,6 +919,14 @@ _X_ static inline partitionType *diskGetPartTypes(void)
   // Proto: partitionType *kernelDiskGetPartTypes(void);
   // Desc : Like diskGetPartType(), but returns a pointer to a list of all known types.  The memory is allocated dynamically and should be deallocated with a call to memoryRelease()
   return ((partitionType *) syscall_0(_fnum_diskGetPartTypes));
+}
+
+_X_ static inline int diskSetFlags(const char *name, unsigned flags, int set)
+{
+  // Proto: int kernelDiskSetFlags(const char *, unsigned, int);
+  // Desc : Set or clear the (user-settable) disk flags bits in 'flags' of the disk 'name'.
+  return (syscall_3(_fnum_diskSetFlags, (void *) name, (void *) flags,
+		    (void *) set));
 }
 
 _X_ static inline int diskSetLockState(const char *name, int state)
@@ -939,12 +966,20 @@ _X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned
 		    (void *) count, (void *) buf));
 }
 
-_X_ static inline int diskGetFilesystemType(const char *name, char *buf, unsigned bufSize)
+_X_ static inline int diskEraseSectors(const char *name, unsigned sect, unsigned count, int passes)
 {
-  // Proto: int kernelDiskGetFilesystemType(const char *, char *, unsigned);
-  // Desc : This function attempts to explicitly detect the filesystem type on disk 'name', and copy up to 'bufSize' bytes of the filesystem type name into 'buf'.  Particularly useful for things like removable media where the correct info may not be automatically provided in the disk structure.
-  return (syscall_3(_fnum_diskGetFilesystemType, (void *) name, buf,
-		    (void *) bufSize));
+  // Proto: int kernelDiskEraseSectors(const char *, unsigned, unsigned, int);
+  // Desc : Synchronously and securely erases disk sectors.  It writes ('passes' - 1) successive passes of random data followed by a final pass of NULLs, to disk 'name' starting at (zero-based) logical sector number 'sect'.  This function requires supervisor privilege.
+  return (syscall_4(_fnum_diskEraseSectors, (void *) name, (void *) sect,
+		    (void *) count, (void *) passes));
+}
+
+_X_ static inline int diskGetStats(const char *name, diskStats *stats)
+{
+  // Proto: int kernelDiskGetStats(const char *, diskStats *);
+  // Desc: Return performance stats about the disk 'name' (if non-NULL,
+  // otherwise about all the disks combined).
+  return (syscall_2(_fnum_diskGetStats, (void *) name, stats));
 }
 
 
@@ -1118,11 +1153,11 @@ _X_ static inline int fileDeleteRecursive(const char *name)
   return (syscall_1(_fnum_fileDeleteRecursive, (void *) name));
 }
 
-_X_ static inline int fileDeleteSecure(const char *name)
+_X_ static inline int fileDeleteSecure(const char *name, int passes)
 {
   // Proto: int kernelFileDeleteSecure(const char *);
-  // Desc : Securely delete the file referenced by the pathname 'name'.  If supported.
-  return (syscall_1(_fnum_fileDeleteSecure, (void *) name));
+  // Desc : Securely delete the file referenced by the pathname 'name'.  'passes' indicates the number of times to overwrite the file.  The file is overwritten (number - 1) times with random data, and then NULLs.  A larger number of passes is more secure but takes longer.
+  return (syscall_2(_fnum_fileDeleteSecure, (void *) name, (void *) passes));
 }
 
 _X_ static inline int fileMakeDir(const char *name)

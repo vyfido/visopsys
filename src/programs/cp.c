@@ -32,29 +32,32 @@ Synonym:
   copy
 
 Usage:
-  cp <file1> [file2] ... <new_name | detination_directory>
+  cp [-R] <item1> [item2] ... <new_name | detination_directory>
 
-This command will copy a file or files.  If one source file is specified,
-then the last argument can be either the new filename to copy to, or else
-can be a destination directory -- in which case the new file will have the
-same name as the source file.  If multiple source files are specified, then
-the last argument must be a directory name and all copies will have the same
-names as their source files.
+This command will copy one or more files or directories.  If one source
+item is specified, then the last argument can be either the new name to
+copy to, or else can be a destination directory -- in which case the new
+item will have the same name as the source item.  If multiple source items
+are specified, then the last argument must be a directory name and all
+copies will have the same names as their source items.
+
+The -R flag means copy recursively.  The -R flag must be used if any of
+the source items are directories.  If none of the source items are
+directories then the flag has no effect.
 
 </help>
 */
 
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
-#include <sys/vsh.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/api.h>
 
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <source 1> [source 2] ... <destination>\n",
-	 name);
+  fprintf(stderr, "usage:\n");
+  fprintf(stderr, "%s [-R] <source1> [source2] ... <destination>\n", name);
   return;
 }
 
@@ -62,23 +65,48 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char opt;
+  int recurse = 0;
   int count;
 
-  // There need to be at least a source and destination file
+  // There need to be at least a source and destination name
   if (argc < 3)
     {
       usage(argv[0]);
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  // Make sure none of our filenames are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
+  while (strchr("Rr?", (opt = getopt(argc, argv, "Rr"))))
+    {
+      switch (opt)
+	{
+	case 'r':
+	case 'R':
+	  // Recurse
+	  recurse = 1;
+	  break;
 
-  status = vshCopyFile(argv[1], argv[2]);
-  if (status < 0)
-    perror(argv[0]);
+	default:
+	  fprintf(stderr, "Unknown option '%c'\n", optopt);
+	  usage(argv[0]);
+	  return (status = ERR_INVALID);
+	}
+    }
+
+  for (count = optind; count < (argc - 1); count ++)
+    {
+      if (recurse)
+	status = fileCopyRecursive(argv[count], argv[argc - 1]);
+      else
+	status = fileCopy(argv[count], argv[argc - 1]);
+
+      if (status < 0)
+	{
+	  fprintf(stderr, "%s: ", argv[count]);
+	  errno = status;
+	  perror(argv[0]);
+	}
+    }
 
   return (status);
 }

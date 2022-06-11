@@ -806,7 +806,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   // "Heuristically" determine the block size.  Everything else flows from
   // this, but it is rubbish.  Not based on anything sensible really: If it's
   // a floppy, use 1K blocks.  Otherwise use 4K blocks.
-  if (physicalDisk->flags & DISKFLAG_FLOPPY)
+  if (physicalDisk->type & DISKTYPE_FLOPPY)
     blockSize = 1024;
   else
     blockSize = 4096;
@@ -1136,8 +1136,6 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       kernelLockRelease(&(prog->lock));
     }
 
-  status = kernelDiskSyncDisk((char *) theDisk->name);
-
   kernelLog("Format: Type: %s  Total blocks: %u  Bytes per block: %u  "
 	    "Sectors per block: %u  Block group size: %u  Block groups: %u",
 	    theDisk->fsType, superblock.blocks_count, blockSize,
@@ -1150,7 +1148,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       kernelLockRelease(&(prog->lock));
     }
 
-  return (status);
+  return (status = 0);
 }
 
 

@@ -1091,74 +1091,6 @@ static int shortenFile(fatInternalData *fatData, kernelFileEntry *entry,
 }
 
 
-static int clearClusterChainData(fatInternalData *fatData,
-				 unsigned startCluster)
-{
-  // This function will zero all of the cluster data in the supplied
-  // cluster chain.  Returns 0 on success, negative otherwise
-
-  int status = 0;
-  unsigned currentCluster = 0;
-  unsigned nextCluster = 0;
-  unsigned char *buffer;
-
-  if ((startCluster == 0) || (startCluster == fatData->terminalClust))
-    // Nothing to do
-    return (status = 0);
-
-  // Allocate an empty buffer equal in size to one cluster.  The memory
-  // allocation routine will make it all zeros.
-  buffer =
-    kernelMalloc(fatData->bpb.sectsPerClust * fatData->bpb.bytesPerSect);
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate memory for clearing "
-		  "clusters");
-      return (status = ERR_MEMORY);
-    }
-
-  currentCluster = startCluster;
-
-  // Loop through each of the unwanted clusters in the chain.  Write the
-  // empty buffer to each cluster.
-
-  while(1)
-    {
-      // Get the next thing in the chain
-      status = getFatEntry(fatData, currentCluster, &nextCluster);
-      if (status)
-	{
-	  kernelError(kernel_error, "Unable to follow cluster chain");
-	  kernelFree(buffer);
-	  return (status);
-	}
-
-      status = 
-	kernelDiskWriteSectors((char *) fatData->disk->name,
-			       (((currentCluster - 2) *
-				 fatData->bpb.sectsPerClust) + 
-				fatData->bpb.rsvdSectCount +
-				(fatData->fatSects * 2) + 
-				fatData->rootDirSects),
-			       fatData->bpb.sectsPerClust, buffer);
-      if (status < 0)
-	{
-	  kernelError(kernel_error, "Error clearing cluster data");
-	  kernelFree(buffer);
-	  return (status);
-	}
-
-      // Any more to do?
-      if (nextCluster == fatData->terminalClust)
-	break;
-    }
-
-  // Rreturn success
-  kernelFree(buffer);
-  return (status = 0);
-}
-
-
 static int getUnusedClusters(fatInternalData *fatData,
 			     unsigned requested, unsigned *startCluster)
 {
@@ -1523,6 +1455,8 @@ static int fillDirectory(kernelFileEntry *currentDir, void *dirBuffer)
 
   while (listItemPointer)
     {
+      // Skip things like mount points that don't really belong to this
+      // filesystem.
       if (listItemPointer->disk != currentDir->disk)
 	{
 	  listItemPointer = listItemPointer->nextEntry;
@@ -2948,6 +2882,27 @@ static fatInternalData *getFatData(kernelDisk *theDisk)
 }
 
 
+static void freeFatData(kernelDisk *theDisk)
+{
+  // Deallocate the FAT data structure from a disk.
+
+  fatInternalData *fatData = theDisk->filesystem.filesystemData;
+
+  if (fatData)
+    {
+      if (fatData->FAT)
+	kernelFree(fatData->FAT);
+      if (fatData->freeClusterBitmap)
+	kernelFree(fatData->freeClusterBitmap);
+
+      kernelMemClear((void *) fatData, sizeof(fatInternalData));
+      kernelFree((void *) fatData);
+    }
+
+  theDisk->filesystem.filesystemData = NULL;
+}
+
+
 static int readDir(kernelFileEntry *directory)
 {
   // This function receives an emtpy file entry structure, which represents
@@ -3276,11 +3231,10 @@ static void progressConfirmError(progress *prog, const char *message)
   if (kernelLockGet(&(prog->lock)) >= 0)
     {
       strcpy((char *) prog->statusMessage, message);
-      prog->confirmError = 0;
       prog->error = 1;
       kernelLockRelease(&(prog->lock));
     }
-  while (!(prog->confirmError))
+  while (prog->error)
     kernelMultitaskerYield();
 }
 
@@ -3361,7 +3315,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   fatData.totalSects = theDisk->numSectors;
   fatData.bpb.sectsPerClust = 1;
 
-  if (theDisk->physical->flags & DISKFLAG_FIXED)
+  if (theDisk->physical->type & DISKTYPE_FIXED)
     fatData.bpb.media = 0xF8;
   else
     fatData.bpb.media = 0xF0;
@@ -3372,7 +3326,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
     fatData.fsType = fat16;
   else if (!strncasecmp(type, FSNAME_FAT"32", 5))
     fatData.fsType = fat32;
-  else if ((theDisk->physical->flags & DISKFLAG_FLOPPY) ||
+  else if ((theDisk->physical->type & DISKTYPE_FLOPPY) ||
 	   (fatData.totalSects < 8400))
     fatData.fsType = fat12;
   else if (fatData.totalSects < 66600)
@@ -3447,7 +3401,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       strncpy((char *) fatData.bpb.fat32.fileSysType, "FAT32   ", 8);
     }
 
-  if (theDisk->physical->flags & DISKFLAG_FLOPPY)
+  if (theDisk->physical->type & DISKTYPE_FLOPPY)
     {
       fatData.rootDirSects = 14;
       fatData.fatSects = 9;
@@ -3479,7 +3433,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if ((fatData.fsType == fat12) || (fatData.fsType == fat16))
     {
       fatData.bpb.fat.biosDriveNum = theDisk->physical->deviceNumber;
-      if (theDisk->physical->flags & DISKFLAG_FIXED)
+      if (theDisk->physical->type & DISKTYPE_FIXED)
 	fatData.bpb.fat.biosDriveNum |= 0x80;
       fatData.bpb.fat.bootSig = 0x29;  // Means volume id, label, etc., valid
       fatData.bpb.fat.volumeId = kernelSysTimerRead();
@@ -3488,7 +3442,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   else if (fatData.fsType == fat32)
     {
       fatData.bpb.fat32.biosDriveNum = theDisk->physical->deviceNumber;
-      if (theDisk->physical->flags & DISKFLAG_FIXED)
+      if (theDisk->physical->type & DISKTYPE_FIXED)
 	fatData.bpb.fat32.biosDriveNum |= 0x80;
       fatData.bpb.fat32.bootSig = 0x29;  // Means volume id, label, etc., valid
       fatData.bpb.fat32.volumeId = kernelSysTimerRead();
@@ -3497,7 +3451,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   fatData.bpb.signature = 0xAA55;
 
-  // Get a decent-sized buffer for clearing sectors
+  // Get a decent-sized empty buffer for clearing sectors
   sectorBuff = kernelMalloc(BUFFERSIZE);
   if (sectorBuff == NULL)
     {
@@ -3566,19 +3520,18 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       fatData.fsInfo.nextFree = 3;
       fatData.fsInfo.trailSig = 0xAA550000;
 
-      // Write an empty root directory
-      for (count = 0; count < fatData.bpb.sectsPerClust; count ++)
+      // Write an empty root directory cluster
+      status =
+	kernelDiskWriteSectors((char *) theDisk->name,
+			       (fatData.bpb.rsvdSectCount +
+				(fatData.bpb.numFats * fatData.fatSects)),
+			       fatData.bpb.sectsPerClust, sectorBuff);
+      if (status < 0)
 	{
-	  status = kernelDiskWriteSectors((char *) theDisk->name,
-			  (fatData.bpb.rsvdSectCount + count +
-			   (fatData.bpb.numFats * fatData.fatSects)),
-					  1, sectorBuff);
-	  if (status < 0)
-	    {
-	      kernelFree(sectorBuff);
-	      return (status);
-	    }
+	  kernelFree(sectorBuff);
+	  return (status);
 	}
+
       // Used one for the root directory
       fatData.freeClusters -= 1;
 
@@ -3666,8 +3619,6 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       kernelLockRelease(&(prog->lock));
     }
 
-  status = kernelDiskSyncDisk((char *) theDisk->name);
-
   kernelLog("Format: Type: %s  Total Sectors: %u  Bytes Per Sector: "
 	    "%u  Sectors Per Cluster: %u  Root Directory Sectors: "
 	    "%u  Fat Sectors: %u  Data Clusters: %u", theDisk->fsType,
@@ -3681,7 +3632,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       kernelLockRelease(&(prog->lock));
     }
 
-  return (status);
+  return (status = 0);
 }
 
 
@@ -3930,8 +3881,7 @@ static int defragment(kernelDisk *theDisk, progress *prog)
 	return (status);
     }
 
-  kernelFree(theDisk->filesystem.filesystemData);
-  theDisk->filesystem.filesystemData = NULL;
+  freeFatData(theDisk);
 
   return (status = 0);
 }
@@ -3990,12 +3940,8 @@ static int mount(kernelDisk *theDisk)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Discard any previously-gathered stuff about this filesystem.
-  if (theDisk->filesystem.filesystemData)
-    {
-      kernelFree(theDisk->filesystem.filesystemData);
-      theDisk->filesystem.filesystemData = NULL;
-    }
+  // The filesystem data cannot exist
+  theDisk->filesystem.filesystemData = NULL;
 
   // Get the FAT data for the requested filesystem.  We don't need
   // the info right now -- we just want to collect it.
@@ -4048,8 +3994,11 @@ static int mount(kernelDisk *theDisk)
   // FAT filesystems are case preserving, but case insensitive.  Yuck.
   theDisk->filesystem.caseInsensitive = 1;
 
-  // Normally, read-write.
-  theDisk->filesystem.readOnly = 0;
+  if (theDisk->physical->flags & DISKFLAG_READONLY)
+    theDisk->filesystem.readOnly = 1;
+  else
+    // Normally, read-write.
+    theDisk->filesystem.readOnly = 0;
 
   // Return success
   return (status = 0);
@@ -4112,10 +4061,7 @@ static int unmount(kernelDisk *theDisk)
 
   // Everything should be cozily tucked away now.  We can safely
   // discard the information we have cached about this filesystem.
-
-  // Finally, remove the reference from the filesystem structure
-  theDisk->filesystem.filesystemData = NULL;
-  kernelFree((void *) fatData);
+  freeFatData(theDisk);
 
   return (status = 0);
 }
@@ -4384,7 +4330,7 @@ static int createFile(kernelFileEntry *theFile)
 }
 
 
-static int deleteFile(kernelFileEntry *theFile, int secure)
+static int deleteFile(kernelFileEntry *theFile)
 {
   // This function deletes a file.  It returns 0 on success, negative
   // otherwise
@@ -4423,16 +4369,6 @@ static int deleteFile(kernelFileEntry *theFile, int secure)
     {
       kernelError(kernel_error, "File to delete appears to be corrupt");
       return (status);
-    }
-
-  // If we are doing a 'secure' delete, we need to zero out all of the data
-  // in the file's clusters
-  if (secure)
-    {
-      status = clearClusterChainData(fatData, entryData->startCluster);
-      if (status < 0)
-	// Ahh, we don't need to quit here, do we?
-	kernelError(kernel_warn, "File data could not be cleared");
     }
 
   // Deallocate all clusters belonging to the item.

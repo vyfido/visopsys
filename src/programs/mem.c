@@ -109,21 +109,24 @@ int main(int argc, char *argv[])
 
   // Print memory usage information
 
-  if (stats.totalMemory != 0)
-    {
-      // Switch raw bytes numbers to kilobytes.  This will also prevent
-      // overflow when we calculate percentage, below.
-      stats.totalMemory >>= 10;
-      stats.usedMemory >>= 10;
+  // Switch raw bytes numbers to kilobytes.  This will also prevent
+  // overflow when we calculate percentage, below.
+  stats.totalMemory >>= 10;
+  stats.usedMemory >>= 10;
 
-      totalFree = (stats.totalMemory - stats.usedMemory);
-      percentUsed = ((stats.usedMemory * 100) / stats.totalMemory);
+  if (stats.usedMemory)
+    totalFree = (stats.totalMemory - stats.usedMemory);
+  else
+    totalFree = stats.totalMemory;
 
-      // Print out the percent usage information
-      printf(" --- Usage totals ---\nUsed blocks: %d\nUsed memory: "
-	     "%u Kb - %d%%\nFree memory: %u Kb - %d%%\n", stats.usedBlocks,
-	     stats.usedMemory, percentUsed, totalFree, (100 - percentUsed));
-    }
+  if (stats.totalMemory)
+    percentUsed = ((stats.usedMemory * 100) / stats.totalMemory);
+
+  // Print out the percent usage information
+  printf(" --- Usage totals ---\nUsed blocks : %d\nTotal memory: %u Kb\nUsed "
+	 "memory : %u Kb - %d%%\nFree memory : %u Kb - %d%%\n",
+	 stats.usedBlocks, stats.totalMemory, stats.usedMemory, percentUsed,
+	 totalFree, (100 - percentUsed));
 
   return (status = 0);
 }

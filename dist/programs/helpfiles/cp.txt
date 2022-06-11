@@ -7,12 +7,16 @@ Synonym:
   copy
 
 Usage:
-  cp <file1> [file2] ... <new_name | detination_directory>
+  cp [-R] <item1> [item2] ... <new_name | detination_directory>
 
-This command will copy a file or files.  If one source file is specified,
-then the last argument can be either the new filename to copy to, or else
-can be a destination directory -- in which case the new file will have the
-same name as the source file.  If multiple source files are specified, then
-the last argument must be a directory name and all copies will have the same
-names as their source files.
+This command will copy one or more files or directories.  If one source
+item is specified, then the last argument can be either the new name to
+copy to, or else can be a destination directory -- in which case the new
+item will have the same name as the source item.  If multiple source items
+are specified, then the last argument must be a directory name and all
+copies will have the same names as their source items.
+
+The -R flag means copy recursively.  The -R flag must be used if any of
+the source items are directories.  If none of the source items are
+directories then the flag has no effect.
 

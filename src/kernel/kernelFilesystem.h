@@ -65,7 +65,7 @@ typedef struct _kernelFilesystemDriver {
   int (*driverWriteFile) (kernelFileEntry *, unsigned, unsigned,
 			  unsigned char *);
   int (*driverCreateFile) (kernelFileEntry *);
-  int (*driverDeleteFile) (kernelFileEntry *, int);
+  int (*driverDeleteFile) (kernelFileEntry *);
   int (*driverFileMoved) (kernelFileEntry *);
   int (*driverReadDir) (kernelFileEntry *);
   int (*driverWriteDir) (kernelFileEntry *);

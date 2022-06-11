@@ -109,51 +109,61 @@ static void setPercent(int percent)
 }
 
 
-static void setMessage(volatile char *message, int confirm)
+static void setMessage(volatile char *message, int pause, int confirm)
 {
   // Set the line of text that can appear below the progress bar.
 
   int tempColumn = textGetColumn();
   int tempRow = textGetRow();
-  char nullBuffer[PROGRESS_MAX_MESSAGELEN];
-  char character = '\0';
+  char output[PROGRESS_MAX_MESSAGELEN];
+  char c = '\0';
 
-  memset(nullBuffer, ' ', (PROGRESS_MAX_MESSAGELEN - 1));
-  nullBuffer[PROGRESS_MAX_MESSAGELEN - 1] = '\0';
-
-  textSetRow(textProgressBarRow + 2);
-  textSetColumn(0);
-  printf(nullBuffer);
+  memset(output, ' ', (PROGRESS_MAX_MESSAGELEN - 1));
+  output[PROGRESS_MAX_MESSAGELEN - 1] = '\0';
 
   textSetRow(textProgressBarRow + 2);
   textSetColumn(0);
-  printf((char *) message);
+  printf(output);
 
-  if (confirm)
+  if (pause)
+    snprintf(output, PROGRESS_MAX_MESSAGELEN, "%s\nPress any key to continue.",
+	     message);
+  else if (confirm)
+    snprintf(output, PROGRESS_MAX_MESSAGELEN, "%s (y/n): ", message);
+  else
+    strncpy(output, (char *) message, PROGRESS_MAX_MESSAGELEN);
+
+  textSetRow(textProgressBarRow + 2);
+  textSetColumn(0);
+  printf(output);
+
+  if (pause)
     {
-      printf(" (y/n): ");
-
+      textInputSetEcho(0);
+      getchar();
+      textInputSetEcho(1);
+    }
+  else if (confirm)
+    {
       textInputSetEcho(0);
       while(1)
 	{
-	  character = getchar();
+	  c = getchar();
       
-	  if ((character == 'y') || (character == 'Y'))
+	  if ((c == 'y') || (c == 'Y'))
 	    {
 	      printf("Yes");
 	      prog->confirm = 1;
 	      break;
 	    }
-	  else if ((character == 'n') || (character == 'N'))
+	  else if ((c == 'n') || (c == 'N'))
 	    {
 	      printf("No");
 	      prog->confirm = -1;
 	      break;
 	    }
 	}
-
       textInputSetEcho(1);
-      prog->needConfirm = 0;
     }
 
   // Back to where we were
@@ -196,17 +206,20 @@ static void progressThread(void)
 	      if (strncmp((char *) prog->statusMessage,
 			  (char *) lastProg.statusMessage,
 			  PROGRESS_MAX_MESSAGELEN))
-		setMessage(prog->statusMessage, 0);
+		setMessage(prog->statusMessage, 0, 0);
 
 	      // Look for 'need confirmation' flag changes
 	      if (prog->needConfirm)
-		setMessage(prog->confirmMessage, 1);
+		{
+		  setMessage(prog->confirmMessage, 0, 1);
+		  prog->needConfirm = 0;
+		}
 
 	      // Look for 'error' flag changes
 	      if (prog->error)
 		{
-		  prog->confirmError = 1;
-		  break;
+		  setMessage(prog->statusMessage, 1, 0);
+		  prog->error = 0;
 		}
 
 	      // Look for 'cancel' flag changes
@@ -279,7 +292,7 @@ _X_ int vshProgressBarDestroy(progress *tmpProg)
     return (status = ERR_INVALID);
 
   setPercent(100);
-  setMessage(prog->statusMessage, 0);
+  setMessage(prog->statusMessage, 0, 0);
 
   if (multitaskerProcessIsAlive(threadPid))
     // Kill our thread

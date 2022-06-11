@@ -162,7 +162,7 @@ static int waitOperationComplete(void)
 
   while (!interruptReceived)
     {
-      // Yield the rest of this timeslice if we are in multitasking mode
+      // Yield the rest of this timeslice.
       // kernelMultitaskerYield();
 
       if (kernelSysTimerRead() > (startTime + 20))
@@ -298,29 +298,47 @@ static void specify(unsigned driveNum)
   // Sends some essential timing information to the floppy drive controller
   // about the specified drive.
 
-  unsigned char commandByte;
+  unsigned char command;
   floppyDriveData *floppyData = (floppyDriveData *) disks[driveNum].driverData;
 
   // Construct the data rate byte
-  commandByte = floppyData->dataRate;
-  kernelProcessorOutPort8(0x03F7, commandByte);
+  command = floppyData->dataRate;
+  kernelProcessorOutPort8(0x03F7, command);
   kernelProcessorDelay();
 
   // Construct the command byte
-  commandByte = 0x03;  // Specify command
-  commandWrite(commandByte);
+  command = 0x03;  // Specify command
+  commandWrite(command);
 
   // Construct the step rate/head unload byte
-  commandByte =
-    ((floppyData->stepRate << 4) | (floppyData->headUnload & 0x0F));
-  commandWrite(commandByte);
+  command = ((floppyData->stepRate << 4) | (floppyData->headUnload & 0x0F));
+  commandWrite(command);
 
   // Construct the head load time byte.  Make sure that DMA mode is enabled.
-  commandByte = ((floppyData->headLoad << 1) & 0xFE);
-  commandWrite(commandByte);
+  command = ((floppyData->headLoad << 1) & 0xFE);
+  commandWrite(command);
   
   // There is no status information or interrupt after this command
   return;
+}
+
+
+static unsigned char driveStatus(int driveNum)
+{
+  // Read the "sense drive status" byte
+
+  unsigned char command;
+
+  // Construct the command byte
+  command = 0x04;  // Sense drive status command
+  commandWrite(command);
+
+  // Construct the drive/head select byte
+  // Format [00000 (head 1 bit)(drive 2 bits)]
+  command = (unsigned char) (driveNum & 3);
+  commandWrite(command);
+
+  return (statusRead());
 }
 
 
@@ -367,7 +385,10 @@ static int setMotorState(int driveNum, int onOff)
       kernelProcessorDelay();
     }
 
-  disks[driveNum].motorState = onOff;
+  if (onOff)
+    disks[driveNum].flags |= DISKFLAG_MOTORON;
+  else
+    disks[driveNum].flags &= ~DISKFLAG_MOTORON;
 
   return (0);
 }
@@ -387,7 +408,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
   unsigned head, track, sector;
   unsigned doSectors = 0;
   unsigned xFerBytes = 0;
-  unsigned char commandByte, tmp;
+  unsigned char command, tmp;
   int retry = 0;
   int count;
 
@@ -402,9 +423,13 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 
   // Select the drive
   selectDrive(driveNum);
-  
+
+  // Check whether the disk is write-protected
+  if (driveStatus(driveNum) & 0x40)
+    theDisk->flags |= DISKFLAG_READONLY;
+
   // We will have to make sure the motor is turned on
-  if (theDisk->motorState == 0)
+  if (!(theDisk->flags & DISKFLAG_MOTORON))
     {
       // Turn the drive motor on
       setMotorState(driveNum, 1);
@@ -453,17 +478,17 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       interruptReceived = 0;
 
       // Construct the command byte
-      commandByte = 0x0F;  // Seek command
-      commandWrite(commandByte);
+      command = 0x0F;  // Seek command
+      commandWrite(command);
 
       // Construct the drive/head select byte
       // Format [00000 (head 1 bit)(drive 2 bits)]
-      commandByte = (unsigned char) (((head & 1) << 2) | (driveNum & 3));
-      commandWrite(commandByte);
+      command = (unsigned char) (((head & 1) << 2) | (driveNum & 3));
+      commandWrite(command);
 
       // Construct the track number byte
-      commandByte = (unsigned char) track;
-      commandWrite(commandByte);
+      command = (unsigned char) track;
+      commandWrite(command);
 
       // The drive should now be seeking.  While we wait for the seek to
       // complete, we can do some other things.
@@ -523,44 +548,44 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       // Custom sector size byte
 
       if (read)
-	commandByte = 0xE6;  // "Read normal data" command
+	command = 0xE6;  // "Read normal data" command
       else
-	commandByte = 0xC5;  // "Write data" command
-      commandWrite(commandByte);
+	command = 0xC5;  // "Write data" command
+      commandWrite(command);
       
       // Construct the drive/head select byte
       // Format [00000 (head 1 bit)(drive 2 bits)]
-      commandByte = (unsigned char) (((head & 1) << 2) | (driveNum & 3));
-      commandWrite(commandByte);
+      command = (unsigned char) (((head & 1) << 2) | (driveNum & 3));
+      commandWrite(command);
 
       // Construct the track number byte
-      commandByte = (unsigned char) track;
-      commandWrite(commandByte);
+      command = (unsigned char) track;
+      commandWrite(command);
       
       // Construct the head number byte
-      commandByte = (unsigned char) head;
-      commandWrite(commandByte);
+      command = (unsigned char) head;
+      commandWrite(command);
 
       // Construct the sector byte
-      commandByte = (unsigned char) sector;
-      commandWrite(commandByte);
+      command = (unsigned char) sector;
+      commandWrite(command);
 
       // Construct the sector size code
-      commandByte = (unsigned char) (theDisk->sectorSize >> 8);
-      commandWrite(commandByte);
+      command = (unsigned char) (theDisk->sectorSize >> 8);
+      commandWrite(command);
 
       // Construct the end of track byte
-      commandByte = (unsigned char) theDisk->sectorsPerCylinder;
-      commandWrite(commandByte);
+      command = (unsigned char) theDisk->sectorsPerCylinder;
+      commandWrite(command);
 
       // Construct the gap length byte
-      commandByte = (unsigned char)
+      command = (unsigned char)
 	((floppyDriveData *)(theDisk->driverData))->gapLength;
-      commandWrite(commandByte);
+      commandWrite(command);
 
       // Construct the custom sector size byte
-      commandByte = (unsigned char) 0xFF;  // Always FFh
-      commandWrite(commandByte);
+      command = (unsigned char) 0xFF;  // Always FFh
+      commandWrite(command);
 
       status = waitOperationComplete();
 
@@ -724,7 +749,7 @@ static int driverRecalibrate(int driveNum)
   // Recalibrates the selected drive, causing it to seek to track 0
 
   int status = 0;
-  unsigned char commandByte, driveByte;
+  unsigned char command, driveByte;
 
   if (driveNum >= MAXFLOPPIES)
     return (status = ERR_BOUNDS);
@@ -743,8 +768,8 @@ static int driverRecalibrate(int driveNum)
   interruptReceived = 0;
 
   // We have to send two byte commands to the controller
-  commandByte = (unsigned char) 0x07;
-  commandWrite(commandByte);
+  command = (unsigned char) 0x07;
+  commandWrite(command);
   driveByte = (unsigned char) driveNum;
   commandWrite(driveByte);
 
@@ -878,11 +903,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelOsLoaderInfo->fddInfo[count].sectors;
       disks[count].numSectors =	(disks[count].heads * disks[count].cylinders *
 				 disks[count].sectorsPerCylinder);
-      disks[count].biosType = kernelOsLoaderInfo->fddInfo[count].type;
 
       // Some additional universal default values
-      disks[count].flags =
-	(DISKFLAG_PHYSICAL | DISKFLAG_REMOVABLE | DISKFLAG_FLOPPY);
+      disks[count].type =
+	(DISKTYPE_PHYSICAL | DISKTYPE_REMOVABLE | DISKTYPE_FLOPPY);
       disks[count].deviceNumber = count;
       disks[count].sectorSize = 512;
       // Assume motor off for now
@@ -909,7 +933,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
       floppyData->headUnload = 0x0F;
       floppyData->dataRate = 0;
 
-      switch(disks[count].biosType)
+      switch(kernelOsLoaderInfo->fddInfo[count].type)
 	{
 	case 1:
 	  // This is a 360 KB 5.25" Disk.  Yuck.
@@ -945,7 +969,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  // through to 1.44 MB.
 	  kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
 		      "Assuming 1.44 Mb.", disks[count].deviceNumber,
-		      disks[count].biosType);
+		      kernelOsLoaderInfo->fddInfo[count].type);
 
 	case 4:
 	  // This is a 1.44 MB 3.5" Disk.
@@ -1032,11 +1056,12 @@ static kernelDiskOps floppyOps = {
   driverReset,
   driverRecalibrate,
   driverSetMotorState,
-  NULL, // driverLockState
-  NULL, // driverDoorState
+  NULL, // driverSetLockState
+  NULL, // driverSetDoorState
   driverDiskChanged,
   driverReadSectors,
   driverWriteSectors,
+  NULL  // driverFlush
 };
 
 

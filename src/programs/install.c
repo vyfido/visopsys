@@ -191,7 +191,7 @@ static void makeDiskList(void)
 	continue;
 
       // Skip CD-ROMS
-      if (tmpDiskInfo[count].flags & DISKFLAG_CDROM)
+      if (tmpDiskInfo[count].type & DISKTYPE_CDROM)
 	continue;
 
       // Otherwise, we will put this in the list
@@ -686,7 +686,7 @@ static int copyBootSector(disk *theDisk)
 	  theDisk->name);
   status = system(command);
 
-  diskSync();
+  diskSync(theDisk->name);
 
   if (status < 0)
     {
@@ -776,7 +776,7 @@ static int copyFiles(const char *installFileName)
 
       // Sync periodically
       if ((((bytesCopied * 100) / bytesToCopy) % 10) > (percent % 10))
-	diskSync();
+	diskSyncAll();
 
       percent = ((bytesCopied * 100) / bytesToCopy);
 
@@ -794,7 +794,7 @@ static int copyFiles(const char *installFileName)
  done:
   fileStreamClose(&installFile);
 
-  diskSync();
+  diskSyncAll();
 
   updateStatus("Done\n");
 

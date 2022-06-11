@@ -30,9 +30,9 @@
 
 // Hardware device classes and subclasses
 #define DEVICECLASS_NONE                    0
-#define DEVICECLASS_SYSTEM                  0x0100
-#define DEVICECLASS_CPU                     0x0200
-#define DEVICECLASS_MEMORY                  0x0300
+#define DEVICECLASS_CPU                     0x0100
+#define DEVICECLASS_MEMORY                  0x0200
+#define DEVICECLASS_SYSTEM                  0x0300
 #define DEVICECLASS_BUS                     0x0400
 #define DEVICECLASS_PIC                     0x0500
 #define DEVICECLASS_SYSTIMER                0x0600
@@ -53,11 +53,12 @@
 #define DEVICESUBCLASS_NONE                 0
 #define DEVICESUBCLASS_UNKNOWN              (DEVICECLASS_UNKNOWN | 0x01)
 
-// System device subclasses                 
-#define DEVICESUBCLASS_SYSTEM_BIOS          (DEVICECLASS_SYSTEM | 0x01)
-
 // Sub-classes of CPUs
 #define DEVICESUBCLASS_CPU_X86              (DEVICECLASS_CPU | 0x01)
+
+// System device subclasses                 
+#define DEVICESUBCLASS_SYSTEM_BIOS          (DEVICECLASS_SYSTEM | 0x01)
+#define DEVICESUBCLASS_SYSTEM_BIOS32        (DEVICECLASS_SYSTEM | 0x02)
 
 // Sub-classes of buses
 #define DEVICESUBCLASS_BUS_PCI              (DEVICECLASS_BUS | 0x01)

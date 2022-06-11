@@ -28,7 +28,7 @@
  -- fdisk --
 
 Also known as the "Disk Manager", fdisk is a hard disk partitioning tool.
-It can create, delete, format, and move partitions and modify their
+It can create, delete, format, resize, and move partitions and modify their
 attributes.  It can copy entire hard disks from one to another.
 
 Usage:
@@ -136,13 +136,15 @@ windowMenuContents fileMenuContents = {
 #define DISKMENU_PARTORDER 1
 #define DISKMENU_SIMPLEMBR 2
 #define DISKMENU_BOOTMENU  3
+#define DISKMENU_ERASEDISK 4
 windowMenuContents diskMenuContents = {
-  4,
+  5,
   {
     { "Copy disk", NULL },
     { "Partition order", NULL },
     { "Write basic MBR", NULL },
-    { "MBR boot menu", NULL }
+    { "MBR boot menu", NULL },
+    { "Erase disk", NULL }
   }
 };
   
@@ -160,8 +162,9 @@ windowMenuContents diskMenuContents = {
 #define PARTMENU_CREATE    11
 #define PARTMENU_DELETEALL 12
 #define PARTMENU_SETTYPE   13
+#define PARTMENU_ERASE     14
 windowMenuContents partMenuContents = {
-  14,
+  15,
   {
     { "Copy", NULL },
     { "Paste", NULL },
@@ -176,7 +179,8 @@ windowMenuContents partMenuContents = {
     { "Move", NULL },
     { "Create", NULL },
     { "Delete all", NULL },
-    { "Set type", NULL }
+    { "Set type", NULL },
+    { "Erase", NULL }
   }
 };
 
@@ -320,8 +324,7 @@ static int readLine(const char *choices, char *buffer, int length)
       if (buffer[count1] == 10) // Newline
 	{
 	  buffer[count1] = '\0';
-	  textInputSetEcho(1);
-	  return (count1);
+	  break;
 	}
 	
       if (buffer[count1] == 8) // Backspace
@@ -347,8 +350,12 @@ static int readLine(const char *choices, char *buffer, int length)
 	count1--;
     }
 
-  // Reached the end of the buffer.
+  // Make sure there's a NULL at the end of buffer.
   buffer[length - 1] = '\0';
+
+  textInputSetEcho(1);
+  printf("\n");
+
   return (0);
 }
 
@@ -469,7 +476,7 @@ static int scanDisks(void)
   // Loop through these disks, figuring out which ones are hard disks
   // and putting them into the regular array
   for (count = 0; count < tmpNumberDisks; count ++)
-    if (tmpDiskInfo[count].flags & DISKFLAG_HARDDISK)
+    if (tmpDiskInfo[count].type & DISKTYPE_HARDDISK)
       {
 	memcpy(&disks[numberDisks], &tmpDiskInfo[count], sizeof(disk));
 
@@ -809,7 +816,7 @@ static int writePartitionTable(partitionTable *t)
       t->backupAvailable = 1;
     }
 
-  diskSync();
+  diskSync(t->disk->name);
   t->changesPending = 0;
 
   return (status = 0);
@@ -1674,8 +1681,6 @@ static int setType(int sliceNumber)
 	printf("\nEnter the hexadecimal code to set as the type ('L' to list, "
 	       "'Q' to quit):\n-> ");
 	status = readLine("0123456789AaBbCcDdEeFfLlQq", code, 8);
-	printf("\n");
-
 	if (status < 0)
 	  goto out;
 
@@ -1857,7 +1862,7 @@ static int doCreate(int sliceNumber, sliceType type, unsigned startCylinder,
 {
   // Does the non-interactive work of creating a partition
 
-  slice *newSlice = &(table->slices[sliceNumber]);
+  slice *newSlice = &table->slices[sliceNumber];
   int count;
 
   bzero(newSlice, sizeof(slice));
@@ -2110,8 +2115,6 @@ static void create(int sliceNumber)
 	  if (status < 0)
 	    return;
 
-	  printf("\n");
-	  
 	  if ((endCyl[0] == 'Q') || (endCyl[0] == 'q'))
 	    return;
 	}
@@ -2266,7 +2269,7 @@ static void format(int sliceNumber)
   // Prompt, and format a slice
 
   int status = 0;
-  slice *formatSlice = &(table->slices[sliceNumber]);
+  slice *formatSlice = &table->slices[sliceNumber];
   char *fsTypes[] = { "FAT", "EXT2", "Linux-swap", "None" };
   char *fatTypes[] = { "Default", "FAT12", "FAT16", "FAT32" };
   const char *chooseString = "Choose the filesystem type:";
@@ -2371,7 +2374,7 @@ static void defragment(int sliceNumber)
   // Prompt, and defragment a slice
 
   int status = 0;
-  slice *defragSlice = &(table->slices[sliceNumber]);
+  slice *defragSlice = &table->slices[sliceNumber];
   progress prog;
   objectKey progressDialog = NULL;
   char tmpChar[160];
@@ -2692,10 +2695,13 @@ static int doMove(int sliceNumber, unsigned newStartCylinder)
       srcSector += (moveLeft? sectorsPerOp : -sectorsPerOp);
       destSector += (moveLeft? sectorsPerOp : -sectorsPerOp);
 
-      if (lockGet(&(prog.lock)) >= 0)
+      if (lockGet(&prog.lock) >= 0)
 	{
 	  prog.finished += sectorsPerOp;
-	  prog.percentFinished = ((prog.finished * 100) / prog.total);
+	  if (prog.total >= 100)
+	    prog.percentFinished = (prog.finished / (prog.total / 100));
+	  else
+	    prog.percentFinished = ((prog.finished * 100) / prog.total);
 	  remainingSeconds = (((rtcUptimeSeconds() - startSeconds) *
 			       (sectorsToCopy / sectorsPerOp)) /
 			      (prog.finished / sectorsPerOp));
@@ -2707,7 +2713,7 @@ static int doMove(int sliceNumber, unsigned newStartCylinder)
 	      (overlapSector < (destSector + sectorsPerOp)))
 	    prog.canCancel = 0;
 
-	  lockRelease(&(prog.lock));
+	  lockRelease(&prog.lock);
 	}
     }
 
@@ -2930,6 +2936,11 @@ static int doResize(int sliceNumber, unsigned newEndCylinder, int resizeFs)
       // Write everything
       writeChanges(table, 0);
 
+      // If disk caching is enabled on the disk, disable it whilst we do a
+      // large operation like this.
+      if (!(table->disk->flags & DISKFLAG_NOCACHE))
+	diskSetFlags(table->disk->name, DISKFLAG_NOCACHE, 1);
+
       bzero((void *) &prog, sizeof(progress));
       if (graphics)
 	progressDialog =
@@ -2950,6 +2961,10 @@ static int doResize(int sliceNumber, unsigned newEndCylinder, int resizeFs)
 	windowProgressDialogDestroy(progressDialog);
       else
 	vshProgressBarDestroy(&prog);
+
+      // If applicable, re-enable disk caching.
+      if (!(table->disk->flags & DISKFLAG_NOCACHE))
+	diskSetFlags(table->disk->name, DISKFLAG_NOCACHE, 0);
 
       // Update the slice list
       updateSliceList(table);
@@ -3278,8 +3293,6 @@ static int resize(int sliceNumber)
 	  if (status < 0)
 	    continue;
 
-	  printf("\n");
-	  
 	  if ((newEndString[0] == 'Q') || (newEndString[0] == 'q'))
 	    return (status = 0);
 	}
@@ -3445,18 +3458,22 @@ static void copyIoThread(int argc, char *argv[])
       currentSector += sectorsPerOp;
       doSectors -= sectorsPerOp;
 
-      if (!reader && args->prog && (lockGet(&(args->prog->lock)) >= 0))
+      if (!reader && args->prog && (lockGet(&args->prog->lock) >= 0))
 	{
 	  args->prog->finished = (currentSector - args->startSector);
-	  args->prog->percentFinished =
-	    ((args->prog->finished * 100) / args->numSectors);
+	  if (args->numSectors >= 100)
+	    args->prog->percentFinished =
+	      (args->prog->finished / (args->numSectors / 100));
+	  else
+	    args->prog->percentFinished =
+	      ((args->prog->finished * 100) / args->numSectors);
 	  remainingSeconds = (((rtcUptimeSeconds() - startSeconds) *
 			       (doSectors / sectorsPerOp)) /
 			      (args->prog->finished / sectorsPerOp));
 
 	  formatTime((char *) args->prog->statusMessage, remainingSeconds);
 
-	  lockRelease(&(args->prog->lock));
+	  lockRelease(&args->prog->lock);
 	}
 
       if (currentBuffer == 0)
@@ -3498,7 +3515,7 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 
   // Set up the memory buffer to copy data to/from
   bzero(&buffer, sizeof(ioBuffer));
-  buffer.bufferSize = COPYBUFFER_SIZE;
+  buffer.bufferSize = 1048576;
 
   // This loop will allow us to try successively smaller memory buffer
   // allocations, so that we can start by trying to allocate a large amount
@@ -3546,6 +3563,13 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
       vshProgressBar(&prog);
     }
 
+  // If disk caching is enabled on the disks, disable it whilst we do a large
+  // operation like this.
+  if (!(srcDisk->flags & DISKFLAG_NOCACHE))
+    diskSetFlags(srcDisk->name, DISKFLAG_NOCACHE, 1);
+  if (!(destDisk->flags & DISKFLAG_NOCACHE))
+    diskSetFlags(destDisk->name, DISKFLAG_NOCACHE, 1);
+
   // Set up and start our IO threads
 
   bzero(&readerArgs, sizeof(ioThreadArgs));
@@ -3566,14 +3590,18 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 
   readerPID = multitaskerSpawn(&copyIoThread, "i/o reader thread", 1,
 			       (void *[]) { "reader" });
+  if (readerPID < 0)
+    {
+      status = readerPID;
+      goto out;
+    }
+
   writerPID = multitaskerSpawn(&copyIoThread, "i/o writer thread", 1,
 			       (void *[]) { "writer" });
-  if ((readerPID < 0) || (writerPID < 0))
+  if (writerPID < 0)
     {
-      if (readerPID < 0)
-	return (status = readerPID);
-      else
-	return (status = writerPID);
+      status = writerPID;
+      goto out;
     }
 
   while (1)
@@ -3618,12 +3646,19 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
   else
     status = 0;
 
+ out:
   // Release copy buffer data
   memoryRelease(buffer.buffer[0].data);
   memoryRelease(buffer.buffer[1].data);
 
   // Flush data.
-  diskSync();
+  diskSync(destDisk->name);
+
+  // If applicable, re-enable disk caching.
+  if (!(srcDisk->flags & DISKFLAG_NOCACHE))
+    diskSetFlags(srcDisk->name, DISKFLAG_NOCACHE, 0);
+  if (!(destDisk->flags & DISKFLAG_NOCACHE))
+    diskSetFlags(destDisk->name, DISKFLAG_NOCACHE, 0);
 
   if (graphics && progressDialog)
     windowProgressDialogDestroy(progressDialog);
@@ -3750,7 +3785,7 @@ static disk *chooseDiskDialog(void)
       if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
 	  windowComponentGetSelected(dList, &selected);
-	  retDisk = &(disks[selected]);
+	  retDisk = &disks[selected];
 	  break;
 	}
 
@@ -3934,7 +3969,7 @@ static void copyDisk(void)
 static void copyPartition(int sliceNumber)
 {
   // 'Copy' a slice to our slice 'clipboard'
-  memcpy(&clipboardSlice, &(table->slices[sliceNumber]), sizeof(slice));
+  memcpy(&clipboardSlice, &table->slices[sliceNumber], sizeof(slice));
   clipboardDisk = table->disk;
   clipboardSliceValid = 1;
 }
@@ -3959,7 +3994,7 @@ static int pastePartition(int sliceNumber)
       return (status = ERR_NODATA);
     }
 
-  emptySlice = &(table->slices[sliceNumber]);
+  emptySlice = &table->slices[sliceNumber];
 
   if (emptySlice->raw.tag)
     // Not empty space
@@ -4468,6 +4503,193 @@ static void restoreBackup(void)
 }
 
 
+static int chooseSecurityLevel(void)
+{
+  int securityLevel = 0;
+  const char *chooseString =
+    "Erasing clears the data securely by overwriting successive\n"
+    "passes of random data.  More passes is more secure but\n"
+    "takes longer.  Choose the security level:";
+  char *eraseLevels[] = { "basic (clear only)", "secure", "more secure",
+			  "most secure" };
+
+  if (graphics)
+    securityLevel = windowNewRadioDialog(window, "Erase security level",
+					 chooseString, eraseLevels, 4, 0);
+  else
+    securityLevel = vshCursorMenu(chooseString, eraseLevels, 4, 0);
+
+  if (securityLevel >= 0)
+    securityLevel = ((securityLevel * 2) + 1);
+
+  return (securityLevel);
+}
+
+
+static int eraseData(disk *theDisk, unsigned startSector, unsigned numSectors,
+		     int securityLevel)
+{
+  // Securely erase data sectors.
+
+  int status = 0;
+  unsigned remainingSectors = numSectors;
+  unsigned doSectors = 0;
+  objectKey progressDialog = NULL;
+  unsigned startSeconds = rtcUptimeSeconds();;
+  unsigned remainingSeconds = 0;
+  progress prog;
+
+  bzero((void *) &prog, sizeof(progress));
+  prog.total = numSectors;
+  strcpy((char *) prog.statusMessage, "Time remaining: ?? hours ?? minutes");
+  prog.canCancel = 1;
+
+  if (graphics)
+    progressDialog = windowNewProgressDialog(window, "Erasing data...", &prog);
+  else
+    {
+      printf("\nErasing data... (press 'Q' to cancel)\n");
+      vshProgressBar(&prog);
+    }
+
+  while (remainingSectors)
+    {
+      doSectors = min(remainingSectors, CYLSECTS(theDisk));
+
+      status =
+	diskEraseSectors(theDisk->name, startSector, doSectors, securityLevel);
+      if (status < 0)
+	break;
+
+      if (prog.cancel)
+	{
+	  status = ERR_CANCELLED;
+	  break;
+	}
+
+      remainingSectors -= doSectors;
+      startSector += doSectors;
+
+      if (lockGet(&prog.lock) >= 0)
+	{
+	  prog.finished = (numSectors - remainingSectors);
+	  if (numSectors >= 100)
+	    prog.percentFinished = (prog.finished / (numSectors / 100));
+	  else
+	    prog.percentFinished = ((prog.finished * 100) / numSectors);
+	  remainingSeconds = (((rtcUptimeSeconds() - startSeconds) *
+			       (remainingSectors / doSectors)) /
+			      (prog.finished / doSectors));
+
+	  formatTime((char *) prog.statusMessage, remainingSeconds);
+
+	  lockRelease(&prog.lock);
+	}
+    }
+
+  if (graphics && progressDialog)
+    windowProgressDialogDestroy(progressDialog);
+  else
+    vshProgressBarDestroy(&prog);
+
+  return (status);
+}
+
+
+static void erase(int wholeDisk)
+{
+  // Securely erase a slice or disk.  If it's a slice, the slice can be a
+  // partition or empty space.
+
+  int status = 0;
+  const char *chooseString = "Erase the partition or the whole disk?:";
+  char *eraseLevels[] = { "partition", "whole disk" };
+  slice *slc = NULL;
+  int securityLevel = 0;
+  char tmpChar[80];
+
+  if (wholeDisk < 0)
+    {
+      if (graphics)
+	wholeDisk = windowNewRadioDialog(window, "Erase partition or disk?",
+					 chooseString, eraseLevels, 2, 0);
+      else
+	wholeDisk = vshCursorMenu(chooseString, eraseLevels, 2, 0);
+
+      if (wholeDisk < 0)
+	return;
+    }
+
+  if (!wholeDisk)
+    {
+      if (table->changesPending)
+	{
+	  error("A partition erase cannot be undone, and it is required that "
+		"you\nwrite your other changes to disk before continuing.");
+	  return;
+	}
+
+      slc = &table->slices[table->selectedSlice];
+
+      if (slc->raw.tag)
+	{
+	  status = mountedCheck(slc);
+	  if (status < 0)
+	    return;
+	}
+    }
+
+  // Get the security level
+  securityLevel = chooseSecurityLevel();
+  if (securityLevel < 0)
+    return;
+
+  if (wholeDisk)
+    sprintf(tmpChar, "Erase whole disk %s", table->disk->name);
+  else
+    {
+      if (slc->raw.tag)
+	sprintf(tmpChar, "Erase partition %s", slc->showSliceName);
+      else
+	strcpy(tmpChar, "Erase this empty space");
+    }
+  strcat(tmpChar, "?\n(This change cannot be undone)");
+  if (!yesOrNo(tmpChar))
+    return;
+
+  // Erase the data
+  if (wholeDisk)
+    status = eraseData(table->disk, 0, table->disk->numSectors, securityLevel);
+  else
+    status = eraseData(table->disk, slc->raw.startLogical,
+		       slc->raw.sizeLogical, securityLevel);
+
+  if (wholeDisk)
+    clearDiskLabel(table->disk, msdosLabel);
+
+  makeSliceList(table);
+
+  if (status < 0)
+    {
+      if (status != ERR_CANCELLED)
+	error("Error %d erasing %s", status,
+	      (wholeDisk? "disk" : "partition"));
+    }
+  else
+    {
+      if (graphics)
+	windowNewInfoDialog(window, "Success", "Erase complete");
+      else
+	{
+	  printf("Erase complete\n");
+	  pause();
+	}
+    }
+
+  return;
+}
+
+
 static void makeSliceListHeader(void)
 {
   // The header that goes above the slice list.  Name string in graphics
@@ -4566,6 +4788,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 	  else if (selectedItem ==
 		   diskMenuContents.items[DISKMENU_BOOTMENU].key)
 	    mbrBootMenu();
+
+	  else if (selectedItem ==
+		   diskMenuContents.items[DISKMENU_ERASEDISK].key)
+	    erase(1);
 	}
     }
 
@@ -4620,6 +4846,9 @@ static void eventHandler(objectKey key, windowEvent *event)
 	  else if (selectedItem ==
 		   partMenuContents.items[PARTMENU_SETTYPE].key)
 	    setType(table->selectedSlice);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_ERASE].key)
+	    erase(0);
 	}
     }
 
@@ -4982,6 +5211,8 @@ static int textMenu(void)
       textSetColumn(COL);
       printf(table->changesPending? "[U] Undo\n" : "");
       textSetColumn(COL);
+      printf("[V] Erase\n");
+      textSetColumn(COL);
       printf(table->changesPending? "[W] Write changes\n" : "");
       textSetColumn(COL);
       printf("[X] Write basic MBR\n");
@@ -4999,7 +5230,8 @@ static int textMenu(void)
 
       // Construct the string of allowable options, corresponding to what is
       // shown above.
-      sprintf(optionString, "%s%sCc%s%s%s%s%sIiLl%s%s%s%sQq%sSs%s%s%sXxYyZz",
+      sprintf(optionString, "%s%sCc%s%s%s%s%sIiLl%s%s%s%sQq%sSs%s%sVv%sXxYy"
+	      "Zz",
 	      (isPartition? "Aa" : ""),
 	      (table->numRawSlices? "Bb" : ""),
 	      (isPartition? "Dd" : ""),
@@ -5127,6 +5359,11 @@ static int textMenu(void)
 	case 'u':
 	case 'U':
 	  undo();
+	  continue;
+	  
+	case 'v':
+	case 'V':
+	  erase(-1);
 	  continue;
 	  
 	case 'w':

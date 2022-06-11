@@ -128,7 +128,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
 
   // Make sure it's a logical disk (a partition, that is) rather than a
   // physical one
-  if ((fd->disk.flags & DISKFLAG_LOGICALPHYSICAL) != DISKFLAG_LOGICAL)
+  if ((fd->disk.type & DISKTYPE_LOGICALPHYSICAL) != DISKTYPE_LOGICAL)
     {
       ntfs_log_trace("Can't open physical disks\n");
       status = ERR_NOTIMPLEMENTED;
@@ -193,7 +193,7 @@ static int ntfs_device_visopsys_close(struct ntfs_device *dev)
   fd = (visopsys_fd *) dev->d_private;
 
   if (NDevDirty(dev))
-    diskSync();
+    diskSync(fd->disk.name);
 
   NDevClearOpen(dev);
   dev->d_private = NULL;
@@ -517,7 +517,7 @@ static int ntfs_device_visopsys_sync(struct ntfs_device *dev)
 
   if (!NDevReadOnly(dev) && NDevDirty(dev))
     {
-      status = diskSync();
+      status = diskSync(fd->disk.name);
       if (status < 0)
 	{
 	  ntfs_log_trace("Error syncing disk\n");

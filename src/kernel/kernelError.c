@@ -165,7 +165,7 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
 
   processName[0] = '\0';
   if (kernelProcessingInterrupt)
-    sprintf(processName, "interrupt %x", kernelPicGetActive());
+    sprintf(processName, "interrupt %02X", kernelPicGetActive());
   else if (kernelCurrentProcess)
     strncpy(processName, (char *) kernelCurrentProcess->processName,
 	    MAX_PROCNAME_LENGTH);

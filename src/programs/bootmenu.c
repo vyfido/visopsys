@@ -362,7 +362,7 @@ static int getLogicalDisks(disk *physicalDisk)
     if (!strncmp(logicalDisks[count].name, physicalDisk->name,
 		 strlen(physicalDisk->name)))
       {
-	if (logicalDisks[count].flags & DISKFLAG_PRIMARY)
+	if (logicalDisks[count].type & DISKTYPE_PRIMARY)
 	  // This logical resides on our physical disk
 	  memcpy(&logicalDisks[numberLogical++], &logicalDisks[count],
 		 sizeof(disk));
@@ -687,8 +687,8 @@ int main(int argc, char *argv[])
 
   // Make sure it's a physical hard disk device, and not a logical disk,
   // floppy, CD-ROM, etc.
-  if (!(theDisk.flags & DISKFLAG_PHYSICAL) ||
-      !(theDisk.flags & DISKFLAG_HARDDISK))
+  if (!(theDisk.type & DISKTYPE_PHYSICAL) ||
+      !(theDisk.type & DISKTYPE_HARDDISK))
     {
       error("Disk %s is not a physical hard disk device\n", theDisk.name);
       return (errno = ERR_INVALID);

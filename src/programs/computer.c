@@ -138,7 +138,7 @@ static void eventHandler(objectKey key, windowEvent *event)
       windowSwitchPointer(window, "busy");
 
       // If it's removable, see if there is any media present
-      if (disks[clickedIcon].flags & DISKFLAG_REMOVABLE &&
+      if (disks[clickedIcon].type & DISKTYPE_REMOVABLE &&
 	  !diskGetMediaState(disks[clickedIcon].name))
 	{
 	  windowSwitchPointer(window, "default");
@@ -242,11 +242,11 @@ static int scanComputer(void)
 	{
 	  iconFile = HARDDISK_ICONFILE;
 
-	  if (newDisks[count].flags & DISKFLAG_FLOPPY)
+	  if (newDisks[count].type & DISKTYPE_FLOPPY)
 	    iconFile = FLOPPYDISK_ICONFILE;
-	  else if (newDisks[count].flags & DISKFLAG_CDROM)
+	  else if (newDisks[count].type & DISKTYPE_CDROM)
 	    iconFile = CDROMDISK_ICONFILE;
-	  else if (newDisks[count].flags & DISKFLAG_FLASHDISK)
+	  else if (newDisks[count].type & DISKTYPE_FLASHDISK)
 	    iconFile = FLASHDISK_ICONFILE;
 
 	  strcpy(newIconParams[count].text, newDisks[count].name);

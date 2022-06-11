@@ -57,14 +57,20 @@ unsigned long long _str2num(const char *string, unsigned base, int sign)
 	{
 	case 10:
 	  if (!isdigit(string[count]))
-	    goto out;
+	    {
+	      errno = ERR_INVALID;
+	      goto out;
+	    }
 	  result *= base;
 	  result += (string[count] - '0');
 	  break;
 
 	case 16:
 	  if (!isxdigit(string[count]))
-	    goto out;
+	    {
+	      errno = ERR_INVALID;
+	      goto out;
+	    }
 	  result *= base;
 	  if ((string[count] >= '0') && (string[count] <= '9'))
 	    result += (string[count] - '0');

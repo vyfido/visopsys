@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  // Loop through all of our directory name arguments
+  // Loop through all of our file name arguments
   for (count = 1; count < argc; count ++)
     {
       // Make sure the name isn't NULL

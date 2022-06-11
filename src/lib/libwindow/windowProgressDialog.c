@@ -100,10 +100,7 @@ static void progressThread(void)
 		  if (status == 1)
 		    prog->confirm = 1;
 		  else
-		    {
-		      prog->confirm = -1;
-		      break;
-		    }
+		    prog->confirm = -1;
 		}
 
 	      // Look for 'error' flag changes
@@ -111,8 +108,7 @@ static void progressThread(void)
 		{
 		  windowNewErrorDialog(dialogWindow, "Error",
 				       (char *) prog->statusMessage);
-		  prog->confirmError = 1;
-		  break;
+		  prog->error = 0;
 		}
 
 	      // Copy the status

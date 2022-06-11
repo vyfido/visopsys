@@ -29,7 +29,7 @@
 #include <ctype.h>
 
 
-int isalpha (int c)
+int isalpha(int c)
 {
   // checks for an alphabetic character; in the standard "C"  locale, it is
   // equivalent  to (isupper(c) || islower(c)).  In some locales, there may

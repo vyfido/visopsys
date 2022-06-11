@@ -210,7 +210,7 @@ static void constructWindow(void)
     }
 
   // Find out whether we are currently running from a CD-ROM
-  if (sysDisk.flags & DISKFLAG_CDROM)
+  if (sysDisk.type & DISKTYPE_CDROM)
     {
       // Yes.  Make an 'eject cd' checkbox.
       params.gridX = 0;
@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
     }
   else
     {
-      if (eject && (sysDisk.flags & DISKFLAG_CDROM))
+      if (eject && (sysDisk.type & DISKTYPE_CDROM))
 	doEject();
 
       // There's a nice system function for doing this.

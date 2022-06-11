@@ -47,13 +47,104 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.68<br>
+</font><font size="2">10/05/2007</font></p>
+
+<p><font size="4">Overview: This is a maintenance release, with a focus on disk 
+I/O performance (fixed the kernel's disk cache, and added IDE lookahead and 
+write caching), secure deletion (shredding) of files/partitions/disks, and bug 
+fixes, including important changes to the OS loader resulting in more reliable 
+booting on more systems.</font></p>
+<ul>
+  <li><font size="4">Re-implemented the kernel's disk caching. Previously, 
+  performance was generally bad but could be horrendous under heavy I/O, as well 
+  as evidence that it was buggy and could occasionally cause data corruption.</font></li>
+  <li><font size="4">Added read caching (lookahead) and write caching ability to 
+  the IDE disk driver. Write caching necessitated a flush() disk driver function 
+  to be called from the higher-level sync() function.</font></li>
+  <li><font size="4">In the Disk Manager, turned off software disk caching when 
+  doing a disk copy operation; vastly improves I/O throughput for faster copies.</font></li>
+  <li><font size="4">Implemented new A20 address line code in the 'vloader' OS 
+  loader, for successful booting on more systems. New A20 enabling methods 
+  include a BIOS call and a write to port 92h.</font></li>
+  <li><font size="4">Implemented secure deletion of disk data with a 
+  kernelDiskEraseSectors() function that does passes of overwriting the raw disk 
+  sectors. Added an 'erase' operation to the Disk Manager to enable this for 
+  partitions and whole disks.</font></li>
+  <li><font size="4">Implemented secure deletion for files, which does passes of 
+  overwriting the file data. Added a command line option to the 'rm' command to 
+  invoke it.</font></li>
+  <li><font size="4">Reorganized some of the malloc() code and added debugging 
+  output.</font></li>
+  <li><font size="4">Added logic to the malloc() code (used both the kernel and 
+  user programs) for deallocating heap memory when it is no longer being used, 
+  rather than keeping it all indefinitely. Each block now keeps a record of its 
+  allocation, and when the whole allocation is unused it is freed.</font></li>
+  <li><font size="4">Updated some partition tag descriptions in the kernel disk 
+  code (will show up primarily in the Disk Manager).</font></li>
+  <li><font size="4">Added a '-R' option to the 'cp' program for recursive 
+  directory copying.</font></li>
+  <li><font size="4">Added regular write-protect checking to the floppy driver, 
+  so that by the time a filesystem is mounted we should already know if we can't 
+  write to it.</font></li>
+  <li><font size="4">The kernelDevice for system memory now contains an 
+  attribute with the memory size. Viewable from the 'lsdev' (Devices) program.</font></li>
+  <li><font size="4">Removed the kernelDiskSyncDisk() function, made 
+  kernelDiskSync() a call for specific disks, and added a kernelDiskSyncAll() 
+  function for syncing all the disks.</font></li>
+  <li><font size="4">Add a kernelDiskGetStats() function for getting disk 
+  performance data, and add that info to the Program Manager's display.</font></li>
+  <li><font size="4">Added a set of software flags to the 'disk' and 
+  'kernelDisk' structures to indicate changeable things like media state, door 
+  state, read-only, 'sync' flag, etc. The previous 'flags' fields was really an 
+  indication of the hardware type, so was changed to a 'type' field.</font></li>
+  <li><font size="4">- Added a kernelDiskSetFlags() function to allow changing 
+  user-settable values in the new flags field, and added a DISKFLAG_NOCACHE flag 
+  to disable the software cache for the disk.</font></li>
+  <li><font size="4">Added the optional-argument-option support to the getopt() 
+  C library function.</font></li>
+  <li><font size="4">Added a &quot;file ops&quot; test to the test program.</font></li>
+  <li><font size="4">Added a basic &quot;disk I/O&quot; test to the test program.</font></li>
+  <li><font size="4">Removed the redundant vshCopyFile() function from the vsh 
+  library.</font></li>
+  <li><font size="4">Fixed: The floppy disk version was too full, crashed during 
+  boot when it subsequently couldn't write log files, etc., and otherwise spewed 
+  too many error messages.</font></li>
+  <li><font size="4">Fixed: When an IDE disk had a small multi-sector value like 
+  16, reading large files could fail with an error message about too many PRD 
+  entries.</font></li>
+  <li><font size="4">Fixed: In the Disk Manager, when NTFS resizing failed (for 
+  example with the unclean journal message) control didn't return - it just 
+  hung. </font></li>
+  <li><font size="4">Fixed: With large IDE disks, on some systems, the kernel 
+  seemed to be getting 28-bit-limited geometry and size values from the BIOS. 
+  The IDE driver replaces BIOS values with ones from the device/controller 
+  wherever the BIOS values make more sense. </font></li>
+  <li><font size="4">Fixed: Doing a 'full' Visopsys install on a ~80mb 
+  partition, after choosing to format as FAT16, could totally crash/hang the 
+  system.</font></li>
+  <li><font size="4">Fixed: The mouse was leaving tracers at the rightmost and 
+  bottommost edges of the screen (1 pixel width).</font></li>
+  <li><font size="4">Fixed: The kernelFileCopy() function now allocates memory 
+  for its copy buffer using kernelMemoryGet() rather then kernelMalloc().</font></li>
+  <li><font size="4">Fixed: Most of the file system data allocated in the FAT 
+  filesystem driver was not deallocated, simply discarded.</font></li>
+  <li><font size="4">Fixed: The kernelFileCopyRecursive() function caused a page 
+  fault when it encountered an empty directory.</font></li>
+  <li><font size="4">Fixed: Though the Disk Manager's 'move partition' and 'copy 
+  disk/partition' progress indicators would show the correct time, but the 
+  percentage could overflow. going back to a smaller number and then climbing 
+  again.</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.67<br>
 </font><font size="2">03/04/2007</font></p>
 
 <p><font size="4">Overview: This is a maintenance release, including a number of 
 bug fixes and the addition of new capabilities to the IDE disk driver including 
 PCI, DMA, and 48-bit addressing support; a significant re-engineering of the 
-Disk Manager program to modularise it for new disk label types, plus support for 
+Disk Manager program to modularize it for new disk label types, plus support for 
 moving logical partitions and creating 'preceding' logical partitions.</font></p>
 <ul>
   <li><font size="4">Added PCI, DMA, and 48-bit addressing support to the IDE 
@@ -64,7 +155,7 @@ moving logical partitions and creating 'preceding' logical partitions.</font></p
   Disk Manager.</font></li>
   <li><font size="4">Implemented the ability to create 'preceding' logical 
   partitions in the Disk Manager.</font></li>
-  <li><font size="4">Modularised the Disk Manager so that it will be better 
+  <li><font size="4">Modularized the Disk Manager so that it will be better 
   suited for working with different types of disk labels.</font></li>
   <li><font size="4">Added a debug_io category to the kernelDebug.c functions.</font></li>
   <li><font size="4">Added itoux() and lltoux() pseudo- C library functions for 

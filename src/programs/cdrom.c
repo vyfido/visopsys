@@ -78,7 +78,7 @@ static int scanDisks(void)
   // Loop through these disks, figuring out which ones are CD-ROMS
   // and putting them into the regular array
   for (count = 0; count < tmpNumberDisks; count ++)
-    if (tmpDiskInfo[count].flags & DISKFLAG_CDROM)
+    if (tmpDiskInfo[count].type & DISKTYPE_CDROM)
       {
 	memcpy(&diskInfo[numberDisks], &tmpDiskInfo[count], sizeof(disk));
 	numberDisks ++;

@@ -30,9 +30,9 @@
 
 // An array of device classes, with names
 static kernelDeviceClass allClasses[] = {
-  { DEVICECLASS_SYSTEM,   "system"                },
   { DEVICECLASS_CPU,      "CPU"                   },
   { DEVICECLASS_MEMORY,   "memory"                },
+  { DEVICECLASS_SYSTEM,   "system"                },
   { DEVICECLASS_BUS,      "bus"                   },
   { DEVICECLASS_PIC,      "PIC"                   },
   { DEVICECLASS_SYSTIMER, "system timer"          },
@@ -51,22 +51,23 @@ static kernelDeviceClass allClasses[] = {
 
 // An array of device subclasses, with names
 static kernelDeviceClass allSubClasses[] = {
-  { DEVICESUBCLASS_SYSTEM_BIOS,         "BIOS"        },
-  { DEVICESUBCLASS_CPU_X86,             "x86"         },
-  { DEVICESUBCLASS_BUS_PCI,             "PCI"         },
-  { DEVICESUBCLASS_BUS_USB,             "USB"         },
-  { DEVICESUBCLASS_DISKCTRL_IDE,        "IDE"         },
-  { DEVICESUBCLASS_KEYBOARD_USB,        "USB"         },
-  { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"        },
-  { DEVICESUBCLASS_MOUSE_SERIAL,        "serial"      },
-  { DEVICESUBCLASS_MOUSE_USB,           "USB"         },
-  { DEVICESUBCLASS_DISK_FLOPPY,         "floppy"      },
-  { DEVICESUBCLASS_DISK_IDE,            "IDE"         },
-  { DEVICESUBCLASS_DISK_SCSI,           "SCSI"        },
-  { DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer" },
-  { DEVICESUBCLASS_NETWORK_ETHERNET,    "ethernet"    },
-  { DEVICESUBCLASS_HUB_USB,             "USB"         },
-  { DEVICESUBCLASS_UNKNOWN,             "unknown"     },
+  { DEVICESUBCLASS_CPU_X86,             "x86"           },
+  { DEVICESUBCLASS_SYSTEM_BIOS,         "BIOS"          },
+  { DEVICESUBCLASS_SYSTEM_BIOS32,       "BIOS (32-bit)" },
+  { DEVICESUBCLASS_BUS_PCI,             "PCI"           },
+  { DEVICESUBCLASS_BUS_USB,             "USB"           },
+  { DEVICESUBCLASS_DISKCTRL_IDE,        "IDE"           },
+  { DEVICESUBCLASS_KEYBOARD_USB,        "USB"           },
+  { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"          },
+  { DEVICESUBCLASS_MOUSE_SERIAL,        "serial"        },
+  { DEVICESUBCLASS_MOUSE_USB,           "USB"           },
+  { DEVICESUBCLASS_DISK_FLOPPY,         "floppy"        },
+  { DEVICESUBCLASS_DISK_IDE,            "IDE"           },
+  { DEVICESUBCLASS_DISK_SCSI,           "SCSI"          },
+  { DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer"   },
+  { DEVICESUBCLASS_NETWORK_ETHERNET,    "ethernet"      },
+  { DEVICESUBCLASS_HUB_USB,             "USB"           },
+  { DEVICESUBCLASS_UNKNOWN,             "unknown"       },
   { 0, NULL }
 };
 
@@ -78,12 +79,12 @@ static kernelDriver displayDrivers[] = {
 
 // Our static list of built-in drivers
 static kernelDriver deviceDrivers[] = {
-  { DEVICECLASS_SYSTEM, DEVICESUBCLASS_SYSTEM_BIOS,
-    kernelBiosDriverRegister, NULL, NULL, NULL                         },
   { DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86,
     kernelCpuDriverRegister, NULL, NULL, NULL                          },
   { DEVICECLASS_MEMORY, 0,
     kernelMemoryDriverRegister, NULL, NULL, NULL                       },
+  { DEVICECLASS_SYSTEM, DEVICESUBCLASS_SYSTEM_BIOS,
+    kernelBiosDriverRegister, NULL, NULL, NULL                         },
   // PIC must be before most drivers so that other ones can unmask
   // interrupts
   { DEVICECLASS_PIC, 0, kernelPicDriverRegister, NULL, NULL, NULL      },

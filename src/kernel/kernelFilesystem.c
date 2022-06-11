@@ -95,7 +95,7 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
     populateDriverArray();
 
   // If it's a CD-ROM, only check ISO
-  if (theDisk->physical->flags & DISKFLAG_CDROM)
+  if (theDisk->physical->type & DISKTYPE_CDROM)
     {
       tmpDriver = getDriver(FSNAME_ISO);
       if (tmpDriver)
@@ -181,7 +181,7 @@ int kernelFilesystemScan(kernelDisk *theDisk)
   physicalDisk = theDisk->physical;
 
   // Is it removable?  If so, make sure there's media
-  if (physicalDisk->flags & DISKFLAG_REMOVABLE)
+  if (physicalDisk->type & DISKTYPE_REMOVABLE)
     {
       if (!kernelDiskGetMediaState((char *) physicalDisk->name))
 	return (status = ERR_NOMEDIA);
@@ -528,8 +528,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   if (status < 0)
     return (status);
 
-  kernelLog("Mounting %s filesystem on disk %s", mountPoint, theDisk->name);
-
   // Make sure that the disk hasn't already been mounted 
   if (theDisk->filesystem.mounted)
     {
@@ -577,6 +575,8 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       return (status = ERR_NOSUCHFUNCTION);
     }
   
+  kernelLog("Mounting %s filesystem on disk %s", mountPoint, theDisk->name);
+
   // Fill in any information that we already know for this filesystem
 
   // Make "mountPoint" be the filesystem's mount point
@@ -638,7 +638,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
     strcpy((char *) theDisk->filesystem.filesystemRoot->name, mountDirName);
 
   // If the disk is removable and has a 'lock' function, lock it
-  if ((theDisk->physical->flags & DISKFLAG_REMOVABLE) &&
+  if ((theDisk->physical->type & DISKTYPE_REMOVABLE) &&
       (((kernelDiskOps *) theDisk->physical->driver->ops)->driverSetLockState))
     ((kernelDiskOps *) theDisk->physical->driver->ops)
       ->driverSetLockState(theDisk->physical->deviceNumber, 1);
@@ -732,7 +732,7 @@ int kernelFilesystemUnmount(const char *path)
   theDisk->filesystem.readOnly = 0;
 
   // Sync the disk cache
-  status = kernelDiskSyncDisk((char *) theDisk->name);
+  status = kernelDiskSync((char *) theDisk->name);
   if (status < 0)
     kernelError(kernel_warn, "Unable to sync disk \"%s\" after unmount",
 		theDisk->name);
@@ -740,7 +740,7 @@ int kernelFilesystemUnmount(const char *path)
   physicalDisk = theDisk->physical;
 
   // If this is a removable disk, invalidate the disk cache
-  if (physicalDisk->flags & DISKFLAG_REMOVABLE)
+  if (physicalDisk->type & DISKTYPE_REMOVABLE)
     {
       status = kernelDiskInvalidateCache((char *) physicalDisk->name);
       if (status < 0)

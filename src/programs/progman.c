@@ -52,8 +52,11 @@ usage.  It is a graphical utility combining the same functionalities as the
 #define SHOW_MAX_PROCESSES     100
 #define PROCESS_STRING_LENGTH  64
 #define USEDBLOCKS_STRING      "Memory blocks: "
-#define USEDMEM_STRING         "Used Memory: "
-#define FREEMEM_STRING         "Free Memory: "
+#define USEDMEM_STRING         "Used memory: "
+#define FREEMEM_STRING         "Free memory: "
+#define READPERF_STRING        "Read: "
+#define WRITEPERF_STRING       "Write: "
+#define IORATE_STRING          "K/tick"
 
 static int processId = 0;
 static int privilege = 0;
@@ -64,6 +67,8 @@ static objectKey window = NULL;
 static objectKey memoryBlocksLabel = NULL;
 static objectKey memoryUsedLabel = NULL;
 static objectKey memoryFreeLabel = NULL;
+static objectKey diskReadPerfLabel = NULL;
+static objectKey diskWritePerfLabel = NULL;
 static objectKey processList = NULL;
 static objectKey showThreadsCheckbox = NULL;
 static objectKey runProgramButton = NULL;
@@ -128,8 +133,14 @@ static int getUpdate(void)
   int status = 0;
   memoryStats memStats;
   char labelChar[32];
+  // Memory stats
   unsigned totalFree = 0;
   int percentUsed = 0;
+  // Disk stats
+  diskStats dskStats;
+  unsigned readPerf = 0;
+  unsigned writePerf = 0;
+  // Process info
   char *bufferPointer = NULL;
   process *tmpProcessArray = NULL;
   process *tmpProcess = NULL;
@@ -168,6 +179,29 @@ static int getUpdate(void)
 	  sprintf(labelChar, FREEMEM_STRING "%u Kb - %d%%", totalFree,
 		  (100 - percentUsed));
 	  windowComponentSetData(memoryFreeLabel, labelChar,
+				 strlen(labelChar));
+	}
+    }
+
+  status = diskGetStats(NULL, &dskStats);
+  if (status >= 0)
+    {
+      if (dskStats.readTime)
+	readPerf = (dskStats.readKbytes / dskStats.readTime);
+      if (dskStats.writeTime)
+	writePerf = (dskStats.writeKbytes / dskStats.writeTime);
+
+      if (diskReadPerfLabel)
+	{
+	  sprintf(labelChar, READPERF_STRING "%u" IORATE_STRING, readPerf);
+	  windowComponentSetData(diskReadPerfLabel, labelChar,
+				 strlen(labelChar));
+	}
+
+      if (diskWritePerfLabel)
+	{
+	  sprintf(labelChar, WRITEPERF_STRING "%u" IORATE_STRING, writePerf);
+	  windowComponentSetData(diskWritePerfLabel, labelChar,
 				 strlen(labelChar));
 	}
     }
@@ -450,14 +484,30 @@ static void constructWindow(void)
 
   memoryBlocksLabel = windowNewTextLabel(window, USEDBLOCKS_STRING, &params);
 
-  params.gridY = 1;
+  params.gridY += 1;
   memoryUsedLabel = windowNewTextLabel(window, USEDMEM_STRING, &params);
 
-  params.gridY = 2;
+  params.gridY += 1;
   params.padBottom = 10;
   memoryFreeLabel = windowNewTextLabel(window, FREEMEM_STRING, &params);
 
-  params.gridY = 3;
+  params.gridX += 1;
+  params.gridY = 0;
+  params.padBottom = 0;
+  windowNewTextLabel(window, "Disk performance:", &params);
+
+  params.gridY += 1;
+  diskReadPerfLabel =
+    windowNewTextLabel(window, READPERF_STRING "0" IORATE_STRING, &params);
+
+  params.gridY += 1;
+  params.padBottom = 10;
+  diskWritePerfLabel =
+    windowNewTextLabel(window, WRITEPERF_STRING "0" IORATE_STRING, &params);
+
+  params.gridX = 0;
+  params.gridY += 2;
+  params.gridWidth = 2;
   params.padBottom = 0;
   fontGetDefault(&(params.font));
   // Create the label of column headers for the list below
@@ -465,12 +515,12 @@ static void constructWindow(void)
 		     "CPU% STATE   ", &params);
 
   // Create the list of processes
-  params.gridY = 4;
+  params.gridY += 1;
   processList = windowNewList(window, windowlist_textonly, 20, 1, 0,
 			      processListParams, numProcesses, &params);
 
   // Create a 'show sub-processes' checkbox
-  params.gridY = 5;
+  params.gridY += 1;
   params.padBottom = 5;
   params.font = NULL;
   showThreadsCheckbox =
@@ -479,8 +529,9 @@ static void constructWindow(void)
   windowRegisterEventHandler(showThreadsCheckbox, &eventHandler);
 
   // Make a container for the right hand side components
-  params.gridX = 1;
-  params.gridY = 4;
+  params.gridX += 2;
+  params.gridY -= 1;
+  params.gridWidth = 1;
   params.padRight = 5;
   params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
   container = windowNewContainer(window, "rightContainer", &params);
@@ -496,14 +547,14 @@ static void constructWindow(void)
   windowRegisterEventHandler(runProgramButton, &eventHandler);
 
   // Create a 'set priority' button
-  params.gridY = 1;
+  params.gridY += 1;
   params.padTop = 5;
   setPriorityButton =
     windowNewButton(container, "Set priority", NULL, &params);
   windowRegisterEventHandler(setPriorityButton, &eventHandler);
 
   // Create a 'kill process' button
-  params.gridY = 2;
+  params.gridY += 1;
   killProcessButton =
     windowNewButton(container, "Kill process", NULL, &params);
   windowRegisterEventHandler(killProcessButton, &eventHandler);
@@ -527,7 +578,7 @@ int main(int argc, char *argv[])
     {
       printf("\nThe \"%s\" command only works in graphics mode\n",
 	     (argc? argv[0] : ""));
-      return (errno = ERR_NOTINITIALIZED);
+      return (status = ERR_NOTINITIALIZED);
     }
 
   processId = multitaskerGetCurrentProcessId();
@@ -545,9 +596,8 @@ int main(int argc, char *argv[])
       if (processListParams)
 	free(processListParams);
       error("Error getting memory");
-      return (errno = ERR_MEMORY);
+      return (status = ERR_MEMORY);
     }
-
 
   // Get the list of process strings
   status = getUpdate();
@@ -569,12 +619,13 @@ int main(int argc, char *argv[])
 
   while (!stop && multitaskerProcessIsAlive(guiThreadPid))
     {
+      if (getUpdate() < 0)
+	break;
       windowComponentSetData(processList, processListParams, numProcesses);
       multitaskerWait(20);
-      getUpdate();
     }
 
   free(processes);
   free(processListParams);
-  return (status = errno = 0);
+  return (status = 0);
 }

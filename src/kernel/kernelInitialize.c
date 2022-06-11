@@ -394,7 +394,7 @@ int kernelInitialize(unsigned kernelMemory)
     }
 
   // If the filesystem is not read-only, open a kernel log file
-  if (!(rootDisk->filesystem.readOnly))
+  if (!rootDisk->filesystem.readOnly)
     {
       status = kernelLogSetFile(DEFAULT_LOGFILE);
       if (status < 0)

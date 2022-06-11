@@ -223,14 +223,14 @@ functionality.</big></p>
           <li><font size="4">Native installer program</font></li>
           <li><font size="4">Dynamic linking</font></li>
           <li><font size="4">Hard disk partitioning program (Disk Manager)</font></li>
+  <li><font size="4">I/O Protection</font></li>
+  <li><a href="wrong.html#float"><font size="4">FPU state saves</font></a><font size="4"> (buggy)</font></li>
         </ul>
         </td>
         <td align="left" valign="top">
         <ul>
   <li><a href="wrong.html#single-user"><font size="4">Multi-user operation</font></a></li>
   <li><font size="4">Inter-Process Communications (IPC) facility</font></li>
-  <li><a href="wrong.html#ioprotection"><font size="4">IO Protection</font></a></li>
-  <li><a href="wrong.html#float"><font size="4">FPU state saves</font></a><font size="4"> (buggy)</font></li>
   <li><font size="4">Most network functionality</font></li>
   <li><font size="4">Filesystem support for:<br>
     </font>Writable Ext2/Ext3<br>
@@ -244,7 +244,7 @@ functionality.</big></p>
     </div>
 
 <p><big>The primary developer of Visopsys is
-<a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>, a 32 year
+<a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>, a 34 year
 old programmer originally from </big><font size="4">Calgary, Canada</font><big>.&nbsp;
 A couple of years ago, I moved to London, UK, after a year in Boston and 2 years in San Jose, California. Like many other hobby OS writers, I build Visopsys in my
 spare time.</big></p>
@@ -328,16 +328,16 @@ add-ons.</big></p>
             <li><font size="4">PS2 mouse</font></li>
             <li><font size="4">PCI bus devices</font></li>
             <li><font size="4">Lance ethernet (AMD PC-NET) network  Cards</font></li>
+            <li><font size="4">Some USB disks</font></li>
           </ul>
           </td>
           <td align="left" valign="top">
           <ul>
             <li><font size="4">Multiple processors (multiprocessing)</font></li>
             <li><font size="4">3DNow! and MMX processor extensions</font></li>
-            <li><font size="4">Plug and play</font></li>
             <li><font size="4">SCSI</font></li>
             <li><font size="4">SATA</font></li>
-            <li><font size="4">USB (including USB mice and keyboards)</font></li>
+            <li><font size="4">USB mice and keyboards</font></li>
             <li><font size="4">3D or accelerated graphics</font></li>
             <li><font size="4">Serial ports (UART chip) and serial mice</font></li>
             <li><font size="4">Modems</font></li>
@@ -371,8 +371,16 @@ knowledge) to the success of this project: </big>
   'Alt-Gr' key support.</font></li>
       <li><font size="4">Davide Airaghi &lt;<a href="mailto:davide.airaghi@gmail.com">davide.airaghi@gmail.com</a>&gt; 
   provided some initial work on FPU state saves and an Italian keyboard mapping.</font></li>
-      <li><font size="4">Graeme McLaughlin (<a href="mailto:graememc@gmail.com">graememc@gmail.com</a>) 
+      <li><font size="4">Graeme McLaughlin &lt;<a href="mailto:graememc@gmail.com">graememc@gmail.com</a>&gt; 
   for patiently helping me test many versions of Visopsys.</font></li>
+      <li><font size="4">Bauer Vladislav &lt;<a href="mailto:bauer@ccfit.nsu.ru">bauer@ccfit.nsu.ru</a>&gt; 
+      contributed the original 'cal' calendar program.</font></li>
+      <li><font size="4">Leency &lt;<a href="mailto:leency@mail.ru">leency@mail.ru</a>&gt; 
+      for his icon contributions.</font></li>
+      <li><font size="4">Grzesiek (Greg) &lt;<a href="mailto:reqst@o2.pl">reqst@o2.pl</a>&gt; 
+      contributed an FPU exception handler fix to the multitasker.</font></li>
+      <li><font size="4">Hugh Anderson &lt;<a href="mailto:hugh@comp.nus.edu.sg">hugh@comp.nus.edu.sg</a>&gt; 
+      for debugging installation issues on Fedora FC5.</font></li>
       <li><font size="4">Thomas Kreitner for all his testing and interest, and for 
   finding the weird bugs.&nbsp; Only an evil genius would discover some of these 
   things.</font></li>
@@ -395,15 +403,15 @@ knowledge) to the success of this project: </big>
       square root page is here:
       <a href="http://www.azillionmonkeys.com/qed/sqroot.html">
       http://www.azillionmonkeys.com/qed/sqroot.html</a></font></li>
-      <li><font size="4">Katrin Becker (<a href="mailto:becker@cpsc.ucalgary.ca">becker@cpsc.ucalgary.ca</a>)
+      <li><font size="4">Katrin Becker &lt;<a href="mailto:becker@cpsc.ucalgary.ca">becker@cpsc.ucalgary.ca</a>&gt;
     at the University of Calgary for helpful advice about free-list management in filesystems.&nbsp; I should have paid more attention in class.
   </font></li>
-      <li><font size="4">John Fine (<a href="mailto:johnfine@erols.com">johnfine@erols.com</a>), Alexei A.
-    Founze <a href="mailto:alex.fru@mtu-net.ru">(alex.fru@mtu-net.ru</a>), and the rest of the
+      <li><font size="4">John Fine &lt;<a href="mailto:johnfine@erols.com">johnfine@erols.com</a>&gt;, Alexei A. Founze 
+      &lt;<a href="mailto:alex.fru@mtu-net.ru">alex.fru@mtu-net.ru</a>&gt;, and the rest of the
     regular contributors to the <a href="news:comp.lang.asm.x86">comp.lang.asm.x86</a> and <a
     href="news:alt.os.development">alt.os.development</a> newsgroups. Thanks for always taking
     the time to help people.</font></li>
-      <li><font size="4">Jerry Coffin (<a href="mailto:(jcoffin@taeus.com">jcoffin@taeus.com</a>) and Ratko
+      <li><font size="4">Jerry Coffin &lt;<a href="mailto:(jcoffin@taeus.com">jcoffin@taeus.com</a>&gt; and Ratko
     Tomic for posting information about alternate text mode video configurations.</font></li>
     </ul>
 

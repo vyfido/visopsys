@@ -212,7 +212,7 @@ static void interpretCommand(char *commandLine)
     {
       if (numArgs > 2)
 	{
-	  status = vshCopyFile(args[1], args[2]);
+	  status = fileCopy(args[1], args[2]);
 	  if (status < 0)
 	    perror(args[0]);
 	}

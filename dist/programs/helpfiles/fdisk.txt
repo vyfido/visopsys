@@ -2,7 +2,7 @@
  -- fdisk --
 
 Also known as the "Disk Manager", fdisk is a hard disk partitioning tool.
-It can create, delete, format, and move partitions and modify their
+It can create, delete, format, resize, and move partitions and modify their
 attributes.  It can copy entire hard disks from one to another.
 
 Usage:

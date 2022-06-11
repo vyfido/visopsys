@@ -89,6 +89,8 @@
 #define ATA_SETMULTIMODE     0xC6
 #define ATA_READDMA          0xC8
 #define ATA_WRITEDMA         0xCA
+#define ATA_FLUSHCACHE       0xE7
+#define ATA_FLUSHCACHE_EXT   0xEA
 #define ATA_IDENTIFY         0xEC
 #define ATA_SETFEATURES      0xEF
 
@@ -134,12 +136,23 @@
 typedef struct {
   char *name;
   unsigned char val;
-  int identByte;
+  unsigned char identByte;
   unsigned short supportedMask;
   unsigned short enabledMask;
-  int feature;
+  int featureFlag;
 
 } ideDmaMode;
+
+typedef struct {
+  char *name;
+  unsigned char suppByte;
+  unsigned short suppMask;
+  unsigned char featureCode;
+  unsigned char enabledByte;
+  unsigned short enabledMask;
+  int featureFlag;
+
+} ideFeature;
 
 typedef struct {
   int featureFlags;

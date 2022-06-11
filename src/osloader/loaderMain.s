@@ -24,6 +24,7 @@
 	EXTERN loaderFindFile
 	EXTERN loaderDetectHardware
 	EXTERN loaderLoadKernel
+	EXTERN loaderEnableA20
 	EXTERN loaderSetGraphicDisplay
 	EXTERN loaderPrint
 	EXTERN loaderPrintNewline
@@ -161,6 +162,10 @@ loaderMain:
 	add byte [FATALERROR], 1
 	
 	.okLoad:
+	;; Enable the A20 address line so that we will have access to the
+	;; entire extended memory space.
+	call loaderEnableA20
+
 	;; Check for fatal errors before attempting to start the kernel
 	call fatalErrorCheck
 
@@ -179,10 +184,6 @@ loaderMain:
 	mov AH, 01h
 	int 10h
 	
-	;; Enable the A20 address line so that we will have access to the
-	;; entire extended memory space
-	call enableA20
-
 	;; Disable interrupts.  The kernel's initial state will be with
 	;; interrupts disabled.  It will have to do the appropriate setup
 	;; before re-enabling them.
@@ -222,7 +223,7 @@ loaderMain:
 	mov EAX, PRIV_STCKSELECTOR
 	mov SS, EAX
 	mov EAX, KERNELVIRTUALADDRESS
-	add EAX, dword [(LDRCODESEGMENTLOCATION + KERNELSIZE)]
+	add EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
 	add EAX, (KERNELSTACKSIZE - 4)
 	mov ESP, EAX
 	
@@ -233,7 +234,7 @@ loaderMain:
 
 	;; Next the amount of used kernel memory.  We need to add the
 	;; size of the stack we allocated to the kernel image size
-	mov EAX, dword [(LDRCODESEGMENTLOCATION + KERNELSIZE)]
+	mov EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
 	add EAX, KERNELSTACKSIZE
 	push EAX
 
@@ -557,247 +558,6 @@ fatalErrorCheck:
 	hlt
 
 
-enableA20:
-	;; This routine will enable the A20 address line of the keyboard
-	;; controller.  Takes no arguments.
-
-	pusha
-	
-	;; Make sure interrupts are disabled
-	cli
-
-	;; Keep a counter so that we can make multiple attempts to turn
-	;; on A20 if necessary
-	mov CX, 5
-
-	.startAttempt:		
-	;; Wait for the controller to be ready for a command
-	.commandWait1:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 1
-	jc .commandWait1
-
-	;; Tell the controller we want to read the current status.
-	;; Send the command D0h: read output port.
-	mov AL, 0D0h
-	out 64h, AL
-
-	;; Delay
-	jcxz $+2
-	jcxz $+2
-
-	;; Wait for the controller to be ready with a byte of data
-	.dataWait1:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 0
-	jnc .dataWait1
-
-	;; Read the current port status from port 60h
-	xor AX, AX
-	in AL, 60h
-
-	;; Check to see whether A20 is already enabled.  Seems to be true on
-	;; a number of machines.
-	bt AX, 1
-	jc near .done
-	
-	;; Save the current value of EAX
-	push AX
-		
-	;; Wait for the controller to be ready for a command
-	.commandWait2:
-	in AL, 64h
-	bt AX, 1
-	jc .commandWait2
-
-	;; Tell the controller we want to write the status byte again
-	mov AL, 0D1h
-	out 64h, AL	
-
-	;; Delay
-	jcxz $+2
-	jcxz $+2
-
-	;; Wait for the controller to be ready for the data
-	.commandWait3:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 1
-	jc .commandWait3
-
-	;; Write the new value to port 60h.  Remember we saved the old
-	;; value on the stack
-	pop AX
-	;; Turn on the A20 enable bit
-	or AL, 00000010b
-	out 60h, AL
-
-	;; Delay
-	jcxz $+2
-	jcxz $+2
-
-	;; Finally, we will attempt to read back the A20 status
-	;; to ensure it was enabled.
-
-	;; Wait for the controller to be ready for a command
-	.commandWait4:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 1
-	jc .commandWait4
-
-	;; Send the command D0h: read output port.
-	mov AL, 0D0h
-	out 64h, AL	
-
-	;; Wait for the controller to be ready with a byte of data
-	.dataWait2:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 0
-	jnc .dataWait2
-
-	;; Read the current port status from port 60h
-	xor AX, AX
-	in AL, 60h
-
-	;; Is A20 enabled?
-	bt AX, 1
-		
-	;; Check the result.  If carry is on, A20 is on.
-	jc near .done
-
-	;; Should we retry the operation?  If the counter value in ECX
-	;; has not reached zero, we will retry
-	dec CX
-	cmp CX, 0
-	jne near .startAttempt
-
-	;; Well, our initial attempt to set A20 has failed.  Now we will
-	;; try a backup method (which is supposedly not supported on many
-	;; chipsets).
-		
-	;; Keep a counter so that we can make multiple attempts to turn
-	;; on A20 if necessary
-	mov CX, 5
-
-	.startAttempt2:
-	;; Wait for the keyboard to be ready for another command
-	.commandWait6:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 1
-	jc .commandWait6
-
-	;; Tell the controller we want to turn on A20
-	mov AL, 0DFh
-	out 64h, AL
-
-	;; Delay
-	jcxz $+2
-	jcxz $+2
-
-	;; Again, we will attempt to read back the A20 status
-	;; to ensure it was enabled.
-
-	;; Wait for the controller to be ready for a command
-	.commandWait7:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 1
-	jc .commandWait7
-
-	;; Send the command D0h: read output port.
-	mov AL, 0D0h
-	out 64h, AL	
-
-	;; Wait for the controller to be ready with a byte of data
-	.dataWait3:
-	xor AX, AX
-	in AL, 64h
-	bt AX, 0
-	jnc .dataWait3
-
-	;; Read the current port status from port 60h
-	xor AX, AX
-	in AL, 60h
-
-	;; Is A20 enabled?
-	bt AX, 1
-		
-	;; Check the result.  If carry is on, A20 is on, but we should warn
-	;; that we had to use this alternate method
-	jc .warn
-
-	;; Should we retry the operation?  If the counter value in ECX
-	;; has not reached zero, we will retry
-	dec CX
-	cmp CX, 0
-	jne near .startAttempt2
-	
-	;; OK, we weren't able to set the A20 address line, so we'll
-	;; not be able to access much memory.  We can give a fairly
-	;; helpful error message, however, because in my experience,
-	;; this tends to happen when laptops have external keyboards
-	;; attached
-
-	;; Print an error message, make a fatal error, and finish
-	
-	;; Switch to the error color
-	mov DL, ERRORCOLOR
-	
-	mov SI, SAD
-	call loaderPrint
-	mov SI, A20
-	call loaderPrint
-	mov SI, A20BAD1
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, A20BAD2
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, A20BAD3
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, A20BAD4
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, A20BAD5
-	call loaderPrint
-	call loaderPrintNewline
-
-	add byte [FATALERROR], 1
-	jmp .done
-
-	.warn:
-	;; Here we print a warning about the fact that we had to use the
-	;; alternate enabling method
-	mov DL, 02h		; Use green color
-	mov SI, HAPPY
-	call loaderPrint
-	mov SI, A20
-	call loaderPrint
-	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
-	mov SI, A20WARN
-	call loaderPrint
-	call loaderPrintNewline
-			
-	.done:
-	sti
-	popa
-	ret
-
-	
 pagingSetup:
 	;; This will setup a simple paging environment for the kernel and
 	;; enable it.  This involves making a master page directory plus
@@ -1176,7 +936,7 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.67' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.68' , 0
 LOADMSG2	db 'Copyright (C) 1998-2007 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
@@ -1189,8 +949,6 @@ FAT12MES	db 'FAT12', 0
 FAT16MES	db 'FAT16', 0
 FAT32MES	db 'FAT32', 0
 UNKNOWNFS	db 'UNKNOWN', 0
-A20		db 'Gate A20     ', 10h, ' ', 0
-A20WARN		db 'Enabled using alternate method.', 0
 LOADING		db 'Loading Visopsys', 0
 PRESSREBOOT	db 'Press any key to reboot.', 0
 REBOOTING	db '  ...Rebooting', 0
@@ -1203,11 +961,6 @@ BOOTINFO	db 'BOOTINFO   ', 0
 SAD		db 'x ', 0
 BIOSERR		db 'The computer', 27h, 's BIOS was unable to provide information about', 0
 BIOSERR2	db 'the boot device.  Please check the BIOS for errors.', 0
-A20BAD1		db 'Could not enable the A20 address line, which would cause', 0
-A20BAD2		db 'serious memory problems for the kernel.  As strange as it may', 0
-A20BAD3		db 'sound, this is generally associated with keyboard errors. ', 0
-A20BAD4		db 'If you are using a laptop computer with an external keyboard,', 0
-A20BAD5		db 'please consider removing it before retrying.', 0
 FATALERROR1	db ' unrecoverable error(s) were recorded, and the boot process cannot continue.', 0
 FATALERROR2	db 'Any applicable error information is noted above.  Please attempt to rectify', 0
 FATALERROR3	db 'these problems before retrying.', 0

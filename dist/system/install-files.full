@@ -9,6 +9,7 @@
 /programs/defrag
 /programs/domainname
 /programs/file
+/programs/find
 /programs/helpfiles/adduser.txt
 /programs/helpfiles/bootmenu.txt
 /programs/helpfiles/cal.txt
@@ -78,9 +79,12 @@
 /programs/helpfiles/window.txt
 /programs/hostname
 /programs/keymap
+/programs/kill
 /programs/loadfont
+/programs/logout
 /programs/ls
 /programs/md5
+/programs/mem
 /programs/mines
 /programs/mines.dir/
 /programs/mines.dir/mine.bmp
@@ -88,6 +92,7 @@
 /programs/nm
 /programs/passwd
 /programs/ping
+/programs/ps
 /programs/renice
 /programs/screenshot
 /programs/snake

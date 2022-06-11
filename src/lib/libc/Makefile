@@ -15,7 +15,8 @@ include ${ROOT}/Makefile.include
 STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
+DEBUG		= # -DDEBUG # Uncomment to turn on debugging
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} ${DEBUG}
 
 CDEFNAMES	= _fmtinpt \
 		_numdgts \

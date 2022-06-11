@@ -16,34 +16,18 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  vsh.h
+//  debug.h
 //
 
-// These are functions written for vsh which can be used by other programs
+// This file contains definitions and structures for using and manipulating
+// memory in Visopsys.
 
-#if !defined(_VSH_H)
+#if !defined(_DEBUG_H)
 
-#include <sys/progress.h>
+typedef enum {
+  debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_memory,
+  debug_misc, debug_multitasker, debug_scsi, debug_usb
+} kernelDebugCategory;
 
-#ifndef _X_
-#define _X_
-#endif
-
-// Functions
-void vshCompleteFilename(char *);
-int vshCursorMenu(const char *, char *[], int, int);
-int vshDeleteFile(const char *);
-int vshDumpFile(const char *);
-int vshFileList(const char *);
-void vshMakeAbsolutePath(const char *, char *);
-int vshMoveFile(const char *, const char *);
-int vshParseCommand(char *, char *, int *, char *[]);
-void vshPasswordPrompt(const char *, char *);
-void vshPrintDate(char *, unsigned);
-void vshPrintTime(char *, unsigned);
-int vshProgressBar(progress *);
-int vshProgressBarDestroy(progress *);
-int vshSearchPath(const char *, char *);
-
-#define _VSH_H
+#define _DEBUG_H
 #endif

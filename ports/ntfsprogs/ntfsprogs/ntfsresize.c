@@ -152,11 +152,11 @@ static const char *opened_volume_msg =
 "Refusing to continue for the sake of data consistency.";
 
 static const char *bad_sectors_warning_msg =
-"WARNING: The device or partition has bad sectors.";
+"The device or partition has bad sectors.";
 
 static const char *many_bad_sectors_msg =
-"WARNING: The device or partition has many bad sectors.\n"
-"This means physical damage on the disk surface caused by\n"
+"The device or partition has many bad sectors.  This\n"
+"means physical damage on the disk surface caused by\n"
 "defects or deterioration.  Replace as soon as possible.";
 
 struct {
@@ -689,12 +689,11 @@ static void _err_printf(ntfs_resize_t *resize, const char *function,
 	  {
 	    strncpy((char *) resize->prog->statusMessage, tmp,
 		    PROGRESS_MAX_MESSAGELEN);
-	    resize->prog->confirmError = 0;
 	    resize->prog->error = 1;
 
 	    lockRelease(&(resize->prog->lock));
 
-	    while (!(resize->prog->confirmError))
+	    while (resize->prog->error)
 	      multitaskerYield();
 	  }
 
@@ -1787,11 +1786,8 @@ static int relocate_run(ntfs_resize_t *resize, runlist **rl, int run)
 	  }
 
 	/* FIXME: check $MFTMirr DATA isn't multi-run (or support it) */
-	progress_message(resize, "Relocate record %7llu:0x%x:%08lld:0x%08llx:0x%08llx "
-			 "--> 0x%08llx", (unsigned long long)resize->mref,
-			 (unsigned int)le32_to_cpu(resize->ctx->attr->type),
-			 (long long)lcn_length,
-			 (unsigned long long)(*rl + run)->vcn,
+	progress_message(resize, "Relocate record %llu 0x%llx->0x%llx",
+			 (unsigned long long)resize->mref,
 			 (unsigned long long)lcn,
 			 (unsigned long long)relocate_rl->lcn);
 
@@ -2387,20 +2383,20 @@ static int check_bad_sectors(ntfs_resize_t *resize, ntfs_volume *vol)
 			continue;
 
 		badclusters += rl[i].length;
-		err_printf(resize, "Bad cluster: %#8llx - %#llx    (%lld)\n",
+		err_printf(resize, "Bad cluster: %llx - %llx (%lld)\n",
 				 rl[i].lcn, rl[i].lcn + rl[i].length - 1,
 				 rl[i].length);
 	}
 
 	if (badclusters) {
-		err_printf(resize, "WARNING: This software has detected that the\n"
+		err_printf(resize, "This software has detected that the\n"
 			   "disk has at least %lld bad sector%s.",
 		       badclusters, badclusters - 1 ? "s" : "");
 		if (!opt.badsectors) {
 			err_printf(resize, "%s", bad_sectors_warning_msg);
 			return (-1);
 		} else
-			err_printf(resize, "WARNING: Bad sectors can cause reliability\n"
+			err_printf(resize, "Bad sectors can cause reliability\n"
 			       "problems and massive data loss!!!");
 	}
 

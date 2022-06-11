@@ -356,7 +356,7 @@ static int copyBootSector(disk *theDisk, const char *fsType)
 	  theDisk->name);
   status = system(command);
 
-  diskSync();
+  diskSync(theDisk->name);
 
   if (status < 0)
     {

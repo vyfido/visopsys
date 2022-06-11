@@ -550,7 +550,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 	}
 
       kernelDebug(debug_scsi, "USB SCSI device detected");
-      physicalDisk->flags |= DISKFLAG_FLASHDISK;
+      physicalDisk->type |= DISKTYPE_FLASHDISK;
 
       status = usbMassStorageReset(dsk);
       if (status < 0)
@@ -586,7 +586,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
     goto err_out;
 
   if (inquiryData.byte1.removable & 0x80)
-    physicalDisk->flags |= DISKFLAG_REMOVABLE;
+    physicalDisk->type |= DISKTYPE_REMOVABLE;
 
   // Set up the vendor and product ID strings
 
@@ -646,10 +646,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
   kernelDebug(debug_scsi, "Disk %s detected, number %d", physicalDisk->name,
 	      physicalDisk->deviceNumber);
   physicalDisk->description = dsk->vendorProductId;
-  physicalDisk->flags |= (DISKFLAG_PHYSICAL | DISKFLAG_SCSIDISK);
+  physicalDisk->type |= (DISKTYPE_PHYSICAL | DISKTYPE_SCSIDISK);
+  physicalDisk->flags = DISKFLAG_MOTORON;
   physicalDisk->numSectors = dsk->numSectors;
   physicalDisk->sectorSize = dsk->sectorSize;
-  physicalDisk->motorState = 1;
   physicalDisk->driverData = (void *) dsk;
   physicalDisk->driver = driver;
   disks[numDisks++] = physicalDisk;
@@ -921,7 +921,8 @@ static kernelDiskOps scsiOps = {
   NULL, // driverSetDoorState
   NULL, // driverDiskChanged
   driverReadSectors,
-  driverWriteSectors
+  driverWriteSectors,
+  NULL  // driverFlush
 };
 
 

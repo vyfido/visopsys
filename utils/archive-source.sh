@@ -46,9 +46,10 @@ make -C "$DESTDIR" clean >& /dev/null
 # CVS droppings
 find "$DESTDIR" -name CVS -exec rm -R {} \; >& /dev/null
 # Other stuff
+rm -f "$DESTDIR"/*.patch
 rm -Rf "$DESTDIR"/work
 rm -f "$DESTDIR"/src/ISSUES.txt
-rm -Rf "$DESTDIR"/src/patches
+rm -Rf "$DESTDIR"/patches
 echo Done
 
 echo -n "Archiving... "

@@ -19,7 +19,6 @@ CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
 LFLAGS		= -nostdlib
 
 NAMES		= vshCompleteFilename \
-		vshCopyFile \
 		vshCursorMenu \
 		vshDeleteFile \
 		vshDumpFile \

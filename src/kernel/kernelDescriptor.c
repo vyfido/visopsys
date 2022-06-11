@@ -198,7 +198,6 @@ int kernelDescriptorInitialize(void)
     // Something went wrong
     return (status);
 
-
   // Initialize the list of "free" descriptors
   numFreeDescriptors = (GDT_SIZE - RES_GLOBAL_DESCRIPTORS);
 

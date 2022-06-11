@@ -27,6 +27,7 @@
 #include "kernelDevice.h"
 #include "kernelDriver.h"
 #include "kernelLog.h"
+#include "kernelMain.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelPage.h"
@@ -51,71 +52,6 @@ static struct {
   { "GenuineTMx86", "Transmeta" },
   { NULL, NULL }
 };
-
-
-static int driverDetectBios(void *parent, kernelDriver *driver)
-{
-  int status = 0;
-  void *biosArea = NULL;
-  char *ptr = NULL;
-  kernelBios *dataStruct = NULL;
-  char checkSum = 0;
-  kernelDevice *dev = NULL;
-  int count;
-
-  // Map the designated area for the BIOS into memory so we can scan it.
-  status = kernelPageMapToFree(KERNELPROCID, (void *) BIOSAREA_START,
-			       &biosArea, BIOSAREA_SIZE);
-  if (status < 0)
-    return (status = 0);
-
-  for (ptr = biosArea ; ptr < (char *) (biosArea + BIOSAREA_SIZE);
-       ptr += sizeof(kernelBios))
-    {
-      if (!strncmp(ptr, "_32_", 4))
-	{
-	  dataStruct = (kernelBios *) ptr;
-	  break;
-	}
-    }
-
-  if (!dataStruct)
-    goto out;
-
-  for (count = 0; count < (int) sizeof(kernelBios); count ++)
-    checkSum += ptr[count];
-  if (checkSum)
-    kernelLog("32-bit BIOS checksum failed (%d)", checkSum);
-
-  kernelLog("32-bit BIOS found at %08x, entry point %08x",
-	    (unsigned) (BIOSAREA_START + ((void *) dataStruct - biosArea)),
-	    (unsigned) dataStruct->entryPoint);
-
-  // Allocate memory for the device
-  dev = kernelMalloc(sizeof(kernelDevice));
-  if (dev == NULL)
-    goto out;
-
-  dev->device.class = kernelDeviceGetClass(DEVICESUBCLASS_SYSTEM_BIOS);
-  dev->driver = driver;
-
-  // Allocate memory for driver data
-  dev->data = kernelMalloc(sizeof(kernelBios));
-  if (dev->data == NULL)
-    goto out;
-
-  // Copy the data we found into the driver's data structure
-  kernelMemCopy(dataStruct, dev->data, sizeof(kernelBios));
-
-  // Register the device
-  status = kernelDeviceAdd(parent, dev);
-  if (status < 0)
-    goto out;
-
- out:
-  kernelPageUnmap(KERNELPROCID, biosArea, BIOSAREA_SIZE);
-  return (status = 0);
-}
 
 
 static kernelDevice *regDevice(void *parent, void *driver,
@@ -164,7 +100,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
     return (status = ERR_NOCREATE);
 
   // Initialize the variable list for attributes of the CPU
-  status = kernelVariableListCreate(&(dev->device.attrs));
+  status = kernelVariableListCreate(&dev->device.attrs);
   if (status < 0)
     return (status);
 
@@ -182,18 +118,18 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
   vendorString[12] = '\0';
 
   // Try to identify the chip vendor by name
-  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_VENDOR,
+  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
 			"unknown");
   for (count = 0; cpuVendorIds[count].string; count ++)
     {
       if (!strncmp(vendorString, cpuVendorIds[count].string, 12))
 	{
-	  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_VENDOR,
+	  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
 				cpuVendorIds[count].vendor);
 	  break;
 	}
     }
-  kernelVariableListSet(&(dev->device.attrs), "vendor.string", vendorString);
+  kernelVariableListSet(&dev->device.attrs, "vendor.string", vendorString);
 
   // Do additional supported functions
 
@@ -206,27 +142,27 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
       // CPU type
       sprintf(variable, "%s.%s", "cpu", "type");
       sprintf(value, "%02x", ((rega & 0xF000) >> 12));
-      kernelVariableListSet(&(dev->device.attrs), variable, value);
+      kernelVariableListSet(&dev->device.attrs, variable, value);
 
       // CPU family
       sprintf(variable, "%s.%s", "cpu", "family");
       sprintf(value, "%02x", ((rega & 0xF00) >> 8));
-      kernelVariableListSet(&(dev->device.attrs), variable, value);
+      kernelVariableListSet(&dev->device.attrs, variable, value);
 
       // CPU model
       sprintf(variable, "%s.%s", "cpu", "model");
       sprintf(value, "%02x", ((rega & 0xF0) >> 4));
-      kernelVariableListSet(&(dev->device.attrs), variable, value);
+      kernelVariableListSet(&dev->device.attrs, variable, value);
 
       // CPU revision
       sprintf(variable, "%s.%s", "cpu", "rev");
       sprintf(value, "%02x", (rega & 0xF));
-      kernelVariableListSet(&(dev->device.attrs), variable, value);
+      kernelVariableListSet(&dev->device.attrs, variable, value);
 
       // CPU features
       sprintf(variable, "%s.%s", "cpu", "features");
       sprintf(value, "%08x", regd);
-      kernelVariableListSet(&(dev->device.attrs), variable, value);
+      kernelVariableListSet(&dev->device.attrs, variable, value);
     }
 
   // See if there's extended CPUID info
@@ -253,7 +189,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	  ((unsigned *) value)[10] = regc;
 	  ((unsigned *) value)[11] = regd;
 	  value[48] = '\0';
-	  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_MODEL,
+	  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
 				value);
 	}
     }
@@ -265,11 +201,88 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 static int driverDetectMemory(void *parent, kernelDriver *driver)
 {
   int status = 0;
+  kernelDevice *dev = NULL;
+  char value[80];
 
-  if (!regDevice(parent, driver, kernelDeviceGetClass(DEVICECLASS_MEMORY), 0))
+  dev = regDevice(parent, driver, kernelDeviceGetClass(DEVICECLASS_MEMORY), 0);
+  if (dev == NULL)
     return (status = ERR_NOCREATE);
-  else
+
+  // Initialize the variable list for attributes of the CPU
+  status = kernelVariableListCreate(&dev->device.attrs);
+  if (status < 0)
+    return (status);
+
+  sprintf(value, "%u Kb", (1024 + kernelOsLoaderInfo->extendedMemory));
+  kernelVariableListSet(&dev->device.attrs, "memory.size", value);
+
+  return (status = 0);
+}
+
+
+static int driverDetectBios(void *parent, kernelDriver *driver)
+{
+  int status = 0;
+  void *biosArea = NULL;
+  char *ptr = NULL;
+  kernelBios *dataStruct = NULL;
+  char checkSum = 0;
+  kernelDevice *dev = NULL;
+  int count;
+
+  // Map the designated area for the BIOS into memory so we can scan it.
+  status = kernelPageMapToFree(KERNELPROCID, (void *) BIOSAREA_START,
+			       &biosArea, BIOSAREA_SIZE);
+  if (status < 0)
     return (status = 0);
+
+  for (ptr = biosArea ; ptr < (char *) (biosArea + BIOSAREA_SIZE);
+       ptr += sizeof(kernelBios))
+    {
+      if (!strncmp(ptr, BIOSAREA_SIG, 4))
+	{
+	  dataStruct = (kernelBios *) ptr;
+	  break;
+	}
+    }
+
+  if (!dataStruct)
+    goto out;
+
+  // Check the checksum
+  for (count = 0; count < (int) sizeof(kernelBios); count ++)
+    checkSum += ptr[count];
+  if (checkSum)
+    kernelLog("32-bit BIOS checksum failed (%d)", checkSum);
+
+  kernelLog("32-bit BIOS found at %08x, entry point %08x",
+	    (unsigned) (BIOSAREA_START + ((void *) dataStruct - biosArea)),
+	    (unsigned) dataStruct->entryPoint);
+
+  // Allocate memory for the device
+  dev = kernelMalloc(sizeof(kernelDevice));
+  if (dev == NULL)
+    goto out;
+
+  dev->device.class = kernelDeviceGetClass(DEVICESUBCLASS_SYSTEM_BIOS32);
+  dev->driver = driver;
+
+  // Allocate memory for driver data
+  dev->data = kernelMalloc(sizeof(kernelBios));
+  if (dev->data == NULL)
+    goto out;
+
+  // Copy the data we found into the driver's data structure
+  kernelMemCopy(dataStruct, dev->data, sizeof(kernelBios));
+
+  // Register the device
+  status = kernelDeviceAdd(parent, dev);
+  if (status < 0)
+    goto out;
+
+ out:
+  kernelPageUnmap(KERNELPROCID, biosArea, BIOSAREA_SIZE);
+  return (status = 0);
 }
 
 
@@ -280,14 +293,6 @@ static int driverDetectMemory(void *parent, kernelDriver *driver)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
-
-void kernelBiosDriverRegister(kernelDriver *driver)
-{
-  // Device driver registration.
-  driver->driverDetect = driverDetectBios;
-  return;
-}
 
 
 void kernelCpuDriverRegister(kernelDriver *driver)
@@ -302,5 +307,13 @@ void kernelMemoryDriverRegister(kernelDriver *driver)
 {
   // Device driver registration.
   driver->driverDetect = driverDetectMemory;
+  return;
+}
+
+
+void kernelBiosDriverRegister(kernelDriver *driver)
+{
+  // Device driver registration.
+  driver->driverDetect = driverDetectBios;
   return;
 }

@@ -30,6 +30,7 @@
 #define DISK_MAX_NAMELENGTH           16
 #define DISK_MAX_PARTITIONS           16
 #define DISK_MAX_PRIMARY_PARTITIONS   4
+#define DISK_MAX_CACHE                1048576 // 1 Meg
 #define FSTYPE_MAX_NAMELENGTH         32
 
 // Extended partition types
@@ -56,23 +57,31 @@
 #define FS_OP_RESIZECONST             0x20
 #define FS_OP_RESIZE                  0x40
 
-// Flags to describe what kind of disk is described by a disk structure
-#define DISKFLAG_LOGICAL              0x20000000
-#define DISKFLAG_PHYSICAL             0x10000000
-#define DISKFLAG_PRIMARY              0x01000000
-#define DISKFLAG_LOGICALPHYSICAL      (DISKFLAG_PHYSICAL | DISKFLAG_LOGICAL)
-#define DISKFLAG_FIXED                0x00200000
-#define DISKFLAG_REMOVABLE            0x00100000
-#define DISKFLAG_FIXEDREMOVABLE       (DISKFLAG_FIXED | DISKFLAG_REMOVABLE)
-#define DISKFLAG_FLOPPY               0x00000100
-#define DISKFLAG_SCSICDROM            0x00000020
-#define DISKFLAG_IDECDROM             0x00000010
-#define DISKFLAG_CDROM                (DISKFLAG_SCSICDROM | DISKFLAG_IDECDROM)
-#define DISKFLAG_FLASHDISK            0x00000004
-#define DISKFLAG_SCSIDISK             0x00000002
-#define DISKFLAG_IDEDISK              0x00000001
-#define DISKFLAG_HARDDISK             (DISKFLAG_FLASHDISK | \
-                                       DISKFLAG_SCSIDISK | DISKFLAG_IDEDISK)
+// Flags to describe what type of disk is described by a disk structure
+#define DISKTYPE_LOGICAL              0x20000000
+#define DISKTYPE_PHYSICAL             0x10000000
+#define DISKTYPE_PRIMARY              0x01000000
+#define DISKTYPE_LOGICALPHYSICAL      (DISKTYPE_PHYSICAL | DISKTYPE_LOGICAL)
+#define DISKTYPE_FIXED                0x00200000
+#define DISKTYPE_REMOVABLE            0x00100000
+#define DISKTYPE_FIXEDREMOVABLE       (DISKTYPE_FIXED | DISKTYPE_REMOVABLE)
+#define DISKTYPE_FLOPPY               0x00000100
+#define DISKTYPE_SCSICDROM            0x00000020
+#define DISKTYPE_IDECDROM             0x00000010
+#define DISKTYPE_CDROM                (DISKTYPE_SCSICDROM | DISKTYPE_IDECDROM)
+#define DISKTYPE_FLASHDISK            0x00000004
+#define DISKTYPE_SCSIDISK             0x00000002
+#define DISKTYPE_IDEDISK              0x00000001
+#define DISKTYPE_HARDDISK             (DISKTYPE_FLASHDISK | \
+                                       DISKTYPE_SCSIDISK | DISKTYPE_IDEDISK)
+
+// Flags to describe the current state of the disk
+#define DISKFLAG_NOCACHE              0x10
+#define DISKFLAG_READONLY             0x08
+#define DISKFLAG_MOTORON              0x04
+#define DISKFLAG_DOORLOCKED           0x02
+#define DISKFLAG_DOOROPEN             0x01
+#define DISKFLAG_USERSETTABLE         (DISKFLAG_NOCACHE | DISKFLAG_READONLY)
 
 // This structure is used to describe a known partition type
 typedef struct {
@@ -84,7 +93,8 @@ typedef struct {
 typedef struct {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
-  int flags;
+  unsigned type;
+  unsigned flags;
   partitionType partType;
   char fsType[FSTYPE_MAX_NAMELENGTH];
   unsigned opFlags;
@@ -107,6 +117,15 @@ typedef struct {
   int readOnly;
 
 } disk;
+
+typedef struct {
+  // Throughput measurement.
+  unsigned readTime;
+  unsigned readKbytes;
+  unsigned writeTime;
+  unsigned writeKbytes;
+
+} diskStats;
 
 #define CYLSECTS(d) (d->heads * d->sectorsPerCylinder)
 

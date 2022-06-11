@@ -47,7 +47,6 @@ typedef volatile struct {
   int needConfirm;
   int confirm;
   int error;
-  int confirmError;
   int canCancel;
   int cancel;
   lock lock;

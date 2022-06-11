@@ -16,7 +16,6 @@
 /programs/edit
 /programs/fdisk
 /programs/filebrowse
-/programs/find
 /programs/format
 /programs/help
 /programs/helpfiles/
@@ -25,16 +24,12 @@
 /programs/ifconfig
 /programs/imgboot
 /programs/install
-/programs/kill
 /programs/login
-/programs/logout
 /programs/lsdev
-/programs/mem
 /programs/mkdir
 /programs/more
 /programs/mount
 /programs/progman
-/programs/ps
 /programs/reboot
 /programs/rm
 /programs/rmdir

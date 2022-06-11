@@ -56,11 +56,9 @@ static void recurseDirectory(const char *dirPath)
   int status = 0;
   file theFile;
   char newDirPath[MAX_PATH_LENGTH];
-  int count = 0;
 
   // Initialize the file structure
-  for (count = 0; count < (int) sizeof(file); count ++)
-    ((char *) &theFile)[count] = NULL;
+  bzero(&theFile, sizeof(file));
 
   // Get the first item in the directory
   status = fileFirst(dirPath, &theFile);

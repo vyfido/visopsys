@@ -91,6 +91,7 @@ void kernelDebugInitialize(void)
   // kernelDebugAddCategory(debug_fs);
   // kernelDebugAddCategory(debug_gui);
   // kernelDebugAddCategory(debug_io);
+  // kernelDebugAddCategory(debug_memory);
   // kernelDebugAddCategory(debug_misc);
   // kernelDebugAddCategory(debug_scsi);
   // kernelDebugAddCategory(debug_usb);

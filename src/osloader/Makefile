@@ -21,6 +21,7 @@ STDDEPS		= loader.h Makefile
 BOOTDEPS	= bootsect-fatBPB.s bootsect-diskparms.s bootsect-print.s \
 		bootsect-error.s bootsect-read.s 
 OBJS		= obj/loaderMain.o \
+		obj/loaderA20.o \
 		obj/loaderVideo.o \
 		obj/loaderDetectHardware.o \
 		obj/loaderLoadFile.o \

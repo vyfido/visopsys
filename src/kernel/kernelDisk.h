@@ -32,7 +32,6 @@
 
 #define DISK_CACHE              1
 #define DISK_CACHE_ALIGN        (64 * 1024)  // Convenient for floppies
-#define DISK_MAX_CACHE          1048576      // 1 Meg
 #define DISK_READAHEAD_SECTORS  32
 
 typedef enum { addr_pchs, addr_lba } kernelAddrMethod;
@@ -40,42 +39,6 @@ typedef enum { addr_pchs, addr_lba } kernelAddrMethod;
 // Forward declarations, where necessary
 struct _kernelPhysicalDisk;
 struct _kernelFilesystemDriver;
-
-typedef struct {
-  int (*driverReset) (int);
-  int (*driverRecalibrate) (int);
-  int (*driverSetMotorState) (int, int);
-  int (*driverSetLockState) (int, int);
-  int (*driverSetDoorState) (int, int);
-  int (*driverDiskChanged) (int);
-  int (*driverReadSectors) (int, unsigned, unsigned, void *);
-  int (*driverWriteSectors) (int, unsigned, unsigned, const void *);
-
-} kernelDiskOps;
-
-#if (DISK_CACHE)
-// This is for metadata about one sector of data from a disk cache
-typedef volatile struct {
-  unsigned number;
-  void *data;
-  int dirty;
-  unsigned lastAccess;
-
-} kernelDiskCacheSector;
-
-// This is for managing the data cache of a logical disk
-typedef volatile struct {
-  int initialized;
-  unsigned numSectors;
-  unsigned usedSectors;
-  kernelDiskCacheSector **sectors;
-  kernelDiskCacheSector *sectorMemory;
-  void *dataMemory;
-  int dirty;
-  lock cacheLock;
-
-} kernelDiskCache;
-#endif // DISK_CACHE
 
 // This defines a logical disk, a disk 'volume' (for example, a hard
 // disk partition is a logical disk)
@@ -111,6 +74,41 @@ typedef volatile struct _kernelDisk {
 
 } kernelDisk;
 
+typedef struct {
+  int (*driverReset) (int);
+  int (*driverRecalibrate) (int);
+  int (*driverSetMotorState) (int, int);
+  int (*driverSetLockState) (int, int);
+  int (*driverSetDoorState) (int, int);
+  int (*driverDiskChanged) (int);
+  int (*driverReadSectors) (int, unsigned, unsigned, void *);
+  int (*driverWriteSectors) (int, unsigned, unsigned, const void *);
+  int (*driverFlush) (int);
+
+} kernelDiskOps;
+
+#if (DISK_CACHE)
+// This is for metadata about a range of data in a disk cache
+typedef volatile struct _kernelDiskCacheSector {
+  unsigned startSector;
+  unsigned numSectors;
+  void *data;
+  int dirty;
+  unsigned lastAccess;
+  volatile struct _kernelDiskCacheSector *prev;
+  volatile struct _kernelDiskCacheSector *next;
+
+} kernelDiskCacheBuffer;
+
+// This is for managing the data cache of a physical disk
+typedef volatile struct {
+  kernelDiskCacheBuffer *buffer;
+  unsigned size;
+  unsigned dirty;
+
+} kernelDiskCache;
+#endif // DISK_CACHE
+
 // This structure describes a physical disk device, as opposed to a
 // logical disk.
 typedef volatile struct _kernelPhysicalDisk {
@@ -118,8 +116,8 @@ typedef volatile struct _kernelPhysicalDisk {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
   char *description;
-  int flags;
-  int readOnly;
+  unsigned type;
+  unsigned flags;
 
   // Generic geometry parameters
   unsigned heads;
@@ -133,19 +131,19 @@ typedef volatile struct _kernelPhysicalDisk {
   int numLogical;
 
   // Misc
-  unsigned biosType;     // Needed for floppy detection
   unsigned lastSession;  // Needed for multisession CD-ROM
-  lock diskLock;
-  int motorState;
-  int lockState;
-  int doorState;
-  unsigned idleSince;
+  lock lock;
+  unsigned lastAccess;
   int multiSectors;
 
+  // Physical disk driver
   kernelDriver *driver;
   void *driverData;
 
+  diskStats stats;
+
 #if (DISK_CACHE)
+  // The cache
   kernelDiskCache cache;
 #endif // DISK_CACHE
 
@@ -155,7 +153,6 @@ typedef volatile struct _kernelPhysicalDisk {
 int kernelDiskRegisterDevice(kernelDevice *);
 int kernelDiskRemoveDevice(kernelDevice *);
 int kernelDiskInitialize(void);
-int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);
 int kernelDiskShutdown(void);
 int kernelDiskFromLogical(kernelDisk *, disk *);
@@ -164,7 +161,8 @@ kernelDisk *kernelDiskGetByPath(const char *);
 // More functions, but also exported to user space
 int kernelDiskReadPartitions(const char *);
 int kernelDiskReadPartitionsAll(void);
-int kernelDiskSync(void);
+int kernelDiskSync(const char *);
+int kernelDiskSyncAll(void);
 int kernelDiskGetBoot(char *);
 int kernelDiskGetCount(void);
 int kernelDiskGetPhysicalCount(void);
@@ -174,11 +172,14 @@ int kernelDiskGetAllPhysical(disk *, unsigned);
 int kernelDiskGetFilesystemType(const char *, char *, unsigned);
 int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);
+int kernelDiskSetFlags(const char *, unsigned, int);
 int kernelDiskSetLockState(const char *, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskGetMediaState(const char *);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *);
+int kernelDiskEraseSectors(const char *, unsigned, unsigned, int);
+int kernelDiskGetStats(const char *, diskStats *);
 
 #define _KERNELDISK_H
 #endif

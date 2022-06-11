@@ -29,8 +29,10 @@
 #include "kernelFilesystem.h"
 #include "kernelLock.h"
 #include "kernelMalloc.h"
+#include "kernelMemory.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
+#include "kernelRandom.h"
 #include "kernelRtc.h"
 #include "kernelSysTimer.h"
 #include <stdio.h>
@@ -685,7 +687,6 @@ static int fileOpen(kernelFileEntry *openItem, int openMode)
   kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *directory = NULL;
-  int deleteSecure = 0;
 
   // Make sure the item is really a file, and not a directory or anything else
   if (openItem->type != fileT)
@@ -734,11 +735,7 @@ static int fileOpen(kernelFileEntry *openItem, int openMode)
 	      return (status = ERR_NOSUCHFUNCTION);
 	    }
 
-	  // Are we supposed to delete this file securely?
-	  if (openItem->flags & FLAG_SECUREDELETE)
-	    deleteSecure = 1;
-
-	  status = theDriver->driverDeleteFile(openItem, deleteSecure);
+	  status = theDriver->driverDeleteFile(openItem);
 	  if (status < 0)
 	    return (status);
 	  
@@ -777,7 +774,6 @@ static int fileDelete(kernelFileEntry *theFile)
   kernelFileEntry *parentDir = NULL;
   kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
-  int secureDelete = 0;
 
   // Record the parent directory before we nix the file
   parentDir = theFile->parentDirectory;
@@ -789,10 +785,6 @@ static int fileDelete(kernelFileEntry *theFile)
       kernelError(kernel_error, "Item to delete is not a file");
       return (status = ERR_NOTAFILE);
     }
-
-  // Are we doing a 'secure delete' on this file?
-  if (theFile->flags & FLAG_SECUREDELETE)
-    secureDelete = 1;
 
   // Figure out which filesystem we're using
   theDisk = (kernelDisk *) theFile->disk;
@@ -813,7 +805,7 @@ static int fileDelete(kernelFileEntry *theFile)
 
   // If the filesystem driver has a 'delete' function, call it.
   if (theDriver->driverDeleteFile)
-    status = theDriver->driverDeleteFile(theFile, secureDelete);
+    status = theDriver->driverDeleteFile(theFile);
   if (status < 0)
     return (status);
 
@@ -1149,15 +1141,17 @@ static int fileCopy(file *sourceFile, file *destFile)
   destBlocks = max(1, ((sourceFile->size / destFile->blockSize) +
 		       ((sourceFile->size % destFile->blockSize) != 0)));
 
-  kernelDebug(debug_fs, "Copy %s (%u blocks) to %s (%u blocks)",
-	      sourceFile->name, srcBlocks, destFile->name, destBlocks);
+  kernelDebug(debug_fs, "Copy %s (%u blocks @ %u) to %s (%u blocks @ %u)",
+	      sourceFile->name, srcBlocks, sourceFile->blockSize,
+	      destFile->name, destBlocks, destFile->blockSize);
 
   // Try to allocate the largest copy buffer that we can.
 
   bufferSize = max((srcBlocks * sourceFile->blockSize),
 		   (destBlocks * destFile->blockSize));
 
-  while ((copyBuffer = kernelMalloc(bufferSize)) == NULL)
+  while ((copyBuffer =
+	  kernelMemoryGet(bufferSize, "file copy buffer")) == NULL)
     {
       if ((bufferSize <= sourceFile->blockSize) ||
 	  (bufferSize <= destFile->blockSize))
@@ -1183,20 +1177,22 @@ static int fileCopy(file *sourceFile, file *destFile)
       destBlocksPerOp = min(destBlocks, destBlocksPerOp);
       
       // Read from the source file
+      kernelDebug(debug_fs, "Read %u blocks from source", srcBlocksPerOp);
       status = kernelFileRead(sourceFile, currentSrcBlock, srcBlocksPerOp,
 			      copyBuffer);
       if (status < 0)
 	{
-	  kernelFree(copyBuffer);
+	  kernelMemoryRelease(copyBuffer);
 	  return (status);
 	}
       
       // Write to the destination file
+      kernelDebug(debug_fs, "Write %u blocks to dest", destBlocksPerOp);
       status = kernelFileWrite(destFile, currentDestBlock, destBlocksPerOp,
 			       copyBuffer);
       if (status < 0)
 	{
-	  kernelFree(copyBuffer);
+	  kernelMemoryRelease(copyBuffer);
 	  return (status);
 	}
 
@@ -1209,7 +1205,7 @@ static int fileCopy(file *sourceFile, file *destFile)
       currentDestBlock += destBlocksPerOp;
     }
 
-  kernelFree(copyBuffer);
+  kernelMemoryRelease(copyBuffer);
   return (status = 0);
 }
 
@@ -2637,13 +2633,20 @@ int kernelFileDeleteRecursive(const char *itemName)
 }
 
 
-int kernelFileDeleteSecure(const char *fileName)
+int kernelFileDeleteSecure(const char *fileName, int passes)
 {
-  // This is just like the 'delete' function, above, except that it sets the
-  // file's FLAG_SECUREDELETE first.
+  // This function deletes a file, but first does a number of passes of
+  // writing random data over top of the file, followed by a pass of NULLs,
+  // and finally does a normal file deletion.
 
   int status = 0;
   kernelFileEntry *theFile = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+  unsigned blockSize = 0;
+  unsigned bufferSize = 0;
+  unsigned char *buffer = NULL;
+  int count1;
+  unsigned count2;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -2664,11 +2667,64 @@ int kernelFileDeleteSecure(const char *fileName)
       return (status = ERR_NOSUCHFILE);
     }
 
-  // OK, the file exists.  Set FLAG_SECUREDELETE on the file.
-  theFile->flags |= FLAG_SECUREDELETE;
+  // Not allowed in read-only file system
+  if (theFile->disk->filesystem.readOnly)
+    {
+      kernelError(kernel_error, "Filesystem is read-only");
+      return (status = ERR_NOWRITE);
+    }
 
-  // Call our internal 'delete' function
-  return (fileDelete(theFile));
+  theDriver = theFile->disk->filesystem.driver;
+  if (theDriver->driverWriteFile == NULL)
+    {
+      kernelError(kernel_error, "The requested filesystem operation is not "
+		  "supported");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Get a buffer the as big as all of the blocks allocated to the file.
+  blockSize = theFile->disk->filesystem.blockSize;
+  bufferSize = (theFile->blocks * blockSize);
+  buffer = kernelMalloc(bufferSize);
+  if (buffer == NULL)
+    {
+      kernelError(kernel_error, "Unable to obtain enough memory to "
+		  "securely delete %s", fileName);
+      return (status = ERR_MEMORY);
+    }
+
+  for (count1 = 0; count1 < passes; count1 ++)
+    {
+      if (count1 < (passes - 1))
+	{
+	  // Fill the buffer with semi-random data
+	  for (count2 = 0; count2 < blockSize; count2 ++)
+	    buffer[count2] = kernelRandomFormatted(0, 255);
+
+	  for (count2 = 1; count2 < theFile->blocks; count2 ++)
+	    kernelMemCopy(buffer, (buffer + (count2 * blockSize)), blockSize);
+	}
+      else
+	// Clear the buffer with NULLs
+	kernelMemClear(buffer, bufferSize);
+
+      // Write the file
+      status = theDriver->driverWriteFile(theFile, 0, theFile->blocks, buffer);
+
+      // Sync the disk to make sure the data has been written out
+      kernelDiskSync((char *) theFile->disk->name);
+
+      if (status < 0)
+	break;
+    }
+
+  kernelFree(buffer);
+
+  if (status < 0)
+    return (status);
+
+  // Now do a normal file deletion.
+  return (status = fileDelete(theFile));
 }
 
 
@@ -2908,33 +2964,33 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
       // Get the first file in the source directory
       src = src->contents;
 
-      // Skip any '.' and '..' entries
-      while (!strcmp((char *) src->name, ".") ||
-	     !strcmp((char *) src->name, ".."))
-	src = src->nextEntry;
-
       while (src)
 	{
-	  // Add the file's name to the directory's name
-	  tmpSrcName = fixupPath(srcPath);
-	  if (tmpSrcName)
+	  if (strcmp((char *) src->name, ".") &&
+	      strcmp((char *) src->name, ".."))
 	    {
-	      strcat(tmpSrcName, "/");
-	      strcat(tmpSrcName, (const char *) src->name);
-	      // Add the file's name to the destination file name
-	      tmpDestName = fixupPath(destPath);
-	      if (tmpDestName)
+	      // Add the file's name to the directory's name
+	      tmpSrcName = fixupPath(srcPath);
+	      if (tmpSrcName)
 		{
-		  strcat(tmpDestName, "/");
-		  strcat(tmpDestName, (const char *) src->name);
+		  strcat(tmpSrcName, "/");
+		  strcat(tmpSrcName, (const char *) src->name);
+		  // Add the file's name to the destination file name
+		  tmpDestName = fixupPath(destPath);
+		  if (tmpDestName)
+		    {
+		      strcat(tmpDestName, "/");
+		      strcat(tmpDestName, (const char *) src->name);
 		  
-		  status = kernelFileCopyRecursive(tmpSrcName, tmpDestName);
+		      status =
+			kernelFileCopyRecursive(tmpSrcName, tmpDestName);
 
-		  kernelFree(tmpSrcName);
-		  kernelFree(tmpDestName);
+		      kernelFree(tmpSrcName);
+		      kernelFree(tmpDestName);
 
-		  if (status < 0)
-		    return (status);
+		      if (status < 0)
+			return (status);
+		    }
 		}
 	    }
 

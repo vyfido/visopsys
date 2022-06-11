@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
   bzero(&sysDisk, sizeof(disk));
   fileGetDisk("/", &sysDisk);
 
-  if (eject && (sysDisk.flags & DISKFLAG_CDROM))
+  if (eject && (sysDisk.type & DISKTYPE_CDROM))
     doEject();
 
   status = shutdown(1, force);

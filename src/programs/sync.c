@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
 
   int status = 0;
 
-  // This will sync all filesystems
-  status = diskSync();
+  // This will sync all disks
+  status = diskSyncAll();
   if (status < 0)
     {
       errno = status;

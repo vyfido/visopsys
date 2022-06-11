@@ -32,22 +32,29 @@ Synonym:
   del
 
 Usage:
-  rm [-R] <file1> [file2] [...]
+  rm [-R] [-S#] <file1> [file2] [...]
 
 This command will remove one or more files.  Normally it will not remove
 directories.  To remove a directory, use the 'rmdir' command.
 
 Options:
 -R              : Force recursive deletion, including directories.
+-S[number]      : Securely delete the file by overwriting it with random
+                  data (number minus 1 times) and then NULLs, and then 
+                  deleting the file.  The default number value is 5 if no
+                  value is supplied.
+
+Note the -S option is not allowed if the -R option is used.
 
 </help>
 */
 
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include <sys/vsh.h>
 #include <sys/api.h>
+#include <sys/vsh.h>
 
 
 static void usage(char *name)
@@ -63,6 +70,7 @@ int main(int argc, char *argv[])
   int status = 0;
   char opt;
   int recurse = 0;
+  int secure = 0;
   int count;
 
   if (argc < 2)
@@ -73,18 +81,39 @@ int main(int argc, char *argv[])
 
   count = 1;
 
-  while (strchr("R", (opt = getopt(argc, argv, "R"))))
+  while (strchr("RrS?", (opt = getopt(argc, argv, "RrS::"))))
     {
-      // Recurse?
-      if (opt == 'R')
+      switch (opt)
 	{
-	  count += 1;
+	case 'r':
+	case 'R':
+	  // Recurse
 	  recurse = 1;
+	  break;
+
+	case 'S':
+	  // Secure
+	  secure = 5;
+	  if (optarg && (atoi(optarg) >= 0))
+	    secure = atoi(optarg);
+	  break;
+
+	default:
+	  fprintf(stderr, "Unknown option '%c'\n", optopt);
+	  usage(argv[0]);
+	  return (status = ERR_INVALID);
 	}
     }
 
+  // We can't do a secure recursive delete
+  if (recurse && secure)
+    {
+      fprintf(stderr, "Can't both recursively and securely delete\n");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
+
   // Loop through all of our file name arguments
-  for ( ; count < argc; count ++)
+  for (count = optind ; count < argc; count ++)
     {
       // Make sure the name isn't NULL
       if (argv[count] == NULL)
@@ -93,6 +122,8 @@ int main(int argc, char *argv[])
       // Attempt to remove the file
       if (recurse)
 	status = fileDeleteRecursive(argv[count]);
+      else if (secure)
+	status = fileDeleteSecure(argv[count], secure);
       else
 	status = fileDelete(argv[count]);
 

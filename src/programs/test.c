@@ -21,6 +21,7 @@
 
 // This is a test driver program.
 
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -558,6 +559,444 @@ static int port_io(void)
 }
 
 
+static int disk_reads(disk *theDisk)
+{
+  int status = 0;
+  unsigned startSector = 0;
+  unsigned numSectors = 0;
+  unsigned char *buffer = NULL;
+  int count;
+
+  printf("\nTest reads from disk %s, numSectors %u ", theDisk->name,
+	 theDisk->numSectors);
+
+  for (count = 0; count < 1024; count ++)
+    {
+      numSectors = randomFormatted(1, min(theDisk->numSectors, 512));
+      startSector = randomFormatted(0, (theDisk->numSectors - numSectors - 1));
+
+      buffer = malloc(numSectors * theDisk->sectorSize);
+      if (buffer == NULL)
+	{
+	  FAILMESS("Error getting %u bytes disk %s buffer memory",
+		   (numSectors * theDisk->sectorSize), theDisk->name);
+	  return (status = ERR_MEMORY);
+	}
+
+      status = diskReadSectors(theDisk->name, startSector, numSectors, buffer);
+
+      free(buffer);
+
+      if (status < 0)
+	{
+	  FAILMESS("Error %d reading %u sectors at %u on %s", status,
+		   numSectors, startSector, theDisk->name);
+	  return (status);
+	}
+    }
+    
+  return (status = 0);
+}
+
+
+static int disk_io(void)
+{
+  // Test disk IO reads
+
+  int status = 0;
+  char diskName[DISK_MAX_NAMELENGTH];
+  disk theDisk;
+  int count = 0;
+
+  // Save the current text screen
+  status = textScreenSave(&screen);
+  if (status < 0)
+    goto fail;
+
+  // Get the logical boot disk name
+  status = diskGetBoot(diskName);
+  if (status < 0)
+    {
+      FAILMESS("Error %d getting disk name", status);
+      goto fail;
+    }
+
+  for (count = 0; count < (DISK_MAX_PARTITIONS + 1); count ++)
+    {
+      // Take off any partition letter, so that we have the name of the
+      // whole physical disk.
+      if (isalpha(diskName[strlen(diskName) - 1]))
+	diskName[strlen(diskName) - 1] = '\0';
+
+      if (count)
+	// Add a partition letter
+	sprintf((diskName + strlen(diskName)), "%c", ('a' + count - 1));
+
+      // Get the disk info
+      status = diskGet(diskName, &theDisk);
+      if (status < 0)
+	// No such disk.  Fine.
+	break;
+
+      // Do random reads
+      status = disk_reads(&theDisk);
+      if (status < 0)
+	goto fail;
+    }
+
+  status = 0;
+
+ fail:
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
+static int file_recurse(const char *dirPath, unsigned startTime)
+{
+  int status = 0;
+  file theFile;
+  file tmpFile;
+  int numFiles = 0;
+  int fileNum = 0;
+  char relPath[MAX_PATH_NAME_LENGTH];
+  unsigned op = 0;
+  char newPath[MAX_PATH_NAME_LENGTH];
+  int count;
+		  
+  // Initialize the file structure
+  bzero(&theFile, sizeof(file));
+
+  // Loop through the contents of the directory
+  while (rtcUptimeSeconds() < (startTime + 10))
+    {
+      numFiles = fileCount(dirPath);
+      if (numFiles <= 0)
+	{
+	  FAILMESS("Error %d getting directory %s file count", numFiles,
+		   dirPath);
+	  return (numFiles);
+	}
+
+      if (numFiles <= 2)
+	return (status = 0);
+
+      fileNum = randomFormatted(2, (numFiles - 1));
+      for (count = 0; count <= fileNum; count ++)
+	{
+	  if (count == 0)
+	    {
+	      // Get the first item in the directory
+	      status = fileFirst(dirPath, &theFile);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d finding first file in %s", status,
+			   dirPath);
+		  return (status);
+		}
+	    }
+	  else
+	    {
+	      status = fileNext(dirPath, &theFile);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d finding next file after %s in %s", status,
+			   theFile.name, dirPath);
+		  return (status);
+		}
+	    }
+	}
+
+      // Construct the relative pathname for this item
+      sprintf(relPath, "%s/%s", dirPath, theFile.name);
+
+      // And a new one in case we want to move/rename it
+      strncpy(newPath, relPath, MAX_PATH_NAME_LENGTH);
+      while (fileFind(newPath, &tmpFile) >= 0)
+	snprintf(newPath, MAX_PATH_NAME_LENGTH, "%s/%c%s", dirPath,
+		 randomFormatted(65, 90), theFile.name);
+
+      if (theFile.type == dirT)
+	{
+	  // Randomly decide what type of operation to do to this diretory
+	  op = randomFormatted(0, 3);
+
+	  switch (op)
+	    {
+	    case 0:
+	      if (numFiles < 4)
+		{
+		  // Recursively copy it	      
+		  printf("Recursively copy %s to %s\n", relPath, newPath);
+		  status = fileCopyRecursive(relPath, newPath);
+		  if (status < 0)
+		    {
+		      FAILMESS("Error %d copying directory %s", status,
+			       relPath);
+		      return (status);
+		    }
+		}
+	      break;
+	    
+	    case 1:
+	      if (numFiles > 4)
+		{
+		  // Recursively delete it
+		  printf("Recursively delete %s\n", relPath);
+		  status = fileDeleteRecursive(relPath);
+		  if (status < 0)
+		    {
+		      FAILMESS("Error %d deleting directory %s", status,
+			       relPath);
+		      return (status);
+		    }
+		}
+	      break;
+
+	    case 2:
+	      // Make a new directory
+	      printf("Create %s\n", newPath);
+	      status = fileMakeDir(newPath);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d creating directory %s", status, newPath);
+		  return (status);
+		}
+	      break;
+	      
+	    case 3:
+	      // Recursively process it the normal way
+	      status = file_recurse(relPath, startTime);
+	      if (status < 0)
+		return (status);
+	      // Remove the directory.
+	      printf("Remove %s\n", relPath);
+	      status = fileRemoveDir(relPath);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d removing directory %s", status, relPath);
+		  return (status);
+		}
+	      break;
+	      
+	    default:
+	      FAILMESS("Unknown op %d for file %s", op, relPath);
+	      return (status = ERR_BUG);
+	    }
+	}
+      else
+	{
+	  // Randomly decide what type of operation to do to this file
+	  op = randomFormatted(0, 6);
+
+	  switch (op)
+	    {
+	    case 0:
+	      // Just find the file
+	      status = fileFind(relPath, &theFile);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d finding file %s", status, relPath);
+		  return (status);
+		}
+	      break;
+
+	    case 1:
+	      // Read and write the file using block IO
+	      printf("Read/write %s (block)\n", relPath);
+	      status = fileOpen(relPath, OPENMODE_READWRITE, &theFile);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d opening file %s", status, relPath);
+		  return (status);
+		}
+	      unsigned char *buffer =
+		malloc(theFile.blocks * theFile.blockSize);
+	      if (buffer == NULL)
+		{
+		  FAILMESS("Couldn't get %u bytes memory for file %s",
+			   (theFile.blocks * theFile.blockSize), relPath);
+		  return (status = ERR_MEMORY);
+		}
+	      status = fileRead(&theFile, 0, theFile.blocks, buffer);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d reading file %s", status, relPath);
+		  free(buffer);
+		  return (status);
+		}
+	      status = fileWrite(&theFile, 0, theFile.blocks, buffer);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d writing file %s", status, relPath);
+		  free(buffer);
+		  return (status);
+		}
+	      status = fileWrite(&theFile, theFile.blocks, 1, buffer);
+	      free(buffer);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d rewriting file %s", status, relPath);
+		  return (status);
+		}
+	      status = fileClose(&theFile);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d closing file %s", status, relPath);
+		  return (status);
+		}
+	      break;
+
+	    case 2:
+	      // Delete the file
+	      printf("Delete %s\n", relPath);
+	      status = fileDelete(relPath);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d deleting file %s", status, relPath);
+		  return (status);
+		}
+	      break;
+
+	    case 3:
+	      // Delete the file securely
+	      printf("Securely delete %s\n", relPath);
+	      status = fileDeleteSecure(relPath, 9);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d securely deleting file %s", status,
+			   relPath);
+		  return (status);
+		}
+	      break;
+
+	    case 4:
+	      // Copy the file
+	      printf("Copy %s to %s\n", relPath, newPath);
+	      status = fileCopy(relPath, newPath);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d copying file %s to %s", status,
+			   relPath, newPath);
+		  return (status);
+		}
+	      break;
+
+	    case 5:
+	      // Move the file
+	      printf("Move %s to %s\n", relPath, newPath);
+	      status = fileMove(relPath, newPath);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d moving file %s to %s", status,
+			   relPath, newPath);
+		  return (status);
+		}
+	      break;
+
+	    case 6:
+	      printf("Timestamp file %s\n", relPath);
+	      status = fileTimestamp(relPath);
+	      if (status < 0)
+		{
+		  FAILMESS("Error %d timestamping file %s", status,
+			   relPath);
+		  return (status);
+		}
+	      break;
+
+	    default:
+	      FAILMESS("Unknown op %d for file %s", op, relPath);
+	      return (status = ERR_BUG);
+	    }
+	}
+    }
+
+  // Timed out.
+  return (status = 0);
+}
+
+
+static int file_ops(void)
+{
+  // Test filesystem IO
+
+  int status = 0;
+  file theFile;
+  unsigned startTime = 0;
+  int count;
+
+  char *useFiles[] = { "/programs", "/system", "/visopsys", NULL };
+  #define DIRNAME "./test_tmp"
+
+  // Initialize the file structure
+  bzero(&theFile, sizeof(file));
+
+  // Save the current text screen
+  status = textScreenSave(&screen);
+  if (status < 0)
+    goto fail;
+
+  // If the test directory exists, delete it
+  if (fileFind(DIRNAME, &theFile) >= 0)
+    {
+      printf("Recursively delete %s\n", DIRNAME);
+      status = fileDeleteRecursive(DIRNAME);
+      if (status < 0)
+	{
+	  FAILMESS("Error %d recursively deleting %s", status, DIRNAME);
+	  goto fail;
+	}
+    }
+
+  status = fileMakeDir(DIRNAME);
+  if (status < 0)
+    {
+      FAILMESS("Error %d creating test directory", status);
+      goto fail;
+    }
+
+  startTime = rtcUptimeSeconds();
+  while (rtcUptimeSeconds() < (startTime + 10))
+    {
+      for (count = 0; useFiles[count]; count ++)
+	{
+	  char tmpName[MAX_PATH_NAME_LENGTH];
+	  sprintf(tmpName, "%s%s", DIRNAME, useFiles[count]);
+
+	  printf("Recursively copy %s to %s\n", useFiles[count], tmpName);
+	  status = fileCopyRecursive(useFiles[count], tmpName);
+	  if (status < 0)
+	    {
+	      FAILMESS("Error %d recursively copying files from %s", status,
+		       useFiles[count]);
+	      goto fail;
+	    }
+	}
+
+      // Now, recurse the directory, doing random file operations on the
+      // contents.
+      status = file_recurse(DIRNAME, startTime);
+      if (status < 0)
+	break;
+    }
+
+ fail:
+  if (fileFind(DIRNAME, &theFile) >= 0)
+    {
+      printf("Recursively delete %s\n", DIRNAME);
+      fileDeleteRecursive(DIRNAME);
+    }
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
 static int floats(void)
 {
   // Do calculations with floats (test's the kernel's FPU exception handling
@@ -859,6 +1298,8 @@ struct {
   { text_output,     "text output",     0,  0 },
   { text_colors,     "text colors",     0,  0 },
   { port_io,         "port io",         0,  0 },
+  { disk_io,         "disk io",         0,  0 },
+  { file_ops,        "file ops",        0,  0 },
   { floats,          "floats",          0,  0 },
   { gui,             "gui",             0,  1 },
   { NULL, NULL, 0, 0 }

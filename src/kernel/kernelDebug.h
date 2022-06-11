@@ -25,6 +25,8 @@
 #if !defined(_KERNELDEBUG_H)
 #if defined(DEBUG)
 
+#include <sys/debug.h>
+
 // Definitions
 #define MAX_DEBUGTEXT_LENGTH  1024
 #define MAX_DEBUG_CATEGORIES  16
@@ -33,11 +35,6 @@
 #define DEBUG_SHOWPROCESS     0x08
 #define DEBUG_SHOWFILE        0x04
 #define DEBUG_SHOWFUNCTION    0x02
-
-typedef enum {
-  debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_misc,
-  debug_multitasker, debug_scsi, debug_usb
-} kernelDebugCategory;
 
 void kernelDebugInitialize(void);
 void kernelDebugFlags(int);

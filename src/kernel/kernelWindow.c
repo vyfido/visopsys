@@ -2871,9 +2871,9 @@ void kernelWindowRedrawArea(int xCoord, int yCoord, int width, int height)
   xCoord = max(0, xCoord);
   yCoord = max(0, yCoord);
   if ((xCoord + width) > screenWidth)
-    width = (screenWidth - xCoord - 1);
+    width = (screenWidth - xCoord);
   if ((yCoord + height) > screenHeight)
-    height = (screenHeight - yCoord - 1);
+    height = (screenHeight - yCoord);
 
   // If the root window has not yet been shown, clear the area first
   if ((rootWindow == NULL) || !(rootWindow->flags & WINFLAG_VISIBLE))

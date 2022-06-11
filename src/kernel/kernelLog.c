@@ -18,7 +18,7 @@
 //
 //  kernelLog.c
 //
-	
+
 // This file contains the routines designed to facilitate a variety
 // of kernel logging features.
 
@@ -61,8 +61,7 @@ static int flushLogStream(void)
       status = kernelFileStreamWriteStr(logFileStream, buffer);
       if (status < 0)
 	{
-	  // Oops, couldn't write to the log file.  Make a warning
-	  kernelError(kernel_warn, "Unable to write to the log stream");
+	  // Oops, couldn't write to the log file.
 	  logToFile = 0;
 	  goto out;
 	}
@@ -71,8 +70,7 @@ static int flushLogStream(void)
       status = kernelFileStreamFlush(logFileStream);
       if (status < 0)
 	{
-	  // Oops, couldn't write to the log file.  Make a warning
-	  kernelError(kernel_warn, "Unable to flush the log file");
+	  // Oops, couldn't write to the log file.
 	  logToFile = 0;
 	  goto out;
 	}
@@ -87,7 +85,6 @@ static int flushLogStream(void)
 }
 
 
-__attribute__((noreturn))
 static void kernelLogUpdater(void)
 {
   // This function will be a new thread spawned by the kernel which
@@ -95,10 +92,7 @@ static void kernelLogUpdater(void)
 
   int status = 0;
 
-  // Wait a few seconds to let the system get moving
-  kernelMultitaskerWait(200);
-
-  while(1)
+  while (logToFile)
     {
       // Let "flush" do its magic
       status = flushLogStream();
@@ -107,12 +101,14 @@ static void kernelLogUpdater(void)
 	  // Eek!  Make logToFile = 0 and try to close it
 	  logToFile = 0;
 	  kernelFileStreamClose(logFileStream);
-	  kernelMultitaskerTerminate(status);
+	  break;
 	}
 
       // Yield the rest of the timeslice and wait
       kernelMultitaskerWait(40);
     }
+
+  kernelMultitaskerTerminate(status);
 }
 
 
@@ -210,11 +206,9 @@ int kernelLogSetFile(const char *logFileName)
   status = kernelMultitaskerSetProcessPriority(updaterPID, 
 					       (PRIORITY_LEVELS - 2));
   if (status < 0)
-    {
-      // Oops, we couldn't make it low-priority.  This is probably
-      // bad, but not fatal.  Make a kernelError.
-      kernelError(kernel_warn, "Couldn't re-nice the logging thread");
-    }
+    // Oops, we couldn't make it low-priority.  This is probably
+    // bad, but not fatal.  Make a kernelError.
+    kernelError(kernel_warn, "Couldn't re-nice the logging thread");
 
   // Return success
   return (status = 0);

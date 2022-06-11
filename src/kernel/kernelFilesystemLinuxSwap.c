@@ -193,8 +193,6 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
       kernelLockRelease(&(prog->lock));
     }
 
-  status = kernelDiskSyncDisk((char *) theDisk->name);
-
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 100;

@@ -24,8 +24,9 @@
 
 #if !defined(_MEMORY_H)
 
-#include <sys/lock.h>
+#include <sys/debug.h>
 #include <sys/errors.h>
+#include <sys/lock.h>
 
 // Definitions
 #define MEMORY_PAGE_SIZE             4096
@@ -38,9 +39,10 @@
 typedef struct _mallocBlock {
   int used;
   int process;
-  void *start;
-  void *end;
-  struct _mallocBlock *previous;
+  unsigned start;
+  unsigned size;
+  unsigned heapAlloc;
+  struct _mallocBlock *prev;
   struct _mallocBlock *next;
   const char *function;
 
@@ -66,9 +68,12 @@ typedef struct {
 
 typedef struct {
   int (*multitaskerGetCurrentProcessId) (void);
-  void * (*memoryGetSystem) (unsigned, const char *);
+  void *(*memoryGet) (unsigned, const char *);
+  int (*memoryRelease) (void *);
   int (*lockGet) (lock *);
   int (*lockRelease) (lock *);
+  void (*debug) (const char *, const char *, int, kernelDebugCategory, 
+		 const char *, ...) __attribute__((format(printf, 5, 6)));
   void (*error) (const char *, const char *, int, kernelErrorKind, 
 		 const char *, ...) __attribute__((format(printf, 5, 6)));
 

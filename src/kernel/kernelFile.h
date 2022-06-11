@@ -31,8 +31,6 @@
 #define MAX_BUFFERED_FILES 1024
 // MicrosoftTM's filesystems can't handle too many directory entries
 #define MAX_DIRECTORY_ENTRIES 0xFFFE
-// The 'flags' values for the field in kernelFileEntry
-#define FLAG_SECUREDELETE 0x01
 
 // Can't include kernelDisk.h, it's circular.
 struct _kernelDisk;
@@ -96,7 +94,7 @@ int kernelFileRead(file *, unsigned, unsigned, void *);
 int kernelFileWrite(file *, unsigned, unsigned, void *);
 int kernelFileDelete(const char *);
 int kernelFileDeleteRecursive(const char *);
-int kernelFileDeleteSecure(const char *);
+int kernelFileDeleteSecure(const char *, int);
 int kernelFileMakeDir(const char *);
 int kernelFileRemoveDir(const char *);
 int kernelFileCopy(const char *, const char *);

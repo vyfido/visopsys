@@ -1,7 +1,91 @@
 
----------------
-Version 0.67
----------------
+--------------
+ Version 0.68   10/05/2007
+--------------
+
+  Overview: This is a maintenance release, with a focus on disk I/O
+  performance (fixed the kernel's disk cache, and added IDE lookahead and
+  write caching), secure deletion (shredding) of files/partitions/disks,
+  and bug fixes, including important changes to the OS loader resulting
+  in more reliable booting on more systems.
+
+- Re-implemented the kernel's disk caching.  Previously, performance was
+generally bad but could be horrendous under heavy I/O, as well as evidence
+that it was buggy and could occasionally cause data corruption.
+- Added read caching (lookahead) and write caching ability to the IDE disk
+driver.  Write caching necessitated a flush() disk driver function to be
+called from the higher-level sync() function.
+- In the Disk Manager, turned off software disk caching when doing a disk
+copy operation; vastly improves I/O throughput for faster copies.
+- Implemented new A20 address line code in the 'vloader' OS loader, for
+successful booting on more systems.  New A20 enabling methods include a
+BIOS call and a write to port 92h.
+- Implemented secure deletion of disk data with a kernelDiskEraseSectors()
+function that does passes of overwriting the raw disk sectors.  Added an
+'erase' operation to the Disk Manager to enable this for partitions and
+whole disks.
+- Implemented secure deletion for files, which does passes of overwriting
+the file data.  Added a command line option to the 'rm' command to invoke
+it.
+- Reorganized some of the malloc() code and added debugging output.
+- Added logic to the malloc() code (used both the kernel and user programs)
+for deallocating heap memory when it is no longer being used, rather than
+keeping it all indefinitely.  Each block now keeps a record of its
+allocation, and when the whole allocation is unused it is freed.
+- Updated some partition tag descriptions in the kernel disk code (will
+show up primarily in the Disk Manager).
+- Added a '-R' option to the 'cp' program for recursive directory copying.
+- Added regular write-protect checking to the floppy driver, so that by
+the time a filesystem is mounted we should already know if we can't write
+to it.
+- The kernelDevice for system memory now contains an attribute with the
+memory size.  Viewable from the 'lsdev' (Devices) program.
+- Removed the kernelDiskSyncDisk() function, made kernelDiskSync() a call
+for specific disks, and added a kernelDiskSyncAll() function for syncing
+all the disks.
+- Add a kernelDiskGetStats() function for getting disk performance data,
+and add that info to the Program Manager's display.
+- Added a set of software flags to the 'disk' and 'kernelDisk' structures
+to indicate changeable things like media state, door state, read-only,
+'sync' flag, etc.  The previous 'flags' fields was really an indication of
+the hardware type, so was changed to a 'type' field.
+- Added a kernelDiskSetFlags() function to allow changing user-settable
+values in the new flags field, and added a DISKFLAG_NOCACHE flag to disable
+the software cache for the disk.
+- Added the optional-argument-option support to the getopt() C library
+function.
+- Added a "file ops" test to the test program.
+- Added a basic "disk I/O" test to the test program.
+- Removed the redundant vshCopyFile() function from the vsh library.
+- Fixed: The floppy disk version was too full, crashed during boot when it
+subsequently couldn't write log files, etc., and otherwise spewed too many
+error messages.
+- Fixed: When an IDE disk had a small multi-sector value like 16, reading
+large files could fail with an error message about  too many PRD entries.
+- Fixed: In the Disk Manager, when NTFS resizing failed (for example with
+the unclean journal message) control didn't return - it just hung. 
+- Fixed: With large IDE disks, on some systems, the kernel seemed to be
+getting 28-bit-limited geometry and size values from the BIOS.  The IDE
+driver replaces BIOS values with ones from the device/controller wherever
+the BIOS values make more sense. 
+- Fixed: Doing a 'full' Visopsys install on a ~80mb partition, after
+choosing to format as FAT16, could totally crash/hang the system.
+- Fixed: The mouse was leaving tracers at the rightmost and bottommost
+edges of the screen (1 pixel width).
+- Fixed: The kernelFileCopy() function now allocates memory for its copy
+buffer using kernelMemoryGet() rather then kernelMalloc().
+- Fixed: Most of the file system data allocated in the FAT filesystem
+driver was not deallocated, simply discarded.
+- Fixed: The kernelFileCopyRecursive() function caused a page fault when
+it encountered an empty directory.
+- Fixed: Though the Disk Manager's 'move partition' and 'copy disk/
+partiton' progress indicators would show the correct time, but the
+percentage could overflow. going back to a smaller number and then
+climbing again.
+
+--------------
+ Version 0.67   03/04/2007
+--------------
 
   Overview: This is a maintenance release, including a number of bug fixes
   and the addition of new capabilities to the IDE disk driver including
@@ -50,9 +134,9 @@ fixed the layout of a few dialogs and windows vis. resizing.
 - The Disk Manager's progress dialogs that show time remaining no longer
 zero-pad the values, and specify the time in "X hours X minutes" format.
 
----------------
-Version 0.66
----------------
+--------------
+ Version 0.66   01/02/2007
+--------------
 
   Overview: This is a maintenance release, featuring the ability to resize
   Windows Vista partitions, more reliable loading on various systems,
@@ -127,9 +211,9 @@ Error:kernel process:kernelFile.c:fileCreate(614):
 Filesystem is read-only.
 - Fixed: Broken CD-ROM emulation was not recognized on some systems.
 
----------------
-Version 0.65
----------------
+--------------
+ Version 0.65   18/12/2006
+--------------
 
   Overview: This is a maintenance release, with particular focus on the
 Disk Manager program, the USB subsystem, and the GUI.  The Disk Manager
@@ -200,9 +284,9 @@ incorrectly including icons, lists, and menu items/list items.
 OK caused remnants of the selected item to be erroneously drawn at the
 top of the window.
 
----------------
-Version 0.64
----------------
+--------------
+ Version 0.64   25/10/2006
+--------------
 
   Overview: This is a maintenance release, with extensive code grooming
 and bug fixes.  There has been a particular focus on the GUI code, kernel
@@ -286,9 +370,9 @@ only whitespace.
 - Fixed: A bug in the copyArea() function of the framebuffer graphic driver
 in that it wasn't checking to see whether the areas were outside the buffer.
 
----------------
-Version 0.63
----------------
+--------------
+ Version 0.63   15/08/2006
+--------------
 
   Overview: This is a maintenance and bugfix release, with numerous small
   tweaks throughout the entire system.  New features include the ability
@@ -348,9 +432,9 @@ the arguments and therefore couldn't locate the commands.
 - Fixed: Using the 'view' program to view a really small or really large
 image caused GUI crashiness.
 
----------------
-Version 0.62
----------------
+--------------
+ Version 0.62   25/04/2006
+--------------
 
   Overview: This is a maintenance release.  Some new features include basic
   USB controller support, a USB mass-storage driver, device hotplugging,
@@ -391,9 +475,9 @@ already existed.
 - Fixed: The kernelDiskGetMediaState() function was returning 0 for flash
 disks
 
----------------
-Version 0.61
----------------
+--------------
+ Version 0.61   27/01/2006
+--------------
 
   Overview: This is a maintenance release.  Some new features include Disk
   Manager support for resizing NTFS filesystems and arbitrary partitions,
@@ -476,9 +560,9 @@ program.
 against an executable program because it always tried to load the file as a
 library.
 
----------------
-Version 0.6
----------------
+-------------
+ Version 0.6   30/11/2006
+-------------
 
   Overview: This release introduces a host of new functionality, including
   a cleaned up desktop with icons for browsing the computer, file systems,

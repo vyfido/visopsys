@@ -22,6 +22,7 @@
 // These routines are wrapper functions around the now-external, libc
 // malloc functions which also work for the kernel.
 
+#include "kernelDebug.h"
 #include "kernelMalloc.h"
 #include "kernelLock.h"
 #include "kernelMemory.h"
@@ -53,11 +54,16 @@ void *_kernelMalloc(unsigned size, const char *function)
   if (!initialized)
     {
       // Set up malloc()'s kernel operations pointers
+      kernelMemClear(&mallocKernOps, sizeof(mallocKernelOps));
       mallocKernOps.multitaskerGetCurrentProcessId =
 	&kernelMultitaskerGetCurrentProcessId;
-      mallocKernOps.memoryGetSystem = &kernelMemoryGetSystem;
+      mallocKernOps.memoryGet = &kernelMemoryGetSystem;
+      mallocKernOps.memoryRelease = &kernelMemoryReleaseSystem;
       mallocKernOps.lockGet = &kernelLockGet;
       mallocKernOps.lockRelease = &kernelLockRelease;
+#if defined(DEBUG)
+      mallocKernOps.debug = &kernelDebugOutput;
+#endif
       mallocKernOps.error = &kernelErrorOutput;
       mallocHeapMultiple = KERNEL_MEMORY_HEAP_MULTIPLE;
       initialized = 1;

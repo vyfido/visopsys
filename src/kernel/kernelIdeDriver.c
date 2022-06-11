@@ -61,7 +61,7 @@
 #define BMPORT_CH1_PRDADDR    (controller.busMasterIo + 12)
 
 // List of supported DMA modes
-ideDmaMode dmaModes[] = {
+static ideDmaMode dmaModes[] = {
   { "UDMA6", IDE_TRANSMODE_UDMA6, 88, 0x0040, 0x4000, IDE_FEATURE_UDMA },
   { "UDMA5", IDE_TRANSMODE_UDMA5, 88, 0x0020, 0x2000, IDE_FEATURE_UDMA },
   { "UDMA4", IDE_TRANSMODE_UDMA4, 88, 0x0010, 0x1000, IDE_FEATURE_UDMA },
@@ -73,6 +73,15 @@ ideDmaMode dmaModes[] = {
   { "DMA1", IDE_TRANSMODE_DMA1, 63, 0x0002, 0x0020, IDE_FEATURE_MWDMA },
   { "DMA0", IDE_TRANSMODE_DMA0, 63, 0x0001, 0x0010, IDE_FEATURE_MWDMA },
   { NULL, 0, 0, 0, 0, 0 }
+};
+
+// Read cache (lookahead) and write cache
+static ideFeature features[] = {
+  { "SMART", 82, 0x0001, 0, 0, 0, IDE_FEATURE_SMART },
+  { "write caching", 82, 0x0020, 0x02, 85, 0x0020, IDE_FEATURE_WCACHE },
+  { "read caching", 82, 0x0040, 0xAA, 85, 0x0040, IDE_FEATURE_RCACHE },
+  { "48-bit addressing", 83, 0x0400, 0, 0, 0, IDE_FEATURE_48BIT },
+  { NULL, 0, 0, 0, 0, 0, 0 }
 };
 
 // List of default IDE ports, per device number
@@ -345,11 +354,11 @@ static int atapiStartStop(int driveNum, int state)
   if (state)
     {
       // If we know the drive door is open, try to close it
-      if (disks[driveNum].doorState)
+      if (disks[driveNum].flags & DISKFLAG_DOOROPEN)
 	sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
 
       // Well, okay, assume this.
-      disks[driveNum].doorState = 0;
+      disks[driveNum].flags &= ~DISKFLAG_DOOROPEN;
 
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_START);
       if (status < 0)
@@ -417,12 +426,12 @@ static int atapiStartStop(int driveNum, int state)
       kernelProcessorInPort16(CHANNEL(driveNum).ports.data, dataWord);
       disks[driveNum].lastSession |= (((unsigned)(dataWord & 0x00FF)) << 8);
       disks[driveNum].lastSession |= (((unsigned)(dataWord & 0xFF00)) >> 8);
-      disks[driveNum].motorState = 1;
+      disks[driveNum].flags |= DISKFLAG_MOTORON;
     }
   else
     {
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_STOP);
-      disks[driveNum].motorState = 0;
+      disks[driveNum].flags &= ~DISKFLAG_MOTORON;
     }
 
   return (status);
@@ -522,7 +531,8 @@ static unsigned char dmaGetStatus(int driveNum)
 }
 
 
-static int dmaSetup(int driveNum, void *address, unsigned bytes, int read)
+static int dmaSetup(int driveNum, void *address, unsigned bytes, int read,
+		    unsigned *doneBytes)
 {
   // Do DMA transfer setup.
 
@@ -554,13 +564,15 @@ static int dmaSetup(int driveNum, void *address, unsigned bytes, int read)
 			  address);
   if (physicalAddress == NULL)
     {
-      kernelError(kernel_error, "Couldn't get buffer physical address");
+      kernelError(kernel_error, "Couldn't get buffer physical address for %p",
+		  address);
       return (status = ERR_INVALID);
     }
   // Address must be dword-aligned
   if ((unsigned) physicalAddress % 4)
     {
-      kernelError(kernel_error, "Physical address not dword-aligned");
+      kernelError(kernel_error, "Physical address %p not dword-aligned",
+		  physicalAddress);
       return (status = ERR_ALIGN);
     }
 
@@ -572,11 +584,8 @@ static int dmaSetup(int driveNum, void *address, unsigned bytes, int read)
   for (count = 0; bytes > 0; count ++)
     {
       if (numPrds >= CHANNEL(driveNum).prdEntries)
-	{
-	  kernelError(kernel_error, "DMA transfer requires too many PRD "
-		      "entries");
-	  return (status = ERR_BOUNDS);
-	}
+	// We've reached the limit of what we can do in one DMA setup
+	break;
 
       doBytes = min(bytes, maxBytes);
 
@@ -584,7 +593,7 @@ static int dmaSetup(int driveNum, void *address, unsigned bytes, int read)
       // 64K boundary -- some DMA chips won't do that.
       if ((((unsigned) physicalAddress & 0xFFFF) + doBytes) > 0x10000)
         {
-	  kernelDebug(debug_io, "Physical buffer crosses a 64K boundary");
+	  kernelDebug(debug_io, "IDE: Physical buffer crosses a 64K boundary");
 	  doBytes = (0x10000 - ((unsigned) physicalAddress & 0xFFFF));
         }
 
@@ -611,6 +620,7 @@ static int dmaSetup(int driveNum, void *address, unsigned bytes, int read)
 		  
       physicalAddress += doBytes;
       bytes -= doBytes;
+      *doneBytes += doBytes;
       numPrds += 1;
     }
 
@@ -698,10 +708,10 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   selectDrive(driveNum);
 
   // If it's an ATAPI device
-  if (disks[driveNum].flags & DISKFLAG_IDECDROM)
+  if (disks[driveNum].type & DISKTYPE_IDECDROM)
     {
       // If it's not started, we start it
-      if (!disks[driveNum].motorState)
+      if (!(disks[driveNum].flags & DISKFLAG_MOTORON))
 	{
 	  status = atapiStartStop(driveNum, 1);
 	  if (status < 0)
@@ -884,12 +894,16 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
       if (DISKISDMA(driveNum))
 	{
 	  // Set up the DMA transfer
-	  status = dmaSetup(driveNum, buffer, (doSectors * 512), read);
+	  unsigned dmaBytes = 0;
+	  status =
+	    dmaSetup(driveNum, buffer, (doSectors * 512), read, &dmaBytes);
 	  if (status < 0)
 	    {
 	      kernelLockRelease(&(CHANNEL(driveNum).lock));
 	      return (status);
 	    }
+	  if (dmaBytes < (doSectors * 512))
+	    doSectors = (dmaBytes / 512);
 	}
 
       // We always use LBA.  Break up the sector count and LBA value and
@@ -1027,8 +1041,8 @@ static int reset(int driveNum)
 
   // If either the slave or the master on this controller is an ATAPI device,
   // delay
-  if ((disks[master].name[0] && (disks[master].flags & DISKFLAG_IDECDROM)) ||
-      (disks[slave].name[0] && (disks[slave].flags & DISKFLAG_IDECDROM)))
+  if ((disks[master].name[0] && (disks[master].type & DISKTYPE_IDECDROM)) ||
+      (disks[slave].name[0] && (disks[slave].type & DISKTYPE_IDECDROM)))
     atapiDelay();
 
   // Wait for controller ready
@@ -1129,18 +1143,22 @@ static int atapiReset(int driveNum)
 }
 
 
-static int atapiSetLockState(int driveNum, int lockState)
+static int atapiSetLockState(int driveNum, int locked)
 {
   // Lock or unlock an ATAPI device
 
   int status = 0;
 
-  if (lockState)
-    status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_LOCK);
+  if (locked)
+    {
+      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_LOCK);
+      disks[driveNum].flags |= DISKFLAG_DOORLOCKED;
+    }
   else
-    status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_UNLOCK);
-
-  disks[driveNum].lockState = lockState;
+    {
+      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_UNLOCK);
+      disks[driveNum].flags &= ~DISKFLAG_DOORLOCKED;
+    }
 
   return (status);
 }
@@ -1155,7 +1173,7 @@ static int atapiSetDoorState(int driveNum, int open)
   if (open)
     {
       // If the disk is started, stop it
-      if (disks[driveNum].motorState)
+      if (disks[driveNum].flags & DISKFLAG_MOTORON)
 	{
 	  status = atapiStartStop(driveNum, 0);
 	  if (status < 0)
@@ -1166,12 +1184,13 @@ static int atapiSetDoorState(int driveNum, int open)
 	}
 
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_EJECT);
+      disks[driveNum].flags |= DISKFLAG_DOOROPEN;
     }
-
   else
-    status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
-
-  disks[driveNum].doorState = open;
+    {
+      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
+      disks[driveNum].flags &= ~DISKFLAG_DOOROPEN;
+    }
 
   return (status);
 }
@@ -1347,6 +1366,64 @@ static int setTransferMode(int driveNum, ideDmaMode *mode,
 }
 
 
+static int enableFeature(int driveNum, ideFeature *feature,
+			 unsigned short *buffer)
+{
+  // Try to enable a general feature.
+
+  int status = 0;
+
+  // Wait for controller ready
+  status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
+  if (status < 0)
+    return (status);
+
+  // Clear the "interrupt received" byte
+  CHANNEL(driveNum).gotInterrupt = 0;
+  
+  // Send the "set features" command
+  kernelProcessorOutPort8(CHANNEL(driveNum).ports.featErr,
+			  feature->featureCode);
+  kernelProcessorOutPort8(CHANNEL(driveNum).ports.device,
+			  ((driveNum & 1) << 4));
+  kernelProcessorOutPort8(CHANNEL(driveNum).ports.comStat, ATA_SETFEATURES);
+
+  // Wait for the controller to finish the operation
+  status = waitOperationComplete(driveNum);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Couldn't set feature %s", feature->name);
+      return (status);
+    }
+
+  // Can we verify that we were successful?
+  if (feature->enabledByte)
+    {
+      // Now we do an "identify device" to find out if we were successful
+      status = identify(driveNum, buffer);
+      if (status < 0)
+	// Couldn't verify.
+	return (status);
+
+      // Verify that the requested mode has been set
+      if (buffer[feature->enabledByte] & feature->enabledMask)
+	{
+	  kernelDebug(debug_io, "IDE: Disk %d successfully set feature %s",
+		      driveNum, feature->name);
+	  return (status = 0);
+	}
+      else
+	{
+	  kernelError(kernel_error, "Failed to set feature %s for disk %d",
+		      feature->name, driveNum);
+	  return (status = ERR_INVALID);
+	}
+    }
+
+  return (status = 0);
+}
+
+
 static kernelDevice *driverDetectPci(void)
 {
   // Try to detect a PCI-capable controller
@@ -1433,7 +1510,7 @@ static kernelDevice *driverDetectPci(void)
 
   for (count = 0; count < 2; count ++)
     {
-      controller.channel[count].prdEntries = 256;
+      controller.channel[count].prdEntries = 512;
 
       controller.channel[count].prdPhysical =
 	kernelMemoryGetPhysical(controller.channel[count].prdEntries *
@@ -1598,7 +1675,7 @@ static int driverRecalibrate(int driveNum)
     }
 
   // Don't try to recalibrate ATAPI 
-  if (disks[driveNum].flags & DISKFLAG_IDECDROM)
+  if (disks[driveNum].type & DISKTYPE_IDECDROM)
     return (status = 0);
 
   // Wait for a lock on the controller
@@ -1658,7 +1735,7 @@ static int driverSetLockState(int driveNum, int lockState)
       return (status = ERR_NOSUCHENTRY);
     }
 
-  if (lockState && disks[driveNum].doorState)
+  if (lockState && (disks[driveNum].flags & DISKFLAG_DOOROPEN))
     {
       // Don't to lock the door if it is open
       kernelError(kernel_error, "Drive door is open");
@@ -1694,7 +1771,7 @@ static int driverSetDoorState(int driveNum, int open)
       return (status = ERR_NOSUCHENTRY);
     }
 
-  if (open && disks[driveNum].lockState)
+  if (open && (disks[driveNum].flags & DISKFLAG_DOORLOCKED))
     {
       // Don't try to open the door if it is locked
       kernelError(kernel_error, "Drive door is locked");
@@ -1736,6 +1813,75 @@ static int driverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
+static int driverFlush(int driveNum)
+{
+  // If write caching is enabled for this disk, flush the cache
+
+  int status = 0;
+  unsigned char command = 0;
+
+  if (!disks[driveNum].name[0])
+    {
+      kernelError(kernel_error, "No such drive %d", driveNum);
+      return (status = ERR_NOSUCHENTRY);
+    }
+
+  // If write caching is not enabled, just return
+  if (!DISKISWCACHE(driveNum))
+    return (status = 0);
+
+  // Wait for a lock on the controller
+  status = kernelLockGet(&(CHANNEL(driveNum).lock));
+  if (status < 0)
+    return (status);
+  
+  // Select the drive
+  selectDrive(driveNum);
+
+  // Wait for the controller to be ready
+  status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
+  if (status < 0)
+    {
+      kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
+      goto out;
+    }
+
+  // Wait for the selected drive to be ready
+  status = pollStatus(driveNum, IDE_DRV_RDY, 1);
+  if (status < 0)
+    {
+      kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
+      goto out;
+    }
+
+  // Figure out which command we're going to be sending to the controller
+  if (DISKIS48(driveNum))
+    command = ATA_FLUSHCACHE_EXT;
+  else
+    command = ATA_FLUSHCACHE;
+
+  // Clear the "interrupt received" byte
+  CHANNEL(driveNum).gotInterrupt = 0;
+
+  // Issue the command
+  kernelDebug(debug_io, "IDE: Sending command");
+  kernelProcessorOutPort8(CHANNEL(driveNum).ports.comStat, command);
+
+  // Wait for the controller to finish the operation
+  status = waitOperationComplete(driveNum);
+  if (status < 0)
+    goto out;
+
+  status = 0;
+
+ out:
+  // Unlock the controller
+  kernelLockRelease(&(CHANNEL(driveNum).lock));
+  
+  return (status);
+}
+
+
 static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
@@ -1748,6 +1894,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
   int numberCdRoms = 0;
   int numberIdeDisks = 0;
   unsigned short buffer[256];
+  uquad_t tmpNumSectors = 0;
   char model[IDE_MAX_DISKS][41];
   int needPci = 0;
   kernelDevice *devices = NULL;
@@ -1820,20 +1967,43 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	      
 	  sprintf((char *) disks[driveNum].name, "hd%d", numberHardDisks);
 	  disks[driveNum].description = "IDE/ATA hard disk";
-	  disks[driveNum].flags =
-	    (DISKFLAG_PHYSICAL | DISKFLAG_FIXED | DISKFLAG_IDEDISK);
-      
-	  disks[driveNum].heads =
-	    kernelOsLoaderInfo->hddInfo[numberHardDisks].heads;
+	  disks[driveNum].type =
+	    (DISKTYPE_PHYSICAL | DISKTYPE_FIXED | DISKTYPE_IDEDISK);
+	  disks[driveNum].flags = DISKFLAG_MOTORON;
+
+	  // Get the geometry
+
 	  disks[driveNum].cylinders =
 	    kernelOsLoaderInfo->hddInfo[numberHardDisks].cylinders;
+	  disks[driveNum].heads =
+	    kernelOsLoaderInfo->hddInfo[numberHardDisks].heads;
 	  disks[driveNum].sectorsPerCylinder = 
 	    kernelOsLoaderInfo->hddInfo[numberHardDisks].sectorsPerCylinder;
 	  disks[driveNum].numSectors =
 	    kernelOsLoaderInfo->hddInfo[numberHardDisks].totalSectors;
 	  disks[driveNum].sectorSize =
 	    kernelOsLoaderInfo->hddInfo[numberHardDisks].bytesPerSector;
-	  disks[driveNum].motorState = 1;
+
+	  // If the 'identify device' data specifies a number of sectors,
+	  // and that number is greater than the number we got from the BIOS,
+	  // use the larger value.
+	  tmpNumSectors = *((unsigned *)(buffer + 60));
+
+	  if (tmpNumSectors && (tmpNumSectors < 0x0FFFFFFF))
+	    {
+	      if (tmpNumSectors > disks[driveNum].numSectors)
+		disks[driveNum].numSectors = tmpNumSectors;
+	    }
+	  else
+	    {
+	      tmpNumSectors = *((uquad_t *)(buffer + 100));
+
+	      if (tmpNumSectors && (tmpNumSectors < 0x0000FFFFFFFFFFFFULL))
+		{
+		  if (tmpNumSectors > disks[driveNum].numSectors)
+		    disks[driveNum].numSectors = tmpNumSectors;
+		}
+	    }
 
 	  // Sector size sometimes 0?  We can't have that as we are about
 	  // to use it to perform a division operation.
@@ -1849,6 +2019,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		  disks[driveNum].sectorSize = 512;
 		}
 	    }
+
+	  // Sanity-check the geometry
 
 	  // In some cases, we are detecting hard disks that don't seem
 	  // to actually exist.  Check whether the number of cylinders
@@ -1882,6 +2054,17 @@ static int driverDetect(void *parent, kernelDriver *driver)
 			    driveNum);
 	    }
 
+	  // The cylinder number can be limited by the BIOS, but the heads
+	  // and sectors are usually correct.  Make sure C*H*S is the same
+	  // as the number of sectors, and if not, adjust the cylinder number
+	  // accordingly.
+	  if ((disks[driveNum].cylinders * disks[driveNum].heads *
+	       disks[driveNum].sectorsPerCylinder) !=
+	      disks[driveNum].numSectors)
+	    disks[driveNum].cylinders =
+	      (disks[driveNum].numSectors /
+	       (disks[driveNum].heads * disks[driveNum].sectorsPerCylinder));
+
 	  numberHardDisks += 1;
 	}
 
@@ -1895,13 +2078,13 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  disks[driveNum].description = "IDE/ATAPI CD-ROM";
 	  // Removable?
 	  if (buffer[0] & 0x0080)
-	    disks[driveNum].flags |= DISKFLAG_REMOVABLE;
+	    disks[driveNum].type |= DISKTYPE_REMOVABLE;
 	  else
-	    disks[driveNum].flags |= DISKFLAG_FIXED;
+	    disks[driveNum].type |= DISKTYPE_FIXED;
 
 	  // Device type: Bits 12-8 of buffer[0] should indicate 0x05 for
 	  // CDROM, but we will just warn if it isn't for now
-	  disks[driveNum].flags |= DISKFLAG_IDECDROM;
+	  disks[driveNum].type |= DISKTYPE_IDECDROM;
 	  if (((buffer[0] & 0x1F00) >> 8) != 0x05)
 	    kernelError(kernel_warn, "ATAPI device type may not be supported");
 
@@ -1911,8 +2094,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  atapiReset(driveNum);
 
 	  // Return some information we know from our device info command
-	  disks[driveNum].heads = (unsigned) buffer[3];
 	  disks[driveNum].cylinders = (unsigned) buffer[1];
+	  disks[driveNum].heads = (unsigned) buffer[3];
 	  disks[driveNum].sectorsPerCylinder = (unsigned) buffer[6];
 	  disks[driveNum].numSectors = 0xFFFFFFFF;
 	  disks[driveNum].sectorSize = 2048;
@@ -1955,7 +2138,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		  if (setTransferMode(driveNum, &(dmaModes[count]),
 				      buffer) >= 0)
 		    {
-		      DISK(driveNum).featureFlags |= dmaModes[count].feature;
+		      DISK(driveNum).featureFlags |=
+			dmaModes[count].featureFlag;
 		      DISK(driveNum).dmaMode = dmaModes[count].name;
 		      kernelDebug(debug_io, "IDE: Disk %d supports %s",
 				  driveNum, DISK(driveNum).dmaMode);
@@ -1981,33 +2165,24 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  kernelDebug(debug_io, "IDE: Disk %d supports SMART", driveNum);
 	}
 
-      // See whether the disk supports write caching.
-      if (buffer[82] & 0x0020)
+      // Other features
+      for (count = 0; features[count].name; count ++)
 	{
-	  // Write caching is supported
-	  DISK(driveNum).featureFlags |= IDE_FEATURE_WCACHE;
-	  kernelDebug(debug_io, "IDE: Disk %d supports write caching",
-		      driveNum);
+	  if (buffer[features[count].suppByte] & features[count].suppMask)
+	    {
+	      // Supported.  Do we have to enable it?
+	      if (features[count].featureCode)
+		{
+		  if (enableFeature(driveNum, &features[count], buffer) < 0)
+		    continue;
+		}
+
+	      DISK(driveNum).featureFlags |= features[count].featureFlag;
+	      kernelDebug(debug_io, "IDE: Disk %d supports %s",
+			  driveNum, features[count].name);
+	    }
 	}
-  
-      // See whether the disk supports read caching.
-      if (buffer[82] & 0x0040)
-	{
-	  // Read caching is supported
-	  DISK(driveNum).featureFlags |= IDE_FEATURE_RCACHE;
-	  kernelDebug(debug_io, "IDE: Disk %d supports read caching",
-		      driveNum);
-	}
-  
-      // See whether the disk supports 48-bit addressing.
-      if (buffer[83] & 0x0400)
-	{
-	  // 48-bit addressing is supported
-	  DISK(driveNum).featureFlags |= IDE_FEATURE_48BIT;
-	  kernelDebug(debug_io, "IDE: Disk %d supports 48-bit addressing",
-		      driveNum);
-	}
-	  
+
       // Increase the overall count of IDE disks
       numberIdeDisks += 1;
 
@@ -2022,7 +2197,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // Test DMA operation for any ATA (not ATAPI) devices that claim to
   // support it
   for (driveNum = 0; (driveNum < IDE_MAX_DISKS); driveNum ++)
-    if (DISKISDMA(driveNum) && !(disks[driveNum].flags & DISKFLAG_IDECDROM))
+    if (DISKISDMA(driveNum) && !(disks[driveNum].type & DISKTYPE_IDECDROM))
       testDma(driveNum);
 
   // Allocate memory for the device(s)
@@ -2103,6 +2278,7 @@ static kernelDiskOps ideOps = {
   NULL, // driverDiskChanged
   driverReadSectors,
   driverWriteSectors,
+  driverFlush
 };
 
 

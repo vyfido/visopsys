@@ -42,7 +42,6 @@
 #define ENTRYOFFSET_END_CYL            7
 #define ENTRYOFFSET_START_LBA          8
 #define ENTRYOFFSET_SIZE_LBA           12
-#define COPYBUFFER_SIZE                1048576 // 1 Meg
 #define MAX_SLICES                     ((DISK_MAX_PARTITIONS * 2) + 1)
 #define MAX_DESCSTRING_LENGTH          128
 

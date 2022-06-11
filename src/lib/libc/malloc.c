@@ -31,7 +31,7 @@
 #include <sys/api.h>
 
 static mallocBlock *blockList = NULL;
-static mallocBlock *firstUnusedBlock = NULL;
+static mallocBlock *unusedBlockList = NULL;
 static volatile unsigned totalBlocks = 0;
 static volatile unsigned usedBlocks = 0;
 static volatile unsigned totalMemory = 0;
@@ -41,113 +41,178 @@ static lock blocksLock;
 unsigned mallocHeapMultiple = USER_MEMORY_HEAP_MULTIPLE;
 mallocKernelOps mallocKernOps;
 
-#define blockSize(block) \
-  (((unsigned) block->end - (unsigned) block->start) + 1)
+#define blockEnd(block) (block->start + block->size - 1)
 
-#define kernelMultitaskerGetCurrentProcessId(id) do {    \
-  if (visopsys_in_kernel)                                \
-    id = mallocKernOps.multitaskerGetCurrentProcessId(); \
-  else                                                   \
-    id = multitaskerGetCurrentProcessId();               \
+#if defined(DEBUG)
+#define debug(message, arg...) do {                                    \
+  if (visopsys_in_kernel)                                              \
+    {                                                                  \
+      if (mallocKernOps.debug)                                         \
+	mallocKernOps.debug(__FILE__, __FUNCTION__, __LINE__,          \
+			    debug_memory, message, ##arg);             \
+    }                                                                  \
+  else                                                                 \
+    {                                                                  \
+      printf("DEBUG: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__);  \
+      printf(message, ##arg);                                          \
+      printf("\n");                                                    \
+    }                                                                  \
 } while (0)
+#else
+#define debug(message, arg...) do { } while (0)
+#endif // defined(DEBUG)
 
-#define kernelMemoryGetSystem(size, ptr) do {                 \
-  if (visopsys_in_kernel)                                     \
-    ptr = mallocKernOps.memoryGetSystem(size, "kernel heap"); \
-  else                                                        \
-    ptr = memoryGet(size, "application heap");                \
-} while (0)
-
-#define kernelLockGet(lk, status) do {  \
-  if (visopsys_in_kernel)               \
-    status = mallocKernOps.lockGet(lk); \
-  else                                  \
-    status = lockGet(lk);               \
-} while (0)
-
-#define kernelLockRelease(lk) do { \
-  if (visopsys_in_kernel)          \
-    mallocKernOps.lockRelease(lk); \
-  else                             \
-    lockRelease(lk);               \
-} while (0)
-
-#define kernelError(kind, message, arg...) do {                          \
+#define error(message, arg...) do {                                      \
   if (visopsys_in_kernel)                                                \
-    mallocKernOps.error(__FILE__, __FUNCTION__, __LINE__, kind, message, \
-                        ##arg);                                          \
+    mallocKernOps.error(__FILE__, __FUNCTION__, __LINE__, kernel_error,  \
+			message, ##arg);                                 \
   else                                                                   \
     {                                                                    \
-      printf("%s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__);           \
+      printf("Error: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__);    \
       printf(message, ##arg);                                            \
       printf("\n");                                                      \
     }                                                                    \
 } while (0)
 
 
-static inline void insertBlock(mallocBlock *firstBlock,
-			       mallocBlock *secondBlock)
+static inline int procid(void)
+{
+  if (visopsys_in_kernel)
+    return (mallocKernOps.multitaskerGetCurrentProcessId());
+  else
+    return (multitaskerGetCurrentProcessId());
+}
+
+
+static inline void *memory_get(unsigned size, const char *desc)
+{
+  debug("%s %u", __FUNCTION__, size);
+  if (visopsys_in_kernel)
+    return (mallocKernOps.memoryGet(size, desc));
+  else
+    return (memoryGet(size, desc));
+}
+
+
+static inline int memory_release(void *start)
+{
+  debug("%s %p", __FUNCTION__, start);
+  if (visopsys_in_kernel)
+    return (mallocKernOps.memoryRelease(start));
+  else
+    return (memoryRelease(start));
+}
+
+
+static inline int lock_get(lock *lk)
+{
+  if (visopsys_in_kernel)
+    return (mallocKernOps.lockGet(lk));
+  else
+    return (lockGet(lk));
+}
+
+
+static inline void lock_release(lock *lk)
+{
+  if (visopsys_in_kernel)
+    mallocKernOps.lockRelease(lk);
+  else
+    lockRelease(lk);
+}
+
+
+static inline void insertBlock(mallocBlock *insBlock, mallocBlock *nextBlock)
 {
   // Stick the first block in front of the second block
-  firstBlock->previous = secondBlock->previous;
-  firstBlock->next = secondBlock;
-  if (secondBlock->previous)
-    secondBlock->previous->next = firstBlock;
-  secondBlock->previous = firstBlock;
+
+  debug("Insert block %u->%u before %u->%u", insBlock->start,
+	blockEnd(insBlock), nextBlock->start, blockEnd(nextBlock));
+
+  insBlock->prev = nextBlock->prev;
+  insBlock->next = nextBlock;
+
+  if (nextBlock->prev)
+    nextBlock->prev->next = insBlock;
+  nextBlock->prev = insBlock;
+
+  if (nextBlock == blockList)
+    blockList = insBlock;
+}
+
+
+static inline void appendBlock(mallocBlock *appBlock, mallocBlock *prevBlock)
+{
+  // Stick the first block behind the second block
+
+  debug("Append block %u->%u after %u->%u", appBlock->start,
+	blockEnd(appBlock), prevBlock->start, blockEnd(prevBlock));
+
+  appBlock->prev = prevBlock;
+  appBlock->next = prevBlock->next;
+
+  if (prevBlock->next)
+    prevBlock->next->prev = appBlock;
+  prevBlock->next = appBlock;
 }
 
 
 static int sortInsertBlock(mallocBlock *block)
 {
-  // Find the correct (sorted) place for it
+  // Find the correct (sorted) place for in the block list for this block.
+
   int status = 0;
-  mallocBlock *nextBlock = blockList;
+  mallocBlock *nextBlock = NULL;
 
-  if (blockList == firstUnusedBlock)
+  if (blockList)
     {
-      insertBlock(block, firstUnusedBlock);
+      nextBlock = blockList;
+
+      while (nextBlock)
+	{
+	  if (nextBlock->start > block->start)
+	    {
+	      insertBlock(block, nextBlock);
+	      break;
+	    }
+
+	  if (!nextBlock->next)
+	    {
+	      appendBlock(block, nextBlock);
+	      break;
+	    }
+
+	  nextBlock = nextBlock->next;
+	}
+    }
+  else
+    {
+      block->prev = NULL;
+      block->next = NULL;
       blockList = block;
-      return (status = 0);
     }
-  
-  while (1)
-    {
-      // This should never happen
-      if (nextBlock == NULL)
-	{
-	  kernelError(kernel_error, "Unable to insert memory block %s %u->%u "
-		      "(%u)", block->function, (unsigned) block->start,
-		      (unsigned) block->end, blockSize(block));
-	  return (status = ERR_BADDATA);
-	}
 
-      if ((nextBlock->start > block->start) || (nextBlock == firstUnusedBlock))
-	{
-	  insertBlock(block, nextBlock);
-	  if (nextBlock == blockList)
-	    blockList = block;
-	  return (status = 0);
-	}
-      
-      nextBlock = nextBlock->next;
-    }
+  return (status = 0);
 }
 
 
-static int growList(void)
+static int allocUnusedBlocks(void)
 {
-  // This grows the block list by 1 memory page.  It should only be called
-  // when the list is empty/full.
+  // This grows the unused block list by 1 memory page.
 
   int status = 0;
-  mallocBlock *newBlocks = NULL;
   int numBlocks = 0;
   int count;
 
-  kernelMemoryGetSystem(MEMORY_BLOCK_SIZE, newBlocks);
-  if (newBlocks == NULL)
+  debug("Allocating new unused blocks");
+
+  if (visopsys_in_kernel)
+    unusedBlockList = memory_get(MEMORY_BLOCK_SIZE, "kernel heap metadata");
+  else
+    unusedBlockList = memory_get(MEMORY_BLOCK_SIZE, "user heap metadata");
+  if (unusedBlockList == NULL)
     {
-      kernelError(kernel_error, "Unable to allocate heap management memory");
+      error("Unable to allocate heap management memory");
       return (status = ERR_MEMORY);
     }
 
@@ -158,21 +223,9 @@ static int growList(void)
   for (count = 0; count < numBlocks; count ++)
     {
       if (count > 0)
-	newBlocks[count].previous = &(newBlocks[count - 1]);
+	unusedBlockList[count].prev = &unusedBlockList[count - 1];
       if (count < (numBlocks - 1))
-	newBlocks[count].next = &(newBlocks[count + 1]);
-    }
-
-  if (blockList == NULL)
-    {
-      blockList = newBlocks;
-      firstUnusedBlock = newBlocks;
-    }
-  else
-    {
-      // Add our new stuff to the end of the existing list
-      firstUnusedBlock->next = newBlocks;
-      newBlocks[0].previous = firstUnusedBlock;
+	unusedBlockList[count].next = &unusedBlockList[count + 1];
     }
 
   totalBlocks += numBlocks;
@@ -183,105 +236,60 @@ static int growList(void)
 
 static mallocBlock *getBlock(void)
 {
-  mallocBlock *block = NULL;
-  mallocBlock *previousBlock = NULL;
-  mallocBlock *nextBlock = NULL;
+  // Get a block from the unused block list.
 
-  // Do we have more than one free block?
-  if ((firstUnusedBlock == NULL) || (firstUnusedBlock->next == NULL))
+  mallocBlock *block = NULL;
+
+  // Do we have any more unused blocks?
+  if (!unusedBlockList)
     {
-      if (growList() < 0)
+      if (allocUnusedBlocks() < 0)
 	return (block = NULL);
     }
 
-  block = firstUnusedBlock;
-  previousBlock = block->previous;
-  nextBlock = block->next;
-
-  // Remove it from its place in the list, linking its previous and next
-  // blocks together.
-  if (previousBlock)
-    previousBlock->next = nextBlock;
-  if (nextBlock)
-    nextBlock->previous = previousBlock;
-
-  firstUnusedBlock = nextBlock;
-  if (block == blockList)
-    blockList = nextBlock;
-
+  block = unusedBlockList;
+  unusedBlockList = block->next;
+  
   // Clear it
   bzero(block, sizeof(mallocBlock));
 
-  usedBlocks++;
+  usedBlocks += 1;
 
   return (block);
 }
 
 
-static void releaseBlock(mallocBlock *block)
+static void putBlock(mallocBlock *block)
 {
   // This function gets called when a block is no longer needed.  We
   // zero out its fields and move it to the end of the used blocks.
 
-  mallocBlock *previousBlock = block->previous;
-  mallocBlock *nextBlock = block->next;
+  // Remove the block from the list.
+  if (block->prev)
+    block->prev->next = block->next;
+  if (block->next)
+    block->next->prev = block->prev;
 
-  // Temporarily remove it from the list, linking its previous and next
-  // blocks together.
-  if (previousBlock)
-    previousBlock->next = nextBlock;
-  if (nextBlock)
-    {
-      nextBlock->previous = previousBlock;
-
-      if (block == blockList)
-	blockList = nextBlock;
-    }
+  if (block == blockList)
+    blockList = block->next;
 
   // Clear it
   bzero(block, sizeof(mallocBlock));
 
-  // Stick it in front of the first unused block
-  insertBlock(block, firstUnusedBlock);
-  if (firstUnusedBlock == blockList)
-    blockList = block;
+  // Put it at the head of the unused block list
+  block->next = unusedBlockList;
+  unusedBlockList = block;
 
-  firstUnusedBlock = block;
-
-  usedBlocks--;
+  usedBlocks -= 1;
 
   return;
 }
 
 
-static void mergeFree(mallocBlock *block)
+static int addBlock(int used, unsigned start, unsigned size,
+		    unsigned heapAlloc)
 {
-  // Merge any free blocks on either side of this one with this one
-
-  mallocBlock *previous = block->previous;
-  mallocBlock *next = block->next;
-
-  if (previous)
-    if ((previous->used == 0) && (previous->end == (block->start - 1)))
-      {
-	block->start = previous->start;
-	releaseBlock(previous);
-      }
-  
-  if (next)
-    if ((next->used == 0) && (next->start == (block->end + 1)))
-      {
-	block->end = next->end;
-	releaseBlock(next);
-      }
-
-  return;
-}
-
-
-static int addBlock(int used, void *start, void *end)
-{
-  // This puts the supplied data into our block list
+  // Creates a used or free block in our block list.
 
   int status = 0;
   mallocBlock *block = NULL;
@@ -292,16 +300,12 @@ static int addBlock(int used, void *start, void *end)
 
   block->used = used;
   block->start = start;
-  block->end = end;
+  block->size = size;
+  block->heapAlloc = heapAlloc;
 
   status = sortInsertBlock(block);
   if (status < 0)
     return (status);
-
-  if (used == 0)
-    // If it's free, make sure it's merged with any other adjacent free
-    // blocks on either side
-    mergeFree(block);
 
   return (status = 0);
 }
@@ -309,26 +313,38 @@ static int addBlock(int used, void *start, void *end)
 
 static int growHeap(unsigned minSize)
 {
-  // This grows the pool of heap memory by mallocHeapMultiple bytes.
+  // This grows the pool of heap memory by at least minSize bytes.
 
   void *newHeap = NULL;
 
+  // Don't allocate less than the default heap multiple
   if (minSize < mallocHeapMultiple)
     minSize = mallocHeapMultiple;
 
+  // Allocation should be a multiple of MEMORY_BLOCK_SIZE
+  if (minSize % MEMORY_BLOCK_SIZE)
+    minSize += (MEMORY_BLOCK_SIZE - (minSize % MEMORY_BLOCK_SIZE));
+
+  debug("%s %u", __FUNCTION__, minSize);
+  if (minSize > mallocHeapMultiple)
+    debug("Size is greater than %u", mallocHeapMultiple);
+
   // Get the heap memory
-  kernelMemoryGetSystem(minSize, newHeap);
+  if (visopsys_in_kernel)
+    newHeap = memory_get(minSize, "kernel heap");
+  else
+    newHeap = memory_get(minSize, "user heap");
   if (newHeap == NULL)
     {
-      kernelError(kernel_error, "Unable to allocate heap memory");
+      error("Unable to allocate heap memory");
       return (ERR_MEMORY);
     }
 
   totalMemory += minSize;
 
   // Add it as a single free block
-  return (addBlock(0 /* Free */, newHeap,
-		   ((void *)((((unsigned) newHeap) + minSize) - 1)))); 
+  return (addBlock(0 /* unused */, (unsigned) newHeap, minSize,
+		   (unsigned) newHeap));
 }
 
 
@@ -336,19 +352,15 @@ static mallocBlock *findFree(unsigned size)
 {
   mallocBlock *block = blockList;
 
-  while (1)
+  while (block)
     {
-      if (block == NULL)
-	return (block);
-
-      if ((block->used == 0) && (blockSize(block) >= size))
+      if (!block->used && (block->size >= size))
 	return (block);
       
       block = block->next;
-      
-      if (block == firstUnusedBlock)
-	return (block = NULL);
     }
+
+  return (block = NULL);
 }
 
 
@@ -356,42 +368,94 @@ static void *allocateBlock(unsigned size, const char *function)
 {
   // Find a block of unused memory, and return the start pointer.
 
+  int status = 0;
   mallocBlock *block = NULL;
 
-  block = findFree(size);
+  // Make sure we do allocations on nice boundaries
+  if (size % sizeof(int))
+    size += (sizeof(int) - (size % sizeof(int)));
 
-  if (block == NULL)
+  // Make sure there's enough heap memory.  This will get called the first
+  // time we're invoked, as totalMemory will be zero.
+  if ((size > (totalMemory - usedMemory)) ||
+      ((block = findFree(size)) == NULL))
     {
-      // There is no block big enough to accommodate this.
-      if (growHeap(size) < 0)
-	return (NULL);
+      status = growHeap(size);
+      if (status < 0)
+	{
+	  errno = status;
+	  return (NULL);
+	}
 
       block = findFree(size);
       if (block == NULL)
 	{
 	  // Something really wrong.
-	  kernelError(kernel_error, "Unable to allocate block of size %u (%s)",
-		      size, function);
+	  error("Unable to allocate block of size %u (%s)", size,
+		function);
 	  return (NULL);
 	}
     }
 
   block->used = 1;
   block->function = function;
-  kernelMultitaskerGetCurrentProcessId(block->process);
+  block->process = procid();
 
   // If part of this block will be unused, we will need to create a free
   // block for the remainder
-  if (blockSize(block) > size)
+  if (block->size > size)
     {
-      if (addBlock(0 /* unused */, (block->start + size), block->end) < 0)
+      if (addBlock(0 /* unused */, (block->start + size),
+		   (block->size - size), block->heapAlloc) < 0)
 	return (NULL);
-      block->end = ((block->start + size) - 1);
+      block->size = size;
     }
 
   usedMemory += size;
 
-  return (block->start);
+  return ((void *) block->start);
+}
+
+
+static void mergeFree(mallocBlock *block)
+{
+  // Merge this free block with the previous and/or next blocks if they
+  // are also free.
+
+  if (block->prev && !block->prev->used &&
+      (blockEnd(block->prev) == (block->start - 1)) &&
+      (block->prev->heapAlloc == block->heapAlloc))
+    {
+      block->start = block->prev->start;
+      block->size += block->prev->size;
+      putBlock(block->prev);
+    }
+  
+  if (block->next && !block->next->used &&
+      (blockEnd(block) == (block->next->start - 1)) &&
+      (block->next->heapAlloc == block->heapAlloc))
+    {
+      block->size += block->next->size;
+      putBlock(block->next);
+    }
+}
+
+
+static void cleanupHeap(mallocBlock *block)
+{
+  // If the supplied free block comprises an entire heap allocation,
+  // return that heap memory and get rid of the block.
+
+  if (block->prev && (block->prev->heapAlloc == block->heapAlloc))
+    return;
+
+  if (block->next && (block->next->heapAlloc == block->heapAlloc))
+    return;
+
+  // Looks like we can return this memory.
+  memory_release((void *) block->start);
+  totalMemory -= block->size;
+  putBlock(block);
 }
 
 
@@ -402,47 +466,40 @@ static int deallocateBlock(void *start, const char *function)
   int status = 0;
   mallocBlock *block = blockList;
 
-  while (1)
+  while (block)
     {
-      if (block == NULL)
+      if (block->start == (unsigned) start)
 	{
-	  kernelError(kernel_error, "Block is NULL (%s)", function);
-	  return (status = ERR_NODATA);
-	}
-
-      if (block->start == start)
-	{
-	  if (block->used == 0)
+	  if (!block->used)
 	    {
-	      kernelError(kernel_error, "Block at %u is not allocated (%s)",
-			  (unsigned) start, function);
+	      error("Block at %p is not allocated (%s)", start, function);
 	      return (status = ERR_ALREADY);
 	    }
 	  
 	  // Clear out the memory
-	  bzero(block->start, blockSize(block));
+	  bzero(start, block->size);
 
-	  block->function = NULL;
-	  block->process = 0;
 	  block->used = 0;
+	  block->process = 0;
+	  block->function = NULL;
 
-	  usedMemory -= blockSize(block);
+	  usedMemory -= block->size;
 
 	  // Merge free blocks on either side of this one
 	  mergeFree(block);
+
+	  // Can the heap be deallocated?
+	  cleanupHeap(block);
   
 	  return (status = 0);
 	}
 
       block = block->next;
-
-      if (block == firstUnusedBlock)
-	{
-	  kernelError(kernel_error, "No such memory block %u to deallocate "
-		      "(%s)", (unsigned) start, function);
-	  return (status = ERR_NOSUCHENTRY);
-	}
     }
+
+  error("No such memory block %u to deallocate (%s)", (unsigned) start,
+	function);
+  return (status = ERR_NOSUCHENTRY);
 }
 
 
@@ -454,8 +511,8 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 	  (maBlock->used? maBlock->function : "--free--"),
 	  MEMORY_MAX_DESC_LENGTH);
   meBlock->description[MEMORY_MAX_DESC_LENGTH - 1] = '\0';
-  meBlock->startLocation = (unsigned) maBlock->start;
-  meBlock->endLocation = (unsigned) maBlock->end;
+  meBlock->startLocation = maBlock->start;
+  meBlock->endLocation = blockEnd(maBlock);
 }
 
 
@@ -468,43 +525,34 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 /////////////////////////////////////////////////////////////////////////
 
 
-void *_doMalloc(unsigned size, const char *function)
+void *_doMalloc(unsigned size, const char *function __attribute__((unused)))
 {
   // These are the guts of malloc() and kernelMalloc()
 
   int status = 0;
   void *address = NULL;
 
-  kernelLockGet(&blocksLock, status);
-  if (status < 0)
+  // If the requested block size is zero, forget it.  We can probably
+  // assume something has gone wrong in the calling program
+  if (size == 0)
     {
-      kernelError(kernel_error, "Can't get memory lock");
-      errno = status;
+      error("Can't allocate 0 bytes");
+      errno = ERR_INVALID;
       return (address = NULL);
     }
 
-  // Make sure we do allocations on nice boundaries
-  if (size % sizeof(int))
-    size += (sizeof(int) - (size % sizeof(int)));
-
-  // Make sure there's enough heap memory.  This will get called the first
-  // time we're invoked, as totalMemory will be zero.
-  while (size > (totalMemory - usedMemory))
+  status = lock_get(&blocksLock);
+  if (status < 0)
     {
-      status = growHeap(size);
-      if (status < 0)
-	{
-	  kernelLockRelease(&blocksLock);
-	  kernelError(kernel_error, "Can't grow heap");
-	  errno = status;
-	  return (address = NULL);
-	}
+      error("Can't get memory lock");
+      errno = status;
+      return (address = NULL);
     }
 
   // Find a free block big enough
   address = allocateBlock(size, function);
 
-  kernelLockRelease(&blocksLock);
+  lock_release(&blocksLock);
 
   return (address);
 }
@@ -517,8 +565,7 @@ void *_malloc(size_t size, const char *function)
 
   if (visopsys_in_kernel)
     {
-      kernelError(kernel_error, "Cannot call malloc() directly from kernel "
-		  "space (%s)", function);
+      error("Cannot call malloc() directly from kernel space (%s)", function);
       return (NULL);
     }
   else
@@ -526,32 +573,38 @@ void *_malloc(size_t size, const char *function)
 }
 
 
-void _doFree(void *start, const char *function)
+void _doFree(void *start, const char *function __attribute__((unused)))
 {
   // These are the guts of free() and kernelFree()
 
   int status = 0;
 
-  kernelLockGet(&blocksLock, status);
-  if (status < 0)
+  if (start == NULL)
     {
-      kernelError(kernel_error, "Can't get memory lock");
-      errno = status;
+      error("Can't free NULL pointer");
+      errno = ERR_INVALID;
       return;
     }
 
   // Make sure we've been initialized
   if (!usedBlocks)
     {
-      kernelError(kernel_error, "Malloc not initialized");
-      kernelLockRelease(&blocksLock);
-      errno = ERR_NOSUCHENTRY;
+      error("Malloc not initialized");
+      errno = ERR_NOTINITIALIZED;
+      return;
+    }
+
+  status = lock_get(&blocksLock);
+  if (status < 0)
+    {
+      error("Can't get memory lock");
+      errno = status;
       return;
     }
 
   status = deallocateBlock(start, function);
 
-  kernelLockRelease(&blocksLock);
+  lock_release(&blocksLock);
 
   if (status < 0)
     errno = status;
@@ -567,8 +620,7 @@ void _free(void *start, const char *function)
 
   if (visopsys_in_kernel)
     {
-      kernelError(kernel_error, "Cannot call free() directly from kernel "
-		  "space (%s)", function);
+      error("Cannot call free() directly from kernel space (%s)", function);
       return;
     }
   else
@@ -582,18 +634,16 @@ int _mallocBlockInfo(void *start, memoryBlock *meBlock)
   // the structure with information about it.
 
   int status = 0;
-  mallocBlock *maBlock = NULL;
-  int count;
+  mallocBlock *maBlock = blockList;
 
   // Check params
   if ((start == NULL) || (meBlock == NULL))
     return (status = ERR_NULLPARAMETER);
 
   // Loop through the block list
-  for (count = 0, maBlock = blockList;
-       (maBlock && (maBlock != firstUnusedBlock)); count ++)
+  while (maBlock)
     {
-      if (maBlock->start == start)
+      if (maBlock->start == (unsigned) start)
 	{
 	  mallocBlock2MemoryBlock(maBlock, meBlock);
 	  return (status = 0);
@@ -616,7 +666,7 @@ int _mallocGetStats(memoryStats *stats)
   // Check params
   if (stats == NULL)
     {
-      kernelError(kernel_error, "Stats structure pointer is NULL");
+      error("Stats structure pointer is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -633,20 +683,18 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
   // Fill a memoryBlock array with 'doBlocks' used malloc blocks information
   
   int status = 0;
-  mallocBlock *block = NULL;
+  mallocBlock *block = blockList;
   int count;
 
   // Check params
   if (blocksArray == NULL)
     {
-      kernelError(kernel_error, "Blocks array pointer is NULL");
+      error("Blocks array pointer is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
   // Loop through the block list
-  for (count = 0, block = blockList;
-       (block && (block != firstUnusedBlock) && (count < doBlocks));
-       count ++)
+  for (count = 0; (block && (count < doBlocks)); count ++)
     {
       mallocBlock2MemoryBlock(block, &(blocksArray[count]));
       block = block->next;

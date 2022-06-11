@@ -153,9 +153,13 @@ unsigned kernelRandomFormatted(unsigned start, unsigned end)
 
   kernelRandomSeed = random(kernelRandomSeed);
 
-  if (end <= start)
+  if (end == start)
+    // Ok, whatever
+    return (end);
+
+  if (end < start)
     {
-      kernelError(kernel_error, "end <= start");
+      kernelError(kernel_error, "end (%u) < start (%u)", end, start);
       return (start);
     }
 

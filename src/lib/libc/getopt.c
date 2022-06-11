@@ -142,7 +142,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 	}
 
       break;
-    }  
+    }
 
   // Is it in our list of acceptable options?
   optstrlength = strlen(optstring);
@@ -154,14 +154,25 @@ int getopt(int argc, char *const argv[], const char *optstring)
 	// Are we expecting an argument?
 	if ((count < (optstrlength - 1)) && (optstring[count + 1] == ':'))
 	  {
+	    // Is there more text in the current argument?
 	    if (argv[optind][nextchar + 1] != '\0')
+	      // That's the option
 	      optarg = (argv[optind] + nextchar + 1);
+
+	    // Otherwise, if the option is optional, there's no option.
+	    // Optional options need to occur in the same argument string.
+	    else if ((count < (optstrlength - 2)) &&
+		     (optstring[count + 2] == ':'))
+	      optarg = NULL;
+
+	    // Otherwise if there's a next argument, that's the argument.
 	    else
 	      {
 		optind += 1;
 
 		if ((optind >= argc) || (argv[optind][0] == '-'))
 		  {
+		    // There is no next argument.
 		    nextchar = 0;
 		    optarg = NULL;
 		    return ((int) ':');
@@ -170,6 +181,7 @@ int getopt(int argc, char *const argv[], const char *optstring)
 		optarg = argv[optind];
 	      }
 
+	    nextchar = 0;
 	    optind += 1;
 	  }
 
