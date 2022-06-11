@@ -32,7 +32,7 @@
 %define BYTE			1
 %define WORD			2
 %define DWORD			4
-	
+
 ;; Memory for storing things...
 
 ;; For int13 disk ops
@@ -47,7 +47,7 @@
 %define DISKPACKET		(CYLINDER + CYLINDER_SZ)
 %define DISKPACKET_SZ		(BYTE * 16)
 
-		
+
 main:
 	jmp short bootCode			; 00 - 01 Jump instruction
 	nop					; 02 - 02 No op
@@ -70,7 +70,7 @@ bootCode:
 	sti
 
 	pusha
-	
+
 	;; The BIOS will pass the boot device number to us in the DL
 	;; register.  Make sure that our 'DriveNumber' value from the
 	;; boot sector is the correct drive number.

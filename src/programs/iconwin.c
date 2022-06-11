@@ -93,6 +93,7 @@ static int readConfig(const char *fileName)
   char tmp[MAXSTRINGLENGTH];
   char *icon = NULL;
   char variable[128];
+  file tmpFile;
   int count;
 
   status = configurationReader(fileName, &config);
@@ -166,22 +167,15 @@ static int readConfig(const char *fileName)
 				       iconParams[count].text,
 				       WINDOW_MAX_LABEL_LENGTH);
 	      if (status < 0)
-		{
-		  error("Icon %s has no text", icon);
-		  variableListDestroy(&config);
-		  return (status);
-		}
+		strcpy(iconParams[count].text, " ");
 
 	      sprintf(variable, "icon.%s.image", icon);
 	      status = variableListGet(&config, variable,
 				       icons[count].imageFile,
 				       MAX_PATH_NAME_LENGTH);
 	      if (status < 0)
-		{
-		  error("Icon %s has no image file", icon);
-		  variableListDestroy(&config);
-		  return (status);
-		}
+		// Try the default icon
+		strcpy(icons[count].imageFile, "/system/icons/icon.bmp");
 
 	      sprintf(variable, "icon.%s.command", icon);
 	      status = variableListGet(&config, variable,
@@ -189,9 +183,17 @@ static int readConfig(const char *fileName)
 				       MAX_PATH_NAME_LENGTH);
 	      if (status < 0)
 		{
-		  error("Icon %s has no command", icon);
-		  variableListDestroy(&config);
-		  return (status);
+		  numIcons -= 1;
+		  count -= 1;
+		  goto skip;
+		}
+
+	      // See whether the command exists
+	      if (fileFind(icons[count].command, &tmpFile) < 0)
+		{
+		  numIcons -= 1;
+		  count -= 1;
+		  goto skip;
 		}
 
 	      // Load the icon image
@@ -199,11 +201,20 @@ static int readConfig(const char *fileName)
 				 &(iconParams[count].iconImage));
 	      if (status < 0)
 		{
-		  error("Can't load icon image %s", icons[count].imageFile);
-		  variableListDestroy(&config);
-		  return (status);
-		}
+		  // Try the default icon
+		  strcpy(icons[count].imageFile, "/system/icons/icon.bmp");
 
+		  status = imageLoad(icons[count].imageFile, 0, 0,
+				     &(iconParams[count].iconImage));
+		  if (status < 0)
+		    {
+		      numIcons -= 1;
+		      count -= 1;
+		      goto skip;
+		    }
+		}
+	      
+	    skip:
 	      icon += (strlen(icon) + 1);
 	    }
 	}
@@ -216,9 +227,13 @@ static int readConfig(const char *fileName)
 
 static void execProgram(int argc, char *argv[])
 {
+  mouseSwitchPointer("busy");
+
   // Exec the command, no block
   if (argc == 2)
     loaderLoadAndExec(argv[1], privilege, 0);
+
+  mouseSwitchPointer("default");
   multitaskerTerminate(0);
 }
 

@@ -46,6 +46,57 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.62<br>
+</font><font size="2">24/04/2006<br>
+</font><font size="4"><br>
+Overview: This is a maintenance release.&nbsp; Some new features include basic 
+USB controller support, a USB mass-storage driver, device hotplugging, Qemu 
+support, loading of RLE encoded bitmaps, a 'programs' icon, and 'minesweeper' 
+and 'snake' games.</font></p>
+<ul>
+  <li><font size="4">Implemented basic USB support for UHCI controllers.</font></li>
+  <li><font size="4">Implemented a SCSI driver that can support USB mass storage 
+  devices.</font></li>
+  <li><font size="4">Added basic hot-plugging support for devices.</font></li>
+  <li><font size="4">Added support in the image functions for loading RLE 
+  encoded bitmaps.</font></li>
+  <li><font size="4">Added a 'programs' icon.</font></li>
+  <li><font size="4">Added 'minesweeper' and 'snake' games.</font></li>
+  <li><font size="4">Added an icon for Bauer Vladislav's calendar program.</font></li>
+  <li><font size="4">Implemented a proper kernelBus top-level infrastructure for 
+  use by the PCI driver, USB driver, etc.</font></li>
+  <li><font size="4">The display devices and text console drivers are now 
+  initialized separately and before other hardware, so that hardware detection 
+  messages can be shown while detection is going on.</font></li>
+  <li><font size="4">The 'computer' program now continuously scans for new 
+  disks.</font></li>
+  <li><font size="4">The 'shutdown' command now has a command-line flag for 
+  rebooting, and the 'shutdown' and 'reboot' commands now have command-line 
+  flags for ejecting the boot media, if applicable.</font></li>
+  <li><font size="4">The 'iconwin' and 'filebrowse' programs now change the 
+  mouse pointer when they're busy loading up a file or program.</font></li>
+  <li><font size="4">The 'iconwin' program now continues silently when programs 
+  or icons specified in the config file are missing.</font></li>
+  <li><font size="4">The boot menu now has a default selection and timeout 
+  period (settable by the 'bootmenu' program).</font></li>
+  <li><font size="4">There is now an 'active menu' global window system variable 
+  so that the focused menu can always be on top, and always go away then it 
+  loses focus.</font></li>
+  <li><font size="4">Fixed: Booting failed on Qemu due to a PS/2 mouse driver 
+  hang.</font></li>
+  <li><font size="4">Fixed: The 'bootmenu' program failed to run from a 
+  read-only media.</font></li>
+  <li><font size="4">Fixed: The boot menu timer was counting down too quickly.</font></li>
+  <li><font size="4">Fixed: The 'install' program failed if a directory it 
+  wanted to create already existed.</font></li>
+  <li><font size="4">Fixed: The 'defrag' program was giving &quot;can't defrag 
+  filesystem type 'unknown'&quot; messages for things like floppies that hadn't been 
+  mounted.</font></li>
+  <li><font size="4">Fixed: The kernelDiskGetMediaState() function was returning 
+  0 for flash disks</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.61<br>
 </font><font size="2">26/01/2006<br>
 </font><font size="4"><br>
@@ -73,7 +124,7 @@ fixes.</font></p>
   locking.</font></li>
   <li><font size="4">Added Bauer Vladislav's calendar program.</font></li>
   <li><font size="4">All threads now use the same page directory control data as 
-  their process parents for better synchronisation.</font></li>
+  their process parents for better synchronization.</font></li>
   <li><font size="4">Process stacks now have guard pages at the top which are 
   privileged, so that user process stack overflows cause protection faults.</font></li>
   <li><font size="4">The C library now has a proper suite of malloc() 
@@ -93,7 +144,7 @@ fixes.</font></p>
   or not).</font></li>
   <li><font size="4">Added a kernel filesystem function for getting resizing 
   constraints.</font></li>
-  <li><font size="4">Added a kernel filestystem function for requesting specific 
+  <li><font size="4">Added a kernel filesystem function for requesting specific 
   detection of filesystem type (useful for removable media and such).</font></li>
   <li><font size="4">The text-mode installer now offers to let you partition 
   first.</font></li>

@@ -368,9 +368,12 @@ static int changeDirWithLock(objectKey fileList, const char *newDir)
   if (status < 0)
     return (status);
 
+  mouseSwitchPointer("busy");
+
   status = changeDirectory(newDir);
   if (status < 0)
     {
+      mouseSwitchPointer("default");
       lockRelease(&dataLock);
       return (status);
     }
@@ -378,12 +381,15 @@ static int changeDirWithLock(objectKey fileList, const char *newDir)
   iconParams = allocateIconParameters();
   if (iconParams == NULL)
     {
+      mouseSwitchPointer("default");
       lockRelease(&dataLock);
       return (status = ERR_MEMORY);
     }
 
   windowComponentSetSelected(fileList, 0);
   windowComponentSetData(fileList, iconParams, numFileEntries);
+
+  mouseSwitchPointer("default");
 
   free(iconParams);
   lockRelease(&dataLock);
@@ -447,9 +453,14 @@ static void eventHandler(objectKey fileList, windowEvent *event)
     {
       if (browseFlags & WINFILEBROWSE_CAN_DEL)
 	{
+	  mouseSwitchPointer("busy");
+
 	  fileDeleteRecursive((char *) fileEntries[clickedIcon].fullName);
 
 	  iconParams = allocateIconParameters();
+
+	  mouseSwitchPointer("default");
+
 	  if (iconParams)
 	    {
 	      windowComponentSetSelected(fileList, 0);

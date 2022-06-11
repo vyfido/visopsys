@@ -130,7 +130,7 @@ static int driverSetupTimer(int counter, int mode, int count)
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent, void *driver)
 {
   // Normally, this routine is used to detect and initialize each device,
   // as well as registering each one with any higher-level interfaces.  Since
@@ -163,7 +163,7 @@ static int driverDetect(void *driver)
       return (status);
     }
 
-  return (status = kernelDeviceAdd(NULL, dev));
+  return (status = kernelDeviceAdd(parent, dev));
 }
 
 	

@@ -58,6 +58,9 @@ static void printTree(device *dev, int level)
     {
       for (count = 0; count < level; count ++)
 	printf("   ");
+      
+      if (dev->model[0])
+	printf("\"%s\" ", dev->model);
 
       if (dev->subClass.name[0])
 	printf("%s ", dev->subClass.name);

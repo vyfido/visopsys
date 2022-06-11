@@ -150,6 +150,7 @@ typedef volatile struct {
 
 // Functions exported by kernelDisk.c
 int kernelDiskRegisterDevice(kernelDevice *);
+int kernelDiskRemoveDevice(kernelDevice *);
 int kernelDiskInitialize(void);
 int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);
@@ -167,14 +168,14 @@ int kernelDiskGetPhysicalCount(void);
 int kernelDiskGet(const char *, disk *);
 int kernelDiskGetAll(disk *, unsigned);
 int kernelDiskGetAllPhysical(disk *, unsigned);
+int kernelDiskGetFilesystemType(const char *, char *, unsigned);
 int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);
-int kernelDiskSetLockState(const char *diskName, int state);
+int kernelDiskSetLockState(const char *, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskGetMediaState(const char *);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *);
-int kernelDiskGetFilesystemType(const char *, char *, unsigned);
 
 #define _KERNELDISK_H
 #endif

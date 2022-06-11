@@ -24,7 +24,9 @@
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelMouse.h"
 #include "kernelGraphic.h"
+#include "kernelInterrupt.h"
 #include "kernelMalloc.h"
+#include "kernelPic.h"
 #include "kernelProcessorX86.h"
 #include <string.h>
 
@@ -40,14 +42,17 @@ static unsigned char inPort60(void)
     kernelProcessorInPort8(0x64, data);
 
   kernelProcessorInPort8(0x60, data);
+
   return (data);
 }
 
 
-static inline void waitControllerReady(void)
+static void waitControllerReady(void)
 {
   // Wait for the controller to be ready
+
   unsigned char data = 0x02;
+
   while (data & 0x02)
     kernelProcessorInPort8(0x64, data);
 }
@@ -62,7 +67,6 @@ static void outPort60(unsigned char value)
   
   waitControllerReady();
   kernelProcessorOutPort8(0x60, data);
-
   return;
 }
 
@@ -76,32 +80,37 @@ static void outPort64(unsigned char value)
   
   waitControllerReady();
   kernelProcessorOutPort8(0x64, data);
-
   return;
 }
 
 
-static unsigned char getMouseData(void)
+static int getMouseData(void)
 {
   // Input a value from the keyboard controller's data port, after checking
   // to make sure that there's some mouse data there for us
 
-  unsigned char data = 0;
+  int data = 0;
+  int count;
 
-  while ((data & 0x21) != 0x21)
+  // Qemu can often time out here, so we need to check for it.
+  for (count = 0; (((data & 0x21) != 0x21) && (count < 1000)); count ++)
     kernelProcessorInPort8(0x64, data);
 
   kernelProcessorInPort8(0x60, data);
+
+  if (count >= 1000)
+    data = -1;
+
   return (data);
 }
 
 
-static void driverReadData(void)
+static void readData(void)
 {
   // This gets called whenever there is a mouse interrupt
 
-  static volatile int button1, button2, button3;
-  unsigned char byte1 = 0, byte2 = 0, byte3 = 0;
+  static volatile int button1 = 0, button2 = 0, button3 = 0;
+  int byte1 = 0, byte2 = 0, byte3 = 0;
   int xChange, yChange;
 
   // Disable keyboard output here, because our data reads are not atomic
@@ -110,23 +119,46 @@ static void driverReadData(void)
   // The first byte contains button information and sign information
   // for the next two bytes
   byte1 = getMouseData();
+  if (byte1 == -1)
+    {
+      // Re-enable keyboard output
+      outPort64(0xAE);
+      return;
+    }
 
   // The change in X position
   byte2 = getMouseData();
+  if (byte2 == -1)
+    {
+      // Re-enable keyboard output
+      outPort64(0xAE);
+      return;
+    }
 
   // The change in Y position
   byte3 = getMouseData();
-  
+
   // Re-enable keyboard output
   outPort64(0xAE);
 
-  if ((byte1 & 0x01) != button1)
-    kernelMouseButtonChange(1, button1 = (byte1 & 0x01));
-  else if ((byte1 & 0x04) != button2)
-    kernelMouseButtonChange(2, button2 = (byte1 & 0x04));
-  else if ((byte1 & 0x02) != button3)
-    kernelMouseButtonChange(3, button3 = (byte1 & 0x02));
+  if (byte3 == -1)
+    return;
 
+  if ((byte1 & 0x01) != button1)
+    {
+      button1 = (byte1 & 0x01);
+      kernelMouseButtonChange(1, button1);
+    }
+  else if ((byte1 & 0x04) != button2)
+    {
+      button2 = (byte1 & 0x04);
+      kernelMouseButtonChange(2, button2);
+    }
+  else if ((byte1 & 0x02) != button3)
+    {
+      button3 = (byte1 & 0x02);
+      kernelMouseButtonChange(3, button3);
+    }
   else
     {
       // Sign them
@@ -147,7 +179,26 @@ static void driverReadData(void)
 }
 
 
-static int driverDetect(void *driver)
+static void mouseInterrupt(void)
+{
+  // This is the mouse interrupt handler.  It calls the mouse driver
+  // to actually read data from the device.
+
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
+  kernelProcessingInterrupt = 1;
+
+  // Call the routine to read the data
+  readData();
+
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit(address);
+}
+
+
+static int driverDetect(void *parent, void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also talks to
@@ -161,10 +212,10 @@ static int driverDetect(void *driver)
 
   // Do the hardware initialization.
 
+  kernelProcessorSuspendInts(interrupts);
+
   // Disable keyboard output here, because our data reads are not atomic
   outPort64(0xAD);
-
-  kernelProcessorSuspendInts(interrupts);
 
   // Send reset command
   outPort64(0xD4);
@@ -211,17 +262,16 @@ static int driverDetect(void *driver)
     goto exit;
 
   // Allocate memory for the device
-  dev = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelMouse));
+  dev = kernelMalloc(sizeof(kernelDevice));
   if (dev == NULL)
     goto exit;
 
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
   dev->driver = driver;
-  dev->data = ((void *) dev + sizeof(kernelDevice));
 
   // Initialize mouse operations
-  status = kernelMouseInitialize(dev);
+  status = kernelMouseInitialize();
   if (status < 0)
     {
       kernelFree(dev);
@@ -229,25 +279,35 @@ static int driverDetect(void *driver)
     }
 
   // Add the device
-  status = kernelDeviceAdd(NULL, dev);
+  status = kernelDeviceAdd(parent, dev);
   if (status < 0)
     {
       kernelFree(dev);
       goto exit;
     }
 
-exit:
-  kernelProcessorRestoreInts(interrupts);
+  // Register our interrupt handler
+  status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt);
+  if (status < 0)
+    {
+      kernelFree(dev);
+      goto exit;
+    }
 
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_MOUSE, 1);
+
+exit:
   // Re-enable keyboard output
   outPort64(0xAE);
+
+  kernelProcessorRestoreInts(interrupts);
 
   return (status = 0);
 }
 
 
 static kernelMouseOps mouseOps = {
-  driverReadData
 };
 
 

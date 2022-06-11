@@ -34,10 +34,10 @@ Usage:
   computer
 
 The computer program is interactive, and may only be used in graphics mode.
-It displays a window with icons representing (for the moment, anyway, only)
-media resources such as floppy disks, hard disks, and CD-ROMs.  Clicking on
-an icon will cause the system to attempt to mount (if necessary) the volume
-and open a file browser window for that filesystem.
+It displays a window with icons representing media resources such as floppy
+disks, hard disks, CD-ROMs, and flash disks.  Clicking on an icon will cause
+the system to attempt to mount (if necessary) the volume and open a file
+browser window for that filesystem.
 
 </help>
 */
@@ -55,16 +55,18 @@ and open a file browser window for that filesystem.
 #define FLOPPYDISK_ICONFILE  "/system/icons/floppyicon.ico"
 #define HARDDISK_ICONFILE    "/system/icons/diskicon.bmp"
 #define CDROMDISK_ICONFILE   "/system/icons/cdromicon.ico"
+#define FLASHDISK_ICONFILE   "/system/icons/usbthumbicon.bmp"
 #define FILE_BROWSER         "/programs/filebrowse"
 
-static int processId;
-static int privilege;
+static int processId = 0;
+static int privilege = 0;
 static int numDisks = 0;
 static disk *disks = NULL;
 static listItemParameters *iconParams = NULL;
 static char windowTitle[WINDOW_MAX_TITLE_LENGTH];
 static objectKey window = NULL;
 static objectKey iconList = NULL;
+static int stop = 0;
 
 
 static void error(const char *format, ...)
@@ -82,56 +84,23 @@ static void error(const char *format, ...)
 }
 
 
-static int scanComputer(void)
+static void deallocateMemory(void)
 {
-  // This gets the list of disks and/or other hardware we're interested in
-  // and creates icon parameters for them
-
-  int status = 0;
-  char *iconFile = NULL;
   int count;
 
-  // Call the kernel to give us the number of available disks
-  numDisks = diskGetCount();
-  if (numDisks <= 0)
-    return (status = ERR_NOSUCHENTRY);
+  if (disks)
+    free(disks);
 
-  disks = malloc(numDisks * sizeof(disk));
-  iconParams = malloc(numDisks * sizeof(listItemParameters));
-  if ((disks == NULL) || (iconParams == NULL))
+  if (iconParams)
     {
-      error("Memory allocation error");
-      return (status = ERR_MEMORY);
-    }
-
-  // Read disk info
-  status = diskGetAll(disks, (numDisks * sizeof(disk)));
-  if (status < 0)
-    // Eek.  Problem getting disk info
-    return (status);
-
-  // Get the text, image, and command for each icon
-  for (count = 0; count < numDisks; count ++)
-    {
-      iconFile = HARDDISK_ICONFILE;
-
-      if (disks[count].flags & DISKFLAG_FLOPPY)
-	iconFile = FLOPPYDISK_ICONFILE;
-      else if (disks[count].flags & DISKFLAG_CDROM)
-	iconFile = CDROMDISK_ICONFILE;
-
-      strcpy(iconParams[count].text, disks[count].name);
-
-      // Load the icon image
-      status = imageLoad(iconFile, 0, 0, &(iconParams[count].iconImage));
-      if (status < 0)
+      for (count = 0; count < numDisks; count ++)
 	{
-	  error("Can't load icon image %s", iconFile);
-	  return (status);
-        }
-     }
+	  if (iconParams[count].iconImage.data)
+	    memoryRelease(iconParams[count].iconImage.data);
+	}
 
-  return (status = 0);
+      free(iconParams);
+    }
 }
 
 
@@ -153,7 +122,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   // Check for the window being closed by a GUI event.
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-    windowGuiStop();
+    stop = 1;
 
   // Check for events in our icon list.  We consider the icon 'clicked'
   // if it is a mouse click selection, or an ENTER key selection
@@ -232,6 +201,90 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
+static int scanComputer(void)
+{
+  // This gets the list of disks and/or other hardware we're interested in
+  // and creates icon parameters for them
+
+  int status = 0;
+  int newNumDisks = 0;
+  disk *newDisks = NULL;
+  listItemParameters *newIconParams = NULL;
+  char *iconFile = NULL;
+  int count;
+
+  // Call the kernel to give us the number of available disks
+  newNumDisks = diskGetCount();
+  if (newNumDisks <= 0)
+    return (status = ERR_NOSUCHENTRY);
+
+  newDisks = malloc(newNumDisks * sizeof(disk));
+  newIconParams = malloc(newNumDisks * sizeof(listItemParameters));
+  if ((newDisks == NULL) || (newIconParams == NULL))
+    {
+      error("Memory allocation error");
+      return (status = ERR_MEMORY);
+    }
+
+  // Read disk info
+  status = diskGetAll(newDisks, (newNumDisks * sizeof(disk)));
+  if (status < 0)
+    // Eek.  Problem getting disk info
+    return (status);
+
+  // Any change?
+  if ((disks == NULL) || (newNumDisks != numDisks))
+    {
+      mouseSwitchPointer("busy");
+
+      // Get the text, image, and command for each icon
+      for (count = 0; count < newNumDisks; count ++)
+	{
+	  iconFile = HARDDISK_ICONFILE;
+
+	  if (newDisks[count].flags & DISKFLAG_FLOPPY)
+	    iconFile = FLOPPYDISK_ICONFILE;
+	  else if (newDisks[count].flags & DISKFLAG_CDROM)
+	    iconFile = CDROMDISK_ICONFILE;
+	  else if (newDisks[count].flags & DISKFLAG_FLASHDISK)
+	    iconFile = FLASHDISK_ICONFILE;
+
+	  strcpy(newIconParams[count].text, newDisks[count].name);
+
+	  // Load the icon image
+	  status =
+	    imageLoad(iconFile, 0, 0, &(newIconParams[count].iconImage));
+	  if (status < 0)
+	    {
+	      error("Can't load icon image %s", iconFile);
+	      free(newDisks);
+	      free(newIconParams);
+	      mouseSwitchPointer("default");
+	      return (status);
+	    }
+	}
+
+      deallocateMemory();
+
+      numDisks = newNumDisks;
+      disks = newDisks;
+      iconParams = newIconParams;
+
+      if (iconList)
+	windowComponentSetData(iconList, newIconParams, newNumDisks);
+
+      mouseSwitchPointer("default");
+    }
+  else
+    {
+      free(newDisks);
+      free(newIconParams);
+    }
+
+  return (status = 0);
+}
+
+
 static int constructWindow(void)
 {
   int status = 0;
@@ -270,18 +323,10 @@ static int constructWindow(void)
 }
 
 
-static void deallocateMemory(void)
-{
-  if (disks)
-    free(disks);
-  if (iconParams)
-    free(iconParams);
-}
-
-
 int main(int argc, char *argv[])
 {
   int status = 0;
+  int guiThreadPid = 0;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -312,8 +357,14 @@ int main(int argc, char *argv[])
       return (errno = status);
     }
 
-  // Run the GUI
-  windowGuiRun();
+  // Run the GUI as a separate thread
+  guiThreadPid = windowGuiThread();
+
+  while (!stop && multitaskerProcessIsAlive(guiThreadPid))
+    {
+      scanComputer();
+      multitaskerYield();
+    }
 
   // We're back.
   windowGuiStop();

@@ -1350,7 +1350,7 @@ static int driverFilter(kernelGraphicBuffer *buffer, color *filterColor,
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent, void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces
@@ -1412,7 +1412,7 @@ static int driverDetect(void *driver)
   wholeScreen.height = adapter->yRes;
   wholeScreen.data = adapter->framebuffer;
 
-  return (status = kernelDeviceAdd(NULL, dev));
+  return (status = kernelDeviceAdd(parent, dev));
 }
 
 

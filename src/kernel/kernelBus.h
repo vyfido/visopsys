@@ -23,6 +23,12 @@
 
 #include "kernelDevice.h"
 
+#define BUS_MAX_BUSES 16
+
+typedef enum {
+  bus_pci = 1, bus_usb = 2
+} kernelBusType;
+
 typedef struct {
   int target;
   kernelDeviceClass *class;
@@ -37,10 +43,27 @@ typedef struct {
   void (*driverWriteRegister) (int, int, int, unsigned);
   int (*driverDeviceEnable) (int, int);
   int (*driverSetMaster) (int, int);
+  int (*driverRead) (int, void *);
+  int (*driverWrite) (int, void *);
 
 } kernelBusOps;
 
+typedef struct {
+  kernelBusType type;
+  kernelBusOps *ops;
+
+} kernelBus;
+
 // Functions exported by kernelBus.c
+int kernelBusRegister(kernelBusType, kernelDevice *);
+int kernelBusGetTargets(kernelBusType, kernelBusTarget **);
+int kernelBusGetTargetInfo(kernelBusType, int, void *);
+unsigned kernelBusReadRegister(kernelBusType, int, int, int);
+void kernelBusWriteRegister(kernelBusType, int, int, int, unsigned);
+int kernelBusDeviceEnable(kernelBusType, int, int);
+int kernelBusSetMaster(kernelBusType, int, int);
+int kernelBusRead(kernelBusType, int, void *);
+int kernelBusWrite(kernelBusType, int, void *);
 
 #define _KERNELBUS_H
 #endif

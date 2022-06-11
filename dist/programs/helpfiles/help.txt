@@ -44,6 +44,7 @@ renice            Change the priority of a running process
 rm (or del)       Delete a file
 rmdir             Remove a directory
 shutdown          Stops the computer
+snake             A 'snake' game like the one found on mobile phones
 sync              Synchronize all filesystems on disk
 touch             Update a file or create a new (empty) file
 umount            Unmount a filesystem
@@ -61,6 +62,7 @@ disprops          View or change the display settings
 filebrowse        Navigate the file system
 iconwin           A program for displaying custom icon windows
 loadfont          Load a new default font
+mines             A mine sweeper game
 progman           View and manage programs and processes
 screenshot        Take a screenshot
 users             User manager for creating/deleting user accounts

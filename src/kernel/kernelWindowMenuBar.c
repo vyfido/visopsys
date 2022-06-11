@@ -337,6 +337,8 @@ kernelWindowComponent *kernelWindowNewMenuBar(volatile void *parent,
   if (component == NULL)
     return (component);
 
+  component->subType = menuBarComponentType;
+
   if (component->parameters.font == NULL)
     component->parameters.font = menuBarFont;
 

@@ -28,8 +28,6 @@
 
 // A structure for holding pointers to the mouse driver functions
 typedef struct {
-  void (*driverReadData) (void);
-
 } kernelMouseOps;
 
 typedef struct {
@@ -45,7 +43,7 @@ typedef struct {
 } kernelMouse;
 
 // Functions exported by kernelMouse.c
-int kernelMouseInitialize(kernelDevice *);
+int kernelMouseInitialize(void);
 int kernelMouseShutdown(void);
 int kernelMouseLoadPointer(const char *, const char *);
 int kernelMouseSwitchPointer(const char *);

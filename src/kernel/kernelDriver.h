@@ -29,7 +29,8 @@ typedef struct {
   int subClass;
   // The registration and detection functions, which all drivers must implement
   void (*driverRegister) (void *);
-  int (*driverDetect) (void *);
+  int (*driverDetect) (void *, void *);
+  int (*driverHotplug) (void *, int, int, int, void *);
   // Device class-specific operations
   void *ops;
 
@@ -44,16 +45,10 @@ typedef enum {
 // Structures
 
 // Functions exported by kernelDriver.c
-int kernelTextDriversInitialize(void);
+int kernelConsoleDriversInitialize(void);
 int kernelFilesystemDriversInitialize(void);
 int kernelDriverRegister(kernelDriverType type, void *);
-void *kernelDriverGetExt(void);
-void *kernelDriverGetFat(void);
-void *kernelDriverGetIso(void);
-void *kernelDriverGetLinuxSwap(void);
-void *kernelDriverGetNtfs(void);
-void *kernelDriverGetTextConsole(void);
-void *kernelDriverGetGraphicConsole(void);
+void *kernelDriverGet(kernelDriverType);
 
 // Registration routines for our built-in drivers
 void kernelCpuDriverRegister(void *);
@@ -65,9 +60,12 @@ void kernelDmaDriverRegister(void *);
 void kernelKeyboardDriverRegister(void *);
 void kernelFloppyDriverRegister(void *);
 void kernelIdeDriverRegister(void *);
+void kernelScsiDiskDriverRegister(void *);
 void kernelFramebufferGraphicDriverRegister(void *);
 void kernelPS2MouseDriverRegister(void *);
 void kernelPciDriverRegister(void *);
+void kernelUsbDriverRegister(void *);
+void kernelUsbMouseDriverRegister(void *);
 void kernelLanceDriverRegister(void *);
 
 #define _KERNELDRIVER_H

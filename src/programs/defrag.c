@@ -240,6 +240,8 @@ static int mountedCheck(disk *theDisk)
 
   if (!(theDisk->mounted))
     return (status = 0);
+  else if (silentMode)
+    return (status = ERR_CANCELLED);
 
   sprintf(tmpChar, "The disk is mounted as %s.  It is STRONGLY "
 	  "recommended\nthat you unmount before continuing",
@@ -331,8 +333,11 @@ int main(int argc, char *argv[])
 
   status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
-    // Eek.  Problem getting disk info
-    return (errno = status);
+    {
+      // Eek.  Problem getting disk info
+      error("Error getting disks info");
+      return (errno = status);
+    }
 
   if (!graphics && !silentMode)
     // Print a message
@@ -373,14 +378,29 @@ int main(int argc, char *argv[])
       diskNumber = chooseDisk();
       if (diskNumber < 0)
 	return (status = 0);
-      
-      sprintf(tmpChar, "Defragmenting disk %s.  Are you sure?",
-	      diskInfo[diskNumber].name);
-      if (!yesOrNo(tmpChar))
+    }
+
+  // Make sure we know the filesystem type
+  if (!strcmp(diskInfo[diskNumber].fsType, "unknown"))
+    {
+      // Scan for it explicitly
+      status = diskGetFilesystemType(diskInfo[diskNumber].name,
+				     diskInfo[diskNumber].fsType,
+				     FSTYPE_MAX_NAMELENGTH);
+      if ((status < 0) || !strcmp(diskInfo[diskNumber].fsType, "unknown"))
 	{
-	  printf("\nQuitting.\n");
-	  return (status = 0);
+	  error("Unknown filesystem type on disk \"%s\"",
+		diskInfo[diskNumber].name);
+	  return (errno = ERR_NOTIMPLEMENTED);
 	}
+    }
+
+  // Make sure things are up to date
+  status = diskGet(diskInfo[diskNumber].name, &diskInfo[diskNumber]);
+  if (status < 0)
+    {
+      error("Error getting info for disk \"%s\"", diskInfo[diskNumber].name);
+      return (errno = status);
     }
 
   // Make sure that the defragment operation is supported for the selected
@@ -390,6 +410,17 @@ int main(int argc, char *argv[])
       error("Defragmenting the filesystem type \"%s\" is not supported",
 	    diskInfo[diskNumber].fsType);
       return (errno = ERR_NOTIMPLEMENTED);
+    }
+
+  if (!silentMode)
+    {
+      sprintf(tmpChar, "Defragmenting disk %s.  Are you sure?",
+	      diskInfo[diskNumber].name);
+      if (!yesOrNo(tmpChar))
+	{
+	  printf("\nQuitting.\n");
+	  return (status = 0);
+	}
     }
 
   // Make sure it's not mounted

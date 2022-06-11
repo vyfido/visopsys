@@ -693,7 +693,7 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
   // Loop through the string
   for (count = 0; count < length; count ++)
     {
-      idx = (int) text[count] - 32;
+      idx = (((int) text[count]) - 32);
 
       if ((idx < 0) || (idx >= ASCII_PRINTABLES))
 	// Not printable.  Print a space, which is index zero.

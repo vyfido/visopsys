@@ -42,31 +42,48 @@
 #define DEVICECLASS_DISK                    0x0B00
 #define DEVICECLASS_GRAPHIC                 0x0C00
 #define DEVICECLASS_NETWORK                 0x0D00
+#define DEVICECLASS_HUB                     0x0E00
+#define DEVICECLASS_STORAGE                 0x0F00
+#define DEVICECLASS_UNKNOWN                 0xFFFF
 
 // Device sub-classes
 
-// Sub-classes of CPUs
 #define DEVICESUBCLASS_NONE                 0
+#define DEVICESUBCLASS_UNKNOWN              (DEVICECLASS_UNKNOWN | 0x01)
 
+// Sub-classes of CPUs
 #define DEVICESUBCLASS_CPU_X86              (DEVICECLASS_CPU | 0x01)
 
 // Sub-classes of buses
 #define DEVICESUBCLASS_BUS_PCI              (DEVICECLASS_BUS | 0x01)
+#define DEVICESUBCLASS_BUS_USB              (DEVICECLASS_BUS | 0x02)
+
+// Sub-classes of keyboards
+#define DEVICESUBCLASS_KEYBOARD_USB         (DEVICECLASS_KEYBOARD | 0x01)
 
 // Sub-classes of mice
 #define DEVICESUBCLASS_MOUSE_PS2            (DEVICECLASS_MOUSE | 0x01)
 #define DEVICESUBCLASS_MOUSE_SERIAL         (DEVICECLASS_MOUSE | 0x02)
+#define DEVICESUBCLASS_MOUSE_USB            (DEVICECLASS_MOUSE | 0x03)
 
 // Sub-classes of disks
 #define DEVICESUBCLASS_DISK_FLOPPY          (DEVICECLASS_DISK | 0x01)
 #define DEVICESUBCLASS_DISK_IDE             (DEVICECLASS_DISK | 0x02)
 #define DEVICESUBCLASS_DISK_SCSI            (DEVICECLASS_DISK | 0x03)
+#define DEVICESUBCLASS_DISK_CDDVD           (DEVICECLASS_DISK | 0x04)
 
 // Sub-classes of graphics adapters
 #define DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER  (DEVICECLASS_GRAPHIC | 0x01)
 
 // Sub-classes of network adapters
 #define DEVICESUBCLASS_NETWORK_ETHERNET     (DEVICECLASS_NETWORK | 0x01)
+
+// Sub-classes of hubs
+#define DEVICESUBCLASS_HUB_USB              (DEVICECLASS_HUB | 0x01)
+
+// Sub-classes of storage
+#define DEVICESUBCLASS_STORAGE_FLASH        (DEVICECLASS_STORAGE | 0x01)
+#define DEVICESUBCLASS_STORAGE_TAPE         (DEVICECLASS_STORAGE | 0x02)
 
 // For masking off class/subclass
 #define DEVICECLASS_MASK                    0xFF00
@@ -92,6 +109,7 @@ typedef struct {
   // Used for maintaining the list of devices as a tree
   void *parent;
   void *firstChild;
+  void *previous;
   void *next;
 
 } device;

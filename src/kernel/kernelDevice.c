@@ -43,6 +43,8 @@ static kernelDeviceClass allClasses[] = {
   { DEVICECLASS_DISK,     "disk"                  },
   { DEVICECLASS_GRAPHIC,  "graphic adapter"       },
   { DEVICECLASS_NETWORK,  "network adapter"       },
+  { DEVICECLASS_HUB,      "hub"                   },
+  { DEVICECLASS_UNKNOWN,  "unknown"               },
   { 0, NULL }
 };
 
@@ -50,46 +52,64 @@ static kernelDeviceClass allClasses[] = {
 static kernelDeviceClass allSubClasses[] = {
   { DEVICESUBCLASS_CPU_X86,             "x86"         },
   { DEVICESUBCLASS_BUS_PCI,             "PCI"         },
+  { DEVICESUBCLASS_BUS_USB,             "USB"         },
+  { DEVICESUBCLASS_KEYBOARD_USB,        "USB"         },
   { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"        },
   { DEVICESUBCLASS_MOUSE_SERIAL,        "serial"      },
+  { DEVICESUBCLASS_MOUSE_USB,           "USB"         },
   { DEVICESUBCLASS_DISK_FLOPPY,         "floppy"      },
   { DEVICESUBCLASS_DISK_IDE,            "IDE"         },
   { DEVICESUBCLASS_DISK_SCSI,           "SCSI"        },
   { DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer" },
   { DEVICESUBCLASS_NETWORK_ETHERNET,    "ethernet"    },
+  { DEVICESUBCLASS_HUB_USB,             "USB"         },
+  { DEVICESUBCLASS_UNKNOWN,             "unknown"     },
   { 0, NULL }
+};
+
+// Our static list of built-in display drivers
+static kernelDriver displayDrivers[] = {
+  { DEVICECLASS_GRAPHIC, DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER,
+    kernelFramebufferGraphicDriverRegister, NULL, NULL, NULL           }
 };
 
 // Our static list of built-in drivers
 static kernelDriver deviceDrivers[] = {
   { DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86,
-    kernelCpuDriverRegister, NULL, NULL                                },
-  { DEVICECLASS_MEMORY, 0, kernelMemoryDriverRegister, NULL, NULL      },
+    kernelCpuDriverRegister, NULL, NULL, NULL                          },
+  { DEVICECLASS_MEMORY, 0,
+    kernelMemoryDriverRegister, NULL, NULL, NULL                       },
   // PIC must be before most drivers so that other ones can unmask
   // interrupts
-  { DEVICECLASS_PIC, 0, kernelPicDriverRegister, NULL, NULL            },
-  { DEVICECLASS_SYSTIMER, 0, kernelSysTimerDriverRegister, NULL, NULL  },
-  { DEVICECLASS_RTC, 0, kernelRtcDriverRegister, NULL, NULL            },
-  { DEVICECLASS_DMA, 0, kernelDmaDriverRegister, NULL, NULL            },
+  { DEVICECLASS_PIC, 0, kernelPicDriverRegister, NULL, NULL, NULL      },
+  { DEVICECLASS_SYSTIMER, 0,
+    kernelSysTimerDriverRegister, NULL, NULL, NULL                     },
+  { DEVICECLASS_RTC, 0, kernelRtcDriverRegister, NULL, NULL, NULL      },
+  { DEVICECLASS_DMA, 0, kernelDmaDriverRegister, NULL, NULL, NULL      },
   // Do buses before most non-motherboard devices, so that other
   // drivers can find their devices on the buses.
   { DEVICECLASS_BUS, DEVICESUBCLASS_BUS_PCI,
-    kernelPciDriverRegister, NULL, NULL                                },
-  { DEVICECLASS_KEYBOARD, 0, kernelKeyboardDriverRegister, NULL, NULL  },
+    kernelPciDriverRegister, NULL, NULL, NULL                          },
+  { DEVICECLASS_BUS, DEVICESUBCLASS_BUS_USB,
+    kernelUsbDriverRegister, NULL, NULL, NULL                          },
+  { DEVICECLASS_KEYBOARD, 0,
+    kernelKeyboardDriverRegister, NULL, NULL, NULL                     },
   { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_FLOPPY,
-    kernelFloppyDriverRegister, NULL, NULL                             },
+    kernelFloppyDriverRegister, NULL, NULL, NULL                       },
   { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_IDE,
-    kernelIdeDriverRegister, NULL, NULL                                },
-  { DEVICECLASS_GRAPHIC, DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER,
-    kernelFramebufferGraphicDriverRegister, NULL, NULL                 },
-  // Do the mouse device after the graphic device so we can get screen
+    kernelIdeDriverRegister, NULL, NULL, NULL                          },
+  { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI,
+    kernelScsiDiskDriverRegister, NULL, NULL, NULL                     },
+  // Do the mouse devices after the graphic device so we can get screen
   // parameters, etc.  Also needs to be after the keyboard driver since
   // PS2 mouses use the keyboard controller.
   { DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_PS2,
-    kernelPS2MouseDriverRegister, NULL, NULL                           },
+    kernelPS2MouseDriverRegister, NULL, NULL, NULL                     },
+  { DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_USB,
+    kernelUsbMouseDriverRegister, NULL, NULL, NULL                     },
   { DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET,
-    kernelLanceDriverRegister, NULL, NULL                              },
-  { 0, 0, NULL, NULL, NULL                                             }
+    kernelLanceDriverRegister, NULL, NULL, NULL                        },
+  { 0, 0, NULL, NULL, NULL, NULL                                       }
 };
 
 // Our device tree
@@ -169,6 +189,7 @@ static void device2user(kernelDevice *kernel, device *user)
 
   user->parent = kernel->device.parent;
   user->firstChild = kernel->device.firstChild;
+  user->previous = kernel->device.previous;
   user->next = kernel->device.next;
 }
 
@@ -188,9 +209,6 @@ int kernelDeviceInitialize(void)
   // driverRegister() functions of all our drivers
 
   int status = 0;
-  kernelDeviceClass *class = NULL;
-  kernelDeviceClass *subClass = NULL;
-  char driverString[128];
   int driverCount = 0;
 
   // Allocate a NULL 'system' device to build our device tree from
@@ -201,8 +219,15 @@ int kernelDeviceInitialize(void)
   deviceTree->device.class = kernelDeviceGetClass(DEVICECLASS_SYSTEM);
   numTreeDevices = 1;
 
-  // Loop through our static structure of built-in device drivers and
+  // Loop through our static structures of built-in device drivers and
   // initialize them.
+  for (driverCount = 0; (displayDrivers[driverCount].class != 0);
+       driverCount ++)
+    {
+      if (displayDrivers[driverCount].driverRegister)
+	displayDrivers[driverCount]
+	  .driverRegister(&displayDrivers[driverCount]);
+    }
   for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
        driverCount ++)
     {
@@ -210,7 +235,73 @@ int kernelDeviceInitialize(void)
 	deviceDrivers[driverCount].driverRegister(&deviceDrivers[driverCount]);
     }
 
-  // Now loop for each hardware driver, and see if it has any devices for us
+  return (status = 0);
+}
+
+
+int kernelDeviceDetectDisplay(void)
+{
+  // This function is called during startup so we can call the detect()
+  // functions of all our display drivers
+
+  int status = 0;
+  kernelDeviceClass *class = NULL;
+  kernelDeviceClass *subClass = NULL;
+  char driverString[128];
+  int driverCount = 0;
+
+  // Loop for each hardware driver, and see if it has any devices for us
+  for (driverCount = 0; (displayDrivers[driverCount].class != 0);
+       driverCount ++)
+    {
+      class = NULL;
+      class = kernelDeviceGetClass(displayDrivers[driverCount].class);
+
+      subClass = NULL;
+      if (displayDrivers[driverCount].subClass)
+	subClass = kernelDeviceGetClass(displayDrivers[driverCount].subClass);
+
+      driverString[0] = '\0';
+      if (subClass)
+	sprintf(driverString, "%s ", subClass->name);
+      if (class)
+	strcat(driverString, class->name);
+
+      if (displayDrivers[driverCount].driverDetect == NULL)
+	{
+	  kernelError(kernel_error, "Device driver for \"%s\" has no 'detect' "
+		      "function", driverString);
+	  continue;
+	}
+
+      status = displayDrivers[driverCount]
+	.driverDetect(deviceTree, &displayDrivers[driverCount]);
+      if (status < 0)
+	kernelError(kernel_error, "Error %d detecting \"%s\" devices",
+		    status, driverString);
+    }
+
+  return (status = 0);
+}
+
+
+int kernelDeviceDetect(void)
+{
+  // This function is called during startup so we can call the detect()
+  // functions of all our general drivers
+
+  int status = 0;
+  int textNumColumns = 0;
+  kernelDeviceClass *class = NULL;
+  kernelDeviceClass *subClass = NULL;
+  char driverString[128];
+  int driverCount = 0;
+  int count;
+
+  kernelTextPrintLine("");
+  textNumColumns = kernelTextGetNumColumns();
+
+  // Loop for each hardware driver, and see if it has any devices for us
   for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
        driverCount ++)
     {
@@ -218,7 +309,7 @@ int kernelDeviceInitialize(void)
       class = kernelDeviceGetClass(deviceDrivers[driverCount].class);
 
       subClass = NULL;
-      if (deviceDrivers[driverCount].subClass != 0)
+      if (deviceDrivers[driverCount].subClass)
 	subClass = kernelDeviceGetClass(deviceDrivers[driverCount].subClass);
 
       driverString[0] = '\0';
@@ -226,6 +317,14 @@ int kernelDeviceInitialize(void)
 	sprintf(driverString, "%s ", subClass->name);
       if (class)
 	strcat(driverString, class->name);
+
+      // Clear the current line
+      kernelTextSetColumn(0);
+      for (count = 0; count < (textNumColumns - 1); count ++)
+	kernelTextPutc(' ');
+      kernelTextSetColumn(0);
+      // Print a message
+      kernelTextPrint("Detecting hardware: %s ", driverString);
 
       if (deviceDrivers[driverCount].driverDetect == NULL)
 	{
@@ -235,12 +334,16 @@ int kernelDeviceInitialize(void)
 	}
 
       status = deviceDrivers[driverCount]
-	.driverDetect(&deviceDrivers[driverCount]);
+	.driverDetect(deviceTree, &deviceDrivers[driverCount]);
       if (status < 0)
 	kernelError(kernel_error, "Error %d detecting \"%s\" devices",
 		    status, driverString);
     }
 
+  kernelTextSetColumn(0);
+  for (count = 0; count < (textNumColumns - 1); count ++)
+    kernelTextPutc(' ');
+  kernelTextSetColumn(0);
   return (status = 0);
 }
 
@@ -274,6 +377,36 @@ int kernelDeviceFindType(kernelDeviceClass *class, kernelDeviceClass *subClass,
   // requested device class and subclass
   return (findDeviceType(deviceTree, class, subClass, devPointers, maxDevices,
 			 0));
+}
+
+
+int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
+			int target, int connected)
+{
+  // Call the hotplug detection routine for any driver that matches the
+  // supplied class (and subclass).  This was added to support i.e.
+  // USB devices that can be added or removed at any time.
+
+  int status = 0;
+  int count;
+
+  for (count = 0; (deviceDrivers[count].class != 0); count ++)
+    {
+      if ((classNum & DEVICECLASS_MASK) == deviceDrivers[count].class)
+	{
+	  if (!(classNum & DEVICESUBCLASS_MASK) ||
+	      (classNum == deviceDrivers[count].subClass))
+	    {
+	      //kernelTextPrintLine("Hotplug for %04x devices", classNum);
+	      if (deviceDrivers[count].driverHotplug)
+		status = deviceDrivers[count]
+		  .driverHotplug(parent, busType, target, connected,
+				 &deviceDrivers[count]);
+	    }
+	}
+    }
+
+  return (status);
 }
 
 
@@ -321,11 +454,55 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
       // listPointer points to the last child.
       listPointer->device.next = new;
+      new->device.previous = listPointer;
     }
 
   kernelLog("%s device detected", driverString);
 
   numTreeDevices += 1;
+  return (status = 0);
+}
+
+
+int kernelDeviceRemove(kernelDevice *old)
+{
+  // Given a device, remove it from our tree
+
+  int status = 0;
+  kernelDevice *parent = NULL;
+  kernelDevice *previous = NULL;
+  kernelDevice *next = NULL;
+
+  // Check params
+  if (old == NULL)
+    {
+      kernelError(kernel_error, "Device to remove is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Cannot remove devices that have children
+  if (old->device.firstChild)
+    {
+      kernelError(kernel_error, "Cannot remove devices that have children");
+      return (status = ERR_NULLPARAMETER);
+    }
+  
+  parent = (kernelDevice *) old->device.parent;
+  previous = (kernelDevice *) old->device.previous;
+  next = (kernelDevice *) old->device.next;
+  
+  // If this is the parent's first child, substitute the next device pointer
+  // (whether or not it's NULL)
+  if (parent && (parent->device.firstChild == old))
+    parent->device.firstChild = next;
+
+  // Connect our 'previous' and 'next' devices, as applicable.
+  if (previous)
+    previous->device.next = next;
+  if (next)
+    next->device.previous = previous;
+
+  numTreeDevices -= 1;
   return (status = 0);
 }
 

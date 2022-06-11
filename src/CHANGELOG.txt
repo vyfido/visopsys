@@ -1,5 +1,48 @@
 
 ---------------
+Version 0.62
+---------------
+
+  Overview: This is a maintenance release.  Some new features include basic
+  USB controller support, a USB mass-storage driver, device hotplugging,
+  Qemu support, loading of RLE encoded bitmaps, a 'programs' icon, and
+  'minesweeper' and 'snake' games.
+
+- Implemented basic USB support for UHCI controllers.
+- Implemented a SCSI driver that can support USB mass storage devices.
+- Added basic hot-plugging support for devices.
+- Added support in the image functions for loading RLE encoded bitmaps.
+- Added a 'programs' icon.
+- Added 'minesweeper' and 'snake' games.
+- Added an icon for Bauer Vladislav's calendar program.
+- Implemented a proper kernelBus top-level infrastructure for use by
+the PCI driver, USB driver, etc.
+- The display devices and text console drivers are now initialized separately
+and before other hardware, so that hardware detection messages can be shown
+while detection is going on.
+- The 'computer' program now continuously scans for new disks.
+- The 'shutdown' command now has a command-line flag for rebooting, and the
+'shutdown' and 'reboot' commands now have command-line flags for ejecting
+the boot media, if applicable.
+- The 'iconwin' and 'filebrowse' programs now change the mouse pointer when
+they're busy loading up a file or program.
+- The 'iconwin' program now continues silently when programs or icons
+specified in the config file are missing.
+- The boot menu now has a default selection and timeout period (settable by
+the 'bootmenu' program).
+- There is now an 'active menu' global window system variable so that the
+focussed menu can always be on top, and always go away then it loses focus.
+- Fixed: Booting failed on Qemu due to a PS/2 mouse driver hang.
+- Fixed: The 'bootmenu' program failed to run from a read-only media.
+- Fixed: The boot menu timer was counting down too quickly.
+- Fixed: The 'install' program failed if a directory it wanted to create
+already existed.
+- Fixed: The 'defrag' program was giving "can't defrag filesystem type
+'unknown'" messages for things like floppies that hadn't been mounted.
+- Fixed: The kernelDiskGetMediaState() function was returning 0 for flash
+disks
+
+---------------
 Version 0.61
 ---------------
 

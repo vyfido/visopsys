@@ -1136,6 +1136,68 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
 }
 
 
+int kernelDiskRemoveDevice(kernelDevice *dev)
+{
+  // This routine will receive a new device structure, remove the
+  // kernelPhysicalDisk from our array, and remove all of its logical disks
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+  kernelDisk *newLogicalDisks[DISK_MAXDEVICES];
+  int newLogicalDiskCounter = 0;
+  int position = -1;
+  int count;
+
+  // Check params
+  if (dev == NULL)
+    {
+      kernelError(kernel_error, "Disk device structure is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  physicalDisk = dev->data;
+
+  if ((physicalDisk == NULL) || (physicalDisk->driver == NULL))
+    {
+      kernelError(kernel_error, "Physical disk structure or driver is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Add all the logical disks that don't belong to this physical disk
+  for (count = 0; count < logicalDiskCounter; count ++)
+    if (logicalDisks[count]->physical != physicalDisk)
+      newLogicalDisks[newLogicalDiskCounter++] = logicalDisks[count];
+
+  // Now copy our new array of logical disks
+  for (logicalDiskCounter = 0; logicalDiskCounter < newLogicalDiskCounter;
+       logicalDiskCounter ++)
+    logicalDisks[logicalDiskCounter] = newLogicalDisks[logicalDiskCounter];
+
+  // Remove this physical disk from our array.  Find its position
+  for (count = 0; count < physicalDiskCounter; count ++)
+    {
+      if (physicalDisks[count] == physicalDisk)
+	{
+	  position = count;
+	  break;
+	}
+    }
+
+  if (position >= 0)
+    {
+      if ((physicalDiskCounter > 1) && (position < (physicalDiskCounter - 1)))
+	{
+	  for (count = position; count < (physicalDiskCounter - 1); count ++)
+	    physicalDisks[count] = physicalDisks[count + 1];
+	}
+
+      physicalDiskCounter -= 1;
+    }
+
+  return (status = 0);
+}
+
+
 int kernelDiskInitialize(void)
 {
   // This is the "initialize" routine which invokes  the driver routine 
@@ -1573,11 +1635,14 @@ int kernelDiskReadPartitions(const char *diskName)
 
 		  partTypeCode = partitionRecord[4];
 		  if (partTypeCode == 0)
-		    // The "rules" say we must be finished with this
-		    // physical device.  But that is not the way things
-		    // often happen in real life -- empty records often
-		    // come before valid ones.
-		    continue;
+		    {
+		      // The "rules" say we must be finished with this
+		      // physical device.  But that is not the way things
+		      // often happen in real life -- empty records often
+		      // come before valid ones.
+		      partitionRecord += 16;
+		      continue;
+		    }
 
 		  if (PARTITION_TYPEID_IS_EXTD(partTypeCode))
 		    {
@@ -1976,6 +2041,7 @@ int kernelDiskSetLockState(const char *diskName, int state)
   // a removable disk device.
 
   int status = 0;
+  kernelDisk *logicalDisk = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
 
   if (!initialized)
@@ -1988,7 +2054,13 @@ int kernelDiskSetLockState(const char *diskName, int state)
   // Get the disk structure
   physicalDisk = getPhysicalByName(diskName);
   if (physicalDisk == NULL)
-    return (status = ERR_NOSUCHENTRY);
+    {
+      // Try logical
+      if ((logicalDisk = kernelDiskGetByName(diskName)))
+	physicalDisk = logicalDisk->physical;
+      else
+	return (status = ERR_NOSUCHENTRY);
+    }
 
   // Reset the 'idle since' value
   physicalDisk->idleSince = kernelSysTimerRead();
@@ -2026,6 +2098,7 @@ int kernelDiskSetDoorState(const char *diskName, int state)
   // a removable disk device.
 
   int status = 0;
+  kernelDisk *logicalDisk = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
 
   if (!initialized)
@@ -2038,7 +2111,13 @@ int kernelDiskSetDoorState(const char *diskName, int state)
   // Get the disk structure
   physicalDisk = getPhysicalByName(diskName);
   if (physicalDisk == NULL)
-    return (status = ERR_NOSUCHENTRY);
+    {
+      // Try logical
+      if ((logicalDisk = kernelDiskGetByName(diskName)))
+	physicalDisk = logicalDisk->physical;
+      else
+	return (status = ERR_NOSUCHENTRY);
+    }
 
   // Make sure it's a removable disk
   if (physicalDisk->flags & DISKFLAG_FIXED)
@@ -2087,37 +2166,50 @@ int kernelDiskGetMediaState(const char *diskName)
   // This routine returns 1 if the requested disk has media present,
   // 0 otherwise
 
+  int status = 0;
+  kernelDisk *logicalDisk = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
   void *buffer = NULL;
 
   if (!initialized)
-    return (0);
+    return (status = 0);
 
   // Check params
   if (diskName == NULL)
-    return (0);
+    return (status = 0);
 
   // Get the disk structure
   physicalDisk = getPhysicalByName(diskName);
   if (physicalDisk == NULL)
-    return (0);
+    {
+      // Try logical
+      if ((logicalDisk = kernelDiskGetByName(diskName)))
+	physicalDisk = logicalDisk->physical;
+      else
+	return (status = 0);
+    }
 
   // Make sure it's a removable disk
-  if (physicalDisk->flags & DISKFLAG_FIXED)
-    return (0);
+  if (!(physicalDisk->flags & DISKFLAG_REMOVABLE))
+    return (status = 1);
 
   // Reset the 'idle since' value
   physicalDisk->idleSince = kernelSysTimerRead();
 
   buffer = kernelMalloc(physicalDisk->sectorSize);
   if (buffer == NULL)
-    return (0);
+    return (status = 0);
 
-  if (readWriteSectors(physicalDisk, 0, 1, buffer,
-		       (IOMODE_READ | IOMODE_NOCACHE)) < 0)
-    return (0);
+  // Try to read one sector
+  status = readWriteSectors(physicalDisk, 0, 1, buffer,
+			    (IOMODE_READ | IOMODE_NOCACHE));
 
-  return (1);  
+  kernelFree(buffer);
+
+  if (status < 0)
+    return (0);
+  else
+    return (1);  
 }
 
 

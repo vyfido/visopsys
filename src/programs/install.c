@@ -667,11 +667,14 @@ static int copyFiles(const char *installFileName)
   int percent = 0;
   char buffer[BUFFSIZE];
   char tmpFileName[128];
+  file tmpFile;
 
   // Clear stack data
   bzero(&installFile, sizeof(fileStream));
   bzero(&theFile, sizeof(file));
   bzero(buffer, BUFFSIZE);
+  bzero(tmpFileName, 128);
+  bzero(&tmpFile, sizeof(file));
 
   // Open the install file
   status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
@@ -724,8 +727,11 @@ static int copyFiles(const char *installFileName)
 	  strcat(tmpFileName, buffer);
 
 	  if (theFile.type == dirT)
-	    // It's a directory, create it in the desination
-	    status = fileMakeDir(tmpFileName);
+	    {
+	      // It's a directory, create it in the desination
+	      if (fileFind(tmpFileName, &tmpFile) < 0)
+		status = fileMakeDir(tmpFileName);
+	    }
 
 	  else
 	    // It's a file.  Copy it to the destination.

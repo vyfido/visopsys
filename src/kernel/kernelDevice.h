@@ -48,6 +48,7 @@ typedef struct {
     // Used for maintaining the list of devices as a tree
     void *parent;
     void *firstChild;
+    void *previous;
     void *next;
 
   } device;
@@ -61,10 +62,14 @@ typedef struct {
 
 // Functions exported from kernelDevice.c
 int kernelDeviceInitialize(void);
+int kernelDeviceDetectDisplay(void);
+int kernelDeviceDetect(void);
 kernelDeviceClass *kernelDeviceGetClass(int);
 int kernelDeviceFindType(kernelDeviceClass *, kernelDeviceClass *,
 			 kernelDevice *[], int);
+int kernelDeviceHotplug(kernelDevice *, int, int, int, int);
 int kernelDeviceAdd(kernelDevice *, kernelDevice *);
+int kernelDeviceRemove(kernelDevice *);
 // These ones are exported outside the kernel
 int kernelDeviceTreeGetCount(void);
 int kernelDeviceTreeGetRoot(device *);

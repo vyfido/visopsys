@@ -848,7 +848,7 @@ static int driverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent, void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also does
@@ -1024,7 +1024,7 @@ static int driverDetect(void *driver)
       if (status < 0)
 	return (status);
 
-      status = kernelDeviceAdd(NULL, &devices[count]);
+      status = kernelDeviceAdd(parent, &devices[count]);
       if (status < 0)
 	return (status);
     }

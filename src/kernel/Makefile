@@ -27,6 +27,7 @@ LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static -Wl,-warn-c
 # kernelMain needs to go first
 NAMES =	kernelMain \
 	kernelApi \
+	kernelBus \
 	kernelDescriptor \
 	kernelDevice \
 	kernelDisk \
@@ -110,9 +111,14 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelPicDriver \
 	kernelPS2MouseDriver \
 	kernelRtcDriver \
+	kernelScsiDiskDriver \
 	kernelSysTimerDriver \
 	kernelSystemDriver \
-	kernelTextConsoleDriver
+	kernelTextConsoleDriver \
+	kernelUsbDriver \
+	kernelUsbEhciDriver \
+	kernelUsbHidDriver \
+	kernelUsbUhciDriver
 
 ALLNAMES = ${NAMES} ${DRIVERNAMES}
 

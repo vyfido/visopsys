@@ -50,6 +50,6 @@ int snprintf(char *output, size_t size, const char *format, ...)
 
   strncpy(output, tmpOutput, size);
 
-  // Return the number of characers we wrote to the string
+  // Return the number of characters we wrote to the string
   return (min(outputLen, (int) size));
 }

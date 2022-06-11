@@ -60,7 +60,8 @@ static int resize(void *componentData, int width, int height)
 }
 
 
-static int setData(void *componentData, void *data, int size)
+static int setData(void *componentData, void *data, int size
+		   __attribute__((unused)))
 {
   // This is where we implement drawing on the canvas.  Our parameter
   // is a structure that specifies the drawing operation and parameters
@@ -76,10 +77,6 @@ static int setData(void *componentData, void *data, int size)
   int xCoord2 = component->xCoord + params->xCoord2;
   int yCoord1 = component->yCoord + params->yCoord1;
   int yCoord2 = component->yCoord + params->yCoord2;
-
-  // We ignore the 'size' parameter.  This keeps the compiler happy.
-  if (size == 0)
-    return (status = ERR_INVALID);
 
   switch (params->operation)
     {
@@ -106,8 +103,10 @@ static int setData(void *componentData, void *data, int size)
       break;
     case draw_image:
       status = kernelGraphicDrawImage(buffer, (image *) params->data,
-				      params->mode, xCoord1, yCoord1, xCoord2,
-				      yCoord2, params->width, params->height);
+				      params->mode, xCoord1, yCoord1,
+				      (params->xCoord2? xCoord2 : 0),
+				      (params->yCoord2? yCoord2 : 0),
+				      params->width, params->height);
       break;
     case draw_text:
       status = kernelGraphicDrawText(buffer, &(params->foreground),
@@ -175,6 +174,7 @@ kernelWindowComponent *kernelWindowNewCanvas(volatile void *parent,
       
   // Now override some bits
   component->type = canvasComponentType;
+  component->flags |= WINFLAG_CANFOCUS;
 
   // The functions
   component->resize = &resize;

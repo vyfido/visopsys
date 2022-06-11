@@ -204,6 +204,8 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 
 		  if (colorIndex >= colors)
 		    {
+		      kernelError(kernel_error, "Illegal color index %d",
+				  colorIndex);
 		      kernelMemoryRelease(imageData);
 		      return (status = ERR_INVALID);
 		    }
@@ -220,6 +222,7 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
       else
 	{
 	  // Not supported.  Release the image data memory
+	  kernelError(kernel_error, "RLE compression not supported");
 	  kernelMemoryRelease(imageData);
 	  return (status = ERR_INVALID);
 	}
@@ -227,6 +230,8 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
   else
     {
       // Not supported.  Release the image data memory
+      kernelError(kernel_error, "Unsupported bit depth %d",
+		  infoHeader->bitsPerPixel);
       kernelMemoryRelease(imageData);
       return (status = ERR_INVALID);
     }

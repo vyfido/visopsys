@@ -317,7 +317,7 @@ static void driverReadData(void)
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent, void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also issues the
@@ -380,7 +380,7 @@ static int driverDetect(void *driver)
       return (status);
     }
 
-  return (status = kernelDeviceAdd(NULL, dev));
+  return (status = kernelDeviceAdd(parent, dev));
 }
 
 

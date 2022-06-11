@@ -298,7 +298,10 @@ static int print(kernelTextArea *area, const char *text)
   for (inputCounter = 0; inputCounter < length; inputCounter++)
     {
       // Add this character to the lineBuffer
-      lineBuffer[bufferCounter++] = text[inputCounter];
+      if (((unsigned char) text[inputCounter]) > 126)
+	lineBuffer[bufferCounter++] = '?';
+      else
+	lineBuffer[bufferCounter++] = text[inputCounter];
 
       // Is this the completion of the line?
 

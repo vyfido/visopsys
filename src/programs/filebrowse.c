@@ -101,9 +101,13 @@ static void changeDir(char *fullName)
 
 static void execProgram(int argc, char *argv[])
 {
+  mouseSwitchPointer("busy");
+
   // Exec the command, no block
   if (argc == 2)
     loaderLoadAndExec(argv[1], privilege, 0);
+
+  mouseSwitchPointer("default");
   multitaskerTerminate(0);
 }
 
@@ -133,6 +137,7 @@ static void doFileSelection(file *theFile, char *fullName,
 			 (void *[]){ command });
 	break;
       }
+
     case dirT:
       changeDir(fullName);
       break;
@@ -288,6 +293,9 @@ int main(int argc, char *argv[])
 	      cwdModifiedTime = cwdFile.modifiedTime;
 	    }
 	}
+      else
+	// Filesystem unmounted or something?  Quit.
+	break;
       
       multitaskerYield();
     }

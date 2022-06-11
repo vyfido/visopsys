@@ -72,6 +72,7 @@
 /system/config/filebrowse.conf
 /system/config/kernel.conf
 /system/config/network.conf
+/system/config/programs.conf
 /system/config/windowmanager.conf
 /system/fonts/
 /system/fonts/arial-bold-10.bmp
@@ -80,6 +81,7 @@
 /system/icons/bangicon.bmp
 /system/icons/binicon.ico
 /system/icons/booticon.ico
+/system/icons/calicon.ico
 /system/icons/cameraicon.bmp
 /system/icons/cardicon.ico
 /system/icons/cdromicon.ico
@@ -102,12 +104,14 @@
 /system/icons/objicon.ico
 /system/icons/pageicon.ico
 /system/icons/pingicon.ico
-/system/icons/progicon.bmp
+/system/icons/progmanicon.bmp
+/system/icons/progicon.ico
 /system/icons/questicon.bmp
 /system/icons/rebticon.bmp
 /system/icons/shellicon.bmp
 /system/icons/shuticon.bmp
 /system/icons/texticon.ico
+/system/icons/usbthumbicon.bmp
 /system/icons/usericon.ico
 /system/icons/viewmasticon.bmp
 /system/install-files.basic

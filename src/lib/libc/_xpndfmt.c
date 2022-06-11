@@ -260,6 +260,6 @@ int _expandFormatString(char *output, const char *format, va_list list)
 
   output[outCount] = '\0';
 
-  // Return the number of characers we wrote
+  // Return the number of characters we wrote
   return (outCount);
 }

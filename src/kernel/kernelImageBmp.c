@@ -59,8 +59,9 @@ static int detect(const char *fileName, void *dataPtr, int size,
 }
 
 
-static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
-		int reqHeight, image *loadImage)
+static int load(unsigned char *imageFileData, int dataLength,
+		int reqWidth __attribute__((unused)),
+		int reqHeight __attribute__((unused)), image *loadImage)
 {
   // Loads a .bmp file and returns it as an image.  The memory for this and
   // its data must be freed by the caller.
@@ -79,7 +80,7 @@ static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
   unsigned pixelRowCounter = 0;
   unsigned char colorIndex = 0;
   pixel *imageData = NULL;
-  int count;
+  int count1, count2;
   
   // Check params
   if ((imageFileData == NULL) || !dataLength || loadImage == NULL)
@@ -127,14 +128,14 @@ static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
 	fileLineWidth = (fileLineWidth + (4 - (fileLineWidth % 4)));
 
       // This outer loop is repeated once for each row of pixels
-      for (count = (height - 1); count >= 0; count --)
+      for (count1 = (height - 1); count1 >= 0; count1 --)
 	{
-	  fileOffset = (dataStart + (count * fileLineWidth));
+	  fileOffset = (dataStart + (count1 * fileLineWidth));
 
 	  // Copy a line of data from the file to our image
 	  kernelMemCopy((imageFileData + fileOffset),
 			(((void *) imageData) +
-			 ((height - count - 1) * (width * 3))),
+			 ((height - count1 - 1) * (width * 3))),
 			(width * 3));
 	}
     }
@@ -155,9 +156,9 @@ static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
 	    fileLineWidth = (fileLineWidth + (4 - (fileLineWidth % 4)));
 
 	  // This outer loop is repeated once for each row of pixels
-	  for (count = (height - 1); count >= 0; count --)
+	  for (count1 = (height - 1); count1 >= 0; count1 --)
 	    {
-	      fileOffset = (dataStart + (count * fileLineWidth));
+	      fileOffset = (dataStart + (count1 * fileLineWidth));
 	      
 	      // This inner loop is repeated for each pixel in a row
 	      for (pixelRowCounter = 0; pixelRowCounter < width;
@@ -182,9 +183,141 @@ static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
 		}
 	    }
 	}
+
+      else if (compression == BMP_COMP_RLE8)
+	{
+	  // 8-bit RLE compression.
+
+	  fileOffset = dataStart;
+
+	  // This outer loop is repeated once for each row of pixels
+	  for (count1 = (height - 1); count1 >= 0; count1 --)
+	    {
+	      int endOfBitmap = 0;
+
+	      pixelCounter = (count1 * width);
+
+	      for (pixelRowCounter = 0; pixelRowCounter < width;
+		   pixelRowCounter++)
+		{
+		  int absoluteMode = 0;
+		  int endOfLine = 0;
+
+		  // Check for an escape code.
+		  if (imageFileData[fileOffset] == 0)
+		    {
+		      fileOffset += 1;
+
+		      switch (imageFileData[fileOffset])
+			{
+			case 0:
+			  // Code for end-of-line.
+			  endOfLine = 1;
+			  break;
+
+			case 1:
+			  // Code for end-of-bitmap.
+			  endOfBitmap = 1;
+			  break;
+
+			case 2:
+			  // Code for delta.
+			  kernelError(kernel_error, "RLE bitmap deltas not "
+				      "yet supported");
+			  kernelMemoryRelease(imageFileData);
+			  kernelMemoryRelease(imageData);
+			  return (status = ERR_NOTIMPLEMENTED);
+
+			default:
+			  absoluteMode = 1;
+			  break;
+			}
+
+		      if (endOfLine || endOfBitmap)
+			{
+			  fileOffset += 1;
+			  break;
+			}
+		    }
+
+		  int numBytes = imageFileData[fileOffset];
+
+		  if (absoluteMode)
+		    {
+		      // This is 'absolute mode'.
+
+		      for (count2 = 0; count2 < numBytes; count2++)
+			{
+			  fileOffset += 1;
+			  
+			  // Get the byte that indexes the color
+			  colorIndex = imageFileData[fileOffset];
+			  
+			  if (colorIndex >= colors)
+			    {
+			      kernelError(kernel_error, "Illegal color index "
+					  "%d", colorIndex);
+			      kernelMemoryRelease(imageFileData);
+			      kernelMemoryRelease(imageData);
+			      return (status = ERR_INVALID);
+			    }
+			  
+			  // Convert it to a pixel
+			  imageData[pixelCounter].blue =
+			    palette[colorIndex * 4];
+			  imageData[pixelCounter].green =
+			    palette[(colorIndex * 4) + 1];
+			  imageData[pixelCounter++].red =
+			    palette[(colorIndex * 4) + 2];
+			}
+		      
+		      // If the number of bytes was not word-aligned, skip
+		      // padding bytes
+		      if (numBytes % 2)
+			fileOffset += 1;
+		    }
+		  else
+		    {
+		      // This is 'encoded mode', a normal run.
+		      
+		      fileOffset += 1;
+		      
+		      // Get the byte that indexes the color
+		      colorIndex = imageFileData[fileOffset];
+		      
+		      if (colorIndex >= colors)
+			{
+			  kernelError(kernel_error, "Illegal color index %d",
+				      colorIndex);
+			  kernelMemoryRelease(imageFileData);
+			  kernelMemoryRelease(imageData);
+			  return (status = ERR_INVALID);
+			}
+		      
+		      for (count2 = 0; count2 < numBytes; count2++)
+			{
+			  // Convert it to a pixel
+			  imageData[pixelCounter].blue =
+			    palette[colorIndex * 4];
+			  imageData[pixelCounter].green =
+			    palette[(colorIndex * 4) + 1];
+			  imageData[pixelCounter++].red =
+			    palette[(colorIndex * 4) + 2];
+			}
+		    }
+
+		  fileOffset += 1;
+		}
+
+	      if (endOfBitmap)
+		break;
+	    }
+	}
       else
 	{
 	  // Not supported.  Release the file data and image data memory
+	  kernelError(kernel_error, "Unsupported compression type %d",
+		      compression);
 	  kernelMemoryRelease(imageFileData);
 	  kernelMemoryRelease(imageData);
 	  return (status = ERR_INVALID);
@@ -197,7 +330,7 @@ static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
       kernelMemoryRelease(imageData);
       return (status = ERR_INVALID);
     }
-
+      
   // Release the file data memory
   kernelMemoryRelease(imageFileData);
 
@@ -207,11 +340,6 @@ static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
 
   // Assign the image data to the image
   loadImage->data = imageData;
-
-  // Can't resize yet.
-  if (reqWidth || reqHeight)
-    {
-    }
 
   // Success
   return (status = 0);

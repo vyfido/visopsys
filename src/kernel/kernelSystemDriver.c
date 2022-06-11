@@ -29,7 +29,7 @@
 #include <string.h>
 
 
-static int driverDetect(void *driver, kernelDeviceClass *class,
+static int driverDetect(void *parent, void *driver, kernelDeviceClass *class,
 			kernelDeviceClass *subClass)
 {
   // Just collects some of the common things from the other detect routines
@@ -46,19 +46,21 @@ static int driverDetect(void *driver, kernelDeviceClass *class,
   dev->device.subClass = subClass;
   dev->driver = driver;
 
-  return (status = kernelDeviceAdd(NULL, dev));
+  return (status = kernelDeviceAdd(parent, dev));
 }
 
 
-static int driverDetectCpu(void *driver)
+static int driverDetectCpu(void *parent, void *driver)
 {
-  return (driverDetect(driver, kernelDeviceGetClass(DEVICECLASS_CPU), 0));
+  return (driverDetect(parent, driver,
+		       kernelDeviceGetClass(DEVICECLASS_CPU), 0));
 }
 
 
-static int driverDetectMemory(void *driver)
+static int driverDetectMemory(void *parent, void *driver)
 {
-  return (driverDetect(driver, kernelDeviceGetClass(DEVICECLASS_MEMORY), 0));
+  return (driverDetect(parent, driver,
+		       kernelDeviceGetClass(DEVICECLASS_MEMORY), 0));
 }
 
 

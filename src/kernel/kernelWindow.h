@@ -73,6 +73,8 @@ typedef enum {
   imageComponentType,
   listComponentType,
   listItemComponentType,
+  menuComponentType,
+  menuBarComponentType,
   progressBarComponentType,
   radioButtonComponentType,
   scrollBarComponentType,
@@ -91,6 +93,7 @@ typedef enum {
 // The object that defines a GUI component inside a window
 typedef volatile struct {
   kernelWindowObjectType type;
+  kernelWindowObjectType subType;
   void *window;
   void *container;
   int xCoord;
@@ -405,6 +408,7 @@ int kernelWindowCenterBackground(const char *);
 int kernelWindowScreenShot(image *);
 int kernelWindowSaveScreenShot(const char *);
 int kernelWindowSetTextOutput(kernelWindowComponent *);
+int kernelWindowLayout(kernelWindow *);
 void kernelWindowDebugLayout(kernelWindow *);
 
 // Functions for managing components

@@ -1070,7 +1070,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.61' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.62' , 0
 LOADMSG2	db 'Copyright (C) 1998-2006 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0

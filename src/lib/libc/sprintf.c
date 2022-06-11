@@ -33,16 +33,16 @@ int sprintf(char *output, const char *format, ...)
   // characters copied to the output string.
 
   va_list list;
-  int outputlen = 0;
+  int outputLen = 0;
 
   // Initialize the argument list
   va_start(list, format);
 
   // Fill out the output line based on 
-  outputlen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, format, list);
 
   va_end(list);
 
-  // Return the number of characers we wrote to the string
-  return (outputlen);
+  // Return the number of characters we wrote to the string
+  return (outputLen);
 }

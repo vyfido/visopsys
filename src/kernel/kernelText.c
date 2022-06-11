@@ -192,12 +192,12 @@ int kernelTextInitialize(int columns, int rows)
 		  consoleArea.bytesPerChar)),
 		 (columns * rows * consoleArea.bytesPerChar));
 
-  // Initialize the text drivers
-  kernelTextDriversInitialize();
+  // Initialize the console drivers
+  kernelConsoleDriversInitialize();
 
   // We assign the text mode driver to be the output driver for now.
   consoleOutput->textArea = &consoleArea;
-  consoleOutput->outputDriver = kernelDriverGetTextConsole();
+  consoleOutput->outputDriver = kernelDriverGet(textConsoleDriver);
 
   // Set the foreground/background colors
   if (consoleOutput->outputDriver->setForeground)
@@ -435,7 +435,7 @@ int kernelTextSwitchToGraphics(kernelTextArea *area)
 
   // Assign the text area to the console output stream
   consoleOutput->textArea = area;
-  consoleOutput->outputDriver = kernelDriverGetGraphicConsole();
+  consoleOutput->outputDriver = kernelDriverGet(graphicConsoleDriver);
 
   // Done
   return (status = 0);
@@ -620,7 +620,7 @@ int kernelTextNewOutputStream(kernelTextOutputStream *newStream)
   if (newStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  newStream->outputDriver = kernelDriverGetGraphicConsole();
+  newStream->outputDriver = kernelDriverGet(graphicConsoleDriver);
   newStream->textArea = NULL;
 
   return (status = 0);

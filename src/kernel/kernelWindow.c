@@ -61,6 +61,7 @@ static kernelWindow *focusWindow = NULL;
 static int winThreadPid = 0;
 
 static kernelWindowComponent *draggingComponent = NULL;
+static kernelWindowComponent *activeMenu = NULL;
 static windowEventStream mouseEvents;
 static windowEventStream keyEvents;
 
@@ -998,8 +999,15 @@ static void changeComponentFocus(kernelWindow *window,
 				 kernelWindowComponent *component)
 {
   // Gets called when a component acquires the focus
-  
-  if (window->focusComponent && (component != window->focusComponent))
+
+  if (activeMenu && (component != activeMenu))
+    {
+      activeMenu->flags &= ~WINFLAG_HASFOCUS;
+      if (activeMenu->focus)
+	activeMenu->focus((void *) activeMenu, 0);
+      activeMenu = NULL;
+    }
+  else if (window->focusComponent && (component != window->focusComponent))
     {
       window->focusComponent->flags &= ~WINFLAG_HASFOCUS;
       if (window->focusComponent->focus)
@@ -1009,12 +1017,20 @@ static void changeComponentFocus(kernelWindow *window,
   // This might be NULL.  That is okay.
   window->focusComponent = component;
 
-  if (component && (component->flags & WINFLAG_VISIBLE) &&
-      (component->flags & WINFLAG_CANFOCUS))
+  if (component)
     {
-      component->flags |= WINFLAG_HASFOCUS;
-      if (component->focus)
-	component->focus((void *) component, 1);
+      if ((component->flags & WINFLAG_VISIBLE) &&
+	  (component->flags & WINFLAG_CANFOCUS))
+	{
+	  component->flags |= WINFLAG_HASFOCUS;
+	  if (component->focus)
+	    component->focus((void *) component, 1);
+	}
+	
+      // If it's a menu or menu bar, make it the active menu
+      if ((component->subType == menuComponentType) ||
+	  (component->subType == menuBarComponentType))
+	activeMenu = component;
     }
   
   return;
@@ -3082,6 +3098,47 @@ int kernelWindowSetTextOutput(kernelWindowComponent *component)
 }
 
 
+int kernelWindowLayout(kernelWindow *window)
+{
+  // Layout, or re-layout, the requested window.  This function can be used
+  // when components are added to or removed from and already laid-out window.
+
+  int status = 0;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check parameters
+  if (window == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  return (status = layoutWindow(window));
+}
+
+
+void kernelWindowDebugLayout(kernelWindow *window)
+{
+  // Sets the 'debug layout' flag on the window so that layout grids get
+  // drawn around the components
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return;
+
+  // Check parameters
+  if (window == NULL)
+    return;
+
+  window->flags |= WINFLAG_DEBUGLAYOUT;
+
+  if (window->flags & WINFLAG_VISIBLE)
+    drawWindow(window);
+
+  return;
+}
+
+
 kernelWindowComponent *kernelWindowComponentNew(volatile void *parent,
 						componentParameters *params)
 {
@@ -3096,6 +3153,7 @@ kernelWindowComponent *kernelWindowComponentNew(volatile void *parent,
     return (component);
 
   component->type = genericComponentType;
+  component->subType = genericComponentType;
   component->flags |= (WINFLAG_VISIBLE | WINFLAG_ENABLED);
   component->window = (void *) getWindow(parent);
   // Everything else NULL.
@@ -3543,26 +3601,4 @@ int kernelWindowComponentSetSelected(kernelWindowComponent *component,
     return (ERR_NOSUCHFUNCTION);
 
   return (component->setSelected((void *) component, selected));
-}
-
-
-void kernelWindowDebugLayout(kernelWindow *window)
-{
-  // Sets the 'debug layout' flag on the window so that layout grids get
-  // drawn around the components
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return;
-
-  // Check parameters
-  if (window == NULL)
-    return;
-
-  window->flags |= WINFLAG_DEBUGLAYOUT;
-
-  if (window->flags & WINFLAG_VISIBLE)
-    drawWindow(window);
-
-  return;
 }

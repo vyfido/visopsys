@@ -62,6 +62,7 @@ choices for the first hard disk, hd0.
 #define PARTITIONS         "Partitions on the disk:"
 #define ENTRIES            "Chain-loadable entries for the boot menu:"
 #define WRITTEN            "Boot menu written."
+#define DEFAULTTIMEOUT     10 // Seconds
 
 // Structures we write into the bootmenu
 typedef struct {
@@ -72,6 +73,8 @@ typedef struct {
 typedef struct {
   entryStruct entries[DISK_MAX_PRIMARY_PARTITIONS];
   int numberEntries;
+  int defaultEntry;
+  int timeoutSeconds;
 } entryStructArray;
 
 static int graphics = 0;
@@ -83,8 +86,11 @@ static entryStructArray *entryArray = NULL;
 static objectKey window = NULL;
 static objectKey textArea = NULL;
 static objectKey entryList = NULL;
+static objectKey defaultButton = NULL;
 static objectKey editButton = NULL;
 static objectKey deleteButton = NULL;
+static objectKey timeoutCheckbox = NULL;
+static objectKey timeoutValueField = NULL;
 static objectKey okButton = NULL;
 static objectKey cancelButton = NULL;
 
@@ -124,7 +130,7 @@ static void quit(void)
     {
       windowGuiStop();
       // Crashing?  Eh?
-      //windowDestroy(window);
+      windowDestroy(window);
     }
 
   // Try to deallocate any memory we've allocated
@@ -158,8 +164,9 @@ static void refreshList(void)
   if (graphics)
     {
       for (count = 0; count < entryArray->numberEntries; count ++)
-	strncpy(entryParams[count].text, entryArray->entries[count].string,
-		WINDOW_MAX_LABEL_LENGTH);
+	sprintf(entryParams[count].text, "%s%s",
+		((count == entryArray->defaultEntry)? " * " : "   "),
+		entryArray->entries[count].string);
 
       windowComponentSetData(entryList, entryParams,
 			     entryArray->numberEntries);
@@ -371,7 +378,7 @@ static int readBootMenu(file *theFile)
   int status = 0;
 
   // Open the boot menu program file and read it into memory
-  status = fileOpen(BOOTMENU_FILENAME, OPENMODE_READWRITE, theFile);
+  status = fileOpen(BOOTMENU_FILENAME, OPENMODE_READ, theFile);
   if (status < 0)
     {
       error("Can't open %s file\n", BOOTMENU_FILENAME);
@@ -443,11 +450,24 @@ static void eventHandler(objectKey key, windowEvent *event)
       exit(0);
     }
 
+  if ((key == timeoutCheckbox) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetSelected(timeoutCheckbox, &selected);
+      windowComponentSetEnabled(timeoutValueField, selected);
+    }
+
   if ((key == editButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       windowComponentGetSelected(entryList, &selected);
       if (selected >= 0)
 	editEntryLabel(selected);
+    }
+
+  if ((key == defaultButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    {
+      windowComponentGetSelected(entryList, &selected);
+      entryArray->defaultEntry = selected;
+      refreshList();
     }
 
   if ((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP))
@@ -469,7 +489,9 @@ static void constructWindow(void)
 
   componentParameters params;
   listItemParameters entryParams[DISK_MAX_PRIMARY_PARTITIONS];
+  objectKey timeoutContainer = NULL;
   objectKey buttonContainer = NULL;
+  char tmp[40];
   int count;
 
   // Create a new window, with small, arbitrary size and location
@@ -503,12 +525,13 @@ static void constructWindow(void)
   windowNewTextLabel(window, ENTRIES, &params);
 
   params.gridY = 3;
-  params.gridHeight = 2;
+  params.gridHeight = 3;
   bzero(&entryParams, (DISK_MAX_PRIMARY_PARTITIONS *
 		       sizeof(listItemParameters)));
   for (count = 0; count < entryArray->numberEntries; count ++)
-    strncpy(entryParams[count].text, entryArray->entries[count].string,
-	    WINDOW_MAX_LABEL_LENGTH);
+    sprintf(entryParams[count].text, "%s%s",
+	    ((count == entryArray->defaultEntry)? " * " : "   "),
+	    entryArray->entries[count].string);
   entryList =
     windowNewList(window, windowlist_textonly, DISK_MAX_PRIMARY_PARTITIONS,
 		  1, 0, entryParams, entryArray->numberEntries, &params);
@@ -519,15 +542,40 @@ static void constructWindow(void)
   windowRegisterEventHandler(editButton, &eventHandler);
 
   params.gridY = 4;
+  defaultButton = windowNewButton(window, "Default", NULL, &params);
+  windowRegisterEventHandler(defaultButton, &eventHandler);
+
+  params.gridY = 5;
   deleteButton = windowNewButton(window, "Delete", NULL, &params);
   windowRegisterEventHandler(deleteButton, &eventHandler);
   windowComponentSetEnabled(deleteButton, (entryArray->numberEntries > 1));
 
   params.gridX = 0;
-  params.gridY = 5;
+  params.gridY = 6;
+  params.fixedWidth = 1;
+  timeoutContainer = windowNewContainer(window, "timeout container", &params);
+
+  params.gridX = 0;
+  params.gridY = 0;
+  params.gridWidth = 1;
+  timeoutCheckbox =
+    windowNewCheckbox(timeoutContainer, "Automatically boot default selection "
+		      "after (seconds)", &params);
+  windowComponentSetSelected(timeoutCheckbox, 1);
+  windowRegisterEventHandler(timeoutCheckbox, &eventHandler);
+
+  params.gridX = 1;
+  params.hasBorder = 1;
+  timeoutValueField = windowNewTextField(timeoutContainer, 4, &params);
+  sprintf(tmp, "%d", entryArray->timeoutSeconds);
+  windowComponentSetData(timeoutValueField, tmp, strlen(tmp));
+
+  params.gridX = 0;
+  params.gridY = 7;
   params.gridWidth = 2;
   params.padBottom = 5;
   params.orientationX = orient_center;
+  params.hasBorder = 0;
   buttonContainer = windowNewContainer(window, "button container", &params);
 
   params.gridY = 0;
@@ -535,7 +583,6 @@ static void constructWindow(void)
   params.padTop = 0;
   params.padBottom = 0;
   params.orientationX = orient_right;
-  params.fixedWidth = 1;
   okButton = windowNewButton(buttonContainer, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 
@@ -557,7 +604,25 @@ static void constructWindow(void)
 static int writeOut(unsigned numSectors, disk *physicalDisk)
 {
   int status = 0;
+  int selected = 0;
   char tmpChar[80];
+
+  if (graphics)
+    {
+      windowComponentGetSelected(timeoutCheckbox, &selected);
+
+      if (selected)
+	{
+	  windowComponentGetData(timeoutValueField, tmpChar, 5);
+	  entryArray->timeoutSeconds = atoi(tmpChar);
+	  if (errno || (entryArray->timeoutSeconds < 0) ||
+	      (entryArray->timeoutSeconds > 999))
+	    // User is a dummy.  Ignore them; no timeout.
+	    entryArray->timeoutSeconds = 0;
+	}
+      else
+	entryArray->timeoutSeconds = 0;
+    }
 
   status = diskWriteSectors(physicalDisk->name, 1, numSectors , buffer);
   if (status < 0)
@@ -649,6 +714,7 @@ int main(int argc, char *argv[])
   // The entries come at this offset
   entryArray = (entryStructArray *)(buffer + 4);
   bzero(entryArray, sizeof(entryStructArray));
+  entryArray->timeoutSeconds = DEFAULTTIMEOUT;
 
   // Make strings for each of the logical disks
   for (count = 0; count < numberLogical; count ++)
@@ -713,7 +779,9 @@ int main(int argc, char *argv[])
 		  textSetBackground(foregroundColor);
 		}
 
-	      printf(" %s ", entryArray->entries[count].string);
+	      printf(" %s%s ",
+		     ((count == entryArray->defaultEntry)? " * " : "   "),
+		     entryArray->entries[count].string);
 
 	      if (count == selected)
 		{
@@ -725,8 +793,8 @@ int main(int argc, char *argv[])
 	      printf("\n");
 	    }
 
-	  printf("\n  [Cursor up/down to select, 'e' edit, 'd' delete\n"
-		 "   Enter to accept, 'Q' to quit]");
+	  printf("\n  [Cursor up/down to select, 'e' edit, '*' default\n"
+		 "   'd' delete, Enter to accept, 'Q' to quit]");
 
 	  char character = getchar();
 
@@ -758,6 +826,10 @@ int main(int argc, char *argv[])
 	      editEntryLabel(selected);
 	      textInputSetEcho(0);
 	      textSetCursor(0);
+	      continue;
+
+	    case '*':
+	      entryArray->defaultEntry = selected;
 	      continue;
 
 	    case 'd':

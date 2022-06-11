@@ -29,20 +29,27 @@
 A command for shutting down (and/or rebooting) the computer.
 
 Usage:
-  shutdown [-f]
+  shutdown [-T] [-e] [-f] [-r]
 
-This command causes the system to shut down.  If the (optional) '-f'
-parameter is supplied, then 'shutdown' will attempt to ignore errors and shut
-down regardless.  Use this flag with caution if filesystems do not appear to
-be unmounting correctly; you may need to back up unsaved data before
-shutting down.
+This command causes the system to shut down.  If the (optional) '-e'
+parameter is supplied, then 'shutdown' will attempt to eject the boot
+medium (if applicable, such as a CD-ROM).  If the (optional) '-f' parameter
+is supplied, then it will attempt to ignore errors and shut down
+regardless.  Use this flag with caution if filesystems do not appear to be
+unmounting correctly; you may need to back up unsaved data before shutting
+down.  If the (optional) '-r' parameter is supplied, then it will reboot
+the computer rather than simply halting.
 
 In graphics mode, the program prompts the user to select 'reboot' or
 'shut down'.  If the system is currently booted from a CD-ROM, the dialog
-box also offers a checkbox to eject the disc.
+box also offers a checkbox to eject the disc.  If the '-r' parameter is
+used, the dialog will not appear and the computer will reboot.
 
 Options:
+-T  : Force text mode operation.
+-e  : Eject the boot medium.
 -f  : Force shutdown and ignore errors.
+-r  : Reboot.
 
 </help>
 */
@@ -54,6 +61,14 @@ Options:
 #include <sys/api.h>
 #include <sys/window.h>
 
+#define EJECT_MESS     "Ejecting, please wait..."
+#define NOUNLOCK_MESS  "Unable to unlock the media door"
+#define NOEJECT_MESS   "Can't seem to eject.  Try pushing\nthe 'eject' " \
+                       "button now."
+
+static int graphics = 0;
+static int eject = 0;
+static int reboot = 0;
 static objectKey window = NULL;
 static objectKey rebootIcon = NULL;
 static objectKey shutdownIcon = NULL;
@@ -61,11 +76,66 @@ static objectKey ejectCheckbox = NULL;
 static disk sysDisk;
 
 
-static void eventHandler(objectKey key, windowEvent *event)
+static void doEject(void)
 {
   int status = 0;
-  int selected = 0;
   objectKey bannerDialog = NULL;
+
+  if (graphics)
+    bannerDialog = windowNewBannerDialog(window, "Ejecting", EJECT_MESS);
+  else
+    printf("\n"EJECT_MESS" ");
+
+  if (diskSetLockState(sysDisk.name, 0) < 0)
+    {
+      if (graphics)
+	{
+	  if (bannerDialog)
+	    windowDestroy(bannerDialog);
+      
+	  windowNewErrorDialog(window, "Error", NOUNLOCK_MESS);
+	}
+      else
+	printf("\n\n"NOUNLOCK_MESS"\n");
+    }
+  else
+    {
+      status = diskSetDoorState(sysDisk.name, 1);
+      if (status < 0)
+	{
+	  // Try a second time.  Sometimes 2 attempts seems to help.
+	  status = diskSetDoorState(sysDisk.name, 1);
+
+	  if (status < 0)
+	    {
+	      if (graphics)
+		{
+		  if (bannerDialog)
+		    windowDestroy(bannerDialog);
+
+		  windowNewInfoDialog(window, "Hmm", NOEJECT_MESS);
+		}
+	      else
+		printf("\n\n"NOEJECT_MESS"\n");
+	    }
+	}
+      else
+	{
+	  if (graphics)
+	    {
+	      if (bannerDialog)
+		windowDestroy(bannerDialog);
+	    }
+	  else
+	    printf("\n");
+	}
+    }
+}
+
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+  int selected = 0;
 
   // Check for the window being closed by a GUI event.
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
@@ -84,41 +154,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 	  windowComponentGetSelected(ejectCheckbox, &selected);
 
-	  if (selected == 1)
-	    {
-	      bannerDialog =
-		windowNewBannerDialog(window, "Ejecting", "Ejecting CD, "
-				      "please wait...");
-
-	      if (diskSetLockState(sysDisk.name, 0) < 0)
-		{
-		  if (bannerDialog)
-		    windowDestroy(bannerDialog);
-
-		  windowNewErrorDialog(window, "Error", "Unable to unlock the "
-				       "CD-ROM tray");
-		}
-	      else
-		{
-		  status = diskSetDoorState(sysDisk.name, 1);
-		  if (status < 0)
-		    {
-		      // Try a second time.  Sometimes 2 attempts seems to
-		      // help.
-		      status = diskSetDoorState(sysDisk.name, 1);
-
-		      if (bannerDialog)
-			windowDestroy(bannerDialog);
-		      
-		      if (status < 0)
-			windowNewInfoDialog(window, "Hmm", "Can't seem to "
-					    "eject.  Try pushing\nthe 'eject' "
-					    "button now.");
-		    }
-		  else if (bannerDialog)
-		    windowDestroy(bannerDialog);
-		}
-	    }
+	  if (eject || (selected == 1))
+	    doEject();
 	}
 
       windowDestroy(window);
@@ -175,26 +212,22 @@ static void constructWindow(void)
     }
 
   // Find out whether we are currently running from a CD-ROM
-  bzero(&sysDisk, sizeof(disk));
-  if (!fileGetDisk("/", &sysDisk))
+  if (sysDisk.flags & DISKFLAG_CDROM)
     {
-      if (sysDisk.flags & DISKFLAG_CDROM)
-	{
-	  // Yes.  Make an 'eject cd' checkbox.
-	  params.gridX = 0;
-	  params.gridY = 1;
-	  params.gridWidth = 2;
-	  params.padTop = 0;
-	  params.useDefaultForeground = 0;
-	  params.foreground.red = 255;
-	  params.foreground.green = 255;
-	  params.foreground.blue = 255;
-	  params.useDefaultBackground = 0;
-	  params.background.red = 40;
-	  params.background.green = 93;
-	  params.background.blue = 171;
-	  ejectCheckbox = windowNewCheckbox(window, "Eject CD-ROM", &params);
-	}
+      // Yes.  Make an 'eject cd' checkbox.
+      params.gridX = 0;
+      params.gridY = 1;
+      params.gridWidth = 2;
+      params.padTop = 0;
+      params.useDefaultForeground = 0;
+      params.foreground.red = 255;
+      params.foreground.green = 255;
+      params.foreground.blue = 255;
+      params.useDefaultBackground = 0;
+      params.background.red = 40;
+      params.background.green = 93;
+      params.background.blue = 171;
+      ejectCheckbox = windowNewCheckbox(window, "Eject CD-ROM", &params);
     }
 
   // Register an event handler to catch window close events
@@ -210,15 +243,41 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char opt;
   int force = 0;
 
-  // Shut down forcefully?
-  if (getopt(argc, argv, "f") == 'f')
-    force = 1;
+  // Are graphics enabled?
+  graphics = graphicsAreEnabled();
+
+  while (strchr("Tefr", (opt = getopt(argc, argv, "Tefr"))))
+    {
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+
+      // Eject boot media?
+      if (opt == 'e')
+	eject = 1;
+
+      // Shut down forcefully?
+      if (opt == 'f')
+	force = 1;
+
+      // Reboot?
+      if (opt == 'r')
+	{
+	  graphics = 0;
+	  reboot = 1;
+	}
+    }
+
+  // Get the system disk
+  bzero(&sysDisk, sizeof(disk));
+  fileGetDisk("/", &sysDisk);
 
   // If graphics are enabled, show a query dialog asking whether to shut
   // down or reboot
-  if (graphicsAreEnabled())
+  if (graphics)
     {
       constructWindow();
 
@@ -227,8 +286,11 @@ int main(int argc, char *argv[])
     }
   else
     {
+      if (eject && (sysDisk.flags & DISKFLAG_CDROM))
+	doEject();
+
       // There's a nice system function for doing this.
-      status = shutdown(0, force);
+      status = shutdown(reboot, force);
       if (status < 0)
 	{
 	  if (!force)

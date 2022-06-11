@@ -188,14 +188,14 @@ typedef volatile struct {
   int systemClassCode;
   int systemSubClassCode;
 
-} pciSubClassCode;
+} pciSubClass;
 
 typedef volatile struct {
   int classCode;
   const char name[32];
-  pciSubClassCode *subClass;
+  pciSubClass *subClasses;
 
-} pciClassCode;
+} pciClass;
 
 #define _KERNELPCIDRIVER_H
 #endif

@@ -32,14 +32,14 @@
 #include "kernelError.h"
 #include <string.h>
 
-static pciSubClassCode subclass_old[] = {
+static pciSubClass subclass_old[] = {
   { 0x00, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x01, "VGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_disk[] = {
-  { 0x00, "SCSI", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI},
+static pciSubClass subclass_disk[] = {
+  { 0x00, "SCSI", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI },
   { 0x01, "IDE", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_IDE },
   { 0x02, "floppy", DEVICECLASS_DISK, DEVICESUBCLASS_DISK_FLOPPY },
   { 0x03, "IPI", DEVICECLASS_DISK, DEVICECLASS_NONE },
@@ -47,34 +47,34 @@ static pciSubClassCode subclass_disk[] = {
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_net[] = {
-  { 0x00, "Ethernet", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET},
-  { 0x01, "Token Ring", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE},
-  { 0x02, "FDDI", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE},
-  { 0x03, "ATM", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE},
+static pciSubClass subclass_net[] = {
+  { 0x00, "ethernet", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET },
+  { 0x01, "token ring", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
+  { 0x02, "FDDI", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
+  { 0x03, "ATM", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_graphics[] = {
+static pciSubClass subclass_graphics[] = {
   { 0x00, "VGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
-  { 0x01, "SuperVGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
+  { 0x01, "super VGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
   { 0x02, "XGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_mma[] = {
+static pciSubClass subclass_mma[] = {
   { 0x00, "video", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x01, "audio", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_mem[] = {
+static pciSubClass subclass_mem[] = {
   { 0x00, "RAM", DEVICECLASS_MEMORY, DEVICESUBCLASS_NONE },
-  { 0x01, "Flash", DEVICECLASS_MEMORY, DEVICESUBCLASS_NONE },
+  { 0x01, "flash", DEVICECLASS_MEMORY, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_bridge[] = {
+static pciSubClass subclass_bridge[] = {
   { 0x00, "CPU/PCI", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x01, "PCI/ISA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x02, "PCI/EISA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
@@ -86,13 +86,13 @@ static pciSubClassCode subclass_bridge[] = {
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_comm[] = {
+static pciSubClass subclass_comm[] = {
   { 0x00, "serial", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x01, "parallel", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_sys[] = {
+static pciSubClass subclass_sys[] = {
   { 0x00, "PIC", DEVICECLASS_PIC, DEVICESUBCLASS_NONE },
   { 0x01, "DMAC", DEVICECLASS_DMA, DEVICESUBCLASS_NONE },
   { 0x02, "timer", DEVICECLASS_SYSTIMER, DEVICESUBCLASS_NONE },
@@ -100,38 +100,38 @@ static pciSubClassCode subclass_sys[] = {
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_hid[] = {
-  { 0x00, "keyboard", DEVICECLASS_KEYBOARD, DEVICESUBCLASS_NONE},
+static pciSubClass subclass_hid[] = {
+  { 0x00, "keyboard", DEVICECLASS_KEYBOARD, DEVICESUBCLASS_NONE },
   { 0x01, "digitizer", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x02, "mouse", DEVICECLASS_MOUSE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_dock[] = {
+static pciSubClass subclass_dock[] = {
   { 0x00, "generic", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_cpu[] = {
+static pciSubClass subclass_cpu[] = {
   { 0x00, "386", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
   { 0x01, "486", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
-  { 0x02, "Pentium", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
+  { 0x02, "pentium", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
   { 0x03, "P6", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
-  { 0x10, "Alpha", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
-  { 0x40, "Coprocessor", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
+  { 0x10, "alpha", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
+  { 0x40, "coprocessor", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClassCode subclass_serial[] = {
-  { 0x00, "Firewire", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+static pciSubClass subclass_serial[] = {
+  { 0x00, "firewire", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
   { 0x01, "ACCESS.bus", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
   { 0x02, "SSA", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
-  { 0x03, "USB", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
-  { 0x04, "Fiber Channel", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x03, "USB", DEVICECLASS_BUS, DEVICESUBCLASS_BUS_USB },
+  { 0x04, "fiber channel", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciClassCode pciClassNames[] = {
+static pciClass pciClassNames[] = {
   { 0x00, "before PCI 2.0", subclass_old },
   { 0x01, "disk controller", subclass_disk },
   { 0x02, "network interface", subclass_net },
@@ -253,9 +253,9 @@ static void readConfigHeader(int bus, int dev, int function,
 }
 
 
-static void getClass(int classCode, pciClassCode **class)
+static void getClass(int classCode, pciClass **class)
 {
-  // Return the PCI class, given the class codes
+  // Return the PCI class, given the class code
 
   int count;
 
@@ -278,6 +278,32 @@ static void getClass(int classCode, pciClassCode **class)
 }
 
 
+static void getSubClass(pciClass *class, int subClassCode,
+			pciSubClass **subClass)
+{
+  // Return the PCI subclass, given the class and subclass code
+
+  int count;
+
+  for (count = 0; count < 256; count++)
+    {	
+      // If no more subclass codes are in the list
+      if (class->subClasses[count].subClassCode == PCI_INVALID_SUBCLASSCODE)
+	{
+	  *subClass = NULL;
+	  return;
+	}
+		
+      // If valid subclass code is found
+      if (class->subClasses[count].subClassCode == subClassCode)
+	{
+	  *subClass = &(class->subClasses[count]);
+	  return;
+	}
+    }
+}
+
+
 static int getClassName(int classCode, int subClassCode, char **className,
 			char **subClassName)
 {
@@ -285,26 +311,8 @@ static int getClassName(int classCode, int subClassCode, char **className,
   // Buffers classname and subclassname have to provide
 
   int status = 0;
-  pciClassCode *class = NULL;
-  pciSubClassCode *subClass = NULL;
-  int count;
-
-  for (count = 0; count < 256; count++)
-    {	
-      // If no more classcodes are in the list
-      if (pciClassNames[count].classCode == PCI_INVALID_CLASSCODE)
-	{
-	  *className = (char *) invalidDevice;
-	  return (status = PCI_INVALID_CLASSCODE);
-	}
-		
-      // If valid classcode is found
-      if (pciClassNames[count].classCode == classCode)
-	{
-	  *className = (char *) pciClassNames[count].name;
-	  break;
-	}
-    }
+  pciClass *class = NULL;
+  pciSubClass *subClass = NULL;
 
   getClass(classCode, &class);
   if (class == NULL)
@@ -313,33 +321,24 @@ static int getClassName(int classCode, int subClassCode, char **className,
       return (status = PCI_INVALID_CLASSCODE);
     }
 
-  *className = (char *) pciClassNames[count].name;
+  *className = (char *) class->name;
 
   // Subclasscode 0x80 is always other
   if (subClassCode == 0x80)
     {
       *subClassName = (char *) otherDevice;
-      return (status);
+      return (status = 0);
     }
 
-  subClass = class->subClass;
-
-  for (count = 0; count < 256; count++)
+  getSubClass(class, subClassCode, &subClass);
+  if (subClass == NULL)
     {
-      if (subClass[count].subClassCode == PCI_INVALID_SUBCLASSCODE)
-	{
-	  *subClassName = (char *) invalidDevice;
-	  return (status = PCI_INVALID_SUBCLASSCODE);
-	}
-	
-      if (subClass[count].subClassCode == subClassCode)
-	{
-	  *subClassName = (char *) subClass[count].name;
-	  break;
-	}
+      *subClassName = (char *) invalidDevice;
+      return (status = PCI_INVALID_SUBCLASSCODE);
     }
 
-  return (status);
+  *subClassName = (char *) subClass->name;
+  return (status = 0);
 }
 
 
@@ -348,15 +347,20 @@ static void deviceInfo2BusTarget(int bus, int dev, int function,
 {
   // Translate a device info header to a bus target listing
 
-  pciClassCode *class = NULL;
+  pciClass *class = NULL;
+  pciSubClass *subClass = NULL;
 
   getClass(info->device.classCode, &class);
   if (class == NULL)
     return;
 
+  getSubClass(class, info->device.subClassCode, &subClass);
+  if (subClass == NULL)
+    return;
+
   target->target = makeTargetCode(bus, dev, function);
-  target->class = kernelDeviceGetClass(class->subClass->systemClassCode);
-  target->subClass = kernelDeviceGetClass(class->subClass->systemSubClassCode);
+  target->class = kernelDeviceGetClass(subClass->systemClassCode);
+  target->subClass = kernelDeviceGetClass(subClass->systemSubClassCode);
 }
 
 
@@ -375,10 +379,6 @@ static int driverGetTargetInfo(int target, void *pointer)
 
   int status = 0;
   int bus, dev, function;
-
-  // Check params
-  if (pointer == NULL)
-    return (status = ERR_NULLPARAMETER);
 
   makeBusDevFunc(target, bus, dev, function);
   readConfigHeader(bus, dev, function, pointer);
@@ -505,7 +505,7 @@ static int driverSetMaster(int target, int master)
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent, void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.
@@ -528,8 +528,6 @@ static int driverDetect(void *driver)
     // No device that uses configuration mechanism #1.  Fine enough: No PCI
     // functionality for you.
     return (status = 0);
-
-  kernelLog("PCI controller found");
 
   // First count all the devices on the bus
   for (busCount = 0; busCount < PCI_MAX_BUSES; busCount ++) 
@@ -566,7 +564,7 @@ static int driverDetect(void *driver)
       for (functionCount = 0; functionCount < PCI_MAX_FUNCTIONS;
 	   functionCount ++) 
 	{
-	  // Just read the first dword of the header tp get the device and
+	  // Just read the first dword of the header to get the device and
 	  // vendor IDs
 	  readConfig32(busCount, deviceCount, functionCount, 0,
 		       &(pciDevice.header[0]));
@@ -584,8 +582,8 @@ static int driverDetect(void *driver)
 		       pciDevice.device.subClassCode, &className,
 		       &subclassName);
 
-	  kernelLog("PCI: %s %s %u:%u:%u dev:%x, vend:%x, class:%x, "
-		    "sub:%u", className, subclassName, busCount,
+	  kernelLog("PCI: %s %s %u:%u:%u dev:%04x, vend:%04x, class:%02x, "
+		    "sub:%02x", subclassName, className, busCount,
 		    deviceCount, functionCount, pciDevice.device.deviceID,
 		    pciDevice.device.vendorID, pciDevice.device.classCode,
 		    pciDevice.device.subClassCode); 
@@ -604,7 +602,15 @@ static int driverDetect(void *driver)
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI);
   dev->driver = driver;
 
-  return (status = kernelDeviceAdd(NULL, dev));
+  status = kernelDeviceAdd(parent, dev);
+  if (status < 0)
+    return (status);
+
+  status = kernelBusRegister(bus_pci, dev);
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
 }
 
 
@@ -615,7 +621,9 @@ static kernelBusOps pciOps = {
   driverReadRegister,
   driverWriteRegister,
   driverDeviceEnable,
-  driverSetMaster
+  driverSetMaster,
+  NULL, // driverRead
+  NULL  // driverWrite
 };
 
 

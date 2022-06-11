@@ -68,9 +68,11 @@
 #define DISKFLAG_SCSICDROM            0x00000020
 #define DISKFLAG_IDECDROM             0x00000010
 #define DISKFLAG_CDROM                (DISKFLAG_SCSICDROM | DISKFLAG_IDECDROM)
+#define DISKFLAG_FLASHDISK            0x00000004
 #define DISKFLAG_SCSIDISK             0x00000002
 #define DISKFLAG_IDEDISK              0x00000001
-#define DISKFLAG_HARDDISK             (DISKFLAG_SCSIDISK | DISKFLAG_IDEDISK)
+#define DISKFLAG_HARDDISK             (DISKFLAG_FLASHDISK | \
+                                       DISKFLAG_SCSIDISK | DISKFLAG_IDEDISK)
 
 // This structure is used to describe a known partition type
 typedef struct {

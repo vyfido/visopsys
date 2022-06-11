@@ -211,6 +211,8 @@ kernelWindowComponent *kernelWindowNewMenu(volatile void *parent,
   if (component == NULL)
     return (component);
 
+  component->subType = menuComponentType;
+
   // Don't want this resized
   component->flags &= ~WINFLAG_RESIZABLE;
 

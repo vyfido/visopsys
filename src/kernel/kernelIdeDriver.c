@@ -1081,7 +1081,7 @@ static int driverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent, void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also does
@@ -1097,7 +1097,7 @@ static int driverDetect(void *driver)
   unsigned short buffer[256];
   kernelDevice *devices = NULL;
 
-  kernelLog("Examining hard disks...");
+  kernelLog("Examining IDE disks...");
 
   // Clear the controller and disk memory
   kernelMemClear(controllers, (sizeof(ideController) * (MAX_IDE_DISKS / 2)));
@@ -1333,7 +1333,7 @@ static int driverDetect(void *driver)
 	  if (status < 0)
 	    return (status);
 
-	  status = kernelDeviceAdd(NULL, &devices[driveNum]);
+	  status = kernelDeviceAdd(parent, &devices[driveNum]);
 	  if (status < 0)
 	    return (status);
 	}

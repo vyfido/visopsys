@@ -407,6 +407,10 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowSaveScreenShot, kernelWindowSaveScreenShot, 
     1, PRIVILEGE_USER },
   { _fnum_windowSetTextOutput, kernelWindowSetTextOutput, 1, PRIVILEGE_USER },
+  { _fnum_windowLayout, kernelWindowLayout, 1, PRIVILEGE_USER },
+  { _fnum_windowDebugLayout, kernelWindowDebugLayout, 1, PRIVILEGE_USER },
+  { _fnum_windowComponentDestroy, kernelWindowComponentDestroy,
+    1, PRIVILEGE_USER },
   { _fnum_windowComponentSetVisible, kernelWindowComponentSetVisible,
     2, PRIVILEGE_USER },
   { _fnum_windowComponentSetEnabled, kernelWindowComponentSetEnabled,
@@ -450,8 +454,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowNewScrollBar, kernelWindowNewScrollBar, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextArea, kernelWindowNewTextArea, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextField, kernelWindowNewTextField, 3, PRIVILEGE_USER },
-  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER },
-  { _fnum_windowDebugLayout, kernelWindowDebugLayout, 1, PRIVILEGE_USER }
+  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex userFunctionIndex[] = {

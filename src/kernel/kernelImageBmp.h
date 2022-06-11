@@ -34,8 +34,8 @@
 #define BMP_BPP_32BIT 32
 
 #define BMP_COMP_NONE 0
-#define BMP_COMP_RLE4 1
-#define BMP_COMP_RLE8 2
+#define BMP_COMP_RLE8 1
+#define BMP_COMP_RLE4 2
 #define BMP_COMP_BITF 3
 
 // The .bmp header

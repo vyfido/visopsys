@@ -303,37 +303,39 @@ extern int visopsys_in_kernel;
 #define _fnum_windowScreenShot                       12028
 #define _fnum_windowSaveScreenShot                   12029
 #define _fnum_windowSetTextOutput                    12030
-#define _fnum_windowComponentSetVisible              12031
-#define _fnum_windowComponentSetEnabled              12032
-#define _fnum_windowComponentGetWidth                12033
-#define _fnum_windowComponentSetWidth                12034
-#define _fnum_windowComponentGetHeight               12035
-#define _fnum_windowComponentSetHeight               12036
-#define _fnum_windowComponentFocus                   12037
-#define _fnum_windowComponentDraw                    12038
-#define _fnum_windowComponentGetData                 12039
-#define _fnum_windowComponentSetData                 12040
-#define _fnum_windowComponentGetSelected             12041
-#define _fnum_windowComponentSetSelected             12042
-#define _fnum_windowNewButton                        12043
-#define _fnum_windowNewCanvas                        12044
-#define _fnum_windowNewCheckbox                      12045
-#define _fnum_windowNewContainer                     12046
-#define _fnum_windowNewIcon                          12047
-#define _fnum_windowNewImage                         12048
-#define _fnum_windowNewList                          12049
-#define _fnum_windowNewListItem                      12050
-#define _fnum_windowNewMenu                          12051
-#define _fnum_windowNewMenuBar                       12052
-#define _fnum_windowNewMenuItem                      12053
-#define _fnum_windowNewPasswordField                 12054
-#define _fnum_windowNewProgressBar                   12055
-#define _fnum_windowNewRadioButton                   12056
-#define _fnum_windowNewScrollBar                     12057
-#define _fnum_windowNewTextArea                      12058
-#define _fnum_windowNewTextField                     12059
-#define _fnum_windowNewTextLabel                     12060
-#define _fnum_windowDebugLayout                      12061
+#define _fnum_windowLayout                           12031
+#define _fnum_windowDebugLayout                      12032
+#define _fnum_windowComponentDestroy                 12033
+#define _fnum_windowComponentSetVisible              12034
+#define _fnum_windowComponentSetEnabled              12035
+#define _fnum_windowComponentGetWidth                12036
+#define _fnum_windowComponentSetWidth                12037
+#define _fnum_windowComponentGetHeight               12038
+#define _fnum_windowComponentSetHeight               12039
+#define _fnum_windowComponentFocus                   12040
+#define _fnum_windowComponentDraw                    12041
+#define _fnum_windowComponentGetData                 12042
+#define _fnum_windowComponentSetData                 12043
+#define _fnum_windowComponentGetSelected             12044
+#define _fnum_windowComponentSetSelected             12045
+#define _fnum_windowNewButton                        12046
+#define _fnum_windowNewCanvas                        12047
+#define _fnum_windowNewCheckbox                      12048
+#define _fnum_windowNewContainer                     12049
+#define _fnum_windowNewIcon                          12050
+#define _fnum_windowNewImage                         12051
+#define _fnum_windowNewList                          12052
+#define _fnum_windowNewListItem                      12053
+#define _fnum_windowNewMenu                          12054
+#define _fnum_windowNewMenuBar                       12055
+#define _fnum_windowNewMenuItem                      12056
+#define _fnum_windowNewPasswordField                 12057
+#define _fnum_windowNewProgressBar                   12058
+#define _fnum_windowNewRadioButton                   12059
+#define _fnum_windowNewScrollBar                     12060
+#define _fnum_windowNewTextArea                      12061
+#define _fnum_windowNewTextField                     12062
+#define _fnum_windowNewTextLabel                     12063
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -2280,6 +2282,27 @@ _X_ static inline int windowSetTextOutput(objectKey key)
   return (sysCall_1(_fnum_windowSetTextOutput, key));
 }
 
+_X_ static inline int windowLayout(objectKey window)
+{
+  // Proto: int kernelWindowLayout(kernelWindow *);
+  // Desc : Layout, or re-layout, the requested window 'window'.  This function can be used when components are added to or removed from and already laid-out window.
+  return (sysCall_1(_fnum_windowLayout, window));
+}
+
+_X_ static inline void windowDebugLayout(objectKey window)
+{
+  // Proto: void kernelWindowDebugLayout(kernelWindow *);
+  // Desc : This function draws grid boxes around all the grid cells containing components (or parts thereof)
+  sysCall_1(_fnum_windowDebugLayout, window);
+}
+
+_X_ static inline void windowComponentDestroy(objectKey component)
+{
+  // Proto: void kernelWindowComponentDestroy(kernelWindowComponent *);
+  // Desc : Deallocate and destroy a window component.
+  sysCall_1(_fnum_windowComponentDestroy, component);
+}
+
 _X_ static inline int windowComponentSetVisible(objectKey component, int visible)
 {
   // Proto: int kernelWindowComponentSetVisible(kernelWindowComponent *, int);
@@ -2362,7 +2385,6 @@ _X_ static inline int windowComponentGetSelected(objectKey component, int *selec
   return (sysCall_2(_fnum_windowComponentGetSelected, component, selection));
 }
 
-
 _X_ static inline int windowComponentSetSelected(objectKey component, int selected)
 {
   // Proto: int kernelWindowComponentSetSelected(kernelWindowComponent *, int);
@@ -2394,7 +2416,6 @@ _X_ static inline objectKey windowNewCheckbox(objectKey parent, const char *text
   return ((objectKey) sysCall_3(_fnum_windowNewCheckbox, parent, (void *) text,
 				params));
 }
-
 
 _X_ static inline objectKey windowNewContainer(objectKey parent, const char *name, componentParameters *params)
 {
@@ -2517,14 +2538,6 @@ _X_ static inline objectKey windowNewTextLabel(objectKey parent, const char *tex
   // Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_3(_fnum_windowNewTextLabel, parent,
 				(void *) text, params));
-}
-
-
-_X_ static inline void windowDebugLayout(objectKey window)
-{
-  // Proto: void kernelWindowDebugLayout(kernelWindow *);
-  // Desc : This function draws grid boxes around all the grid cells containing components (or parts thereof)
-  sysCall_1(_fnum_windowDebugLayout, window);
 }
 
 

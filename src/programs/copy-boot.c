@@ -160,6 +160,13 @@ static int readBootsect(const char *inputName, unsigned char *bootSect)
 	}
     }
 
+  if ((bootSect[510] != 0x55) || (bootSect[511] != 0xAA))
+    {
+      DEBUG("%s is not a valid boot sector\n", inputName);
+      errno = EINVAL;
+      return (-1);
+    }
+
   return (errno = status = 0);
 }
 
@@ -350,14 +357,14 @@ static int setOsLoaderParams(const char *outputName,
 	    }
 	}
 
-      *firstUserSector = ((unsigned) fat32Header->common1.reservedSectors +
-			  ((unsigned) fat32Header->common1.numberOfFats *
-			   fatSectors) +
-			  ((((unsigned) fat32Info->firstFreeCluster) - 2) *
-			   (unsigned) fat32Header->common1.sectorsPerCluster));
+      *firstUserSector =
+	((unsigned) fat32Header->common1.reservedSectors +
+	 ((unsigned) fat32Header->common1.numberOfFats * fatSectors) +
+	 ((((unsigned) fat32Info->firstFreeCluster) - 2) *
+	  (unsigned) fat32Header->common1.sectorsPerCluster));
     }
 
-  DEBUG("First user sector is %u\n", *firstUserSector);
+  DEBUG("First user sector for OS loader is %u\n", *firstUserSector);
   
   bzero(&statBuff, sizeof(struct stat));
   status = stat(osLoader, &statBuff);
@@ -384,7 +391,7 @@ static int writeBootsect(const char *outputName, unsigned char *bootSect)
   DEBUG("Write boot sector to %s\n", outputName);
 
 #ifdef VISOPSYS
-  // Is the detination a Visopsys disk name?
+  // Is the destination a Visopsys disk name?
   if (outputName[0] != '/')
     {
       status = diskWriteSectors(outputName, 0, 1, bootSect);

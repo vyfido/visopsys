@@ -397,7 +397,7 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 }
 
 
-static int driverDetect(void *driver)
+static int driverDetect(void *parent __attribute__((unused)), void *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also issues the
@@ -405,7 +405,6 @@ static int driverDetect(void *driver)
 
   int status = 0;
   kernelDevice *pciDevice = NULL;
-  kernelBusOps *ops = NULL;
   kernelBusTarget *busTargets = NULL;
   int numBusTargets = 0;
   pciDeviceInfo pciDevInfo;
@@ -430,11 +429,9 @@ static int driverDetect(void *driver)
   if (status <= 0)
     return (status);
 
-  ops = (kernelBusOps *) pciDevice->driver->ops;
-
   // Search the PCI bus(es) for devices
-  numBusTargets = ops->driverGetTargets(&busTargets);
-  if (busTargets == NULL)
+  numBusTargets = kernelBusGetTargets(bus_pci, &busTargets);
+  if (numBusTargets <= 0)
     return (status = ERR_NODATA);
 
   // Search the bus targets for ethernet adapters
@@ -449,8 +446,8 @@ static int driverDetect(void *driver)
 	continue;
 
       // Get the PCI device header
-      status =
-	ops->driverGetTargetInfo(busTargets[deviceCount].target, &pciDevInfo);
+      status = kernelBusGetTargetInfo(bus_pci, busTargets[deviceCount].target,
+				      &pciDevInfo);
       if (status < 0)
 	continue;
 
@@ -466,15 +463,10 @@ static int driverDetect(void *driver)
       // After this point, we know we have a supported device.
 
       // Enable the device on the PCI bus as a bus msater
-      if ((ops->driverDeviceEnable(busTargets[deviceCount].target, 1) < 0) ||
-	  (ops->driverSetMaster(busTargets[deviceCount].target, 1) < 0))
+      if ((kernelBusDeviceEnable(bus_pci, busTargets[deviceCount].target, 1)
+	   < 0) ||
+	  (kernelBusSetMaster(bus_pci, busTargets[deviceCount].target, 1) < 0))
 	continue;
-
-      // Allocate memory for the device
-      dev = kernelMalloc(sizeof(kernelDevice));
-      adapter = kernelMalloc(sizeof(kernelNetworkDevice));
-      lance = kernelMalloc(sizeof(lanceDevice));
-      adapter->data = lance;
 
       // Check the first 2 base addresses for I/O and memory addresses.
       // For the time being, we are only implementing I/O mapping, as opposed
@@ -484,28 +476,52 @@ static int driverDetect(void *driver)
       if (!(pciDevInfo.device.nonBridge.baseAddress[0] & 1))
 	{
 	  kernelError(kernel_error, "Unknown adapter I/O address");
-	  kernelFree(dev);
 	  continue;
 	}
+
+      // Allocate memory for the device
+      dev = kernelMalloc(sizeof(kernelDevice));
+      if (dev == NULL)
+	{
+	  kernelFree(busTargets);
+	  return (status = ERR_MEMORY);
+	}
+      adapter = kernelMalloc(sizeof(kernelNetworkDevice));
+      if (adapter == NULL)
+	{
+	  kernelFree(busTargets);
+	  kernelFree(dev);
+	  return (status = ERR_MEMORY);
+	}
+      lance = kernelMalloc(sizeof(lanceDevice));
+      if (lance == NULL)
+	{
+	  kernelFree(busTargets);
+	  kernelFree(dev);
+	  kernelFree((void *) adapter);
+	  return (status = ERR_MEMORY);
+	}
+      adapter->data = lance;
 
       lance->ioAddress =
 	(void *) (pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFFC);
 
       // Determine the I/O space size.  Write all 1s to the register.
-      ops->driverWriteRegister(busTargets[deviceCount].target,
-			       PCI_CONFREG_BASEADDRESS0, 32, 0xFFFFFFFF);
+      kernelBusWriteRegister(bus_pci, busTargets[deviceCount].target,
+			     PCI_CONFREG_BASEADDRESS0, 32, 0xFFFFFFFF);
 
       shift = 2;
       lance->ioSpaceSize = 4;
-      ioSpaceSize = ops->driverReadRegister(busTargets[deviceCount].target,
-					    PCI_CONFREG_BASEADDRESS0, 32);
+      ioSpaceSize =
+	kernelBusReadRegister(bus_pci, busTargets[deviceCount].target,
+			      PCI_CONFREG_BASEADDRESS0, 32);
       while (!((ioSpaceSize >> shift++) & 1))
 	lance->ioSpaceSize *= 2;
 
       // Restore the register we clobbered.
-      ops->driverWriteRegister(busTargets[deviceCount].target,
-			       PCI_CONFREG_BASEADDRESS0, 32,
-			       pciDevInfo.device.nonBridge.baseAddress[0]);
+      kernelBusWriteRegister(bus_pci, busTargets[deviceCount].target,
+			     PCI_CONFREG_BASEADDRESS0, 32,
+			     pciDevInfo.device.nonBridge.baseAddress[0]);
 
       adapter->device.flags =
 	(NETWORK_ADAPTERFLAG_AUTOPAD | NETWORK_ADAPTERFLAG_AUTOSTRIP |
@@ -682,6 +698,7 @@ static int driverDetect(void *driver)
       status = kernelNetworkDeviceRegister(dev);
       if (status < 0)
 	{
+	  kernelFree(busTargets);
 	  kernelFree(dev);
 	  return (status);
 	}
@@ -689,11 +706,13 @@ static int driverDetect(void *driver)
       status = kernelDeviceAdd(pciDevice, dev);
       if (status < 0)
 	{
+	  kernelFree(busTargets);
 	  kernelFree(dev);
 	  return (status);
 	}
     }
 
+  kernelFree(busTargets);
   return (status = 0);
 }
 

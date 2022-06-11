@@ -37,6 +37,7 @@
 #include "kernelRandom.h"
 #include "kernelKeyboard.h"
 #include "kernelNetwork.h"
+#include "kernelUsbDriver.h"
 #include "kernelUser.h"
 #include "kernelWindow.h"
 #include "kernelError.h"
@@ -124,6 +125,33 @@ int kernelInitialize(unsigned kernelMemory)
   if (status < 0)
     return (status);
 
+  // Initialize the descriptor tables (GDT and IDT)
+  status = kernelDescriptorInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Descriptor table initialization failed");
+      return (status);
+    }
+
+  // Do device initialization
+  status = kernelDeviceInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Hardware initialization failed");
+      return (status);
+    }
+
+  // Initialize the interrupt vector tables and default handlers.  Note
+  // that interrupts are not enabled here; that is done during hardware
+  // enumeration after the Programmable Interrupt Controller has been
+  // set up.
+  status = kernelInterruptInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Interrupt vector initialization failed");
+      return (status);
+    }
+
   // Initialize the text screen output.  This needs to be done after paging
   // has been initialized so that our screen memory can be mapped to a
   // virtual memory address.
@@ -141,6 +169,14 @@ int kernelInitialize(unsigned kernelMemory)
     kernelMemCopy(consoleOutput->textArea->savedScreen, savedScreen,
 		  (80 * 50 * bytesPerChar));
 
+  // Do display device detection
+  status = kernelDeviceDetectDisplay();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Display initialization failed");
+      return (status);
+    }
+
   // Clear the screen
   kernelTextScreenClear();
 
@@ -152,7 +188,7 @@ int kernelInitialize(unsigned kernelMemory)
       return (status);
     }
 
-  // Disable console logging after this point, since it fills up the screen
+  // Disable console logging by default, since it fills up the screen
   // with unnecessary details.
   kernelLogSetToConsole(0);
 
@@ -161,41 +197,29 @@ int kernelInitialize(unsigned kernelMemory)
 	  "McLaughlin", kernelVersion[0], kernelVersion[1]);
   kernelLog(welcomeMessage);
 
-  // Initialize the descriptor tables (GDT and IDT)
-  status = kernelDescriptorInitialize();
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Descriptor table initialization failed");
-      return (status);
-    }
-
-  // Initialize the interrupt vector tables and default handlers.  Note
-  // that interrupts are not enabled here; that is done during hardware
-  // enumeration after the Programmable Interrupt Controller has been
-  // set up.
-  status = kernelInterruptInitialize();
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Interrupt vector initialization failed");
-      return (status);
-    }
-
-  status = kernelDeviceInitialize();
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Hardware initialization failed");
-      return (status);
-    }
-
-  // Now that enough things have been initialized, we can print the
-  // welcome message.
+  // Print the welcome message.
   kernelTextPrintLine("%s\nStarting, one moment please...", welcomeMessage);
+
+  // Do general device detection
+  status = kernelDeviceDetect();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Hardware detection failed");
+      return (status);
+    }
 
   // Initialize the multitasker
   status = kernelMultitaskerInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "Multitasker initialization failed");
+      return (status);
+    }
+
+  status = kernelUsbInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "USB initialization failed");
       return (status);
     }
 

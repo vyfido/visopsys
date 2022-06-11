@@ -156,7 +156,6 @@ typedef struct {
 // The network adapter structure
 typedef volatile struct {
   networkDevice device;
-  // Interrupt number
   kernelDhcpConfig dhcpConfig;
   lock adapterLock;
   kernelArpCacheItem arpCache[NETWORK_ARPCACHE_SIZE];

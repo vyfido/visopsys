@@ -151,7 +151,6 @@ static int requestBlock(int processId, unsigned requestedSize,
   int foundBlock = 0;
   unsigned count;
 
-
   // If the requested block size is zero, forget it.  We can probably
   // assume something has gone wrong in the calling program
   if (requestedSize == 0)

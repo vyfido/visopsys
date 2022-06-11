@@ -44,6 +44,6 @@ int vsnprintf(char *output, size_t size, const char *format, va_list list)
 
   strncpy(output, tmpOutput, size);
 
-  // Return the number of characers we wrote to the string
+  // Return the number of characters we wrote to the string
   return (min(outputLen, (int) size));
 }

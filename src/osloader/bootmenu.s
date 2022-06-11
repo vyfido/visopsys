@@ -55,6 +55,8 @@ main:
 	times bootTarget_size	db 0
 	IEND
 	NUM_TARGETS		dd 0
+	DEFAULT_ENTRY		dd 0
+	TIMEOUT_SECONDS		dd 0
 
 
 bootCode:
@@ -119,6 +121,17 @@ bootCode:
 	.stop1: jmp .stop1
 
 	.okChoices:
+
+	;; Get the default
+	mov EAX, dword [DEFAULT_ENTRY]
+	mov word [SELECTEDTARGET], AX
+
+	;; Read the current RTC seconds value
+	call readTimer
+	mov word [RTCSECONDS], AX
+	mov EAX, dword [TIMEOUT_SECONDS]
+	mov word [TIMEOUTSECS], AX
+	
 	;; Disable the cursor
 	mov CX, 2000h
 	mov AH, 01h
@@ -127,6 +140,38 @@ bootCode:
 	.showChoices:
 	call display
 
+	.waitKey:
+
+	cmp dword [TIMEOUT_SECONDS], 0
+	je .noSecond
+	;; Check for timeout
+	call readTimer
+	cmp word [RTCSECONDS], AX
+	je .noSecond
+	mov word [RTCSECONDS], AX
+	mov AH, 02
+	mov BH, VIDEOPAGE 
+	mov DX, word [TIMEOUTSECPOS]
+	int 10h
+	push word [TIMEOUTSECS]
+	call printNumber
+	push word TIMEOUT2
+	call print
+	add SP, 4
+	cmp word [TIMEOUTSECS], 0
+	je .bootSelected	; Timer reached zero
+	sub word [TIMEOUTSECS], 1
+	.noSecond:
+	
+	;; Check for a key press
+	mov AX, 0100h
+	int 16h
+	jz .waitKey
+
+	;; Cancel the countdown timer
+	mov dword [TIMEOUT_SECONDS], 0
+
+	;; Read the key press
 	mov AX, 0000h
 	int 16h
 
@@ -267,6 +312,23 @@ display:
 	call print
 	add SP, 2
 
+	cmp dword [TIMEOUT_SECONDS], 0
+	je .noTimeout
+	;; Print a message about the timeout
+	push word TIMEOUT1
+	call print
+	;; Get the cursor position
+	mov AH, 03
+	mov BH, VIDEOPAGE 
+	int 10h
+	mov word [TIMEOUTSECPOS], DX
+	push word [TIMEOUTSECS]
+	call printNumber
+	push word TIMEOUT2
+	call print
+	add SP, 6
+	.noTimeout:
+	
 	popa
 	ret
 
@@ -340,7 +402,40 @@ clearScreen:
 	popa
 	ret
 
+	
+readTimer:
+	;; Save a word on the stack for our return value
+	push word 0
 
+	;; Save regs
+	pusha
+
+	;; Save the stack pointer
+	mov BP, SP
+
+	;; Wait for the RTC controller to be ready
+	.waitRtc:
+	mov AX, 000Ah
+	out 70h, AL
+	in AL, 71h
+	bt AX, 7
+	jc .waitRtc
+
+	;; Read the seconds register, disabling NMI
+	mov AX, 0080h
+	out 70h, AL
+	in AL, 71h
+	mov word [SS:(BP + 16)], AX
+	;; Re-enable NMI
+	mov AL, 0
+	out 70h, AL
+	
+	popa
+	xor EAX, EAX
+	pop AX			; Result
+	ret
+
+	
 indent:
 	pusha
 
@@ -399,14 +494,69 @@ print:
 	ret
 
 
+printNumber:
+	pusha
+
+	;; Save SP
+	mov BP, SP
+
+	xor EAX, EAX
+	mov AX, word [SS:(BP + 18)]
+
+	mov dword [REMAINDER], EAX
+	mov ECX, 1000000000
+	mov byte [LEADZERO], 01h
+
+	.nextChar:
+
+	xor EDX, EDX
+	mov EAX, dword [REMAINDER]
+	div ECX
+	mov dword [REMAINDER], EDX
+
+	cmp EAX, 0
+	jne .notZero
+	cmp ECX, 1
+	je .notZero ;; If the value is 0 we still want it to print
+
+	cmp byte [LEADZERO], 01h
+	je .afterPrint
+
+	.notZero:
+	mov byte [LEADZERO], 00h
+	mov SI, TALLY
+	shl AX, 1
+	add SI, AX
+
+	;; Print a digit on the screen
+	push word SI
+	call print
+	add SP, 2
+
+	.afterPrint:
+	;; Decrease ECX
+	xor EDX, EDX
+	mov EAX, ECX
+	mov ECX, 10
+	div ECX
+	mov ECX, EAX
+
+	cmp ECX, 0
+	ja .nextChar
+
+	popa
+	ret
+
+
 IOError:
 	;; If we got a fatal IO error or something, we just have to print
 	;; an error and try to let the BIOS select another device to boot.
 	;; This isn't very helpful, but unfortunately this piece of code
 	;; is too small to do very much else.
 
-	mov SI, IOERR
+	push word IOERR
 	call print
+	add SP, 2
 	
 	int 18h
 
@@ -505,6 +655,8 @@ LOADMSG		db 0Dh, 0Ah, ' Visopsys Boot Menu' , 0Dh, 0Ah
 		db 0Dh, 0Ah, 0
 NOTARGETS	db ' No targets to boot!  Did you run the installer program?'
 		db 0Dh, 0Ah, 0
+TIMEOUT1	db 0Dh, 0Ah, ' Default selection will boot in ', 0
+TIMEOUT2	db ' seconds.   ', 0Dh, 0Ah, 0
 CHOOSE		db 0Dh, 0Ah, ' Please choose the partition to boot:', 0Dh, 0Ah
 		db 0Dh, 0Ah, 0
 NOSUCHENTRY	db ' No such partition table entry to boot!', 0Dh, 0Ah, 0
@@ -518,6 +670,17 @@ BGCOLOR		db BACKGROUNDCOLOR
 SELECTEDTARGET	dw 0
 STARTSECTOR	dd 0
 PART_TABLE	dw 0
+
+;; For the timer
+RTCSECONDS      dw 0
+TIMEOUTSECPOS   dw 0
+TIMEOUTSECS     dw 0
+
+;; For printing numbers
+LEADZERO	db 0
+REMAINDER	dd 0
+TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0, 
+		db '7', 0, '8', 0, '9', 0
 
 ;; For loading
 DISK		db 0

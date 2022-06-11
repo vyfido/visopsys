@@ -128,7 +128,7 @@ jmpTarget:
 	;; mov AL, byte [NUMSECTS]
 	;; sub AL, 1
 	;; push dword EAX			; Read (NUMSECTS - 1) sectors
-	push dword 3
+	push dword 4
 	push word LOADEROFFSET			; Offset where we'll move it
 	push word LOADERSEGMENT			; Segment where we'll move it
 	push dword 1				; Start at logical sector 1

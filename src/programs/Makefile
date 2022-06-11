@@ -59,6 +59,7 @@ NAMES	= adduser \
 	lsdev \
 	md5 \
 	mem \
+	mines \
 	mkdir \
 	more \
 	mount \
@@ -73,6 +74,7 @@ NAMES	= adduser \
 	rmdir \
 	screenshot \
 	shutdown \
+	snake \
 	sync \
 	telnet \
 	test \
@@ -93,7 +95,6 @@ OBJS = $(addprefix ${BUILDDIR}/, ${NAMES})
 
 all: target-dirs ${OBJS}
 	strip -s ${OBJS}
-	#make -C mines
 
 target-dirs:
 	mkdir -p ${BUILDDIR}
@@ -103,7 +104,6 @@ ${BUILDDIR}/%: %.c ${STDDEPS}
 
 clean:
 	rm -Rf *~ *.o core ${OBJS}
-	make -C mines clean
 
 # Object files with explicit rules
 

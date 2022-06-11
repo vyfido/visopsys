@@ -40,11 +40,11 @@ static void populateDriverArray(void)
 {
   if (!driverCounter)
     {
-      driverArray[driverCounter++] = kernelDriverGetExt();
-      driverArray[driverCounter++] = kernelDriverGetFat();
-      driverArray[driverCounter++] = kernelDriverGetIso();
-      driverArray[driverCounter++] = kernelDriverGetLinuxSwap();
-      driverArray[driverCounter++] = kernelDriverGetNtfs();
+      driverArray[driverCounter++] = kernelDriverGet(extDriver);
+      driverArray[driverCounter++] = kernelDriverGet(fatDriver);
+      driverArray[driverCounter++] = kernelDriverGet(isoDriver);
+      driverArray[driverCounter++] = kernelDriverGet(linuxSwapDriver);
+      driverArray[driverCounter++] = kernelDriverGet(ntfsDriver);
     }
 }
 
