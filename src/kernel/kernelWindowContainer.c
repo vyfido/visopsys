@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -201,16 +201,19 @@ static int containerRemove(kernelWindowComponent *containerComponent,
       {
 	// Replace the component with the last one, if applicable
 	container->numComponents--;
+
 	if ((container->numComponents > 0) &&
 	    (count < container->numComponents))
 	  container->components[count] =
 	    container->components[container->numComponents];
-	break;
+
+	component->container = NULL;
+	return (status = 0);
       }
 
-  component->container = NULL;
-
-  return (status = 0);
+  // If we fall through, it was not found
+  kernelError(kernel_error, "No such component in container");
+  return (status = ERR_NOSUCHENTRY);
 }
 
 

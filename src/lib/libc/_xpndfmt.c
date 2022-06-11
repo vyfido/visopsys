@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -192,6 +192,5 @@ int _expandFormatString(char *output, const char *format, va_list list)
   output[outCount] = '\0';
 
   // Return the number of characers we wrote
-  errno = 0;
   return (outCount);
 }

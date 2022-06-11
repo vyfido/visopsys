@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2004 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2005 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -450,8 +450,8 @@ evaluateLoadError:
 	.done:
 	popa
 	ret
-	
-	
+
+
 loaderLoadKernel:
 	;; This function is in charge of loading the kernel file and
 	;; setting it up for execution.  This is designed to load the
@@ -565,8 +565,6 @@ DATA_SIZEINFILE	dd 0
 DATA_SIZEINMEM	dd 0
 
 KERNELNAME	db 'VISOPSYS   ', 0
-	
-OKSTARTLAYOUT	db 'Kernel load completed, starting layout', 0
 
 ;;
 ;; The error messages

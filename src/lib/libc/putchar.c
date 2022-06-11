@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +30,15 @@ int putchar(int c)
 {
   // putchar(c); is equivalent to putc(c,stdout).
 
-  // Get a character from the text input stream
-  errno = textPutc(c);
+  int status = 0;
 
-  if (errno)
-    return (EOF);
-  else
-    return (c);
+  // Get a character from the text input stream
+  status = textPutc(c);
+  if (status < 0)
+    {
+      errno = status;
+      return (EOF);
+    }
+
+  return (c);
 }

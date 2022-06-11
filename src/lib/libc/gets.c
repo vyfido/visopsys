@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -38,6 +38,7 @@ char *gets(char *s)
   // If there is no input, yield the current time slice back to the
   // scheduler.
 
+  int status = 0;
   int read = 0;
   char c = '\0';
 
@@ -55,10 +56,12 @@ char *gets(char *s)
       s[read] = NULL;
 
       // Get a character from the text input stream
-      errno = textInputGetc(&c);
-      
-      if (errno)
-	return (NULL);
+      status = textInputGetc(&c);
+      if (status < 0)
+	{
+	  errno = status;
+	  return (NULL);
+	}
 
       // We have a character.
 
@@ -66,7 +69,6 @@ char *gets(char *s)
       if ((c == EOF) || (c == '\n'))
 	{
 	  textNewline();
-	  errno = 0;
 
 	  if (read == 0)
 	    return (NULL);

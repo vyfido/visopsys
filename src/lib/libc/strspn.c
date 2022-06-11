@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "strspn" function, as found in standard C libraries
 
 #include <string.h>
-#include <errno.h>
 
 
 size_t strspn(const char *s1, const char *s2)
@@ -34,9 +33,6 @@ size_t strspn(const char *s1, const char *s2)
   int s1_length = strlen(s1);
   int s2_length = strlen(s2);
   int count;
-
-  // We don't set errno in this function
-  errno = 0;
 
   for (count = 0; ((count < s1_length) && (count < s2_length)); count ++)
     {

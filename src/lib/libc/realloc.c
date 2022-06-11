@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +23,6 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/api.h>
 
 
 void *realloc(void *old, size_t newSize)
@@ -37,16 +36,6 @@ void *realloc(void *old, size_t newSize)
   // call is equivalent to free(ptr).  Unless ptr is  NULL,  it
   // must  have  been  returned by an earlier call to malloc(),
   // calloc() or realloc().
-  
-  void *new = NULL;
-
-  // Make sure the requested size is not zero
-  if (!newSize)
-    {
-      errno = memoryRelease(old);
-      return (new = NULL);
-    }
-
   errno = ERR_NOTIMPLEMENTED;
-  return (new = NULL);
+  return (NULL);
 }

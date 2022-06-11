@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,7 +35,7 @@
 
 static int processId = 0;
 static int readOnly = 1;
-static char *titleString     = "Copyright (C) 1998-2004 J. Andrew McLaughlin";
+static char *titleString     = "Copyright (C) 1998-2005 J. Andrew McLaughlin";
 static char *gplString       =
 "  This program is free software; you can redistribute it and/or modify it  \n"
 "  under the terms of the GNU General Public License as published by the\n"

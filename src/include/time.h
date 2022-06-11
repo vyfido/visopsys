@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,8 +43,8 @@ struct tm {
   int tm_isdst;  // daylight saving time
 };
 
-typedef unsigned int clock_t;
-typedef unsigned int time_t;
+typedef unsigned clock_t;
+typedef unsigned time_t;
 
 char *asctime(const struct tm *timeptr);
 clock_t clock(void);

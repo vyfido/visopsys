@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "toupper" function, as found in standard C libraries
 
 #include <ctype.h>
-#include <errno.h>
 
 
 int toupper(int c)
@@ -31,9 +30,6 @@ int toupper(int c)
   // exists a corresponding upper-case letter, the result is the
   // corresponding upper-case letter.  All other arguments are returned
   // unchanged.
-
-  // We don't set errno
-  errno = 0;
 
   if ((c >= 97) && (c <= 122))
     return (c - 32);

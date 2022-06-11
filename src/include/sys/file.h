@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,15 +27,15 @@
 #include <sys/memory.h>
 
 // File open modes
-#define OPENMODE_READ 0x01
-#define OPENMODE_WRITE 0x02
-#define OPENMODE_CREATE 0x04
-#define OPENMODE_TRUNCATE 0x8
-#define OPENMODE_READWRITE (OPENMODE_READ | OPENMODE_WRITE)
+#define OPENMODE_READ        0x01
+#define OPENMODE_WRITE       0x02
+#define OPENMODE_CREATE      0x04
+#define OPENMODE_TRUNCATE    0x08
+#define OPENMODE_READWRITE   (OPENMODE_READ | OPENMODE_WRITE)
 
 // Pathname limits
-#define MAX_NAME_LENGTH 512
-#define MAX_PATH_LENGTH 512
+#define MAX_NAME_LENGTH      512
+#define MAX_PATH_LENGTH      512
 #define MAX_PATH_NAME_LENGTH (MAX_PATH_LENGTH + MAX_NAME_LENGTH)
 
 // Typedef a file handle
@@ -44,7 +44,6 @@ typedef void* fileHandle;
 typedef enum
 {
   fileT, dirT, linkT, volT, unknownT
-
 } fileType;
 
 // This is the structure used to store universal information about a file
@@ -54,15 +53,15 @@ typedef struct
   char name[MAX_NAME_LENGTH];
   fileType type;
   char filesystem[MAX_PATH_LENGTH];
-  unsigned int creationDate;
-  unsigned int creationTime;
-  unsigned int accessedTime;
-  unsigned int accessedDate;
-  unsigned int modifiedDate;
-  unsigned int modifiedTime;
-  unsigned int size;
-  unsigned int blocks;
-  unsigned int blockSize;
+  unsigned creationDate;
+  unsigned creationTime;
+  unsigned accessedTime;
+  unsigned accessedDate;
+  unsigned modifiedDate;
+  unsigned modifiedTime;
+  unsigned size;
+  unsigned blocks;
+  unsigned blockSize;
   int openMode;
 
 } file;

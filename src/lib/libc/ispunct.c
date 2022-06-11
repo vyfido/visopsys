@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,17 +27,12 @@
 // locale.
 
 #include <ctype.h>
-#include <errno.h>
 
 
 int ispunct(int c)
 {
   // checks for any printable character which is not a space or an
   // alphanumeric character.
-
-  // We don't set errno
-  errno = 0;
-
   return ((((c >= 1) && (c <= 7)) ||
 	   (c == 11) || (c == 12) ||
 	   ((c >= 14) && (c <= 25)) ||

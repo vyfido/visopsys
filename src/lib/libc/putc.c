@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,6 +32,8 @@ int putc(int c, FILE *stream)
   // as a macro which evaluates stream more than once.  OK, it's not a
   // macro, and it's only going to be partially implemented right now.
 
+  int status = 0;
+
   if (stream != stdin)
     {
       // We are only implementing for stdin at the moment
@@ -40,10 +42,12 @@ int putc(int c, FILE *stream)
     }
 
   // Get a character from the text input stream
-  errno = textPutc(c);
+  status = textPutc(c);
+  if (status < 0)
+    {
+      errno = status;
+      return (EOF);
+    }
 
-  if (errno)
-    return (EOF);
-  else
-    return (c);
+  return (c);
 }

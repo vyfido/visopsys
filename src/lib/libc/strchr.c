@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,15 +24,11 @@
 // The strchr() function returns a pointer to the first occurrence of the
 // character in the string.
 
-
 #include <string.h>
-#include <errno.h>
+
 
 char *strchr(const char *string, int character)
 {
-  // Don't set errno in this function
-  errno = 0;
-
   // Check params
   if (string == NULL)
     return ((char *) string);

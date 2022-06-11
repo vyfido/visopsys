@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "memmove" function, as found in standard C libraries
 
 #include <string.h>
-#include <errno.h>
 
 
 void *memmove(void *dest, const void *src, size_t len)
@@ -31,9 +30,6 @@ void *memmove(void *dest, const void *src, size_t len)
   // area dest.  The memory areas may overlap.
 
   size_t count = 0;
-
-  // We don't set errno
-  errno = 0;
 
   if (dest == src)
     // ...Okay then...

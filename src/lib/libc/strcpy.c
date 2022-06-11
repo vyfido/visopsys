@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,7 +26,6 @@
 // the terminating `\0' character)  to  the  array pointed  to by dest.  The
 // strings may not overlap, and the destination string dest must be large
 // enough  to  receive the copy.
-
 
 #include <string.h>
 #include <errno.h>
@@ -63,6 +62,5 @@ char *strcpy(char *destString, const char *sourceString)
     }
 
   // Return success
-  errno = 0;
   return (destString);
 }

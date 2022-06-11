@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,6 +33,7 @@
 #include "kernelMiscFunctions.h"
 #include "kernelLog.h"
 #include "kernelError.h"
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <sys/errors.h>
@@ -591,7 +592,8 @@ static int readVolumeInfo(fatInternalData *fatData)
 		  (bootSector + FAT_BS32_VOLLABEL), 11);
 	  fatData->volumeLabel[11] = '\0';
       
-	  // The filesystem type indicator "hint"
+	  // The filesystem type indicator "hint".  Same as the field for 
+	  // FAT12/16, but at a different offset
 	  strncpy((char *) fatData->fsSignature,
 		  (bootSector + FAT_BS32_FILESYSTYPE), 8);
 	  fatData->fsSignature[8] = '\0';
@@ -3516,13 +3518,23 @@ int kernelFilesystemFatDetect(const kernelDisk *theDisk)
       // Now we look for the substring "FAT" in the boot sector.
       // If this is really a FAT filesystem, we SHOULD find the substring 
       // "FAT" in the first 3 characters of the fsSignature field
-      if (strncmp((bootSector + 0x36), "FAT", 3) != 0)
+      if (strncmp((bootSector + 0x36), "FAT", 3))
 	// We will say this is not a FAT filesystem.  We might be wrong, 
 	// but we can't be sure otherwise.
 	return (status = 0);
     }
 
   // We will accept this as a FAT filesystem.
+
+  // Set the disk's fsType string, tentatively
+  strcpy((char *) theDisk->fsType, "fat");
+  if (!strncmp((bootSector + 0x36), "FAT12", 5))
+    strcpy((char *) theDisk->fsType, "fat12");
+  else if (!strncmp((bootSector + 0x36), "FAT16", 5))
+    strcpy((char *) theDisk->fsType, "fat16");
+  else if (!strncmp((bootSector + 0x52), "FAT32", 5))
+    strcpy((char *) theDisk->fsType, "fat32");
+  
   return (status = 1);
 }
 
@@ -3535,9 +3547,11 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
   unsigned clearSectors = 0;
+  unsigned doSectors = 0;
   unsigned char *sectorBuff = NULL;
   fatInternalData fatData;
   int count;
+  #define BUFFERSIZE 1048576
 
   // For calculating cluster sizes, below.
   typedef struct {
@@ -3715,10 +3729,11 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   fatData.volumeId = kernelSysTimerRead();
   strncpy((char *) fatData.volumeLabel, (char *) label, 12);
 
-  sectorBuff = kernelMalloc(fatData.bytesPerSector);
+  // Get a decent-sized buffer for clearing sectors
+  sectorBuff = kernelMalloc(BUFFERSIZE);
   if (sectorBuff == NULL)
     {
-      kernelError(kernel_error, "Unable to allocate FAT data memory");
+      kernelError(kernel_error, "Unable to allocate sector data memory");
       return (status = ERR_MEMORY);
     }
   
@@ -3731,15 +3746,20 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
 		    (fatData.numberOfFats * fatData.fatSectors) +
 		    fatData.rootDirSectors);
 
-  for (count = 0; count < clearSectors; count ++)
+  for (count = 0; count < clearSectors; )
     {
-      status = kernelDiskWriteSectors((char *) theDisk->name, count, 1,
+      doSectors =
+	min((clearSectors - count), (BUFFERSIZE / fatData.bytesPerSector));
+
+      status = kernelDiskWriteSectors((char *) theDisk->name, count, doSectors,
 				      sectorBuff);
       if (status < 0)
 	{
 	  kernelFree(sectorBuff);
 	  return (status);
 	}
+
+      count += doSectors;
     }
 
   // Set first two FAT table entries

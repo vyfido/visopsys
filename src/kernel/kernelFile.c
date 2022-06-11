@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -447,6 +447,10 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
       // Other possibilities, just copy
       newPath[newPathLength++] = originalPath[count];
     }
+
+  // If not exactly '/', remove any trailing slashes
+  if ((newPathLength > 1) && (newPath[newPathLength - 1] == '/'))
+    newPathLength -= 1;
 
   // Stick the NULL on the end
   newPath[newPathLength] = NULL;
@@ -2196,11 +2200,13 @@ int kernelFileRemoveDir(const char *path)
   // Now remove the '.' and '..' entries from the directory
   while (theDir->contents)
     {
-      status = kernelFileRemoveEntry((kernelFileEntry *) theDir->contents);
+      kernelFileEntry *dotEntry = ((kernelFileEntry *) theDir->contents);
+
+      status = kernelFileRemoveEntry(dotEntry);
       if (status < 0)
 	return (status);
 
-      kernelFileReleaseEntry((kernelFileEntry *) theDir->contents);
+      kernelFileReleaseEntry(dotEntry);
     }
 
   // Now remove the directory from its parent

@@ -1,5 +1,49 @@
 
 ---------------
+Version 0.52
+---------------
+
+  Overview: This is a maintenance and bugfix release, with some additional
+  features, such as improved disk-to-disk copies and partition table
+  reordering in the Disk Manager, and additional C library functions.
+
+- Implemented threaded, double-buffered disk IO for the 'copy disk'
+functionality of the disk manager.
+- The disk manager's slice list now indicates the disk name and file system
+type (if available), and it is now possible to change the partition table
+ordering - i.e., changing drive names/letters.
+- The vsh history is bigger, and there is now a 'history' command.
+- Added open(), lseek(), read(), write(), close(), fprintf, fread(),
+fwrite(), and stat() C library functions.
+- The kernelError messages now indicate the name of the process that caused
+the error.
+- The 'disks' command now reports the filesystem type, if known, and not
+just the partition label.
+- Exported the kernelMultitaskerProcessIsAlive() function.
+- The 'vsh' and 'ls' commands have been updated to improve their stack/data
+memory usages.
+- The kernelConfigurationWriter has been reworked so that if the file
+already exists, it writes the new one to a temp location first, then moves
+the new one over top.
+- Fixed up the Makefiles a bit and we now make sure that we're building
+with the correct CPU specified.
+- Fixed up 'errno' implementation in the C library.
+- Fixed: The disk manager 'copy disk' failure was leaving the dialog box
+on the screen.
+- Fixed: The format command could hang when doing a large FAT32 filesystem.
+- Fixed: The 'rmdir' functionality was broken, because the '.' and '..'
+entries were not being removed correctly.
+- Fixed: In the disk manager's 'create partition' function, specifying a
+megabyte size value overflowed at 4096m.
+- Fixed: The windowList component has been changed to stop implementing its
+own idea of 'container', and use the standard container component.
+- Fixed: Deleting the old menu list items in kernelWindowShellUpdateList()
+was causing crashes; it was disabled in the 0.5 release, and it was a pretty
+serious memory leak.
+- Fixed: The 'umount' command failed when a following / was after the mount
+point name.
+
+---------------
 Version 0.51
 ---------------
 

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,6 +39,7 @@ int fseek(FILE *stream, long offset, int whence)
   // fseek() returns 0 on success; otherwise, it returns -1 and sets errno
   // to indicate the error.
 
+  int status = 0;
   long pos = 0;
   long new_pos = 0;
 
@@ -65,10 +66,12 @@ int fseek(FILE *stream, long offset, int whence)
     }
 
   // Let the kernel do the rest of the work, baby.
-  errno = fileStreamSeek(stream, new_pos);
+  status = fileStreamSeek(stream, new_pos);
+  if (status < 0)
+    {
+      errno = status;
+      return (-1);
+    }
 
-  if (errno)
-    return (-1);
-  else
-    return (0);
+  return (0);
 }

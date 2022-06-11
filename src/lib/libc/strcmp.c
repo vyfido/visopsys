@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,9 +33,6 @@ int strcmp(const char *s1, const char *s2)
   // greater than s2.
 
   int count = 0;
-
-  // We don't normally set errno in this function
-  errno = 0;
 
   for (count = 0; count < MAXSTRINGLENGTH; count ++)
     {

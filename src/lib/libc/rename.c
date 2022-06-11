@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,10 +35,12 @@ int rename(const char *old, const char *new)
   // an error.
 
   // Let the kernel do all the work, baby.
-  errno = fileMove(old, new);
+  int status = fileMove(old, new);
+  if (status < 0)
+    {
+      errno = status;
+      return (-1);
+    }
 
-  if (errno)
-    return (-1);
-  else
-    return (0);
+  return (0);
 }

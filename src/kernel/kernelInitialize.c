@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -115,7 +115,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   kernelLogSetToConsole(0);
 
   // Log a starting message
-  sprintf(welcomeMessage, "%s\nCopyright (C) 1998-2004 J. Andrew McLaughlin",
+  sprintf(welcomeMessage, "%s\nCopyright (C) 1998-2005 J. Andrew McLaughlin",
 	  kernelVersion());
   kernelLog(welcomeMessage);
 

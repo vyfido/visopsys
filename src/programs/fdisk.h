@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,13 +25,13 @@
 
 #include <sys/disk.h>
 
-#define DISKMANAGER "Visopsys Disk Manager"
-#define PARTLOGIC   "Partition Logic"
-#define TEMP_DIR    "/temp"
-#define BACKUP_DIR  "/system/boot"
-#define BACKUP_MBR  BACKUP_DIR"/backup-%s.mbr"
-#define PERM        "You must be a privileged user to use this command."
-#define PARTTYPES   "Supported partition types"
+#define DISK_MANAGER     "Visopsys Disk Manager"
+#define PARTITION_LOGIC  "Partition Logic"
+#define TEMP_DIR         "/temp"
+#define BACKUP_DIR       "/system/boot"
+#define BACKUP_MBR       BACKUP_DIR"/backup-%s.mbr"
+#define PERM             "You must be a privileged user to use this command."
+#define PARTTYPES        "Supported partition types"
 
 #define ENTRYOFFSET_DRV_ACTIVE    0
 #define ENTRYOFFSET_START_HEAD    1
@@ -47,21 +47,37 @@
 #define MAX_SLICES                ((DISK_MAX_PARTITIONS * 2) + 1)
 #define MAX_DESCSTRING_LENGTH     128
 
+#ifdef PARTLOGIC
+#define SLICESTRING_DISKFIELD_WIDTH    3
+#else
+#define SLICESTRING_DISKFIELD_WIDTH    5
+#endif
+#define SLICESTRING_LABELFIELD_WIDTH   22
+#define SLICESTRING_FSTYPEFIELD_WIDTH  6
+#define SLICESTRING_CYLSFIELD_WIDTH    12
+#define SLICESTRING_SIZEFIELD_WIDTH    9
+#define SLICESTRING_ATTRIBFIELD_WIDTH  15
+#define SLICESTRING_LENGTH (SLICESTRING_DISKFIELD_WIDTH +   \
+			    SLICESTRING_LABELFIELD_WIDTH +  \
+			    SLICESTRING_FSTYPEFIELD_WIDTH + \
+			    SLICESTRING_CYLSFIELD_WIDTH +   \
+			    SLICESTRING_SIZEFIELD_WIDTH +   \
+			    SLICESTRING_ATTRIBFIELD_WIDTH)
+
 #define ISLOGICAL(slc) (((slc)->entryType == partition_extended) || \
                         ((slc)->entryType == partition_logical))
 
 typedef enum {
-  partition_primary  = 0,
-  partition_logical  = 1,
-  partition_extended = 2,
-  partition_any      = 3
+  partition_primary  = 1,
+  partition_logical  = 2,
+  partition_extended = 3,
+  partition_any      = 4
 } partEntryType;
 
 // This stucture represents both used partitions and empty spaces.
 typedef struct {
   // These fields come directly from the partition table
   int active;
-  int drive;
   unsigned startCylinder;
   unsigned startHead;
   unsigned startSector;
@@ -72,9 +88,11 @@ typedef struct {
   unsigned startLogical;
   unsigned sizeLogical;
   // Below here, the fields are generated internally
-  int partition;
-  char name[6];
+  int sliceId;
   partEntryType entryType;
+  int partition;
+  char name1[6];
+  char fsType[FSTYPE_MAX_NAMELENGTH];
   void *extendedTable;
   char string[MAX_DESCSTRING_LENGTH];
   int pixelX;
@@ -91,9 +109,20 @@ typedef struct {
   int maxEntries;
   // For extended partition tables
   int extended;
-  int parentPartition;
+  int parentSliceId;
 
 } partitionTable;
+
+// A struct for managing concurrent read/write IO during things like
+// disk-to-disk copies
+typedef struct {
+  struct {
+    unsigned char *data;
+    int full;
+  } buffer[2];
+  unsigned bufferSize;
+
+} concurrentIoBuffer;
 
 #define _FDISK_H
 #endif

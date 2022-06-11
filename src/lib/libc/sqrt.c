@@ -10,7 +10,6 @@
 //
 
 #include <math.h>
-#include <errno.h>
 
 #define itable ((double *) xtable)
 

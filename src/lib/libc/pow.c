@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -38,8 +38,6 @@ double pow(double x, double y)
       errno = ERR_DOMAIN;
       return (0);
     }
-  else
-    errno = 0;
 
   for (count = 1; count < y; count ++)
     x *= x;

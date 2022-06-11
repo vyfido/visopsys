@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "ceil" function, as found in standard C libraries
 
 #include <math.h>
-#include <errno.h>
 
 
 double ceil(double d)
@@ -32,9 +31,6 @@ double ceil(double d)
 
   int c = (int) d;
     
-  // We don't set errno
-  errno = 0;
-
   if (d > 0)
     d = (double) (c + 1);
 

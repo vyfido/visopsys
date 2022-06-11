@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,17 +27,12 @@
 // locale.
 
 #include <ctype.h>
-#include <errno.h>
 
 
 int isalnum(int c)
 {
   // checks for an alphanumeric character; it is equivalent to
   // (isalpha(c) || isdigit(c)).
-
-  // We don't set errno
-  errno = 0;
-
   return (((c >= 'a') && (c <= 'z')) ||
 	  ((c >= 'A') && (c <= 'Z')) ||
 	  ((c >= '0') && (c <= '9')));

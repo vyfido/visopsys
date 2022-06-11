@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -49,8 +49,6 @@ int xtoi(const char *string)
   if (!valid(string[0]))
     // Not a number
     return (errno = ERR_INVALID);
-
-  errno = 0;
 
   // Get the length of the string
   length = strlen(string);

@@ -2,7 +2,7 @@
 
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
-<title>Visopsys Downloads</title>
+<title>Visopsys Downloads - Change Log</title>
 <meta name="Microsoft Border" content="lb">
 </head>
 
@@ -43,8 +43,55 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.52<br>
+</font>14/01/2005</p>
+<p><font size="4">Overview: This is a maintenance and bugfix release, with some 
+additional features, such as improved disk-to-disk copies and partition table 
+reordering in the Disk Manager, and additional C library functions.</font></p>
+<ul>
+  <li><font size="4">Implemented threaded, double-buffered disk IO for the 'copy 
+  disk' functionality of the disk manager.</font></li>
+  <li><font size="4">The disk manager's slice list now indicates the disk name 
+  and file system type (if available), and it is now possible to change the 
+  partition table ordering - i.e., changing drive names/letters.</font></li>
+  <li><font size="4">The vsh history is bigger, and there is now a 'history' 
+  command.</font></li>
+  <li><font size="4">Added open(), lseek(), read(), write(), close(), fprintf, 
+  fread(), fwrite(), and stat() C library functions.</font></li>
+  <li><font size="4">The kernelError messages now indicate the name of the 
+  process that caused the error.</font></li>
+  <li><font size="4">The 'disks' command now reports the filesystem type, if 
+  known, and not just the partition label.</font></li>
+  <li><font size="4">Exported the kernelMultitaskerProcessIsAlive() function.</font></li>
+  <li><font size="4">The 'vsh' and 'ls' commands have been updated to improve 
+  their stack/data memory usages.</font></li>
+  <li><font size="4">The kernelConfigurationWriter has been reworked so that if 
+  the file already exists, it writes the new one to a temp location first, then 
+  moves the new one over top.</font></li>
+  <li><font size="4">Fixed up the Makefiles a bit and we now make sure that 
+  we're building with the correct CPU specified.</font></li>
+  <li><font size="4">Fixed up 'errno' implementation in the C library.</font></li>
+  <li><font size="4">Fixed: The disk manager 'copy disk' failure was leaving the 
+  dialog box on the screen.</font></li>
+  <li><font size="4">Fixed: The format command could hang when doing a large 
+  FAT32 filesystem.</font></li>
+  <li><font size="4">Fixed: The 'rmdir' functionality was broken, because the 
+  '.' and '..' entries were not being removed correctly.</font></li>
+  <li><font size="4">Fixed: In the disk manager's 'create partition' function, 
+  specifying a megabyte size value overflowed at 4096m.</font></li>
+  <li><font size="4">Fixed: The windowList component has been changed to stop 
+  implementing its own idea of 'container', and use the standard container 
+  component.</font></li>
+  <li><font size="4">Fixed: Deleting the old menu list items in 
+  kernelWindowShellUpdateList() was causing crashes; it was disabled in the 0.5 
+  release, and it was a pretty serious memory leak.</font></li>
+  <li><font size="4">Fixed: The 'umount' command failed when a following / was 
+  after the mount point name.</font></li>
+</ul>
+<font SIZE="2"><hr></font>
+
 <p><font size="4">VERSION 0.51<br>
-</font>31/12/2004</p>
+</font>30/12/2004</p>
 <p><font size="4">Overview: This is a maintenance and bugfix release, with some 
 additional features, such as the Disk Manager's ability to fix small partition 
 table consistency errors.</font></p>
@@ -929,11 +976,11 @@ abstraction layer initialization</font></li>
     <img
     src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2004, J.
+    This site is copyright © 1999-2005, J.
     Andrew McLaughlin<br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    September 11, 2004</font></p>
+    January 14, 2005</font></p>
   </blockquote>
 </blockquote>
 

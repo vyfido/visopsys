@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,15 +27,10 @@
 // locale.
 
 #include <ctype.h>
-#include <errno.h>
 
 
 int isupper(int c)
 {
   // checks for an uppercase letter.
-
-  // We don't set errno
-  errno = 0;
-
   return ((c >= 'A') && (c <= 'Z'));
 }

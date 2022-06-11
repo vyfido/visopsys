@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,7 +37,6 @@ div_t div(int numer, int denom)
     {
       result.quot = (numer / denom);
       result.rem = (numer % denom);
-      errno = 0;
     }
   else
     {

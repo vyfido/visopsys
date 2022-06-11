@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "memcpy" function, as found in standard C libraries
 
 #include <string.h>
-#include <errno.h>
 
 
 void *memcpy(void *dest, const void *src, size_t len)
@@ -32,9 +31,6 @@ void *memcpy(void *dest, const void *src, size_t len)
   // memory areas do overlap.
 
   size_t count = 0;
-
-  // We don't set errno
-  errno = 0;
 
   for (count = 0; count < len; count ++)
     ((char *) dest)[count] = ((char *) src)[count];

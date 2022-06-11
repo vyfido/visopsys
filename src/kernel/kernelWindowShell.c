@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,7 +41,6 @@ typedef struct {
 } windowMenuItem;
 
 static kernelWindow *rootWindow = NULL;
-static variableList *windowSettings = NULL;
 static kernelWindowComponent *taskMenuBar = NULL;
 static kernelWindowComponent *windowMenu = NULL;
 static windowMenuItem *menuItems = NULL;
@@ -154,21 +153,28 @@ static void runPrograms(void)
 {
   // Get any programs we're supposed to run automatically and run them.
 
+  variableList *settings = NULL;
   char programName[MAX_PATH_NAME_LENGTH];
   int count;
 
+  // Read the config file
+  settings = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG);
+  if (settings == NULL)
+    return;
+
   // Loop for variables with "program.*"
-  for (count = 0; count < windowSettings->numVariables; count ++)
+  for (count = 0; count < settings->numVariables; count ++)
     {
-      if (!strncmp(windowSettings->variables[count], "program.", 8))
+      if (!strncmp(settings->variables[count], "program.", 8))
 	{
-	  if (!kernelVariableListGet(windowSettings,
-				     windowSettings->variables[count],
+	  if (!kernelVariableListGet(settings, settings->variables[count],
 				     programName, MAX_PATH_NAME_LENGTH))
 	    // Try to run the program
 	    kernelLoaderLoadAndExec(programName, privilege, 0, NULL, 0);
 	}
     }
+
+  kernelMemoryRelease(settings);
 }
 
 
@@ -252,8 +258,6 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   if (settings == NULL)
     return (rootWindow = NULL);
 
-  windowSettings = settings;
-
   // Get a new window
   rootWindow = kernelWindowNew(KERNELPROCID, WINNAME_ROOTWINDOW);
   if (rootWindow == NULL)
@@ -285,8 +289,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   rootWindow->background.blue = kernelDefaultDesktop.blue;
 
   // Try to load the background image
-
-  if (!kernelVariableListGet(windowSettings, "background.image", propertyValue,
+  if (!kernelVariableListGet(settings, "background.image", propertyValue,
 			     128) && strncmp(propertyValue, "", 128))
     {
       status = kernelImageLoadBmp(propertyValue, &tmpImage);
@@ -327,49 +330,50 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.padRight = 10;
 
   // Try to load taskbar menus and menu items
-
+      
   // Allocate temporary memory for the normal menu items
-  tmpMenuItems = kernelMalloc(WINDOW_MAX_COMPONENTS * sizeof(windowMenuItem)); 
+  tmpMenuItems = 
+    kernelMalloc(WINDOW_MAX_COMPONENTS * sizeof(windowMenuItem)); 
   if (tmpMenuItems == NULL)
     return (rootWindow = NULL);
 
   // Loop for variables with "taskBar.menu.*"
-  for (count1 = 0; count1 < windowSettings->numVariables; count1 ++)
+  for (count1 = 0; count1 < settings->numVariables; count1 ++)
     {
-      if (!strncmp(windowSettings->variables[count1], "taskBar.menu.", 13))
+      if (!strncmp(settings->variables[count1], "taskBar.menu.", 13))
 	{
-	  menuName = (windowSettings->variables[count1] + 13);
-	  kernelVariableListGet(windowSettings,
-				windowSettings->variables[count1],
+	  menuName = (settings->variables[count1] + 13);
+	  kernelVariableListGet(settings, settings->variables[count1],
 				menuLabel, 128);
 
 	  menuComponent =
 	    kernelWindowNewMenu(taskMenuBar, menuLabel, &params);
 
 	  // Now loop and get any components for this menu
-	  for (count2 = 0; count2 < windowSettings->numVariables; count2 ++)
+	  for (count2 = 0; count2 < settings->numVariables; count2 ++)
 	    {
 	      sprintf(propertyName, "taskBar.%s.item.", menuName);
 
-	      if (!strncmp(windowSettings->variables[count2], propertyName,
+	      if (!strncmp(settings->variables[count2], propertyName,
 			   strlen(propertyName)))
 		{
 		  itemName =
-		    (windowSettings->variables[count2] + strlen(propertyName));
-		  kernelVariableListGet(windowSettings,
-					windowSettings->variables[count2],
+		    (settings->variables[count2] + strlen(propertyName));
+		  kernelVariableListGet(settings,
+					settings->variables[count2],
 					itemLabel, 128);
 
 		  tmpMenuItems[numberMenuItems].itemComponent =
-		    kernelWindowNewMenuItem(menuComponent, itemLabel, &params);
+		    kernelWindowNewMenuItem(menuComponent, itemLabel,
+					    &params);
 		  kernelWindowRegisterEventHandler((void *)
 				   tmpMenuItems[numberMenuItems].itemComponent,
-				   &menuEvent);
+						   &menuEvent);
 
 		  // See if there's an associated command
 		  sprintf(propertyName, "taskBar.%s.%s.command", menuName,
 			  itemName);
-		  kernelVariableListGet(windowSettings, propertyName,
+		  kernelVariableListGet(settings, propertyName,
 					(tmpMenuItems[numberMenuItems]
 					 .command), MAX_PATH_NAME_LENGTH);
 
@@ -423,36 +427,35 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.useDefaultBackground = 1;
 
   // Loop for variables with "icon.name.*"
-  for (count1 = 0, count2 = 1; count1 < windowSettings->numVariables;
-       count1 ++)
+  for (count1 = 0, count2 = 1; count1 < settings->numVariables; count1 ++)
     {
-      if (!strncmp(windowSettings->variables[count1], "icon.name.", 10))
+      if (!strncmp(settings->variables[count1], "icon.name.", 10))
 	{
-	  iconName = (windowSettings->variables[count1] + 10);
-	  kernelVariableListGet(windowSettings,
-				windowSettings->variables[count1],
+	  iconName = (settings->variables[count1] + 10);
+	  kernelVariableListGet(settings, settings->variables[count1],
 				itemLabel, 128);
 
 	  // Get the rest of the recognized properties for this icon.
 	  sprintf(propertyName, "icon.%s.image", iconName);
-	  kernelVariableListGet(windowSettings, propertyName, propertyValue,
+	  kernelVariableListGet(settings, propertyName, propertyValue,
 				128);
 
 	  status = kernelImageLoadBmp(propertyValue, &tmpImage);
 	  if (status == 0)
 	    {
 	      params.gridY = count2++;
-
-	      iconComponent =
-		kernelWindowNewIcon(rootWindow, &tmpImage, itemLabel, &params);
+		  
+	      iconComponent = kernelWindowNewIcon(rootWindow, &tmpImage,
+						  itemLabel, &params);
 	      if (iconComponent == NULL)
 		continue;
 
 	      // See if there's a command associated with this.
 	      sprintf(propertyName, "icon.%s.command", iconName);
-	      kernelVariableListGet(windowSettings, propertyName, (char *)
-				    ((kernelWindowIcon *) iconComponent->data)
-				    ->command, MAX_PATH_NAME_LENGTH);
+	      kernelVariableListGet(settings, propertyName, (char *)
+				    ((kernelWindowIcon *)
+				     iconComponent->data)->command,
+				    MAX_PATH_NAME_LENGTH);
 
 	      // Register the event handler for the icon command execution
 	      kernelWindowRegisterEventHandler((objectKey) iconComponent,
@@ -519,12 +522,8 @@ void kernelWindowShellUpdateList(kernelWindow *windowList[], int numberWindows)
 	}
 
       while (menu->numComponents)
-	{
-	  // These both cause crashes.  Why?
-	  // menu->containerRemove((void *) menu, menu->components[0]);
-	  // kernelWindowComponentDestroy(menu->components[0]);
-	  menu->numComponents = 0;
-	}
+	kernelWindowComponentDestroy(menu
+				     ->components[menu->numComponents - 1]);
 
       kernelMemClear(windowMenuItems, (WINDOW_MAXWINDOWS *
 				       sizeof(windowMenuItem)));

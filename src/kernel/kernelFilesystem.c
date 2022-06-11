@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,14 +53,11 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
   int status = 0;
   kernelFilesystemDriver *tmpDriver = NULL;
   kernelFilesystemDriver *driver = NULL;
-  char *typeName = NULL;
 
   // We will assume that the detection routines being called will do
   // all of the necessary checking of the kernelDisk before using
   // it.  Since we're not actually using it here, we won't duplicate
   // that work.
-
-  // Check 'em
 
   // If it's a CD-ROM, only check ISO
   if ((((kernelPhysicalDisk *) theDisk->physical)->type == idecdrom) ||
@@ -71,7 +68,6 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
       if (status == 1)
 	{
 	  driver = tmpDriver;
-	  typeName = driver->driverTypeName;
 	  goto finished;
 	}
     }
@@ -83,7 +79,6 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
       if (status == 1)
 	{
 	  driver = tmpDriver;
-	  typeName = driver->driverTypeName;
 	  goto finished;
 	}
 
@@ -93,23 +88,23 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
       if (status == 1)
 	{
 	  driver = tmpDriver;
-	  typeName = driver->driverTypeName;
 	  goto finished;
 	}
     }
-
-  typeName = "Unsupported";
-
+  
  finished:
-  // Copy this filesystem type name into the disk structure.  The filesystem
-  // driver can change it if desired.
-  strncpy((char *) theDisk->fsType, typeName, FSTYPE_MAX_NAMELENGTH);
 
-  // Set the operation flags based on which filesystem functions are
-  // non-NULL.
-  theDisk->opFlags = 0;
   if (driver)
     {
+      if (!strcmp((char *) theDisk->fsType, "unknown"))
+	// Copy this filesystem type name into the disk structure.  The
+	// filesystem driver can change it if desired.
+	strncpy((char *) theDisk->fsType, driver->driverTypeName,
+		FSTYPE_MAX_NAMELENGTH);
+
+      // Set the operation flags based on which filesystem functions are
+      // non-NULL.
+      theDisk->opFlags = 0;
       if (driver->driverFormat)
 	theDisk->opFlags |= FS_OP_FORMAT;
       if (driver->driverCheck)
@@ -638,12 +633,12 @@ int kernelFilesystemUnmount(const char *path)
 
   // Find the filesystem structure based on its name
   theFilesystem = filesystemFromPath(mountPointName);
-
-  // If the filesystem is NULL, then we assume the requested mount
-  // does not exist, and we can make a useful error message
   if (theFilesystem == NULL)
     {
-      kernelError(kernel_error, "No such filesystem mounted");
+      // If the filesystem is NULL, then we assume the requested mount
+      // does not exist, and we can make a useful error message
+      kernelError(kernel_error, "No such filesystem '%s' mounted",
+		  mountPointName);
       return (status = ERR_NOSUCHENTRY);
     }
 

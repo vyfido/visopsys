@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+##  Copyright (C) 1998-2005 J. Andrew McLaughlin
 ## 
 ##  image-floppy.sh
 ##
@@ -41,7 +41,7 @@ if [ $? -ne 0 ] ; then
 fi
 
 echo "Visopsys $RELEASE Image Release" > /tmp/comment
-echo "Copyright (C) 1998-2004 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2005 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $IMAGEFILE < /tmp/comment >& /dev/null
 

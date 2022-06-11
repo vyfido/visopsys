@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -187,12 +187,11 @@ typedef volatile struct
 {
   int columns;
   int rows;
-  kernelWindowComponent *listItems[WINDOW_MAX_LISTITEMS];
-  int numItems;
   int itemWidth;
   int selectMultiple;
   int selectedItem;
   int firstVisible;
+  kernelWindowComponent *container;
   kernelWindowComponent *scrollBar;
 
 } kernelWindowList;

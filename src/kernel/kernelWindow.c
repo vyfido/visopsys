@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,6 +34,7 @@
 #include "kernelFileStream.h"
 #include "kernelUser.h"
 #include "kernelMiscFunctions.h"
+#include "kernelLog.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
@@ -43,7 +44,6 @@
 static int initialized = 0;
 static int screenWidth = 0;
 static int screenHeight = 0;
-static variableList *settings = NULL;
 
 static kernelAsciiFont *defaultFont = NULL;
 static kernelWindow *rootWindow = NULL;
@@ -747,33 +747,6 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
   // Update visible portions of the area on the screen
   renderVisiblePortions(window, &((screenArea)
   { xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ));
-
-  return (status = 0);
-}
-
-
-static int getConfiguration(void)
-{
-  // Tries to get the window settings from the configuration file
-
-  int status = 0;
-  variableList *newSettings = NULL;
-
-  newSettings = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG);
-  if (newSettings == NULL)
-    {
-      // Argh.  No file?  Create a reasonable, empty list for us to use
-      newSettings = kernelVariableListCreate(255, 1024, "configuration data");
-
-      if (newSettings == NULL)
-	return (status = ERR_MEMORY);
-    }
-
-  if (settings)
-    kernelFree(settings);
-  settings = newSettings;
-
-  // Variables and whatnot are dealt with elsewhere.
 
   return (status = 0);
 }
@@ -1522,6 +1495,7 @@ static int spawnWindowThread(void)
   if (winThreadPid < 0)
     return (winThreadPid);
 
+  kernelLog("Window thread started");
   return (0);
 }
 
@@ -1552,12 +1526,27 @@ static kernelWindow *findTopmostWindow(void)
 }
 
 
+static variableList *getConfiguration(void)
+{
+  variableList *settings = NULL;
+
+  // Read the config file
+  settings = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG);
+  if (settings == NULL)
+    // Argh.  No file?  Create a reasonable, empty list for us to use
+    settings = kernelVariableListCreate(255, 1024, "window configuration");
+
+  return (settings);
+}
+
+
 static int windowStart(void)
 {
   // This does all of the startup stuff.  Gets called once during
   // system initialization.
 
   int status = 0;
+  variableList *settings = NULL;
   kernelTextOutputStream *output = NULL;
   char propertyName[128];
   char propertyValue[128];
@@ -1572,9 +1561,11 @@ static int windowStart(void)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Read the config file
-  getConfiguration();
+  settings = getConfiguration();
+  if (settings == NULL)
+    return (status = ERR_NOTINITIALIZED);
 
+  // Variables and whatnot are dealt with elsewhere.
   // Set the temporary text area to the current desktop color, for neatness'
   // sake if there are any error messages before we create the console window
   output = kernelMultitaskerGetTextOutput();
@@ -1608,7 +1599,10 @@ static int windowStart(void)
   // Initialize the event streams
   if ((kernelWindowEventStreamNew(&mouseEvents) < 0) ||
       (kernelWindowEventStreamNew(&keyEvents) < 0))
-    return (status = ERR_NOTINITIALIZED);
+    {
+      kernelMemoryRelease(settings);
+      return (status = ERR_NOTINITIALIZED);
+    }
 
   // Spawn the window thread
   spawnWindowThread();
@@ -1616,17 +1610,28 @@ static int windowStart(void)
   // Draw the main, root window.
   rootWindow = kernelWindowMakeRoot(settings);
   if (rootWindow == NULL)
-    return (status = ERR_NOTINITIALIZED);
+    {
+      kernelMemoryRelease(settings);
+      return (status = ERR_NOTINITIALIZED);
+    }
 
   // Draw the console and root windows, but don't make them visible
   makeConsoleWindow();
-  //kernelWindowSetLocation(consoleWindow, 0, 0);
-  //kernelWindowSetVisible(consoleWindow, 1);
+  // kernelWindowSetLocation(consoleWindow, 0, 0);
+  // kernelWindowSetVisible(consoleWindow, 1);
 
   // Mouse housekeeping.
   kernelMouseDraw();
 
+  // Re-write config file
+  status = kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, settings);
+  if (status < 0)
+    kernelError(kernel_error, "Error updating window configuration");
+  else
+    kernelLog("Updated window configuration");
+
   // Done
+  kernelMemoryRelease(settings);
   return (status = 0);
 }
 
@@ -1654,6 +1659,8 @@ int kernelWindowInitialize(void)
 		  "graphics enabled");
       return (status = ERR_NOTINITIALIZED);
     }
+
+  kernelLog("Starting window system initialization");
 
   // Allocate memory to hold all the window information
   windowData = kernelMalloc((sizeof(kernelWindow) * WINDOW_MAXWINDOWS));
@@ -1690,6 +1697,8 @@ int kernelWindowInitialize(void)
 
   // Switch to the 'default' mouse pointer
   kernelMouseSwitchPointer("default");
+
+  kernelLog("Window system initialization complete");
 
   return (status = 0);
 }
@@ -2823,6 +2832,7 @@ int kernelWindowTileBackground(const char *filename)
   
   int status = 0;
   image backgroundImage;
+  variableList *settings = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2852,7 +2862,13 @@ int kernelWindowTileBackground(const char *filename)
   kernelMouseDraw();
 
   // Save the settings variable
-  kernelVariableListSet(settings, "background.image", filename);
+  settings = getConfiguration();
+  if (settings)
+    {
+      kernelVariableListSet(settings, "background.image", filename);
+      kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, settings);
+      kernelMemoryRelease(settings);
+    }
 
   return (status = 0);
 }
@@ -2862,17 +2878,10 @@ int kernelWindowCenterBackground(const char *filename)
 {
   // This will center the supplied image as the background
   
-  int status = 0;
-
   // For the moment, this is not really implemented.  The 'tile' routine
   // will automatically center the image if it's wider or higher than half
   // the screen size anyway.
-  status = kernelWindowTileBackground(filename);
-  if (status >= 0)
-    // Save the settings variable
-    kernelVariableListSet(settings, "background.image", filename);
-
-  return (status);
+  return (kernelWindowTileBackground(filename));
 }
 
 
@@ -3113,10 +3122,9 @@ kernelWindowComponent *kernelWindowComponentNew(volatile void *parent,
 void kernelWindowComponentDestroy(kernelWindowComponent *component)
 {
   kernelWindow *window = NULL;
-  kernelWindowContainer flatContainer;
+  kernelWindowComponent *containerComponent = NULL;
+  kernelWindowContainer *container = NULL;
   componentParameters params;
-  int removed = 0;
-  int count;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -3129,33 +3137,16 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
   window = (kernelWindow *) component->window;
 
   // Make sure the component is removed from any containers it's in
-
-  // The system container
-  flatContainer.numComponents = 0;
-  flattenContainer((kernelWindowContainer *) window->sysContainer->data,
-		   &flatContainer, 0 /* No flags/conditions */);
-  for (count = 0; count < flatContainer.numComponents; count ++)
-    if (flatContainer.components[count] == component)
-      {	
-	((kernelWindowContainer *) window->sysContainer->data)
-	  ->containerRemove(window->sysContainer, component);
-	removed = 1;
-	break;
-      }
-
-  if (!removed)
+  if (component->container != NULL)
     {
-      // Try the main container
-      flatContainer.numComponents = 0;
-      flattenContainer((kernelWindowContainer *) window->mainContainer->data,
-		       &flatContainer, 0 /* No flags/conditions */);
-      for (count = 0; count < flatContainer.numComponents; count ++)
-	if (flatContainer.components[count] == component)
-	  {	
-	    ((kernelWindowContainer *) window->mainContainer->data)
-	      ->containerRemove(window->mainContainer, component);
-	    break;
-	  }
+      containerComponent = (kernelWindowComponent *) component->container;
+      container = (kernelWindowContainer *) containerComponent->data;
+      if (container == NULL)
+	{
+	  kernelError(kernel_error, "Container fata is null");
+	  return;
+	}
+      container->containerRemove(containerComponent, component);
     }
 
   // If this is the console text area, move it back to our console window
@@ -3170,7 +3161,8 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
       params.useDefaultBackground = 1;
       ((kernelWindowTextArea *) component->data)
 	->area->graphicBuffer = &(consoleWindow->buffer);
-      ((kernelWindowContainer *) consoleWindow->mainContainer->data)
+      container = (kernelWindowContainer *) consoleWindow->mainContainer->data;
+      container
 	->containerAdd(consoleWindow->mainContainer, component, &params);
       return;
     }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,16 +22,12 @@
 // This is the standard "fabs" function, as found in standard C libraries
 
 #include <math.h>
-#include <errno.h>
 
 
 double fabs(double x)
 {
   // The  fabs() function returns the absolute value of the floating-point
   // number x.
-
-  // We don't set errno
-  errno = 0;
 
   if (x < 0)
     return (x *= -1.0);

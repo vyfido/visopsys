@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,9 +34,6 @@ int printf(const char *format, ...)
   int outputlen = 0;
   char output[MAXSTRINGLENGTH];
   
-  // We don't set errno in this function
-  errno = 0;
-
   // Initialize the argument list
   va_start(list, format);
 

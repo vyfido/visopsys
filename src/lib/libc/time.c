@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,6 +39,7 @@ time_t time(time_t *t)
   // is returned, and errno is set appropriately.  If tloc points to an
   // illegal address, time() fails and its actions are undefined.
 
+  int status = 0;
   time_t time_simple = 0;
   struct tm time_struct;
   int count;
@@ -49,10 +50,12 @@ time_t time(time_t *t)
     30, /* Sep */ 31, /* Aug */ 30 /* Nov */ };
 
   // Get the date and time according to the kernel
-  errno = rtcDateTime(&time_struct);
-
-  if (errno)
-    return (time_simple = -1);
+  status = rtcDateTime(&time_struct);
+  if (status < 0)
+    {
+      errno = status;
+      return (time_simple = -1);
+    }
 
   // One last check
   if (time_struct.tm_year < 1970)
@@ -104,7 +107,6 @@ time_t time(time_t *t)
   time_simple += time_struct.tm_sec;
 
   // Done.
-  errno = 0;
   if (t)
     *t = time_simple;
   return (time_simple);

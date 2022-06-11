@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2004 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2005 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -141,7 +141,7 @@ loaderMain:
 
 	;; Gather information about the boot device
 	call bootDevice
-	
+
 	;; Before we print any other info, determine whether the user wants
 	;; to see any hardware info messages.  If the BOOTINFO file exists,
 	;; then we print the messages
@@ -424,7 +424,7 @@ bootDevice:
 	xor EDX, EDX
 	mov EAX, dword [TOTALSECS]
 	div ECX
-	mov dword [CYLINDERS], EAX	; new cyls value 
+	mov dword [CYLINDERS], EAX	; new cyls value
 
 	.done:
 	popa
@@ -850,7 +850,7 @@ loaderBigRealMode:
 	
 	;; Load GS with the global data segment selector
 	push dword PRIV_DATASELECTOR
-	pop dword GS
+	pop GS
 
 	;; Return to real mode
 	mov EAX, CR0
@@ -1087,8 +1087,8 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.51' , 0
-LOADMSG2	db 'Copyright (C) 1998-2004 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.52' , 0
+LOADMSG2	db 'Copyright (C) 1998-2005 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0
 DEVDISK2	db ', ', 0

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +23,6 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <errno.h>
 
 
 int sprintf(char *output, const char *format, ...)
@@ -34,9 +33,6 @@ int sprintf(char *output, const char *format, ...)
 
   va_list list;
   int outputlen = 0;
-
-  // We don't set errno in this function
-  errno = 0;
 
   // Initialize the argument list
   va_start(list, format);

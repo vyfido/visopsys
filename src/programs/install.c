@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,7 +42,7 @@ static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2004 "
+static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2005 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
   "install.  Note that the installation\nvolume MUST be of the same "

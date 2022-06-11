@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -799,10 +799,10 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
     }
 #endif // DISK_CACHE
 
-      // Make sure the disk daemon is running
-      if (kernelMultitaskerGetProcessState(diskdPID, &tmpState) < 0)
-	// Re-spawn the disk daemon
-	spawnDiskd();
+  // Make sure the disk daemon is running
+  if (kernelMultitaskerGetProcessState(diskdPID, &tmpState) < 0)
+    // Re-spawn the disk daemon
+    spawnDiskd();
 
   // Now we start the actual read/write operation
 
@@ -1114,11 +1114,8 @@ int kernelDiskReadPartitions(void)
 
 		      logicalDisks[logicalDiskCounter++] = logicalDisk;
 		      
-		      // See if we can determine the filesystem types
-		      status = kernelFilesystemScan(logicalDisk);
-		      if (status < 0)
-			strncpy((char *) logicalDisk->fsType,
-				partType.description, FSTYPE_MAX_NAMELENGTH);
+		      // See if we can determine the filesystem type
+		      kernelFilesystemScan(logicalDisk);
 
 		      kernelLog("Disk %s (hard disk %d, partition %d): %s",
 				logicalDisk->name, count,

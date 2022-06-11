@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/errors.h>
+
+static char *panicConst = "PANIC";
+static char *errorConst = "Error";
+static char *warningConst = "Warning";
+static char *messageConst = "Message";
 
 
 static void errorDialogThread(int numberArgs, void *args[])
@@ -139,7 +144,8 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   // to the text console.
 
   va_list list;
-  char errorType[32];
+  const char *errorType = NULL;
+  const char *processName = NULL;
   char errorText[MAX_ERRORTEXT_LENGTH];
   //int regularForeground;
 
@@ -147,20 +153,26 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   switch(kind)
     {
     case kernel_panic:
-      strcpy(errorType, "PANIC");
+      errorType = panicConst;
       break;
     case kernel_error:
-      strcpy(errorType, "Error");
+      errorType = errorConst;
       break;
     case kernel_warn:
-      strcpy(errorType, "Warning");
+      errorType = warningConst;
       break;
     default:
-      strcpy(errorType, "Message");
+      errorType= messageConst;
       break;
     }
 
-  sprintf(errorText, "%s:%s:%s(%d):", errorType, module, function, line);
+  if (kernelCurrentProcess)
+    processName = (const char *) kernelCurrentProcess->processName;
+  else
+    processName = "";
+
+  sprintf(errorText, "%s:%s:%s:%s(%d):", errorType, processName, module,
+	  function, line);
 
   // Save the current text foreground color so we can re-set it.
   //regularForeground = kernelTextGetForeground();

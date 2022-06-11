@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -298,41 +298,50 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
   // blank lines are (hopefully) preserved
 
   int status = 0;
-  fileStream configFile;
-  fileStream oldFile;
-  char oldName[MAX_PATH_NAME_LENGTH];
+  file tmpFile;
+  int oldFile = 0;
+  char tmpName[MAX_PATH_NAME_LENGTH];
+  fileStream oldFileStream;
+  fileStream newFileStream;
   char lineBuffer[256];
   char *variable = NULL;
   char *value = NULL;
   int count;
 
   if ((fileName == NULL) || (list == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  kernelMemClear(&oldFile, sizeof(fileStream));
-  kernelMemClear(&configFile, sizeof(fileStream));
-
-  // Is there already an old version of the config file?
-  file tmp;
-  if (kernelFileFind(fileName, &tmp) >= 0)
     {
-      sprintf(oldName, "%s.TMP", fileName);
-      status = kernelFileMove(fileName, oldName);
-      if (status >= 0)
-	kernelFileStreamOpen(oldName, OPENMODE_READ, &oldFile);
+      kernelError(kernel_error, "File name or list parameter is NULL");
+      return (status = ERR_NULLPARAMETER);
     }
 
-  // Create the new config file
-  status = kernelFileStreamOpen(fileName, (OPENMODE_CREATE | OPENMODE_WRITE |
-					   OPENMODE_TRUNCATE), &configFile);
+  kernelMemClear(&tmpFile, sizeof(file));
+  kernelMemClear(&oldFileStream, sizeof(fileStream));
+  kernelMemClear(&newFileStream, sizeof(fileStream));
+
+  // Is there already an old version of the config file?
+  if (!kernelFileFind(fileName, &tmpFile))
+    {
+      // Yup.  Open it for reading, and make our temporary filename different
+      // so that we don't overwrite anything until we've been successful.
+
+      oldFile = 1;
+
+      status = kernelFileStreamOpen(fileName, OPENMODE_READ, &oldFileStream);
+      if (status < 0)
+	return (status);
+
+      sprintf(tmpName, "%s.TMP", fileName);
+    }
+  else
+    strcpy(tmpName, fileName);
+
+  // Create the new config file for writing
+  status = kernelFileStreamOpen(tmpName, (OPENMODE_CREATE | OPENMODE_WRITE |
+					  OPENMODE_TRUNCATE), &newFileStream);
   if (status < 0)
     {
-      if (oldFile.f.handle)
-	{
-	  // Move the old one back
-	  kernelFileStreamClose(&oldFile);
-	  kernelFileMove(oldName, fileName);
-	}
+      if (oldFile)
+	kernelFileStreamClose(&oldFileStream);
       return (status);
     }
 
@@ -341,19 +350,22 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
     {
       // If we successfully opened an old file, first try to to stuff in sync
       // with the line numbers
-      if (oldFile.f.handle)
+      if (oldFile)
 	{
 	  strcpy(lineBuffer, "#");
 	  while ((lineBuffer[0] == '#') || (lineBuffer[0] == '\n'))
 	    {
-	      status = kernelFileStreamReadLine(&oldFile, 256, lineBuffer);
+	      status =
+		kernelFileStreamReadLine(&oldFileStream, 256, lineBuffer);
 	      if (status < 0)
 		break;
+
 	      if ((lineBuffer[0] == '#') || (lineBuffer[0] == '\n'))
 		{
-		  status = kernelFileStreamWriteLine(&configFile, lineBuffer);
+		  status =
+		    kernelFileStreamWriteLine(&newFileStream, lineBuffer);
 		  if (status < 0)
-		    break;
+		    return (status);
 		}
 	    }
 	}
@@ -363,22 +375,26 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
 
       sprintf(lineBuffer, "%s=%s", variable, value);
 
-      status = kernelFileStreamWriteLine(&configFile, lineBuffer);
+      status = kernelFileStreamWriteLine(&newFileStream, lineBuffer);
       if (status < 0)
-	// Eh?  Disk full?  Something?
-	break;
+	return (status);
     }
 
   // Close things up
-  kernelFileStreamFlush(&configFile);
-  kernelFileStreamClose(&configFile);
-  if (oldFile.f.handle)
+  kernelFileStreamClose(&oldFileStream);
+  status = kernelFileStreamClose(&newFileStream);
+  if (status < 0)
+    return (status);
+
+  if (oldFile)
     {
-      kernelFileStreamClose(&oldFile);
-      kernelFileDelete(oldName);
+      // Move the temporary file to the destination
+      status = kernelFileMove(tmpName, fileName);
+      if (status < 0)
+	return (status);
     }
 
-  return (status);
+  return (status = 0);
 }
 
 

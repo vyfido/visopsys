@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,11 +29,11 @@
 #include <sys/api.h>
 
 #define SIMPLESHELLPROMPT "> "
-#define MAX_ARGS 100
+#define MAX_ARGS          100
 #define MAX_STRING_LENGTH 100
-#define COMMANDHISTORY 10
+#define COMMANDHISTORY    20
 #define MAX_ENVVAR_LENGTH MAX_STRING_LENGTH
-#define MAX_LINELENGTH 256
+#define MAX_LINELENGTH    256
 
 static int myProcId, myPrivilege;
 static char cwd[MAX_PATH_LENGTH];
@@ -66,24 +66,34 @@ static void interpretCommand(char *commandLine)
   int status = 0;
   int argc = 0;
   char *argv[MAX_ARGS];
-  char fileName1[MAX_PATH_NAME_LENGTH];
-  char fileName2[MAX_PATH_NAME_LENGTH];
-  char getEnvBuff[MAX_ENVVAR_LENGTH];
+  char *fileName1 = NULL;
+  char *fileName2 = NULL;
+  char *getEnvBuff = NULL;
   int temp = 0;
   int block = 1;
   int count;
 
   // Initialize stack memory
-  for (count = 0; count < MAX_ARGS; count ++)
-    argv[count] = NULL;
-  fileName1[0] = '\0';
-  fileName2[0] = '\0';
+  bzero(argv, (MAX_ARGS * sizeof(char *)));
+
+  fileName1 = malloc(MAX_PATH_NAME_LENGTH);
+  fileName2 = malloc(MAX_PATH_NAME_LENGTH);
+  if ((fileName1 == NULL) || (fileName2 == NULL))
+    {
+      errno = ERR_MEMORY;
+      perror("vsh");
+      return;
+    }
 
   // We have to separate the command and arguments into an array of
   // strings
   status = vshParseCommand(commandLine, fileName1, &argc, argv);
   if (status < 0)
-    return;
+    {
+      free(fileName1);
+      free(fileName2);
+      return;
+    }
 
   // Try to match the command with the list of built-in commands
 
@@ -120,13 +130,15 @@ static void interpretCommand(char *commandLine)
 	vshFileList(cwd);
 
       else
-	for (count = 1; count < argc; count ++)
-	  {
-	    // If any of the arguments are RELATIVE pathnames, we should
-	    // insert the pwd before it
-	    vshMakeAbsolutePath(argv[count], fileName1);
-	    vshFileList(fileName1);
-	  }
+	{
+	  for (count = 1; count < argc; count ++)
+	    {
+	      // If any of the arguments are RELATIVE pathnames, we should
+	      // insert the pwd before it
+	      vshMakeAbsolutePath(argv[count], fileName1);
+	      vshFileList(fileName1);
+	    }
+	}
     }
 
   else if (!strcmp(argv[0], "type"))
@@ -153,14 +165,15 @@ static void interpretCommand(char *commandLine)
   else if (!strcmp(argv[0], "del"))
     {
       if (argc > 1)
-	for (count = 1; count < argc; count ++)
-	  {
-	    // If any of the arguments are RELATIVE pathnames, we should
-	    // insert the pwd before it
-	    vshMakeAbsolutePath(argv[count], fileName1);
-	    vshDeleteFile(fileName1);
-	  }
-      
+	{
+	  for (count = 1; count < argc; count ++)
+	    {
+	      // If any of the arguments are RELATIVE pathnames, we should
+	      // insert the pwd before it
+	      vshMakeAbsolutePath(argv[count], fileName1);
+	      vshDeleteFile(fileName1);
+	    }
+	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
@@ -209,18 +222,26 @@ static void interpretCommand(char *commandLine)
     {
       if (argc == 2)
 	{
-	  status = environmentGet(argv[1], getEnvBuff, MAX_ENVVAR_LENGTH);
-	  if (status < 0)
+	  getEnvBuff = malloc(MAX_ENVVAR_LENGTH);
+	  if (getEnvBuff != NULL)
 	    {
-	      errno = status;
-	      perror(argv[0]);
+	      status = environmentGet(argv[1], getEnvBuff, MAX_ENVVAR_LENGTH);
+	      if (status < 0)
+		{
+		  errno = status;
+		  perror(argv[0]);
+		}
+	      else
+		printf("%s\n", getEnvBuff);
+
+	      free(getEnvBuff);
 	    }
 	  else
 	    {
-	      printf("%s\n", getEnvBuff);
+	      errno = ERR_MEMORY;
+	      perror(argv[0]);
 	    }
 	}
-      
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
@@ -237,14 +258,12 @@ static void interpretCommand(char *commandLine)
 	    printf("Shouldn't set an env variable that long\n");
 
 	  status = environmentSet(argv[1], argv[2]);
-
 	  if (status < 0)
 	    {
 	      errno = status;
 	      perror(argv[0]);
 	    }
 	}
-      
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
@@ -258,14 +277,12 @@ static void interpretCommand(char *commandLine)
       if (argc == 2)
 	{
 	  status = environmentUnset(argv[1]);
-
 	  if (status < 0)
 	    {
 	      errno = status;
 	      perror(argv[0]);
 	    }
 	}
-      
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
@@ -275,9 +292,7 @@ static void interpretCommand(char *commandLine)
     }
 
   else if (!strcmp(argv[0], "printenv"))
-    {
-      environmentDump();
-    }
+    environmentDump();
 
   else if (fileName1[0] != '\0')
     {
@@ -307,27 +322,36 @@ static void interpretCommand(char *commandLine)
   else
     printf("Unknown command \"%s\".\n", argv[0]);
 
+  free(fileName1);
+  free(fileName2);
   return;
 }
 
 
 static void simpleShell(void)
 {
-  // This is a very simple command shell intended only for development
-  // purpose, although it might conceivably be used as a basis for a later
-  // version of a real shell.
+  // This is a very simple command shell.
 
-  char commandBuffer[MAX_LINELENGTH];
-  char commandHistory[COMMANDHISTORY][MAX_LINELENGTH];
+  char *commandBuffer = NULL;
+  char *commandHistory[COMMANDHISTORY];
   int currentCommand = 0;
   int selectedCommand = 0;
   unsigned char bufferCharacter;
   static int currentCharacter = 0;
   int count;
+  
+  commandBuffer = malloc(MAX_LINELENGTH);
+  char *tmp = malloc(COMMANDHISTORY * MAX_LINELENGTH);
+  if ((commandBuffer == NULL) || (tmp == NULL))
+    {
+      errno = ERR_MEMORY;
+      perror("vsh");
+      return;
+    }
 
   // Initialize stack data
-  bzero(commandBuffer, MAX_LINELENGTH);
-  bzero(commandHistory, (COMMANDHISTORY * MAX_LINELENGTH));
+  for (count = 0; count < COMMANDHISTORY; count ++)
+    commandHistory[count] = (tmp + (count * MAX_LINELENGTH));
 
   // This program runs in an infinite loop
   while(1)
@@ -509,7 +533,7 @@ static void simpleShell(void)
 	    {
 	      if (!strcmp(commandBuffer, "logout") ||
 		  !strcmp(commandBuffer, "exit"))
-		return;
+		goto logout;
 
 	      strcpy(commandHistory[currentCommand], commandBuffer);
 
@@ -527,7 +551,25 @@ static void simpleShell(void)
 		    currentCommand = 0;
 		}
 
-	      interpretCommand(commandBuffer);
+	      // Check for special 'history' request
+	      if (!strcmp(commandBuffer, "history"))
+		{
+		  for (count = (currentCommand + 1); ; count ++)
+		    {
+		      if (count >= COMMANDHISTORY)
+			count = 0;
+
+		      if (count == currentCommand)
+			break;
+
+		      if (commandHistory[count][0] == '\0')
+			continue;
+
+		      printf("%s\n", commandHistory[count]);
+		    }
+		}
+	      else
+		interpretCommand(commandBuffer);
 	    }
 
 	  // Set the current character to 0
@@ -543,7 +585,7 @@ static void simpleShell(void)
 	{
 	  // CTRL-D.  Logout
 	  printf("logout\n");
-	  return;
+	  goto logout;
 	}
 
       else
@@ -569,6 +611,10 @@ static void simpleShell(void)
     }
 
   // This program never returns unless the user does 'logout'
+ logout:
+  free(commandBuffer);
+  free(commandHistory[0]);
+  return;
 }
 
 
@@ -635,7 +681,7 @@ int main(int argc, char *argv[])
   simpleShell();
 
   // We'll end up here at 'logout'
-  printf("exiting.\n");
 
+  printf("exiting.\n");
   return status;
 }

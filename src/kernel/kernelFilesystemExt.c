@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -743,10 +743,13 @@ int kernelFilesystemExtDetect(const kernelDisk *theDisk)
   kernelFree(buffer);
 
   if (status == 0)
-    // EXT2
-    return (status = 1);
+    {
+      // EXT
+      strcpy((char *) theDisk->fsType, "ext");
+      return (status = 1);
+    }
   else
-    // Not EXT2
+    // Not EXT
     return (status = 0);
 }
 

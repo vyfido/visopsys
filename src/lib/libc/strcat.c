@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -58,6 +58,5 @@ char *strcat(char *destString, const char *sourceString)
 	count1++; count2++;
     }
 
-  errno = 0;
   return (destString);
 }

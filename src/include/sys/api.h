@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -194,6 +194,7 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerKillProcess                 6021
 #define _fnum_multitaskerKillByName                  6022
 #define _fnum_multitaskerTerminate                   6023
+#define _fnum_multitaskerProcessIsAlive              6024
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
@@ -1395,6 +1396,14 @@ _X_ static inline int multitaskerSetProcessState(int pid, int state)
   // Desc : Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
   return (sysCall_2(_fnum_multitaskerSetProcessState, (void *) pid, 
 		   (void *) state));
+}
+
+
+_X_ static inline int multitaskerProcessIsAlive(int pid)
+{
+  // Proto: int kernelMultitaskerProcessIsAlive(int);
+  // Desc : Returns 1 if the process with the id 'pid' still exists and is in a 'runnable' (viable) state.  Returns 0 if the process does not exist or is in a 'finished' state.
+  return (sysCall_1(_fnum_multitaskerProcessIsAlive, (void *) pid));
 }
 
 _X_ static inline int multitaskerSetProcessPriority(int pid, int priority)

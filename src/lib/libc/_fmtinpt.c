@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -113,7 +113,6 @@ int _formatInput(const char *input, const char *format, va_list list)
     }
 
   // Return the number of items we matched
-  errno = 0;
   return (matchItems);
 }
 

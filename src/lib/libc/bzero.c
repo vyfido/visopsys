@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +25,6 @@
 // The bzero() function sets the first n bytes of the byte string to zero.
 // The bzero() function returns no value.
 
-
 #include <string.h>
 #include <errno.h>
 
@@ -44,7 +43,5 @@ void bzero(void *string, size_t number)
   for (count = 0; count < number; count ++)
     ((char *) string)[count] = '\0';
   
-  // Return success
-  errno = 0;
   return;
 }

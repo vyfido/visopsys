@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,12 +47,23 @@ int main(int argc, char *argv[])
       return (status);
     }
 
-  printf("\n");
-      
+  printf("\nDisk  Partition");
+  textSetColumn(31);
+  printf("Filesystem\n");
+
   for (count = 0; count < availableDisks; count ++)
-    // Print disk info
-    printf("%s: %s\n", diskInfo[count].name, diskInfo[count].partType
-	   .description);
+    {
+      // Print disk info
+      printf("%s: ", diskInfo[count].name);
+      textSetColumn(6);
+      printf("%s", diskInfo[count].partType.description);
+      if (strcmp(diskInfo[count].fsType, "unknown"))
+	{
+	  textSetColumn(30);
+	  printf(" %s", diskInfo[count].fsType);
+	}
+      printf("\n");
+    }
 
   errno = 0;
   return (status = errno);

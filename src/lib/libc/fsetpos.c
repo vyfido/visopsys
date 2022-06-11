@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,11 +35,14 @@ int fsetpos(FILE *stream, fpos_t *pos)
   // fsetpos returns 0.  Otherwise, -1 is returned and the global variable
   // errno is set to indicate the error.
 
-  // Let the kernel do the rest of the work, baby.
-  errno = fileStreamSeek(stream, *pos);
+  // Let the kernel do the work, baby.
 
-  if (errno)
-    return (-1);
-  else
-    return (0);
+  int status = fileStreamSeek(stream, *pos);
+  if (status < 0)
+    {
+      errno = status;
+      return (-1);
+    }
+
+  return (0);
 }

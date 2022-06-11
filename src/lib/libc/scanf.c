@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,9 +37,6 @@ int scanf(const char *format, ...)
   char *input = NULL;
   char tmpChar;
   int count = 0;
-
-  // We don't set errno in this function
-  errno = 0;
 
   // Go through the format string until we reach the first formatting
   // argument.  Everything before it will be used as our prompt that we

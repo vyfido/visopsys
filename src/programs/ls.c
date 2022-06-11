@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,12 +24,11 @@
 #include <sys/vsh.h>
 #include <sys/api.h>
 
-static char cwd[MAX_PATH_LENGTH];
-
 
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char cwd[MAX_PATH_LENGTH];
   char fileName[MAX_PATH_NAME_LENGTH];
   int count;
 
@@ -46,7 +45,6 @@ int main(int argc, char *argv[])
       {
 	// If any of the arguments are RELATIVE pathnames, we should
 	// insert the pwd before it
-	
 	vshMakeAbsolutePath(argv[count], fileName);
 	vshFileList(fileName);
       }

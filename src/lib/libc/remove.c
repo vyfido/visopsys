@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,35 +34,34 @@ int remove(const char *pathname)
   // success, zero is returned.  On error, -1 is returned, and errno is
   // set appropriately.
 
+  int status = 0;
   file f;
 
   // Figure out whether the file exists
-  errno = fileFind(pathname, &f);
-
-  if (errno)
-    return (-1);
+  status = fileFind(pathname, &f);
+  if (status < 0)
+    {
+      errno = status;
+      return (-1);
+    }
 
   // Now we should have some info about the file.  Is it a file or a 
   // directory?
   if (f.type == fileT)
-    {
-      // This is a regular file.
-      errno = fileDelete(pathname);
-    }
+    // This is a regular file.
+    status = fileDelete(pathname);
   else if (f.type == dirT)
-    {
-      // This is a directory
-      errno = fileRemoveDir(pathname);
-    }
+    // This is a directory
+    status = fileRemoveDir(pathname);
   else
+    // Eek.  What kind of file is this?
+    status = ERR_INVALID;
+
+  if (status < 0)
     {
-      // Eek.  What kind of file is this?
-      errno = ERR_INVALID;
+      errno = status;
       return (-1);
     }
 
-  if (errno)
-    return (-1);
-  else
-    return (0);
+  return (0);
 }

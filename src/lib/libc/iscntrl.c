@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,15 +27,10 @@
 // locale.
 
 #include <ctype.h>
-#include <errno.h>
 
 
 int iscntrl(int c)
 {
   // checks for a control character.
-
-  // We don't set errno
-  errno = 0;
-
   return ((c >= 1) && (c <= 31));
 }

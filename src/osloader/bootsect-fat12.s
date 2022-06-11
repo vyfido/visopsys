@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2004 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2005 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -130,7 +130,7 @@ bootCode:
 	xor EAX, EAX
 	mov AX, word [ResSectors]
 	add EAX, dword [PARTSTART]
-	
+
 	push word [FATSecs]
 	push word FATBUFFER	; Offset where we'll put it
 	push word ES
@@ -297,7 +297,7 @@ read:
 	mov word [CYLINDER], AX
 
 	mov AX, word [SS:(BP + 26)]	; Number to read
-	mov AH, 02h		; Subfunction 2
+	mov AH, 02h			; Subfunction 2
 	mov CX, word [CYLINDER]		; >
 	rol CX, 8			; > Cylinder
 	shl CL, 6			; >

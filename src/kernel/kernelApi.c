@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -253,6 +253,8 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
   { _fnum_multitaskerKillByName, kernelMultitaskerKillByName, 2,
     PRIVILEGE_USER },
   { _fnum_multitaskerTerminate, kernelMultitaskerTerminate,
+    1, PRIVILEGE_USER },
+  { _fnum_multitaskerProcessIsAlive, kernelMultitaskerProcessIsAlive,
     1, PRIVILEGE_USER }
 };
 

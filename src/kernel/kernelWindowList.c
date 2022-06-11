@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,19 +52,20 @@ static void populateList(kernelWindowComponent *listComponent,
   // Sets up all the kernelWindowList subcomponents of the list
   
   kernelWindowList *list = (kernelWindowList *) listComponent->data;
+  kernelWindowContainer *container =
+    (kernelWindowContainer *) list->container->data;
+  kernelWindowComponent *listItemComponent = NULL;
   kernelWindowScrollBar *scrollBar =
     (kernelWindowScrollBar *) list->scrollBar->data;
-  kernelWindow *window = listComponent->window;
   scrollBarState state;
   int itemWidth = 0;
   int setSize = 0;
   int count;
 
   // If the list already has components, get rid of them
-  for (count = 0; count < list->numItems; count ++)
-    kernelWindowComponentDestroy(list->listItems[count]);
-
-  list->numItems = 0;
+  while (container->numComponents)
+    kernelWindowComponentDestroy(container
+			 ->components[container->numComponents - 1]);
 
   if (!listComponent->width || !listComponent->height)
     setSize = 1;
@@ -85,27 +86,19 @@ static void populateList(kernelWindowComponent *listComponent,
   for (count = 0; ((count < numItems) && (count < WINDOW_MAX_LISTITEMS));
        count ++)
     {
-      list->listItems[count] =
-	kernelWindowNewListItem(window, items[count], (componentParameters *)
+      listItemComponent =
+	kernelWindowNewListItem(list->container, items[count],
+				(componentParameters *)
 				&(listComponent->parameters));
-
-      kernelWindowContainer *tmpContainer =
-	(kernelWindowContainer *) window->mainContainer->data;
-
-      // Remove it from the window's main container
-      tmpContainer->containerRemove(window->mainContainer,
-				    list->listItems[count]);
-      // Set the container to the list component
-      list->listItems[count]->container = (void *) listComponent;
+      if (listItemComponent == NULL)
+	continue;
 
       if (count == list->selectedItem)
-	((kernelWindowListItem *) list->listItems[count]->data)->selected = 1;
+	((kernelWindowListItem *) listItemComponent->data)->selected = 1;
 
       // Keep a record of the widest list item width
-      if (list->listItems[count]->width > itemWidth)
-	itemWidth = list->listItems[count]->width;
-
-      list->numItems += 1;
+      if (listItemComponent->width > itemWidth)
+	itemWidth = listItemComponent->width;
     }
 
   if (setSize)
@@ -116,8 +109,9 @@ static void populateList(kernelWindowComponent *listComponent,
 
       // The height of the list component is the height of the first item times
       // the number of rows.
-      if (numItems)
-	listComponent->height = (list->rows * list->listItems[0]->height);
+      if (container->numComponents)
+	listComponent->height =
+	  (list->rows * container->components[0]->height);
 
       if (list->scrollBar)
 	{
@@ -130,14 +124,14 @@ static void populateList(kernelWindowComponent *listComponent,
     }
 
   // Set the widths of all list item subcomponents
-  for (count = 0; count < numItems; count ++)
-    list->listItems[count]->width = list->itemWidth;
+  for (count = 0; count < container->numComponents; count ++)
+    container->components[count]->width = list->itemWidth;
 
   if (list->scrollBar)
     {
       // Set the display percentage
       state.positionPercent = scrollBar->state.positionPercent;
-      if (numItems > list->rows)
+      if (container->numComponents > list->rows)
 	state.displayPercent = ((list->rows * 100) / numItems);
       else
 	state.displayPercent = 100;
@@ -158,6 +152,8 @@ static int draw(void *componentData)
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowList *list = (kernelWindowList *) component->data;
+  kernelWindowContainer *container =
+    (kernelWindowContainer *) list->container->data;
   kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
     &(((kernelWindow *) component->window)->buffer);
   int count;
@@ -169,33 +165,33 @@ static int draw(void *componentData)
 			1, 1);
 
   // Loop through the visible subcomponents, calling their draw() functions
-  for (count = 0; count < list->numItems; count ++)
+  for (count = 0; count < container->numComponents; count ++)
     {
       if ((count >= list->firstVisible) &&
 	  (count < (list->rows + list->firstVisible)))
 	{
 	  // Make sure the subcomponent has the same parameters as the main one
 	  kernelMemCopy((void *) &(component->parameters),
-			(void *) &(list->listItems[count]->parameters),
+			(void *) &(container->components[count]->parameters),
 			sizeof(componentParameters));
 
-	  list->listItems[count]->xCoord = component->xCoord;
-	  list->listItems[count]->yCoord =
+	  container->components[count]->xCoord = component->xCoord;
+	  container->components[count]->yCoord =
 	    (component->yCoord + ((count - list->firstVisible) *
-				  list->listItems[count]->height));
+				  container->components[count]->height));
 	  
-	  list->listItems[count]->flags |= WINFLAG_VISIBLE;
+	  container->components[count]->flags |= WINFLAG_VISIBLE;
 
-	  if (list->listItems[count]->draw)
+	  if (container->components[count]->draw)
 	    {
-	      status = list->listItems[count]
-		->draw((void *) list->listItems[count]);
+	      status = container->components[count]
+		->draw((void *) container->components[count]);
 	      if (status < 0)
 		return (status);
 	    }
 	}
       else
-	list->listItems[count]->flags &= ~WINFLAG_VISIBLE;
+	container->components[count]->flags &= ~WINFLAG_VISIBLE;
     }
 
   // Draw the scroll bar
@@ -236,27 +232,29 @@ static int setSelected(void *componentData, int selected)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowList *list = (kernelWindowList *) component->data;
+  kernelWindowContainer *container =
+    (kernelWindowContainer *) list->container->data;
   kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *)
     list->scrollBar->data;
   scrollBarState state;
 
   // Check params
-  if ((selected < 0) || (selected >= list->numItems))
+  if ((selected < 0) || (selected >= container->numComponents))
     {
       kernelError(kernel_error, "Illegal component number %d", selected);
       return (status = ERR_BOUNDS);
     }
 
-  list->listItems[selected]
-    ->setSelected((void *) list->listItems[selected], selected);
+  container->components[selected]
+    ->setSelected((void *) container->components[selected], selected);
 
   if (selected)
     {
       // If some other item has been clicked, deselect the old one
       if (!(list->selectMultiple) &&
 	  (list->selectedItem != -1) && (selected != list->selectedItem))
-	list->listItems[list->selectedItem]
-	  ->setSelected((void *) list->listItems[list->selectedItem], 0);
+	container->components[list->selectedItem]
+	  ->setSelected((void *) container->components[list->selectedItem], 0);
       list->selectedItem = selected;
     }
   else
@@ -265,8 +263,8 @@ static int setSelected(void *componentData, int selected)
 	 {
 	   // Can't deselect an item when 'select multiple' is not in effect.
 	   // Have to select something else insead.
-	   list->listItems[selected]
-	     ->setSelected((void *) list->listItems[selected], 1);
+	   container->components[selected]
+	     ->setSelected((void *) container->components[selected], 1);
 	   list->selectedItem = selected;
 	 }
        else
@@ -279,11 +277,11 @@ static int setSelected(void *componentData, int selected)
   else if (list->selectedItem >= (list->firstVisible + list->rows))
     list->firstVisible = ((list->selectedItem - list->rows) + 1);
 
-  if (scrollBar && (list->numItems > list->rows))
+  if (scrollBar && (container->numComponents > list->rows))
     {
       state.displayPercent = scrollBar->state.displayPercent;
       state.positionPercent = ((list->firstVisible * 100) /
-			       (list->numItems - list->rows));
+			       (container->numComponents - list->rows));
 
       if (list->scrollBar->setData)
 	list->scrollBar->setData((void *) list->scrollBar, &state,
@@ -345,6 +343,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
   kernelWindow *window = (kernelWindow *) component->window;
   kernelGraphicBuffer *buffer = &(window->buffer);
   kernelWindowList *list = (kernelWindowList *) component->data;
+  kernelWindowContainer *container =
+    (kernelWindowContainer *) list->container->data;
   kernelWindowScrollBar *scrollBar = NULL;
   int clickedItem = 0;
   int firstVisible = 0;
@@ -362,9 +362,9 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
       // Now, adjust the visible subcomponents based on the 'position percent'
       // of the scroll bar
-      if (list->numItems > list->rows)
+      if (container->numComponents > list->rows)
 	{
-	  firstVisible = (((list->numItems - list->rows) *
+	  firstVisible = (((container->numComponents - list->rows) *
 			   scrollBar->state.positionPercent) / 100);
 
 	  if (firstVisible != list->firstVisible)
@@ -383,30 +383,31 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status);
     }
 
-  else if (list->numItems && (event->type == EVENT_MOUSE_LEFTDOWN))
+  else if (container->numComponents && (event->type == EVENT_MOUSE_LEFTDOWN))
     {
       // Figure out which list item was clicked based on the coordinates
       // of the event
       clickedItem =
 	(((event->yPosition - (window->yCoord + component->yCoord)) /
-	  list->listItems[0]->height) + list->firstVisible);
+	  container->components[0]->height) + list->firstVisible);
 
       // Is there an item in this space?
-      if (clickedItem >= list->numItems)
+      if (clickedItem >= container->numComponents)
 	return (status = 0);
 	  
-      if (list->listItems[clickedItem]->mouseEvent)
-	status = list->listItems[clickedItem]
-	  ->mouseEvent((void *) list->listItems[clickedItem], event);
+      if (container->components[clickedItem]->mouseEvent)
+	status = container->components[clickedItem]
+	  ->mouseEvent((void *) container->components[clickedItem], event);
 
-      if (list->listItems[clickedItem]
-	  ->getSelected((void *) list->listItems[clickedItem]))
+      if (container->components[clickedItem]
+	  ->getSelected((void *) container->components[clickedItem]))
 	{
 	  // If some other item has been clicked, deselect the old one
 	  if (!(list->selectMultiple) && (list->selectedItem != -1) &&
 	      (clickedItem != list->selectedItem))
-	    list->listItems[list->selectedItem]
-	      ->setSelected((void *) list->listItems[list->selectedItem], 0);
+	    container->components[list->selectedItem]
+	      ->setSelected((void *) container->components[list->selectedItem],
+			    0);
 	  list->selectedItem = clickedItem;
 	}
       else
@@ -415,8 +416,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	    {
 	      // Can't deselect an item when 'select multiple' is not in
 	      // effect.  Have to select something else insead.
-	      list->listItems[clickedItem]
-		->setSelected((void *) list->listItems[clickedItem], 1);
+	      container->components[clickedItem]
+		->setSelected((void *) container->components[clickedItem], 1);
 	      list->selectedItem = clickedItem;
 	    }
 	  else
@@ -436,6 +437,8 @@ static int keyEvent(void *componentData, windowEvent *event)
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowList *list = (kernelWindowList *) component->data;
+  kernelWindowContainer *container =
+    (kernelWindowContainer *) list->container->data;
   kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *)
     list->scrollBar->data;
   kernelWindow *window = (kernelWindow *) component->window;
@@ -453,18 +456,20 @@ static int keyEvent(void *componentData, windowEvent *event)
 	newSelected = (list->selectedItem - 1);
       // Must be cursor down
       else if ((event->key == 20) &&
-	       (list->selectedItem < (list->numItems - 1)))
+	       (list->selectedItem < (container->numComponents - 1)))
 	newSelected = (list->selectedItem + 1);
 
       if (newSelected != list->selectedItem)
 	{
 	  // The selected list item has changed.
 
-	  list->listItems[list->selectedItem]
-	      ->setSelected((void *) list->listItems[list->selectedItem], 0);
+	  container->components[list->selectedItem]
+	    ->setSelected((void *) container->components[list->selectedItem],
+			  0);
 	  list->selectedItem = newSelected;
-	  list->listItems[list->selectedItem]
-	      ->setSelected((void *) list->listItems[list->selectedItem], 1);
+	  container->components[list->selectedItem]
+	    ->setSelected((void *) container->components[list->selectedItem],
+			  1);
 
 	  // Do we need to scroll the list?
 	  if ((list->selectedItem < list->firstVisible) ||
@@ -478,8 +483,9 @@ static int keyEvent(void *componentData, windowEvent *event)
 	      if (scrollBar)
 		{
 		  state.displayPercent = scrollBar->state.displayPercent;
-		  state.positionPercent = ((list->firstVisible * 100) /
-					   (list->numItems - list->rows));
+		  state.positionPercent =
+		    ((list->firstVisible * 100) /
+		     (container->numComponents - list->rows));
 
 		  if (list->scrollBar->setData)
 		    list->scrollBar->setData((void *) list->scrollBar, &state,
@@ -502,18 +508,23 @@ static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowList *list = (kernelWindowList *) component->data;
-  int count;
+  kernelWindowContainer *container =
+    (kernelWindowContainer *) list->container->data;
 
   // Loop through the subcomponents, calling their destroy() functions
-  for (count = 0; count < list->numItems; count ++)
-    {
-      kernelWindowComponentDestroy(list->listItems[count]);
-      list->listItems[count] = NULL;
-    }
+  while (container->numComponents)
+    kernelWindowComponentDestroy(container
+				 ->components[container->numComponents - 1]);
 
   // Release all our memory
   if (list)
     {
+      if (list->container)
+	kernelWindowComponentDestroy(list->container);
+      
+      if (list->scrollBar)
+	kernelWindowComponentDestroy(list->scrollBar);
+
       kernelFree(component->data);
       component->data = NULL;
     }
@@ -541,6 +552,7 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
   int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowList *list = NULL;
+  kernelWindowContainer *container = NULL;
 
   // Check parameters.
   if ((parent == NULL) || (items == NULL) || (params == NULL))
@@ -602,6 +614,17 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
   component->keyEvent = &keyEvent;
   component->destroy = &destroy;
 
+  // Get our container component
+  list->container =
+    kernelWindowNewContainer(parent, "windowlist container", params);
+  if (list->container == NULL)
+    {
+      kernelFree((void *) component);
+      kernelFree((void *) list);
+      return (component = NULL);
+    }
+  container = (kernelWindowContainer *) list->container->data;
+
   // Get our scrollbar component
   list->scrollBar =
     kernelWindowNewScrollBar(parent, scrollbar_vertical, 0, component->height,
@@ -617,18 +640,21 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
   list->scrollBar->parameters.useDefaultForeground = 1;
   list->scrollBar->parameters.useDefaultBackground = 1;
 
-  // Remove the scrollbar from the parent container
+  // Remove the container and scrollbar from the parent container
   if (((kernelWindow *) parent)->type == windowType)
     {
       kernelWindow *tmpWindow = getWindow(parent);
       kernelWindowContainer *tmpContainer =
 	(kernelWindowContainer *) tmpWindow->mainContainer->data;
+      tmpContainer->containerRemove(tmpWindow->mainContainer, list->container);
       tmpContainer->containerRemove(tmpWindow->mainContainer, list->scrollBar);
     }
   else
     {
       kernelWindowContainer *tmpContainer =(kernelWindowContainer *)
 	((kernelWindowComponent *) parent)->data;
+      tmpContainer->containerRemove((kernelWindowComponent *) parent,
+				    list->container);
       tmpContainer->containerRemove((kernelWindowComponent *) parent,
 				    list->scrollBar);
     }
@@ -643,7 +669,8 @@ kernelWindowComponent *kernelWindowNewList(volatile void *parent, int rows,
     // Multiple selections are not allowed, so we select the first one
     if (numItems)
       {
-	((kernelWindowListItem *) list->listItems[0]->data)->selected = 1;
+	((kernelWindowListItem *) container->components[0]->data)
+	  ->selected = 1;
 	list->selectedItem = 0;
       }
 

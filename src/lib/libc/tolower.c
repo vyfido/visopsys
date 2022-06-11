@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "tolower" function, as found in standard C libraries
 
 #include <ctype.h>
-#include <errno.h>
 
 
 int tolower(int c)
@@ -31,9 +30,6 @@ int tolower(int c)
   // exists a corresponding lower-case letter, the result is the
   // corresponding lower-case letter.  All other arguments are returned
   // unchanged.
-
-  // We don't set errno
-  errno = 0;
 
   if ((c >= 65) && (c <= 90))
     return (c + 32);

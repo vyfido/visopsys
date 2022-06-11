@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,15 +23,11 @@
 // libraries
 
 #include <string.h>
-#include <errno.h>
 
 
 int strncasecmp(const char *s1, const char *s2, size_t length)
 {
   int result = 0;
-
-  // We don't set errno in this function
-  errno = 0;
 
   // Go through the strings, counting as we go.  If we get to the end, or
   // "length" and everything matches, we return 0.  Otherwise, if the strings

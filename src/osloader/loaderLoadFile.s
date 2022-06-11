@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2004 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2005 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -162,7 +162,7 @@ readSector:
 	int 13h
 	jc .IOError
 	jmp .done
-	
+
 	.noExtended:
 
 	;; Calculate the CHS
@@ -170,7 +170,7 @@ readSector:
 	call headTrackSector
 
 	mov AX, word [SS:(BP + 28)]	; Number to read
-	mov AH, 02h		; Subfunction 2
+	mov AH, 02h			; Subfunction 2
 	mov CX, word [CYLINDER]		; >
 	rol CX, 8			; > Cylinder
 	shl CL, 6			; >
@@ -201,7 +201,7 @@ readSector:
 	jnae .readAttempt
 
 	mov word [SS:(BP + 16)], -1
-	
+
 	.done:
 	pop AX			; Counter
 	popa
@@ -865,7 +865,7 @@ loaderLoadFile:
 	
 	;; Now we load the FAT table into memory
 	call loadFAT
-	
+
 	;; Was that successful?  Do a signed comparison.  Less than 0
 	;; means error.
 	cmp AX, 0
@@ -884,7 +884,7 @@ loaderLoadFile:
 
 	mov AX, word [SS:(BP + 26)]
 	mov word [SHOWPROGRESS], AX
-	
+
 	pop AX
 	push dword [SS:(BP + 22)]
 	push AX

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,6 +35,9 @@ void free(void *oldMemory)
   // already been called before,  undefined  behaviour  occurs.
   // If ptr is NULL, no operation is performed.
   
-  errno = memoryRelease(oldMemory);
+  int status = memoryRelease(oldMemory);
+  if (status < 0)
+    errno = status; 
+
   return;
 }

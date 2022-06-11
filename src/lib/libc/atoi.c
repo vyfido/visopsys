@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -48,7 +48,6 @@ int atoi(const char *theString)
       return (0);
     }
 
-  errno = 0;
   if ((theString[0] < 48) || (theString[0] > 57))
     // Not a number
     return (errno = ERR_INVALID);

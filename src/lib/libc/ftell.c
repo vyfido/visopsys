@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -16,13 +16,12 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  fsetpos.c
+//  ftell.c
 //
 
-// This is the standard "fsetpos" function, as found in standard C libraries
+// This is the standard "ftell" function, as found in standard C libraries
 
 #include <stdio.h>
-#include <errno.h>
 #include <sys/api.h>
 
 
@@ -34,9 +33,5 @@ long ftell(FILE *stream)
   // file-position indicator for the stream measured in bytes from the
   // beginning of the file.  Otherwise, they return -1 and sets errno to
   // indicate the error.
-
-  // We don't set errno in this function
-  errno = 0;
-  
   return ((stream->block * stream->f.blockSize) + stream->s.last);
 }

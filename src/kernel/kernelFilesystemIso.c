@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -451,7 +451,10 @@ int kernelFilesystemIsoDetect(const kernelDisk *theDisk)
   // Check for the standard identifier
   if (!strncmp((buffer + 1), ISO_STANDARD_IDENTIFIER,
 	       strlen(ISO_STANDARD_IDENTIFIER)))
-    isIso = 1;
+    {
+      strcpy((char *) theDisk->fsType, "iso9660");
+      isIso = 1;
+    }
 
   kernelFree(buffer);
   return (isIso);

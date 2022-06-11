@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+##  Copyright (C) 1998-2005 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -8,16 +8,20 @@
 BUILDDIR=../../../build/programs/mines
 
 CC		= gcc
+CPU		= $(shell ../../utils/cpu.sh)
 STDDEPS		= Makefile*
-INCLUDES	= -I../../include
-CFLAGS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
-		-mcpu=pentium -fno-strength-reduce -fno-strict-aliasing \
-		-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror \
-		-L../../../build/system/libraries \
-		-Wl,../../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
+WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
+		-Wmissing-declarations -Wredundant-decls -Werror
+INCLUDE         = -nostdinc -I../../include
+CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
+LIB		= -L../../../build/system/libraries
+LFLAGS		= ${LIB} -nostdlib -nodefaultlibs -nostartfiles -Wl,../../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
+OPTS		= ${CFLAGS} ${LFLAGS}
 
-OBJS	= ${BUILDDIR}/mines
+NAMES	= mines
+
+OBJS = $(addprefix ${BUILDDIR}/, ${NAMES})
 
 all: target-dir ${OBJS}
 	cp mine.bmp ${BUILDDIR}/
@@ -25,11 +29,8 @@ all: target-dir ${OBJS}
 target-dir:
 	mkdir -p ${BUILDDIR}
 
-${BUILDDIR}/mines: mines.c ${STDDEPS}
-	${CC} ${INCLUDES} ${CFLAGS} mines.c -lwindow -lc -o $@
-
-# Miscellany
+${BUILDDIR}/%: %.c ${STDDEPS}
+	${CC} ${OPTS} $< -lwindow -lc -o $@
 
 clean:
-	rm -f *~ *.o core
-	rm -Rf ${BUILDDIR}
+	rm -Rf *~ *.o core ${BUILDDIR}

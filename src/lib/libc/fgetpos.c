@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "fgetpos" function, as found in standard C libraries
 
 #include <stdio.h>
-#include <errno.h>
 #include <sys/api.h>
 
 
@@ -35,10 +34,6 @@ int fgetpos(FILE *stream, fpos_t *pos)
   // of the call to fgetpos().  Upon successful completion, fgetpos()
   // returns 0.  Otherwise, it returns a non-zero value and sets errno to
   // indicate the error.
-
-  // We don't set errno in this function
-  errno = 0;
-  
   *pos = ((stream->block * stream->f.blockSize) + stream->s.last);
   return (0);
 }

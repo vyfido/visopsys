@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,13 +22,10 @@
 // This is the standard "abs" function, as found in standard C libraries
 
 #include <stdlib.h>
-#include <errno.h>
+
 
 int abs(int i)
 {
-  // We don't set errno in this function
-  errno = 0;
-
   if (i < 0)
     return (-i);
   else

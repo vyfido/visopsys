@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2004 J. Andrew McLaughlin
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,6 @@
 // This is the standard "srand" function, as found in standard C libraries
 
 #include <stdlib.h>
-#include <errno.h>
 
 extern unsigned int __random_seed;
 
@@ -32,10 +31,6 @@ void srand(unsigned int seed)
   // The srand() function sets its argument as the seed for a new sequence
   // of pseudo-random integers to be returned by rand().  These sequences
   // are repeatable by calling srand() with the same seed value.
-
-  // We don't set errno in this function
-  errno = 0;
-
   __random_seed = seed;
   return;
 }
