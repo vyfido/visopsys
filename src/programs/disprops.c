@@ -247,6 +247,7 @@ static void eventHandler(objectKey key, windowEvent *event)
       graphicSetColor("foreground", &foreground);
       graphicSetColor("background", &background);
       graphicSetColor("desktop", &desktop);
+      windowResetColors();
 
       windowGuiStop();
     }
@@ -267,7 +268,7 @@ static void constructWindow(void)
   int count;
 
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, "Display properties");
+  window = windowNew(processId, "Display Properties");
   if (window == NULL)
     return;
 
@@ -343,36 +344,35 @@ static void constructWindow(void)
     windowNewButton(container, "Background wallpaper", NULL, &params);
   windowRegisterEventHandler(wallpaperButton, &eventHandler);
 
-  params.gridY = 1;
+  // A label for the colors
+  params.gridY++;
   params.gridWidth = 1;
   params.padTop = 5;
   windowNewTextLabel(container, "Colors:", &params);
 
   // Create the colors radio button
-  params.gridY = 2;
+  params.gridY++;
   params.gridHeight = 2;
   colorsRadio = windowNewRadioButton(container, 2, 1, (char *[])
       { "Foreground", "Background", "Desktop" }, 3 , &params);
   windowRegisterEventHandler(colorsRadio, &eventHandler);
 
-  // Create the change color button
+  // The canvas to show the current color
   params.gridX = 1;
-  params.gridY = 3;
   params.gridHeight = 1;
   params.padLeft = 5;
+  params.flags |= (WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_FIXEDWIDTH);
+  canvas = windowNewCanvas(container, canvasWidth, 50, &params);
+
+  // Create the change color button
+  params.gridY++;
+  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   changeColorsButton = windowNewButton(container, "Change", NULL, &params);
   windowRegisterEventHandler(changeColorsButton, &eventHandler);
 
-  // Get the current colors we're interested in
-  graphicGetColor("foreground", &foreground);
-  graphicGetColor("background", &background);
-  graphicGetColor("desktop", &desktop);
-
-  // The canvas to show the current color
-  params.gridY = 2;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
+  // Adjust the canvas width so that it matches the width of the button.
   canvasWidth = windowComponentGetWidth(changeColorsButton);
-  canvas = windowNewCanvas(container, canvasWidth, 50, &params);
+  windowComponentSetWidth(canvas, canvasWidth);
 
   // Make a container for the OK/Cancel buttons
   params.gridX = 0;
@@ -384,7 +384,6 @@ static void constructWindow(void)
   params.padBottom = 5;
   params.orientationX = orient_center;
   params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   container = windowNewContainer(window, "buttonContainer", &params);
 
   // Create the OK button
@@ -410,6 +409,11 @@ static void constructWindow(void)
   windowRegisterEventHandler(window, &eventHandler);
   
   windowSetVisible(window, 1);
+
+  // Get the current colors we're interested in
+  graphicGetColor("foreground", &foreground);
+  graphicGetColor("background", &background);
+  graphicGetColor("desktop", &desktop);
 
   drawColor(&foreground);
 

@@ -24,6 +24,7 @@
 #include "kernelFileStream.h"
 #include "kernelVariableList.h"
 #include <time.h>
+#include <sys/utsname.h>
 
 #define MAX_SYMBOL_LENGTH 80
 
@@ -64,7 +65,7 @@ static inline int POW(int x, int y)
 }
 
 void kernelGetVersion(char *, int);
-int kernelSystemInfo(void *);
+int kernelSystemInfo(struct utsname *);
 void kernelMemCopy(const void *, void *, unsigned);
 void kernelMemSet(void *, unsigned char, unsigned);
 #define kernelMemClear(ptr, num) kernelMemSet(ptr, 0, num);

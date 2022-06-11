@@ -5,29 +5,28 @@
 ##  Makefile
 ##
 
-UTILSDIR=../../../utils
-BUILDDIR=../../../build/system/libraries
+ROOT=../../..
+UTILSDIR=${ROOT}/utils
+BUILDDIR=${ROOT}/build/system/libraries
 INCDIR=../../include
 
-ifeq (${ARCH},)
-	ARCH	= $(shell ${UTILSDIR}/arch.sh)
-endif
+include ${ROOT}/Makefile.include
 
-STDDEPS		= Makefile ../shared/* ${INCDIR}/*.h ${INCDIR}/sys/*.h
-CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
-WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror
+STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
+		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
 LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
 OPTS		= ${CFLAGS} ${LFLAGS}
 
 CDEFNAMES	= _div64 \
 		_divdi3 \
+		_fmtinpt \
 		_moddi3 \
+		_syscall \
 		_udivdi3 \
 		_umoddi3 \
+		_xpndfmt \
 		readline		
 
 CTYPENAMES	= isalnum \
@@ -66,9 +65,7 @@ MATHNAMES	= ceil \
 
 SIGNALNAMES	= signal
 
-STDIONAMES	= _fmtinpt \
-		_xpndfmt \
-		fflush \
+STDIONAMES	= fflush \
 		fgetpos \
 		fgets \
 		fprintf \
@@ -156,7 +153,9 @@ UNISTDNAMES	= close \
 		swab \
 		write
 
-ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
+ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} \
+	${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} \
+	${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
 OBJDIR = obj
 PICOBJDIR = picobj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))

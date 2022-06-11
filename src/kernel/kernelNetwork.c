@@ -950,11 +950,9 @@ static int connectionClose(kernelNetworkConnection *connection)
     connection->adapter->connections = connection->next;
   
   if (connection->next)
-    ((kernelNetworkConnection *) connection->next)->previous =
-      connection->previous;
+    connection->next->previous = connection->previous;
   if (connection->previous)
-    ((kernelNetworkConnection *) connection->previous)->next =
-      connection->next;
+    connection->previous->next = connection->next;
 
   // Deallocate it
   kernelFree((void *) connection);
@@ -1239,12 +1237,12 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
   // If the server did not specify a host name to us, specify one to it.
   if (!getSpecificDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_HOSTNAME))
     setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_HOSTNAME,
-		  (strlen(hostName) + 1), hostName);
+		  (strlen(hostName) + 1), (unsigned char *) hostName);
 
   // If the server did not specify a domain name to us, specify one to it.
   if (!getSpecificDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_DOMAIN))
     setDhcpOption(&sendDhcpPacket, NETWORK_DHCPOPTION_DOMAIN,
-		  (strlen(domainName) + 1), domainName);
+		  (strlen(domainName) + 1), (unsigned char *) domainName);
 
   // Clear the 'your address' field
   kernelMemClear(&(sendDhcpPacket.yourLogicalAddr), NETWORK_ADDRLENGTH_IP);
@@ -1338,13 +1336,13 @@ static int configureDhcp(kernelNetworkDevice *adapter, unsigned timeout)
 
 	case NETWORK_DHCPOPTION_HOSTNAME:
 	  // The server supplied the host name
-	  strncpy(hostName, option->data,
+	  strncpy(hostName, (char *) option->data,
 		  min(option->length, (NETWORK_MAX_HOSTNAMELENGTH - 1)));
 	  break;
 
 	case NETWORK_DHCPOPTION_DOMAIN:
 	  // The server supplied the domain name
-	  strncpy(domainName, option->data,
+	  strncpy(domainName, (char *) option->data,
 		  min(option->length, (NETWORK_MAX_DOMAINNAMELENGTH - 1))); 
 	  break;
 
@@ -1531,8 +1529,8 @@ static int matchFilters(kernelNetworkDevice *adapter,
 	    ((unsigned) packet->data - (unsigned) packet->transHeader);
 	}
 
-      connection->inputStream
-	.appendN((stream *) &(connection->inputStream), length, copyPtr);
+      connection->inputStream.appendN(&(connection->inputStream), length,
+				      copyPtr);
     
       connection = findMatchFilter(connection->next, packet);
     }
@@ -2178,7 +2176,7 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
   if (mode & NETWORK_MODE_READ)
     {
       // Get an input stream
-      if (kernelStreamNew((void *) &(connection->inputStream),
+      if (kernelStreamNew(&(connection->inputStream),
 			  NETWORK_DATASTREAM_LENGTH, 1) < 0)
 	{
 	  kernelFree((void *) connection);
@@ -2192,7 +2190,7 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
       if (openTcpConnection(connection) < 0)
 	{
 	  if (connection->inputStream.buffer)
-	    kernelStreamDestroy((stream *) &(connection->inputStream));
+	    kernelStreamDestroy(&(connection->inputStream));
 	  kernelFree((void *) connection);
 	  return (connection = NULL);
 	}
@@ -2270,7 +2268,7 @@ int kernelNetworkClose(kernelNetworkConnection *connection)
 
   // If there's an input stream, deallocate it
   if (connection->inputStream.buffer)
-    kernelStreamDestroy((stream *) &(connection->inputStream));
+    kernelStreamDestroy(&(connection->inputStream));
 
   // Close the connection
   return (connectionClose(connection));
@@ -2386,8 +2384,8 @@ int kernelNetworkRead(kernelNetworkConnection *connection,
     return (status);
 
   // Read into the buffer
-  status = connection->inputStream.popN((stream *) &(connection->inputStream),
-					bufferSize, buffer);
+  status = connection->inputStream.popN(&(connection->inputStream), bufferSize,
+					buffer);
 
   kernelLockRelease(&(connection->inputStreamLock));
 

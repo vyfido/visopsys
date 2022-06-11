@@ -22,11 +22,13 @@
 // This code is for managing kernelWindowTitleBar objects.
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelWindowEventStream.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMultitasker.h"
 #include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelWindowEventStream.h"
 #include <string.h>
 
 static kernelAsciiFont *titleBarFont = NULL;
@@ -40,14 +42,12 @@ static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
   // We use this to determine whether a mouse event is inside one of our
   // buttons
 
-  kernelWindow *window = (kernelWindow *) button->window;
-
-  if (((event->xPosition >= (window->xCoord + button->xCoord)) &&
-       (event->xPosition < (window->xCoord + button->xCoord +
+  if (((event->xPosition >= (button->window->xCoord + button->xCoord)) &&
+       (event->xPosition < (button->window->xCoord + button->xCoord +
 			    button->width)) &&
-       ((event->yPosition >= (window->yCoord + button->yCoord)) &&
-	(event->yPosition < (window->yCoord + button->yCoord +
-				   button->height)))))
+       ((event->yPosition >= (button->window->yCoord + button->yCoord)) &&
+	(event->yPosition < (button->window->yCoord + button->yCoord +
+			     button->height)))))
     return (1);
   else
     return (0);
@@ -116,53 +116,44 @@ static void createImages(int width, int height)
 }
 
 
-static void minimizeWindow(objectKey componentData, windowEvent *event)
+static void minimizeWindow(kernelWindowComponent *component,
+			   windowEvent *event)
 {
   // This function gets called when the minimize button gets pushed
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-
   if (event->type == EVENT_MOUSE_LEFTUP)
     {
-      kernelWindowSetMinimized(window, 1);
+      kernelWindowSetMinimized(component->window, 1);
       
       // Transfer this event into the window's event stream
       event->type = EVENT_WINDOW_MINIMIZE;
-      kernelWindowEventStreamWrite(&(window->events), event);
+      kernelWindowEventStreamWrite(&(component->window->events), event);
     }
   
   return;
 }
 
 
-static void closeWindow(objectKey componentData, windowEvent *event)
+static void closeWindow(kernelWindowComponent *component, windowEvent *event)
 {
   // This function gets called when the close button gets pushed
-
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
 
   if (event->type == EVENT_MOUSE_LEFTUP)
     {
       // Transfer this event into the window's event stream
       event->type = EVENT_WINDOW_CLOSE;
-      kernelWindowEventStreamWrite(&(window->events), event);
+      kernelWindowEventStreamWrite(&(component->window->events), event);
     }
 
   return;
 }
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the title bar component atop the window
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTitleBar *titleBarComponent =
-    (kernelWindowTitleBar *) component->data;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelGraphicBuffer *buffer = &(window->buffer);
+  kernelWindowTitleBar *titleBar = component->data;
   int titleWidth = 0;
   char title[128];
   color foregroundColor;
@@ -171,7 +162,7 @@ static int draw(void *componentData)
 
   // The color will be different depending on whether the window has
   // the focus
-  if (window->flags & WINFLAG_HASFOCUS)
+  if (component->window->flags & WINFLAG_HASFOCUS)
     {
       if (component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
 	{
@@ -199,7 +190,7 @@ static int draw(void *componentData)
   // darker blue and lightens in color
   for (count = 0; count < component->height; count ++)
     {
-      kernelGraphicDrawLine(buffer, &backgroundColor, draw_normal,
+      kernelGraphicDrawLine(component->buffer, &backgroundColor, draw_normal,
 			    component->xCoord, (component->yCoord + count),
 			    (component->xCoord + component->width - 1),
 			    (component->yCoord + count));
@@ -228,71 +219,61 @@ static int draw(void *componentData)
       foregroundColor.blue = 255;
     }
 
-  strncpy(title, (char *) window->title, 128);
+  strncpy(title, (char *) component->window->title, 128);
   titleWidth = (component->width - 1);
-  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) &&
-      titleBarComponent->minimizeButton)
-    titleWidth -= titleBarComponent->minimizeButton->width;
-  if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
-      titleBarComponent->closeButton)
-    titleWidth -= titleBarComponent->closeButton->width;
+  if (titleBar->minimizeButton)
+    titleWidth -= titleBar->minimizeButton->width;
+  if (titleBar->closeButton)
+    titleWidth -= titleBar->closeButton->width;
 
   while (kernelFontGetPrintedWidth(titleBarFont, title) > titleWidth)
     title[strlen(title) - 2] = '\0';
 
-  kernelGraphicDrawText(buffer, &foregroundColor, &backgroundColor,
+  kernelGraphicDrawText(component->buffer, &foregroundColor, &backgroundColor,
 			titleBarFont, title, draw_translucent,
 			(component->xCoord + 5), (component->yCoord +
 		  ((component->height - titleBarFont->charHeight) / 2)));
 
-  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) &&
-      titleBarComponent->minimizeButton &&
-      titleBarComponent->minimizeButton->draw)
-    titleBarComponent->minimizeButton
-      ->draw((void *) titleBarComponent->minimizeButton);
+  if (titleBar->minimizeButton && titleBar->minimizeButton->draw)
+    titleBar->minimizeButton->draw(titleBar->minimizeButton);
 
-  if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
-      titleBarComponent->closeButton && titleBarComponent->closeButton->draw)
-    titleBarComponent->closeButton
-      ->draw((void *) titleBarComponent->closeButton);
+  if (titleBar->closeButton && titleBar->closeButton->draw)
+    titleBar->closeButton->draw(titleBar->closeButton);
 
   return (0);
 }
 
 
-static int move(void *componentData, int xCoord, int yCoord)
+static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
+  kernelWindowTitleBar *titleBar = component->data;
   int buttonX, buttonY = (yCoord + 2);
 
   // Move our buttons
 
-  if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
+  if (titleBar->closeButton)
     {
       buttonX =
 	(xCoord + (component->width - (titleBar->closeButton->width + 2)));
 
       if (titleBar->closeButton->move)
-	titleBar->closeButton
-	  ->move((void *) titleBar->closeButton, buttonX, buttonY);
+	titleBar->closeButton->move(titleBar->closeButton, buttonX, buttonY);
 
       titleBar->closeButton->xCoord = buttonX;
       titleBar->closeButton->yCoord = buttonY;
     }
 
-  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) && titleBar->minimizeButton)
+  if (titleBar->minimizeButton)
     {
       buttonX =
 	(xCoord + (component->width - (titleBar->minimizeButton->width + 2)));
 
-      if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
+      if (titleBar->closeButton)
 	buttonX -= (titleBar->closeButton->width + 2);
 
       if (titleBar->minimizeButton->move)
 	titleBar->minimizeButton
-	  ->move((void *) titleBar->minimizeButton, buttonX, buttonY);
+	  ->move(titleBar->minimizeButton, buttonX, buttonY);
 
       titleBar->minimizeButton->xCoord = buttonX;
       titleBar->minimizeButton->yCoord = buttonY;
@@ -302,23 +283,20 @@ static int move(void *componentData, int xCoord, int yCoord)
 }
 
  
-static int resize(void *componentData, int width, int height)
+static int resize(kernelWindowComponent *component, int width, int height)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
+  kernelWindowTitleBar *titleBar = component->data;
   int buttonX, buttonY = (component->yCoord + 2);
 
   // Move our buttons
 
-  if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
+  if (titleBar->closeButton)
     {
       buttonX =
 	(component->xCoord + (width - (titleBar->closeButton->width + 2)));
 
       if (titleBar->closeButton->move)
-	titleBar->closeButton
-	  ->move((void *) titleBar->closeButton, buttonX, buttonY);
+	titleBar->closeButton->move(titleBar->closeButton, buttonX, buttonY);
 
       titleBar->closeButton->width = (height - 4);
       titleBar->closeButton->height = (height - 4);
@@ -328,17 +306,17 @@ static int resize(void *componentData, int width, int height)
       titleBar->closeButton->yCoord = buttonY;
     }
 
-  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) && titleBar->minimizeButton)
+  if (titleBar->minimizeButton)
     {
       buttonX =
 	(component->xCoord + (width - (titleBar->minimizeButton->width + 2)));
 
-      if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
+      if (titleBar->closeButton)
 	buttonX -= (titleBar->closeButton->width + 2);
 
       if (titleBar->minimizeButton->move)
-	titleBar->minimizeButton
-	  ->move((void *) titleBar->minimizeButton, buttonX, buttonY);
+	titleBar->minimizeButton->move(titleBar->minimizeButton, buttonX,
+				       buttonY);
 
       titleBar->minimizeButton->width = (height - 4);
       titleBar->minimizeButton->height = (height - 4);
@@ -352,12 +330,10 @@ static int resize(void *componentData, int width, int height)
 }
 
 
-static int mouseEvent(void *componentData, windowEvent *event)
+static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
-  kernelWindow *window = (kernelWindow *) component->window;
+  kernelWindowTitleBar *titleBar = component->data;
   static windowEvent dragEvent;
   static int dragging = 0;
   static int oldWindowX = 0;
@@ -374,25 +350,33 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  // The window is still moving
 
 	  // Erase the xor'ed outline
-	  kernelWindowRedrawArea(window->xCoord, window->yCoord,
-				 window->buffer.width, 1);
-	  kernelWindowRedrawArea(window->xCoord, window->yCoord, 1,
-				 window->buffer.height);
-	  kernelWindowRedrawArea((window->xCoord + window->buffer.width - 1),
-				 window->yCoord, 1, window->buffer.height);
-	  kernelWindowRedrawArea(window->xCoord,
-				 (window->yCoord + window->buffer.height - 1),
-				 window->buffer.width, 1);
-	      
+	  kernelWindowRedrawArea(component->window->xCoord,
+				 component->window->yCoord,
+				 component->window->buffer.width, 1);
+	  kernelWindowRedrawArea(component->window->xCoord,
+				 component->window->yCoord, 1,
+				 component->window->buffer.height);
+	  kernelWindowRedrawArea((component->window->xCoord +
+				  component->window->buffer.width - 1),
+				 component->window->yCoord, 1,
+				 component->window->buffer.height);
+	  kernelWindowRedrawArea(component->window->xCoord,
+				 (component->window->yCoord +
+				  component->window->buffer.height - 1),
+				 component->window->buffer.width, 1);
+
 	  // Set the new position
-	  window->xCoord += (event->xPosition - dragEvent.xPosition);
-	  window->yCoord += (event->yPosition - dragEvent.yPosition);
+	  component->window->xCoord +=
+	    (event->xPosition - dragEvent.xPosition);
+	  component->window->yCoord +=
+	    (event->yPosition - dragEvent.yPosition);
 
 	  // Draw an xor'ed outline
 	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, window->xCoord, window->yCoord,
-				window->buffer.width, window->buffer.height,
-				1, 0);
+				draw_xor, component->window->xCoord,
+				component->window->yCoord,
+				component->window->buffer.width,
+				component->window->buffer.height, 1, 0);
 
 	  // Save a copy of the dragging event
 	  kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
@@ -403,21 +387,22 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  // The move is finished
 
 	  // Temp
-	  newWindowX = window->xCoord;
-	  newWindowY = window->yCoord;
-	  window->xCoord = oldWindowX;
-	  window->yCoord = oldWindowY;
+	  newWindowX = component->window->xCoord;
+	  newWindowY = component->window->yCoord;
+	  component->window->xCoord = oldWindowX;
+	  component->window->yCoord = oldWindowY;
 	  
-	  window->xCoord = newWindowX;
-	  window->yCoord = newWindowY;
+	  component->window->xCoord = newWindowX;
+	  component->window->yCoord = newWindowY;
 
-	  window->flags |= WINFLAG_VISIBLE;
+	  component->window->flags |= WINFLAG_VISIBLE;
 
 	  // Re-render it at the new location
-	  kernelGraphicRenderBuffer(&(window->buffer), window->xCoord,
-				    window->yCoord, 0, 0,
-				    window->buffer.width,
-				    window->buffer.height);
+	  kernelWindowRedrawArea(component->window->xCoord,
+				 component->window->yCoord,
+				 component->window->buffer.width,
+				 component->window->buffer.height);
+
 	  dragging = 0;
 	}
 
@@ -427,14 +412,13 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status = 0);
     }
 
-  else if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
-	   titleBar->closeButton &&
+  else if (titleBar->closeButton &&
 	   isMouseInButton(event, titleBar->closeButton))
     {
       // Call the 'event' function for buttons
       if (titleBar->closeButton->mouseEvent)
 	status = titleBar->closeButton
-	  ->mouseEvent((void *) titleBar->closeButton, event);
+	  ->mouseEvent(titleBar->closeButton, event);
 
       // Put this mouse event into the button's windowEventStream
       kernelWindowEventStreamWrite(&(titleBar->closeButton->events), event);
@@ -442,14 +426,13 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status);
     }
   
-  else if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) &&
-	   titleBar->minimizeButton &&
+  else if (titleBar->minimizeButton &&
 	   isMouseInButton(event, titleBar->minimizeButton))
     {
       // Call the 'event' function for buttons
       if (titleBar->minimizeButton->mouseEvent)
 	status = titleBar->minimizeButton
-	  ->mouseEvent((void *) titleBar->minimizeButton, event);
+	  ->mouseEvent(titleBar->minimizeButton, event);
 
       // Put this mouse event into the button's windowEventStream
       kernelWindowEventStreamWrite(&(titleBar->minimizeButton->events), event);
@@ -459,23 +442,26 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
   else if (event->type == EVENT_MOUSE_DRAG)
     {
-      if (window->flags & WINFLAG_MOVABLE)
+      if (component->window->flags & WINFLAG_MOVABLE)
 	{
 	  // The user has started dragging the window
 
-	  oldWindowX = window->xCoord;
-	  oldWindowY = window->yCoord;
-		  
+	  oldWindowX = component->window->xCoord;
+	  oldWindowY = component->window->yCoord;
+
 	  // Don't show it while it's moving
-	  window->flags &= ~WINFLAG_VISIBLE;
-	  kernelWindowRedrawArea(window->xCoord, window->yCoord,
-				 window->buffer.width, window->buffer.height);
+	  component->window->flags &= ~WINFLAG_VISIBLE;
+	  kernelWindowRedrawArea(component->window->xCoord,
+				 component->window->yCoord,
+				 component->window->buffer.width,
+				 component->window->buffer.height);
 		      
 	  // Draw an xor'ed outline
 	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, window->xCoord,
-				window->yCoord, window->buffer.width,
-				window->buffer.height, 1, 0);
+				draw_xor, component->window->xCoord,
+				component->window->yCoord,
+				component->window->buffer.width,
+				component->window->buffer.height, 1, 0);
 
 	  // Save a copy of the dragging event
 	  kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
@@ -489,15 +475,19 @@ static int mouseEvent(void *componentData, windowEvent *event)
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = component->window;
+
+  kernelDebug(debug_gui, "Destroying \"%s\" title bar",
+	      component->window->title);
 
   if (component->data)
     {
-      if (window->titleBar == component)
-	window->titleBar = NULL;
+      // Don't destroy the minimize/close buttons here, since they live
+      // in the same parent container as us and may have already been
+      // destroyed.
+
+      component->window->titleBar = NULL;
 
       // Release the title bar itself
       kernelFree(component->data);
@@ -517,8 +507,7 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
-					       int width,
+kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 					       componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowTitleBar
@@ -529,8 +518,14 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   componentParameters buttonParams;
   
   // Check parameters
-  if ((parent == NULL) || (params == NULL))
+  if ((window == NULL) || (params == NULL))
     return (component = NULL);
+
+  if (window->type != windowType)
+    {
+      kernelError(kernel_error, "Title bars can only be added to windows");
+      return (component = NULL);
+    }
 
   if (titleBarFont == NULL)
     {
@@ -547,13 +542,14 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
     createImages((WINDOW_TITLEBAR_HEIGHT - 4), (WINDOW_TITLEBAR_HEIGHT - 4));
 
   // Get the basic component structure
-  component = kernelWindowComponentNew(parent, params);
+  component = kernelWindowComponentNew(window->sysContainer, params);
   if (component == NULL)
     return (component);
 
   // Now populate the main component
   component->type = titleBarComponentType;
-  component->width = width;
+  component->flags &= ~WINFLAG_CANFOCUS;
+  component->width = WINDOW_TITLEBAR_MINWIDTH;
   component->height = WINDOW_TITLEBAR_HEIGHT;
   component->minWidth = component->width;
   component->minHeight = component->height;
@@ -576,11 +572,12 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   // Put any minimize/maximize/close buttons on the title bar.
 
   // Standard parameters for the buttons
-  kernelMemClear((void *) &buttonParams, sizeof(componentParameters));
+  kernelMemClear(&buttonParams, sizeof(componentParameters));
 
   titleBar->closeButton =
-    kernelWindowNewButton(parent, NULL, ((closeImage.data == NULL)?
-					 NULL : &closeImage), &buttonParams);
+    kernelWindowNewButton(window->sysContainer, NULL,
+			  ((closeImage.data == NULL)? NULL : &closeImage),
+			  &buttonParams);
 
   if (titleBar->closeButton)
     {
@@ -594,13 +591,12 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
       kernelWindowRegisterEventHandler((objectKey) titleBar->closeButton,
 				       &closeWindow);
-
-      getWindow(parent)->flags |= WINFLAG_HASCLOSEBUTTON;
     }
 
   titleBar->minimizeButton =
-    kernelWindowNewButton(parent, NULL, ((minimizeImage.data == NULL)?
-			   NULL : &minimizeImage), &buttonParams);
+    kernelWindowNewButton(window->sysContainer, NULL,
+			  ((minimizeImage.data == NULL)?
+			  NULL : &minimizeImage), &buttonParams);
 
   if (titleBar->minimizeButton)
     {
@@ -614,8 +610,6 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
       kernelWindowRegisterEventHandler((objectKey) titleBar->minimizeButton,
 				       &minimizeWindow);
-
-      getWindow(parent)->flags |= WINFLAG_HASMINIMIZEBUTTON;
     }
 
   component->data = (void *) titleBar;

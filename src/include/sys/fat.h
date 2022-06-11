@@ -59,8 +59,8 @@ typedef struct {
       unsigned char reserved1; 		// 25 - 25 ?
       unsigned char bootSig;          	// 26 - 26 Signature
       unsigned volumeId;	    	// 27 - 2A Volume ID
-      unsigned char volumeLabel[11];	// 2B - 35 Volume name
-      unsigned char fileSysType[8];   	// 36 - 3D Filesystem type
+      char volumeLabel[11];		// 2B - 35 Volume name
+      char fileSysType[8];   		// 36 - 3D Filesystem type
       unsigned char bootCode[448];
     } __attribute__((packed)) fat;
     struct {
@@ -75,8 +75,8 @@ typedef struct {
       unsigned char reserved1; 		// 41 - 41 ?
       unsigned char bootSig;          	// 42 - 42 Signature
       unsigned volumeId;	    	// 43 - 46 Volume ID
-      unsigned char volumeLabel[11];	// 47 - 51 Volume name
-      unsigned char fileSysType[8];	// 52 - 59 Filesystem type
+      char volumeLabel[11];		// 47 - 51 Volume name
+      char fileSysType[8];		// 52 - 59 Filesystem type
       unsigned char bootCode[414];
     } __attribute__((packed)) fat32;
   };

@@ -58,7 +58,7 @@ int kernelWindowEventStreamNew(volatile windowEventStream *newStream)
 
   // We need to get a new stream and attach it to the window event stream
   // structure
-  status = kernelStreamNew((stream *) &(newStream->s),
+  status = kernelStreamNew(&(newStream->s),
 			   (WINDOW_MAX_EVENTS * (sizeof(windowEvent) /
 						 sizeof(unsigned))),
 			   itemsize_dword);
@@ -70,7 +70,7 @@ int kernelWindowEventStreamNew(volatile windowEventStream *newStream)
 
   // Otherwise, simply clear the stream regardless of whether we are
   // doing a read or a write.
-  newStream->s.clear((stream *) &(newStream->s));
+  newStream->s.clear(&(newStream->s));
 
   // Yahoo, all set. 
   return (status = 0);
@@ -93,9 +93,9 @@ int kernelWindowEventStreamPeek(volatile windowEventStream *theStream)
 
   if (theStream->s.count > 0)
     {
-      if (theStream->s.pop((stream *) &(theStream->s), &type))
+      if (theStream->s.pop(&(theStream->s), &type))
 	return (type = 0);
-      theStream->s.push((stream *) &(theStream->s), type);
+      theStream->s.push(&(theStream->s), type);
     }
 
   // Return the type, or NULL
@@ -119,9 +119,8 @@ int kernelWindowEventStreamRead(volatile windowEventStream *theStream,
     }
 
   if (theStream->s.count > 0)
-    dwords = theStream
-      ->s.popN((stream *) &(theStream->s), (sizeof(windowEvent) /
-					    sizeof(unsigned)), event);
+    dwords = theStream->s.popN(&(theStream->s), (sizeof(windowEvent) /
+						 sizeof(unsigned)), event);
 
   // Read the requisite number of dwords from the stream
   return (dwords);
@@ -142,7 +141,7 @@ int kernelWindowEventStreamWrite(volatile windowEventStream *theStream,
     }
 
   // Append the requisite number of unsigneds to the stream
-  return (theStream->s.appendN((stream *) &(theStream->s),
+  return (theStream->s.appendN(&(theStream->s),
 			       (sizeof(windowEvent) / sizeof(unsigned)),
 			       event));
 }

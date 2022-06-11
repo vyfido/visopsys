@@ -23,27 +23,18 @@
 
 #include "kernelScsiDiskDriver.h"
 #include "kernelScsiDriver.h"
+#include "kernelDebug.h"
 #include "kernelDisk.h"
+#include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelProcessorX86.h"
 #include "kernelRandom.h"
-#include "kernelError.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
-//#define DEBUG
-
-#ifdef DEBUG
-  #include "kernelText.h"
-  #define debug(message, arg...) kernelTextPrintLine(message, ##arg)
-#else
-  #define debug(message, arg...) do { } while (0)
-#endif
 
 static kernelPhysicalDisk *disks[SCSI_MAX_DISKS];
 static int numDisks = 0;
@@ -91,7 +82,7 @@ static int usbMassStorageReset(kernelScsiDisk *dsk)
 
   usbClearHalt(dsk, dsk->usb.bulkOutEndpoint);
 
-  debug("SCSI: USB reset complete");
+  kernelDebug(debug_scsi, "USB reset complete");
   return (status = 0);
 }
 
@@ -108,8 +99,8 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun, void *cmd,
   usbCmdStatusWrapper statusWrapper;
   usbTransaction usbTrans;
 
-  debug("SCSI: Send USB SCSI command %02x datalength %d",
-		      ((scsiCmd6 *) cmd)->byte[0], dataLength);
+  kernelDebug(debug_scsi, "Send USB SCSI command %02x datalength %d",
+	      ((scsiCmd6 *) cmd)->byte[0], dataLength);
 
   // Set up the command wrapper
   kernelMemClear(&cmdWrapper, sizeof(usbCmdBlockWrapper));
@@ -119,7 +110,7 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun, void *cmd,
   cmdWrapper.flags = (read << 7);
   cmdWrapper.lun = lun;
   cmdWrapper.cmdLength = cmdLength;
-  debug("SCSI: command length %d", cmdWrapper.cmdLength);
+  kernelDebug(debug_scsi, "Command length %d", cmdWrapper.cmdLength);
   // Copy the command data into the wrapper
   kernelMemCopy(cmd, cmdWrapper.cmd, cmdLength);
 
@@ -139,7 +130,7 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun, void *cmd,
 
   if (dataLength)
     {
-      debug("SCSI: data length %d", dataLength);
+      kernelDebug(debug_scsi, "Data length %d", dataLength);
 
       if (bytes)
 	*bytes = 0;
@@ -195,10 +186,10 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun, void *cmd,
     return (status);
 
   if (!(statusWrapper.status & SCSI_STAT_MASK))
-    debug("SCSI: Command successful");
+    kernelDebug(debug_scsi, "Command successful");
   else
-    debug("SCSI: Command error status %02x",
-	  (statusWrapper.status & SCSI_STAT_MASK));
+    kernelDebug(debug_scsi, "Command error status %02x",
+		(statusWrapper.status & SCSI_STAT_MASK));
 
   return (status = 0);
 }
@@ -214,16 +205,20 @@ static void debugInquiry(scsiInquiryData *inquiryData)
   strncpy(productId, inquiryData->productId, 16);
   productId[16] = '\0';
 
-  debug("SCSI: debug inquiry data:");
-  debug("    byte0=%02x", inquiryData->byte0.periQual);
-  debug("    byte1=%02x", inquiryData->byte1.removable);
-  debug("    byte2=%02x", inquiryData->byte2.isoVersion);
-  debug("    byte3=%02x", inquiryData->byte3.aenc);
-  debug("    byte4=%02x", inquiryData->byte4.addlLength);
-  debug("    byte7=%02x", inquiryData->byte7.relAdr);
-  debug("    vendorId=%s", vendorId);
-  debug("    productId=%s", productId);
-  debug("    productRev=%08x", inquiryData->productRev);
+  kernelDebug(debug_scsi, "Debug inquiry data:\n"
+	      "    byte0=%02x\n"
+	      "    byte1=%02x\n"
+	      "    byte2=%02x\n"
+	      "    byte3=%02x\n"
+	      "    byte4=%02x\n"
+	      "    byte7=%02x\n"
+	      "    vendorId=%s\n"
+	      "    productId=%s\n"
+	      "    productRev=%08x", inquiryData->byte0.periQual,
+	      inquiryData->byte1.removable, inquiryData->byte2.isoVersion,
+	      inquiryData->byte3.aenc, inquiryData->byte4.addlLength,
+	      inquiryData->byte7.relAdr, vendorId, productId,
+	      inquiryData->productRev);
 }
 
 
@@ -301,7 +296,8 @@ static int scsiRead(kernelScsiDisk *dsk, unsigned char lun,
   unsigned bytes = 0;
 
   dataLength = (numSectors * dsk->sectorSize);
-  debug("SCSI: read %u bytes sectorsize %u", dataLength, dsk->sectorSize);
+  kernelDebug(debug_scsi, "Read %u bytes sectorsize %u", dataLength,
+	      dsk->sectorSize);
 
   if (dsk->busType == bus_usb)
     {
@@ -320,7 +316,7 @@ static int scsiRead(kernelScsiDisk *dsk, unsigned char lun,
   else
     return (status = ERR_NOTIMPLEMENTED);
 
-  debug("SCSI: read successul %u bytes", bytes);
+  kernelDebug(debug_scsi, "Read successul %u bytes", bytes);
   return (status = 0);
 }
 
@@ -424,7 +420,8 @@ static int scsiWrite(kernelScsiDisk *dsk, unsigned char lun,
   unsigned bytes = 0;
 
   dataLength = (numSectors * dsk->sectorSize);
-  debug("SCSI: write %u bytes sectorsize %u", dataLength, dsk->sectorSize);
+  kernelDebug(debug_scsi, "Write %u bytes sectorsize %u", dataLength,
+	      dsk->sectorSize);
 
   if (dsk->busType == bus_usb)
     {
@@ -443,7 +440,7 @@ static int scsiWrite(kernelScsiDisk *dsk, unsigned char lun,
   else
     return (status = ERR_NOTIMPLEMENTED);
 
-  debug("SCSI: write successul %u bytes", bytes);
+  kernelDebug(debug_scsi, "Write successul %u bytes", bytes);
   return (status = 0);
 }
 
@@ -536,7 +533,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 	    }
 	}
 
-      debug("SCSI: USB SCSI device detected");
+      kernelDebug(debug_scsi, "USB SCSI device detected");
       physicalDisk->flags |= DISKFLAG_FLASHDISK;
 
       status = usbMassStorageReset(dsk);
@@ -618,8 +615,8 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
       goto err_out;
     }
 
-  debug("SCSI: disk \"%s\" sectors %u sectorsize %u ptr %x",
-	dsk->vendorProductId, dsk->numSectors, dsk->sectorSize, dsk);
+  kernelDebug(debug_scsi, "Disk \"%s\" sectors %u sectorsize %u ptr %p",
+	      dsk->vendorProductId, dsk->numSectors, dsk->sectorSize, dsk);
 
   /*
   // Send a 'mode sense' command
@@ -630,8 +627,8 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 
   physicalDisk->deviceNumber = getNewDiskNumber();
   sprintf((char *) physicalDisk->name, "sd%d", physicalDisk->deviceNumber);
-  debug("SCSI: disk %s detected, number %d", physicalDisk->name,
-	physicalDisk->deviceNumber);
+  kernelDebug(debug_scsi, "Disk %s detected, number %d", physicalDisk->name,
+	      physicalDisk->deviceNumber);
   physicalDisk->description = dsk->vendorProductId;
   physicalDisk->flags |= (DISKFLAG_PHYSICAL | DISKFLAG_SCSIDISK);
   physicalDisk->numSectors = dsk->numSectors;
@@ -764,9 +761,9 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
       return (status = ERR_NOSUCHENTRY);
     }
 
-  debug("SCSI: %s %u sectors on \"%s\" at %u sectorsize %u ptr %x",
-	(read? "read" : "write"), numSectors,
-	dsk->vendorProductId, logicalSector, dsk->sectorSize, dsk);
+  kernelDebug(debug_scsi, "%s %u sectors on \"%s\" at %u sectorsize %u ptr %p",
+	      (read? "read" : "write"), numSectors, dsk->vendorProductId,
+	      logicalSector, dsk->sectorSize, dsk);
 
   if (read)
     status = scsiRead(dsk, 0, logicalSector, numSectors, buffer);
@@ -798,7 +795,8 @@ static int driverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int driverDetect(void *parent __attribute__((unused)), void *driver)
+static int driverDetect(void *parent __attribute__((unused)),
+			kernelDriver *driver)
 {
   // Try to detect SCSI disks
 
@@ -842,7 +840,7 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
 
 
 static int driverHotplug(void *parent, int busType, int target, int connected,
-			 void *driver)
+			 kernelDriver *driver)
 {
   // This routine is used to detect whether a newly-connected, hotplugged
   // device is supported by this driver during runtime, and if so to do the
@@ -872,7 +870,7 @@ static int driverHotplug(void *parent, int busType, int target, int connected,
       if (physicalDisk == NULL)
 	return (status = ERR_NOSUCHENTRY);
 
-      debug("SCSI: USB SCSI device removed");
+      kernelDebug(debug_scsi, "USB SCSI device removed");
 
       // If there are filesystems mounted on this disk, try to unmount them
       for (count = 0; count < physicalDisk->numLogical; count ++)
@@ -920,11 +918,9 @@ static kernelDiskOps scsiOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelScsiDiskDriverRegister(void *driverData)
+void kernelScsiDiskDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->driverHotplug = driverHotplug;

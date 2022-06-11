@@ -84,7 +84,7 @@ static void scrollLine(kernelTextArea *area)
   scrollBuffer(area, 1);
 
   // Clear out the bottom row
-  lastRow = TEXTAREA_LASTVISIBLE(area);
+  lastRow = (char *) TEXTAREA_LASTVISIBLE(area);
   for (count = 0; count < lineLength; )
     {
       lastRow[count++] = '\0';

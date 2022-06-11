@@ -65,6 +65,8 @@ Options:
                     "change anything."
 #define MAX_LOGIN_LENGTH 64
 
+int main(int argc, char *argv[]) __attribute__((noreturn));
+
 // The following are only used if we are running a graphics mode login window.
 static int graphics = 0;
 static int readOnly = 1;
@@ -266,8 +268,8 @@ static void constructWindow(int myProcessId)
   // Don't want the user minimizing or closing this window.  It will just
   // confuse them later because they won't be able to login unless they use
   // the 'F1' trick.
-  windowSetHasMinimizeButton(window, 0);
-  windowSetHasCloseButton(window, 0);
+  windowRemoveMinimizeButton(window);
+  windowRemoveCloseButton(window);
 
   return;
 }

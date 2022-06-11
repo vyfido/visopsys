@@ -51,10 +51,22 @@
 #define EVENT_MOUSE_MOVE                  0x0040
 #define EVENT_MOUSE_RIGHTUP               0x0020
 #define EVENT_MOUSE_RIGHTDOWN             0x0010
+#define EVENT_MOUSE_RIGHT                 (EVENT_MOUSE_RIGHTUP |    \
+					   EVENT_MOUSE_RIGHTDOWN)
 #define EVENT_MOUSE_MIDDLEUP              0x0008
 #define EVENT_MOUSE_MIDDLEDOWN            0x0004
+#define EVENT_MOUSE_MIDDLE                (EVENT_MOUSE_MIDDLEUP |   \
+					   EVENT_MOUSE_MIDDLEDOWN)
 #define EVENT_MOUSE_LEFTUP                0x0002
 #define EVENT_MOUSE_LEFTDOWN              0x0001
+#define EVENT_MOUSE_LEFT                  (EVENT_MOUSE_LEFTUP |     \
+					   EVENT_MOUSE_LEFTDOWN)
+#define EVENT_MOUSE_DOWN                  (EVENT_MOUSE_LEFTDOWN |   \
+					   EVENT_MOUSE_MIDDLEDOWN | \
+					   EVENT_MOUSE_RIGHTDOWN)
+#define EVENT_MOUSE_UP                    (EVENT_MOUSE_LEFTUP |     \
+					   EVENT_MOUSE_MIDDLEUP |   \
+					   EVENT_MOUSE_RIGHTUP)
 
 // The maximum numbers of window things
 #define WINDOW_MAXWINDOWS                 256
@@ -62,14 +74,14 @@
 #define WINDOW_MAX_EVENTHANDLERS          256
 #define WINDOW_MAX_TITLE_LENGTH           80
 #define WINDOW_MAX_LABEL_LENGTH           80
-#define WINDOW_MAX_MENUS                  16
 
 // Flags for window components
-#define WINDOW_COMPFLAG_CLICKABLECURSOR   0x40
-#define WINDOW_COMPFLAG_CUSTOMBACKGROUND  0x20
-#define WINDOW_COMPFLAG_CUSTOMFOREGROUND  0x10
-#define WINDOW_COMPFLAG_STICKYFOCUS       0x08
-#define WINDOW_COMPFLAG_HASBORDER         0x04
+#define WINDOW_COMPFLAG_CLICKABLECURSOR   0x80
+#define WINDOW_COMPFLAG_CUSTOMBACKGROUND  0x40
+#define WINDOW_COMPFLAG_CUSTOMFOREGROUND  0x20
+#define WINDOW_COMPFLAG_STICKYFOCUS       0x10
+#define WINDOW_COMPFLAG_HASBORDER         0x08
+#define WINDOW_COMPFLAG_CANFOCUS          0x04
 #define WINDOW_COMPFLAG_FIXEDHEIGHT       0x02
 #define WINDOW_COMPFLAG_FIXEDWIDTH        0x01
 
@@ -87,7 +99,7 @@
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
-typedef void * objectKey;
+typedef volatile void * objectKey;
 
 // These describe the X orientation and Y orientation of a component,
 // respectively, within its grid cell
@@ -132,7 +144,7 @@ typedef struct {
 // A structure for a queue of window events as a stream.
 typedef struct {
   objectKey component;
-  volatile stream s;
+  stream s;
 
 } windowEventStream;
 
@@ -184,7 +196,7 @@ typedef struct {
 
 } listItemParameters;
 
-typedef struct {
+typedef struct _windowFileList {
   objectKey key;
   void *fileEntries;
   int numFileEntries;
@@ -192,11 +204,23 @@ typedef struct {
   void (*selectionCallback)(file *, char *, loaderFileClass *);
 
   // Externally-callable service routines
-  int (*eventHandler) (void *, windowEvent *);
-  int (*update) (void *, const char *);
-  int (*destroy) (void *);
+  int (*eventHandler) (struct _windowFileList *, windowEvent *);
+  int (*update) (struct _windowFileList *, const char *);
+  int (*destroy) (struct _windowFileList *);
 
 } windowFileList;
+
+typedef struct {
+  char text[WINDOW_MAX_LABEL_LENGTH];
+  objectKey key;
+
+} windowMenuItem;
+
+typedef struct {
+  int numItems;
+  windowMenuItem items[];
+
+} windowMenuContents;
 
 void windowCenterDialog(objectKey, objectKey);
 int windowClearEventHandler(objectKey);

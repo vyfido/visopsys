@@ -38,6 +38,7 @@
 #endif
 
 #include <time.h>
+#include <sys/cdefs.h>
 #include <sys/device.h>
 #include <sys/disk.h>
 #include <sys/file.h>
@@ -57,6 +58,8 @@
 // Included in the Visopsys standard library to prevent API calls from
 // within kernel code.
 extern int visopsys_in_kernel;
+
+// This is the big list of kernel function codes.
 
 // Text input/output functions.  All are in the 1000-1999 range.
 #define _fnum_textGetConsoleInput                    1000
@@ -292,53 +295,58 @@ extern int visopsys_in_kernel;
 #define _fnum_windowSetHasTitleBar                   12014
 #define _fnum_windowSetMovable                       12015
 #define _fnum_windowSetResizable                     12016
-#define _fnum_windowSetHasMinimizeButton             12017
-#define _fnum_windowSetHasCloseButton                12018
+#define _fnum_windowRemoveMinimizeButton             12017
+#define _fnum_windowRemoveCloseButton                12018
 #define _fnum_windowSetColors                        12019
 #define _fnum_windowSetVisible                       12020
 #define _fnum_windowSetMinimized                     12021 
 #define _fnum_windowAddConsoleTextArea               12022
 #define _fnum_windowRedrawArea                       12023
-#define _fnum_windowProcessEvent                     12024
-#define _fnum_windowComponentEventGet                12025
-#define _fnum_windowTileBackground                   12026
-#define _fnum_windowCenterBackground                 12027
-#define _fnum_windowScreenShot                       12028
-#define _fnum_windowSaveScreenShot                   12029
-#define _fnum_windowSetTextOutput                    12030
-#define _fnum_windowLayout                           12031
-#define _fnum_windowDebugLayout                      12032
-#define _fnum_windowComponentDestroy                 12033
-#define _fnum_windowComponentSetVisible              12034
-#define _fnum_windowComponentSetEnabled              12035
-#define _fnum_windowComponentGetWidth                12036
-#define _fnum_windowComponentSetWidth                12037
-#define _fnum_windowComponentGetHeight               12038
-#define _fnum_windowComponentSetHeight               12039
-#define _fnum_windowComponentFocus                   12040
-#define _fnum_windowComponentDraw                    12041
-#define _fnum_windowComponentGetData                 12042
-#define _fnum_windowComponentSetData                 12043
-#define _fnum_windowComponentGetSelected             12044
-#define _fnum_windowComponentSetSelected             12045
-#define _fnum_windowNewButton                        12046
-#define _fnum_windowNewCanvas                        12047
-#define _fnum_windowNewCheckbox                      12048
-#define _fnum_windowNewContainer                     12049
-#define _fnum_windowNewIcon                          12050
-#define _fnum_windowNewImage                         12051
-#define _fnum_windowNewList                          12052
-#define _fnum_windowNewListItem                      12053
-#define _fnum_windowNewMenu                          12054
-#define _fnum_windowNewMenuBar                       12055
-#define _fnum_windowNewMenuItem                      12056
-#define _fnum_windowNewPasswordField                 12057
-#define _fnum_windowNewProgressBar                   12058
-#define _fnum_windowNewRadioButton                   12059
-#define _fnum_windowNewScrollBar                     12060
-#define _fnum_windowNewTextArea                      12061
-#define _fnum_windowNewTextField                     12062
-#define _fnum_windowNewTextLabel                     12063
+#define _fnum_windowDrawAll                          12024
+#define _fnum_windowResetColors                      12025
+#define _fnum_windowProcessEvent                     12026
+#define _fnum_windowComponentEventGet                12027
+#define _fnum_windowTileBackground                   12028
+#define _fnum_windowCenterBackground                 12029
+#define _fnum_windowScreenShot                       12030
+#define _fnum_windowSaveScreenShot                   12031
+#define _fnum_windowSetTextOutput                    12032
+#define _fnum_windowLayout                           12033
+#define _fnum_windowDebugLayout                      12034
+#define _fnum_windowContextAdd                       12035
+#define _fnum_windowContextSet                       12036
+#define _fnum_windowComponentDestroy                 12037
+#define _fnum_windowComponentSetVisible              12038
+#define _fnum_windowComponentSetEnabled              12039
+#define _fnum_windowComponentGetWidth                12040
+#define _fnum_windowComponentSetWidth                12041
+#define _fnum_windowComponentGetHeight               12042
+#define _fnum_windowComponentSetHeight               12043
+#define _fnum_windowComponentFocus                   12044
+#define _fnum_windowComponentDraw                    12045
+#define _fnum_windowComponentGetData                 12046
+#define _fnum_windowComponentSetData                 12047
+#define _fnum_windowComponentGetSelected             12048
+#define _fnum_windowComponentSetSelected             12049
+#define _fnum_windowNewButton                        12050
+#define _fnum_windowNewCanvas                        12051
+#define _fnum_windowNewCheckbox                      12052
+#define _fnum_windowNewContainer                     12053
+#define _fnum_windowNewIcon                          12054
+#define _fnum_windowNewImage                         12055
+#define _fnum_windowNewList                          12056
+#define _fnum_windowNewListItem                      12057
+#define _fnum_windowNewMenu                          12058
+#define _fnum_windowNewMenuBar                       12059
+#define _fnum_windowNewMenuItem                      12060
+#define _fnum_windowNewPasswordField                 12061
+#define _fnum_windowNewProgressBar                   12062
+#define _fnum_windowNewRadioButton                   12063
+#define _fnum_windowNewScrollBar                     12064
+#define _fnum_windowNewSlider                        12065
+#define _fnum_windowNewTextArea                      12066
+#define _fnum_windowNewTextField                     12067
+#define _fnum_windowNewTextLabel                     12068
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -404,194 +412,17 @@ extern int visopsys_in_kernel;
 #define _fnum_mouseLoadPointer                       99028
 #define _fnum_mouseSwitchPointer                     99029
 
-// Utility macros for stack manipulation
-#define stackPush(value) \
-  __asm__ __volatile__ ("pushl %0 \n\t" : : "r" (value))
-#define stackSub(bytes)                       \
-  __asm__ __volatile__ ("addl %0, %%esp \n\t" \
-                        : : "r" (bytes) : "%esp")
-
-// The generic calls for accessing the kernel API
-#define sysCall(retCode)                                    \
-  if (!visopsys_in_kernel)                                  \
-     __asm__ __volatile__ ("lcall $0x003B,$0x00000000 \n\t" \
-			   "movl %%eax, %0 \n\t"            \
-			   : "=r" (retCode) : : "%eax", "memory");
-
-// These use the macros defined above to call the kernel with the
-// appropriate number of arguments
-
-static inline int sysCall_0(int fnum)
-{
-  // Do a syscall with NO parameters
-  int status = 0;
-  stackPush(fnum);
-  stackPush(1);
-  sysCall(status);
-  stackSub(8);
-  return (status);
-}
-
-
-static inline int sysCall_1(int fnum, void *arg1)
-{
-  // Do a syscall with 1 parameter
-  int status = 0;
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(2);
-  sysCall(status);
-  stackSub(12);
-  return (status);
-}
-
-
-static inline int sysCall_2(int fnum, void *arg1, void *arg2)
-{
-  // Do a syscall with 2 parameters
-  int status = 0;
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(3);
-  sysCall(status);
-  stackSub(16);
-  return (status);
-}
-
-
-static inline int sysCall_3(int fnum, void *arg1, void *arg2, void *arg3)
-{
-  // Do a syscall with 3 parameters
-  int status = 0;
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(4);
-  sysCall(status);
-  stackSub(20);
-  return (status);
-}
-
-
-static inline int sysCall_4(int fnum, void *arg1, void *arg2, void *arg3,
-			    void *arg4)
-{
-  // Do a syscall with 4 parameters
-  int status = 0;
-  stackPush(arg4);
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(5);
-  sysCall(status);
-  stackSub(24);
-  return (status);
-}
-
-
-static inline int sysCall_5(int fnum, void *arg1, void *arg2, void *arg3,
-			    void *arg4, void *arg5)
-{
-  // Do a syscall with 5 parameters
-  int status = 0;
-  stackPush(arg5);
-  stackPush(arg4);
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(6);
-  sysCall(status);
-  stackSub(28);
-  return (status);
-}
-
-
-static inline int sysCall_6(int fnum, void *arg1, void *arg2, void *arg3,
-			    void *arg4, void *arg5, void *arg6)
-{
-  // Do a syscall with 6 parameters
-  int status = 0;
-  stackPush(arg6);
-  stackPush(arg5);
-  stackPush(arg4);
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(7);
-  sysCall(status);
-  stackSub(32);
-  return (status);
-}
-
-
-static inline int sysCall_7(int fnum, void *arg1, void *arg2, void *arg3,
-			    void *arg4, void *arg5, void *arg6, void *arg7)
-{
-  // Do a syscall with 7 parameters
-  int status = 0;
-  stackPush(arg7);
-  stackPush(arg6);
-  stackPush(arg5);
-  stackPush(arg4);
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(8);
-  sysCall(status);
-  stackSub(36);
-  return (status);
-}
-
-
-static inline int sysCall_8(int fnum, void *arg1, void *arg2, void *arg3,
-			    void *arg4, void *arg5, void *arg6, void *arg7,
-			    void *arg8)
-{
-  // Do a syscall with 8 parameters
-  int status = 0;
-  stackPush(arg8);
-  stackPush(arg7);
-  stackPush(arg6);
-  stackPush(arg5);
-  stackPush(arg4);
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(9);
-  sysCall(status);
-  stackSub(40);
-  return (status);
-}
-
-
-static inline int sysCall_9(int fnum, void *arg1, void *arg2, void *arg3,
-			    void *arg4, void *arg5, void *arg6, void *arg7,
-			    void *arg8, void *arg9)
-{
-  // Do a syscall with 9 parameters
-  int status = 0;
-  stackPush(arg9);
-  stackPush(arg8);
-  stackPush(arg7);
-  stackPush(arg6);
-  stackPush(arg5);
-  stackPush(arg4);
-  stackPush(arg3);
-  stackPush(arg2);
-  stackPush(arg1);
-  stackPush(fnum);
-  stackPush(10);
-  sysCall(status);
-  stackSub(44);
-  return (status);
-}
+// For convenience
+#define sysCall_0(fnum, arg...) _sysCall(fnum, 0, ##arg)
+#define sysCall_1(fnum, arg...) _sysCall(fnum, 1, ##arg)
+#define sysCall_2(fnum, arg...) _sysCall(fnum, 2, ##arg)
+#define sysCall_3(fnum, arg...) _sysCall(fnum, 3, ##arg)
+#define sysCall_4(fnum, arg...) _sysCall(fnum, 4, ##arg)
+#define sysCall_5(fnum, arg...) _sysCall(fnum, 5, ##arg)
+#define sysCall_6(fnum, arg...) _sysCall(fnum, 6, ##arg)
+#define sysCall_7(fnum, arg...) _sysCall(fnum, 7, ##arg)
+#define sysCall_8(fnum, arg...) _sysCall(fnum, 8, ##arg)
+#define sysCall_9(fnum, arg...) _sysCall(fnum, 9, ##arg)
 
 
 // These inline functions are used to call specific kernel functions.  
@@ -1257,17 +1088,17 @@ _X_ static inline int fileClose(file *f)
   return (sysCall_1(_fnum_fileClose, (void *) f));
 }
 
-_X_ static inline int fileRead(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff)
+_X_ static inline int fileRead(file *f, unsigned blocknum, unsigned blocks, void *buff)
 {
-  // Proto: int kernelFileRead(file *, unsigned int, unsigned int, unsigned char *);
+  // Proto: int kernelFileRead(file *, unsigned int, unsigned int, void *);
   // Desc : Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
   return (sysCall_4(_fnum_fileRead, (void *) f, (void *) blocknum, 
 		    (void *) blocks, buff));
 }
 
-_X_ static inline int fileWrite(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff)
+_X_ static inline int fileWrite(file *f, unsigned blocknum, unsigned blocks, void *buff)
 {
-  // Proto: int kernelFileWrite(file *, unsigned, unsigned, unsigned char *);
+  // Proto: int kernelFileWrite(file *, unsigned, unsigned, void *);
   // Desc : Write data to the previously opened file 'f'.  'f' should have been opened in a write or read/write mode.  Write 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) from the buffer 'buff'.
   return (sysCall_4(_fnum_fileWrite, (void *) f, (void *) blocknum, 
 		    (void *) blocks, buff));
@@ -2106,7 +1937,7 @@ _X_ static inline objectKey windowNewDialog(objectKey parent, const char *title)
 _X_ static inline int windowDestroy(objectKey window)
 {
   // Proto: int kernelWindowDestroy(kernelWindow *);
-  // Desc : Destroy the window referenced by the object key 'wndow'
+  // Desc : Destroy the window referenced by the object key 'window'
   return (sysCall_1(_fnum_windowDestroy, window));
 }
 
@@ -2198,20 +2029,18 @@ _X_ static inline int windowSetResizable(objectKey window, int trueFalse)
   return (sysCall_2(_fnum_windowSetResizable, window, (void *) trueFalse));
 }
 
-_X_ static inline int windowSetHasMinimizeButton(objectKey window, int trueFalse)
+_X_ static inline int windowRemoveMinimizeButton(objectKey window)
 {
-  // Proto: int kernelWindowSetHasMinimizeButton(kernelWindow *, int);
-  // Desc : Tells the windowing system whether to draw a minimize button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a minimize button.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
-  return (sysCall_2(_fnum_windowSetHasMinimizeButton, window,
-		    (void *) trueFalse));
+  // Proto: int kernelWindowRemoveMinimizeButton(kernelWindow *);
+  // Desc : Tells the windowing system not to draw a minimize button on the title bar of the window 'window'.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
+  return (sysCall_1(_fnum_windowRemoveMinimizeButton, window));
 }  
 
-_X_ static inline int windowSetHasCloseButton(objectKey window, int trueFalse)
+_X_ static inline int windowRemoveCloseButton(objectKey window)
 {
-  // Proto: int kernelWindowSetHasCloseButton(kernelWindow *, int);
-  // Desc : Tells the windowing system whether to draw a close button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a close button.  Windows have close buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
-  return (sysCall_2(_fnum_windowSetHasCloseButton, window,
-		    (void *) trueFalse));
+  // Proto: int kernelWindowRemoveCloseButton(kernelWindow *);
+  // Desc : Tells the windowing system not to draw a close button on the title bar of the window 'window'.  Windows have close buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
+  return (sysCall_1(_fnum_windowRemoveCloseButton, window));
 }
 
 _X_ static inline int windowSetColors(objectKey window, color *background)
@@ -2235,11 +2064,11 @@ _X_ static inline void windowSetMinimized(objectKey window, int minimized)
   sysCall_2(_fnum_windowSetMinimized, window, (void *) minimized);
 }
 
-_X_ static inline int windowAddConsoleTextArea(objectKey window, componentParameters *params)
+_X_ static inline int windowAddConsoleTextArea(objectKey window)
 {
-  // Proto: int kernelWindowAddConsoleTextArea(kernelWindow *, componentParameters *);
-  // Desc : Add a console text area component to 'window' using the supplied componentParameters.  The console text area is where most kernel logging and error messages are sent, particularly at boot time.  Note that there is only one instance of the console text area, and thus it can only exist in one window at a time.  Destroying the window is one way to free the console area to be used in another window.
-  return (sysCall_2(_fnum_windowAddConsoleTextArea, window, params));
+  // Proto: int kernelWindowAddConsoleTextArea(kernelWindow *);
+  // Desc : Add a console text area component to 'window'.  The console text area is where most kernel logging and error messages are sent, particularly at boot time.  Note that there is only one instance of the console text area, and thus it can only exist in one window at a time.  Destroying the window is one way to free the console area to be used in another window.
+  return (sysCall_1(_fnum_windowAddConsoleTextArea, window));
 }
 
 _X_ static inline void windowRedrawArea(int xCoord, int yCoord, int width, int height)
@@ -2248,6 +2077,20 @@ _X_ static inline void windowRedrawArea(int xCoord, int yCoord, int width, int h
   // Desc : Tells the windowing system to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates.  This might be useful if you were drawing non-window-based things (i.e., things without their own independent graphics buffer) directly onto the screen and you wanted to restore an area to its original contents.  For example, the mouse driver uses this method to erase the pointer from its previous position.
   sysCall_4(_fnum_windowRedrawArea, (void *) xCoord, (void *) yCoord,
 	    (void *) width, (void *) height);
+}
+
+_X_ static inline void windowDrawAll(void)
+{
+  // Proto: void kernelWindowDrawAll(void);
+  // Desc : Tells the windowing system to (re)draw all the windows.
+  sysCall_0(_fnum_windowDrawAll);
+}
+
+_X_ static inline void windowResetColors(void)
+{
+  // Proto: void kernelWindowResetColors(void);
+  // Desc : Tells the windowing system to reset the colors of all the windows and their components, and then re-draw all the windows.  Useful for example when the user has changed the color scheme.
+  sysCall_0(_fnum_windowResetColors);
 }
 
 _X_ static inline void windowProcessEvent(objectKey event)
@@ -2309,8 +2152,22 @@ _X_ static inline int windowLayout(objectKey window)
 _X_ static inline void windowDebugLayout(objectKey window)
 {
   // Proto: void kernelWindowDebugLayout(kernelWindow *);
-  // Desc : This function draws grid boxes around all the grid cells containing components (or parts thereof)
+  // Desc : This function draws grid boxes around all the grid cells containing components (or parts thereof).
   sysCall_1(_fnum_windowDebugLayout, window);
+}
+
+_X_ static inline int windowContextAdd(objectKey parent, windowMenuContents *contents)
+{
+  // Proto: int kernelWindowContextAdd(objectKey, windowMenuContents *);
+  // Desc : This function allows the caller to add context menu items in the 'content' structure to the supplied parent object 'parent' (can be a window or a component).  The function supplies the pointers to the new menu items in the caller's structure, which can then be manipulated to some extent (enable/disable, destroy, etc) using regular component functions.
+  return (sysCall_2(_fnum_windowContextAdd, parent, contents));
+}
+
+_X_ static inline int windowContextSet(objectKey parent, objectKey menu)
+{
+  // Proto: int kernelWindowContextSet(objectKey, kernelWindowComponent *);
+  // Desc : This function allows the caller to set the context menu of the the supplied parent object 'parent' (can be a window or a component).
+  return (sysCall_2(_fnum_windowContextSet, parent, menu));
 }
 
 _X_ static inline void windowComponentDestroy(objectKey component)
@@ -2412,7 +2269,7 @@ _X_ static inline int windowComponentSetSelected(objectKey component, int select
 
 _X_ static inline objectKey windowNewButton(objectKey parent, const char *label, image *buttonImage, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewButton(volatile void *, const char *, image *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewButton(objectKey, const char *, image *, componentParameters *);
   // Desc : Get a new button component to be placed inside the parent object 'parent', with the given component parameters, and with the (optional) label 'label', or the (optional) image 'buttonImage'.  Either 'label' or 'buttonImage' can be used, but not both.
   return ((objectKey) sysCall_4(_fnum_windowNewButton, parent, (void *) label,
 				buttonImage, params));
@@ -2420,7 +2277,7 @@ _X_ static inline objectKey windowNewButton(objectKey parent, const char *label,
 
 _X_ static inline objectKey windowNewCanvas(objectKey parent, int width, int height, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewCanvas(volatile void *, int, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewCanvas(objectKey, int, int, componentParameters *);
   // Desc : Get a new canvas component, to be placed inside the parent object 'parent', using the supplied width and height, with the given component parameters.  Canvas components are areas which will allow drawing operations, for example to show line drawings or unique graphical elements.
   return ((objectKey) sysCall_4(_fnum_windowNewCanvas, parent,
 				(void *) width, (void *) height, params));
@@ -2428,7 +2285,7 @@ _X_ static inline objectKey windowNewCanvas(objectKey parent, int width, int hei
 
 _X_ static inline objectKey windowNewCheckbox(objectKey parent, const char *text, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewCheckbox(volatile void *, const char *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewCheckbox(objectKey, const char *, componentParameters *);
   // Desc : Get a new checkbox component, to be placed inside the parent object 'parent', using the accompanying text 'text', and with the given component parameters.
   return ((objectKey) sysCall_3(_fnum_windowNewCheckbox, parent, (void *) text,
 				params));
@@ -2436,7 +2293,7 @@ _X_ static inline objectKey windowNewCheckbox(objectKey parent, const char *text
 
 _X_ static inline objectKey windowNewContainer(objectKey parent, const char *name, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewContainer(volatile void *, const char *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewContainer(objectKey, const char *, componentParameters *);
   // Desc : Get a new container component, to be placed inside the parent object 'parent', using the name 'name', and with the given component parameters.  Containers are useful for layout when a simple grid is not sufficient.  Each container has its own internal grid layout (for components it contains) and external grid parameters for placing it inside a window or another container.  Containers can be nested arbitrarily.  This allows limitless control over a complex window layout.
   return ((objectKey) sysCall_3(_fnum_windowNewContainer, parent,
 				(void *) name, params));
@@ -2444,7 +2301,7 @@ _X_ static inline objectKey windowNewContainer(objectKey parent, const char *nam
 
 _X_ static inline objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewIcon(volatile void *, image *, const char *, const char *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewIcon(objectKey, image *, const char *, const char *, componentParameters *);
   // Desc : Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'.
   return ((objectKey) sysCall_4(_fnum_windowNewIcon, parent, iconImage,
 				(void *) label, params));
@@ -2452,7 +2309,7 @@ _X_ static inline objectKey windowNewIcon(objectKey parent, image *iconImage, co
 
 _X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, drawMode mode, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewImage(volatile void *, image *, drawMode, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewImage(objectKey, image *, drawMode, componentParameters *);
   // Desc : Get a new image component to be placed inside the parent object 'parent', using the image data structure 'baseImage', and with the given component parameters 'params'.
   return ((objectKey) sysCall_4(_fnum_windowNewImage, parent, baseImage,
 				(void *) mode, params));
@@ -2460,7 +2317,7 @@ _X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, d
 
 _X_ static inline objectKey windowNewList(objectKey parent, windowListType type, int rows, int columns, int multiple, listItemParameters *items, int numItems, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, windowListType, int, int, int, listItemParameters *, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewList(objectKey, windowListType, int, int, int, listItemParameters *, int, componentParameters *);
   // Desc : Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'type' specifies the type of list (see <sys/window.h> for possibilities), 'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'items' is an array of 'numItems' list item parameters.
   return ((objectKey) sysCall_8(_fnum_windowNewList, parent, (void *) type,
 				(void *) rows, (void *) columns,
@@ -2470,30 +2327,30 @@ _X_ static inline objectKey windowNewList(objectKey parent, windowListType type,
 
 _X_ static inline objectKey windowNewListItem(objectKey parent, listItemParameters *item, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewListItem(volatile void *, windowListType, listItemParameters *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewListItem(objectKey, windowListType, listItemParameters *, componentParameters *);
   // Desc : Get a new list item component to be placed inside the parent object 'parent', using the list item parameters 'item', and the component parameters 'params'.
   return ((objectKey) sysCall_3(_fnum_windowNewListItem, parent, item,
 				params));
 }
 
-_X_ static inline objectKey windowNewMenu(objectKey parent, const char *name, componentParameters *params)
+_X_ static inline objectKey windowNewMenu(objectKey parent, const char *name, windowMenuContents *contents, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewMenu(volatile void *, const char *, componentParameters *);
-  // Desc : Get a new menu component to be placed inside the parent object 'parent', using the name 'name' (which will be the header of the menu) and the component parameters 'params', and with the given component parameters 'params'.  A menu component is an instance of a container, typically contains menu item components, and is typically added to a menu bar component.
-  return ((objectKey) sysCall_3(_fnum_windowNewMenu, parent, (void *) name,
-				params));
+  // Proto: kernelWindowComponent *kernelWindowNewMenu(objectKey, const char *, windowMenuContents *, componentParameters *);
+  // Desc : Get a new menu component to be placed inside the parent object 'parent', using the name 'name' (which will be the header of the menu in a menu bar, for example), the menu contents structure 'contents', and the component parameters 'params'.  A menu component is an instance of a container, typically contains menu item components, and is typically added to a menu bar component.
+  return ((objectKey) sysCall_4(_fnum_windowNewMenu, parent, (void *) name,
+				contents, params));
 }
 
-_X_ static inline objectKey windowNewMenuBar(objectKey parent, componentParameters *params)
+_X_ static inline objectKey windowNewMenuBar(objectKey window, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewMenuBar(volatile void *, componentParameters *);
-  // Desc : Get a new menu bar component to be placed inside the parent object 'parent', using the component parameters 'params'.  A menu bar component is an instance of a container, and typically contains menu components.
-  return ((objectKey) sysCall_2(_fnum_windowNewMenuBar, parent, params));
+  // Proto: kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *, componentParameters *);
+  // Desc : Get a new menu bar component to be placed inside the window 'window', using the component parameters 'params'.  A menu bar component is an instance of a container, and typically contains menu components.
+  return ((objectKey) sysCall_2(_fnum_windowNewMenuBar, window, params));
 }
 
 _X_ static inline objectKey windowNewMenuItem(objectKey parent, const char *text, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewMenuItem(volatile void *, const char *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewMenuItem(objectKey, const char *, componentParameters *);
   // Desc : Get a new menu item component to be placed inside the parent object 'parent', using the string 'text' and the component parameters 'params'.  A menu item  component is typically added to menu components, which are in turn added to menu bar components.
   return ((objectKey) sysCall_3(_fnum_windowNewMenuItem, parent, (void *) text,
 				params));
@@ -2501,7 +2358,7 @@ _X_ static inline objectKey windowNewMenuItem(objectKey parent, const char *text
 
 _X_ static inline objectKey windowNewPasswordField(objectKey parent, int columns, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewPasswordField(volatile void *, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewPasswordField(objectKey, int, componentParameters *);
   // Desc : Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns and the component parameters 'params'.  A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*).
   return ((objectKey) sysCall_3(_fnum_windowNewPasswordField, parent,
 				(void *) columns, params));
@@ -2509,14 +2366,14 @@ _X_ static inline objectKey windowNewPasswordField(objectKey parent, int columns
 
 _X_ static inline objectKey windowNewProgressBar(objectKey parent, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewProgressBar(volatile void *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewProgressBar(objectKey, componentParameters *);
   // Desc : Get a new progress bar component to be placed inside the parent object 'parent', using the component parameters 'params'.  Use the windowComponentSetData() function to set the percentage of progress.
   return ((objectKey) sysCall_2(_fnum_windowNewProgressBar, parent, params));
 }
 
 _X_ static inline objectKey windowNewRadioButton(objectKey parent, int rows, int columns, char *items[], int numItems, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewRadioButton(volatile void *, int, int, const char **, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewRadioButton(objectKey, int, int, const char **, int, componentParameters *);
   // Desc : Get a new radio button component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices.  The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items').
   return ((objectKey) sysCall_6(_fnum_windowNewRadioButton, parent,
 				(void *) rows, (void *) columns,
@@ -2525,16 +2382,24 @@ _X_ static inline objectKey windowNewRadioButton(objectKey parent, int rows, int
 
 _X_ static inline objectKey windowNewScrollBar(objectKey parent, scrollBarType type, int width, int height, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewScrollBar(volatile void *, scrollBarType, int, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewScrollBar(objectKey, scrollBarType, int, int, componentParameters *);
   // Desc : Get a new scroll bar component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
   return ((objectKey) sysCall_5(_fnum_windowNewScrollBar, parent,
 				(void *) type, (void *) width, (void *) height,
 				params));
 }
 
+_X_ static inline objectKey windowNewSlider(objectKey parent, scrollBarType type, int width, int height, componentParameters *params)
+{
+  // Proto: kernelWindowComponent *kernelWindowNewSlider(objectKey, scrollBarType, int, int, componentParameters *);
+  // Desc : Get a new slider component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
+  return ((objectKey) sysCall_5(_fnum_windowNewSlider, parent, (void *) type,
+				(void *) width, (void *) height, params));
+}
+
 _X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int rows, int bufferLines, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewTextArea(volatile void *, int, int, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewTextArea(objectKey, int, int, int, componentParameters *);
   // Desc : Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params'.  The 'columns' and 'rows' are the visible portion, and 'bufferLines' is the number of extra lines of scrollback memory.  If 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_5(_fnum_windowNewTextArea, parent,
 				(void *) columns, (void *) rows,
@@ -2543,7 +2408,7 @@ _X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int
 
 _X_ static inline objectKey windowNewTextField(objectKey parent, int columns, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewTextField(volatile void *, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewTextField(objectKey, int, componentParameters *);
   // Desc : Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and with the given component parameters 'params'.  Text field components are essentially 1-line 'text area' components.  If the params 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_3(_fnum_windowNewTextField, parent,
 				(void *) columns, params));
@@ -2551,7 +2416,7 @@ _X_ static inline objectKey windowNewTextField(objectKey parent, int columns, co
 
 _X_ static inline objectKey windowNewTextLabel(objectKey parent, const char *text, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewTextLabel(volatile void *, const char *, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewTextLabel(objectKey, const char *, componentParameters *);
   // Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_3(_fnum_windowNewTextLabel, parent,
 				(void *) text, params));

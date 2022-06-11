@@ -219,7 +219,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   // Disable it until we know the operation is cancel-able.
   windowComponentSetEnabled(cancelButton, 0);
 
-  windowSetHasCloseButton(dialogWindow, 0);
+  windowRemoveCloseButton(dialogWindow);
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);
   windowSetVisible(dialogWindow, 1);

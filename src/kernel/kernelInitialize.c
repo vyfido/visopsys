@@ -20,6 +20,7 @@
 //
 
 #include "kernelInitialize.h"
+#include "kernelDebug.h"
 #include "kernelDisk.h"
 #include "kernelFile.h"
 #include "kernelFilesystem.h"
@@ -46,7 +47,7 @@
 #include <stdio.h>
 
 
-static void writeLoaderLog(char *screen, int chars, int bytesPerChar)
+static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 {
   // Write the saved screen contents to a 'loader log'
 
@@ -157,6 +158,9 @@ int kernelInitialize(unsigned kernelMemory)
   if (status < 0)
     return (status);
 
+  // Initialize debugging output
+  kernelDebugInitialize();
+
   // Save the current screen
   kernelTextScreenSave(&screen);
 
@@ -207,12 +211,17 @@ int kernelInitialize(unsigned kernelMemory)
       return (status);
     }
 
+  
+  // Temporarily disable USB from here on, since it's buggy
+  kernelLog("USB initialization disabled");
+  /*
   status = kernelUsbInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "USB initialization failed");
       return (status);
     }
+  */
 
   // Initialize the kernel's random number generator.
   // has been initialized.
@@ -242,6 +251,7 @@ int kernelInitialize(unsigned kernelMemory)
 
   // Get the name of the boot disk
   status = kernelDiskGetBoot(rootDiskName);
+  kernelDebug(debug_misc, "Rootdisk name %s", rootDiskName);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to determine boot device");
@@ -282,10 +292,14 @@ int kernelInitialize(unsigned kernelMemory)
 	  return (status = ERR_NOTINITIALIZED);
 	}
     }
+  kernelDebug(debug_misc, "Mounted rootdisk %s", rootDiskName);
 
   rootDisk = kernelDiskGetByName(rootDiskName);
   if (rootDisk == NULL)
-    return (status = ERR_INVALID);
+    {
+      kernelError(kernel_error, "Couldn't get root disk \"%s\"", rootDiskName);
+      return (status = ERR_INVALID);
+    }
 
   // Are we in a graphics mode?
   graphics = kernelGraphicsAreEnabled();

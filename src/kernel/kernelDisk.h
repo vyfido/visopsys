@@ -37,6 +37,10 @@
 
 typedef enum { addr_pchs, addr_lba } kernelAddrMethod;
 
+// Forward declarations, where necessary
+struct _kernelPhysicalDisk;
+struct _kernelFilesystemDriver;
+
 typedef struct {
   int (*driverReset) (int);
   int (*driverRecalibrate) (int);
@@ -75,19 +79,19 @@ typedef volatile struct {
 
 // This defines a logical disk, a disk 'volume' (for example, a hard
 // disk partition is a logical disk)
-typedef volatile struct {
+typedef volatile struct _kernelDisk {
   char name[DISK_MAX_NAMELENGTH];
   partitionType partType;
   char fsType[FSTYPE_MAX_NAMELENGTH];
   unsigned opFlags;
-  void *physical;
+  volatile struct _kernelPhysicalDisk *physical;
   unsigned startSector;
   unsigned numSectors;
   int primary;
 
   // This part of the structure defines file systems
   struct {
-    void *driver;
+    struct _kernelFilesystemDriver *driver;
 
     // These should always be set by the driver upon successful detection
     unsigned blockSize;
@@ -109,7 +113,7 @@ typedef volatile struct {
 
 // This structure describes a physical disk device, as opposed to a
 // logical disk.
-typedef volatile struct {
+typedef volatile struct _kernelPhysicalDisk {
   // Generic disk metadata
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;

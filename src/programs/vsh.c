@@ -114,12 +114,13 @@ static void interpretCommand(char *commandLine)
   status = vshParseCommand(commandLine, fileName1, &numArgs, args);
   if (status < 0)
     {
-      perror(args[0]);
-      free(fullCommand);
-      free(fileName1);
-      free(fileName2);
-      return;
+      perror("vsh");
+      goto out;
     }
+
+  if (!numArgs)
+    // Nothing
+    goto out;
 
   // Try to match the command with the list of built-in commands
 
@@ -364,9 +365,13 @@ static void interpretCommand(char *commandLine)
   else
     printf("Unknown command \"%s\".\n", args[0]);
 
-  free(fullCommand);
-  free(fileName1);
-  free(fileName2);
+ out:
+  if (fullCommand)
+    free(fullCommand);
+  if (fileName1)
+    free(fileName1);
+  if (fileName2)
+    free(fileName2);
   return;
 }
 

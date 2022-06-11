@@ -37,6 +37,12 @@
 #define DEFAULT_DESKTOP_GREEN     93
 #define DEFAULT_DESKTOP_BLUE      171
 
+// Types of borders
+typedef enum {
+  border_top = 1, border_left = 2, border_bottom = 4, border_right = 8,
+  border_all = (border_top | border_left | border_bottom | border_right)
+} borderType;
+
 // Structure to represent a drawing area
 typedef volatile struct {
   int width;
@@ -117,7 +123,7 @@ int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int,
 			      int);
 int kernelGraphicFilter(kernelGraphicBuffer *, color *, int, int, int, int);
 void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *, int, int, int, int,
-				     int, color *, int, drawMode);
+				     int, color *, int, drawMode, borderType);
 
 #define _KERNELGRAPHIC_H
 #endif

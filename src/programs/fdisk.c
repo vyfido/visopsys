@@ -66,7 +66,7 @@ functionality of PartitionMagic and similar utilities.
 
 #define PERM             "You must be a privileged user to use this " \
                          "command.\n(Try logging in as user \"admin\")"
-#define PARTTYPES        "Supported partition types"
+#define PARTTYPES        "Supported Partition Types"
 #define STARTCYL_MESSAGE "Enter starting cylinder (%u-%u)"
 #define ENDCYL_MESSAGE   "Enter ending cylinder (%u-%u)\n" \
                          "or size in megabytes with 'm' (1m-%um),\n" \
@@ -102,26 +102,9 @@ static textScreen screen;
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
-static objectKey menuWrite = NULL;
-static objectKey menuUndo = NULL;
-static objectKey menuRestoreBackup = NULL;
-static objectKey menuQuit = NULL;
-static objectKey menuCopyDisk = NULL;
-static objectKey menuPartOrder = NULL;
-static objectKey menuSimpleMbr = NULL;
-static objectKey menuBootMenu = NULL;
-static objectKey menuSetActive = NULL;
-static objectKey menuDelete = NULL;
-static objectKey menuFormat = NULL;
-static objectKey menuDefrag = NULL;
-static objectKey menuResize = NULL;
-static objectKey menuHide = NULL;
-static objectKey menuInfo = NULL;
-static objectKey menuListTypes = NULL;
-static objectKey menuMove = NULL;
-static objectKey menuNew = NULL;
-static objectKey menuDeleteAll = NULL;
-static objectKey menuSetType = NULL;
+static objectKey fileMenu = NULL;
+static objectKey diskMenu = NULL;
+static objectKey partMenu = NULL;
 static objectKey diskList = NULL;
 static objectKey canvas = NULL;
 static objectKey sliceList = NULL;
@@ -140,6 +123,65 @@ static objectKey resizeButton = NULL;
 static unsigned canvasWidth = 600;
 static unsigned canvasHeight = 60;
 
+// Menus
+
+#define FILEMENU_WRITE         0
+#define FILEMENU_UNDO          1
+#define FILEMENU_RESTOREBACKUP 2
+#define FILEMENU_QUIT          3
+windowMenuContents fileMenuContents = {
+  4,
+  {
+    { "Write", NULL },
+    { "Undo", NULL },
+    { "Restore backup", NULL },
+    { "Quit", NULL }
+  }
+};
+
+#define DISKMENU_COPYDISK  0
+#define DISKMENU_PARTORDER 1
+#define DISKMENU_SIMPLEMBR 2
+#define DISKMENU_BOOTMENU  3
+windowMenuContents diskMenuContents = {
+  4,
+  {
+    { "Copy disk", NULL },
+    { "Partition order", NULL },
+    { "Write basic MBR", NULL },
+    { "MBR boot menu", NULL }
+  }
+};
+  
+#define PARTMENU_SETACTIVE 0
+#define PARTMENU_DELETE    1
+#define PARTMENU_FORMAT    2
+#define PARTMENU_DEFRAG    3
+#define PARTMENU_RESIZE    4
+#define PARTMENU_HIDE      5
+#define PARTMENU_INFO      6
+#define PARTMENU_LISTTYPES 7
+#define PARTMENU_MOVE      8
+#define PARTMENU_CREATE    9
+#define PARTMENU_DELETEALL 10
+#define PARTMENU_SETTYPE   11
+windowMenuContents partMenuContents = {
+  12,
+  {
+    { "Set active", NULL },
+    { "Delete", NULL },
+    { "Format", NULL },
+    { "Defragment", NULL },
+    { "Resize", NULL },
+    { "Hide/Unhide", NULL },
+    { "Info", NULL },
+    { "List types", NULL },
+    { "Move", NULL },
+    { "Create", NULL },
+    { "Delete all", NULL },
+    { "Set type", NULL }
+  }
+};
 
 static int yesOrNo(char *question)
 {
@@ -1292,7 +1334,7 @@ static int makeBackup(partitionTable *table, fileStream *backupFile)
 	warning("Error seeking extended backup partition table file");
     }
 
-  status = fileStreamWrite(backupFile, 512, table->sectorData);
+  status = fileStreamWrite(backupFile, 512, (char *) table->sectorData);
   if (status < 0)
     warning("Error writing backup partition table file");
 
@@ -1762,7 +1804,7 @@ static void printBanner(void)
 
 static void display(void)
 {
-  listItemParameters sliceListParams[MAX_SLICES];
+  listItemParameters *sliceListParams = NULL;
   char lineString[SLICESTRING_LENGTH + 2];
   int slc = 0;
   int foregroundColor = textGetForeground();
@@ -1771,18 +1813,21 @@ static void display(void)
   int isHide = 0;
   int isMove = 0;
   int count;
-  
-  bzero(sliceListParams, (numberSlices * sizeof(listItemParameters)));
-  for (count = 0; count < numberSlices; count ++)
-    strncpy(sliceListParams[count].text, slices[count].string,
-	    WINDOW_MAX_LABEL_LENGTH);
-  
+
   if (graphics)
     {
       // Re-populate our slice list component
+      sliceListParams = malloc(numberSlices * sizeof(listItemParameters));
+      if (sliceListParams == NULL)
+	return;
+      for (count = 0; count < numberSlices; count ++)
+	strncpy(sliceListParams[count].text, slices[count].string,
+		WINDOW_MAX_LABEL_LENGTH);
       windowComponentSetSelected(sliceList, 0);
       windowComponentSetData(sliceList, sliceListParams, numberSlices);
+      free(sliceListParams);
       windowComponentSetSelected(sliceList, selectedSlice);
+
       drawDiagram();
 
       // Depending on which type slice was selected (i.e. partition vs.
@@ -1802,53 +1847,75 @@ static void display(void)
 	    isMove = 1;
 
 	  windowComponentSetEnabled(setActiveButton, 1);
-	  windowComponentSetEnabled(menuSetActive, 1);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_SETACTIVE]
+				    .key, 1);
 	  windowComponentSetEnabled(deleteButton, 1);
-	  windowComponentSetEnabled(menuDelete, 1);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_DELETE]
+				    .key, 1);
 	  windowComponentSetEnabled(formatButton, 1);
-	  windowComponentSetEnabled(menuFormat, 1);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_FORMAT]
+				    .key, 1);
 	  windowComponentSetEnabled(defragButton, isDefrag);
-	  windowComponentSetEnabled(menuDefrag, isDefrag);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_DEFRAG]
+				    .key, isDefrag);
 	  windowComponentSetEnabled(resizeButton, 1);
-	  windowComponentSetEnabled(menuResize, 1);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_RESIZE]
+				    .key, 1);
 	  windowComponentSetEnabled(hideButton, isHide);
-	  windowComponentSetEnabled(menuHide, isHide);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_HIDE]
+				    .key, isHide);
 	  windowComponentSetEnabled(moveButton, isMove);
-	  windowComponentSetEnabled(menuMove, isMove);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_MOVE]
+				    .key, isMove);
 	  windowComponentSetEnabled(newButton, 0);
-	  windowComponentSetEnabled(menuNew, 0);
-	  windowComponentSetEnabled(menuSetType, 1);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_CREATE]
+				    .key, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_SETTYPE]
+				    .key, 1);
 	}
       else
 	{
 	  // It's empty space
 	  windowComponentSetEnabled(setActiveButton, 0);
-	  windowComponentSetEnabled(menuSetActive, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_SETACTIVE]
+				    .key, 0);
 	  windowComponentSetEnabled(deleteButton, 0);
-	  windowComponentSetEnabled(menuDelete, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_DELETE]
+				    .key, 0);
 	  windowComponentSetEnabled(formatButton, 0);
-	  windowComponentSetEnabled(menuFormat, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_FORMAT]
+				    .key, 0);
 	  windowComponentSetEnabled(defragButton, 0);
-	  windowComponentSetEnabled(menuDefrag, 0);
-	  windowComponentSetEnabled(menuResize, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_DEFRAG]
+				    .key, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_RESIZE]
+				    .key, 0);
 	  windowComponentSetEnabled(hideButton, 0);
-	  windowComponentSetEnabled(menuHide, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_HIDE]
+				    .key, 0);
 	  windowComponentSetEnabled(moveButton, 0);
-	  windowComponentSetEnabled(menuMove, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_MOVE]
+				    .key, 0);
 	  windowComponentSetEnabled(newButton, 1);
-	  windowComponentSetEnabled(menuNew, 1);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_CREATE]
+				    .key, 1);
 	  windowComponentSetEnabled(resizeButton, 0);
-	  windowComponentSetEnabled(menuSetType, 0);
+	  windowComponentSetEnabled(partMenuContents.items[PARTMENU_SETTYPE]
+				    .key, 0);
 	}
 
       // Other buttons enabled/disabled...
       windowComponentSetEnabled(deleteAllButton, numberPartitions);
-      windowComponentSetEnabled(menuDeleteAll, numberPartitions);
-      windowComponentSetEnabled(menuRestoreBackup, backupAvailable);
+      windowComponentSetEnabled(partMenuContents.items[PARTMENU_DELETEALL]
+				.key, numberPartitions);
+      windowComponentSetEnabled(fileMenuContents.items[FILEMENU_RESTOREBACKUP]
+				.key, backupAvailable);
       windowComponentSetEnabled(undoButton, changesPending);
-      windowComponentSetEnabled(menuUndo, changesPending);
+      windowComponentSetEnabled(fileMenuContents.items[FILEMENU_UNDO]
+				.key, changesPending);
       windowComponentSetEnabled(writeButton, changesPending);
-      windowComponentSetEnabled(menuWrite, changesPending);
+      windowComponentSetEnabled(fileMenuContents.items[FILEMENU_WRITE]
+				.key, changesPending);
     }
   else
     {
@@ -1985,7 +2052,7 @@ static int mountedCheck(slice *entry)
 
   if (graphics)
     choice =
-      windowNewChoiceDialog(window, "Partition is mounted", tmpChar,
+      windowNewChoiceDialog(window, "Partition Is Mounted", tmpChar,
 			    (char *[]) { "Ignore", "Unmount", "Cancel" },
 			    3, 1);
   else
@@ -2067,7 +2134,7 @@ static void format(slice *formatSlice)
 
   if (graphics)
     {
-      sprintf(tmpChar, "Format partition %s", formatSlice->sliceName);
+      sprintf(tmpChar, "Format Partition %s", formatSlice->sliceName);
       formatDialog = windowNewDialog(window, tmpChar);
 
       bzero(&params, sizeof(componentParameters));
@@ -2214,7 +2281,7 @@ static void defragment(slice *formatSlice)
 	  "well tested.  Continue?");
   if (graphics)
     {
-      if (!windowNewQueryDialog(window, "New feature", tmpChar))
+      if (!windowNewQueryDialog(window, "New Feature", tmpChar))
 	return;
     }
   else
@@ -2432,7 +2499,7 @@ static int setType(int partition)
       if (graphics)
 	{
 	  strcat(tmpChar, " (or 'L' to list)");
-	  status = windowNewPromptDialog(window, "Partition type", tmpChar, 1,
+	  status = windowNewPromptDialog(window, "Partition Type", tmpChar, 1,
 					 8, code);
 	}
       else
@@ -2610,7 +2677,7 @@ static int move(int sliceId)
 
       if (graphics)
 	{
-	  newStartCylinder = getNumberDialog("Starting cylinder", tmpChar);
+	  newStartCylinder = getNumberDialog("Starting Cylinder", tmpChar);
 	  if ((int) newStartCylinder < 0)
 	    return (status = (int) newStartCylinder);
 	}
@@ -2961,7 +3028,7 @@ static void create(int sliceNumber)
 
       if (graphics)
 	{
-	  createDialog = windowNewDialog(window, "Create partition");
+	  createDialog = windowNewDialog(window, "Create Partition");
 
 	  bzero(&params, sizeof(componentParameters));
 	  params.gridWidth = 1;
@@ -3300,8 +3367,8 @@ static int resize(int sliceId)
   slice entry;
   int sliceNumber = -1;
   int resizeFs = 0;
-  unsigned long long minFsSectors = 0;
-  unsigned long long maxFsSectors = 0;
+  unsigned minFsSectors = 0;
+  unsigned maxFsSectors = 0;
   int haveResizeConstraints = 0;
   unsigned minEndCylinder = 0;
   unsigned maxEndCylinder = 0;
@@ -3348,7 +3415,7 @@ static int resize(int sliceId)
       // We can resize the filesystem, but does the user want to?
       strcpy(tmpChar, "Please select the type of resize operation:");
       if (graphics)
-	selected = windowNewRadioDialog(window, "Resize type",
+	selected = windowNewRadioDialog(window, "Resize Type",
 					tmpChar, optionStrings, 2, 0);
       else
 	selected = vshCursorMenu(tmpChar, 2, optionStrings, 0);
@@ -3385,9 +3452,8 @@ static int resize(int sliceId)
 		printf("\n%s\n\n", tmpChar);
 
 	      status =
-		filesystemResizeConstraints(entry.diskName,
-					    (unsigned *) &minFsSectors,
-					    (unsigned *) &maxFsSectors);
+		filesystemResizeConstraints(entry.diskName, &minFsSectors,
+					    &maxFsSectors);
 
 	      if (graphics && bannerDialog)
 		windowDestroy(bannerDialog);
@@ -3400,8 +3466,8 @@ static int resize(int sliceId)
 			  "Continue?");
 		  if (graphics)
 		    {
-		      if (!windowNewQueryDialog(window, "Can't resize "
-						"filesystem", tmpChar))
+		      if (!windowNewQueryDialog(window, "Can't Resize "
+						"Filesystem", tmpChar))
 			return (status = 0);
 		    }
 		  else
@@ -3427,7 +3493,7 @@ static int resize(int sliceId)
 	      "discard all of the data it contains.  Continue?");
       if (graphics)
 	{
-	  if (!windowNewQueryDialog(window, "Can't resize filesystem",
+	  if (!windowNewQueryDialog(window, "Can't Resize Filesystem",
 				    tmpChar))
 	    return (status = 0);
 	}
@@ -3474,7 +3540,7 @@ static int resize(int sliceId)
     {
       if (graphics)
 	{
-	  resizeDialog = windowNewDialog(window, "Resize partition");
+	  resizeDialog = windowNewDialog(window, "Resize Partition");
 
 	  bzero(&params, sizeof(componentParameters));
 	  params.gridWidth = 2;
@@ -3657,7 +3723,7 @@ static int resize(int sliceId)
 	  "Continue?", entry.sizeLogical, newSize);
   if (graphics)
     {
-      if (!windowNewQueryDialog(window, "New feature", tmpChar))
+      if (!windowNewQueryDialog(window, "New Feature", tmpChar))
 	return (status = 0);
     }
   else
@@ -3690,7 +3756,7 @@ static int resize(int sliceId)
       // instead.
 
       bzero((void *) &prog, sizeof(progress));
-      strcpy(tmpChar, "Resizing the filesystem...");
+      strcpy(tmpChar, "Resizing Filesystem...");
       if (graphics)
 	progressDialog = windowNewProgressDialog(window, tmpChar, &prog);
       else
@@ -3803,8 +3869,8 @@ static disk *chooseDiskDialog(void)
   cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
 
   // Make the window visible
-  windowSetHasMinimizeButton(chooseWindow, 0);
-  windowSetHasCloseButton(chooseWindow, 0);
+  windowRemoveMinimizeButton(chooseWindow);
+  windowRemoveCloseButton(chooseWindow);
   windowSetResizable(chooseWindow, 0);
   windowSetVisible(chooseWindow, 1);
 
@@ -3834,7 +3900,7 @@ static disk *chooseDiskDialog(void)
 }
 
 
-static int copyDiskIoThread(int argc, char *argv[])
+static void copyDiskIoThread(int argc, char *argv[])
 {
   // This thread polls for empty/full buffers and reads/writes them when
   // they're ready
@@ -3951,8 +4017,6 @@ static int copyDiskIoThread(int argc, char *argv[])
 
  terminate:
   multitaskerTerminate(status);
-  // Compiler happy
-  while(1);
 }
 
 
@@ -4409,7 +4473,7 @@ static void changePartitionOrder(void)
   
   if (graphics)
     {
-      orderDialog = windowNewDialog(window, "Partition order");
+      orderDialog = windowNewDialog(window, "Partition Order");
 
       bzero(&params, sizeof(componentParameters));
       params.gridWidth = 2;
@@ -4431,18 +4495,18 @@ static void changePartitionOrder(void)
       params.gridHeight = 1;
       params.gridWidth = 1;
       params.font = NULL;
-      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-      upButton = windowNewButton(orderDialog, "/\\", NULL, &params);
+      upButton = windowNewButton(orderDialog, "Up", NULL, &params);
 
       params.gridY = 1;
-      params.padTop = 0;
-      downButton = windowNewButton(orderDialog, "\\/", NULL, &params);
+      params.padTop = 5;
+      downButton = windowNewButton(orderDialog, "Down", NULL, &params);
 
       // Make 'OK' and 'cancel' buttons
       params.gridX = 0;
       params.gridY = 2;
-      params.padTop = 10;
+      params.padBottom = 5;
       params.orientationX = orient_right;
+      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
       okButton = windowNewButton(orderDialog, "OK", NULL, &params);
 
       params.gridX = 1;
@@ -4450,7 +4514,7 @@ static void changePartitionOrder(void)
       cancelButton = windowNewButton(orderDialog, "Cancel", NULL, &params);
 
       // Make the window visible
-      windowSetHasMinimizeButton(orderDialog, 0);
+      windowRemoveMinimizeButton(orderDialog);
       windowSetResizable(orderDialog, 0);
       windowSetVisible(orderDialog, 1);
 
@@ -4653,7 +4717,7 @@ static int writeSimpleMbr(void)
     }
 
   // Read bytes 0-445 into the main table
-  status = fileStreamRead(&mbrFile, 446, mainTable->sectorData);
+  status = fileStreamRead(&mbrFile, 446, (char *) mainTable->sectorData);
   if (status < 0)
     {
       error("Can't read simple MBR file %s", SIMPLE_MBR_FILE);
@@ -4751,39 +4815,162 @@ static void restoreBackup(void)
 static void eventHandler(objectKey key, windowEvent *event)
 {
   int count;
+  objectKey selectedItem = NULL;
   int selected = -1;
-  int newSelected = 0;
 
   // Check for the window being closed by a GUI event.
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == menuQuit) && (event->type & EVENT_SELECTION)))
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
     {
       quit(0);
       return;
+    }
+      
+  // Check for menu events
+
+  else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetData(fileMenu, &selectedItem, 1);
+      if (selectedItem)
+	{
+	  if (selectedItem == fileMenuContents.items[FILEMENU_WRITE].key)
+	    writeChanges(1);
+
+	  else if (selectedItem == fileMenuContents.items[FILEMENU_UNDO].key)
+	    undo();
+
+	  else if (selectedItem ==
+		   fileMenuContents.items[FILEMENU_RESTOREBACKUP].key)
+	    restoreBackup();
+
+	  else if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
+	    {
+	      quit(0);
+	      return;
+	    }
+	}
+    }
+
+  else if ((key == diskMenu) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetData(diskMenu, &selectedItem, 1);
+      if (selectedItem)
+	{
+	  if (selectedItem == diskMenuContents.items[DISKMENU_COPYDISK].key)
+	    {
+	      if (copyDisk() < 0)
+		error("Disk copy failed.");
+	    }
+
+	  else if (selectedItem ==
+		   diskMenuContents.items[DISKMENU_PARTORDER].key)
+	    changePartitionOrder();
+
+	  else if (selectedItem ==
+		   diskMenuContents.items[DISKMENU_SIMPLEMBR].key)
+	    writeSimpleMbr();
+
+	  else if (selectedItem ==
+		   diskMenuContents.items[DISKMENU_BOOTMENU].key)
+	    mbrBootMenu();
+	}
+    }
+
+  else if ((key == partMenu) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetData(partMenu, &selectedItem, 1);
+      if (selectedItem)
+	{
+	  if (selectedItem == partMenuContents.items[PARTMENU_SETACTIVE].key)
+	    setActive(slices[selectedSlice].sliceId);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_DELETE].key)
+	    delete(slices[selectedSlice].sliceId);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_FORMAT].key)
+	    format(&slices[selectedSlice]);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_DEFRAG].key)
+	    defragment(&slices[selectedSlice]);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_RESIZE].key)
+	    resize(slices[selectedSlice].sliceId);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_HIDE].key)
+	    hide(slices[selectedSlice].sliceId);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_INFO].key)
+	    info(selectedSlice);
+
+	  else if (selectedItem ==
+		   partMenuContents.items[PARTMENU_LISTTYPES].key)
+	    listTypes();
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_MOVE].key)
+	    move(slices[selectedSlice].sliceId);
+
+	  else if (selectedItem == partMenuContents.items[PARTMENU_CREATE].key)
+	    create(selectedSlice);
+
+	  else if (selectedItem ==
+		   partMenuContents.items[PARTMENU_DELETEALL].key)
+	    deleteAll();
+
+	  else if (selectedItem ==
+		   partMenuContents.items[PARTMENU_SETTYPE].key)
+	    setType(slices[selectedSlice].sliceId);
+	}
     }
 
   // Check for changes to our disk list
   else if ((key == diskList) && (event->type & EVENT_SELECTION))
     {
-      windowComponentGetSelected(diskList, &newSelected);
-      if ((newSelected >= 0) && (newSelected != selectedDiskNumber))
-	if (selectDisk(&diskInfo[newSelected]) < 0)
+      windowComponentGetSelected(diskList, &selected);
+      if ((selected >= 0) && (selected != selectedDiskNumber))
+	if (selectDisk(&diskInfo[selected]) < 0)
 	  windowComponentSetSelected(diskList, selectedDiskNumber);
     }
 
-  // Check for clicks on our canvas diagram
-  else if ((key == canvas) && (event->type == EVENT_MOUSE_LEFTDOWN))
+  // Check for clicks or cursor keys on our canvas diagram
+  else if ((key == canvas) &&
+	   ((event->type == EVENT_MOUSE_LEFTDOWN) ||
+	    (event->type == EVENT_KEY_DOWN)))
     {
-      for (count = 0; count < numberSlices; count ++)
-	if ((event->xPosition > slices[count].pixelX) &&
-	    (event->xPosition < (slices[count].pixelX +
-				 slices[count].pixelWidth)))
-	  {
-	    selected = count;
-	    break;
-	  }
-      if (selected >= 0)
-	selectedSlice = selected;
+      if (event->type == EVENT_MOUSE_LEFTDOWN)
+	{
+	  for (count = 0; count < numberSlices; count ++)
+	    if ((event->xPosition > slices[count].pixelX) &&
+		(event->xPosition < (slices[count].pixelX +
+				     slices[count].pixelWidth)))
+	      {
+		selected = count;
+		break;
+	      }
+
+	  if (selected >= 0)
+	    selectedSlice = selected;
+	}
+
+      else if (event->type == EVENT_KEY_DOWN)
+	{
+	  // Respond to cursor left or right
+	  switch (event->key)
+	    {
+	    case 18:
+	      // LEFT cursor key
+	      if (selectedSlice)
+		selectedSlice -= 1;
+	      break;
+
+	    case 19:
+	      // RIGHT cursor key
+	      if (selectedSlice < (numberSlices - 1))
+		selectedSlice += 1;
+	      break;
+
+	    default:
+	      break;
+	    }
+	}
     }
   
   // Check for changes to our slice list
@@ -4794,92 +4981,43 @@ static void eventHandler(objectKey key, windowEvent *event)
 	selectedSlice = selected;
     }
 
-  else if (((key == writeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuWrite) && (event->type & EVENT_SELECTION)))
+  // Check for button clicks
+
+  else if ((key == writeButton) && (event->type == EVENT_MOUSE_LEFTUP))
     writeChanges(1);
 
-  else if (((key == undoButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuUndo) &&  (event->type & EVENT_SELECTION)))
+  else if ((key == undoButton) && (event->type == EVENT_MOUSE_LEFTUP))
     undo();
 
-  else if ((key == menuRestoreBackup) && (event->type & EVENT_SELECTION))
-    restoreBackup();
+  else if ((key == setActiveButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    setActive(slices[selectedSlice].sliceId);
 
-  else if ((key == menuCopyDisk) && (event->type & EVENT_SELECTION))
-    {
-      if (copyDisk() < 0)
-	error("Disk copy failed.");
-    }
+  else if ((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    delete(slices[selectedSlice].sliceId);
 
-  else if ((key == menuPartOrder) && (event->type & EVENT_SELECTION))
-    changePartitionOrder();
-
-  else if ((key == menuSimpleMbr) && (event->type & EVENT_SELECTION))
-    writeSimpleMbr();
-
-  else if ((key == menuBootMenu) && (event->type & EVENT_SELECTION))
-    mbrBootMenu();
-
-  else if (((key == setActiveButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuSetActive) && (event->type & EVENT_SELECTION)))
-    {
-      if (slices[selectedSlice].typeId)
-	setActive(slices[selectedSlice].sliceId);
-    }
-
-  else if (((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuDelete) && (event->type & EVENT_SELECTION)))
-    {
-      if (slices[selectedSlice].typeId)
-	delete(slices[selectedSlice].sliceId);
-    }
-
-  else if (((key == formatButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuFormat) && (event->type & EVENT_SELECTION)))
+  else if ((key == formatButton) && (event->type == EVENT_MOUSE_LEFTUP))
     format(&slices[selectedSlice]);
 
-  else if (((key == defragButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuDefrag) && (event->type & EVENT_SELECTION)))
+  else if ((key == defragButton) && (event->type == EVENT_MOUSE_LEFTUP))
     defragment(&slices[selectedSlice]);
 
-  else if (((key == hideButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuHide) && (event->type & EVENT_SELECTION)))
-    {
-      if (slices[selectedSlice].typeId)
-	hide(slices[selectedSlice].sliceId);
-    }
+  else if ((key == hideButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    hide(slices[selectedSlice].sliceId);
 
-  else if (((key == infoButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuInfo) && (event->type & EVENT_SELECTION)))
+  else if ((key == infoButton) && (event->type == EVENT_MOUSE_LEFTUP))
     info(selectedSlice);
 
-  else if ((key == menuListTypes) && (event->type & EVENT_SELECTION))
-    listTypes();
+  else if ((key == moveButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    move(slices[selectedSlice].sliceId);
 
-  else if (((key == moveButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuMove) && (event->type & EVENT_SELECTION)))
-    {
-      if (slices[selectedSlice].typeId)
-	move(slices[selectedSlice].sliceId);
-    }
-
-  else if (((key == newButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuNew) && (event->type & EVENT_SELECTION)))
+  else if ((key == newButton) && (event->type == EVENT_MOUSE_LEFTUP))
     create(selectedSlice);
 
-  else if (((key == deleteAllButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuDeleteAll) && (event->type & EVENT_SELECTION)))
+  else if ((key == deleteAllButton) && (event->type == EVENT_MOUSE_LEFTUP))
     deleteAll();
 
-  else if ((key == menuSetType) && (event->type & EVENT_SELECTION))
-    setType(slices[selectedSlice].sliceId);
-
-  else if (((key == resizeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuResize) && (event->type & EVENT_SELECTION)))
-    {
-      if (slices[selectedSlice].typeId)
-	resize(slices[selectedSlice].sliceId);
-    }
+  else if ((key == resizeButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    resize(slices[selectedSlice].sliceId);
 
   else
     return;
@@ -4907,6 +5045,21 @@ static void constructWindow(void)
     return;
 
   bzero(&params, sizeof(componentParameters));
+
+  // Create the top 'file' menu
+  objectKey menuBar = windowNewMenuBar(window, &params);
+
+  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  windowRegisterEventHandler(fileMenu, &eventHandler);
+
+  // Create the top 'disk' menu
+  diskMenu = windowNewMenu(menuBar, "Disk", &diskMenuContents, &params);
+  windowRegisterEventHandler(diskMenu, &eventHandler);
+
+  // Create the top 'partition' menu
+  partMenu = windowNewMenu(menuBar, "Partition", &partMenuContents, &params);
+  windowRegisterEventHandler(partMenu, &eventHandler);
+
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padTop = 5;
@@ -4914,60 +5067,10 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
-
-  // Create the top 'file' menu
-  objectKey menuBar = windowNewMenuBar(window, &params);
-  objectKey menu1 = windowNewMenu(menuBar, "File", &params);
-  menuWrite = windowNewMenuItem(menu1, "Write", &params);
-  windowRegisterEventHandler(menuWrite, &eventHandler);
-  menuUndo = windowNewMenuItem(menu1, "Undo", &params);
-  windowRegisterEventHandler(menuUndo, &eventHandler);
-  menuRestoreBackup = windowNewMenuItem(menu1, "Restore backup", &params);
-  windowRegisterEventHandler(menuRestoreBackup, &eventHandler);
-  menuQuit = windowNewMenuItem(menu1, "Quit", &params);
-  windowRegisterEventHandler(menuQuit, &eventHandler);
-
-  // Create the top 'disk' menu
-  objectKey menu2 = windowNewMenu(menuBar, "Disk", &params);
-  menuCopyDisk = windowNewMenuItem(menu2, "Copy disk", &params);
-  windowRegisterEventHandler(menuCopyDisk, &eventHandler);
-  menuPartOrder = windowNewMenuItem(menu2, "Partition order", &params);
-  windowRegisterEventHandler(menuPartOrder, &eventHandler);
-  menuSimpleMbr = windowNewMenuItem(menu2, "Write basic MBR", &params);
-  windowRegisterEventHandler(menuSimpleMbr, &eventHandler);
-  menuBootMenu = windowNewMenuItem(menu2, "MBR boot menu", &params);
-  windowRegisterEventHandler(menuBootMenu, &eventHandler);
-
-  // Create the top 'partition' menu
-  objectKey menu3 = windowNewMenu(menuBar, "Partition", &params);
-  menuSetActive = windowNewMenuItem(menu3, "Set active", &params);
-  windowRegisterEventHandler(menuSetActive, &eventHandler);
-  menuDelete = windowNewMenuItem(menu3, "Delete", &params);
-  windowRegisterEventHandler(menuDelete, &eventHandler);
-  menuFormat = windowNewMenuItem(menu3, "Format", &params);
-  windowRegisterEventHandler(menuFormat, &eventHandler);
-  menuDefrag = windowNewMenuItem(menu3, "Defragment", &params);
-  windowRegisterEventHandler(menuDefrag, &eventHandler);
-  menuResize = windowNewMenuItem(menu3, "Resize", &params);
-  windowRegisterEventHandler(menuResize, &eventHandler);
-  menuHide = windowNewMenuItem(menu3, "Hide/Unhide", &params);
-  windowRegisterEventHandler(menuHide, &eventHandler);
-  menuInfo = windowNewMenuItem(menu3, "Info", &params);
-  windowRegisterEventHandler(menuInfo, &eventHandler);
-  menuListTypes = windowNewMenuItem(menu3, "List types", &params);
-  windowRegisterEventHandler(menuListTypes, &eventHandler);
-  menuMove = windowNewMenuItem(menu3, "Move", &params);
-  windowRegisterEventHandler(menuMove, &eventHandler);
-  menuNew = windowNewMenuItem(menu3, "New", &params);
-  windowRegisterEventHandler(menuNew, &eventHandler);
-  menuDeleteAll = windowNewMenuItem(menu3, "Delete all", &params);
-  windowRegisterEventHandler(menuDeleteAll, &eventHandler);
-  menuSetType = windowNewMenuItem(menu3, "Set type", &params);
-  windowRegisterEventHandler(menuSetType, &eventHandler);
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
 
   // Create a container for the disk icon image and the title label
-  params.gridY = 1;
-  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+  params.gridY++;
   container = windowNewContainer(window, "titleContainer", &params);
   if (container != NULL)
     {
@@ -4985,24 +5088,34 @@ static void constructWindow(void)
 	}
 
       // Put a title text label in the container
-      params.gridX = 1;
+      params.gridX++;
       textLabel = windowNewTextLabel(container, programName, &params);
     }
 
   // Make a list for the disks
   params.gridX = 0;
-  params.gridY = 2;
+  params.gridY++;
   params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
   diskList = windowNewList(window, windowlist_textonly, numberDisks, 1, 0,
 			   diskListParams, numberDisks, &params);
   windowRegisterEventHandler(diskList, &eventHandler);
+  windowContextSet(diskList, diskMenu);
 
-  params.gridY = 4;
+  // Get a canvas for drawing the visual representation
+  params.gridY++;
+  params.padTop = 10;
+  params.flags |= (WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CANFOCUS);
+  canvas = windowNewCanvas(window, canvasWidth, canvasHeight, &params);
+  windowRegisterEventHandler(canvas, &eventHandler);
+  windowContextSet(canvas, partMenu);
+
+  params.gridY++;
+  params.flags &= ~(WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CANFOCUS);
   fontGetDefault(&params.font);
   textLabel = windowNewTextLabel(window, sliceListHeader, &params);
 
   // Make a list for the partitions
-  params.gridY = 5;
+  params.gridY++;
   params.padTop = 5;
   listItemParameters tmpListParams;
   for (count = 0; count < WINDOW_MAX_LABEL_LENGTH; count ++)
@@ -5011,22 +5124,18 @@ static void constructWindow(void)
   sliceList = windowNewList(window, windowlist_textonly, 6, 1, 0,
 			    &tmpListParams, 1, &params);
   windowRegisterEventHandler(sliceList, &eventHandler);
-  canvasWidth = windowComponentGetWidth(sliceList);
+  windowContextSet(sliceList, partMenu);
 
-  // Get a canvas for drawing the visual representation
-  params.gridY = 3;
-  params.padTop = 10;
-  params.flags |= WINDOW_COMPFLAG_HASBORDER;
-  canvas = windowNewCanvas(window, canvasWidth, canvasHeight, &params);
-  windowRegisterEventHandler(canvas, &eventHandler);
+  // Adjust the canvas width so that it matches the width of the partition
+  // list.
+  canvasWidth = windowComponentGetWidth(sliceList);
+  windowComponentSetWidth(canvas, canvasWidth);
 
   // A container for the buttons
-  params.gridX = 0;
-  params.gridY = 6;
+  params.gridY++;
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_center;
-  params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
   container = windowNewContainer(window, "buttonContainer", &params);
   if (container != NULL)
     {
@@ -5034,54 +5143,54 @@ static void constructWindow(void)
       params.orientationX = orient_left;
       params.padBottom = 0;
       params.font = NULL;
-      newButton = windowNewButton(container, "New", NULL, &params);
+      newButton = windowNewButton(container, "Create", NULL, &params);
       windowRegisterEventHandler(newButton, &eventHandler);
 
-      params.gridX = 1;
+      params.gridX++;
       setActiveButton =
 	windowNewButton(container, "Set active", NULL, &params);
       windowRegisterEventHandler(setActiveButton, &eventHandler);
 
-      params.gridX = 2;
+      params.gridX++;
       moveButton = windowNewButton(container, "Move", NULL, &params);
       windowRegisterEventHandler(moveButton, &eventHandler);
 
-      params.gridX = 3;
+      params.gridX++;
       defragButton = windowNewButton(container, "Defragment", NULL, &params);
       windowRegisterEventHandler(defragButton, &eventHandler);
 
-      params.gridX = 4;
+      params.gridX++;
       formatButton = windowNewButton(container, "Format", NULL, &params);
       windowRegisterEventHandler(formatButton, &eventHandler);
 
-      params.gridX = 5;
+      params.gridX++;
       deleteAllButton =
 	windowNewButton(container, "Delete all", NULL, &params);
       windowRegisterEventHandler(deleteAllButton, &eventHandler);
 
       params.gridX = 0;
-      params.gridY = 1;
+      params.gridY++;
       params.padTop = 0;
       deleteButton = windowNewButton(container, "Delete", NULL, &params);
       windowRegisterEventHandler(deleteButton, &eventHandler);
 
-      params.gridX = 1;
+      params.gridX++;
       hideButton = windowNewButton(container, "Hide/unhide", NULL, &params);
       windowRegisterEventHandler(hideButton, &eventHandler);
 
-      params.gridX = 2;
+      params.gridX++;
       infoButton = windowNewButton(container, "Info", NULL, &params);
       windowRegisterEventHandler(infoButton, &eventHandler);
 
-      params.gridX = 3;
+      params.gridX++;
       resizeButton = windowNewButton(container, "Resize", NULL, &params);
       windowRegisterEventHandler(resizeButton, &eventHandler);
 
-      params.gridX = 4;
+      params.gridX++;
       undoButton = windowNewButton(container, "Undo", NULL, &params);
       windowRegisterEventHandler(undoButton, &eventHandler);
 
-      params.gridX = 5;
+      params.gridX++;
       writeButton = windowNewButton(container, "Write changes", NULL, &params);
       windowRegisterEventHandler(writeButton, &eventHandler);
     }
@@ -5146,7 +5255,7 @@ static int textMenu(void)
 	     "[I] Info\n",
 	     "[L] List types\n",
 	     (isMove? "[M] Move\n" : ""),
-	     (!isPartition? "[N] New\n" : ""),
+	     (!isPartition? "[N] Create new\n" : ""),
 	     (numberPartitions? "[O] Delete all\n" : ""));
       bottomRow = textGetRow();
 

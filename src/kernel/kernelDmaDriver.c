@@ -213,7 +213,7 @@ static int driverCloseChannel(int channel)
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // Normally, this routine is used to detect and initialize each device,
   // as well as registering each one with any higher-level interfaces.  Since
@@ -257,11 +257,9 @@ static kernelDmaOps dmaOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelDmaDriverRegister(void *driverData)
+void kernelDmaDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &dmaOps;

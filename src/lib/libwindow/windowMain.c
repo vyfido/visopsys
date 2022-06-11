@@ -46,7 +46,7 @@ static void guiRun(void)
   // This is the thread that runs for each user GUI program polling
   // components' event queues for events.
 
-  objectKey *key = NULL;
+  objectKey key = NULL;
   windowEvent event;
   int count;
 
@@ -64,7 +64,7 @@ static void guiRun(void)
 	  if (key && (windowComponentEventGet(key, &event) > 0))
 	    {
 	      if (callBacks[count].function)
-		callBacks[count].function((objectKey) key, &event);
+		callBacks[count].function(key, &event);
 	    }
 	}
 

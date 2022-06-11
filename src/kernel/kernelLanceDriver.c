@@ -414,7 +414,8 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 }
 
 
-static int driverDetect(void *parent __attribute__((unused)), void *driver)
+static int driverDetect(void *parent __attribute__((unused)),
+			kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also issues the
@@ -739,11 +740,9 @@ static kernelNetworkDeviceOps networkOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelLanceDriverRegister(void *driverData)
+void kernelLanceDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &networkOps;

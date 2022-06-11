@@ -118,7 +118,7 @@ typedef struct {
 } kernelArpCacheItem;
 
 // This represents a queue of network packets as a stream.
-typedef volatile stream kernelNetworkPacketStream;
+typedef stream kernelNetworkPacketStream;
 
 typedef struct {
   unsigned char code;
@@ -164,7 +164,8 @@ typedef volatile struct {
   lock inputStreamLock;
   kernelNetworkPacketStream outputStream;
   lock outputStreamLock;
-  volatile void *connections;
+  volatile struct _kernelNetworkConnection *connections;
+
   // Driver-specific private data.
   void *data;
 
@@ -173,7 +174,7 @@ typedef volatile struct {
 // This structure holds everything that's needed to keep track of a
 // linked list of network 'connections', including a key code to identify
 // it and packet input and output streams.
-typedef volatile struct {
+typedef volatile struct _kernelNetworkConnection {
   int processId;
   int mode;
   networkAddress address;
@@ -193,8 +194,9 @@ typedef volatile struct {
     unsigned recvWindow;
     kernelNetworkPacket *sentUnAckedPackets;
   } tcp;
-  volatile void *previous;
-  volatile void *next;
+
+  volatile struct _kernelNetworkConnection *previous;
+  volatile struct _kernelNetworkConnection *next;
 
 } kernelNetworkConnection;
 

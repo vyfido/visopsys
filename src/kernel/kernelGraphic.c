@@ -30,12 +30,13 @@
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
+#include "kernelWindow.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// The global colors
+// The global default colors
 color kernelDefaultForeground = {
   DEFAULT_FOREGROUND_BLUE,
   DEFAULT_FOREGROUND_GREEN,
@@ -55,11 +56,6 @@ color kernelDefaultDesktop = {
 static kernelDevice *systemAdapter = NULL;
 static kernelGraphicAdapter *adapterDevice = NULL;
 static kernelGraphicOps *ops = NULL;
-static kernelGraphicBuffer tmpConsoleBuffer;
-
-// This is data for a temporary console when we first arrive in a graphical
-// mode
-static kernelTextArea *tmpGraphicConsole = NULL;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -76,7 +72,12 @@ int kernelGraphicInitialize(kernelDevice *dev)
   // This function initializes the graphic routines.
 
   int status = 0;
+  // This is data for a temporary console when we first arrive in a
+  // graphical mode
+  kernelTextArea *tmpConsole = NULL;
   kernelTextInputStream *inputStream = NULL;
+  kernelWindowComponent *component = NULL;
+  kernelGraphicBuffer *buffer = NULL;
 
   if (dev == NULL)
     {
@@ -102,21 +103,20 @@ int kernelGraphicInitialize(kernelDevice *dev)
   
   // Get a temporary text area for console output, and use the graphic screen
   // as a temporary output
-  tmpGraphicConsole =
-    kernelTextAreaNew(80, 50, 1, TEXT_DEFAULT_SCROLLBACKLINES);
-  if (tmpGraphicConsole == NULL)
+  tmpConsole = kernelTextAreaNew(80, 50, 1, TEXT_DEFAULT_SCROLLBACKLINES);
+  if (tmpConsole == NULL)
     // Better not try to print any error messages...
     return (status = ERR_NOTINITIALIZED);
-  
+
   // Assign some extra things to the text area
-  tmpGraphicConsole->foreground.blue = 255;
-  tmpGraphicConsole->foreground.green = 255;
-  tmpGraphicConsole->foreground.red = 255;
-  tmpGraphicConsole->background.blue = DEFAULT_DESKTOP_BLUE;
-  tmpGraphicConsole->background.green = DEFAULT_DESKTOP_GREEN;
-  tmpGraphicConsole->background.red = DEFAULT_DESKTOP_RED;
+  tmpConsole->foreground.blue = 255;
+  tmpConsole->foreground.green = 255;
+  tmpConsole->foreground.red = 255;
+  kernelMemCopy(&kernelDefaultDesktop, (color *) &(tmpConsole->background),
+		sizeof(color));
+
   // Change the input and output streams to the console
-  inputStream = tmpGraphicConsole->inputStream;
+  inputStream = tmpConsole->inputStream;
   if (inputStream)
     {
       if (inputStream->s.buffer)
@@ -125,18 +125,35 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	  inputStream->s.buffer = NULL;
 	}
 	  
-      kernelFree(tmpGraphicConsole->inputStream);
-      tmpGraphicConsole->inputStream = (void *) kernelTextGetConsoleInput();
+      kernelFree((void *) tmpConsole->inputStream);
+      tmpConsole->inputStream = kernelTextGetConsoleInput();
     }
-  if (tmpGraphicConsole->outputStream)
+  if (tmpConsole->outputStream)
     {
-      kernelFree(tmpGraphicConsole->outputStream);
-      tmpGraphicConsole->outputStream = (void *) kernelTextGetConsoleOutput();
+      kernelFree((void *) tmpConsole->outputStream);
+      tmpConsole->outputStream = kernelTextGetConsoleOutput();
     }
-  tmpConsoleBuffer.width = adapterDevice->xRes;
-  tmpConsoleBuffer.height = adapterDevice->yRes;
-  tmpConsoleBuffer.data = adapterDevice->framebuffer;
-  tmpGraphicConsole->graphicBuffer = &tmpConsoleBuffer;
+
+  // Get a NULL kernelWindowComponent to attach the graphic buffer to
+  component = kernelMalloc(sizeof(kernelWindowComponent));
+  if (component == NULL)
+    // Better not try to print any error messages...
+    return (status = ERR_NOTINITIALIZED);
+  tmpConsole->windowComponent = component;
+
+  // Get a graphic buffer and attach it to the component
+  buffer = kernelMalloc(sizeof(kernelGraphicBuffer));
+  if (buffer == NULL)
+    {
+      // Better not try to print any error messages...
+      kernelFree((void *) component);
+      return (status = ERR_NOTINITIALIZED);
+    }
+  component->buffer = buffer;
+
+  buffer->width = adapterDevice->xRes;
+  buffer->height = adapterDevice->yRes;
+  buffer->data = adapterDevice->framebuffer;
 
   // Initialize the font functions
   status = kernelFontInitialize();
@@ -147,10 +164,10 @@ int kernelGraphicInitialize(kernelDevice *dev)
     }
 
   // Assign the default system font to our console text area
-  kernelFontGetDefault((kernelAsciiFont **) &(tmpGraphicConsole->font));
+  kernelFontGetDefault((kernelAsciiFont **) &(tmpConsole->font));
 
   // Switch the console
-  kernelTextSwitchToGraphics(tmpGraphicConsole);
+  kernelTextSwitchToGraphics(tmpConsole);
 
   // Clear the screen with our default background color
   ops->driverClearScreen(&kernelDefaultDesktop);
@@ -849,7 +866,8 @@ int kernelGraphicFilter(kernelGraphicBuffer *buffer, color *filterColor,
 void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 				     int drawY, int width, int height,
 				     int thickness, color *drawColor,
-				     int shadingIncrement, drawMode mode)
+				     int shadingIncrement, drawMode mode,
+				     borderType type)
 {
   // Draws a gradient border
 
@@ -898,13 +916,15 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 	drawBlue = 0;
 
       // Top
-      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
-			    draw_normal, (leftX - count), (topY - count),
-			    (rightX + count), (topY - count));
+      if (type & border_top)
+	kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			      draw_normal, (leftX - count), (topY - count),
+			      (rightX + count), (topY - count));
       // Left
-      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
-			    draw_normal, (leftX - count), (topY - count),
-			    (leftX - count), (bottomY + count));
+      if (type & border_left)
+	kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			      draw_normal, (leftX - count), (topY - count),
+			      (leftX - count), (bottomY + count));
     }
 
   shadingIncrement *= -1;
@@ -931,13 +951,15 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 	drawBlue = 0;
  
       // Bottom
-      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
-			    draw_normal, (leftX - count), (bottomY + count),
-			    (rightX + count), (bottomY + count));
+      if (type & border_bottom)
+	kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			      draw_normal, (leftX - count), (bottomY + count),
+			      (rightX + count), (bottomY + count));
       // Right
-      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
-			    draw_normal, (rightX + count), (topY - count),
-			    (rightX + count), (bottomY + count));
+      if (type & border_right)
+	kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			      draw_normal, (rightX + count), (topY - count),
+			      (rightX + count), (bottomY + count));
     }
 
   return;

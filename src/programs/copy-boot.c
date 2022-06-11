@@ -46,11 +46,13 @@ Example:
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #ifdef VISOPSYS
 #include <sys/api.h>
@@ -59,6 +61,10 @@ Example:
 #else
 #define OSLOADER  "../build/vloader"
 #endif
+
+#define FAT12_SIG "FAT12   "
+#define FAT16_SIG "FAT16   "
+#define FAT32_SIG "FAT32   "
 
 //#define DEBUG(message, arg...) printf(message, ##arg)
 #define DEBUG(message, arg...) do { } while (0)
@@ -79,7 +85,7 @@ typedef struct {
 
 typedef struct {
   unsigned char pad[18];
-  unsigned char fsSignature[8];
+  char fsSignature[8];
 } __attribute__((packed)) fatCommonBSHeader2;
 
 typedef struct {
@@ -112,52 +118,118 @@ static void usage(char *name)
 }
 
 
-static int readBootsect(const char *inputName, unsigned char *bootSect)
+static int readSector(const char *inputName, unsigned sector,
+		      int bytesPerSector, void *buffer)
 {
-  int fd = 0;
   int status = 0;
-
-  DEBUG("Read boot sector from %s\n", inputName);
+  int fd = 0;
 
 #ifdef VISOPSYS
-  // Is the input source a Visopsys disk name?
+  // Is the destination a Visopsys disk name?
   if (inputName[0] != '/')
     {
-      status = diskReadSectors(inputName, 0, 1, bootSect);
+      status = diskReadSectors(inputName, sector, 1, buffer);
       if (status < 0)
 	{
-	  DEBUG("Error reading disk %s\n", inputName);
+	  printf("Error reading disk %s\n", inputName);
 	  return (errno = status);
 	}
     }
   else
 #endif
     {
-      // Try to open it
       fd = open(inputName, O_RDONLY);
       if (fd < 0)
 	{
-	  DEBUG("Error opening file %s\n", inputName);
-	  return (fd);
+	  printf("Can't open device %s\n", inputName); 
+	  return (errno = fd);
 	}
 
-      // Read 512 bytes of it
-      status = read(fd, bootSect, 512);
-
-      close(fd);
-
+      status = lseek(fd, (sector * bytesPerSector), SEEK_SET);
       if (status < 0)
 	{
-	  DEBUG("Error reading file %s\n", inputName);
-	  return (status);
+	  printf("Can't seek device to sector %u\n", sector);
+	  close(fd);
+	  return (errno = status);
 	}
 
-      if (status < 512)
+      status = read(fd, buffer, bytesPerSector);
+      
+      close(fd);
+      
+      if ((status < 0) || (status < bytesPerSector))
 	{
-	  DEBUG("Could only read %d bytes from %s\n", status, inputName);
-	  errno = EIO;
-	  return (-1);
+	  printf("Can't read sector\n");
+	  return (errno = status = EIO);
 	}
+    }
+
+  return (status = 0);
+}
+
+
+
+static int writeSector(const char *outputName, unsigned sector,
+		       int bytesPerSector, void *buffer)
+{
+  int status = 0;
+  int fd = 0;
+
+#ifdef VISOPSYS
+  // Is the destination a Visopsys disk name?
+  if (outputName[0] != '/')
+    {
+      status = diskWriteSectors(outputName, sector, 1, buffer);
+      if (status < 0)
+	{
+	  printf("Error writing disk %s\n", outputName);
+	  return (errno = status);
+	}
+    }
+  else
+#endif
+    {
+      fd = open(outputName, (O_WRONLY | O_SYNC));
+      if (fd < 0)
+	{
+	  printf("Can't open device %s\n", outputName); 
+	  return (errno = fd);
+	}
+
+      status = lseek(fd, (sector * bytesPerSector), SEEK_SET);
+      if (status < 0)
+	{
+	  printf("Can't seek device to sector %u\n", sector);
+	  close(fd);
+	  return (errno = status);
+	}
+
+      status = write(fd, buffer, bytesPerSector);
+      
+      close(fd);
+      
+      if ((status < 0) || (status < bytesPerSector))
+	{
+	  printf("Can't write sector\n");
+	  return (errno = status = EIO);
+	}
+    }
+
+  return (status = 0);
+}
+
+
+static int readBootsect(const char *inputName, unsigned char *bootSect)
+{
+  int status = 0;
+
+  DEBUG("Read boot sector from %s\n", inputName);
+
+  status = readSector(inputName, 0, 512, bootSect);
+  if (status < 0)
+    {
+      DEBUG("Couldn't read boot sector from %s\n", inputName);
+      return (errno = status);
     }
 
   if ((bootSect[510] != 0x55) || (bootSect[511] != 0xAA))
@@ -165,6 +237,37 @@ static int readBootsect(const char *inputName, unsigned char *bootSect)
       DEBUG("%s is not a valid boot sector\n", inputName);
       errno = EINVAL;
       return (-1);
+    }
+
+  return (errno = status = 0);
+}
+
+
+static int writeBootsect(const char *outputName, unsigned char *bootSect)
+{
+  int status = 0;
+  fat32BSHeader *fat32Header = (fat32BSHeader *) bootSect;
+
+  DEBUG("Write boot sector to %s\n", outputName);
+
+  status = writeSector(outputName, 0, 512, bootSect);
+  if (status < 0)
+    {
+      DEBUG("Couldn't write boot sector to %s\n", outputName);
+      return (errno = status);
+    }
+
+  // If we think this is a FAT32 boot sector, we need to write the backup
+  // one as well.
+  if (!strncmp(fat32Header->common2.fsSignature, FAT32_SIG, 8))
+    {
+      status =
+	writeSector(outputName, fat32Header->backupBootSector, 512, bootSect);
+      if (status < 0)
+	{
+	  DEBUG("Couldn't write backup boot sector to %s\n", outputName);
+	  return (errno = status);
+	}
     }
 
   return (errno = status = 0);
@@ -179,10 +282,10 @@ static int merge(unsigned char *oldBootsect, unsigned char *newBootsect)
 
   DEBUG("Merge boot sectors\n");
 
-  if (!strncmp(fatHeader->common2.fsSignature, "FAT12   ", 8) ||
-      !strncmp(fatHeader->common2.fsSignature, "FAT16   ", 8))
+  if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8) ||
+      !strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
     memcpy((newBootsect + 3), (oldBootsect + 3), (sizeof(fatBSHeader) - 3));
-  else if (!strncmp(fat32Header->common2.fsSignature, "FAT32   ", 8))
+  else if (!strncmp(fat32Header->common2.fsSignature, FAT32_SIG, 8))
     memcpy((newBootsect + 3), (oldBootsect + 3), (sizeof(fat32BSHeader) - 3));
   else
     {
@@ -192,6 +295,97 @@ static int merge(unsigned char *oldBootsect, unsigned char *newBootsect)
     }
 
   return (errno = 0);
+}
+
+
+static unsigned findUnusedCluster(const char *outputName, char *signature,
+				  fatCommonBSHeader1 *bsHeader)
+{
+  // Given the device name and the starting sector of the FAT, load the FAT
+  // and return the first unused cluster number
+
+  int status = 0;
+  unsigned char *buffer;
+  // Guess, we guess.  The standard is 2 but it's often not correct, and
+  // *will not* be correct for FAT32 (the root directory uses clusters)
+  unsigned firstUnused = 2;
+  unsigned count;
+
+  DEBUG("Find first unused cluster\n");
+
+  buffer = malloc(bsHeader->bytesPerSector);
+  if (buffer == NULL)
+    {
+      DEBUG("Can't alloc %u bytes to find an unused cluster\n",
+	    bsHeader->bytesPerSector);
+      goto out;
+    }
+
+  status = readSector(outputName, bsHeader->reservedSectors,
+		      bsHeader->bytesPerSector, buffer);
+  if (status < 0)
+    {
+      DEBUG("Can't read FAT sector\n");
+      goto out;
+    }
+
+  if (!strncmp(signature, FAT12_SIG, 8))
+    {
+      unsigned short entry = 0;
+      for (count = 2; count < (bsHeader->bytesPerSector / (unsigned) 3);
+	   count ++)
+	{
+	  entry = *((unsigned short *) (buffer + (count + (count >> 1))));
+
+	  // 0 = mask, since the extra data is in the upper 4 bits
+	  // 1 = shift, since the extra data is in the lower 4 bits
+	  if (count % 2)
+	    entry = ((entry & 0xFFF0) >> 4);
+	  else
+	    entry = (entry & 0x0FFF);
+
+	  if (entry == 0)
+	    {
+	      firstUnused = count;
+	      break;
+	    }
+	}
+    }
+  else if (!strncmp(signature, FAT16_SIG, 8))
+    {
+      unsigned short *fat = (unsigned short *) buffer;
+      for (count = 2; count < (bsHeader->bytesPerSector /
+			       sizeof(unsigned short)); count ++)
+	{
+	  if (fat[count] == 0)
+	    {
+	      firstUnused = count;
+	      break;
+	    }
+	}
+    }
+  else if (!strncmp(signature, FAT32_SIG, 8))
+    {
+      unsigned *fat = (unsigned *) buffer;
+      for (count = 2; count < (bsHeader->bytesPerSector / sizeof(unsigned));
+	   count ++)
+	{
+	  // Really only the bottom 28 bits of this value are relevant
+	  if ((fat[count] & 0x0FFFFFFF) == 0)
+	    {
+	      firstUnused = count;
+	      break;
+	    }
+	}
+    }
+  else
+    printf("Unknown FAT type %s\n", signature);
+
+ out:
+  if (buffer)
+    free(buffer);
+  DEBUG("First unused cluster %u\n", firstUnused);
+  return (firstUnused);
 }
 
 
@@ -212,22 +406,19 @@ static int setOsLoaderParams(const char *outputName,
   struct stat statBuff;
   fatBSHeader *fatHeader = (fatBSHeader *) newBootsect;
   fat32BSHeader *fat32Header = (fat32BSHeader *) newBootsect;
-  int fd = 0;
-  unsigned char buffer[512];
-  fat32FsInfo *fat32Info = (fat32FsInfo *) buffer;
+  unsigned firstUnusedCluster = 0;
   unsigned fatSectors = 0;
   unsigned *firstUserSector = (unsigned *) (newBootsect + 502);
   unsigned *osLoaderSectors = (unsigned *) (newBootsect + 506);
-  int count;
 
   DEBUG("Set OS loader parameters\n");
 
-  if (!strncmp(fatHeader->common2.fsSignature, "FAT12   ", 8) ||
-      !strncmp(fatHeader->common2.fsSignature, "FAT16   ", 8))
+  if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8) ||
+      !strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
     {
-      if (!strncmp(fatHeader->common2.fsSignature, "FAT12   ", 8))
+      if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8))
 	DEBUG("Target filesystem is FAT12\n");
-      else if (!strncmp(fatHeader->common2.fsSignature, "FAT16   ", 8))
+      else if (!strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
 	DEBUG("Target filesystem is FAT16\n");
       DEBUG("%u reserved\n", (unsigned) fatHeader->common1.reservedSectors);
       DEBUG("%u FATs of %u\n", (unsigned) fatHeader->common1.numberOfFats,
@@ -235,15 +426,36 @@ static int setOsLoaderParams(const char *outputName,
       DEBUG("%u root dir sectors\n",
 	    (((unsigned) fatHeader->common1.rootDirEntries * 32) /
 	     fatHeader->common1.bytesPerSector));
+      DEBUG("Sectors per cluster %u\n",
+	    (unsigned) fatHeader->common1.sectorsPerCluster);
+
+      firstUnusedCluster =
+	findUnusedCluster(outputName, fatHeader->common2.fsSignature,
+			  &(fatHeader->common1));
+
+      // We may need a hack here, since Fedora's VFAT driver seems to put
+      // the OS loader in the *second* free cluster
+#ifndef VISOPSYS
+      struct utsname u;
+      uname(&u);
+      if (strstr(u.release, "FC"))
+	{
+	  firstUnusedCluster += 1;
+	  DEBUG("Using second unused cluster (%u) hack for OS release %s\n",
+		firstUnusedCluster, u.release);
+	}
+#endif
 
       *firstUserSector =
 	((unsigned) fatHeader->common1.reservedSectors +
 	 ((unsigned) fatHeader->common1.numberOfFats *
 	  (unsigned) fatHeader->common1.fatSectors) +
 	 (((unsigned) fatHeader->common1.rootDirEntries * 32) /
-	  fatHeader->common1.bytesPerSector));
+	  fatHeader->common1.bytesPerSector) +
+	 ((firstUnusedCluster - 2) *
+	  (unsigned) fatHeader->common1.sectorsPerCluster));
     }
-  else if (!strncmp(fat32Header->common2.fsSignature, "FAT32   ", 8))
+  else if (!strncmp(fat32Header->common2.fsSignature, FAT32_SIG, 8))
     {
       fatSectors = (unsigned) fat32Header->common1.fatSectors;
       if (fat32Header->fatSectors)
@@ -254,113 +466,19 @@ static int setOsLoaderParams(const char *outputName,
       DEBUG("%u FATs of %u\n", (unsigned) fat32Header->common1.numberOfFats,
 	    fatSectors);
       DEBUG("Root dir cluster %u\n", (unsigned) fat32Header->rootDirCluster);
+      DEBUG("Sectors per cluster %u\n",
+	    (unsigned) fat32Header->common1.sectorsPerCluster);
 
       // Read the FAT32 FSInfo sector
 
-#ifdef VISOPSYS
-      // Is the destination a Visopsys disk name?
-      if (outputName[0] != '/')
-	{
-	  status =
-	    diskReadSectors(outputName, fat32Header->fsInfoSector, 1, buffer);
-	  if (status < 0)
-	    {
-	      DEBUG("Error reading disk %s\n", outputName);
-	      return (errno = status);
-	    }
-	}
-      else
-#endif
-	{
-	  fd = open(outputName, O_RDONLY);
-	  if (fd < 0)
-	    return (fd);
-
-	  status = lseek(fd, (fat32Header->fsInfoSector *
-			      fat32Header->common1.bytesPerSector), SEEK_SET);
-	  if (status < 0)
-	    return (status);
-
-	  // Read 512 bytes of it
-	  status = read(fd, buffer, 512);
-	  if (status < 0)
-	    return (status);
-	  if (status < 512)
-	    {
-	      printf("Can't read FAT32 FSInfo sector %u\n",
-		     fat32Header->fsInfoSector);
-	      errno = EIO;
-	      return (-1);
-	    }
-	}
-
-      DEBUG("First free cluster %u\n", (unsigned) fat32Info->firstFreeCluster);
-
-      // mkdosfs seems to make a broken FSInfo firstFreeCluster value
-      // that doesn't take the root directory usage into account.  Try to
-      // catch it.
-      if ((unsigned) fat32Info->firstFreeCluster ==
-	  (unsigned) fat32Header->rootDirCluster)
-	{
-	  // Read the first FAT sector and try to find an unused cluster
-
-	  unsigned buffer2[128];
-
-#ifdef VISOPSYS
-	  // Is the destination a Visopsys disk name?
-	  if (outputName[0] != '/')
-	    {
-	      status = diskReadSectors(outputName, fat32Header->common1
-				       .reservedSectors, 1, buffer2);
-	      if (status < 0)
-		{
-		  DEBUG("Error reading disk %s\n", outputName);
-		  return (errno = status);
-		}
-	    }
-	  else
-#endif
-	    {
-	      status =
-		lseek(fd, (fat32Header->common1.reservedSectors *
-			   fat32Header->common1.bytesPerSector), SEEK_SET);
-	      if (status < 0)
-		{
-		  printf("Can't seek to FAT sector\n");
-		  close(fd);
-		  return (status);
-		}
-
-	      status = read(fd, buffer2, 512);
-	      if (status < 0)
-		return (status);
-	      if (status < 512)
-		{
-		  printf("Can't read FAT sector\n");
-		  close(fd);
-		  errno = EIO;
-		  return (-1);
-		}
-
-	      close(fd);
-	    }
-
-	  for (count = 2; count < 128; count ++)
-	    {
-	      if (buffer2[count] == 0)
-		{
-		  DEBUG("Correct first unused cluster is %d, not %d\n", count,
-			fat32Info->firstFreeCluster);
-		  fat32Info->firstFreeCluster = count;
-		  break;
-		}
-	    }
-	}
+      firstUnusedCluster =
+	findUnusedCluster(outputName, fat32Header->common2.fsSignature,
+			  &(fat32Header->common1));
 
       *firstUserSector =
 	((unsigned) fat32Header->common1.reservedSectors +
 	 ((unsigned) fat32Header->common1.numberOfFats * fatSectors) +
-	 ((((unsigned) fat32Info->firstFreeCluster) - 2) *
+	 ((firstUnusedCluster - 2) *
 	  (unsigned) fat32Header->common1.sectorsPerCluster));
     }
 
@@ -377,89 +495,6 @@ static int setOsLoaderParams(const char *outputName,
     (((unsigned) statBuff.st_size % fatHeader->common1.bytesPerSector) != 0);
 
   DEBUG("OS loader sectors are %u\n", *osLoaderSectors);
-
-  return (errno = status = 0);
-}
-
-
-static int writeBootsect(const char *outputName, unsigned char *bootSect)
-{
-  int status = 0;
-  int fd = 0;
-  fat32BSHeader *fat32Header = (fat32BSHeader *) bootSect;
-
-  DEBUG("Write boot sector to %s\n", outputName);
-
-#ifdef VISOPSYS
-  // Is the destination a Visopsys disk name?
-  if (outputName[0] != '/')
-    {
-      status = diskWriteSectors(outputName, 0, 1, bootSect);
-      if (status < 0)
-	{
-	  DEBUG("Error writing disk %s\n", outputName);
-	  return (errno = status);
-	}
-    }
-  else
-#endif
-    {
-      // Try to open it
-      fd = open(outputName, (O_WRONLY | O_SYNC));
-      if (fd < 0)
-	return (fd);
-
-      // Write 512 bytes of it
-      status = write(fd, bootSect, 512);
-      if (status < 0)
-	return (status);
-
-      if (status < 512)
-	{
-	  DEBUG("Could not write 512 bytes of \"%s\"\n", outputName);
-	  errno = EIO;
-	  return (-1);
-	}
-
-      close(fd);
-    }
-
-  // If we think this is a FAT32 boot sector, we need to write the backup
-  // one as well.
-  if (!strncmp(fat32Header->common2.fsSignature, "FAT32   ", 8))
-    {
-#ifdef VISOPSYS
-      // Is the detination a Visopsys disk name?
-      if (outputName[0] != '/')
-	{
-	  status = diskWriteSectors(outputName, fat32Header->backupBootSector,
-				    1, bootSect);
-	  if (status < 0)
-	    {
-	      DEBUG("Error writing disk %s\n", outputName);
-	      return (errno = status);
-	    }
-	}
-      else
-#endif
-	{
-	  // Try to open it
-	  fd = open(outputName, (O_WRONLY | O_SYNC));
-	  if (fd < 0)
-	    return (fd);
-
-	  status = lseek(fd, (fat32Header->backupBootSector *
-			      fat32Header->common1.bytesPerSector), SEEK_SET);
-	  if (status < 0)
-	    return (status);
-
-	  status = write(fd, bootSect, 512);
-	  if (status < 0)
-	    return (status);
-
-	  close(fd);
-	}
-    }
 
   return (errno = status = 0);
 }

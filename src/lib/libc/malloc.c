@@ -90,10 +90,10 @@ static inline void insertBlock(mallocBlock *firstBlock,
 {
   // Stick the first block in front of the second block
   firstBlock->previous = secondBlock->previous;
-  firstBlock->next = (void *) secondBlock;
+  firstBlock->next = secondBlock;
   if (secondBlock->previous)
-    ((mallocBlock *) secondBlock->previous)->next = (void *) firstBlock;
-  secondBlock->previous = (void *) firstBlock;
+    secondBlock->previous->next = firstBlock;
+  secondBlock->previous = firstBlock;
 }
 
 
@@ -129,7 +129,7 @@ static int sortInsertBlock(mallocBlock *block)
 	  return (status = 0);
 	}
       
-      nextBlock = (mallocBlock *) nextBlock->next;
+      nextBlock = nextBlock->next;
     }
 }
 
@@ -158,9 +158,9 @@ static int growList(void)
   for (count = 0; count < numBlocks; count ++)
     {
       if (count > 0)
-	newBlocks[count].previous = (void *) &(newBlocks[count - 1]);
+	newBlocks[count].previous = &(newBlocks[count - 1]);
       if (count < (numBlocks - 1))
-	newBlocks[count].next = (void *) &(newBlocks[count + 1]);
+	newBlocks[count].next = &(newBlocks[count + 1]);
     }
 
   if (blockList == NULL)
@@ -171,8 +171,8 @@ static int growList(void)
   else
     {
       // Add our new stuff to the end of the existing list
-      firstUnusedBlock->next = (void *) newBlocks;
-      newBlocks[0].previous = (void *) firstUnusedBlock;
+      firstUnusedBlock->next = newBlocks;
+      newBlocks[0].previous = firstUnusedBlock;
     }
 
   totalBlocks += numBlocks;
@@ -195,15 +195,15 @@ static mallocBlock *getBlock(void)
     }
 
   block = firstUnusedBlock;
-  previousBlock = (mallocBlock *) block->previous;
-  nextBlock = (mallocBlock *) block->next;
+  previousBlock = block->previous;
+  nextBlock = block->next;
 
   // Remove it from its place in the list, linking its previous and next
   // blocks together.
   if (previousBlock)
-    previousBlock->next = (void *) nextBlock;
+    previousBlock->next = nextBlock;
   if (nextBlock)
-    nextBlock->previous = (void *) previousBlock;
+    nextBlock->previous = previousBlock;
 
   firstUnusedBlock = nextBlock;
   if (block == blockList)
@@ -223,16 +223,16 @@ static void releaseBlock(mallocBlock *block)
   // This function gets called when a block is no longer needed.  We
   // zero out its fields and move it to the end of the used blocks.
 
-  mallocBlock *previousBlock = (mallocBlock *) block->previous;
-  mallocBlock *nextBlock = (mallocBlock *) block->next;
+  mallocBlock *previousBlock = block->previous;
+  mallocBlock *nextBlock = block->next;
 
   // Temporarily remove it from the list, linking its previous and next
   // blocks together.
   if (previousBlock)
-    previousBlock->next = (void *) nextBlock;
+    previousBlock->next = nextBlock;
   if (nextBlock)
     {
-      nextBlock->previous = (void *) previousBlock;
+      nextBlock->previous = previousBlock;
 
       if (block == blockList)
 	blockList = nextBlock;
@@ -258,8 +258,8 @@ static void mergeFree(mallocBlock *block)
 {
   // Merge any free blocks on either side of this one with this one
 
-  mallocBlock *previous = (mallocBlock *) block->previous;
-  mallocBlock *next = (mallocBlock *) block->next;
+  mallocBlock *previous = block->previous;
+  mallocBlock *next = block->next;
 
   if (previous)
     if ((previous->used == 0) && (previous->end == (block->start - 1)))
@@ -344,7 +344,7 @@ static mallocBlock *findFree(unsigned size)
       if ((block->used == 0) && (blockSize(block) >= size))
 	return (block);
       
-      block = (mallocBlock *) block->next;
+      block = block->next;
       
       if (block == firstUnusedBlock)
 	return (block = NULL);
@@ -370,8 +370,8 @@ static void *allocateBlock(unsigned size, const char *function)
       if (block == NULL)
 	{
 	  // Something really wrong.
-	  kernelError(kernel_error, "Unable to allocate block of size %u",
-		      size);
+	  kernelError(kernel_error, "Unable to allocate block of size %u (%s)",
+		      size, function);
 	  return (NULL);
 	}
     }
@@ -395,7 +395,7 @@ static void *allocateBlock(unsigned size, const char *function)
 }
 
 
-static int deallocateBlock(void *start)
+static int deallocateBlock(void *start, const char *function)
 {
   // Find an allocated (used) block and deallocate it.
 
@@ -406,7 +406,7 @@ static int deallocateBlock(void *start)
     {
       if (block == NULL)
 	{
-	  kernelError(kernel_error, "Block is NULL");
+	  kernelError(kernel_error, "Block is NULL (%s)", function);
 	  return (status = ERR_NODATA);
 	}
 
@@ -414,8 +414,8 @@ static int deallocateBlock(void *start)
 	{
 	  if (block->used == 0)
 	    {
-	      kernelError(kernel_error, "Block at %u is not allocated",
-			  (unsigned) start);
+	      kernelError(kernel_error, "Block at %u is not allocated (%s)",
+			  (unsigned) start, function);
 	      return (status = ERR_ALREADY);
 	    }
 	  
@@ -434,12 +434,12 @@ static int deallocateBlock(void *start)
 	  return (status = 0);
 	}
 
-      block = (mallocBlock *) block->next;
+      block = block->next;
 
       if (block == firstUnusedBlock)
 	{
-	  kernelError(kernel_error, "No such memory block %u to deallocate",
-		      (unsigned) start);
+	  kernelError(kernel_error, "No such memory block %u to deallocate "
+		      "(%s)", (unsigned) start, function);
 	  return (status = ERR_NOSUCHENTRY);
 	}
     }
@@ -504,9 +504,6 @@ void *_doMalloc(unsigned size, const char *function)
   // Find a free block big enough
   address = allocateBlock(size, function);
 
-  if (address == NULL)
-    kernelError(kernel_error, "Error allocating block");
-
   kernelLockRelease(&blocksLock);
 
   return (address);
@@ -521,7 +518,7 @@ void *_malloc(size_t size, const char *function)
   if (visopsys_in_kernel)
     {
       kernelError(kernel_error, "Cannot call malloc() directly from kernel "
-		  "space");
+		  "space (%s)", function);
       return (NULL);
     }
   else
@@ -529,7 +526,7 @@ void *_malloc(size_t size, const char *function)
 }
 
 
-void _doFree(void *start, const char *function __attribute__((unused)))
+void _doFree(void *start, const char *function)
 {
   // These are the guts of free() and kernelFree()
 
@@ -552,15 +549,12 @@ void _doFree(void *start, const char *function __attribute__((unused)))
       return;
     }
 
-  status = deallocateBlock(start);
+  status = deallocateBlock(start, function);
 
   kernelLockRelease(&blocksLock);
 
   if (status < 0)
-    {
-      kernelError(kernel_error, "Error deallocating block");
-      errno = status;
-    }
+    errno = status;
 
   return;
 }
@@ -574,7 +568,7 @@ void _free(void *start, const char *function)
   if (visopsys_in_kernel)
     {
       kernelError(kernel_error, "Cannot call free() directly from kernel "
-		  "space");
+		  "space (%s)", function);
       return;
     }
   else
@@ -605,7 +599,7 @@ int _mallocBlockInfo(void *start, memoryBlock *meBlock)
 	  return (status = 0);
 	}	
 
-      maBlock = (mallocBlock *) maBlock->next;
+      maBlock = maBlock->next;
     }
 
   // Fell through -- no such block
@@ -655,7 +649,7 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
        count ++)
     {
       mallocBlock2MemoryBlock(block, &(blocksArray[count]));
-      block = (mallocBlock *) block->next;
+      block = block->next;
     }
   
   return (status = 0);

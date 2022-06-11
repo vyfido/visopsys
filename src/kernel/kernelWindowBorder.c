@@ -24,12 +24,13 @@
 
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelWindowEventStream.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelMalloc.h"
+#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
-#include "kernelMisc.h"
-#include "kernelError.h"
+#include "kernelWindowEventStream.h"
 #include <string.h>
 
 
@@ -40,104 +41,57 @@ static int newWindowWidth = 0;
 static int newWindowHeight = 0;
 
 
-static void resizeWindow(void *componentData, windowEvent *event)
+static void resizeWindow(kernelWindowComponent *component, windowEvent *event)
 {
   // This gets called by the window manager thread when a window resize
   // has been requested
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-
   if (event->type == EVENT_WINDOW_RESIZE)
     {
-      window->xCoord = newWindowX;
-      window->yCoord = newWindowY;
+      component->window->xCoord = newWindowX;
+      component->window->yCoord = newWindowY;
 
-      kernelWindowSetSize(window, newWindowWidth, newWindowHeight);
+      kernelWindowSetSize(component->window, newWindowWidth, newWindowHeight);
 
-      kernelWindowSetVisible(window, 1);
+      kernelWindowSetVisible(component->window, 1);
 	  
       // Redraw the mouse
       kernelMouseDraw();
 
       // Transfer this event into the window's event stream
-      kernelWindowEventStreamWrite(&(window->events), event);
+      kernelWindowEventStreamWrite(&(component->window->events), event);
     }
 
   return;
 }
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draws all the border components on the window.  Really we should implement
   // this so that each border gets drawn individually, but this is faster
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowBorder *border = (kernelWindowBorder *) component->data;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelGraphicBuffer *buffer = &(window->buffer);
 
-  if (border->type == border_top)
-    {
-      component->xCoord = 0;
-      component->yCoord = 0;
-      component->width = window->buffer.width;
-      component->height = WINDOW_BORDER_THICKNESS;
-      component->minWidth = component->width;
-      component->minHeight = component->height;
-    }
-  else if (border->type == border_bottom)
-    {
-      component->xCoord = 0;
-      component->yCoord = 
-	(window->buffer.height - WINDOW_BORDER_THICKNESS + 1);
-      component->width = window->buffer.width;
-      component->height = WINDOW_BORDER_THICKNESS;
-      component->minWidth = component->width;
-      component->minHeight = component->height;
-    }
-  else if (border->type == border_left)
-    {
-      component->xCoord = 0;
-      component->yCoord = 0;
-      component->width = WINDOW_BORDER_THICKNESS;
-      component->height = window->buffer.height;
-      component->minWidth = component->width;
-      component->minHeight = component->height;
-    }
-  else if (border->type == border_right)
-    {
-      component->xCoord =
-	(window->buffer.width - WINDOW_BORDER_THICKNESS + 1);
-      component->yCoord = 0;
-      component->width = WINDOW_BORDER_THICKNESS;
-      component->height = window->buffer.height;
-      component->minWidth = component->width;
-      component->minHeight = component->height;
-    }
+  kernelDebug(debug_gui, "border \"%s\" draw", component->window->title);
 
-  // Only draw when the top border component is requested
-  if (border->type != border_top)
-    return (0);
-
-  kernelGraphicDrawGradientBorder(buffer, 0, 0, window->buffer.width,
-				  window->buffer.height,
+  kernelGraphicDrawGradientBorder(component->buffer, 0, 0,
+				  component->window->buffer.width,
+				  component->window->buffer.height,
 				  WINDOW_BORDER_THICKNESS,
-				  (color *) &(window->background),
-				  borderShadingIncrement, draw_normal);
+				  (color *) &(component->window->background),
+				  borderShadingIncrement, draw_normal,
+				  border->type);
   return (0);
 }
 
 
-static int mouseEvent(void *componentData, windowEvent *event)
+static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
   // When dragging mouse events happen to border components, we resize the
   // window.
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowBorder *border = (kernelWindowBorder *) component->data;
-  kernelWindow *window = (kernelWindow *) component->window;
   windowEvent resizeEvent;
   int diff = 0;
   int tmpWindowX = newWindowX;
@@ -230,21 +184,23 @@ static int mouseEvent(void *componentData, windowEvent *event)
     }
 
   else if ((event->type == EVENT_MOUSE_DRAG) &&
-	   (window->flags & (WINFLAG_RESIZABLEX | WINFLAG_RESIZABLEY)))
+	   (component->window->flags &
+	    (WINFLAG_RESIZABLEX | WINFLAG_RESIZABLEY)))
     {
       // Don't show it while it's being resized
-      kernelWindowSetVisible(window, 0);
+      kernelWindowSetVisible(component->window, 0);
 
       // Draw an xor'ed outline
       kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-			    draw_xor, window->xCoord,
-			    window->yCoord, window->buffer.width,
-			    window->buffer.height, 1, 0);
+			    draw_xor, component->window->xCoord,
+			    component->window->yCoord,
+			    component->window->buffer.width,
+			    component->window->buffer.height, 1, 0);
       
-      newWindowX = window->xCoord;
-      newWindowY = window->yCoord;
-      newWindowWidth = window->buffer.width;
-      newWindowHeight = window->buffer.height;
+      newWindowX = component->window->xCoord;
+      newWindowY = component->window->yCoord;
+      newWindowWidth = component->window->buffer.width;
+      newWindowHeight = component->window->buffer.height;
       dragging = 1;
     }
 
@@ -253,18 +209,16 @@ static int mouseEvent(void *componentData, windowEvent *event)
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = component->window;
   int count;
 
   if (component->data)
     {
       for (count = 0; count < 4; count ++)
-	if (window->borders[count] == component)
+	if (component->window->borders[count] == component)
 	  {
-	    window->borders[count] = NULL;
+	    component->window->borders[count] = NULL;
 	    break;
 	  }
 
@@ -285,8 +239,7 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewBorder(volatile void *parent,
-					     borderType type,
+kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 					     componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowBorder
@@ -319,8 +272,6 @@ kernelWindowComponent *kernelWindowNewBorder(volatile void *parent,
   // Now populate the main component
 
   component->type = borderComponentType;
-  component->xCoord = 0;
-  component->yCoord = 0;
   component->width = window->buffer.width;
   component->height = window->buffer.height;
   component->minWidth = component->width;
@@ -333,7 +284,7 @@ kernelWindowComponent *kernelWindowNewBorder(volatile void *parent,
   component->mouseEvent = &mouseEvent;
   component->destroy = &destroy;
 
-  kernelWindowRegisterEventHandler((objectKey) component, &resizeWindow);
+  kernelWindowRegisterEventHandler(component, &resizeWindow);
 
   return (component);
 }

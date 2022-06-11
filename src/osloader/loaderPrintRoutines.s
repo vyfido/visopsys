@@ -136,22 +136,10 @@ loaderPrint:
 	;; Now we have a destination offset which should go into DI
 	mov DI, AX
 
-	;; If we are in graphic mode, print to the TMPSCREENBUFFER instead
-	;; of the regular screen location
-	cmp word [CURRENTGMODE], 0
-	je .textMode
-
-	push ES
-	mov EAX, (TMPSCREENBUFFER / 16)
-	mov ES, AX
-	jmp .gotScreen
-	
-	.textMode:
 	push ES
 	mov EAX, (SCREENSTART / 16)
 	mov ES, AX
 
-	.gotScreen:
 	;; Make sure DS points to the loader's segment
 	push DS
 	mov EAX, (LDRCODESEGMENTLOCATION / 16)
@@ -289,22 +277,10 @@ scrollLine:
 	push DS
 	push ES
 	
-	;; If we are in graphic mode, modify the TMPSCREENBUFFER instead
-	;; of the regular screen location
-	cmp word [CURRENTGMODE], 0
-	je .textMode
-
-	mov AX, (TMPSCREENBUFFER / 16)
-	mov DS, AX
-	mov ES, AX
-	jmp .gotScreen
-	
-	.textMode:
 	mov AX, (SCREENSTART / 16)
 	mov DS, AX
 	mov ES, AX
 
-	.gotScreen:
 	;; Move up all the screen contents
 	mov SI, (COLUMNS * 2)
 	mov DI, 0
@@ -340,92 +316,6 @@ scrollLine:
 	popa
 	ret
 
-
-loaderSaveTextDisplay:
-	;; This function will save the current contents of the text display
-	;; at the memory location TMPSCREENBUFFER
-
-	pusha
-
-	;; Disable interrupts while we do this
-	cli
-	
-	;; We will use DS and ES as our segment registers, so save them and
-	;; make DS point to the current screen area, and ES point to
-	;; TMPSCREENBUFFER
-
-	push DS
-	push ES
-	mov AX, (SCREENSTART / 16)
-	mov DS, AX
-	mov AX, (TMPSCREENBUFFER / 16)
-	mov ES, AX
-
-	;; The number of bytes to copy is constant
-	mov CX, (ROWS * COLUMNS)
-
-	mov SI, 0
-	mov DI, 0
-	cld
-	rep movsw
-
-	;; Restore DS and ES
-	pop ES
-	pop DS
-
-	;; Reenable interrupts
-	sti
-	
-	;; Save the cursor position
-	call loaderGetCursorAddress
-	mov word [CURSORPOS], AX
-	
-	popa
-	ret
-	
-
-loaderRestoreTextDisplay:
-	;; This function will copy the saved text display at the memory 
-	;; location TMPSCREENBUFFER and copy it to the current screen
-
-	pusha
-
-	;; Disable interrupts while we do this
-	cli
-	
-	;; We will use DS and ES as our segment registers, so save them and
-	;; make DS point to the current screen area, and ES point to
-	;; TMPSCREENBUFFER
-
-	push DS
-	push ES
-	mov AX, (TMPSCREENBUFFER / 16)
-	mov DS, AX
-	mov AX, (SCREENSTART / 16)
-	mov ES, AX
-
-	;; The number of bytes to copy is constant
-	mov CX, (ROWS * COLUMNS)
-
-	mov SI, 0
-	mov DI, 0
-	cld
-	rep movsw
-		
-	;; Restore DS and ES
-	pop ES
-	pop DS
-
-	;; Reenable interrupts
-	sti
-	
-	;; Restore the cursor position
-	mov AX, word [CURSORPOS]
-	call loaderSetCursorAddress
-	
-	popa
-	ret
-	
 
 ;;
 ;; The data segment

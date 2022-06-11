@@ -37,6 +37,8 @@
 #include <stdio.h>
 #include <string.h>
 
+static void diskd(void) __attribute__((noreturn));
+
 // All the disks
 static kernelPhysicalDisk *physicalDisks[DISK_MAXDEVICES];
 static volatile int physicalDiskCounter = 0;
@@ -1400,7 +1402,6 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   // 'disk' object
 
   int status = 0;
-  kernelPhysicalDisk *physical = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -1411,21 +1412,19 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
 
   kernelMemClear(userDisk, sizeof(disk));
 
-  physical = (kernelPhysicalDisk *) logical->physical;
-
   // Get the physical disk info
-  status = diskFromPhysical(physical, userDisk);
+  status = diskFromPhysical(logical->physical, userDisk);
   if (status < 0)
     return (status);
 
   // Add/override some things specific to logical disks
   strncpy(userDisk->name, (char *) logical->name, DISK_MAX_NAMELENGTH);
-  userDisk->flags =
-    ((physical->flags & ~DISKFLAG_LOGICALPHYSICAL) | DISKFLAG_LOGICAL);
+  userDisk->flags = ((logical->physical->flags & ~DISKFLAG_LOGICALPHYSICAL) |
+		     DISKFLAG_LOGICAL);
   if (logical->primary)
     userDisk->flags |= DISKFLAG_PRIMARY;
   kernelMemCopy((void *) &(logical->partType), &(userDisk->partType),
-	sizeof(partitionType));
+		sizeof(partitionType));
   strncpy(userDisk->fsType, (char *) logical->fsType, FSTYPE_MAX_NAMELENGTH);
   userDisk->opFlags = logical->opFlags;
   userDisk->startSector = logical->startSector;
@@ -1658,12 +1657,11 @@ int kernelDiskReadPartitions(const char *diskName)
 		  sprintf((char *) logicalDisk->name, "%s%c",
 			  physicalDisk->name,
 			  ('a' + physicalDisk->numLogical));
-		  kernelMemCopy(&partType,
-				(void *) &(logicalDisk->partType),
+		  kernelMemCopy(&partType, (void *) &(logicalDisk->partType),
 				sizeof(partitionType));
 		  strncpy((char *) logicalDisk->fsType, "unknown",
 			  FSTYPE_MAX_NAMELENGTH);
-		  logicalDisk->physical = (void *) physicalDisk;
+		  logicalDisk->physical = physicalDisk;
 		  logicalDisk->startSector =
 		    (startSector + *((unsigned *)(partitionRecord + 0x08)));
 		  logicalDisk->numSectors =
@@ -1720,7 +1718,7 @@ int kernelDiskReadPartitions(const char *diskName)
       if (logicalDisk->fsType[0] == '\0')
 	strncpy((char *) logicalDisk->fsType, "unknown",
 		FSTYPE_MAX_NAMELENGTH);
-      logicalDisk->physical = (void *) physicalDisk;
+      logicalDisk->physical = physicalDisk;
       logicalDisk->startSector = 0;
       logicalDisk->numSectors = physicalDisk->numSectors;
 
@@ -1899,8 +1897,6 @@ int kernelDiskGet(const char *diskName, disk *userDisk)
   else
     // No such disk.
     return (status = ERR_NOSUCHENTRY);
-
-  return (status = 0);
 }
 
 
@@ -2258,7 +2254,7 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
 	  return (status = ERR_BOUNDS);
 	}
 
-      physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+      physicalDisk = theDisk->physical;
     }
 
   // Reset the 'idle since' value
@@ -2325,7 +2321,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
 	  return (status = ERR_BOUNDS);
 	}
       
-      physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+      physicalDisk = theDisk->physical;
     }
 
   // Reset the 'idle since' value

@@ -66,7 +66,7 @@ typedef struct {
 } kernelRelocationTable;
 
 // The structure that describes a dynamic library ready for use by the loader
-typedef struct {
+typedef struct _kernelDynamicLibrary {
   char name[MAX_NAME_LENGTH];
   void *code;
   void *codeVirtual;
@@ -78,7 +78,7 @@ typedef struct {
   unsigned imageSize;
   loaderSymbolTable *symbolTable;
   kernelRelocationTable *relocationTable;
-  void *next;
+  struct _kernelDynamicLibrary *next;
   
 } kernelDynamicLibrary;
 

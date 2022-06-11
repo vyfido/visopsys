@@ -1170,6 +1170,40 @@ static int driverCopyArea(kernelGraphicBuffer *buffer,
   if (buffer == NULL)
     buffer = &wholeScreen;
 
+  // Make sure we're not going outside the buffer
+  if (xCoord1 < 0)
+    {
+      width += xCoord1;
+      xCoord1 = 0;
+    }
+  if (yCoord1 < 0)
+    {
+      height += yCoord1;
+      yCoord1 = 0;
+    }
+  if ((xCoord1 + width) >= buffer->width)
+    width -= ((xCoord1 + width) - buffer->width);
+  if ((yCoord1 + height) >= buffer->height)
+    height -= ((yCoord1 + height) - buffer->height);
+  if (xCoord2 < 0)
+    {
+      width += xCoord2;
+      xCoord2 = 0;
+    }
+  if (yCoord2 < 0)
+    {
+      height += yCoord2;
+      yCoord2 = 0;
+    }
+  if ((xCoord2 + width) >= buffer->width)
+    width -= ((xCoord2 + width) - buffer->width);
+  if ((yCoord2 + height) >= buffer->height)
+    height -= ((yCoord2 + height) - buffer->height);
+
+  // Anything to do?
+  if ((width <= 0) || (height <= 0))
+    return (status = 0);
+
   srcPointer = buffer->data +
     (((buffer->width * yCoord1) + xCoord1) * adapter->bytesPerPixel);
   destPointer = buffer->data +
@@ -1350,7 +1384,7 @@ static int driverFilter(kernelGraphicBuffer *buffer, color *filterColor,
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces
@@ -1440,11 +1474,9 @@ static kernelGraphicOps framebufferOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelFramebufferGraphicDriverRegister(void *driverData)
+void kernelFramebufferGraphicDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &framebufferOps;

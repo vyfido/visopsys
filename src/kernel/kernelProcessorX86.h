@@ -31,11 +31,11 @@
   __asm__ __volatile__ ("cli \n\t" \
 			"hlt")
 
-#define kernelProcessorReboot()                 \
-  __asm__ __volatile__ ("cli \n\t"              \
-			"movl $0xFE, %eax \n\t" \
-			"outb %al, $0x64 \n\t"  \
-			"hlt")
+#define kernelProcessorReboot()                  \
+  __asm__ __volatile__ ("cli \n\t"               \
+			"movl $0xFE, %%eax \n\t" \
+			"outb %%al, $0x64 \n\t"  \
+			"hlt" : : : "%eax")
 
 #define kernelProcessorCopyDwords(src, dest, count) \
   __asm__ __volatile__ ("pushal \n\t"               \
@@ -123,6 +123,8 @@
                         : : "r" (variable))
 
 #define kernelProcessorIntReturn() __asm__ __volatile__ ("iret")
+
+#define kernelProcessorFarReturn() __asm__ __volatile__ ("lret")
 
 #define kernelProcessorLoadTaskReg(selector) \
   __asm__ __volatile__ ("pushfl \n\t"        \
@@ -250,6 +252,12 @@
     kernelProcessorEnableInts();                  \
 } while (0)
 
+#define kernelProcessorPush(value) \
+  __asm__ __volatile__ ("pushl %0" : : "r" (value) : "%esp")
+
+#define kernelProcessorPop(variable) \
+  __asm__ __volatile__ ("popl %0" : "=r" (variable) : : "%esp")
+
 #define kernelProcessorPushRegs() __asm__ __volatile__ ("pushal" : : : "%esp")
 
 #define kernelProcessorPopRegs() __asm__ __volatile__ ("popal" : : : "%esp")
@@ -260,7 +268,7 @@
 
 #define kernelProcessorPopFrame()                \
   __asm__ __volatile__ ("movl %%ebp, %%esp \n\t" \
-			"popl %%ebp" : : : "%esp")
+			"popl %%ebp" : : : "%esp" )
 
 #define kernelProcessorGetStackPointer(addr) \
   __asm__ __volatile__ ("movl %%esp, %0" : "=r" (addr))
@@ -268,20 +276,20 @@
 #define kernelProcessorSetStackPointer(addr) \
   __asm__ __volatile__ ("movl %0, %%esp" : : "r" (addr) : "%esp")
 
-#define kernelProcessorIsrEnter(addr) do { \
-  kernelProcessorDisableInts();            \
-  kernelProcessorPushRegs();               \
-  kernelProcessorPushFlags();              \
-  kernelProcessorGetStackPointer(addr);    \
+#define kernelProcessorIsrEnter(stAddr) do { \
+  kernelProcessorDisableInts();              \
+  kernelProcessorPushRegs();                 \
+  kernelProcessorPushFlags();                \
+  kernelProcessorGetStackPointer(stAddr);    \
 } while (0)  
 
-#define kernelProcessorIsrExit(addr) do { \
-  kernelProcessorSetStackPointer(addr);   \
-  kernelProcessorPopFlags();              \
-  kernelProcessorPopRegs();               \
-  kernelProcessorPopFrame();              \
-  kernelProcessorEnableInts();            \
-  kernelProcessorIntReturn();             \
+#define kernelProcessorIsrExit(stAddr) do { \
+  kernelProcessorSetStackPointer(stAddr);   \
+  kernelProcessorPopFlags();                \
+  kernelProcessorPopRegs();                 \
+  kernelProcessorPopFrame();                \
+  kernelProcessorEnableInts();              \
+  kernelProcessorIntReturn();               \
 } while (0)
 
 #define kernelProcessorExceptionEnter(stAddr, exAddr) do {    \
@@ -297,18 +305,17 @@
   kernelProcessorIntReturn();                     \
 } while (0)
 
-#define kernelProcessorApiEnter() do {      \
-  __asm__ __volatile__ ("movl %ebp, %esp"); \
-  kernelProcessorPushRegs();                \
-} while (0)
+#define kernelProcessorApiEnter(stAddr) do { \
+  kernelProcessorPushRegs();                 \
+  kernelProcessorGetStackPointer(stAddr);    \
+} while (0)  
 
-#define kernelProcessorApiExit(code) do {                \
-  __asm__ __volatile__ ("movl %%ebp, %%esp \n\t"         \
-			"subl $32, %%esp" : : : "%esp"); \
-  kernelProcessorPopRegs();                              \
-  __asm__ __volatile__ ("popl %%ebp \n\t"                \
-			"movl %0, %%eax \n\t"            \
-			"lret" : : "m" (code) : "%esp"); \
+#define kernelProcessorApiExit(stAddr, code) do {                   \
+  kernelProcessorSetStackPointer(stAddr);                           \
+  kernelProcessorPopRegs();                                         \
+  __asm__ __volatile__ ("movl %0, %%eax" : : "r" (code) : "%eax" ); \
+  kernelProcessorPopFrame();                                        \
+  kernelProcessorFarReturn();                                       \
 } while (0)
 
 #define kernelProcessorDelay()                 \

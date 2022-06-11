@@ -38,7 +38,7 @@ _X_ void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
   // Desc: Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.
   
   int parentX = 0, parentY = 0;
-  unsigned myWidth = 0, myHeight = 0, parentWidth = 0, parentHeight = 0;
+  int myWidth = 0, myHeight = 0, parentWidth = 0, parentHeight = 0;
   int diffWidth, diffHeight;
 
   if (parentWindow)

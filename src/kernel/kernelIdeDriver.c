@@ -456,8 +456,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	  status = atapiStartStop(driveNum, 1);
 	  if (status < 0)
 	    {
-	      kernelLockRelease((void *)
-				&(controllers[driveNum / 2].controllerLock));
+	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	      return (status);
 	    }
 	}
@@ -635,8 +634,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 			  disks[driveNum].name, (read? "read" : "write"),
 			  numSectors, logicalSector,
 			  errorMessages[evaluateError(driveNum)]);
-	      kernelLockRelease(&(controllers[driveNum / 2]
-				  .controllerLock));
+	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	      return (status);
 	    }
 	  
@@ -1081,7 +1079,7 @@ static int driverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also does
@@ -1364,11 +1362,9 @@ static kernelDiskOps ideOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelIdeDriverRegister(void *driverData)
+void kernelIdeDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &ideOps;

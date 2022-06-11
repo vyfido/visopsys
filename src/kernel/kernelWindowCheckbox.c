@@ -33,25 +33,22 @@
 static kernelAsciiFont *checkboxFont = NULL;
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the checkbox component
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelGraphicBuffer *buffer = &(window->buffer);
-  kernelWindowCheckbox *checkbox = (kernelWindowCheckbox *) component->data;
+  kernelWindowCheckbox *checkbox = component->data;
   int yCoord = 0;
 
   yCoord = (component->yCoord + ((component->height - CHECKBOX_SIZE) / 2));
 
   // Draw the white center of the check box
-  kernelGraphicDrawRect(buffer, &((color){255, 255, 255}),
+  kernelGraphicDrawRect(component->buffer, &((color){255, 255, 255}),
 			draw_normal, component->xCoord, yCoord,
 			CHECKBOX_SIZE, CHECKBOX_SIZE, 1, 1);
   // Draw a border around it
-  kernelGraphicDrawRect(&(window->buffer),
+  kernelGraphicDrawRect(component->buffer,
 			(color *) &(component->parameters.foreground),
 			draw_normal, component->xCoord, yCoord, CHECKBOX_SIZE,
 			CHECKBOX_SIZE, 1, 0);
@@ -59,11 +56,13 @@ static int draw(void *componentData)
   if (checkbox->selected)
     {
       // Draw a cross in the box
-      kernelGraphicDrawLine(buffer, &((color){0, 0, 0}), draw_normal,
+      kernelGraphicDrawLine(component->buffer,
+			    &((color){0, 0, 0}), draw_normal,
 			    (component->xCoord + 2), (yCoord + 2),
 			    (component->xCoord + (CHECKBOX_SIZE - 3)),
 			    (yCoord + (CHECKBOX_SIZE - 3)));
-      kernelGraphicDrawLine(buffer, &((color){0, 0, 0}), draw_normal,
+      kernelGraphicDrawLine(component->buffer,
+			    &((color){0, 0, 0}), draw_normal,
 			    (component->xCoord + 2),
 			    (yCoord + (CHECKBOX_SIZE - 3)),
 			    (component->xCoord + (CHECKBOX_SIZE - 3)),
@@ -71,75 +70,71 @@ static int draw(void *componentData)
     }
 
   // Now draw the text next to the box
-  kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
+  kernelGraphicDrawText(component->buffer,
+			(color *) &(component->parameters.foreground),
 			(color *) &(component->parameters.background),
-			component->parameters.font, checkbox->text,
-			draw_normal, (component->xCoord + CHECKBOX_SIZE + 3),
+			(kernelAsciiFont *) component->parameters.font,
+			checkbox->text, draw_normal,
+			(component->xCoord + CHECKBOX_SIZE + 3),
 			(component->yCoord));
 
   if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder((void *) component, 1);
+    component->drawBorder(component, 1);
   
   return (status = 0);
 }
 
 
-static int focus(void *componentData, int focus)
+static int focus(kernelWindowComponent *component, int yesNo)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = component->window;
-
-  component->drawBorder((void *) component, focus);
-  kernelWindowUpdateBuffer(&(window->buffer), (component->xCoord - 2),
-			   (component->yCoord - 2), (component->width + 4),
-			   (component->height + 4));
+  component->drawBorder(component, yesNo);
+  component->window->update(component->window, (component->xCoord - 2),
+			    (component->yCoord - 2), (component->width + 4),
+			    (component->height + 4));
   return (0);
 }
 
 
-static int getSelected(void *componentData, int *selection)
+static int getSelected(kernelWindowComponent *component, int *selection)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowCheckbox *checkbox = (kernelWindowCheckbox *) component->data;
+  kernelWindowCheckbox *checkbox = component->data;
   *selection = checkbox->selected;
   return (0);
 }
 
 
-static int setSelected(void *componentData, int selected)
+static int setSelected(kernelWindowComponent *component, int selected)
 {
-  int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowCheckbox *checkbox = (kernelWindowCheckbox *) component->data;
+  kernelWindowCheckbox *checkbox = component->data;
 
   checkbox->selected = selected;
 
   // Re-draw
   if (component->draw)
-    component->draw(componentData);
+    component->draw(component);
   
-  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
-			   component->yCoord, component->width,
-			   component->height);
-  return (status = 0);
+  component->window
+    ->update(component->window, component->xCoord, component->yCoord,
+	     component->width, component->height);
+
+  return (0);
 }
 
 
-static int mouseEvent(void *componentData, windowEvent *event)
+static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
   // When mouse events happen to list components, we pass them on to the
   // appropriate kernelWindowListItem component
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowCheckbox *checkbox = component->data;
   
   if (event->type == EVENT_MOUSE_LEFTDOWN)
     {
-      if (((kernelWindowCheckbox *) component->data)->selected)
-	setSelected(componentData, 0);
+      if (checkbox->selected)
+	setSelected(component, 0);
       else
-	setSelected(componentData, 1);
+	setSelected(component, 1);
 
       // Make this also a 'selection' event
       event->type |= EVENT_SELECTION;
@@ -149,7 +144,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 }
 
 
-static int keyEvent(void *componentData, windowEvent *event)
+static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
   // We allow the user to control the checkbox widget with 'space bar' key
   // presses, to select or deselect the item.
@@ -163,17 +158,16 @@ static int keyEvent(void *componentData, windowEvent *event)
 	event->type = EVENT_MOUSE_LEFTDOWN;
       if (event->type == EVENT_KEY_UP)
 	event->type = EVENT_MOUSE_LEFTUP;
-      status = mouseEvent(componentData, event);
+      status = mouseEvent(component, event);
     }
 
   return (status);
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowCheckbox *checkbox = (kernelWindowCheckbox *) component->data;
+  kernelWindowCheckbox *checkbox = component->data;
 
   // Release all our memory
   if (checkbox)
@@ -201,7 +195,7 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
+kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 					       const char *text,
 					       componentParameters *params)
 {
@@ -270,7 +264,8 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
   // of padding, plus the printed width of the text
   component->width =
     (CHECKBOX_SIZE + 3 +
-     kernelFontGetPrintedWidth(component->parameters.font, checkbox->text));
+     kernelFontGetPrintedWidth((kernelAsciiFont *) component->parameters.font,
+			       checkbox->text));
 
   // The height of the checkbox is the height of the font, or the height
   // of the checkbox, whichever is greater

@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int processId = 0;
-  componentParameters params;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -78,20 +77,8 @@ int main(int argc, char *argv[])
   // Create a new window, with small, arbitrary size and location
   window = windowNew(processId, "Console Window");
 
-  // Put it in the client area of the window
-  params.gridX = 0;
-  params.gridY = 0;
-  params.gridWidth = 1;
-  params.gridHeight = 1;
-  params.padLeft = 0;
-  params.padRight = 0;
-  params.padTop = 0;
-  params.padBottom = 0;
-  params.orientationX = orient_center;
-  params.orientationY = orient_middle;
-
   // Put the console text area in the window
-  status = windowAddConsoleTextArea(window, &params);
+  status = windowAddConsoleTextArea(window);
   if (status < 0)
     {
       if (status == ERR_ALREADY)

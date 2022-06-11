@@ -145,25 +145,25 @@ int kernelDriverRegister(kernelDriverType type, void *driver)
   switch (type)
     {
     case extDriver:
-      filesystemDrivers.extDriver = (kernelFilesystemDriver *) driver;
+      filesystemDrivers.extDriver = driver;
       break;
     case fatDriver:
-      filesystemDrivers.fatDriver = (kernelFilesystemDriver *) driver;
+      filesystemDrivers.fatDriver = driver;
       break;
     case isoDriver:
-      filesystemDrivers.isoDriver = (kernelFilesystemDriver *) driver;
+      filesystemDrivers.isoDriver = driver;
       break;
     case linuxSwapDriver:
-      filesystemDrivers.linuxSwapDriver = (kernelFilesystemDriver *) driver;
+      filesystemDrivers.linuxSwapDriver = driver;
       break;
     case ntfsDriver:
-      filesystemDrivers.ntfsDriver = (kernelFilesystemDriver *) driver;
+      filesystemDrivers.ntfsDriver = driver;
       break;
     case textConsoleDriver:
-      consoleDrivers.textConsoleDriver = (kernelTextOutputDriver *) driver;
+      consoleDrivers.textConsoleDriver = driver;
       break;
     case graphicConsoleDriver:
-      consoleDrivers.graphicConsoleDriver = (kernelTextOutputDriver *) driver;
+      consoleDrivers.graphicConsoleDriver = driver;
       break;
     default:
       kernelError(kernel_error, "Unknown driver type %d", type);

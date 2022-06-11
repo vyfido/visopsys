@@ -1,5 +1,153 @@
 
 ---------------
+Version 0.64
+---------------
+
+  Overview: This is a maintenance release, with extensive code grooming
+and bug fixes.  There has been a particular focus on the GUI code, kernel
+debugging, the kernel API, gcc 4.x warnings, and compiler optimization
+problems.  New user-visible features include the addition of right-click
+context menus and support for 32-bit bitmaps and icons.
+
+- Booting now works under the Bochs 2.3 emulator (failed in graphics mode
+under earlier versions)
+- Implemented right-click context menus.
+- Added support for 32-bit .bmp bitmap images and .ico icons
+- The Disk Manager's canvas now responds to keyboard cursor inputs.
+- Did general, large-scale GUI re-engineering. 
+- Fixed compilation errors under gcc 4.x
+- Added some API debugging
+- Moved the sysCall() inline function into a _syscall.c file to avoid
+problems with gcc (optimization) function inlining.
+- Dialog windows no longer appear in the window shell's window list.
+- Multitasking/sheduling changes: Separated out the scheduler's code for
+choosing the next program to run (into a subroutine), corrected the big
+comment that describes the scheduling algorithm, fixed a bug that might
+have resulted in a NULL pointer dereference, made it so the exception
+handler is never interrupted by another process, and added a
+kernelProcessingException variable that exports the exception number being
+processed.
+- Implemented a generic kernel debugging functionality that can be compiled
+in conditionally, and that can filter messages by categories (for example,
+there is a category for GUI debugging and a category for USB debugging), as
+well as filtering by source file.
+- Disabled USB support for now, since it's broken and can cause some boots
+to hang
+- The window border component only ever drew when it was called to draw
+the top border, since it could only draw the entire border.  Now the 'draw
+gradient border' function can draw individual lines of a border and the
+border component draws the parts individually.
+- Did some cleanup of the vloader OS loader code
+- Added a function to redraw all the windows, and another one that resets
+all of the (non-custom) colors of all the windows' components.  Setting the
+colors in the 'Display Settings' program uses this to change all of the
+window colors immediately.
+- Added more debugging info to errors in the malloc() code.
+- Added a userspace flag for components that aren't focusable by default.
+Subsequently, 'canvas' components are no longer focusable by default.
+- Creating window menus is now done more simply by passing a structure with
+the list of menu items, then calling the getSelected() function to find out
+which one was clicked.  Also implemented the more-useful getData() function,
+which returns the objectKey of the selected item.
+- Implemented a window 'slider' component to wrap the scroll bar component,
+so that it can be focusable and accept keyboard input. (And adapted the
+window library color chooser dialog to use it).
+- Window canvas components now show a visual change when they are focused.
+- GUI menu components now have their own graphic buffers, so that regardless
+of what window they come from they can stay on top, extend outside the
+window, etc.
+- The install.sh script now copies any /bootinfo or /grphmode files into
+the CD-ROM boot floppy images.
+- The install/imaging scripts no longer redirect useful error output to
+/dev/null -- they now redirect to temporary log files, check exit codes,
+and direct the user to the log files if applicable.
+- The window manager code now has more efficient memory management, so
+that it isn't allocating memory for the entire array of possible window
+structures at initialization time.
+- Created a top-level Makefile.include file for all the code Makefiles,
+added some more warning flags to it, and fixed the resulting warnings.
+- Made gcc optimization args (-00, -02, etc) a global Makefile variable
+- The objectKey type is now a 'volatile void *'
+- Made data structures throughout properly self-referential (instead of
+using void * pointers) and removed all of the unnecessary casting, for
+(hopefully) fewer coding errors.
+- Fixed: The vloader OS loader was being written to the *second* free
+cluster by the Fedora VFAT driver when not using FAT32.  Made a hack to
+adjust it when installing from Fedora, and generally streamlined the
+copy-boot program.
+- Fixed: A slight bug in the FAT code in that it relied too strictly on the
+Microsoft definition of FAT-type detection.  Now it takes into account a
+couple of extra hints.
+- Fixed: The 'view' program wasn't showing tab characters properly in text
+files.
+- Fixed: The 'vsh' shell would crash if the user entered a line containing
+only whitespace.
+- Fixed: A bug in the copyArea() function of the framebuffer graphic driver
+in that it wasn't checking to see whether the areas were outside the buffer.
+
+---------------
+Version 0.63
+---------------
+
+  Overview: This is a maintenance and bugfix release, with numerous small
+  tweaks throughout the entire system.  New features include the ability
+  to format and resize Linux swap partitions, more reliable OS loading,
+  more detailed CPU detection, and a simple text editor.
+
+- Added formatting and resizing support for Linux swap partitions.
+- Added a basic, simple text editor (currently only works in graphics mode).
+- The OS loader now does improved memory moves to high memory for better
+reliability on more systems.
+- Added improved CPU detection to the kernel 'system' driver.
+- Added the beginnings of a 32-bit BIOS driver.
+- The file list widget and the file dialog have been reworked so that
+they don't use a separate GUI thread, since that was unreliable and crashy.
+- GUI applications can now enable click-driven cursor movements in text
+areas.
+- Removed the hard limit on the maximum number of window components.
+- The kernel now records and uses a network domain name, both via DHCP and
+via the kernel's config file.
+- There are now kernel functions to get and set the host and domain names,
+as well as UNIX-style command line functions.
+- Added a kernelSystemInfo() function, similar to the UNIX 'uname' syscall.
+- Added a variable list of text-string attributes to all hardware device
+structures.
+- The window 'component parameters' structure now has a 'flags' field to be
+used for all boolean values.
+- Added getWidth() and getHeight() functions for fonts.
+- Text screen saving and restoring now uses caller-supplied pointers instead
+of storing a single instance in kernel memory.
+- Added a text API function to enable or disable screen scrolling.
+- Window resize events now go into the window's event stream so that
+applications can catch them.
+- The scrollbar slider now has a minimum size, so that it's clickable even
+when there's lots of data to scroll through.
+- The makefile variables for $CC, etc., are now settable from the top-level
+makefile.
+- The 'ldd' program was really more like an 'nm' program, so it was renamed.
+- Fixed: PS/2 mouse driver synchronization problems on some systems.
+- Fixed: The Disk Manager's 'set type' menu item was failing to bring up
+the dialog.
+- Fixed: After resizing a filesystem, the Disk Manager no longer shows the
+warning "Can't write partition table backup in read-only mode" (if booted
+from a CD, for example).  This just scared people.
+- Fixed: When entering the filesystem resizing value in the Disk Manager's
+text mode, it didn't allow you to append 'c' or 'm' for size in cylinders
+or megabytes.
+- Fixed: The Disk Manager no longer continually pesters users about
+incorrect CHS values in partition entries; one 'no' answer now turns it
+off.
+- Fixed: The FAT filesystem driver now ensures that items it's processing
+(when it's constructing short filenames, or writing directories) belong to
+its own filesystem (as opposed to mount points for other filesystems, for
+example).
+- Fixed: If the 'imgboot' program's config files contained commands with
+arguments, the icons weren't shown because the program didn't separate off
+the arguments and therefore couldn't locate the commands.
+- Fixed: Using the 'view' program to view a really small or really large
+image caused GUI crashiness.
+
+---------------
 Version 0.62
 ---------------
 

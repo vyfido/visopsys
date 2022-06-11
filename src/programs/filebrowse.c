@@ -57,13 +57,29 @@ filebrowse will attempt to execute it -- etc.
 static int processId;
 static int privilege;
 static objectKey window = NULL;
-static objectKey menuQuit = NULL;
-static objectKey menuRefresh = NULL;
+static objectKey fileMenu = NULL;
+static objectKey viewMenu = NULL;
 static windowFileList *fileList = NULL;
 static char *cwd = NULL;
 static unsigned cwdModifiedDate = 0;
 static unsigned cwdModifiedTime = 0;
 static int stop = 0;
+
+#define FILEMENU_QUIT 0
+windowMenuContents fileMenuContents = {
+  1,
+  {
+    { "Quit", NULL }
+  }
+};
+
+#define VIEWMENU_REFRESH 0
+windowMenuContents viewMenuContents = {
+  1,
+  {
+    { "Refresh", NULL }
+  }
+};
 
 
 static void error(const char *format, ...)
@@ -155,18 +171,37 @@ static void doFileSelection(file *theFile, char *fullName,
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
+  objectKey selectedItem = 0;
+
   // Check for the window being closed by a GUI event.
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == menuQuit) && (event->type & EVENT_SELECTION)))
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
     stop = 1;
+
+  else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetData(fileMenu, &selectedItem, 1);
+      if (selectedItem)
+	{
+	  // Check for the window being closed.
+	  if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
+	    stop = 1;
+	}
+    }
+
+  else if ((key == viewMenu) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetData(viewMenu, &selectedItem, 1);
+      if (selectedItem)
+	{
+	  // Check for manual refresh requests
+	  if (selectedItem == viewMenuContents.items[VIEWMENU_REFRESH].key)
+	    fileList->update(fileList, cwd);
+	}
+    }
 
   // Check for events to be passed to the file list widget
   else if (key == fileList->key)
     fileList->eventHandler(fileList, event);
-
-  // Check for manual refresh requests
-  else if ((key == menuRefresh) && (event->type & EVENT_SELECTION))
-    fileList->update(fileList, cwd);
 }
 
 
@@ -181,6 +216,16 @@ static int constructWindow(const char *directory)
     return (status = ERR_NOTINITIALIZED);
 
   bzero(&params, sizeof(componentParameters));
+
+  // Create the top menu bar
+  objectKey menuBar = windowNewMenuBar(window, &params);
+  // The 'file' menu
+  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  windowRegisterEventHandler(fileMenu, &eventHandler);
+  // The 'view' menu
+  viewMenu = windowNewMenu(menuBar, "View", &viewMenuContents, &params);
+  windowRegisterEventHandler(viewMenu, &eventHandler);
+
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padTop = 5;
@@ -190,19 +235,7 @@ static int constructWindow(const char *directory)
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
 
-  // Create the top menu bar
-  objectKey menuBar = windowNewMenuBar(window, &params);
-  // The 'file' menu
-  objectKey menu1 = windowNewMenu(menuBar, "File", &params);
-  menuQuit = windowNewMenuItem(menu1, "Quit", &params);
-  windowRegisterEventHandler(menuQuit, &eventHandler);
-  // The 'view' menu
-  objectKey menu2 = windowNewMenu(menuBar, "View", &params);
-  menuRefresh = windowNewMenuItem(menu2, "Refresh", &params);
-  windowRegisterEventHandler(menuRefresh, &eventHandler);
-
   // Create a window list to hold the icons
-  params.gridY = 1;
   fileList = windowNewFileList(window, windowlist_icononly, 4, 5, directory,
 			       WINFILEBROWSE_ALL, doFileSelection, &params);
   windowRegisterEventHandler(fileList->key, &eventHandler);

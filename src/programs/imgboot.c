@@ -259,8 +259,8 @@ static void constructWindow(void)
     windowComponentSetEnabled(goAwayCheckbox, 0);
 
   // No minimize or close buttons on the window
-  windowSetHasMinimizeButton(window, 0);
-  windowSetHasCloseButton(window, 0);
+  windowRemoveMinimizeButton(window);
+  windowRemoveCloseButton(window);
 
   // Go
   windowSetVisible(window, 1);

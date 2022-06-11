@@ -24,13 +24,13 @@
 // and performs all the work of mapping and unmapping pages in the tables.
 
 #include "kernelPage.h"
-#include "kernelParameters.h"
-#include "kernelMemory.h"
-#include "kernelMultitasker.h"
-#include "kernelProcessorX86.h"
-#include "kernelLog.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
+#include "kernelLog.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelParameters.h"
+#include "kernelProcessorX86.h"
 #include <string.h>
 
 // The kernel's page directory and first page table

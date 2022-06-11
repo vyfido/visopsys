@@ -20,24 +20,16 @@
 //
 
 #include "kernelUsbDriver.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelInterrupt.h"
+#include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPic.h"
 #include "kernelProcessorX86.h"
-#include "kernelError.h"
 #include <string.h>
-
-//#define DEBUG
-
-#ifdef DEBUG
-  #include "kernelText.h"
-
-  #define debug(message, arg...) kernelTextPrintLine(message, ##arg)
-#else
-  #define debug(message, arg...) do { } while (0)
-#endif
 
 static usbSubClass subclass_hid[] = {
   { 0x01, "keyboard", DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_USB },
@@ -80,6 +72,8 @@ static usbClass usbClasses[] = {
   { USB_INVALID_CLASSCODE, "", NULL }
 };
 
+static void usbThread(void) __attribute__((noreturn));
+
 static usbRootHub *usbControllers[USB_MAX_CONTROLLERS];
 static int numUsbControllers = 0;
 static int usbProcId = 0;
@@ -99,7 +93,7 @@ static void usbInterrupt(void)
   // Which interrupt number is active?
   interruptNum = kernelPicGetActive();
 
-  //debug("USB: interrupt %d", interruptNum);
+  kernelDebug(debug_usb, "Interrupt %d", interruptNum);
 
   kernelPicEndOfInterrupt(interruptNum);
 
@@ -374,7 +368,8 @@ static int transaction(int target, usbTransaction *trans)
 }
 
 
-static int driverDetect(void *parent __attribute__((unused)), void *driver)
+static int driverDetect(void *parent __attribute__((unused)),
+			kernelDriver *driver)
 {
   // This routine is called to detect USB buses.  There are a couple of
   // different types so we call further detection routines to do the
@@ -430,6 +425,10 @@ static int driverDetect(void *parent __attribute__((unused)), void *driver)
       else
 	// Not a supported USB controller
 	continue;
+
+      // Temporarily disable USB from here on, since it's buggy
+      kernelLog("USB device enumeration disabled");
+      continue;
 
       usb = dev->data;
       usb->device = dev;
@@ -499,11 +498,9 @@ static kernelBusOps usbOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelUsbDriverRegister(void *driverData)
+void kernelUsbDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &usbOps;

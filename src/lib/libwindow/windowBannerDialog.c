@@ -71,7 +71,7 @@ _X_ objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, c
     return (dialogWindow = NULL);
 
   // No need for a close button because there's no handler for it
-  windowSetHasCloseButton(dialogWindow, 0);
+  windowRemoveCloseButton(dialogWindow);
 
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);

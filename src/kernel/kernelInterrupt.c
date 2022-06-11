@@ -28,6 +28,7 @@
 #include "kernelError.h"
 
 int kernelProcessingInterrupt = 0;
+int kernelProcessingException = 0;
 static int initialized = 0;
 
 

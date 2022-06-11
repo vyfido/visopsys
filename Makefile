@@ -7,14 +7,6 @@
 
 # Top-level Makefile.
 
-NASM		= nasm
-CC		= gcc
-AR		= ar
-LD		= ld
-RELEASE		= $(shell utils/release.sh)
-ARCH		= $(shell utils/arch.sh)
-export 		NASM CC AR LD RELEASE ARCH
-
 BUILDDIR	= build
 
 all:

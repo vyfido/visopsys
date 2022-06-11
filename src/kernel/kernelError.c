@@ -106,12 +106,12 @@ static void errorDialogThread(int argc, void *argv[])
   while(1)
     {
       // Check for our OK button
-      status = kernelWindowComponentEventGet((void *) okButton, &event);
+      status = kernelWindowComponentEventGet((objectKey) okButton, &event);
       if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	break;
 
       // Check for window close events
-      status = kernelWindowComponentEventGet((void *) dialogWindow, &event);
+      status = kernelWindowComponentEventGet((objectKey) dialogWindow, &event);
       if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
 	break;
 
@@ -139,9 +139,8 @@ static void errorDialogThread(int argc, void *argv[])
 void kernelErrorOutput(const char *fileName, const char *function, int line,
 		       kernelErrorKind kind, const char *message, ...)
 {
-  // This routine takes a bunch of parameters and outputs a kernel error.
-  // Until there's proper error logging, this will simply involve output
-  // to the text console.
+  // This routine takes a bunch of parameters and outputs a kernel error
+  // which is output to the text console and the kernel log.
 
   va_list list;
   const char *errorType = NULL;

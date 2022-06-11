@@ -260,7 +260,7 @@ static void updateTreat(void)
 }
 
 
-static int setup(void)
+static void setup(void)
 {
   // Fill up the initial grid and snake coordinates
 
@@ -299,6 +299,8 @@ static int setup(void)
 	  textPutc(205);
 	}
     }
+
+  return;
 }
 
 
@@ -731,7 +733,8 @@ static int constructWindow(void)
   params.orientationX = orient_center;
   params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
   params.flags |=
-    (WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER);
+    (WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER |
+     WINDOW_COMPFLAG_CANFOCUS);
   params.background.red = 255;
   params.background.green = 255;
   params.background.blue = 255;
@@ -742,7 +745,8 @@ static int constructWindow(void)
   params.gridY += 1;
   params.orientationX = orient_left;
   params.flags &=
-    ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER);
+    ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER |
+      WINDOW_COMPFLAG_CANFOCUS);
   windowNewTextLabel(window, "Use cursor keys to change direction", &params);
 
   // Register an event handler to catch window close events
@@ -775,9 +779,7 @@ static int play(void)
   score = 0;
   treatTimer = 0;
 
-  status = setup();
-  if (status < 0)
-    return (status);
+  setup();
 
   // Make the first food
   makeFood();

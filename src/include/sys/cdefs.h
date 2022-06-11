@@ -26,11 +26,12 @@
 #include <stdarg.h>
 #include <sys/types.h>
 
+uquad_t __div64(uquad_t, uquad_t, uquad_t *);
+quad_t __divdi3(quad_t, quad_t);
 int _expandFormatString(char *, const char *, va_list);
 int _formatInput(const char *, const char *, va_list);
-quad_t __div64(quad_t, quad_t, quad_t *);
-quad_t __divdi3(quad_t, quad_t);
 quad_t __moddi3(quad_t, quad_t);
+int _sysCall(int, int, ...);
 uquad_t __udivdi3(uquad_t, uquad_t);
 uquad_t __umoddi3(uquad_t, uquad_t);
 

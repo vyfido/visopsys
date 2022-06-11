@@ -502,28 +502,28 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 
   // Set the appropriate manipulation functions for this stream.
 
-  theStream->clear = (int(*)(void *)) &clear;
-  theStream->intercept = (int(*)(void *, ...)) NULL;
+  theStream->clear = &clear;
+  theStream->intercept = NULL;
 
   switch(itemSize)
     {
     case itemsize_byte:
       // Copy the byte stream functions
-      theStream->append = (int(*)(void *, ...)) &appendByte;
-      theStream->appendN = (int(*)(void *, unsigned, ...)) &appendBytes;
-      theStream->push = (int(*)(void *, ...)) &pushByte;
-      theStream->pushN = (int(*)(void *, unsigned, ...)) &pushBytes;
-      theStream->pop = (int(*)(void *, ...)) &popByte;
-      theStream->popN = (int(*)(void *, unsigned, ...)) &popBytes;
+      theStream->append = (int(*)(stream *, ...)) &appendByte;
+      theStream->appendN = (int(*)(stream *, unsigned, ...)) &appendBytes;
+      theStream->push = (int(*)(stream *, ...)) &pushByte;
+      theStream->pushN = (int(*)(stream *, unsigned, ...)) &pushBytes;
+      theStream->pop = (int(*)(stream *, ...)) &popByte;
+      theStream->popN = (int(*)(stream *, unsigned, ...)) &popBytes;
       break;
     case itemsize_dword:
       // Copy the dword stream functions
-      theStream->append = (int(*)(void *, ...)) &appendDword;
-      theStream->appendN = (int(*)(void *, unsigned, ...)) &appendDwords;
-      theStream->push = (int(*)(void *, ...)) &pushDword;
-      theStream->pushN = (int(*)(void *, unsigned, ...)) &pushDwords;
-      theStream->pop = (int(*)(void *, ...)) &popDword;
-      theStream->popN = (int(*)(void *, unsigned, ...)) &popDwords;
+      theStream->append = (int(*)(stream *, ...)) &appendDword;
+      theStream->appendN = (int(*)(stream *, unsigned, ...)) &appendDwords;
+      theStream->push = (int(*)(stream *, ...)) &pushDword;
+      theStream->pushN = (int(*)(stream *, unsigned, ...)) &pushDwords;
+      theStream->pop = (int(*)(stream *, ...)) &popDword;
+      theStream->popN = (int(*)(stream *, unsigned, ...)) &popDwords;
       break;
     }
 
@@ -546,7 +546,7 @@ int kernelStreamDestroy(stream *theStream)
   kernelFree(theStream->buffer);
 
   // Clear it
-  kernelMemClear(theStream, sizeof(stream));
+  kernelMemClear((void *) theStream, sizeof(stream));
 
   // Cool.
   return (status = 0);

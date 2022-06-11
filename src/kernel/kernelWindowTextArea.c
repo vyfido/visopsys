@@ -57,42 +57,39 @@ static inline void updateScrollBar(kernelWindowTextArea *textArea)
       if (textArea->area->scrolledBackLines)
 	state.positionPercent -= ((textArea->area->scrolledBackLines * 100) /
 				  textArea->area->scrollBackLines);
-      textArea->scrollBar->setData((void *) textArea->scrollBar, &state,
-      				   sizeof(scrollBarState));
+      textArea->scrollBar->setData(textArea->scrollBar, &state,
+				   sizeof(scrollBarState));
     }
 }
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the textArea component
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
   kernelTextArea *area = textArea->area;
 
   // Tell the text area to draw itself
-  ((kernelTextOutputStream *) area->outputStream)->outputDriver
-    ->screenDraw(area);
+  area->outputStream->outputDriver->screenDraw(area);
 
   // If there's a scroll bar, draw it too
   if (textArea->scrollBar && textArea->scrollBar->draw)
-    textArea->scrollBar->draw((void *) textArea->scrollBar);
+    textArea->scrollBar->draw(textArea->scrollBar);
 
   if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder((void *) component, 1);
+    component->drawBorder(component, 1);
 
   return (0);
 }
 
 
-static int update(void *componentData)
+static int update(kernelWindowComponent *component)
 {
   // This gets called when the text area has done something, and we use
   // it to update the scroll bar.
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
 
   if (textArea->scrollBar)
     updateScrollBar(textArea);
@@ -101,10 +98,9 @@ static int update(void *componentData)
 }
 
 
-static int move(void *componentData, int xCoord, int yCoord)
+static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
   kernelTextArea *area = textArea->area;
   int scrollBarX = 0;
 
@@ -117,8 +113,7 @@ static int move(void *componentData, int xCoord, int yCoord)
       scrollBarX = (xCoord + textArea->areaWidth);
 
       if (textArea->scrollBar->move)
-	textArea->scrollBar->move((void *) textArea->scrollBar, scrollBarX,
-				  yCoord);
+	textArea->scrollBar->move(textArea->scrollBar, scrollBarX, yCoord);
 
       textArea->scrollBar->xCoord = scrollBarX;
       textArea->scrollBar->yCoord = yCoord;
@@ -128,11 +123,10 @@ static int move(void *componentData, int xCoord, int yCoord)
 }
 
 
-static int resize(void *componentData, int width, int height)
+static int resize(kernelWindowComponent *component, int width, int height)
 {
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
   kernelTextArea *area = textArea->area;
   int newColumns = 0, newRows = 0;
   int scrollBarX = 0;
@@ -160,7 +154,7 @@ static int resize(void *componentData, int width, int height)
 	  scrollBarX = (component->xCoord + textArea->areaWidth);
 
 	  if (textArea->scrollBar->move)
-	    textArea->scrollBar->move((void *) textArea->scrollBar, scrollBarX,
+	    textArea->scrollBar->move(textArea->scrollBar, scrollBarX,
 				      textArea->scrollBar->yCoord);
 
 	  textArea->scrollBar->xCoord = scrollBarX;
@@ -169,7 +163,7 @@ static int resize(void *componentData, int width, int height)
       if (height != component->height)
 	{
 	  if (textArea->scrollBar->resize)
-	    textArea->scrollBar->resize((void *) textArea->scrollBar,
+	    textArea->scrollBar->resize(textArea->scrollBar,
 					textArea->scrollBar->width, height);
 
 	  textArea->scrollBar->height = height;
@@ -180,12 +174,12 @@ static int resize(void *componentData, int width, int height)
 }
 
 
-static int focus(void *componentData, int focus)
+static int focus(kernelWindowComponent *component, int yesNo)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
+  kernelWindowTextArea *textArea = component->data;
+  kernelTextArea *area = textArea->area;
 
-  if (focus)
+  if (yesNo)
     {
       kernelTextSetCurrentInput(area->inputStream);
       kernelTextSetCurrentOutput(area->outputStream);
@@ -195,12 +189,12 @@ static int focus(void *componentData, int focus)
 }
 
 
-static int getData(void *componentData, void *buffer, int size)
+static int getData(kernelWindowComponent *component, void *buffer, int size)
 {
   // Copy the text (up to size bytes) from the text area to the supplied
   // buffer.
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
+  kernelWindowTextArea *textArea = component->data;
+  kernelTextArea *area = textArea->area;
 
   if (size > (area->columns * area->rows))
     size = (area->columns * area->rows);
@@ -211,12 +205,11 @@ static int getData(void *componentData, void *buffer, int size)
 }
 
 
-static int setData(void *componentData, void *buffer, int size)
+static int setData(kernelWindowComponent *component, void *buffer, int size)
 {
   // Copy the text (up to size bytes) from the supplied buffer to the
   // text area.
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
   kernelTextArea *area = textArea->area;
 
   kernelTextStreamScreenClear(area->outputStream);
@@ -228,28 +221,23 @@ static int setData(void *componentData, void *buffer, int size)
 }
 
 
-static int mouseEvent(void *componentData, windowEvent *event)
+static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
   kernelWindowScrollBar *scrollBar = NULL;
   int scrolledBackLines = 0;
   windowEvent cursorEvent;
   int cursorColumn = 0, cursorRow = 0;
 
   // Is the event in one of our scroll bars?
-  if (textArea->scrollBar && isMouseInScrollBar(event, textArea->scrollBar) &&
-      textArea->scrollBar->mouseEvent)
+  if (textArea->scrollBar && isMouseInScrollBar(event, textArea->scrollBar))
     {
-      scrollBar = (kernelWindowScrollBar *) textArea->scrollBar->data;;
+      scrollBar = textArea->scrollBar->data;
 
       // First, pass on the event to the scroll bar
-      status = textArea->scrollBar
-	->mouseEvent((void *) textArea->scrollBar, event);
-      if (status < 0)
-	return (status);
+      if (textArea->scrollBar->mouseEvent)
+	textArea->scrollBar->mouseEvent(textArea->scrollBar, event);
 
       scrolledBackLines = (((100 - scrollBar->state.positionPercent) *
 			    textArea->area->scrollBackLines) / 100);
@@ -259,7 +247,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  // Adjust the scrollback values of the text area based on the
 	  // positioning of the scroll bar.
 	  textArea->area->scrolledBackLines = scrolledBackLines;
-	  component->draw(componentData);
+	  component->draw(component);
 	}
     }
   else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
@@ -268,14 +256,14 @@ static int mouseEvent(void *componentData, windowEvent *event)
       // The event was a click in the text area.  Move the cursor to the
       // clicked location.
 
-      cursorColumn =
-	((event->xPosition - (window->xCoord + textArea->area->xCoord)) /
-	 textArea->area->font->charWidth);
+      cursorColumn = ((event->xPosition - (component->window->xCoord +
+					   textArea->area->xCoord)) /
+		      textArea->area->font->charWidth);
       cursorColumn = min(cursorColumn, textArea->area->columns);
 
-      cursorRow =
-	((event->yPosition - (window->yCoord + textArea->area->yCoord)) /
-	 textArea->area->font->charHeight);
+      cursorRow = ((event->yPosition - (component->window->yCoord +
+					textArea->area->yCoord)) /
+		   textArea->area->font->charHeight);
       cursorRow = min(cursorRow, textArea->area->rows);
 
       if (textArea->area && textArea->area->outputStream &&
@@ -296,17 +284,15 @@ static int mouseEvent(void *componentData, windowEvent *event)
 }
 
 
-static int keyEvent(void *componentData, windowEvent *event)
+static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
   // Puts window key events into the input stream of the text area
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
-  kernelTextInputStream *inputStream =
-    (kernelTextInputStream *) textArea->area->inputStream;
+  kernelWindowTextArea *textArea = component->data;
+  kernelTextInputStream *inputStream = textArea->area->inputStream;
 
   if ((event->type == EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
-    inputStream->s.append(textArea->area->inputStream, (char) event->key);
+    inputStream->s.append(&(inputStream->s), (char) event->key);
 
   if (textArea->scrollBar)
     updateScrollBar(textArea);
@@ -315,10 +301,9 @@ static int keyEvent(void *componentData, windowEvent *event)
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelWindowTextArea *textArea = component->data;
 
   if (textArea)
     {
@@ -358,9 +343,8 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
-					       int columns, int rows,
-					       int bufferLines,
+kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
+					       int rows, int bufferLines,
 					       componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowTextArea
@@ -424,9 +408,8 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   textArea->area->background.red = component->parameters.background.red;
   textArea->area->background.green = component->parameters.background.green;
   textArea->area->background.blue = component->parameters.background.blue;
-  textArea->area->font = component->parameters.font;
+  textArea->area->font = (kernelAsciiFont *) component->parameters.font;
   textArea->area->windowComponent = (void *) component;
-  textArea->area->graphicBuffer = &(window->buffer);
   textArea->areaWidth =
     (columns * ((kernelAsciiFont *) component->parameters.font)->charWidth);
 
@@ -459,17 +442,15 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
       // Remove the scrollbar from the parent container
       if (((kernelWindow *) parent)->type == windowType)
 	{
-	  kernelWindowContainer *tmpContainer =
-	    (kernelWindowContainer *) window->mainContainer->data;
+	  kernelWindowContainer *tmpContainer = window->mainContainer->data;
 	  tmpContainer->containerRemove(window->mainContainer,
 					textArea->scrollBar);
 	}
       else
 	{
-	  kernelWindowContainer *tmpContainer = (kernelWindowContainer *)
-	    ((kernelWindowComponent *) parent)->data;
-	  tmpContainer->containerRemove((kernelWindowComponent *) parent,
-					textArea->scrollBar);
+	  kernelWindowComponent *tmpComponent = parent;
+	  kernelWindowContainer *tmpContainer = tmpComponent->data;
+	  tmpContainer->containerRemove(tmpComponent, textArea->scrollBar);
 	}
 
       textArea->scrollBar->xCoord = component->width;

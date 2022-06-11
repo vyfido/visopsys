@@ -52,15 +52,14 @@ int kernelNetworkPacketStreamNew(kernelNetworkPacketStream *newStream)
     }
 
   // Get a new stream
-  status = kernelStreamNew((stream *) newStream,
-			   (NETWORK_PACKETS_PER_STREAM *
-			    (sizeof(kernelNetworkPacket) /
-			     sizeof(unsigned))), itemsize_dword);
+  status = kernelStreamNew(newStream, (NETWORK_PACKETS_PER_STREAM *
+				       (sizeof(kernelNetworkPacket) /
+					sizeof(unsigned))), itemsize_dword);
   if (status < 0)
     return (status);
 
   // Clear the stream
-  newStream->clear((stream *) newStream);
+  newStream->clear(newStream);
 
   // Yahoo, all set. 
   return (status = 0);
@@ -86,8 +85,8 @@ int kernelNetworkPacketStreamRead(kernelNetworkPacketStream *theStream,
     }
 
   // Read the requisite number of dwords from the stream
-  return (theStream->popN((stream *) theStream, (sizeof(kernelNetworkPacket) /
-						 sizeof(unsigned)), packet));
+  return (theStream->popN(theStream, (sizeof(kernelNetworkPacket) /
+				      sizeof(unsigned)), packet));
 }
 
 
@@ -105,7 +104,6 @@ int kernelNetworkPacketStreamWrite(kernelNetworkPacketStream *theStream,
     }
 
   // Append the requisite number of unsigneds to the stream
-  return (theStream->appendN((stream *) theStream,
-			     (sizeof(kernelNetworkPacket) /
-			      sizeof(unsigned)), packet));
+  return (theStream->appendN(theStream, (sizeof(kernelNetworkPacket) /
+					 sizeof(unsigned)), packet));
 }

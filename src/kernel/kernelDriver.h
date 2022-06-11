@@ -24,13 +24,15 @@
 #if !defined(_KERNELDRIVER_H)
 
 // The generic device driver structure
-typedef struct {
+typedef struct _kernelDriver {
   int class;
   int subClass;
+
   // The registration and detection functions, which all drivers must implement
-  void (*driverRegister) (void *);
-  int (*driverDetect) (void *, void *);
-  int (*driverHotplug) (void *, int, int, int, void *);
+  void (*driverRegister) (struct _kernelDriver *);
+  int (*driverDetect) (void *, struct _kernelDriver *);
+  int (*driverHotplug) (void *, int, int, int, struct _kernelDriver *);
+
   // Device class-specific operations
   void *ops;
 
@@ -51,23 +53,23 @@ int kernelDriverRegister(kernelDriverType type, void *);
 void *kernelDriverGet(kernelDriverType);
 
 // Registration routines for our built-in drivers
-void kernelBiosDriverRegister(void *);
-void kernelCpuDriverRegister(void *);
-void kernelMemoryDriverRegister(void *);
-void kernelPicDriverRegister(void *);
-void kernelSysTimerDriverRegister(void *);
-void kernelRtcDriverRegister(void *);
-void kernelDmaDriverRegister(void *);
-void kernelKeyboardDriverRegister(void *);
-void kernelFloppyDriverRegister(void *);
-void kernelIdeDriverRegister(void *);
-void kernelScsiDiskDriverRegister(void *);
-void kernelFramebufferGraphicDriverRegister(void *);
-void kernelPS2MouseDriverRegister(void *);
-void kernelPciDriverRegister(void *);
-void kernelUsbDriverRegister(void *);
-void kernelUsbMouseDriverRegister(void *);
-void kernelLanceDriverRegister(void *);
+void kernelBiosDriverRegister(kernelDriver *);
+void kernelCpuDriverRegister(kernelDriver *);
+void kernelMemoryDriverRegister(kernelDriver *);
+void kernelPicDriverRegister(kernelDriver *);
+void kernelSysTimerDriverRegister(kernelDriver *);
+void kernelRtcDriverRegister(kernelDriver *);
+void kernelDmaDriverRegister(kernelDriver *);
+void kernelKeyboardDriverRegister(kernelDriver *);
+void kernelFloppyDriverRegister(kernelDriver *);
+void kernelIdeDriverRegister(kernelDriver *);
+void kernelScsiDiskDriverRegister(kernelDriver *);
+void kernelFramebufferGraphicDriverRegister(kernelDriver *);
+void kernelPS2MouseDriverRegister(kernelDriver *);
+void kernelPciDriverRegister(kernelDriver *);
+void kernelUsbDriverRegister(kernelDriver *);
+void kernelUsbMouseDriverRegister(kernelDriver *);
+void kernelLanceDriverRegister(kernelDriver *);
 
 #define _KERNELDRIVER_H
 #endif

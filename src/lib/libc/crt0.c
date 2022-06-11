@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <locale.h>
 
+void _start(void);
 extern int main(void);
 
 // This is the global 'errno' error status variable for this program
@@ -38,7 +39,7 @@ int visopsys_in_kernel = 0;
 extern struct lconv _c_locale;
 struct lconv *_current_locale = &_c_locale;
 
-void _start(void);
+
 void _start(void)
 {
   // This is the code that first gets invoked when the program starts

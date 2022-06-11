@@ -82,12 +82,22 @@ static char *fileNameQuestion = "Please enter the name of the file to edit:";
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
-static objectKey menuOpen = NULL;
-static objectKey menuSave = NULL;
-static objectKey menuQuit = NULL;
+static objectKey fileMenu = NULL;
 static objectKey font = NULL;
 static objectKey textArea = NULL;
 static objectKey statusLabel = NULL;
+
+#define FILEMENU_OPEN 0
+#define FILEMENU_SAVE 1
+#define FILEMENU_QUIT 2
+windowMenuContents fileMenuContents = {
+  3,
+  {
+    { "Open", NULL },
+    { "Save", NULL },
+    { "Quit", NULL }
+  }
+};
 
 
 static void usage(char *name)
@@ -371,7 +381,8 @@ static int loadFile(const char *fileName)
   if (graphics)
     {
       if (readOnly)
-	windowComponentSetEnabled(menuSave, 0);
+	windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key,
+				  0);
 
       windowComponentFocus(textArea);
     }
@@ -848,25 +859,28 @@ static int calcCursorColumn(int screenColumn)
 }
 
 
+static void quit(void)
+{
+  if (!modified || askDiscardChanges())
+    {
+      windowGuiStop();
+      multitaskerKillProcess(processId, 0 /* no force */);
+    }
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
   int status = 0;
+  objectKey selectedItem = NULL;
   int oldScreenLine = 0;
   int newColumn = 0;
   int newRow = 0;
   int count;
 
   // Look for window close
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == menuQuit) && (event->type & EVENT_SELECTION)))
-    {
-      if (!modified || askDiscardChanges())
-	{
-	  windowGuiStop();
-	  multitaskerKillProcess(processId, 0 /* no force */);
-	}
-      return;
-    }
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+    quit();
 
   // Look for window resize
   else if ((key == window) && (event->type == EVENT_WINDOW_RESIZE))
@@ -878,19 +892,28 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   // Look for menu events
 
-  else if ((key == menuSave) && (event->type & EVENT_SELECTION))
+  else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
     {
-      status = saveFile();
-      if (status < 0)
-	error("Error %d saving file", status);
-    }
-
-  else if ((key == menuOpen) && (event->type & EVENT_SELECTION))
-    {
-      if (!modified || askDiscardChanges())
+      windowComponentGetData(fileMenu, &selectedItem, 1);
+      if (selectedItem)
 	{
-	  if (multitaskerSpawn(&openFileThread, "open file", 0, NULL) < 0)
-	    error("Unable to launch file dialog");
+	  if (selectedItem == fileMenuContents.items[FILEMENU_OPEN].key)
+	    {
+	      if (!modified || askDiscardChanges())
+		{
+		  if (multitaskerSpawn(&openFileThread, "open file", 0, NULL)
+		      < 0)
+		    error("Unable to launch file dialog");
+		}
+	    }
+	  else if (selectedItem == fileMenuContents.items[FILEMENU_SAVE].key)
+	    {
+	      status = saveFile();
+	      if (status < 0)
+		error("Error %d saving file", status);
+	    }
+	  else if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
+	    quit();
 	}
     }
 
@@ -932,6 +955,12 @@ static void constructWindow(void)
   window = windowNew(processId, "Edit");
 
   bzero(&params, sizeof(componentParameters));
+
+  // Create the top 'file' menu
+  objectKey menuBar = windowNewMenuBar(window, &params);
+  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  windowRegisterEventHandler(fileMenu, &eventHandler);
+
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 1;
@@ -939,16 +968,6 @@ static void constructWindow(void)
   params.padTop = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-
-  // Create the top 'file' menu
-  objectKey menuBar = windowNewMenuBar(window, &params);
-  objectKey menu = windowNewMenu(menuBar, "File", &params);
-  menuOpen = windowNewMenuItem(menu, "Open", &params);
-  windowRegisterEventHandler(menuOpen, &eventHandler);
-  menuSave = windowNewMenuItem(menu, "Save", &params);
-  windowRegisterEventHandler(menuSave, &eventHandler);
-  menuQuit = windowNewMenuItem(menu, "Quit", &params);
-  windowRegisterEventHandler(menuQuit, &eventHandler);
 
   // Set up the font for our main text area
   fontGetDefault(&font);
@@ -961,7 +980,6 @@ static void constructWindow(void)
   // Put a text area in the window
   params.flags |=
     (WINDOW_COMPFLAG_STICKYFOCUS | WINDOW_COMPFLAG_CLICKABLECURSOR);
-  params.gridY += 1;
   params.font = font;
   textArea = windowNewTextArea(window, 80, rows, 0, &params);
   windowRegisterEventHandler(textArea, &eventHandler);

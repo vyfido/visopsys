@@ -32,7 +32,7 @@ typedef enum {
 } streamItemSize;
 
 // This data structure is the generic stream
-typedef struct {
+typedef volatile struct _stream {
   unsigned char *buffer;
   unsigned buffSize;
   unsigned size;
@@ -41,14 +41,14 @@ typedef struct {
   unsigned count;
 
   // Stream functions.  These are not for calling from user space.
-  int (*clear) (void *);
-  int (*intercept) (void *, ...);
-  int (*append) (void *, ...);
-  int (*appendN) (void *, unsigned, ...);
-  int (*push) (void *, ...);
-  int (*pushN) (void *, unsigned, ...);
-  int (*pop) (void *, ...);
-  int (*popN) (void *, unsigned, ...);
+  int (*clear) (volatile struct _stream *);
+  int (*intercept) (volatile struct _stream *, ...);
+  int (*append) (volatile struct _stream *, ...);
+  int (*appendN) (volatile struct _stream *, unsigned, ...);
+  int (*push) (volatile struct _stream *, ...);
+  int (*pushN) (volatile struct _stream *, unsigned, ...);
+  int (*pop) (volatile struct _stream *, ...);
+  int (*popN) (volatile struct _stream *, unsigned, ...);
 
 } stream;
 
@@ -63,7 +63,7 @@ typedef struct {
 
 } fileStream;
 
-typedef volatile stream networkStream;
+typedef stream networkStream;
 
 #define _STREAM_H
 #endif

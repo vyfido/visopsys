@@ -18,29 +18,46 @@
 //
 //  kernelDebug.h
 //
-	
-// This file contains utilities for debugging the kernel
+
+// This header file defines things used to print debug messages from within
+// the kernel
 
 #if !defined(_KERNELDEBUG_H)
+#if defined(DEBUG)
 
-#include "kernelText.h"
+// Definitions
+#define MAX_DEBUGTEXT_LENGTH  1024
+#define MAX_DEBUG_CATEGORIES  16
+#define MAX_DEBUG_FILENAMES   16
 
-// These are the 'debug level flags' that can be used to construct a custom
-// debugging output
-#define DEBUG_ENTER_EXIT 0x01
+#define DEBUG_SHOWPROCESS     0x08
+#define DEBUG_SHOWFILE        0x04
+#define DEBUG_SHOWFUNCTION    0x02
 
-// The current debugging level.
-#if !defined(DEBUGLEVEL)
-#define DEBUGLEVEL 0
-#endif
+typedef enum {
+  debug_all, debug_api, debug_fs, debug_gui, debug_misc, debug_scsi, debug_usb
+} kernelDebugCategory;
 
-#if (DEBUGLEVEL & DEBUG_ENTER_EXIT)
-#define kernelDebugEnter()                                \
-  kernelTextStreamPrintLine(kernelTextGetConsoleOutput(), \
-			    "DEBUG: enter function %s", __FUNCTION__)
-#else
-#define kernelDebugEnter() while(0)
-#endif // DEBUG_ENTER_EXIT
+void kernelDebugInitialize(void);
+void kernelDebugFlags(int);
+void kernelDebugAddCategory(kernelDebugCategory);
+void kernelDebugAddFile(const char *);
+void kernelDebugOutput(const char *, const char *, int, kernelDebugCategory,
+		       const char *, ...)
+     __attribute__((format(printf, 5, 6)));
 
+// These macro should be used for actual debug calls
+#define kernelDebug(category, message, arg...) \
+  kernelDebugOutput(__FILE__, __FUNCTION__, __LINE__, category, message, ##arg)
+
+#else // !defined(DEBUG)
+
+#define kernelDebugInitialize(...) do {} while (0)
+#define kernelDebugFlags(...) do {} while (0)
+#define kernelDebugAddCategory(...) do {} while (0)
+#define kernelDebugAddFile(...) do {} while (0)
+#define kernelDebug(...) do {} while (0)
+
+#endif // defined(DEBUG)
 #define _KERNELDEBUG_H
 #endif

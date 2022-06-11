@@ -60,6 +60,8 @@
 #define USBUHCI_PORT_CONNCHG        0x0002
 #define USBUHCI_PORT_CONNSTAT       0x0001
 
+//#define USBUHCI_DEBUG
+
 typedef volatile struct {
   unsigned linkPointer;
   unsigned element;

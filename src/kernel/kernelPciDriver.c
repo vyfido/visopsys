@@ -504,7 +504,7 @@ static int driverSetMaster(int target, int master)
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.
@@ -635,11 +635,9 @@ static kernelBusOps pciOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelPciDriverRegister(void *driverData)
+void kernelPciDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &pciOps;

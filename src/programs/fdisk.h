@@ -27,26 +27,26 @@
 #include <sys/image.h>
 #include <sys/progress.h>
 
-#define DISK_MANAGER     "Visopsys Disk Manager"
-#define PARTITION_LOGIC  "Partition Logic"
-#define TEMP_DIR         "/temp"
-#define BOOT_DIR         "/system/boot"
-#define BACKUP_MBR       BOOT_DIR"/backup-%s.mbr"
-#define SIMPLE_MBR_FILE  BOOT_DIR"/mbr.simple"
+#define DISK_MANAGER                   "Visopsys Disk Manager"
+#define PARTITION_LOGIC                "Partition Logic"
+#define TEMP_DIR                       "/temp"
+#define BOOT_DIR                       "/system/boot"
+#define BACKUP_MBR                     BOOT_DIR"/backup-%s.mbr"
+#define SIMPLE_MBR_FILE                BOOT_DIR"/mbr.simple"
 
-#define ENTRYOFFSET_DRV_ACTIVE    0
-#define ENTRYOFFSET_START_HEAD    1
-#define ENTRYOFFSET_START_CYLSECT 2
-#define ENTRYOFFSET_START_CYL     3
-#define ENTRYOFFSET_TYPE          4
-#define ENTRYOFFSET_END_HEAD      5
-#define ENTRYOFFSET_END_CYLSECT   6
-#define ENTRYOFFSET_END_CYL       7
-#define ENTRYOFFSET_START_LBA     8
-#define ENTRYOFFSET_SIZE_LBA      12
-#define COPYBUFFER_SIZE           1048576 // 1 Meg
-#define MAX_SLICES                ((DISK_MAX_PARTITIONS * 2) + 1)
-#define MAX_DESCSTRING_LENGTH     128
+#define ENTRYOFFSET_DRV_ACTIVE         0
+#define ENTRYOFFSET_START_HEAD         1
+#define ENTRYOFFSET_START_CYLSECT      2
+#define ENTRYOFFSET_START_CYL          3
+#define ENTRYOFFSET_TYPE               4
+#define ENTRYOFFSET_END_HEAD           5
+#define ENTRYOFFSET_END_CYLSECT        6
+#define ENTRYOFFSET_END_CYL            7
+#define ENTRYOFFSET_START_LBA          8
+#define ENTRYOFFSET_SIZE_LBA           12
+#define COPYBUFFER_SIZE                1048576 // 1 Meg
+#define MAX_SLICES                     ((DISK_MAX_PARTITIONS * 2) + 1)
+#define MAX_DESCSTRING_LENGTH          128
 
 #ifdef PARTLOGIC
 #define SLICESTRING_DISKFIELD_WIDTH    3
@@ -58,12 +58,12 @@
 #define SLICESTRING_CYLSFIELD_WIDTH    14
 #define SLICESTRING_SIZEFIELD_WIDTH    9
 #define SLICESTRING_ATTRIBFIELD_WIDTH  15
-#define SLICESTRING_LENGTH (SLICESTRING_DISKFIELD_WIDTH +   \
-			    SLICESTRING_LABELFIELD_WIDTH +  \
-			    SLICESTRING_FSTYPEFIELD_WIDTH + \
-			    SLICESTRING_CYLSFIELD_WIDTH +   \
-			    SLICESTRING_SIZEFIELD_WIDTH +   \
-			    SLICESTRING_ATTRIBFIELD_WIDTH)
+#define SLICESTRING_LENGTH             (SLICESTRING_DISKFIELD_WIDTH +  \
+			               SLICESTRING_LABELFIELD_WIDTH +  \
+			               SLICESTRING_FSTYPEFIELD_WIDTH + \
+			               SLICESTRING_CYLSFIELD_WIDTH +   \
+			               SLICESTRING_SIZEFIELD_WIDTH +   \
+			               SLICESTRING_ATTRIBFIELD_WIDTH)
 
 #define ISLOGICAL(slc) (((slc)->entryType == partition_extended) || \
                         ((slc)->entryType == partition_logical))

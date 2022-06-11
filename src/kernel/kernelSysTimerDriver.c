@@ -130,7 +130,7 @@ static int driverSetupTimer(int counter, int mode, int count)
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // Normally, this routine is used to detect and initialize each device,
   // as well as registering each one with any higher-level interfaces.  Since
@@ -184,11 +184,9 @@ static kernelSysTimerOps sysTimerOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelSysTimerDriverRegister(void *driverData)
+void kernelSysTimerDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &sysTimerOps;

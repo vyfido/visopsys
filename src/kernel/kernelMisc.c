@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/utsname.h>
 
 char *kernelVersion[] = {
   "Visopsys",
@@ -68,17 +67,16 @@ void kernelGetVersion(char *buffer, int bufferSize)
 }
 
 
-int kernelSystemInfo(void *buffer)
+int kernelSystemInfo(struct utsname *uname)
 {
   // This function gathers some info about the system and puts it into
   // a 'utsname' structure, just like the one returned by 'uname' in Unix.
 
   int status = 0;
-  struct utsname *uname = (struct utsname *) buffer;
   kernelDevice *cpuDevice = NULL;
 
   // Check params
-  if (buffer == NULL)
+  if (uname == NULL)
     return (status = ERR_NULLPARAMETER);
 
   strncpy(uname->sysname, kernelVersion[0], UTSNAME_MAX_SYSNAME_LENGTH);

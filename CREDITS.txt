@@ -35,3 +35,6 @@ specification Copyright (C) 1989-1996 P.J. Plauger and Jim Brodie.
 - sqrt.c is Copyright (C) 1996-2004 Paul Hsieh.  Paul's square root page is
 here: http://www.azillionmonkeys.com/qed/sqroot.html
 
+- Thanks to Hugh Anderson <hugh@comp.nus.edu.sg> for debugging installation
+issues on Fedora FC5.
+

@@ -39,13 +39,16 @@ time_t time(time_t *t)
   struct tm time_struct;
   int count;
 
-  static int month_days[] =
-  { 31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
+  static int month_days[] = {
+    31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
     31, /* May */ 30, /* Jun */ 31, /* Jul */ 31, /* Aug */
-    30, /* Sep */ 31, /* Aug */ 30 /* Nov */ };
+    30, /* Sep */ 31, /* Aug */ 30 /* Nov */
+  };
 
   if (visopsys_in_kernel)
     return (errno = ERR_BUG);
+
+  bzero(&time_struct, sizeof(struct tm));
 
   // Get the date and time according to the kernel
   status = rtcDateTime(&time_struct);

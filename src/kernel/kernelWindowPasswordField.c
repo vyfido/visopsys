@@ -38,7 +38,7 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewPasswordField(volatile void *parent,
+kernelWindowComponent *kernelWindowNewPasswordField(objectKey parent,
 				    int columns, componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowPasswordField.
@@ -46,12 +46,14 @@ kernelWindowComponent *kernelWindowNewPasswordField(volatile void *parent,
   // echoes asterisks.
 
   kernelWindowComponent *component = NULL;
+  kernelWindowTextArea *area = NULL;
 
   component = kernelWindowNewTextField(parent, columns, params);
   if (component == NULL)
     return (component = NULL);
 
-  ((kernelWindowTextArea *) component->data)->area->hidden = 1;
+  area = component->data;
+  area->area->hidden = 1;
 
   return (component);
 }

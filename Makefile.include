@@ -1,0 +1,23 @@
+##
+##  Visopsys
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+## 
+##  Makefile.include
+##
+
+# Top-level include file for code Makefiles.  Sets global compile options.
+
+NASM		= nasm
+CC		= gcc
+AR		= ar
+LD		= ld
+OPT		= -O2
+ARCH		= -march=pentium# -mtune=pentium
+CODEGEN		= -pipe -fno-omit-frame-pointer -fno-strict-aliasing \
+		-ffreestanding
+WARN		= -Wall -W -Wshadow -Wcast-align -Wsign-compare \
+		-Waggregate-return -Wstrict-prototypes -Wmissing-prototypes \
+		-Wmissing-declarations -Wmissing-noreturn \
+		-Wmissing-format-attribute -Wredundant-decls -Werror
+
+export 		NASM CC AR LD OPT ARCH CODEGEN WARN

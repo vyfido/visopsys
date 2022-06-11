@@ -23,26 +23,25 @@
 // selectable items that occur inside of kernelWindowList components.
 
 #include "kernelWindow.h"     // Our prototypes are here
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
-#include "kernelError.h"
 #include <string.h>
 
 static kernelAsciiFont *labelFont = NULL;
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the component
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowListItem *item = (kernelWindowListItem *) component->data;
+  kernelWindowListItem *item = component->data;
   char *textBuffer = NULL;
 
   if (!item->selected)
-    kernelGraphicDrawRect(&(window->buffer), (color *)
+    kernelGraphicDrawRect(component->buffer, (color *)
 			  &(component->parameters.background), draw_normal,
 			  component->xCoord, component->yCoord,
 			  component->width, component->height, 1, 1);
@@ -52,35 +51,38 @@ static int draw(void *componentData)
       textBuffer = kernelMalloc(strlen((char *) item->params.text) + 1);
       if (textBuffer == NULL)
 	return (status = ERR_MEMORY);
-      strcpy(textBuffer, (char *) item->params.text);
+      strncpy(textBuffer, (char *) item->params.text,
+	      strlen((char *) item->params.text));
       
       // Don't draw text outside our component area
-      while (((int) kernelFontGetPrintedWidth(component->parameters.font,
-					      textBuffer) > component->width)
-	     && strlen(textBuffer))
+      while (((int) kernelFontGetPrintedWidth((kernelAsciiFont *)
+					      component->parameters.font,
+					      textBuffer) >
+	      (component->width - 2)) && strlen(textBuffer))
 	textBuffer[strlen(textBuffer) - 1] = '\0';
 
       if (item->selected)
 	{
-	  kernelGraphicDrawRect(&(window->buffer), (color *)
-				&(component->parameters.foreground),
+	  kernelGraphicDrawRect(component->buffer,
+				(color *) &(component->parameters.foreground),
 				draw_normal, component->xCoord,
 				component->yCoord, component->width,
 				component->height, 1, 1);
 
-	  kernelGraphicDrawText(&(window->buffer),
+	  kernelGraphicDrawText(component->buffer,
 				(color *) &(component->parameters.background),
 				(color *) &(component->parameters.foreground),
-				component->parameters.font, textBuffer,
-				draw_normal, (component->xCoord + 1),
+				(kernelAsciiFont *) component->parameters.font,
+				textBuffer, draw_normal,
+				(component->xCoord + 1),
 				(component->yCoord + 1));
 	}
       else
-	kernelGraphicDrawText(&(window->buffer),
+	kernelGraphicDrawText(component->buffer,
 			      (color *) &(component->parameters.foreground),
 			      (color *) &(component->parameters.background),
-			      component->parameters.font, textBuffer,
-			      draw_normal, (component->xCoord + 1),
+			      (kernelAsciiFont *) component->parameters.font,
+			      textBuffer, draw_normal, (component->xCoord + 1),
 			      (component->yCoord + 1));
       
       kernelFree(textBuffer);
@@ -89,7 +91,7 @@ static int draw(void *componentData)
   else if (item->type == windowlist_icononly)
     {
       if (item->selected)
-	kernelGraphicDrawRect(&(window->buffer), (color *)
+	kernelGraphicDrawRect(component->buffer, (color *)
 			      &(component->parameters.foreground),
 			      draw_normal, (item->icon->xCoord - 1),
 			      (item->icon->yCoord - 1),
@@ -97,20 +99,20 @@ static int draw(void *componentData)
 			      (item->icon->height + 2), 1, 1);
 
       if (item->icon && item->icon->draw)
-	item->icon->draw((void *) item->icon);
+	item->icon->draw(item->icon);
     }
 
-  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder((void *) component, 1);
+  if ((component->parameters.flags & WINDOW_COMPFLAG_HASBORDER) &&
+      component->drawBorder)
+    component->drawBorder(component, 1);
 
   return (status);
 }
 
 
-static int move(void *componentData, int xCoord, int yCoord)
+static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowListItem *item = (kernelWindowListItem *) component->data;
+  kernelWindowListItem *item = component->data;
   int iconXCoord = 0;
 
   if (item->icon)
@@ -120,7 +122,8 @@ static int move(void *componentData, int xCoord, int yCoord)
 	iconXCoord += 1;
 
       if (item->icon->move)
-	item->icon->move((void *) item->icon, iconXCoord, (yCoord + 1));
+	item->icon->move(item->icon, iconXCoord, (yCoord + 1));
+
       item->icon->xCoord = iconXCoord;
       item->icon->yCoord = (yCoord + 1);
     }
@@ -129,82 +132,59 @@ static int move(void *componentData, int xCoord, int yCoord)
 }
 
 
-static int getSelected(void *componentData, int *selection)
+static int getSelected(kernelWindowComponent *component, int *selection)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  *selection = ((kernelWindowListItem *) component->data)->selected;
+  kernelWindowListItem *item = component->data;
+  *selection = item->selected;
   return (0);
 }
 
 
-static int setSelected(void *componentData, int selected)
+static int setSelected(kernelWindowComponent *component, int selected)
 {
-  int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowListItem *item = (kernelWindowListItem *) component->data;
+  kernelWindowListItem *item = component->data;
 
   item->selected = selected;
 
+  if (component->draw)
+    component->draw(component);
+
   if (component->flags & WINFLAG_VISIBLE)
     {
-      if (component->draw)
+      // List items are also menu items, and menu items have their own buffers,
+      // so only render the buffer here if we're using the normal window buffer
+      if (component->buffer == &(component->window->buffer))
 	{
-	  status = component->draw(componentData);
-	  if (status < 0)
-	    return (status);
+	  component->window
+	    ->update(component->window, component->xCoord, component->yCoord,
+		     component->width, component->height);
+	  kernelDebug(debug_gui, "listItem \"%s\" window->update()",
+		      item->params.text);
 	}
-
-      status = kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
-					component->yCoord, component->width,
-					component->height);
     }
 
-  return (status);
+  return (0);
 }
 
 
-static int mouseEvent(void *componentData, windowEvent *event)
+static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
   // When mouse down events happen to list item components, we reverse the
   // 'selected' value
 
-  int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowListItem *item = (kernelWindowListItem *) component->data;
+  kernelDebug(debug_gui, "listItem \"%s\" mouse event",
+	      ((kernelWindowListItem *) component->data)->params.text);
 
   if (event->type & EVENT_MOUSE_LEFTDOWN)
-    {
-      if (item->selected)
-	item->selected = 0;
-      else
-	item->selected = 1;
-
-      if (component->flags & WINFLAG_VISIBLE)
-	{
-	  if (component->draw)
-	    {
-	      status = component->draw(componentData);
-	      if (status < 0)
-		return (status);
-	    }
-
-	  status =
-	    kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
-				     component->yCoord, component->width,
-				     component->height);
-	}
-    }
-  
-  return (status);
+    setSelected(component, 1);
+ 
+  return (0);
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowListItem *listItem = (kernelWindowListItem *) component->data;
+  kernelWindowListItem *listItem = component->data;
 
   // Release all our memory
   if (listItem)
@@ -229,7 +209,7 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
+kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 					       windowListType type,
 					       listItemParameters *item,
 					       componentParameters *params)
@@ -238,7 +218,7 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
 
   int status = 0;
   kernelWindowComponent *component = NULL;
-  kernelWindowListItem *listItemComponent = NULL;
+  kernelWindowListItem *listItem = NULL;
 
   // Check parameters.
   if ((parent == NULL) || (item == NULL) || (params == NULL))
@@ -274,38 +254,36 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
     component->parameters.font = labelFont;
 
   // The list item data
-  listItemComponent = kernelMalloc(sizeof(kernelWindowListItem));
-  if (listItemComponent == NULL)
+  listItem = kernelMalloc(sizeof(kernelWindowListItem));
+  if (listItem == NULL)
     {
       kernelFree((void *) component);
       return (component = NULL);
     }
 
-  listItemComponent->type = type;
-  kernelMemCopy(item, (listItemParameters *) &(listItemComponent->params),
+  listItem->type = type;
+  kernelMemCopy(item, (listItemParameters *) &(listItem->params),
 		sizeof(listItemParameters));
-  listItemComponent->selected = 0;
 
   component->type = listItemComponentType;
-  if (listItemComponent->type == windowlist_textonly)
+  if (listItem->type == windowlist_textonly)
     {
       component->width =
-	(kernelFontGetPrintedWidth(component->parameters.font,
-				   (char *) listItemComponent->params.text) +
-	 2);
+	(kernelFontGetPrintedWidth((kernelAsciiFont *)
+				   component->parameters.font,
+				   (char *) listItem->params.text) + 2);
       component->height =
 	(((kernelAsciiFont *) component->parameters.font)->charHeight + 2);
     }
 
-  else if (listItemComponent->type == windowlist_icononly)
+  else if (listItem->type == windowlist_icononly)
     {
-      listItemComponent->icon =
-	kernelWindowNewIcon(parent, (image *)
-			    &(listItemComponent->params.iconImage),
-			    (char *) listItemComponent->params.text, params);
-      if (listItemComponent->icon == NULL)
+      listItem->icon =
+	kernelWindowNewIcon(parent, (image *) &(listItem->params.iconImage),
+			    (char *) listItem->params.text, params);
+      if (listItem->icon == NULL)
 	{
-	  kernelFree((void *) listItemComponent);
+	  kernelFree((void *) listItem);
 	  kernelFree((void *) component);
 	  return (component = NULL);
 	}
@@ -314,21 +292,19 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
       if (((kernelWindow *) parent)->type == windowType)
 	{
 	  kernelWindow *tmpWindow = getWindow(parent);
-	  kernelWindowContainer *tmpContainer =
-	    (kernelWindowContainer *) tmpWindow->mainContainer->data;
+	  kernelWindowContainer *tmpContainer = tmpWindow->mainContainer->data;
 	  tmpContainer->containerRemove(tmpWindow->mainContainer,
-					listItemComponent->icon);
+					listItem->icon);
 	}
       else
 	{
-	  kernelWindowContainer *tmpContainer = (kernelWindowContainer *)
-	    ((kernelWindowComponent *) parent)->data;
-	  tmpContainer->containerRemove((kernelWindowComponent *) parent,
-					listItemComponent->icon);
+	  kernelWindowComponent *tmpComponent = parent;
+	  kernelWindowContainer *tmpContainer = tmpComponent->data;
+	  tmpContainer->containerRemove(tmpComponent, listItem->icon);
 	}
 
-      component->width = (listItemComponent->icon->width + 2);
-      component->height = (listItemComponent->icon->height + 2);
+      component->width = (listItem->icon->width + 2);
+      component->height = (listItem->icon->height + 2);
     }
 
   component->minWidth = component->width;
@@ -342,7 +318,7 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
   component->mouseEvent = &mouseEvent;
   component->destroy = &destroy;
 
-  component->data = (void *) listItemComponent;
+  component->data = (void *) listItem;
 
   return (component);
 }

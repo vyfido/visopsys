@@ -252,7 +252,7 @@ typedef struct {
   
 } __attribute__((packed)) usbCmdStatusWrapper;
 
-typedef struct {
+typedef struct _usbRootHub {
   kernelDevice *device;
   unsigned char controller;
   unsigned short usbVersion;
@@ -271,8 +271,8 @@ typedef struct {
   int (*getClassName) (int, int, int, char **, char **);
 
   // Functions provided by the specific USB root hub driver
-  void (*threadCall) (void *);
-  int (*transaction) (void *, usbDevice *, usbTransaction *);
+  void (*threadCall) (struct _usbRootHub *);
+  int (*transaction) (struct _usbRootHub *, usbDevice *, usbTransaction *);
 
 } usbRootHub;
 
@@ -291,8 +291,10 @@ typedef struct {
 int kernelUsbInitialize(void);
 
 // Detection routines for different driver types
-kernelDevice *kernelUsbUhciDetect(kernelDevice *, kernelBusTarget *, void *);
-kernelDevice *kernelUsbEhciDetect(kernelDevice *, kernelBusTarget *, void *);
+kernelDevice *kernelUsbUhciDetect(kernelDevice *, kernelBusTarget *,
+				  kernelDriver *);
+kernelDevice *kernelUsbEhciDetect(kernelDevice *, kernelBusTarget *,
+				  kernelDriver *);
 
 #define _KERNELUSBDRIVER_H
 #endif

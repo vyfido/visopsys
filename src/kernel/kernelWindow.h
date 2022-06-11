@@ -30,13 +30,15 @@
 #include <sys/window.h>
 
 // Definitions
-#define WINDOW_TITLEBAR_HEIGHT             19
-#define WINDOW_BORDER_THICKNESS            5
-#define WINDOW_SHADING_INCREMENT           15
-#define WINDOW_MIN_WIDTH                   (WINDOW_TITLEBAR_HEIGHT * 4)
-#define WINDOW_MIN_HEIGHT                  (WINDOW_TITLEBAR_HEIGHT + \
-                                            (WINDOW_BORDER_THICKNESS * 2))
-#define WINDOW_MANAGER_DEFAULT_CONFIG      "/system/config/windowmanager.conf"
+#define WINDOW_TITLEBAR_HEIGHT              19
+#define WINDOW_TITLEBAR_MINWIDTH            (WINDOW_TITLEBAR_HEIGHT * 4)
+#define WINDOW_BORDER_THICKNESS             3
+#define WINDOW_SHADING_INCREMENT            15
+#define WINDOW_MIN_WIDTH                    (WINDOW_TITLEBAR_MINWIDTH + \
+					     (WINDOW_BORDER_THICKNESS * 2))
+#define WINDOW_MIN_HEIGHT                   (WINDOW_TITLEBAR_HEIGHT + \
+                                             (WINDOW_BORDER_THICKNESS * 2))
+#define WINDOW_MANAGER_DEFAULT_CONFIG       "/system/config/windowmanager.conf"
 #define WINDOW_DEFAULT_VARFONT_SMALL_FILE   "/system/fonts/arial-bold-10.bmp"
 #define WINDOW_DEFAULT_VARFONT_SMALL_NAME   "arial-bold-10"
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE  "/system/fonts/arial-bold-12.bmp"
@@ -44,25 +46,23 @@
 #define WINDOW_DEFAULT_MOUSEPOINTER_DEFAULT "/system/mouse.bmp"
 #define WINDOW_DEFAULT_MOUSEPOINTER_BUSY    "/system/mouse/mousebsy.bmp"
 
-#define WINFLAG_VISIBLE                   0x1000
-#define WINFLAG_ENABLED                   0x0800
-#define WINFLAG_MOVABLE                   0x0400
-#define WINFLAG_RESIZABLE                 0x0300
-#define WINFLAG_RESIZABLEX                0x0200
-#define WINFLAG_RESIZABLEY                0x0100
-#define WINFLAG_HASMINIMIZEBUTTON         0x0040
-#define WINFLAG_HASCLOSEBUTTON            0x0020
-#define WINFLAG_HASBORDER                 0x0010
-#define WINFLAG_CANFOCUS                  0x0008
-#define WINFLAG_HASFOCUS                  0x0004
-#define WINFLAG_BACKGROUNDTILED           0x0002
-#define WINFLAG_DEBUGLAYOUT               0x0001
+#define WINFLAG_VISIBLE                     0x0200
+#define WINFLAG_ENABLED                     0x0100
+#define WINFLAG_MOVABLE                     0x0080
+#define WINFLAG_RESIZABLE                   0x0060
+#define WINFLAG_RESIZABLEX                  0x0040
+#define WINFLAG_RESIZABLEY                  0x0020
+#define WINFLAG_HASBORDER                   0x0010
+#define WINFLAG_CANFOCUS                    0x0008
+#define WINFLAG_HASFOCUS                    0x0004
+#define WINFLAG_BACKGROUNDTILED             0x0002
+#define WINFLAG_DEBUGLAYOUT                 0x0001
 
-#define WINNAME_TEMPCONSOLE               "temp console window"
-#define WINNAME_ROOTWINDOW                "root window"
+#define WINNAME_TEMPCONSOLE                 "temp console window"
+#define WINNAME_ROOTWINDOW                  "root window"
 
 // How many tracers get displayed when a window is minimized or restored
-#define WINDOW_MINREST_TRACERS            20
+#define WINDOW_MINREST_TRACERS              20
   
 typedef enum {
   genericComponentType,
@@ -80,6 +80,8 @@ typedef enum {
   progressBarComponentType,
   radioButtonComponentType,
   scrollBarComponentType,
+  sliderComponentType,
+  sysContainerComponentType,
   textAreaComponentType,
   textLabelComponentType,
   titleBarComponentType,
@@ -87,17 +89,17 @@ typedef enum {
 
 } kernelWindowObjectType;
 
-// Types of borders
-typedef enum {
-  border_top, border_left, border_bottom, border_right
-} borderType;
+// Forward declarations, where necessary
+struct _kernelWindow;
 
 // The object that defines a GUI component inside a window
-typedef volatile struct {
+typedef volatile struct _kernelWindowComponent {
   kernelWindowObjectType type;
   kernelWindowObjectType subType;
-  void *window;
-  void *container;
+  volatile struct _kernelWindow *window;
+  volatile struct _kernelWindowComponent *container;
+  volatile struct _kernelWindowComponent *contextMenu;
+  kernelGraphicBuffer *buffer;
   int xCoord;
   int yCoord;
   int level;
@@ -108,30 +110,31 @@ typedef volatile struct {
   unsigned flags;
   componentParameters parameters;
   windowEventStream events;
-  void (*eventHandler)(void *, windowEvent *);
+  void (*eventHandler)(volatile struct _kernelWindowComponent *,
+		       windowEvent *);
   void *data;
 
   // Routines for managing this component.  These are set by the
   // kernelWindowComponentNew routine, for things that are common to all
   // components.
-  void (*drawBorder) (void *, int);
-  void (*erase) (void *);
-  int (*grey) (void *);
+  int (*drawBorder) (volatile struct _kernelWindowComponent *, int);
+  int (*erase) (volatile struct _kernelWindowComponent *);
+  int (*grey) (volatile struct _kernelWindowComponent *);
 
   // More routines for managing this component.  These are set by the
   // code which builds the instance of the particular component type
-  int (*draw) (void *);
-  int (*update) (void *);
-  int (*move) (void *, int, int);
-  int (*resize) (void *, int, int);
-  int (*focus) (void *, int);
-  int (*getData) (void *, void *, int);
-  int (*setData) (void *, void *, int);
-  int (*getSelected) (void *, int *);
-  int (*setSelected) (void *, int);
-  int (*mouseEvent) (void *, windowEvent *);
-  int (*keyEvent) (void *, windowEvent *);
-  int (*destroy) (void *);
+  int (*draw) (volatile struct _kernelWindowComponent *);
+  int (*update) (volatile struct _kernelWindowComponent *);
+  int (*move) (volatile struct _kernelWindowComponent *, int, int);
+  int (*resize) (volatile struct _kernelWindowComponent *, int, int);
+  int (*focus) (volatile struct _kernelWindowComponent *, int);
+  int (*getData) (volatile struct _kernelWindowComponent *, void *, int);
+  int (*setData) (volatile struct _kernelWindowComponent *, void *, int);
+  int (*getSelected) (volatile struct _kernelWindowComponent *, int *);
+  int (*setSelected) (volatile struct _kernelWindowComponent *, int);
+  int (*mouseEvent) (volatile struct _kernelWindowComponent *, windowEvent *);
+  int (*keyEvent) (volatile struct _kernelWindowComponent *, windowEvent *);
+  int (*destroy) (volatile struct _kernelWindowComponent *);
 
 } kernelWindowComponent;
 
@@ -163,16 +166,17 @@ typedef volatile struct {
   int doneLayout;
 
   // Functions
-  int (*containerAdd) (kernelWindowComponent*, kernelWindowComponent *,
-		       componentParameters *);
+  int (*containerAdd) (kernelWindowComponent *, kernelWindowComponent *);
   int (*containerRemove) (kernelWindowComponent *, kernelWindowComponent *);
   int (*containerLayout) (kernelWindowComponent *);
+  int (*containerSetBuffer) (kernelWindowComponent *, kernelGraphicBuffer *);
   void (*containerDrawGrid) (kernelWindowComponent *);
 
 } kernelWindowContainer;
 
 // An icon image component
 typedef volatile struct {
+  int selected;
   image iconImage;
   char label[2][WINDOW_MAX_LABEL_LENGTH];
   int labelLines;
@@ -214,7 +218,12 @@ typedef volatile struct {
 
 } kernelWindowListItem;
 
-typedef kernelWindowContainer kernelWindowMenu;
+typedef volatile struct {
+  kernelGraphicBuffer buffer;
+  kernelWindowComponent *container;
+  int menuBarSelected;
+
+} kernelWindowMenu;
 
 typedef kernelWindowContainer kernelWindowMenuBar;
 
@@ -243,6 +252,8 @@ typedef volatile struct {
 
 } kernelWindowScrollBar;
 
+typedef kernelWindowScrollBar kernelWindowSlider;
+
 typedef volatile struct {
   kernelTextArea *area;
   int areaWidth;
@@ -266,7 +277,7 @@ typedef volatile struct {
 } kernelWindowTitleBar;
 
 // The object that defines a GUI window
-typedef volatile struct {
+typedef volatile struct _kernelWindow {
   kernelWindowObjectType type;
   int processId;
   char title[WINDOW_MAX_TITLE_LENGTH];
@@ -280,16 +291,20 @@ typedef volatile struct {
   windowEventStream events;
   kernelWindowComponent *titleBar;
   kernelWindowComponent *borders[4];
+  kernelWindowComponent *menuBar;
+  kernelWindowComponent *contextMenu;
   kernelWindowComponent *sysContainer;
   kernelWindowComponent *mainContainer;
   kernelWindowComponent *focusComponent;
-  
-  void *parentWindow;
-  void *dialogWindow;
+  kernelWindowComponent *oldFocusComponent;
+
+  volatile struct _kernelWindow *parentWindow;
+  volatile struct _kernelWindow *dialogWindow;
 
   // Routines for managing this window
-  int (*draw) (void *);
-  int (*drawClip) (void *, int, int, int, int);
+  int (*draw) (volatile struct _kernelWindow *);
+  int (*drawClip) (volatile struct _kernelWindow *, int, int, int, int);
+  int (*update) (volatile struct _kernelWindow *, int, int, int, int);
 
 } kernelWindow;
 
@@ -310,21 +325,20 @@ typedef struct {
 static inline screenArea *
 makeComponentScreenArea(kernelWindowComponent *component)
 {
-  kernelWindow *window = (kernelWindow *) component->window;
   return (&((screenArea) {
-    (window->xCoord + component->xCoord),
-      (window->yCoord + component->yCoord),
-      (window->xCoord + component->xCoord + (component->width - 1)),
-      (window->yCoord + component->yCoord + (component->height - 1))
+    (component->window->xCoord + component->xCoord),
+      (component->window->yCoord + component->yCoord),
+      (component->window->xCoord + component->xCoord + (component->width - 1)),
+      (component->window->yCoord + component->yCoord + (component->height - 1))
       }));
 }
 
-static inline kernelWindow *getWindow(volatile void *object)
+static inline kernelWindow *getWindow(objectKey object)
 {
   if (((kernelWindow *) object)->type == windowType)
     return ((kernelWindow *) object);
   else
-    return ((kernelWindow *) (((kernelWindowComponent *) object)->window));
+    return (((kernelWindowComponent *) object)->window);
 }     
 
 static inline int isPointInside(int xCoord, int yCoord,	screenArea *area)
@@ -373,7 +387,7 @@ static inline int isComponentVisible(kernelWindowComponent *component)
 int kernelWindowInitialize(void);
 int kernelWindowStart(void);
 kernelWindow *kernelWindowMakeRoot(variableList *);
-int kernelWindowShell(int);
+int kernelWindowShell(int, int);
 void kernelWindowShellUpdateList(kernelWindow *[], int);
 int kernelWindowLogin(const char *);
 int kernelWindowLogout(void);
@@ -388,21 +402,24 @@ int kernelWindowSetSize(kernelWindow *, int, int);
 int kernelWindowGetLocation(kernelWindow *, int *, int *);
 int kernelWindowSetLocation(kernelWindow *, int, int);
 int kernelWindowCenter(kernelWindow *);
-int kernelWindowSnapIcons(void *);
+int kernelWindowSnapIcons(objectKey);
 int kernelWindowSetHasBorder(kernelWindow *, int);
 int kernelWindowSetHasTitleBar(kernelWindow *, int);
 int kernelWindowSetMovable(kernelWindow *, int);
 int kernelWindowSetResizable(kernelWindow *, int);
-int kernelWindowSetHasMinimizeButton(kernelWindow *, int);
-int kernelWindowSetHasCloseButton(kernelWindow *, int);
+int kernelWindowRemoveMinimizeButton(kernelWindow *);
+int kernelWindowRemoveCloseButton(kernelWindow *);
 int kernelWindowSetColors(kernelWindow *, color *);
 int kernelWindowSetVisible(kernelWindow *, int);
 void kernelWindowSetMinimized(kernelWindow *, int);
-int kernelWindowAddConsoleTextArea(kernelWindow *, componentParameters *);
+int kernelWindowAddConsoleTextArea(kernelWindow *);
 void kernelWindowRedrawArea(int, int, int, int);
+void kernelWindowDrawAll(void);
+void kernelWindowResetColors(void);
 void kernelWindowProcessEvent(windowEvent *);
-int kernelWindowRegisterEventHandler(objectKey,
-				     void (*)(objectKey, windowEvent *));
+int kernelWindowRegisterEventHandler(kernelWindowComponent *,
+				     void (*)(kernelWindowComponent *,
+					      windowEvent *));
 int kernelWindowComponentEventGet(objectKey, windowEvent *);
 int kernelWindowSetBackgroundImage(kernelWindow *, image *);
 int kernelWindowTileBackground(const char *);
@@ -412,9 +429,11 @@ int kernelWindowSaveScreenShot(const char *);
 int kernelWindowSetTextOutput(kernelWindowComponent *);
 int kernelWindowLayout(kernelWindow *);
 void kernelWindowDebugLayout(kernelWindow *);
+int kernelWindowContextAdd(objectKey, windowMenuContents *);
+int kernelWindowContextSet(objectKey, kernelWindowComponent *);
 
 // Functions for managing components
-kernelWindowComponent *kernelWindowComponentNew(volatile void *,
+kernelWindowComponent *kernelWindowComponentNew(objectKey,
 						componentParameters *);
 void kernelWindowComponentDestroy(kernelWindowComponent *);
 int kernelWindowComponentSetVisible(kernelWindowComponent *, int);
@@ -424,6 +443,7 @@ int kernelWindowComponentSetWidth(kernelWindowComponent *, int);
 int kernelWindowComponentGetHeight(kernelWindowComponent *);
 int kernelWindowComponentSetHeight(kernelWindowComponent *, int);
 int kernelWindowComponentFocus(kernelWindowComponent *);
+int kernelWindowComponentUnfocus(kernelWindowComponent *);
 int kernelWindowComponentDraw(kernelWindowComponent *);
 int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
 int kernelWindowComponentSetData(kernelWindowComponent *, void *, int);
@@ -431,50 +451,56 @@ int kernelWindowComponentGetSelected(kernelWindowComponent *, int *);
 int kernelWindowComponentSetSelected(kernelWindowComponent *, int);
 
 // Constructors exported by the different component types
-kernelWindowComponent *kernelWindowNewBorder(volatile void *, borderType,
+kernelWindowComponent *kernelWindowNewBorder(objectKey, borderType,
 					     componentParameters *);
-kernelWindowComponent *kernelWindowNewButton(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewButton(objectKey, const char *,
 					     image *, componentParameters *);
-kernelWindowComponent *kernelWindowNewCanvas(volatile void *, int, int,
+kernelWindowComponent *kernelWindowNewCanvas(objectKey, int, int,
 					     componentParameters *);
-kernelWindowComponent *kernelWindowNewCheckbox(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewCheckbox(objectKey, const char *,
 					       componentParameters *);
-kernelWindowComponent *kernelWindowNewContainer(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewContainer(objectKey, const char *,
 						componentParameters *);
-kernelWindowComponent *kernelWindowNewIcon(volatile void *, image *,
+kernelWindowComponent *kernelWindowNewIcon(objectKey, image *,
 					   const char *,
 					   componentParameters *);
-kernelWindowComponent *kernelWindowNewImage(volatile void *, image *, drawMode,
+kernelWindowComponent *kernelWindowNewImage(objectKey, image *, drawMode,
 					    componentParameters *);
-kernelWindowComponent *kernelWindowNewList(volatile void *, windowListType,
+kernelWindowComponent *kernelWindowNewList(objectKey, windowListType,
 					   int, int, int, listItemParameters *,
 					   int, componentParameters *);
-kernelWindowComponent *kernelWindowNewListItem(volatile void *, windowListType,
+kernelWindowComponent *kernelWindowNewListItem(objectKey, windowListType,
 					       listItemParameters *,
 					       componentParameters *);
-kernelWindowComponent *kernelWindowNewMenu(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewMenu(objectKey, const char *,
+					   windowMenuContents *,
 					   componentParameters *);
-kernelWindowComponent *kernelWindowNewMenuBar(volatile void *,
+kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *,
 					      componentParameters *);
-kernelWindowComponent *kernelWindowNewMenuItem(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewMenuItem(kernelWindowComponent *,
+					       const char *,
 					       componentParameters *);
-kernelWindowComponent *kernelWindowNewPasswordField(volatile void *, int,
+kernelWindowComponent *kernelWindowNewPasswordField(objectKey, int,
 						    componentParameters *);
-kernelWindowComponent *kernelWindowNewProgressBar(volatile void *,
+kernelWindowComponent *kernelWindowNewProgressBar(objectKey,
 						  componentParameters *);
-kernelWindowComponent *kernelWindowNewRadioButton(volatile void *, int, int,
+kernelWindowComponent *kernelWindowNewRadioButton(objectKey, int, int,
 						  const char **, int,
 						  componentParameters *);
-kernelWindowComponent *kernelWindowNewScrollBar(volatile void *, scrollBarType,
+kernelWindowComponent *kernelWindowNewScrollBar(objectKey, scrollBarType,
 						int, int,
 						componentParameters *);
-kernelWindowComponent *kernelWindowNewTextArea(volatile void *, int, int, int,
+kernelWindowComponent *kernelWindowNewSlider(objectKey, scrollBarType,
+					     int, int, componentParameters *);
+kernelWindowComponent *kernelWindowNewSysContainer(kernelWindow *,
+						   componentParameters *);
+kernelWindowComponent *kernelWindowNewTextArea(objectKey, int, int, int,
 					       componentParameters *);
-kernelWindowComponent *kernelWindowNewTextField(volatile void *, int,
+kernelWindowComponent *kernelWindowNewTextField(objectKey, int,
 						componentParameters *);
-kernelWindowComponent *kernelWindowNewTextLabel(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewTextLabel(objectKey, const char *,
 						componentParameters *);
-kernelWindowComponent *kernelWindowNewTitleBar(volatile void *, int,
+kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *,
 					       componentParameters *);
 
 #define _KERNELWINDOW_H

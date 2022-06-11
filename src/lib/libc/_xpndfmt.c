@@ -225,8 +225,14 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	    }
 	  break;
 
+	case 'p':
 	case 'x':
 	case 'X':
+	  if (format[inCount] == 'p')
+	    {
+	      output[outCount++] = '0';
+	      output[outCount++] = 'x';
+	    }
 	  if (fieldWidth)
 	    {
 	      if (isLong)

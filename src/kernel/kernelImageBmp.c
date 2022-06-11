@@ -116,10 +116,35 @@ static int load(unsigned char *imageFileData, int dataLength,
   // the image is compressed, and if so, the method used.  Note that bitmap
   // data is "upside down" in the file.
 
-  if (header->bitsPerPixel == BMP_BPP_24BIT)
+  if (header->bitsPerPixel == BMP_BPP_32BIT)
+    {
+      // 32-bit bitmap.  Pretty simple, since our image structure's data
+      // is a 24-bit bitmap (but the right way up).
+
+      fileLineWidth = (width * 4);
+
+      // This outer loop is repeated once for each row of pixels
+      for (count1 = (height - 1); count1 >= 0; count1 --)
+	{
+	  fileOffset = (dataStart + (count1 * fileLineWidth));
+
+	  // This inner loop is repeated for each pixel in a row
+	  for (pixelRowCounter = 0; pixelRowCounter < width; pixelRowCounter++)
+	    {
+	      imageData[pixelCounter].blue =
+		imageFileData[fileOffset + (pixelRowCounter * 4)];
+	      imageData[pixelCounter].green =
+		imageFileData[fileOffset + (pixelRowCounter * 4) + 1];
+	      imageData[pixelCounter++].red =
+		imageFileData[fileOffset + (pixelRowCounter * 4) + 2];
+	    }
+	}
+    }
+
+  else if (header->bitsPerPixel == BMP_BPP_24BIT)
     {
       // 24-bit bitmap.  Very simple, since our image structure's data
-      // is pretty much a bitmap (but the right way up).
+      // is a 24-bit bitmap (but the right way up).
 
       // There might be padding bytes at the end of a line in the file to make
       // each one have a multiple of 4 bytes

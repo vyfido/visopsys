@@ -23,24 +23,21 @@
 // (commonly found on DOS(TM) and Windows(R) disks)
 
 #include "kernelFilesystemFat.h"
-#include "kernelFilesystem.h"
-#include "kernelParameters.h"
-#include "kernelFile.h"
-#include "kernelMalloc.h"
-#include "kernelMultitasker.h"
-#include "kernelLock.h"
-#include "kernelSysTimer.h"
-#include "kernelMisc.h"
-#include "kernelLog.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelFile.h"
+#include "kernelFilesystem.h"
+#include "kernelLock.h"
+#include "kernelLog.h"
+#include "kernelMalloc.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelParameters.h"
+#include "kernelSysTimer.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
-// These hold free private data memory
-static fatEntryData *freeEntryDatas = NULL;
-static unsigned numFreeEntryDatas = 0;
 
 static int initialized = 0;
 
@@ -154,9 +151,7 @@ static int readVolumeInfo(fatInternalData *fatData)
   // disk structure.  The functions that are exported will do this.
   
   int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-
-  physicalDisk = (kernelPhysicalDisk *) fatData->disk->physical;
+  int assumeFat32 = 0;
 
   // Call the function that reads the boot sector
   status =
@@ -181,7 +176,7 @@ static int readVolumeInfo(fatInternalData *fatData)
 
   // Also, the bytes-per-sector field should match the value for the
   // disk structure we're referencing
-  if (fatData->bpb.bytesPerSect != physicalDisk->sectorSize)
+  if (fatData->bpb.bytesPerSect != fatData->disk->physical->sectorSize)
     {
       // Not a legal value for FAT
       kernelError(kernel_error, "Bytes-per-sector does not match disk");
@@ -256,8 +251,11 @@ static int readVolumeInfo(fatInternalData *fatData)
 
   fatData->fatSects = fatData->bpb.fatSize16;
   if (!fatData->fatSects)
-    // The FAT32 number of sectors per FAT.  Doubleword value.
-    fatData->fatSects = fatData->bpb.fat32.fatSize32;
+    {
+      // The FAT32 number of sectors per FAT.  Doubleword value.
+      fatData->fatSects = fatData->bpb.fat32.fatSize32;
+      assumeFat32 = 1;
+    }
 
   // The sectors-per-fat value must now be non-zero
   if (!fatData->fatSects)
@@ -298,15 +296,21 @@ static int readVolumeInfo(fatInternalData *fatData)
   // must do a few calculations to finish gathering the information we 
   // need to make the determination.
 
-  // Figure out the actual number of directory sectors.  We have already
-  // ensured that the bytes-per-sector value is non-zero (don't worry
-  // about a divide-by-zero error here)
-  fatData->rootDirSects = 
-    ((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->bpb.rootEntCount) / 
-     fatData->bpb.bytesPerSect);
-  if (((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->bpb.rootEntCount) % 
-       fatData->bpb.bytesPerSect) != 0)
-    fatData->rootDirSects += 1;
+  if (fatData->bpb.rootEntCount)
+    {
+      // Figure out the actual number of directory sectors.  We have already
+      // ensured that the bytes-per-sector value is non-zero (don't worry
+      // about a divide-by-zero error here)
+      fatData->rootDirSects = 
+	((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->bpb.rootEntCount) / 
+	 fatData->bpb.bytesPerSect);
+      if (((FAT_BYTES_PER_DIR_ENTRY * (unsigned) fatData->bpb.rootEntCount) % 
+	   fatData->bpb.bytesPerSect) != 0)
+	fatData->rootDirSects += 1;
+    }
+  else
+    // This is a sign of FAT32
+    assumeFat32 = 1;
 
   // This calculation comes directly from Microsoft(R).  This is how we
   // determine the number of data sectors and data clusters on the volume.
@@ -324,20 +328,18 @@ static int readVolumeInfo(fatInternalData *fatData)
   // We will examine the "data clusters" value.  There are specific cluster 
   // limits which constrain these filesystems.
 
-  if (fatData->dataClusters < 4085)
+  if (!assumeFat32 && (fatData->dataClusters < 4085))
     {
       // We have a FAT12 filesystem.  Hooray.
       fatData->fsType = fat12;
       fatData->terminalClust = 0x0FF8; // (or above)
     }
-
-  else if (fatData->dataClusters < 65525)
+  else if (!assumeFat32 && (fatData->dataClusters < 65525))
     {
       // We have a FAT16 filesystem.  Hooray.
       fatData->fsType = fat16;
       fatData->terminalClust = 0xFFF8; // (or above)
     }
-
   else
     {
       // Any larger value of data clusters denotes a FAT32 filesystem
@@ -582,7 +584,7 @@ static int getFatEntry(fatInternalData *fatData, unsigned entryNumber,
       // Now, entryOffset is the index of the WORD value that contains the
       // value we're looking for.  Read that word value
 
-      entryValue = *((short *)(fatData->FAT + entryOffset));
+      entryValue = *((unsigned short *)(fatData->FAT + entryOffset));
 
       // We're almost finished, except that we need to get rid of the
       // extra nybble of information contained in the word value.  If
@@ -604,7 +606,7 @@ static int getFatEntry(fatInternalData *fatData, unsigned entryNumber,
       // entry number we were given and multiply it by 2 to get the 
       // starting byte.
       entryOffset = (entryNumber * 2);
-      entryValue = *((short *)(fatData->FAT + entryOffset));
+      entryValue = *((unsigned short *)(fatData->FAT + entryOffset));
     }
 
   else /* if (fatData->fsType == fat32) */
@@ -1158,7 +1160,7 @@ static int clearClusterChainData(fatInternalData *fatData,
 
 
 static int getUnusedClusters(fatInternalData *fatData,
-			     unsigned requested, int *startCluster)
+			     unsigned requested, unsigned *startCluster)
 {
   // This function is used internally, and allocates a chain of free disk
   // clusters to the calling program.  It uses a "first fit" algorithm to
@@ -1483,7 +1485,7 @@ static inline unsigned makeSystemTime(unsigned theTime)
 }
 
 
-static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
+static int fillDirectory(kernelFileEntry *currentDir, void *dirBuffer)
 {
   // This function takes a directory structure and writes it to the
   // appropriate directory on disk.
@@ -1494,8 +1496,8 @@ static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
   int longFilenameSlots = 0;
   int longFilenamePos = 0;
   unsigned char fileCheckSum = 0;
-  unsigned char *dirEntry = NULL;
-  unsigned char *subEntry = NULL;
+  char *dirEntry = NULL;
+  char *subEntry = NULL;
   kernelFileEntry *listItemPointer = NULL;
   kernelFileEntry *realEntry = NULL;
   fatEntryData *entryData = NULL;
@@ -1606,7 +1608,7 @@ static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
 
 	      // Put the "long filename entry" attribute byte into
 	      // the attribute slot
-	      (unsigned char) subEntry[0x0B] = 0x0F;
+	      subEntry[0x0B] = 0x0F;
 
 	      // Put the file's 8.3 checksum into the 0x0Dth spot
 	      subEntry[0x0D] = (unsigned char) fileCheckSum;
@@ -1652,7 +1654,7 @@ static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
 
       // Copy the short alias into the entry.
       dirEntry[0] = NULL;
-      strncpy(dirEntry, (char *) shortAlias, 11);
+      strncpy(dirEntry, shortAlias, 11);
 
       // attributes (byte value)
       dirEntry[0x0B] = (unsigned char) entryData->attributes;
@@ -2055,7 +2057,7 @@ static int checkFilename(volatile char *fileName)
   int count;
 
   // Get the length of the filename
-  nameLength = strlen((char *)fileName);
+  nameLength = strlen((char *) fileName);
 
   // Make sure the length of the filename is under the limit
   if (nameLength > MAX_NAME_LENGTH)
@@ -2258,8 +2260,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
   strncpy((char *) (entryData->shortAlias + 8), aliasExt, 3);
 
   // Make sure there aren't any name conflicts in the file's directory
-  listItemPointer = 
-    ((kernelFileEntry *) theFile->parentDirectory)->contents;
+  listItemPointer = theFile->parentDirectory->contents;
 
   while (listItemPointer)
     {
@@ -2280,7 +2281,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
 	      return (status = ERR_BUG);
 	    }
 	  
-	  if (!strcmp((char *) listItemData->shortAlias, 
+	  if (!strcmp((char *) listItemData->shortAlias,
 		      (char *) entryData->shortAlias))
 	    {
 	      // Conflict.  Up the ~# thing we're using
@@ -2304,8 +2305,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
 	      entryData->shortAlias[tildeSpot + 1] =
 		((char) 48 + (char) (tildeNumber % 10));
 	      
-	      listItemPointer = 
-		((kernelFileEntry *) theFile->parentDirectory)->contents;
+	      listItemPointer = theFile->parentDirectory->contents;
 	      continue;
 	    }
 	}
@@ -2318,7 +2318,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
 
 
 static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk, 
-			 kernelFileEntry *currentDir, char *dirBuffer, 
+			 kernelFileEntry *currentDir, void *dirBuffer, 
 			 unsigned dirBufferSize)
 {
   // This function takes a pointer to a directory buffer and installs
@@ -2349,15 +2349,15 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 
       // Now we must determine whether this is a valid, undeleted file.
       // E5 means this is a deleted entry
-      if (dirEntry[0] == (unsigned char) 0xE5)
+      if (dirEntry[0] == 0xE5)
 	continue;
 
       // 05 means that the first character is REALLY E5
-      else if (dirEntry[0] == (unsigned char) 0x05)
-	dirEntry[0] = (unsigned char) 0xE5;
+      else if (dirEntry[0] == 0x05)
+	dirEntry[0] = 0xE5;
 
       // 00 means that there are no more entries
-      else if (dirEntry[0] == (unsigned char) 0x00)
+      else if (dirEntry[0] == 0x00)
 	break;
 
       else if (dirEntry[0x0B] == 0x0F)
@@ -2366,8 +2366,8 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 	continue;
 
       // Skip '.' and '..' entries
-      else if (!strncmp(dirEntry, ".          ", 11) ||
-	       !strncmp(dirEntry, "..         ", 11))
+      else if (!strncmp((char *) dirEntry, ".          ", 11) ||
+	       !strncmp((char *) dirEntry, "..         ", 11))
 	continue;
 
       // Peek ahead and get the attributes (byte value).  Figure out the 
@@ -2381,7 +2381,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
       // Now we should create a new entry in the "used" list for this item
 
       // Get a free file entry structure.
-      newItem = kernelFileNewEntry((void *) theDisk);
+      newItem = kernelFileNewEntry(theDisk);
       if (newItem == NULL)
 	{
 	  // Not enough free file structures
@@ -2414,18 +2414,15 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 	    {
 	      // Get the first five 2-byte characters from this entry
 	      for (count3 = 1; count3 < 10; count3 += 2)
-		newItem->name[longFilenamePos++] = 
-		  (unsigned char) subEntry[count3];
+		newItem->name[longFilenamePos++] = subEntry[count3];
 	      
 	      // Get the next six 2-byte characters
 	      for (count3 = 14; count3 < 26; count3 += 2)
-		newItem->name[longFilenamePos++] = 
-		  (unsigned char) subEntry[count3];
+		newItem->name[longFilenamePos++] = subEntry[count3];
 	      
 	      // Get the last two 2-byte characters
 	      for (count3 = 28; count3 < 32; count3 += 2)
-		newItem->name[longFilenamePos++] = 
-		  (unsigned char) subEntry[count3];
+		newItem->name[longFilenamePos++] = subEntry[count3];
 
 	      // Determine whether this was the last long filename
 	      // entry for this file.  If not, we subtract 32 from 
@@ -2444,7 +2441,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
       // Now go through the regular (DOS short) entry for this file.
 
       // Copy short alias into the shortAlias field of the file structure
-      strncpy((char *) entryData->shortAlias, dirEntry, 11);
+      strncpy((char *) entryData->shortAlias, (char *) dirEntry, 11);
       entryData->shortAlias[11] = '\0';
 
       // If there's no long filename, set the filename to be the same as
@@ -2467,7 +2464,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 	    strncat((char *) newItem->name, ".", 1);
       
 	  // Copy the filename extension
-	  strncat((char *) newItem->name, ((char *) entryData->shortAlias + 8),
+	  strncat((char *) newItem->name, (char *) (entryData->shortAlias + 8),
 		  3);
 
 	  // Insert a NULL if there's a [space] character anywhere in 
@@ -2481,8 +2478,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 	  // in the modern world, so we convert them all to lowercase
 	  // as a matter of preference.
 	  for (count2 = 0; count2 < strlen((char *) newItem->name); count2 ++)
-	    newItem->name[count2] =
-	      (char) tolower(newItem->name[count2]);
+	    newItem->name[count2] = tolower(newItem->name[count2]);
 	}
 
       // Get the entry's various other information
@@ -2703,7 +2699,7 @@ static int readRootDir(fatInternalData *fatData, kernelDisk *theDisk)
   unsigned dirBufferSize = 0;
   fatEntryData *rootDirData = NULL;
   fatEntryData dummyEntryData;
-  int rootDirBlocks = 0;
+  unsigned rootDirBlocks = 0;
   kernelFileEntry dummyEntry;
 
   // The root directory scheme is different depending on whether this is
@@ -3088,7 +3084,7 @@ static int writeDir(kernelFileEntry *directory)
   // Figure out the size of the buffer we need to allocate to hold the
   // directory
   if ((fatData->fsType != fat32) &&
-      (directory == (kernelFileEntry *) theDisk->filesystem.filesystemRoot))
+      (directory == theDisk->filesystem.filesystemRoot))
     {
       dirBufferSize = (fatData->rootDirSects * fatData->bpb.bytesPerSect);
       blocks = fatData->rootDirSects;
@@ -3153,7 +3149,7 @@ static int writeDir(kernelFileEntry *directory)
   // Write the directory "file".  If it's the root dir of a non-FAT32
   // filesystem we do a special version of this write.
   if ((fatData->fsType != fat32) &&
-      (directory == (kernelFileEntry *) theDisk->filesystem.filesystemRoot))
+      (directory == theDisk->filesystem.filesystemRoot))
     status = 
       kernelDiskWriteSectors((char *) fatData->disk->name, 
 			     (fatData->bpb.rsvdSectCount +
@@ -3277,7 +3273,6 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   // Format the supplied disk as a FAT volume.
 
   int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
   unsigned clearSectors = 0;
   unsigned doSectors = 0;
   unsigned char *sectorBuff = NULL;
@@ -3316,13 +3311,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if ((theDisk == NULL) || (type == NULL) || (label == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  physicalDisk = theDisk->physical;
-
   // Only format disk with 512-byte sectors
-  if (physicalDisk->sectorSize != 512)
+  if (theDisk->physical->sectorSize != 512)
     {
       kernelError(kernel_error, "Cannot format a disk with sector size of "
-		  "%u (512 only)", physicalDisk->sectorSize);
+		  "%u (512 only)", theDisk->physical->sectorSize);
       return (status = ERR_INVALID);
     }
 
@@ -3342,15 +3335,15 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   fatData.bpb.jmpBoot[1] = 0x3C;  // JMP inst
   fatData.bpb.jmpBoot[2] = 0x90;  // No op
   strncpy((char *) fatData.bpb.oemName, "Visopsys", 8);
-  fatData.bpb.sectsPerTrack = physicalDisk->sectorsPerCylinder;
-  fatData.bpb.numHeads = physicalDisk->heads;
-  fatData.bpb.bytesPerSect = physicalDisk->sectorSize;
+  fatData.bpb.sectsPerTrack = theDisk->physical->sectorsPerCylinder;
+  fatData.bpb.numHeads = theDisk->physical->heads;
+  fatData.bpb.bytesPerSect = theDisk->physical->sectorSize;
   fatData.bpb.hiddenSects = 0;
   fatData.bpb.numFats = 2;
   fatData.totalSects = theDisk->numSectors;
   fatData.bpb.sectsPerClust = 1;
 
-  if (physicalDisk->flags & DISKFLAG_FIXED)
+  if (theDisk->physical->flags & DISKFLAG_FIXED)
     fatData.bpb.media = 0xF8;
   else
     fatData.bpb.media = 0xF0;
@@ -3361,7 +3354,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
     fatData.fsType = fat16;
   else if (!strncasecmp(type, FSNAME_FAT"32", 5))
     fatData.fsType = fat32;
-  else if ((physicalDisk->flags & DISKFLAG_FLOPPY) ||
+  else if ((theDisk->physical->flags & DISKFLAG_FLOPPY) ||
 	   (fatData.totalSects < 8400))
     fatData.fsType = fat12;
   else if (fatData.totalSects < 66600)
@@ -3423,7 +3416,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       strncpy((char *) fatData.bpb.fat32.fileSysType, "FAT32   ", 8);
     }
 
-  if (physicalDisk->flags & DISKFLAG_FLOPPY)
+  if (theDisk->physical->flags & DISKFLAG_FLOPPY)
     {
       fatData.rootDirSects = 14;
       fatData.fatSects = 9;
@@ -3454,23 +3447,21 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if ((fatData.fsType == fat12) || (fatData.fsType == fat16))
     {
-      fatData.bpb.fat.biosDriveNum =
-	((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;
-      if (physicalDisk->flags & DISKFLAG_FIXED)
+      fatData.bpb.fat.biosDriveNum = theDisk->physical->deviceNumber;
+      if (theDisk->physical->flags & DISKFLAG_FIXED)
 	fatData.bpb.fat.biosDriveNum |= 0x80;
       fatData.bpb.fat.bootSig = 0x29;  // Means volume id, label, etc., valid
       fatData.bpb.fat.volumeId = kernelSysTimerRead();
-      strncpy((char *) fatData.bpb.fat.volumeLabel, (char *) label, 11);
+      strncpy((char *) fatData.bpb.fat.volumeLabel, label, 11);
     }
   else if (fatData.fsType == fat32)
     {
-      fatData.bpb.fat32.biosDriveNum =
-	((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;
-      if (physicalDisk->flags & DISKFLAG_FIXED)
+      fatData.bpb.fat32.biosDriveNum = theDisk->physical->deviceNumber;
+      if (theDisk->physical->flags & DISKFLAG_FIXED)
 	fatData.bpb.fat32.biosDriveNum |= 0x80;
       fatData.bpb.fat32.bootSig = 0x29;  // Means volume id, label, etc., valid
       fatData.bpb.fat32.volumeId = kernelSysTimerRead();
-      strncpy((char *) fatData.bpb.fat32.volumeLabel, (char *) label, 11);
+      strncpy((char *) fatData.bpb.fat32.volumeLabel, label, 11);
     }
 
   fatData.bpb.signature = 0xAA55;
@@ -3669,13 +3660,13 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
   // Returns 1 if the supplied file is fragmented
 
   int status = 0;
-  int numClusters = 0;
+  unsigned numClusters = 0;
   fatEntryData *entryData = entry->driverData;
-  int clusterNumber = 0;
-  int nextClusterNumber = 0;
+  unsigned clusterNumber = 0;
+  unsigned nextClusterNumber = 0;
   int fragged = 0;
   void *fileData = NULL;
-  int count;
+  unsigned count;
 
   status = getNumClusters(fatData, entryData->startCluster, &numClusters);
   if (status < 0)
@@ -3848,14 +3839,14 @@ static int defragment(kernelDisk *theDisk, progress *prog)
     return (status = ERR_BADDATA);
 
   // Get a new file entry for the filesystem's root directory
-  theDisk->filesystem.filesystemRoot = kernelFileNewEntry((void *) theDisk);
+  theDisk->filesystem.filesystemRoot = kernelFileNewEntry(theDisk);
   if (theDisk->filesystem.filesystemRoot == NULL)
     // Not enough free file structures
     return (status = ERR_NOFREE);
 
   strcpy((char *) theDisk->filesystem.filesystemRoot->name, "/");
   theDisk->filesystem.filesystemRoot->type = dirT;
-  theDisk->filesystem.filesystemRoot->disk = (void *) theDisk;
+  theDisk->filesystem.filesystemRoot->disk = theDisk;
 
   status = readRootDir(fatData, theDisk);
   if (status < 0)
@@ -4006,6 +3997,7 @@ static int mount(kernelDisk *theDisk)
     default:
       strcpy((char *) theDisk->fsType, FSNAME_FAT);
     }
+  kernelDebug(debug_fs, "Mounted %s as %s", theDisk->name, theDisk->fsType);
 
   // Mark the filesystem as 'dirty'
   unsigned tmp;
@@ -4126,7 +4118,7 @@ static unsigned getFreeBytes(kernelDisk *theDisk)
 }
 
 
-static int newEntry(kernelFileEntry *newEntry)
+static int newEntry(kernelFileEntry *entry)
 {
   // This function gets called when there's a new kernelFileEntry in the
   // filesystem (either because a file was created or because some existing
@@ -4134,15 +4126,12 @@ static int newEntry(kernelFileEntry *newEntry)
   // to attach FAT-specific data to the file entry
 
   int status = 0;
-  fatEntryData *entryData = NULL;
-  fatEntryData *newEntryDatas = NULL;
-  int count;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the file entry pointer isn't NULL
-  if (newEntry == NULL)
+  if (entry == NULL)
     {
       kernelError(kernel_error, "NULL file entry");
       return (status = ERR_NULLPARAMETER);
@@ -4150,48 +4139,23 @@ static int newEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry
-  if (newEntry->driverData)
+  if (entry->driverData)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);
     }
 
-  // Make sure there is a free entry data available
-  if (numFreeEntryDatas == 0)
-    {
-      // Allocate memory for file entries
-      newEntryDatas = kernelMalloc(sizeof(fatEntryData) * MAX_BUFFERED_FILES);
-      if (newEntryDatas == NULL)
-	{
-	  kernelError(kernel_error, "Error allocating memory for FAT private "
-		      "data lists");
-	  return (status = ERR_MEMORY);
-	}
-
-      // Initialize the new fatEntryData structures.
-      for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
-	newEntryDatas[count].next = (void *) &(newEntryDatas[count + 1]);
-
-      // The free file entries are the new memory
-      freeEntryDatas = newEntryDatas;
-
-      // Add the number of new file entries
-      numFreeEntryDatas = MAX_BUFFERED_FILES;
-    }
-
-  // Get a private data structure for FAT-specific information.  Grab it from
-  // the first spot
-  entryData = freeEntryDatas;
-  freeEntryDatas = (fatEntryData *) entryData->next;
-  numFreeEntryDatas -= 1;
-  newEntry->driverData = (void *) entryData;
+  // Get a private data structure for FAT-specific information.
+  entry->driverData = kernelMalloc(sizeof(fatEntryData));
+  if (entry->driverData == NULL)
+    return (status = ERR_MEMORY);
 
   // Return success
   return (status = 0);
 }
 
 
-static int inactiveEntry(kernelFileEntry *inactiveEntry)
+static int inactiveEntry(kernelFileEntry *entry)
 {
   // This function gets called when a kernelFileEntry is about to be
   // deallocated by the system (either because a file was deleted or because
@@ -4199,36 +4163,27 @@ static int inactiveEntry(kernelFileEntry *inactiveEntry)
   // to deallocate our FAT-specific data from the file entry
 
   int status = 0;
-  fatEntryData *entryData = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the file entry pointer isn't NULL
-  if (inactiveEntry == NULL)
+  if (entry == NULL)
     {
       kernelError(kernel_error, "NULL file entry");
       return (status = ERR_NULLPARAMETER);
     }
 
-  entryData = (fatEntryData *) inactiveEntry->driverData;
-  if (entryData == NULL)
+  if (entry->driverData)
     {
-      kernelError(kernel_error, "File entry has no private filesystem data");
-      return (status = ERR_ALREADY);
+      // Erase all of the data in this entry
+      kernelMemClear(entry->driverData, sizeof(fatEntryData));
+
+      kernelFree(entry->driverData);
+
+      // Remove the reference
+      entry->driverData = NULL;
     }
-
-  // Erase all of the data in this entry
-  kernelMemClear((void *) entryData, sizeof(fatEntryData));
-
-  // Release the entry data structure attached to this file entry.  Put the
-  // entry data back into the pool of free ones.
-  entryData->next = (void *) freeEntryDatas;
-  freeEntryDatas = entryData;
-  numFreeEntryDatas += 1;
-
-  // Remove the reference
-  inactiveEntry->driverData = NULL;
 
   // Return success
   return (status = 0);
@@ -4385,7 +4340,7 @@ static int createFile(kernelFileEntry *theFile)
   // because it assigns short names based on how many files in the
   // directory share common characters in the initial part of the filename.
   // Don't do it for '.' or '..' entries, however
-  if (strcmp((char *) theFile->name, ".") && 
+  if (strcmp((char *) theFile->name, ".") &&
       strcmp((char *) theFile->name, ".."))
     {
       status = makeShortAlias(theFile);

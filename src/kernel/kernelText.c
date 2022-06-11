@@ -68,7 +68,6 @@ static kernelTextArea consoleArea =
     (unsigned char *) 0x000B8000, // Text screen address (visible data)
     NULL,                         // font
     NULL,                         // window component
-    NULL,                         // graphic buffer
     0                             // no-scroll flag
   };
 
@@ -135,9 +134,19 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
   // us by our caller.
   
   // Call the original stream append function
-  status = currentInput->s.intercept((stream *) &(currentInput->s), byte);
+  status = currentInput->s.intercept(&(currentInput->s), byte);
 
   return (status);
+}
+
+
+static inline void updateComponent(kernelTextArea *area)
+{
+  kernelWindowComponent *component =
+    (kernelWindowComponent *) area->windowComponent;
+
+  if (component && component->update)
+    component->update(area->windowComponent);
 }
 
 
@@ -205,11 +214,10 @@ int kernelTextInitialize(int columns, int rows)
     consoleOutput->outputDriver
       ->setBackground(consoleOutput->textArea, TEXT_DEFAULT_BACKGROUND);
 
-  consoleArea.outputStream = (void *) consoleOutput;
+  consoleArea.outputStream = consoleOutput;
 
   // Set up our console input stream
-  status = kernelStreamNew((stream *) &(consoleInput->s), TEXT_STREAMSIZE,
-			   itemsize_byte);
+  status = kernelStreamNew(&(consoleInput->s), TEXT_STREAMSIZE, itemsize_byte);
   if (status < 0)
     return (status);
 
@@ -218,10 +226,10 @@ int kernelTextInitialize(int columns, int rows)
   // keyboard interrupts and such.  Remember the original append function
   // though
   consoleInput->s.intercept = consoleInput->s.append;
-  consoleInput->s.append = (int (*) (void *, ...)) &currentInputIntercept;
+  consoleInput->s.append = (int (*) (stream *, ...)) &currentInputIntercept;
   consoleInput->echo = 1;
 
-  consoleArea.inputStream = (void *) consoleInput;
+  consoleArea.inputStream = consoleInput;
 
   // Finally, set the current input and output streams to point to the
   // console ones we've just created
@@ -317,12 +325,12 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 
   if (inputStream && (inputStream != &originalConsoleInput))
     {
-      kernelStreamDestroy((stream *) &(inputStream->s));
-      kernelFree(area->inputStream);
+      kernelStreamDestroy(&(inputStream->s));
+      kernelFree((void *) area->inputStream);
     }
 
   if (outputStream && (outputStream != &originalConsoleOutput))
-    kernelFree(area->outputStream);
+    kernelFree((void *) area->outputStream);
 
   if (area->bufferData)
     kernelFree(area->bufferData);
@@ -364,8 +372,10 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
     {
       diffVisibleRows = min(diffRows, area->scrollBackLines);
       for (rowCount = 0; rowCount < area->maxBufferLines; rowCount ++)
-	strncpy((newBufferData + ((diffVisibleRows + rowCount) * columns)),
-		(area->bufferData + (rowCount * area->columns)), copyColumns);
+	strncpy((char *) (newBufferData + ((diffVisibleRows + rowCount) *
+					   columns)),
+		(char *) (area->bufferData + (rowCount * area->columns)),
+		copyColumns);
       area->cursorRow += diffVisibleRows;
       area->scrollBackLines -= diffVisibleRows;
     }
@@ -373,17 +383,15 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
     {
       diffVisibleRows = min(-diffRows, area->scrollBackLines);
       for (rowCount = 0; rowCount < newBufferLines; rowCount ++)
-	strncpy((newBufferData + (rowCount * columns)),
-		(area->bufferData + ((diffVisibleRows + rowCount) *
-				     area->columns)), copyColumns);
+	strncpy((char *) (newBufferData + (rowCount * columns)),
+		(char *) (area->bufferData + ((diffVisibleRows + rowCount) *
+					      area->columns)), copyColumns);
       if (area->cursorRow >= (area->rows - 1))
 	area->scrollBackLines += min(-diffRows, ((newBufferLines - rows) -
 						 area->scrollBackLines));
     }
 
-  if (area->windowComponent)
-    ((kernelWindowComponent *) area->windowComponent)
-      ->update(area->windowComponent);
+  updateComponent(area);
 
   // Free the old buffers and assign the new ones
   kernelFree(area->bufferData);
@@ -534,7 +542,7 @@ int kernelTextSetCurrentInput(kernelTextInputStream *newInput)
   currentInput = newInput;
 
   // Tell the keyboard driver to append all new input to this stream
-  status = kernelKeyboardSetStream((stream *) &(currentInput->s));
+  status = kernelKeyboardSetStream(&(currentInput->s));
 
   return (status);
 }
@@ -587,15 +595,14 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
   if (newStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  status = kernelStreamNew((stream *) &(newStream->s), TEXT_STREAMSIZE,
-			   itemsize_byte);
+  status = kernelStreamNew(&(newStream->s), TEXT_STREAMSIZE, itemsize_byte);
   if (status < 0)
     return (status);
 
   // We want to be able to intercept things as they're put into the input
   // stream, so we can catch keyboard interrupts and such.
   newStream->s.intercept = newStream->s.append;
-  newStream->s.append = (int (*) (void *, ...)) &currentInputIntercept;
+  newStream->s.append = (int (*) (stream *, ...)) &currentInputIntercept;
   newStream->echo = 1;
 
   return (status = 0);
@@ -1251,9 +1258,7 @@ void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 	    outputStream->textArea->scrolledBackLines);
     }
 
-  if (outputStream->textArea->windowComponent)
-    ((kernelWindowComponent *) outputStream->textArea->windowComponent)
-      ->update(outputStream->textArea->windowComponent);
+  updateComponent(outputStream->textArea);
 
   // We will call the text stream output driver routines to scroll the screen
   // to the specified area
@@ -1610,7 +1615,7 @@ int kernelTextInputStreamGetc(kernelTextInputStream *inputStream,
     }
 
   // Call the 'pop' function for this stream
-  status = inputStream->s.pop((stream *) &(inputStream->s), returnChar);
+  status = inputStream->s.pop(&(inputStream->s), returnChar);
 
   // Return the status from the call
   return (status);
@@ -1642,12 +1647,12 @@ int kernelTextInputStreamPeek(kernelTextInputStream *inputStream,
     inputStream = kernelMultitaskerGetTextInput();
 
   // Call the 'pop' function for this stream
-  status = inputStream->s.pop((stream *) &(inputStream->s), returnChar);
+  status = inputStream->s.pop(&(inputStream->s), returnChar);
   if (status)
     return (status);
 
   // Push the character back into the stream
-  status = inputStream->s.push((stream *) &(inputStream->s), *returnChar);
+  status = inputStream->s.push(&(inputStream->s), *returnChar);
 
   // Return the status from the call
   return (status);
@@ -1680,8 +1685,8 @@ int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
     inputStream = kernelMultitaskerGetTextInput();
 
   // Call the 'popN' function for this stream
-  status = inputStream->s.popN((stream *) &(inputStream->s), numberRequested,
-			       returnChars);
+  status =
+    inputStream->s.popN(&(inputStream->s), numberRequested, returnChars);
 
   // Return the status from the call
   return (status);
@@ -1715,8 +1720,8 @@ int kernelTextInputStreamReadAll(kernelTextInputStream *inputStream,
 
   // Get all of the characters in the stream.  Call the 'popN' function
   // for this stream
-  status = inputStream->s.popN((stream *) &(inputStream->s),
-			       inputStream->s.count, returnChars);
+  status =
+    inputStream->s.popN(&(inputStream->s), inputStream->s.count, returnChars);
 
   // Return the status from the call
   return (status);
@@ -1743,8 +1748,7 @@ int kernelTextInputStreamAppend(kernelTextInputStream *inputStream, int ascii)
     inputStream = kernelMultitaskerGetTextInput();
 
   // Call the 'append' function for this stream
-  status = inputStream->s.append((stream *) &(inputStream->s),
-				 (unsigned char) ascii);
+  status = inputStream->s.append(&(inputStream->s), (unsigned char) ascii);
 
   // Return the status from the call
   return (status);
@@ -1776,8 +1780,8 @@ int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
     inputStream = kernelMultitaskerGetTextInput();
 
   // Call the 'appendN' function for this stream
-  status = inputStream->s.appendN((stream *) &(inputStream->s),
-				  numberRequested, addCharacters);
+  status =
+    inputStream->s.appendN(&(inputStream->s), numberRequested, addCharacters);
 
   // Return the status from the call
   return (status);
@@ -1806,7 +1810,7 @@ int kernelTextInputStreamRemove(kernelTextInputStream *inputStream)
 
   // Call the 'pop' function for this stream, and discard the char we
   // get back.
-  status = inputStream->s.pop((stream *) &(inputStream->s), &junk);
+  status = inputStream->s.pop(&(inputStream->s), &junk);
 
   // Return the status from the call
   return (status);
@@ -1836,8 +1840,7 @@ int kernelTextInputStreamRemoveN(kernelTextInputStream *inputStream,
 
   // Call the 'popN' function for this stream, and discard the chars we
   // get back.
-  status = inputStream->s.popN((stream *) &(inputStream->s), numberRequested,
-			       junk);
+  status = inputStream->s.popN(&(inputStream->s), numberRequested, junk);
 
   // Return the status from the call
   return (status);
@@ -1864,7 +1867,7 @@ int kernelTextInputStreamRemoveAll(kernelTextInputStream *inputStream)
     inputStream = kernelMultitaskerGetTextInput();
 
   // Call the 'clear' function for this stream
-  status = inputStream->s.clear((stream *) &(inputStream->s));
+  status = inputStream->s.clear(&(inputStream->s));
 
   // Return the status from the call
   return (status);

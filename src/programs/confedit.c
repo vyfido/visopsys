@@ -61,12 +61,21 @@ static variableList list;
 static listItemParameters *listItemParams = NULL;
 static int changesPending = 0;
 static objectKey window = NULL;
-static objectKey menuSave = NULL;
-static objectKey menuQuit = NULL;
+static objectKey fileMenu = NULL;
 static objectKey listList = NULL;
 static objectKey addVariableButton = NULL;
 static objectKey changeVariableButton = NULL;
 static objectKey deleteVariableButton = NULL;
+
+#define FILEMENU_SAVE 0
+#define FILEMENU_QUIT 1
+windowMenuContents fileMenuContents = {
+  2,
+  {
+    { "Save", NULL },
+    { "Quit", NULL }
+  }
+};
 
 
 static int readConfigFile(void)
@@ -133,11 +142,11 @@ static void setVariableDialog(const char *variable)
   // Create the dialog
   if (variable)
     {
-      dialogWindow = windowNewDialog(window, "Change variable");
+      dialogWindow = windowNewDialog(window, "Change Variable");
       strncpy(variableBuffer, variable, 128);
     }
   else
-    dialogWindow = windowNewDialog(window, "Add variable");
+    dialogWindow = windowNewDialog(window, "Add Variable");
   if (dialogWindow == NULL)
     return;
 
@@ -283,44 +292,61 @@ static void setVariableDialog(const char *variable)
 }
 
 
-static void eventHandler(objectKey key, windowEvent *event)
+static void quit(void)
 {
   int selected = 0;
 
+  if (changesPending && !readOnly)
+    {
+      selected =
+	windowNewChoiceDialog(window, "Unsaved changes",
+			      "Quit without saving changes?",
+			      (char *[]) { "Save", "Quit", "Cancel" },
+			      3, 0);
+
+      if ((selected < 0) || (selected == 2))
+	return;
+
+      else if (selected == 0)
+	writeConfigFile();
+    }
+
+  windowGuiStop();
+}
+
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+  int selected = -1;
+  objectKey selectedItem = NULL;
+
   // Check for the window being closed by a GUI event.
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == menuQuit) && (event->type & EVENT_SELECTION)))
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+    quit();
+
+  // Check for menu events
+  else if ((key == fileMenu) && (event->type & EVENT_SELECTION))
     {
-      if (changesPending && !readOnly)
+      windowComponentGetData(fileMenu, &selectedItem, 1);
+      if (selectedItem)
 	{
-	  selected =
-	    windowNewChoiceDialog(window, "Unsaved changes",
-				  "Quit without saving changes?",
-				  (char *[]) { "Save", "Quit", "Cancel" },
-				  3, 0);
-
-	  if ((selected < 0) || (selected == 2))
-	    return;
-
-	  else if (selected == 0)
+	  if (selectedItem == fileMenuContents.items[FILEMENU_SAVE].key)
 	    writeConfigFile();
+	  else if (selectedItem == fileMenuContents.items[FILEMENU_QUIT].key)
+	    quit();
 	}
-      windowGuiStop();
     }
-  else if ((key == menuSave) && (event->type & EVENT_SELECTION))
-    {
-      writeConfigFile();
-    }
+
   else if ((key == addVariableButton) && (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      setVariableDialog(NULL);
-    }
+    setVariableDialog(NULL);
+
   else if ((key == changeVariableButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
       windowComponentGetSelected(listList, &selected);
       setVariableDialog(list.variables[selected]);
     }
+
   else if ((key == deleteVariableButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
@@ -347,27 +373,22 @@ static void constructWindow(void)
     return;
 
   bzero(&params, sizeof(componentParameters));
+
+  // Create the top 'file' menu
+  objectKey menuBar = windowNewMenuBar(window, &params);
+  fileMenu = windowNewMenu(menuBar, "File", &fileMenuContents, &params);
+  windowRegisterEventHandler(fileMenu, &eventHandler);
+  if (privilege || readOnly)
+    windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key, 0);
+
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 5;
-  params.padRight = 5;
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_middle;
 
-  // Create the top 'file' menu
-  objectKey menuBar = windowNewMenuBar(window, &params);
-  objectKey menu = windowNewMenu(menuBar, "File", &params);
-  menuSave = windowNewMenuItem(menu, "Save", &params);
-  windowRegisterEventHandler(menuSave, &eventHandler);
-  if (privilege || readOnly)
-    windowComponentSetEnabled(menuSave, 0);
-  menuQuit = windowNewMenuItem(menu, "Quit", &params);
-  windowRegisterEventHandler(menuQuit, &eventHandler);
-
-  params.gridY = 1;
-  params.padRight = 0;
   params.orientationX = orient_center;
   fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
   listList =
@@ -375,7 +396,7 @@ static void constructWindow(void)
 		  1, 0, listItemParams, list.numVariables, &params);
 
   // Make a container component for the buttons
-  params.gridX = 1;
+  params.gridX += 1;
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
@@ -396,14 +417,14 @@ static void constructWindow(void)
   windowRegisterEventHandler(addVariableButton, &eventHandler);
 
   // Create a 'change variable' button
-  params.gridY = 1;
+  params.gridY += 1;
   params.padTop = 5;
   changeVariableButton =
     windowNewButton(buttonContainer, "Change variable", NULL, &params);
   windowRegisterEventHandler(changeVariableButton, &eventHandler);
       
   // Create a 'delete variable' button
-  params.gridY = 2;
+  params.gridY += 1;
   deleteVariableButton =
     windowNewButton(buttonContainer, "Delete variable", NULL, &params);
   windowRegisterEventHandler(deleteVariableButton, &eventHandler);

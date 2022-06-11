@@ -24,4 +24,3 @@ clean:
 	make -C lib clean
 	make -C kernel clean
 	make -C programs clean
-	rm -Rf

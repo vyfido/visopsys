@@ -521,9 +521,9 @@ int kernelDeviceRemove(kernelDevice *old)
       return (status = ERR_NULLPARAMETER);
     }
   
-  parent = (kernelDevice *) old->device.parent;
-  previous = (kernelDevice *) old->device.previous;
-  next = (kernelDevice *) old->device.next;
+  parent = old->device.parent;
+  previous = old->device.previous;
+  next = old->device.next;
   
   // If this is the parent's first child, substitute the next device pointer
   // (whether or not it's NULL)

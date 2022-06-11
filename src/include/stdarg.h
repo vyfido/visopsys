@@ -29,7 +29,7 @@ typedef void * va_list;
 
 #define va_start(list, lastpar) (list = &lastpar)
 #define va_arg(list, type) *((type *)(list += sizeof(int)))
-#define va_end(list) (list = NULL)
+#define va_end(list) do {} while (0)
 
 #define _STDARG_H
 #endif

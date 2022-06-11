@@ -55,7 +55,7 @@ static struct {
 };
 
 
-static int driverDetectBios(void *parent, void *driver)
+static int driverDetectBios(void *parent, kernelDriver *driver)
 {
   int status = 0;
   void *biosArea = NULL;
@@ -149,7 +149,7 @@ static kernelDevice *regDevice(void *parent, void *driver,
 }
 
 
-static int driverDetectCpu(void *parent, void *driver)
+static int driverDetectCpu(void *parent, kernelDriver *driver)
 {
   int status = 0;
   unsigned cpuIdLimit = 0;
@@ -264,7 +264,7 @@ static int driverDetectCpu(void *parent, void *driver)
 }
 
 
-static int driverDetectMemory(void *parent, void *driver)
+static int driverDetectMemory(void *parent, kernelDriver *driver)
 {
   int status = 0;
 
@@ -284,25 +284,25 @@ static int driverDetectMemory(void *parent, void *driver)
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelBiosDriverRegister(void *driverData)
+void kernelBiosDriverRegister(kernelDriver *driver)
 {
-   // Device driver registration.
-  ((kernelDriver *) driverData)->driverDetect = driverDetectBios;
+  // Device driver registration.
+  driver->driverDetect = driverDetectBios;
   return;
 }
 
 
-void kernelCpuDriverRegister(void *driverData)
+void kernelCpuDriverRegister(kernelDriver *driver)
 {
-   // Device driver registration.
-  ((kernelDriver *) driverData)->driverDetect = driverDetectCpu;
+  // Device driver registration.
+  driver->driverDetect = driverDetectCpu;
   return;
 }
 
 
-void kernelMemoryDriverRegister(void *driverData)
+void kernelMemoryDriverRegister(kernelDriver *driver)
 {
-   // Device driver registration.
-  ((kernelDriver *) driverData)->driverDetect = driverDetectMemory;
+  // Device driver registration.
+  driver->driverDetect = driverDetectMemory;
   return;
 }

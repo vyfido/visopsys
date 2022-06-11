@@ -25,35 +25,32 @@
 #include "kernelUsbHidDriver.h"
 #include "kernelBus.h"
 #include "kernelDevice.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMouse.h"
-#include "kernelError.h"
 #include <string.h>
 
-//#define DEBUG
-
-#ifdef DEBUG
-  #include "kernelText.h"
-
-  #define debug(message, arg...) kernelTextPrintLine(message, ##arg)
+#ifdef USB_HID_DEBUG
 
 static void debugHidDesc(usbHidDesc *hidDesc)
 {
-  kernelTextPrintLine("USB_HID: debug HID descriptor:");
-  kernelTextPrintLine("    descLength=%d", hidDesc->descLength);
-  kernelTextPrintLine("    descType=%x", hidDesc->descType);
-  kernelTextPrintLine("    hidVersion=%d.%d",
-		      ((hidDesc->hidVersion & 0xFF00) >> 8),
-		      (hidDesc->hidVersion & 0xFF));
-  kernelTextPrintLine("    countryCode=%d", hidDesc->countryCode);
-  kernelTextPrintLine("    numDescriptors=%d", hidDesc->numDescriptors);
-  kernelTextPrintLine("    repDescType=%d", hidDesc->repDescType);
-  kernelTextPrintLine("    repDescLength=%d", hidDesc->repDescLength);
+  kernelDebug(debug_usb, "Debug HID descriptor:\n"
+	      "    descLength=%d\n"
+	      "    descType=%x\n"
+	      "    hidVersion=%d.%d\n"
+	      "    countryCode=%d\n"
+	      "    numDescriptors=%d\n"
+	      "    repDescType=%d\n"
+	      "    repDescLength=%d", hidDesc->descLength, hidDesc->descType,
+	      ((hidDesc->hidVersion & 0xFF00) >> 8),
+	      (hidDesc->hidVersion & 0xFF), hidDesc->countryCode,
+	      hidDesc->numDescriptors, hidDesc->repDescType,
+	      hidDesc->repDescLength);
 }
 
 #else
-  #define debug(message, arg...) do { } while (0)
   #define debugHidDesc(hidDesc) do { } while (0)
 #endif
 
@@ -124,7 +121,10 @@ static hidDevice *findHid(int target)
   // Try to find the device
   for (count = 0; count < numDevices; count ++)
     if (devices[count]->target == target)
-      return (devices[count]);	
+      return (devices[count]);
+
+  // Not found
+  return (NULL);
 }
 
 
@@ -134,8 +134,8 @@ static int getHidDescriptor(hidDevice *hidDev)
   usbTransaction usbTrans;
   //usbHidMouseData mouseData;
 
-  debug("USB_HID: Get HID descriptor for target %d, interface %d",
-	hidDev->target, hidDev->usbDev.interDesc[0]->interNum);
+  kernelDebug(debug_usb, "Get HID descriptor for target %d, interface %d",
+	      hidDev->target, hidDev->usbDev.interDesc[0]->interNum);
 
   // Set up the USB transaction to send the 'get descriptor' command
   kernelMemClear(&usbTrans, sizeof(usbTrans));
@@ -182,12 +182,12 @@ static int getHidDescriptor(hidDevice *hidDev)
       // Write the command
       status = kernelBusWrite(bus_usb, hidDev->target, &usbTrans);
       if (status < 0)
-	debug("USB_HID: transfer error");
+	kernelDebug(debug_usb, "Transfer error");
 
       if (usbTrans.bytes)
 	{
-	  debug("USB_HID: mouse buttons=%x xChange=%d yChange=%d",
-		mouseData.buttons, mouseData.xChange, mouseData.yChange);
+	  kernelDebug(debug_usb, "Mouse buttons=%x xChange=%d yChange=%d",
+	              mouseData.buttons, mouseData.xChange, mouseData.yChange);
 	}
     }
   */
@@ -250,8 +250,8 @@ static int mouseDetectTarget(void *parent, int target, void *driver)
 	{
 	  hidDev->intIn = hidDev->usbDev.endpointDesc[count];
 	  hidDev->intInEndpoint = (hidDev->intIn->endpntAddress & 0xF);
-	  debug("USB_HID: Got interrupt in endpoint %d",
-	 	hidDev->intInEndpoint);
+	  kernelDebug(debug_usb, "Got interrupt in endpoint %d",
+		      hidDev->intInEndpoint);
 	}
     }
 
@@ -263,13 +263,14 @@ static int mouseDetectTarget(void *parent, int target, void *driver)
       return (status);
     }
 
-  debug("USB_HID: Detected mouse");
+  kernelDebug(debug_usb, "Detected mouse");
 
   return (status = 0);
 }
 
 
-static int mouseDetect(void *parent __attribute__((unused)), void *driver)
+static int mouseDetect(void *parent __attribute__((unused)),
+		       kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.
@@ -313,7 +314,7 @@ static int mouseDetect(void *parent __attribute__((unused)), void *driver)
 
 
 static int mouseHotplug(void *parent, int busType __attribute__((unused)),
-			int target, int connected, void *driver)
+			int target, int connected, kernelDriver *driver)
 {
   // This routine is used to detect whether a newly-connected, hotplugged
   // device is supported by this driver during runtime, and if so to do the
@@ -365,11 +366,9 @@ static kernelMouseOps mouseOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelUsbMouseDriverRegister(void *driverData)
+void kernelUsbMouseDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = mouseDetect;
   driver->driverHotplug = mouseHotplug;

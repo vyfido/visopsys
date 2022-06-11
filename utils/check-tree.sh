@@ -20,7 +20,7 @@ if [ ! -d $BUILD_DIR ] ; then
 	echo ERROR: No build directory
 	exit 1
 fi
-    
+
 # Get the list of all files in the build directory
 (cd $BUILD_DIR; find *) > $BUILD_FILES
 

@@ -23,28 +23,29 @@
 // get called from external locations.
 
 #include "kernelApi.h"
-#include "kernelParameters.h"
-#include "kernelText.h"
+#include "kernelDebug.h"
 #include "kernelDisk.h"
-#include "kernelFile.h"
-#include "kernelFilesystem.h"
-#include "kernelFileStream.h"
-#include "kernelMemory.h"
-#include "kernelMultitasker.h"
-#include "kernelLoader.h"
-#include "kernelRtc.h"
-#include "kernelRandom.h"
-#include "kernelEnvironment.h"
-#include "kernelWindow.h"
-#include "kernelUser.h"
-#include "kernelNetworkDevice.h"
-#include "kernelNetwork.h"
-#include "kernelShutdown.h"
-#include "kernelMisc.h"
 #include "kernelEncrypt.h"
-#include "kernelKeyboard.h"
-#include "kernelProcessorX86.h"
+#include "kernelEnvironment.h"
 #include "kernelError.h"
+#include "kernelFile.h"
+#include "kernelFileStream.h"
+#include "kernelFilesystem.h"
+#include "kernelKeyboard.h"
+#include "kernelLoader.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelNetwork.h"
+#include "kernelNetworkDevice.h"
+#include "kernelParameters.h"
+#include "kernelProcessorX86.h"
+#include "kernelRandom.h"
+#include "kernelRtc.h"
+#include "kernelShutdown.h"
+#include "kernelText.h"
+#include "kernelUser.h"
+#include "kernelWindow.h"
 
 // We do this so that <sys/api.h> won't complain about being included
 // in a kernel file
@@ -387,16 +388,18 @@ static kernelFunctionIndex windowFunctionIndex[] = {
     2, PRIVILEGE_USER },
   { _fnum_windowSetMovable, kernelWindowSetMovable, 2, PRIVILEGE_USER },
   { _fnum_windowSetResizable, kernelWindowSetResizable, 2, PRIVILEGE_USER },
-  { _fnum_windowSetHasMinimizeButton, kernelWindowSetHasMinimizeButton,
-    2, PRIVILEGE_USER },
-  { _fnum_windowSetHasCloseButton, kernelWindowSetHasCloseButton,
-    2, PRIVILEGE_USER },
+  { _fnum_windowRemoveMinimizeButton, kernelWindowRemoveMinimizeButton,
+    1, PRIVILEGE_USER },
+  { _fnum_windowRemoveCloseButton, kernelWindowRemoveCloseButton,
+    1, PRIVILEGE_USER },
   { _fnum_windowSetColors, kernelWindowSetColors, 2, PRIVILEGE_USER },
   { _fnum_windowSetVisible, kernelWindowSetVisible, 2, PRIVILEGE_USER },
   { _fnum_windowSetMinimized, kernelWindowSetMinimized, 2, PRIVILEGE_USER },
   { _fnum_windowAddConsoleTextArea, kernelWindowAddConsoleTextArea,
-    2, PRIVILEGE_USER },
+    1, PRIVILEGE_USER },
   { _fnum_windowRedrawArea, kernelWindowRedrawArea, 4, PRIVILEGE_USER },
+  { _fnum_windowDrawAll, kernelWindowDrawAll, 0, PRIVILEGE_USER },
+  { _fnum_windowResetColors, kernelWindowResetColors, 0, PRIVILEGE_USER },
   { _fnum_windowProcessEvent, kernelWindowProcessEvent, 1, PRIVILEGE_USER },
   { _fnum_windowComponentEventGet, kernelWindowComponentEventGet,
     2, PRIVILEGE_USER },
@@ -410,6 +413,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowSetTextOutput, kernelWindowSetTextOutput, 1, PRIVILEGE_USER },
   { _fnum_windowLayout, kernelWindowLayout, 1, PRIVILEGE_USER },
   { _fnum_windowDebugLayout, kernelWindowDebugLayout, 1, PRIVILEGE_USER },
+  { _fnum_windowContextAdd, kernelWindowContextAdd, 2, PRIVILEGE_USER },
+  { _fnum_windowContextSet, kernelWindowContextSet, 2, PRIVILEGE_USER },
   { _fnum_windowComponentDestroy, kernelWindowComponentDestroy,
     1, PRIVILEGE_USER },
   { _fnum_windowComponentSetVisible, kernelWindowComponentSetVisible,
@@ -443,7 +448,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowNewImage, kernelWindowNewImage, 4, PRIVILEGE_USER },
   { _fnum_windowNewList, kernelWindowNewList, 8, PRIVILEGE_USER },
   { _fnum_windowNewListItem, kernelWindowNewListItem, 3, PRIVILEGE_USER },
-  { _fnum_windowNewMenu, kernelWindowNewMenu, 3, PRIVILEGE_USER },
+  { _fnum_windowNewMenu, kernelWindowNewMenu, 4, PRIVILEGE_USER },
   { _fnum_windowNewMenuBar, kernelWindowNewMenuBar, 2, PRIVILEGE_USER },
   { _fnum_windowNewMenuItem, kernelWindowNewMenuItem, 3, PRIVILEGE_USER },
   { _fnum_windowNewPasswordField, kernelWindowNewPasswordField,
@@ -453,6 +458,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowNewRadioButton, kernelWindowNewRadioButton,
     6, PRIVILEGE_USER },
   { _fnum_windowNewScrollBar, kernelWindowNewScrollBar, 5, PRIVILEGE_USER },
+  { _fnum_windowNewSlider, kernelWindowNewSlider, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextArea, kernelWindowNewTextArea, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextField, kernelWindowNewTextField, 3, PRIVILEGE_USER },
   { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER }
@@ -558,36 +564,69 @@ static kernelFunctionIndex *functionIndex[] = {
 };
 
 
-static int processCall(unsigned *argList)
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+void kernelApi(unsigned CS __attribute__((unused)), unsigned *argList)
 {
+  // This is the initial entry point for the kernel's API.  This
+  // function will be first the recipient of all calls to the global
+  // call gate.  This function will pass a pointer to the rest of the
+  // arguments to the processCall function that does all the real work.
+  // This funcion does the far return.
+
   int status = 0;
+  unsigned stackAddress = 0;
   int argCount = 0;
-  unsigned functionNumber = 0;
+  int functionNumber = 0;
   kernelFunctionIndex *functionEntry = NULL;
   int currentProc = 0;
   int currentPriv = 0;
-  int (*functionPointer)();
+  int (*functionPointer)() = NULL;
+  int count;
+#if defined(DEBUG)
+  extern kernelSymbol *kernelSymbols;
+  extern int kernelNumberSymbols;
+  char *symbol = "unknown";
+#endif // defined(DEBUG)
+
+  kernelProcessorApiEnter(stackAddress);
 
   // Check arg
   if (argList == NULL)
     {
       kernelError(kernel_error, "No args supplied to API call");
-      return (status = ERR_NULLPARAMETER);
+      status = ERR_NULLPARAMETER;
+      goto out;
     }
 
   // How many parameters are there?
   argCount = argList[0];
   argCount--;
 
-  if (argCount > API_MAX_ARGS)
-    {
-      kernelError(kernel_error, "Illegal number of arguments (%u) to API "
-		  "call", argCount);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
   // Which function number are we being asked to call?
   functionNumber = argList[1];
+
+  if ((functionNumber < 1000) || (functionNumber > 99999))
+    {
+      kernelError(kernel_error, "Illegal function number (%d) in API call",
+		  functionNumber);
+      status = ERR_NOSUCHENTRY;
+      goto out;
+    }
+  if ((argCount < 0) || (argCount > API_MAX_ARGS))
+    {
+      kernelError(kernel_error, "Illegal number of arguments (%d) to API "
+		  "call %d", argCount, argList[1]);
+      status = ERR_ARGUMENTCOUNT;
+      goto out;
+    }
 
   if ((functionNumber / 1000) == 99)
     // 'misc' functions are in spot 0
@@ -600,17 +639,20 @@ static int processCall(unsigned *argList)
   if ((functionEntry == NULL) ||
       (functionEntry->functionNumber != functionNumber))
     {
-      kernelError(kernel_error, "No such API function %d", functionNumber);
-      return (status = ERR_NOSUCHFUNCTION);
+      kernelError(kernel_error, "No such API function %d in API call",
+		  functionNumber);
+      status = ERR_NOSUCHFUNCTION;
+      goto out;
     }
 
   // Do the number of args match the number expected?
   if (argCount != functionEntry->argCount)
     {
       kernelError(kernel_error, "Incorrect number of arguments (%d) to API "
-		  "function %u (%d)", argCount, functionEntry->functionNumber,
+		  "call %d (%d)", argCount, functionEntry->functionNumber,
 		  functionEntry->argCount);
-      return (status = ERR_ARGUMENTCOUNT);
+      status = ERR_ARGUMENTCOUNT;
+      goto out;
     }
 
   // Does the caller have the adequate privilege level to call this
@@ -620,98 +662,50 @@ static int processCall(unsigned *argList)
   if (currentPriv < 0)
     {
       kernelError(kernel_error, "Couldn't determine current privilege level "
-		  "for call to API function %d",
-		  functionEntry->functionNumber);
-      return (status = ERR_BUG);
+		  "in call to API function %d", functionEntry->functionNumber);
+      status = currentPriv;
+      goto out;
     }
   else if (currentPriv > functionEntry->privilege)
     {
       kernelError(kernel_error, "Insufficient privilege to invoke API "
 		  "function %d", functionEntry->functionNumber);
-      return (status = ERR_PERMISSION);
+      status = ERR_PERMISSION;
+      goto out;
     }
 
   // Make 'functionPointer' equal the address of the requested kernel
   // function.
   functionPointer = functionEntry->functionPointer;
-  
-  // Call the function, with the appropriate number of arguments.
-  switch(argCount)
+
+#if defined(DEBUG)
+  if (kernelSymbols)
     {
-    case 0:
-      return (functionPointer());
-    case 1:
-      return (functionPointer(argList[2]));
-    case 2:
-      return (functionPointer(argList[2], argList[3]));
-    case 3:
-      return (functionPointer(argList[2], argList[3], argList[4]));
-    case 4:
-      return (functionPointer(argList[2], argList[3], argList[4], 
-			      argList[5]));
-    case 5:
-      return (functionPointer(argList[2], argList[3], argList[4], 
-			      argList[5], argList[6]));
-    case 6:
-      return (functionPointer(argList[2], argList[3], argList[4], 
-			      argList[5], argList[6], argList[7]));
-    case 7:
-      return (functionPointer(argList[2], argList[3], argList[4], 
-			      argList[5], argList[6], argList[7],
-			      argList[8]));
-    case 8:
-      return (functionPointer(argList[2], argList[3], argList[4], 
-			      argList[5], argList[6], argList[7],
-			      argList[8], argList[9]));
-    case 9:
-      return (functionPointer(argList[2], argList[3], argList[4], 
-			      argList[5], argList[6], argList[7],
-			      argList[8], argList[9], argList[10]));
-    default:
-      return (status = ERR_ARGUMENTCOUNT);
+      for (count = 0; count < kernelNumberSymbols; count ++)
+	if (kernelSymbols[count].address == (unsigned) functionPointer)
+	  {
+	    symbol = kernelSymbols[count].symbol;
+	    break;
+	  }
     }
-}
+  kernelDebug(debug_api, "Kernel API function %d (%s), %d args ",
+  	      functionNumber, symbol, argCount);
+  for (count = 0; count < argCount; count ++)
+    kernelDebug(debug_api, "arg %d=%p", count, (void *) argList[count + 2]);
+#endif // defined(DEBUG)
 
+  for (count = (argCount + 1); count > 1; count --)
+    kernelProcessorPush(argList[count]);
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
+  status = functionPointer();
 
+  for (count = (argCount + 1); count > 1; count --)
+    kernelProcessorPop(argList[count]);
 
-int kernelApi(unsigned CS, unsigned argStart)
-{
-  // This is the initial entry point for the kernel's API.  This
-  // function will be first the recipient of all calls to the global
-  // call gate.  This function will pass a pointer to the rest of the
-  // arguments to the processCall function that does all the real work.
-  // This funcion does the far return.
+#if defined(DEBUG)
+  kernelDebug(debug_api, "ret=%d", status);
+#endif
 
-  static int status = 0;
-  static void *argument = 0;
- 	
-  kernelProcessorApiEnter();
-
-  // We get a pointer to the calling function's parameters differently
-  // depending on whether there was a privilege level switch.  Find
-  // out by checking the privilege of the CS register pushed as
-  // part of the return address.
-  if (CS & PRIVILEGE_USER)
-    // The caller is unprivileged, so its stack pointer is on our
-    // stack just beyond IP, CS, and the flags
-    argument = (void *) argStart;
-  else
-    // Privileged.  Same as above, but the first argument is on *our*
-    // stack.
-    argument = &argStart;
-
-  status = processCall(argument);
-
-  kernelProcessorApiExit(status);
-
-  // Make the compiler happy -- never reached
-  return (0);
+ out:
+  kernelProcessorApiExit(stackAddress, status);
 }

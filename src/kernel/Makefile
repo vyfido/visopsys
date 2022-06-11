@@ -7,32 +7,32 @@
 
 ##  This file is the Makefile for the Visopsys kernel itself.
 
-UTILSDIR=../../utils
-BUILDDIR=../../build
+ROOT=../..
+UTILSDIR=${ROOT}/utils
+BUILDDIR=${ROOT}/build
 INCDIR=../include
 LIBDIR=${BUILDDIR}/system/libraries
 
+include ${ROOT}/Makefile.include
+
 ifeq (${RELEASE},)
-	RELEASE	= $(shell ${UTILSDIR}/release.sh)
-endif
-ifeq (${ARCH},)
-	ARCH	= $(shell ${UTILSDIR}/arch.sh)
+	RELEASE = $(shell ${UTILSDIR}/release.sh)
 endif
 
-STDDEPS		= Makefile *.h ${INCDIR}/sys/*.h ${INCDIR}/*.h ${LIBDIR}/libc.a
-CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
-WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
-		-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls \
-		-Werror
+STDDEPS		= ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
+		${INCDIR}/*.h ${LIBDIR}/libc.a
 INCLUDE		= -nostdinc -I. -I${INCDIR}
-CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
-LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
+DEBUG		= # -DDEBUG # Uncomment to turn on debugging
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL \
+		${DEBUG}
+LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static \
+		-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
 # kernelMain needs to go first
 NAMES =	kernelMain \
 	kernelApi \
 	kernelBus \
+	kernelDebug \
 	kernelDescriptor \
 	kernelDevice \
 	kernelDisk \
@@ -100,6 +100,8 @@ NAMES =	kernelMain \
 	kernelWindowRadioButton \
 	kernelWindowScrollBar \
 	kernelWindowShell \
+	kernelWindowSlider \
+	kernelWindowSysContainer \
 	kernelWindowTextArea \
 	kernelWindowTextField \
 	kernelWindowTextLabel \
@@ -155,7 +157,7 @@ clean:
 # Object files with explicit rules
 
 obj/kernelApi.o: kernelApi.c ${STDDEPS}
-	${CC} ${CFLAGS} -Wno-strict-prototypes -c $< -o $@
+	${CC} ${CFLAGS} -O0 -Wno-strict-prototypes -c $< -o $@
 
 obj/kernelMisc.o: kernelMisc.c ${STDDEPS}
 	${CC} ${CFLAGS} -D_KVERSION_=\"${RELEASE}\" -c $< -o $@

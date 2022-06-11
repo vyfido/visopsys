@@ -30,6 +30,8 @@
 #define USB_HID_SET_IDLE      0x0A
 #define USB_HID_SET_PROTOCOL  0x0B
 
+//#define USB_HID_DEBUG 1
+
 typedef struct {
   unsigned char descLength;     // Number of bytes in this descriptor
   unsigned char descType;       // Type, HID descriptor type

@@ -34,9 +34,12 @@
 // The 'flags' values for the field in kernelFileEntry
 #define FLAG_SECUREDELETE 0x01
 
+// Can't include kernelDisk.h, it's circular.
+struct _kernelDisk;
+
 // This structure defines a file or directory entry
-typedef volatile struct {
-  unsigned char name[MAX_NAME_LENGTH];
+typedef volatile struct _kernelFileEntry {
+  char name[MAX_NAME_LENGTH];
   fileType type;
   int flags;
   unsigned creationTime;
@@ -49,26 +52,26 @@ typedef volatile struct {
   unsigned blocks;
 
   // Misc
-  void *disk;           // parent filesystem
-  void *driverData;     // private fs-driver-specific data
+  volatile struct _kernelDisk *disk;     // parent filesystem
+  void *driverData;                      // private fs-driver-specific data
   int openCount;
   lock lock;
 
   // Linked-list stuff.
-  void *parentDirectory;
-  void *previousEntry;
-  void *nextEntry;
+  volatile struct _kernelFileEntry *parentDirectory;
+  volatile struct _kernelFileEntry *previousEntry;
+  volatile struct _kernelFileEntry *nextEntry;
   unsigned lastAccess;
 
   // (The following additional stuff only applies to directories and links)
-  void *contents;
+  volatile struct _kernelFileEntry *contents;
 
 } kernelFileEntry;
 
 // Functions exported by kernelFile.c
 int kernelFileInitialize(void);
 int kernelFileSetRoot(kernelFileEntry *);
-kernelFileEntry *kernelFileNewEntry(void *);
+kernelFileEntry *kernelFileNewEntry(volatile struct _kernelDisk *);
 void kernelFileReleaseEntry(kernelFileEntry *);
 int kernelFileInsertEntry(kernelFileEntry *, kernelFileEntry *);
 int kernelFileRemoveEntry(kernelFileEntry *);
@@ -89,8 +92,8 @@ int kernelFileNext(const char *, file *);
 int kernelFileFind(const char *, file *);
 int kernelFileOpen(const char *, int, file *);
 int kernelFileClose(file *);
-int kernelFileRead(file *, unsigned, unsigned, unsigned char *);
-int kernelFileWrite(file *, unsigned, unsigned, unsigned char *);
+int kernelFileRead(file *, unsigned, unsigned, void *);
+int kernelFileWrite(file *, unsigned, unsigned, void *);
 int kernelFileDelete(const char *);
 int kernelFileDeleteRecursive(const char *);
 int kernelFileDeleteSecure(const char *);

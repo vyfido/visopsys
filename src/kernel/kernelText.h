@@ -26,6 +26,20 @@
 #include "kernelGraphic.h"
 #include <sys/text.h>
 
+// Forward declarations, where necessary
+struct _kernelTextOutputStream;
+// Can't include kernelWindow.h, it's circular.
+struct _kernelWindowComponent;
+
+// A text input stream.  In single user operation there is only one, and it's
+// where all keyboard input goes.
+typedef volatile struct {
+  stream s;
+  int ownerPid;
+  int echo;
+
+} kernelTextInputStream;
+
 // A data structure to represent a text area on the screen which gets drawn
 // by the appropriate driver functions
 typedef volatile struct {
@@ -43,13 +57,12 @@ typedef volatile struct {
   int hidden;
   color foreground;
   color background;
-  void *inputStream;
-  void *outputStream;
+  kernelTextInputStream *inputStream;
+  volatile struct _kernelTextOutputStream *outputStream;
   unsigned char *bufferData;
   unsigned char *visibleData;
   kernelAsciiFont *font;
-  void *windowComponent;
-  kernelGraphicBuffer *graphicBuffer;
+  volatile struct _kernelWindowComponent *windowComponent;
   int noScroll;
 
 } kernelTextArea;
@@ -73,17 +86,8 @@ typedef struct {
 
 } kernelTextOutputDriver;
 
-// A text input stream.  In single user operation there is only one, and it's
-// where all keyboard input goes.
-typedef volatile struct {
-  stream s;
-  int ownerPid;
-  int echo;
-
-} kernelTextInputStream;
-
 // This structure is used to refer to a stream made up of text.
-typedef volatile struct {
+typedef volatile struct _kernelTextOutputStream {
   kernelTextOutputDriver *outputDriver;
   kernelTextArea *textArea;
 

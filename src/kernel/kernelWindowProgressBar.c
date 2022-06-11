@@ -32,19 +32,16 @@ static int borderShadingIncrement = 15;
 static kernelAsciiFont *defaultFont = NULL;
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the progress bar component
 
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowProgressBar *progressBar =
-    (kernelWindowProgressBar *) component->data;
-  kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
-    &(((kernelWindow *) component->window)->buffer);
+  kernelWindowProgressBar *progressBar = component->data;
   char prog[5];
 
   // Draw the background of the progress bar
-  kernelGraphicDrawRect(buffer, (color *) &(component->parameters.background),
+  kernelGraphicDrawRect(component->buffer,
+			(color *) &(component->parameters.background),
 			draw_normal, (component->xCoord + borderThickness),
 			(component->yCoord + borderThickness),
 			(component->width - (borderThickness * 2)),
@@ -52,11 +49,13 @@ static int draw(void *componentData)
 			1, 1);
 
   // Draw the border
-  kernelGraphicDrawGradientBorder(buffer, component->xCoord, component->yCoord,
+  kernelGraphicDrawGradientBorder(component->buffer,
+				  component->xCoord, component->yCoord,
 				  component->width, component->height,
 				  borderThickness, (color *)
 				  &(component->parameters.background),
-				  borderShadingIncrement, draw_reverse);
+				  borderShadingIncrement, draw_reverse,
+				  border_all);
 
   // Draw the slider
   progressBar->sliderWidth = (((component->width - (borderThickness * 2)) *
@@ -64,18 +63,20 @@ static int draw(void *componentData)
   if (progressBar->sliderWidth < (borderThickness * 2))
     progressBar->sliderWidth = (borderThickness * 2);
   
-  kernelGraphicDrawGradientBorder(buffer,
+  kernelGraphicDrawGradientBorder(component->buffer,
 				  (component->xCoord + borderThickness),
 				  (component->yCoord + borderThickness),
 				  progressBar->sliderWidth,
 				  (component->height - (borderThickness * 2)),
 				  borderThickness, (color *)
 				  &(component->parameters.background),
-				  borderShadingIncrement, draw_normal);
+				  borderShadingIncrement, draw_normal,
+				  border_all);
 
   // Print the progress percent
   sprintf(prog, "%d%%", progressBar->progressPercent);
-  kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
+  kernelGraphicDrawText(component->buffer,
+			(color *) &(component->parameters.foreground),
 			(color *) &(component->parameters.background),
 			defaultFont, prog, draw_translucent,
 			(component->xCoord +
@@ -88,23 +89,20 @@ static int draw(void *componentData)
 }
 
 
-static int setData(void *componentData, void *data, int length)
+static int setData(kernelWindowComponent *component, void *data, int length)
 {
   // Set the progress percentage.  Our 'data' parameter is just an
   // integer value
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowProgressBar *progressBar =
-    (kernelWindowProgressBar *) component->data;
+  kernelWindowProgressBar *progressBar = component->data;
 
   // We ignore 'length'.  This keeps the compiler happy
   if (length == 0)
     return (status = ERR_NULLPARAMETER);
 
   if (component->erase)
-    component->erase(componentData);
+    component->erase(component);
 
   progressBar->progressPercent = (int) data;
 
@@ -114,19 +112,18 @@ static int setData(void *componentData, void *data, int length)
     progressBar->progressPercent = 100;
 
   if (component->draw)
-    status = component->draw(componentData);
+    status = component->draw(component);
 
-  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
-			   component->yCoord, component->width,
-			   component->height);
+  component->window
+    ->update(component->window, component->xCoord, component->yCoord,
+	     component->width, component->height);
+
   return (0);
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-
   // Release all our memory
   if (component->data)
     {
@@ -147,7 +144,7 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewProgressBar(volatile void *parent,
+kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 						  componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowProgressBar

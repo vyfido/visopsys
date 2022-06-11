@@ -29,30 +29,28 @@
 #include <string.h>
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the image component
   
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelGraphicBuffer *buffer =
-    &(((kernelWindow *) component->window)->buffer);
-  kernelWindowImage *windowImage = (kernelWindowImage *) component->data;
+  kernelWindowImage *windowImage = component->data;
 
-  kernelGraphicDrawImage(buffer, (image *) &(windowImage->imageData),
+  kernelGraphicDrawImage(component->buffer,
+			 (image *) &(windowImage->imageData),
 			 windowImage->mode, component->xCoord,
 			 component->yCoord, 0, 0, 0, 0);
 
-  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder((void *) component, 1);
+  if ((component->parameters.flags & WINDOW_COMPFLAG_HASBORDER) ||
+      (component->flags & WINFLAG_HASFOCUS))
+    component->drawBorder(component, 1);
 
   return (0);
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowImage *windowImage = (kernelWindowImage *) component->data;
+  kernelWindowImage *windowImage = component->data;
 
   // Release all our memory
   if (windowImage)
@@ -80,8 +78,8 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewImage(volatile void *parent,
-					    image *imageCopy, drawMode mode,
+kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
+					    drawMode mode,
 					    componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowImage

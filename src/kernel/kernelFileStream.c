@@ -49,7 +49,7 @@ static int readBlock(fileStream *theStream)
     }
 
   // Clear the stream
-  theStream->s.clear((stream *) &(theStream->s));
+  theStream->s.clear(&(theStream->s));
 
   // Read the next block of the file, and put it into the stream.  The
   // way we do this is a bit of a cheat as far as streams are concerned, as
@@ -156,8 +156,8 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 
   // We need to get a new stream and attach it to the file stream structure
   // using the blockSize information from the file structure
-  status = kernelStreamNew((stream *) &(newStream->s), newStream->f.blockSize,
-			   itemsize_byte);
+  status =
+    kernelStreamNew(&(newStream->s), newStream->f.blockSize, itemsize_byte);
   if (status < 0)
     {
       kernelFileClose(&(newStream->f));
@@ -187,7 +187,7 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
     {
       // Otherwise, simply clear the stream regardless of whether we are
       // doing a read or a write.
-      newStream->s.clear((stream *) &(newStream->s));
+      newStream->s.clear(&(newStream->s));
     }
 
   // Yahoo, all set. 
@@ -325,8 +325,7 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
       bytes = min(theStream->s.count, readBytes);
 
       // Get 'bytes' bytes from the stream, and put them in the buffer
-      status = theStream->s.popN((stream *) &(theStream->s), bytes,
-				 (buffer + doneBytes));
+      status = theStream->s.popN(&(theStream->s), bytes, (buffer + doneBytes));
       if (status < 0)
 	return (status);
 
@@ -383,8 +382,7 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
 	}
       
       // Get a byte from the stream, and put it in the buffer
-      status = theStream->s.pop((stream *) &(theStream->s),
-				(buffer + doneBytes));
+      status = theStream->s.pop(&(theStream->s), (buffer + doneBytes));
       if (status < 0)
 	return (status);
 
@@ -438,8 +436,8 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 		  (theStream->f.blockSize - theStream->s.count));
 
       // Append 'bytes' bytes to the stream from the buffer
-      status = theStream->s
-	.appendN((stream *) &(theStream->s), bytes, (buffer + doneBytes));
+      status =
+	theStream->s.appendN(&(theStream->s), bytes, (buffer + doneBytes));
       if (status < 0)
 	return (status);
 
@@ -473,7 +471,7 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 	    }
 	  else
 	    // Simply clear the stream
-	    theStream->s.clear((stream *) &(theStream->s));
+	    theStream->s.clear(&(theStream->s));
 	}
     }
 
@@ -506,7 +504,7 @@ int kernelFileStreamWriteLine(fileStream *theStream, char *buffer)
     return (status);
 
   // Add a newline to the end of the stream
-  return (theStream->s.append((stream *) &(theStream->s), '\n'));
+  return (theStream->s.append(&(theStream->s), '\n'));
 }
 
 

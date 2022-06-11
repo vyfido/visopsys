@@ -34,10 +34,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// These hold free private data memory
-static extInodeData *freeInodeDatas = NULL;
-static unsigned numFreeInodeDatas = 0;
-
 static int initialized = 0;
 
 
@@ -347,7 +343,7 @@ static int read(extInternalData *extData, kernelFileEntry *fileEntry,
   void *dataPointer = NULL;
   int count;
   
-  inode = &(((extInodeData *) fileEntry->driverData)->inode);
+  inode = (extInode *) fileEntry->driverData;
 
   // If numBlocks is zero, that means read the whole file
   if (numBlocks == 0)
@@ -488,7 +484,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
       return (status = ERR_NOTADIR);
     }
 
-  dirInode = &(((extInodeData *) dirEntry->driverData)->inode);
+  dirInode = (extInode *) dirEntry->driverData;
 
   // Check for unsupported directory types
   if ((dirInode->flags & EXT_BTREE_FL) || (dirInode->flags & EXT_INDEX_FL))
@@ -558,7 +554,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 	  return (status = ERR_NOCREATE);
 	}
       
-      inode = &(((extInodeData *) fileEntry->driverData)->inode);
+      inode = (extInode *) fileEntry->driverData;
       if (inode == NULL)
 	{
 	  kernelError(kernel_error, "New entry has no private data");
@@ -637,7 +633,7 @@ static int readRootDir(extInternalData *extData, kernelDisk *theDisk)
 
   int status = 0;
   kernelFileEntry *rootEntry = theDisk->filesystem.filesystemRoot;
-  extInode *rootInode = &(((extInodeData *) rootEntry->driverData)->inode);
+  extInode *rootInode = (extInode *) rootEntry->driverData;
 
   if (rootInode == NULL)
     {
@@ -1295,7 +1291,7 @@ static unsigned getFreeBytes(kernelDisk *theDisk)
 }
 
 
-static int newEntry(kernelFileEntry *newEntry)
+static int newEntry(kernelFileEntry *entry)
 {
   // This function gets called when there's a new kernelFileEntry in the
   // filesystem (either because a file was created or because some existing
@@ -1303,15 +1299,12 @@ static int newEntry(kernelFileEntry *newEntry)
   // to attach EXT-specific data to the file entry
 
   int status = 0;
-  extInodeData *inodeData = NULL;
-  extInodeData *newInodeDatas = NULL;
-  int count;
   
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (newEntry == NULL)
+  if (entry == NULL)
     {
       kernelError(kernel_error, "NULL file entry");
       return (status = ERR_NULLPARAMETER);
@@ -1319,48 +1312,28 @@ static int newEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry, and that there is a filesystem attached
-  if (newEntry->driverData)
+  if (entry->driverData)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);
     }
 
   // Make sure there's an associated filesystem
-  if (newEntry->disk == NULL)
+  if (entry->disk == NULL)
     {
       kernelError(kernel_error, "Entry has no associated disk");
       return (status = ERR_NOCREATE);
     }
 
-  if (freeInodeDatas == 0)
-    {
-      // Allocate memory for file entries
-      newInodeDatas = kernelMalloc(sizeof(extInodeData) * MAX_BUFFERED_FILES);
-      if (newInodeDatas == NULL)
-	return (status = ERR_MEMORY);
-
-      // Initialize the new extInodeData structures.
-
-      for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
-	newInodeDatas[count].next = &(newInodeDatas[count + 1]);
-
-      // The free file entries are the new memory
-      freeInodeDatas = newInodeDatas;
-
-      // Add the number of new file entries
-      numFreeInodeDatas = MAX_BUFFERED_FILES;
-    }
-
-  inodeData = freeInodeDatas;
-  freeInodeDatas = (extInodeData *) inodeData->next;
-  numFreeInodeDatas -= 1;
-  newEntry->driverData = inodeData;
+  entry->driverData = kernelMalloc(sizeof(extInode));
+  if (entry->driverData == NULL)
+    return (status = ERR_MEMORY);
 
   return (status = 0);
 }
 
 
-static int inactiveEntry(kernelFileEntry *inactiveEntry)
+static int inactiveEntry(kernelFileEntry *entry)
 {
   // This function gets called when a kernelFileEntry is about to be
   // deallocated by the system (either because a file was deleted or because
@@ -1368,36 +1341,31 @@ static int inactiveEntry(kernelFileEntry *inactiveEntry)
   // to deallocate our EXT-specific data from the file entry
 
   int status = 0;
-  extInodeData *inodeData = NULL;
   
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (inactiveEntry == NULL)
+  if (entry == NULL)
     {
       kernelError(kernel_error, "NULL file entry");
       return (status = ERR_NULLPARAMETER);
     }
 
-  inodeData = (extInodeData *) inactiveEntry->driverData;
-  if (inodeData == NULL)
+  if (entry->driverData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_ALREADY);
     }
 
   // Erase all of the data in this entry
-  kernelMemClear(inodeData, sizeof(extInodeData));
+  kernelMemClear(entry->driverData, sizeof(extInode));
 
-  // Release the inode data structure attached to this file entry.  Put the
-  // inode data back into the pool of free ones.
-  inodeData->next = freeInodeDatas;
-  freeInodeDatas = inodeData;
-  numFreeInodeDatas += 1;
+  // Release the inode data structure attached to this file entry.
+  kernelFree(entry->driverData);
 
   // Remove the reference
-  inactiveEntry->driverData = NULL;
+  entry->driverData = NULL;
 
   return (status = 0);
 }
@@ -1434,7 +1402,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
   if (extData == NULL)
     return (0);
   
-  inode = &(((extInodeData *) linkEntry->driverData)->inode);
+  inode = (extInode *) linkEntry->driverData;
   if (inode == NULL)
     {
       kernelError(kernel_error, "Link entry has no private data");
@@ -1500,7 +1468,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	return (status = ERR_NOSUCHFILE);
     }
 
-  linkEntry->contents = (void *) targetEntry;
+  linkEntry->contents = targetEntry;
   return (status = 0);
 }
 
@@ -1532,7 +1500,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
   if (extData == NULL)
     return (status = ERR_BADDATA);
  
-  inode = &(((extInodeData *) theFile->driverData)->inode); 
+  inode = (extInode *) theFile->driverData; 
   if (inode == NULL)
     {
       kernelError(kernel_error, "File \"%s\" has no private data",

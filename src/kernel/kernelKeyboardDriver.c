@@ -69,6 +69,8 @@
 #define NUMLOCK_LIGHT    1
 #define CAPSLOCK_LIGHT   2
 
+static void rebootThread(void) __attribute__((noreturn));
+
 static kernelKeyboard *keyboardDevice = NULL;
 
 
@@ -317,7 +319,7 @@ static void driverReadData(void)
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also issues the
@@ -373,7 +375,7 @@ static int driverDetect(void *parent, void *driver)
 
   // Set the default keyboard data stream to be the console input
   status =
-    kernelKeyboardSetStream((stream *) &(kernelTextGetConsoleInput()->s));
+    kernelKeyboardSetStream(&(kernelTextGetConsoleInput()->s));
   if (status < 0)
     {
       kernelFree(dev);
@@ -398,11 +400,9 @@ static kernelKeyboardOps keyboardOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelKeyboardDriverRegister(void *driverData)
+void kernelKeyboardDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &keyboardOps;

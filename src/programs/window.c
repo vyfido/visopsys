@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
     }
 
   // Create a new window
-  window = windowNew(processId, "Command window");
+  window = windowNew(processId, "Command Window");
 
   // Put a text area in the window
   bzero(&params, sizeof(componentParameters));

@@ -114,7 +114,7 @@ int kernelShutdown(int reboot, int force)
   kernelWindowComponent *label2 = NULL;
   unsigned screenWidth = 0;
   unsigned screenHeight = 0;
-  unsigned windowWidth, windowHeight;
+  int windowWidth, windowHeight;
 
   if (shutdownInProgress && !force)
     {
@@ -164,8 +164,8 @@ int kernelShutdown(int reboot, int force)
 		kernelWindowNewTextLabel(window, SHUTDOWN_MSG2, &params);
 	    }
 
-	  kernelWindowSetHasMinimizeButton(window, 0);
-	  kernelWindowSetHasCloseButton(window, 0);
+	  kernelWindowRemoveMinimizeButton(window);
+	  kernelWindowRemoveCloseButton(window);
 	  kernelWindowGetSize(window, &windowWidth, &windowHeight);
 	  kernelWindowSetLocation(window, ((screenWidth - windowWidth) / 2),
 				  ((screenHeight - windowHeight) / 3));

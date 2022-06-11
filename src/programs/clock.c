@@ -70,14 +70,14 @@ static void makeTime(void)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   int status = 0;
   int processId = 0;
   objectKey window = NULL;
   objectKey label = NULL;
   componentParameters params;
-  unsigned width, height;
+  int width, height;
   
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -86,9 +86,6 @@ int main(int argc, char *argv[])
       errno = ERR_NOTINITIALIZED;
       return (status = errno);
     }
-
-  // We don't use argc.  This keeps the compiler happy
-  argc = 0;
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -112,13 +109,14 @@ int main(int argc, char *argv[])
   label = windowNewTextLabel(window, timeString, &params);
   
   // No title bar
-  windowSetHasTitleBar(window, 0);
+  // TEMP TEMP TEMP -- Crashes things
+  // windowSetHasTitleBar(window, 0);
 
   // Put it in the bottom right corner
   windowGetSize(window, &width, &height);
   windowSetLocation(window, (graphicGetScreenWidth() - width),
    		    (graphicGetScreenHeight() - height));
-  
+
   // Make it visible
   windowSetVisible(window, 1);
 

@@ -7,17 +7,16 @@
 
 # This makefile builds all the MBRs, boot sectors, and the OS loader.
 
-BOOTBUILDDIR=../../build/system/boot
-LOADERBUILDDIR=../../build
+ROOT=../..
+BOOTBUILDDIR=${ROOT}/build/system/boot
+LOADERBUILDDIR=${ROOT}/build
 
-ifeq (${NASM},)
-	NASM	= nasm
-endif
+include ${ROOT}/Makefile.include
 
-WARNOPTS	= -w+orphan-labels
-SECTOPTS	= -f bin ${WARNOPTS}
-LDROPTS		= -f aout ${WARNOPTS}
-LINKOPTS	= -mcpu=pentium -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
+WARN		= -w+orphan-labels
+SECTOPTS	= -f bin ${WARN}
+LDROPTS		= -f elf ${WARN}
+LINKOPTS	= -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
 STDDEPEND	= loader.h Makefile
 OBJS		= obj/loaderMain.o \
 		obj/loaderVideo.o \
@@ -64,7 +63,7 @@ ${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s bootsect-fatBPB.s ${S
 #
 
 ${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPEND}
-	${CC} -nodefaultlibs -nostartfiles -O2 -Wall ${LINKOPTS} ${OBJS} -o $@
+	${CC} -nodefaultlibs -nostartfiles ${OPT} ${LINKOPTS} ${OBJS} -o $@
 
 obj/%.o: %.s ${STDDEPEND}
 	${NASM} ${LDROPTS} $< -o $@

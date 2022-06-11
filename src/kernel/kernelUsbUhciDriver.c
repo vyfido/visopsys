@@ -21,6 +21,8 @@
 
 #include "kernelUsbDriver.h"
 #include "kernelUsbUhciDriver.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
@@ -31,96 +33,108 @@
 #include "kernelPciDriver.h"
 #include "kernelProcessorX86.h"
 #include "kernelSysTimer.h"
-#include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef USBUHCI_DEBUG
 
-//#define DEBUG
-
-#ifdef DEBUG
 static void debugDeviceDesc(usbDeviceDesc *deviceDesc)
 {
-  kernelTextPrintLine("USB: debug device descriptor:");
-  kernelTextPrintLine("    descLength=%d", deviceDesc->descLength);
-  kernelTextPrintLine("    descType=%d", deviceDesc->descType);
-  kernelTextPrintLine("    usbVersion=%d.%d",
-		      ((deviceDesc->usbVersion & 0xFF00) >> 8),
-		      (deviceDesc->usbVersion & 0xFF));
-  kernelTextPrintLine("    deviceClass=%x", deviceDesc->deviceClass);
-  kernelTextPrintLine("    deviceSubClass=%x", deviceDesc->deviceSubClass);
-  kernelTextPrintLine("    deviceProtocol=%x", deviceDesc->deviceProtocol);
-  kernelTextPrintLine("    maxPacketSize0=%d", deviceDesc->maxPacketSize0);
-  kernelTextPrintLine("    vendorId=%04x", deviceDesc->vendorId);
-  kernelTextPrintLine("    productId=%04x", deviceDesc->productId);
-  kernelTextPrintLine("    deviceVersion=%d.%d",
-		      ((deviceDesc->deviceVersion & 0xFF00) >> 8),
-		      (deviceDesc->deviceVersion & 0xFF));
-  kernelTextPrintLine("    manuStringIdx=%d", deviceDesc->manuStringIdx);
-  kernelTextPrintLine("    prodStringIdx=%d", deviceDesc->prodStringIdx);
-  kernelTextPrintLine("    serStringIdx=%d", deviceDesc->serStringIdx);
-  kernelTextPrintLine("    numConfigs=%d", deviceDesc->numConfigs);
+  kernelDebug(debug_usb, "Debug device descriptor:\n"
+	      "    descLength=%d\n"
+	      "    descType=%d\n"
+	      "    usbVersion=%d.%d\n"
+	      "    deviceClass=%x\n"
+	      "    deviceSubClass=%x\n"
+	      "    deviceProtocol=%x\n"
+	      "    maxPacketSize0=%d\n"
+	      "    vendorId=%04x\n"
+	      "    productId=%04x\n"
+	      "    deviceVersion=%d.%d\n"
+	      "    manuStringIdx=%d\n"
+	      "    prodStringIdx=%d\n"
+	      "    serStringIdx=%d\n"
+	      "    numConfigs=%d", deviceDesc->descLength,
+	      deviceDesc->descType, ((deviceDesc->usbVersion & 0xFF00) >> 8),
+	      (deviceDesc->usbVersion & 0xFF), deviceDesc->deviceClass,
+	      deviceDesc->deviceSubClass, deviceDesc->deviceProtocol,
+	      deviceDesc->maxPacketSize0, deviceDesc->vendorId,
+	      deviceDesc->productId,
+	      ((deviceDesc->deviceVersion & 0xFF00) >> 8),
+	      (deviceDesc->deviceVersion & 0xFF), deviceDesc->manuStringIdx,
+	      deviceDesc->prodStringIdx, deviceDesc->serStringIdx,
+	      deviceDesc->numConfigs);
 }
 
 
 static void debugDevQualDesc(usbDevQualDesc *devQualDesc)
 {
-  kernelTextPrintLine("USB: debug device qualifier descriptor:");
-  kernelTextPrintLine("    descLength=%d", devQualDesc->descLength);
-  kernelTextPrintLine("    descType=%d", devQualDesc->descType);
-  kernelTextPrintLine("    usbVersion=%d.%d",
-		      ((devQualDesc->usbVersion & 0xFF00) >> 8),
-		      (devQualDesc->usbVersion & 0xFF));
-  kernelTextPrintLine("    deviceClass=%x", devQualDesc->deviceClass);
-  kernelTextPrintLine("    deviceSubClass=%x", devQualDesc->deviceSubClass);
-  kernelTextPrintLine("    deviceProtocol=%x", devQualDesc->deviceProtocol);
-  kernelTextPrintLine("    maxPacketSize0=%d", devQualDesc->maxPacketSize0);
-  kernelTextPrintLine("    numConfigs=%d", devQualDesc->numConfigs);
+  kernelDebug(debug_usb, "Debug device qualifier descriptor:\n"
+	      "    descLength=%d\n"
+	      "    descType=%d\n"
+	      "    usbVersion=%d.%d\n"
+	      "    deviceClass=%x\n"
+	      "    deviceSubClass=%x\n"
+	      "    deviceProtocol=%x\n"
+	      "    maxPacketSize0=%d\n"
+	      "    numConfigs=%d", devQualDesc->descLength,
+	      devQualDesc->descType, ((devQualDesc->usbVersion & 0xFF00) >> 8),
+	      (devQualDesc->usbVersion & 0xFF), devQualDesc->deviceClass,
+	      devQualDesc->deviceSubClass, devQualDesc->deviceProtocol,
+	      devQualDesc->maxPacketSize0, devQualDesc->numConfigs);
 }
 
 
 static void debugConfigDesc(usbConfigDesc *configDesc)
 {
-  kernelTextPrintLine("USB: debug config descriptor:");
-  kernelTextPrintLine("    descLength=%d", configDesc->descLength);
-  kernelTextPrintLine("    descType=%d", configDesc->descType);
-  kernelTextPrintLine("    totalLength=%d", configDesc->totalLength);
-  kernelTextPrintLine("    numInterfaces=%d", configDesc->numInterfaces);
-  kernelTextPrintLine("    confValue=%d", configDesc->confValue);
-  kernelTextPrintLine("    confStringIdx=%d", configDesc->confStringIdx);
-  kernelTextPrintLine("    attributes=%d", configDesc->attributes);
-  kernelTextPrintLine("    maxPower=%d", configDesc->maxPower);
+  kernelDebug(debug_usb, "Debug config descriptor:\n"
+	      "    descLength=%d\n"
+	      "    descType=%d\n"
+	      "    totalLength=%d\n"
+	      "    numInterfaces=%d\n"
+	      "    confValue=%d\n"
+	      "    confStringIdx=%d\n"
+	      "    attributes=%d\n"
+	      "    maxPower=%d", configDesc->descLength, configDesc->descType,
+	      configDesc->totalLength, configDesc->numInterfaces,
+	      configDesc->confValue, configDesc->confStringIdx,
+	      configDesc->attributes, configDesc->maxPower);
 }
 
 
 static void debugInterDesc(usbInterDesc *interDesc)
 {
-  kernelTextPrintLine("USB: debug inter descriptor:");
-  kernelTextPrintLine("    descLength=%d", interDesc->descLength);
-  kernelTextPrintLine("    descType=%d", interDesc->descType);
-  kernelTextPrintLine("    interNum=%d", interDesc->interNum);
-  kernelTextPrintLine("    altSetting=%d", interDesc->altSetting);
-  kernelTextPrintLine("    numEndpoints=%d", interDesc->numEndpoints);
-  kernelTextPrintLine("    interClass=%d", interDesc->interClass);
-  kernelTextPrintLine("    interSubClass=%d", interDesc->interSubClass);
-  kernelTextPrintLine("    interProtocol=%d", interDesc->interProtocol);
-  kernelTextPrintLine("    interStringIdx=%d", interDesc->interStringIdx);
+  kernelDebug(debug_usb, "Debug inter descriptor:\n"
+	      "    descLength=%d\n"
+	      "    descType=%d\n"
+	      "    interNum=%d\n"
+	      "    altSetting=%d\n"
+	      "    numEndpoints=%d\n"
+	      "    interClass=%d\n"
+	      "    interSubClass=%d\n"
+	      "    interProtocol=%d\n"
+	      "    interStringIdx=%d", interDesc->descLength,
+	      interDesc->descType, interDesc->interNum, interDesc->altSetting,
+	      interDesc->numEndpoints, interDesc->interClass,
+	      interDesc->interSubClass, interDesc->interProtocol,
+	      interDesc->interStringIdx);
 }
 
 
 static void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 {
-  kernelTextPrintLine("USB: debug endpoint descriptor:");
-  kernelTextPrintLine("    descLength=%d", endpointDesc->descLength);
-  kernelTextPrintLine("    descType=%d", endpointDesc->descType);
-  kernelTextPrintLine("    endpntAddress=%d", endpointDesc->endpntAddress);
-  kernelTextPrintLine("    attributes=%d", endpointDesc->attributes);
-  kernelTextPrintLine("    maxPacketSize=%d", endpointDesc->maxPacketSize);
-  kernelTextPrintLine("    interval=%d", endpointDesc->interval);
+  kernelDebug(debug_usb, "Debug endpoint descriptor:\n"
+	      "    descLength=%d\n"
+	      "    descType=%d\n"
+	      "    endpntAddress=%d\n"
+	      "    attributes=%d\n"
+	      "    maxPacketSize=%d\n"
+	      "    interval=%d", endpointDesc->descLength,
+	      endpointDesc->descType, endpointDesc->endpntAddress,
+	      endpointDesc->attributes, endpointDesc->maxPacketSize,
+	      endpointDesc->interval);
 }
 
-#define debugNoNl(message, arg...) kernelTextPrint(message, ##arg)
-#define debug(message, arg...) kernelTextPrintLine(message, ##arg)
 #define debugError(message, arg...) kernelError(kernel_warn, message, ##arg)
 
 #else
@@ -129,8 +143,6 @@ static void debugEndpointDesc(usbEndpointDesc *endpointDesc)
   #define debugConfigDesc(desc) do { } while (0)
   #define debugInterDesc(desc) do { } while (0)
   #define debugEndpointDesc(desc) do { } while (0)
-  #define debugNoNl(message, arg...) do { } while (0)
-  #define debug(message, arg...) do { } while (0)
   #define debugError(message, arg...) do { } while (0)
 #endif
 
@@ -626,8 +638,9 @@ static int scheduleTransDesc(usbRootHub *usb, usbUhciTransDesc *desc,
 	  else
 	    uhciData->frameList[currFrameIndex] = descPhysical;
 
-	  //debug("USB: schedule TD in frame %d%s (current %d)", currFrameNum,
-	  //(queueHead? " with queue head" : ""), readFrameNum(usb));
+	  //kernelDebug(debug_usb, "Schedule TD in frame %d%s (current %d)",
+	  //      currFrameNum, (queueHead? " with queue head" : ""),
+	  //      readFrameNum(usb));
 	  break;
 	}
 
@@ -724,13 +737,12 @@ static usbEndpointDesc *getEndpointDesc(usbDevice *dev,
 }
 
 
-static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
+static int transaction(usbRootHub *usb, usbDevice *dev, usbTransaction *trans)
 {
   // This function contains the intelligence necessary to initiate a
   // transaction (all phases)
 
   int status = 0;
-  usbRootHub *usb = (usbRootHub *) controller;
   usbUhciTransDesc *setupDesc = NULL;
   usbUhciTransDesc *dataDesc = NULL;
   usbUhciTransDesc *statusDesc = NULL;
@@ -775,7 +787,7 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
 
       if (req->requestType & (USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_VENDOR))
 	// The request is class- or vendor-specific
-	debugNoNl("USB: do class/vendor-specific control transfer");
+	kernelDebug(debug_usb, "Do class/vendor-specific control transfer");
 
       else
 	{
@@ -784,67 +796,67 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
 	  switch (trans->control.request)
 	    {
 	    case USB_GET_STATUS:
-	      debugNoNl("USB: do USB_GET_STATUS");
+	      kernelDebug(debug_usb, "Do USB_GET_STATUS");
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_CLEAR_FEATURE:
-	      debugNoNl("USB: do USB_CLEAR_FEATURE");
+	      kernelDebug(debug_usb, "Do USB_CLEAR_FEATURE");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_SET_FEATURE:
-	      debugNoNl("USB: do USB_SET_FEATURE");
+	      kernelDebug(debug_usb, "Do USB_SET_FEATURE");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_SET_ADDRESS:
-	      debugNoNl("USB: do USB_SET_ADDRESS");
+	      kernelDebug(debug_usb, "Do USB_SET_ADDRESS");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_GET_DESCRIPTOR:
-	      debugNoNl("USB: do USB_GET_DESCRIPTOR");
+	      kernelDebug(debug_usb, "Do USB_GET_DESCRIPTOR");
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_SET_DESCRIPTOR:
-	      debugNoNl("USB: do USB_SET_DESCRIPTOR");
+	      kernelDebug(debug_usb, "Do USB_SET_DESCRIPTOR");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_GET_CONFIGURATION:
-	      debugNoNl("USB: do USB_GET_CONFIGURATION");
+	      kernelDebug(debug_usb, "Do USB_GET_CONFIGURATION");
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_SET_CONFIGURATION:
-	      debugNoNl("USB: do USB_SET_CONFIGURATION");
+	      kernelDebug(debug_usb, "Do USB_SET_CONFIGURATION");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_GET_INTERFACE:
-	      debugNoNl("USB: do USB_GET_INTERFACE");
+	      kernelDebug(debug_usb, "Do USB_GET_INTERFACE");
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_SET_INTERFACE:
-	      debugNoNl("USB: do USB_SET_INTERFACE");
+	      kernelDebug(debug_usb, "Do USB_SET_INTERFACE");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_SYNCH_FRAME:
-	      debugNoNl("USB: do USB_SYNCH_FRAME");
+	      kernelDebug(debug_usb, "Do USB_SYNCH_FRAME");
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_MASSSTORAGE_RESET:
-	      debugNoNl("USB: do USB_MASSSTORAGE_RESET");
+	      kernelDebug(debug_usb, "Do USB_MASSSTORAGE_RESET");
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    default:
 	      // Perhaps some thing we don't know about.  Try to proceed
 	      // anyway.
-	      debugNoNl("USB: do unknown control transfer");
+	      kernelDebug(debug_usb, "Do unknown control transfer");
 	      break;
 	    }
 	}
 
-      debug(" for address %d", trans->address);
+      kernelDebug(debug_usb, "for address %d", trans->address);
     }
 
   else if (trans->type == usbxfer_interrupt)
@@ -863,7 +875,7 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
   if (setupPhase)
     {
       // Schedule the setup packet
-      //debug("USB: schedule setup transfer");
+      //kernelDebug(debug_usb, "Schedule setup transfer");
       status = scheduleTransDesc(usb, setupDesc, trans->type, trans->address,
 				 trans->endpoint, USB_PID_SETUP, NULL);
       putTransDesc(setupDesc, setupData);
@@ -898,7 +910,7 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
       if (bytesPerTransfer < 8)
 	bytesPerTransfer = 8;
 
-      //debug("Max bytes per transfer: %d", bytesPerTransfer);
+      //kernelDebug(debug_usb, "Max bytes per transfer: %d", bytesPerTransfer);
 
       while (bytesToTransfer)
 	{
@@ -914,10 +926,11 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
 	    // Copy the data into the descriptor's buffer
 	    kernelMemCopy(buffer, dataDesc->buffVirtAddr, doBytes);
 
-	  debug("USB: schedule data transfer %s of %d bytes %s address %d:%d",
-		((trans->pid == USB_PID_IN)? "IN" : "OUT"),
-		doBytes, ((trans->pid == USB_PID_IN)? "from" : "to"),
-		trans->address, trans->endpoint);
+	  kernelDebug(debug_usb, "Schedule data transfer %s of %d bytes %s "
+		      "address %d:%d",
+		      ((trans->pid == USB_PID_IN)? "IN" : "OUT"),
+		      doBytes, ((trans->pid == USB_PID_IN)? "from" : "to"),
+		      trans->address, trans->endpoint);
 	  status = scheduleTransDesc(usb, dataDesc, trans->type,
 				     trans->address, trans->endpoint,
 				     trans->pid, &bytes);
@@ -946,7 +959,7 @@ static int transaction(void *controller, usbDevice *dev, usbTransaction *trans)
 	return (status = ERR_NOFREE);
 
       // Schedule the status packet
-      //debug("USB: schedule status transfer");
+      //kernelDebug(debug_usb, "Schedule status transfer");
       if (trans->pid == USB_PID_OUT)
 	status =
 	  scheduleTransDesc(usb, statusDesc, trans->type, trans->address,
@@ -975,7 +988,7 @@ static int controlTransfer(usbRootHub *usb, usbDevice *dev,
   int status = 0;
   usbTransaction trans;
 
-  debug("USB: control transfer of %d bytes", length);
+  kernelDebug(debug_usb, "Control transfer of %d bytes", length);
 
   kernelMemClear(&trans, sizeof(usbTransaction));
   trans.type = usbxfer_control;
@@ -1248,7 +1261,7 @@ static void enumerateDisconnectedDevice(usbRootHub *usb)
 	  // The 'get status' failed so we will consider this device
 	  // disconnected
 
-	  debug("Device %d disconnected", dev->address);
+	  kernelDebug(debug_usb, "Device %d disconnected", dev->address);
 
 	  if (usb->getClass)
 	    {
@@ -1374,7 +1387,7 @@ static int setup(usbRootHub *usb)
 }
 
 
-#ifdef DEBUG
+#ifdef USBUHCI_DEBUG
 static void printPortStatus(usbRootHub *usb)
 {
   unsigned short frameNum = 0;
@@ -1382,19 +1395,18 @@ static void printPortStatus(usbRootHub *usb)
 
   readPortStatus(usb);
   frameNum = readFrameNum(usb);
-  debug("USB: port 1: %04x  port 2: %04x frnum %d=%x", usb->portStatus[0],
-	usb->portStatus[1], (frameNum & 0x3FF),
-	uhciData->frameList[frameNum & 0x3FF]);
+  kernelDebug(debug_usb, "Port 1: %04x  port 2: %04x frnum %d=%x",
+	      usb->portStatus[0], usb->portStatus[1], (frameNum & 0x3FF),
+	      uhciData->frameList[frameNum & 0x3FF]);
 }
 #else
   #define printPortStatus(usb) do { } while (0)
 #endif
 
 
-static void threadCall(void *controller)
+static void threadCall(usbRootHub *usb)
 {
   unsigned short status = 0;
-  usbRootHub *usb = (usbRootHub *) controller;
   int count;
 
   readPortStatus(usb);
@@ -1424,7 +1436,7 @@ static void threadCall(void *controller)
 		}
 	      else
 		{
-		  //debug("USB: port %d is disconnected", count);
+		  //kernelDebug(debug_usb, "Port %d is disconnected", count);
 		  enumerateDisconnectedDevice(usb);
 		}
 	    }
@@ -1439,7 +1451,8 @@ static void threadCall(void *controller)
 
 
 kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
-				  kernelBusTarget *busTarget, void *driver)
+				  kernelBusTarget *busTarget,
+				  kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.
@@ -1483,22 +1496,22 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
   kernelLog("USB: UHCI bus version %d.%d", ((usb->usbVersion & 0xF0) >> 4),
 	    (usb->usbVersion & 0xF));
 
-  debugNoNl("USB: UHCI controller PCI type: ");
+  kernelDebug(debug_usb, "UHCI controller PCI type: ");
   // Get the interrupt line
   if (pciDevInfo.device.headerType == PCI_HEADERTYPE_NORMAL)
     {
       usb->interrupt = (int) pciDevInfo.device.nonBridge.interruptLine;
-      debug("normal");
+      kernelDebug(debug_usb, "normal");
     }
   else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_BRIDGE)
     {
       usb->interrupt = (int) pciDevInfo.device.bridge.interruptLine;
-      debug("bridge");
+      kernelDebug(debug_usb, "bridge");
     }
   else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_CARDBUS)
     {
       usb->interrupt = (int) pciDevInfo.device.cardBus.interruptLine;
-      debug("cardbus");
+      kernelDebug(debug_usb, "cardbus");
     }
   else
     {

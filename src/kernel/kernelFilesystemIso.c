@@ -462,7 +462,7 @@ static unsigned getFree(kernelDisk *theDisk)
 }
 
 
-static int newEntry(kernelFileEntry *newEntry)
+static int newEntry(kernelFileEntry *entry)
 {
   // This function gets called when there's a new kernelFileEntry in the
   // filesystem (either because a file was created or because some existing
@@ -476,7 +476,7 @@ static int newEntry(kernelFileEntry *newEntry)
   //int count;
   
   // Check params
-  if (newEntry == NULL)
+  if (entry == NULL)
     {
       kernelError(kernel_error, "NULL file entry");
       return (status = ERR_NULLPARAMETER);
@@ -484,53 +484,21 @@ static int newEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry, and that there is a filesystem attached
-  if (newEntry->driverData)
+  if (entry->driverData)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);
     }
 
   // Make sure there's an associated disk
-  if (newEntry->disk == NULL)
+  if (entry->disk == NULL)
     {
       kernelError(kernel_error, "Entry has no associated filesystem");
       return (status = ERR_NOCREATE);
     }
 
-  /*
-  if (freeDirectoryRecords == 0)
-    {
-      // Allocate memory for directory records
-      newDirectoryRecords = kernelMalloc(sizeof(isoFileData) *
-					 MAX_BUFFERED_FILES);
-      if (newDirectoryRecords == NULL)
-	{
-	  kernelError(kernel_error, "Error allocating memory for ISO "
-		      "directory records");
-	  return (status = ERR_MEMORY);
-	}
-
-      // Initialize the new isoFileData structures.
-
-      for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
-	newDirectoryRecords[count].next = (void *)
-	  &(newDirectoryRecords[count + 1]);
-
-      // The free directory records are the new memory
-      freeDirectoryRecords = newDirectoryRecords;
-
-      // Add the number of new file entries
-      numFreeDirectoryRecords = MAX_BUFFERED_FILES;
-    }
-
-  directoryRecord = freeDirectoryRecords;
-  freeDirectoryRecords = (isoFileData *) directoryRecord->next;
-  numFreeDirectoryRecords -= 1;
-  newEntry->driverData = (void *) directoryRecord;
-  */
-
-  newEntry->driverData = kernelMalloc(sizeof(isoFileData));
-  if (newEntry->driverData == NULL)
+  entry->driverData = kernelMalloc(sizeof(isoFileData));
+  if (entry->driverData == NULL)
     {
       kernelError(kernel_error, "Error allocating memory for ISO "
 		  "directory record");
@@ -541,7 +509,7 @@ static int newEntry(kernelFileEntry *newEntry)
 }
 
 
-static int inactiveEntry(kernelFileEntry *inactiveEntry)
+static int inactiveEntry(kernelFileEntry *entry)
 {
   // This function gets called when a kernelFileEntry is about to be
   // deallocated by the system (either because a file was deleted or because
@@ -551,17 +519,23 @@ static int inactiveEntry(kernelFileEntry *inactiveEntry)
   int status = 0;
   
   // Check params
-  if (inactiveEntry == NULL)
+  if (entry == NULL)
     {
       kernelError(kernel_error, "NULL file entry");
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Need to actually deallocate memory here.
-  kernelFree(inactiveEntry->driverData);
+  if (entry->driverData)
+    {
+      // Erase all of the data in this entry
+      kernelMemClear(entry->driverData, sizeof(isoFileData));
 
-  // Remove the reference
-  inactiveEntry->driverData = NULL;
+      // Need to actually deallocate memory here.
+      kernelFree(entry->driverData);
+
+      // Remove the reference
+      entry->driverData = NULL;
+    }
 
   return (status = 0);
 }

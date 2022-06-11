@@ -26,13 +26,6 @@
 
 // Structures
 
-typedef struct {
-  extInode inode;
-  // For keeping a list of free inode memory
-  void *next;
-
-} extInodeData;
-
 typedef volatile struct {
   extSuperblock superblock;
   unsigned blockSize;

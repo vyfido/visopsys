@@ -33,6 +33,8 @@
 #include <string.h>
 #include <sys/cdefs.h>
 
+static void kernelLogUpdater(void) __attribute__((noreturn));
+
 static volatile int logToConsole = 0;
 static volatile int logToFile = 0;
 static volatile int loggingInitialized = 0;

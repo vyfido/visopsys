@@ -40,23 +40,17 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   // Desc: Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
   int status = 0;
-  int choice = 0;
   
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  choice = windowNewChoiceDialog(parentWindow, title, message,
-				 (char *[]) { "OK", "Cancel" } , 2, 0);
-
-  if (choice < 0)
-    return (choice);
-
-  if (choice == 0)
+  if (windowNewChoiceDialog(parentWindow, title, message,
+			    (char *[]) { "OK", "Cancel" }, 2, 0) == 0)
     // OK button
     return (status = 1);
 
   else
-    // Cancel button or whatever
+    // Cancel button or error or whatever
     return (status = 0);
 }

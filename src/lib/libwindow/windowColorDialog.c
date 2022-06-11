@@ -27,9 +27,10 @@
 #include <sys/api.h>
 #include <sys/errors.h>
 
-#define CANVAS_WIDTH  35
-#define CANVAS_HEIGHT 100
-#define SLIDER_HEIGHT 100
+#define TITLE          "Color Chooser"
+#define CANVAS_WIDTH   35
+#define CANVAS_HEIGHT  100
+#define SLIDER_HEIGHT  100
 
 static objectKey canvas = NULL;
 static objectKey redLabel = NULL;
@@ -100,10 +101,10 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
   // Create the dialog.  Arbitrary size and coordinates
   if (parentWindow)
-    dialogWindow = windowNewDialog(parentWindow, "Color chooser");
+    dialogWindow = windowNewDialog(parentWindow, TITLE);
   else
     dialogWindow =
-      windowNew(multitaskerGetCurrentProcessId(), "Color chooser");
+      windowNew(multitaskerGetCurrentProcessId(), TITLE);
   if (dialogWindow == NULL)
     return (status = ERR_NOCREATE);
 
@@ -136,22 +137,23 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   // Create scroll bars for the red, green, and blue colors
   params.gridX = 1;
   params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-  redSlider = windowNewScrollBar(dialogWindow, scrollbar_vertical, 0,
-				 SLIDER_HEIGHT, &params);
+  redSlider = windowNewSlider(dialogWindow, scrollbar_vertical, 0,
+			      SLIDER_HEIGHT, &params);
   scrollState.displayPercent = 20;
   scrollState.positionPercent = (100 - ((tmpColor.red * 100) / 255));
   windowComponentSetData(redSlider, &scrollState, sizeof(scrollBarState));
+  windowComponentFocus(redSlider);
 
   params.gridX = 2;
-  greenSlider = windowNewScrollBar(dialogWindow, scrollbar_vertical, 0,
-				   SLIDER_HEIGHT, &params);
+  greenSlider = windowNewSlider(dialogWindow, scrollbar_vertical, 0,
+				SLIDER_HEIGHT, &params);
   scrollState.positionPercent = (100 - ((tmpColor.green * 100) / 255));
   windowComponentSetData(greenSlider, &scrollState, sizeof(scrollBarState));
 
   params.gridX = 3;
   params.padRight = 5;
-  blueSlider = windowNewScrollBar(dialogWindow, scrollbar_vertical, 0,
-				  SLIDER_HEIGHT, &params);
+  blueSlider = windowNewSlider(dialogWindow, scrollbar_vertical, 0,
+			       SLIDER_HEIGHT, &params);
   scrollState.positionPercent = (100 - ((tmpColor.blue * 100) / 255));
   windowComponentSetData(blueSlider, &scrollState, sizeof(scrollBarState));
 

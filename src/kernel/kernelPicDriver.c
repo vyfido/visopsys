@@ -120,7 +120,7 @@ static int driverGetActive(void)
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // Normally, this routine is used to detect and initialize each device,
   // as well as registering each one with any higher-level interfaces.  Since
@@ -193,11 +193,9 @@ static kernelPicOps picOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelPicDriverRegister(void *driverData)
+void kernelPicDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &picOps;

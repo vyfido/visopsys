@@ -28,7 +28,7 @@
 extern loaderInfoStruct *kernelOsLoaderInfo;
 
 // The only function exported by kernelMain.c
-void kernelMain(unsigned, loaderInfoStruct *);
+void kernelMain(unsigned, loaderInfoStruct *) __attribute__((noreturn));
 
 #define _KERNELMAIN_H
 #endif

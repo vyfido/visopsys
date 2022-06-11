@@ -8,15 +8,14 @@
 # This stuff is compile-only.  It is not linked except into a single
 # cohesive object file.
 
-CC		= gcc
-LD		= ld
-CPU		= $(shell ../../utils/cpu.sh)
-STDDEP		= Makefile.visopsys sys/*.h
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
-WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror
-INCLUDE         = -nostdinc -I. -I ../include
-CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
+ROOT=../..
+INCDIR=../include
+
+include ${ROOT}/Makefile.include
+
+STDDEP		= ${ROOT}/Makefile.include Makefile.visopsys sys/*.h
+INCLUDE         = -nostdinc -I. -I ${INCDIR}
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
 LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
 OPTS		= ${CFLAGS} ${LFLAGS}
 

@@ -43,7 +43,7 @@ typedef struct {
 
 // This is the structure that is used to define a file system
 // driver
-typedef struct {
+typedef struct _kernelFilesystemDriver {
   char *driverTypeName;
   int (*driverDetect) (kernelDisk *);
   int (*driverFormat) (kernelDisk *, const char *, const char *, int,

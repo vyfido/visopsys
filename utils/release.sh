@@ -6,6 +6,6 @@
 ##  release.sh
 ##
 
-# Just echoes the release number of Visopsys
-echo "0.63"
+# Just echos the release number of Visopsys
+echo "0.64"
 exit 0

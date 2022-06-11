@@ -379,8 +379,8 @@ static int chooseDisk(void)
       cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
 
       // Make the window visible
-      windowSetHasMinimizeButton(chooseWindow, 0);
-      windowSetHasCloseButton(chooseWindow, 0);
+      windowRemoveMinimizeButton(chooseWindow);
+      windowRemoveCloseButton(chooseWindow);
       windowSetResizable(chooseWindow, 0);
       windowSetVisible(chooseWindow, 1);
 

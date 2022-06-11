@@ -31,13 +31,13 @@
 static kernelAsciiFont *labelFont = NULL;
 
 
-static int setText(void *componentData, const char *text, int length)
+static int setText(kernelWindowComponent *component, const char *text,
+		   int length)
 {
   // Set the label text
   
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextLabel *label = (kernelWindowTextLabel *) component->data;
+  kernelWindowTextLabel *label = component->data;
   int count;
 
   // Set the text
@@ -67,7 +67,8 @@ static int setText(void *componentData, const char *text, int length)
   char *tmp  = label->text;
   for (count = 0; count < label->lines; count ++)
     {
-      int width = kernelFontGetPrintedWidth(component->parameters.font, tmp);
+      int width = kernelFontGetPrintedWidth((kernelAsciiFont *)
+					    component->parameters.font, tmp);
       if (width > component->width)
 	component->width = width;
       
@@ -83,25 +84,23 @@ static int setText(void *componentData, const char *text, int length)
 }
 
 
-static int draw(void *componentData)
+static int draw(kernelWindowComponent *component)
 {
   // Draw the label component
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
-  kernelWindowTextLabel *label = (kernelWindowTextLabel *) component->data;
+  kernelWindowTextLabel *label = component->data;
   int count;
 
   char *tmp = label->text;
   for (count = 0; count < label->lines; count ++)
     {
       status =
-	kernelGraphicDrawText(&(window->buffer),
+	kernelGraphicDrawText(component->buffer,
 			      (color *) &(component->parameters.foreground),
 			      (color *) &(component->parameters.background),
-			      component->parameters.font, tmp, draw_normal,
-			      component->xCoord,
+			      (kernelAsciiFont *) component->parameters.font,
+			      tmp, draw_normal, component->xCoord,
 			      (component->yCoord +
 			      (((kernelAsciiFont *) component->parameters.font)
 				->charHeight * count)));
@@ -112,41 +111,38 @@ static int draw(void *componentData)
     }
 
   if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder((void *) component, 1);
+    component->drawBorder(component, 1);
 
   return (status);
 }
 
 
-static int setData(void *componentData, void *text, int length)
+static int setData(kernelWindowComponent *component, void *text, int length)
 {
   // Set the label text
-  
+
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindow *window = (kernelWindow *) component->window;
 
   if (component->erase)
-    component->erase(componentData);
+    component->erase(component);
 
-  status = setText(componentData, text, length);
+  status = setText(component, text, length);
   if (status < 0)
     return (status);
 
-  if (component->draw)
-    status = component->draw(componentData);
+  draw(component);
 
-  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
-			   component->yCoord, component->width,
-			   component->height);
-  return (status);
+  component->window
+    ->update(component->window, component->xCoord, component->yCoord,
+	     component->width, component->height);
+
+  return (status = 0);
 }
 
 
-static int destroy(void *componentData)
+static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowTextLabel *label = (kernelWindowTextLabel *) component->data;
+  kernelWindowTextLabel *label = component->data;
 
   // Release all our memory
   if (label)
@@ -174,7 +170,7 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewTextLabel(volatile void *parent,
+kernelWindowComponent *kernelWindowNewTextLabel(objectKey parent,
 						const char *text,
 						componentParameters *params)
 {
@@ -227,7 +223,7 @@ kernelWindowComponent *kernelWindowNewTextLabel(volatile void *parent,
   component->data = (void *) textLabelComponent;
 
   // Set the label data
-  status = setText((void *) component, text, strlen(text));
+  status = setText(component, text, strlen(text));
   if (status < 0)
     {
       kernelFree((void *) textLabelComponent);

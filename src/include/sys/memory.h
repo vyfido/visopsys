@@ -35,13 +35,13 @@
 #define USER_MEMORY_HEAP_MULTIPLE    (64 * 1024)    // 64 Kb
 #define KERNEL_MEMORY_HEAP_MULTIPLE  (1024 * 1024)  // 1 meg
 
-typedef struct {
+typedef struct _mallocBlock {
   int used;
   int process;
   void *start;
   void *end;
-  void *previous;
-  void *next;
+  struct _mallocBlock *previous;
+  struct _mallocBlock *next;
   const char *function;
 
 } mallocBlock;
@@ -70,7 +70,7 @@ typedef struct {
   int (*lockGet) (lock *);
   int (*lockRelease) (lock *);
   void (*error) (const char *, const char *, int, kernelErrorKind, 
-		 const char *, ...);
+		 const char *, ...) __attribute__((format(printf, 5, 6)));
 
 } mallocKernelOps;
 

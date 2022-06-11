@@ -26,45 +26,44 @@
 #include "kernelMisc.h"
 #include <string.h>
 
-static int (*saveFocus) (void *, int) = NULL;
-static int (*saveKeyEvent) (void *, windowEvent *) = NULL;
+static int (*saveFocus) (kernelWindowComponent *, int) = NULL;
+static int (*saveKeyEvent) (kernelWindowComponent *, windowEvent *) = NULL;
 
 
-static int focus(void *componentData, int focus)
+static int focus(kernelWindowComponent *component, int yesNo)
 {
   // This gets called when a component gets or loses the focus
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *textArea = ((kernelWindowTextArea *) component->data)->area;
+  kernelWindowTextArea *textArea = component->data;
+  kernelTextArea *area = textArea->area;
 
   // Call the 'focus' routine of the underlying text area
-  status = saveFocus(componentData, focus);
+  status = saveFocus(component, yesNo);
   if (status < 0)
     return (status);
 
-  kernelTextStreamSetCursor(((kernelTextOutputStream *)
-			     textArea->outputStream), focus);
+  kernelTextStreamSetCursor(area->outputStream, yesNo);
   return (0);
 }
 
 
-static int keyEvent(void *componentData, windowEvent *event)
+static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *textArea = ((kernelWindowTextArea *) component->data)->area;
+  kernelWindowTextArea *textArea = component->data;
+  kernelTextArea *area = textArea->area;
 
   if (event->type == EVENT_KEY_DOWN)
     {
       if (event->key == 8)
-	kernelTextStreamBackSpace(textArea->outputStream);
+	kernelTextStreamBackSpace(area->outputStream);
 
       else if ((event->key >= 32) && (event->key <= 126))
-	kernelTextStreamPutc(textArea->outputStream, event->key);
+	kernelTextStreamPutc(area->outputStream, event->key);
     }
 
   if (saveKeyEvent)
-    return (saveKeyEvent(componentData, event));
+    return (saveKeyEvent(component, event));
   else
     return (0);
 }
@@ -79,15 +78,15 @@ static int keyEvent(void *componentData, windowEvent *event)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
-						int columns,
+kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 						componentParameters *params)
 {
   // Just returns a kernelWindowTextArea with only one row, but there are
   // a couple of other things we do as well.
 
   kernelWindowComponent *component = NULL;
-  kernelTextArea *textArea = NULL;
+  kernelWindowTextArea *textArea = NULL;
+  kernelTextArea *area = NULL;
   componentParameters newParams;
 
   kernelMemCopy(params, &newParams, sizeof(componentParameters));
@@ -97,16 +96,17 @@ kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
   if (component == NULL)
     return (component);
 
-  textArea = ((kernelWindowTextArea *) component->data)->area;
+  textArea = component->data;
+  area = textArea->area;
 
   // Only X-resizable
   component->flags &= ~WINFLAG_RESIZABLEY;
 
   // Turn off the cursor until we get the focus
-  textArea->cursorState = 0;
+  area->cursorState = 0;
 
   // Turn echo off
-  ((kernelTextInputStream *) textArea->inputStream)->echo = 0;
+  area->inputStream->echo = 0;
 
   // We want different focus behaviour than a text area
   saveFocus = component->focus;

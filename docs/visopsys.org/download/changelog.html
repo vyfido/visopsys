@@ -13,10 +13,10 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <table border="0" cellpadding="0" cellspacing="0" width="93">
   <tr>
     <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
-    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
+    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" width="53" height="25"></a><br>
     <br>
     <a href="../about/index.html">
-    <img src="../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" width="60" height="25"></a></font><p align="center">
     <a href="../about/news.html">
     <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
     <br>
@@ -24,16 +24,16 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
     <img border="0" src="../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="index.html">
-    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
+    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" width="95" height="25"></a></font><br>
     <br>
     <a href="../developers/index.html">
-    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" width="97" height="29"></a><br>
     <br>
     <a href="../osdev/index.html">
-    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" width="64" height="25"></a><br>
     <br>
     <a href="../search.html">
-    <img src="../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
+    <img src="../img/nav_buttons/search.gif" alt="Search" border="0" width="63" height="24"></a></td>
   </tr>
 </table>
 </center></div>
@@ -45,6 +45,100 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <p align="center">
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
+
+<p><font size="4">VERSION 0.64<br>
+</font><font size="2">25/10/2006</font></p>
+
+<p><font size="4">Overview: This is a maintenance release, with extensive code 
+grooming and bug fixes. There has been a particular focus on the GUI code, 
+kernel debugging, the kernel API, gcc 4.x warnings, and compiler optimization 
+problems. New user-visible features include the addition of right-click context 
+menus and support for 32-bit bitmaps and icons.</font></p>
+<ul>
+  <li><font size="4">Booting now works under the Bochs 2.3 emulator (failed in 
+  graphics mode under earlier versions)</font></li>
+  <li><font size="4">Implemented right-click context menus.</font></li>
+  <li><font size="4">Added support for 32-bit .bmp bitmap images and .ico icons</font></li>
+  <li><font size="4">The Disk Manager's canvas now responds to keyboard cursor 
+  inputs.</font></li>
+  <li><font size="4">Did general, large-scale GUI re-engineering. </font></li>
+  <li><font size="4">Fixed compilation errors under gcc 4.x</font></li>
+  <li><font size="4">Added some API debugging</font></li>
+  <li><font size="4">Moved the sysCall() inline function into a _syscall.c file 
+  to avoid problems with gcc (optimization) function inlining.</font></li>
+  <li><font size="4">Dialog windows no longer appear in the window shell's 
+  window list.</font></li>
+  <li><font size="4">Multitasking/sheduling changes: Separated out the 
+  scheduler's code for choosing the next program to run (into a subroutine), 
+  corrected the big comment that describes the scheduling algorithm, fixed a bug 
+  that might have resulted in a NULL pointer dereference, made it so the 
+  exception handler is never interrupted by another process, and added a 
+  kernelProcessingException variable that exports the exception number being 
+  processed.</font></li>
+  <li><font size="4">Implemented a generic kernel debugging functionality that 
+  can be compiled in conditionally, and that can filter messages by categories 
+  (for example, there is a category for GUI debugging and a category for USB 
+  debugging), as well as filtering by source file.</font></li>
+  <li><font size="4">Disabled USB support for now, since it's broken and can 
+  cause some boots to hang</font></li>
+  <li><font size="4">The window border component only ever drew when it was 
+  called to draw the top border, since it could only draw the entire border. Now 
+  the 'draw gradient border' function can draw individual lines of a border and 
+  the border component draws the parts individually.</font></li>
+  <li><font size="4">Did some cleanup of the vloader OS loader code</font></li>
+  <li><font size="4">Added a function to redraw all the windows, and another one 
+  that resets all of the (non-custom) colors of all the windows' components. 
+  Setting the colors in the 'Display Settings' program uses this to change all 
+  of the window colors immediately.</font></li>
+  <li><font size="4">Added more debugging info to errors in the malloc() code.</font></li>
+  <li><font size="4">Added a userspace flag for components that aren't focusable 
+  by default. Subsequently, 'canvas' components are no longer focusable by 
+  default.</font></li>
+  <li><font size="4">Creating window menus is now done more simply by passing a 
+  structure with the list of menu items, then calling the getSelected() function 
+  to find out which one was clicked. Also implemented the more-useful getData() 
+  function, which returns the objectKey of the selected item.</font></li>
+  <li><font size="4">Implemented a window 'slider' component to wrap the scroll 
+  bar component, so that it can be focusable and accept keyboard input. (And 
+  adapted the window library color chooser dialog to use it).</font></li>
+  <li><font size="4">Window canvas components now show a visual change when they 
+  are focused.</font></li>
+  <li><font size="4">GUI menu components now have their own graphic buffers, so 
+  that regardless of what window they come from they can stay on top, extend 
+  outside the window, etc.</font></li>
+  <li><font size="4">The install.sh script now copies any /bootinfo or /grphmode 
+  files into the CD-ROM boot floppy images.</font></li>
+  <li><font size="4">The install/imaging scripts no longer redirect useful error 
+  output to /dev/null -- they now redirect to temporary log files, check exit 
+  codes, and direct the user to the log files if applicable.</font></li>
+  <li><font size="4">The window manager code now has more efficient memory 
+  management, so that it isn't allocating memory for the entire array of 
+  possible window structures at initialization time.</font></li>
+  <li><font size="4">Created a top-level Makefile.include file for all the code 
+  Makefiles, added some more warning flags to it, and fixed the resulting 
+  warnings.</font></li>
+  <li><font size="4">Made gcc optimization args (-00, -02, etc) a global 
+  Makefile variable</font></li>
+  <li><font size="4">The objectKey type is now a 'volatile void *'</font></li>
+  <li><font size="4">Made data structures throughout properly self-referential 
+  (instead of using void * pointers) and removed all of the unnecessary casting, 
+  for (hopefully) fewer coding errors.</font></li>
+  <li><font size="4">Fixed: The vloader OS loader was being written to the 
+  *second* free cluster by the Fedora VFAT driver when not using FAT32. Made a 
+  hack to adjust it when installing from Fedora, and generally streamlined the 
+  copy-boot program.</font></li>
+  <li><font size="4">Fixed: A slight bug in the FAT code in that it relied too 
+  strictly on the Microsoft definition of FAT-type detection. Now it takes into 
+  account a couple of extra hints.</font></li>
+  <li><font size="4">Fixed: The 'view' program wasn't showing tab characters 
+  properly in text files.</font></li>
+  <li><font size="4">Fixed: The 'vsh' shell would crash if the user entered a 
+  line containing only whitespace.</font></li>
+  <li><font size="4">Fixed: A bug in the copyArea() function of the framebuffer 
+  graphic driver in that it wasn't checking to see whether the areas were 
+  outside the buffer.</font></li>
+</ul>
+<hr>
 
 <p><font size="4">VERSION 0.63<br>
 </font><font size="2">15/08/2006</font></p>
@@ -1683,11 +1777,11 @@ abstraction layer initialization</font></li>
     <img
     src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    This site is copyright © 1999-2006, <a href="mailto:andy@visopsys.org">J.
     Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    November 29, 2005</font></p>
+    September 24, 2006</font></p>
   </blockquote>
 </blockquote>
 

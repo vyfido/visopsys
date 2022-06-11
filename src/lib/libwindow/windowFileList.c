@@ -354,13 +354,12 @@ static listItemParameters *allocateIconParameters(windowFileList *fileList)
 }
 
 
-static int changeDirWithLock(objectKey fileListPtr, const char *newDir)
+static int changeDirWithLock(windowFileList *fileList, const char *newDir)
 {
   // Rescan the directory information and rebuild the file list, with locking
   // so that our GUI thread and main thread don't trash one another
 
   int status = 0;
-  windowFileList *fileList = (windowFileList *) fileListPtr;
   static lock dataLock;
   listItemParameters *iconParams = NULL;
 
@@ -397,10 +396,9 @@ static int changeDirWithLock(objectKey fileListPtr, const char *newDir)
 }
 
 
-static int eventHandler(void *fileListPtr, windowEvent *event)
+static int eventHandler(windowFileList *fileList, windowEvent *event)
 {
   int status = 0;
-  windowFileList *fileList = fileListPtr;
   int clickedIcon = -1;
   fileEntry *fileEntries = (fileEntry *) fileList->fileEntries;
   listItemParameters *iconParams = NULL;
@@ -480,19 +478,17 @@ static int eventHandler(void *fileListPtr, windowEvent *event)
 }
 
 
-static int update(void *fileListPtr, const char *directory)
+static int update(windowFileList *fileList, const char *directory)
 {
   // Update the supplied file list from the supplied directory.  This is
   // useful for changing the current directory, for example.
-  return (changeDirWithLock((windowFileList *) fileListPtr, directory));
+  return (changeDirWithLock(fileList, directory));
 }
 
 
-static int destroy(void *fileListPtr)
+static int destroy(windowFileList *fileList)
 {
   // Detroy and deallocate the file list.
-
-  windowFileList *fileList = (windowFileList *) fileListPtr;
 
   if (fileList->fileEntries)
     free(fileList->fileEntries);

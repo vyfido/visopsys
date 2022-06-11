@@ -31,7 +31,7 @@
 
 kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
 				  kernelBusTarget *busTarget,
-				  void *driver)
+				  kernelDriver *driver)
 {
   // This routine is used to detect and initialize a potential EHCI USB
   // device, as well as registering it with the higher-level interfaces.

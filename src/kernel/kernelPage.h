@@ -41,7 +41,7 @@
 #define PAGE_MAP_ANY          0x01
 #define PAGE_MAP_EXACT        0x02
 
-//#define PAGE_DEBUG 1
+//#define PAGE_DEBUG
 
 // Data structures
 

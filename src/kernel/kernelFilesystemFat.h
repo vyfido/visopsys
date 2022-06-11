@@ -36,15 +36,12 @@ typedef enum {
 
 typedef volatile struct {
   // These are taken directly from directory entries
-  unsigned char shortAlias[12];
+  char shortAlias[12];
   unsigned attributes;
   unsigned res;
   unsigned timeTenth;
   unsigned startCluster;
 
-  // For keeping a list of free ones
-  void *next;
- 
 } fatEntryData;
 
 // This structure will contain all of the internal global data

@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   unsigned outputSize = 0;
-  unsigned char *output;
+  char *output;
   int count1, count2;
 
   // If no parameter is supplied, use an empty string.

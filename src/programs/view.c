@@ -104,17 +104,18 @@ static void printTextLines(char *data, int size)
 {
   // Cut the text data into lines and print them individually
 
-  char *linePtr = data;
   int count;
 
   for (count = 0; count < size; count ++)
-    if (data[count] == '\n')
-      data[count] = '\0';
-
-  while (linePtr < (data + size))
     {
-      textPrintLine(linePtr);
-      linePtr += (strlen(linePtr) + 1);
+      if (data[count] == '\t')
+	textTab();
+      else if (data[count] == '\n')
+	textNewline();
+      else if (data[count] == '\0')
+	break;
+      else
+	textPutc(data[count]);
     }
 }
 
@@ -176,7 +177,7 @@ int main(int argc, char *argv[])
 	}
     }
   else
-    strcpy(shortFileName, argv[argc - 1]);
+    strncpy(shortFileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
   // Turn it into an absolute pathname
   vshMakeAbsolutePath(shortFileName, fullFileName);
@@ -255,6 +256,7 @@ int main(int argc, char *argv[])
       textSetCursor(0);
       textInputSetEcho(0);
       printTextLines(textData, showFile.size);
+ 
       // Scroll back to the very top
       textScroll(-(textLines / rows));
 

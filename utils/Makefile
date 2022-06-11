@@ -7,18 +7,17 @@
 
 ##  Makefile for the Visopsys utilities.  
 
-ifeq (${ARCH},)
-	ARCH	= $(shell ./arch.sh)
-endif
+ROOT=..
+SRCDIR=${ROOT}/src/programs
 
-CFLAGS		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
-		-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror
+include ${ROOT}/Makefile.include
+
+CFLAGS		= ${OPT} -pipe ${WARN}
 
 all: copy-boot
 
-copy-boot: ../src/programs/copy-boot.c Makefile
-	${CC} ${CFLAGS} ../src/programs/copy-boot.c -lc -o $@
+copy-boot: ${SRCDIR}/copy-boot.c Makefile
+	${CC} ${CFLAGS} ${SRCDIR}/copy-boot.c -lc -o $@
 
 clean:
-	rm -f *~ core *.zip *.iso *.img copy-boot mkdosfs.*
+	rm -f *~ core *.zip *.iso *.img copy-boot *.log

@@ -8,6 +8,10 @@
 
 # Installs the Visopsys system into a zipped CD-ROM ISO image file
 
+IMAGEFLOPPYLOG=./image-floppy.log
+MKISOFSLOG=./mkisofs.log
+ZIPLOG=./zip.log
+
 echo ""
 echo "Making Visopsys CD-ROM IMAGE file"
 
@@ -15,14 +19,14 @@ echo "Making Visopsys CD-ROM IMAGE file"
 # the release number in the destination directory name.  Otherwise, we
 # assume an interim package and use the date instead
 if [ "$1" == "-r" ] ; then
-    # What is the current release version?
-    RELEASE=`./release.sh`
-    echo " - doing RELEASE version $RELEASE"
-    RELFLAG=-r
+	# What is the current release version?
+	RELEASE=`./release.sh`
+	echo " - doing RELEASE version $RELEASE"
+	RELFLAG=-r
 else
-    # What is the date?
-    RELEASE=`date +%Y-%m-%d`
-    echo " - doing INTERIM version $RELEASE (use -r flag for RELEASES)"
+	# What is the date?
+	RELEASE=`date +%Y-%m-%d`
+	echo " - doing INTERIM version $RELEASE (use -r flag for RELEASES)"
 fi
 echo ""
 
@@ -38,11 +42,16 @@ TMPDIR=/tmp/iso$$.tmp
 rm -Rf $TMPDIR
 mkdir -p $TMPDIR
 
-echo -n "Making/copying floppy image... "
-./image-floppy.sh $RELFLAG $ISOBOOT >& /dev/null
+echo -n "Making/copying boot floppy image... "
+./image-floppy.sh $RELFLAG $ISOBOOT >& $IMAGEFLOPPYLOG
 if [ $? -ne 0 ] ; then
-    exit $?
+	echo ""
+	echo -n "Not able to create floppy image $FLOPPYZIP.  "
+	echo "See $IMAGEFLOPPYLOG.  Terminating."
+	echo ""
+	exit 1
 fi
+rm -f $IMAGEFLOPPYLOG
 unzip $FLOPPYZIP >& /dev/null
 rm -f $FLOPPYZIP
 mv $FLOPPYIMAGE $TMPDIR
@@ -58,18 +67,34 @@ echo -n "Copying doc files... "
 find $TMPDIR/docs -name CVS -exec rm -R {} \; >& /dev/null
 echo Done
 
+echo -n "Creating ISO image... "
 rm -f $ISOIMAGE
-mkisofs -U -D -floppy-boot -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE -hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 -L -o $ISOIMAGE $TMPDIR >& /dev/null
-if [ $? != 0 ] ; then
-    exit $?
+mkisofs -U -D -floppy-boot -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE -hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 -L -o $ISOIMAGE $TMPDIR >& $MKISOFSLOG
+if [ $? -ne 0 ] ; then
+	echo ""
+	echo -n "Not able to create ISO image $ISOIMAGE.  "
+	echo "See $MKISOFSLOG.  Terminating."
+	echo ""
+	exit 1
 fi
+rm -f $MKISOFSLOG
+echo Done
 
+echo -n "Archiving... "
 echo "Visopsys $RELEASE CD-ROM Release" > /tmp/comment
 echo "Copyright (C) 1998-2006 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
-zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment >& /dev/null
+zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment >& $ZIPLOG
+if [ $? -ne 0 ] ; then
+	echo ""
+	echo -n "Not able to create zip file $ZIPFILE.  "
+	echo "See $ZIPLOG.  Terminating."
+	echo ""
+	exit 1
+fi
+rm -f /tmp/comment $ZIPLOG
+echo Done
 
-rm -f /tmp/comment
 rm -f $FLOPPYIMAGE
 rm -f $ISOIMAGE
 rm -Rf $TMPDIR

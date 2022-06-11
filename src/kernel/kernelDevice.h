@@ -36,7 +36,7 @@ typedef struct {
 } kernelDeviceClass;
 
 // The generic hardware device structure
-typedef struct {
+typedef struct _kernelDevice {
   struct {
     // Device class and subclass.  Subclass optional.
     kernelDeviceClass *class;
@@ -46,15 +46,16 @@ typedef struct {
     variableList attrs;
 
     // Used for maintaining the list of devices as a tree
-    void *parent;
-    void *firstChild;
-    void *previous;
-    void *next;
+    struct _kernelDevice *parent;
+    struct _kernelDevice *firstChild;
+    struct _kernelDevice *previous;
+    struct _kernelDevice *next;
 
   } device;
 
   // Driver
   kernelDriver *driver;
+
   // Device class-specific structure
   void *data;
 

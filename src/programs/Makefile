@@ -5,23 +5,20 @@
 ##  Makefile
 ##
 
-UTILSDIR=../../utils
-BUILDDIR=../../build/programs
+ROOT=../..
+UTILSDIR=${ROOT}/utils
+BUILDDIR=${ROOT}/build/programs
 INCDIR=../include
-LIBDIR=../../build/system/libraries
+LIBDIR=${ROOT}/build/system/libraries
 
-ifeq (${ARCH},)
-	ARCH	= $(shell ${UTILSDIR}/arch.sh)
-endif
+include ${ROOT}/Makefile.include
 
-STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
-CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
-WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror
+STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
+		${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
 INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
+LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles \
+		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES	= adduser \
@@ -82,7 +79,6 @@ NAMES	= adduser \
 	snake \
 	sync \
 	telnet \
-	test \
 	testio \
 	touch \
 	umount \

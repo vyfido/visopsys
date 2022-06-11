@@ -204,7 +204,7 @@ static void mouseInterrupt(void)
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also talks to
@@ -322,11 +322,9 @@ static kernelMouseOps mouseOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelPS2MouseDriverRegister(void *driverData)
+void kernelPS2MouseDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &mouseOps;

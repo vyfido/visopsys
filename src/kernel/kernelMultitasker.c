@@ -53,6 +53,8 @@ do { bitmap[port / 8] |=  (1 << (port % 8)); } while (0)
 do { bitmap[port / 8] &= ~(1 << (port % 8)); } while (0)
 #define GET_PORT_BIT(bitmap, port) ((bitmap[port / 8] >> (port % 8)) & 0x01)
   
+static void idleThread(void) __attribute__((noreturn));
+
 // Global multitasker stuff
 static int multitaskingEnabled = 0;
 static volatile int processIdCounter = KERNELPROCID;
@@ -708,7 +710,7 @@ static int deleteProcess(kernelProcess *killProcess)
 
   // If the process has a signal stream, destroy it
   if (killProcess->signalStream.buffer)
-    kernelStreamDestroy((stream *) &(killProcess->signalStream));
+    kernelStreamDestroy(&(killProcess->signalStream));
 
   // Deallocate all memory owned by this process
   status = kernelMemoryReleaseAllByProcId(killProcess->processId);
@@ -862,6 +864,189 @@ static int schedulerShutdown(void)
 }
 
 
+static kernelProcess *chooseNextProcess(void)
+{
+  // Loops through the process queue, and determines which process to run
+  // next  
+
+  unsigned theTime = 0;
+  kernelProcess *miscProcess = NULL;
+  kernelProcess *nextProcess = NULL;
+  unsigned processWeight = 0;
+  unsigned topProcessWeight = 0;
+  int count;
+
+  // Here is where we make decisions about which tasks to schedule, and when.
+  // Below is a brief description of the scheduling algorithm.
+  
+  // Priority level 0 (highest-priority) processes will be "real time"
+  // scheduled.  When there are any processes running and ready at this
+  // priority level, they will be serviced to the exclusion of all
+  // processes not at level 0.  Not even the kernel process has this level
+  // of priority.  
+  
+  // The last (lowest-priority) priority level will be "background" 
+  // scheduled.  Processes at this level will only receive processor time
+  // when there are no ready processes at any other level.  Unlike processes
+  // at any other level, it will be possible for background processes
+  // to starve.
+  
+  // The number of priority levels is flexible based on the configuration
+  // macro in the multitasker's header file.  However, the "special" levels
+  // mentioned above will exhibit the same behavior regardless of the number
+  // of "normal" priority levels in the system.
+  
+  // Amongst all of the processes at other priority levels, there will be
+  // a more even-handed approach to scheduling.  We will attempt a fair
+  // algorithm with a weighting scheme.  Among the weighting variables will
+  // be the following: priority, waiting time, and "shortness".  Shortness
+  // will probably come later (shortest-job-first), so for now we will
+  // concentrate on priority and waiting time.  The formula will look like
+  // this:
+  //
+  // weight = ((PRIORITY_LEVELS - task_priority) * PRIORITY_RATIO) + wait_time
+  //
+  // This means that the inverse of the process priority will be multiplied
+  // by the "priority ratio", and to that will be added the current waiting
+  // time.  For example, if we have 4 priority levels, the priority ratio
+  // is 3, and we have two tasks as follows:
+  //
+  // Task 1: priority=1, waiting time=4
+  // Task 2: priority=2, waiting time=6
+  // 
+  // then
+  //
+  // task1Weight = ((4 - 1) * 3) + 4 = 13  <- winner
+  // task2Weight = ((4 - 2) * 3) + 6 = 12
+  // 
+  // Thus, even though task 2 has been waiting longer, task 1's higher
+  // priority wins.  However in a slightly different scenario -- using the
+  // same constants -- if we had:
+  //
+  // Task 1: priority=1, waiting time=3
+  // Task 2: priority=2, waiting time=7
+  // 
+  // then
+  //
+  // task1Weight = ((4 - 1) * 3) + 3 = 12
+  // task2Weight = ((4 - 2) * 3) + 7 = 13  <- winner
+  // 
+  // In this case, task 2 gets to run since it has been waiting long enough
+  // to overcome task 1's higher priority.  This possibility helps to ensure
+  // that no processes will starve.  The priority ratio determines the
+  // weighting of priority vs. waiting time.  A priority ratio of zero would
+  // give higher-priority processes no advantage over lower-priority, and
+  // waiting time would determine execution order.
+  // 
+  // A tie beteen the highest-weighted tasks is broken based on queue order.
+  // The queue is neither FIFO nor LIFO, but closer to LIFO.
+
+  // Get the system timer time
+  theTime = kernelSysTimerRead();
+
+  for (count = 0; count < numQueued; count ++)
+    {
+      // Get a pointer to the process' main process
+      miscProcess = processQueue[count];
+
+      // This will change the state of a waiting process to "ready"
+      // if the specified "waiting reason" has come to pass
+      if (miscProcess->state == proc_waiting)
+	{
+	  // If the process is waiting for a specified time.  Has the
+	  // requested time come?
+	  if ((miscProcess->waitUntil != 0) &&
+	      (miscProcess->waitUntil < theTime))
+	    // The process is ready to run
+	    miscProcess->state = proc_ready;
+
+	  else
+	    // The process must continue waiting
+	    continue;
+	}
+
+      // This will dismantle any process that has identified itself
+      // as finished
+      else if (miscProcess->state == proc_finished)
+	{
+	  kernelMultitaskerKillProcess(miscProcess->processId, 0);
+
+	  // This removed it from the queue and placed another process
+	  // in its place.  Decrement the current loop counter
+	  count--;
+
+	  continue;
+	}
+
+      else if (miscProcess->state != proc_ready)
+	// Otherwise, this process should not be considered for
+	// execution in this time slice (might be stopped, sleeping,
+	// or zombie)
+	continue;
+
+      // If the process is of the highest (real-time) priority, it
+      // should get an infinite weight
+      if (miscProcess->priority == 0)
+	processWeight = 0xFFFFFFFF;
+
+      // Else if the process is of the lowest priority, it should
+      // get a weight of zero
+      else if (miscProcess->priority == (PRIORITY_LEVELS - 1))
+	processWeight = 0;
+
+      // If this process has yielded this timeslice already, we
+      // should give it a low weight this time so that high-priority
+      // processes don't gobble time unnecessarily
+      else if (schedulerSwitchedByCall &&
+	       (miscProcess->yieldSlice == theTime))
+	processWeight = 0;
+
+      // Otherwise, calculate the weight of this task, using the
+      // algorithm described above
+      else
+	processWeight = (((PRIORITY_LEVELS - miscProcess->priority) *
+			  PRIORITY_RATIO) + miscProcess->waitTime);
+
+      if (processWeight < topProcessWeight)
+	{
+	  // Increase the waiting time of this process, since it's not
+	  // the one we're selecting
+	  miscProcess->waitTime += 1;
+	  continue;
+	}
+      else
+	{
+	  if (nextProcess)
+	    {
+	      // If the process' weight is tied with that of the
+	      // previously winning process, it will NOT win if the
+	      // other process has been waiting as long or longer
+	      if ((processWeight == topProcessWeight) &&
+		  (nextProcess->waitTime >= miscProcess->waitTime))
+		{
+		  miscProcess->waitTime += 1;
+		  continue;
+		}
+
+	      else
+		{
+		  // We have the currently winning process here.
+		  // Remember it in case we don't find a better one,
+		  // and increase the waiting time of the process this
+		  // one is replacing
+		  nextProcess->waitTime += 1;
+		}
+	    }
+	      
+	  topProcessWeight = processWeight;
+	  nextProcess = miscProcess;
+	}
+    }
+
+  return (nextProcess);
+}
+
+
 static int scheduler(void)
 {
   // Well, here it is:  the kernel multitasker's scheduler.  This little
@@ -878,8 +1063,6 @@ static int scheduler(void)
   // queue of processes that it examines will have the new process added.
 
   int status = 0;
-  kernelProcess *miscProcess = NULL;
-  volatile unsigned theTime = 0;
   volatile int timeUsed = 0;
   volatile int timerTicks = 0;
   int count;
@@ -887,77 +1070,6 @@ static int scheduler(void)
   // This is info about the processes we run
   kernelProcess *nextProcess = NULL;
   kernelProcess *previousProcess = NULL;
-  unsigned processWeight = 0;
-  unsigned topProcessWeight = 0;
-
-  // Here is where we make decisions about which tasks to schedule,
-  // and when.  Below is a brief description of the scheduling
-  // algorithm.
-  
-  // There will be two "special" queues in the multitasker.  The
-  // first (highest-priority) queue will be the "real time" queue.
-  // When there are any processes running and ready at this priority 
-  // level, they will be serviced to the exclusion of all processes from
-  // other queues.  Not even the kernel process will reside in this
-  // queue.  
-  
-  // The last (lowest-priority) queue will be the "background" 
-  // queue.  Processes in this queue will only receive processor time
-  // when there are no ready processes in any other queue.  Unlike
-  // all of the "middle" queues, it will be possible for processes
-  // in this background queue to starve.
-  
-  // The number of priority queues will be somewhat flexible based on
-  // a configuration macro in the multitasker's header file.  However, 
-  // The special queues mentioned above will exhibit the same behavior 
-  // regardless of the number of "normal" queues in the system.
-  
-  // Amongst all of the processes in the other queues, there will be
-  // a more even-handed approach to scheduling.  We will attempt
-  // a fair algorithm with a weighting scheme.  Among the weighting
-  // variables will be the following: priority, waiting time, and
-  // "shortness".  Shortness will probably come later 
-  // (shortest-job-first), so for now we will concentrate on 
-  // priority and shortness.  The formula will look like this:
-  //
-  // weight = ((NUM_QUEUES - taskPriority) * PRIORITY_RATIO) + waitTime
-  //
-  // This means that the inverse of the process priority will be
-  // multiplied by the "priority ratio", and to that will be added the
-  // current waiting time.  For example, if we have 4 priority levels, 
-  // the priority ratio is 3, and we have two tasks as follows:
-  //
-  // Task 1: priority=0, waiting time=7
-  // Task 2: priority=2, waiting time=12
-  // 
-  // then
-  //
-  // task1Weight = ((4 - 0) * 3) + 7  = 19  <- winner
-  // task2Weight = ((4 - 2) * 3) + 12 = 18
-  // 
-  // Thus, even though task 2 has been waiting considerably longer, 
-  // task 1's higher priority wins.  However in a slightly different 
-  // scenario -- using the same constants -- if we had:
-  //
-  // Task 1: priority=0, waiting time=7
-  // Task 2: priority=2, waiting time=14
-  // 
-  // then
-  //
-  // task1Weight = ((4 - 0) * 3) + 7  = 19
-  // task2Weight = ((4 - 2) * 3) + 14 = 20  <- winner
-  // 
-  // In this case, task 2 gets to run since it has been waiting 
-  // long enough to overcome task 1's higher priority.  This possibility
-  // helps to ensure that no processes will starve.  The priority 
-  // ratio determines the weighting of priority vs. waiting time.  
-  // A priority ratio of zero would give higher-priority processes 
-  // no advantage over lower-priority, and waiting time would
-  // determine execution order.
-  // 
-  // A tie beteen the highest-weighted tasks is broken based on 
-  // queue order.  The queue is neither FIFO nor LIFO, but closer to
-  // LIFO.
 
   // Here is the scheduler's big loop
 
@@ -1021,22 +1133,11 @@ static int scheduler(void)
       schedulerTimeslices += 1;
       schedulerTime += timeUsed;
 
-      // Get the system timer time
-      theTime = kernelSysTimerRead();
-
-      // Reset the selected process to NULL so we can evaluate
-      // potential candidates
-      nextProcess = NULL;
-      topProcessWeight = 0;
-
-      // We have to loop through the process queue, and determine which
-      // process to run.
-
-      for (count = 0; count < numQueued; count ++)
+      // Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU 
+      // value for each process currently in the queue
+      if ((schedulerTimeslices % CPU_PERCENT_TIMESLICES) == 0)
 	{
-	  // Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU 
-	  // value for each process currently in the queue
-	  if ((schedulerTimeslices % CPU_PERCENT_TIMESLICES) == 0)
+	  for (count = 0; count < numQueued; count ++)
 	    {
 	      // Calculate the CPU percentage
 	      if (schedulerTime == 0)
@@ -1046,109 +1147,18 @@ static int scheduler(void)
 		  ((processQueue[count]->cpuTime * 100) / schedulerTime);
 
 	      // Reset the process' cpuTime counter
-	      miscProcess->cpuTime = 0;
+	      processQueue[count]->cpuTime = 0;
 	    }
 
-	  // Get a pointer to the process' main process
-	  miscProcess = processQueue[count];
-
-	  // This will change the state of a waiting process to 
-	  // "ready" if the specified "waiting reason" has come to pass
-	  if (miscProcess->state == proc_waiting)
-	    {
-	      // If the process is waiting for a specified time.  Has the
-	      // requested time come?
-	      if ((miscProcess->waitUntil != 0) &&
-		  (miscProcess->waitUntil < theTime))
-		// The process is ready to run
-		miscProcess->state = proc_ready;
-
-	      else
-		// The process must continue waiting
-		continue;
-	    }
-
-	  // This will dismantle any process that has identified itself
-	  // as finished
-	  else if (miscProcess->state == proc_finished)
-	    {
-	      kernelMultitaskerKillProcess(miscProcess->processId, 0);
-
-	      // This removed it from the queue and placed another process
-	      // in its place.  Decrement the current loop counter
-	      count--;
-
-	      continue;
-	    }
-
-	  else if (miscProcess->state != proc_ready)
-	    // Otherwise, this process should not be considered for
-	    // execution in this time slice (might be stopped, sleeping,
-	    // or zombie)
-	    continue;
-
-	  // If the process is of the highest (real-time) priority, it
-	  // should get an infinite weight
-	  if (miscProcess->priority == 0)
-	    processWeight = 0xFFFFFFFF;
-
-	  // Else if the process is of the lowest priority, it should
-	  // get a weight of zero
-	  else if (miscProcess->priority == (PRIORITY_LEVELS - 1))
-	    processWeight = 0;
-
-	  // If this process has yielded this timeslice already, we
-	  // should give it a low weight this time so that high-priority
-	  // processes don't gobble time unnecessarily
-	  else if (schedulerSwitchedByCall &&
-		   (miscProcess->yieldSlice == theTime))
-	    processWeight = 0;
-
-	  // Otherwise, calculate the weight of this task, using the
-	  // algorithm described above
-	  else
-	    processWeight = (((PRIORITY_LEVELS - miscProcess->priority) *
-			     PRIORITY_RATIO) + miscProcess->waitTime);
-
-	  if (processWeight < topProcessWeight)
-	    {
-	      // Increase the waiting time of this process, since it's not
-	      // the one we're selecting
-	      miscProcess->waitTime += 1;
-	      continue;
-	    }
-	  else
-	    {
-	      if (nextProcess)
-		{
-		  // If the process' weight is tied with that of the
-		  // previously winning process, it will NOT win if the
-		  // other process has been waiting as long or longer
-		  if ((processWeight == topProcessWeight) &&
-		      (nextProcess->waitTime >= miscProcess->waitTime))
-		    {
-		      miscProcess->waitTime += 1;
-		      continue;
-		    }
-
-		  else
-		    {
-		      // We have the currently winning process here.
-		      // Remember it in case we don't find a better one,
-		      // and increase the waiting time of the process this
-		      // one is replacing
-		      nextProcess->waitTime += 1;
-		    }
-		}
-	      
-	      topProcessWeight = processWeight;
-	      nextProcess = miscProcess;
-	    }
+	  // Reset the schedulerTime counter
+	  schedulerTime = 0;
 	}
 
-      if ((schedulerTimeslices % CPU_PERCENT_TIMESLICES) == 0)
-	// Reset the schedulerTime counter
-	schedulerTime = 0;
+      // If the exception handler process was active, keep it active
+      if (kernelProcessingException)
+	nextProcess = previousProcess;
+      else
+	nextProcess = chooseNextProcess();
 
       // We should now have selected a process to run.  If not, we should
       // re-start the loop.  This should only be likely to happen if some
@@ -1597,13 +1607,26 @@ void kernelExceptionHandler(int exceptionNum, unsigned address)
 
   // We got an exception.
   
+  // If we are already processing one, then it's a double-fault and we are
+  // totally finished
+  if (kernelProcessingException)
+    kernelPanic("Double-fault while processing %s %s exception",
+		exceptionVector[kernelProcessingException].a,
+		exceptionVector[kernelProcessingException].name);
+
+  kernelProcessingException = exceptionNum;
+
   // If there's a handler for this exception type, call it
-  if (exceptionVector[exceptionNum].handler != NULL)
-    {
-      if (exceptionVector[exceptionNum].handler() >= 0)
-	// The exception was handled.  Return to the task.
-	return;
-    }
+  if (exceptionVector[kernelProcessingException].handler &&
+      (exceptionVector[kernelProcessingException].handler() >= 0))
+    // The exception was handled.  Return to the task.
+    return;
+
+  if (kernelCurrentProcess == NULL)
+    // We have to make an error here.  We can't return to the program
+    // that caused the exception, and we can't tell the multitasker
+    // to kill it.  We'd better make a kernel panic.
+    kernelPanic("Exception handler unable to determine current process");
 
   kernelCurrentProcess->state = proc_stopped;
 
@@ -1615,18 +1638,14 @@ void kernelExceptionHandler(int exceptionNum, unsigned address)
   if (kernelProcessingInterrupt)
     kernelPicEndOfInterrupt(0xFF);
 
-  if (kernelCurrentProcess == NULL)
-    // We have to make an error here.  We can't return to the program
-    // that caused the exception, and we can't tell the multitasker
-    // to kill it.  We'd better make a kernel panic.
-    kernelPanic("Exception handler unable to determine current process");
   else if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
     sprintf(message, "The kernel has experienced %s %s exception",
 	    exceptionVector[exceptionNum].a,
 	    exceptionVector[exceptionNum].name);
   else
     sprintf(message, "Process \"%s\" caused %s %s exception",
-	    kernelCurrentProcess->processName, exceptionVector[exceptionNum].a,
+	    kernelCurrentProcess->processName,
+	    exceptionVector[exceptionNum].a,
 	    exceptionVector[exceptionNum].name);
 
   if (multitaskingEnabled)
@@ -1689,6 +1708,7 @@ void kernelExceptionHandler(int exceptionNum, unsigned address)
   kernelCurrentProcess->state = proc_finished;
 
   kernelProcessingInterrupt = 0;
+  kernelProcessingException = 0;
 
   // Yield control.
   kernelMultitaskerYield();
@@ -2962,8 +2982,7 @@ int kernelMultitaskerSignalSet(int processId, int sig, int on)
   // If there is not yet a signal stream allocated for this process, do it now.
   if (!(signalProcess->signalStream.buffer))
     {
-      status = kernelStreamNew((stream *) &(signalProcess->signalStream),
-			       16, 1);
+      status = kernelStreamNew(&(signalProcess->signalStream), 16, 1);
       if (status < 0)
 	return (status);
     }
@@ -3012,8 +3031,8 @@ int kernelMultitaskerSignal(int processId, int sig)
     }
 
   // Put the signal into the signal stream
-  status = signalProcess->signalStream
-    .append((stream *) &(signalProcess->signalStream), sig);
+  status =
+    signalProcess->signalStream.append(&(signalProcess->signalStream), sig);
 
   return (status);
 }
@@ -3052,8 +3071,8 @@ int kernelMultitaskerSignalRead(int processId)
   if (!(signalProcess->signalStream.count))
     return (sig = 0);
 
-  status = signalProcess->signalStream
-    .pop((stream *) &(signalProcess->signalStream), &sig);
+  status =
+    signalProcess->signalStream.pop(&(signalProcess->signalStream), &sig);
   
   if (status < 0)
     return (status);

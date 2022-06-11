@@ -5,21 +5,17 @@
 ##  Makefile
 ##
 
-UTILSDIR=../../../utils
-BUILDDIR=../../../build/system/libraries
+ROOT=../../..
+UTILSDIR=${ROOT}/utils
+BUILDDIR=${ROOT}/build/system/libraries
 INCDIR=../../include
 
-ifeq (${ARCH},)
-	ARCH	= $(shell ${UTILSDIR}/arch.sh)
-endif
+include ${ROOT}/Makefile.include
 
-STDDEPS		= Makefile ../shared/* ${INCDIR}/*.h ${INCDIR}/sys/*.h
-CODEGEN		= -O2 ${ARCH} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
-WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror
+STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
+		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
 LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
 OPTS		= ${CFLAGS} ${LFLAGS}
 

@@ -22,19 +22,20 @@
 // Driver for standard 3.5" floppy disks
 
 #include "kernelDisk.h"
-#include "kernelInterrupt.h"
 #include "kernelDma.h"
+#include "kernelError.h"
+#include "kernelInterrupt.h"
+#include "kernelLock.h"
+#include "kernelMain.h"
+#include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelPage.h"
+#include "kernelParameters.h"
 #include "kernelPic.h"
 #include "kernelProcessorX86.h"
-#include "kernelMain.h"
-#include "kernelParameters.h"
-#include "kernelMemory.h"
-#include "kernelPage.h"
-#include "kernelMalloc.h"
-#include "kernelMultitasker.h"
 #include "kernelSysTimer.h"
-#include "kernelMisc.h"
-#include "kernelError.h"
 #include <stdio.h>
 
 // Error codes and messages
@@ -85,18 +86,18 @@ static char *errorMessages[] = {
 
 static kernelPhysicalDisk *floppies[MAXFLOPPIES];
 static int numberFloppies = 0;
-static volatile int controllerLock = 0;
-static volatile unsigned currentTrack = 0;
-static volatile int readStatusOnInterrupt = 0;
-static volatile int interruptReceived = 0;
-static volatile unsigned char statusRegister0;
-static volatile unsigned char statusRegister1;
-static volatile unsigned char statusRegister2;
-static volatile unsigned char statusRegister3;
+static lock controllerLock;
+static unsigned currentTrack = 0;
+static int readStatusOnInterrupt = 0;
+static int interruptReceived = 0;
+static unsigned char statusRegister0;
+static unsigned char statusRegister1;
+static unsigned char statusRegister2;
+static unsigned char statusRegister3;
 
 // An area for doing floppy disk DMA transfers (physically aligned, etc)
-static volatile void *xFerPhysical = NULL;
-static volatile void *xFer = NULL;
+static void *xFerPhysical = NULL;
+static void *xFer = NULL;
 
 
 static void commandWrite(unsigned char cmd)
@@ -394,7 +395,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
   theDisk = floppies[driveNum];
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&controllerLock);
   if (status < 0)
     return (status);
 
@@ -432,7 +433,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       if ((sector > theDisk->sectorsPerCylinder) ||
 	  (track >= theDisk->cylinders) || (head >= theDisk->heads))
 	{
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&controllerLock);
 	  return (status = ERR_BADADDRESS);
 	}
 
@@ -472,23 +473,21 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       // If it's a write operation, copy xFerBytes worth of user data
       // into the transfer area
       if (!read)
-	kernelMemCopy(buffer, (void *) xFer, xFerBytes);
+	kernelMemCopy(buffer, xFer, xFerBytes);
 
       // Set up the DMA controller for the transfer.
       if (read)
 	// Set the DMA channel for writing TO memory, demand mode
-	status =
-	  kernelDmaOpenChannel(theDisk->dmaChannel, (void *) xFerPhysical,
-			       xFerBytes, DMA_WRITEMODE);
+	status = kernelDmaOpenChannel(theDisk->dmaChannel, xFerPhysical,
+				      xFerBytes, DMA_WRITEMODE);
       else
 	// Set the DMA channel for reading FROM memory, demand mode
-	status =
-	  kernelDmaOpenChannel(theDisk->dmaChannel, (void *) xFerPhysical,
-			       xFerBytes, DMA_READMODE);
+	status = kernelDmaOpenChannel(theDisk->dmaChannel, xFerPhysical,
+				      xFerBytes, DMA_READMODE);
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to open DMA channel");
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&controllerLock);
 	  return (status);
 	}
 
@@ -499,7 +498,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 	  (currentTrack != track))
 	{
 	  kernelDmaCloseChannel(theDisk->dmaChannel);
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&controllerLock);
 	  kernelError(kernel_error, "Seek error: %s",
 		      errorMessages[evaluateError()]);
 	  return (status = ERR_IO);
@@ -569,7 +568,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       if (status < 0)
 	{
 	  // The command timed out.  Save the error and return error.
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&controllerLock);
 	  return (status);
 	}
 
@@ -610,7 +609,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 	  // If this was a read operation, copy xFerBytes worth of data from
 	  // the transfer area to the user buffer
 	  if (read)
-	    kernelMemCopy((void *) xFer, buffer, xFerBytes);
+	    kernelMemCopy(xFer, buffer, xFerBytes);
 	}
       
       logicalSector += doSectors;
@@ -621,7 +620,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
     } // Per-operation loop
   
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&controllerLock);
 
   if (errorCode == FLOPPY_WRITEPROTECT)
     return (status = ERR_NOWRITE);
@@ -686,7 +685,7 @@ static int driverReset(int driveNum)
     return (status = ERR_BOUNDS);
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&controllerLock);
   if (status < 0)
     return (status);
 
@@ -713,7 +712,7 @@ static int driverReset(int driveNum)
   kernelProcessorDelay();
 
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&controllerLock);
 
   return (status = 0);
 }
@@ -730,7 +729,7 @@ static int driverRecalibrate(int driveNum)
     return (status = ERR_BOUNDS);
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&controllerLock);
   if (status < 0)
     return (status);
 
@@ -752,7 +751,7 @@ static int driverRecalibrate(int driveNum)
   status = waitOperationComplete();
 
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&controllerLock);
 
   if (status < 0)
     return (status);
@@ -776,14 +775,14 @@ static int driverSetMotorState(int driveNum, int onOff)
   int status = 0;
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&controllerLock);
   if (status < 0)
     return (status);
 
   status = setMotorState(driveNum, onOff);
 
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&controllerLock);
 
   return (status);
 }
@@ -803,7 +802,7 @@ static int driverDiskChanged(int driveNum)
     return (status = ERR_BOUNDS);
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&controllerLock);
   if (status < 0)
     return (status);
 
@@ -815,7 +814,7 @@ static int driverDiskChanged(int driveNum)
   kernelProcessorInPort8(0x03F7, data);
 
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&controllerLock);
 
   if (data & 0x80)
     return (status = 1);
@@ -848,7 +847,7 @@ static int driverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int driverDetect(void *parent, void *driver)
+static int driverDetect(void *parent, kernelDriver *driver)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.  Also does
@@ -859,6 +858,8 @@ static int driverDetect(void *parent, void *driver)
   kernelPhysicalDisk *floppyPointer = NULL;
   floppyDriveData *floppyData = NULL;
   int count;
+
+  bzero((void *) &controllerLock, sizeof(lock));
 
   // Reset the number of floppy devices 
   numberFloppies = kernelOsLoaderInfo->floppyDisks;
@@ -989,14 +990,14 @@ static int driverDetect(void *parent, void *driver)
     return (status = ERR_MEMORY);
   
   // Map it into the kernel's address space
-  status = kernelPageMapToFree(KERNELPROCID, (void *) xFerPhysical,
-			       (void **) &xFer, DISK_CACHE_ALIGN);
+  status =
+    kernelPageMapToFree(KERNELPROCID, xFerPhysical, &xFer, DISK_CACHE_ALIGN);
   if (status < 0)
     return (status);
 
   // Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
   // it for us
-  kernelMemClear((void *) xFer, DISK_CACHE_ALIGN);
+  kernelMemClear(xFer, DISK_CACHE_ALIGN);
 
   // Clear the "interrupt received" byte
   interruptReceived = 0;
@@ -1054,11 +1055,9 @@ static kernelDiskOps floppyOps = {
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelFloppyDriverRegister(void *driverData)
+void kernelFloppyDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
-
-  kernelDriver *driver = (kernelDriver *) driverData;
 
   driver->driverDetect = driverDetect;
   driver->ops = &floppyOps;

@@ -24,7 +24,7 @@
 #define API_MAX_ARGS 9
 
 typedef struct {
-  unsigned functionNumber;
+  int functionNumber;
   void *functionPointer;
   int argCount;
   int privilege;
@@ -32,7 +32,7 @@ typedef struct {
 } kernelFunctionIndex;
 
 // Functions exported from kernelApi.c
-int kernelApi(unsigned, unsigned);
+void kernelApi(unsigned, unsigned *);
 
 #define _KERNELAPI_H
 #endif

@@ -95,7 +95,7 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
     populateDriverArray();
 
   // If it's a CD-ROM, only check ISO
-  if (((kernelPhysicalDisk *) theDisk->physical)->flags & DISKFLAG_CDROM)
+  if (theDisk->physical->flags & DISKFLAG_CDROM)
     {
       tmpDriver = getDriver(FSNAME_ISO);
       if (tmpDriver)
@@ -496,7 +496,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   char parentDirName[MAX_PATH_LENGTH];
   char mountDirName[MAX_NAME_LENGTH];
   kernelDisk *theDisk = NULL;
-  kernelPhysicalDisk *physicalDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *parentDir = NULL;
 
@@ -510,8 +509,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
       return (status = ERR_NULLPARAMETER);
     }
-
-  physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
 
   if (theDisk->filesystem.driver == NULL)
     {
@@ -586,13 +583,13 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   strcpy((char *) theDisk->filesystem.mountPoint, mountPoint);
 
   // Get a new file entry for the filesystem's root directory
-  theDisk->filesystem.filesystemRoot = kernelFileNewEntry((void *) theDisk);
+  theDisk->filesystem.filesystemRoot = kernelFileNewEntry(theDisk);
   if (theDisk->filesystem.filesystemRoot == NULL)
     // Not enough free file structures
     return (status = ERR_NOFREE);
 
   theDisk->filesystem.filesystemRoot->type = dirT;
-  theDisk->filesystem.filesystemRoot->disk = (void *) theDisk;
+  theDisk->filesystem.filesystemRoot->disk = theDisk;
 
   if (!strcmp(mountPoint, "/"))
     {
@@ -641,10 +638,10 @@ int kernelFilesystemMount(const char *diskName, const char *path)
     strcpy((char *) theDisk->filesystem.filesystemRoot->name, mountDirName);
 
   // If the disk is removable and has a 'lock' function, lock it
-  if ((physicalDisk->flags & DISKFLAG_REMOVABLE) &&
-      (((kernelDiskOps *) physicalDisk->driver->ops)->driverSetLockState))
-    ((kernelDiskOps *) physicalDisk->driver->ops)
-      ->driverSetLockState(physicalDisk->deviceNumber, 1);
+  if ((theDisk->physical->flags & DISKFLAG_REMOVABLE) &&
+      (((kernelDiskOps *) theDisk->physical->driver->ops)->driverSetLockState))
+    ((kernelDiskOps *) theDisk->physical->driver->ops)
+      ->driverSetLockState(theDisk->physical->deviceNumber, 1);
 
   return (status = 0);
 }
@@ -711,7 +708,7 @@ int kernelFilesystemUnmount(const char *path)
     {
       if (mountPoint->parentDirectory)
 	{
-	  parentDir = (kernelFileEntry *) mountPoint->parentDirectory;
+	  parentDir = mountPoint->parentDirectory;
 	  ((kernelDisk *) parentDir->disk)->filesystem.childMounts -= 1;
 	}
 

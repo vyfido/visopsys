@@ -24,6 +24,7 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMisc.h"
+#include "kernelError.h"
 #include <string.h>
 
 static kernelAsciiFont *menuItemFont = NULL;
@@ -38,15 +39,29 @@ static kernelAsciiFont *menuItemFont = NULL;
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
+kernelWindowComponent *kernelWindowNewMenuItem(kernelWindowComponent
+					       *menuComponent,
 					       const char *text,
 					       componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowMenuItem
 
   kernelWindowComponent *component = NULL;
+  kernelWindowMenu *menu = NULL;
   listItemParameters itemParams;
   extern color kernelDefaultBackground;
+
+  // Check params
+  if ((menuComponent == NULL) || (text == NULL) || (params == NULL))
+    {
+      kernelError(kernel_error, "NULL parameter for menu item");
+      return (component = NULL);
+    }
+  if (menuComponent->type != menuComponentType)
+    {
+      kernelError(kernel_error, "Can only add a menu item to a menu");
+      return (component = NULL);
+    }
 
   if (menuItemFont == NULL)
     {
@@ -66,22 +81,21 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
       params->font = menuItemFont;
     }
 
+  menu = menuComponent->data;
+
   // Get the superclass list item component
   kernelMemClear(&itemParams, sizeof(listItemParameters));
   strncpy(itemParams.text, text, WINDOW_MAX_LABEL_LENGTH);
-  component =
-    kernelWindowNewListItem(parent, windowlist_textonly, &itemParams, params);
+  component = kernelWindowNewListItem(menu->container, windowlist_textonly,
+				      &itemParams, params);
   if (component == NULL)
     return (component);
 
   if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-    {
-      // We use a different default background color than the window
-      // list item component that the menu item is based upon
-      component->parameters.background.red = kernelDefaultBackground.red;
-      component->parameters.background.green = kernelDefaultBackground.green;
-      component->parameters.background.blue = kernelDefaultBackground.blue;
-    }
+    // We use a different default background color than the window list
+    // item component that the menu item is based upon
+    kernelMemCopy(&(kernelDefaultBackground), (color *)
+		  &(component->parameters.background), sizeof(color));
 
   return (component);
 }

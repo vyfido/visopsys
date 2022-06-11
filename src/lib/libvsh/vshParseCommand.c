@@ -86,12 +86,9 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argCount, char *a
       *commandLine++ = '\0';
     }
   
-  if (strlen(args[0]) == 0)
-    {
-      // Nothing
-      *argCount = 0;
-      return (status = 0);
-    }
+  if (*argCount == 0)
+    // Nothing
+    return (status = 0);
 
   // We want to check for the case that the user has typed the
   // name of a program (s)he wants to execute

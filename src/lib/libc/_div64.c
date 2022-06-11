@@ -25,7 +25,7 @@
 #include <sys/cdefs.h>
 
 
-quad_t __div64(quad_t a, quad_t b, quad_t *rem)
+uquad_t __div64(uquad_t a, uquad_t b, uquad_t *rem)
 {
   unsigned upper = 0;
   unsigned low = 0;
@@ -47,7 +47,7 @@ quad_t __div64(quad_t a, quad_t b, quad_t *rem)
   __asm__ __volatile__ ("" : "=A" (a) : "a" (low), "d" (high));
 
   if (rem)
-    *rem = (quad_t) mod;
+    *rem = (uquad_t) mod;
 
   return (a);
 }
