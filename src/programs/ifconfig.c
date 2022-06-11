@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -60,6 +60,7 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/kernconf.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -71,11 +72,42 @@ Options:
 #define OK					_("OK")
 #define CANCEL				_("Cancel")
 #define NO_DEVICES			_("No supported network devices.")
-#define KERNELCONF			PATH_SYSTEM_CONFIG "/kernel.conf"
+#define DEVSTRMAXVALUE		32
+
+typedef struct {
+	char *label;
+	char value[DEVSTRMAXVALUE];
+
+} devStringItem;
+
+typedef struct {
+	char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
+	devStringItem linkEncap;
+	devStringItem hwAddr;
+	devStringItem inetAddr;
+	devStringItem mask;
+	devStringItem bcast;
+	devStringItem gateway;
+	devStringItem dns;
+	devStringItem rxPackets;
+	devStringItem rxErrors;
+	devStringItem rxDropped;
+	devStringItem rxOverruns;
+	devStringItem txPackets;
+	devStringItem txErrors;
+	devStringItem txDropped;
+	devStringItem txOverruns;
+	devStringItem linkStat;
+	devStringItem running;
+	devStringItem collisions;
+	devStringItem txQueueLen;
+	devStringItem interrupt;
+
+} devStrings;
 
 static int graphics = 0;
 static int numDevices = 0;
-static int networkEnabled = 0;
+static int enabled = 0;
 static int readOnly = 1;
 static objectKey window = NULL;
 static objectKey enabledLabel = NULL;
@@ -109,21 +141,20 @@ static void error(const char *format, ...)
 }
 
 
-static int devString(char *name, char *buffer)
+static devStrings *getDevStrings(networkDevice *dev)
 {
-	int status = 0;
-	networkDevice dev;
+	devStrings *str = NULL;
 	char *link = NULL;
 
-	status = networkDeviceGet(name, &dev);
-	if (status < 0)
-	{
-		error(_("Can't get info for device %s"), name);
-		return (status);
-	}
+	str = calloc(1, sizeof(devStrings));
+	if (!str)
+		return (str);
 
-	switch (dev.linkProtocol)
+	switch (dev->linkProtocol)
 	{
+		case NETWORK_LINKPROTOCOL_LOOP:
+			link = _("Local Loopback");
+			break;
 		case NETWORK_LINKPROTOCOL_ETHERNET:
 			link = _("Ethernet");
 			break;
@@ -132,29 +163,129 @@ static int devString(char *name, char *buffer)
 			break;
 	}
 
-	sprintf(buffer,
-		_("%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
-		"       inet addr:%d.%d.%d.%d  Bcast:%d.%d.%d.%d  Mask:%d.%d.%d."
-		"%d\n"
-		"       RX packets:%u errors:%u dropped:%u overruns:%u\n"
-		"       TX packets:%u errors:%u dropped:%u overruns:%u\n"
-		"       %s, %s collisions:%u txqueuelen:%u Interrupt:%d"),
-		dev.name, link,
-		dev.hardwareAddress.bytes[0], dev.hardwareAddress.bytes[1],
-		dev.hardwareAddress.bytes[2], dev.hardwareAddress.bytes[3],
-		dev.hardwareAddress.bytes[4], dev.hardwareAddress.bytes[5],
-		dev.hostAddress.bytes[0], dev.hostAddress.bytes[1],
-		dev.hostAddress.bytes[2], dev.hostAddress.bytes[3],
-		dev.broadcastAddress.bytes[0], dev.broadcastAddress.bytes[1],
-		dev.broadcastAddress.bytes[2], dev.broadcastAddress.bytes[3],
-		dev.netMask.bytes[0], dev.netMask.bytes[1],
-		dev.netMask.bytes[2], dev.netMask.bytes[3],
-		dev.recvPackets, dev.recvErrors, dev.recvDropped, dev.recvOverruns,
-		dev.transPackets, dev.transErrors, dev.transDropped,
-		dev.transOverruns,
-		((dev.flags & NETWORK_ADAPTERFLAG_LINK)? _("LINK") : _("NOLINK")),
-		((dev.flags & NETWORK_ADAPTERFLAG_RUNNING)? _("UP") : _("DOWN")),
-		dev.collisions, dev.transQueueLen, dev.interruptNum);
+	strncpy(str->name, dev->name, NETWORK_ADAPTER_MAX_NAMELENGTH);
+
+	str->linkEncap.label = _("Link encap");
+	snprintf(str->linkEncap.value, DEVSTRMAXVALUE, "%s", link);
+
+	str->hwAddr.label = _("HWaddr");
+	snprintf(str->hwAddr.value, DEVSTRMAXVALUE,
+		"%02x:%02x:%02x:%02x:%02x:%02x",
+		dev->hardwareAddress.byte[0], dev->hardwareAddress.byte[1],
+		dev->hardwareAddress.byte[2], dev->hardwareAddress.byte[3],
+		dev->hardwareAddress.byte[4], dev->hardwareAddress.byte[5]);
+
+	str->inetAddr.label = _("inet addr");
+	snprintf(str->inetAddr.value, DEVSTRMAXVALUE, "%d.%d.%d.%d",
+		dev->hostAddress.byte[0], dev->hostAddress.byte[1],
+		dev->hostAddress.byte[2], dev->hostAddress.byte[3]);
+
+	str->mask.label = _("Mask");
+	snprintf(str->mask.value, DEVSTRMAXVALUE, "%d.%d.%d.%d",
+		dev->netMask.byte[0], dev->netMask.byte[1],
+		dev->netMask.byte[2], dev->netMask.byte[3]);
+
+	str->bcast.label = _("Bcast");
+	snprintf(str->bcast.value, DEVSTRMAXVALUE, "%d.%d.%d.%d",
+		dev->broadcastAddress.byte[0], dev->broadcastAddress.byte[1],
+		dev->broadcastAddress.byte[2], dev->broadcastAddress.byte[3]);
+
+	str->gateway.label = _("Gateway");
+	snprintf(str->gateway.value, DEVSTRMAXVALUE, "%d.%d.%d.%d",
+		dev->gatewayAddress.byte[0], dev->gatewayAddress.byte[1],
+		dev->gatewayAddress.byte[2], dev->gatewayAddress.byte[3]);
+
+	str->dns.label = _("DNS");
+	snprintf(str->dns.value, DEVSTRMAXVALUE, "%d.%d.%d.%d",
+		dev->dnsAddress.byte[0], dev->dnsAddress.byte[1],
+		dev->dnsAddress.byte[2], dev->dnsAddress.byte[3]);
+
+	str->rxPackets.label = _("RX packets");
+	snprintf(str->rxPackets.value, DEVSTRMAXVALUE, "%u", dev->recvPackets);
+
+	str->rxErrors.label = _("errors");
+	snprintf(str->rxErrors.value, DEVSTRMAXVALUE, "%u", dev->recvErrors);
+
+	str->rxDropped.label = _("dropped");
+	snprintf(str->rxDropped.value, DEVSTRMAXVALUE, "%u", dev->recvDropped);
+
+	str->rxOverruns.label = _("overruns");
+	snprintf(str->rxOverruns.value, DEVSTRMAXVALUE, "%u", dev->recvOverruns);
+
+	str->txPackets.label = _("TX packets");
+	snprintf(str->txPackets.value, DEVSTRMAXVALUE, "%u", dev->transPackets);
+
+	str->txErrors.label = _("errors");
+	snprintf(str->txErrors.value, DEVSTRMAXVALUE, "%u", dev->transErrors);
+
+	str->txDropped.label = _("dropped");
+	snprintf(str->txDropped.value, DEVSTRMAXVALUE, "%u", dev->transDropped);
+
+	str->txOverruns.label = _("overruns");
+	snprintf(str->txOverruns.value, DEVSTRMAXVALUE, "%u", dev->transOverruns);
+
+	str->linkStat.label = _("link status");
+	snprintf(str->linkStat.value, DEVSTRMAXVALUE, "%s",
+		((dev->flags & NETWORK_ADAPTERFLAG_LINK)? _("LINK") : _("NOLINK")));
+
+	str->running.label = _("running");
+	snprintf(str->running.value, DEVSTRMAXVALUE, "%s",
+		((dev->flags & NETWORK_ADAPTERFLAG_RUNNING)? _("UP") : _("DOWN")));
+
+	str->collisions.label = _("collisions");
+	snprintf(str->collisions.value, DEVSTRMAXVALUE, "%u", dev->collisions);
+
+	str->txQueueLen.label = _("txqueuelen");
+	snprintf(str->txQueueLen.value, DEVSTRMAXVALUE, "%u", dev->transQueueLen);
+
+	str->interrupt.label = _("Interrupt");
+	snprintf(str->interrupt.value, DEVSTRMAXVALUE, "%d", dev->interruptNum);
+
+	return (str);
+}
+
+
+static int getDevString(char *name, char *buffer)
+{
+	int status = 0;
+	networkDevice dev;
+	devStrings *str = NULL;
+
+	status = networkDeviceGet(name, &dev);
+	if (status < 0)
+	{
+		error(_("Can't get info for device %s"), name);
+		return (status);
+	}
+
+	str = getDevStrings(&dev);
+	if (!str)
+		return (status = ERR_MEMORY);
+
+	sprintf(buffer, "%s   %s:%s  %s %s\n"
+		"       %s:%s  %s:%s  %s:%s\n"
+		"       %s:%s %s:%s %s:%s %s:%s\n"
+		"       %s:%s %s:%s %s:%s %s:%s\n"
+		"       %s, %s %s:%s %s:%s %s:%s",
+		str->name, str->linkEncap.label, str->linkEncap.value,
+		str->hwAddr.label, str->hwAddr.value,
+		str->inetAddr.label, str->inetAddr.value,
+		str->bcast.label, str->bcast.value,
+		str->mask.label, str->mask.value,
+		str->rxPackets.label, str->rxPackets.value,
+		str->rxErrors.label, str->rxErrors.value,
+		str->rxDropped.label, str->rxDropped.value,
+		str->rxOverruns.label, str->rxOverruns.value,
+		str->txPackets.label, str->txPackets.value,
+		str->txErrors.label, str->txErrors.value,
+		str->txDropped.label, str->txDropped.value,
+		str->txOverruns.label, str->txOverruns.value,
+		str->linkStat.value, str->running.value,
+		str->collisions.label, str->collisions.value,
+		str->txQueueLen.label, str->txQueueLen.value,
+		str->interrupt.label, str->interrupt.value);
+
+	free(str);
 
 	return (status = 0);
 }
@@ -171,7 +302,7 @@ static int printDevices(char *arg)
 	if (arg)
 	{
 		// Get the device information
-		status = devString(arg, buffer);
+		status = getDevString(arg, buffer);
 		if (status < 0)
 			return (status);
 
@@ -187,7 +318,7 @@ static int printDevices(char *arg)
 				sprintf(name, "net%d", count);
 
 				// Get the device information
-				status = devString(name, buffer);
+				status = getDevString(name, buffer);
 				if (status < 0)
 					return (status);
 
@@ -213,11 +344,11 @@ static void updateEnabled(void)
 	char tmp[128];
 	int count;
 
-	snprintf(tmp, 128, _("Networking is %s"),
-		(networkEnabled? _("enabled") : _("disabled")));
+	snprintf(tmp, 128, _("Networking is %s"), (enabled? _("enabled") :
+		_("disabled")));
 	windowComponentSetData(enabledLabel, tmp, strlen(tmp), 1 /* redraw */);
-	windowComponentSetData(enableButton,
-		(networkEnabled? _("Disable") : _("Enable")), 8, 1 /* redraw */);
+	windowComponentSetData(enableButton, (enabled? _("Disable") :
+		_("Enable")), 8, 1 /* redraw */);
 
 	// Update the device strings as well.
 	buffer = malloc(MAXSTRINGLENGTH);
@@ -229,7 +360,7 @@ static void updateEnabled(void)
 			{
 				sprintf(name, "net%d", count);
 
-				if (devString(name, buffer) < 0)
+				if (getDevString(name, buffer) < 0)
 					continue;
 
 				windowComponentSetData(deviceLabel[count], buffer,
@@ -249,11 +380,13 @@ static void updateHostName(void)
 	const char *value = NULL;
 	variableList kernelConf;
 
-	if (networkEnabled)
+	if (enabled)
 	{
 		if (networkGetHostName(hostName, NETWORK_MAX_HOSTNAMELENGTH) >= 0)
+		{
 			windowComponentSetData(hostField, hostName,
 				NETWORK_MAX_HOSTNAMELENGTH, 1 /* redraw */);
+		}
 
 		if (networkGetDomainName(domainName,
 			NETWORK_MAX_DOMAINNAMELENGTH) >= 0)
@@ -264,16 +397,16 @@ static void updateHostName(void)
 	}
 	else
 	{
-		if (configRead(KERNELCONF, &kernelConf) >= 0)
+		if (configRead(KERNEL_DEFAULT_CONFIG, &kernelConf) >= 0)
 		{
-			value = variableListGet(&kernelConf, "network.hostname");
+			value = variableListGet(&kernelConf, KERNELVAR_NET_HOSTNAME);
 			if (value)
 			{
 				windowComponentSetData(hostField, (void *) value,
 					NETWORK_MAX_HOSTNAMELENGTH, 1 /* redraw */);
 			}
 
-			value = variableListGet(&kernelConf, "network.domainname");
+			value = variableListGet(&kernelConf, KERNELVAR_NET_DOMAINNAME);
 			if (value)
 			{
 				windowComponentSetData(domainField, (void *) value,
@@ -357,18 +490,18 @@ static void eventHandler(objectKey key, windowEvent *event)
 		// The user wants to enable or disable networking.  Make a little
 		// dialog while we're doing this because enabling can take a few
 		// seconds
-		enableDialog = windowNewBannerDialog(window,
-			(networkEnabled? _("Shutting down networking") :
-				_("Initializing networking")), _("One moment please..."));
+		enableDialog = windowNewBannerDialog(window, (enabled?
+			_("Shutting down networking") : _("Initializing networking")),
+			_("One moment please..."));
 
-		if (networkEnabled)
+		if (enabled)
 			networkShutdown();
 		else
-			networkInitialize();
+			networkEnable();
 
 		windowDestroy(enableDialog);
 
-		networkEnabled = networkInitialized();
+		enabled = networkEnabled();
 		updateEnabled();
 		updateHostName();
 	}
@@ -387,12 +520,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 		networkSetDomainName(domainName, NETWORK_MAX_DOMAINNAMELENGTH);
 
 		// Try to read and change the kernel config
-		if (!readOnly && configRead(KERNELCONF, &kernelConf) >= 0)
+		if (!readOnly && configRead(KERNEL_DEFAULT_CONFIG, &kernelConf) >= 0)
 		{
-			variableListSet(&kernelConf, "network", (selected? "yes" : "no"));
-			variableListSet(&kernelConf, "network.hostname", hostName);
-			variableListSet(&kernelConf, "network.domainname", domainName);
-			configWrite(KERNELCONF, &kernelConf);
+			variableListSet(&kernelConf, KERNELVAR_NETWORK, (selected?
+				"yes" : "no"));
+			variableListSet(&kernelConf, KERNELVAR_NET_HOSTNAME, hostName);
+			variableListSet(&kernelConf, KERNELVAR_NET_DOMAINNAME,
+				domainName);
+			configWrite(KERNEL_DEFAULT_CONFIG, &kernelConf);
 			variableListDestroy(&kernelConf);
 		}
 
@@ -458,7 +593,7 @@ static int constructWindow(char *arg)
 	params.gridY += 1;
 
 	// Try to find out whether networking is enabled
-	if (configGet(KERNELCONF, "network", tmp, 8) >= 0)
+	if (configGet(KERNEL_DEFAULT_CONFIG, KERNELVAR_NETWORK, tmp, 8) >= 0)
 	{
 		if (!strncmp(tmp, "yes", 8))
 			windowComponentSetSelected(enableCheckbox, 1);
@@ -514,7 +649,7 @@ static int constructWindow(char *arg)
 	if (arg)
 	{
 		// Get the device information
-		status = devString(arg, buffer);
+		status = getDevString(arg, buffer);
 		if (status < 0)
 		{
 			free(buffer);
@@ -534,7 +669,7 @@ static int constructWindow(char *arg)
 				sprintf(name, "net%d", count);
 
 				// Get the device information
-				status = devString(name, buffer);
+				status = getDevString(name, buffer);
 				if (status < 0)
 				{
 					free(buffer);
@@ -632,10 +767,10 @@ int main(int argc, char *argv[])
 
 	// Find out whether we are currently running on a read-only filesystem
 	memset(&sysDisk, 0, sizeof(disk));
-	if (!fileGetDisk(KERNELCONF, &sysDisk))
+	if (!fileGetDisk(KERNEL_DEFAULT_CONFIG, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
-	networkEnabled = networkInitialized();
+	enabled = networkEnabled();
 
 	if (graphics)
 	{
@@ -645,10 +780,10 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		if (disable && networkEnabled)
+		if (disable && enabled)
 			networkShutdown();
-		else if (enable && !networkEnabled)
-			networkInitialize();
+		else if (enable && !enabled)
+			networkEnable();
 
 		status = printDevices(arg);
 	}

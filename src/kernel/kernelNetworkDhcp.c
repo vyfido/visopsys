@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,8 +30,8 @@
 #include "kernelRtc.h"
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include <sys/network.h>
-#include <sys/processor.h>
 #include <sys/types.h>
 
 
@@ -113,14 +113,14 @@ static int sendDhcpDiscover(kernelNetworkDevice *adapter,
 	// Hardware address space is ethernet=1
 	sendDhcpPacket.hardwareType = NETWORK_DHCPHARDWARE_ETHERNET;
 	sendDhcpPacket.hardwareAddrLen = NETWORK_ADDRLENGTH_ETHERNET;
-	sendDhcpPacket.transactionId = processorSwap32(kernelRandomUnformatted());
+	sendDhcpPacket.transactionId = htonl(kernelRandomUnformatted());
 
 	// Our ethernet hardware address
-	memcpy(&sendDhcpPacket.clientHardwareAddr, (void *)
+	networkAddressCopy(&sendDhcpPacket.clientHardwareAddr,
 		&adapter->device.hardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Magic DHCP cookie
-	sendDhcpPacket.cookie = processorSwap32(NETWORK_DHCP_COOKIE);
+	sendDhcpPacket.cookie = htonl(NETWORK_DHCP_COOKIE);
 
 	// Options.  First one is mandatory message type
 	sendDhcpPacket.options[0] = NETWORK_DHCPOPTION_END;
@@ -143,13 +143,12 @@ static int sendDhcpDiscover(kernelNetworkDevice *adapter,
 			NETWORK_DHCPOPTION_LEASETIME });
 
 	return (status = kernelNetworkSendData(connection, (unsigned char *)
-		&sendDhcpPacket, sizeof(networkDhcpPacket), 1 /* immediate */,
-		1 /* free memory */));
+		&sendDhcpPacket, sizeof(networkDhcpPacket), 1 /* immediate */));
 }
 
 
 static int waitDhcpReply(kernelNetworkDevice *adapter,
-	kernelNetworkPacket *packet)
+	kernelNetworkPacket **packet)
 {
 	// Wait for a DHCP packet to appear in our input queue
 
@@ -162,16 +161,10 @@ static int waitDhcpReply(kernelNetworkDevice *adapter,
 	{
 		kernelMultitaskerYield();
 
-		if (adapter->inputStream.count < (sizeof(kernelNetworkPacket) /
-			sizeof(unsigned)))
-		{
+		if (!adapter->inputStream.count)
 			continue;
-		}
 
-		// Read the packet from the stream.  This doesn't currently allocate
-		// any memory for packets; the packet's memory buffer just points to
-		// the adapter's static buffer, so we mustn't free() it after
-		// processing.
+		// Read the packet from the stream
 		status = kernelNetworkPacketStreamRead(&adapter->inputStream, packet);
 		if (status < 0)
 		{
@@ -180,36 +173,39 @@ static int waitDhcpReply(kernelNetworkDevice *adapter,
 		}
 
 		// It should be an IP packet
-		if (packet->netProtocol != NETWORK_NETPROTOCOL_IP)
+		if ((*packet)->netProtocol != NETWORK_NETPROTOCOL_IP4)
 		{
-			kernelDebug(debug_net, "DHCP not an IP packet");
+			kernelDebug(debug_net, "DHCP not an IP v4 packet");
+			kernelNetworkPacketRelease(*packet);
 			continue;
 		}
 
-		//kernelNetworkIpDebug(packet->netHeader);
-
 		// Set up the received packet for further interpretation
-		status = kernelNetworkSetupReceivedPacket(packet);
+		status = kernelNetworkSetupReceivedPacket(*packet);
 		if (status < 0)
 		{
 			kernelDebugError("Set up received packet failed");
+			kernelNetworkPacketRelease(*packet);
 			continue;
 		}
 
 		// See if the input and output ports are appropriate for BOOTP/DHCP
-		if ((packet->srcPort != NETWORK_PORT_BOOTPSERVER) ||
-			(packet->destPort != NETWORK_PORT_BOOTPCLIENT))
+		if (((*packet)->srcPort != NETWORK_PORT_BOOTPSERVER) ||
+			((*packet)->destPort != NETWORK_PORT_BOOTPCLIENT))
 		{
 			kernelDebug(debug_net, "DHCP not a BOOTP/DHCP packet");
+			kernelNetworkPacketRelease(*packet);
 			continue;
 		}
 
-		dhcpPacket = (networkDhcpPacket *) packet->data;
+		dhcpPacket = (networkDhcpPacket *)((*packet)->memory +
+			(*packet)->dataOffset);
 
 		// Check for DHCP cookie
-		if (processorSwap32(dhcpPacket->cookie) != NETWORK_DHCP_COOKIE)
+		if (ntohl(dhcpPacket->cookie) != NETWORK_DHCP_COOKIE)
 		{
 			kernelDebug(debug_net, "DHCP cookie missing");
+			kernelNetworkPacketRelease(*packet);
 			continue;
 		}
 
@@ -246,14 +242,13 @@ static networkDhcpOption *getDhcpOption(networkDhcpPacket *packet, int idx)
 
 
 static int sendDhcpRequest(kernelNetworkConnection *connection,
+	const char *hostName, const char *domainName,
 	networkDhcpPacket *requestPacket)
 {
 	// Given the packet returned as an 'offer' from DHCP, accept the offer
 	// by converting it into a 'request' and sending it back
 
 	int status = 0;
-	char hostName[NETWORK_MAX_HOSTNAMELENGTH];
-	char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
 
 	kernelDebug(debug_net, "DHCP send request");
 
@@ -263,13 +258,12 @@ static int sendDhcpRequest(kernelNetworkConnection *connection,
 
 	// Add an option to request the supplied address
 	setDhcpOption(requestPacket, NETWORK_DHCPOPTION_ADDRESSREQ,
-		NETWORK_ADDRLENGTH_IPV4, (void *) &requestPacket->yourLogicalAddr);
+		NETWORK_ADDRLENGTH_IP4, (void *) &requestPacket->yourLogicalAddr);
 
 	// If the server did not specify a host name to us, specify one to it.
 	if (!getSpecificDhcpOption(requestPacket, NETWORK_DHCPOPTION_HOSTNAME))
 	{
-		if (kernelNetworkGetHostName(hostName,
-			NETWORK_MAX_HOSTNAMELENGTH) >= 0)
+		if (hostName && hostName[0])
 		{
 			setDhcpOption(requestPacket, NETWORK_DHCPOPTION_HOSTNAME,
 				(strlen(hostName) + 1), (unsigned char *) hostName);
@@ -279,8 +273,7 @@ static int sendDhcpRequest(kernelNetworkConnection *connection,
 	// If the server did not specify a domain name to us, specify one to it.
 	if (!getSpecificDhcpOption(requestPacket, NETWORK_DHCPOPTION_DOMAIN))
 	{
-		if (kernelNetworkGetDomainName(domainName,
-			NETWORK_MAX_DOMAINNAMELENGTH) >= 0)
+		if (domainName && domainName[0])
 		{
 			setDhcpOption(requestPacket, NETWORK_DHCPOPTION_DOMAIN,
 				(strlen(domainName) + 1), (unsigned char *) domainName);
@@ -288,11 +281,10 @@ static int sendDhcpRequest(kernelNetworkConnection *connection,
 	}
 
 	// Clear the 'your address' field
-	memset(&requestPacket->yourLogicalAddr, 0, NETWORK_ADDRLENGTH_IPV4);
+	memset(&requestPacket->yourLogicalAddr, 0, NETWORK_ADDRLENGTH_IP4);
 
 	return (status = kernelNetworkSendData(connection, (unsigned char *)
-		requestPacket, sizeof(networkDhcpPacket), 1 /* immediate */,
-		1 /* free memory */));
+		requestPacket, sizeof(networkDhcpPacket), 1 /* immediate */));
 }
 
 
@@ -318,19 +310,21 @@ static void evaluateDhcpOptions(kernelNetworkDevice *adapter,
 		{
 			case NETWORK_DHCPOPTION_SUBNET:
 				// The server supplied the subnet mask
-				memcpy((void *) &adapter->device.netMask, option->data,
-					min(option->length, NETWORK_ADDRLENGTH_IPV4));
+				networkAddressCopy(&adapter->device.netMask, option->data,
+					min(option->length, NETWORK_ADDRLENGTH_IP4));
 				break;
 
 			case NETWORK_DHCPOPTION_ROUTER:
 				// The server supplied the gateway address
-				memcpy((void *) &adapter->device.gatewayAddress,
+				networkAddressCopy(&adapter->device.gatewayAddress,
 					option->data, min(option->length,
-						NETWORK_ADDRLENGTH_IPV4));
+						NETWORK_ADDRLENGTH_IP4));
 				break;
 
 			case NETWORK_DHCPOPTION_DNSSERVER:
 				// The server supplied the DNS server address
+				networkAddressCopy(&adapter->device.dnsAddress, option->data,
+					min(option->length, NETWORK_ADDRLENGTH_IP4));
 				break;
 
 			case NETWORK_DHCPOPTION_HOSTNAME:
@@ -347,18 +341,18 @@ static void evaluateDhcpOptions(kernelNetworkDevice *adapter,
 
 			case NETWORK_DHCPOPTION_BROADCAST:
 				// The server supplied the broadcast address
-				memcpy((void *) &adapter->device.broadcastAddress,
+				networkAddressCopy(&adapter->device.broadcastAddress,
 					option->data, min(option->length,
-						NETWORK_ADDRLENGTH_IPV4));
+						NETWORK_ADDRLENGTH_IP4));
 				break;
 
 			case NETWORK_DHCPOPTION_LEASETIME:
 				// The server specified the lease time
 				adapter->dhcpConfig.leaseExpiry =
 					(kernelRtcUptimeSeconds() +
-				 		processorSwap32(*((unsigned * ) option->data)));
-				//kernelTextPrintLine("Lease expiry at %d seconds",
-				//	adapter->dhcpConfig.leaseExpiry);
+				 		ntohl(*((unsigned *) option->data)));
+				kernelDebug(debug_net, "DHCP lease expiry at %d seconds",
+					adapter->dhcpConfig.leaseExpiry);
 				break;
 
 			default:
@@ -377,7 +371,8 @@ static void evaluateDhcpOptions(kernelNetworkDevice *adapter,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
+int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter,
+	const char *hostName, const char *domainName, unsigned timeout)
 {
 	// This function attempts to configure the supplied adapter via the DHCP
 	// protocol.  The adapter needs to be stopped since it expects to be able
@@ -389,8 +384,10 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 	kernelNetworkConnection *connection = NULL;
 	uquad_t endTime = (kernelCpuGetMs() + timeout);
 	networkDhcpPacket sendDhcpPacket;
-	kernelNetworkPacket packet;
+	int haveOffer = 0;
+	kernelNetworkPacket *packet = NULL;
 	networkDhcpPacket *recvDhcpPacket = NULL;
+	int haveAck = 0;
 
 	// Make sure the adapter is stopped, and yield the timeslice to make sure
 	// the network thread is not in the middle of anything
@@ -398,13 +395,17 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 	kernelMultitaskerYield();
 
 	// Get a connection for sending and receiving
+
 	kernelDebug(debug_net, "DHCP open connection");
 	memset(&filter, 0, sizeof(networkFilter));
+	filter.flags = (NETWORK_FILTERFLAG_TRANSPROTOCOL |
+		NETWORK_FILTERFLAG_LOCALPORT | NETWORK_FILTERFLAG_REMOTEPORT);
 	filter.transProtocol = NETWORK_TRANSPROTOCOL_UDP;
 	filter.localPort = NETWORK_PORT_BOOTPCLIENT;
 	filter.remotePort = NETWORK_PORT_BOOTPSERVER;
+
 	connection = kernelNetworkConnectionOpen(adapter, NETWORK_MODE_WRITE,
-		&NETWORK_BROADCAST_ADDR, &filter);
+		&NETWORK_BROADCAST_ADDR_IP4, &filter, 0 /* no input stream */);
 	if (!connection)
 		return (status = ERR_INVALID);
 
@@ -419,6 +420,8 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 		}
 		else
 		{
+			haveOffer = 0;
+
 			// Send DHCP discovery
 			status = sendDhcpDiscover(adapter, connection);
 			if (status < 0)
@@ -434,41 +437,40 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 				if (status < 0)
 					break;
 
-				kernelDebug(debug_net, "DHCP offer received");
-
-				recvDhcpPacket = (networkDhcpPacket *) packet.data;
+				recvDhcpPacket = (networkDhcpPacket *)(packet->memory +
+					packet->dataOffset);
 
 				// Should be a DHCP reply, and the first option should be a
 				// DHCP 'offer' message type
-				status = ERR_INVALID;
 				if ((recvDhcpPacket->opCode == NETWORK_DHCPOPCODE_BOOTREPLY) &&
 					(getDhcpOption(recvDhcpPacket, 0)->data[0] ==
 						NETWORK_DHCPMSG_DHCPOFFER))
 				{
-					// Success
-					status = 0;
-					break;
+					// Success.  Copy the supplied data into our send packet.
+					kernelDebug(debug_net, "DHCP offer received");
+					memcpy(&sendDhcpPacket, recvDhcpPacket,
+						sizeof(networkDhcpPacket));
+					haveOffer = 1;
 				}
+
+				kernelNetworkPacketRelease(packet);
+
+				if (haveOffer)
+					break;
 
 				kernelDebugError("DHCP not reply opcode or offer option");
 
 				// Keep waiting
 			}
-
-			if (status < 0)
-				// Attempt to send the discovery again
-				continue;
-
-			// Good enough.  Send the reply back to the server as a DHCP
-			// request.
-
-			// Copy the supplied data into our send packet
-			memcpy(&sendDhcpPacket, recvDhcpPacket,
-				sizeof(networkDhcpPacket));
 		}
 
+		if (!haveOffer)
+			// Attempt to send the discovery again
+			continue;
+
 		// (Re-)accept the offer
-		status = sendDhcpRequest(connection, &sendDhcpPacket);
+		status = sendDhcpRequest(connection, hostName, domainName,
+			&sendDhcpPacket);
 		if (status < 0)
 			continue;
 
@@ -476,36 +478,43 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 		while (kernelCpuGetMs() < endTime)
 		{
 			kernelDebug(debug_net, "DHCP wait ACK");
+			haveAck = 0;
 
 			// Wait for a DHCP server reply
 			status = waitDhcpReply(adapter, &packet);
 			if (status < 0)
 				break;
 
-			kernelDebug(debug_net, "DHCP ACK received");
-
-			recvDhcpPacket = (networkDhcpPacket *) packet.data;
+			recvDhcpPacket = (networkDhcpPacket *)(packet->memory +
+				packet->dataOffset);
 
 			// Should be a DHCP reply, and the first option should be a DHCP
-			// ACK message type.  If the reply is a DHCP NACK, then perhaps the
-			// previously-supplied address has already been allocated to
+			// ACK message type.  If the reply is a DHCP NACK, then perhaps
+			// the previously-supplied address has already been allocated to
 			// someone else.
-			status = ERR_INVALID;
-			if ((recvDhcpPacket->opCode == NETWORK_DHCPOPCODE_BOOTREPLY) &&
-				(getDhcpOption(recvDhcpPacket, 0)->data[0] ==
-					NETWORK_DHCPMSG_DHCPACK))
+			if (recvDhcpPacket->opCode == NETWORK_DHCPOPCODE_BOOTREPLY)
 			{
-				status = 0;
-				break;
+				if (getDhcpOption(recvDhcpPacket, 0)->data[0] ==
+					NETWORK_DHCPMSG_DHCPACK)
+				{
+					kernelDebug(debug_net, "DHCP ACK received");
+					haveAck = 1;
+				}
+
+				if (getDhcpOption(recvDhcpPacket, 0)->data[0] ==
+					NETWORK_DHCPMSG_DHCPNAK)
+				{
+					// NACK - start again
+					kernelDebugError("DHCP NAK - request refused");
+					kernelNetworkPacketRelease(packet);
+					break;
+				}
 			}
 
-			if (getDhcpOption(recvDhcpPacket, 0)->data[0] ==
-				NETWORK_DHCPMSG_DHCPNAK)
-			{
-				// NACK - start again
-				kernelDebugError("DHCP NAK - request refused");
+			kernelNetworkPacketRelease(packet);
+
+			if (haveAck)
 				break;
-			}
 
 			kernelDebugError("DHCP not reply opcode or ACK option");
 
@@ -513,15 +522,17 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 		}
 
 		// Were we successful?
-		if (status >= 0)
+		if (haveAck)
 			break;
+
+		// Attempt to send the discovery again
 	}
 
 	// Communication should be finished.
-	kernelNetworkConnectionClose(connection);
+	kernelNetworkConnectionClose(connection, 0 /* not polite */);
 
 	// Were we successful?
-	if ((status < 0) || (kernelCpuGetMs() >= endTime))
+	if (!haveAck || (kernelCpuGetMs() >= endTime))
 	{
 		if (kernelCpuGetMs() >= endTime)
 		{
@@ -529,16 +540,16 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 			status = ERR_TIMEOUT;
 		}
 
-		kernelError(kernel_error, "DHCP auto-configuration of network adapter "
-			"%s failed", adapter->device.name);
+		kernelError(kernel_error, "DHCP auto-configuration of network "
+			"adapter %s failed", adapter->device.name);
 		return (status);
 	}
 
 	// Gather up the information.
 
 	// Copy the host address
-	memcpy((void *) &adapter->device.hostAddress,
-		&recvDhcpPacket->yourLogicalAddr, NETWORK_ADDRLENGTH_IPV4);
+	networkAddressCopy(&adapter->device.hostAddress,
+		&recvDhcpPacket->yourLogicalAddr, NETWORK_ADDRLENGTH_IP4);
 
 	// Evaluate the options
 	evaluateDhcpOptions(adapter, recvDhcpPacket);
@@ -548,9 +559,8 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *adapter, unsigned timeout)
 	memcpy((void *) &adapter->dhcpConfig.dhcpPacket, recvDhcpPacket,
 		sizeof(networkDhcpPacket));
 
-	// Set the adapter 'auto config' flag and mark it as running
-	adapter->device.flags |= (NETWORK_ADAPTERFLAG_RUNNING |
-		NETWORK_ADAPTERFLAG_AUTOCONF);
+	// Set the adapter 'auto config' flag
+	adapter->device.flags |= NETWORK_ADAPTERFLAG_AUTOCONF;
 
 	return (status = 0);
 }
@@ -567,11 +577,13 @@ int kernelNetworkDhcpRelease(kernelNetworkDevice *adapter)
 
 	// Get a connection for sending and receiving
 	memset(&filter, 0, sizeof(networkFilter));
+	filter.flags = (NETWORK_FILTERFLAG_TRANSPROTOCOL |
+		NETWORK_FILTERFLAG_LOCALPORT | NETWORK_FILTERFLAG_REMOTEPORT);
 	filter.transProtocol = NETWORK_TRANSPROTOCOL_UDP;
 	filter.localPort = NETWORK_PORT_BOOTPCLIENT;
 	filter.remotePort = NETWORK_PORT_BOOTPSERVER;
 	connection = kernelNetworkConnectionOpen(adapter, NETWORK_MODE_WRITE,
-		&NETWORK_BROADCAST_ADDR, &filter);
+		&NETWORK_BROADCAST_ADDR_IP4, &filter, 0 /* no input stream */);
 	if (!connection)
 		return (status = ERR_INVALID);
 
@@ -585,10 +597,9 @@ int kernelNetworkDhcpRelease(kernelNetworkDevice *adapter)
 
 	// Send it.
 	status = kernelNetworkSendData(connection, (unsigned char *)
-		&sendDhcpPacket, sizeof(networkDhcpPacket), 1 /* immediate */,
-		1 /* free memory */);
+		&sendDhcpPacket, sizeof(networkDhcpPacket), 1 /* immediate */);
 
-	kernelNetworkConnectionClose(connection);
+	kernelNetworkConnectionClose(connection, 0 /* not polite */);
 	return (status);
 }
 

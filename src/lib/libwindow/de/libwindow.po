@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2017 J. Andrew McLaughlin
+#  Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-03-03 03:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,7 +22,7 @@ msgstr ""
 msgid "Error"
 msgstr "Fehler"
 
-#: windowArchiveList.c:78 windowFileList.c:534
+#: windowArchiveList.c:78 windowFileList.c:535
 msgid "Memory allocation error creating icon parameters"
 msgstr ""
 "Fehler bei der Speicherzuweisung während der Erstellung der Icon-Parameter"
@@ -55,35 +55,35 @@ msgstr "OK"
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: windowFileList.c:393 windowFileList.c:418
+#: windowFileList.c:394 windowFileList.c:419
 msgid "(up)"
 msgstr "(zurück)"
 
-#: windowFileList.c:468
+#: windowFileList.c:469
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr "Das Verzeichnis \"%s\" wurde nicht gefunden Datei"
 
-#: windowFileList.c:479
+#: windowFileList.c:480
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherzuweisung"
 
-#: windowFileList.c:492
+#: windowFileList.c:493
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr "Fehler beim auslesen der Dateien in \"%s\""
 
-#: windowFileList.c:668
+#: windowFileList.c:670
 #, c-format
 msgid "Can't change to directory %s"
 msgstr "Es konnte nicht auf das Verzeichnis %s gewechselt werden"
 
-#: windowFileList.c:692
+#: windowFileList.c:697
 #, c-format
 msgid "Error deleting file %s"
 msgstr "Fehler beim löschen der Datei %s"
 
-#: windowFileList.c:746
+#: windowFileList.c:752
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr "Konfigurationsdatei %s konnte nicht gefunden werden %s"

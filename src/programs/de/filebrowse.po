@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2017 J. Andrew McLaughlin
+#  Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-03-03 03:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,7 @@ msgstr "Fehler"
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:480
+#: filebrowse.c:482
 #, c-format
 msgid ""
 "\n"
@@ -55,15 +55,15 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: filebrowse.c:494
+#: filebrowse.c:496
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherverteilung"
 
-#: filebrowse.c:509
+#: filebrowse.c:511
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr "Es konnte nicht ins Verzeichnis \"%s\" gewechselt werden"
 
-#: filebrowse.c:516
+#: filebrowse.c:518
 msgid "Can't determine current directory"
 msgstr "Das aktuelle Verzeichnis kann nicht bestimmt werden"

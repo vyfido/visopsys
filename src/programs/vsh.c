@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -78,11 +78,11 @@ static void showPrompt(void)
 	char *dirName = NULL;
 
 	// If there are characters already in the input buffer, tell the reader
-	// routine to put them after the prompt
+	// function to put them after the prompt
 	if (textInputCount())
 		promptCatchup = 1;
 
-	// This routine puts a prompt on the screen
+	// This function puts a prompt on the screen
 	multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
 
 	dirName = basename(cwd);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -550,7 +550,8 @@ static int constructWindow(void)
 	params.orientationY = orient_top;
 
 	// Create the pixel editor widget.
-	editor = windowNewPixelEditor(window, ((graphicGetScreenHeight() * 2) / 3),
+	editor = windowNewPixelEditor(window,
+		((graphicGetScreenHeight() * 2) / 3),
 		((graphicGetScreenHeight() * 2) / 3), &img, &params);
 	if (!editor)
 	{
@@ -583,7 +584,8 @@ static int constructWindow(void)
 	params.padLeft = params.padBottom = 0;
 	params.padTop = 5;
 	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-	scrollVert = windowNewScrollBar(window, scrollbar_vertical, 0, 0, &params);
+	scrollVert = windowNewScrollBar(window, scrollbar_vertical, 0, 0,
+		&params);
 	if (!scrollVert)
 	{
 		status = ERR_NOCREATE;
@@ -776,7 +778,9 @@ static int constructWindow(void)
 	windowRegisterEventHandler(fillButton, &eventHandler);
 
 	enableButtons();
+
 	windowSetVisible(window, 1);
+
 	status = 0;
 
 out:
@@ -872,6 +876,7 @@ out:
 	imageFree(&zoomInImage);
 	imageFree(&zoomOutImage);
 	imageFree(&colorImage);
+	imageFree(&pickImage);
 	imageFree(&drawImage);
 	imageFree(&lineImage);
 	imageFree(&rectImage);

@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2017 J. Andrew McLaughlin
+##  Copyright (C) 1998-2018 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -92,6 +92,7 @@ CNAMES = adduser \
 	snake \
 	sync \
 	sysdiag \
+	tar \
 	telnet \
 	test \
 	touch \
@@ -124,7 +125,7 @@ ${BUILDDIR}/%: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -lvsh -ldl -lc -lgcc -o $@
 
 ${BUILDDIR}/%: %.cpp ${STDDEPS}
-	${CC++} ${C++FLAGS} -nostartfiles ${LFLAGS} $< -lstdc++ -lc -lgcc -o $@
+	${CC++} ${C++FLAGS} ${LFLAGS} $< -lstdc++ -lc -lgcc -o $@
 
 strip: ${COBJS} ${C++OBJS}
 	${STRIP}
@@ -140,14 +141,17 @@ clean:
 # Object files with explicit rules
 
 ${BUILDDIR}/archman: archman.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lwindow -lintl -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lwindow -lintl -lc -lgcc -o $@
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lintl -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lintl -lc -lgcc -o $@
+
+${BUILDDIR}/tar: tar.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
 
 ${BUILDDIR}/unzip: unzip.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
 
 ${BUILDDIR}/zip: zip.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
 

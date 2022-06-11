@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -51,7 +51,7 @@ static void doFileSelection(file *theFile, char *fullName,
 	if (doImageThumbs)
 	{
 		if ((theFile->type == fileT) &&
-			(loaderClass->class & LOADERFILECLASS_IMAGE))
+			(loaderClass->type & LOADERFILECLASS_IMAGE))
 		{
 			windowSwitchPointer(dialogWindow, MOUSE_POINTER_BUSY);
 			windowThumbImageUpdate(thumbImage, fullName, MAX_IMAGE_DIMENSION,

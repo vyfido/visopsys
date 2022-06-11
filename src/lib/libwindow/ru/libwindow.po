@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2017 J. Andrew McLaughlin
+# Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libwindow.po\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-03-03 03:09+0000\n"
 "PO-Revision-Date: 2014-07-25 16:48+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -22,7 +22,7 @@ msgstr ""
 msgid "Error"
 msgstr "Ошибка"
 
-#: windowArchiveList.c:78 windowFileList.c:534
+#: windowArchiveList.c:78 windowFileList.c:535
 msgid "Memory allocation error creating icon parameters"
 msgstr "Ошибка распределения памяти при создании параметров значка"
 
@@ -54,35 +54,35 @@ msgstr "ОК"
 msgid "Cancel"
 msgstr "Отмена"
 
-#: windowFileList.c:393 windowFileList.c:418
+#: windowFileList.c:394 windowFileList.c:419
 msgid "(up)"
 msgstr "(вверх)"
 
-#: windowFileList.c:468
+#: windowFileList.c:469
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr "Не могу получить количество файлов в каталоге \"%s\""
 
-#: windowFileList.c:479
+#: windowFileList.c:480
 msgid "Memory allocation error"
 msgstr "Ошибка распределения памяти"
 
-#: windowFileList.c:492
+#: windowFileList.c:493
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr "Ошибка чтения файлов в \"%s\""
 
-#: windowFileList.c:668
+#: windowFileList.c:670
 #, c-format
 msgid "Can't change to directory %s"
 msgstr "Не могу перейти в каталог %s"
 
-#: windowFileList.c:692
+#: windowFileList.c:697
 #, c-format
 msgid "Error deleting file %s"
 msgstr "Ошибка при удалении файла %s"
 
-#: windowFileList.c:746
+#: windowFileList.c:752
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr "Не могу найти файл конфигурации %s"

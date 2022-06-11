@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2017 J. Andrew McLaughlin
+#  Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -26,10 +26,10 @@ msgstr "Boot Menü yukleyicisi"
 #: bootmenu.c:67
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Boot Menü Yükleyici\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin"
 
 #: bootmenu.c:69
 msgid ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -108,7 +108,8 @@ static int driverClearScreen(color *background)
 
 		for (lineCount = 0; lineCount < adapter->yRes; lineCount ++)
 		{
-			for (count = 0; count < (adapter->xRes * adapter->bytesPerPixel); )
+			for (count = 0; count <
+				(adapter->xRes * adapter->bytesPerPixel); )
 			{
 				linePointer[count++] = background->blue;
 				linePointer[count++] = background->green;
@@ -324,19 +325,22 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 			}
 		}
 
-		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+		else if ((adapter->bitsPerPixel == 16) ||
+			(adapter->bitsPerPixel == 15))
 		{
 			short pix = 0;
 
 			if (adapter->bitsPerPixel == 16)
 			{
 				pix = (((foreground->red >> 3) << 11) |
-					((foreground->green >> 2) << 5) | (foreground->blue >> 3));
+					((foreground->green >> 2) << 5) |
+					(foreground->blue >> 3));
 			}
 			else
 			{
 				pix = (((foreground->red >> 3) << 10) |
-					((foreground->green >> 3) << 5) | (foreground->blue >> 3));
+					((foreground->green >> 3) << 5) |
+					(foreground->blue >> 3));
 			}
 
 			for (count = 0; count < lineLength; count ++)
@@ -409,19 +413,22 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 			}
 		}
 
-		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+		else if ((adapter->bitsPerPixel == 16) ||
+			(adapter->bitsPerPixel == 15))
 		{
 			short pix = 0;
 
 			if (adapter->bitsPerPixel == 16)
 			{
 				pix = (((foreground->red >> 3) << 11) |
-					((foreground->green >> 2) << 5) | (foreground->blue >> 3));
+					((foreground->green >> 2) << 5) |
+					(foreground->blue >> 3));
 			}
 			else
 			{
 				pix = (((foreground->red >> 3) << 10) |
-					((foreground->green >> 3) << 5) | (foreground->blue >> 3));
+					((foreground->green >> 3) << 5) |
+					(foreground->blue >> 3));
 			}
 
 			for (count = 0; count < lineLength; count ++)
@@ -438,8 +445,8 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 		}
 	}
 
-	// It's not horizontal or vertical.  We will use a Bresenham algorithm
-	// to make the line
+	// It's not horizontal or vertical.  We will use a Bresenham algorithm to
+	// make the line
 	else
 	{
 		int deltaX = 0, deltaY = 0, yStep = 0, x = 0, y = 0;
@@ -524,6 +531,11 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 	if (buffer->data == adapter->framebuffer)
 		scanLineBytes = adapter->scanLineBytes;
 
+	// See whether the thickness makes it equivalent to a fill.  I.e. more
+	// than half (rounded down) the width or height.
+	if ((thickness > (width >> 1)) || (thickness > (height >> 1)))
+		fill = 1;
+
 	if (fill)
 	{
 		// Off the left edge of the buffer?
@@ -545,15 +557,19 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 		if ((yCoord + height) >= buffer->height)
 			height = (buffer->height - yCoord);
 
+		// Do we still have width and height?
+		if ((width <= 0) || (height <= 0))
+			return (status = ERR_BOUNDS);
+
 		// Re-set these values
 		endX = (xCoord + (width - 1));
 		endY = (yCoord + (height - 1));
 
 		if ((mode == draw_or) || (mode == draw_xor))
 		{
-			// Just draw a series of lines, since every pixel needs to be dealt
-			// with individually and we can't really do that better than the
-			// line drawing routine does already.
+			// Just draw a series of lines, since every pixel needs to be
+			// dealt with individually and we can't really do that better than
+			// the line drawing function does already.
 			for (count = yCoord; count <= endY; count ++)
 			{
 				driverDrawLine(buffer, foreground, mode, xCoord, count, endX,
@@ -580,7 +596,8 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 			// Do a loop through the line, copying the color values
 			// consecutively
 
-			if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+			if ((adapter->bitsPerPixel == 32) ||
+				(adapter->bitsPerPixel == 24))
 			{
 				for (count = 0; count < lineBytes; )
 				{
@@ -626,27 +643,35 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 			}
 		}
 	}
-	else
+	else if (thickness)
 	{
 		// Draw the top line 'thickness' times
 		for (count = (yCoord + thickness - 1); count >= yCoord; count --)
+		{
 			driverDrawLine(buffer, foreground, mode, xCoord, count, endX,
 				count);
+		}
 
 		// Draw the left line 'thickness' times
 		for (count = (xCoord + thickness - 1); count >= xCoord; count --)
+		{
 			driverDrawLine(buffer, foreground, mode, count,
 				(yCoord + thickness), count, (endY - thickness));
+		}
 
 		// Draw the bottom line 'thickness' times
 		for (count = (endY - thickness + 1); count <= endY; count ++)
+		{
 			driverDrawLine(buffer, foreground, mode, xCoord, count, endX,
 				count);
+		}
 
 		// Draw the right line 'thickness' times
 		for (count = (endX - thickness + 1); count <= endX; count ++)
+		{
 			driverDrawLine(buffer, foreground, mode, count,
 				(yCoord + thickness), count, (endY - thickness));
+		}
 	}
 
 	return (status = 0);
@@ -657,11 +682,11 @@ static int driverDrawOval(graphicBuffer *buffer, color *foreground,
 	drawMode mode, int xCoord, int yCoord, int width, int height,
 	int thickness, int fill)
 {
-	// Draws an oval into the buffer using the supplied foreground color.  We use
-	// a version of the Bresenham circle algorithm, but in the case of an
-	// (unfilled) oval with (thickness > 1) we calculate inner and outer ovals,
-	// and draw lines between the inner and outer X coordinates of both, for
-	// any given Y coordinate.
+	// Draws an oval into the buffer using the supplied foreground color.  We
+	// use a version of the Bresenham circle algorithm, but in the case of an
+	// (unfilled) oval with (thickness > 1) we calculate inner and outer
+	// ovals, and draw lines between the inner and outer X coordinates of
+	// both, for any given Y coordinate.
 
 	int status = 0;
 	int centerX = (xCoord + (width / 2));
@@ -798,7 +823,8 @@ static int driverDrawOval(graphicBuffer *buffer, color *foreground,
 
 
 static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
-	drawMode mode, color *foreground, color *background, int xCoord, int yCoord)
+	drawMode mode, color *foreground, color *background, int xCoord,
+	int yCoord)
 {
 	// Draws the supplied image into the buffer at the requested coordinates
 
@@ -904,7 +930,8 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 			}
 		}
 
-		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+		else if ((adapter->bitsPerPixel == 16) ||
+			(adapter->bitsPerPixel == 15))
 		{
 			if (adapter->bitsPerPixel == 16)
 			{
@@ -959,11 +986,11 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 
 
 static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
-	drawMode mode, int xCoord, int yCoord, int xOffset, int yOffset, int width,
-	int height)
+	drawMode mode, int xCoord, int yCoord, int xOffset, int yOffset,
+	int width, int height)
 {
-	// Draws the requested width and height of the supplied image into the buffer
-	// at the requested coordinates, with the requested offset
+	// Draws the requested width and height of the supplied image into the
+	// buffer at the requested coordinates, with the requested offset
 
 	int status = 0;
 	int scanLineBytes = 0;
@@ -1091,7 +1118,8 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 			}
 		}
 
-		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+		else if ((adapter->bitsPerPixel == 16) ||
+			(adapter->bitsPerPixel == 15))
 		{
 			for (count = 0; count < lineLength; count ++, pixelCounter ++)
 			{
@@ -1181,7 +1209,8 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 	if (buffer->data == adapter->framebuffer)
 		scanLineBytes = adapter->scanLineBytes;
 
-	// If the clip goes off the right edge of the buffer, only grab what exists.
+	// If the clip goes off the right edge of the buffer, only grab what
+	// exists.
 	if ((xCoord + width) < buffer->width)
 		lineLength = width;
 	else
@@ -1229,7 +1258,8 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 			}
 		}
 
-		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+		else if ((adapter->bitsPerPixel == 16) ||
+			(adapter->bitsPerPixel == 15))
 		{
 			for (count = 0; count < lineLength; count ++)
 			{
@@ -1398,7 +1428,8 @@ static int driverRenderBuffer(graphicBuffer *buffer, int drawX, int drawY,
 	// Start copying lines
 	for ( ; height > 0; height --)
 	{
-		memcpy(screenPointer, bufferPointer, (width * adapter->bytesPerPixel));
+		memcpy(screenPointer, bufferPointer, (width *
+			adapter->bytesPerPixel));
 		bufferPointer += (buffer->width * adapter->bytesPerPixel);
 		screenPointer += adapter->scanLineBytes;
 	}
@@ -1480,7 +1511,8 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 			}
 		}
 
-		else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+		else if ((adapter->bitsPerPixel == 16) ||
+			(adapter->bitsPerPixel == 15))
 		{
 			for (count = 0; count < width; count ++)
 			{
@@ -1517,7 +1549,7 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 
 static int driverDetect(void *parent, kernelDriver *driver)
 {
-	// This routine is used to detect and initialize each device, as well as
+	// This function is used to detect and initialize each device, as well as
 	// registering each one with any higher-level interfaces
 
 	int status = 0;

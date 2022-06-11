@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -171,7 +171,7 @@ kernelTextInputStream *kernelMultitaskerGetTextInput(void);
 int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
 kernelTextOutputStream *kernelMultitaskerGetTextOutput(void);
 int kernelMultitaskerSetTextOutput(int, kernelTextOutputStream *);
-int kernelMultitaskerDuplicateIO(int, int, int);
+int kernelMultitaskerDuplicateIo(int, int, int);
 int kernelMultitaskerGetProcessorTime(clock_t *);
 void kernelMultitaskerYield(void);
 void kernelMultitaskerWait(unsigned);
@@ -184,8 +184,8 @@ int kernelMultitaskerTerminate(int);
 int kernelMultitaskerSignalSet(int, int, int);
 int kernelMultitaskerSignal(int, int);
 int kernelMultitaskerSignalRead(int);
-int kernelMultitaskerGetIOPerm(int, int);
-int kernelMultitaskerSetIOPerm(int, int, int);
+int kernelMultitaskerGetIoPerm(int, int);
+int kernelMultitaskerSetIoPerm(int, int, int);
 kernelPageDirectory *kernelMultitaskerGetPageDir(int);
 loaderSymbolTable *kernelMultitaskerGetSymbols(int);
 int kernelMultitaskerSetSymbols(int, loaderSymbolTable *);

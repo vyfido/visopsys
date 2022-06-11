@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -161,7 +161,7 @@ void kernelGetVersion(char *buffer, int bufferSize)
 }
 
 
-int kernelSystemInfo(struct utsname *uname)
+int kernelSystemInfo(struct utsname *uts)
 {
 	// This function gathers some info about the system and puts it into
 	// a 'utsname' structure, just like the one returned by 'uname' in Unix.
@@ -170,20 +170,20 @@ int kernelSystemInfo(struct utsname *uname)
 	kernelDevice *cpuDevice = NULL;
 
 	// Check params
-	if (!uname)
+	if (!uts)
 		return (status = ERR_NULLPARAMETER);
 
-	strncpy(uname->sysname, kernelVersion[0], UTSNAME_MAX_SYSNAME_LENGTH);
-	kernelNetworkGetHostName(uname->nodename, NETWORK_MAX_HOSTNAMELENGTH);
-	strncpy(uname->release, kernelVersion[1], UTSNAME_MAX_RELEASE_LENGTH);
-	strncpy(uname->version, __DATE__" "__TIME__, UTSNAME_MAX_VERSION_LENGTH);
+	strncpy(uts->sysname, kernelVersion[0], UTSNAME_MAX_SYSNAME_LENGTH);
+	kernelNetworkGetHostName(uts->nodename, NETWORK_MAX_HOSTNAMELENGTH);
+	strncpy(uts->release, kernelVersion[1], UTSNAME_MAX_RELEASE_LENGTH);
+	strncpy(uts->version, __DATE__" "__TIME__, UTSNAME_MAX_VERSION_LENGTH);
 	if ((kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_CPU), NULL,
 		&cpuDevice, 1) > 0) && cpuDevice->device.subClass)
 	{
-		strncpy(uname->machine, cpuDevice->device.subClass->name,
+		strncpy(uts->machine, cpuDevice->device.subClass->name,
 			UTSNAME_MAX_MACHINE_LENGTH);
 	}
-	kernelNetworkGetDomainName(uname->domainname, NETWORK_MAX_DOMAINNAMELENGTH);
+	kernelNetworkGetDomainName(uts->domainname, NETWORK_MAX_DOMAINNAMELENGTH);
 
 	return (status = 0);
 }
@@ -348,8 +348,8 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 
 void kernelConsoleLogin(void)
 {
-	// This routine will launch a login process on the console.  This should
-	// normally be called by the kernel's kernelMain() routine, above, but
+	// This function will launch a login process on the console.  This should
+	// normally be called by the kernel's kernelMain() function, above, but
 	// also possibly by the keyboard driver when some hot-key is pressed.
 
 	static int loginPid = 0;
@@ -375,7 +375,7 @@ void kernelConsoleLogin(void)
 	}
 
 	// Attach the login process to the console text streams
-	kernelMultitaskerDuplicateIO(KERNELPROCID, loginPid, 1); // clear
+	kernelMultitaskerDuplicateIo(KERNELPROCID, loginPid, 1); // clear
 
 	// Execute the login process.  Don't block.
 	kernelLoaderExecProgram(loginPid, 0);

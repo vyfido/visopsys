@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,29 +20,37 @@
 //
 
 #include "kernelNetwork.h"
-#include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelLinkedList.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
+#include "kernelNetworkArp.h"
 #include "kernelNetworkDevice.h"
 #include "kernelNetworkDhcp.h"
+#include "kernelNetworkEthernet.h"
+#include "kernelNetworkIcmp.h"
+#include "kernelNetworkIp4.h"
+#include "kernelNetworkLoopDriver.h"
 #include "kernelNetworkStream.h"
-#include "kernelRandom.h"
+#include "kernelNetworkUdp.h"
 #include "kernelRtc.h"
 #include "kernelVariableList.h"
 #include <stdlib.h>
 #include <string.h>
-#include <sys/processor.h>
+#include <sys/kernconf.h>
 
 static char *hostName = NULL;
 static char *domainName = NULL;
 static kernelNetworkDevice *adapters[NETWORK_MAX_ADAPTERS];
-static int numDevices = 0;
+static int numAdapters = 0;
 static int netThreadPid = 0;
 static int networkStop = 0;
 static int initialized = 0;
+static int enabled = 0;
+
+extern variableList *kernelVariables;
 
 
 static kernelNetworkDevice *getDevice(networkAddress *dest)
@@ -51,442 +59,151 @@ static kernelNetworkDevice *getDevice(networkAddress *dest)
 	// adapter to use for the connection.
 
 	kernelNetworkDevice *adapter = NULL;
+	int localNetwork = 0;
 	int count;
 
-	for (count = 0; count < numDevices; count ++)
+	if (!numAdapters)
+		return (adapter = NULL);
+
+	// I expect that this will need to become more sophisticated over time.
+
+	// If there's only one adapter, pick it
+	if (numAdapters == 1)
+		return (adapter = adapters[0]);
+
+	// First default: the first adapter
+	adapter = adapters[0];
+
+	// Second default: an adapter that's running and not loopback
+	for (count = 0; count < numAdapters; count ++)
 	{
-		if (dest)
+		if ((adapters[count]->device.flags & NETWORK_ADAPTERFLAG_RUNNING) &&
+			(adapters[count]->device.linkProtocol !=
+				NETWORK_LINKPROTOCOL_LOOP))
 		{
 			adapter = adapters[count];
 			break;
 		}
 	}
 
-	// If we found an appropriate adapter, the pointer will be set.
+	// If there's no destination address, that'll have to do
+	if (!dest)
+		return (adapter);
+
+	// Look for an adapter that's running, and on the same network as the
+	// destination address (including loopback this time)
+	for (count = 0; count < numAdapters; count ++)
+	{
+		if ((adapters[count]->device.flags & NETWORK_ADAPTERFLAG_RUNNING) &&
+			!networkAddressEmpty(&adapters[count]->device.netMask,
+				sizeof(networkAddress)) &&
+			networksEqualIp4(dest, &adapters[count]->device.netMask,
+				&adapters[count]->device.hostAddress))
+		{
+			localNetwork = 1;
+			adapter = adapters[count];
+			break;
+		}
+	}
+
+	// If the destination was an address that's local to one of our adapters,
+	// choose that one
+	if (localNetwork)
+		return (adapter);
+
+	// It's not on a local network, so try to pick an adapter that's running,
+	// not loopback, and has a gateway address set
+	for (count = 0; count < numAdapters; count ++)
+	{
+		if ((adapters[count]->device.flags & NETWORK_ADAPTERFLAG_RUNNING) &&
+			(adapters[count]->device.linkProtocol !=
+				NETWORK_LINKPROTOCOL_LOOP) &&
+			!networkAddressEmpty(&adapters[count]->device.gatewayAddress,
+				sizeof(networkAddress)))
+		{
+			adapter = adapters[count];
+			break;
+		}
+	}
+
 	return (adapter);
 }
 
 
-static int ipPortInUse(kernelNetworkDevice *adapter, int portNumber)
-{
-	// Returns 1 if there is a connection using the specified local IP port
-	// number
-
-	kernelNetworkConnection *connection = adapter->connections;
-
-	while (connection)
-	{
-		if (connection->filter.localPort == portNumber)
-			return (0);
-
-		connection = connection->next;
-	}
-
-	return (0);
-}
-
-
-static unsigned short ipChecksum(networkIpHeader *ipHeader)
-{
-	// Calculate the checksum for the supplied IP packet header.  This is done
-	// as a 1's complement sum of each 16-bit word in the header.
-
-	int headerWords = ((ipHeader->versionHeaderLen & 0xF) << 1);
-	unsigned short *words = (unsigned short *) ipHeader;
-	unsigned checksum = 0;
-	int count;
-
-	for (count = 0; count < headerWords; count ++)
-	{
-		// Skip the checksum word itself
-		if (count != 5)
-			checksum += processorSwap16(words[count]);
-	}
-
-	return ((unsigned short)((~checksum & 0xFFFF) - (checksum >> 16)));
-}
-
-
-static unsigned short icmpChecksum(networkIcmpHeader *header, int length)
-{
-	// Calculate the checksum for the supplied packet.  This is done
-	// as a 1's complement sum of the ICMP header + the data
-
-	unsigned short *words = (void *) header;
-	unsigned checksum = 0;
-	int count;
-
-	for (count = 0; count < (length >> 1); count ++)
-	{
-		// Skip the checksum word itself
-		if (count != 1)
-			checksum += processorSwap16(words[count]);
-	}
-
-	return ((unsigned short)((~checksum & 0xFFFF) - (checksum >> 16)));
-}
-
-
-static unsigned short udpChecksum(networkIpHeader *ipHeader)
-{
-	// Calculate the UDP checksum for the supplied packet.  This is done
-	// as a 1's complement sum of:
-	//
-	// "a pseudo header of information from the IP header, the UDP header,
-	// and the data, padded with zero octets at the end (if necessary) to make
-	// a multiple of two octets.
-	//
-	// The pseudo  header  conceptually prefixed to the UDP header contains
-	// the source address, the destination address, the protocol, and the UDP
-	// length.  This information gives protection against misrouted datagrams.
-	// This checksum procedure is the same as is used in TCP.
-	//
-	//		 0      7 8     15 16    23 24    31
-	//		+--------+--------+--------+--------+
-	//		|          source address           |
-	//		+--------+--------+--------+--------+
-	//		|        destination address        |
-	//		+--------+--------+--------+--------+
-	//		|  zero  |protocol|   UDP length    |
-	//		+--------+--------+--------+--------+
-
-	unsigned checksum = 0;
-	networkUdpHeader *udpHeader = NULL;
-	unsigned short udpLength = 0;
-	unsigned short *wordPtr = NULL;
-	int count;
-
-	udpHeader = (((void *) ipHeader) +
-		((ipHeader->versionHeaderLen & 0x0F) << 2));
-	udpLength = processorSwap16(udpHeader->length);
-
-	// IP source and destination addresses
-	wordPtr = (unsigned short *) ipHeader;
-	for (count = 6; count < 10; count ++)
-		checksum += processorSwap16(wordPtr[count]);
-
-	// Protocol
-	checksum += ipHeader->protocol;
-
-	// UDP length
-	checksum += udpLength;
-
-	// The UDP header and data
-	wordPtr = (unsigned short *) udpHeader;
-	for (count = 0; count < (udpLength / 2); count ++)
-	{
-		if (count != 3)
-			// Skip the checksum field itself
-			checksum += processorSwap16(wordPtr[count]);
-	}
-
-	if (udpLength % 2)
-		checksum += processorSwap16(wordPtr[udpLength / 2] & 0x00FF);
-
-	return ((unsigned short)((~checksum & 0xFFFF) - (checksum >> 16)));
-}
-
-
-static int prependEthernetHeader(kernelNetworkDevice *adapter,
-	kernelNetworkPacket *packet)
-{
-	// Create the ethernet header for this packet and adjust the packet data
-	// pointer and size appropriately
-
-	int status = 0;
-	networkEthernetHeader *header = (networkEthernetHeader *) packet->data;
-
-	// If the IP destination address is broadcast, we make the ethernet
-	// destination be broadcast as well
-	if (networkAddressesEqual(&packet->destAddress, &NETWORK_BROADCAST_ADDR,
-		NETWORK_ADDRLENGTH_IPV4))
-	{
-		// Destination is the ethernet broadcast address FF:FF:FF:FF:FF:FF
-		memcpy(&header->dest, &NETWORK_BROADCAST_ADDR,
-			NETWORK_ADDRLENGTH_ETHERNET);
-	}
-	else
-	{
-		// Get the 6-byte ethernet destination address
-		status = kernelNetworkDeviceGetAddress((char *) adapter->device.name,
-			&packet->destAddress, (networkAddress *) &header->dest);
-		if (status < 0)
-			// Can't find the destination host, we guess
-			return (status);
-	}
-
-	// Copy the 6-byte ethernet source address
-	memcpy(&header->source, (void *) &adapter->device.hardwareAddress,
-		NETWORK_ADDRLENGTH_ETHERNET);
-
-	// Always the same for our purposes
-	header->type = processorSwap16(NETWORK_ETHERTYPE_IP);
-
-	// Adjust the packet structure
-	packet->linkHeader = header;
-	packet->data += sizeof(networkEthernetHeader);
-	packet->dataLength -= sizeof(networkEthernetHeader);
-
-	// Data must fit within an ethernet frame
-	if (packet->dataLength > NETWORK_MAX_ETHERDATA_LENGTH)
-		packet->dataLength = NETWORK_MAX_ETHERDATA_LENGTH;
-
-	return (status = 0);
-}
-
-
-static int prependIpHeader(kernelNetworkPacket *packet)
-{
-	// Create the IP header for this packet and adjust the packet data
-	// pointer and size appropriately
-
-	networkIpHeader *header = (networkIpHeader *) packet->data;
-
-	// Version 4, header length 5 dwords
-	header->versionHeaderLen = 0x45;
-	// Type of service: Normal everything.  Routine = 000, delay = 0,
-	// throughput = 0, reliability = 0
-	header->typeOfService = 0;
-	header->totalLength = processorSwap16(packet->dataLength);
-	// Fragmentation allowed, but off by default
-	header->flagsFragOffset = 0;
-	header->timeToLive = 64;
-	header->protocol = packet->transProtocol;
-	// Wait until the end for the checksum.  Copy the source and destination
-	// IP addresses
-	memcpy(&header->srcAddress, &packet->srcAddress, 4);
-	memcpy(&header->destAddress, &packet->destAddress, 4);
-	// Do the checksum.
-	header->headerChecksum = processorSwap16(ipChecksum(header));
-
-	// Adjust the packet structure
-	packet->netHeader = header;
-	packet->data += sizeof(networkIpHeader);
-	packet->dataLength -= sizeof(networkIpHeader);
-
-	return (0);
-}
-
-
-static int prependUdpHeader(kernelNetworkPacket *packet)
-{
-	networkUdpHeader *header = (networkUdpHeader *) packet->data;
-
-	header->srcPort = processorSwap16(packet->srcPort);
-	header->destPort = processorSwap16(packet->destPort);
-	header->length = processorSwap16(packet->dataLength);
-	// We have to defer the checksum until the data is in the packet.
-	header->checksum = 0;
-
-	// Adjust the packet structure
-	packet->transHeader = header;
-	packet->data += sizeof(networkUdpHeader);
-	packet->dataLength -= sizeof(networkUdpHeader);
-
-	return (0);
-}
-
-
-static int setupSendPacket(kernelNetworkConnection *connection,
-	kernelNetworkPacket *packet)
-{
-	// This takes an empty packet structure and does initial setup, filling in
-	// addresses, allocating memory, reserving space for headers, and setting
-	// up pointers to everthing depending on the connection protocols.
-
-	int status = 0;
-
-	memset(packet, 0, sizeof(kernelNetworkPacket));
-
-	// Set up the packet info
-
-	// Adresses and ports
-	memcpy(&packet->srcAddress, (void *)
-		&connection->adapter->device.hostAddress, sizeof(networkAddress));
-	packet->srcPort = connection->filter.localPort;
-	memcpy(&packet->destAddress, (void *) &connection->address,
-		sizeof(networkAddress));
-	packet->destPort = connection->filter.remotePort;
-
-	// Get memory for the packet data
-	packet->length = NETWORK_PACKET_MAX_LENGTH;
-	packet->memory = kernelMalloc(packet->length);
-	if (!packet->memory)
-		return (status = ERR_MEMORY);
-	packet->data = packet->memory;
-	packet->dataLength = packet->length;
-
-	// The packet's link protocol header is the protocol of the network adapter
-	packet->linkProtocol = connection->adapter->device.linkProtocol;
-
-	// Prepend the link protocol header
-	switch (packet->linkProtocol)
-	{
-		case NETWORK_LINKPROTOCOL_ETHERNET:
-			status = prependEthernetHeader(connection->adapter, packet);
-			break;
-
-		default:
-			kernelError(kernel_error, "Device %s has an unknown link protocol "
-				"%d", connection->adapter->device.name, packet->linkProtocol);
-			status = ERR_INVALID;
-	}
-
-	if (status < 0)
-	{
-		kernelDebugError("Error prepending link header");
-		kernelFree(packet->memory);
-		return (status);
-	}
-
-	// Set the packet's transport protocol in case the network protocol needs
-	// it to construct its header (a la the protocol field in an IP header)
-	packet->transProtocol = connection->filter.transProtocol;
-
-	// Prepend the network protocol header based on the requested transport
-	// protocol
-	switch (packet->transProtocol)
-	{
-		case NETWORK_TRANSPROTOCOL_ICMP:
-		case NETWORK_TRANSPROTOCOL_UDP:
-			packet->netProtocol = NETWORK_NETPROTOCOL_IP;
-			status = prependIpHeader(packet);
-			break;
-
-		default:
-			kernelError(kernel_error, "Unknown transport protocol %d",
-				connection->filter.transProtocol);
-			status = ERR_INVALID;
-			break;
-	}
-
-	if (status < 0)
-	{
-		kernelDebugError("Error prepending network header");
-		kernelFree(packet->memory);
-		return (status);
-	}
-
-	// Prepend the transport protocol header, if applicable
-	switch (packet->transProtocol)
-	{
-		case NETWORK_TRANSPROTOCOL_UDP:
-			status = prependUdpHeader(packet);
-			break;
-	}
-
-	if (status < 0)
-	{
-		kernelDebugError("Error prepending transport header");
-		kernelFree(packet->memory);
-	}
-
-	return (status);
-}
-
-
-static void finalizeSendPacket(kernelNetworkConnection *connection,
-	kernelNetworkPacket *packet)
-{
-	// This does any required finalizing and checksumming of a packet before
-	// it is to be sent.
-
-	// If the network protocol needs to post-process the packet, do that
-	// now
-
-	if (packet->netProtocol == NETWORK_NETPROTOCOL_IP)
-	{
-		networkIpHeader *ipHeader = packet->netHeader;
-
-		ipHeader->identification =
-			processorSwap16(connection->ip.identification);
-		connection->ip.identification += 1;
-
-		// Make sure the length field matches the actual size of the
-		// IP header+data
-		ipHeader->totalLength =
-			processorSwap16((((unsigned) packet->data -
-				(unsigned) packet->netHeader) + packet->dataLength));
-
-		ipHeader->headerChecksum =
-			processorSwap16(ipChecksum(packet->netHeader));
-	}
-
-	// If the transport protocol needs to post-process the packet, do that
-	// now
-
-	if (packet->transProtocol == NETWORK_TRANSPROTOCOL_UDP)
-	{
-		networkUdpHeader *udpHeader = packet->transHeader;
-
-		// Make sure the length field matches the actual size of the
-		// UDP header+data
-
-		udpHeader->length = processorSwap16(packet->length -
-			(packet->transHeader - packet->memory));
-
-		// Now we can do the checksum
-		udpHeader->checksum =
-			processorSwap16(udpChecksum(packet->netHeader));
-	}
-}
-
-
 static kernelNetworkConnection *findMatchFilter(
-	kernelNetworkConnection *connection, kernelNetworkPacket *packet)
+	volatile kernelLinkedList *list, kernelLinkedListItem **iter,
+	kernelNetworkPacket *packet)
 {
 	// Given a starting connection, loop through them until we find one whose
 	// filter matches the supplied packet.
 
-	networkIcmpHeader *icmpHeader = packet->transHeader;
+	kernelNetworkConnection *connection = NULL;
+	networkIcmpHeader *icmpHeader = NULL;
 
-	while (connection)
+	while (1)
 	{
-		if (connection->filter.linkProtocol &&
+		if (!(*iter))
+		{
+			connection = kernelLinkedListIterStart((kernelLinkedList *) list,
+				iter);
+		}
+		else
+		{
+			connection = kernelLinkedListIterNext((kernelLinkedList *) list,
+				iter);
+		}
+
+		if (!connection)
+			break;
+
+		if (!networkAddressesEqual(&connection->address, &packet->srcAddress,
+			sizeof(networkAddress)))
+		{
+			continue;
+		}
+
+		if ((connection->filter.flags & NETWORK_FILTERFLAG_LINKPROTOCOL) &&
 			(packet->linkProtocol != connection->filter.linkProtocol))
 		{
-			connection = connection->next;
 			continue;
 		}
 
-		if (connection->filter.netProtocol &&
+		if ((connection->filter.flags & NETWORK_FILTERFLAG_NETPROTOCOL) &&
 			(packet->netProtocol != connection->filter.netProtocol))
 		{
-			connection = connection->next;
 			continue;
 		}
 
-		if (connection->filter.transProtocol &&
+		if ((connection->filter.flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
 			(packet->transProtocol != connection->filter.transProtocol))
 		{
-			connection = connection->next;
 			continue;
 		}
 
-		if (connection->filter.subProtocol)
+		if (connection->filter.flags & NETWORK_FILTERFLAG_SUBPROTOCOL)
 		{
 			switch (connection->filter.transProtocol)
 			{
 				case NETWORK_TRANSPROTOCOL_ICMP:
+				{
+					icmpHeader = (networkIcmpHeader *)(packet->memory +
+						packet->transHeaderOffset);
+
 					if (icmpHeader->type != connection->filter.subProtocol)
-					{
-						connection = connection->next;
 						continue;
-					}
+				}
 			}
 		}
 
-		if (connection->filter.localPort &&
+		if ((connection->filter.flags & NETWORK_FILTERFLAG_LOCALPORT) &&
 			(packet->destPort != connection->filter.localPort))
 		{
-			connection = connection->next;
 			continue;
 		}
 
-		if (connection->filter.remotePort &&
+		if ((connection->filter.flags & NETWORK_FILTERFLAG_REMOTEPORT) &&
 			(packet->srcPort != connection->filter.remotePort))
 		{
-			connection = connection->next;
 			continue;
 		}
 
@@ -499,111 +216,6 @@ static kernelNetworkConnection *findMatchFilter(
 }
 
 
-static int matchFilters(kernelNetworkDevice *adapter,
-	kernelNetworkPacket *packet)
-{
-	// Given an adapter and a packet, match the packet to any applicable
-	// filters in the list of connections and write the packet data for any
-	// matches into the connections' input streams.
-
-	int matchedFilters = 0;
-	kernelNetworkConnection *connection = NULL;
-	void *copyPtr = NULL;
-	unsigned length = 0;
-
-	connection = findMatchFilter(adapter->connections, packet);
-
-	while (connection)
-	{
-		matchedFilters += 1;
-
-		// If it's not a 'read' connection with an input stream, skip the rest.
-		if (!(connection->mode & NETWORK_MODE_READ) ||
-			!connection->inputStream.buffer)
-		{
-			connection = findMatchFilter(connection->next, packet);
-			continue;
-		}
-
-		// Copy the packet into the input stream.
-
-		copyPtr = packet->data;
-		length = packet->dataLength;
-
-		if (connection->filter.headers == NETWORK_HEADERS_RAW)
-		{
-			copyPtr = packet->linkHeader;
-			length += ((unsigned) packet->data - (unsigned) packet->linkHeader);
-		}
-		else if (connection->filter.headers == NETWORK_HEADERS_NET)
-		{
-			copyPtr = packet->netHeader;
-			length += ((unsigned) packet->data - (unsigned) packet->netHeader);
-		}
-		else if (connection->filter.headers == NETWORK_HEADERS_TRANSPORT)
-		{
-			copyPtr = packet->transHeader;
-			length += ((unsigned) packet->data -
-				(unsigned) packet->transHeader);
-		}
-
-		connection->inputStream.appendN(&connection->inputStream, length,
-			copyPtr);
-
-		connection = findMatchFilter(connection->next, packet);
-	}
-
-	return (matchedFilters);
-}
-
-
-static void processIcmpPacket(kernelNetworkDevice *adapter,
-	kernelNetworkPacket *packet)
-{
-	// Take the appropriate action for whatever ICMP message we received.
-
-	networkFilter filter;
-	kernelNetworkConnection *connection = NULL;
-	networkIpHeader *ipHeader = packet->netHeader;
-	networkIcmpHeader *icmpHeader = packet->transHeader;
-	unsigned short checksum = 0;
-
-	switch (icmpHeader->type)
-	{
-		case NETWORK_ICMP_ECHO:
-			// This is a ping.  We change the type to an 'echo reply' (ping
-			// reply), recompute the checksum, and send it back.
-
-			// Get a connection for sending
-			memset(&filter, 0, sizeof(networkFilter));
-			filter.transProtocol = NETWORK_TRANSPROTOCOL_ICMP;
-			connection = kernelNetworkConnectionOpen(adapter,
-				NETWORK_MODE_WRITE, (networkAddress *) &ipHeader->srcAddress,
-				&filter);
-			if (!connection)
-				return;
-			icmpHeader->type = NETWORK_ICMP_ECHOREPLY;
-			checksum = icmpChecksum(icmpHeader,
-				(processorSwap16(ipHeader->totalLength) -
-					sizeof(networkIpHeader)));
-			icmpHeader->checksum = processorSwap16(checksum);
-			// Send, but only queue it for output so that ICMP packets don't
-			// tie up the processing of the input queue
-			kernelNetworkSendData(connection, (void *) icmpHeader,
-				(processorSwap16(ipHeader->totalLength) -
-					sizeof(networkIpHeader)), 0 /* not immediate */,
-				0 /* don't free memory */);
-			kernelNetworkConnectionClose(connection);
-			break;
-
-		default:
-			// Not supported yet, or we don't deal with it here.  Not an error
-			// or anything.
-			break;
-	}
-}
-
-
 static void networkThread(void)
 {
 	// This is the thread that processes our raw kernel packet input and
@@ -611,13 +223,15 @@ static void networkThread(void)
 
 	int status = 0;
 	kernelNetworkDevice *adapter = NULL;
-	kernelNetworkPacket packet;
+	kernelNetworkPacket *packet = NULL;
+	kernelNetworkConnection *connection = NULL;
+	kernelLinkedListItem *iter = NULL;
 	int count;
 
 	while (!networkStop)
 	{
 		// Loop for each adapter
-		for (count = 0; count < numDevices; count ++)
+		for (count = 0; count < numAdapters; count ++)
 		{
 			adapter = adapters[count];
 
@@ -630,8 +244,8 @@ static void networkThread(void)
 				((int) kernelRtcUptimeSeconds() >=
 					(adapter->dhcpConfig.leaseExpiry - 60)))
 			{
-				status = kernelNetworkDhcpConfigure(adapter,
-					NETWORK_DHCP_DEFAULT_TIMEOUT);
+				status = kernelNetworkDhcpConfigure(adapter, hostName,
+					domainName, NETWORK_DHCP_DEFAULT_TIMEOUT);
 				if (status < 0)
 				{
 					kernelError(kernel_error, "Attempt to renew DHCP "
@@ -646,71 +260,96 @@ static void networkThread(void)
 					adapter->device.name);
 			}
 
-			// Process the adapter's input packet stream.
+			// Process received packets
 
-			while (adapter->inputStream.count >=
-				(sizeof(kernelNetworkPacket) / sizeof(unsigned)))
+			while (adapter->inputStream.count)
 			{
-				// Try to get a lock on the stream
-				if (kernelLockGet(&adapter->inputStreamLock) < 0)
-					// Stop for this timeslice
-					break;
-
-				// This doesn't currently allocate any memory for packets; the
-				// packet's memory buffer just points to the adapter's static
-				// buffer, so we mustn't free() it after processing.
 				status = kernelNetworkPacketStreamRead(&adapter->inputStream,
 					&packet);
-
-				kernelLockRelease(&adapter->inputStreamLock);
-
 				if (status < 0)
-					// Eh.  Dunno.  Stop for this timeslice.
+					// Try the next adapter
 					break;
 
-				// Set up the received packet
-				status = kernelNetworkSetupReceivedPacket(&packet);
+				kernelDebug(debug_net, "NET thread read a packet");
+
+				// Parse the raw data to set up the packet data structure
+				status = kernelNetworkSetupReceivedPacket(packet);
 				if (status < 0)
-					break;
+				{
+					// Discard this packet and try the next one
+					kernelNetworkPacketRelease(packet);
+					continue;
+				}
 
-				// Look for connections with applicable filters into which to
-				// copy the packet data
-				matchFilters(adapter, &packet);
+				kernelDebug(debug_net, "NET thread accepted packet");
+				kernelDebugHex(packet->memory, packet->length);
 
-				// If this is an ICMP message, take the appropriate action
-				if (packet.transProtocol == NETWORK_TRANSPROTOCOL_ICMP)
-					processIcmpPacket(adapter, &packet);
+				// If this is an ARP packet
+				if (packet->netProtocol == NETWORK_NETPROTOCOL_ARP)
+					kernelNetworkArpProcessPacket(adapter, packet);
+
+				// If this is an ICMP message
+				if (packet->transProtocol == NETWORK_TRANSPROTOCOL_ICMP)
+					kernelNetworkIcmpProcessPacket(adapter, packet);
+
+				// Check whether there are connections with matching filters,
+				// that might be eligible to receive this data
+
+				iter = NULL;
+				connection = findMatchFilter(&adapter->connections, &iter,
+					packet);
+
+				if (!connection)
+				{
+					// Nothing matched.  Discard the packet.  In theory, if
+					// this is a TCP packet, we're supposed to send a reset.
+					//  Rather, we choose silence.
+					kernelNetworkPacketRelease(packet);
+					continue;
+				}
+
+				// Loop through the applicable connections
+
+				while (connection)
+				{
+					kernelDebug(debug_net, "NET thread found a suitable "
+						"connection");
+
+					// Deliver the data to the connection
+					kernelNetworkDeliverData(connection, packet);
+
+					// Continue for other connections that match
+					connection = findMatchFilter(&adapter->connections,
+						&iter, packet);
+				}
+
+				kernelNetworkPacketRelease(packet);
 			}
 
 			// Process the adapter's output packet stream.
 
-			while (adapter->outputStream.count >=
-				(sizeof(kernelNetworkPacket) / sizeof(unsigned)))
+			while (adapter->outputStream.count)
 			{
-				// Try to get a lock on the stream
-				if (kernelLockGet(&adapter->outputStreamLock) < 0)
-					// Stop for this timeslice
-					break;
-
 				status = kernelNetworkPacketStreamRead(&adapter->outputStream,
 					&packet);
-
-				kernelLockRelease(&adapter->outputStreamLock);
-
 				if (status < 0)
-					// Eh.  Dunno.  Stop for this timeslice.
+					// Try the next adapter
 					break;
 
 				// Send it.
-				status = kernelNetworkDeviceSend((char *) adapter->device.name,
-					packet.memory, packet.length);
 
-				// Free the packet memory
-				kernelFree(packet.memory);
+				kernelDebug(debug_net, "NET thread send queued packet");
+
+				status = kernelNetworkDeviceSend((char *)
+					adapter->device.name, packet);
+
+				kernelNetworkPacketRelease(packet);
 
 				if (status < 0)
 					break;
 			}
+
+			// Do any additional time-based processing
 		}
 
 		// Finished for this time slice
@@ -729,15 +368,14 @@ static void checkSpawnNetworkThread(void)
 
 	processState tmpState;
 
-	if (!initialized)
+	if (!enabled)
 		return;
 
 	if (!netThreadPid ||
 		(kernelMultitaskerGetProcessState(netThreadPid, &tmpState) < 0))
 	{
-		netThreadPid =
-			kernelMultitaskerSpawnKernelThread(networkThread, "network thread",
-				0, NULL);
+		netThreadPid = kernelMultitaskerSpawnKernelThread(networkThread,
+			"network thread", 0, NULL);
 	}
 }
 
@@ -748,26 +386,28 @@ static int connectionExists(kernelNetworkConnection *connection)
 
 	kernelNetworkDevice *adapter = NULL;
 	kernelNetworkConnection *tmpConnection = NULL;
+	kernelLinkedListItem *iter = NULL;
 	int count;
 
-	for (count = 0; count < numDevices; count ++)
+	for (count = 0; count < numAdapters; count ++)
 	{
 		adapter = adapters[count];
 
-		tmpConnection = adapter->connections;
+		tmpConnection = kernelLinkedListIterStart((kernelLinkedList *)
+			&adapter->connections, &iter);
+
 		while (tmpConnection)
 		{
 			if (tmpConnection == connection)
-				break;
-			else
-				tmpConnection = connection->next;
-		}
+				return (1);
 
-		if (tmpConnection)
-			break;
+			tmpConnection = kernelLinkedListIterNext((kernelLinkedList *)
+				&adapter->connections, &iter);
+		}
 	}
 
-	return (tmpConnection? 1 : 0);
+	// Not found
+	return (0);
 }
 
 
@@ -782,8 +422,8 @@ static int connectionExists(kernelNetworkConnection *connection)
 int kernelNetworkRegister(kernelNetworkDevice *adapter)
 {
 	// Called by the kernelNetworkDevice code to register a network adapter
-	// for configuration (such as DHCP) and use.  That stuff is done through
-	// the kernelNetworkInitialize function.
+	// for configuration (such as DHCP) and use.  That stuff is done later by
+	// the kernelNetworkEnable() function.
 
 	int status = 0;
 
@@ -794,14 +434,111 @@ int kernelNetworkRegister(kernelNetworkDevice *adapter)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	adapters[numDevices++] = adapter;
+	adapters[numAdapters++] = adapter;
+	return (status = 0);
+}
+
+
+int kernelNetworkInitialize(void)
+{
+	// Initialize global networking stuff
+
+	int status = 0;
+	kernelNetworkDevice *adapter = NULL;
+	int adapterCount, count;
+
+	if (initialized)
+		// Nothing to do.  No error.
+		return (status = 0);
+
+	hostName = kernelMalloc(NETWORK_MAX_HOSTNAMELENGTH);
+	if (!hostName)
+		return (status = ERR_MEMORY);
+
+	// By default
+	strcpy(hostName, "visopsys");
+
+	if (kernelVariables)
+	{
+		// Check for a user-specified host name.
+		if (kernelVariableListGet(kernelVariables, KERNELVAR_NET_HOSTNAME))
+		{
+			strncpy(hostName, kernelVariableListGet(kernelVariables,
+				KERNELVAR_NET_HOSTNAME), NETWORK_MAX_HOSTNAMELENGTH);
+		}
+	}
+
+	kernelDebug(debug_net, "NET hostName=%s", hostName);
+
+	domainName = kernelMalloc(NETWORK_MAX_DOMAINNAMELENGTH);
+	if (!domainName)
+		return (status = ERR_MEMORY);
+
+	// By default, empty
+	domainName[0] = '\0';
+
+	if (kernelVariables)
+	{
+		// Check for a user-specified domain name.
+		if (kernelVariableListGet(kernelVariables, KERNELVAR_NET_DOMAINNAME))
+		{
+			strncpy(domainName, kernelVariableListGet(kernelVariables,
+				KERNELVAR_NET_DOMAINNAME), NETWORK_MAX_DOMAINNAMELENGTH);
+		}
+	}
+
+	kernelDebug(debug_net, "NET domainName=%s", domainName);
+
+	// Attempt to create a loopback virtual adapter
+	kernelNetworkLoopDeviceRegister();
+
+	// Initialize all the network adapters
+	for (adapterCount = 0; adapterCount < numAdapters; adapterCount ++)
+	{
+		adapter = adapters[adapterCount];
+
+		kernelDebug(debug_net, "NET initialize adapter %s",
+			adapter->device.name);
+
+		// Initialize the adapter's network packet input and output streams
+
+		status = kernelNetworkPacketStreamNew(&adapter->inputStream);
+		if (status < 0)
+			continue;
+
+		status = kernelNetworkPacketStreamNew(&adapter->outputStream);
+		if (status < 0)
+			continue;
+
+		// Get a 'pool' of packet memory for use by interrupt handlers, since
+		// they can't allocate memory themselves.
+
+		adapter->packetPool.freePackets = NETWORK_PACKETS_PER_STREAM;
+		adapter->packetPool.data =
+			kernelMalloc(adapter->packetPool.freePackets *
+				sizeof(kernelNetworkPacket));
+		if (!adapter->packetPool.data)
+			continue;
+
+		for (count = 0; count < adapter->packetPool.freePackets; count ++)
+		{
+			adapter->packetPool.packet[count] = (adapter->packetPool.data +
+				(count * sizeof(kernelNetworkPacket)));
+		}
+
+		adapter->device.flags |= NETWORK_ADAPTERFLAG_INITIALIZED;
+	}
+
+	initialized = 1;
+
+	kernelLog("Networking initialized.  Host name is \"%s\".", hostName);
 	return (status = 0);
 }
 
 
 kernelNetworkConnection *kernelNetworkConnectionOpen(
 	kernelNetworkDevice *adapter, int mode, networkAddress *address,
-	networkFilter *filter)
+	networkFilter *filter, int inputStream)
 {
 	// This function opens up a connection.  A connection is necessary for
 	// nearly any kind of network communication.  Thus, there will eventually
@@ -816,10 +553,19 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 		adapter = getDevice(address);
 		if (!adapter)
 		{
-			kernelError(kernel_error, "No appropriate adapter for desintation "
-				"address");
+			kernelError(kernel_error, "No appropriate adapter for "
+				"destination address");
 			return (connection = NULL);
 		}
+	}
+
+	if ((filter->flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
+		(filter->transProtocol == NETWORK_TRANSPROTOCOL_TCP))
+	{
+		// Not currently supported
+		kernelError(kernel_error, "TCP connections are currently "
+			"unsupported");
+		return (connection = NULL);
 	}
 
 	// Allocate memory for the connection structure
@@ -833,36 +579,42 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 
 	// If the network address was specified, copy it.
 	if (address)
-		memcpy((void *) &connection->address, address, sizeof(networkAddress));
+	{
+		networkAddressCopy(&connection->address, address,
+			sizeof(networkAddress));
+	}
+
+	// If it's a read connection and an input stream was requested, get an
+	// input stream
+	if (inputStream && (mode & NETWORK_MODE_READ))
+	{
+		if (kernelStreamNew(&connection->inputStream,
+			NETWORK_DATASTREAM_LENGTH, itemsize_byte) < 0)
+		{
+			kernelFree((void *) connection);
+			return (connection = NULL);
+		}
+	}
 
 	// If this is an IP connection, check/find the local port number
-	if (filter->netProtocol == NETWORK_NETPROTOCOL_IP)
+	if ((filter->flags & NETWORK_FILTERFLAG_NETPROTOCOL) &&
+		(filter->netProtocol == NETWORK_NETPROTOCOL_IP4))
 	{
-		// If a local port number has been specified, make sure it is not in
-		// use
-		if (filter->localPort)
+		filter->flags |= NETWORK_FILTERFLAG_LOCALPORT;
+		filter->localPort = kernelNetworkIp4GetLocalPort(adapter,
+			filter->localPort);
+		if (filter->localPort <= 0)
 		{
-			if (ipPortInUse(adapter, filter->localPort))
-			{
-				kernelError(kernel_error, "Local IP port %d is in use",
-					filter->localPort);
-				kernelFree((void *) connection);
-				return (connection = NULL);
-			}
-		}
-		else
-		{
-			// Find a port that is free
-			while (!(filter->localPort) ||
-				ipPortInUse(adapter, filter->localPort))
-			filter->localPort = kernelRandomFormatted(1025, 0xFFFF);
+			kernelFree((void *) connection);
+			return (connection = NULL);
 		}
 	}
 
 	// Copy the network filter
 	memcpy((void *) &connection->filter, filter, sizeof(networkFilter));
 
-	if (connection->filter.netProtocol == NETWORK_NETPROTOCOL_IP)
+	if ((connection->filter.flags & NETWORK_FILTERFLAG_NETPROTOCOL) &&
+		(connection->filter.netProtocol == NETWORK_NETPROTOCOL_IP4))
 	{
 		// The ID of the IP packets is the lower 16 bits of the connection
 		// pointer
@@ -872,36 +624,91 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 
 	// Add the connection to the adapter's list
 	connection->adapter = adapter;
-	if (adapter->connections)
-		adapter->connections->previous = connection;
-	connection->next = adapter->connections;
-	adapter->connections = connection;
+	kernelLinkedListAdd((kernelLinkedList *) &adapter->connections,
+		(void *) connection);
 
 	return (connection);
 }
 
 
-int kernelNetworkConnectionClose(kernelNetworkConnection *connection)
+int kernelNetworkConnectionClose(kernelNetworkConnection *connection,
+	int polite)
 {
-	// Closes and deallocates the specified network connection.
+	// Closes and deallocates the specified network connection.  If a 'polite'
+	// closure was requested, it will attept to shut down transport-level
+	// (i.e. TCP) connections first.
 
 	int status = 0;
+	kernelNetworkDevice *adapter = connection->adapter;
+
+	if (polite)
+	{
+	}
+
+	// If there's an input stream, deallocate it
+	if (connection->inputStream.buffer)
+		kernelStreamDestroy(&connection->inputStream);
 
 	// Remove the connection from the adapter's list.
-
-	if (connection->next)
-		connection->next->previous = connection->previous;
-	if (connection->previous)
-		connection->previous->next = connection->next;
-
-	if (connection->adapter->connections == connection)
-		connection->adapter->connections = connection->next;
+	kernelLinkedListRemove((kernelLinkedList *) &adapter->connections,
+		(void *) connection);
 
 	// Deallocate it
 	memset((void *) connection, 0, sizeof(kernelNetworkConnection));
 	kernelFree((void *) connection);
 
 	return (status = 0);
+}
+
+
+kernelNetworkPacket *kernelNetworkPacketGet(void)
+{
+	// Allocates a packet, and adds an initial reference count.
+
+	kernelNetworkPacket *packet = NULL;
+
+	packet = kernelMalloc(sizeof(kernelNetworkPacket));
+	if (!packet)
+		return (packet);
+
+	// Can't set packet->release to kernelFree(), because that's a macro
+
+	packet->refCount = 1;
+
+	return (packet);
+}
+
+
+void kernelNetworkPacketHold(kernelNetworkPacket *packet)
+{
+	// Just adds a reference count to a packet
+
+	// Check params
+	if (!packet)
+		return;
+
+	packet->refCount += 1;
+}
+
+
+void kernelNetworkPacketRelease(kernelNetworkPacket *packet)
+{
+	// Removes a reference count from a packet, and if there are no more
+	// references, frees the packet.
+
+	// Check params
+	if (!packet)
+		return;
+
+	packet->refCount -= 1;
+
+	if (packet->refCount <= 0)
+	{
+		if (packet->release)
+			packet->release(packet);
+		else
+			kernelFree(packet);
+	}
 }
 
 
@@ -913,90 +720,266 @@ int kernelNetworkSetupReceivedPacket(kernelNetworkPacket *packet)
 	// to interpret the rest and set up the remainder of the packet's fields.
 
 	int status = 0;
-	networkIpHeader *ipHeader = NULL;
-	networkIcmpHeader *icmpHeader = NULL;
-	networkUdpHeader *udpHeader = NULL;
 
-	ipHeader = packet->netHeader;
-
-	// Check the checksum
-	if (processorSwap16(ipHeader->headerChecksum) != ipChecksum(ipHeader))
+	// The first bit depends on the network protocol
+	switch (packet->netProtocol)
 	{
-		kernelError(kernel_error, "IP header checksum mismatch");
-		return (status = ERR_INVALID);
+		case NETWORK_NETPROTOCOL_ARP:
+			kernelDebug(debug_net, "NET setup received ARP packet");
+			status = kernelNetworkArpSetupReceivedPacket(packet);
+			// Nothing more to do here
+			return (status);
+
+		case NETWORK_NETPROTOCOL_IP4:
+			kernelDebug(debug_net, "NET setup received IP4 packet");
+			status = kernelNetworkIp4SetupReceivedPacket(packet);
+			break;
+
+		default:
+			kernelDebug(debug_net, "NET unsupported network protocol %d",
+				packet->netProtocol);
+			status = ERR_NOTIMPLEMENTED;
+			break;
 	}
 
-	// Copy the source and destination addresses
-	memcpy(&packet->srcAddress, &ipHeader->srcAddress,
-		NETWORK_ADDRLENGTH_IPV4);
-	memcpy(&packet->destAddress, &ipHeader->destAddress,
-		NETWORK_ADDRLENGTH_IPV4);
-
-	packet->transProtocol = ipHeader->protocol;
+	if (status < 0)
+		return (status);
 
 	// The rest depends upon the transport protocol
 	switch (packet->transProtocol)
 	{
 		case NETWORK_TRANSPROTOCOL_ICMP:
-			icmpHeader = packet->transHeader;
-
-			// Check the checksum
-			if (processorSwap16(icmpHeader->checksum) !=
-				icmpChecksum(icmpHeader,
-					(processorSwap16(ipHeader->totalLength) -
-						sizeof(networkIpHeader))))
-			{
-				kernelError(kernel_error, "ICMP checksum mismatch");
-				return (status = ERR_INVALID);
-			}
-
-			// Update the data pointer and length
-			packet->data += sizeof(networkIcmpHeader);
-			packet->dataLength -= sizeof(networkIcmpHeader);
+			kernelDebug(debug_net, "NET setup received ICMP packet");
+			status = kernelNetworkIcmpSetupReceivedPacket(packet);
 			break;
 
 		case NETWORK_TRANSPROTOCOL_UDP:
-			udpHeader = packet->transHeader;
-
-			// Check the checksum
-			if (processorSwap16(udpHeader->checksum) !=
-				udpChecksum(ipHeader))
-			{
-				kernelError(kernel_error, "UDP header checksum mismatch");
-				return (status = ERR_INVALID);
-			}
-
-			// Source and destination ports
-			packet->srcPort = processorSwap16(udpHeader->srcPort);
-			packet->destPort = processorSwap16(udpHeader->destPort);
-
-			// Update the data pointer and length
-			packet->data += sizeof(networkUdpHeader);
-			packet->dataLength -= sizeof(networkUdpHeader);
+			kernelDebug(debug_net, "NET setup received UDP packet");
+			status = kernelNetworkUdpSetupReceivedPacket(packet);
 			break;
 
 		default:
-			kernelError(kernel_error, "Unsupported transport protocol %d",
+			kernelDebug(debug_net, "NET unsupported transport protocol %d",
 				packet->transProtocol);
-			return (status = ERR_NOTIMPLEMENTED);
+			status = ERR_NOTIMPLEMENTED;
+			break;
 	}
 
-	return (status = 0);
+	return (status);
+}
+
+
+void kernelNetworkDeliverData(kernelNetworkConnection *connection,
+	kernelNetworkPacket *packet)
+{
+	void *copyPtr = NULL;
+	unsigned length = 0;
+
+	// If it's not a 'read' connection with an input stream, skip the rest.
+	if (!(connection->mode & NETWORK_MODE_READ) ||
+		!connection->inputStream.buffer)
+	{
+		kernelError(kernel_error, "Connection can't receive data");
+		return;
+	}
+
+	// Copy the packet into the input stream.
+
+	// By default, just the data
+	copyPtr = (packet->memory + packet->dataOffset);
+	length = packet->dataLength;
+
+	// (unless headers were requested)
+	if (connection->filter.flags & NETWORK_FILTERFLAG_HEADERS)
+	{
+		if (connection->filter.headers == NETWORK_HEADERS_RAW)
+		{
+			copyPtr = packet->memory;
+			length += packet->dataOffset;
+		}
+		else if (connection->filter.headers == NETWORK_HEADERS_LINK)
+		{
+			copyPtr = (packet->memory + packet->linkHeaderOffset);
+			length += (packet->dataOffset - packet->linkHeaderOffset);
+		}
+		else if (connection->filter.headers == NETWORK_HEADERS_NET)
+		{
+			copyPtr = (packet->memory + packet->netHeaderOffset);
+			length += (packet->dataOffset - packet->netHeaderOffset);
+		}
+		else if (connection->filter.headers == NETWORK_HEADERS_TRANSPORT)
+		{
+			copyPtr = (packet->memory + packet->transHeaderOffset);
+			length += (packet->dataOffset - packet->transHeaderOffset);
+		}
+	}
+
+	length = min(length, (NETWORK_DATASTREAM_LENGTH -
+		connection->inputStream.count));
+
+	kernelDebug(debug_net, "NET deliver %u bytes to connection", length);
+
+	connection->inputStream.appendN(&connection->inputStream, length,
+		copyPtr);
+}
+
+
+int kernelNetworkSetupSendPacket(kernelNetworkConnection *connection,
+	kernelNetworkPacket *packet)
+{
+	// This takes an empty packet structure and does initial setup, filling in
+	// addresses, allocating memory, reserving space for headers, and setting
+	// up pointers to everthing depending on the connection protocols.
+
+	int status = 0;
+
+	// Set up the packet info
+
+	// Adresses and ports
+	networkAddressCopy(&packet->srcAddress,
+		&connection->adapter->device.hostAddress, sizeof(networkAddress));
+	packet->srcPort = connection->filter.localPort;
+	networkAddressCopy(&packet->destAddress, &connection->address,
+		sizeof(networkAddress));
+	packet->destPort = connection->filter.remotePort;
+
+	// Initially we have the whole packet memory available
+	packet->dataLength = NETWORK_PACKET_MAX_LENGTH;
+
+	// The packet's link protocol header is the protocol of the network
+	// adapter
+	packet->linkProtocol = connection->adapter->device.linkProtocol;
+
+	// Prepend the link protocol header
+	switch (packet->linkProtocol)
+	{
+		case NETWORK_LINKPROTOCOL_LOOP:
+			status = 0;
+			break;
+
+		case NETWORK_LINKPROTOCOL_ETHERNET:
+			status = kernelNetworkEthernetPrependHeader(connection->adapter,
+				packet);
+			break;
+
+		default:
+			kernelError(kernel_error, "Device %s has an unknown link "
+				"protocol %d", connection->adapter->device.name,
+				packet->linkProtocol);
+			status = ERR_INVALID;
+			break;
+	}
+
+	if (status < 0)
+		return (status);
+
+	if (connection->filter.flags & NETWORK_FILTERFLAG_TRANSPROTOCOL)
+	{
+		// Set the packet's transport protocol in case the network protocol
+		// needs it to construct its header (a la the protocol field in an IP
+		// header)
+		packet->transProtocol = connection->filter.transProtocol;
+	}
+
+	// Prepend the network protocol header based on the requested transport
+	// protocol
+	switch (packet->transProtocol)
+	{
+		case NETWORK_TRANSPROTOCOL_ICMP:
+		case NETWORK_TRANSPROTOCOL_UDP:
+			packet->netProtocol = NETWORK_NETPROTOCOL_IP4;
+			kernelNetworkIp4PrependHeader(packet);
+			break;
+
+		default:
+			kernelError(kernel_error, "Unknown transport protocol %d",
+				packet->transProtocol);
+			status = ERR_INVALID;
+			break;
+	}
+
+	if (status < 0)
+		return (status);
+
+	// Prepend the transport protocol header, if applicable
+	switch (packet->transProtocol)
+	{
+		case NETWORK_TRANSPROTOCOL_UDP:
+			kernelNetworkUdpPrependHeader(packet);
+			break;
+	}
+
+	return (status);
+}
+
+
+void kernelNetworkFinalizeSendPacket(kernelNetworkConnection *connection,
+	kernelNetworkPacket *packet)
+{
+	// This does any required finalizing and checksumming of a packet before
+	// it is to be sent.
+
+	// If the network protocol needs to post-process the packet, do that
+	// now
+
+	if (packet->netProtocol == NETWORK_NETPROTOCOL_IP4)
+		kernelNetworkIp4FinalizeSendPacket(&connection->ip, packet);
+
+	// If the transport protocol needs to post-process the packet, do that
+	// now
+
+	switch (packet->transProtocol)
+	{
+		case NETWORK_TRANSPROTOCOL_UDP:
+			kernelNetworkUdpFinalizeSendPacket(packet);
+			break;
+	}
+}
+
+
+int kernelNetworkSendPacket(kernelNetworkDevice *adapter,
+	kernelNetworkPacket *packet, int immediate)
+{
+	// Do the final step of sending a packet, either by sending it directly
+	// to the adapter, or queueing it up in the adapter's output stream
+
+	int status = 0;
+
+	// We either send it or queue it.
+	if (immediate)
+	{
+		kernelDebug(debug_net, "NET send packet immediate");
+
+		status = kernelNetworkDeviceSend((char *) adapter->device.name,
+			packet);
+
+		if (status < 0)
+			kernelError(kernel_error, "Error sending packet");
+	}
+	else
+	{
+		kernelDebug(debug_net, "NET queue packet");
+
+		status = kernelNetworkPacketStreamWrite(&adapter->outputStream,
+			packet);
+
+		if (status < 0)
+			kernelError(kernel_error, "Error queueing packet");
+	}
+
+	return (status);
 }
 
 
 int kernelNetworkSendData(kernelNetworkConnection *connection,
-	unsigned char *buffer, unsigned bufferSize, int immediate, int freeMem)
+	unsigned char *buffer, unsigned bufferSize, int immediate)
 {
 	// This is the "guts" function for sending network data.  The caller
 	// provides the active connection, the raw data, and whether or not the
 	// transmission should be immediate or queued.
 
-	// The packet memory management in the released version of this function
-	// is all wrong, I think.
-
 	int status = 0;
-	kernelNetworkPacket packet;
+	kernelNetworkPacket *packet = NULL;
 	unsigned sent = 0;
 	int count;
 
@@ -1007,58 +990,51 @@ int kernelNetworkSendData(kernelNetworkConnection *connection,
 	// Loop for each packet while there's still data in the buffer
 	for (count = 0; bufferSize > 0; count ++)
 	{
-		// Set up a basic packet structure we can use to iterate through the
-		// data.
-		status = setupSendPacket(connection, &packet);
-		if (status < 0)
-			return (status);
+		packet = kernelNetworkPacketGet();
+		if (!packet)
+			return (status = ERR_MEMORY);
 
-		packet.dataLength = min(packet.dataLength, bufferSize);
+		// Set up the packet headers
+		status = kernelNetworkSetupSendPacket(connection, packet);
+		if (status < 0)
+		{
+			kernelNetworkPacketRelease(packet);
+			return (status);
+		}
+
+		packet->dataLength = min(packet->dataLength, bufferSize);
+
+		kernelDebug(debug_net, "NET packet data length %u",
+			packet->dataLength);
 
 		// Copy in the packet data
-		memcpy(packet.data, (buffer + sent), packet.dataLength);
+		memcpy((packet->memory + packet->dataOffset), (buffer + sent),
+			packet->dataLength);
 
-		packet.data += packet.dataLength;
-		packet.length = (unsigned)(((void *) packet.data - packet.memory) +
-			packet.dataLength);
-
-		// Make the packet length even
-		if (packet.length % 2)
-			packet.length += 1;
+		packet->length = (packet->dataOffset + packet->dataLength);
 
 		// Finalize checksums, etc.
-		finalizeSendPacket(connection, &packet);
+		kernelNetworkFinalizeSendPacket(connection, packet);
 
-		// Now, we either send it or queue it.
-		if (immediate)
-		{
-			status = kernelNetworkDeviceSend((char *)
-				connection->adapter->device.name, packet.memory,
-				packet.length);
+		// Make the packet length even
+		if (packet->length % 2)
+			packet->length += 1;
 
-			if (status < 0)
-				kernelError(kernel_error, "Error sending data");
-		}
-		else
-		{
-			status = kernelNetworkPacketStreamWrite(
-				&connection->adapter->outputStream, &packet);
+		kernelDebug(debug_net, "NET packet total length %u", packet->length);
 
-			if (status < 0)
-				kernelError(kernel_error, "Error queueing data");
-		}
-
+		status = kernelNetworkSendPacket(connection->adapter, packet,
+			immediate);
 		if (status < 0)
+		{
+			kernelNetworkPacketRelease(packet);
 			break;
+		}
 
-		sent += packet.dataLength;
-		bufferSize -= packet.dataLength;
+		sent += packet->dataLength;
+		bufferSize -= packet->dataLength;
+
+		kernelNetworkPacketRelease(packet);
 	}
-
-	// Don't release the packet memory if the packets were queued, and only
-	// if we were told to do so.
-	if (immediate && freeMem)
-		kernelFree(packet.memory);
 
 	// Return the status from the last 'send' operation
 	return (status);
@@ -1073,61 +1049,60 @@ int kernelNetworkSendData(kernelNetworkConnection *connection,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelNetworkInitialized(void)
+int kernelNetworkEnabled(void)
 {
 	// Returns 1 if networking is currently enabled
-	return (initialized);
+	return (enabled);
 }
 
 
-int kernelNetworkInitialize(void)
+int kernelNetworkEnable(void)
 {
-	// Initialize global networking stuff.
+	// Enable networking
 
 	int status = 0;
+	const char *newHostName = NULL;
+	const char *newDomainName = NULL;
 	kernelNetworkDevice *adapter = NULL;
 	int count;
 
-	extern variableList *kernelVariables;
-
-	if (!hostName)
+	if (!initialized)
 	{
-		hostName = kernelMalloc(NETWORK_MAX_HOSTNAMELENGTH);
-		if (!hostName)
-			return (status = ERR_MEMORY);
+		kernelError(kernel_error, "Networking is not initialized");
+		return (status = ERR_NOTINITIALIZED);
+	}
 
-		// By default
-		strcpy(hostName, "visopsys");
+	if (enabled)
+		// Nothing to do.  No error.
+		return (status = 0);
 
-		if (kernelVariables)
+	if (kernelVariables)
+	{
+		// Check for a user-specified host name.
+		newHostName = kernelVariableListGet(kernelVariables,
+			KERNELVAR_NET_HOSTNAME);
+
+		if (newHostName && strncmp(hostName, newHostName,
+			NETWORK_MAX_HOSTNAMELENGTH))
 		{
-			// Check for a user-specified host name.
-			strncpy(hostName, kernelVariableListGet(kernelVariables,
-				"network.hostname"), NETWORK_MAX_HOSTNAMELENGTH);
+			strncpy(hostName, newHostName, NETWORK_MAX_HOSTNAMELENGTH);
+			kernelDebug(debug_net, "NET hostName=%s", hostName);
+		}
+
+		// Check for a user-specified domain name.
+		newDomainName = kernelVariableListGet(kernelVariables,
+			KERNELVAR_NET_DOMAINNAME);
+
+		if (newDomainName && strncmp(domainName, newDomainName,
+			NETWORK_MAX_DOMAINNAMELENGTH))
+		{
+			strncpy(domainName, newDomainName, NETWORK_MAX_DOMAINNAMELENGTH);
+			kernelDebug(debug_net, "NET domainName=%s", domainName);
 		}
 	}
 
-	kernelDebug(debug_net, "NET hostName=%s", hostName);
-
-	if (!domainName)
-	{
-		domainName = kernelMalloc(NETWORK_MAX_DOMAINNAMELENGTH);
-		if (!domainName)
-			return (status = ERR_MEMORY);
-
-		// By default, empty
-		domainName[0] = '\0';
-
-		if (kernelVariables)
-			// Check for a user-specified domain name.
-			strncpy(domainName, kernelVariableListGet(kernelVariables,
-				"network.domainname"), NETWORK_MAX_DOMAINNAMELENGTH);
-	}
-
-	kernelDebug(debug_net, "NET domainName=%s", domainName);
-
 	// Configure all the network adapters
-	for (count = 0; count < numDevices; count ++)
+	for (count = 0; count < numAdapters; count ++)
 	{
 		adapter = adapters[count];
 
@@ -1135,53 +1110,49 @@ int kernelNetworkInitialize(void)
 			adapter->device.name);
 
 		if (!(adapter->device.flags & NETWORK_ADAPTERFLAG_LINK))
+			// No network link
 			continue;
 
-		if (!(adapter->device.flags & NETWORK_ADAPTERFLAG_INITIALIZED))
+		if (networkAddressEmpty(&adapter->device.hostAddress,
+			sizeof(networkAddress)))
 		{
-			// Initialize the adapter's network packet input and output streams
-			status = kernelNetworkPacketStreamNew(&adapter->inputStream);
-			if (status < 0)
-				continue;
+			kernelDebug(debug_net, "NET configure %s DHCP",
+				adapter->device.name);
 
-			status = kernelNetworkPacketStreamNew(&adapter->outputStream);
+			status = kernelNetworkDhcpConfigure(adapter, hostName, domainName,
+				NETWORK_DHCP_DEFAULT_TIMEOUT);
 			if (status < 0)
+			{
+				kernelError(kernel_error, "DHCP configuration of network "
+					"adapter %s failed.", adapter->device.name);
 				continue;
-
-			adapter->device.flags |= NETWORK_ADAPTERFLAG_INITIALIZED;
+			}
 		}
 
-		kernelDebug(debug_net, "NET configure %s DHCP", adapter->device.name);
-
-		status = kernelNetworkDhcpConfigure(adapter,
-			NETWORK_DHCP_DEFAULT_TIMEOUT);
-		if (status < 0)
-		{
-			kernelError(kernel_error, "DHCP configuration of network adapter "
-				"%s failed.", adapter->device.name);
-			continue;
-		}
+		adapter->device.flags |= NETWORK_ADAPTERFLAG_RUNNING;
 
 		kernelLog("Network adapter %s configured with IP=%d.%d.%d.%d "
 			"netmask=%d.%d.%d.%d", adapter->device.name,
-			adapter->device.hostAddress.bytes[0],
-			adapter->device.hostAddress.bytes[1],
-			adapter->device.hostAddress.bytes[2],
-			adapter->device.hostAddress.bytes[3],
-			adapter->device.netMask.bytes[0], adapter->device.netMask.bytes[1],
-			adapter->device.netMask.bytes[2], adapter->device.netMask.bytes[3]);
+			adapter->device.hostAddress.byte[0],
+			adapter->device.hostAddress.byte[1],
+			adapter->device.hostAddress.byte[2],
+			adapter->device.hostAddress.byte[3],
+			adapter->device.netMask.byte[0],
+			adapter->device.netMask.byte[1],
+			adapter->device.netMask.byte[2],
+			adapter->device.netMask.byte[3]);
 
 		kernelDebug(debug_net, "NET adapter %s configured",
 			adapter->device.name);
 	}
 
-	initialized = 1;
+	enabled = 1;
 
 	// Start the regular processing of the packet input and output streams
 	networkStop = 0;
 	checkSpawnNetworkThread();
 
-	kernelLog("Networking initialized.  Host name is \"%s\".", hostName);
+	kernelLog("Networking enabled.  Host name is \"%s\".", hostName);
 	return (status = 0);
 }
 
@@ -1192,11 +1163,30 @@ int kernelNetworkShutdown(void)
 
 	int status = 0;
 	kernelNetworkDevice *adapter = NULL;
+	kernelNetworkConnection *connection = NULL;
+	kernelLinkedListItem *iter = NULL;
 	int count;
 
-	if (!initialized)
-		// Don't return an error code, just pretend.
+	if (!enabled)
+		// Nothing to do.  No error.
 		return (status = 0);
+
+	// Close all connections
+	for (count = 0; count < numAdapters; count ++)
+	{
+		adapter = adapters[count];
+
+		connection = kernelLinkedListIterStart((kernelLinkedList *)
+			&adapter->connections, &iter);
+
+		while (connection)
+		{
+			kernelNetworkClose(connection);
+
+			connection = kernelLinkedListIterNext((kernelLinkedList *)
+				&adapter->connections, &iter);
+		}
+	}
 
 	// Set the 'network stop' flag and yield to let the network thread finish
 	// whatever it might have been doing
@@ -1204,7 +1194,7 @@ int kernelNetworkShutdown(void)
 	kernelMultitaskerYield();
 
 	// Stop each network adapter
-	for (count = 0; count < numDevices; count ++)
+	for (count = 0; count < numAdapters; count ++)
 	{
 		adapter = adapters[count];
 
@@ -1223,7 +1213,7 @@ int kernelNetworkShutdown(void)
 		adapter->device.flags &= ~NETWORK_ADAPTERFLAG_RUNNING;
 	}
 
-	initialized = 0;
+	enabled = 0;
 
 	return (status = 0);
 }
@@ -1233,14 +1223,16 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 	networkFilter *filter)
 {
 	// This function is a wrapper for the kernelNetworkConnectionOpen()
-	// function, above, but also adds the input stream if the connection mode
-	// is read-enabled.
+	// function, above, but also finds the best network adapter to use.
 
 	kernelNetworkDevice *adapter = NULL;
 	kernelNetworkConnection *connection = NULL;
 
-	if (!initialized)
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
 		return (connection = NULL);
+	}
 
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
@@ -1262,25 +1254,13 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 	adapter = getDevice(address);
 	if (!adapter)
 	{
-		kernelError(kernel_error, "No appropriate adapter for desintation "
+		kernelError(kernel_error, "No appropriate adapter for destination "
 			"address");
 		return (connection = NULL);
 	}
 
-	connection = kernelNetworkConnectionOpen(adapter, mode, address, filter);
-	if (!connection)
-		return (connection);
-
-	if (mode & NETWORK_MODE_READ)
-	{
-		// Get an input stream
-		if (kernelStreamNew(&connection->inputStream,
-			NETWORK_DATASTREAM_LENGTH, 1) < 0)
-		{
-			kernelFree((void *) connection);
-			return (connection = NULL);
-		}
-	}
+	connection = kernelNetworkConnectionOpen(adapter, mode, address, filter,
+		1 /* input stream, if read mode */);
 
 	return (connection);
 }
@@ -1289,6 +1269,12 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 int kernelNetworkAlive(kernelNetworkConnection *connection)
 {
 	// Returns 1 if the connection exists and is alive
+
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
+		return (0);
+	}
 
 	if (!connectionExists(connection))
 		// No longer exists
@@ -1300,13 +1286,15 @@ int kernelNetworkAlive(kernelNetworkConnection *connection)
 
 int kernelNetworkClose(kernelNetworkConnection *connection)
 {
-	// This is just a wrapper for the kernelNetworkConnectionClose() function,
-	// but also deallocates the input stream, if applicable.
+	// This is just a wrapper for the kernelNetworkConnectionClose() function
 
 	int status = 0;
 
-	if (!initialized)
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
@@ -1322,48 +1310,49 @@ int kernelNetworkClose(kernelNetworkConnection *connection)
 	if (!connectionExists(connection))
 		return (status = 0);
 
-	// If there's an input stream, deallocate it
-	if (connection->inputStream.buffer)
-		kernelStreamDestroy(&connection->inputStream);
-
 	// Close the connection
-	return (kernelNetworkConnectionClose(connection));
+	status = kernelNetworkConnectionClose(connection, 1 /* polite */);
+
+	return (status);
 }
 
 
 int kernelNetworkCloseAll(int processId)
 {
-	// Search for and close all network streams owned by the supplied process
-	// ID
+	// Search for and close all network connections owned by the process ID.
+	// This assumes that the process is being terminated (for example by the
+	// multitasker) and so it requests an 'impolite' closure.
 
 	int status = 0;
 	kernelNetworkConnection *connection = NULL;
+	kernelLinkedListItem *iter = NULL;
 	int count;
 
-	for (count = 0; count < numDevices; count ++)
+	if (!enabled)
 	{
-		connection = adapters[count]->connections;
+		kernelError(kernel_error, "Networking is not enabled");
+		return (status = ERR_NOTINITIALIZED);
+	}
+
+	// Don't need to make sure the network thread is running; the calls to
+	// kernelNetworkClose() will do it.
+
+	for (count = 0; count < numAdapters; count ++)
+	{
+		connection = kernelLinkedListIterStart((kernelLinkedList *)
+			&adapters[count]->connections, &iter);
 
 		while (connection)
 		{
 			if (connection->processId == processId)
-			{
-				status = kernelNetworkClose(connection);
-				if (status < 0)
-					break;
+				kernelNetworkConnectionClose(connection, 0 /* not polite */);
 
-				// Re-start for this adapter, since the list of connections
-				// has now changed
-				connection = adapters[count]->connections;
-			}
-			else
-			{
-				connection = connection->next;
-			}
+			connection = kernelLinkedListIterNext((kernelLinkedList *)
+				&adapters[count]->connections, &iter);
 		}
 	}
 
-	return (status);
+	return (status = 0);
 }
 
 
@@ -1371,8 +1360,11 @@ int kernelNetworkCount(kernelNetworkConnection *connection)
 {
 	// Returns the number of bytes currently in the connection's input stream
 
-	if (!initialized)
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
 		return (ERR_NOTINITIALIZED);
+	}
 
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
@@ -1403,8 +1395,11 @@ int kernelNetworkRead(kernelNetworkConnection *connection,
 
 	int status = 0;
 
-	if (!initialized)
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
@@ -1431,23 +1426,16 @@ int kernelNetworkRead(kernelNetworkConnection *connection,
 		return (status = ERR_INVALID);
 	}
 
+	// Use the smaller of the buffer size, or the bytes available to read
+	bufferSize = min(connection->inputStream.count, bufferSize);
+
 	// Anything to do?
 	if (!bufferSize)
 		return (status = 0);
 
-	// Use the smaller of the buffer size, or the bytes available to read
-	bufferSize = min(connection->inputStream.count, bufferSize);
-
-	// Lock the input stream
-	status = kernelLockGet(&connection->inputStreamLock);
-	if (status < 0)
-		return (status);
-
 	// Read into the buffer
-	status = connection->inputStream.popN(&connection->inputStream, bufferSize,
-		buffer);
-
-	kernelLockRelease(&connection->inputStreamLock);
+	status = connection->inputStream.popN(&connection->inputStream,
+		bufferSize, buffer);
 
 	return (status);
 }
@@ -1461,8 +1449,11 @@ int kernelNetworkWrite(kernelNetworkConnection *connection,
 
 	int status = 0;
 
-	if (!initialized)
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
@@ -1490,7 +1481,7 @@ int kernelNetworkWrite(kernelNetworkConnection *connection,
 	}
 
 	return (status = kernelNetworkSendData(connection, buffer, bufferSize,
-		0 /* not immediate */, 1 /* free memory */));
+		0 /* not immediate */));
 }
 
 
@@ -1500,11 +1491,12 @@ int kernelNetworkPing(kernelNetworkConnection *connection, int sequenceNum,
 	// Send a ping.
 
 	int status = 0;
-	networkPingPacket pingPacket;
-	unsigned packetSize = 0;
 
-	if (!initialized)
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
@@ -1523,27 +1515,10 @@ int kernelNetworkPing(kernelNetworkConnection *connection, int sequenceNum,
 		return (status = ERR_IO);
 	}
 
-	if (bufferSize > NETWORK_PING_DATASIZE)
-		bufferSize = NETWORK_PING_DATASIZE;
+	status = kernelNetworkIcmpPing(connection, sequenceNum, buffer,
+		bufferSize);
 
-	packetSize = (sizeof(networkPingPacket) - (NETWORK_PING_DATASIZE -
-		bufferSize));
-
-	// Clear our ping packet
-	memset(&pingPacket, 0, sizeof(networkPingPacket));
-
-	pingPacket.icmpHeader.type = NETWORK_ICMP_ECHO;
-	pingPacket.sequenceNum = processorSwap16(sequenceNum);
-
-	// Fill out our data.
-	memcpy(pingPacket.data, buffer, bufferSize);
-
-	// Do the checksum after everything else is set
-	pingPacket.icmpHeader.checksum =
-		processorSwap16(icmpChecksum(&pingPacket.icmpHeader, packetSize));
-
-	return (kernelNetworkSendData(connection, (unsigned char *) &pingPacket,
-		packetSize, 1 /* immediate */, 1 /* free memory */));
+	return (status);
 }
 
 
@@ -1554,7 +1529,10 @@ int kernelNetworkGetHostName(char *buffer, int bufferSize)
 	int status = 0;
 
 	if (!initialized)
+	{
+		kernelError(kernel_error, "Networking is not initialized");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Check params
 	if (!buffer)
@@ -1572,7 +1550,10 @@ int kernelNetworkSetHostName(const char *buffer, int bufferSize)
 	int status = 0;
 
 	if (!initialized)
+	{
+		kernelError(kernel_error, "Networking is not initialized");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Check params
 	if (!buffer)
@@ -1590,7 +1571,10 @@ int kernelNetworkGetDomainName(char *buffer, int bufferSize)
 	int status = 0;
 
 	if (!initialized)
+	{
+		kernelError(kernel_error, "Networking is not initialized");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Check params
 	if (!buffer)
@@ -1608,77 +1592,18 @@ int kernelNetworkSetDomainName(const char *buffer, int bufferSize)
 	int status = 0;
 
 	if (!initialized)
+	{
+		kernelError(kernel_error, "Networking is not initialized");
 		return (status = ERR_NOTINITIALIZED);
+	}
 
 	// Check params
 	if (!buffer)
 		return (status = ERR_NULLPARAMETER);
 
-	strncpy(domainName, buffer, min(bufferSize, NETWORK_MAX_DOMAINNAMELENGTH));
+	strncpy(domainName, buffer, min(bufferSize,
+		NETWORK_MAX_DOMAINNAMELENGTH));
+
 	return (status = 0);
-}
-
-
-void kernelNetworkIpDebug(unsigned char *buffer)
-{
-	networkIpHeader *ipHeader = NULL;
-	networkUdpHeader *udpHeader = NULL;
-	networkAddress *srcAddr = NULL;
-	networkAddress *destAddr = NULL;
-
-	// Check params
-	if (!buffer)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return;
-	}
-
-	ipHeader = (networkIpHeader *) buffer;
-	udpHeader = (((void *) ipHeader) +
-		((ipHeader->versionHeaderLen & 0x0F) << 2));
-
-	if ((ipHeader->versionHeaderLen < 0x45) ||
-		(ipHeader->versionHeaderLen > 0x4F))
-	{
-		kernelError(kernel_error, "Illegal IP header length");
-		return;
-	}
-
-	srcAddr = (networkAddress *) &ipHeader->srcAddress;
-	destAddr = (networkAddress *) &ipHeader->destAddress;
-
-	kernelTextPrintLine("versionHeaderLen=%x, identification=%x, protocol=%d\n"
-		"source=%d.%d.%d.%d, dest=%d.%d.%d.%d",
-		ipHeader->versionHeaderLen,
-		processorSwap16(ipHeader->identification),
-		ipHeader->protocol, srcAddr->bytes[0],
-		srcAddr->bytes[1], srcAddr->bytes[2],
-		srcAddr->bytes[3], destAddr->bytes[0],
-		destAddr->bytes[1], destAddr->bytes[2],
-		destAddr->bytes[3]);
-
-	if (ipChecksum(ipHeader) !=
-		processorSwap16(ipHeader->headerChecksum))
-	{
-		kernelTextPrintLine("IP checksum DOES NOT MATCH (%x != %x)",
-			ipChecksum(ipHeader),
-			processorSwap16(ipHeader->headerChecksum));
-	}
-
-	if (ipHeader->protocol == NETWORK_TRANSPROTOCOL_UDP)
-	{
-		kernelTextPrintLine("UDP srcPort=%d, destPort=%d, length=%d, "
-			"chksum=%x", processorSwap16(udpHeader->srcPort),
-			processorSwap16(udpHeader->destPort),
-			processorSwap16(udpHeader->length),
-			processorSwap16(udpHeader->checksum));
-		if (udpChecksum(ipHeader) !=
-			processorSwap16(udpHeader->checksum))
-		{
-			kernelTextPrintLine("UDP checksum DOES NOT MATCH (%x != %x)",
-				udpChecksum(ipHeader),
-				processorSwap16(udpHeader->checksum));
-		}
-	}
 }
 

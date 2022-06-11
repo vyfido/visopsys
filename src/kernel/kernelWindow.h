@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -202,14 +202,14 @@ typedef volatile struct _kernelWindowComponent {
 	kernelMousePointer *pointer;
 	void *data;
 
-	// Routines for managing this component.  These are set by the
-	// kernelWindowComponentNew routine, for things that are common to all
+	// Functions for managing this component.  These are set by the
+	// kernelWindowComponentNew function, for things that are common to all
 	// components.
 	int (*drawBorder)(volatile struct _kernelWindowComponent *, int);
 	int (*erase)(volatile struct _kernelWindowComponent *);
 	int (*grey)(volatile struct _kernelWindowComponent *);
 
-	// Routines that should be implemented by components that 'contain'
+	// Functions that should be implemented by components that 'contain'
 	// or instantiate other components
 	int (*add)(volatile struct _kernelWindowComponent *, objectKey);
 	int (*delete)(volatile struct _kernelWindowComponent *,
@@ -225,7 +225,7 @@ typedef volatile struct _kernelWindowComponent {
 	int (*setBuffer)(volatile struct _kernelWindowComponent *,
 		graphicBuffer *);
 
-	// More routines for managing this component.  These are set by the
+	// More functions for managing this component.  These are set by the
 	// code which builds the instance of the particular component type
 	int (*draw)(volatile struct _kernelWindowComponent *);
 	int (*update)(volatile struct _kernelWindowComponent *);
@@ -265,8 +265,6 @@ typedef volatile struct {
 	kernelWindowComponent **components;
 	int maxComponents;
 	int numComponents;
-	int numColumns;
-	int numRows;
 
 	// Functions
 	void (*drawGrid)(kernelWindowComponent *);
@@ -434,7 +432,7 @@ typedef volatile struct _kernelWindow {
 	int numChildren;
 	volatile struct _kernelWindow *dialogWindow;
 
-	// Routines for managing this window
+	// Functions for managing this window
 	int (*draw)(volatile struct _kernelWindow *);
 	int (*drawClip)(volatile struct _kernelWindow *, int, int, int, int);
 	int (*update)(volatile struct _kernelWindow *, int, int, int, int);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <values.h>
+#include <sys/winconf.h>
 
 static int initialized = 0;
 static int screenWidth = 0;
@@ -165,7 +166,10 @@ static void removeBorder(kernelWindow *window)
 	for (count = 0; count < 4; count ++)
 	{
 		if (window->borders[count])
+		{
 			kernelWindowComponentDestroy(window->borders[count]);
+			window->borders[count] = NULL;
+		}
 	}
 
 	window->flags &= ~WINFLAG_HASBORDER;
@@ -195,7 +199,7 @@ static void removeTitleBar(kernelWindow *window)
 {
 	// Removes the title bar from atop the window
 
-	if (!(window->titleBar))
+	if (!window->titleBar)
 	{
 		kernelError(kernel_error, "Window doesn't have a title bar");
 		return;
@@ -204,46 +208,48 @@ static void removeTitleBar(kernelWindow *window)
 	kernelWindowRemoveMinimizeButton(window);
 	kernelWindowRemoveCloseButton(window);
 	kernelWindowComponentDestroy(window->titleBar);
+	window->titleBar = NULL;
 }
 
 
 static int tileBackgroundImage(kernelWindow *window)
 {
 	// This will tile the supplied image as the background of the window.
-	// Naturally, any other components in the window's client are need to be
+	// Naturally, any other components in the window's client area need to be
 	// drawn after this bit.
 
 	int status = 0;
 	int clientAreaX = window->mainContainer->xCoord;
 	int clientAreaY = window->mainContainer->yCoord;
-	unsigned clientAreaWidth = window->buffer.width;//mainContainer->width;
-	unsigned clientAreaHeight = window->buffer.height;//mainContainer->height;
-	unsigned count1, count2;
-
-	kernelDebug(debug_gui, "Window buffer size=%ux%u mainContainer size=%ux%u "
-		"(%sdone layout)", window->buffer.width, window->buffer.height,
-		window->mainContainer->width, window->mainContainer->height,
-		(window->mainContainer->doneLayout? "" : "not "));
+	int clientAreaWidth = window->mainContainer->width;
+	int clientAreaHeight = window->mainContainer->height;
+	int count1, count2;
 
 	// The window needs to have been assigned a background image
 	if (!window->backgroundImage.data)
 		return (status = ERR_NULLPARAMETER);
 
-	if ((window->backgroundImage.width >= (clientAreaWidth / 2)) ||
-		(window->backgroundImage.height >= (clientAreaHeight / 2)))
-	{
-		// Clear the window with its background color
-		kernelGraphicClearArea(&window->buffer, (color *) &window->background,
-			0, 0, clientAreaWidth, clientAreaHeight);
+	kernelDebug(debug_gui, "Window buffer %ux%u mainContainer %d,%d %dx%d "
+		"(%sdone layout)", window->buffer.width, window->buffer.height,
+		clientAreaX, clientAreaY, clientAreaWidth, clientAreaHeight,
+		(window->mainContainer->doneLayout? "" : "not "));
 
-		// Set the image size to the same as the window
+	if (((int) window->backgroundImage.width >= (clientAreaWidth / 2)) ||
+		((int) window->backgroundImage.height >= (clientAreaHeight / 2)))
+	{
+		// Clear the main container with its background color
+		kernelGraphicClearArea(&window->buffer, (color *) &window->background,
+			clientAreaX, clientAreaY, clientAreaWidth, clientAreaHeight);
+
+		// Set the image size to the same as the main container
 		kernelImageResize((image *) &window->backgroundImage, clientAreaWidth,
 			clientAreaHeight);
 
-		// Center the image in the window's client area
+		// Draw the image over the window's main container
 		status = kernelGraphicDrawImage(&window->buffer,
 			(image *) &window->backgroundImage, draw_normal, clientAreaX,
-			clientAreaY, 0, 0, 0, 0);
+			clientAreaY, 0 /* x offset */, 0 /* y offset */,
+			0 /* full width */, 0 /* full height */);
 
 		window->flags &= ~WINFLAG_BACKGROUNDTILED;
 	}
@@ -258,7 +264,8 @@ static int tileBackgroundImage(kernelWindow *window)
 			{
 				status = kernelGraphicDrawImage(&window->buffer, (image *)
 					&window->backgroundImage, draw_normal, count2, count1,
-					0, 0, 0, 0);
+					0 /* x offset */, 0 /* y offset */, 0 /* full width */,
+					0 /* full height */);
 			}
 		}
 
@@ -309,10 +316,11 @@ static void getCoveredAreas(screenArea *visibleClip, screenArea *coveringClip,
 }
 
 
-static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
+static void renderVisiblePortions(kernelWindow *window,
+	screenArea *bufferClip)
 {
-	// Takes the window supplied, and renders the portions of the supplied clip
-	// which are visible (i.e. not covered by other windows).  Calls
+	// Takes the window supplied, and renders the portions of the supplied
+	// clip which are visible (i.e. not covered by other windows).  Calls
 	// kernelGraphicRenderBuffer() for all the visible bits.
 
 	screenArea clipCopy;
@@ -407,17 +415,19 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 			if (visibleAreas[count2].leftX < coveredAreas[count1].leftX)
 			{
 				// The leftmost area of the visible area is unaffected.  Split
-				// it by copying the rest to the end of the list, and narrowing
-				// this area
+				// it by copying the rest to the end of the list, and
+				// narrowing this area
 				visibleAreas[numVisibleAreas].leftX =
 					coveredAreas[count1].leftX;
-				visibleAreas[numVisibleAreas].topY = visibleAreas[count2].topY;
+				visibleAreas[numVisibleAreas].topY =
+					visibleAreas[count2].topY;
 				visibleAreas[numVisibleAreas].rightX =
 					visibleAreas[count2].rightX;
 				visibleAreas[numVisibleAreas++].bottomY =
 					visibleAreas[count2].bottomY;
 
-				visibleAreas[count2].rightX = (coveredAreas[count1].leftX - 1);
+				visibleAreas[count2].rightX =
+					(coveredAreas[count1].leftX - 1);
 			}
 
 			else if (visibleAreas[count2].topY < coveredAreas[count1].topY)
@@ -427,29 +437,34 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 				// shortening this area
 				visibleAreas[numVisibleAreas].leftX =
 					visibleAreas[count2].leftX;
-				visibleAreas[numVisibleAreas].topY = coveredAreas[count1].topY;
+				visibleAreas[numVisibleAreas].topY =
+					coveredAreas[count1].topY;
 				visibleAreas[numVisibleAreas].rightX =
 				visibleAreas[count2].rightX;
 				visibleAreas[numVisibleAreas++].bottomY =
 					visibleAreas[count2].bottomY;
 
-				visibleAreas[count2].bottomY = (coveredAreas[count1].topY - 1);
+				visibleAreas[count2].bottomY =
+					(coveredAreas[count1].topY - 1);
 			}
 
-			else if (visibleAreas[count2].rightX > coveredAreas[count1].rightX)
+			else if (visibleAreas[count2].rightX >
+				coveredAreas[count1].rightX)
 			{
-				// The rightmost area of the visible area is unaffected.  Split
-				// it by copying the rest to the end of the list, and narrowing
-				// this area
+				// The rightmost area of the visible area is unaffected.
+				// Split it by copying the rest to the end of the list, and
+				// narrowing this area
 				visibleAreas[numVisibleAreas].leftX =
 					visibleAreas[count2].leftX;
-				visibleAreas[numVisibleAreas].topY = visibleAreas[count2].topY;
+				visibleAreas[numVisibleAreas].topY =
+					visibleAreas[count2].topY;
 				visibleAreas[numVisibleAreas].rightX =
 					coveredAreas[count1].rightX;
 				visibleAreas[numVisibleAreas++].bottomY =
 					visibleAreas[count2].bottomY;
 
-				visibleAreas[count2].leftX = (coveredAreas[count1].rightX + 1);
+				visibleAreas[count2].leftX =
+					(coveredAreas[count1].rightX + 1);
 			}
 
 			else if (visibleAreas[count2].bottomY >
@@ -460,13 +475,15 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 				// shortening this area
 				visibleAreas[numVisibleAreas].leftX =
 					visibleAreas[count2].leftX;
-				visibleAreas[numVisibleAreas].topY = visibleAreas[count2].topY;
+				visibleAreas[numVisibleAreas].topY =
+					visibleAreas[count2].topY;
 				visibleAreas[numVisibleAreas].rightX =
 					visibleAreas[count2].rightX;
 				visibleAreas[numVisibleAreas++].bottomY =
 					coveredAreas[count1].bottomY;
 
-				visibleAreas[count2].topY = (coveredAreas[count1].bottomY + 1);
+				visibleAreas[count2].topY =
+					(coveredAreas[count1].bottomY + 1);
 			}
 
 			else if (isAreaInside(&visibleAreas[count2],
@@ -476,7 +493,8 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 				numVisibleAreas--;
 				visibleAreas[count2].leftX =
 					visibleAreas[numVisibleAreas].leftX;
-				visibleAreas[count2].topY = visibleAreas[numVisibleAreas].topY;
+				visibleAreas[count2].topY =
+					visibleAreas[numVisibleAreas].topY;
 				visibleAreas[count2].rightX =
 					visibleAreas[numVisibleAreas].rightX;
 				visibleAreas[count2].bottomY =
@@ -587,30 +605,28 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 		else
 		{
 			// Draw the background once into our clip
-
-			// The coordinates of the image depend on its size.
-			count1 = ((window->buffer.width -
-				window->backgroundImage.width) / 2);
-			count2 = ((window->buffer.height -
-				window->backgroundImage.height) / 2);
 			kernelGraphicDrawImage(&window->buffer, (image *)
 				&window->backgroundImage, draw_normal, xCoord, yCoord,
-				(count1 + xCoord), (count2 + yCoord), width, height);
+				(xCoord - window->mainContainer->xCoord),
+				(yCoord - window->mainContainer->yCoord), width, height);
 		}
 	}
 
 	// Loop through all the regular window components that fall (partially)
 	// within this space and draw them
-	array =	kernelMalloc((window->sysContainer->numComps(window->sysContainer) +
-		window->mainContainer->numComps(window->mainContainer)) *
-			sizeof(kernelWindowComponent *));
+
+	numComponents = (window->sysContainer->numComps(window->sysContainer) +
+		window->mainContainer->numComps(window->mainContainer));
+
+	array =	kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
 	if (!array)
 		return (status = ERR_MEMORY);
 
+	numComponents = 0;
 	window->sysContainer->flatten(window->sysContainer, array, &numComponents,
 		WINFLAG_VISIBLE);
-	window->mainContainer->flatten(window->mainContainer, array, &numComponents,
-		WINFLAG_VISIBLE);
+	window->mainContainer->flatten(window->mainContainer, array,
+		&numComponents, WINFLAG_VISIBLE);
 
 	// NULL all components that are *not* at this location
 	for (count1 = 0; count1 < numComponents; count1 ++)
@@ -772,10 +788,11 @@ static int setWindowSize(kernelWindow *window, int width, int height)
 	void *oldBufferData = NULL;
 
 	// Constrain to minimum width and height
-	if (width < windowVariables->window.minWidth)
-		width = windowVariables->window.minWidth;
-	if (height < windowVariables->window.minHeight)
-		height = windowVariables->window.minHeight;
+	width = max(width, windowVariables->window.minWidth);
+	height = max(height, windowVariables->window.minHeight);
+
+	kernelDebug(debug_gui, "Window '%s' set size %dx%d", window->title, width,
+		height);
 
 	// Save the old graphic buffer data just in case
 	oldBufferData = window->buffer.data;
@@ -792,7 +809,8 @@ static int setWindowSize(kernelWindow *window, int width, int height)
 	}
 
 	// Release the memory from the old buffer
-	kernelFree(oldBufferData);
+	if (oldBufferData)
+		kernelFree(oldBufferData);
 
 	// Resize the system container.  This will also cause the main container
 	// to be moved and resized appropriately
@@ -816,17 +834,37 @@ static int setWindowSize(kernelWindow *window, int width, int height)
 
 static int layoutWindow(kernelWindow *window)
 {
-	// Repositions all the window's components based on their parameters
+	// (Re-)positions all the window's components based on their parameters
 
 	int status = 0;
 
-	status = window->sysContainer->layout(window->sysContainer);
-	if (status < 0)
-		return (status);
+	// Layout the window's system container
+	if (window->sysContainer)
+	{
+		if (window->sysContainer->layout)
+		{
+			kernelDebug(debug_gui, "Window '%s' layout system container",
+				window->title);
 
-	status = window->mainContainer->layout(window->mainContainer);
-	if (status < 0)
-		return (status);
+			status = window->sysContainer->layout(window->sysContainer);
+			if (status < 0)
+				return (status);
+		}
+	}
+
+	// Layout the window's main container
+	if (window->mainContainer)
+	{
+		if (window->mainContainer->layout)
+		{
+			kernelDebug(debug_gui, "Window '%s' layout main container",
+				window->title);
+
+			status = window->mainContainer->layout(window->mainContainer);
+			if (status < 0)
+				return (status);
+		}
+	}
 
 	return (status = 0);
 }
@@ -837,6 +875,7 @@ static int autoSizeWindow(kernelWindow *window)
 	// This will automatically set the size of a window based on the sizes
 	// and locations of the components therein.
 
+	int status = 0;
 	int newWidth = 0;
 	int newHeight = 0;
 
@@ -851,8 +890,39 @@ static int autoSizeWindow(kernelWindow *window)
 		newHeight += windowVariables->border.thickness;
 	}
 
-	// Resize it.
-	return (setWindowSize(window, newWidth, newHeight));
+	if ((newWidth != window->buffer.width) ||
+		(newHeight != window->buffer.height))
+	{
+		// Resize it
+		status = setWindowSize(window, newWidth, newHeight);
+		if (status < 0)
+			return (status);
+	}
+
+	return (status = 0);
+}
+
+
+static int ensureWindowInitialLayout(kernelWindow *window)
+{
+	int status = 0;
+
+	if ((window->sysContainer && !window->sysContainer->doneLayout) ||
+		(window->mainContainer && !window->mainContainer->doneLayout))
+	{
+		kernelDebug(debug_gui, "Window '%s' do initial layout",
+			window->title);
+
+		status = layoutWindow(window);
+		if (status < 0)
+			return (status);
+
+		status = autoSizeWindow(window);
+		if (status < 0)
+			return (status);
+	}
+
+	return (status = 0);
 }
 
 
@@ -1170,8 +1240,8 @@ static void windowFocus(kernelWindow *window, int focus)
 		// This is not the focus window any more.
 		window->flags &= ~WINFLAG_HASFOCUS;
 
-		// If there's a focused component, just tell it that it lost the focus.
-		// We'll give it back if the window regains focus.
+		// If there's a focused component, just tell it that it lost the
+		// focus.  We'll give it back if the window regains focus.
 		if (window->focusComponent)
 		{
 			window->focusComponent->flags &= ~WINFLAG_HASFOCUS;
@@ -1519,8 +1589,8 @@ static void processInputEvents(void)
 					// Give the window the focus
 					kernelWindowFocus(window);
 
-				// If the window has a dialog window, focus the dialog instead,
-				// and we're finished
+				// If the window has a dialog window, focus the dialog
+				// instead, and we're finished
 				if (window->dialogWindow)
 				{
 					if (window->dialogWindow != focusWindow)
@@ -1608,7 +1678,8 @@ static void processInputEvents(void)
 		if (event.type != EVENT_MOUSE_DRAG)
 			draggingComponent = NULL;
 
-		// Finally, if the window has a 'mouse event' function defined, call it
+		// Finally, if the window has a 'mouse event' function defined, call
+		// it
 		if (window->mouseEvent)
 			window->mouseEvent(window, targetComponent, &event);
 	}
@@ -1644,7 +1715,10 @@ static void processInputEvents(void)
 						(targetComponent->flags & WINFLAG_ENABLED))
 					{
 						if (targetComponent->keyEvent)
-							targetComponent->keyEvent(targetComponent, &event);
+						{
+							targetComponent->keyEvent(targetComponent,
+								&event);
+						}
 
 						// Put this key event into the component's
 						// windowEventStream
@@ -1805,168 +1879,170 @@ static int readFileVariables(const char *fileName)
 	if (status < 0)
 		return (status);
 
-	if ((value = kernelVariableListGet(&settings, COLOR_FOREGROUND_RED)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_FG_RED)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.foreground.red = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_FOREGROUND_GREEN)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_FG_GREEN)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.foreground.green = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_FOREGROUND_BLUE)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_FG_BLUE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.foreground.blue = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_BACKGROUND_RED)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_BG_RED)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.background.red = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_BACKGROUND_GREEN)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_BG_GREEN)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.background.green = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_BACKGROUND_BLUE)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_BG_BLUE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.background.blue = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_DESKTOP_RED)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_DT_RED)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.desktop.red = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_DESKTOP_GREEN)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_DT_GREEN)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.desktop.green = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, COLOR_DESKTOP_BLUE)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_COLOR_DT_BLUE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->color.desktop.blue = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_MINWIDTH)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_WINDOW_MINWIDTH)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->window.minWidth = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_MINHEIGHT)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_WINDOW_MINHEIGHT)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->window.minHeight = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_MINREST_TRACERS)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_MINREST_TRACERS)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->window.minRestTracers = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_TITLEBAR_HEIGHT)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_TITLEBAR_HEIGHT)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->titleBar.height = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_TITLEBAR_MINWIDTH)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_TITLEBAR_MINWIDTH)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->titleBar.minWidth = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_BORDER_THICKNESS)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_BORDER_THICKNESS)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->border.thickness = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_BORDER_SHADINGINCREMENT)) && (atoi(value) >= 0))
+		WINVAR_BORDER_SHADINGINCR)) && (atoi(value) >= 0))
 	{
 		windowVariables->border.shadingIncrement = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_RADIOBUTTON_SIZE)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_RADIOBUTTON_SIZE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->radioButton.size = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_CHECKBOX_SIZE)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_CHECKBOX_SIZE)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->checkbox.size = atoi(value);
 	}
-	if ((value = kernelVariableListGet(&settings, WINDOW_SLIDER_WIDTH)) &&
+	if ((value = kernelVariableListGet(&settings, WINVAR_SLIDER_WIDTH)) &&
 		(atoi(value) >= 0))
 	{
 		windowVariables->slider.width = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_FIXWIDTH_SMALL_FAMILY)))
+		WINVAR_FONT_FIXW_SM_FAMILY)))
 	{
 		strncpy(windowVariables->font.fixWidth.small.family, value,
 			FONT_FAMILY_LEN);
 	}
 	windowVariables->font.fixWidth.small.flags = FONT_STYLEFLAG_FIXED;
-	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_FIXWIDTH_SMALL_FLAGS)))
+	if ((value = kernelVariableListGet(&settings, WINVAR_FONT_FIXW_SM_FLAGS)))
 	{
-		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
+		if (!strncmp(value, WINVAR_FONT_FLAG_BOLD, 128))
 			windowVariables->font.fixWidth.small.flags |= FONT_STYLEFLAG_BOLD;
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_FIXWIDTH_SMALL_POINTS)) && (atoi(value) >= 0))
+		WINVAR_FONT_FIXW_SM_POINTS)) && (atoi(value) >= 0))
 	{
 		windowVariables->font.fixWidth.small.points = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_FIXWIDTH_MEDIUM_FAMILY)))
+		WINVAR_FONT_FIXW_MD_FAMILY)))
 	{
 		strncpy(windowVariables->font.fixWidth.medium.family, value,
 			FONT_FAMILY_LEN);
 	}
 	windowVariables->font.fixWidth.medium.flags = FONT_STYLEFLAG_FIXED;
-	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_FIXWIDTH_MEDIUM_FLAGS)))
+	if ((value = kernelVariableListGet(&settings, WINVAR_FONT_FIXW_MD_FLAGS)))
 	{
-		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
-			windowVariables->font.fixWidth.medium.flags |= FONT_STYLEFLAG_BOLD;
+		if (!strncmp(value, WINVAR_FONT_FLAG_BOLD, 128))
+		{
+			windowVariables->font.fixWidth.medium.flags |=
+				FONT_STYLEFLAG_BOLD;
+		}
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_FIXWIDTH_MEDIUM_POINTS)) && (atoi(value) >= 0))
+		WINVAR_FONT_FIXW_MD_POINTS)) && (atoi(value) >= 0))
 	{
 		windowVariables->font.fixWidth.medium.points = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_VARWIDTH_SMALL_FAMILY)))
+		WINVAR_FONT_VARW_SM_FAMILY)))
 	{
 		strncpy(windowVariables->font.varWidth.small.family, value,
 			FONT_FAMILY_LEN);
 	}
-	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_VARWIDTH_SMALL_FLAGS)))
+	if ((value = kernelVariableListGet(&settings, WINVAR_FONT_VARW_SM_FLAGS)))
 	{
-		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
+		if (!strncmp(value, WINVAR_FONT_FLAG_BOLD, 128))
 			windowVariables->font.varWidth.small.flags |= FONT_STYLEFLAG_BOLD;
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_VARWIDTH_SMALL_POINTS)) && (atoi(value) >= 0))
+		WINVAR_FONT_VARW_SM_POINTS)) && (atoi(value) >= 0))
 	{
 		windowVariables->font.varWidth.small.points = atoi(value);
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_VARWIDTH_MEDIUM_FAMILY)))
+		WINVAR_FONT_VARW_MD_FAMILY)))
 	{
 		strncpy(windowVariables->font.varWidth.medium.family, value,
 			FONT_FAMILY_LEN);
 	}
-	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_VARWIDTH_MEDIUM_FLAGS)))
+	if ((value = kernelVariableListGet(&settings, WINVAR_FONT_VARW_MD_FLAGS)))
 	{
-		if (!strncmp(value, WINDOW_FONT_FLAG_BOLD, 128))
-			windowVariables->font.varWidth.medium.flags |= FONT_STYLEFLAG_BOLD;
+		if (!strncmp(value, WINVAR_FONT_FLAG_BOLD, 128))
+		{
+			windowVariables->font.varWidth.medium.flags |=
+				FONT_STYLEFLAG_BOLD;
+		}
 	}
 	if ((value = kernelVariableListGet(&settings,
-		WINDOW_FONT_VARWIDTH_MEDIUM_POINTS)) && (atoi(value) >= 0))
+		WINVAR_FONT_VARW_MD_POINTS)) && (atoi(value) >= 0))
 	{
 		windowVariables->font.varWidth.medium.points = atoi(value);
 	}
@@ -2059,8 +2135,8 @@ static int setupWindowVariables(void)
 	windowVariables->font.varWidth.medium.points =
 		WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS;
 
-	// Now read the system window config file to let it overrides our defaults.
-	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIGFILE);
+	// Now read the system window config file to let it overrides our defaults
+	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
 
 	// Load fonts.  Don't fail the whole initialization just because we can't
 	// read one, or anything like that.
@@ -2123,7 +2199,8 @@ static int windowStart(void)
 		return (status);
 
 	// Set the temporary text area to the current desktop color, for neatness'
-	// sake if there are any error messages before we create the console window
+	// sake if there are any error messages before we create the console
+	// window
 	output = kernelMultitaskerGetTextOutput();
 	output->textArea->background.red = windowVariables->color.desktop.red;
 	output->textArea->background.green = windowVariables->color.desktop.green;
@@ -2147,8 +2224,6 @@ static int windowStart(void)
 
 	// Draw the console and root windows, but don't make them visible
 	makeConsoleWindow();
-	layoutWindow(consoleWindow);
-	autoSizeWindow(consoleWindow);
 	//kernelWindowSetLocation(consoleWindow, 0, 0);
 	//kernelWindowSetVisible(consoleWindow, 1);
 
@@ -2159,7 +2234,8 @@ static int windowStart(void)
 
 static kernelWindow *createWindow(int processId, const char *title)
 {
-	// Creates a new window using the supplied values.  Not visible by default.
+	// Creates a new window using the supplied values.  Not visible by
+	// default.
 
 	int status = 0;
 	kernelWindow *window = NULL;
@@ -2334,7 +2410,7 @@ int kernelWindowLogin(const char *userName)
 		return (ERR_NOTINITIALIZED);
 
 	// Read any user-specific config variables
-	sprintf(fileName, PATH_USERS_CONFIG "/" WINDOW_CONFIGFILE, userName);
+	sprintf(fileName, PATH_USERS_CONFIG "/" WINDOW_CONFIG, userName);
 	readFileVariables(fileName);
 
 	// Start the window shell thread
@@ -2370,8 +2446,8 @@ int kernelWindowLogout(void)
 	while (listWindow)
 	{
 		// Skip the console window.  Also skip child windows, since they will
-		// be destroyed recursively when their parents are (and they may belong
-		// to other windows we're skipping)
+		// be destroyed recursively when their parents are (and they may
+		// belong to other windows we're skipping)
 		if ((listWindow == consoleWindow) || listWindow->parentWindow)
 		{
 			listWindow = kernelLinkedListIterNext(&windowList, &iter);
@@ -2401,7 +2477,7 @@ int kernelWindowLogout(void)
 	}
 
 	// Re-read the system config variables
-	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIGFILE);
+	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
 
 	return (status = 0);
 }
@@ -2409,7 +2485,8 @@ int kernelWindowLogout(void)
 
 kernelWindow *kernelWindowNew(int processId, const char *title)
 {
-	// Creates a new window using the supplied values.  Not visible by default.
+	// Creates a new window using the supplied values.  Not visible by
+	// default.
 
 	kernelWindow *window = NULL;
 
@@ -2537,9 +2614,9 @@ int kernelWindowDestroy(kernelWindow *window)
 				window->parentWindow->child[count] = NULL;
 				window->parentWindow->numChildren -= 1;
 
-				// If there will be at least 1 remaining child window, and this
-				// window was not the last one, swap the last one into the
-				// spot this one occupied
+				// If there will be at least 1 remaining child window, and
+				// this window was not the last one, swap the last one into
+				// the spot this one occupied
 				if (window->parentWindow->numChildren &&
 					(count < window->parentWindow->numChildren))
 				{
@@ -2720,8 +2797,9 @@ int kernelWindowSetCharSet(kernelWindow *window, const char *charSet)
 
 	if (window->mainContainer)
 	{
-		array = kernelMalloc(window->mainContainer->
-			numComps(window->mainContainer) * sizeof(kernelWindowComponent *));
+		array = kernelMalloc(
+			window->mainContainer->numComps(window->mainContainer) *
+				sizeof(kernelWindowComponent *));
 
 		if (array)
 		{
@@ -2786,16 +2864,7 @@ int kernelWindowGetSize(kernelWindow *window, int *width, int *height)
 		return (status = ERR_NULLPARAMETER);
 
 	// If layout has not been done, do it now
-	if (!window->sysContainer->doneLayout)
-	{
-		status = layoutWindow(window);
-		if (status < 0)
-			return (status);
-
-		status = autoSizeWindow(window);
-		if (status < 0)
-			return (status);
-	}
+	ensureWindowInitialLayout(window);
 
 	*width = window->buffer.width;
 	*height = window->buffer.height;
@@ -2819,47 +2888,12 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
 		return (status = ERR_NULLPARAMETER);
 
 	// If layout has not been done, do it now
-	if (!window->sysContainer->doneLayout)
-	{
-		status = layoutWindow(window);
-		if (status < 0)
-			return (status);
+	ensureWindowInitialLayout(window);
 
-		status = autoSizeWindow(window);
-		if (status < 0)
-			return (status);
-	}
-
+	// Resize and redraw, if applicable
 	status = setWindowSize(window, width, height);
 	if (status < 0)
 		return (status);
-
-	width = (window->buffer.width - window->mainContainer->xCoord);
-	height = (window->buffer.height - window->mainContainer->yCoord);
-
-	// Adjust for any borders
-	if (window->flags & WINFLAG_HASBORDER)
-	{
-		width -= windowVariables->border.thickness;
-		height -= windowVariables->border.thickness;
-	}
-
-	status = window->mainContainer->resize(window->mainContainer, width,
-		height);
-
-	window->mainContainer->width = width;
-	window->mainContainer->height = height;
-
-	if (window->flags & WINFLAG_VISIBLE)
-	{
-		if (window->draw)
-		{
-			// Draw the window
-			status = window->draw(window);
-			if (status < 0)
-				return (status);
-		}
-	}
 
 	return (status);
 }
@@ -2971,7 +3005,7 @@ int kernelWindowSnapIcons(objectKey parent)
 		container = containerComponent->data;
 
 		// Make sure the window has been laid out
-		if (!window->mainContainer->doneLayout)
+		if (!containerComponent->doneLayout)
 			layoutWindow(window);
 	}
 	else if (((kernelWindowComponent *) parent)->type ==
@@ -3036,8 +3070,8 @@ int kernelWindowSetHasBorder(kernelWindow *window, int trueFalse)
 	if (!window)
 		return (status = ERR_NULLPARAMETER);
 
-	// Whether true or false, we need to remove any existing border components,
-	// since even if true we don't want any existing ones hanging
+	// Whether true or false, we need to remove any existing border
+	// components, since even if true we don't want any existing ones hanging
 	// around.
 	if (window->flags & WINFLAG_HASBORDER)
 		removeBorder(window);
@@ -3057,8 +3091,8 @@ int kernelWindowSetHasBorder(kernelWindow *window, int trueFalse)
 
 int kernelWindowSetHasTitleBar(kernelWindow *window, int trueFalse)
 {
-	// Sets the 'has title bar' attribute, and destroys the title bar component
-	// if false (since new windows have them by default)
+	// Sets the 'has title bar' attribute, and destroys the title bar
+	// component if false (since new windows have them by default)
 
 	int status = 0;
 
@@ -3300,17 +3334,7 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
 	{
 		// If the window is becoming visible and hasn't yet had its layout
 		// done, do that now
-
-		if (window->sysContainer && !window->sysContainer->doneLayout)
-		{
-			status = layoutWindow(window);
-			if (status < 0)
-				return (status);
-
-			status = autoSizeWindow(window);
-			if (status < 0)
-				return (status);
-		}
+		ensureWindowInitialLayout(window);
 
 		// If no coordinates have been specified, center the window
 		if ((window->xCoord == -1) && (window->yCoord == -1))
@@ -3446,9 +3470,8 @@ int kernelWindowAddConsoleTextArea(kernelWindow *window)
 void kernelWindowRedrawArea(int xCoord, int yCoord, int width, int height)
 {
 	// This function will redraw an arbitrary area of the screen.  Initially
-	// written to allow the mouse functions to erase the mouse without
-	// having to know what's under it.  Could be useful for other things as
-	// well.
+	// written to allow the mouse functions to erase the mouse without having
+	// to know what's under it.  Could be useful for other things as well.
 
 	screenArea area;
 	kernelWindow *listWindow = NULL;
@@ -3470,10 +3493,15 @@ void kernelWindowRedrawArea(int xCoord, int yCoord, int width, int height)
 		height += yCoord;
 		yCoord = 0;
 	}
+
 	if ((xCoord + width) > screenWidth)
 		width = (screenWidth - xCoord);
 	if ((yCoord + height) > screenHeight)
 		height = (screenHeight - yCoord);
+
+	// Do we still have width and height?
+	if ((width <= 0) || (height <= 0))
+		return;
 
 	// Clear the area first
 	kernelGraphicClearArea(NULL, &windowVariables->color.desktop, xCoord,
@@ -3527,8 +3555,8 @@ int kernelWindowDraw(kernelWindow *window)
 
 void kernelWindowDrawAll(void)
 {
-	// This function will redraw all windows.  Useful for example when the user
-	// has changed the color scheme
+	// This function will redraw all windows.  Useful for example when the
+	// user has changed the color scheme
 
 	kernelWindow *listWindow = NULL;
 	kernelLinkedListItem *iter = NULL;
@@ -3640,10 +3668,10 @@ void kernelWindowResetColors(void)
 		}
 
 		// Loop through all the regular window components and set the colors
-		array = kernelMalloc(
+		numComponents =
 			(listWindow->sysContainer->numComps(listWindow->sysContainer) +
-			listWindow->mainContainer->numComps(listWindow->mainContainer)) *
-			sizeof(kernelWindowComponent *));
+			listWindow->mainContainer->numComps(listWindow->mainContainer));
+		array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
 		if (!array)
 			break;
 
@@ -3698,8 +3726,8 @@ void kernelWindowProcessEvent(windowEvent *event)
 		kernelWindowEventStreamWrite(&mouseEvents, event);
 
 	else if (event->type & EVENT_MASK_KEY)
-		// Write the key event into the mouse event stream for later processing
-		// by the window thread
+		// Write the key event into the mouse event stream for later
+		// processing by the window thread
 		kernelWindowEventStreamWrite(&keyEvents, event);
 }
 
@@ -4293,8 +4321,8 @@ int kernelWindowToggleMenuBar(void)
 				else
 				{
 					// The way menus and menu bars are currently implemented,
-					// only menus with contents can be raised.  Try to find the
-					// first one with menu items in it.
+					// only menus with contents can be raised.  Try to find
+					// the first one with menu items in it.
 					kernelDebug(debug_gui, "Window raise first populated "
 						"menu");
 
@@ -4352,7 +4380,8 @@ int kernelWindowRefresh(void)
 	// This was implemented in order to facilitate instantaneous language
 	// switching, but it can be expanded to cover more things (e.g. window
 	// configuration changes like colors or screen resolution, things that
-	// window shell manages, such as desktop configuration, icons, menus, etc.)
+	// window shell manages, such as desktop configuration, icons, menus,
+	// etc.)
 
 	int status = 0;
 

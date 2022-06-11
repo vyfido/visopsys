@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelStream.c
 //
 
-// This file contains all of the basic routines for dealing with generic
+// This file contains all of the basic functions for dealing with generic
 // data streams.  Data streams in Visopsys are implemented as circular
 // buffers of variable size.
 
@@ -565,13 +565,16 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 	theStream->size = size;
 
 	// What is the size, in bytes, of the requested stream?
-	switch(itemSize)
+	switch (itemSize)
 	{
 		case itemsize_byte:
 			theStream->buffSize = (theStream->size * sizeof(char));
 			break;
 		case itemsize_dword:
 			theStream->buffSize = (theStream->size * sizeof(unsigned));
+			break;
+		case itemsize_pointer:
+			theStream->buffSize = (theStream->size * sizeof(void *));
 			break;
 		default:
 			return (status = ERR_INVALID);
@@ -592,7 +595,8 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 		case itemsize_byte:
 			// Copy the byte stream functions
 			theStream->append = (int(*)(stream *, ...)) &appendByte;
-			theStream->appendN = (int(*)(stream *, unsigned, ...)) &appendBytes;
+			theStream->appendN = (int(*)(stream *, unsigned, ...))
+				&appendBytes;
 			theStream->push = (int(*)(stream *, ...)) &pushByte;
 			theStream->pushN = (int(*)(stream *, unsigned, ...)) &pushBytes;
 			theStream->pop = (int(*)(stream *, ...)) &popByte;
@@ -602,11 +606,34 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 		case itemsize_dword:
 			// Copy the dword stream functions
 			theStream->append = (int(*)(stream *, ...)) &appendDword;
-			theStream->appendN = (int(*)(stream *, unsigned, ...)) &appendDwords;
+			theStream->appendN = (int(*)(stream *, unsigned, ...))
+				&appendDwords;
 			theStream->push = (int(*)(stream *, ...)) &pushDword;
 			theStream->pushN = (int(*)(stream *, unsigned, ...)) &pushDwords;
 			theStream->pop = (int(*)(stream *, ...)) &popDword;
 			theStream->popN = (int(*)(stream *, unsigned, ...)) &popDwords;
+			break;
+
+		case itemsize_pointer:
+			if (sizeof(void *) == 4)
+			{
+				// Copy the dword stream functions
+				theStream->append = (int(*)(stream *, ...)) &appendDword;
+				theStream->appendN = (int(*)(stream *, unsigned, ...))
+					&appendDwords;
+				theStream->push = (int(*)(stream *, ...)) &pushDword;
+				theStream->pushN = (int(*)(stream *, unsigned, ...))
+					&pushDwords;
+				theStream->pop = (int(*)(stream *, ...)) &popDword;
+				theStream->popN = (int(*)(stream *, unsigned, ...))
+					&popDwords;
+			}
+			else
+			{
+				kernelError(kernel_error, "Non-32-bit pointer streams are "
+					"not yet supported");
+				return (status = ERR_NOTIMPLEMENTED);
+			}
 			break;
 	}
 

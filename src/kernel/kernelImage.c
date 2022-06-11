@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,7 +63,8 @@ static inline void bilinearInterpolation(double distanceX, double distanceY,
 			(((1.0 - distanceX) * *srcAlpha[0]) + (distanceX * *srcAlpha[1]));
 		double row1alpha =
 			(((1.0 - distanceX) * *srcAlpha[1]) + (distanceX * *srcAlpha[2]));
-		*destAlpha = (((1.0 - distanceY) * row0alpha) + (distanceY * row1alpha));
+		*destAlpha = (((1.0 - distanceY) * row0alpha) + (distanceY *
+			row1alpha));
 	}
 }
 
@@ -86,7 +87,8 @@ static int imageCopy(image *srcImage, image *destImage, int kernel)
 	}
 	else
 	{
-		destImage->data = kernelMemoryGet(destImage->dataLength, "image data");
+		destImage->data = kernelMemoryGet(destImage->dataLength,
+			"image data");
 	}
 
 	if (!destImage->data)
@@ -217,7 +219,7 @@ int kernelImageLoad(const char *fileName, unsigned reqWidth,
 	}
 
 	// Is it an image?
-	if (!(loaderClass.class & LOADERFILECLASS_IMAGE))
+	if (!(loaderClass.type & LOADERFILECLASS_IMAGE))
 	{
 		kernelError(kernel_error, "%s is not a recognized image format",
 			fileName);
@@ -232,8 +234,8 @@ int kernelImageLoad(const char *fileName, unsigned reqWidth,
 	}
 
 	// Call the appropriate 'load' function
-	status = fileClassDriver->image.load(imageFileData, theFile.size, reqWidth,
-		reqHeight, loadImage);
+	status = fileClassDriver->image.load(imageFileData, theFile.size,
+		reqWidth, reqHeight, loadImage);
 
 	if (status >= 0)
 	{
@@ -334,6 +336,9 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 	if (!resizeImage)
 		return (status = ERR_NULLPARAMETER);
 
+	kernelDebug(debug_misc, "Image resize %ux%u -> %ux%u", resizeImage->width,
+		resizeImage->height, width, height);
+
 	if ((resizeImage->width == width) && (resizeImage->height == height))
 		return (status = 0);
 
@@ -355,7 +360,7 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 	// Determine the width and height ratios of the new size.
 	ratioX = ((double) resizeImage->width / (double) width);
 	ratioY = ((double) resizeImage->height / (double) height);
-	kernelDebug(debug_misc, "Resize ratio %fx%f", ratioX, ratioY);
+	kernelDebug(debug_misc, "Image resize ratio %fx%f", ratioX, ratioY);
 	if ((ratioX < 0) || (ratioX > 10) || (ratioY < 0) || (ratioY > 10))
 		kernelDebugError("Ratio seems strange");
 
@@ -408,7 +413,8 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 				else
 				{
 					newImage.alpha[destIndex] = 0;
-					PIXEL_COPY(&resizeImage->transColor, &destPixels[destIndex]);
+					PIXEL_COPY(&resizeImage->transColor,
+						&destPixels[destIndex]);
 				}
 			}
 			else
@@ -494,7 +500,8 @@ int kernelImageFill(image *fillImage, color *fillColor)
 }
 
 
-int kernelImagePaste(image *srcImage, image *destImage, int xCoord, int yCoord)
+int kernelImagePaste(image *srcImage, image *destImage, int xCoord,
+	int yCoord)
 {
 	// Given source and destination images, paste the source into the
 	// destination at the given X and Y coordinates.

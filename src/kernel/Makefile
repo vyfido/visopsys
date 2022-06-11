@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2017 J. Andrew McLaughlin
+##  Copyright (C) 1998-2018 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -78,9 +78,14 @@ NAMES = kernelMain \
 	kernelMouse \
 	kernelMultitasker \
 	kernelNetwork \
+	kernelNetworkArp \
 	kernelNetworkDevice \
 	kernelNetworkDhcp \
+	kernelNetworkEthernet \
+	kernelNetworkIcmp \
+	kernelNetworkIp4 \
 	kernelNetworkStream \
+	kernelNetworkUdp \
 	kernelPage \
 	kernelPic \
 	kernelPower \
@@ -131,6 +136,7 @@ DRIVERNAMES = kernelAcpiDriver \
 	kernelFramebufferGraphicDriver \
 	kernelGraphicConsoleDriver \
 	kernelIdeDriver \
+	kernelNetworkLoopDriver \
 	kernelNetworkPcNetDriver \
 	kernelPciDriver \
 	kernelPicDriver \

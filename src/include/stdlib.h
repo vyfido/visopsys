@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -53,8 +53,10 @@ char *getenv(const char *);
 long int labs(long int);
 void *_malloc(size_t, const char *);
 #define malloc(size) _malloc(size, __FUNCTION__)
-int mbtowc(wchar_t *, const char *, size_t);
 size_t mbstowcs(wchar_t *dest, const char *src, size_t n);
+int mbtowc(wchar_t *, const char *, size_t);
+char *mkdtemp(char *);
+int mkstemp(char *);
 int rand(void);
 #define random() rand()
 void *_realloc(void *, size_t, const char *);
@@ -78,9 +80,11 @@ int wctomb(char *, wchar_t);
 #define dtoa(num, string, round) _dbl2str(num, string, round)
 #define ftoa(num, string) _flt2str(num, string, round)
 #define itoa(num, string) _num2str(num, string, 10, 1)
+#define itouo(num, string) _num2str(num, string, 8, 0)
 #define itoux(num, string) _num2str(num, string, 16, 0)
 #define itox(num, string) _num2str(num, string, 16, 1)
 #define lltoa(num, string) _lnum2str(num, string, 10, 1)
+#define lltouo(num, string) _lnum2str(num, string, 8, 0)
 #define lltoux(num, string) _lnum2str(num, string, 16, 0)
 #define lltox(num, string) _lnum2str(num, string, 16, 1)
 #define xtoi(string) ((int) _str2num(string, 16, 1, NULL))

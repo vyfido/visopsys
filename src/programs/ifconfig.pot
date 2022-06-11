@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-03-03 03:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,119 +17,181 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ifconfig.c:67
+#: ifconfig.c:68
 msgid "Network Devices"
 msgstr ""
 
-#: ifconfig.c:68
+#: ifconfig.c:69
 msgid "Enabled at startup"
 msgstr ""
 
-#: ifconfig.c:69
+#: ifconfig.c:70
 msgid "Host name"
 msgstr ""
 
-#: ifconfig.c:70
+#: ifconfig.c:71
 msgid "Domain name"
 msgstr ""
 
-#: ifconfig.c:71
+#: ifconfig.c:72
 msgid "OK"
 msgstr ""
 
-#: ifconfig.c:72
+#: ifconfig.c:73
 msgid "Cancel"
 msgstr ""
 
-#: ifconfig.c:73
+#: ifconfig.c:74
 msgid "No supported network devices."
 msgstr ""
 
-#: ifconfig.c:106
+#: ifconfig.c:138
 msgid "Error"
 msgstr ""
 
-#: ifconfig.c:121
+#: ifconfig.c:156
+msgid "Local Loopback"
+msgstr ""
+
+#: ifconfig.c:159
+msgid "Ethernet"
+msgstr ""
+
+#: ifconfig.c:162
+msgid "Unknown"
+msgstr ""
+
+#: ifconfig.c:168
+msgid "Link encap"
+msgstr ""
+
+#: ifconfig.c:171
+msgid "HWaddr"
+msgstr ""
+
+#: ifconfig.c:178
+msgid "inet addr"
+msgstr ""
+
+#: ifconfig.c:183
+msgid "Mask"
+msgstr ""
+
+#: ifconfig.c:188
+msgid "Bcast"
+msgstr ""
+
+#: ifconfig.c:193
+msgid "Gateway"
+msgstr ""
+
+#: ifconfig.c:198
+msgid "DNS"
+msgstr ""
+
+#: ifconfig.c:203
+msgid "RX packets"
+msgstr ""
+
+#: ifconfig.c:206 ifconfig.c:218
+msgid "errors"
+msgstr ""
+
+#: ifconfig.c:209 ifconfig.c:221
+msgid "dropped"
+msgstr ""
+
+#: ifconfig.c:212 ifconfig.c:224
+msgid "overruns"
+msgstr ""
+
+#: ifconfig.c:215
+msgid "TX packets"
+msgstr ""
+
+#: ifconfig.c:227
+msgid "link status"
+msgstr ""
+
+#: ifconfig.c:229
+msgid "LINK"
+msgstr ""
+
+#: ifconfig.c:229
+msgid "NOLINK"
+msgstr ""
+
+#: ifconfig.c:231
+msgid "running"
+msgstr ""
+
+#: ifconfig.c:233
+msgid "UP"
+msgstr ""
+
+#: ifconfig.c:233
+msgid "DOWN"
+msgstr ""
+
+#: ifconfig.c:235
+msgid "collisions"
+msgstr ""
+
+#: ifconfig.c:238
+msgid "txqueuelen"
+msgstr ""
+
+#: ifconfig.c:241
+msgid "Interrupt"
+msgstr ""
+
+#: ifconfig.c:257
 #, c-format
 msgid "Can't get info for device %s"
 msgstr ""
 
-#: ifconfig.c:128
-msgid "Ethernet"
-msgstr ""
-
-#: ifconfig.c:131
-msgid "Unknown"
-msgstr ""
-
-#: ifconfig.c:136
-#, c-format
-msgid ""
-"%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
-"       inet addr:%d.%d.%d.%d  Bcast:%d.%d.%d.%d  Mask:%d.%d.%d.%d\n"
-"       RX packets:%u errors:%u dropped:%u overruns:%u\n"
-"       TX packets:%u errors:%u dropped:%u overruns:%u\n"
-"       %s, %s collisions:%u txqueuelen:%u Interrupt:%d"
-msgstr ""
-
-#: ifconfig.c:155
-msgid "LINK"
-msgstr ""
-
-#: ifconfig.c:155
-msgid "NOLINK"
-msgstr ""
-
-#: ifconfig.c:156
-msgid "UP"
-msgstr ""
-
-#: ifconfig.c:156
-msgid "DOWN"
-msgstr ""
-
-#: ifconfig.c:216
+#: ifconfig.c:347
 #, c-format
 msgid "Networking is %s"
 msgstr ""
 
-#: ifconfig.c:217
+#: ifconfig.c:347
 msgid "enabled"
 msgstr ""
 
-#: ifconfig.c:217
+#: ifconfig.c:348
 msgid "disabled"
 msgstr ""
 
-#: ifconfig.c:220
+#: ifconfig.c:350
 msgid "Disable"
 msgstr ""
 
-#: ifconfig.c:220 ifconfig.c:451
+#: ifconfig.c:351 ifconfig.c:586
 msgid "Enable"
 msgstr ""
 
-#: ifconfig.c:361
+#: ifconfig.c:494
 msgid "Shutting down networking"
 msgstr ""
 
-#: ifconfig.c:362
+#: ifconfig.c:494
 msgid "Initializing networking"
 msgstr ""
 
-#: ifconfig.c:362
+#: ifconfig.c:495
 msgid "One moment please..."
 msgstr ""
 
-#: ifconfig.c:446
+#: ifconfig.c:581
 msgid "Networking is disabled"
 msgstr ""
 
-#: ifconfig.c:617
+#: ifconfig.c:752
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:625
+#: ifconfig.c:760
 msgid "Can't get the count of network devices"
 msgstr ""

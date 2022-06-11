@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -420,11 +420,11 @@ int main(int argc, char *argv[])
 		goto deallocate;
 	}
 
-	if (!(class.class & LOADERFILECLASS_IMAGE) &&
-		!(class.class & LOADERFILECLASS_TEXT))
+	if (!(class.type & LOADERFILECLASS_IMAGE) &&
+		!(class.type & LOADERFILECLASS_TEXT))
 	{
 		error(_("Can't display the file type of \"%s\" (%s)"), fileName,
-		class.className);
+			class.name);
 		goto deallocate;
 	}
 
@@ -432,9 +432,9 @@ int main(int argc, char *argv[])
 	sprintf(windowTitle, WINDOW_TITLE, shortName);
 	window = windowNew(processId, windowTitle);
 
-	if (class.class & LOADERFILECLASS_IMAGE)
+	if (class.type & LOADERFILECLASS_IMAGE)
 		status = viewImage();
-	else if (class.class & LOADERFILECLASS_TEXT)
+	else if (class.type & LOADERFILECLASS_TEXT)
 		status = viewText();
 
 	if (status >= 0)

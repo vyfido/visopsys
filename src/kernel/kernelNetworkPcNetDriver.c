@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,6 +30,7 @@
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
+#include "kernelMultitasker.h"
 #include "kernelNetworkDevice.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
@@ -55,24 +56,6 @@ static struct {
 	{ 0x2628, "AMD", "PCnet/PRO 79C976" },
 	{ 0, NULL, NULL }
 };
-
-
-static void reset(pcNetDevice *pcNet)
-{
-	unsigned tmp;
-
-	kernelDebug(debug_net, "PcNet reset");
-
-	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port.
-	processorInPort32((pcNet->ioAddress + PCNET_PORTOFFSET32_RESET), tmp);
-
-	// Then 16-bit reset, by doing a 16-bit read from the 16-bit reset port,
-	// so the chip is reset and in 16-bit mode.
-	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RESET), tmp);
-
-	// The NE2100 PCNET card needs an extra write access to follow
-	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RESET), tmp);
-}
 
 
 static unsigned readCSR(pcNetDevice *pcNet, int idx)
@@ -122,32 +105,10 @@ static void modifyCSR(pcNetDevice *pcNet, int idx, unsigned data, opType op)
 }
 
 
-static unsigned readBCR(pcNetDevice *pcNet, int idx)
-{
-	// Read the indexed 16-bit bus configuration register (BCR)
-
-	unsigned data = 0;
-
-	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
-	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_BDP), data);
-
-	return (data);
-}
-
-
-static void writeBCR(pcNetDevice *pcNet, int idx, unsigned data)
-{
-	// Write the indexed 16-bit bus configuration register (BCR)
-
-	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
-	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_BDP), data);
-}
-
-
 static int driverInterruptHandler(kernelNetworkDevice *adapter)
 {
 	// This is the 'body' of the interrupt handler for pcNet devices.  Called
-	// from the netorkInterrupt() function in kernelNetwork.c
+	// from the networkInterrupt() function in kernelNetworkDevice.c
 
 	unsigned csr0 = 0, csr4 = 0;
 	pcNetDevice *pcNet = NULL;
@@ -285,8 +246,8 @@ static int driverSetFlags(kernelNetworkDevice *adapter, unsigned flags,
 
 	pcNet = adapter->data;
 
-	// Change any flags that are settable for this NIC.  Ignore any that aren't
-	// supported.
+	// Change any flags that are settable for this NIC.  Ignore any that
+	// aren't supported.
 
 	if (flags & NETWORK_ADAPTERFLAG_AUTOSTRIP)
 	{
@@ -297,7 +258,8 @@ static int driverSetFlags(kernelNetworkDevice *adapter, unsigned flags,
 		}
 		else
 		{
-			modifyCSR(pcNet, PCNET_CSR_FEAT, ~PCNET_CSR_FEAT_ASTRPRCV, op_and);
+			modifyCSR(pcNet, PCNET_CSR_FEAT, ~PCNET_CSR_FEAT_ASTRPRCV,
+				op_and);
 			adapter->device.flags &= ~NETWORK_ADAPTERFLAG_AUTOSTRIP;
 		}
 	}
@@ -327,57 +289,58 @@ static int driverSetFlags(kernelNetworkDevice *adapter, unsigned flags,
 static unsigned driverReadData(kernelNetworkDevice *adapter,
 	unsigned char *buffer)
 {
-	// This routine copies 1 network packet's worth data from our ring buffer
+	// This function copies 1 network packet's worth data from our ring buffer
 	// to the supplied frame pointer, if any are currently queued.  Decrements
-	// the count of queued packets, and returns the number of bytes copied into
-	// the frame pointer.
+	// the count of queued packets, and returns the number of bytes copied
+	// into the frame pointer.
 
-	unsigned messageLength = 0;
+	unsigned messageLen = 0;
 	pcNetDevice *pcNet = NULL;
 	int *head = NULL;
-	pcNetRecvDesc16 *recvDesc = NULL;
+	pcNetRecvDesc16 *recv = NULL;
 
 	// Check params
 	if (!adapter || !buffer)
-		return (messageLength = 0);
+		return (messageLen = 0);
 
 	kernelDebug(debug_net, "PcNet read data");
 
 	pcNet = adapter->data;
 	head = &pcNet->recvRing.head;
-	recvDesc = pcNet->recvRing.desc.recv;
+	recv = &pcNet->recvRing.desc.recv[*head];
 
-	if (adapter->device.recvQueued &&
-		!(recvDesc[*head].flags & PCNET_DESCFLAG_OWN))
+	if (adapter->device.recvQueued && !(recv->flags & PCNET_DESCFLAG_OWN))
 	{
-		messageLength = (unsigned) recvDesc[*head].messageSize;
+		messageLen = (unsigned) recv->messageSize;
 
-		memcpy(buffer, pcNet->recvRing.buffers[*head], messageLength);
+		memcpy(buffer, pcNet->recvRing.buffers[*head], messageLen);
 
 		adapter->device.recvQueued -= 1;
 
 		// Return ownership to the controller
-		recvDesc[*head].flags |= PCNET_DESCFLAG_OWN;
+		recv->flags |= PCNET_DESCFLAG_OWN;
 
 		*head += 1;
 		if (*head >= adapter->device.recvQueueLen)
 			*head = 0;
 	}
 
-	return (messageLength);
+	return (messageLen);
 }
 
 
 static int driverWriteData(kernelNetworkDevice *adapter,
 	unsigned char *buffer, unsigned bufferSize)
 {
-	// This routine writes network packet data
+	// This function writes network packet data
 
 	int status = 0;
 	pcNetDevice *pcNet = NULL;
-	pcNetTransDesc16 *transDesc = NULL;
-	int *head = NULL;
 	unsigned bufferPhysical = 0;
+	kernelIoMemory sendBuff;
+	int block = 0;
+	int *head = NULL;
+	pcNetTransDesc16 *trans = NULL;
 
 	// Check params
 	if (!adapter || !buffer)
@@ -386,14 +349,15 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 	kernelDebug(debug_net, "PcNet write data, %u bytes", bufferSize);
 
 	pcNet = adapter->data;
-	transDesc = pcNet->transRing.desc.trans;
-	head = &pcNet->transRing.head;
 
 	// Make sure we've got room for another packet
 	if (adapter->device.transQueued >= adapter->device.transQueueLen)
 		return (status = ERR_NOFREE);
 
-	// Get the physical address of the buffer.
+	// Get the physical address of the buffer.  At present, the upper layer
+	// only passes us packets allocated in kernel memory.  However, if we
+	// implement a zero-copy scheme in the future, this will have to be
+	// smartened up.
 	bufferPhysical = kernelPageGetPhysical(KERNELPROCID, buffer);
 	if (!bufferPhysical)
 	{
@@ -403,26 +367,39 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 
 	if (bufferPhysical > 0x00FFFFFF)
 	{
-		// TODO: need to allocate (and free) our own I/O memory, in this case
-		kernelError(kernel_error, "Buffer address is too high");
-		return (status = ERR_RANGE);
+		// The physical adress of the send buffer is too high, so we need to
+		// need to allocate (and free) our own I/O memory.
+
+		status = kernelMemoryGetIo(bufferSize, 0 /* no alignment */,
+			1 /* low memory */, "pcnet sendbuff", &sendBuff);
+		if (status < 0)
+		{
+			kernelError(kernel_error, "Unable to get I/O memory");
+			return (status);
+		}
+
+		memcpy(sendBuff.virtual, buffer, bufferSize);
+		bufferPhysical = sendBuff.physical;
+		block = 1;
 	}
 
-	if (!(transDesc[*head].flags & PCNET_DESCFLAG_OWN))
+	head = &pcNet->transRing.head;
+	trans = &pcNet->transRing.desc.trans[*head];
+
+	if (!(trans->flags & PCNET_DESCFLAG_OWN))
 	{
-		transDesc[*head].buffAddrLow =
-			(unsigned short)(bufferPhysical & 0xFFFF);
-		transDesc[*head].buffAddrHigh =
-			(unsigned char)((bufferPhysical & 0x00FF0000) >> 16);
-		transDesc[*head].bufferSize =
-			(unsigned short)(0xF000 | (((short) -bufferSize) & 0x0FFF));
-		transDesc[*head].transFlags = 0;
+		trans->buffAddrLow = (unsigned short)(bufferPhysical & 0xFFFF);
+		trans->buffAddrHigh = (unsigned char)
+			((bufferPhysical & 0x00FF0000) >> 16);
+		trans->bufferSize = (unsigned short)
+			(0xF000 | (((short) -bufferSize) & 0x0FFF));
+		trans->transFlags = 0;
 
 		adapter->device.transQueued += 1;
 
 		// Set the start packet and end packet bits, and give the descriptor
 		// to the controller for transmitting.
-		transDesc[*head].flags = (PCNET_DESCFLAG_OWN | PCNET_DESCFLAG_STP |
+		trans->flags = (PCNET_DESCFLAG_OWN | PCNET_DESCFLAG_STP |
 			PCNET_DESCFLAG_ENP);
 
 		*head += 1;
@@ -430,14 +407,62 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 			*head = 0;
 	}
 
+	if (block)
+	{
+		while (trans->flags & PCNET_DESCFLAG_OWN)
+			kernelMultitaskerYield();
+
+		kernelMemoryReleaseIo(&sendBuff);
+	}
+
 	return (status = 0);
+}
+
+
+static void reset(pcNetDevice *pcNet)
+{
+	unsigned tmp;
+
+	kernelDebug(debug_net, "PcNet reset");
+
+	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port.
+	processorInPort32((pcNet->ioAddress + PCNET_PORTOFFSET32_RESET), tmp);
+
+	// Then 16-bit reset, by doing a 16-bit read from the 16-bit reset port,
+	// so the chip is reset and in 16-bit mode.
+	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RESET), tmp);
+
+	// The NE2100 PCNET card needs an extra write access to follow
+	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RESET), tmp);
+}
+
+
+static unsigned readBCR(pcNetDevice *pcNet, int idx)
+{
+	// Read the indexed 16-bit bus configuration register (BCR)
+
+	unsigned data = 0;
+
+	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
+	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_BDP), data);
+
+	return (data);
+}
+
+
+static void writeBCR(pcNetDevice *pcNet, int idx, unsigned data)
+{
+	// Write the indexed 16-bit bus configuration register (BCR)
+
+	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
+	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_BDP), data);
 }
 
 
 static int driverDetect(void *parent __attribute__((unused)),
 	kernelDriver *driver)
 {
-	// This routine is used to detect and initialize each device, as well as
+	// This function is used to detect and initialize each device, as well as
 	// registering each one with any higher-level interfaces.  Also issues the
 	// appropriate commands to the netork adapter to initialize it.
 
@@ -480,7 +505,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 		}
 
 		// Get the PCI device header
-		status = kernelBusGetTargetInfo(&busTargets[deviceCount], &pciDevInfo);
+		status = kernelBusGetTargetInfo(&busTargets[deviceCount],
+			&pciDevInfo);
 		if (status < 0)
 			continue;
 
@@ -507,10 +533,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 		}
 
 		// Check the first base address for I/O and memory addresses.
-		// For the time being, we are only implementing I/O mapping, as opposed
-		// to memory sharing.  Therefore we expect the first base address
-		// register to contain an I/O address, which is signified by bit 0
-		// being set.
+		// For the time being, we are only implementing I/O mapping, as
+		// opposed to memory sharing.  Therefore we expect the first base
+		// address register to contain an I/O address, which is signified by
+		// bit 0 being set.
 		if (!(pciDevInfo.device.nonBridge.baseAddress[0] & 1))
 		{
 			kernelError(kernel_error, "Unknown adapter I/O address");
@@ -578,10 +604,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 		writeCSR(pcNet, PCNET_CSR_STATUS, PCNET_CSR_STATUS_STOP);
 
 		// Get the ethernet address
-		for (count = 0; count < 6; count ++)
+		for (count = 0; count < NETWORK_ADDRLENGTH_ETHERNET; count ++)
 		{
 			processorInPort8((pcNet->ioAddress + count),
-				adapter->device.hardwareAddress.bytes[count]);
+				adapter->device.hardwareAddress.byte[count]);
 		}
 
 		// Get chip version and set the model name
@@ -603,7 +629,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 				if (pcNetVendorModel[count].version == pcNet->chipVersion)
 				{
 					kernelVariableListSet(&dev->device.attrs,
-						DEVICEATTRNAME_VENDOR, pcNetVendorModel[count].vendor);
+						DEVICEATTRNAME_VENDOR,
+						pcNetVendorModel[count].vendor);
 					kernelVariableListSet(&dev->device.attrs,
 						DEVICEATTRNAME_MODEL, pcNetVendorModel[count].model);
 					break;
@@ -617,12 +644,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 			// Record the MAC address
 			sprintf(value, "%02x:%02x:%02x:%02x:%02x:%02x",
-				adapter->device.hardwareAddress.bytes[0],
-				adapter->device.hardwareAddress.bytes[1],
-				adapter->device.hardwareAddress.bytes[2],
-				adapter->device.hardwareAddress.bytes[3],
-				adapter->device.hardwareAddress.bytes[4],
-				adapter->device.hardwareAddress.bytes[5]);
+				adapter->device.hardwareAddress.byte[0],
+				adapter->device.hardwareAddress.byte[1],
+				adapter->device.hardwareAddress.byte[2],
+				adapter->device.hardwareAddress.byte[3],
+				adapter->device.hardwareAddress.byte[4],
+				adapter->device.hardwareAddress.byte[5]);
 			kernelVariableListSet(&dev->device.attrs, "adapter.address",
 				value);
 			kernelDebug(debug_net, "PcNet MAC address %s",value);
@@ -720,10 +747,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 		// Mode zero is 'normal' 16-bit mode
 		initBlock->mode = 0;
 
-		for (count = 0; count < 6; count ++)
+		for (count = 0; count < NETWORK_ADDRLENGTH_ETHERNET; count ++)
 		{
 			initBlock->physAddr[count] =
-				adapter->device.hardwareAddress.bytes[count];
+				adapter->device.hardwareAddress.byte[count];
 		}
 
 		// Accept all multicast packets for now.

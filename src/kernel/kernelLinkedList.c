@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -170,8 +170,8 @@ int kernelLinkedListClear(kernelLinkedList *list)
 void *kernelLinkedListIterStart(kernelLinkedList *list,
 	kernelLinkedListItem **iter)
 {
-	// Starts an iteration through the linked list.  Returns the data value from
-	// the first item, if applicable.
+	// Starts an iteration through the linked list.  Returns the data value
+	// from the first item, if applicable.
 
 	// Check params
 	if (!list || !iter)

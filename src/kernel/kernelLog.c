@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelLog.c
 //
 
-// This file contains the routines designed to facilitate a variety
+// This file contains the functions designed to facilitate a variety
 // of kernel logging features.
 
 #include "kernelLog.h"
@@ -46,7 +46,7 @@ static lock logLock;
 
 static int flushLogStream(void)
 {
-	// This routine is internal, and will take whatever is currently in the
+	// This function is internal, and will take whatever is currently in the
 	// log stream and output it to the log file, if applicable.  Returns
 	// 0 on success, negative otherwise
 

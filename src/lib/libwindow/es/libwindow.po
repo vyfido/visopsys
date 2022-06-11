@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2017 J. Andrew McLaughlin
+# Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-03-03 03:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Error"
 msgstr "Error"
 
-#: windowArchiveList.c:78 windowFileList.c:534
+#: windowArchiveList.c:78 windowFileList.c:535
 msgid "Memory allocation error creating icon parameters"
 msgstr "Error de alocacion de memoria al crear parametros de iconos"
 
@@ -51,35 +51,35 @@ msgstr "OK"
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: windowFileList.c:393 windowFileList.c:418
+#: windowFileList.c:394 windowFileList.c:419
 msgid "(up)"
 msgstr "(arriba)"
 
-#: windowFileList.c:468
+#: windowFileList.c:469
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr "No se pudo obtener el numero de archivos en el directorio %s"
 
-#: windowFileList.c:479
+#: windowFileList.c:480
 msgid "Memory allocation error"
 msgstr "Error de alocacion de memoria"
 
-#: windowFileList.c:492
+#: windowFileList.c:493
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr "Error al leer archivos en \"%s\""
 
-#: windowFileList.c:668
+#: windowFileList.c:670
 #, c-format
 msgid "Can't change to directory %s"
 msgstr "Imposible ir al directorio %s"
 
-#: windowFileList.c:692
+#: windowFileList.c:697
 #, c-format
 msgid "Error deleting file %s"
 msgstr "Error al borrar el archivo %s"
 
-#: windowFileList.c:746
+#: windowFileList.c:752
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr "No se pudo encontrar el archivo de configuracion en %s"

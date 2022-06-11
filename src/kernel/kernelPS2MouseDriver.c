@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -301,7 +301,7 @@ static void mouseInterrupt(void)
 	kernelDebug(debug_io, "Ps2Mouse mouse interrupt");
 
 	if (enabled)
-		// Call the routine to read the data
+		// Call the function to read the data
 		readData();
 
 	kernelInterruptClearCurrent();
@@ -563,7 +563,7 @@ static int initialize(void)
 
 static int driverDetect(void *parent, kernelDriver *driver)
 {
-	// This routine is used to detect and initialize each device, as well as
+	// This function is used to detect and initialize each device, as well as
 	// registering each one with any higher-level interfaces.  Also talks to
 	// the keyboard controller a little bit to initialize the mouse
 

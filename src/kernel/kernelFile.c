@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -573,7 +573,7 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 
 static int fileCreate(const char *path)
 {
-	// This gets called by the open() routine when the file in question needs
+	// This gets called by the open() function when the file in question needs
 	// to be created.
 
 	int status = 0;
@@ -938,7 +938,7 @@ static int fileMakeDir(const char *path)
 	// Create the '.' and '..' entries inside the directory
 	kernelFileMakeDotDirs(parentEntry, entry);
 
-	// If the filesystem driver has a 'make dir' routine, call it.
+	// If the filesystem driver has a 'make dir' function, call it.
 	if (driver->driverMakeDir)
 	{
 		status = driver->driverMakeDir(entry);
@@ -1630,7 +1630,7 @@ int kernelFileRemoveEntry(kernelFileEntry *entry)
 {
 	// This function is internal, and is used to delete an entry from its
 	// parent directory.  It DOES NOT deallocate the file entry structure
-	// itself.  That must be done, if applicable, by the calling routine.
+	// itself.  That must be done, if applicable, by the calling function.
 
 	kernelFileEntry *parentEntry = NULL;
 	kernelFileEntry *previousEntry = NULL;
@@ -1913,7 +1913,7 @@ int kernelFileUnbufferRecursive(kernelFileEntry *entry)
 int kernelFileEntrySetSize(kernelFileEntry *entry, unsigned newSize)
 {
 	// This file allows the caller to specify the real size of a file, since
-	// the other routines here must assume that the file consumes all of the
+	// the other functions here must assume that the file consumes all of the
 	// space in all of its blocks (they have no way to know otherwise).
 
 	int status = 0;
@@ -2286,7 +2286,7 @@ int kernelFileFind(const char *path, file *fileStruct)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Call the routine that actually finds the item
+	// Call the function that actually finds the item
 	entry = kernelFileLookup(path);
 	if (!entry)
 		// There is no such item
@@ -2410,6 +2410,10 @@ int kernelFileClose(file *fileStruct)
 
 	// If the file was locked by this PID, we should unlock it
 	kernelLockRelease(&entry->lock);
+
+	// If we were asked to delete the file on closure, attempt to comply
+	if (fileStruct->openMode & OPENMODE_DELONCLOSE)
+		fileDelete(entry);
 
 	// Return success
 	return (status = 0);
@@ -3354,7 +3358,7 @@ int kernelFileGetTempName(char *buffer, unsigned bufferLen)
 	{
 		// Construct the file name
 		snprintf(buffer, bufferLen, PATH_TEMP "/%03d-%08x.tmp",
-			kernelCurrentProcess->processId, (unsigned) kernelCpuTimestamp());
+			kernelCurrentProcess->processId, kernelRandomUnformatted());
 
 		// Make sure it doesn't already exist
 		if (!fileLookup(buffer))

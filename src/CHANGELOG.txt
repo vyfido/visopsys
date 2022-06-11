@@ -1,4 +1,102 @@
 --------------
+ Version 0.82   05/02/2018
+--------------
+
+  Overview: This maintenance version features a small number of user-visible
+  improvements and added functionality, plus polish and bug fixes, but much
+  more in terms of refactoring and fixing existing capabilities (particularly
+  of the nascent networking code) and at the developer level.
+
+- Refactored existing network code, fixing things such as DHCP and ICMP,
+moving the various protocol implementations into their own source files,
+making adapter connections into kernelLinkedLists, improving packet memory
+management, etc.
+- The networking code can now route IP packets to other networks via the
+default gateway.
+- Implemented network 'loopback' capability, via a virtual network adapter
+that doesn't normally appear as a network adapter, but which can be explicitly
+requested by name ('loop') or used via the loopback address(es) such as
+127.0.0.1.
+- Enhanced the intelligence of the function that chooses the best network
+adapter for a new connection.
+- The 'ping' program has been enhanced to report response times.
+- The compression library can now add/delete files from .tar archives.
+- The compression library has a new archiveAddRecursive() function which can
+add directories recursively.
+- Added a new command-line 'tar' program for managing TAR archives.
+- Clarified the keyboard input of control characters and fixed up all of the
+existing keymaps.
+- Reworked the code that lays out and sizes window containers, and the layout/
+sizing of the main and system containers during window (re-)sizing.
+- Separated the one-time network initialization code from the code that
+enables networking, since enabling/disabling can be done any number of times.
+- Parameterized the building of device strings in the Network Devices
+(ifconfig) program, for the purpose of future GUI improvements.
+- Added kernel API functions networkDeviceHook(), networkDeviceUnhook(), and
+networkDeviceSniff() for use by userspace packet sniffing/inspection programs.
+- C++ development compatibility changes; mostly just renaming a few things
+that caused errors when compiling C++ using the system header files.
+- Implemented speedier versions of the kernelPageRoundUp() and
+kernelPageRoundDown() macros, that don't use multiplications and divisions.
+- Exported the windowNewMenuBarIcon() function to userspace.
+- Created 3 new header files <sys/kernconf.h>, <sys/winconf.h>, and
+<sys/deskconf.h> to define the strings used in variable names in the
+corresponding kernel, window, and desktop configuration files.
+- Exported the kernel's cpuGetMs() and cpuSpinMs() functions to user space,
+for timings and delays with millisecond granularity.
+- Added a 'pointer' item type to the kernel streams, with the potential to
+handle pointers of different sizes (e.g. 32-bit or 64-bit) depending on the
+environment.
+- The kernelDebugHex() function has been enhanced so that it shows printable
+ASCII characters in a parallel column.
+- The kernelDebugHex(), kernelDebugHexDwords(), and kernelDebugBinary()
+functions have been replaced with macros so that they will only produce output
+when debugging has been turned on for the source file.
+- Added proper UNIX/POSIX-style per-process integer file descriptors to the C
+library.
+- Added the C library function uname().
+- Added the C library functions opendir(), closedir(), readdir(), readdir_r(),
+and rewinddir() for reading directory contents.
+- Added the C library functions getcwd(), and chdir().
+- Added the C library functions mkdir(), and mkdtemp().
+- Added the C library functions fdopen(), mkstemp(), rmdir(), and unlink().
+- Added the C library function tmpfile().
+- The printf() family of C library functions can now print octal numbers using
+the '%o' format.
+- Added the C library function sched_yield(), defined in <sys/sched.h>, for
+yielding time slices back to the scheduler.
+- Added an incomplete implementation of the C library function getaddrinfo()
+and its companions freeaddrinfo() and gai_strerror().
+- Added network-related C library functions getprotobynumber(),
+getservbyname(), and getservbyport().
+- Added the C library function strtok_r().
+- Added the C library functions poll(), recv(), and send().
+- Added the C library header files <netdb.h>, <poll.h>, <netinet/in.h>, and
+<sys/socket.h>, and the C library functions connect(), getprotobyname(),
+inet_ntop(), inet_pton(), and socket().
+- Added the network header file <arpa/inet.h>, initially for defining the
+macros htonl(), htons(), ntohl(), and ntohs().
+- Fixed: Dragging a window beyond the left edge of the screen caused a GUI
+crash and kernel panic.
+- Fixed: When resizing an icon list window (File Browser, etc) vertically, so
+that it was smaller than the original size, the icon list component/container
+wouldn't resize to less than its original height, and the bottom of the
+scrollbar would show outside the window buffer.
+- Fixed: Adding windowMenuItems to a menu bar or changing windowMenu titles; 
+tweaked the layout code.
+- Fixed: The ELF runtime loader so that it does not ignore 'weak' symbols in
+dynamic libraries.
+- Fixed: The 'nm' program was crashing partway through the symbol listing.
+- Fixed: kernelStream creation item sizes for network input streams and
+multitasker signal streams.
+- Fixed: When running in graphics mode, the PcNet network adapter driver
+failed to get device memory that was sufficiently low in the physical address
+space (24-bits maximum).  By default, physical and I/O memory requests now
+attempt to allocate memory starting from 1MB, unless low memory is explicitly
+requested.  The PcNet driver's write() function now attempts to allocate low
+memory if required, and blocks until it can be freed.
+
+--------------
  Version 0.81   07/06/2017
 --------------
 

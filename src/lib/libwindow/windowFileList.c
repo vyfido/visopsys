@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -68,8 +68,8 @@
 #define DEFAULT_BINICON_FILE		PATH_SYSTEM_ICONS "/binary.ico"
 
 typedef struct {
-	int class;
-	int subClass;
+	int fileClass;
+	int fileSubClass;
 	const char *imageVariable;
 	const char *imageFile;
 	image *image;
@@ -198,7 +198,7 @@ static int getCustomIcon(fileEntry *entry)
 	memset(&tmpImage, 0, sizeof(image));
 	memset(&tmpImage2, 0, sizeof(image));
 
-	if (entry->class.class & LOADERFILECLASS_IMAGE)
+	if (entry->class.type & LOADERFILECLASS_IMAGE)
 	{
 		// Try to load the image
 		status = imageLoad(entry->fullName, 0, 0, &tmpImage);
@@ -331,10 +331,10 @@ static void getFileIcon(fileEntry *entry)
 	// to the 'file' type at the end of the list.
 	for (count = 0; iconList[count].image ; count ++)
 	{
-		if (((iconList[count].class == LOADERFILECLASS_NONE) ||
-			(entry->class.class & iconList[count].class)) &&
-				((iconList[count].subClass == LOADERFILESUBCLASS_NONE) ||
-			(entry->class.subClass & iconList[count].subClass)))
+		if (((iconList[count].fileClass == LOADERFILECLASS_NONE) ||
+				(entry->class.type & iconList[count].fileClass)) &&
+			((iconList[count].fileSubClass == LOADERFILESUBCLASS_NONE) ||
+				(entry->class.subType & iconList[count].fileSubClass)))
 		{
 			entry->icon = &iconList[count];
 			break;
@@ -353,12 +353,12 @@ static void getFileIcon(fileEntry *entry)
 
 			// If it's a binary file, try the binary icon image
 			if ((entry->icon != &binIcon) &&
-				(entry->class.class & LOADERFILECLASS_BIN))
+				(entry->class.type & LOADERFILECLASS_BIN))
 			{
 				entry->icon = &binIcon;
 			}
 			else if ((entry->icon != &textIcon) &&
-				(entry->class.class & LOADERFILECLASS_TEXT))
+				(entry->class.type & LOADERFILECLASS_TEXT))
 			{
 				entry->icon = &textIcon;
 			}
@@ -384,7 +384,8 @@ static int classifyEntry(fileEntry *entry)
 
 	int status = 0;
 
-	strncpy(entry->iconParams.text, entry->file.name, WINDOW_MAX_LABEL_LENGTH);
+	strncpy(entry->iconParams.text, entry->file.name,
+		WINDOW_MAX_LABEL_LENGTH);
 
 	switch (entry->file.type)
 	{
@@ -531,7 +532,8 @@ static listItemParameters *allocateIconParameters(windowFileList *fileList)
 			sizeof(listItemParameters));
 		if (!newIconParams)
 		{
-			error("%s", _("Memory allocation error creating icon parameters"));
+			error("%s", _("Memory allocation error creating icon "
+				"parameters"));
 			return (newIconParams);
 		}
 
@@ -552,8 +554,8 @@ static listItemParameters *allocateIconParameters(windowFileList *fileList)
 
 static int changeDirWithLock(windowFileList *fileList, const char *newDir)
 {
-	// Rescan the directory information and rebuild the file list, with locking
-	// so that our GUI thread and main thread don't trash one another
+	// Rescan the directory information and rebuild the file list, with
+	// locking so that our GUI thread and main thread don't trash one another
 
 	int status = 0;
 	static lock dataLock;
@@ -671,9 +673,11 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 		}
 
 		if (fileList->selectionCallback)
+		{
 			fileList->selectionCallback((file *) &saveEntry.file,
 				(char *) saveEntry.fullName,
 				(loaderFileClass *) &saveEntry.class);
+		}
 	}
 
 	else if ((event->type & EVENT_KEY_DOWN) && (event->key == keyDel))
@@ -683,14 +687,16 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 		{
 			windowSwitchPointer(fileList->key, MOUSE_POINTER_BUSY);
 
-			status =
-				fileDeleteRecursive((char *) fileEntries[selected].fullName);
+			status = fileDeleteRecursive((char *)
+				fileEntries[selected].fullName);
 
 			windowSwitchPointer(fileList->key, MOUSE_POINTER_DEFAULT);
 
 			if (status < 0)
+			{
 				error(_("Error deleting file %s"),
 					fileEntries[selected].file.name);
+			}
 
 			status = update(fileList);
 			if (status < 0)
@@ -766,8 +772,9 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
 	iconParams = allocateIconParameters(fileList);
 
 	// Create a window list to hold the icons
-	fileList->key = windowNewList(parent, type, rows, columns, 0, iconParams,
-		fileList->numFileEntries, params);
+	fileList->key = windowNewList(parent, type, rows, columns,
+		0 /* no select multiple */, iconParams, fileList->numFileEntries,
+		params);
 
 	if (iconParams)
 		free(iconParams);

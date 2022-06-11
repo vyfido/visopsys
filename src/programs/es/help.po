@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: help.c:153
+#: help.c:154
 #, c-format
 msgid "There is no help available for \"%s\"\n"
 msgstr "No hay ayuda para \"%s\" disponible\n"

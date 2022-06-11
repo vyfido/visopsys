@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,6 +52,7 @@ Options:
 #include <sys/api.h>
 #include <sys/ascii.h>
 #include <sys/env.h>
+#include <sys/kernconf.h>
 #include <sys/lang.h>
 #include <sys/paths.h>
 #include <sys/user.h>
@@ -61,7 +62,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE		_("Install")
-#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2017 " \
+#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2018 " \
 	"J. Andrew McLaughlin")
 #define INSTALL_DISK		_("[ Installing on disk %s ]")
 #define BASIC_INSTALL		_("Basic install")
@@ -1455,8 +1456,8 @@ int main(int argc, char *argv[])
 	{
 		// Set the start program of the target installation to be the login
 		// program
-		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/kernel.conf",
-			"start.program", PATH_PROGRAMS "/login");
+		configSet(MOUNTPOINT KERNEL_DEFAULT_CONFIG, KERNELVAR_START_PROGRAM,
+			PATH_PROGRAMS "/login");
 
 		// Set the system language variable
 		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/environment.conf", ENV_LANG,

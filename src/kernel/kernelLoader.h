@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,6 +43,8 @@
 #define FILECLASS_NAME_DOC		"document"
 #define FILECLASS_NAME_ARCHIVE	"archive"
 #define FILECLASS_NAME_FONT		"font"
+#define FILECLASS_NAME_BOOT		"boot"
+#define FILECLASS_NAME_KEYMAP	"keymap"
 
 #define FILECLASS_NAME_BMP		"bitmap"
 #define FILECLASS_NAME_ICO		"icon"
@@ -50,8 +52,6 @@
 #define FILECLASS_NAME_GIF		"GIF"
 #define FILECLASS_NAME_PNG		"PNG"
 #define FILECLASS_NAME_PPM		"PPM"
-#define FILECLASS_NAME_BOOT		"boot"
-#define FILECLASS_NAME_KEYMAP	"keymap"
 #define FILECLASS_NAME_PDF		"PDF"
 #define FILECLASS_NAME_ELF		"ELF"
 #define FILECLASS_NAME_ZIP		"zip"
@@ -89,11 +89,11 @@ struct _kernelDynamicLibrary;
 // This is a structure for a file class.  It contains a standard name for
 // the file class and function pointers for managing that class of file.
 typedef struct {
-	char *className;
+	char *name;
 	int (*detect)(const char *, void *, unsigned, loaderFileClass *);
 	union {
 		struct {
-			loaderSymbolTable * (*getSymbols)(void *, int);
+			loaderSymbolTable *(*getSymbols)(void *, int);
 			int (*layoutLibrary)(void *, struct _kernelDynamicLibrary *);
 			int (*layoutExecutable)(void *, processImage *);
 			int (*link)(int, void *, processImage *, loaderSymbolTable **);

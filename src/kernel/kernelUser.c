@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelUser.c
 //
 
-// This file contains the routines designed for managing user access
+// This file contains the functions designed for managing user access
 
 #include "kernelUser.h"
 #include "kernelDisk.h"
@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/env.h>
+#include <sys/kernconf.h>
 #include <sys/paths.h>
 
 static variableList systemUserList;
@@ -425,7 +426,7 @@ int kernelUserLogout(const char *userName)
 	kernelEnvironmentClear();
 
 	// Restore keyboard mapping to the default
-	if ((kernelConfigGet(PATH_SYSTEM_CONFIG "/kernel.conf", "keyboard.map",
+	if ((kernelConfigGet(KERNEL_DEFAULT_CONFIG, KERNELVAR_KEYBOARD_MAP,
 			keyMapFile, MAX_PATH_NAME_LENGTH) >= 0) &&
 		(kernelFileFind(keyMapFile, NULL) >= 0))
 	{

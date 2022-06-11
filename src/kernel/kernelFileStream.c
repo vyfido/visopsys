@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -146,7 +146,7 @@ static int attachToFile(fileStream *newStream, int openMode)
 
 int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 {
-	// This function initializes the new filestream structure, opens the
+	// This function initializes the new fileStream structure, opens the
 	// requested file using the supplied mode number, and attaches it to the
 	// stream.  Returns 0 on success, negative otherwise.
 
@@ -177,7 +177,6 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 		return (status);
 	}
 
-	// Yahoo, all set.
 	return (status = 0);
 }
 
@@ -598,7 +597,7 @@ int kernelFileStreamWriteStr(fileStream *theStream, const char *buffer)
 	// This is just a wrapper function for the Write function, above, except
 	// that it saves the caller the trouble of specifying the length of the
 	// string to write; it calls strlen() and passes the information along
-	// to the write routine.
+	// to the write function.
 	return (kernelFileStreamWrite(theStream, strlen(buffer), buffer));
 }
 
@@ -701,7 +700,7 @@ int kernelFileStreamClose(fileStream *theStream)
 
 int kernelFileStreamGetTemp(fileStream *newStream)
 {
-	// This function initializes the new filestream structure, opens a
+	// This function initializes the new fileStream structure, opens a
 	// temporary file in read-write mode, and attaches it to the stream.
 
 	int status = 0;

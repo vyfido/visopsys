@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -226,37 +226,37 @@ static void doFileSelection(file *theFile, char *fullName,
 	{
 		case fileT:
 		{
-			if (loaderClass->class & LOADERFILECLASS_EXEC)
+			if (loaderClass->type & LOADERFILECLASS_EXEC)
 			{
 				strcpy(command, fullName);
 			}
-			else if ((loaderClass->class & LOADERFILECLASS_ARCHIVE) &&
+			else if ((loaderClass->type & LOADERFILECLASS_ARCHIVE) &&
 				!fileFind(EXECPROG_ARCHMAN, NULL))
 			{
 				sprintf(command, EXECPROG_ARCHMAN " \"%s\"", fullName);
 			}
-			else if (((loaderClass->class & LOADERFILECLASS_DATA) &&
-				(loaderClass->subClass & LOADERFILESUBCLASS_CONFIG)) &&
+			else if (((loaderClass->type & LOADERFILECLASS_DATA) &&
+				(loaderClass->subType & LOADERFILESUBCLASS_CONFIG)) &&
 					!fileFind(EXECPROG_CONFEDIT, NULL))
 			{
 				sprintf(command, EXECPROG_CONFEDIT " \"%s\"", fullName);
 			}
-			else if ((loaderClass->class & LOADERFILECLASS_FONT) &&
+			else if ((loaderClass->type & LOADERFILECLASS_FONT) &&
 				!fileFind(EXECPROG_FONTUTIL, NULL))
 			{
 				sprintf(command, EXECPROG_FONTUTIL " \"%s\"", fullName);
 			}
-			else if ((loaderClass->class & LOADERFILECLASS_KEYMAP) &&
+			else if ((loaderClass->type & LOADERFILECLASS_KEYMAP) &&
 				!fileFind(EXECPROG_KEYMAP, NULL))
 			{
 				sprintf(command, EXECPROG_KEYMAP " \"%s\"", fullName);
 			}
-			else if ((loaderClass->class & LOADERFILECLASS_TEXT) &&
+			else if ((loaderClass->type & LOADERFILECLASS_TEXT) &&
 				!fileFind(EXECPROG_VIEW, NULL))
 			{
 				sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
 			}
-			else if ((loaderClass->class & LOADERFILECLASS_IMAGE) &&
+			else if ((loaderClass->type & LOADERFILECLASS_IMAGE) &&
 				!fileFind(EXECPROG_VIEW, NULL))
 			{
 				sprintf(command, EXECPROG_VIEW " \"%s\"", fullName);
@@ -326,8 +326,8 @@ static void refreshMenuContents(windowMenuContents *contents)
 
 static void refreshWindow(void)
 {
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
 
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
@@ -382,7 +382,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for events to be passed to the file list widget
 	else if (key == fileList->key)
 	{
-		if ((event->type & EVENT_MOUSE_DOWN) || (event->type & EVENT_KEY_DOWN))
+		if ((event->type & EVENT_MOUSE_DOWN) ||
+			(event->type & EVENT_KEY_DOWN))
 		{
 			windowComponentGetSelected(fileList->key,
 				&dirStack[dirStackCurr].selected);
@@ -405,6 +406,7 @@ static void handleMenuEvents(windowMenuContents *contents)
 static int constructWindow(const char *directory)
 {
 	int status = 0;
+	objectKey menuBar = NULL;
 	componentParameters params;
 
 	// Create a new window, with small, arbitrary size and location
@@ -415,7 +417,7 @@ static int constructWindow(const char *directory)
 	memset(&params, 0, sizeof(componentParameters));
 
 	// Create the top menu bar
-	objectKey menuBar = windowNewMenuBar(window, &params);
+	menuBar = windowNewMenuBar(window, &params);
 
 	// Create the top 'file' menu
 	initMenuContents(&fileMenuContents);
@@ -477,8 +479,8 @@ int main(int argc, char *argv[])
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		fprintf(stderr, _("\nThe \"%s\" command only works in graphics mode\n"),
-			(argc? argv[0] : ""));
+		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
+			"mode\n"), (argc? argv[0] : ""));
 		return (status = ERR_NOTINITIALIZED);
 	}
 

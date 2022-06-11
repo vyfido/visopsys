@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2017 J. Andrew McLaughlin
+#  Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -115,10 +115,10 @@ msgstr "Fehler"
 #, c-format
 msgid ""
 "%s\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
 msgstr ""
 "%s\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
 
 #: sysdiag.c:223
 msgid "Please choose the disk to test:"

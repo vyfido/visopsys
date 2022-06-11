@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,6 +34,7 @@
 #include "kernelVariableList.h"
 #include <string.h>
 #include <time.h>
+#include <sys/kernconf.h>
 #include <sys/osloader.h>
 #include <sys/processor.h>
 
@@ -67,7 +68,7 @@ variableList *kernelVariables = &variables;
 void kernelMain(unsigned kernelMemory, void *kernelStack,
 	unsigned kernelStackSize, loaderInfoStruct *info)
 {
-	// This is the kernel entry point -- and main routine --
+	// This is the kernel entry point -- and main function --
 	// which starts the entire show and, of course, never returns.
 
 	int status = 0;
@@ -77,13 +78,13 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 	// Copy the OS loader info structure into kernel memory
 	memcpy(kernelOsLoaderInfo, info, sizeof(loaderInfoStruct));
 
-	// Call the kernel initialization routine
+	// Call the kernel initialization function
 	status = kernelInitialize(kernelMemory, kernelStack, kernelStackSize);
 	if (status < 0)
 	{
 		// Kernel initialization failed.  Crap.  We don't exactly know
 		// what failed.  That makes it a little bit risky to call the
-		// error routine, but we'll do it anyway.
+		// error function, but we'll do it anyway.
 
 		kernelError(kernel_error, "Initialization failed.  Press any key "
 			"(or the \"reset\" button) to reboot.");
@@ -101,7 +102,8 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 	if (kernelVariables)
 	{
 		// Find out which initial program to launch
-		value = kernelVariableListGet(kernelVariables, "start.program");
+		value = kernelVariableListGet(kernelVariables,
+			KERNELVAR_START_PROGRAM);
 		if (value)
 		{
 			// If the start program is our standard login program, use a custom
@@ -119,7 +121,7 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 				else
 				{
 					// Attach the start program to the console text streams
-					kernelMultitaskerDuplicateIO(KERNELPROCID, pid, 1); // Clear
+					kernelMultitaskerDuplicateIo(KERNELPROCID, pid, 1); // Clear
 
 					// Execute the start program.  Don't block.
 					kernelLoaderExecProgram(pid, 0);

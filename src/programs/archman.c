@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -283,7 +283,7 @@ static void doMemberSelection(int memberNum)
 	if (!loaderClassifyFile(tmpFileName, &class))
 		goto out;
 
-	if (class.class & LOADERFILECLASS_ARCHIVE)
+	if (class.type & LOADERFILECLASS_ARCHIVE)
 	{
 		status = openArchive(tmpFileName);
 		if (status < 0)

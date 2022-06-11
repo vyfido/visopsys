@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -1383,7 +1383,7 @@ static int haveUsedSlices(void)
 static void printBanner(void)
 {
 	textScreenClear();
-	printf(_("%s\nCopyright (C) 1998-2017 J. Andrew McLaughlin\n"),
+	printf(_("%s\nCopyright (C) 1998-2018 J. Andrew McLaughlin\n"),
 		programName);
 }
 
@@ -2084,7 +2084,7 @@ static int doCreate(int sliceNumber, sliceType type, uquad_t startSector,
 
 static void create(int sliceNumber)
 {
-	// This is the interactive partition creation routine.
+	// This is the interactive partition creation function.
 
 	int status = 0;
 	unsigned minStartMb = 0;
@@ -3972,7 +3972,7 @@ terminate:
 static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 	unsigned destSector, unsigned numSectors)
 {
-	// Generic routine for raw disk I/O
+	// Generic function for raw disk I/O
 
 	int status = 0;
 	ioBuffer buffer;

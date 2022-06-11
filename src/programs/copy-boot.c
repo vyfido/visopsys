@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,15 +45,15 @@ Example:
 </help>
 */
 
-#ifdef VISOPSYS
+#ifdef PORTABLE
+	#define _GNU_SOURCE
+	#define _(string)	string
+	#define OSLOADER	"../build/vloader"
+#else
 	#include <sys/api.h>
 	#include <sys/env.h>
 	#define _(string)	gettext(string)
 	#define OSLOADER	"/vloader"
-#else
-	#define _GNU_SOURCE
-	#define _(string)	string
-	#define OSLOADER	"../build/vloader"
 #endif
 
 #include <errno.h>
@@ -138,7 +138,7 @@ static int readSector(const char *inputName, unsigned sector,
 	int status = 0;
 	int fd = 0;
 
-#ifdef VISOPSYS
+#ifndef PORTABLE
 	// Is the destination a Visopsys disk name?
 	if (inputName[0] != '/')
 	{
@@ -189,7 +189,7 @@ static int writeSector(const char *outputName, unsigned sector,
 	int status = 0;
 	int fd = 0;
 
-#ifdef VISOPSYS
+#ifndef PORTABLE
 	// Is the destination a Visopsys disk name?
 	if (outputName[0] != '/')
 	{
@@ -458,7 +458,7 @@ static int setOsLoaderParams(const char *outputName,
 		*firstUnusedCluster = findUnusedCluster(outputName,
 			fatHeader->common2.fsSignature, &fatHeader->common1);
 
-#ifndef VISOPSYS
+#ifdef PORTABLE
 		// For some reason the Linux driver gives us the second unused cluster
 		*firstUnusedCluster += 1;
 #endif
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
 	unsigned char oldBootsect[512];
 	unsigned char newBootsect[512];
 
-#ifdef VISOPSYS
+#ifndef PORTABLE
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("copy-boot");
 #endif

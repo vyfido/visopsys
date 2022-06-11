@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -794,7 +794,7 @@ static int driverGetActive(kernelPic *pic __attribute__((unused)))
 
 static int driverDetect(void *parent, kernelDriver *driver)
 {
-	// This routine is used to detect and initialize each I/O APIC device, as
+	// This function is used to detect and initialize each I/O APIC device, as
 	// well as registering each one with the higher-level interface.
 
 	int status = 0;

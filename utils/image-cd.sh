@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2017 J. Andrew McLaughlin
+##  Copyright (C) 1998-2018 J. Andrew McLaughlin
 ##
 ##  image-cd.sh
 ##
@@ -82,7 +82,7 @@ echo Done
 
 echo -n "Archiving... "
 echo "Visopsys $RELEASE CD-ROM Release" > /tmp/comment
-echo "Copyright (C) 1998-2017 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2018 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment > $ZIPLOG 2>&1
 if [ $? -ne 0 ] ; then

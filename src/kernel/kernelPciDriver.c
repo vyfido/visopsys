@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelPciDriver.c
 //
 
-// These routines allow access to PCI configuration space.  Based on an
+// These functions allow access to PCI configuration space.  Based on an
 // original version contributed by Jonas Zaddach: See the file
 // contrib/jonas-pci/src/kernel/kernelBusPCI.c
 
@@ -717,7 +717,7 @@ static int driverSetMaster(kernelBusTarget *target, int master)
 
 static int driverDetect(void *parent, kernelDriver *driver)
 {
-	// This routine is used to detect and initialize each PCI controller
+	// This function is used to detect and initialize each PCI controller
 	// device, as well as registering each one with any higher-level
 	// interfaces.
 
@@ -738,9 +738,11 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	processorInPort32(PCI_CONFIG_PORT, reply);
 
 	if (reply != 0x80000000L)
-		// No device that uses configuration mechanism #1.  Fine enough: No PCI
-		// functionality for you.
+	{
+		// No device that uses configuration mechanism #1.  Fine enough: No
+		// PCI functionality for you.
 		return (status = 0);
+	}
 
 	// First count all the devices on the bus
 	for (busCount = 0; busCount < PCI_MAX_BUSES; busCount ++)

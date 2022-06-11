@@ -158,11 +158,11 @@ msgstr ""
 msgid ""
 "\n"
 "Visopsys FORMAT Utility\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
 "Visopsys FORMAT Werkzeug\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
 
 #: format.c:523
 msgid ""

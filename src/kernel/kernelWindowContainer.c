@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,25 +30,18 @@
 #include <string.h>
 
 
-static void calculateGrid(kernelWindowComponent *containerComponent,
+static void calculateMinimumGrid(kernelWindowComponent *containerComponent,
 	int *columnStartX, int *columnWidth, int *rowStartY, int *rowHeight,
-	int extraWidth, int extraHeight)
+	int bareMinimum)
 {
-	int *expandableX = NULL;
-	int *expandableY = NULL;
-	int numExpandableX = 0;
-	int numExpandableY = 0;
-	kernelWindowContainer *container = NULL;
+	// This does the basic grid calculation, using only the minimum required
+	// size, and setting the container component's minWidth and minHeight
+	// variables
+
+	kernelWindowContainer *container = containerComponent->data;
 	kernelWindowComponent *component = NULL;
 	int componentSize = 0;
 	int count1, count2;
-
-	container = containerComponent->data;
-
-	expandableX = kernelMalloc(container->maxComponents * sizeof(int));
-	expandableY = kernelMalloc(container->maxComponents * sizeof(int));
-	if (!expandableX || !expandableY)
-		return;
 
 	// Clear our arrays
 	memset(columnWidth, 0, (container->maxComponents * sizeof(int)));
@@ -56,107 +49,231 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 	memset(rowHeight, 0, (container->maxComponents * sizeof(int)));
 	memset(rowStartY, 0, (container->maxComponents * sizeof(int)));
 
-	container->numColumns = 0;
-	container->numRows = 0;
-
-	// Find the width and height of each column and row based on the widest
-	// or tallest component of each.
+	// Find the width and height of each column and row based on the widest or
+	// tallest component of each.
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
 		component = container->components[count1];
 
-		componentSize = (component->minWidth + component->params.padLeft +
+		componentSize = (component->params.padLeft +
 			component->params.padRight);
-		if (component->params.gridWidth > 0)
+		if (bareMinimum)
+			componentSize += component->minWidth;
+		else
+			componentSize += component->width;
+
+		if ((component->params.gridWidth > 0) &&
+			(componentSize > columnWidth[component->params.gridX]))
 		{
+			// Spread the component's width across the columns that it
+			// occupies
 			componentSize /= component->params.gridWidth;
 			for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
 			{
 				if (componentSize >
 					columnWidth[component->params.gridX + count2])
+				{
 					columnWidth[component->params.gridX + count2] =
 						componentSize;
-
-				if (!(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH) &&
-					!expandableX[component->params.gridX + count2])
-				{
-					expandableX[component->params.gridX + count2] = 1;
-					numExpandableX += 1;
 				}
 			}
 		}
 
-		componentSize = (component->minHeight + component->params.padTop +
+		componentSize = (component->params.padTop +
 			component->params.padBottom);
-		if (component->params.gridHeight)
+		if (bareMinimum)
+			componentSize += component->minHeight;
+		else
+			componentSize += component->height;
+
+		if ((component->params.gridHeight > 0) &&
+			(componentSize > rowHeight[component->params.gridY]))
 		{
+			// Spread the component's height across the rows that it occupies
 			componentSize /= component->params.gridHeight;
 			for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
 			{
 				if (componentSize >
 					rowHeight[component->params.gridY + count2])
+				{
 					rowHeight[component->params.gridY + count2] =
 						componentSize;
-
-				if (!(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT) &&
-					!expandableY[component->params.gridY + count2])
-				{
-					expandableY[component->params.gridY + count2] = 1;
-					numExpandableY += 1;
 				}
 			}
 		}
 	}
 
-	// Count the numbers of rows and columns that have components in them
-	for (count1 = 0; count1 < container->maxComponents; count1 ++)
-		if (columnWidth[count1])
-			container->numColumns += 1;
-	for (count1 = 0; count1 < container->maxComponents; count1 ++)
-		if (rowHeight[count1])
-			container->numRows += 1;
-
-	// Set the starting X coordinates of the columns, and distribute any extra
-	// width over all the columns that have width and are expandable.
-	if (numExpandableX)
-		extraWidth /= numExpandableX;
-	for (count1 = 0; count1 < container->maxComponents; count1 ++)
+	// Set the starting X coordinates of the columns.
+	columnStartX[0] = containerComponent->xCoord;
+	for (count1 = 1; count1 < container->maxComponents; count1 ++)
 	{
-		if (!count1)
-			columnStartX[count1] = containerComponent->xCoord;
-		else
-			columnStartX[count1] = (columnStartX[count1 - 1] +
-				columnWidth[count1 - 1]);
-
-		if (columnWidth[count1] && expandableX[count1])
-			columnWidth[count1] += extraWidth;
+		columnStartX[count1] = (columnStartX[count1 - 1] +
+			columnWidth[count1 - 1]);
 	}
 
-	// Set the starting Y coordinates of the rows, and distribute any extra
-	// height over all the rows that have height and are expandable.
-	if (numExpandableY)
-		extraHeight /= numExpandableY;
-	for (count1 = 0; count1 < container->maxComponents; count1 ++)
+	if (bareMinimum)
 	{
-		if (!count1)
-			rowStartY[count1] = containerComponent->yCoord;
-		else
-			rowStartY[count1] = (rowStartY[count1 - 1] + rowHeight[count1 - 1]);
-
-		if (rowHeight[count1] && expandableY[count1])
-			rowHeight[count1] += extraHeight;
+		// Set the minimum width
+		containerComponent->minWidth =
+			((columnStartX[container->maxComponents - 1] +
+				columnWidth[container->maxComponents - 1]) -
+			containerComponent->xCoord);
+	}
+	else
+	{
+		// Set the default width
+		containerComponent->width =
+			((columnStartX[container->maxComponents - 1] +
+				columnWidth[container->maxComponents - 1]) -
+			containerComponent->xCoord);
 	}
 
-	kernelFree(expandableY);
-	kernelFree(expandableX);
+	// Set the starting Y coordinates of the rows.
+	rowStartY[0] = containerComponent->yCoord;
+	for (count1 = 1; count1 < container->maxComponents; count1 ++)
+		rowStartY[count1] = (rowStartY[count1 - 1] + rowHeight[count1 - 1]);
+
+	if (bareMinimum)
+	{
+		// Set the minimum height
+		containerComponent->minHeight =
+			((rowStartY[container->maxComponents - 1] +
+				rowHeight[container->maxComponents - 1]) -
+			containerComponent->yCoord);
+	}
+	else
+	{
+		// Set the default height
+		containerComponent->height =
+			((rowStartY[container->maxComponents - 1] +
+				rowHeight[container->maxComponents - 1]) -
+			containerComponent->yCoord);
+	}
 }
 
 
-static int layoutSize(kernelWindowComponent *containerComponent, int width,
+static void calculateGrid(kernelWindowComponent *containerComponent,
+	int *columnStartX, int *columnWidth, int *rowStartY, int *rowHeight,
+	int width, int height)
+{
+	kernelWindowContainer *container = containerComponent->data;
+	int deltaWidth = 0, deltaHeight = 0;
+	int *resizableX = NULL, *resizableY = NULL;
+	int numResizableX = 0, numResizableY = 0;
+	kernelWindowComponent *component = NULL;
+	int count1, count2;
+
+	// Calculate the minimum grid, and minimum container size
+	calculateMinimumGrid(containerComponent, columnStartX, columnWidth,
+		rowStartY, rowHeight, 1 /* use minimum component sizes */);
+
+	// Now the default grid, with preferred container size
+	calculateMinimumGrid(containerComponent, columnStartX, columnWidth,
+		rowStartY, rowHeight, 0 /* use preferred sizes */);
+
+	// If no width and height were specified, use defaults
+	if (!width)
+		width = containerComponent->width;
+	if (!height)
+		height = containerComponent->height;
+
+	// Don't go below the minimums
+	width = max(width, containerComponent->minWidth);
+	height = max(height, containerComponent->minHeight);
+
+	deltaWidth = (width - containerComponent->width);
+	deltaHeight = (height - containerComponent->height);
+
+	// Any change?
+	if (!deltaWidth && !deltaHeight)
+		return;
+
+	resizableX = kernelMalloc(container->maxComponents * sizeof(int));
+	resizableY = kernelMalloc(container->maxComponents * sizeof(int));
+	if (!resizableX || !resizableY)
+		return;
+
+	// Clear our arrays
+	memset(resizableX, 0, (container->maxComponents * sizeof(int)));
+	memset(resizableY, 0, (container->maxComponents * sizeof(int)));
+
+	// Determine which columns and rows have components that can be resized.
+	for (count1 = 0; count1 < container->numComponents; count1 ++)
+	{
+		component = container->components[count1];
+
+		for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
+		{
+			if ((component->flags & WINFLAG_RESIZABLEX) &&
+				!(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH) &&
+				!resizableX[component->params.gridX + count2])
+			{
+				resizableX[component->params.gridX + count2] = 1;
+				numResizableX += 1;
+			}
+		}
+
+		for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
+		{
+			if ((component->flags & WINFLAG_RESIZABLEY) &&
+				!(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT) &&
+				!resizableY[component->params.gridY + count2])
+			{
+				resizableY[component->params.gridY + count2] = 1;
+				numResizableY += 1;
+			}
+		}
+	}
+
+	// Distribute any width change over all the columns that have width and
+	// are resizable.
+	if (deltaWidth && numResizableX)
+	{
+		deltaWidth /= numResizableX;
+
+		for (count1 = 0; count1 < container->maxComponents; count1 ++)
+		{
+			if (count1)
+			{
+				columnStartX[count1] = (columnStartX[count1 - 1] +
+					columnWidth[count1 - 1]);
+			}
+
+			if (columnWidth[count1] && resizableX[count1])
+				columnWidth[count1] += deltaWidth;
+		}
+	}
+
+	// Distribute any height change over all the rows that have height and are
+	// resizable.
+	if (deltaHeight && numResizableY)
+	{
+		deltaHeight /= numResizableY;
+
+		for (count1 = 0; count1 < container->maxComponents; count1 ++)
+		{
+			if (count1)
+			{
+				rowStartY[count1] = (rowStartY[count1 - 1] +
+					rowHeight[count1 - 1]);
+			}
+
+			if (rowHeight[count1] && resizableY[count1])
+				rowHeight[count1] += deltaHeight;
+		}
+	}
+
+	kernelFree(resizableY);
+	kernelFree(resizableX);
+}
+
+
+static int layoutSized(kernelWindowComponent *containerComponent, int width,
 	int height)
 {
-	// Loop through the subcomponents, adjusting their dimensions and calling
-	// their resize() functions
+	// Calculate the grid layout, then loop through the subcomponents,
+	// adjusting their dimensions and calling their resize() and move()
+	// functions
 
 	int status = 0;
 	kernelWindowContainer *container = containerComponent->data;
@@ -179,30 +296,27 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		goto out;
 	}
 
-	kernelDebug(debug_gui, "WindowContainer \"%s\" container \"%s\" layout "
-		"sized", containerComponent->window->title, container->name);
+	kernelDebug(debug_gui, "WindowContainer '%s' container '%s' layout sized",
+		containerComponent->window->title, container->name);
 
 	kernelDebug(debug_gui, "WindowContainer old width=%d height=%d "
 		"minWidth=%d minHeight=%d", containerComponent->width,
 		containerComponent->height, containerComponent->minWidth,
 		containerComponent->minHeight);
 
-	kernelDebug(debug_gui, "WindowContainer new width=%d height=%d", width,
-		height);
-
-	// Don't go beyond minimum sizes
-	width = max(width, containerComponent->minWidth);
-	height = max(height, containerComponent->minHeight);
-
 	// Calculate the grid with the extra/less space factored in
 	calculateGrid(containerComponent, columnStartX, columnWidth, rowStartY,
-		rowHeight, (width - containerComponent->minWidth),
-		(height - containerComponent->minHeight));
+		rowHeight, width, height);
 
+	kernelDebug(debug_gui, "WindowContainer new width=%d height=%d "
+		"minWidth=%d minHeight=%d", containerComponent->width,
+		containerComponent->height, containerComponent->minWidth,
+		containerComponent->minHeight);
+
+	// Now that the grid has been recalculated, incorporating any change in
+	// size, see whether we should resize/move any of the components.
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
-		// Resize the component
-
 		component = container->components[count1];
 
 		tmpWidth = 0;
@@ -241,7 +355,9 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		if (tmpHeight < component->minHeight)
 			tmpHeight = component->minHeight;
 
-		if ((tmpWidth != component->width) || (tmpHeight != component->height))
+		// Should the component be resized?
+		if ((tmpWidth != component->width) ||
+			(tmpHeight != component->height))
 		{
 			if (component->resize)
 				component->resize(component, tmpWidth, tmpHeight);
@@ -303,26 +419,6 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 
 			component->xCoord = tmpX;
 			component->yCoord = tmpY;
-		}
-
-		// Determine whether this component expands the bounds of our container
-
-		tmpWidth = (component->xCoord + component->width +
-			component->params.padRight);
-		if (tmpWidth > (containerComponent->xCoord +
-			containerComponent->width))
-		{
-			containerComponent->width = (tmpWidth -
-				containerComponent->xCoord);
-		}
-
-		tmpHeight = (component->yCoord + component->height +
-			component->params.padBottom);
-		if (tmpHeight > (containerComponent->yCoord +
-			containerComponent->height))
-		{
-			containerComponent->height = (tmpHeight -
-				containerComponent->yCoord);
 		}
 	}
 
@@ -522,8 +618,8 @@ static int layout(kernelWindowComponent *containerComponent)
 		return (status = ERR_INVALID);
 	}
 
-	// For any components that are containers, have them do their layouts first
-	// so we know their sizes.
+	// For any components that are containers, have them do their layouts
+	// first so we know their sizes.
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
 		component = container->components[count1];
@@ -536,28 +632,18 @@ static int layout(kernelWindowComponent *containerComponent)
 		}
 	}
 
-	containerComponent->width = 0;
-	containerComponent->height = 0;
-	containerComponent->minWidth = 0;
-	containerComponent->minHeight = 0;
-
-	// Call our 'layoutSize' function to do the layout, but don't specify
-	// any extra size since we want 'minimum' sizes for now
-	status = layoutSize(containerComponent, 0, 0);
+	// Call our 'layoutSized' function to do the layout, but don't specify any
+	// extra size since we want 'minimum' sizes for now
+	status = layoutSized(containerComponent, 0, 0);
 	if (status < 0)
 		return (status);
 
-	containerComponent->minWidth = containerComponent->width;
-	containerComponent->minHeight = containerComponent->height;
-
-	// Loop through the container's components, checking to see whether
-	// each overlaps any others, and if so, decrement their levels
+	// Loop through the container's components, checking to see whether each
+	// overlaps any others, and if so, decrement their levels
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
 		component = container->components[count1];
 
-		// Check whether this component overlaps any others, and if so,
-		// decrement their levels
 		for (count2 = 0; count2 < container->numComponents; count2 ++)
 		{
 			if (container->components[count2] != component)
@@ -589,7 +675,7 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 	kernelWindowComponent *item = NULL;
 	int count;
 
-	kernelDebug(debug_gui, "WindowContainer \"%s\" container \"%s\" get "
+	kernelDebug(debug_gui, "WindowContainer '%s' container '%s' get "
 		"component", component->window->title, container->name);
 
 	for (count = 0; count < container->numComponents; count ++)
@@ -607,7 +693,7 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 		if (isPointInside(event->xPosition, event->yPosition,
 			makeComponentScreenArea(item)))
 		{
-			kernelDebug(debug_gui, "WindowContainer \"%s\" container \"%s\" "
+			kernelDebug(debug_gui, "WindowContainer '%s' container '%s' "
 				"found component", component->window->title, container->name);
 
 			// The coordinates are inside this component.  Does it want to
@@ -717,8 +803,8 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 
 static int resize(kernelWindowComponent *component, int width, int height)
 {
-	// Calls our internal 'layoutSize' function
-	return (layoutSize(component, width, height));
+	// Calls our internal 'layoutSized' function
+	return (layoutSized(component, width, height));
 }
 
 
@@ -754,7 +840,8 @@ static void drawGrid(kernelWindowComponent *containerComponent)
 	int *columnWidth = NULL;
 	int *rowStartY = NULL;
 	int *rowHeight = NULL;
-	int count1, count2, count3;
+	int gridWidth = 0, gridHeight = 0;
+	int count1, count2;
 
 	// Check params
 	if (!containerComponent)
@@ -774,31 +861,30 @@ static void drawGrid(kernelWindowComponent *containerComponent)
 		goto out;
 
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
+	{
 		if (container->components[count1]->type == containerComponentType)
 			drawGrid(container->components[count1]);
+	}
 
 	// Calculate the grid
 	calculateGrid(containerComponent, columnStartX, columnWidth, rowStartY,
-		rowHeight,
-		(containerComponent->width - containerComponent->minWidth),
-		(containerComponent->height - containerComponent->minHeight));
+		rowHeight, containerComponent->width, containerComponent->height);
 
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 	{
 		component = container->components[count1];
 
+		gridWidth = 0;
+		for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
+			gridWidth += columnWidth[component->params.gridX + count2];
+
+		gridHeight = 0;
 		for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
-		{
-			for (count3 = 0; count3 < component->params.gridWidth; count3 ++)
-			{
-				kernelGraphicDrawRect(containerComponent->buffer,
-					&((color){0, 0, 0}), draw_normal,
-					columnStartX[component->params.gridX + count3],
-					rowStartY[component->params.gridY + count2],
-					columnWidth[component->params.gridX + count3],
-					rowHeight[component->params.gridY +	count2], 1, 0);
-			}
-		}
+			gridHeight += rowHeight[component->params.gridY + count2];
+
+		kernelGraphicDrawRect(containerComponent->buffer, &((color){0, 0, 0}),
+			draw_normal, columnStartX[component->params.gridX],
+			rowStartY[component->params.gridY], gridWidth, gridHeight, 1, 0);
 	}
 
 out:

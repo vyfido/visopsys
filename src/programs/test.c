@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -630,7 +630,7 @@ static int port_io(void)
 		portN = randomFormatted(0, 65535);
 		setClear = ((rand() % 2) == 0);
 
-		res = multitaskerSetIOPerm(pid, portN, setClear);
+		res = multitaskerSetIoPerm(pid, portN, setClear);
 		if (res < 0)
 		{
 			FAILMESS("Error %d setting perms on port %d", res, portN);
@@ -642,7 +642,7 @@ static int port_io(void)
 			inPort8(portN, ch);
 
 		// Clear permissions again
-		res = multitaskerSetIOPerm(pid, portN, 0);
+		res = multitaskerSetIoPerm(pid, portN, 0);
 		if (res < 0)
 		{
 			FAILMESS("Error %d clearing perms on port %d", res, portN);

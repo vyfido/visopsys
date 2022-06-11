@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ Options:
 #include <sys/api.h>
 #include <sys/env.h>
 #include <sys/font.h>
+#include <sys/kernconf.h>
 #include <sys/keyboard.h>
 #include <sys/lang.h>
 #include <sys/paths.h>
@@ -61,7 +62,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2017 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2018 J. Andrew McLaughlin")
 #define GPL				_( \
 	"  This program is free software; you can redistribute it and/or modify it\n" \
 	"  under the terms of the GNU General Public License as published by the\n" \
@@ -273,7 +274,7 @@ static int runLogin(void)
 
 	if (!graphics)
 		// Give the login program a copy of the I/O streams
-		multitaskerDuplicateIO(processId, pid, 0);
+		multitaskerDuplicateIo(processId, pid, 0);
 
 	loaderExecProgram(pid, 0);
 
@@ -557,8 +558,7 @@ static void constructWindow(void)
 
 static inline void changeStartProgram(void)
 {
-	configSet(PATH_SYSTEM_CONFIG "/kernel.conf", "start.program",
-		LOGINPROGRAM);
+	configSet(KERNEL_DEFAULT_CONFIG, KERNELVAR_START_PROGRAM, LOGINPROGRAM);
 }
 
 

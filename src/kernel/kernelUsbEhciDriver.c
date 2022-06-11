@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -2974,7 +2974,7 @@ static void threadCall(usbHub *hub)
 kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	kernelDriver *driver)
 {
-	// This routine is used to detect and initialize a potential EHCI USB
+	// This function is used to detect and initialize a potential EHCI USB
 	// device, as well as registering it with the higher-level interfaces.
 
 	int status = 0;

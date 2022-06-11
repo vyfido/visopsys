@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -490,7 +490,7 @@ int kernelDeviceFindType(kernelDeviceClass *class, kernelDeviceClass *subClass,
 int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
 	int target, int connected)
 {
-	// Call the hotplug detection routine for any driver that matches the
+	// Call the hotplug detection function for any driver that matches the
 	// supplied class (and subclass).  This was added to support, for example,
 	// USB devices that can be added or removed at any time.
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -1423,8 +1423,8 @@ static int getFontName(const char *fileName, char *nameBuffer)
 
 	loaderClassifyFile(fileName, &class);
 
-	if (!(class.class & LOADERFILECLASS_FONT) ||
-		!(class.subClass & LOADERFILESUBCLASS_VBF))
+	if (!(class.type & LOADERFILECLASS_FONT) ||
+		!(class.subType & LOADERFILESUBCLASS_VBF))
 	{
 		return (status = ERR_INVALID);
 	}

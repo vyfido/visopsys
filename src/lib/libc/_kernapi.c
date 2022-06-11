@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -1105,11 +1105,11 @@ _X_ int multitaskerSetTextOutput(int processId, objectKey key _U_)
 	return (_syscall(_fnum_multitaskerSetTextOutput, &processId));
 }
 
-_X_ int multitaskerDuplicateIO(int pid1, int pid2 _U_, int clear _U_)
+_X_ int multitaskerDuplicateIo(int pid1, int pid2 _U_, int clear _U_)
 {
-	// Proto: int kernelMultitaskerDuplicateIO(int, int, int);
+	// Proto: int kernelMultitaskerDuplicateIo(int, int, int);
 	// Desc : Set 'pid2' to use the same input and output streams as 'pid1', and if 'clear' is non-zero, clear any pending input or output.
-	return (_syscall(_fnum_multitaskerDuplicateIO, &pid1));
+	return (_syscall(_fnum_multitaskerDuplicateIo, &pid1));
 }
 
 _X_ int multitaskerGetProcessorTime(clock_t *clk)
@@ -1189,18 +1189,18 @@ _X_ int multitaskerSignalRead(int processId)
 	return (_syscall(_fnum_multitaskerSignalRead, &processId));
 }
 
-_X_ int multitaskerGetIOPerm(int processId, int portNum _U_)
+_X_ int multitaskerGetIoPerm(int processId, int portNum _U_)
 {
-	// Proto: int kernelMultitaskerGetIOPerm(int, int);
+	// Proto: int kernelMultitaskerGetIoPerm(int, int);
 	// Desc : Returns 1 if the process with process ID 'processId' can do I/O on port 'portNum'
-	return (_syscall(_fnum_multitaskerGetIOPerm, &processId));
+	return (_syscall(_fnum_multitaskerGetIoPerm, &processId));
 }
 
-_X_ int multitaskerSetIOPerm(int processId, int portNum _U_, int yesNo _U_)
+_X_ int multitaskerSetIoPerm(int processId, int portNum _U_, int yesNo _U_)
 {
-	// Proto: int kernelMultitaskerSetIOPerm(int, int, int);
+	// Proto: int kernelMultitaskerSetIoPerm(int, int, int);
 	// Desc : Set I/O permission port 'portNum' for the process with process ID 'processId'.  If 'yesNo' is non-zero, permission will be granted.
-	return (_syscall(_fnum_multitaskerSetIOPerm, &processId));
+	return (_syscall(_fnum_multitaskerSetIoPerm, &processId));
 }
 
 _X_ int multitaskerStackTrace(int processId)
@@ -2230,10 +2230,17 @@ _X_ objectKey windowNewMenuBar(objectKey window, componentParameters *params _U_
 	return ((objectKey)(long) _syscall(_fnum_windowNewMenuBar, &window));
 }
 
+_X_ objectKey windowNewMenuBarIcon(objectKey parent, image *iconImage _U_, componentParameters *params _U_)
+{
+	// Proto: kernelWindowComponent *kernelWindowNewMenuBarIcon(objectKey, image *, componentParameters *);
+	// Desc : Get a new icon component to be placed inside the parent object 'parent' (which must be a menu bar component), using the image data structure 'iconImage', and the component parameters 'params'.
+	return ((objectKey)(long) _syscall(_fnum_windowNewMenuBarIcon, &parent));
+}
+
 _X_ objectKey windowNewMenuItem(objectKey parent, const char *text _U_, componentParameters *params _U_)
 {
 	// Proto: kernelWindowComponent *kernelWindowNewMenuItem(objectKey, const char *, componentParameters *);
-	// Desc : Get a new menu item component to be placed inside the parent object 'parent', using the string 'text' and the component parameters 'params'.  A menu item  component is typically added to menu components, which are in turn added to menu bar components.
+	// Desc : Get a new menu item component to be placed inside the parent object 'parent', using the string 'text' and the component parameters 'params'.  A menu item component is typically added to menu components, which are in turn added to menu bar components.
 	return ((objectKey)(long) _syscall(_fnum_windowNewMenuItem, &parent));
 }
 
@@ -2415,32 +2422,18 @@ _X_ int userFileSetPassword(const char *passFile, const char *userName _U_, cons
 // Network functions
 //
 
-_X_ int networkDeviceGetCount(void)
+_X_ int networkEnabled(void)
 {
-	// Proto: int kernelNetworkDeviceGetCount(void);
-	// Desc: Returns the count of network devices
-	return (_syscall(_fnum_networkDeviceGetCount, NULL));
-}
-
-_X_ int networkDeviceGet(const char *name, networkDevice *dev _U_)
-{
-	// Proto: int kernelNetworkDeviceGet(int, networkDevice *);
-	// Desc: Returns the user-space portion of the requested (by 'name') network device in 'dev'.
-	return (_syscall(_fnum_networkDeviceGet, &name));
-}
-
-_X_ int networkInitialized(void)
-{
-	// Proto: int kernelNetworkInitialized(void);
+	// Proto: int kernelNetworkEnabled(void);
 	// Desc: Returns 1 if networking is currently enabled.
-	return (_syscall(_fnum_networkInitialized, NULL));
+	return (_syscall(_fnum_networkEnabled, NULL));
 }
 
-_X_ int networkInitialize(void)
+_X_ int networkEnable(void)
 {
-	// Proto: int kernelNetworkInitialize(void);
+	// Proto: int kernelNetworkEnable(void);
 	// Desc: Initialize and start networking.
-	return (_syscall(_fnum_networkInitialize, NULL));
+	return (_syscall(_fnum_networkEnable, NULL));
 }
 
 _X_ int networkShutdown(void)
@@ -2520,6 +2513,41 @@ _X_ int networkSetDomainName(const char *buffer, int bufferSize _U_)
 	return (_syscall(_fnum_networkSetDomainName, &buffer));
 }
 
+_X_ int networkDeviceGetCount(void)
+{
+	// Proto: int kernelNetworkDeviceGetCount(void);
+	// Desc: Returns the count of network devices
+	return (_syscall(_fnum_networkDeviceGetCount, NULL));
+}
+
+_X_ int networkDeviceGet(const char *name, networkDevice *dev _U_)
+{
+	// Proto: int kernelNetworkDeviceGet(int, networkDevice *);
+	// Desc: Returns the user-space portion of the requested (by 'name') network device in 'dev'.
+	return (_syscall(_fnum_networkDeviceGet, &name));
+}
+
+_X_ int networkDeviceHook(const char *name, objectKey *hook _U_, int input _U_)
+{
+	// Proto: int kernelNetworkDeviceHook(const char *, void **, int);
+	// Desc: Hooks the requested (by 'name') network device so that its raw 'input' (else output) packets can be read using the networkDeviceSniff() function.
+	return (_syscall(_fnum_networkDeviceHook, &name));
+}
+
+_X_ int networkDeviceUnhook(const char *name, objectKey hook _U_, int input _U_)
+{
+	// Proto: int kernelNetworkDeviceUnhook(const char *, void *, int);
+	// Desc: Unhooks the requested (by 'name') network device so that its raw 'input' (else output) packets can no longer be read using the networkDeviceSniff() function.
+	return (_syscall(_fnum_networkDeviceUnhook, &name));
+}
+
+_X_ unsigned networkDeviceSniff(objectKey hook, unsigned char *buffer _U_, unsigned bufferSize _U_)
+{
+	// Proto: unsigned kernelNetworkDeviceSniff(void *, unsigned char *, unsigned);
+	// Desc: Using an objectKey previously obtained by calling networkDeviceHook(), attempt to read a packet of raw input or output data from the device.  Returns the number of bytes copied.
+	return (_syscall(_fnum_networkDeviceSniff, &hook));
+}
+
 
 //
 // Miscellaneous functions
@@ -2539,11 +2567,11 @@ _X_ void getVersion(char *buff, int buffSize _U_)
 	_syscall(_fnum_getVersion, &buff);
 }
 
-_X_ int systemInfo(struct utsname *uname)
+_X_ int systemInfo(struct utsname *uts)
 {
 	// Proto: int kernelSystemInfo(void *);
-	// Desc : Gathers some info about the system and puts it into the utsname structure 'uname', just like the one returned by the system call 'uname' in Unix.
-	return (_syscall(_fnum_systemInfo, &uname));
+	// Desc : Gathers some info about the system and puts it into the utsname structure 'uts', just like the one returned by the system call 'uname' in Unix.
+	return (_syscall(_fnum_systemInfo, &uts));
 }
 
 _X_ int encryptMD5(const char *in, char *out _U_)
@@ -2675,21 +2703,35 @@ _X_ int mouseLoadPointer(const char *pointerName, const char *fileName _U_)
 _X_ void *pageGetPhysical(int processId, void *pointer _U_)
 {
 	// Proto: void *kernelPageGetPhysical(int, void *);
-	// Desc : Returns the physical address corresponding pointed to by the virtual address 'pointer' for the process 'processId'
+	// Desc : Returns the physical address corresponding pointed to by the virtual address 'pointer' for the process 'processId'.
 	return ((void *)(long) _syscall(_fnum_pageGetPhysical, &processId));
 }
 
 _X_ unsigned charsetToUnicode(const char *set, unsigned value _U_)
 {
 	// Proto: unsigned kernelCharsetToUnicode(const char *, unsigned);
-	// Desc : Given a character set name and a character code from that set, return the equivalent unicode value
+	// Desc : Given a character set name and a character code from that set, return the equivalent unicode value.
 	return (_syscall(_fnum_charsetToUnicode, &set));
 }
 
 _X_ unsigned charsetFromUnicode(const char *set, unsigned value _U_)
 {
 	// Proto: unsigned kernelCharsetFromUnicode(const char *, unsigned);
-	// Desc : Given a character set name and a unicode value, return the equivalent character set value
+	// Desc : Given a character set name and a unicode value, return the equivalent character set value.
 	return (_syscall(_fnum_charsetFromUnicode, &set));
+}
+
+_X_ uquad_t cpuGetMs(void)
+{
+	// Proto: kernelCpuGetMs(void);
+	// Desc : Returns a value representing the current CPU timestamp in milliseconds.
+	return (_syscall(_fnum_cpuGetMs, NULL));
+}
+
+_X_ void cpuSpinMs(unsigned millisecs)
+{
+	// Proto: void kernelCpuSpinMs(unsigned);
+	// Desc : This will use the CPU timestamp counter to spin for (at least) the specified number of milliseconds.
+	_syscall(_fnum_cpuSpinMs, &millisecs);
 }
 

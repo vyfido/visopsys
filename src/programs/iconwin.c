@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,7 +49,7 @@ custom icons for each.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
-#include <sys/desktop.h>
+#include <sys/deskconf.h>
 #include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -186,8 +186,8 @@ static int processConfig(variableList *config)
 	for (count = 0; count < config->numVariables; count ++)
 	{
 		variable = variableListGetVariable(config, count);
-		if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
-			strlen(DESKTOP_ICON_NAME)))
+		if (variable && !strncmp(variable, DESKVAR_ICON_NAME,
+			strlen(DESKVAR_ICON_NAME)))
 		{
 			numIcons += 1;
 		}
@@ -223,8 +223,8 @@ static int processConfig(variableList *config)
 	for (count = 0; count < config->numVariables; count ++)
 	{
 		variable = variableListGetVariable(config, count);
-		if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
-			strlen(DESKTOP_ICON_NAME)))
+		if (variable && !strncmp(variable, DESKVAR_ICON_NAME,
+			strlen(DESKVAR_ICON_NAME)))
 		{
 			name = (variable + 10);
 
@@ -235,7 +235,7 @@ static int processConfig(variableList *config)
 				WINDOW_MAX_LABEL_LENGTH);
 
 			// Get the image name
-			sprintf(tmp, DESKTOP_ICON_IMAGE, name);
+			sprintf(tmp, DESKVAR_ICON_IMAGE, name);
 			value = variableListGet(config, tmp);
 			if (value)
 			{
@@ -258,7 +258,7 @@ static int processConfig(variableList *config)
 			}
 
 			// Get the command string
-			sprintf(tmp, DESKTOP_ICON_COMMAND, name);
+			sprintf(tmp, DESKVAR_ICON_COMMAND, name);
 			value = variableListGet(config, tmp);
 			if (value)
 				strncpy(icons[numIcons].command, value, MAX_PATH_NAME_LENGTH);
@@ -331,8 +331,8 @@ static void refreshWindow(void)
 		for (count1 = 0; count1 < tmpConfig.numVariables; count1 ++)
 		{
 			variable = variableListGetVariable(&tmpConfig, count1);
-			if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
-				strlen(DESKTOP_ICON_NAME)))
+			if (variable && !strncmp(variable, DESKVAR_ICON_NAME,
+				strlen(DESKVAR_ICON_NAME)))
 			{
 				name = (variable + 10);
 

@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2017 J. Andrew McLaughlin
+#  Copyright (C) 1998-2018 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-03-03 03:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -23,7 +23,7 @@ msgstr ""
 msgid "Error"
 msgstr "Hata"
 
-#: windowArchiveList.c:78 windowFileList.c:534
+#: windowArchiveList.c:78 windowFileList.c:535
 msgid "Memory allocation error creating icon parameters"
 msgstr "Ikon parametreleri olusturulurken bellek ayirma hatasi"
 
@@ -55,35 +55,35 @@ msgstr "Tamam"
 msgid "Cancel"
 msgstr "Iptal"
 
-#: windowFileList.c:393 windowFileList.c:418
+#: windowFileList.c:394 windowFileList.c:419
 msgid "(up)"
 msgstr "(yukari)"
 
-#: windowFileList.c:468
+#: windowFileList.c:469
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr "Klasörün \"%s\" dosya sayisi alinamiyor"
 
-#: windowFileList.c:479
+#: windowFileList.c:480
 msgid "Memory allocation error"
 msgstr "Bellek ayirma hatasi"
 
-#: windowFileList.c:492
+#: windowFileList.c:493
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr "\"%s\" içindeki dosyalar okunurken hata olustu"
 
-#: windowFileList.c:668
+#: windowFileList.c:670
 #, c-format
 msgid "Can't change to directory %s"
 msgstr "%s klasörü açilamiyor"
 
-#: windowFileList.c:692
+#: windowFileList.c:697
 #, c-format
 msgid "Error deleting file %s"
 msgstr "%s dosyasi silinirken hata olustu"
 
-#: windowFileList.c:746
+#: windowFileList.c:752
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr "%s konfigurasyon dosyasi bulunamadi"

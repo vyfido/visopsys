@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,6 +32,7 @@
 #include "kernelVariableList.h"
 #include "kernelWindow.h"
 #include <string.h>
+#include <sys/kernconf.h>
 
 // The graphics environment
 static int screenWidth = 0;
@@ -342,17 +343,20 @@ int kernelMouseInitialize(void)
 	// Initialize the mouse functions
 
 	int status = 0;
-	char name[128];
 	const char *value = NULL;
 	int count;
 
 	// The list of default mouse pointers and their image files.
-	char *mousePointerTypes[][2] = {
-		{ MOUSE_POINTER_DEFAULT, MOUSE_DEFAULT_POINTER_DEFAULT },
-		{ MOUSE_POINTER_BUSY, MOUSE_DEFAULT_POINTER_BUSY },
-		{ MOUSE_POINTER_RESIZEH, MOUSE_DEFAULT_POINTER_RESIZEH },
-		{ MOUSE_POINTER_RESIZEV, MOUSE_DEFAULT_POINTER_RESIZEV },
-		{ NULL, NULL }
+	char *mousePointerTypes[][3] = {
+		{ MOUSE_POINTER_DEFAULT, KERNELVAR_MOUSEPTR_DEFAULT,
+			MOUSE_DEFAULT_POINTER_DEFAULT },
+		{ MOUSE_POINTER_BUSY, KERNELVAR_MOUSEPTR_BUSY,
+			MOUSE_DEFAULT_POINTER_BUSY },
+		{ MOUSE_POINTER_RESIZEH, KERNELVAR_MOUSEPTR_RESIZEH,
+			MOUSE_DEFAULT_POINTER_RESIZEH },
+		{ MOUSE_POINTER_RESIZEV, KERNELVAR_MOUSEPTR_RESIZEV,
+			MOUSE_DEFAULT_POINTER_RESIZEV },
+		{ NULL, NULL, NULL }
 	};
 
 	extern variableList *kernelVariables;
@@ -372,23 +376,24 @@ int kernelMouseInitialize(void)
 	// Load the mouse pointers
 	for (count = 0; mousePointerTypes[count][0]; count ++)
 	{
-		strcpy(name, "mouse.pointer.");
-		strcat(name, mousePointerTypes[count][0]);
-
-		value = kernelVariableListGet(kernelVariables, name);
+		value = kernelVariableListGet(kernelVariables,
+			mousePointerTypes[count][1]);
 		if (!value)
 		{
 			// Nothing specified.  Use the default.
-			value = mousePointerTypes[count][1];
+			value = mousePointerTypes[count][2];
 
 			// Save it
-			kernelVariableListSet(kernelVariables, name, value);
+			kernelVariableListSet(kernelVariables,
+				mousePointerTypes[count][1], value);
 		}
 
 		status = kernelMouseLoadPointer(mousePointerTypes[count][0], value);
 		if (status < 0)
+		{
 			kernelError(kernel_warn, "Unable to load mouse pointer %s=\"%s\"",
-				name, value);
+				mousePointerTypes[count][0], value);
+		}
 	}
 
 	// Make sure there's at least a default pointer

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -73,7 +73,7 @@ typedef struct {
 	char realSize[12];			// 483
 	char pad2[17];				// 495
 
-} tarOldHeader;
+} __attribute__((packed)) tarOldHeader;
 
 typedef struct {
 	char name[TAR_MAX_NAMELEN];	// 0
@@ -94,7 +94,7 @@ typedef struct {
 	char prefix[TAR_MAX_PREFIX];// 345
 	char pad[12];				// 500
 
-} tarHeader;
+} __attribute__((packed)) tarHeader;
 
 #define _TAR_H
 #endif

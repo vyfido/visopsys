@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -113,7 +113,7 @@ _X_ int vshFileList(const char *itemName)
 	// Initialize the file structure
 	memset(&theFile, 0, sizeof(file));
 
-	// Call the "find file" routine to see if the file exists
+	// Call the "find file" function to see if the file exists
 	status = fileFind(itemName, &theFile);
 	if (status < 0)
 		return (errno = status);

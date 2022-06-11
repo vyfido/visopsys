@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,7 +41,7 @@
 #include "kernelWindowEventStream.h"
 #include <locale.h>
 #include <string.h>
-#include <sys/desktop.h>
+#include <sys/deskconf.h>
 #include <sys/paths.h>
 
 typedef struct {
@@ -201,7 +201,7 @@ static int readConfig(variableList *settings)
 	memset(&langConfig, 0, sizeof(variableList));
 
 	// First try to read the system desktop config.
-	status = readFileConfig(PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIGFILE,
+	status = readFileConfig(PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG,
 		settings);
 	if (status < 0)
 	{
@@ -214,7 +214,7 @@ static int readConfig(variableList *settings)
 	if (strcmp((char *) shellData.userName, USER_ADMIN))
 	{
 		// Try to read any user-specific desktop config.
-		sprintf(fileName, PATH_USERS_CONFIG "/" DESKTOP_CONFIGFILE,
+		sprintf(fileName, PATH_USERS_CONFIG "/" DESKTOP_CONFIG,
 			shellData.userName);
 
 		status = readFileConfig(fileName, &userConfig);
@@ -240,7 +240,7 @@ static int readConfig(variableList *settings)
 	if (status >= 0)
 	{
 		sprintf(fileName, "%s/%s/%s", PATH_SYSTEM_CONFIG, language,
-			DESKTOP_CONFIGFILE);
+			DESKTOP_CONFIG);
 
 		status = kernelFileFind(fileName, NULL);
 		if (status >= 0)
@@ -306,10 +306,10 @@ static int makeMenuBar(variableList *settings)
 	for (count1 = 0; count1 < settings->numVariables; count1 ++)
 	{
 		variable = kernelVariableListGetVariable(settings, count1);
-		if (variable && !strncmp(variable, DESKTOP_TASKBAR_MENU,
-			strlen(DESKTOP_TASKBAR_MENU)))
+		if (variable && !strncmp(variable, DESKVAR_TASKBAR_MENU,
+			strlen(DESKVAR_TASKBAR_MENU)))
 		{
-			menuName = (variable + 13);
+			menuName = (variable + strlen(DESKVAR_TASKBAR_MENU));
 			menuLabel = kernelVariableListGet(settings, variable);
 
 			menu = kernelWindowNewMenu(shellData.rootWindow, shellData.menuBar,
@@ -326,7 +326,7 @@ static int makeMenuBar(variableList *settings)
 			// Now loop and get any components for this menu
 			for (count2 = 0; count2 < settings->numVariables; count2 ++)
 			{
-				sprintf(propertyName, DESKTOP_TASKBAR_MENUITEM, menuName);
+				sprintf(propertyName, DESKVAR_TASKBAR_MENUITEM, menuName);
 
 				variable = kernelVariableListGetVariable(settings, count2);
 				if (!strncmp(variable, propertyName, strlen(propertyName)))
@@ -338,7 +338,7 @@ static int makeMenuBar(variableList *settings)
 						continue;
 
 					// See if there's an associated command
-					sprintf(propertyName, DESKTOP_TASKBAR_MENUITEM_COMMAND,
+					sprintf(propertyName, DESKVAR_TASKBAR_MENUITEM_CMD,
 						menuName, itemName);
 					value = kernelVariableListGet(settings, propertyName);
 					if (!value || (kernelLoaderCheckCommand(value) < 0))
@@ -379,7 +379,7 @@ static int makeMenuBar(variableList *settings)
 			// We treat any 'window' menu specially, since it is not usually
 			// populated at startup time, only as windows are created or
 			// destroyed.
-			if (!strcmp(menuName, DESKTOP_TASKBAR_WINDOWMENU))
+			if (!strcmp(menuName, DESKVAR_TASKBAR_WINDOWMENU))
 			{
 				kernelDebug(debug_gui, "WindowShell created window menu");
 				shellData.windowMenu = menu;
@@ -430,23 +430,23 @@ static int makeIcons(variableList *settings)
 	for (count = 0; count < settings->numVariables; count ++)
 	{
 		variable = kernelVariableListGetVariable(settings, count);
-		if (variable && !strncmp(variable, DESKTOP_ICON_NAME,
-			strlen(DESKTOP_ICON_NAME)))
+		if (variable && !strncmp(variable, DESKVAR_ICON_NAME,
+			strlen(DESKVAR_ICON_NAME)))
 		{
-			iconName = (variable + strlen(DESKTOP_ICON_NAME));
+			iconName = (variable + strlen(DESKVAR_ICON_NAME));
 			iconLabel = kernelVariableListGet(settings, variable);
 
 			// Get the rest of the recognized properties for this icon.
 
 			// See if there's a command associated with this, and make sure
 			// the program exists.
-			sprintf(propertyName, DESKTOP_ICON_COMMAND, iconName);
+			sprintf(propertyName, DESKVAR_ICON_COMMAND, iconName);
 			command = kernelVariableListGet(settings, propertyName);
 			if (!command || (kernelLoaderCheckCommand(command) < 0))
 				continue;
 
 			// Get the image name, make sure it exists, and try to load it.
-			sprintf(propertyName, DESKTOP_ICON_IMAGE, iconName);
+			sprintf(propertyName, DESKVAR_ICON_IMAGE, iconName);
 			imageFile = kernelVariableListGet(settings, propertyName);
 			if (!imageFile || (kernelFileFind(imageFile, NULL) < 0) ||
 				(kernelImageLoad(imageFile, 64, 64, &tmpImage) < 0))
@@ -527,13 +527,13 @@ static int makeRootWindow(void)
 		return (status);
 
 	// Try to load the background image
-	imageFile = kernelVariableListGet(&settings, DESKTOP_BACKGROUND);
+	imageFile = kernelVariableListGet(&settings, DESKVAR_BACKGROUND_IMAGE);
 	if (imageFile)
 	{
 		kernelDebug(debug_gui, "WindowShell loading background image \"%s\"",
 			imageFile);
 
-		if (strcmp(imageFile, DESKTOP_BACKGROUND_NONE))
+		if (strcmp(imageFile, DESKVAR_BACKGROUND_NONE))
 		{
 			if ((kernelFileFind(imageFile, NULL) >= 0) &&
 				(kernelImageLoad(imageFile, 0, 0, &tmpImage) >= 0))
@@ -607,12 +607,12 @@ static void runPrograms(void)
 	if (readConfig(&settings) < 0)
 		return;
 
-	// Loop for variables starting with DESKTOP_PROGRAM
+	// Loop for variables starting with DESKVAR_PROGRAM
 	for (count = 0; count < settings.numVariables; count ++)
 	{
 		variable = kernelVariableListGetVariable(&settings, count);
-		if (variable && !strncmp(variable, DESKTOP_PROGRAM,
-			strlen(DESKTOP_PROGRAM)))
+		if (variable && !strncmp(variable, DESKVAR_PROGRAM,
+			strlen(DESKVAR_PROGRAM)))
 		{
 			programName = kernelVariableListGet(&settings, variable);
 			if (programName)
@@ -1178,7 +1178,7 @@ int kernelWindowShellCenterBackground(const char *filename)
 	if (!kernelMultitaskerProcessIsAlive(shellData.processId))
 		return (ERR_NOSUCHPROCESS);
 
-	// For the moment, this is not really implemented.  The 'tile' routine
+	// For the moment, this is not really implemented.  The 'tile' function
 	// will automatically center the image if it's wider or higher than half
 	// the screen size anyway.
 	return (kernelWindowShellTileBackground(filename));

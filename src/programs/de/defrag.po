@@ -109,11 +109,11 @@ msgstr "Fehler beim Aufrufen der Disk Info"
 msgid ""
 "\n"
 "Visopsys DEFRAG Utility\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
 "Visopsys DEFRAG Werkzeug\n"
-"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
 
 #: defrag.c:384
 msgid ""

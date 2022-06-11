@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -159,8 +159,8 @@ static int detect(const char *fileName, void *dataPtr, unsigned dataLength,
 	}
 
 	// We will say this is a JPG file.
-	sprintf(class->className, "%s %s", FILECLASS_NAME_JPG, FILECLASS_NAME_IMAGE);
-	class->class = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
+	sprintf(class->name, "%s %s", FILECLASS_NAME_JPG, FILECLASS_NAME_IMAGE);
+	class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_IMAGE);
 	return (1);
 }
 

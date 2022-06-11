@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,9 +52,8 @@ int kernelWindowEventStreamNew(windowEventStream *newStream)
 
 	// We need to get a new stream and attach it to the window event stream
 	// structure
-	status =
-		kernelStreamNew(newStream, (WINDOW_MAX_EVENTS * WINDOW_EVENT_DWORDS),
-			itemsize_dword);
+	status = kernelStreamNew(newStream, (WINDOW_MAX_EVENTS *
+		WINDOW_EVENT_DWORDS), itemsize_dword);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Unable to create the window event stream");

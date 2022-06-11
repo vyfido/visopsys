@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -556,8 +556,8 @@ static int addController(kernelDevice *dev, int numControllers,
 static int driverDetect(void *parent __attribute__((unused)),
 	kernelDriver *driver)
 {
-	// This routine is called to detect USB buses.  There are a few different
-	// types so we call further detection routines to do the actual hardware
+	// This function is called to detect USB buses.  There are a few different
+	// types so we call further detection functions to do the actual hardware
 	// interaction.
 
 	int status = 0;

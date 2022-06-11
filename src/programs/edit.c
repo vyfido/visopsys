@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2017 J. Andrew McLaughlin
+//  Copyright (C) 1998-2018 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -341,7 +341,7 @@ static int doLoadFile(const char *fileName)
 	if (!fileGetDisk(fileName, &theDisk))
 		readOnly = theDisk.readOnly;
 
-	// Call the "find file" routine to see if we can get the file.
+	// Call the "find file" function to see if we can get the file.
 	status = fileFind(fileName, &tmpFile);
 
 	if (status >= 0)
@@ -853,7 +853,7 @@ static void deleteChars(unsigned length)
 
 static int edit(void)
 {
-	// This routine is the base from which we do all the editing.
+	// This function is the base from which we do all the editing.
 
 	int status = 0;
 	char character = '\0';
