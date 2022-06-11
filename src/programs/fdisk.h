@@ -31,7 +31,8 @@
 #define BOOT_DIR         "/system/boot"
 #define BACKUP_MBR       BOOT_DIR"/backup-%s.mbr"
 #define SIMPLE_MBR_FILE  BOOT_DIR"/mbr.simple"
-#define PERM             "You must be a privileged user to use this command."
+#define PERM             "You must be a privileged user to use this " \
+                         "command.\n(Try logging in as user \"admin\")"
 #define PARTTYPES        "Supported partition types"
 
 #define ENTRYOFFSET_DRV_ACTIVE    0

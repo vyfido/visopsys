@@ -16,6 +16,11 @@ BUILD_DIR=../build/
 BUILD_FILES=buildfiles.$$
 INST_FILES="../dist/system/install-files.basic ../dist/system/install-files.full"
 
+if [ ! -d $BUILD_DIR ] ; then
+	echo ERROR: No build directory
+	exit 1
+fi
+    
 # Get the list of all files in the build directory
 (cd $BUILD_DIR; find *) > $BUILD_FILES
 

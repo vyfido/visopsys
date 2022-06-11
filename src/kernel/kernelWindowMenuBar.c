@@ -166,7 +166,7 @@ static int menuMouseEvent(void *componentData, windowEvent *event)
     saveMenuMouseEvent(componentData, event);
 
   // Now determine whether the menu goes away
-  if (event->type == EVENT_MOUSE_LEFTUP)
+  if (event->type & EVENT_MOUSE_LEFTUP)
     // No longer visible
     menuSetVisible(component->container, component, 0);
 

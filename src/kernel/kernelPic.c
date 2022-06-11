@@ -37,17 +37,17 @@ static kernelPicOps *ops = NULL;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelPicInitialize(kernelDevice *device)
+int kernelPicInitialize(kernelDevice *dev)
 {
   int status = 0;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The PIC device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemPic = device;
+  systemPic = dev;
 
   if ((systemPic->driver == NULL) || (systemPic->driver->ops == NULL))
     {

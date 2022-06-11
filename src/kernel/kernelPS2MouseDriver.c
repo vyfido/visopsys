@@ -154,7 +154,7 @@ static int driverDetect(void *driver)
   // the keyboard controller a little bit to initialize the mouse
 
   int status = 0;
-  kernelDevice *device = NULL;
+  kernelDevice *dev = NULL;
   int interrupts = 0;
   unsigned char response = 0;
   unsigned char deviceId = 0;
@@ -211,28 +211,28 @@ static int driverDetect(void *driver)
     goto exit;
 
   // Allocate memory for the device
-  device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelMouse));
-  if (device == NULL)
+  dev = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelMouse));
+  if (dev == NULL)
     goto exit;
 
-  device->class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
-  device->subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
-  device->driver = driver;
-  device->dev = ((void *) device + sizeof(kernelDevice));
+  dev->device.class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
+  dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
+  dev->driver = driver;
+  dev->data = ((void *) dev + sizeof(kernelDevice));
 
   // Initialize mouse operations
-  status = kernelMouseInitialize(device);
+  status = kernelMouseInitialize(dev);
   if (status < 0)
     {
-      kernelFree(device);
+      kernelFree(dev);
       goto exit;
     }
 
   // Add the device
-  status = kernelDeviceAdd(NULL, device);
+  status = kernelDeviceAdd(NULL, dev);
   if (status < 0)
     {
-      kernelFree(device);
+      kernelFree(dev);
       goto exit;
     }
 

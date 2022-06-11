@@ -25,9 +25,9 @@
 #include <sys/vsh.h>
 
 
-_X_ void vshPrintDate(unsigned unformattedDate)
+_X_ void vshPrintDate(char *buffer, unsigned unformattedDate)
 {
-  // Desc: Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- in a (for now, arbitrary) human-readable format.
+  // Desc: Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- into 'buffer' in a (for now, arbitrary) human-readable format.
 
   int day = 0;
   int month = 0;
@@ -81,7 +81,7 @@ _X_ void vshPrintDate(unsigned unformattedDate)
       break;
     }
 
-  printf("%s %02u %u", monthString, day, year);
+  sprintf(buffer, "%s %02u %u", monthString, day, year);
 
   return;
 }

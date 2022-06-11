@@ -29,20 +29,29 @@
 This command will create a new, empty filesystem.
 
 Usage:
-  format [-T] [-t type] [disk_name]
+  format [-s] [-T] [-t type] [disk_name]
 
-The 'format' program is interactive, but options can be specified on the
-command line.  The -T option forces format to operate in text-only mode.
+The 'format' program is interactive, and operates in both text and graphics
+mode.  The -T option forces format to operate in text-only mode.  The -s
+option forces 'silent' mode (i.e. no unnecessary output or status messages
+are printed/displayed).
+
 The -t option is the desired filesystem type.  Currently the default type,
-if none is specified, is FAT.  The names of supported filesystem types are
-dependent upon the names allowed by particular filesystem drivers.
+if none is specified, is FAT.  The names of supported filesystem types
+are dependent upon the names allowed by particular filesystem drivers.
 For example, the FAT filesystem driver will accept the type name 'fat' and
 then go ahead and make its own decision about the specific FAT type, or else
 will accept the types 'fat12', 'fat16' or 'fat32'.  Other filesystem types
 can be expected to exhibit the same sorts of behaviour as they are developed.
+
 The third (optional) parameter is the name of a (logical) disk to format
 (use the 'disks' command to list the disks).  A format can only proceed if
 the driver for the requested filesystem type supports this functionality.
+
+Options:
+-s         : Silent mode
+-T         : Force text mode operation
+-t <type>  : Format as this filesystem type.
 
 </help>
 */
@@ -142,6 +151,7 @@ static int chooseDisk(void)
   objectKey diskList = NULL;
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
+  listItemParameters diskListParams[DISK_MAXDEVICES];
   char *diskStrings[DISK_MAXDEVICES];
   windowEvent event;
   int count;
@@ -161,14 +171,11 @@ static int chooseDisk(void)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  char *tmp = malloc(numberDisks * 80);
+  bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
-    {
-      diskStrings[count] = (tmp + (count * 80));
-      sprintf(diskStrings[count], "%s  [ %s ]", diskInfo[count].name,
-	      diskInfo[count].partType.description);
-    }
-
+    snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
+	     diskInfo[count].name, diskInfo[count].partType.description);
+  
   if (graphics)
     {
       chooseWindow = windowNew(processId, "Choose Disk");
@@ -176,9 +183,8 @@ static int chooseDisk(void)
 
       // Make a window list with all the disk choices
       params.gridY = 1;
-      diskList = windowNewList(chooseWindow, 5, 1, 0, diskStrings,
-			       numberDisks, &params);
-      free(diskStrings[0]);
+      diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
+			       diskListParams, numberDisks, &params);
 
       // Make 'OK' and 'cancel' buttons
       params.gridY = 2;
@@ -207,7 +213,7 @@ static int chooseDisk(void)
 	  if ((status < 0) || ((status > 0) &&
 	      (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
-	      diskNumber = windowComponentGetSelected(diskList);
+	      windowComponentGetSelected(diskList, &diskNumber);
 	      break;
 	    }
 
@@ -226,9 +232,13 @@ static int chooseDisk(void)
     }
 
   else
-    diskNumber = vshCursorMenu(CHOOSEDISK_STRING, numberDisks, diskStrings, 0);
+    {
+      for (count = 0; count < numberDisks; count ++)
+	diskStrings[count] = diskListParams[count].text;
+      diskNumber
+	= vshCursorMenu(CHOOSEDISK_STRING, numberDisks, diskStrings, 0);
+    }
 
-  free(diskStrings[0]);
   return (diskNumber);
 }
 

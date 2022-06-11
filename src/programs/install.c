@@ -29,12 +29,15 @@
 This program will install a copy of Visopsys on another disk.
 
 Usage:
-  install [disk_name]
+  install [-T] [disk_name]
 
 The 'install' program is interactive, but a logical disk parameter can
 (optionally) be specified on the command line.  If no disk is specified,
 then the user will be prompted to choose from a menu.  Use the 'disks'
 command to list the available disks.
+
+Options:
+-T  : Force text mode operation
 
 </help>
 */
@@ -250,6 +253,7 @@ static void constructWindow(void)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   installButton = windowNewButton(window, "Install", NULL, &params);
   windowRegisterEventHandler(installButton, &eventHandler);
   windowComponentSetEnabled(installButton, 0);
@@ -321,6 +325,7 @@ static int chooseDisk(void)
   objectKey okButton = NULL;
   objectKey partButton = NULL;
   objectKey cancelButton = NULL;
+  listItemParameters diskListParams[DISK_MAXDEVICES];
   char *diskStrings[DISK_MAXDEVICES];
   windowEvent event;
   int count;
@@ -341,13 +346,10 @@ static int chooseDisk(void)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  char *tmp = malloc(numberDisks * 80);
+  bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
   for (count = 0; count < numberDisks; count ++)
-    {
-      diskStrings[count] = (tmp + (count * 80));
-      sprintf(diskStrings[count], "%s  [ %s ]", diskInfo[count].name,
-	      diskInfo[count].partType.description);
-    }
+    snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
+	     diskInfo[count].name, diskInfo[count].partType.description);
 
   if (graphics)
     {
@@ -356,8 +358,8 @@ static int chooseDisk(void)
 
       // Make a window list with all the disk choices
       params.gridY = 1;
-      diskList = windowNewList(chooseWindow, 5, 1, 0, diskStrings,
-			       numberDisks, &params);
+      diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
+			       diskListParams, numberDisks, &params);
 
       // Make 'OK', 'partition', and 'cancel' buttons
       params.gridY = 2;
@@ -391,7 +393,7 @@ static int chooseDisk(void)
 	  if ((status < 0) || ((status > 0) &&
 	      (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
-	      diskNumber = windowComponentGetSelected(diskList);
+	      windowComponentGetSelected(diskList, &diskNumber);
 	      break;
 	    }
 
@@ -406,13 +408,10 @@ static int chooseDisk(void)
 	      chooseWindow = NULL;
 
 	      // Privilege zero, no args, block
-	      loaderLoadAndExec("/programs/fdisk", 0, 0, NULL, 1);
+	      loaderLoadAndExec("/programs/fdisk", 0, 1);
 
 	      // Remake our disk list
 	      makeDiskList();
-
-	      // Release our disk strings memory
-	      free(diskStrings[0]);
 
 	      // Start again.
 	      goto start;
@@ -433,8 +432,12 @@ static int chooseDisk(void)
     }
 
   else
-    diskNumber =
-      vshCursorMenu(chooseVolumeString, numberDisks, diskStrings, 0);
+    {
+      for (count = 0; count < numberDisks; count ++)
+	diskStrings[count] = diskListParams[count].text;
+      diskNumber =
+	vshCursorMenu(chooseVolumeString, numberDisks, diskStrings, 0);
+    }
 
   free(diskStrings[0]);
   return (diskNumber);
@@ -661,8 +664,8 @@ static int copyBootSector(disk *theDisk)
 
   if (status < 0)
     {
-      error("Error %d copying boot sector \"%s\" to disk %s", bootSectFilename,
-	    theDisk->name);
+      error("Error %d copying boot sector \"%s\" to disk %s", status,
+	    bootSectFilename, theDisk->name);
       return (status);
     }
 
@@ -1006,6 +1009,7 @@ int main(int argc, char *argv[])
   unsigned basicInstallSize = 0xFFFFFFFF;
   unsigned fullInstallSize = 0xFFFFFFFF;
   const char *message = NULL;
+  int selected = 0;
   int count;
 
   processId = multitaskerGetCurrentProcessId();
@@ -1108,7 +1112,8 @@ int main(int argc, char *argv[])
   installType = install_basic;
   if (graphics)
     {
-      if (windowComponentGetSelected(installTypeRadio) == 1)
+      windowComponentGetSelected(installTypeRadio, &selected);
+      if (selected == 1)
 	installType = install_full;
     }
   else if (fullInstallSize &&

@@ -70,30 +70,29 @@ static kernelTextArea *tmpGraphicConsole = NULL;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelGraphicInitialize(kernelDevice *device)
+int kernelGraphicInitialize(kernelDevice *dev)
 {
   // This function initializes the graphic routines.
 
   int status = 0;
   kernelTextInputStream *inputStream = NULL;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The graphic adapter device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemAdapter = device;
+  systemAdapter = dev;
 
-  if ((systemAdapter->dev == NULL) ||
-      (systemAdapter->driver == NULL) ||
+  if ((systemAdapter->data == NULL) || (systemAdapter->driver == NULL) ||
       (systemAdapter->driver->ops == NULL))
     {
       kernelError(kernel_error, "The graphic adapter, driver or ops are NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  adapterDevice = (kernelGraphicAdapter *) systemAdapter->dev;
+  adapterDevice = (kernelGraphicAdapter *) systemAdapter->data;
   ops = systemAdapter->driver->ops;
 
   // Are we in a graphics mode?

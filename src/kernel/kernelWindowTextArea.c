@@ -22,7 +22,6 @@
 // This code is for managing kernelWindowTextArea objects.
 // These are just textareas that appear inside windows and buttons, etc
 
-
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
@@ -40,6 +39,25 @@ static inline int isMouseInScrollBar(windowEvent *event,
     return (1);
   else
     return (0);
+}
+
+
+static inline void updateScrollBar(kernelWindowTextArea *textArea)
+{
+  scrollBarState state;
+
+  if (textArea->scrollBar->setData)
+    {
+      state.displayPercent =
+	((textArea->area->rows * 100) /
+	 (textArea->area->rows + textArea->area->scrollBackLines));
+      state.positionPercent = 100;
+      if (textArea->area->scrolledBackLines)
+	state.positionPercent -= ((textArea->area->scrolledBackLines * 100) /
+				  textArea->area->scrollBackLines);
+      textArea->scrollBar->setData((void *) textArea->scrollBar, &state,
+      				   sizeof(scrollBarState));
+    }
 }
 
 
@@ -61,6 +79,21 @@ static int draw(void *componentData)
 
   if (component->parameters.hasBorder)
     component->drawBorder((void *) component, 1);
+
+  return (0);
+}
+
+
+static int update(void *componentData)
+{
+  // This gets called when the text area has done something, and we use
+  // it to update the scroll bar.
+
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+
+  if (textArea->scrollBar)
+    updateScrollBar(textArea);
 
   return (0);
 }
@@ -181,13 +214,13 @@ static int setData(void *componentData, void *buffer, int size)
   // Copy the text (up to size bytes) from the supplied buffer to the
   // text area.
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
-
-  if (size > (area->columns * area->rows))
-    size = (area->columns * area->rows);
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelTextArea *area = textArea->area;
 
   kernelTextStreamScreenClear(area->outputStream);
-  kernelTextStreamPrint(area->outputStream, buffer);
+
+  if (size)
+    kernelTextStreamPrint(area->outputStream, buffer);
 
   return (0);
 }
@@ -214,7 +247,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	return (status);
 
       scrolledBackLines = (((100 - scrollBar->state.positionPercent) *
-	  textArea->area->scrollBackLines) / 100);
+			    textArea->area->scrollBackLines) / 100);
 
       if (scrolledBackLines != textArea->area->scrolledBackLines)
 	{
@@ -237,20 +270,12 @@ static int keyEvent(void *componentData, windowEvent *event)
   kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
   kernelTextInputStream *inputStream =
     (kernelTextInputStream *) textArea->area->inputStream;
-  scrollBarState state;
 
   if ((event->type == EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
     inputStream->s.append(textArea->area->inputStream, (char) event->key);
 
-  if (textArea->scrollBar && textArea->scrollBar->setData)
-    {
-      state.displayPercent =
-	((textArea->area->rows * 100) /
-	 (textArea->area->rows + textArea->area->scrollBackLines));
-      state.positionPercent = 100;
-      textArea->scrollBar->setData((void *) textArea->scrollBar, &state,
-      				   sizeof(scrollBarState));
-    }
+  if (textArea->scrollBar)
+    updateScrollBar(textArea);
 
   return (0);
 }
@@ -366,6 +391,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   textArea->area->background.green = component->parameters.background.green;
   textArea->area->background.blue = component->parameters.background.blue;
   textArea->area->font = component->parameters.font;
+  textArea->area->windowComponent = (void *) component;
   textArea->area->graphicBuffer = &(window->buffer);
   textArea->areaWidth =
     (columns * ((kernelAsciiFont *) component->parameters.font)->charWidth);
@@ -422,6 +448,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
 
   // The functions
   component->draw = &draw;
+  component->update = &update;
   component->move = &move;
   component->resize = &resize;
   component->focus = &focus;

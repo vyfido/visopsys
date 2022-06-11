@@ -18,6 +18,6 @@ This will mount the first CD-ROM device, and make its contents accessible
 in the /cdrom subdirectory.
 
 Note that the mount point parameter should specify a name that does *not*
-exist.  This is the opposite of the UNIX mount command.  The example
-above will fail if there is a file or directory called /cdrom.
+exist.  This is the opposite of the UNIX mount command behaviour.  The
+example above will fail if there is already a file or directory called /cdrom.
 

@@ -37,8 +37,8 @@ int vshFileList(const char *);
 void vshMakeAbsolutePath(const char *, char *);
 int vshParseCommand(char *, char *, int *, char *[]);
 void vshPasswordPrompt(const char *, char *);
-void vshPrintDate(unsigned);
-void vshPrintTime(unsigned);
+void vshPrintDate(char *, unsigned);
+void vshPrintTime(char *, unsigned);
 int vshRenameFile(const char *, const char *);
 int vshSearchPath(const char *, char *);
 

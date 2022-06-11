@@ -28,20 +28,23 @@
 #include <sys/image.h>
 #include <sys/process.h>
 
-#define FILECLASS_NAME_TEXT    "text"
-#define FILECLASS_NAME_BIN     "binary"
-#define FILECLASS_NAME_STATIC  "static"
-#define FILECLASS_NAME_DYNAMIC "dynamic"
-#define FILECLASS_NAME_EXEC    "executable"
-#define FILECLASS_NAME_OBJ     "object"
-#define FILECLASS_NAME_LIB     "library"
-#define FILECLASS_NAME_CORE    "core"
-#define FILECLASS_NAME_IMAGE   "image"
-#define FILECLASS_NAME_DATA    "data"
+#define FILECLASS_NAME_EMPTY    "empty"
+#define FILECLASS_NAME_TEXT     "text"
+#define FILECLASS_NAME_BIN      "binary"
+#define FILECLASS_NAME_STATIC   "static"
+#define FILECLASS_NAME_DYNAMIC  "dynamic"
+#define FILECLASS_NAME_EXEC     "executable"
+#define FILECLASS_NAME_OBJ      "object"
+#define FILECLASS_NAME_LIB      "library"
+#define FILECLASS_NAME_CORE     "core"
+#define FILECLASS_NAME_IMAGE    "image"
+#define FILECLASS_NAME_DATA     "data"
 
-#define FILECLASS_NAME_ELF     "ELF"
-#define FILECLASS_NAME_BMP     "bitmap"
-#define LOADER_NUM_FILECLASSES 2
+#define FILECLASS_NAME_ELF      "ELF"
+#define FILECLASS_NAME_BMP      "bitmap"
+#define FILECLASS_NAME_CONFIG   "configuration"
+#define FILECLASS_NAME_BOOT     "boot"
+#define LOADER_NUM_FILECLASSES  6
 
 // A generic structure to represent a relocation entry
 typedef struct {
@@ -81,7 +84,7 @@ typedef struct {
 // the file class and function pointers for managing that class of file.
 typedef struct {
   char *className;
-  int (*detect)(void *, loaderFileClass *);
+  int (*detect)(const char *, void *, int, loaderFileClass *);
   union {
     struct {
       loaderSymbolTable * (*getSymbols)(void *, int, int);
@@ -100,15 +103,21 @@ typedef struct {
 // Functions exported by kernelLoader.c
 void *kernelLoaderLoad(const char *, file *);
 kernelFileClass *kernelLoaderGetFileClass(const char *);
-kernelFileClass *kernelLoaderClassify(void *, loaderFileClass *);
+kernelFileClass *kernelLoaderClassify(const char *, void *, int,
+				      loaderFileClass *);
+kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
 loaderSymbolTable *kernelLoaderGetSymbols(const char *, int);
-int kernelLoaderLoadProgram(const char *, int, int, char *[]);
+int kernelLoaderLoadProgram(const char *, int);
 int kernelLoaderExecProgram(int, int);
-int kernelLoaderLoadAndExec(const char *, int, int, char *[], int);
+int kernelLoaderLoadAndExec(const char *, int, int);
 
 // These are format-specific file class functions
 kernelFileClass *kernelFileClassElf(void);
 kernelFileClass *kernelFileClassBmp(void);
+kernelFileClass *kernelFileClassConfig(void);
+kernelFileClass *kernelFileClassBoot(void);
+kernelFileClass *kernelFileClassText(void);
+kernelFileClass *kernelFileClassBinary(void);
 
 #define _KERNELLOADER_H
 #endif

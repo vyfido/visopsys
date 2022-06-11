@@ -49,6 +49,7 @@ NAMES =	kernelMain \
 	kernelInterrupt \
 	kernelKeyboard \
 	kernelLoader \
+	kernelLoaderClass \
 	kernelLoaderElf \
 	kernelLock \
 	kernelLog \

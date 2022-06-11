@@ -21,6 +21,26 @@
 
 // This is a program for managing programs and processes.
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- progman --
+
+Also known as the "Program Manager", progman is used to manage processes.
+
+Usage:
+  progman
+
+(Only available in graphics mode)
+
+The progman program is interactive, and shows a constantly-updated list of
+running processes and threads, including statistics such as CPU and memory
+usage.  It is a graphical utility combining the same functionalities as the
+'ps', 'mem', 'kill', and 'renice' command-line programs.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,8 +57,7 @@
 
 static int processId = 0;
 static int privilege = 0;
-static char *processBuffer = NULL;
-static char *processStrings[SHOW_MAX_PROCESSES];
+static listItemParameters *processListParams = NULL;
 static process *processes = NULL;
 static int numProcesses = 0;
 static objectKey window = NULL;
@@ -96,8 +115,8 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 	    (tmpProcessArray[count].parentProcessId == parent->processId))
 	  {
 	    // Copy this thread into the regular array
-	    bcopy(&tmpProcessArray[count], &processes[numProcesses++],
-		  sizeof(process));
+	    memcpy(&processes[numProcesses++], &tmpProcessArray[count],
+		   sizeof(process));
 	    bzero(&tmpProcessArray[count], sizeof(process));
 	    
 	    // Now sort any children, grandchildren, etc., behind it.
@@ -120,8 +139,8 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
       if (tmpProcessArray[count].parentProcessId == parent->processId)
 	{
 	  // Copy this process into the regular array
-	  bcopy(&tmpProcessArray[count], &processes[numProcesses++],
-		sizeof(process));
+	  memcpy(&processes[numProcesses++], &tmpProcessArray[count],
+		 sizeof(process));
 	  bzero(&tmpProcessArray[count], sizeof(process));
 
 	  // Now sort any children, grandchildren, etc., behind it.
@@ -217,8 +236,8 @@ static int getUpdate(void)
 	}
 
       // Copy this process into the regular array
-      bcopy(&tmpProcessArray[count], &processes[numProcesses++],
-	    sizeof(process));
+      memcpy(&processes[numProcesses++], &tmpProcessArray[count],
+	     sizeof(process));
       bzero(&tmpProcessArray[count], sizeof(process));
 
       // Now sort any children, grandchildren, etc., behind it.
@@ -227,13 +246,10 @@ static int getUpdate(void)
 
   free(tmpProcessArray);
 
-  for (count = 0; count < (SHOW_MAX_PROCESSES * PROCESS_STRING_LENGTH);
-       count ++)
-    processBuffer[count] = ' ';
-  bufferPointer = processBuffer;
-
   for (count = 0; count < numProcesses; count ++)
     {
+      memset(processListParams[count].text, ' ', WINDOW_MAX_LABEL_LENGTH);
+      bufferPointer = processListParams[count].text;
       tmpProcess = &processes[count];
 
       sprintf(bufferPointer, "%s%s",
@@ -281,9 +297,6 @@ static int getUpdate(void)
 	  strcpy((bufferPointer + 53), "unknown ");
 	  break;
 	}
-
-      processStrings[count] = bufferPointer;
-      bufferPointer += (strlen(processStrings[count]) + 1);
     }
 
   return (status = 0);
@@ -297,15 +310,10 @@ static int runProgram(void)
   int status = 0;
   char commandLine[MAX_PATH_NAME_LENGTH];
   char command[MAX_PATH_NAME_LENGTH];
+  char fullCommand[MAX_PATH_NAME_LENGTH];
   int argc = 0;
-  char *argv[100];
+  char *argv[64];
   int count;
-
-  // Initialize stack memory
-  for (count = 0; count < 100; count ++)
-    argv[count] = NULL;
-  commandLine[0] = '\0';
-  command[0] = '\0';
 
   status =
     windowNewFileDialog(window, "Enter command", "Please enter a command to "
@@ -320,15 +328,17 @@ static int runProgram(void)
   if (command[0] == '\0')
     return (status = ERR_NOSUCHFILE);
 
-  // Shift the arg list down by one, as the exec function will prepend
-  // it when starting the program
-  for (count = 1; count < argc; count ++)
-    argv[count - 1] = argv[count];
-  argc -= 1;
-
   // Got an executable command.  Execute it.
-  status = loaderLoadAndExec(command, privilege, argc, argv, 0);
-  return (status);
+
+  strcpy(fullCommand, command);
+  strcat(fullCommand, " ");
+  for (count = 1; count < argc; count ++)
+    {
+      strcat(fullCommand, argv[count]);
+      strcat(fullCommand, " ");
+    }
+
+  return (status = loaderLoadAndExec(fullCommand, privilege, 0));
 }
 
 
@@ -374,7 +384,7 @@ static int setPriority(int whichProcess)
 
   // Refresh our list of processes
   getUpdate();
-  windowComponentSetData(processList, processStrings, numProcesses);
+  windowComponentSetData(processList, processListParams, numProcesses);
 
   return (status);
 }
@@ -394,7 +404,7 @@ static int killProcess(int whichProcess)
 
   // Refresh our list of processes
   getUpdate();
-  windowComponentSetData(processList, processStrings, numProcesses);
+  windowComponentSetData(processList, processListParams, numProcesses);
 
   return (status);
 }
@@ -412,17 +422,16 @@ static void eventHandler(objectKey key, windowEvent *event)
       windowDestroy(window);
     }
   
-  else if ((key == showThreadsCheckbox) &&
-	   (event->type == EVENT_MOUSE_LEFTDOWN))
+  else if ((key == showThreadsCheckbox) && (event->type & EVENT_SELECTION))
     {
-      showThreads = windowComponentGetSelected(showThreadsCheckbox);  
+      windowComponentGetSelected(showThreadsCheckbox, &showThreads);  
       getUpdate();
-      windowComponentSetData(processList, processStrings, numProcesses);
+      windowComponentSetData(processList, processListParams, numProcesses);
     }
   
   else
     {
-      processNumber = windowComponentGetSelected(processList);
+      windowComponentGetSelected(processList, &processNumber);
       if (processNumber < 0)
 	return;
 
@@ -484,8 +493,8 @@ static void constructWindow(void)
 
   // Create the list of processes
   params.gridY = 4;
-  processList =
-    windowNewList(window, 20, 1, 0, processStrings, numProcesses, &params);
+  processList = windowNewList(window, windowlist_textonly, 20, 1, 0,
+			      processListParams, numProcesses, &params);
 
   // Create a 'show sub-processes' checkbox
   params.gridY = 5;
@@ -539,31 +548,30 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  int guiThreadPid = 0;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      printf("\nThe \"%s\" command only works in graphics mode\n",
+	     (argc? argv[0] : ""));
       return (errno = ERR_NOTINITIALIZED);
     }
-
-  // We don't use argc.  This keeps the compiler happy
-  argc = 0;
 
   processId = multitaskerGetCurrentProcessId();
   privilege = multitaskerGetProcessPrivilege(processId);
 
   // Get a buffer for process structures
   processes = malloc(SHOW_MAX_PROCESSES * sizeof(process));
-  // Get a buffer for process strings
-  processBuffer = malloc(SHOW_MAX_PROCESSES * PROCESS_STRING_LENGTH);
+  // Get an array of list parameters structures for process strings
+  processListParams = malloc(SHOW_MAX_PROCESSES * sizeof(listItemParameters));
 
-  if ((processes == NULL) || (processBuffer == NULL))
+  if ((processes == NULL) || (processListParams == NULL))
     {
       if (processes)
 	free(processes);
-      if (processBuffer)
-	free(processBuffer);
+      if (processListParams)
+	free(processListParams);
       error("Error getting memory");
       return (errno = ERR_MEMORY);
     }
@@ -574,9 +582,10 @@ int main(int argc, char *argv[])
   if (status < 0)
     {
       free(processes);
-      free(processBuffer);
+      free(processListParams);
       errno = status;
-      perror(argv[0]);
+      if (argc)
+	perror(argv[0]);
       return (status);
     }
 
@@ -584,16 +593,16 @@ int main(int argc, char *argv[])
   constructWindow();
 
   // Run the GUI
-  windowGuiThread();
+  guiThreadPid = windowGuiThread();
 
-  while (!stop)
+  while (!stop && multitaskerProcessIsAlive(guiThreadPid))
     {
-      windowComponentSetData(processList, processStrings, numProcesses);
+      windowComponentSetData(processList, processListParams, numProcesses);
       multitaskerWait(20);
       getUpdate();
     }
 
   free(processes);
-  free(processBuffer);
+  free(processListParams);
   return (status = errno = 0);
 }

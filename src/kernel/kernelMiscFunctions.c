@@ -187,11 +187,7 @@ void kernelConsoleLogin(void)
     }
 
   // Try to load the login process
-  loginPid = kernelLoaderLoadProgram("/programs/login",
-				     PRIVILEGE_SUPERVISOR,
-				     0,     // no args
-				     NULL); // no args
-  
+  loginPid = kernelLoaderLoadProgram("/programs/login", PRIVILEGE_SUPERVISOR);
   if (loginPid < 0)
     {
       // Don't fail, but make a warning message
@@ -249,7 +245,6 @@ int kernelConfigurationReader(const char *fileName, variableList *list)
   while(1)
     {
       status = kernelFileStreamReadLine(&configFile, 256, lineBuffer);
-
       if (status <= 0)
 	// End of file?
 	break;

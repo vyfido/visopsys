@@ -193,7 +193,8 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileStreamWriteStr, kernelFileStreamWriteStr, 2, PRIVILEGE_USER },
   { _fnum_fileStreamWriteLine, kernelFileStreamWriteLine, 2, PRIVILEGE_USER },
   { _fnum_fileStreamFlush, kernelFileStreamFlush, 1, PRIVILEGE_USER },
-  { _fnum_fileStreamClose, kernelFileStreamClose, 1, PRIVILEGE_USER }
+  { _fnum_fileStreamClose, kernelFileStreamClose, 1, PRIVILEGE_USER },
+  { _fnum_fileCount, kernelFileCount, 1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex memoryFunctionIndex[] = {
@@ -274,9 +275,9 @@ static kernelFunctionIndex loaderFunctionIndex[] = {
   // Loader functions (7000-7999 range)
 
   { _fnum_loaderLoad, kernelLoaderLoad, 2, PRIVILEGE_USER },
-  { _fnum_loaderLoadProgram, kernelLoaderLoadProgram, 4, PRIVILEGE_USER },
+  { _fnum_loaderLoadProgram, kernelLoaderLoadProgram, 2, PRIVILEGE_USER },
   { _fnum_loaderExecProgram, kernelLoaderExecProgram, 2, PRIVILEGE_USER },
-  { _fnum_loaderLoadAndExec, kernelLoaderLoadAndExec,  5, PRIVILEGE_USER }
+  { _fnum_loaderLoadAndExec, kernelLoaderLoadAndExec,  3, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex rtcFunctionIndex[] = {
@@ -331,8 +332,8 @@ static kernelFunctionIndex graphicFunctionIndex[] = {
   { _fnum_graphicCalculateAreaBytes, kernelGraphicCalculateAreaBytes,
     2, PRIVILEGE_USER },
   { _fnum_graphicClearScreen, kernelGraphicClearScreen, 1, PRIVILEGE_USER },
-  { _fnum_graphicGetColor, kernelGraphicGetColor, 2, PRIVILEGE_SUPERVISOR },
-  { _fnum_graphicSetColor, kernelGraphicSetColor, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_graphicGetColor, kernelGraphicGetColor, 2, PRIVILEGE_USER },
+  { _fnum_graphicSetColor, kernelGraphicSetColor, 2, PRIVILEGE_USER },
   { _fnum_graphicDrawPixel, kernelGraphicDrawPixel, 5, PRIVILEGE_USER },
   { _fnum_graphicDrawLine, kernelGraphicDrawLine, 7, PRIVILEGE_USER },
   { _fnum_graphicDrawRect, kernelGraphicDrawRect, 9, PRIVILEGE_USER },
@@ -410,7 +411,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowComponentSetData, kernelWindowComponentSetData,
     3, PRIVILEGE_USER },
   { _fnum_windowComponentGetSelected, kernelWindowComponentGetSelected,
-    1, PRIVILEGE_USER },
+    2, PRIVILEGE_USER },
   { _fnum_windowComponentSetSelected, kernelWindowComponentSetSelected,
     2, PRIVILEGE_USER },
   { _fnum_windowNewButton, kernelWindowNewButton, 4, PRIVILEGE_USER },
@@ -419,7 +420,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowNewContainer, kernelWindowNewContainer, 3, PRIVILEGE_USER },
   { _fnum_windowNewIcon, kernelWindowNewIcon, 4, PRIVILEGE_USER },
   { _fnum_windowNewImage, kernelWindowNewImage, 4, PRIVILEGE_USER },
-  { _fnum_windowNewList, kernelWindowNewList, 7, PRIVILEGE_USER },
+  { _fnum_windowNewList, kernelWindowNewList, 8, PRIVILEGE_USER },
   { _fnum_windowNewListItem, kernelWindowNewListItem, 3, PRIVILEGE_USER },
   { _fnum_windowNewMenu, kernelWindowNewMenu, 3, PRIVILEGE_USER },
   { _fnum_windowNewMenuBar, kernelWindowNewMenuBar, 2, PRIVILEGE_USER },

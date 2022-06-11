@@ -29,24 +29,24 @@
 #include <string.h>
 
 
-static int driverDetect(void *driver, kernelDeviceClass *class,
-			kernelDeviceClass *subClass)
+static int driverDetect(void *driver, deviceClass *class,
+			deviceClass *subClass)
 {
   // Just collects some of the common things from the other detect routines
 
   int status = 0;
-  kernelDevice *device = NULL;
+  kernelDevice *dev = NULL;
 
   // Allocate memory for the device
-  device = kernelMalloc(sizeof(kernelDevice));
-  if (device == NULL)
+  dev = kernelMalloc(sizeof(kernelDevice));
+  if (dev == NULL)
     return (status = 0);
 
-  device->class = class;
-  device->subClass = subClass;
-  device->driver = driver;
+  dev->device.class = class;
+  dev->device.subClass = subClass;
+  dev->driver = driver;
 
-  return (status = kernelDeviceAdd(NULL, device));
+  return (status = kernelDeviceAdd(NULL, dev));
 }
 
 

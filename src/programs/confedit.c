@@ -30,14 +30,17 @@
 Edit Visopsys configuration files
 
 Usage:
-  confedit [file name]
+  confedit [file_name]
 
-The confedit (Configuration Editor) program is interactive, and may only be
-used in graphics mode.  You can specify the name of the file to edit on the
-command line, or else the program will prompt you.  You can add, delete, and
-modify variables.  Examples of applicable configuration files include the
-kernel configuration, /system/kernel.conf, and the window manager
-configuration, /system/windowmanager.conf.
+(Only available in graphics mode)
+
+The confedit (Configuration Editor) program is interactive.  The name of the
+file to edit can (optionally) be specified on the command line; otherwise
+the program will prompt for the name of the file.  You can add, delete, and
+modify variables.
+
+Examples of configuration files include the kernel configuration,
+kernel.conf, and the window manager configuration, windowmanager.conf.
 
 </help>
 */
@@ -55,9 +58,7 @@ static int privilege = 0;
 static char fileName[MAX_PATH_NAME_LENGTH];
 static int readOnly = 1;
 static variableList list;
-static char *listStringData = NULL;
-static char *listStrings[1024];
-static int numListStrings = 0;
+static listItemParameters *listItemParams = NULL;
 static int changesPending = 0;
 static objectKey window = NULL;
 static objectKey menuSave = NULL;
@@ -96,25 +97,15 @@ static int writeConfigFile(void)
 
 static void fillList(void)
 {
-  char *bufferPtr = NULL;
   int count;
 
-  numListStrings = 0;
-
-  if (listStringData)
-    free(listStringData);
-  listStringData = malloc(list.maxData * list.numVariables);
-
-  bufferPtr = listStringData;
+  if (listItemParams)
+    free(listItemParams);
+  listItemParams = malloc(list.numVariables * sizeof(listItemParameters));
 
   for (count = 0; count < list.numVariables; count ++)
-    {
-      listStrings[count] = bufferPtr;
-      sprintf(listStrings[count], "%s=%s", list.variables[count],
-	      list.values[count]);
-      bufferPtr += (strlen(listStrings[count]) + 1);
-      numListStrings += 1;
-    }
+    snprintf(listItemParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s=%s",
+	     list.variables[count], list.values[count]);
 }
 
 
@@ -218,6 +209,7 @@ static void setVariableDialog(const char *variable)
   params.orientationX = orient_right;
   params.hasBorder = 0;
   params.useDefaultBackground = 1;
+  params.fixedWidth = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
   // Create the Cancel button
@@ -269,13 +261,12 @@ static void setVariableDialog(const char *variable)
 	    }
 
 	  fillList();
-	  windowComponentSetData(listList, listStrings, numListStrings);
-	  
-	  windowComponentSetSelected(listList, 1); //count);
+	  windowComponentSetData(listList, listItemParams, list.numVariables);
+	  windowComponentSetSelected(listList, 1);
 
 	  // Select the one we just added/changed
-	  for (count = 0; count < numListStrings; count ++)
-	    if (!strncmp(variableBuffer, listStrings[count],
+	  for (count = 0; count < list.numVariables; count ++)
+	    if (!strncmp(variableBuffer, listItemParams[count].text,
 			 strlen(variableBuffer)))
 	      {
 		windowComponentSetSelected(listList, count);
@@ -306,9 +297,11 @@ static void setVariableDialog(const char *variable)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
+  int selected = 0;
+
   // Check for the window being closed by a GUI event.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == menuQuit) && (event->type == EVENT_MOUSE_LEFTUP)))
+      ((key == menuQuit) && (event->type & EVENT_SELECTION)))
     {
       if (changesPending && !readOnly &&
 	  !windowNewQueryDialog(window, "Unsaved changes",
@@ -316,7 +309,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	return;
       windowGuiStop();
     }
-  else if ((key == menuSave) && (event->type == EVENT_MOUSE_LEFTUP))
+  else if ((key == menuSave) && (event->type & EVENT_SELECTION))
     {
       writeConfigFile();
     }
@@ -327,16 +320,17 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if ((key == changeVariableButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
-      setVariableDialog(list.variables[windowComponentGetSelected(listList)]);
+      windowComponentGetSelected(listList, &selected);
+      setVariableDialog(list.variables[selected]);
     }
   else if ((key == deleteVariableButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
-      variableListUnset(&list,
-			list.variables[windowComponentGetSelected(listList)]);
+      windowComponentGetSelected(listList, &selected);
+      variableListUnset(&list, list.variables[selected]);
       changesPending += 1;
       fillList();
-      windowComponentSetData(listList, listStrings, numListStrings);
+      windowComponentSetData(listList, listItemParams, list.numVariables);
     }
 }
 
@@ -380,8 +374,9 @@ static void constructWindow(void)
   params.padRight = 0;
   params.orientationX = orient_center;
   fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
-  listList = windowNewList(window, min(10, list.numVariables), 1, 0,
-			   listStrings, numListStrings, &params);
+  listList =
+    windowNewList(window, windowlist_textonly, min(10, list.numVariables),
+		  1, 0, listItemParams, list.numVariables, &params);
 
   // Make a container component for the buttons
   params.gridX = 1;
@@ -446,12 +441,18 @@ int main(int argc, char *argv[])
   // If a configuration file was not specified, ask for it
   if (argc < 2)
     {
+      // Start in the config dir by default
+      multitaskerSetCurrentDirectory("/system/config");
+
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter a "
 			    "configuration file to edit:", tmpFilename,
 			    MAX_PATH_NAME_LENGTH);
       if (status != 1)
-	return (errno = status);
+	{
+	  windowGuiStop();
+	  return (errno = status);
+	}
     }
   else
     strncpy(tmpFilename, argv[1], MAX_PATH_NAME_LENGTH);

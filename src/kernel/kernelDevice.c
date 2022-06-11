@@ -22,15 +22,14 @@
 #include "kernelDevice.h"
 #include "kernelMalloc.h"
 #include "kernelLog.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include "kernelText.h"
 #include <stdio.h>
 #include <string.h>
 
-//#define DEVICE_DEBUG 1
-
 // An array of device classes, with names
-static kernelDeviceClass allClasses[] = {
+static deviceClass allClasses[] = {
   { DEVICECLASS_SYSTEM,   "system"                },
   { DEVICECLASS_CPU,      "CPU"                   },
   { DEVICECLASS_MEMORY,   "memory"                },
@@ -48,7 +47,7 @@ static kernelDeviceClass allClasses[] = {
 };
 
 // An array of device subclasses, with names
-static kernelDeviceClass allSubClasses[] = {
+static deviceClass allSubClasses[] = {
   { DEVICESUBCLASS_CPU_X86,             "x86"         },
   { DEVICESUBCLASS_BUS_PCI,             "PCI"         },
   { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"        },
@@ -93,55 +92,33 @@ static kernelDriver deviceDrivers[] = {
 
 // Our device tree
 static kernelDevice *deviceTree = NULL;
+static int numTreeDevices = 0;
 
 
-static int findDevice(kernelDevice *device, kernelDeviceClass *class,
-		      kernelDeviceClass *subClass, kernelDevice *devPointers[],
+static int findDevice(kernelDevice *dev, deviceClass *class,
+		      deviceClass *subClass, kernelDevice *devPointers[],
 		      int maxDevices, int numDevices)
 {
   // Recurses through the device tree rooted at the supplied device and
   // returns the all instances of devices of the requested type
 
-  while (device)
+  while (dev)
     {
       if (numDevices >= maxDevices)
 	return (numDevices);
 
-      if ((device->class == class) && (device->subClass == subClass))
-	devPointers[numDevices++] = device;
+      if ((dev->device.class == class) && (dev->device.subClass == subClass))
+	devPointers[numDevices++] = dev;
 
-      if (device->firstChild)
-	numDevices += findDevice(device->firstChild, class, subClass,
+      if (dev->device.firstChild)
+	numDevices += findDevice(dev->device.firstChild, class, subClass,
 				 devPointers, maxDevices, numDevices);
 
-      device = device->next;
+      dev = dev->device.next;
     }
 
   return (numDevices);
 }
-
-
-#ifdef DEVICE_DEBUG
-static void printTree(kernelDevice *device, int level)
-{
-  kernelDevice *listPointer = device;
-  int count;
-
-  while(listPointer)
-    {
-      for (count = 0; count < level; count ++)
-	kernelTextPrint("   ");
-      if (listPointer->subClass)
-	kernelTextPrint("%s ", listPointer->subClass->name);
-      kernelTextPrintLine("%s", listPointer->class->name);
-
-      if (listPointer->firstChild)
-	printTree(listPointer->firstChild, (level + 1));
-
-      listPointer = listPointer->next;
-    }
-}
-#endif
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -159,8 +136,8 @@ int kernelDeviceInitialize(void)
   // driverRegister() functions of all our drivers
 
   int status = 0;
-  kernelDeviceClass *deviceClass = NULL;
-  kernelDeviceClass *deviceSubClass = NULL;
+  deviceClass *class = NULL;
+  deviceClass *subClass = NULL;
   char driverString[128];
   int driverCount = 0;
 
@@ -169,7 +146,8 @@ int kernelDeviceInitialize(void)
   if (deviceTree == NULL)
     return (status = ERR_MEMORY);
 
-  deviceTree->class = kernelDeviceGetClass(DEVICECLASS_SYSTEM);
+  deviceTree->device.class = kernelDeviceGetClass(DEVICECLASS_SYSTEM);
+  numTreeDevices = 1;
 
   // Loop through our static structure of built-in device drivers and
   // initialize them.
@@ -184,19 +162,18 @@ int kernelDeviceInitialize(void)
   for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
        driverCount ++)
     {
-      deviceClass = NULL;
-      deviceClass = kernelDeviceGetClass(deviceDrivers[driverCount].class);
+      class = NULL;
+      class = kernelDeviceGetClass(deviceDrivers[driverCount].class);
 
-      deviceSubClass = NULL;
+      subClass = NULL;
       if (deviceDrivers[driverCount].subClass != 0)
-	deviceSubClass =
-	  kernelDeviceGetClass(deviceDrivers[driverCount].subClass);
+	subClass = kernelDeviceGetClass(deviceDrivers[driverCount].subClass);
 
       driverString[0] = '\0';
-      if (deviceSubClass)
-	sprintf(driverString, "%s ", deviceSubClass->name);
-      if (deviceClass)
-	strcat(driverString, deviceClass->name);
+      if (subClass)
+	sprintf(driverString, "%s ", subClass->name);
+      if (class)
+	strcat(driverString, class->name);
 
       if (deviceDrivers[driverCount].driverDetect == NULL)
 	{
@@ -212,20 +189,16 @@ int kernelDeviceInitialize(void)
 		    status, driverString);
     }
 
-#ifdef DEVICE_DEBUG
-  printTree(deviceTree, 0);
-#endif
-
   return (status = 0);
 }
 
 
-kernelDeviceClass *kernelDeviceGetClass(int classNum)
+deviceClass *kernelDeviceGetClass(int classNum)
 {
   // Given a device (sub)class number, return a pointer to the static class
   // description
 
-  kernelDeviceClass *classList = allClasses;
+  deviceClass *classList = allClasses;
   int count;
 
   // Looking for a subclass?
@@ -242,7 +215,7 @@ kernelDeviceClass *kernelDeviceGetClass(int classNum)
 }
 
 
-int kernelDeviceFind(kernelDeviceClass *class, kernelDeviceClass *subClass,
+int kernelDeviceFind(deviceClass *class, deviceClass *subClass,
 		     kernelDevice *devPointers[], int maxDevices)
 {
   // Calls findDevice to return the first device it finds, with the
@@ -270,32 +243,118 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
   if (parent == NULL)
     parent = deviceTree;
 
-  new->parent = parent;
+  new->device.parent = parent;
 
   driverString[0] = '\0';
-  if (new->model)
-    sprintf(driverString, "\"%s\" ", new->model);
-  if (new->subClass)
-    sprintf((driverString + strlen(driverString)), "%s ", new->subClass->name);
-  if (new->class)
-    strcat(driverString, new->class->name);
+  if (new->device.model)
+    sprintf(driverString, "\"%s\" ", new->device.model);
+  if (new->device.subClass)
+    sprintf((driverString + strlen(driverString)), "%s ",
+	    new->device.subClass->name);
+  if (new->device.class)
+    strcat(driverString, new->device.class->name);
 
   // If the parent has no children, make this the first one.
-  if (parent->firstChild == NULL)
-    parent->firstChild = new;
+  if (parent->device.firstChild == NULL)
+    parent->device.firstChild = new;
 
   else
     {
       // The parent has at least one child.  Follow the linked list to the
       // last child.
-      listPointer = parent->firstChild;
-      while (listPointer->next != NULL)
-	listPointer = listPointer->next;
+      listPointer = parent->device.firstChild;
+      while (listPointer->device.next != NULL)
+	listPointer = listPointer->device.next;
 
       // listPointer points to the last child.
-      listPointer->next = new;
+      listPointer->device.next = new;
     }
 
   kernelLog("%s device detected", driverString);
+
+  numTreeDevices += 1;
+  return (status = 0);
+}
+
+
+int kernelDeviceTreeGetCount(void)
+{
+  // Returns the number of devices in the kernel's device tree.
+  return (numTreeDevices);
+}
+
+
+int kernelDeviceTreeGetRoot(device *rootDev)
+{
+  // Returns the user-space portion of the device tree root device
+
+  int status = 0;
+
+  // Are we initialized?
+  if (deviceTree == NULL)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (rootDev == NULL)
+    {
+      kernelError(kernel_error, "Device pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  kernelMemCopy(&(deviceTree[0].device), rootDev, sizeof(device));
+  return (status = 0);
+}
+
+
+int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
+{
+  // Returns the user-space portion of the supplied device's first child
+  // device
+
+  int status = 0;
+
+  // Are we initialized?
+  if (deviceTree == NULL)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if ((parentDev == NULL) || (childDev == NULL))
+    {
+      kernelError(kernel_error, "Device pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+  
+  if (parentDev->firstChild == NULL)
+    return (status = ERR_NOSUCHENTRY);
+  
+  kernelMemCopy(&(((kernelDevice *) parentDev->firstChild)->device), childDev,
+		sizeof(device));
+  return (status = 0);
+}
+
+
+int kernelDeviceTreeGetNext(device *siblingDev)
+{
+  // Returns the user-space portion of the supplied device's 'next' (sibling)
+  // device
+
+  int status = 0;
+
+  // Are we initialized?
+  if (deviceTree == NULL)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (siblingDev == NULL)
+    {
+      kernelError(kernel_error, "Device pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (siblingDev->next == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  kernelMemCopy(&(((kernelDevice *) siblingDev->next)->device), siblingDev,
+		sizeof(device));
   return (status = 0);
 }

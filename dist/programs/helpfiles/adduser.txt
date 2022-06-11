@@ -4,7 +4,7 @@
 Add a user account to the system
 
 Usage:
-  adduser <user name>
+  adduser <user_name>
 
 The adduser program is a very simple method of adding a user account.  The
 resulting account has no password assigned (you can use the passwd command

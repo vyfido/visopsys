@@ -32,16 +32,81 @@
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // This is the static list of file class registration functions.  If you
 // add any to this, remember to update the LOADER_NUM_FILECLASSES value
 // in the header file.
 static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES]) (void) = {
+  kernelFileClassConfig,
+  kernelFileClassText,
+  kernelFileClassBmp,
+  kernelFileClassBoot,
   kernelFileClassElf,
-  kernelFileClassBmp
+  kernelFileClassBinary
 };
+kernelFileClass emptyFileClass = { FILECLASS_NAME_EMPTY, NULL, { } };
 static kernelFileClass *fileClassList[LOADER_NUM_FILECLASSES];
 static int numFileClasses = 0;
+
+
+static void parseCommand(char *commandLine, int *argc, char *argv[])
+{
+  // Attempts to take a raw 'commandLine' string and parse it into a command
+  // name and arguments.
+
+  int argLen = 0;
+  int count;
+
+  *argc = 0;
+
+  // Loop through the command string
+
+  for (count = 0; *commandLine != '\0'; count ++)
+    {
+      // remove leading whitespace
+      while ((*commandLine == ' ') && (*commandLine != '\0'))
+	commandLine += 1;
+
+      if (*commandLine == '\0')
+	break;
+
+      argLen = 0;
+      
+      // If the argument starts with a double-quote, we will discard
+      // that character and accept characters (including whitespace)
+      // until we hit another double-quote (or the end)
+      if (*commandLine != '\"')
+	{
+	  argv[*argc] = commandLine;
+
+	  // Accept characters until we hit some whitespace (or the end of
+	  // the arguments)
+	  while ((*commandLine != ' ') && (*commandLine != '\0'))
+	    commandLine += 1;
+	}
+      else
+	{
+	  // Discard the "
+	  commandLine += 1;
+	  
+	  argv[*argc] = commandLine;
+
+	  // Accept characters  until we hit another double-quote (or the
+	  // end of the arguments)
+	  while ((*commandLine != '\"') && (*commandLine != '\0'))
+	    commandLine += 1;
+	}
+
+      *argc += 1;
+
+      if (*commandLine == '\0')
+	break;
+      *commandLine++ = '\0';
+    }
+
+  return;
+}
 
 
 static void *load(const char *filename, file *theFile, int kernel)
@@ -167,7 +232,7 @@ kernelFileClass *kernelLoaderGetFileClass(const char *className)
   if (!numFileClasses)
     populateFileClassList();
 
-  // Determine the file's class
+  // Find the named file class
   for (count = 0; count < numFileClasses; count ++)
     {
       if (!strcmp(fileClassList[count]->className, className))
@@ -179,26 +244,93 @@ kernelFileClass *kernelLoaderGetFileClass(const char *className)
 }
 
 
-kernelFileClass *kernelLoaderClassify(void *fileData, loaderFileClass *class)
+kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
+				      int size, loaderFileClass *class)
 {
   // Given some file data, try to determine whether it is one of our known
   // file classes.
 
   int count;
 
+  // Check params.  fileData and size can be NULL.
+  if ((fileName == NULL) || (class == NULL))
+    return (NULL);
+
   // Has our list of file classes been initialized?
   if (!numFileClasses)
     populateFileClassList();
   
+  // Empty file?
+  if ((fileData == NULL) || !size)
+    {
+      strcpy(class->className, FILECLASS_NAME_EMPTY);
+      class->flags = LOADERFILECLASS_EMPTY;
+      return (&emptyFileClass);
+    }
+
   // Determine the file's class
   for (count = 0; count < numFileClasses; count ++)
-    {
-      if (fileClassList[count]->detect(fileData, class) == 1)
-	return (fileClassList[count]);
-    }
+    if (fileClassList[count]->detect(fileName, fileData, size, class))
+      return (fileClassList[count]);
 
   // Not found
   return (NULL);
+}
+
+
+kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
+					  loaderFileClass *loaderClass)
+{
+  // This is a wrapper for the function above, and just temporarily loads
+  // the first sector of the file in order to classify it.
+
+  int status = 0;
+  file theFile;
+  int readBlocks = 0;
+  void *fileData = NULL;
+  kernelFileClass *class = NULL;
+  #define PREVIEW_READBLOCKS 4
+
+  // Check params
+  if ((fileName == NULL) || (loaderClass == NULL))
+    return (class = NULL);
+
+  // Initialize the file structure we're going to use
+  kernelMemClear(&theFile, sizeof(file));
+
+  status = kernelFileOpen(fileName, OPENMODE_READ, &theFile);
+  if (status < 0)
+    return (class = NULL);
+
+  readBlocks = min(PREVIEW_READBLOCKS, theFile.blocks);
+
+  if (readBlocks)
+    {
+      fileData = kernelMalloc(readBlocks * theFile.blockSize);
+      if (fileData == NULL)
+	{
+	  kernelFileClose(&theFile);
+	  return (class = NULL);
+	}
+
+      status = kernelFileRead(&theFile, 0, readBlocks, fileData);
+      if (status < 0)
+	{
+	  kernelFree(fileData);
+	  kernelFileClose(&theFile);
+	  return (class = NULL);
+	}
+    }
+
+  class =
+    kernelLoaderClassify(fileName, fileData,
+			 min(theFile.size, (readBlocks * theFile.blockSize)),
+			 loaderClass);
+
+  if (fileData)
+    kernelFree(fileData);
+  kernelFileClose(&theFile);
+  return (class);
 }
 
 
@@ -226,7 +358,8 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName, int dynamic)
     return (symTable = NULL);
 
   // Try to determine what kind of executable format we're dealing with.
-  fileClassDriver = kernelLoaderClassify(loadAddress, &class);
+  fileClassDriver =
+    kernelLoaderClassify(fileName, loadAddress, theFile.size, &class);
   if (fileClassDriver == NULL)
     {
       kernelFree(loadAddress);
@@ -243,8 +376,7 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName, int dynamic)
 }
 
 
-int kernelLoaderLoadProgram(const char *userProgram, int privilege,
-			    int argc, char *argv[])
+int kernelLoaderLoadProgram(const char *command, int privilege)
 {
   // This takes the name of an executable to load and creates a process
   // image based on the contents of the file.  The program is not started
@@ -259,30 +391,29 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   char tmp[MAX_PATH_NAME_LENGTH];
   int newProcId = 0;
   processImage execImage;
-  int count;
 
   // Check params
-  if (userProgram == NULL)
+  if (command == NULL)
     {
-      kernelError(kernel_error, "Program name to load is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-  if (argc && !argv)
-    {
-      kernelError(kernel_error, "Parameter list pointer is NULL");
+      kernelError(kernel_error, "Command line to load is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
   kernelMemClear(&execImage, sizeof(processImage));
 
+  // Set up argc and argv
+  strncpy(execImage.commandLine, command, MAXSTRINGLENGTH);
+  parseCommand(execImage.commandLine, &(execImage.argc), execImage.argv);
+
   // Load the program code/data into memory
   loadAddress =
-    (unsigned char *) load(userProgram, &theFile, 0 /* not kernel */);
+    (unsigned char *) load(execImage.argv[0], &theFile, 0 /* not kernel */);
   if (loadAddress == NULL)
     return (status = ERR_INVALID);
 
   // Try to determine what kind of executable format we're dealing with.
-  fileClassDriver = kernelLoaderClassify(loadAddress, &class);
+  fileClassDriver =
+    kernelLoaderClassify(execImage.argv[0], loadAddress, theFile.size, &class);
   if (fileClassDriver == NULL)
     {
       kernelMemoryRelease(loadAddress);
@@ -293,7 +424,7 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   if (!(class.flags & LOADERFILECLASS_EXEC))
     {
       kernelError(kernel_error, "File \"%s\" is not an executable program",
-		  userProgram);
+		  command);
       kernelMemoryRelease(loadAddress);
       return (status = ERR_PERMISSION);
     }
@@ -312,14 +443,9 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
 
   // Just get the program name without the path in order to set the process
   // name
-  status = kernelFileSeparateLast(userProgram, tmp, procName);
+  status = kernelFileSeparateLast(execImage.argv[0], tmp, procName);
   if (status < 0)
-    strncpy(procName, userProgram, MAX_NAME_LENGTH);
-
-  // Set up arguments
-  execImage.argc = argc;
-  for (count = 0; count < argc; count ++)
-    execImage.argv[count] = argv[count];
+    strncpy(procName, command, MAX_NAME_LENGTH);
 
   // Set up and run the user program as a process in the multitasker
   newProcId = kernelMultitaskerCreateProcess(procName, privilege, &execImage);
@@ -378,8 +504,7 @@ int kernelLoaderExecProgram(int processId, int block)
 }
 
 
-int kernelLoaderLoadAndExec(const char *progName, int privilege,
-			    int argc, char *argv[], int block)
+int kernelLoaderLoadAndExec(const char *command, int privilege, int block)
 {
   // This is a convenience function that just calls the
   // kernelLoaderLoadProgram and kernelLoaderExecProgram functions for the
@@ -388,7 +513,7 @@ int kernelLoaderLoadAndExec(const char *progName, int privilege,
   int processId = 0;
   int status = 0;
 
-  processId = kernelLoaderLoadProgram(progName, privilege, argc, argv);
+  processId = kernelLoaderLoadProgram(command, privilege);
 
   if (processId < 0)
     return (processId);

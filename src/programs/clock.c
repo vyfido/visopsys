@@ -31,6 +31,8 @@ Show a simple clock in the corner of the screen.
 Usage:
   clock
 
+(Only available in graphics mode)
+
 </help>
 */
 

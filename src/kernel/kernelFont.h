@@ -39,7 +39,7 @@ typedef struct {
 int kernelFontInitialize(void);
 int kernelFontGetDefault(kernelAsciiFont **);
 int kernelFontSetDefault(const char *);
-int kernelFontLoad(const char*, const char*, kernelAsciiFont **, int);
+int kernelFontLoad(const char *, const char *, kernelAsciiFont **, int);
 int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
 
 #define _KERNELFONT_H

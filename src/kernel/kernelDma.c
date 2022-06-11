@@ -39,19 +39,19 @@ static kernelDmaOps *ops = NULL;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelDmaInitialize(kernelDevice *device)
+int kernelDmaInitialize(kernelDevice *dev)
 {
   // This function initializes the DMA controller.
 
   int status = 0;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The DMA device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemDma = device;
+  systemDma = dev;
 
   if ((systemDma->driver == NULL) || (systemDma->driver->ops == NULL))
     {

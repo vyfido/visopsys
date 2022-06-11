@@ -32,8 +32,8 @@ Usage:
   touch <file1> [file2] [...]
 
 This command has a dual purpose; it is used either to create one or more new,
-empty files, or to update the time/date on one or more existing files or
-directories.
+empty files, or to update the time/date stamp on one or more existing files
+or directories.
 
 </help>
 */

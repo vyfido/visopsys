@@ -25,6 +25,7 @@
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
 #include "kernelMalloc.h"
+#include "kernelWindow.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <stdio.h>
@@ -65,6 +66,7 @@ static kernelTextArea consoleArea =
     NULL,                         // buffer data
     (unsigned char *) 0x000B8000, // Text screen address (visible data)
     NULL,                         // font
+    NULL,                         // window component
     NULL,                         // graphic buffer
     NULL,                         // saved screen
     0,                            // saved cursor column
@@ -386,6 +388,10 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 	area->scrollBackLines += min(-diffRows, ((newBufferLines - rows) -
 						 area->scrollBackLines));
     }
+
+  if (area->windowComponent)
+    ((kernelWindowComponent *) area->windowComponent)
+      ->update(area->windowComponent);
 
   // Free the old buffers and assign the new ones
   kernelFree(area->bufferData);
@@ -1215,6 +1221,10 @@ void kernelTextStreamScroll(kernelTextOutputStream *outputStream, int upDown)
 	min(outputStream->textArea->rows,
 	    outputStream->textArea->scrolledBackLines);
     }
+
+  if (outputStream->textArea->windowComponent)
+    ((kernelWindowComponent *) outputStream->textArea->windowComponent)
+      ->update(outputStream->textArea->windowComponent);
 
   // We will call the text stream output driver routines to scroll the screen
   // to the specified area

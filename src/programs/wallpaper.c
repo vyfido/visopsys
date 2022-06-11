@@ -53,10 +53,10 @@ Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported.
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char tmpFilename[128];
-  char filename[MAX_PATH_NAME_LENGTH];
   int processId = 0;
-  objectKey window = NULL;
+  char rawFileName[MAX_PATH_NAME_LENGTH];
+  char fullFileName[MAX_PATH_NAME_LENGTH];
+  file tmpFile;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -66,6 +66,10 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
+  bzero(rawFileName, MAX_PATH_NAME_LENGTH);
+  bzero(fullFileName, MAX_PATH_NAME_LENGTH);
+  bzero(&tmpFile, sizeof(file));
+
   // We need our process ID to create the windows
   processId = multitaskerGetCurrentProcessId();
 
@@ -73,28 +77,33 @@ int main(int argc, char *argv[])
     {
       // The user did not specify a file.  We will prompt them.
       status =
-	windowNewFileDialog(window, "Enter filename", "Please enter the "
-			    "background image\nfile name:", tmpFilename, 128);
+	windowNewFileDialog(NULL, "Enter filename", "Please enter the "
+			    "background image\nfile name:", rawFileName,
+			    MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{
 	  if (status == 0)
 	    return (status);
 
 	  printf("No filename specified\n");
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
+	  return (errno = status);
 	}
     }
   
   else
-    strcpy(tmpFilename, argv[1]);
+    strncpy(rawFileName, argv[1], MAX_PATH_NAME_LENGTH);
 
   // Make sure the file name is complete
-  vshMakeAbsolutePath(tmpFilename, filename);
+  vshMakeAbsolutePath(rawFileName, fullFileName);
 
-  status = windowTileBackground(filename);
+  status = fileFind(fullFileName, &tmpFile);
+  if (status < 0)
+    {
+      printf("File not found\n");
+      return (errno = status);
+    }
 
-  errno = status;
-  return (status);
+  status = windowTileBackground(fullFileName);
+
+  return (errno = status);
 }

@@ -46,12 +46,12 @@
 	  return;
 	}
 
-      if ((new[strlen(new) - 1] != '/') &&
-          (new[strlen(new) - 1] != '\\'))
-        strncat(new, "/", 1);
+      if ((new[strlen(new) - 1] != '/') && (new[strlen(new) - 1] != '\\'))
+        strcat(new, "/");
       
       strcat(new, orig);
-    } 
+    }
+
   else
     strcpy(new, orig);
 

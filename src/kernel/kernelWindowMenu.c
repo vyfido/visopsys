@@ -24,7 +24,6 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelWindowEventStream.h"
-#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <string.h>
 
@@ -75,7 +74,6 @@ static int mouseEvent(void *componentData, windowEvent *event)
   // When mouse events happen to menu components, we pass them on to the
   // appropriate kernelWindowMenuItem component
 
-  int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowMenu *menu = (kernelWindowMenu *) component->data;
@@ -101,28 +99,29 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
       // Is there an item in this space?
       if (clickedItem == NULL)
-	return (status = 0);
+	return (0);
 	  
       if ((clickedItem->flags & WINFLAG_VISIBLE) &&
 	  (clickedItem->flags & WINFLAG_ENABLED) && clickedItem->mouseEvent)
 	{
-	  status = clickedItem->mouseEvent((void *) clickedItem, event);
+	  clickedItem->mouseEvent((void *) clickedItem, event);
+
+	  if (event->type & EVENT_MOUSE_LEFTUP)
+	    // Make this also a 'selection' event
+	    event->type |= EVENT_SELECTION;
 
 	  // Copy the event into the event stream of the menu item
 	  kernelWindowEventStreamWrite(&(clickedItem->events), event);
 	}
 
-      if (event->type == EVENT_MOUSE_LEFTUP)
-	{
-	  // We don't want menu selections to be persistent (i.e. we don't
-	  // want the same item to appear selected the next time the menu is
-	  // visible
-	  if (clickedItem->setSelected)
-	    clickedItem->setSelected((void *) clickedItem, 0);
-	}
+      if (event->type & EVENT_MOUSE_LEFTUP && clickedItem->setSelected)
+	// We don't want menu selections to be persistent (i.e. we don't
+	// want the same item to appear selected the next time the menu is
+	// visible
+	clickedItem->setSelected((void *) clickedItem, 0);
     }
 
-  return (status);
+  return (0);
 }
 
 

@@ -1356,14 +1356,14 @@ static int driverDetect(void *driver)
   // registering each one with any higher-level interfaces
 
   int status = 0;
-  kernelDevice *device = NULL;
+  kernelDevice *dev = NULL;
 
   // Allocate memory for the device
-  device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelGraphicAdapter));
-  if (device == NULL)
+  dev = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelGraphicAdapter));
+  if (dev == NULL)
     return (status = 0);
 
-  adapter = ((void *) device + sizeof(kernelDevice));
+  adapter = ((void *) dev + sizeof(kernelDevice));
 
   // Set up the device parameters
   adapter->videoMemory = kernelOsLoaderInfo->graphicsInfo.videoMemory;
@@ -1381,10 +1381,11 @@ static int driverDetect(void *driver)
 		&(adapter->supportedModes),
 		(sizeof(videoMode) * MAXVIDEOMODES));
 
-  device->class = kernelDeviceGetClass(DEVICECLASS_GRAPHIC);
-  device->subClass = kernelDeviceGetClass(DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER);
-  device->driver = driver;
-  device->dev = adapter;
+  dev->device.class = kernelDeviceGetClass(DEVICECLASS_GRAPHIC);
+  dev->device.subClass =
+    kernelDeviceGetClass(DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER);
+  dev->driver = driver;
+  dev->data = adapter;
   
   // If we are in a graphics mode, initialize the graphics functions
   if (adapter->mode != 0)
@@ -1401,7 +1402,7 @@ static int driverDetect(void *driver)
 	  return (status);
 	}
 
-      status = kernelGraphicInitialize(device);
+      status = kernelGraphicInitialize(dev);
       if (status < 0)
 	return (status);
     }
@@ -1411,7 +1412,7 @@ static int driverDetect(void *driver)
   wholeScreen.height = adapter->yRes;
   wholeScreen.data = adapter->framebuffer;
 
-  return (status = kernelDeviceAdd(NULL, device));
+  return (status = kernelDeviceAdd(NULL, dev));
 }
 
 

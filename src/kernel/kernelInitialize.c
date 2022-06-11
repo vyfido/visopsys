@@ -278,7 +278,6 @@ int kernelInitialize(unsigned kernelMemory)
           if (value[0] != '\0')
             kernelDefaultDesktop.blue = atoi(value);
 
-
 	  // Get the name of the splash image (used only if we are in
 	  // graphics mode)
 	  kernelMemClear(splashName, 128);

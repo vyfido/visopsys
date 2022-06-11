@@ -27,24 +27,27 @@
 
  -- fdisk --
 
-Also known as the "Disk Manager".  This program can be used to perform
-maintenance on fixed disks.
+Also known as the "Disk Manager", fdisk is a hard disk partitioning tool.
+It can create, delete, format, and move partitions and modify their
+attributes.  It can copy entire hard disks from one to another.
 
 Usage:
-  fdisk [-T] [-o <disk name>] [disk name]
+  fdisk [-T] [-o] [disk_name]
 
 The fdisk program is interactive, and can be used in either text or graphics
-mode.  It provides the same functionality in both modes but graphics mode
-will tend to be more fluid and user-friendly.  Development of this program
-is ongoing and will be a major focus of improvements in future releases,
-aiming towards providing much of the same functionality of PartitionMagic
-and similar utilities.  If the disk name can be specified as the last
-argument.
+mode.  It provides the same functionality in both modes; text mode operation
+is menu-driven.
+
+The disk can be automatically selected by specifying its name (as listed by
+the 'disks' command) as the last argument.
 
 Options:
+-T              : Force text mode operation
+-o <disk_name>  : Clear the partition table of the specified disk
 
--T  Force text mode operation
--o <disk name>  Clear the partition table of the specified disk
+Development of this program is ongoing and will be a major focus of
+improvements in future releases,  aiming towards providing much of the same
+functionality of PartitionMagic and similar utilities.
 
 </help>
 */
@@ -56,6 +59,7 @@ Options:
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/fat.h>
 #include "fdisk.h"
 
 static const char *programName = NULL;
@@ -64,8 +68,7 @@ static int readOnly = 1;
 static char sliceListHeader[SLICESTRING_LENGTH + 1];
 static int numberDisks = 0;
 static disk *diskInfo = NULL;
-static char *diskStringData = NULL;
-static char *diskStrings[DISK_MAXDEVICES];
+static listItemParameters *diskListParams = NULL;
 static int selectedDiskNumber = 0;
 static disk *selectedDisk = NULL;
 static unsigned cylinderSectors = 0;
@@ -505,10 +508,8 @@ static void makeSliceString(slice *slc)
 {
   int position = 0;
   partitionType sliceType;
-  int count;
 
-  for (count = 0; count < MAX_DESCSTRING_LENGTH; count ++)
-    slc->string[count] = ' ';
+  memset(slc->string, ' ', MAX_DESCSTRING_LENGTH);
   slc->string[MAX_DESCSTRING_LENGTH - 1] = '\0';
 
   if (slc->typeId == 0)
@@ -1480,6 +1481,10 @@ static int scanDisks(void)
     // Eek.  Problem getting disk info
     return (status);
 
+  diskListParams = malloc(DISK_MAXDEVICES * sizeof(listItemParameters));
+  if (diskListParams == NULL)
+    return (status = ERR_MEMORY);
+
   // Loop through these disks, figuring out which ones are hard disks
   // and putting them into the regular array
   for (count = 0; count < tmpNumberDisks; count ++)
@@ -1487,14 +1492,15 @@ static int scanDisks(void)
       {
 	memcpy(&diskInfo[numberDisks], &tmpDiskInfo[count], sizeof(disk));
 
-	sprintf(diskStrings[numberDisks], "Disk %d: [%s] %u Mb, %u cyls, "
-		"%u heads, %u secs/cyl, %u bytes/sec",
-		diskInfo[numberDisks].deviceNumber, diskInfo[numberDisks].name,
-		cylsToMb(&diskInfo[numberDisks],
-			 diskInfo[numberDisks].cylinders),
-		diskInfo[numberDisks].cylinders, diskInfo[numberDisks].heads, 
-		diskInfo[numberDisks].sectorsPerCylinder,
-		diskInfo[numberDisks].sectorSize);
+	snprintf(diskListParams[numberDisks].text, WINDOW_MAX_LABEL_LENGTH,
+		 "Disk %d: [%s] %u Mb, %u cyls, %u heads, %u secs/cyl, "
+		 "%u bytes/sec", diskInfo[numberDisks].deviceNumber,
+		 diskInfo[numberDisks].name,
+		 cylsToMb(&diskInfo[numberDisks],
+			  diskInfo[numberDisks].cylinders),
+		 diskInfo[numberDisks].cylinders, diskInfo[numberDisks].heads, 
+		 diskInfo[numberDisks].sectorsPerCylinder,
+		 diskInfo[numberDisks].sectorSize);
 
 	numberDisks += 1;
       }
@@ -1523,7 +1529,7 @@ static void printDisks(void)
 
   for (count = 0; count < numberDisks; count ++)
     // Print disk info
-    printf("  %s\n", diskStrings[count]);
+    printf("  %s\n", diskListParams[count].text);
 }
 
 
@@ -1578,6 +1584,11 @@ static int selectDisk(const disk *theDisk)
 static int queryDisk(void)
 {
   int status;
+  char *diskStrings[DISK_MAXDEVICES];
+  int count;
+
+  for (count = 0; count < numberDisks; count ++)
+    diskStrings[count] = diskListParams[count].text;
 
   status = vshCursorMenu("Please choose the disk on which to operate:",
 			 numberDisks, diskStrings, selectedDiskNumber);
@@ -1748,7 +1759,7 @@ static void printBanner(void)
 
 static void display(void)
 {
-  char *sliceStrings[MAX_SLICES];
+  listItemParameters sliceListParams[MAX_SLICES];
   char lineString[SLICESTRING_LENGTH + 2];
   int slc = 0;
   int foregroundColor = textGetForeground();
@@ -1756,17 +1767,17 @@ static void display(void)
   int isHide = 0;
   int isMove = 0;
   int count;
-
+  
+  bzero(sliceListParams, (numberSlices * sizeof(listItemParameters)));
   for (count = 0; count < numberSlices; count ++)
-    // We need to pass a char *[] to the slice list component in graphics
-    // mode.
-    sliceStrings[count] = slices[count].string;
-
+    strncpy(sliceListParams[count].text, slices[count].string,
+	    WINDOW_MAX_LABEL_LENGTH);
+  
   if (graphics)
     {
       // Re-populate our slice list component
       windowComponentSetSelected(sliceList, 0);
-      windowComponentSetData(sliceList, sliceStrings, numberSlices);
+      windowComponentSetData(sliceList, sliceListParams, numberSlices);
       windowComponentSetSelected(sliceList, selectedSlice);
       drawDiagram();
 
@@ -1833,7 +1844,7 @@ static void display(void)
       for (count = 0; count <= SLICESTRING_LENGTH; count ++)
 	lineString[count] = 196;
 
-      printf("\n%s\n\n  %s\n %s\n", diskStrings[selectedDiskNumber],
+      printf("\n%s\n\n  %s\n %s\n", diskListParams[selectedDiskNumber].text,
 	     sliceListHeader, lineString);
 
       // Print info about the partitions
@@ -1942,7 +1953,6 @@ static void format(slice *formatSlice)
 
   int status = 0;
   objectKey formatDialog = NULL;
-  objectKey bannerDialog = NULL;
   componentParameters params;
   objectKey fsTypeRadio = NULL;
   objectKey okButton = NULL;
@@ -1988,6 +1998,7 @@ static void format(slice *formatSlice)
       params.gridWidth = 1;
       params.orientationX = orient_right;
       params.padBottom = 5;
+      params.fixedWidth = 1;
       okButton = windowNewButton(formatDialog, "OK", NULL, &params);
 
       params.gridX = 1;
@@ -2005,7 +2016,7 @@ static void format(slice *formatSlice)
 	  status = windowComponentEventGet(okButton, &event);
 	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	    {
-	      selectedType = windowComponentGetSelected(fsTypeRadio);
+	      windowComponentGetSelected(fsTypeRadio, &selectedType);
 	      windowDestroy(formatDialog);
 	      break;
 	    }
@@ -2035,21 +2046,13 @@ static void format(slice *formatSlice)
 	  "undone)", formatSlice->name1, fsTypes[selectedType]);
   if (yesOrNo(tmpChar))
     {
-      if (graphics)
-	bannerDialog =
-	  windowNewBannerDialog(window, "Formatting", "Format in progress, "
-				"please wait...");
-
       // Do the format
       sprintf(tmpChar, "/programs/format -s -t %s %s", fsTypes[selectedType],
 	      formatSlice->name1);
       status = system(tmpChar);
-
-      if (bannerDialog)
-	windowDestroy(bannerDialog);
-
       if (status < 0)
 	error("Error during format");
+
       else
 	{
 	  sprintf(tmpChar, "Format complete");
@@ -2158,11 +2161,12 @@ static void listTypes(void)
 	  // Make a text area for our info
 	  textArea =
 	    windowNewTextArea(typesWindow, 60, ((numberTypes / 2) + 2), 0,
-			      &params);
+	  		      &params);
 
 	  // Make a dismiss button
 	  params.gridY = 1;
 	  params.padBottom = 5;
+	  params.fixedWidth = 1;
 	  dismissButton =
 	    windowNewButton(typesWindow, "Dismiss", NULL, &params);
 	  windowComponentFocus(dismissButton);
@@ -2817,6 +2821,7 @@ static void create(int sliceNumber)
 	  params.padBottom = 5;
 	  params.orientationX = orient_right;
 	  params.hasBorder = 0;
+	  params.fixedWidth = 1;
 	  okButton = windowNewButton(createDialog, "OK", NULL, &params);
 
 	  params.gridX = 1;
@@ -2867,8 +2872,8 @@ static void create(int sliceNumber)
 	      multitaskerYield();
 	    }
 
-	  newEntry.entryType =
-	    (partEntryType) windowComponentGetSelected(primLogRadio);
+	  windowComponentGetSelected(primLogRadio,
+				     (int *) &newEntry.entryType);
 
 	  windowComponentGetData(startCylField, startCyl, 10);
 	  windowComponentGetData(endCylField, endCyl, 10);
@@ -3073,6 +3078,7 @@ static disk *chooseDiskDialog(void)
 
   int status = 0;
   disk *retDisk = NULL;
+  int selected = 0;
   objectKey chooseWindow = NULL;
   componentParameters params;
   objectKey dList = NULL;
@@ -3094,14 +3100,15 @@ static disk *chooseDiskDialog(void)
   params.useDefaultBackground = 1;
 
   // Make a window list with all the disk choices
-  dList = windowNewList(chooseWindow, numberDisks, 1, 0, diskStrings,
-			   numberDisks, &params);
+  dList = windowNewList(chooseWindow, windowlist_textonly, numberDisks, 1, 0,
+			diskListParams, numberDisks, &params);
 
   // Make 'OK' and 'cancel' buttons
   params.gridY = 1;
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
 
   params.gridX = 1;
@@ -3120,7 +3127,8 @@ static disk *chooseDiskDialog(void)
       status = windowComponentEventGet(okButton, &event);
       if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
-	  retDisk = &(diskInfo[windowComponentGetSelected(dList)]);
+	  windowComponentGetSelected(dList, &selected);
+	  retDisk = &(diskInfo[selected]);
 	  break;
 	}
 
@@ -3297,6 +3305,41 @@ static void clearDiskLabel(disk *theDisk)
 	writeChanges(0);
 	break;
       }
+}
+
+
+static int setFatGeometry(disk *theDisk, int partition)
+{
+  // Given a disk and a partition number, make sure the FAT disk geometry
+  // fields are correct.
+
+  int status = 0;
+  slice entry;
+  unsigned char bootSector[512];
+  fatBPB *bpb = (fatBPB *) bootSector;
+
+  // Load the partition
+  status = getPartitionEntry(partition, &entry);
+  if (status < 0)
+    return (status);
+
+  // Read the boot sector
+  status = diskReadSectors(theDisk->name, entry.startLogical, 1, bootSector);
+  if (status < 0)
+    return (status);
+
+  // Set the values
+  bpb->sectsPerTrack = theDisk->sectorsPerCylinder;
+  bpb->numHeads = theDisk->heads;
+
+  if (!strcmp(entry.fsType, "fat32"))
+    bpb->fat32.biosDriveNum = (0x80 + theDisk->deviceNumber);
+  else
+    bpb->fat.biosDriveNum = (0x80 + theDisk->deviceNumber);
+
+  // Write back the boot sector
+  status = diskWriteSectors(theDisk->name, entry.startLogical, 1, bootSector);
+  return (status);
 }
 
 
@@ -3642,6 +3685,14 @@ static int copyDisk(void)
   // Write out the partition table
   status = writePartitionTable(destDisk, mainTable);
 
+  // Make sure the disk geometries of any FAT partitions are correct for the
+  // new disk.
+  for (count = 0; count < mainTable->numberEntries; count ++)
+    {
+      if (!strncmp(entry.fsType, "fat", 3))
+	setFatGeometry(destDisk, entry.sliceId);
+    }
+
   makeSliceList();
   display();
   
@@ -3695,7 +3746,7 @@ static void changePartitionOrder(void)
   partitionTable tempTable;
   slice *orderSlices[DISK_MAX_PRIMARY_PARTITIONS];
   int numOrderSlices = 0;
-  char *orderStrings[DISK_MAX_PRIMARY_PARTITIONS];
+  listItemParameters orderListParams[DISK_MAX_PRIMARY_PARTITIONS];
   char lineString[SLICESTRING_LENGTH + 2];
   componentParameters params;
   objectKey orderList = NULL;
@@ -3718,7 +3769,8 @@ static void changePartitionOrder(void)
 	{
 	  orderSlices[numOrderSlices] = &tempTable.entries[count1];
 	  makeSliceString(&tempTable.entries[count1]);
-	  orderStrings[numOrderSlices++] = tempTable.entries[count1].string;
+	  strncpy(orderListParams[numOrderSlices++].text,
+		  tempTable.entries[count1].string, WINDOW_MAX_LABEL_LENGTH);
 	}
     }
   
@@ -3739,14 +3791,16 @@ static void changePartitionOrder(void)
       
       // Make a window list with all the disk choices
       fontGetDefault(&params.font);
-      orderList = windowNewList(orderDialog, DISK_MAX_PRIMARY_PARTITIONS,
-				1, 0, orderStrings, numOrderSlices, &params);
+      orderList = windowNewList(orderDialog, windowlist_textonly,
+				DISK_MAX_PRIMARY_PARTITIONS, 1, 0,
+				orderListParams, numOrderSlices, &params);
 
       // Make 'up' and 'down' buttons
       params.gridX = 2;
       params.gridHeight = 1;
       params.gridWidth = 1;
       params.font = NULL;
+      params.fixedWidth = 1;
       upButton = windowNewButton(orderDialog, "/\\", NULL, &params);
 
       params.gridY = 1;
@@ -3771,7 +3825,7 @@ static void changePartitionOrder(void)
 
       while(1)
 	{
-	  selected = windowComponentGetSelected(orderList);
+	  windowComponentGetSelected(orderList, &selected);
 
 	  if ((windowComponentEventGet(upButton, &event) > 0) &&
 	      (event.type == EVENT_MOUSE_LEFTUP) && (selected > 0))
@@ -3779,7 +3833,14 @@ static void changePartitionOrder(void)
 	      // 'Up' button
 	      swapEntries(orderSlices[selected], orderSlices[selected - 1]);
 	      windowComponentSetSelected(orderList, (selected - 1));
-	      windowComponentSetData(orderList, orderStrings, numOrderSlices);
+	      strncpy(orderListParams[selected].text,
+		      orderSlices[selected]->string,
+		      WINDOW_MAX_LABEL_LENGTH);
+	      strncpy(orderListParams[selected - 1].text,
+		      orderSlices[selected - 1]->string,
+		      WINDOW_MAX_LABEL_LENGTH);
+	      windowComponentSetData(orderList, orderListParams,
+				     numOrderSlices);
 	    }
 	  
 	  if ((windowComponentEventGet(downButton, &event) > 0) &&
@@ -3789,7 +3850,14 @@ static void changePartitionOrder(void)
 	      // 'Down' button
 	      swapEntries(orderSlices[selected], orderSlices[selected + 1]);
 	      windowComponentSetSelected(orderList, (selected + 1));
-	      windowComponentSetData(orderList, orderStrings, numOrderSlices);
+	      strncpy(orderListParams[selected].text,
+		      orderSlices[selected]->string,
+		      WINDOW_MAX_LABEL_LENGTH);
+	      strncpy(orderListParams[selected + 1].text,
+		      orderSlices[selected + 1]->string,
+		      WINDOW_MAX_LABEL_LENGTH);
+	      windowComponentSetData(orderList, orderListParams,
+				     numOrderSlices);
 	    }
 
 	  // Check for our OK button
@@ -3844,8 +3912,8 @@ static void changePartitionOrder(void)
 		  textSetBackground(foregroundColor);
 		}
 	  
-	      printf(" %s", orderStrings[count1]);
-	      for (count2 = strlen(orderStrings[count1]);
+	      printf(" %s", orderListParams[count1].text);
+	      for (count2 = strlen(orderListParams[count1].text);
 		   count2 < SLICESTRING_LENGTH; count2 ++)
 		printf(" ");
 
@@ -3893,7 +3961,7 @@ static void changePartitionOrder(void)
 		  swapEntries(orderSlices[selected],
 			      orderSlices[selected - 1]);
 		  windowComponentSetSelected(orderList, (selected - 1));
-		  windowComponentSetData(orderList, orderStrings,
+		  windowComponentSetData(orderList, orderListParams,
 					 numOrderSlices);
 		  selected -= 1;
 		}
@@ -3906,7 +3974,7 @@ static void changePartitionOrder(void)
 		  swapEntries(orderSlices[selected],
 			      orderSlices[selected + 1]);
 		  windowComponentSetSelected(orderList, (selected + 1));
-		  windowComponentSetData(orderList, orderStrings,
+		  windowComponentSetData(orderList, orderListParams,
 					 numOrderSlices);
 		  selected += 1;
 		}
@@ -3987,20 +4055,20 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
   int count;
   int selected = -1;
+  int newSelected = 0;
 
   // Check for the window being closed by a GUI event.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == menuQuit) && (event->type == EVENT_MOUSE_LEFTUP)))
+      ((key == menuQuit) && (event->type & EVENT_SELECTION)))
     {
       quit(0);
       return;
     }
 
   // Check for changes to our disk list
-  else if ((key == diskList) && ((event->type == EVENT_MOUSE_LEFTDOWN) ||
-				 (event->type == EVENT_KEY_DOWN)))
+  else if ((key == diskList) && (event->type & EVENT_SELECTION))
     {
-      int newSelected = windowComponentGetSelected(diskList);
+      windowComponentGetSelected(diskList, &newSelected);
       if ((newSelected >= 0) && (newSelected != selectedDiskNumber))
 	if (selectDisk(&diskInfo[newSelected]) < 0)
 	  windowComponentSetSelected(diskList, selectedDiskNumber);
@@ -4022,86 +4090,83 @@ static void eventHandler(objectKey key, windowEvent *event)
     }
   
   // Check for changes to our slice list
-  else if ((key == sliceList) && ((event->type == EVENT_MOUSE_LEFTDOWN) ||
-				  (event->type == EVENT_KEY_DOWN)))
+  else if ((key == sliceList) && (event->type & EVENT_SELECTION))
     {
-      selected = windowComponentGetSelected(sliceList);
+      windowComponentGetSelected(sliceList, &selected);
       if (selected >= 0)
 	selectedSlice = selected;
     }
 
-  else if (((key == writeButton) || (key == menuWrite)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == writeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuWrite) && (event->type & EVENT_SELECTION)))
     writeChanges(1);
 
-  else if (((key == undoButton) || (key == menuUndo)) && 
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == undoButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuUndo) &&  (event->type & EVENT_SELECTION)))
     undo();
 
-  else if ((key == menuRestoreBackup) && (event->type == EVENT_MOUSE_LEFTUP))
+  else if ((key == menuRestoreBackup) && (event->type & EVENT_SELECTION))
     restoreBackup();
 
-  else if (((key == copyDiskButton) || (key == menuCopyDisk)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == copyDiskButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuCopyDisk) && (event->type & EVENT_SELECTION)))
     {
       if (copyDisk() < 0)
 	error("Disk copy failed.");
     }
 
-  else if ((key == menuPartOrder) && (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      changePartitionOrder();
-    }
+  else if ((key == menuPartOrder) && (event->type & EVENT_SELECTION))
+    changePartitionOrder();
 
-  else if (((key == setActiveButton) || (key == menuSetActive)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == setActiveButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuSetActive) && (event->type & EVENT_SELECTION)))
     {
       if (slices[selectedSlice].typeId)
 	setActive(slices[selectedSlice].sliceId);
     }
 
-  else if (((key == deleteButton) || (key == menuDelete)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuDelete) && (event->type & EVENT_SELECTION)))
     {
       if (slices[selectedSlice].typeId)
 	delete(slices[selectedSlice].sliceId);
     }
 
-  else if (((key == formatButton) || (key == menuFormat)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == formatButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuFormat) && (event->type & EVENT_SELECTION)))
     format(&slices[selectedSlice]);
 
-  else if (((key == hideButton) || (key == menuHide)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == hideButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuHide) && (event->type & EVENT_SELECTION)))
     {
       if (slices[selectedSlice].typeId)
 	hide(slices[selectedSlice].sliceId);
     }
 
-  else if (((key == infoButton) || (key == menuInfo)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == infoButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuInfo) && (event->type & EVENT_SELECTION)))
     info(selectedSlice);
 
-  else if ((key == menuListTypes) && (event->type == EVENT_MOUSE_LEFTUP))
+  else if ((key == menuListTypes) && (event->type & EVENT_SELECTION))
     listTypes();
 
-  else if (((key == moveButton) || (key == menuMove)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == moveButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuMove) && (event->type & EVENT_SELECTION)))
     {
       if (slices[selectedSlice].typeId)
 	move(slices[selectedSlice].sliceId);
     }
 
-  else if (((key == newButton) || (key == menuNew)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == newButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuNew) && (event->type & EVENT_SELECTION)))
     create(selectedSlice);
 
-  else if (((key == deleteAllButton) || (key == menuDeleteAll)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == deleteAllButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuDeleteAll) && (event->type & EVENT_SELECTION)))
     deleteAll();
 
-  else if (((key == setTypeButton) || (key == menuSetType)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
+  else if (((key == setTypeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuSetType) && (event->type & EVENT_SELECTION)))
     {
       if (slices[selectedSlice].typeId)
 	setType(slices[selectedSlice].sliceId);
@@ -4211,8 +4276,8 @@ static void constructWindow(void)
   // Make a list for the disks
   params.gridX = 0;
   params.gridY = 2;
-  diskList = windowNewList(window, numberDisks, 1, 0, diskStrings,
-			   numberDisks, &params);
+  diskList = windowNewList(window, windowlist_textonly, numberDisks, 1, 0,
+			   diskListParams, numberDisks, &params);
   windowRegisterEventHandler(diskList, &eventHandler);
 
   params.gridY = 4;
@@ -4222,12 +4287,12 @@ static void constructWindow(void)
   // Make a list for the partitions
   params.gridY = 5;
   params.padTop = 5;
-  char tmpChar[SLICESTRING_LENGTH + 1];
-  for (count = 0; count <= SLICESTRING_LENGTH; count ++)
-    tmpChar[count] = ' ';
-  tmpChar[SLICESTRING_LENGTH] = '\0';
-  sliceList = windowNewList(window, 6, 1, 0, (char *[]){ tmpChar }, 1,
-			    &params);
+  listItemParameters tmpListParams;
+  for (count = 0; count < WINDOW_MAX_LABEL_LENGTH; count ++)
+    tmpListParams.text[count] = ' ';
+  tmpListParams.text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
+  sliceList = windowNewList(window, windowlist_textonly, 6, 1, 0,
+			    &tmpListParams, 1, &params);
   windowRegisterEventHandler(sliceList, &eventHandler);
   canvasWidth = windowComponentGetWidth(sliceList);
 
@@ -4506,8 +4571,8 @@ static void freeMemory(void)
   if (diskInfo)
     free(diskInfo);
 
-  if (diskStringData)
-    free(diskStringData);
+  if (diskListParams)
+    free(diskListParams);
 
   if (mainTable)
     {
@@ -4586,25 +4651,23 @@ int main(int argc, char *argv[])
   if (multitaskerGetProcessPrivilege(processId) != 0)
     {
       if (graphics)
-	windowNewErrorDialog(NULL, "Permission Denied", PERM);
-      printf("\n%s\n(Try logging in as user \"admin\")\n\n", PERM);
+	error(PERM);
+      else
+	printf("\n%s\n\n", PERM);
       return (errno = ERR_PERMISSION);
     }
 
   // Get memory for various things
 
   diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
-  diskStringData = malloc(DISK_MAXDEVICES * MAX_DESCSTRING_LENGTH);
   mainTable = malloc(sizeof(partitionTable));
   slices = malloc(MAX_SLICES * sizeof(slice));
-  if ((diskInfo == NULL) || (diskStringData == NULL) || (mainTable == NULL) ||
+  if ((diskInfo == NULL) || (mainTable == NULL) ||
       (slices == NULL))
     {
       freeMemory();
       return (status = errno = ERR_MEMORY);
     }
-  for (count = 0; count < DISK_MAXDEVICES; count ++)
-    diskStrings[count] = (diskStringData + (count * MAX_DESCSTRING_LENGTH));
 
   // Find out whether our temp or backup directories are on a read-only
   // filesystem

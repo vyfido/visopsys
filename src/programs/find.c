@@ -30,7 +30,7 @@
 A command for traversing directory trees.
 
 Usage:
-  find [start_directory]
+  find [start_dir]
 
 This command is designed to recursively descend through directory trees.
 The (optional) starting directory parameter can be supplied, or else the

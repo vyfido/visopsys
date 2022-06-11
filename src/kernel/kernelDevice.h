@@ -25,84 +25,28 @@
 #if !defined(_KERNELDEVICE_H)
 
 #include "kernelDriver.h"
-
-// Hardware device classes and subclasses
-#define DEVICECLASS_NONE                    0
-#define DEVICECLASS_SYSTEM                  0x0100
-#define DEVICECLASS_CPU                     0x0200
-#define DEVICECLASS_MEMORY                  0x0300
-#define DEVICECLASS_BUS                     0x0400
-#define DEVICECLASS_PIC                     0x0500
-#define DEVICECLASS_SYSTIMER                0x0600
-#define DEVICECLASS_RTC                     0x0700
-#define DEVICECLASS_DMA                     0x0800
-#define DEVICECLASS_KEYBOARD                0x0900
-#define DEVICECLASS_MOUSE                   0x0A00
-#define DEVICECLASS_DISK                    0x0B00
-#define DEVICECLASS_GRAPHIC                 0x0C00
-#define DEVICECLASS_NETWORK                 0x0D00
-
-// Device sub-classes
-
-// Sub-classes of CPUs
-#define DEVICESUBCLASS_NONE                 0
-
-#define DEVICESUBCLASS_CPU_X86              (DEVICECLASS_CPU | 0x01)
-
-// Sub-classes of buses
-#define DEVICESUBCLASS_BUS_PCI              (DEVICECLASS_BUS | 0x01)
-
-// Sub-classes of mice
-#define DEVICESUBCLASS_MOUSE_PS2            (DEVICECLASS_MOUSE | 0x01)
-#define DEVICESUBCLASS_MOUSE_SERIAL         (DEVICECLASS_MOUSE | 0x02)
-
-// Sub-classes of disks
-#define DEVICESUBCLASS_DISK_FLOPPY          (DEVICECLASS_DISK | 0x01)
-#define DEVICESUBCLASS_DISK_IDE             (DEVICECLASS_DISK | 0x02)
-#define DEVICESUBCLASS_DISK_SCSI            (DEVICECLASS_DISK | 0x03)
-
-// Sub-classes of graphics adapters
-#define DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER  (DEVICECLASS_GRAPHIC | 0x01)
-
-// Sub-classes of network adapters
-#define DEVICESUBCLASS_NETWORK_ETHERNET     (DEVICECLASS_NETWORK | 0x01)
-
-// For masking off class/subclass
-#define DEVICECLASS_MASK                    0xFF00
-#define DEVICESUBCLASS_MASK                 0x00FF
-
-// A structure for device classes and subclasses, which just allows us to
-// associate the different types with string names.
-typedef struct {
-  int class;
-  char *name;
-
-} kernelDeviceClass;
+#include <sys/device.h>
 
 // The generic hardware device structure
 typedef struct {
-  // Device class and subclass.  Subclass optional.
-  kernelDeviceClass *class;
-  kernelDeviceClass *subClass;
-  // Optional, vendor-specific model name
-  char *model;
+  device device;
   // Driver
   kernelDriver *driver;
   // Device class-specific structure
-  void *dev;
-  // Used for our tree
-  void *parent;
-  void *firstChild;
-  void *next;
+  void *data;
 
 } kernelDevice;
 
 // Functions exported from kernelDevice.c
 int kernelDeviceInitialize(void);
-kernelDeviceClass *kernelDeviceGetClass(int);
-int kernelDeviceFind(kernelDeviceClass *, kernelDeviceClass *,
-		     kernelDevice *[], int);
+deviceClass *kernelDeviceGetClass(int);
+int kernelDeviceFind(deviceClass *, deviceClass *, kernelDevice *[], int);
 int kernelDeviceAdd(kernelDevice *, kernelDevice *);
+// These ones are exported outside the kernel
+int kernelDeviceTreeGetCount(void);
+int kernelDeviceTreeGetRoot(device *);
+int kernelDeviceTreeGetChild(device *, device *);
+int kernelDeviceTreeGetNext(device *);
 
 #define _KERNELDEVICE_H
 #endif

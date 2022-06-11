@@ -78,7 +78,6 @@ _X_ int vshDumpFile(const char *fileName)
       return (errno = status);
     }
 
-
   // Print the file
   count = 0;
   while (count < theFile.size)

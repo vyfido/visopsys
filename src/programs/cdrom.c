@@ -30,14 +30,18 @@
 This command can be used to control operations of CD-ROM devices.
 
 Usage:
-  cdrom [disk_name] <operation>
+  cdrom [disk_name] [operation]
 
     where 'operation' is one of: open, eject, close, lock, unlock 
 
-The first (optional) parameter is the name of a CD-ROM disk (use the 'disks'
-command to list the disks).  If no disk name is specified, the cdrom command
-will attempt to guess the most likely device.  The second (mandatory)
-argument tells the CD-ROM which operation to perform.
+The first (optional) parameter is the name of a CD-ROM disk.  If no disk
+name is specified, the cdrom command will attempt to guess the most likely
+device (the first CD-ROM device identified by the system). The second
+(optional) argument tells the CD-ROM which operation to perform.
+
+If no disk name or operation are specified, the program prints out the names
+of CD-ROM devices it thinks are available to the system.  Use the 'disks'
+command to print out the names of all disks.
 
 </help>
 */

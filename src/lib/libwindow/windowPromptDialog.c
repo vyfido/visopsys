@@ -187,7 +187,7 @@ _X_ int windowNewPromptDialog(objectKey parentWindow, const char *title, const c
 
 _X_ int windowNewPasswordDialog(objectKey parentWindow, const char *title, const char *message, int columns, char *buffer)
 {
-  // Desc: Create an 'password' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single password field.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+  // Desc: Create a 'password' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single password field.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
   return(dialog(passwordDialog, parentWindow, title, message, 1, columns,
 		buffer));
 }

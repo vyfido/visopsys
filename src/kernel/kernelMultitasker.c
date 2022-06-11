@@ -489,8 +489,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
   // Leave space for pointers to the strings, since the (int argc,
   // char *argv[]) scheme means just 2 values on the stack: an integer
   // an a pointer to an array of char* pointers...
-  argSpaceSize = ((execImage->argc + 2) * sizeof(char *));
-  argSpaceSize += (strlen(name) + 1);
+  argSpaceSize = ((execImage->argc + 1) * sizeof(char *));
   for (count = 0; count < execImage->argc; count ++)
     argSpaceSize += (strlen(execImage->argv[count]) + 1);
 
@@ -522,22 +521,18 @@ static int createNewProcess(const char *name, int priority, int privilege,
       return (status = ERR_MEMORY);
     }
 
-  args[0] = (execImage->argc + 1);
+  args[0] = execImage->argc;
   args[1] = (int) newArgAddress;
 	
   argv = (char **) argSpace;
-  argSpace += ((execImage->argc + 2) * sizeof(char *));
-  newArgAddress += ((execImage->argc + 2) * sizeof(char *));
+  argSpace += ((execImage->argc + 1) * sizeof(char *));
+  newArgAddress += ((execImage->argc + 1) * sizeof(char *));
 
-  // Copy the name into argv[0]
-  strcpy(argSpace, name);
-  argv[0] = newArgAddress;
-  length = (strlen(name) + 1);
-
+  // Copy the args into argv
   for (count = 0; count < execImage->argc; count ++)
     {
       strcpy((argSpace + length), execImage->argv[count]);
-      argv[count + 1] = (newArgAddress + length);
+      argv[count] = (newArgAddress + length);
       length += (strlen(execImage->argv[count]) + 1);
     }
 
@@ -1244,7 +1239,7 @@ static int schedulerInitialize(void)
     NULL, 0xFFFFFFFF,
     NULL, 0xFFFFFFFF,
     0xFFFFFFFF,
-    0, { NULL }
+    "", 0, { NULL }
   };
   
   status = createNewProcess("scheduler process", kernelProc->priority,
@@ -1341,7 +1336,7 @@ static int createKernelProcess(void)
     NULL, 0xFFFFFFFF,
     NULL, 0xFFFFFFFF,
     0xFFFFFFFF,
-    0, { NULL }
+    "", 0, { NULL }
   };
 
   // The kernel process is its own parent, of course, and it is owned 
@@ -1875,9 +1870,10 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
   execImage.imageSize = 0;
 
   // Set up arguments
-  execImage.argc = argc;
+  execImage.argc = (argc + 1);
+  execImage.argv[0] = (char *) name;
   for (count = 0; count < argc; count ++)
-    execImage.argv[count] = argv[count];
+    execImage.argv[count + 1] = argv[count];
 
   // OK, now we should create the new process
   processId = createNewProcess(name, kernelCurrentProcess->priority,
@@ -2294,7 +2290,7 @@ int kernelMultitaskerGetCurrentDirectory(char *buffer, int buffSize)
 }
 
 
-int kernelMultitaskerSetCurrentDirectory(char *newDirectoryName)
+int kernelMultitaskerSetCurrentDirectory(const char *newDirectoryName)
 {
   // This function will change the current directory of the current
   // process.  Returns 0 on success, negative otherwise.

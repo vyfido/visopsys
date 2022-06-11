@@ -7,12 +7,12 @@ Synonym:
   move, ren, rename
 
 Usage:
-  mv <file1> [file2] [...] <new_name | detination_directory>
+  mv <item1> [item2] [...] <new_name | detination_directory>
 
-This command will move a file or files.  If one file is being moved, then
-the last argument can be either a new filename, or else can be a
-destination directory -- in which case the moved file will retain the same
-file name as before.  If multiple files are being moved, then the last
-argument must be a directory name and all files will retain the same file
+This command will move one or more files or directories.  If one item is
+being moved, then the last argument can be either the new name, or else can
+be a destination directory -- in which case the moved file will retain the
+same name as before.  If multiple items are being moved, then the last
+argument must be a directory name and all moved items will retain the same
 names.
 

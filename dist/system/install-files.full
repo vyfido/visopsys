@@ -31,10 +31,15 @@
 /system/headers/wctype.h
 /system/headers/sys
 /system/headers/sys/api.h
+/system/headers/sys/device.h
 /system/headers/sys/disk.h
 /system/headers/sys/errors.h
+/system/headers/sys/ext.h
+/system/headers/sys/fat.h
 /system/headers/sys/file.h
 /system/headers/sys/image.h
+/system/headers/sys/iso.h
+/system/headers/sys/loader.h
 /system/headers/sys/lock.h
 /system/headers/sys/memory.h
 /system/headers/sys/process.h

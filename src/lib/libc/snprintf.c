@@ -16,24 +16,39 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  vshPrintTime.c
+//  snprintf.c
 //
 
-// This contains some useful functions written for the shell
+// This is the standard "snprintf" function, as found in standard C libraries
 
 #include <stdio.h>
-#include <sys/vsh.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
 
-_X_ void vshPrintTime(char *buffer, unsigned unformattedTime)
+int snprintf(char *output, size_t size, const char *format, ...)
 {
-  // Desc: Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- into 'buffer' in a (for now, arbitrary) human-readable format to standard output.
+  // This function will construct a single string out of the format
+  // string and arguments that are passed, up to 'size' bytes.  Returns the
+  // number of characters copied to the output string.
 
-  int seconds = (unformattedTime & 0x0000003F);
-  int minutes = ((unformattedTime & 0x00000FC0) >> 6);
-  int hours = ((unformattedTime & 0x0003F000) >> 12);
+  va_list list;
+  char tmpOutput[MAXSTRINGLENGTH];
+  int outputLen = 0;
 
-  sprintf(buffer, "%02u:%02u:%02u", hours, minutes, seconds);
+  bzero(tmpOutput, MAXSTRINGLENGTH);
 
-  return;
+  // Initialize the argument list
+  va_start(list, format);
+
+  // Fill out the output line based on 
+  outputLen = _expandFormatString(tmpOutput, format, list);
+
+  va_end(list);
+
+  strncpy(output, tmpOutput, size);
+
+  // Return the number of characers we wrote to the string
+  return (min(outputLen, (int) size));
 }

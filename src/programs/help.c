@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 
   if (argc < 2)
     // If there are no arguments, print the general help file
-    status = system("more " HELPFILES_DIR "/help.txt");
+    status = system("/programs/more " HELPFILES_DIR "/help.txt");
 
   else
     {
@@ -115,7 +115,8 @@ int main(int argc, char *argv[])
 	    }
 
 	  // For each argument, look for a help file whose name matches
-	  sprintf(command, "more %s/%s.txt", HELPFILES_DIR, argv[count]);
+	  sprintf(command, "/programs/more %s/%s.txt", HELPFILES_DIR,
+		  argv[count]);
 
 	  // Search
 	  status = system(command);

@@ -108,7 +108,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
     return (status = ERR_NOCREATE);
 
   // Copy the current color into the temporary color
-  bcopy(pickedColor, &tmpColor, sizeof(color));
+  memcpy(&tmpColor, pickedColor, sizeof(color));
 
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
@@ -187,6 +187,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.padBottom = 0;
   params.padLeft = 0;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   okButton = windowNewButton(buttonContainer, "OK", NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);
@@ -240,7 +241,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
       if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
 	  // Copy the temporary color into picked color
-	  bcopy(&tmpColor, pickedColor, sizeof(color));
+	  memcpy(pickedColor, &tmpColor, sizeof(color));
 	  break;
 	}
 

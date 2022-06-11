@@ -1,3 +1,9 @@
+// 
+//  Visopsys
+//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  
+//  This library is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU Lesser General Public License as published by
 //  the Free Software Foundation; either version 2.1 of the License, or (at
 //  your option) any later version.
 //
@@ -50,18 +56,6 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   if ((title == NULL) || (message == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bzero(&params, sizeof(componentParameters));
-
-  params.gridWidth = 1;
-  params.gridHeight = 1;
-  params.padLeft = 5;
-  params.padRight = 5;
-  params.padTop = 5;
-  params.orientationX = orient_center;
-  params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
-
   // Create the dialog.  Arbitrary size and coordinates
   if (parentWindow)
     dialogWindow = windowNewDialog(parentWindow, title);
@@ -69,6 +63,16 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
     dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
   if (dialogWindow == NULL)
     return (status = ERR_NOCREATE);
+
+  bzero(&params, sizeof(componentParameters));
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.padLeft = 5;
+  params.padTop = 5;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+  params.useDefaultForeground = 1;
+  params.useDefaultBackground = 1;
 
   if (questImage.data == NULL)
     status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
@@ -78,7 +82,6 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
       questImage.translucentColor.red = 0;
       questImage.translucentColor.green = 255;
       questImage.translucentColor.blue = 0;
-      params.padRight = 0;
       imageComp = windowNewImage(dialogWindow, (image *) &questImage,
 				 draw_translucent, &params);
     }
@@ -86,10 +89,14 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   // Create the label
   params.gridX = 1;
   params.gridWidth = 2;
+  params.padRight = 5;
   params.orientationX = orient_center;
   mainLabel = windowNewTextLabel(dialogWindow, message, &params);
   if (mainLabel == NULL)
-    return (status = ERR_NOCREATE);
+    {
+      windowDestroy(dialogWindow);
+      return (status = ERR_NOCREATE);
+    }
 
   // Create the OK button
   params.gridY = 1;
@@ -99,14 +106,20 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   params.padBottom = 5;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
-    return (status = ERR_NOCREATE);
+    {
+      windowDestroy(dialogWindow);
+      return (status = ERR_NOCREATE);
+    }
 
   // Create the Cancel button
   params.gridX = 2;
   params.orientationX = orient_left;
   cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
   if (cancelButton == NULL)
-    return (status = ERR_NOCREATE);
+    {
+      windowDestroy(dialogWindow);
+      return (status = ERR_NOCREATE);
+    }
 
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);

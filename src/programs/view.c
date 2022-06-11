@@ -33,8 +33,10 @@ Usage:
 
 (Only available in graphics mode)
 
-This command will launch a window in which an image file is viewed.
-If no image file name is supplied, the program will prompt the user.
+This command will launch a window in which the requested image file is
+displayed.  If no image file name is supplied on the command line (or
+for example if the program is launched by clicking on its icon), the user
+will be prompted for the image to display.
 
 Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported. 
 
@@ -149,6 +151,7 @@ int main(int argc, char *argv[])
   status = 0;
 
  deallocate:
+  windowGuiStop();
   if (tmpFilename)
     free(tmpFilename);
   if (filename)

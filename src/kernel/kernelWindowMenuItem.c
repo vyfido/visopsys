@@ -45,8 +45,9 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
   // Formats a kernelWindowComponent as a kernelWindowMenuItem
 
   kernelWindowComponent *component = NULL;
+  listItemParameters itemParams;
   extern color kernelDefaultBackground;
- 
+
   if (menuItemFont == NULL)
     {
       // Try to load a nice-looking font
@@ -66,7 +67,10 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
     }
 
   // Get the superclass list item component
-  component = kernelWindowNewListItem(parent, text, params);
+  kernelMemClear(&itemParams, sizeof(listItemParameters));
+  strncpy(itemParams.text, text, WINDOW_MAX_LABEL_LENGTH);
+  component =
+    kernelWindowNewListItem(parent, windowlist_textonly, &itemParams, params);
   if (component == NULL)
     return (component);
 

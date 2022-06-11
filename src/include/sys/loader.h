@@ -25,6 +25,7 @@
 #if !defined(_LOADER_H)
 
 // Loader File class types
+#define LOADERFILECLASS_EMPTY    0x0000
 #define LOADERFILECLASS_TEXT     0x1000
 #define LOADERFILECLASS_BIN      0x2000
 #define LOADERFILECLASS_STATIC   0x0001
@@ -35,6 +36,8 @@
 #define LOADERFILECLASS_CORE     0x0020
 #define LOADERFILECLASS_IMAGE    0x0040
 #define LOADERFILECLASS_DATA     0x0080
+#define LOADERFILECLASS_CONFIG   0x0100
+#define LOADERFILECLASS_BOOT     0x0200
 
 // Symbol bindings for loader symbol structure
 #define LOADERSYMBOLBIND_LOCAL   0

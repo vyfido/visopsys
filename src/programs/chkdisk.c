@@ -50,7 +50,7 @@ function.
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s <disk>\n", name);
+  printf("%s <disk_name>\n", name);
   return;
 }
 
@@ -69,19 +69,10 @@ int main(int argc, char *argv[])
       usage(argv[0]);
 
       // Try to list the disks in the system
-      loaderLoadAndExec("/programs/disks", 3 /* user privilege */, 0, NULL,
-			1 /* block */);
+      loaderLoadAndExec("/programs/disks", 3 /* user */, 1 /* block */);
       printf("\n");
 
       errno = ERR_ARGUMENTCOUNT;
-      return (status = errno);
-    }
-
-  // Make sure none of our arguments are NULL
-  if ((argv[0] == NULL) || (argv[1] == NULL))
-    {
-      errno = ERR_NULLPARAMETER;
-      perror(argv[0]);
       return (status = errno);
     }
 

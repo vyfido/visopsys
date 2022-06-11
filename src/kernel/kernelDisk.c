@@ -1023,7 +1023,7 @@ static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelDiskRegisterDevice(kernelDevice *device)
+int kernelDiskRegisterDevice(kernelDevice *dev)
 {
   // This routine will receive a new device structure, add the
   // kernelPhysicalDisk to our array, and register all of its logical disks
@@ -1034,13 +1034,13 @@ int kernelDiskRegisterDevice(kernelDevice *device)
   int count;
 
   // Check params
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "Disk device structure is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  physicalDisk = device->dev;
+  physicalDisk = dev->data;
 
   if ((physicalDisk == NULL) || (physicalDisk->driver == NULL))
     {

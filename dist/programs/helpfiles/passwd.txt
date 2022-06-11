@@ -4,9 +4,12 @@
 Set the password on a user account.
 
 Usage:
-  passwd <user name>
+  passwd <user_name>
 
 The passwd program is a very simple method of setting a password for an
-account.  The program is interactive and requires the password to be entered
-twice at a prompt.
+account.  The program operates in either text or graphics mode, is
+interactive, and requires the password to be entered twice at a prompt.
+
+If the user does not have administrator privileges, they will be prompted
+to enter the old password (if one exists).
 

@@ -93,11 +93,12 @@ static int focus(void *componentData, int focus)
 }
 
 
-static int getSelected(void *componentData)
+static int getSelected(void *componentData, int *selection)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowCheckbox *checkbox = (kernelWindowCheckbox *) component->data;
-  return (checkbox->selected);
+  *selection = checkbox->selected;
+  return (0);
 }
 
 
@@ -135,6 +136,9 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	setSelected(componentData, 0);
       else
 	setSelected(componentData, 1);
+
+      // Make this also a 'selection' event
+      event->type |= EVENT_SELECTION;
     }
 
   return (status = 0);
@@ -148,7 +152,7 @@ static int keyEvent(void *componentData, windowEvent *event)
 
   int status = 0;
 
-  // Translate this into a mouse down event.
+  // Translate this into a mouse event.
   if ((event->type & EVENT_MASK_KEY) && (event->key == 32))
     {
       if (event->type == EVENT_KEY_DOWN)

@@ -116,12 +116,13 @@ typedef volatile struct {
   // More routines for managing this component.  These are set by the
   // code which builds the instance of the particular component type
   int (*draw) (void *);
+  int (*update) (void *);
   int (*move) (void *, int, int);
   int (*resize) (void *, int, int);
   int (*focus) (void *, int);
   int (*getData) (void *, void *, int);
   int (*setData) (void *, void *, int);
-  int (*getSelected) (void *);
+  int (*getSelected) (void *, int *);
   int (*setSelected) (void *, int);
   int (*mouseEvent) (void *, windowEvent *);
   int (*keyEvent) (void *, windowEvent *);
@@ -184,19 +185,25 @@ typedef volatile struct {
 typedef kernelWindowImage kernelWindowCanvas;
 
 typedef volatile struct {
+  windowListType type;
   int columns;
   int rows;
   int itemWidth;
+  int itemHeight;
   int selectMultiple;
+  int multiColumn;
   int selectedItem;
-  int firstVisible;
+  int firstVisibleRow;
+  int itemRows;
   kernelWindowComponent *container;
   kernelWindowComponent *scrollBar;
 
 } kernelWindowList;
 
 typedef volatile struct {
-  const char *text;
+  windowListType type;
+  listItemParameters params;
+  kernelWindowComponent *icon;
   int selected;
 
 } kernelWindowListItem;
@@ -295,15 +302,17 @@ typedef struct {
                    (windowP->xCoord + (windowP->buffer.width - 1)),   \
                    (windowP->yCoord + (windowP->buffer.height - 1)) } )
 
-#define makeComponentScreenArea(componentP)                             \
-   &((screenArea) { (((kernelWindow *) componentP->window)->xCoord +    \
-		     componentP->xCoord),                               \
-		      (((kernelWindow *) componentP->window)->yCoord +  \
-		       componentP->yCoord),                             \
-		      (((kernelWindow *) componentP->window)->xCoord +  \
-		       componentP->xCoord + (componentP->width - 1)),   \
-		      (((kernelWindow *) componentP->window)->yCoord +  \
-		       componentP->yCoord + (componentP->height - 1)) } )
+static inline screenArea *
+makeComponentScreenArea(kernelWindowComponent *component)
+{
+  kernelWindow *window = (kernelWindow *) component->window;
+  return (&((screenArea) {
+    (window->xCoord + component->xCoord),
+      (window->yCoord + component->yCoord),
+      (window->xCoord + component->xCoord + (component->width - 1)),
+      (window->yCoord + component->yCoord + (component->height - 1))
+      }));
+}
 
 static inline kernelWindow *getWindow(volatile void *object)
 {
@@ -374,7 +383,7 @@ int kernelWindowSetSize(kernelWindow *, int, int);
 int kernelWindowGetLocation(kernelWindow *, int *, int *);
 int kernelWindowSetLocation(kernelWindow *, int, int);
 int kernelWindowCenter(kernelWindow *);
-void kernelWindowSnapIcons(kernelWindow *);
+int kernelWindowSnapIcons(void *);
 int kernelWindowSetHasBorder(kernelWindow *, int);
 int kernelWindowSetHasTitleBar(kernelWindow *, int);
 int kernelWindowSetMovable(kernelWindow *, int);
@@ -412,7 +421,7 @@ int kernelWindowComponentFocus(kernelWindowComponent *);
 int kernelWindowComponentDraw(kernelWindowComponent *);
 int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
 int kernelWindowComponentSetData(kernelWindowComponent *, void *, int);
-int kernelWindowComponentGetSelected(kernelWindowComponent *);
+int kernelWindowComponentGetSelected(kernelWindowComponent *, int *);
 int kernelWindowComponentSetSelected(kernelWindowComponent *, int);
 
 // Constructors exported by the different component types
@@ -431,10 +440,11 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *, image *,
 					   componentParameters *);
 kernelWindowComponent *kernelWindowNewImage(volatile void *, image *, drawMode,
 					    componentParameters *);
-kernelWindowComponent *kernelWindowNewList(volatile void *, int, int, int,
-					   const char *[], int,
-					   componentParameters *);
-kernelWindowComponent *kernelWindowNewListItem(volatile void *, const char *,
+kernelWindowComponent *kernelWindowNewList(volatile void *, windowListType,
+					   int, int, int, listItemParameters *,
+					   int, componentParameters *);
+kernelWindowComponent *kernelWindowNewListItem(volatile void *, windowListType,
+					       listItemParameters *,
 					       componentParameters *);
 kernelWindowComponent *kernelWindowNewMenu(volatile void *, const char *,
 					   componentParameters *);

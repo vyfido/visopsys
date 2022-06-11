@@ -185,7 +185,7 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
   calculateGrid(containerComponent, columnStartX, columnWidth, rowStartY,
 		rowHeight, (width - containerComponent->minWidth),
 		(height - containerComponent->minHeight));
-  
+
   for (count1 = 0; count1 < container->numComponents; count1 ++)
     {
       // Resize the component

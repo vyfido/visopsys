@@ -26,7 +26,7 @@
 
  -- sync --
 
-Synchronize data on all disks.
+Synchronize (commit) data to all disks.
 
 Usage:
   sync
@@ -52,15 +52,13 @@ int main(int argc, char *argv[])
 
   int status = 0;
 
-  // We don't use argc.  This keeps the compiler happy
-  argc = 0;
-
   // This will sync all filesystems
   status = diskSync();
   if (status < 0)
     {
       errno = status;
-      perror(argv[0]);
+      if (argc)
+	perror(argv[0]);
     }
 
   return (status);

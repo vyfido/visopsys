@@ -31,12 +31,16 @@
 #define _X_
 #endif
 
-// Window events/masks
+// Window events/masks.  This first batch are "tier 2" events, produced by
+// windows, widgets, etc. to indicate that some more abstract thing has
+// happened.
 #define EVENT_MASK_WINDOW        0xF000
 #define EVENT_WINDOW_RESIZE      0x4000
 #define EVENT_WINDOW_CLOSE       0x2000
 #define EVENT_WINDOW_MINIMIZE    0x1000
-#define EVENT_MASK_KEY           0x0F00
+#define EVENT_SELECTION          0x0400
+// And these are "tier 1" events, produced by direct actions of the user.
+#define EVENT_MASK_KEY           0x0300
 #define EVENT_KEY_UP             0x0200
 #define EVENT_KEY_DOWN           0x0100
 #define EVENT_MASK_MOUSE         0x00FF
@@ -54,14 +58,20 @@
 #define WINDOW_MAX_EVENTS        512
 #define WINDOW_MAX_TITLE_LENGTH  80
 #define WINDOW_MAX_COMPONENTS    256
-#define WINDOW_MAX_LABEL_LENGTH  64
+#define WINDOW_MAX_LABEL_LENGTH  80
 #define WINDOW_MAX_LISTITEMS     64
 #define WINDOW_MAX_MENUS         16
+
+// Flags for file browsing widgets/dialogs.
+#define WINFILEBROWSE_CAN_CD     0x01
+#define WINFILEBROWSE_CAN_DEL    0x02
+#define WINFILEBROWSE_ALL        (WINFILEBROWSE_CAN_CD | WINFILEBROWSE_CAN_DEL)
 
 // Some image file names for dialog boxes
 #define INFOIMAGE_NAME           "/system/icons/infoicon.bmp"
 #define ERRORIMAGE_NAME          "/system/icons/bangicon.bmp"
 #define QUESTIMAGE_NAME          "/system/icons/questicon.bmp"
+#define WAITIMAGE_NAME           "/system/mousebsy.bmp"
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
@@ -156,11 +166,24 @@ typedef struct {
 
 } scrollBarState;
 
+// Types of window list displays
+typedef enum {
+  windowlist_textonly, windowlist_icononly
+} windowListType;
+
+typedef struct {
+  char text[WINDOW_MAX_LABEL_LENGTH];
+  image iconImage;
+
+} listItemParameters;
+
 void windowCenterDialog(objectKey, objectKey);
+int windowClearEventHandler(objectKey);
 int windowClearEventHandlers(void);
 void windowGuiRun(void);
 void windowGuiStop(void);
-void windowGuiThread(void);
+int windowGuiThread(void);
+int windowGuiThreadPid(void);
 objectKey windowNewBannerDialog(objectKey, const char *, const char *);
 int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);

@@ -150,12 +150,12 @@ static void eventHandler(objectKey key, windowEvent *event)
     {
       // Stop the GUI here and run the install program
       windowSetVisible(window, 0);
-      loaderLoadAndExec(INSTALLPROGRAM, 0, 0, NULL, 1);
+      loaderLoadAndExec(INSTALLPROGRAM, 0, 1);
       if (rebootNow())
 	shutdown(1, 1);
       else
 	{
-	  loaderLoadAndExec(LOGINPROGRAM, 0, 2, (char *[]){"-f", "admin"}, 0);
+	  loaderLoadAndExec(LOGINPROGRAM " -f admin", 0, 0);
 	  windowGuiStop();
 	}
     }
@@ -164,7 +164,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if ((key == runButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Stop the GUI here and run the login program
-      loaderLoadAndExec(LOGINPROGRAM, 0, 2, (char *[]){"-f", "admin"}, 0);
+      loaderLoadAndExec(LOGINPROGRAM " -f admin", 0, 0);
       windowGuiStop();
     }
 }
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
   int status = 0;
   disk sysDisk;
   int options = 3;
-  int selectedOption = 0;
+  int selected = 0;
   char *optionStrings[] =
     { "o Install                          ",
       "o Run now                          ",
@@ -294,7 +294,8 @@ int main(int argc, char *argv[])
 
       // If the user selected the 'go away' checkbox, change the start
       // program in the kernel's config file.
-      if (windowComponentGetSelected(goAwayCheckbox))
+      windowComponentGetSelected(goAwayCheckbox, &selected);
+      if (selected)
 	{
 	  changeStartProgram();
 
@@ -312,21 +313,20 @@ int main(int argc, char *argv[])
       if (readOnly)
 	options -= 1;
 
-      selectedOption = vshCursorMenu("\nPlease select from the following "
-				     "options", options, optionStrings, 0);
-      if (selectedOption < 0)
+      selected = vshCursorMenu("\nPlease select from the following "
+			       "options", options, optionStrings, 0);
+      if (selected < 0)
 	shutdown(1, 1);
 
-      else if (selectedOption == 0)
+      else if (selected == 0)
 	{
 	  // Install
-	  loaderLoadAndExec(INSTALLPROGRAM, 0, 0, NULL, 1);
+	  loaderLoadAndExec(INSTALLPROGRAM, 0, 1);
 	  if (rebootNow())
 	    shutdown(1, 1);
 	  else
 	    {
-	      int pid = loaderLoadProgram(LOGINPROGRAM, 0, 2,
-					  (char *[]){"-f", "admin"});
+	      int pid = loaderLoadProgram(LOGINPROGRAM " -f admin", 0);
 	      // Give the login program a copy of the I/O streams
 	      multitaskerDuplicateIO(processId, pid, 0);
 	      loaderExecProgram(pid, 0);
@@ -335,14 +335,13 @@ int main(int argc, char *argv[])
 
       else
 	{
-	  if (selectedOption == 2)
+	  if (selected == 2)
 	    {
 	      changeStartProgram();
 	      printf("\n%s\n", adminString);
 	    }
 	  
-	  int pid = loaderLoadProgram(LOGINPROGRAM, 0, 2,
-				      (char *[]){"-f", "admin"});
+	  int pid = loaderLoadProgram(LOGINPROGRAM " -f admin", 0);
 	  // Give the login program a copy of the I/O streams
 	  multitaskerDuplicateIO(processId, pid, 0);
 	  loaderExecProgram(pid, 0);

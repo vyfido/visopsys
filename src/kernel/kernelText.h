@@ -73,6 +73,7 @@ typedef volatile struct {
   unsigned char *bufferData;
   unsigned char *visibleData;
   kernelAsciiFont *font;
+  void *windowComponent;
   kernelGraphicBuffer *graphicBuffer;
   unsigned char *savedScreen;
   unsigned savedCursorColumn;

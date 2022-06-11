@@ -64,6 +64,7 @@ int remove(const char *);
 int rename(const char *, const char *);
 void rewind(FILE *);
 int scanf(const char *, ...);
+int snprintf(char *, size_t, const char *, ...);
 int sprintf(char *, const char *, ...);
 
 // Internal routines, but are exported

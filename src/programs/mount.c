@@ -43,8 +43,8 @@ This will mount the first CD-ROM device, and make its contents accessible
 in the /cdrom subdirectory.
 
 Note that the mount point parameter should specify a name that does *not*
-exist.  This is the opposite of the UNIX mount command.  The example
-above will fail if there is a file or directory called /cdrom.
+exist.  This is the opposite of the UNIX mount command behaviour.  The
+example above will fail if there is already a file or directory called /cdrom.
 
 </help>
 */
@@ -78,10 +78,6 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  // Make sure none of our arguments are NULL
-  if ((argv[0] == NULL) || (argv[1] == NULL) || (argv[2] == NULL))
-    return (status = ERR_NULLPARAMETER);
-  
   diskName = argv[1];
   
   vshMakeAbsolutePath(argv[2], filesystem);

@@ -124,30 +124,29 @@ static void keyboardInterrupt(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelKeyboardInitialize(kernelDevice *device)
+int kernelKeyboardInitialize(kernelDevice *dev)
 {
   // This function initializes the keyboard code, and sets the default
   // keyboard mapping
 
   int status = 0;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The keyboard device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemKeyboard = device;
+  systemKeyboard = dev;
 
-  if ((systemKeyboard->dev == NULL) ||
-      (systemKeyboard->driver == NULL) ||
+  if ((systemKeyboard->data == NULL) || (systemKeyboard->driver == NULL) ||
       (systemKeyboard->driver->ops == NULL))
     {
       kernelError(kernel_error, "The keyboard, driver or ops are NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  keyboardDevice = (kernelKeyboard *) systemKeyboard->dev;
+  keyboardDevice = (kernelKeyboard *) systemKeyboard->data;
   ops = systemKeyboard->driver->ops;
 
   // We use US English as default, because, well, Americans would be so

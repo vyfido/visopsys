@@ -38,6 +38,7 @@
 #endif
 
 #include <time.h>
+#include <sys/device.h>
 #include <sys/disk.h>
 #include <sys/file.h>
 #include <sys/image.h>
@@ -165,6 +166,7 @@ extern int visopsys_in_kernel;
 #define _fnum_fileStreamWriteLine                    4025
 #define _fnum_fileStreamFlush                        4026
 #define _fnum_fileStreamClose                        4027
+#define _fnum_fileCount                              4028
 
 // Memory manager functions.  All are in the 5000-5999 range.
 // DEPRECATED _fnum_memoryPrintUsage                 5000
@@ -1148,6 +1150,13 @@ _X_ static inline int fileGetDisk(const char *path, disk *d)
   return (sysCall_2(_fnum_fileGetDisk, (void *) path, (void *) d));
 }
 
+_X_ static inline int fileCount(const char *path)
+{
+  // Proto: int kernelFileCount(const char *);
+  // Desc : Get the count of file entries from the directory referenced by 'path'.
+  return (sysCall_1(_fnum_fileCount, (void *) path));
+}
+
 _X_ static inline int fileFirst(const char *path, file *f)
 {
   // Proto: int kernelFileFirst(const char *, file *);
@@ -1480,11 +1489,11 @@ _X_ static inline int multitaskerGetCurrentDirectory(char *buff, int buffsz)
 		    (void *) buffsz));
 }
 
-_X_ static inline int multitaskerSetCurrentDirectory(char *buff)
+_X_ static inline int multitaskerSetCurrentDirectory(const char *buff)
 {
-  // Proto: int kernelMultitaskerSetCurrentDirectory(char *);
+  // Proto: int kernelMultitaskerSetCurrentDirectory(const char *);
   // Desc : Sets the current directory of the calling process to the absolute pathname 'buff'.
-  return (sysCall_1(_fnum_multitaskerSetCurrentDirectory, buff));
+  return (sysCall_1(_fnum_multitaskerSetCurrentDirectory, (void *) buff));
 }
 
 _X_ static inline objectKey multitaskerGetTextInput(void)
@@ -1617,12 +1626,12 @@ _X_ static inline void *loaderLoad(const char *filename, file *theFile)
 			     (void *) theFile));
 }
 
-_X_ static inline int loaderLoadProgram(const char *userProgram, int privilege, int argc, char *argv[])
+_X_ static inline int loaderLoadProgram(const char *command, int privilege)
 {
-  // Proto: int kernelLoaderLoadProgram(const char *, int, int, char *[]);
-  // Desc : Load the file referenced by the pathname 'userProgram' as a process with the privilege level 'privilege'.  Pass the arguments 'argc' and 'argv'.  If there are no arguments, these should be 0 and NULL, respectively.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
-  return (sysCall_4(_fnum_loaderLoadProgram, (void *) userProgram,
-		    (void *) privilege, (void *) argc, argv));
+  // Proto: int kernelLoaderLoadProgram(const char *, int);
+  // Desc : Run 'command' as a process with the privilege level 'privilege'.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
+  return (sysCall_2(_fnum_loaderLoadProgram, (void *) command,
+		    (void *) privilege));
 }
 
 _X_ static inline int loaderExecProgram(int processId, int block)
@@ -1633,12 +1642,12 @@ _X_ static inline int loaderExecProgram(int processId, int block)
 		    (void *) block));
 }
 
-_X_ static inline int loaderLoadAndExec(const char *name, int privilege, int argc, char *argv[], int block)
+_X_ static inline int loaderLoadAndExec(const char *command, int privilege, int block)
 {
-  // Proto: int kernelLoaderLoadAndExec(const char *, int, int, char *[], int);
+  // Proto: int kernelLoaderLoadAndExec(const char *, int, int);
   // Desc : This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
-  return (sysCall_5(_fnum_loaderLoadAndExec, (void *) name,
-		    (void *) privilege, (void *) argc, argv, (void *) block));
+  return (sysCall_3(_fnum_loaderLoadAndExec, (void *) command,
+		    (void *) privilege, (void *) block));
 }
 
 
@@ -2045,11 +2054,11 @@ _X_ static inline int windowCenter(objectKey window)
   return (sysCall_1(_fnum_windowCenter, window));
 }
 
-_X_ static inline void windowSnapIcons(objectKey window)
+_X_ static inline int windowSnapIcons(objectKey parent)
 {
-  // Proto: void kernelWindowSnapIcons(kernelWindow *);
-  // Desc : If 'window' has icon components inside it, this will snap them to a grid so that they fit inside the window.
-  sysCall_1(_fnum_windowSnapIcons, window);
+  // Proto: void kernelWindowSnapIcons(void *);
+  // Desc : If 'container' (either a window or a windowContainer) has icon components inside it, this will snap them to a grid.
+  return (sysCall_1(_fnum_windowSnapIcons, parent));
 }
 
 _X_ static inline int windowSetHasBorder(objectKey window, int trueFalse)
@@ -2266,11 +2275,11 @@ _X_ static inline int windowComponentSetData(objectKey component, void *buffer, 
 		    (void *) size));
 }
 
-_X_ static inline int windowComponentGetSelected(objectKey component)
+_X_ static inline int windowComponentGetSelected(objectKey component, int *selection)
 {
   // Proto: int kernelWindowComponentGetSelected(kernelWindowComponent *);
-  // Desc : This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number of its selected item.  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
-  return (sysCall_1(_fnum_windowComponentGetSelected, component));
+  // Desc : This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number(s) of its selected item(s).  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
+  return (sysCall_2(_fnum_windowComponentGetSelected, component, selection));
 }
 
 
@@ -2331,20 +2340,21 @@ _X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, d
 				(void *) mode, params));
 }
 
-_X_ static inline objectKey windowNewList(objectKey parent, int rows, int columns, int multiple, char *items[], int numItems, componentParameters *params)
+_X_ static inline objectKey windowNewList(objectKey parent, windowListType type, int rows, int columns, int multiple, listItemParameters *items, int numItems, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, int, int, int, const char *[], int, componentParameters *);
-  // Desc : Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
-  return ((objectKey) sysCall_7(_fnum_windowNewList, parent, (void *) rows,
-				(void *) columns, (void *) multiple, items,
-				(void *) numItems, params));
+  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, windowListType, int, int, int, listItemParameters *, int, componentParameters *);
+  // Desc : Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'type' specifies the type of list (see <sys/window.h> for possibilities), 'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'items' is an array of 'numItems' list item parameters.
+  return ((objectKey) sysCall_8(_fnum_windowNewList, parent, (void *) type,
+				(void *) rows, (void *) columns,
+				(void *) multiple, items, (void *) numItems,
+				params));
 }
 
-_X_ static inline objectKey windowNewListItem(objectKey parent, const char *text, componentParameters *params)
+_X_ static inline objectKey windowNewListItem(objectKey parent, listItemParameters *item, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewListItem(volatile void *, const char *, componentParameters *);
-  // Desc : Get a new list item component to be placed inside the parent object 'parent', using the string 'text', and the component parameters 'params'.
-  return ((objectKey) sysCall_3(_fnum_windowNewListItem, parent, (void *) text,
+  // Proto: kernelWindowComponent *kernelWindowNewListItem(volatile void *, windowListType, listItemParameters *, componentParameters *);
+  // Desc : Get a new list item component to be placed inside the parent object 'parent', using the list item parameters 'item', and the component parameters 'params'.
+  return ((objectKey) sysCall_3(_fnum_windowNewListItem, parent, item,
 				params));
 }
 

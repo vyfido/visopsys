@@ -61,7 +61,8 @@ int _expandFormatString(char *output, const char *format, va_list list)
   // The argument list must already have been initialized using va_start
 
   // Loop through all of the characters in the format string
-  for (inCount = 0; inCount < formatlen; )
+  for (inCount = 0; ((inCount < formatlen) &&
+		     (outCount < (MAXSTRINGLENGTH - 1))); )
     {
       if (format[inCount] != '%')
 	{

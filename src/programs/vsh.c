@@ -36,9 +36,9 @@ mode there is no 'default' command line shell, but clicking on the
 with an instance of vsh running inside it.
 
 Normally, vsh operates interactively.  However, if the (optional) -c
-parameter is supplied, vsh will execute the command that follows (you should
-put the command inside double-quotes (") if it contains spaces or tab
-characters.
+parameter is supplied, vsh will execute the command that follows.  If the
+command contains spaces or tab characters, it must be surrounded by
+double-quotes (").
 
 </help>
 */
@@ -54,10 +54,8 @@ characters.
 
 #define SIMPLESHELLPROMPT "> "
 #define MAX_ARGS          100
-#define MAX_STRING_LENGTH 100
 #define COMMANDHISTORY    20
-#define MAX_ENVVAR_LENGTH MAX_STRING_LENGTH
-#define MAX_LINELENGTH    256
+#define MAX_ENVVAR_LENGTH 100
 
 static int myProcId, myPrivilege;
 static char *cwd = NULL;
@@ -90,6 +88,7 @@ static void interpretCommand(char *commandLine)
   int status = 0;
   int numArgs = 0;
   char *args[MAX_ARGS];
+  char *fullCommand = NULL;
   char *fileName1 = NULL;
   char *fileName2 = NULL;
   char *getEnvBuff = NULL;
@@ -100,9 +99,10 @@ static void interpretCommand(char *commandLine)
   // Initialize stack memory
   bzero(args, (MAX_ARGS * sizeof(char *)));
 
+  fullCommand = malloc(MAXSTRINGLENGTH);
   fileName1 = malloc(MAX_PATH_NAME_LENGTH);
   fileName2 = malloc(MAX_PATH_NAME_LENGTH);
-  if ((fileName1 == NULL) || (fileName2 == NULL))
+  if ((fullCommand == NULL) || (fileName1 == NULL) || (fileName2 == NULL))
     {
       errno = ERR_MEMORY;
       perror("vsh");
@@ -115,6 +115,7 @@ static void interpretCommand(char *commandLine)
   if (status < 0)
     {
       perror(args[0]);
+      free(fullCommand);
       free(fileName1);
       free(fileName2);
       return;
@@ -351,19 +352,23 @@ static void interpretCommand(char *commandLine)
 	  block = 0;
 	  args[numArgs - 1][strlen(args[numArgs - 1]) - 1] = '\0';
 	}
-
-      // Shift the arg list down by one, as the exec function will prepend
-      // it when starting the program
+      
+      // Reconstitute the full command line
+      strcpy(fullCommand, fileName1);
+      strcat(fullCommand, " ");
       for (count = 1; count < numArgs; count ++)
-	args[count - 1] = args[count];
-      numArgs -= 1;
+	{
+	  strcat(fullCommand, args[count]);
+	  strcat(fullCommand, " ");
+	}
 
-      loaderLoadAndExec(fileName1, myPrivilege, numArgs, args, block);
+      loaderLoadAndExec(fullCommand, myPrivilege, block);
     }
 
   else
     printf("Unknown command \"%s\".\n", args[0]);
 
+  free(fullCommand);
   free(fileName1);
   free(fileName2);
   return;
@@ -382,8 +387,8 @@ static void simpleShell(void)
   static int currentCharacter = 0;
   int count;
   
-  commandBuffer = malloc(MAX_LINELENGTH);
-  char *tmp = malloc(COMMANDHISTORY * MAX_LINELENGTH);
+  commandBuffer = malloc(MAXSTRINGLENGTH);
+  char *tmp = malloc(COMMANDHISTORY * MAXSTRINGLENGTH);
   if ((commandBuffer == NULL) || (tmp == NULL))
     {
       errno = ERR_MEMORY;
@@ -393,7 +398,7 @@ static void simpleShell(void)
 
   // Initialize stack data
   for (count = 0; count < COMMANDHISTORY; count ++)
-    commandHistory[count] = (tmp + (count * MAX_LINELENGTH));
+    commandHistory[count] = (tmp + (count * MAXSTRINGLENGTH));
 
   // This program runs in an infinite loop
   while(1)
@@ -617,7 +622,7 @@ static void simpleShell(void)
 	  // Set the current character to 0
 	  currentCharacter = 0;
 	  selectedCommand = currentCommand;
-	  bzero(commandBuffer, MAX_LINELENGTH);
+	  bzero(commandBuffer, MAXSTRINGLENGTH);
 
 	  // Show a new prompt
 	  showPrompt();
@@ -635,7 +640,7 @@ static void simpleShell(void)
 	  // Something with no special meaning.
 
 	  // Don't go beyond the maximum line length
-	  if (currentCharacter >= (MAX_LINELENGTH - 2))
+	  if (currentCharacter >= (MAXSTRINGLENGTH - 2))
 	    {
 	      if (promptCatchup)
 		textBackSpace();
@@ -666,7 +671,9 @@ int main(int argc, char *argv[])
 
   int status = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
+  char *fullCommand = NULL;
   file theFile;
+  int count;
 
   // What is my process id?
   myProcId = multitaskerGetCurrentProcessId();
@@ -699,10 +706,29 @@ int main(int argc, char *argv[])
               return (status);
             }
         }
+
+      fullCommand = malloc(MAXSTRINGLENGTH);
+      if (fullCommand == NULL)
+	{
+	  errno = ERR_MEMORY;
+	  perror("vsh");
+	  return (status = errno);
+	}
+
+      strcpy(fullCommand, fileName);
+      strcat(fullCommand, " ");
+      for (count = 3; count < argc; count ++)
+	{
+	  strcat(fullCommand, argv[count]);
+	  strcat(fullCommand, " ");
+	}
+
+      // Exec and block
+      status = loaderLoadAndExec(fullCommand, myPrivilege, 1);
+
+      free(fullCommand);
         
-        return (status = loaderLoadAndExec(fileName, myPrivilege, (argc - 2),
-                                           &(argv[2]), 1 // block
-					   ));
+      return (status);
     }
 
   // Make a message

@@ -312,20 +312,20 @@ static int driverDetect(void *driver)
   // appropriate commands to the keyboard controller to set keyboard settings.
 
   int status = 0;
-  kernelDevice *device = NULL;
+  kernelDevice *dev = NULL;
   void *biosData = NULL;
   unsigned char data;
 
   // Allocate memory for the device
-  device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelKeyboard));
-  if (device == NULL)
+  dev = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelKeyboard));
+  if (dev == NULL)
     return (status = 0);
 
-  keyboardDevice = ((void *) device + sizeof(kernelDevice));
+  keyboardDevice = ((void *) dev + sizeof(kernelDevice));
 
-  device->class = kernelDeviceGetClass(DEVICECLASS_KEYBOARD);
-  device->driver = driver;
-  device->dev = keyboardDevice;
+  dev->device.class = kernelDeviceGetClass(DEVICECLASS_KEYBOARD);
+  dev->driver = driver;
+  dev->data = keyboardDevice;
 
   // Map the BIOS data area into our memory so we can get hardware information
   // from it.
@@ -352,10 +352,10 @@ static int driverDetect(void *driver)
   kernelProcessorOutPort8(0x64, 0xAE);
 
   // Initialize keyboard operations
-  status = kernelKeyboardInitialize(device);
+  status = kernelKeyboardInitialize(dev);
   if (status < 0)
     {
-      kernelFree(device);
+      kernelFree(dev);
       return (status);
     }
 
@@ -364,11 +364,11 @@ static int driverDetect(void *driver)
     kernelKeyboardSetStream((stream *) &(kernelTextGetConsoleInput()->s));
   if (status < 0)
     {
-      kernelFree(device);
+      kernelFree(dev);
       return (status);
     }
 
-  return (status = kernelDeviceAdd(NULL, device));
+  return (status = kernelDeviceAdd(NULL, dev));
 }
 
 

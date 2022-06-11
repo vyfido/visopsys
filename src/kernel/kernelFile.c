@@ -1063,6 +1063,58 @@ static int fileRemoveDir(kernelFileEntry *theDir)
 }
 
 
+static int fileDeleteRecursive(kernelFileEntry *delEntry)
+{
+  // Calls the fileDelete and fileRemoveDir functions, recursive-wise.
+
+  int status = 0;
+  kernelFileEntry *currEntry = NULL;
+  kernelFileEntry *nextEntry = NULL;
+
+  if (delEntry->type == dirT)
+    {
+      // Get the first file in the source directory
+      currEntry = delEntry->contents;
+
+      while (currEntry)
+	{
+	  // Skip any '.' and '..' entries
+	  while (currEntry &&
+		 (!strcmp((char *) currEntry->name, ".") ||
+		  !strcmp((char *) currEntry->name, "..")))
+	    currEntry = currEntry->nextEntry;
+
+	  if (!currEntry)
+	    break;
+
+	  nextEntry = currEntry->nextEntry;
+
+	  if (currEntry->type == dirT)
+	    {
+	      status = fileDeleteRecursive(currEntry);
+	      if (status < 0)
+		break;
+	    }
+	  else if (currEntry->type == fileT)
+	    {
+	      status = fileDelete(currEntry);
+	      if (status < 0)
+		break;
+	    }
+
+	  currEntry = nextEntry;
+	}
+
+      status = fileRemoveDir(delEntry);
+    }
+
+  else
+    status = fileDelete(delEntry);
+
+  return (status);
+}
+
+
 static int fileCopy(file *sourceFile,  file *destFile)
 {
   // This function is used to copy the data of one (open) file to another
@@ -2066,6 +2118,38 @@ int kernelFileGetDisk(const char *path, disk *userDisk)
 }
 
 
+int kernelFileCount(const char *path)
+{
+  // This is a user-accessible wrapper function for the
+  // kernelFileCountDirEntries function, above.
+
+  int status = 0;
+  kernelFileEntry *directory = NULL;
+  
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (path == NULL)
+    {
+      kernelError(kernel_error, "Path name is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Make the starting directory correspond to the path we were given
+  directory = kernelFileLookup(path);
+  // Make sure it's good, and that it's really a subdirectory
+  if ((directory == NULL) || (directory->type != dirT))
+    {
+      kernelError(kernel_error, "Invalid directory \"%s\" for lookup",
+		  path);
+      return (status = ERR_NOSUCHFILE);
+    }
+
+  return (kernelFileCountDirEntries(directory));
+}
+
+
 int kernelFileFirst(const char *path, file *fileStructure)
 {
   // This is merely a wrapper function for the equivalent function
@@ -2511,6 +2595,34 @@ int kernelFileDelete(const char *fileName)
 
   // OK, the file exists.  Call our internal 'delete' function
   return (fileDelete(theFile));
+}
+
+
+int kernelFileDeleteRecursive(const char *itemName)
+{
+  int status = 0;
+  kernelFileEntry *delItem = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (itemName == NULL)
+    {
+      kernelError(kernel_error, "Item name to delete is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Get the file to delete
+  delItem = kernelFileLookup(itemName);
+  if (delItem == NULL)
+    {
+      // The directory does not exist
+      kernelError(kernel_error, "Item %s to delete does not exist", itemName);
+      return (status = ERR_NOSUCHFILE);
+    }
+
+  return (fileDeleteRecursive(delItem));
 }
 
 

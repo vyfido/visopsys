@@ -35,6 +35,9 @@ This command prints a listing of memory allocations, plus a summary at the
 end.  If the (optional) '-k' parameter is supplied, then 'mem' will display
 system (kernel) memory usage instead.
 
+Options:
+-k  : Show kernel memory usage
+
 </help>
 */
 

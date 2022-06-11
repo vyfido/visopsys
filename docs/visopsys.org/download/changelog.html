@@ -43,7 +43,74 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p>
+
 <font SIZE="2">
+
+<font size="4">VERSION 0.57<br>
+</font>24/08/2005</font></p>
+
+<p><font size="4">Overview: This is a maintenance and bugfix release.&nbsp; 
+There are various GUI touch-ups, the Disk Manager now updates disk geometry 
+information in FAT partitions after disk copy operations, the window 'list' 
+component has been reimplemented, and a number of kernel improvements have been 
+back-ported from the 0.6 development branch.</font></p>
+<ul>
+  <li><font size="4">When the disk manager does disk-to-disk copies, it now 
+  ensures that the disk geometries stored in any FAT partitions are correct.</font></li>
+  <li><font size="4">Window lists components now have multi-column mode 
+  implemented, are now capable of showing various combinations of icons, text, 
+  or both, and they are now able to resize successfully, so that more rows can 
+  become visible and multi-column lists get extra columns.</font></li>
+  <li><font size="4">Added a window 'selection event' that widgets (such as the 
+  window list) can use to differentiate between a pointless click or scrollbar 
+  event and a real user selection.</font></li>
+  <li><font size="4">Moved command line parsing code into the kernel's loader so 
+  that it will parse a raw command line.</font></li>
+  <li><font size="4">The window text area component now has an 'update' function 
+  that is called by the text area subcomponent to let it know when it has 
+  updated (so the window component can update the scroll bar, for example)</font></li>
+  <li><font size="4">Added API functions to export the hardware device tree.
+  </font></li>
+  <li><font size="4">Exported a portion of the kernelDevice structure as a new 
+  'device' structure.</font></li>
+  <li><font size="4">A bunch of the buttons from various windows have had their 
+  'fixed width' parameters set.</font></li>
+  <li><font size="4">Added a 'delete recursive' convenience file function.</font></li>
+  <li><font size="4">There is now a loaderClassifyFile function that just 
+  temporarily reads in the first few sectors of a file in order to classify it.</font></li>
+  <li><font size="4">Added loader file class functions for generic text and 
+  binary files, and boot sectors.</font></li>
+  <li><font size="4">Added an snprintf C library function.</font></li>
+  <li><font size="4">The vshFileList (the 'ls' command) function now prints more 
+  efficiently.&nbsp; Previously made millions of print calls.</font></li>
+  <li><font size="4">Added a kernelFileCount function to the file functions, so 
+  that it's easy to preallocate memory for file entries, etc.</font></li>
+  <li><font size="4">The windowGuiThread library function now returns the PID of 
+  the GUI thread process so that calling programs can monitor its survival.</font></li>
+  <li><font size="4">Updated the help file documentation for the program files.</font></li>
+  <li><font size="4">Fixed: If the user doesn't have administrator privileges, 
+  the 'disprops' program now greys out the list of screen resolutions because 
+  the kernel won't allow it to be changed.&nbsp; Also, the API functions to 
+  get/set the window manager colours have been made into user-privilege 
+  functions.</font></li>
+  <li><font size="4">Fixed: After &quot;user authentication failed&quot;, the login 
+  program stopped responding.</font></li>
+  <li><font size="4">Fixed: Depending on screen contents, the icon layout in the 
+  kernel window shell could allow the text of the bottom-most icon to wrap off 
+  the screen.</font></li>
+  <li><font size="4">Fixed: The console text area's scroll bar was not being 
+  added to windows when the rest of the text area was added; thus the scroll bar 
+  did not appear.</font></li>
+  <li><font size="4">Fixed: The 'wallpaper' program failed to set the wallpaper 
+  if the file name supplied in the file dialog was an absolute path.</font></li>
+  <li><font size="4">Fixed: The window list item code had an error in which it 
+  undercalculated the length of the text string.</font></li>
+</ul>
+
+<font SIZE="2">
+
+<hr>
 
 <p><font size="4">VERSION 0.56<br>
 </font>22/07/2005</p>

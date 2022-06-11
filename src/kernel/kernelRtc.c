@@ -37,19 +37,19 @@ static int startSeconds, startMinutes, startHours, startDayOfMonth,
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelRtcInitialize(kernelDevice *device)
+int kernelRtcInitialize(kernelDevice *dev)
 {
   // This function initializes the RTC.
 
   int status = 0;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The RTC device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemRtc = device;
+  systemRtc = dev;
 
   if ((systemRtc->driver == NULL) || (systemRtc->driver->ops == NULL))
     {

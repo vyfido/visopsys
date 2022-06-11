@@ -30,7 +30,7 @@
 View or change the current keyboard mapping
 
 Usage:
-  keymap [map name]
+  keymap [-T] [map_name]
 
 The keymap program can be used to view the available keyboard mapping, or
 set the current map.  It works in both text and graphics modes:
@@ -44,6 +44,9 @@ contains space characters).
 In graphics mode, the program is interactive and the user can choose a new
 mapping simply by clicking.
 
+Options:
+-T  : Force text mode operation
+
 </help>
 */
 
@@ -55,8 +58,7 @@ mapping simply by clicking.
 #include <sys/api.h>
 
 static int graphics = 0;
-static char mapBuffer[1024];
-static char *mapNames[64];
+static listItemParameters *mapListParams = NULL;
 static int numMapNames = 0;
 static objectKey window = NULL;
 static objectKey mapList = NULL;
@@ -69,22 +71,26 @@ static int getMapNames(void)
   // Get the list of keyboard map names from the kernel
 
   int status = 0;
+  char mapBuffer[1024];
   char *buffPtr = NULL;
   int count;
-
-  bzero(mapBuffer, 1024);
 
   status = keyboardGetMaps(mapBuffer, 1024);
   if (status < 0)
     return (status);
 
   numMapNames = status;
+
+  mapListParams = malloc(numMapNames * sizeof(listItemParameters));
+  if (mapListParams == NULL)
+    return (status = ERR_MEMORY);
+
   buffPtr = mapBuffer;
 
   for (count = 0; count < numMapNames; count ++)
     {
-      mapNames[count] = buffPtr;
-      buffPtr += (strlen(mapNames[count]) + 1);
+      strncpy(mapListParams[count].text, buffPtr, WINDOW_MAX_LABEL_LENGTH);
+      buffPtr += (strlen(mapListParams[count].text) + 1);
     }
 
   return (status = 0);
@@ -116,6 +122,8 @@ static int setMap(const char *mapName)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
+  int mapNumber = 0;
+
   // Check for the window being closed by a GUI event.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
       ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
@@ -125,10 +133,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
-      int mapNumber = windowComponentGetSelected(mapList);  
+      windowComponentGetSelected(mapList, &mapNumber);  
       if (mapNumber < 0)
 	return;
-      setMap(mapNames[mapNumber]);
+      setMap(mapListParams[mapNumber].text);
 
       windowGuiStop();
     }
@@ -158,7 +166,8 @@ static void constructWindow(void)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  mapList = windowNewList(window, 5, 1, 0, mapNames, numMapNames, &params);
+  mapList = windowNewList(window, windowlist_textonly, 5, 1, 0, mapListParams,
+			  numMapNames, &params);
 
   // Create an 'OK' button
   params.gridY = 1;
@@ -166,6 +175,7 @@ static void constructWindow(void)
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   okButton = windowNewButton(window, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 
@@ -187,6 +197,7 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   char *buffPtr = NULL;
+  char mapBuffer[1024];
   int names = 0;
   int count;
   
@@ -236,6 +247,8 @@ int main(int argc, char *argv[])
 
       errno = 0;
     }
-  
+
+  if (mapListParams)
+    free(mapListParams);  
   return (errno);
 }

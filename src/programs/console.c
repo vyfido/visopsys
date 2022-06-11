@@ -46,7 +46,6 @@ in other windows.
 #include <sys/window.h>
 #include <sys/api.h>
 
-
 objectKey window = NULL;
 
 
@@ -64,17 +63,12 @@ int main(int argc, char *argv[])
   int status = 0;
   int processId = 0;
   componentParameters params;
-  int count;
-
-  // Make sure none of our arguments are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      printf("\nThe \"%s\" command only works in graphics mode\n",
+	     (argc? argv[0] : ""));
       errno = ERR_NOTINITIALIZED;
       return (status = errno);
     }

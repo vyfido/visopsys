@@ -4,12 +4,15 @@
 Edit Visopsys configuration files
 
 Usage:
-  confedit [file name]
+  confedit [file_name]
 
-The confedit (Configuration Editor) program is interactive, and may only be
-used in graphics mode.  You can specify the name of the file to edit on the
-command line, or else the program will prompt you.  You can add, delete, and
-modify variables.  Examples of applicable configuration files include the
-kernel configuration, /system/kernel.conf, and the window manager
-configuration, /system/windowmanager.conf.
+(Only available in graphics mode)
+
+The confedit (Configuration Editor) program is interactive.  The name of the
+file to edit can (optionally) be specified on the command line; otherwise
+the program will prompt for the name of the file.  You can add, delete, and
+modify variables.
+
+Examples of configuration files include the kernel configuration,
+kernel.conf, and the window manager configuration, windowmanager.conf.
 

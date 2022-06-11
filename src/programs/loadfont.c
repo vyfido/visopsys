@@ -33,10 +33,9 @@ Usage:
 
 (Only available in graphics mode)
 
-This command will switch the current default font to the one specified by
-the user.  The first parameter is the name of the file containing the
-font definition.  The second parameter is a symbolic name to assign to the
-font.
+This command will switch the current default font to the one specified.
+The first parameter is the name of the file containing the font definition.
+The second parameter is a symbolic name to assign to the font.
 
 Example:
   loadfont /system/fonts/arial-bold-12.bmp arial-bold-12
@@ -45,8 +44,7 @@ This command is of only marginal usefulness to most users.  It is primarily
 intended for testing new font definitions.
 
 Options:
-
--f  Use the font in fixed-width mode
+-f  : Display the font in fixed-width mode
 
 </help>
 */

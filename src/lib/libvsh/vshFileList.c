@@ -33,10 +33,10 @@ _X_ int vshFileList(const char *itemName)
   // Desc: Print a listing of a file or directory named 'itemName'.  'itemName' must be an absolute pathname, beginning with '/'.
 
   int status = 0;
+  char lineBuffer[256];
   int numberFiles = 0;
   file theFile;
   unsigned bytesFree = 0;
-  int count;
 
   // Make sure file name isn't NULL
   if (itemName == NULL)
@@ -60,23 +60,23 @@ _X_ int vshFileList(const char *itemName)
     {
       // This means the itemName is a single file.  We just output
       // the appropriate information for that file
-      printf(theFile.name);
+      bzero(lineBuffer, 256);
+      strcpy(lineBuffer, theFile.name);
 
       if (strlen(theFile.name) < 24)
-	for (count = 0; count < (26 - (int) strlen(theFile.name)); 
-	     count ++)
-	  putchar(' ');
+	memset((lineBuffer + strlen(lineBuffer)), ' ',
+	       (26 - (int) strlen(theFile.name)));
       else
-	printf("  ");
+	strcat(lineBuffer, "  ");
 
       // The date and time
-      vshPrintDate(theFile.modifiedDate);
-      putchar(' ');
-      vshPrintTime(theFile.modifiedTime);
-      printf("    ");
+      vshPrintDate((lineBuffer + strlen(lineBuffer)), theFile.modifiedDate);
+      strcat(lineBuffer, " ");
+      vshPrintTime((lineBuffer + strlen(lineBuffer)), theFile.modifiedTime);
+      strcat(lineBuffer, "    ");
 
       // The file size
-      printf("%u\n", theFile.size);
+      printf("%s%u\n", lineBuffer, theFile.size);
     }
 
   else
@@ -90,28 +90,30 @@ _X_ int vshFileList(const char *itemName)
 
       else if (status >= 0) while (1)
 	{
-	  printf(theFile.name);
+	  bzero(lineBuffer, 256);
+	  strcpy(lineBuffer, theFile.name);
 
 	  if (theFile.type == dirT)
-	    putchar('/');
+	    strcat(lineBuffer, "/");
 	  else 
-	    putchar(' ');
+	    strcat(lineBuffer, " ");
 
 	  if (strlen(theFile.name) < 23)
-	    for (count = 0; count < (25 - (int) strlen(theFile.name)); 
-		 count ++)
-	      putchar(' ');
+	    memset((lineBuffer + strlen(lineBuffer)), ' ',
+		   (25 - (int) strlen(theFile.name)));
 	  else
-	    printf("  ");
+	    strcat(lineBuffer, "  ");
 
 	  // The date and time
-	  vshPrintDate(theFile.modifiedDate);
-	  putchar(' ');
-	  vshPrintTime(theFile.modifiedTime);
-	  printf("    ");
+	  vshPrintDate((lineBuffer + strlen(lineBuffer)),
+		       theFile.modifiedDate);
+	  strcat(lineBuffer, " ");
+	  vshPrintTime((lineBuffer + strlen(lineBuffer)),
+		       theFile.modifiedTime);
+	  strcat(lineBuffer, "    ");
 
 	  // The file size
-	  printf("%u\n", theFile.size);
+	  printf("%s%u\n", lineBuffer, theFile.size);
 
 	  numberFiles += 1;
 

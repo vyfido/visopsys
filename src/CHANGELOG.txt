@@ -1,5 +1,64 @@
 
 ---------------
+Version 0.57
+---------------
+
+  Overview: This is a maintenance and bugfix release.  There are various
+  GUI touch-ups, the Disk Manager now updates disk geometry information in
+  FAT partitions after disk copy operations, the GUI 'list' component has
+  been reimplemented, and a number of kernel improvents have been back-ported
+  from the 0.6 development branch.
+
+- When the disk manager does disk-to-disk copies, it now ensures that the
+disk geometries stored in any FAT partitions are correct.
+- Window lists components now have multi-column mode implemented, are now
+capable of showing various combinations of icons, text, or both, and they are
+now able to resize successfully, so that more rows can become visible and
+multi-column lists get extra columns.
+- Added a window 'selection event' that widgets (such as the window list)
+can differentiate between a pointless click or scrollbar event and a real
+user selection.
+- Moved command line parsing code into the kernel's loader so that it will
+parse a raw command line.
+- The window text area component now has an 'update' function that is called
+by the text area subcomponent to let it know when it has updated (so the
+window component can update the scroll bar, for example)
+- Added API functions to export the hardware device tree.
+- Exported a portition of the kernelDevice structure as a new 'device'
+structure.
+- A bunch of the buttons from various windows have had their 'fixed width'
+parameters set.
+- Added a 'delete recursive' convenience file function.
+- There is now a loaderClassifyFile version that just temporarily reads in
+the first few sectors of a file in order to classify it.
+- Added a loader file classes function for generic text and binary files,
+and boot sectors.
+- Added an snprintf C library function.
+- The vshFileList (the 'ls' command) function now prints more efficiently.
+Previously made millions of print calls.
+- Added a kernelFileCount function to the file functions, so that it's easy
+to preallocate memory for file entries, etc.
+- The windowGuiThread library function now returns the PID of the GUi
+thread process so that calling programs can monitor its survival.
+- Updated the help file documentation for the program files.
+- Fixed: If the user doesn't have administrator privileges, the 'disprops'
+program now greys out the list of screen resolutions because the kernel
+won't allow it to be changed.  Also, the API functions to get/set the
+window manager colours have been made into user-privilege functions.
+- Fixed: After "user authentication failed", the login program stopped
+responding.
+- Fixed: The icon layout in the kernel window shell was allowing the text
+of the bottom-most icon to wrap off the screen.
+- Fixed: The console text area's scroll bar was not being added to windows
+when the rest of the text area was added; thus the scroll bar did not
+appear.
+- Fixed: The 'wallpaper' program failed to set the wallpaper if the file
+name supplied in the file dialog was an absolute path.
+- Fixed: The window list item code had an error in which it undercalculated
+the length of the text string.
+
+
+---------------
 Version 0.56
 ---------------
 

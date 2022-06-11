@@ -16,3 +16,7 @@ cd0  - First CD-ROM disk
 fd1  - Second floppy disk
 hd0b - Second logical partition on the first hard disk.
 
+Note in the third example above, the physical device is the first hard disk,
+hd0.  Logical partitions are specified with letters, in partition table order
+(a = first partition, b = second partition, etc.).
+

@@ -26,21 +26,24 @@
 
  -- login --
 
-A program which allows a user to log into the system.
+Log in to the system.
 
 Usage:
-  login [-v]
+  login [-T] [-f user_name]
 
-This program is interactive, except when specifying the (optional) '-v'
-option.  If -v is specified, the program will print its version number and
-exit.  It works in both text and graphics modes.
+This program is interactive, and works in both text and graphics modes.  By
+default, it is the program launched by the kernel after initialization has
+completed.  It prompts for a user name and password, and after successful
+authentication, launches either a shell process (text mode) or a window
+system thread (graphics mode).
 
-The current version of the login program will prompt for a user name,
-but no password, and will accept any (non-empty) user name.  There is no
-user authentication at present.
-
+In graphics mode, 'login' also displays 'reboot' and 'shut down' buttons.
 If the login program has crashed or been killed, you can start a new instance
 using the [F1] key.
+
+Options:
+-T              : Force text mode operation
+-f <user_name>  : Login as this user, no password.
 
 </help>
 */
@@ -80,29 +83,6 @@ typedef enum
   halt, reboot
 
 } shutdownType;
-
-
-static void showVersion(void)
-{
-  // Print a message
-
-  char tmp[64];
-
-  strcpy(tmp, "Visopsys login");
-      
-#if defined(RELEASE)
-  sprintf(tmp, "%s v%s", tmp, RELEASE);
-#else
-  sprintf(tmp, "%s (unknown version)");
-#endif
-
-  if (graphics)
-    windowNewInfoDialog(NULL, "Version", tmp);
-  else
-    printf("%s\n", tmp);
-
-  return;
-}
 
 
 static void printPrompt(void)
@@ -201,11 +181,6 @@ static void eventHandler(objectKey key, windowEvent *event)
       else
 	{
 	  windowComponentGetData(passwordField, password, MAX_LOGIN_LENGTH);
-	  windowComponentSetData(passwordField, "", 0);
-	  windowComponentSetData(textLabel, LOGINNAME, strlen(LOGINNAME));
-	  windowComponentSetVisible(passwordField, 0);
-	  windowComponentSetVisible(loginField, 1);
-	  windowComponentFocus(loginField);
 	  stage = 0;
 	  // Now we interpret the login
 	  windowGuiStop();
@@ -280,6 +255,7 @@ static void constructWindow(int myProcessId)
   params.padBottom = 5;
   params.orientationX = orient_right;
   params.hasBorder = 0;
+  params.fixedWidth = 1;
   rebootButton = windowNewButton(window, "Reboot", NULL, &params);
   windowRegisterEventHandler(rebootButton, &eventHandler);
 
@@ -309,7 +285,11 @@ static void getLogin(void)
       
   if (graphics)
     {
+      windowComponentSetVisible(passwordField, 0);
+      windowComponentSetData(passwordField, "", 0);
+      windowComponentSetData(textLabel, LOGINNAME, strlen(LOGINNAME));
       windowComponentSetData(loginField, "", 0);
+      windowComponentSetVisible(loginField, 1);
       windowComponentFocus(loginField);
       windowGuiRun();
     }
@@ -376,14 +356,10 @@ int main(int argc, char *argv[])
   graphics = graphicsAreEnabled();
 
   // Check for options
-  while (strchr("vf:T", (opt = getopt(argc, argv, "vf:T"))))
+  while (strchr("Tf:", (opt = getopt(argc, argv, "Tf:"))))
     {
       switch(opt)
 	{
-	case 'v':
-	  // Asking for version
-	  showVersion();
-	  return (0);
 	case 'f':
 	  // Login using the supplied user name and no password
 	  strncpy(login, optarg, MAX_LOGIN_LENGTH);
@@ -465,8 +441,7 @@ int main(int argc, char *argv[])
       else
 	{
 	  // Load a shell process
-	  shellPid = loaderLoadProgram(LOGIN_SHELL, userGetPrivilege(login),
-				       0, NULL);
+	  shellPid = loaderLoadProgram(LOGIN_SHELL, userGetPrivilege(login));
 	  if (shellPid < 0)
 	    {
 	      printf("Couldn't load login shell %s!", LOGIN_SHELL);

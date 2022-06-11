@@ -35,10 +35,14 @@
 #include <stdio.h>
 
 
-static int detect(void *dataPtr, loaderFileClass *class)
+static int detect(const char *fileName, void *dataPtr, int size,
+		  loaderFileClass *class)
 {
   // This function returns 1 and fills the fileClass structure if the data
   // points to an BMP file.
+
+  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+    return (0);
 
   // See whether this file claims to be a bitmap file
   if (!strncmp(dataPtr, "BM", 2))
@@ -85,7 +89,7 @@ static int load(unsigned char *imageFileData, int reqWidth, int reqHeight,
   compression = header->compression;
   colors = header->colors;
 
-  palette = imageFileData + sizeof(bmpHeader) + 2;
+  palette = (imageFileData + sizeof(bmpHeader) + 2);
 
   // Figure out how much memory we need for the array of pixels that
   // we'll attach to the image, and allocate it.  The size is a

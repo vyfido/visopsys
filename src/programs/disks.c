@@ -41,6 +41,10 @@ cd0  - First CD-ROM disk
 fd1  - Second floppy disk
 hd0b - Second logical partition on the first hard disk.
 
+Note in the third example above, the physical device is the first hard disk,
+hd0.  Logical partitions are specified with letters, in partition table order
+(a = first partition, b = second partition, etc.).
+
 </help>
 */
 
@@ -58,9 +62,6 @@ int main(int argc, char *argv[])
   disk diskInfo[DISK_MAXDEVICES];
   int count;
 
-  // We don't use argc.  This keeps the compiler happy
-  argc = 0;
-
   // Call the kernel to give us the number of available disks
   availableDisks = diskGetCount();
 
@@ -69,7 +70,8 @@ int main(int argc, char *argv[])
     {
       // Eek.  Problem getting disk info
       errno = status;
-      perror(argv[0]);
+      if (argc)
+	perror(argv[0]);
       return (status);
     }
 

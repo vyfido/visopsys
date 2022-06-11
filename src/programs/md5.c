@@ -19,7 +19,7 @@
 //  md5.c
 //
 
-// Uses the kernel's built-in MD5 crypto to create a digest string
+// Uses the kernel's built-in MD5 hashing to create a digest string
 
 /* This is the text that appears when a user requests help about this program
 <help>

@@ -27,6 +27,7 @@
 #include "kernelError.h"
 #include <string.h>
 
+
 #define BUTTON_SIZE 10
 
 static kernelAsciiFont *radioFont = NULL;
@@ -102,11 +103,11 @@ static int focus(void *componentData, int focus)
 }
 
 
-static int getSelected(void *componentData)
+static int getSelected(void *componentData, int *selection)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowRadioButton *radio = (kernelWindowRadioButton *) component->data;
-  return (radio->selectedItem);
+  *selection = ((kernelWindowRadioButton *) component->data)->selectedItem;
+  return (0);
 }
 
 
@@ -165,9 +166,13 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	      if (status < 0)
 		return (status);
 	    }
+
 	  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
 				   component->yCoord, component->width,
 				   component->height);
+
+	  // Make this also a 'selection' event
+	  event->type |= EVENT_SELECTION;
 	}
     }
 
@@ -208,9 +213,13 @@ static int keyEvent(void *componentData, windowEvent *event)
 	  if (status < 0)
 	    return (status);
 	}
+
       kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
 			       component->yCoord, component->width,
 			       component->height);
+
+      // Make this also a 'selection' event
+      event->type |= EVENT_SELECTION;
     }
 
   return (status);

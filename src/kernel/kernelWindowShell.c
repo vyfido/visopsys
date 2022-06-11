@@ -56,10 +56,10 @@ static void iconEvent(objectKey componentData, windowEvent *event)
   kernelWindowIcon *iconComponent = (kernelWindowIcon *) component->data;
   static int dragging = 0;
 
-  if (event->type == EVENT_MOUSE_DRAG)
+  if (event->type & EVENT_MOUSE_DRAG)
     dragging = 1;
 
-  else if (event->type == EVENT_MOUSE_LEFTUP)
+  else if (event->type & EVENT_MOUSE_LEFTUP)
     {
       if (dragging)
 	{
@@ -73,7 +73,7 @@ static void iconEvent(objectKey componentData, windowEvent *event)
       // Run the command
       status =
 	kernelLoaderLoadAndExec((const char *) iconComponent->command,
-				privilege, 0, NULL, 0 /* no block */);
+				privilege, 0 /* no block */);
       kernelMouseBusy(0);
       
       if (status < 0)
@@ -91,9 +91,7 @@ static void menuEvent(objectKey componentData, windowEvent *event)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   int count;
 
-  //command[0] = NULL;
-
-  if (event->type == EVENT_MOUSE_LEFTUP)
+  if (event->type & EVENT_SELECTION)
     {
       for (count = 0; count < numberMenuItems; count ++)
 	{
@@ -105,7 +103,7 @@ static void menuEvent(objectKey componentData, windowEvent *event)
 
 		  // Run the command, no block
 		  status = kernelLoaderLoadAndExec(menuItems[count].command,
-						   privilege, 0, NULL, 0);
+						   privilege, 0);
 
 		  kernelMouseBusy(0);
 
@@ -129,7 +127,7 @@ static void windowMenuEvent(objectKey componentData, windowEvent *event)
 
   command[0] = NULL;
 
-  if (windowMenu && (event->type == EVENT_MOUSE_LEFTUP))
+  if (windowMenu && (event->type & EVENT_SELECTION))
     {
       menu = (kernelWindowMenu *) windowMenu->data;
 	  
@@ -169,7 +167,7 @@ static void runPrograms(void)
 	  if (!kernelVariableListGet(&settings, settings.variables[count],
 				     programName, MAX_PATH_NAME_LENGTH))
 	    // Try to run the program
-	    kernelLoaderLoadAndExec(programName, privilege, 0, NULL, 0);
+	    kernelLoaderLoadAndExec(programName, privilege, 0);
 	}
     }
 
@@ -471,7 +469,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
     }
 
   // Snap the icons to a grid
-  kernelWindowSnapIcons(rootWindow);
+  kernelWindowSnapIcons((void *) rootWindow);
 
   kernelLog("Desktop icons loaded");
 

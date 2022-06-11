@@ -4,7 +4,7 @@
 View or change the current keyboard mapping
 
 Usage:
-  keymap [map name]
+  keymap [-T] [map_name]
 
 The keymap program can be used to view the available keyboard mapping, or
 set the current map.  It works in both text and graphics modes:
@@ -17,4 +17,7 @@ contains space characters).
 
 In graphics mode, the program is interactive and the user can choose a new
 mapping simply by clicking.
+
+Options:
+-T  : Force text mode operation
 

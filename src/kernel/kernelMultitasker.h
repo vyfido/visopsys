@@ -126,7 +126,7 @@ int kernelMultitaskerGetProcessPriority(int);
 int kernelMultitaskerSetProcessPriority(int, int);
 int kernelMultitaskerGetProcessPrivilege(int);
 int kernelMultitaskerGetCurrentDirectory(char *, int);
-int kernelMultitaskerSetCurrentDirectory(char *);
+int kernelMultitaskerSetCurrentDirectory(const char *);
 kernelTextInputStream *kernelMultitaskerGetTextInput(void);
 int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
 kernelTextOutputStream *kernelMultitaskerGetTextOutput(void);

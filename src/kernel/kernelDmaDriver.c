@@ -220,25 +220,25 @@ static int driverDetect(void *driver)
   // we can assume that there's a DMA controller, just initialize it.
 
   int status = 0;
-  kernelDevice *device = NULL;
+  kernelDevice *dev = NULL;
 
   // Allocate memory for the device
-  device = kernelMalloc(sizeof(kernelDevice));
-  if (device == NULL)
+  dev = kernelMalloc(sizeof(kernelDevice));
+  if (dev == NULL)
     return (status = 0);
 
-  device->class = kernelDeviceGetClass(DEVICECLASS_DMA);
-  device->driver = driver;
+  dev->device.class = kernelDeviceGetClass(DEVICECLASS_DMA);
+  dev->driver = driver;
 
   // Initialize DMA operations
-  status = kernelDmaInitialize(device);
+  status = kernelDmaInitialize(dev);
   if (status < 0)
     {
-      kernelFree(device);
+      kernelFree(dev);
       return (status);
     }
 
-  return (status = kernelDeviceAdd(NULL, device));
+  return (status = kernelDeviceAdd(NULL, dev));
 }
 
 	

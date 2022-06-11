@@ -21,12 +21,12 @@
 
 #if !defined(_KERNELBUS_H)
 
-#include "kernelDevice.h"
+#include <sys/device.h>
 
 typedef struct {
   int target;
-  kernelDeviceClass *class;
-  kernelDeviceClass *subClass;
+  deviceClass *class;
+  deviceClass *subClass;
 
 } kernelBusTarget;
 

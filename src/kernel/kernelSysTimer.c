@@ -63,19 +63,19 @@ static void timerInterrupt(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelSysTimerInitialize(kernelDevice *device)
+int kernelSysTimerInitialize(kernelDevice *dev)
 {
   // This function initializes the system timer.
 
   int status = 0;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The system timer device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemTimer = device;
+  systemTimer = dev;
 
   if ((systemTimer->driver == NULL) || (systemTimer->driver->ops == NULL))
     {

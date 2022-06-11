@@ -1217,12 +1217,12 @@ static int driverDetect(void *driver)
     {
       if (disks[driveNum].name[0])
 	{
-	  devices[numberIdeDisks].class =
+	  devices[numberIdeDisks].device.class =
 	    kernelDeviceGetClass(DEVICECLASS_DISK);
-	  devices[numberIdeDisks].subClass =
+	  devices[numberIdeDisks].device.subClass =
 	    kernelDeviceGetClass(DEVICESUBCLASS_DISK_IDE);
 	  devices[numberIdeDisks].driver = driver;
-	  devices[numberIdeDisks].dev = (void *) &disks[driveNum];
+	  devices[numberIdeDisks].data = (void *) &disks[driveNum];
 
 	  // Register the disk
 	  status = kernelDiskRegisterDevice(&devices[numberIdeDisks]);

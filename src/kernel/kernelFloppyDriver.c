@@ -957,12 +957,12 @@ static int driverDetect(void *driver)
 
       floppies[count]->driver = driver;
 
-      devices[count].class =
+      devices[count].device.class =
 	kernelDeviceGetClass(DEVICECLASS_DISK);
-      devices[count].subClass =
+      devices[count].device.subClass =
 	kernelDeviceGetClass(DEVICESUBCLASS_DISK_FLOPPY);
       devices[count].driver = driver;
-      devices[count].dev = (void *) floppies[count];
+      devices[count].data = (void *) floppies[count];
     }
 
   // Get memory for a disk transfer area.

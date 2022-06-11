@@ -2280,39 +2280,76 @@ int kernelWindowCenter(kernelWindow *window)
 }
 
 
-void kernelWindowSnapIcons(kernelWindow *window)
+int kernelWindowSnapIcons(void *parent)
 {
   // Snap all icons to a grid in the supplied window
 
-  kernelWindowContainer *container = (kernelWindowContainer *)
-    window->mainContainer->data;
-  int iconRow;
-  int count1, count2;
+  int status = 0;
+  kernelWindow *window = NULL;
+  kernelWindowComponent *containerComponent = NULL;
+  kernelWindowContainer *container = NULL;
+  int iconRow = 0, count1, count2;
 
-  // Make sure the window has been laid out
-  if (!container->doneLayout)
-    layoutWindow(window);
+  // Check params
+  if (parent == NULL)
+    {
+      kernelError(kernel_error, "Parent container is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (((kernelWindow *) parent)->type == windowType)
+    {
+      window = (kernelWindow *) parent;
+      containerComponent = ((kernelWindow *) parent)->mainContainer;
+      container = (kernelWindowContainer *) containerComponent->data;
+
+      // Make sure the window has been laid out
+      if (!container->doneLayout)
+	layoutWindow(window);
+    }
+  else if (((kernelWindowComponent *) parent)->type == containerComponentType)
+    {
+      window = getWindow(parent);
+      containerComponent = (kernelWindowComponent *) parent;
+      container = (kernelWindowContainer *) containerComponent->data;
+
+      // Make sure the container has been laid out
+      if (!container->doneLayout && container->containerLayout)
+	container->containerLayout(containerComponent);
+    }
+  else
+    {
+      kernelError(kernel_error, "Parent is neither a window nor container");
+      return (status = ERR_INVALID);
+    }
 
   for (count1 = 0; count1 < container->numComponents; count1 ++)
     {
       if ((container->components[count1]->type == iconComponentType) &&
-	  ((container->components[count1]->yCoord + 
-	    container->components[count1]->height) >= window->buffer.height))
+	  ((container->components[count1]->yCoord +
+	    container->components[count1]->parameters.padTop +
+	    container->components[count1]->height +
+	    container->components[count1]->parameters.padBottom) >=
+	   (window->buffer.height)))
 	{
 	  iconRow = 1;
 
 	  for (count2 = count1 ; count2 < container->numComponents; count2 ++)
 	    {
-	      container->components[count2]->parameters.gridX += 1;
-	      container->components[count2]->parameters.gridY = iconRow++;
+	      if (container->components[count2]->type == iconComponentType)
+		{
+		  container->components[count2]->parameters.gridX += 1;
+		  container->components[count2]->parameters.gridY = iconRow++;
+		}
 	    }
 
 	  // Set the new coordinates
-	  layoutWindow(window);
+	  if (container->containerLayout)
+	    container->containerLayout(containerComponent);
 	}
     }
 
-  return;
+  return (status = 0);
 }
 
 
@@ -2619,6 +2656,7 @@ int kernelWindowAddConsoleTextArea(kernelWindow *window,
   int status = 0;
   kernelWindowContainer *consoleContainer = NULL;
   kernelWindowContainer *targetContainer = NULL;
+  kernelWindowTextArea *textArea = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2643,13 +2681,18 @@ int kernelWindowAddConsoleTextArea(kernelWindow *window,
   if (status < 0)
     return (status);
 
+  textArea = (kernelWindowTextArea *) consoleTextArea->data;
+
   // Change the text area's buffer to be that of the new window
-  ((kernelWindowTextArea *) consoleTextArea->data)
-    ->area->graphicBuffer = &(window->buffer);
+  textArea->area->graphicBuffer = &(window->buffer);
 
   // Now add it to the window
   status = targetContainer->containerAdd(window->mainContainer,
 					 consoleTextArea, params);
+
+  if (textArea->scrollBar)
+    textArea->scrollBar->window = (void *) window;
+
   return (status);
 }
 
@@ -3450,8 +3493,8 @@ int kernelWindowComponentSetData(kernelWindowComponent *component,
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Check params
-  if ((component == NULL) || (buffer == NULL))
+  // Check params.  buffer can only be NULL if size is NULL
+  if ((component == NULL) || ((buffer == NULL) && size))
     return (status = ERR_NULLPARAMETER);
 
   if (!component->setData)
@@ -3463,7 +3506,8 @@ int kernelWindowComponentSetData(kernelWindowComponent *component,
 }
 
 
-int kernelWindowComponentGetSelected(kernelWindowComponent *component)
+int kernelWindowComponentGetSelected(kernelWindowComponent *component,
+				     int *selection)
 {
   // Calls the 'get selected' method of the component, if applicable
 
@@ -3472,13 +3516,13 @@ int kernelWindowComponentGetSelected(kernelWindowComponent *component)
     return (ERR_NOTINITIALIZED);
 
   // Check parameters
-  if (component == NULL)
+  if ((component == NULL) || (selection == NULL))
     return (ERR_NULLPARAMETER);
 
   if (component->getSelected == NULL)
     return (ERR_NOSUCHFUNCTION);
 
-  return (component->getSelected((void *) component));
+  return (component->getSelected((void *) component, selection));
 }
 
 

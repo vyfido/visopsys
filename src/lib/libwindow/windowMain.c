@@ -52,16 +52,16 @@ static void guiRun(void)
 
   run = 1;
 
-  while(run)
+  while (run)
     {
       // Loop through all of the registered callbacks looking for components
       // with pending events
-      for (count = 0; count < numCallBacks; count ++)
+      for (count = 0; (run && (count < numCallBacks)); count ++)
 	{
 	  key = callBacks[count].key;
 
 	  // Any events pending?
-	  while (run && (windowComponentEventGet(key, &event) > 0))
+	  if (key && (windowComponentEventGet(key, &event) > 0))
 	    callBacks[count].function((objectKey) key, &event);
 	}
 
@@ -129,6 +129,32 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
 }
 
 
+_X_ int windowClearEventHandler(objectKey key)
+{
+  // Desc: Remove a callback event handler registered with the windowRegisterEventHandler() function.
+
+  int callBackIndex = -1;
+  int count;
+
+  for (count = 0; count < numCallBacks; count ++)
+    if (callBacks[count].key == key)
+      {
+	callBackIndex = count;
+	break;
+      }
+
+  if (callBackIndex < 0)
+    return (ERR_NOSUCHENTRY);
+
+  if ((numCallBacks > 1) && (callBackIndex < (numCallBacks - 1)))
+    memcpy((void *) &(callBacks[callBackIndex]),
+	   (void *) &(callBacks[numCallBacks - 1]), sizeof(callBack));
+  numCallBacks -= 1;
+
+  return (0);
+}
+
+
 _X_ void windowGuiRun(void)
 {
   // Desc: Run the GUI windowEvent polling as a blocking call.  In other words, use this function when your program has completed its setup code, and simply needs to watch for GUI events such as mouse clicks, key presses, and window closures.  If your program needs to do other processing (independently of windowEvents) you should use the windowGuiThread() function instead.
@@ -138,18 +164,30 @@ _X_ void windowGuiRun(void)
 }
 
 
-_X_ void windowGuiThread(void)
+_X_ int windowGuiThread(void)
 {
-// Desc: Run the GUI windowEvent polling as a non-blocking call.  In other words, this function will launch a separate thread to monitor for GUI events and return control to your program.  Your program can then continue execution -- independent of GUI windowEvents.  If your program doesn't need to do any processing after setting up all its window components and event callbacks, use the windowGuiRun() function instead.
+  // Desc: Run the GUI windowEvent polling as a non-blocking call.  In other words, this function will launch a separate thread to monitor for GUI events and return control to your program.  Your program can then continue execution -- independent of GUI windowEvents.  If your program doesn't need to do any processing after setting up all its window components and event callbacks, use the windowGuiRun() function instead.
 
-  guiThreadPid = multitaskerSpawn(&guiRunThread, "gui thread", 0, NULL);
-  return;
+  if (guiThreadPid && multitaskerProcessIsAlive(guiThreadPid))
+    return (guiThreadPid);
+  else
+    {
+      guiThreadPid = multitaskerSpawn(&guiRunThread, "gui thread", 0, NULL);
+      return (guiThreadPid);
+    }
+}
+
+
+_X_ int windowGuiThreadPid(void)
+{
+  // Desc: Returns the current GUI thread PID, if applicable, or else 0.
+  return (guiThreadPid);
 }
 
 
 _X_ void windowGuiStop(void)
 {
-  // Desc: Stop GUI event polling which has been started by a previous call to one of the 'run' functions, such as windowGuiRun() or windowGuiThread().  Note that calling this function clears all callbacks registered with the windowRegisterEventHandler() function, so if you want to resume GUI execution you will need to re-register them.
+  // Desc: Stop GUI event polling which has been started by a previous call to one of the 'run' functions, such as windowGuiRun() or windowGuiThread().
 
   run = 0;
   
@@ -159,12 +197,5 @@ _X_ void windowGuiStop(void)
       guiThreadPid = 0;
     }
   
-  numCallBacks = 0;
-  if (callBacks)
-    {
-      free((void *) callBacks);
-      callBacks = NULL;
-    }
-
   return;
 }

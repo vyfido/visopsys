@@ -45,7 +45,6 @@ This command will open a new text window running a new instance of the
 #include <sys/window.h>
 #include <sys/api.h>
 
-
 static int processId = 0;
 objectKey window = NULL;
 
@@ -68,17 +67,12 @@ int main(int argc, char *argv[])
   int myPrivilege = 0;
   componentParameters params;
   objectKey textArea = NULL;
-  int count;
-
-  // Make sure none of our arguments are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      printf("\nThe \"%s\" command only works in graphics mode\n",
+	     (argc? argv[0] : ""));
       errno = ERR_NOTINITIALIZED;
       return (status = errno);
     }
@@ -87,7 +81,7 @@ int main(int argc, char *argv[])
   myPrivilege = multitaskerGetProcessPrivilege(processId);
 
   // Load a shell process
-  processId = loaderLoadProgram("/programs/vsh", myPrivilege, 0, NULL);
+  processId = loaderLoadProgram("/programs/vsh", myPrivilege);
   if (processId < 0)
     {
       printf("Unable to load shell\n");

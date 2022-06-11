@@ -39,6 +39,9 @@ while dismantling a process.  The only mandatory parameter is a process ID
 number (and, optionally, any number of additional process ID numbers).  To
 see a list of running processes, use the 'ps' command.
 
+Options:
+-f  : Force kill -- ignore errors.
+
 </help>
 */
 

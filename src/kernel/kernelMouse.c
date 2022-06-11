@@ -115,29 +115,28 @@ static void mouseInterrupt(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelMouseInitialize(kernelDevice *device)
+int kernelMouseInitialize(kernelDevice *dev)
 {
   // Initialize the mouse functions
 
   int status = 0;
 
-  if (device == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "The mouse device is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  systemMouse = device;
+  systemMouse = dev;
 
-  if ((systemMouse->dev == NULL) ||
-      (systemMouse->driver == NULL) ||
+  if ((systemMouse->data == NULL) || (systemMouse->driver == NULL) ||
       (systemMouse->driver->ops == NULL))
     {
       kernelError(kernel_error, "The mouse, driver or ops are NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  mouseDevice = (kernelMouse *) systemMouse->dev;
+  mouseDevice = (kernelMouse *) systemMouse->data;
   ops = systemMouse->driver->ops;
 
   screenWidth = kernelGraphicGetScreenWidth();

@@ -1,7 +1,7 @@
 
  -- sync --
 
-Synchronize data on all disks.
+Synchronize (commit) data to all disks.
 
 Usage:
   sync

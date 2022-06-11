@@ -97,9 +97,7 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
       if (strncmp(value, DEFAULT_KERNEL_STARTPROGRAM, 128))
 	{
 	  // Try to load the login process
-	  pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR,
-	   				0,     // no args
-	   				NULL); // no args
+	  pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR);
 	  if (pid < 0)
 	    // Don't fail, but make a warning message
 	    kernelError(kernel_warn, "Couldn't load start program \"%s\"",

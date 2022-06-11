@@ -73,6 +73,7 @@ STDIONAMES	= _fmtinpt \
 		rename \
 		rewind \
 		scanf \
+		snprintf \
 		sprintf
 
 STDLIBNAMES	= abort \

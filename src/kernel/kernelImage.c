@@ -57,7 +57,8 @@ int kernelImageLoad(const char *fileName, int reqWidth, int reqHeight,
     return (status = ERR_NOSUCHENTRY);
 
   // Get the file class of the file.
-  fileClassDriver = kernelLoaderClassify(imageFileData, &loaderClass);
+  fileClassDriver =
+    kernelLoaderClassify(fileName, imageFileData, theFile.size, &loaderClass);
   if (fileClassDriver == NULL)
     {
       kernelError(kernel_error, "File type of %s is unknown", fileName);

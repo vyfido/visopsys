@@ -24,6 +24,8 @@
 
 #if !defined(_PROCESS_H)
 
+#include <string.h>
+
 #define MAX_PROCNAME_LENGTH 64
 #define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 
@@ -46,6 +48,7 @@ typedef struct {
   void *data;
   unsigned dataSize;
   unsigned imageSize;
+  char commandLine[MAXSTRINGLENGTH];
   int argc;
   char *argv[64];
 

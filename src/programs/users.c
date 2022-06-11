@@ -29,11 +29,12 @@
 User manager for creating/deleting user accounts
 
 Usage:
-  users
+  users [-p user_name]
 
 The users (User Manager) program is interactive, and may only be used in
 graphics mode.  It can be used to add and delete user accounts, and set
-account passwords.
+account passwords.  If '-p user_name' is specified on the command line,
+this command will prompt the user to set the password for the named user.
 
 </help>
 */
@@ -48,8 +49,7 @@ account passwords.
 static int processId = 0;
 static int privilege = 0;
 static int readOnly = 1;
-static char *userBuffer = NULL;
-static char *userNames[64];
+static listItemParameters *userListParams = NULL;
 static int numUserNames = 0;
 static objectKey window = NULL;
 static objectKey userList = NULL;
@@ -77,6 +77,8 @@ static int getUserNames(void)
 {
   // Get the list of user names from the kernel
 
+  int status = 0;
+  char userBuffer[1024];
   char *bufferPointer = NULL;
   int count;
 
@@ -89,15 +91,20 @@ static int getUserNames(void)
       return (numUserNames);
     }
 
+  userListParams = malloc(numUserNames * sizeof(listItemParameters));
+  if (userListParams == NULL)
+    return (status = ERR_MEMORY);
+
   bufferPointer = userBuffer;
 
   for (count = 0; count < numUserNames; count ++)
     {
-      userNames[count] = bufferPointer;
-      bufferPointer += (strlen(userNames[count]) + 1);
+      strncpy(userListParams[count].text, bufferPointer,
+	      WINDOW_MAX_LABEL_LENGTH);
+      bufferPointer += (strlen(userListParams[count].text) + 1);
     }
 
-  return (0);
+  return (status = 0);
 }
 
 
@@ -158,14 +165,14 @@ static int setPasswordDialog(int userNumber)
   params.useDefaultBackground = 1;
 
   char labelText[64];
-  sprintf(labelText, "User name: %s", userNames[userNumber]);
+  sprintf(labelText, "User name: %s", userListParams[userNumber].text);
   params.gridY = 0;
   params.gridWidth = 2;
   label = windowNewTextLabel(dialogWindow, labelText, &params);
 
   // If this user is privileged, or we can authenticate with no password,
   // don't prompt for the old password
-  if (privilege && userAuthenticate(userNames[userNumber], ""))
+  if (privilege && userAuthenticate(userListParams[userNumber].text, ""))
     {
       params.gridY = 1;
       params.gridWidth = 1;
@@ -239,7 +246,7 @@ static int setPasswordDialog(int userNumber)
   params.padLeft = 5;
   params.padRight = 5;
   params.orientationX = orient_right;
-  params.fixedHeight = 1;
+  params.fixedWidth = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
   // Create the Cancel button
@@ -345,7 +352,8 @@ static int setPasswordDialog(int userNumber)
   // Make sure the new password and confirm passwords match
   if (!strncmp(newPassword, confirmPassword, 16))
     {
-      status = setPassword(userNames[userNumber], oldPassword, newPassword);
+      status =
+	setPassword(userListParams[userNumber].text, oldPassword, newPassword);
       if (status == ERR_PERMISSION)
 	error("Permission denied");
       else if (status < 0)
@@ -389,7 +397,7 @@ static int addUser(const char *userName, const char *password)
     return (status);
 
   // Re-populate our list component
-  status = windowComponentSetData(userList, userNames, numUserNames);
+  status = windowComponentSetData(userList, userListParams, numUserNames);
   if (status < 0)
     return (status);
 
@@ -420,7 +428,7 @@ static int deleteUser(const char *userName)
     return (status);
 
   // Re-populate our list component
-  status = windowComponentSetData(userList, userNames, numUserNames);
+  status = windowComponentSetData(userList, userListParams, numUserNames);
   if (status < 0)
     return (status);
 
@@ -453,14 +461,15 @@ static void eventHandler(objectKey key, windowEvent *event)
       // Don't try to delete the last user
       if (numUserNames > 1)
 	{
-	  userNumber = windowComponentGetSelected(userList);  
+	  windowComponentGetSelected(userList, &userNumber);  
 	  if (userNumber < 0)
 	    return;
 
 	  char question[1024];
-	  sprintf(question, "Delete user %s?", userNames[userNumber]);
+	  sprintf(question, "Delete user %s?",
+		  userListParams[userNumber].text);
 	  if (windowNewQueryDialog(window, "Delete?", question))
-	    deleteUser(userNames[userNumber]);
+	    deleteUser(userListParams[userNumber].text);
 	}
       else
 	error("Can't delete the last user");
@@ -468,7 +477,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   else if ((key == setPasswordButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
-      userNumber = windowComponentGetSelected(userList);  
+      windowComponentGetSelected(userList, &userNumber);  
       if (userNumber < 0)
 	return;
 
@@ -500,7 +509,8 @@ static void constructWindow(void)
   params.orientationY = orient_top;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  userList = windowNewList(window, 5, 1, 0, userNames, numUserNames, &params);
+  userList = windowNewList(window, windowlist_textonly, 5, 1, 0,
+			   userListParams, numUserNames, &params);
 
   // A container for the buttons
   params.gridX = 1;
@@ -574,19 +584,10 @@ int main(int argc, char *argv[])
   processId = multitaskerGetCurrentProcessId();
   privilege = multitaskerGetProcessPrivilege(processId);
 
-  // Get a buffer for user names
-  userBuffer = malloc(1024);
-  if (userBuffer == NULL)
-    {
-      error("Error getting buffer memory");
-      return (status = ERR_MEMORY);
-    }
-
   // Get the list of user names
   status = getUserNames();
   if (status < 0)
     {
-      free(userBuffer);
       errno = status;
       perror(argv[0]);
       return (status);
@@ -599,7 +600,7 @@ int main(int argc, char *argv[])
       // We're just setting the password for the requested user name.  Find
       // the user number in our list
       for (count = 0; count < numUserNames; count ++)
-	if (!strcmp(userNames[count], userName))
+	if (!strcmp(userListParams[count].text, userName))
 	  {
 	    userNumber = count;
 	    break;
@@ -622,6 +623,6 @@ int main(int argc, char *argv[])
     }
 
   // Done
-  free(userBuffer);
+  free(userListParams);
   return (errno = status);
 }

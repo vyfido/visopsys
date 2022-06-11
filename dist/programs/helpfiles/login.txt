@@ -1,19 +1,22 @@
 
  -- login --
 
-A program which allows a user to log into the system.
+Log in to the system.
 
 Usage:
-  login [-v]
+  login [-T] [-f user_name]
 
-This program is interactive, except when specifying the (optional) '-v'
-option.  If -v is specified, the program will print its version number and
-exit.  It works in both text and graphics modes.
+This program is interactive, and works in both text and graphics modes.  By
+default, it is the program launched by the kernel after initialization has
+completed.  It prompts for a user name and password, and after successful
+authentication, launches either a shell process (text mode) or a window
+system thread (graphics mode).
 
-The current version of the login program will prompt for a user name,
-but no password, and will accept any (non-empty) user name.  There is no
-user authentication at present.
-
+In graphics mode, 'login' also displays 'reboot' and 'shut down' buttons.
 If the login program has crashed or been killed, you can start a new instance
 using the [F1] key.
+
+Options:
+-T              : Force text mode operation
+-f <user_name>  : Login as this user, no password.
 

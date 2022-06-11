@@ -97,6 +97,3 @@ ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 
 ${BUILDDIR}/fdisk: fdisk.c fdisk.h ${STDDEPS}
 	${CC} ${OPTS} ${PARTLOGIC} $< -lwindow -lvsh -lc -o $@
-
-${BUILDDIR}/login: login.c ${STDDEPS}
-	${CC} ${OPTS} -DRELEASE=\"${RELEASE}\" $< -lwindow -lvsh -lc -o $@

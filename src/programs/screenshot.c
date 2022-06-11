@@ -38,7 +38,7 @@ The (optional) file name can be an absolute pathname under which the
 screenshot should be saved.  If no file name is specified, the program
 will present a dialog box asking for one.
 
-Currently only (uncompressed, 24-bit) bitmap format is supported.
+Currently only the uncompressed, 24-bit bitmap format is supported.
 
 </help>
 */
@@ -73,6 +73,9 @@ int main(int argc, char *argv[])
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter the file "
 			    "name to use:", filename, MAX_PATH_NAME_LENGTH);
+
+      windowGuiStop();
+
       if (status != 1)
 	{
 	  errno = status;

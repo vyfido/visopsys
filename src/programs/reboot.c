@@ -36,6 +36,9 @@ is supplied, then 'reboot' will attempt to ignore errors and reboot
 regardless.  Use this flag with caution if filesystems do not appear to be
 unmounting correctly; you may need to back up unsaved data before rebooting.
 
+Options:
+-f  : Force reboot and ignore errors.
+
 </help>
 */
 

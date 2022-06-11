@@ -68,13 +68,19 @@ static Elf32SectionHeader *getSectionHeader(void *data, const char *name)
 }
 
 
-static int detect(void *dataPtr, loaderFileClass *class)
+static int detect(const char *fileName, void *dataPtr, int size,
+		  loaderFileClass *class)
 {
   // This function returns 1 and fills the fileClass structure if the data
   // points to an ELF file.
 
   unsigned *magic = dataPtr;
   Elf32Header *header = dataPtr;
+  Elf32SectionHeader *sectionHeaders = NULL;
+  int count;
+
+  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+    return (0);
 
   // Look for the ELF magic number (0x7F + E + L + F)
   if (*magic == 0x464C457F)
@@ -92,11 +98,15 @@ static int detect(void *dataPtr, loaderFileClass *class)
 	  class->flags |= LOADERFILECLASS_OBJ;
 	  break;
 	case ELFTYPE_EXEC:
-	  if (getSectionHeader(dataPtr, ".dynamic"))
-	    {
-	      strcat(class->className,FILECLASS_NAME_DYNAMIC " ");
-	      class->flags |= LOADERFILECLASS_DYNAMIC;
-	    }
+	  sectionHeaders =
+	    (Elf32SectionHeader *) ((void *) dataPtr + header->e_shoff);
+	  for (count = 1; count < header->e_shnum; count ++)
+	    if (sectionHeaders[count].sh_type == ELFSHT_DYNAMIC)
+	      {
+		strcat(class->className, FILECLASS_NAME_DYNAMIC " ");
+		class->flags |= LOADERFILECLASS_DYNAMIC;
+		break;
+	      }
 	  strcat(class->className, FILECLASS_NAME_EXEC);
 	  class->flags |= LOADERFILECLASS_EXEC;
 	  break;

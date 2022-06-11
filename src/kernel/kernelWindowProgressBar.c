@@ -41,7 +41,7 @@ static int draw(void *componentData)
     (kernelWindowProgressBar *) component->data;
   kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
     &(((kernelWindow *) component->window)->buffer);
-  char progress[5];
+  char prog[5];
 
   // Draw the background of the progress bar
   kernelGraphicDrawRect(buffer, (color *) &(component->parameters.background),
@@ -74,14 +74,13 @@ static int draw(void *componentData)
 				  borderShadingIncrement, draw_normal);
 
   // Print the progress percent
-  sprintf(progress, "%d%%", progressBar->progressPercent);
+  sprintf(prog, "%d%%", progressBar->progressPercent);
   kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
 			(color *) &(component->parameters.background),
-			defaultFont, progress, draw_translucent,
+			defaultFont, prog, draw_translucent,
 			(component->xCoord +
 			 ((component->width -
-			   kernelFontGetPrintedWidth(defaultFont, progress))
-			  / 2)),
+			   kernelFontGetPrintedWidth(defaultFont, prog)) / 2)),
 			(component->yCoord +
 			 ((component->height - defaultFont->charHeight) / 2)));
 

@@ -38,9 +38,15 @@ static void scrollBuffer(kernelTextArea *area, int lines)
 
   // Increasing the stored scrollback lines?
   if ((area->rows + area->scrollBackLines) < area->maxBufferLines)
-    area->scrollBackLines += min(lines, (area->maxBufferLines -
-				 (area->rows + area->scrollBackLines)));
-    
+    {
+      area->scrollBackLines +=
+	min(lines, (area->maxBufferLines -
+		    (area->rows + area->scrollBackLines)));
+      if (area->windowComponent)
+	((kernelWindowComponent *) area->windowComponent)
+	  ->update(area->windowComponent);
+    }
+
   kernelMemCopy((TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
 		TEXTAREA_FIRSTSCROLLBACK(area),
 		((area->rows + area->scrollBackLines) * area->columns));
@@ -231,6 +237,10 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
     {
       area->scrolledBackLines = 0;
       drawScreen(area);
+
+      if (area->windowComponent)
+	((kernelWindowComponent *) area->windowComponent)
+	  ->update(area->windowComponent);
     }
 
   if (cursorState)
@@ -269,6 +279,10 @@ static int print(kernelTextArea *area, const char *text)
     {
       area->scrolledBackLines = 0;
       drawScreen(area);
+
+      if (area->windowComponent)
+	((kernelWindowComponent *) area->windowComponent)
+	  ->update(area->windowComponent);
     }
 
   if (cursorState)
@@ -366,6 +380,10 @@ static int delete(kernelTextArea *area)
     {
       area->scrolledBackLines = 0;
       drawScreen(area);
+
+      if (area->windowComponent)
+	((kernelWindowComponent *) area->windowComponent)
+	  ->update(area->windowComponent);
     }
 
   if (cursorState)
@@ -420,6 +438,10 @@ static int clearScreen(kernelTextArea *area)
     // Turn on the cursor
     setCursor(area, 1);
 
+  if (area->windowComponent)
+    ((kernelWindowComponent *) area->windowComponent)
+      ->update(area->windowComponent);
+
   return (0);
 }
 
@@ -458,6 +480,11 @@ static int restoreScreen(kernelTextArea *area)
   area->cursorRow = area->savedCursorRow;
 
   drawScreen(area);
+
+  if (area->windowComponent)
+    ((kernelWindowComponent *) area->windowComponent)
+      ->update(area->windowComponent);
+
   return (0);
 }
 

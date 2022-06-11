@@ -26,16 +26,23 @@
 
  -- shutdown --
 
-A command for shutting down the computer.
+A command for shutting down (and/or rebooting) the computer.
 
 Usage:
   shutdown [-f]
 
 This command causes the system to shut down.  If the (optional) '-f'
-parameter is supplied, then 'reboot' will attempt to ignore errors and shut
+parameter is supplied, then 'shutdown' will attempt to ignore errors and shut
 down regardless.  Use this flag with caution if filesystems do not appear to
 be unmounting correctly; you may need to back up unsaved data before
 shutting down.
+
+In graphics mode, the program prompts the user to select 'reboot' or
+'shut down'.  If the system is currently booted from a CD-ROM, the dialog
+box also offers a checkbox to eject the disc.
+
+Options:
+-f  : Force shutdown and ignore errors.
 
 </help>
 */
@@ -57,6 +64,7 @@ static disk sysDisk;
 static void eventHandler(objectKey key, windowEvent *event)
 {
   int status = 0;
+  int selected = 0;
   objectKey bannerDialog = NULL;
 
   // Check for the window being closed by a GUI event.
@@ -72,40 +80,47 @@ static void eventHandler(objectKey key, windowEvent *event)
     {
       windowGuiStop();
 
-      if (ejectCheckbox && (windowComponentGetSelected(ejectCheckbox) == 1))
+      if (ejectCheckbox)
 	{
-	  bannerDialog = windowNewBannerDialog(window, "Ejecting",
-					       "Ejecting CD, please wait...");
+	  windowComponentGetSelected(ejectCheckbox, &selected);
 
-	  if (diskSetLockState(sysDisk.name, 0) < 0)
+	  if (selected == 1)
 	    {
-	      if (bannerDialog)
-		windowDestroy(bannerDialog);
+	      bannerDialog =
+		windowNewBannerDialog(window, "Ejecting", "Ejecting CD, "
+				      "please wait...");
 
-	      windowNewErrorDialog(window, "Error", "Unable to unlock the "
-				   "CD-ROM tray");
-	    }
-	  else
-	    {
-	      status = diskSetDoorState(sysDisk.name, 1);
-	      if (status < 0)
+	      if (diskSetLockState(sysDisk.name, 0) < 0)
 		{
-		  // Try a second time.  Sometimes 2 attempts seems to help.
-		  status = diskSetDoorState(sysDisk.name, 1);
-
 		  if (bannerDialog)
 		    windowDestroy(bannerDialog);
 
-		  if (status < 0)
-		    windowNewInfoDialog(window, "Hmm", "Can't seem to eject.  "
-					"Try pushing\nthe 'eject' button "
-					"now.");
+		  windowNewErrorDialog(window, "Error", "Unable to unlock the "
+				       "CD-ROM tray");
 		}
-	      else if (bannerDialog)
-		windowDestroy(bannerDialog);
+	      else
+		{
+		  status = diskSetDoorState(sysDisk.name, 1);
+		  if (status < 0)
+		    {
+		      // Try a second time.  Sometimes 2 attempts seems to
+		      // help.
+		      status = diskSetDoorState(sysDisk.name, 1);
+
+		      if (bannerDialog)
+			windowDestroy(bannerDialog);
+		      
+		      if (status < 0)
+			windowNewInfoDialog(window, "Hmm", "Can't seem to "
+					    "eject.  Try pushing\nthe 'eject' "
+					    "button now.");
+		    }
+		  else if (bannerDialog)
+		    windowDestroy(bannerDialog);
+		}
 	    }
 	}
-      
+
       windowDestroy(window);
 
       shutdown((key == rebootIcon), 0);

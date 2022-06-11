@@ -25,6 +25,7 @@
 
 #include "kernelPciDriver.h"
 #include "kernelBus.h"
+#include "kernelDevice.h"
 #include "kernelProcessorX86.h"
 #include "kernelMalloc.h"
 #include "kernelLog.h"
@@ -169,73 +170,73 @@ static int numTargets = 0;
      (function) = ((targetCode) & 0xFF);  }
 
 
-static void readConfig8(int bus, int device, int function, int reg,
+static void readConfig8(int bus, int dev, int function, int reg,
 			unsigned char *data)
 {
   // Reads configuration byte
-  unsigned address = headerAddress(bus, device, function, (reg / 4));
+  unsigned address = headerAddress(bus, dev, function, (reg / 4));
   kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
   kernelProcessorInPort8((PCI_DATA_PORT + (reg % 4)), *data);
   return;
 }
 
 
-static void writeConfig8(int bus, int device, int function, int reg,
+static void writeConfig8(int bus, int dev, int function, int reg,
 			 unsigned char data)
 {
   // Writes configuration byte
-  unsigned address = headerAddress(bus, device, function, (reg / 4));
+  unsigned address = headerAddress(bus, dev, function, (reg / 4));
   kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
   kernelProcessorOutPort8((PCI_DATA_PORT + (reg % 4)), data);
   return;
 }
 
 
-static void readConfig16(int bus, int device, int function, int reg,
+static void readConfig16(int bus, int dev, int function, int reg,
 			 unsigned short *data)
 {
   // Reads configuration word
-  unsigned address = headerAddress(bus, device, function, (reg / 2));
+  unsigned address = headerAddress(bus, dev, function, (reg / 2));
   kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
   kernelProcessorInPort16((PCI_DATA_PORT + (reg % 2)), *data);
   return;
 }
 
 
-static void writeConfig16(int bus, int device, int function, int reg,
+static void writeConfig16(int bus, int dev, int function, int reg,
 			  unsigned short data)
 {
   // Writes configuration word
-  unsigned address = headerAddress(bus, device, function, (reg / 2));
+  unsigned address = headerAddress(bus, dev, function, (reg / 2));
   kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
   kernelProcessorOutPort16((PCI_DATA_PORT + (reg % 2)), data);
   return;
 }
 
 
-static void readConfig32(int bus, int device, int function, int reg,
+static void readConfig32(int bus, int dev, int function, int reg,
 			 unsigned *data)
 {
   // Reads configuration dword
-  unsigned address = headerAddress(bus, device, function, reg);
+  unsigned address = headerAddress(bus, dev, function, reg);
   kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
   kernelProcessorInPort32(PCI_DATA_PORT, *data);
   return;
 }
 
 
-static void writeConfig32(int bus, int device, int function, int reg,
+static void writeConfig32(int bus, int dev, int function, int reg,
 			  unsigned data)
 {
   // Writes configuration dword
-  unsigned address = headerAddress(bus, device, function, reg);
+  unsigned address = headerAddress(bus, dev, function, reg);
   kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
   kernelProcessorOutPort32(PCI_DATA_PORT, data);
   return;
 }
 
 
-static void readConfigHeader(int bus, int device, int function,
+static void readConfigHeader(int bus, int dev, int function,
 			     pciDeviceInfo *devInfo)
 {
   // Fill up the supplied device info header
@@ -245,7 +246,7 @@ static void readConfigHeader(int bus, int device, int function,
 
   for (count = 0; count < PCI_CONFIGHEADER_SIZE; count ++)
     {
-      address =	headerAddress(bus, device, function, count);
+      address =	headerAddress(bus, dev, function, count);
       kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
       kernelProcessorInPort32(PCI_DATA_PORT, devInfo->header[count]);
     }
@@ -342,7 +343,7 @@ static int getClassName(int classCode, int subClassCode, char **className,
 }
 
 
-static void deviceInfo2BusTarget(int bus, int device, int function,
+static void deviceInfo2BusTarget(int bus, int dev, int function,
 				 pciDeviceInfo *info, kernelBusTarget *target)
 {
   // Translate a device info header to a bus target listing
@@ -353,7 +354,7 @@ static void deviceInfo2BusTarget(int bus, int device, int function,
   if (class == NULL)
     return;
 
-  target->target = makeTargetCode(bus, device, function);
+  target->target = makeTargetCode(bus, dev, function);
   target->class = kernelDeviceGetClass(class->subClass->systemClassCode);
   target->subClass = kernelDeviceGetClass(class->subClass->systemSubClassCode);
 }
@@ -373,14 +374,14 @@ static int driverGetTargetInfo(int target, void *pointer)
   // pointer
 
   int status = 0;
-  int bus, device, function;
+  int bus, dev, function;
 
   // Check params
   if (pointer == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  makeBusDevFunc(target, bus, device, function);
-  readConfigHeader(bus, device, function, pointer);
+  makeBusDevFunc(target, bus, dev, function);
+  readConfigHeader(bus, dev, function, pointer);
 
   return (status = 0);
 }
@@ -391,20 +392,20 @@ static unsigned driverReadRegister(int target, int reg, int bitWidth)
   // Returns the contents of a PCI configuration register
 
   unsigned contents = 0;
-  int bus, device, function;
+  int bus, dev, function;
   
-  makeBusDevFunc(target, bus, device, function);
+  makeBusDevFunc(target, bus, dev, function);
 
   switch (bitWidth)
     {
     case 8:
-      readConfig8(bus, device, function, reg, (unsigned char *) &contents);
+      readConfig8(bus, dev, function, reg, (unsigned char *) &contents);
       break;
     case 16:
-      readConfig16(bus, device, function, reg, (unsigned short *) &contents);
+      readConfig16(bus, dev, function, reg, (unsigned short *) &contents);
       break;
     case 32:
-      readConfig32(bus, device, function, reg, &contents);
+      readConfig32(bus, dev, function, reg, &contents);
       break;
     default:
       kernelError(kernel_error, "Register width %d not supported", bitWidth);
@@ -419,20 +420,20 @@ static void driverWriteRegister(int target, int reg, int bitWidth,
 {
   // Write the contents of a PCI configuration register
 
-  int bus, device, function;
+  int bus, dev, function;
   
-  makeBusDevFunc(target, bus, device, function);
+  makeBusDevFunc(target, bus, dev, function);
 
   switch (bitWidth)
     {
     case 8:
-      writeConfig8(bus, device, function, reg, contents);
+      writeConfig8(bus, dev, function, reg, contents);
       break;
     case 16:
-      writeConfig16(bus, device, function, reg, contents);
+      writeConfig16(bus, dev, function, reg, contents);
       break;
     case 32:
-      writeConfig32(bus, device, function, reg, contents);
+      writeConfig32(bus, dev, function, reg, contents);
       break;
     default:
       kernelError(kernel_error, "Register width %d not supported", bitWidth);
@@ -446,13 +447,13 @@ static int driverDeviceEnable(int target, int enable)
 {
   // Enables or disables a PCI bus device
 
-  int bus, device, function;
+  int bus, dev, function;
   unsigned short commandReg = 0;
 
-  makeBusDevFunc(target, bus, device, function);
+  makeBusDevFunc(target, bus, dev, function);
 
   // Read the command register
-  readConfig16(bus, device, function, PCI_CONFREG_COMMAND, &commandReg);
+  readConfig16(bus, dev, function, PCI_CONFREG_COMMAND, &commandReg);
   
   if (enable)
     // Turn on I/O access, memory access, and bus master enable.
@@ -463,7 +464,7 @@ static int driverDeviceEnable(int target, int enable)
     commandReg &= ~(PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
 
   // Write back command register
-  writeConfig16(bus, device, function, PCI_CONFREG_COMMAND, commandReg);
+  writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND, commandReg);
 
   return (0);
 }
@@ -473,14 +474,14 @@ static int driverSetMaster(int target, int master)
 {
   // Sets the target device as a bus master
 
-  int bus, device, function;
+  int bus, dev, function;
   unsigned short commandReg = 0;
   unsigned char latency = 0;
 
-  makeBusDevFunc(target, bus, device, function);
+  makeBusDevFunc(target, bus, dev, function);
 
   // Read the command register
-  readConfig16(bus, device, function, PCI_CONFREG_COMMAND, &commandReg);
+  readConfig16(bus, dev, function, PCI_CONFREG_COMMAND, &commandReg);
 
   // Toggle busmaster bit
   if (master)
@@ -489,15 +490,15 @@ static int driverSetMaster(int target, int master)
     commandReg &= ~PCI_COMMAND_MASTERENABLE;
 
   // Write back command register
-  writeConfig16(bus, device, function, PCI_CONFREG_COMMAND, commandReg);
+  writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND, commandReg);
 
   // Check latency timer
-  readConfig8(bus, device, function, PCI_CONFREG_LATENCY, &latency);
+  readConfig8(bus, dev, function, PCI_CONFREG_LATENCY, &latency);
 
   if (latency < 0x10)
     {
       latency = 0x40;
-      writeConfig8(bus, device, function, PCI_CONFREG_LATENCY, latency);
+      writeConfig8(bus, dev, function, PCI_CONFREG_LATENCY, latency);
     }
 
   return (0);
@@ -517,7 +518,7 @@ static int driverDetect(void *driver)
   char *className = NULL;
   char *subclassName = NULL;
   pciDeviceInfo pciDevice;
-  kernelDevice *device = NULL;
+  kernelDevice *dev = NULL;
 
   // Check for a configuration mechanism #1 able PCI controller.
   kernelProcessorOutPort32(PCI_CONFIG_PORT, 0x80000000L);
@@ -595,15 +596,15 @@ static int driverDetect(void *driver)
 	}
 
   // Allocate memory for the device
-  device = kernelMalloc(sizeof(kernelDevice));
-  if (device == NULL)
+  dev = kernelMalloc(sizeof(kernelDevice));
+  if (dev == NULL)
     return (status = ERR_MEMORY);
 
-  device->class = kernelDeviceGetClass(DEVICECLASS_BUS);
-  device->subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI);
-  device->driver = driver;
+  dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
+  dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI);
+  dev->driver = driver;
 
-  return (status = kernelDeviceAdd(NULL, device));
+  return (status = kernelDeviceAdd(NULL, dev));
 }
 
 

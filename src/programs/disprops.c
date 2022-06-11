@@ -58,8 +58,7 @@ static int numberModes = 0;
 static int showingClock = 0;
 static videoMode currentMode;
 static videoMode videoModes[MAXVIDEOMODES];
-static char *modeStrings[MAXVIDEOMODES];
-static char stringData[MAXVIDEOMODES * 32];
+static listItemParameters *listItemParams = NULL;
 static objectKey window = NULL;
 static objectKey modeList = NULL;
 static objectKey bootGraphicsCheckbox = NULL;
@@ -87,16 +86,18 @@ static int getVideoModes(void)
   if (numberModes <= 0)
     return (status = ERR_NODATA);
 
+  if (listItemParams)
+    free(listItemParams);
+
+  listItemParams = malloc(numberModes * sizeof(listItemParameters));
+  if (listItemParams == NULL)
+    return (status = ERR_MEMORY);
+
   // Construct the mode strings
-  modeStrings[0] = stringData;
   for (count = 0; count < numberModes; count ++)
-    {
-      sprintf(modeStrings[count], " %d x %d, %d bit ",  videoModes[count].xRes,
-	      videoModes[count].yRes, videoModes[count].bitsPerPixel);
-      if (count < (numberModes - 1))
-	modeStrings[count + 1] =
-	  (modeStrings[count] + strlen(modeStrings[count]) + 1);
-    }
+    snprintf(listItemParams[count].text, WINDOW_MAX_LABEL_LENGTH,
+	     " %d x %d, %d bit ",  videoModes[count].xRes,
+	     videoModes[count].yRes, videoModes[count].bitsPerPixel);
 
   // Get the current mode
   graphicGetMode(&currentMode);
@@ -133,6 +134,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   int clockSelected = 0;
   variableList list;
   char string[160];
+  int selected = 0;
   file tmp;
 
   // Check for the window being closed by a GUI event.
@@ -142,14 +144,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   else if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
-      loaderLoadAndExec("/programs/wallpaper", privilege, 0, NULL, 0);
+      loaderLoadAndExec("/programs/wallpaper", privilege, 0);
       return;
     }
 
   else if ((key == colorsRadio) || (key == changeColorsButton))
     {
       color *selectedColor = NULL;
-      int selected = windowComponentGetSelected(colorsRadio);
+      windowComponentGetSelected(colorsRadio, &selected);
 
       switch (selected)
 	{
@@ -169,14 +171,15 @@ static void eventHandler(objectKey key, windowEvent *event)
  
       if (((key == changeColorsButton) &&
 	   (event->type == EVENT_MOUSE_LEFTUP)) ||
-	  ((key == colorsRadio) && (event->type == EVENT_MOUSE_LEFTDOWN)))
+	  ((key == colorsRadio) && (event->type & EVENT_SELECTION)))
 	drawColor(selectedColor);
     }
 
   else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Does the user not want to boot in graphics mode?
-      if (!windowComponentGetSelected(bootGraphicsCheckbox))
+      windowComponentGetSelected(bootGraphicsCheckbox, &selected);
+      if (!selected)
 	{
 	  // Try to create the /nograph file
 	  bzero(&tmp, sizeof(file));
@@ -186,7 +189,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
       // Does the user want to show a clock on the desktop?
-      clockSelected = windowComponentGetSelected(showClockCheckbox);
+      windowComponentGetSelected(showClockCheckbox, &clockSelected);
       if ((!showingClock && clockSelected) || (showingClock && !clockSelected))
 	{
 	  if (!readOnly)
@@ -195,7 +198,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	  if (!showingClock && clockSelected)
 	    {
 	      // Run the clock program now.  No block.
-	      loaderLoadAndExec("/programs/clock", privilege, 0, NULL, 0);
+	      loaderLoadAndExec("/programs/clock", privilege, 0);
 	      
 	      if (list.memory)
 		// Add a variable for the clock
@@ -218,7 +221,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	    }
 	}
 
-      mode = windowComponentGetSelected(modeList);
+      windowComponentGetSelected(modeList, &mode);
       if ((mode >= 0) && (videoModes[mode].mode != currentMode.mode))
 	{
 	  if (!graphicSetMode(&(videoModes[mode])))
@@ -280,8 +283,8 @@ static void constructWindow(void)
   params.padTop = 0;
   params.padLeft = 0;
   params.orientationX = orient_center;
-  modeList =
-    windowNewList(container, 5, 1, 0, modeStrings, numberModes, &params);
+  modeList = windowNewList(container, windowlist_textonly, 5, 1, 0,
+			   listItemParams, numberModes, &params);
 
   // Select the current mode
   for (count = 0; count < numberModes; count ++)
@@ -290,7 +293,7 @@ static void constructWindow(void)
 	windowComponentSetSelected(modeList, count);
 	break;
       }
-  if (readOnly)
+  if (readOnly || privilege)
     windowComponentSetEnabled(modeList, 0);
 
   // Make a checkbox for whether to boot in graphics mode
@@ -385,6 +388,7 @@ static void constructWindow(void)
   params.padTop = 0;
   params.padBottom = 0;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   okButton = windowNewButton(container, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 
@@ -445,6 +449,9 @@ int main(int argc, char *argv[])
   // Run the GUI
   windowGuiRun();
   windowDestroy(window);
+
+  if (listItemParams)
+    free(listItemParams);
 
   errno = status;
   return (status);
