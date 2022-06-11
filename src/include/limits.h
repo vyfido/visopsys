@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -50,7 +50,7 @@
 #define ULONG_MAX    4294967295UL           // Max value of an unsigned long
 
 // We don't support multibyte characters right now
-#define MB_LEN_MAX   1
+#define MB_LEN_MAX   4
 
 #define _LIMITS_H
 #endif

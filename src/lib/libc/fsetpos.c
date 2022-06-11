@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,6 +34,13 @@ int fsetpos(FILE *theStream, fpos_t *pos)
   // call to fgetpos() on the same stream.  Upon successful completion,
   // fsetpos returns 0.  Otherwise, -1 is returned and the global variable
   // errno is set to indicate the error.
+
+  // This call is not applicable for stdin, stdout, and stderr
+  if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
+    return (errno = ERR_NOTAFILE);
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // Let the kernel do the work, baby.
 

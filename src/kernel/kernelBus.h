@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,12 +21,12 @@
 
 #if !defined(_KERNELBUS_H)
 
-#include <sys/device.h>
+#include "kernelDevice.h"
 
 typedef struct {
   int target;
-  deviceClass *class;
-  deviceClass *subClass;
+  kernelDeviceClass *class;
+  kernelDeviceClass *subClass;
 
 } kernelBusTarget;
 

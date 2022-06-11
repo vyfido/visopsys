@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,9 +23,9 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <string.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/cdefs.h>
 
 
 int printf(const char *format, ...)
@@ -33,7 +33,10 @@ int printf(const char *format, ...)
   va_list list;
   int outputLen = 0;
   char output[MAXSTRINGLENGTH];
-  
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
+
   // Initialize the argument list
   va_start(list, format);
 

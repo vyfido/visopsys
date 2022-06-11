@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,6 +24,11 @@
 // desired).
 
 #if !defined(_ERRORS_H)
+
+// Items concerning severity for kernel errors
+typedef enum {
+  kernel_panic, kernel_error,  kernel_warn 
+} kernelErrorKind;
 
 // This is the generic error
 #define ERR_ERROR          -1  // No additional error information

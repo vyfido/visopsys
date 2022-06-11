@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/cdefs.h>
 
 // There is only ONE kernelTextInputStream for console input
 static kernelTextInputStream originalConsoleInput;
@@ -208,10 +209,6 @@ int kernelTextInitialize(int columns, int rows)
 
   consoleArea.outputStream = (void *) consoleOutput;
 
-  // Clear the screen
-  if (consoleOutput->outputDriver->screenClear)
-    consoleOutput->outputDriver->screenClear(consoleOutput->textArea);
- 
   // Set up our console input stream
   status = kernelStreamNew((stream *) &(consoleInput->s), TEXTSTREAMSIZE,
 			   itemsize_byte);

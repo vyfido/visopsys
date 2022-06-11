@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -52,7 +52,9 @@
 #define FS_OP_CLOBBER                 0x02
 #define FS_OP_CHECK                   0x04
 #define FS_OP_DEFRAG                  0x08
-#define FS_OP_RESIZE                  0x10
+#define FS_OP_STAT                    0x10
+#define FS_OP_RESIZECONST             0x20
+#define FS_OP_RESIZE                  0x40
 
 // Flags to describe what kind of disk is described by a disk structure
 #define DISKFLAG_LOGICAL              0x20000000
@@ -77,13 +79,6 @@ typedef struct {
 
 } partitionType;   
 
-// This structure is used to describe a set of filesystem resizing parameters
-typedef struct {
-  unsigned blocks;
-  unsigned blockSize;
-
-} diskResizeParameters;   
-
 typedef struct {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
@@ -102,6 +97,7 @@ typedef struct {
 
   // Filesystem related
   unsigned blockSize;
+  unsigned freeBytes;
   unsigned minSectors;  // for
   unsigned maxSectors;  // resize
   int mounted;

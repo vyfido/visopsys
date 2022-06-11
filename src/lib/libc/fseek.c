@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -42,6 +42,13 @@ int fseek(FILE *theStream, long offset, int whence)
   int status = 0;
   long pos = 0;
   long new_pos = 0;
+
+  // This call is not applicable for stdin, stdout, and stderr
+  if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
+    return (errno = ERR_NOTAFILE);
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // What is the position to which the user wants to seek?
 

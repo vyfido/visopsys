@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -1823,7 +1823,6 @@ int kernelFileMakeDotDirs(kernelFileEntry *parentDir, kernelFileEntry *dir)
   if (parentDir)
     {
       dotDotDir = kernelFileNewEntry(dir->disk);
-
       if (dotDotDir == NULL)
 	{
 	  kernelFileReleaseEntry(dotDir);

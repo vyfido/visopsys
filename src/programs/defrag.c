@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,6 +54,7 @@ Options:
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/cdefs.h>
 
 static int graphics = 0;
 static int processId = 0;
@@ -335,7 +336,7 @@ int main(int argc, char *argv[])
 
   if (!graphics && !silentMode)
     // Print a message
-    printf("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2005 J. Andrew "
+    printf("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2006 J. Andrew "
 	   "McLaughlin\n");
 
   if (argc > 1)
@@ -396,7 +397,7 @@ int main(int argc, char *argv[])
   if (status < 0)
     return (errno = status);
 
-  bzero(&prog, sizeof(progress));
+  bzero((void *) &prog, sizeof(progress));
   if (graphics)
     progressDialog = windowNewProgressDialog(NULL, "Defragmenting...", &prog);
   else

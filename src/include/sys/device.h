@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,9 @@
 // devices
 
 #if !defined(_DEVICE_H)
+
+#define DEV_CLASSNAME_MAX                   32
+#define DEV_MODELNAME_MAX                   32
 
 // Hardware device classes and subclasses
 #define DEVICECLASS_NONE                    0
@@ -73,18 +76,18 @@
 // associate the different types with string names.
 typedef struct {
   int class;
-  char *name;
+  char name[DEV_CLASSNAME_MAX];
 
 } deviceClass;
 
 // The generic hardware device structure
 typedef struct {
   // Device class and subclass.  Subclass optional.
-  deviceClass *class;
-  deviceClass *subClass;
+  deviceClass class;
+  deviceClass subClass;
 
   // Optional, vendor-specific model name
-  char *model;
+  char model[DEV_MODELNAME_MAX];
 
   // Used for maintaining the list of devices as a tree
   void *parent;

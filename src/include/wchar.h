@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +23,8 @@
 
 #if !defined(_WCHAR_H)
 
-#warning "wchar.h functions are not currently implemented in this library."
+#define WCHAR_MAX  UINT_MAX
+#define WCHAR_MIN  0
 
 #define _WCHAR_H
 #endif

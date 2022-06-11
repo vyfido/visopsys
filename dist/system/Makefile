@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -13,8 +13,7 @@ all:
 	mkdir -p ${BUILDDIR}/config
 	cp config/*.conf ${BUILDDIR}/config
 	mkdir -p ${BUILDDIR}/icons 
-	cp icons/*.bmp ${BUILDDIR}/icons
-	cp icons/*.ico ${BUILDDIR}/icons
+	cp icons/*.bmp icons/*.ico ${BUILDDIR}/icons
 	mkdir -p ${BUILDDIR}/fonts
 	cp fonts/*.bmp ${BUILDDIR}/fonts
 	mkdir -p ${BUILDDIR}/mount

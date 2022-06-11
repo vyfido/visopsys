@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,6 @@ typedef kernelPageTablePhysicalMem kernelPageTableVirtualMem;
 typedef volatile struct {
   int processId;
   int numberShares;
-  int parent;
   int privilege;
   kernelPageDirPhysicalMem *physical;
   kernelPageDirVirtualMem *virtual;
@@ -88,9 +87,9 @@ typedef volatile struct {
 
 // Functions exported by kernelPage.c
 int kernelPageInitialize(unsigned);
-void *kernelPageGetDirectory(int);
-void *kernelPageNewDirectory(int, int);
-void *kernelPageShareDirectory(int, int);
+kernelPageDirectory *kernelPageGetDirectory(int);
+kernelPageDirectory *kernelPageNewDirectory(int);
+kernelPageDirectory *kernelPageShareDirectory(int, int);
 int kernelPageDeleteDirectory(int);
 int kernelPageMap(int, void *, void *, unsigned);
 int kernelPageMapToFree(int, void *, void **, unsigned);

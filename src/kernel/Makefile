@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -15,7 +15,8 @@ CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
 STDDEPS		= Makefile *.h ${INCDIR}/sys/*.h ${INCDIR}/*.h ${LIBDIR}/libc.a
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
 		-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls \
 		-Werror
@@ -40,6 +41,8 @@ NAMES =	kernelMain \
 	kernelFilesystemExt \
 	kernelFilesystemFat \
 	kernelFilesystemIso \
+	kernelFilesystemLinuxSwap \
+	kernelFilesystemNtfs \
 	kernelFont \
 	kernelGraphic \
 	kernelImage \

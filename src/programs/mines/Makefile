@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -10,7 +10,8 @@ BUILDDIR=../../../build/programs/mines
 CC		= gcc
 CPU		= $(shell ../../../utils/cpu.sh)
 STDDEPS		= Makefile*
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
 WARN		= -Wall -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I../../include

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,9 +53,6 @@ static void makeTextProgressBar(void)
   row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
   printf("\n%s\n", row);
 
-  // Remember this row
-  textProgressBarRow = textGetRow();
-
   // Middle row
   row[0] = 179;
   for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
@@ -70,7 +67,10 @@ static void makeTextProgressBar(void)
     row[count] = 196;
   row[count++] = 217;
   row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
-  printf("%s\n\n", row);
+  printf("%s\n\n\n\n", row);
+
+  // Remember the starting row
+  textProgressBarRow = (textGetRow() - 5);
 }
 
 
@@ -109,24 +109,52 @@ static void setPercent(int percent)
 }
 
 
-static void setMessage(char *message)
+static void setMessage(volatile char *message, int confirm)
 {
   // Set the line of text that can appear below the progress bar.
 
   int tempColumn = textGetColumn();
   int tempRow = textGetRow();
-  char nullBuffer[80];
+  char nullBuffer[PROGRESS_MAX_MESSAGELEN];
+  char character = '\0';
 
-  memset(nullBuffer, ' ', 79);
-  nullBuffer[79] = '\0';
+  memset(nullBuffer, ' ', (PROGRESS_MAX_MESSAGELEN - 1));
+  nullBuffer[PROGRESS_MAX_MESSAGELEN - 1] = '\0';
 
   textSetRow(textProgressBarRow + 2);
-
   textSetColumn(0);
   printf(nullBuffer);
 
+  textSetRow(textProgressBarRow + 2);
   textSetColumn(0);
-  printf(message);
+  printf((char *) message);
+
+  if (confirm)
+    {
+      printf(" (y/n): ");
+
+      textInputSetEcho(0);
+      while(1)
+	{
+	  character = getchar();
+      
+	  if ((character == 'y') || (character == 'Y'))
+	    {
+	      printf("Yes");
+	      prog->confirm = 1;
+	      break;
+	    }
+	  else if ((character == 'n') || (character == 'N'))
+	    {
+	      printf("No");
+	      prog->confirm = -1;
+	      break;
+	    }
+	}
+
+      textInputSetEcho(1);
+      prog->needConfirm = 0;
+    }
 
   // Back to where we were
   textSetColumn(tempColumn);
@@ -141,36 +169,66 @@ static void progressThread(void)
   // until the (interruptible) operation is interrupted.
 
   progress lastProg;
+  char character = '\0';
 
-  bzero(&lastProg, sizeof(progress));
+  memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 
   while (1)
     {
-      // Did the status change?
-      if (memcmp(&lastProg, prog, sizeof(progress)))
+      // Try to get a lock on the progress structure
+      if (lockGet(&(prog->lock)) >= 0)
 	{
-	  // Look for progress percentage changes
-	  if (prog->percentFinished != lastProg.percentFinished)
-	    setPercent(prog->percentFinished);
+	  if (prog->canCancel && textInputCount())
+	    {
+	      textInputGetc(&character);
+	      if ((character == 'Q') || (character == 'q'))
+		prog->cancel = 1;
+	    }
 
-	  // Look for status message changes
-	  if (strncmp(prog->statusMessage, lastProg.statusMessage,
-		      PROGRESS_MAX_MESSAGELEN))
-	    setMessage(prog->statusMessage);
+	  // Did the status change?
+	  if (memcmp((void *) &lastProg, (void *) prog, sizeof(progress)))
+	    {
+	      // Look for progress percentage changes
+	      if (prog->percentFinished != lastProg.percentFinished)
+		setPercent(prog->percentFinished);
 
-	  // Look for 'interruptible operation' flag changes
+	      // Look for status message changes
+	      if (strncmp((char *) prog->statusMessage,
+			  (char *) lastProg.statusMessage,
+			  PROGRESS_MAX_MESSAGELEN))
+		setMessage(prog->statusMessage, 0);
 
-	  // If the 'percent finished' is 100, quit
-	  if (prog->percentFinished >= 100)
-	    break;
+	      // Look for 'need confirmation' flag changes
+	      if (prog->needConfirm)
+		setMessage(prog->confirmMessage, 1);
 
-	  // Copy the status
-	  memcpy(&lastProg, prog, sizeof(progress));
+	      // Look for 'error' flag changes
+	      if (prog->error)
+		{
+		  prog->confirmError = 1;
+		  break;
+		}
+
+	      // Look for 'cancel' flag changes
+	      if (prog->cancel)
+		break;
+
+	      // If the 'percent finished' is 100, quit
+	      if (prog->percentFinished >= 100)
+		break;
+
+	      // Copy the status
+	      memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
+	    }
+
+	  lockRelease(&(prog->lock));
 	}
 
       // Done
       multitaskerYield();
     }
+
+  lockRelease(&(prog->lock));
 
   // Exit.
   multitaskerTerminate(0);
@@ -221,7 +279,7 @@ _X_ int vshProgressBarDestroy(progress *tmpProg)
     return (status = ERR_INVALID);
 
   setPercent(100);
-  setMessage(prog->statusMessage);
+  setMessage(prog->statusMessage, 0);
 
   if (multitaskerProcessIsAlive(threadPid))
     // Kill our thread

@@ -1,13 +1,13 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ## 
 ##  archive-source.sh
 ##
 
 # This just does all of the things necessary to prepare an archive (zipfile)
-# of the visopsys sources and utilities.
+# of the Visopsys sources and utilities.
 
 echo ""
 echo "Making Visopsys SOURCE archive"
@@ -30,7 +30,7 @@ fi
 
 DESTDIR=visopsys-"$RELEASE"-src
 
-# Make a copy of the visopsys directory.  We will not fiddle with the current
+# Make a copy of the Visopsys directory.  We will not fiddle with the current
 # working area
 rm -Rf "$DESTDIR" /tmp/"$DESTDIR"
 mkdir -p /tmp/"$DESTDIR"
@@ -53,7 +53,7 @@ echo done
 echo -n "Archiving... "
 
 echo "Visopsys $RELEASE Source Release" > /tmp/comment
-echo "Copyright (C) 1998-2005 J. Andrew McLaughlin" >> /tmp/comment    
+echo "Copyright (C) 1998-2006 J. Andrew McLaughlin" >> /tmp/comment    
 rm -f "$DESTDIR".zip
 zip -9 -z -r "$DESTDIR".zip "$DESTDIR" < /tmp/comment >& /dev/null
 

@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -13,7 +13,8 @@ CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
 STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I${INCDIR}
@@ -23,6 +24,7 @@ OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES	= adduser \
 	bootmenu \
+	cal \
 	cat \
 	cdrom \
 	chkdisk \
@@ -74,6 +76,7 @@ NAMES	= adduser \
 	sync \
 	telnet \
 	test \
+	testio \
 	touch \
 	umount \
 	uname \
@@ -108,4 +111,4 @@ ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${OPTS} -DVISOPSYS $< -lvsh -lc -o $@
 
 ${BUILDDIR}/fdisk: fdisk.c fdisk.h ${STDDEPS}
-	${CC} ${OPTS} ${PARTLOGIC} $< -lwindow -lvsh -lc -o $@
+	${CC} ${OPTS} ${PARTLOGIC} $< -lntfs -lwindow -lvsh -lc -o $@

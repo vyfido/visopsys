@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,23 +26,22 @@
 
 int memcmp(const void *first, const void *second, size_t length)
 {
-  int result;
+  int count;
 
   // We loop through the strings, counting as we go.  If we get to
   // "length" and everything matches, we return 0.  Otherwise, we return
-  // whether first is less than or greater than second
+  // whether first is less than or greater than second.
 
-  for (result = 1; result <= (int) length; result ++)
-    if (((unsigned char *) first)[result - 1] !=
-	((unsigned char *) second)[result - 1])
+  for (count = 0; count <= (int) length; count ++)
+    if (((unsigned char *) first)[count] != ((unsigned char *) second)[count])
       {
-	if (((unsigned char *) first)[result - 1] <
-	    ((unsigned char *) second)[result - 1])
-	  return (result *= -1);
+	if (((unsigned char *) first)[count] <
+	    ((unsigned char *) second)[count])
+	  return (-1);
 	else
-	  return (result);
+	  return (1);
       }		
   
   // If we fall through to here, we matched as many as we could
-  return (result = 0);
+  return (0);
 }

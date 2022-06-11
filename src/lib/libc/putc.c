@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,6 +33,9 @@ int putc(int c, FILE *theStream)
   // macro, and it's only going to be partially implemented right now.
 
   int status = 0;
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   if (theStream != stdin)
     {

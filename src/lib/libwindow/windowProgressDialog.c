@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -46,54 +46,86 @@ static void progressThread(void)
   progress lastProg;
 
   // Copy the supplied progress structure so we'll notice changes
-  memcpy(&lastProg, prog, sizeof(progress));
+  memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 
   windowComponentSetData(progressBar, (void *) prog->percentFinished, 1);
-  windowComponentSetData(statusLabel, prog->statusMessage,
-			 strlen(prog->statusMessage));
-  windowComponentSetEnabled(cancelButton, prog->canInterrupt);
+  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
+			 strlen((char *) prog->statusMessage));
+  windowComponentSetEnabled(cancelButton, prog->canCancel);
 
   while (1)
     {
-      // Did the status change?
-      if (memcmp(&lastProg, prog, sizeof(progress)))
+      if (lockGet(&(prog->lock)) >= 0)
 	{
-	  // Look for progress percentage changes
-	  if (prog->percentFinished != lastProg.percentFinished)
-	    windowComponentSetData(progressBar,
-				   (void *) prog->percentFinished, 1);
+	  // Did the status change?
+	  if (memcmp((void *) &lastProg, (void *) prog, sizeof(progress)))
+	    {
+	      // Look for progress percentage changes
+	      if (prog->percentFinished != lastProg.percentFinished)
+		windowComponentSetData(progressBar,
+				       (void *) prog->percentFinished, 1);
 
-	  // Look for status message changes
-	  if (strncmp(prog->statusMessage, lastProg.statusMessage,
-		      PROGRESS_MAX_MESSAGELEN))
-	    windowComponentSetData(statusLabel, prog->statusMessage,
-				   strlen(prog->statusMessage));
+	      // Look for status message changes
+	      if (strncmp((char *) prog->statusMessage,
+			  (char *) lastProg.statusMessage,
+			  PROGRESS_MAX_MESSAGELEN))
+		windowComponentSetData(statusLabel,
+				       (char *) prog->statusMessage,
+				       strlen((char *) prog->statusMessage));
 
-	  // Look for 'interruptible operation' flag changes
-	  if (prog->canInterrupt != lastProg.canInterrupt)
-	    windowComponentSetEnabled(cancelButton, prog->canInterrupt);
+	      // Look for 'interruptible operation' flag changes
+	      if (prog->canCancel != lastProg.canCancel)
+		windowComponentSetEnabled(cancelButton, prog->canCancel);
 
-	  // If the 'percent finished' is 100, quit
-	  if (prog->percentFinished >= 100)
-	    break;
+	      // If the 'percent finished' is 100, quit
+	      if (prog->percentFinished >= 100)
+		break;
 
-	  // Copy the status
-	  memcpy(&lastProg, prog, sizeof(progress));
+	      // Look for 'need confirmation' flag changes
+	      if (prog->needConfirm)
+		{
+		  status = windowNewQueryDialog(dialogWindow, "Confirmation",
+						(char *) prog->confirmMessage);
+		  prog->needConfirm = 0;
+		  if (status == 1)
+		    prog->confirm = 1;
+		  else
+		    {
+		      prog->confirm = -1;
+		      break;
+		    }
+		}
+
+	      // Look for 'error' flag changes
+	      if (prog->error)
+		{
+		  windowNewErrorDialog(dialogWindow, "Error",
+				       (char *) prog->statusMessage);
+		  prog->confirmError = 1;
+		  break;
+		}
+
+	      // Copy the status
+	      memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
+	    }
+
+	  lockRelease(&(prog->lock));
 	}
 
       // Check for our Cancel button
       status = windowComponentEventGet(cancelButton, &event);
       if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
-	break;
-
-      // Check for window close events
-      status = windowComponentEventGet(dialogWindow, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
-	break;
+	{
+	  prog->cancel = 1;
+	  windowComponentSetEnabled(cancelButton, 0);
+	  break;
+	}
 
       // Done
       multitaskerYield();
     }
+
+  lockRelease(&(prog->lock));
 
   // Exit.
   multitaskerTerminate(0);
@@ -189,6 +221,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   // Disable it until we know the operation is cancel-able.
   windowComponentSetEnabled(cancelButton, 0);
 
+  windowSetHasCloseButton(dialogWindow, 0);
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);
   windowSetVisible(dialogWindow, 1);
@@ -220,8 +253,8 @@ _X_ int windowProgressDialogDestroy(objectKey window)
     return (status = ERR_INVALID);
 
   windowComponentSetData(progressBar, (void *) 100, 1);
-  windowComponentSetData(statusLabel, prog->statusMessage,
-			 strlen(prog->statusMessage));
+  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
+			 strlen((char *) prog->statusMessage));
 
   if (multitaskerProcessIsAlive(threadPid))
     // Kill our thread

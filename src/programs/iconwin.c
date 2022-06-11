@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,6 +47,7 @@ custom icons for each.
 #include <sys/window.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/cdefs.h>
 
 #define DEFAULT_WINDOWTITLE  "Icon Window"
 #define DEFAULT_ROWS         4

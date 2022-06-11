@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,12 @@
 #define PROC_KILLABLE(proc) ((proc != kernelProc) &&        \
                              (proc != idleProc) &&          \
                              (proc != kernelCurrentProcess))
+
+#define SET_PORT_BIT(bitmap, port) \
+do { bitmap[port / 8] |=  (1 << (port % 8)); } while (0)
+#define UNSET_PORT_BIT(bitmap, port) \
+do { bitmap[port / 8] &= ~(1 << (port % 8)); } while (0)
+#define GET_PORT_BIT(bitmap, port) ((bitmap[port / 8] >> (port % 8)) & 0x01)
   
 // Global multitasker stuff
 static int multitaskingEnabled = 0;
@@ -254,8 +260,7 @@ static int removeProcessFromQueue(kernelProcess *targetProcess)
 }
 
 
-static int createTaskStateSegment(kernelProcess *theProcess,
-				  void *processPageDir)
+static int createTaskStateSegment(kernelProcess *theProcess)
 {
   // This function will create a TSS (Task State Segment) for a new
   // process based on the attributes of the process.  This function relies
@@ -269,7 +274,7 @@ static int createTaskStateSegment(kernelProcess *theProcess,
   if ((status < 0) || (theProcess->tssSelector == 0))
     // Crap.  An error getting a free descriptor.
     return (status);
-  
+
   // Fill in the process' Task State Segment descriptor
   status = kernelDescriptorSet(
      theProcess->tssSelector, // TSS selector number
@@ -294,7 +299,10 @@ static int createTaskStateSegment(kernelProcess *theProcess,
 
   kernelMemClear((void *) &(theProcess->taskStateSegment), sizeof(kernelTSS));
 
-  if (theProcess->privilege == PRIVILEGE_SUPERVISOR)
+  // Set the IO bitmap's offset
+  theProcess->taskStateSegment.IOMapBase = IOBITMAP_OFFSET;
+
+  if (theProcess->processorPrivilege == PRIVILEGE_SUPERVISOR)
     {
       theProcess->taskStateSegment.CS = PRIV_CODE;
       theProcess->taskStateSegment.DS = PRIV_DATA;
@@ -305,6 +313,10 @@ static int createTaskStateSegment(kernelProcess *theProcess,
       theProcess->taskStateSegment.CS = USER_CODE;
       theProcess->taskStateSegment.DS = USER_DATA;
       theProcess->taskStateSegment.SS = USER_STACK;
+
+      // Turn off access to all I/O ports by default
+      kernelMemSet((void *) theProcess->taskStateSegment.IOMap, 0xFF,
+		   PORTS_BYTES);
     }
 
   theProcess->taskStateSegment.ES = theProcess->taskStateSegment.DS;
@@ -315,16 +327,17 @@ static int createTaskStateSegment(kernelProcess *theProcess,
     ((unsigned) theProcess->userStack +
      (theProcess->userStackSize - sizeof(int)));
 
-  if (theProcess->privilege == PRIVILEGE_USER)
+  if (theProcess->processorPrivilege != PRIVILEGE_SUPERVISOR)
     {
       theProcess->taskStateSegment.SS0 = PRIV_STACK;
-      theProcess->taskStateSegment.ESP0 = ((unsigned) theProcess->superStack + 
+      theProcess->taskStateSegment.ESP0 = ((unsigned) theProcess->superStack +
 					   (theProcess->superStackSize -
 					    sizeof(int)));
     }
 
   theProcess->taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
-  theProcess->taskStateSegment.CR3 = ((unsigned) processPageDir);
+  theProcess->taskStateSegment.CR3 = (unsigned)
+    theProcess->pageDirectory->physical;
 
   // All remaining values will be NULL from initialization.  Note that this 
   // includes the EIP.
@@ -347,7 +360,6 @@ static int createNewProcess(const char *name, int priority, int privilege,
   int status = 0;
   kernelProcess *newProcess = NULL;
   void *stackMemoryAddr = NULL;
-  void *processPageDir = NULL;
   void *physicalCodeData = NULL;
   int *args = NULL;
   char **argv = NULL;
@@ -366,7 +378,10 @@ static int createNewProcess(const char *name, int priority, int privilege,
     return (status);
 
   if (newProcess == NULL)
-    return (status = ERR_NOFREE);
+    {
+      kernelError(kernel_error, "New process structure is NULL");
+      return (status = ERR_NOFREE);
+    }
 
   // Ok, we got a new, fresh process.  We need to start filling in some
   // of the process' data (after initializing it, of course)
@@ -384,7 +399,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
   if (newProcess->processId == KERNELPROCID)
     {
       newProcess->parentProcessId = newProcess->processId;
-      newProcess->userId = 1;   // root
+      newProcess->userId = 1;   // Admin
       // Give it "/" as current working directory
       strncpy((char *) newProcess->currentDirectory, "/", 2);
     }
@@ -393,6 +408,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
       // Make sure the current process isn't NULL
       if (kernelCurrentProcess == NULL)
 	{
+	  kernelError(kernel_error, "No current process!");
 	  releaseProcess(newProcess);
 	  return (status = ERR_NOSUCHPROCESS);
 	}
@@ -418,22 +434,51 @@ static int createNewProcess(const char *name, int priority, int privilege,
   // Fill in the process' privilege level
   newProcess->privilege = privilege;
 
+  // Fill in the process' processor privilege level.  The kernel and its
+  // threads get PRIVILEGE_SUPERVISOR, all others get PRIVILEGE_USER.
+  if (execImage->virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS)
+    newProcess->processorPrivilege = PRIVILEGE_SUPERVISOR;
+  else
+    newProcess->processorPrivilege = PRIVILEGE_USER;
+    
   // The amount of time since started (now)
   newProcess->startTime = kernelSysTimerRead();
 
   // The thread's initial state will be "stopped"
   newProcess->state = proc_stopped;
 
+  // Add the process to the process queue so we can continue whilst doing
+  // things like changing memory ownerships
+  status = addProcessToQueue(newProcess);
+  if (status < 0)
+    {
+      // Not able to queue the process.
+      releaseProcess(newProcess);
+      return (status);
+    }
+
   // Do we need to create a new page directory and a set of page tables for 
   // this process?
   if (newPageDir)
     {
+      if (!execImage->virtualAddress || !execImage->code || 
+	  !execImage->codeSize || !execImage->data || !execImage->dataSize ||
+	  !execImage->imageSize)
+	{
+	  kernelError(kernel_error, "New process \"%s\" executable image is "
+		      "missing data", name);
+	  removeProcessFromQueue(newProcess);
+	  releaseProcess(newProcess);
+	  return (status = ERR_NODATA);
+	}
+
       // We need to make a new page directory, etc.
-      processPageDir = kernelPageNewDirectory(newProcess->processId,
-					      newProcess->privilege);
-      if (processPageDir == NULL)
+      newProcess->pageDirectory =
+	kernelPageNewDirectory(newProcess->processId);
+      if (newProcess->pageDirectory == NULL)
 	{
 	  // Not able to setup a page directory
+	  removeProcessFromQueue(newProcess);
 	  releaseProcess(newProcess);
 	  return (status = ERR_NOVIRTUAL);
 	}
@@ -450,6 +495,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
       if (status < 0)
 	{
 	  // Couldn't make the process own its memory
+	  removeProcessFromQueue(newProcess);
 	  releaseProcess(newProcess);
 	  return (status);
 	}
@@ -460,6 +506,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
       if (status < 0)
 	{
 	  // Couldn't map the process memory
+	  removeProcessFromQueue(newProcess);
 	  releaseProcess(newProcess);
 	  return (status);
 	}
@@ -470,6 +517,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 			   execImage->virtualAddress, execImage->codeSize);
       if (status < 0)
 	{
+	  removeProcessFromQueue(newProcess);
 	  releaseProcess(newProcess);
 	  return (status);
 	}
@@ -477,36 +525,33 @@ static int createNewProcess(const char *name, int priority, int privilege,
   else
     {
       // This process will share a page directory with its parent
-      processPageDir = kernelPageShareDirectory(newProcess->parentProcessId, 
-						newProcess->processId);
-      if (processPageDir == NULL)
+      newProcess->pageDirectory =
+	kernelPageShareDirectory(newProcess->parentProcessId,
+				 newProcess->processId);
+      if (newProcess->pageDirectory == NULL)
 	{
-	  // Not able to setup a page directory
+	  removeProcessFromQueue(newProcess);
 	  releaseProcess(newProcess);
 	  return (status = ERR_NOVIRTUAL);
 	}
     }
 
   // Give the process a stack
+  newProcess->userStackSize = DEFAULT_STACK_SIZE;
+  if (newProcess->processorPrivilege != PRIVILEGE_SUPERVISOR)
+    newProcess->superStackSize = DEFAULT_SUPER_STACK_SIZE;
+
   stackMemoryAddr =
-    kernelMemoryGet((DEFAULT_STACK_SIZE + DEFAULT_SUPER_STACK_SIZE),
+    kernelMemoryGet((newProcess->userStackSize + newProcess->superStackSize),
 		    "process stack");
   if (stackMemoryAddr == NULL)
     {
       // We couldn't make a stack for the new process.  Maybe the system
       // doesn't have anough available memory?
+      removeProcessFromQueue(newProcess);
       releaseProcess(newProcess);
       return (status = ERR_MEMORY);
     }
-
-  if (newProcess->privilege == PRIVILEGE_USER)
-    {
-      newProcess->userStackSize = DEFAULT_STACK_SIZE;
-      newProcess->superStackSize = DEFAULT_SUPER_STACK_SIZE;
-    }
-  else
-    newProcess->userStackSize =
-      (DEFAULT_STACK_SIZE + DEFAULT_SUPER_STACK_SIZE);
 
   // Copy 'argc' and 'argv' arguments to the new process' stack while we
   // still own the stack memory.
@@ -527,6 +572,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
   if (argSpace == NULL)
     {
       kernelMemoryRelease(stackMemoryAddr);
+      removeProcessFromQueue(newProcess);
       releaseProcess(newProcess);
       return (status = ERR_MEMORY);
     }
@@ -538,6 +584,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
     {
       kernelMemoryRelease(stackMemoryAddr);
       kernelMemoryRelease(argSpace);
+      removeProcessFromQueue(newProcess);
       releaseProcess(newProcess);
       return (status = ERR_MEMORY);
     }
@@ -546,6 +593,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 			newArgAddress, (void **) &argSpace) < 0)
     {
       kernelMemoryRelease(stackMemoryAddr);
+      removeProcessFromQueue(newProcess);
       releaseProcess(newProcess);
       return (status = ERR_MEMORY);
     }
@@ -581,16 +629,29 @@ static int createNewProcess(const char *name, int priority, int privilege,
     {
       // Couldn't make the process own its memory
       kernelMemoryRelease(stackMemoryAddr);
+      removeProcessFromQueue(newProcess);
       releaseProcess(newProcess);
       return (status);
     }
 
-  // Get the new virtual address of supervisor stack
-  if (newProcess->privilege == PRIVILEGE_USER)
-    newProcess->superStack = (newProcess->userStack + DEFAULT_STACK_SIZE);
+  // Make the topmost page of the user stack privileged, so that we have
+  // have a 'guard page' that produces a page fault in case of (userspace)
+  // stack overflow
+  kernelPageSetAttrs(newProcess->processId, 0, PAGEFLAG_USER,
+		     newProcess->userStack, MEMORY_PAGE_SIZE);
+
+  if (newProcess->processorPrivilege != PRIVILEGE_SUPERVISOR)
+    {
+      // Get the new virtual address of supervisor stack
+      newProcess->superStack = (newProcess->userStack + DEFAULT_STACK_SIZE);
+
+      // Make the entire supervisor stack privileged
+      kernelPageSetAttrs(newProcess->processId, 0, PAGEFLAG_USER,
+			 newProcess->superStack, newProcess->superStackSize);
+    }
 
   // Create the TSS (Task State Segment) for this process.
-  status = createTaskStateSegment(newProcess, processPageDir);
+  status = createTaskStateSegment(newProcess);
   if (status < 0)
     {
       // Not able to create the TSS
@@ -604,15 +665,6 @@ static int createNewProcess(const char *name, int priority, int privilege,
 
   // Set the EIP to the entry point
   newProcess->taskStateSegment.EIP = (unsigned) execImage->entryPoint;
-
-  // Finally, add the process to the process queue
-  status = addProcessToQueue(newProcess);
-  if (status < 0)
-    {
-      // Not able to queue the process.
-      releaseProcess(newProcess);
-      return (status);
-    }
 
   // Return the processId on success.
   return (status = newProcess->processId);
@@ -633,15 +685,6 @@ static int deleteProcess(kernelProcess *killProcess)
       kernelError(kernel_error, "Process %d cannot delete itself",
 		  killProcess->processId);
       return (status = ERR_INVALID);
-    }
-
-  // Remove the process from the multitasker's process queue.
-  status = removeProcessFromQueue(killProcess);
-  if (status < 0)
-    {
-      // Not able to remove the process
-      kernelError(kernel_error, "Can't dequeue process");
-      return (status);
     }
 
   // We need to deallocate the TSS descriptor allocated to the process, if
@@ -688,6 +731,15 @@ static int deleteProcess(kernelProcess *killProcess)
       return (status);
     }
 
+  // Remove the process from the multitasker's process queue.
+  status = removeProcessFromQueue(killProcess);
+  if (status < 0)
+    {
+      // Not able to remove the process
+      kernelError(kernel_error, "Can't dequeue process");
+      return (status);
+    }
+
   // Finally, release the process structure
   status = releaseProcess(killProcess);
   if (status < 0)
@@ -703,11 +755,10 @@ static int deleteProcess(kernelProcess *killProcess)
 static void idleThread(void)
 {
   // This is the idle task.  It runs in this loop whenever no other 
-  // processes need the CPU.  However, the only thing it does inside
-  // that loop -- as you can probably see -- is run in a loop.  This should
-  // be run at the absolute lowest possible priority so that it will not 
-  // be run unless there is absolutely nothing else in the other queues 
-  // that is ready.
+  // processes need the CPU.  This should be run at the absolute lowest
+  // possible priority so that it will not be run unless there is absolutely
+  // nothing else in the other queues that is ready.
+
   while(1);
 }
 
@@ -1187,17 +1238,10 @@ static int schedulerInitialize(void)
   schedulerProc = getProcessById(status);
   removeProcessFromQueue(schedulerProc);
 
-  // Set the instruction pointer to the scheduler task
-  schedulerProc->taskStateSegment.EIP = (unsigned) scheduler;
-
   // Interrupts should always be disabled for this task, and we manually set
   // the NT (nested task) flag as well, since Virtual PC doesn't do it when
   // we switch the first time.
   schedulerProc->taskStateSegment.EFLAGS = 0x00004002;
-
-  // Get a page directory
-  schedulerProc->taskStateSegment.CR3 =
-    (unsigned) kernelPageGetDirectory(KERNELPROCID);
 
   // Not busy
   markTaskBusy(schedulerProc->tssSelector, 0);
@@ -1280,7 +1324,6 @@ static int createKernelProcess(void)
   // by "admin".  We create no page table, and there are no arguments.
   kernelProcId = 
     createNewProcess("kernel process", 1, PRIVILEGE_SUPERVISOR, &kernImage, 0);
-
   if (kernelProcId < 0)
     // Damn.  Not able to create the kernel process
     return (kernelProcId);
@@ -1341,8 +1384,9 @@ static void incrementDescendents(kernelProcess *theProcess)
 
   parentProcess->descendentThreads++;
 
-  // Do a recursion to walk up the chain
-  incrementDescendents(parentProcess);
+  if (parentProcess->type == proc_thread)
+    // Do a recursion to walk up the chain
+    incrementDescendents(parentProcess);
 
   // Done
   return;
@@ -1367,8 +1411,9 @@ static void decrementDescendents(kernelProcess *theProcess)
 
   parentProcess->descendentThreads--;
 
-  // Do a recursion to walk up the chain
-  decrementDescendents(parentProcess);
+  if (parentProcess->type == proc_thread)
+    // Do a recursion to walk up the chain
+    decrementDescendents(parentProcess);
 
   // Done
   return;
@@ -1470,7 +1515,7 @@ int kernelMultitaskerInitialize(void)
   cr0 = ((cr0 & ~0x04UL) | 0x22);
   kernelProcessorSetCR0(cr0);
 
-  // We need to create the kernel's own process.  
+  // We need to create the kernel's own process.
   status = createKernelProcess();
   // Make sure it was successful
   if (status < 0)
@@ -1802,12 +1847,8 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
 
-  // The start address CAN be NULL, if it is the zero offset in a
-  // process' private address space.
-
-  // Make sure the pointer to the name is not NULL
-  if (name == NULL)
-    // We cannot continue here
+  // Check params
+  if ((startAddress == NULL) || (name == NULL))
     return (status = ERR_NULLPARAMETER);
 
   // If the number of arguments is not zero, make sure the arguments
@@ -1856,9 +1897,9 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
   incrementDescendents(newProcess);
 
   // Since we assume that the thread is invoked as a function call, 
-  // subtract 4 additional bytes from the stack pointer to account for
+  // subtract additional bytes from the stack pointer to account for
   // the space where the return address would normally go.
-  newProcess->taskStateSegment.ESP -= 4;
+  newProcess->taskStateSegment.ESP -= sizeof(void *);
 
   // Copy the environment
   newProcess->environment = kernelCurrentProcess->environment;
@@ -3018,4 +3059,88 @@ int kernelMultitaskerSignalRead(int processId)
     return (status);
   else
     return (sig);
+}
+
+
+int kernelMultitaskerGetIOPerm(int processId, int portNum)
+{
+  // Check if the given process can use I/O ports specified.  Returns 1 if
+  // permission is allowed.
+
+  int status = 0;
+  kernelProcess *ioProcess = NULL;
+  
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (status = ERR_NOTINITIALIZED);
+
+  ioProcess= getProcessById(processId);
+  if (ioProcess == NULL)
+    {
+      // There's no such process
+      kernelError(kernel_error, "No process %d to get IO permissions",
+		  processId);
+      return (status = ERR_NOSUCHPROCESS);
+    }
+
+  if (portNum >= IO_PORTS)
+    return (status = ERR_BOUNDS);
+
+  // If the bit is set, permission is not granted.
+  if (GET_PORT_BIT(ioProcess->taskStateSegment.IOMap, portNum))
+    return (status = 0);
+  else
+    return (status = 1);
+}
+
+
+int kernelMultitaskerSetIOPerm(int processId, int portNum, int yesNo)
+{
+  // Allow or deny I/O port permission to the given process.
+
+  int status = 0;
+  kernelProcess *ioProcess = NULL;
+  
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (status = ERR_NOTINITIALIZED);
+
+  ioProcess= getProcessById(processId);
+  if (ioProcess == NULL)
+    {
+      // There's no such process
+      kernelError(kernel_error, "No process %d to set IO permissions",
+		  processId);
+      return (status = ERR_NOSUCHPROCESS);
+    }
+
+  if (portNum >= IO_PORTS)
+    return (status = ERR_BOUNDS);
+
+  if (yesNo)
+    UNSET_PORT_BIT(ioProcess->taskStateSegment.IOMap, portNum);
+  else
+    SET_PORT_BIT(ioProcess->taskStateSegment.IOMap, portNum);
+  return (status = 0);
+}
+
+
+kernelPageDirectory *kernelMultitaskerGetPageDir(int processId)
+{
+  kernelProcess *dirProcess = NULL;
+  
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (NULL);
+
+  dirProcess= getProcessById(processId);
+  if (dirProcess == NULL)
+    {
+      // There's no such process
+      kernelError(kernel_error, "No process %d to get page directory",
+		  processId);
+      return (NULL);
+    }
+
+  return (dirProcess->pageDirectory);
 }

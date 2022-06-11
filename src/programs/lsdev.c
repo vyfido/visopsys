@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,10 +59,10 @@ static void printTree(device *dev, int level)
       for (count = 0; count < level; count ++)
 	printf("   ");
 
-      if (dev->subClass)
-	printf("%s ", dev->subClass->name);
+      if (dev->subClass.name[0])
+	printf("%s ", dev->subClass.name);
 
-      printf("%s\n", dev->class->name);
+      printf("%s\n", dev->class.name);
 
       if (deviceTreeGetChild(dev, &child) >= 0)
 	printTree(&child, (level + 1));

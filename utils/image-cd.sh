@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ## 
 ##  image-cd.sh
 ##
@@ -31,7 +31,6 @@ ISOBOOT=-isoboot
 NAME=visopsys-$RELEASE
 FLOPPYZIP="$NAME""$ISOBOOT"-img.zip
 FLOPPYIMAGE="$NAME""$ISOBOOT".img
-SOURCEDIR=$NAME-src
 ISOIMAGE=$NAME.iso
 ZIPFILE=$NAME-iso.zip
 
@@ -54,15 +53,9 @@ echo -n "Copying build files... "
 (cd $BUILDDIR ; tar cf - * ) | (cd $TMPDIR; tar xf - )
 echo Done
 
-echo -n "Archiving/copying source files... "
-./archive-source.sh $RELFLAG >& /dev/null
-if [ $? != 0 ] ; then
-    exit $?
-fi
-unzip $SOURCEDIR.zip >& /dev/null
-mkdir -p $TMPDIR/source
-mv $SOURCEDIR $TMPDIR/source/
-mv $TMPDIR/source/$SOURCEDIR/docs $TMPDIR/
+echo -n "Copying doc files... "
+(cd .. ; tar cf - docs ) | (cd $TMPDIR; tar xf - )
+find $TMPDIR/docs -name CVS -exec rm -R {} \; >& /dev/null
 echo Done
 
 rm -f $ISOIMAGE
@@ -72,7 +65,7 @@ if [ $? != 0 ] ; then
 fi
 
 echo "Visopsys $RELEASE CD-ROM Release" > /tmp/comment
-echo "Copyright (C) 1998-2005 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2006 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment >& /dev/null
 

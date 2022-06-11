@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -83,6 +83,14 @@ extern int errno;
 #define ENOLCK  ERR_NOLOCK         // No record locks available.
 #define ECANCELED ERR_KILLED       // Operation canceled
 #define ENOTSUP ERR_NOTIMPLEMENTED // Operation not supported
+#define ENAMETOOLONG ERR_BOUNDS    // Name too long
+#define EILSEQ  ERR_INVALID        // Illegal byte sequence.
+#define EOVERFLOW ERR_BOUNDS       // Value too large for defined data type
+#define EBADRQC ERR_NOSUCHFUNCTION // No such function
+#define ENOTEMPTY ERR_NOTEMPTY     // Not empty
+
+// Synonyms -- compatibility
+#define EOPNOTSUPP ENOTSUP
 
 #define _ERRNO_H
 #endif

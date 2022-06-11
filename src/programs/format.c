@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,12 +29,13 @@
 This command will create a new, empty filesystem.
 
 Usage:
-  format [-s] [-T] [-t type] [disk_name]
+  format [-l] [-s] [-t type] [-T] [disk_name]
 
 The 'format' program is interactive, and operates in both text and graphics
-mode.  The -T option forces format to operate in text-only mode.  The -s
-option forces 'silent' mode (i.e. no unnecessary output or status messages
-are printed/displayed).
+mode.  The -l option forces a 'long' format (if supported), which clears the
+entire data area of the filesystem.  The -s option forces 'silent' mode
+(i.e. no unnecessary output or status messages are printed/displayed).  The
+-T option forces format to operate in text-only mode.  
 
 The -t option is the desired filesystem type.  Currently the default type,
 if none is specified, is FAT.  The names of supported filesystem types
@@ -49,9 +50,10 @@ The third (optional) parameter is the name of a (logical) disk to format
 the driver for the requested filesystem type supports this functionality.
 
 Options:
+-l         : Long format
 -s         : Silent mode
--T         : Force text mode operation
 -t <type>  : Format as this filesystem type.
+-T         : Force text mode operation
 
 </help>
 */
@@ -63,6 +65,7 @@ Options:
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/cdefs.h>
 
 static int graphics = 0;
 static int processId = 0;
@@ -363,6 +366,7 @@ int main(int argc, char *argv[])
   int diskNumber = -1;
   char rootDisk[DISK_MAX_NAMELENGTH];
   char type[16];
+  int longFormat = 0;
   progress prog;
   objectKey progressDialog = NULL;
   char tmpChar[240];
@@ -375,12 +379,17 @@ int main(int argc, char *argv[])
   strcpy(type, "fat");
 
   // Check for options
-  while (strchr("st:T", (opt = getopt(argc, argv, "st:T"))))
+  while (strchr("lst:T", (opt = getopt(argc, argv, "lst:T"))))
     {
+      // Do a long format?
+      if (opt == 'l')
+	longFormat = 1;
+
       // Operate in silent/script mode?
       if (opt == 's')
 	silentMode = 1;
 
+      // Desired filetype?
       if (opt == 't')
 	{
 	  if (!optarg)
@@ -406,7 +415,7 @@ int main(int argc, char *argv[])
 
   if (!graphics && !silentMode)
     // Print a message
-    printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2005 J. Andrew "
+    printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2006 J. Andrew "
 	   "McLaughlin\n");
 
   if (argc > 1)
@@ -478,13 +487,14 @@ int main(int argc, char *argv[])
 	  }
       }
 
-  bzero(&prog, sizeof(progress));
+  bzero((void *) &prog, sizeof(progress));
   if (graphics)
     progressDialog = windowNewProgressDialog(NULL, "Formatting...", &prog);
   else
     vshProgressBar(&prog);
 
-  status = filesystemFormat(diskInfo[diskNumber].name, type, "", 0, &prog);
+  status =
+    filesystemFormat(diskInfo[diskNumber].name, type, "", longFormat, &prog);
 
   if (!graphics)
     vshProgressBarDestroy(&prog);

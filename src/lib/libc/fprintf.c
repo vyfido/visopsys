@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,6 +26,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/cdefs.h>
 
 
 int fprintf(FILE *theStream, const char *format, ...)
@@ -35,8 +36,17 @@ int fprintf(FILE *theStream, const char *format, ...)
   int outputLen = 0;
   char output[MAXSTRINGLENGTH];
   
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
+
   // Initialize the argument list
   va_start(list, format);
+
+  if ((theStream == stdout) || (theStream == stderr))
+    {
+      status = vprintf(format, list);
+      return (status);
+    }
 
   // Fill out the output line
   outputLen = _expandFormatString(output, format, list);

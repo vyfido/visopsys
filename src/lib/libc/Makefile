@@ -1,24 +1,33 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
 BUILDDIR=../../../build/system/libraries
+INCDIR=../../include
 
 CC		= gcc
 AR		= ar
 LD		= ld
 CPU		= $(shell ../../../utils/cpu.sh)
-STDDEPS		= Makefile ../shared/*
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
+STDDEPS		= Makefile ../shared/* ${INCDIR}/*.h ${INCDIR}/sys/*.h
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
-INCLUDE         = -nostdinc -I../../include
+INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
 LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
 OPTS		= ${CFLAGS} ${LFLAGS}
+
+CDEFNAMES	= _div64 \
+		_divdi3 \
+		_moddi3 \
+		_udivdi3 \
+		_umoddi3 \
+		readline		
 
 CTYPENAMES	= isalnum \
 		isalpha \
@@ -54,13 +63,13 @@ MATHNAMES	= ceil \
 		tan \
 		tanf
 
-MISCNAMES	= readline
-
 SIGNALNAMES	= signal
 
 STDIONAMES	= _fmtinpt \
 		_xpndfmt \
+		fflush \
 		fgetpos \
+		fgets \
 		fprintf \
 		fread \
 		fseek \
@@ -80,29 +89,39 @@ STDIONAMES	= _fmtinpt \
 		rewind \
 		scanf \
 		snprintf \
-		sprintf
+		sprintf \
+		vfprintf \
+		vprintf \
+		vsnprintf \
+		vsprintf
 
 STDLIBNAMES	= abort \
 		abs \
 		atoi \
 		calloc \
-		div \
 		exit \
-		free \
 		itoa \
 		itob \
 		itox \
 		labs \
-		ldiv \
+		lltoa \
+		lltob \
+		lltox \
 		malloc \
+		mbtowc \
+		mbstowcs \
 		rand \
+		realloc \
 		srand \
 		system \
+		ulltoa \
 		utoa \
+		wctomb \
 		xtoi
 
 STRINGNAMES	= bcopy \
 		bzero \
+		ffs \
 		memcmp \
 		memcpy \
 		memmove \
@@ -112,6 +131,8 @@ STRINGNAMES	= bcopy \
 		strchr \
 		strcmp \
 		strcpy \
+		strdup \
+		strerror \
 		strlen \
 		strncasecmp \
 		strncat \
@@ -134,7 +155,7 @@ UNISTDNAMES	= close \
 		swab \
 		write
 
-ALLNAMES = ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${MISCNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
+ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
 OBJDIR = obj
 PICOBJDIR = picobj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))

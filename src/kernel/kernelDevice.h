@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,9 +27,31 @@
 #include "kernelDriver.h"
 #include <sys/device.h>
 
+// A structure for device classes and subclasses, which just allows us to
+// associate the different types with string names.
+typedef struct {
+  int class;
+  char *name;
+
+} kernelDeviceClass;
+
 // The generic hardware device structure
 typedef struct {
-  device device;
+  struct {
+    // Device class and subclass.  Subclass optional.
+    kernelDeviceClass *class;
+    kernelDeviceClass *subClass;
+
+    // Optional, vendor-specific model name
+    char *model;
+
+    // Used for maintaining the list of devices as a tree
+    void *parent;
+    void *firstChild;
+    void *next;
+
+  } device;
+
   // Driver
   kernelDriver *driver;
   // Device class-specific structure
@@ -39,8 +61,9 @@ typedef struct {
 
 // Functions exported from kernelDevice.c
 int kernelDeviceInitialize(void);
-deviceClass *kernelDeviceGetClass(int);
-int kernelDeviceFind(deviceClass *, deviceClass *, kernelDevice *[], int);
+kernelDeviceClass *kernelDeviceGetClass(int);
+int kernelDeviceFindType(kernelDeviceClass *, kernelDeviceClass *,
+			 kernelDevice *[], int);
 int kernelDeviceAdd(kernelDevice *, kernelDevice *);
 // These ones are exported outside the kernel
 int kernelDeviceTreeGetCount(void);

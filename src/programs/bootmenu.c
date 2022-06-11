@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,12 +51,13 @@ choices for the first hard disk, hd0.
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/cdefs.h>
 
 #define MBR_FILENAME       "/system/boot/mbr.bootmenu"
 #define BOOTMENU_FILENAME  "/system/boot/bootmenu"
 #define SLICESTRING_LENGTH 60
 #define TITLE              "Visopsys Boot Menu Installer\n" \
-                           "Copyright (C) 1998-2005 J. Andrew McLaughlin"
+                           "Copyright (C) 1998-2006 J. Andrew McLaughlin"
 #define PERMISSION         "You must be a privileged user to use this command."
 #define PARTITIONS         "Partitions on the disk:"
 #define ENTRIES            "Chain-loadable entries for the boot menu:"

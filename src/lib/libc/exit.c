@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@
 // This is the standard "exit" function, as found in standard C libraries
 
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/api.h>
 
 
@@ -29,6 +30,12 @@ void exit(int status)
 {
   // I'm sure there will be lots of shutdown things to do here in the
   // future
+
+  if (visopsys_in_kernel)
+    {
+      errno = ERR_BUG;
+      return;
+    }
 
   // Shut down
   multitaskerTerminate(status);

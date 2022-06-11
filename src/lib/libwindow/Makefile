@@ -1,21 +1,23 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2005 J. Andrew McLaughlin
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
 BUILDDIR=../../../build/system/libraries
+INCDIR=../../include
 
 CC		= gcc
 AR		= ar
 LD		= ld
 CPU		= $(shell ../../../utils/cpu.sh)
-STDDEPS		= Makefile ../shared/*
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
+STDDEPS		= Makefile ../shared/* ${INCDIR}/*.h ${INCDIR}/sys/*.h
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
-INCLUDE         = -nostdinc -I../../include
+INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
 LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
 OPTS		= ${CFLAGS} ${LFLAGS}
@@ -30,6 +32,7 @@ NAMES		= windowBannerDialog \
 		windowOkDialog \
 		windowProgressDialog \
 		windowPromptDialog \
+		windowRadioDialog \
 		windowQueryDialog
 
 OBJDIR = obj

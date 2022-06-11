@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,11 +25,13 @@
 #include "kernelLog.h"
 #include "kernelParameters.h"
 #include "kernelFileStream.h"
+#include "kernelLock.h"
 #include "kernelMultitasker.h"
 #include "kernelRtc.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/cdefs.h>
 
 static volatile int logToConsole = 0;
 static volatile int logToFile = 0;
@@ -38,6 +40,7 @@ static int updaterPID = 0;
 
 static stream logStream;
 static fileStream * volatile logFileStream;
+static lock logLock;
 
 
 static int flushLogStream(void)
@@ -49,6 +52,10 @@ static int flushLogStream(void)
   int status = 0;
   char buffer[512];
 
+  status = kernelLockGet(&logLock);
+  if (status < 0)
+    return (status = ERR_NOLOCK);
+
   // Take the contents of the log stream...
   while (logStream.popN(&logStream, 512, buffer) > 0)
     {
@@ -59,7 +66,7 @@ static int flushLogStream(void)
 	  // Oops, couldn't write to the log file.  Make a warning
 	  kernelError(kernel_warn, "Unable to write to the log stream");
 	  logToFile = 0;
-	  return (status);
+	  goto out;
 	}
       
       // Flush the file stream
@@ -69,12 +76,16 @@ static int flushLogStream(void)
 	  // Oops, couldn't write to the log file.  Make a warning
 	  kernelError(kernel_warn, "Unable to flush the log file");
 	  logToFile = 0;
-	  return (status);
+	  goto out;
 	}
     }
   
   // Return success
-  return (status = 0);
+  status = 0;
+
+ out:
+  kernelLockRelease(&logLock);
+  return (status);
 }
 
 
@@ -133,6 +144,8 @@ int kernelLogInitialize(void)
 
   // Make a note that we've been initialized
   loggingInitialized = 1;
+
+  bzero((void *) &logLock, sizeof(lock));
 
   // Return success
   return (status = 0);
@@ -266,8 +279,15 @@ int kernelLog(const char *format, ...)
     // first 4 'weekday' characters)
     sprintf(streamOutput, "%s %s\n", (asctime(&theTime) + 4), output);
 
+  status = kernelLockGet(&logLock);
+  if (status < 0)
+    return (status = ERR_NOLOCK);
+
   // Put it all into the log stream
   status = logStream.appendN(&logStream, strlen(streamOutput), streamOutput);
+
+  kernelLockRelease(&logLock);
+
   return (status);
 }
 

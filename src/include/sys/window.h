@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -202,6 +202,8 @@ objectKey windowNewProgressDialog(objectKey, const char *, progress *);
 int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 			  char *);
 int windowNewQueryDialog(objectKey, const char *, const char *);
+int windowNewRadioDialog(objectKey, const char *, const char *, char *[],
+			 int, int);
 int windowProgressDialogDestroy(objectKey);
 int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
 int windowUpdateFileList(objectKey, const char *);

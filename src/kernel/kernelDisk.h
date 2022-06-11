@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,7 +45,7 @@ typedef struct {
   int (*driverSetDoorState) (int, int);
   int (*driverDiskChanged) (int);
   int (*driverReadSectors) (int, unsigned, unsigned, void *);
-  int (*driverWriteSectors) (int, unsigned, unsigned, void *);
+  int (*driverWriteSectors) (int, unsigned, unsigned, const void *);
 
 } kernelDiskOps;
 
@@ -138,6 +138,7 @@ typedef volatile struct {
   int lockState;
   int doorState;
   unsigned idleSince;
+  unsigned multiSectors;
 
   kernelDriver *driver;
 
@@ -157,7 +158,8 @@ int kernelDiskFromLogical(kernelDisk *, disk *);
 kernelDisk *kernelDiskGetByName(const char *);
 kernelDisk *kernelDiskGetByPath(const char *);
 // More functions, but also exported to user space
-int kernelDiskReadPartitions(void);
+int kernelDiskReadPartitions(const char *);
+int kernelDiskReadPartitionsAll(void);
 int kernelDiskSync(void);
 int kernelDiskGetBoot(char *);
 int kernelDiskGetCount(void);
@@ -171,7 +173,8 @@ int kernelDiskSetLockState(const char *diskName, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskGetMediaState(const char *);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
-int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *);
+int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *);
+int kernelDiskGetFilesystemType(const char *, char *, unsigned);
 
 #define _KERNELDISK_H
 #endif

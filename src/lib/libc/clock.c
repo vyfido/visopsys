@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,6 +39,12 @@ clock_t clock(void)
 
   int status = 0;
   clock_t clk = 0;
+
+  if (visopsys_in_kernel)
+    {
+      errno = ERR_BUG;
+      return (clk = 0);
+    }
 
   // Call the api function to get the current CPU time
   status = multitaskerGetProcessorTime(&clk);

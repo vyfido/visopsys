@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,8 @@
 #if !defined(_FDISK_H)
 
 #include <sys/disk.h>
+#include <sys/image.h>
+#include <sys/progress.h>
 
 #define DISK_MANAGER     "Visopsys Disk Manager"
 #define PARTITION_LOGIC  "Partition Logic"
@@ -31,9 +33,6 @@
 #define BOOT_DIR         "/system/boot"
 #define BACKUP_MBR       BOOT_DIR"/backup-%s.mbr"
 #define SIMPLE_MBR_FILE  BOOT_DIR"/mbr.simple"
-#define PERM             "You must be a privileged user to use this " \
-                         "command.\n(Try logging in as user \"admin\")"
-#define PARTTYPES        "Supported partition types"
 
 #define ENTRYOFFSET_DRV_ACTIVE    0
 #define ENTRYOFFSET_START_HEAD    1
@@ -55,7 +54,7 @@
 #define SLICESTRING_DISKFIELD_WIDTH    5
 #endif
 #define SLICESTRING_LABELFIELD_WIDTH   22
-#define SLICESTRING_FSTYPEFIELD_WIDTH  6
+#define SLICESTRING_FSTYPEFIELD_WIDTH  11
 #define SLICESTRING_CYLSFIELD_WIDTH    12
 #define SLICESTRING_SIZEFIELD_WIDTH    9
 #define SLICESTRING_ATTRIBFIELD_WIDTH  15
@@ -102,6 +101,7 @@ typedef struct {
   char string[MAX_DESCSTRING_LENGTH];
   int pixelX;
   int pixelWidth;
+  color *color;
 
 } slice;
 
@@ -136,9 +136,7 @@ typedef struct {
   unsigned startSector;
   unsigned numSectors;
   ioBuffer *buffer;
-  int showProgress;
-  objectKey progressBar;
-  objectKey statusLabel;
+  progress *prog;
 
 } ioThreadArgs;
 

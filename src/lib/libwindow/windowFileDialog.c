@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,12 +30,10 @@
 static objectKey textField = NULL;
 
 
-static void doFileSelection(file *theFile, char *fullName,
-			    loaderFileClass *loaderClass)
+static void doFileSelection(file *theFile __attribute__((unused)),
+			    char *fullName, loaderFileClass *loaderClass
+			    __attribute__((unused)))
 {
-  if (theFile && loaderClass)
-    {
-    }
   windowComponentSetData(textField, fullName, (strlen(fullName) + 1));
 }
 

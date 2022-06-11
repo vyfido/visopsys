@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,9 +24,27 @@
 
 #if !defined(_MEMORY_H)
 
+#include <sys/lock.h>
+#include <sys/errors.h>
+
 // Definitions
-#define MEMORY_PAGE_SIZE        4096
-#define MEMORY_MAX_DESC_LENGTH  32
+#define MEMORY_PAGE_SIZE             4096
+#define MEMORY_BLOCK_SIZE            MEMORY_PAGE_SIZE
+#define MEMORY_MAX_DESC_LENGTH       32
+
+#define USER_MEMORY_HEAP_MULTIPLE    (64 * 1024)    // 64 Kb
+#define KERNEL_MEMORY_HEAP_MULTIPLE  (1024 * 1024)  // 1 meg
+
+typedef struct {
+  int used;
+  int process;
+  void *start;
+  void *end;
+  void *previous;
+  void *next;
+  const char *function;
+
+} mallocBlock;
 
 // Struct that describes one memory block
 typedef struct {
@@ -45,6 +63,27 @@ typedef struct {
   unsigned usedMemory;
 
 } memoryStats;
+
+typedef struct {
+  int (*multitaskerGetCurrentProcessId) (void);
+  void * (*memoryGetSystem) (unsigned, const char *);
+  int (*lockGet) (lock *);
+  int (*lockRelease) (lock *);
+  void (*error) (const char *, const char *, int, kernelErrorKind, 
+		 const char *, ...);
+
+} mallocKernelOps;
+
+// For using malloc() in kernel space
+extern unsigned mallocHeapMultiple;
+extern mallocKernelOps mallocKernOps;
+
+// Extras for malloc debugging
+void *_doMalloc(unsigned, const char *);
+void _doFree(void *, const char *);
+int _mallocBlockInfo(void *, memoryBlock *);
+int _mallocGetStats(memoryStats *);
+int _mallocGetBlocks(memoryBlock *, int);
 
 #define _MEMORY_H
 #endif

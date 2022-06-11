@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,6 +34,9 @@ int stat(const char *fileName, struct stat *buf)
   int status = 0;
   file theFile;
   disk theDisk;
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // Try to find the file
   bzero(&theFile, sizeof(file));

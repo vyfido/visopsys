@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -146,7 +146,7 @@ static int driverDetect(void *driver)
   // Initialization byte 4
   kernelProcessorOutPort8(0x21, 0x01);
   // Normal operation, normal priorities
-  kernelProcessorOutPort8(0x20, 0x27);
+  kernelProcessorOutPort8(0x20, 0x20);//0x27);
   // Mask all ints off initially, except for 2 (the slave controller)
   kernelProcessorOutPort8(0x21, 0xFB);
 
@@ -161,7 +161,7 @@ static int driverDetect(void *driver)
   // Initialization byte 4
   kernelProcessorOutPort8(0xA1, 0x01);
   // Normal operation, normal priorities
-  kernelProcessorOutPort8(0xA0, 0x27);
+  kernelProcessorOutPort8(0xA0, 0x20);//0x27);
   // Mask all ints off initially
   kernelProcessorOutPort8(0xA1, 0xFF);
 

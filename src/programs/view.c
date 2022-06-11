@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,6 +53,7 @@ The currently-supported file formats are:
 #include <sys/vsh.h>
 #include <sys/window.h>
 #include <sys/api.h>
+#include <sys/cdefs.h>
 
 static objectKey window = NULL;
 
@@ -262,7 +263,7 @@ int main(int argc, char *argv[])
       for (count = 0; count <= (textLines / rows); count ++)
 	textScroll(-1);
 
-      free(textData);
+      memoryRelease(textData);
     }
 
   // Go live.

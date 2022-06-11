@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,19 +23,17 @@
 
 #if !defined(_STDDEF_H)
 
-typedef int ptrdiff_t;
-typedef unsigned size_t;
-typedef int ssize_t;
+typedef int       ptrdiff_t;
+typedef unsigned  size_t;
+typedef int       ssize_t;
 
 #if !defined(__cplusplus)
-typedef int wchar_t;
+typedef unsigned  wchar_t;
 #endif
 
 #ifndef NULL
 #define NULL 0
 #endif
-
-#define offsetof(str, mbr) (&(str.mbr) - &str)
 
 #define _STDDEF_H
 #endif

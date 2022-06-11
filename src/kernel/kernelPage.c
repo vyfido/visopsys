@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -242,7 +242,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
     {
       // Recurse
       if (createPageTable(kernelPageDir,
-			  findFreeTableNumber(kernelPageDir) == NULL))
+			  findFreeTableNumber(kernelPageDir)) == NULL)
 	// This is probably trouble for the kernel.  We certainly don't care
 	// about this user process
 	return (newTable = NULL);
@@ -304,9 +304,8 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 
       // It needs to be 'shared' with all of the other real page directories.
       for (count = 0; count < numberPageDirectories; count ++)
-	if (!(pageDirList[count]->parent))
-	  pageDirList[count]->virtual->table[number] =
-	    kernelPageDir->virtual->table[number];
+	pageDirList[count]->virtual->table[number] =
+	  kernelPageDir->virtual->table[number];
     }
 
   // Return the table
@@ -336,8 +335,7 @@ static int deletePageTable(kernelPageDirectory *directory,
   // needs to be 'unshared' from all of the other real page directories.
   if (directory == kernelPageDir)
     for (count = 0; count < numberPageDirectories; count ++)
-      if (!(pageDirList[count]->parent))
-	pageDirList[count]->virtual->table[table->tableNumber] = NULL;
+      pageDirList[count]->virtual->table[table->tableNumber] = NULL;
 
   // Unmap it from the kernel's virtual address space.  We can't use the
   // unmap function because it is the one that calls this function (we
@@ -682,7 +680,7 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
 }
 
 
-static kernelPageDirectory *createPageDirectory(int processId, int privilege)
+static kernelPageDirectory *createPageDirectory(int processId)
 {
   // This function creates an empty page directory by allocating physical
   // memory for it, and on success, returns a pointer to a 
@@ -717,9 +715,7 @@ static kernelPageDirectory *createPageDirectory(int processId, int privilege)
 
   // Fill in this page directory
   directory->processId = processId;
-  directory->numberShares = 0;
-  directory->parent = 0;
-  directory->privilege = privilege;
+  directory->privilege = PRIVILEGE_USER;
   directory->physical = physicalAddr;
   directory->virtual = virtualAddr;
 
@@ -733,28 +729,18 @@ static kernelPageDirectory *findPageDirectory(int processId)
   // This function just finds the page directory structure that belongs
   // to the requested process.  Returns NULL on failure.
 
-  kernelPageDirectory *dir = NULL;
+  kernelPageDirectory *procDir = kernelMultitaskerGetPageDir(processId);
   int count;
 
   if (processId == KERNELPROCID)
-    return (dir = kernelPageDir);
+    return (kernelPageDir);
 
   for (count = 0; count < numberPageDirectories; count ++)
-    if (pageDirList[count]->processId == processId)
-      {
-	// If this page directory is 'shared' from another page directory,
-	// then we need to recurse to find the parent (since this one will,
-	// essentially, be 'empty')
-	
-	if (pageDirList[count]->parent)
-	  dir = findPageDirectory(pageDirList[count]->parent);
-	else
-	  dir = pageDirList[count];
+    if (pageDirList[count] == procDir)
+      return (pageDirList[count]);
 
-	break;
-      }
-
-  return (dir);
+  // Not found
+  return (NULL);
 }
 
 
@@ -767,7 +753,6 @@ static int deletePageDirectory(kernelPageDirectory *directory)
   // otherwise.
 
   int status = 0;
-  kernelPageDirectory *parent = NULL;
   int listPosition = 0;
 
   // Make sure this page directory isn't currently shared.  If it is, 
@@ -775,30 +760,14 @@ static int deletePageDirectory(kernelPageDirectory *directory)
   if (directory->numberShares)
     return (status = ERR_BUSY);
 
-  // Figure out whether this page directory is 'sharing' from another
-  // page directory.  If so, we don't need to do much other than remove
-  // it from the list, and decrement the refcount in the parent
-  if (directory->parent)
-    {
-      // Find the parent page directory
-      parent = findPageDirectory(directory->parent);
-      if (parent == NULL)
-	return (status = ERR_NOSUCHENTRY);
+  // Deallocate the dynamic memory that this directory is occupying
+  kernelMemoryReleasePhysical((void *) directory->physical);
 
-      parent->numberShares--;
-    }
-  else
-    {
-      // It's a 'real' page table.  Deallocate the dynamic memory that
-      // this directory is occupying
-      kernelMemoryReleasePhysical((void *) directory->physical);
-
-      // Unmap the directory from kernel memory
-      status = unmap(kernelPageDir, (void *) directory->virtual,
-		     sizeof(kernelPageDirVirtualMem));
-      if (status < 0)
-	return (status);
-    }
+  // Unmap the directory from kernel memory
+  status = unmap(kernelPageDir, (void *) directory->virtual,
+		 sizeof(kernelPageDirVirtualMem));
+  if (status < 0)
+    return (status);
 
   // Now we need to remove it from the list.  First find its position
   // in the list.
@@ -862,7 +831,6 @@ static int firstPageDirectory(void)
 
   kernelPageDir->processId = KERNELPROCID;
   kernelPageDir->numberShares = 0;
-  kernelPageDir->parent = 0;
   kernelPageDir->privilege = PRIVILEGE_SUPERVISOR;
 
   return (status = 0);
@@ -1077,7 +1045,7 @@ static int setPageAttrs(kernelPageDirectory *directory, int set,
 	  if (!pageTable->virtual->page[pageNumber])
 	    {
 	      kernelError(kernel_error, "Virtual address %08x is not mapped",
-			  virtualAddress);
+			  (unsigned) virtualAddress);
 	      return (status = ERR_NODATA);
 	    }
 
@@ -1152,37 +1120,21 @@ int kernelPageInitialize(unsigned kernelMemory)
 }
 
 
-void *kernelPageGetDirectory(int processId)
+kernelPageDirectory *kernelPageGetDirectory(int processId)
 {
-  // This is an accessor function, which just returns the physical address of
-  // the requested page directory (suitable for putting in the CR3 register).
-  // Returns NULL on failure
-
-  int status = 0;
-  kernelPageDirectory *directory = NULL;
-  void *physicalAddress = NULL;
+  // This is an accessor function, which just returns the requested page
+  // directory .  Returns NULL on failure
 
   // Have we been initialized?
   if (!initialized)
     return (NULL);
 
   // Find the appropriate page directory
-  directory = findPageDirectory(processId);
-  if (directory == NULL)
-    return (NULL);
-
-  status = kernelLockGet(&(directory->dirLock));
-  if (status < 0)
-    return (physicalAddress = NULL);
-  
-  physicalAddress = (void *) directory->physical;
-
-  kernelLockRelease(&(directory->dirLock));
-  return (physicalAddress);
+  return (findPageDirectory(processId));
 }
 
 
-void *kernelPageNewDirectory(int processId, int privilege)
+kernelPageDirectory *kernelPageNewDirectory(int processId)
 {
   // This function will create a new page directory and one page table for
   // a new process.
@@ -1190,24 +1142,19 @@ void *kernelPageNewDirectory(int processId, int privilege)
   int status = 0;
   kernelPageDirectory *directory = NULL;
   kernelPageTable *table = NULL;
-  void *physicalAddress = NULL;
 
   // Have we been initialized?
   if (!initialized)
-    return (physicalAddress = NULL);
-
-  // Make sure privilege is legal
-  if ((privilege != PRIVILEGE_USER) && (privilege != PRIVILEGE_SUPERVISOR))
-    return (physicalAddress = NULL);
+    return (directory = NULL);
 
   // Create a page directory for the process
-  directory = createPageDirectory(processId, privilege);
+  directory = createPageDirectory(processId);
   if (directory == NULL)
-    return (physicalAddress = NULL);
+    return (directory);
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (physicalAddress = NULL);
+    return (directory = NULL);
   
   // Create an initial page table in the page directory, in the first spot
   table = createPageTable(directory, 0); // slot 0
@@ -1216,7 +1163,7 @@ void *kernelPageNewDirectory(int processId, int privilege)
       // Deallocate the page directory we created.  Don't unlock it since
       // it's going away
       deletePageDirectory(directory);
-      return (physicalAddress = NULL);
+      return (directory = NULL);
     }
   
   // Finally, we need to map the kernel's address space into that of this
@@ -1224,65 +1171,43 @@ void *kernelPageNewDirectory(int processId, int privilege)
   // page tables.  It will only get mappings in its page directory.
   shareKernelPages(directory);
 
-  physicalAddress = (void *) directory->physical;
-
   kernelLockRelease(&(directory->dirLock));
 
-  // Return the physical address of the new page directory.
-  return (physicalAddress);
+  return (directory);
 }
 
 
-void *kernelPageShareDirectory(int parentId, int childId)
+kernelPageDirectory *kernelPageShareDirectory(int parentId, int childId)
 {
   // This function will allow a new process thread to share the page
   // directory of its parent.
 
   int status = 0;
   kernelPageDirectory *parentDirectory = NULL;
-  kernelPageDirectory *childDirectory = NULL;
-  void *physicalAddress = NULL;
 
   // Have we been initialized?
   if (!initialized)
-    return (physicalAddress = NULL);
+    return (parentDirectory = NULL);
 
   // Find the page directory belonging to the parent process
   parentDirectory = findPageDirectory(parentId);
   if (parentDirectory == NULL)
-    return (physicalAddress = NULL);
+    return (parentDirectory = NULL);
 
   status = kernelLockGet(&(parentDirectory->dirLock));
   if (status < 0)
-    return (physicalAddress = NULL);
+    return (parentDirectory = NULL);
   
   // It could happen that the parentId and childId are the same.  (really?)
   if (parentId != childId)
-    {
-      // Ok.  Make room for a new page directory structure for the child.
-      // We do this manually (i.e. without calling createPageDirectory())
-      // because this shared page directory needs no real memory allocated
-      // to it.
-      childDirectory = pageDirList[numberPageDirectories++];
-
-      // Clear the child directory.
-      kernelMemClear((void *) childDirectory, sizeof(kernelPageDirectory));
-
-      // Set the process Id of the child's directory
-      childDirectory->processId = childId;
-
-      // Note that the parent directory is referenced and child directory
-      // is shared.
-      parentDirectory->numberShares++;
-      childDirectory->parent = parentDirectory->processId;
-    }
-
-  physicalAddress = (void *) parentDirectory->physical;
+    // Note that the parent directory is referenced and child directory
+    // is shared.
+    parentDirectory->numberShares += 1;
 
   kernelLockRelease(&(parentDirectory->dirLock));
 
   // Return the physical address of the shared page directory.
-  return (physicalAddress);
+  return (parentDirectory);
 }
 
 
@@ -1300,30 +1225,29 @@ int kernelPageDeleteDirectory(int processId)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Find the page directory belonging to the process.  We can't use the
-  // findPageDirectory() function to find it since THAT will always
-  // return the PARENT page directory if a page directory is shared.  We
-  // don't want that to happen, so we'll search through the list manually.
-  for (count = 0; count < numberPageDirectories; count ++)
-    if (pageDirList[count]->processId == processId)
-      {
-	directory = pageDirList[count];
-	break;
-      }
-
+  // Find the appropriate page directory
+  directory = findPageDirectory(processId);
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
-  
-  // Ok, found it.  We need to walk through all of its page tables,
-  // deallocating them as we go.
+
+  // If there are shares, merely decrement the counter
+  if (directory->numberShares)
+    {
+      directory->numberShares -= 1;
+      kernelLockRelease(&(directory->dirLock));
+      return (status = 0);
+    }
+
+  // We need to walk through all of its page tables, deallocating them
+  // as we go.
   for (count = 0; count < PAGE_PAGES_PER_TABLE; count ++)
     {
       table = findPageTable(directory, count);
-
+	  
       if (table)
 	{
 	  status = deletePageTable(directory, table);
@@ -1337,9 +1261,7 @@ int kernelPageDeleteDirectory(int processId)
 
   // Delete the directory.
   status = deletePageDirectory(directory);
-  
-  // Return success
-  return (status = 0);
+  return (status);
 }
 
 

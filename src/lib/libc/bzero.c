@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,27 +21,14 @@
 
 // This is the standard "bzero" function, as found in standard C libraries
 
-// The description from the GNU man page reads as follows:
-// The bzero() function sets the first n bytes of the byte string to zero.
-// The bzero() function returns no value.
-
 #include <string.h>
-#include <errno.h>
 
 
 void bzero(void *string, size_t number)
 {
-  unsigned count;
-
-  // Check params
-  if (string == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return;
-    }
-
-  for (count = 0; count < number; count ++)
-    ((char *) string)[count] = '\0';
-  
+  // The description from the GNU man page reads as follows:
+  // The bzero() function sets the first n bytes of the byte string to zero.
+  // The bzero() function returns no value.
+  memset(string, 0, number);  
   return;
 }

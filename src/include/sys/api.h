@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -113,30 +113,34 @@ extern int visopsys_in_kernel;
 
 // Disk functions.  All are in the 2000-2999 range.
 #define _fnum_diskReadPartitions                     2000
-#define _fnum_diskSync                               2001
-#define _fnum_diskGetBoot                            2002
-#define _fnum_diskGetCount                           2003
-#define _fnum_diskGetPhysicalCount                   2004
-#define _fnum_diskGet                                2005
-#define _fnum_diskGetAll                             2006
-#define _fnum_diskGetAllPhysical                     2007
-#define _fnum_diskGetPartType                        2008
-#define _fnum_diskGetPartTypes                       2009
-#define _fnum_diskSetLockState                       2010
-#define _fnum_diskSetDoorState                       2011
-#define _fnum_diskGetMediaState                      2012
-#define _fnum_diskReadSectors                        2013
-#define _fnum_diskWriteSectors                       2014
+#define _fnum_diskReadPartitionsAll                  2001
+#define _fnum_diskSync                               2002
+#define _fnum_diskGetBoot                            2003
+#define _fnum_diskGetCount                           2004
+#define _fnum_diskGetPhysicalCount                   2005
+#define _fnum_diskGet                                2006
+#define _fnum_diskGetAll                             2007
+#define _fnum_diskGetAllPhysical                     2008
+#define _fnum_diskGetPartType                        2009
+#define _fnum_diskGetPartTypes                       2010
+#define _fnum_diskSetLockState                       2011
+#define _fnum_diskSetDoorState                       2012
+#define _fnum_diskGetMediaState                      2013
+#define _fnum_diskReadSectors                        2014
+#define _fnum_diskWriteSectors                       2015
+#define _fnum_diskGetFilesystemType                  2016
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
 #define _fnum_filesystemClobber                      3001
 #define _fnum_filesystemCheck                        3002
 #define _fnum_filesystemDefragment                   3003
-#define _fnum_filesystemMount                        3004
-#define _fnum_filesystemUnmount                      3005
-#define _fnum_filesystemGetFree                      3006
-#define _fnum_filesystemGetBlockSize                 3007
+#define _fnum_filesystemResizeConstraints            3004
+#define _fnum_filesystemResize                       3005
+#define _fnum_filesystemMount                        3006
+#define _fnum_filesystemUnmount                      3007
+#define _fnum_filesystemGetFree                      3008
+#define _fnum_filesystemGetBlockSize                 3009
 
 // File functions.  All are in the 4000-4999 range.
 #define _fnum_fileFixupPath                          4000
@@ -178,6 +182,7 @@ extern int visopsys_in_kernel;
 #define _fnum_memoryChangeOwner                      5004
 #define _fnum_memoryGetStats                         5005
 #define _fnum_memoryGetBlocks                        5006
+#define _fnum_memoryBlockInfo                        5007
 
 // Multitasker functions.  All are in the 6000-6999 range.
 #define _fnum_multitaskerCreateProcess               6000
@@ -208,6 +213,8 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerSignalSet                   6025
 #define _fnum_multitaskerSignal                      6026
 #define _fnum_multitaskerSignalRead                  6027
+#define _fnum_multitaskerGetIOPerm                   6028
+#define _fnum_multitaskerSetIOPerm                   6029
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
@@ -364,7 +371,7 @@ extern int visopsys_in_kernel;
 #define _fnum_imageLoad                              99004
 #define _fnum_imageSave                              99005
 #define _fnum_shutdown                               99006
-#define _fnum_version                                99007
+#define _fnum_getVersion                             99007
 #define _fnum_encryptMD5                             99008
 #define _fnum_lockGet                                99009
 #define _fnum_lockRelease                            99010
@@ -388,22 +395,16 @@ extern int visopsys_in_kernel;
 // Utility macros for stack manipulation
 #define stackPush(value) \
   __asm__ __volatile__ ("pushl %0 \n\t" : : "r" (value))
-#define stackAdj(bytes) \
+#define stackSub(bytes)                       \
   __asm__ __volatile__ ("addl %0, %%esp \n\t" \
                         : : "r" (bytes) : "%esp")
 
 // The generic calls for accessing the kernel API
-#define sysCall(retCode)                                            \
-  if (!visopsys_in_kernel)                                          \
-    {                                                               \
-      __asm__ __volatile__ ("lcall $0x003B,$0x00000000 \n\t"        \
-                            "movl %%eax, %0 \n\t"                   \
-                            : "=r" (retCode) : : "%eax", "memory"); \
-    }                                                               \
-  else                                                              \
-    {                                                               \
-      retCode = -1;                                                 \
-    }
+#define sysCall(retCode)                                    \
+  if (!visopsys_in_kernel)                                  \
+     __asm__ __volatile__ ("lcall $0x003B,$0x00000000 \n\t" \
+			   "movl %%eax, %0 \n\t"            \
+			   : "=r" (retCode) : : "%eax", "memory");
 
 // These use the macros defined above to call the kernel with the
 // appropriate number of arguments
@@ -415,7 +416,7 @@ static inline int sysCall_0(int fnum)
   stackPush(fnum);
   stackPush(1);
   sysCall(status);
-  stackAdj(8);
+  stackSub(8);
   return (status);
 }
 
@@ -428,7 +429,7 @@ static inline int sysCall_1(int fnum, void *arg1)
   stackPush(fnum);
   stackPush(2);
   sysCall(status);
-  stackAdj(12);
+  stackSub(12);
   return (status);
 }
 
@@ -442,7 +443,7 @@ static inline int sysCall_2(int fnum, void *arg1, void *arg2)
   stackPush(fnum);
   stackPush(3);
   sysCall(status);
-  stackAdj(16);
+  stackSub(16);
   return (status);
 }
 
@@ -457,7 +458,7 @@ static inline int sysCall_3(int fnum, void *arg1, void *arg2, void *arg3)
   stackPush(fnum);
   stackPush(4);
   sysCall(status);
-  stackAdj(20);
+  stackSub(20);
   return (status);
 }
 
@@ -474,7 +475,7 @@ static inline int sysCall_4(int fnum, void *arg1, void *arg2, void *arg3,
   stackPush(fnum);
   stackPush(5);
   sysCall(status);
-  stackAdj(24);
+  stackSub(24);
   return (status);
 }
 
@@ -492,7 +493,7 @@ static inline int sysCall_5(int fnum, void *arg1, void *arg2, void *arg3,
   stackPush(fnum);
   stackPush(6);
   sysCall(status);
-  stackAdj(28);
+  stackSub(28);
   return (status);
 }
 
@@ -511,7 +512,7 @@ static inline int sysCall_6(int fnum, void *arg1, void *arg2, void *arg3,
   stackPush(fnum);
   stackPush(7);
   sysCall(status);
-  stackAdj(32);
+  stackSub(32);
   return (status);
 }
 
@@ -531,7 +532,7 @@ static inline int sysCall_7(int fnum, void *arg1, void *arg2, void *arg3,
   stackPush(fnum);
   stackPush(8);
   sysCall(status);
-  stackAdj(36);
+  stackSub(36);
   return (status);
 }
 
@@ -553,7 +554,7 @@ static inline int sysCall_8(int fnum, void *arg1, void *arg2, void *arg3,
   stackPush(fnum);
   stackPush(9);
   sysCall(status);
-  stackAdj(40);
+  stackSub(40);
   return (status);
 }
 
@@ -576,7 +577,7 @@ static inline int sysCall_9(int fnum, void *arg1, void *arg2, void *arg3,
   stackPush(fnum);
   stackPush(10);
   sysCall(status);
-  stackAdj(44);
+  stackSub(44);
   return (status);
 }
 
@@ -965,11 +966,18 @@ _X_ static inline void textInputSetEcho(int onOff)
 // Disk functions
 //
 
-_X_ static inline int diskReadPartitions(void)
+_X_ static inline int diskReadPartitions(char *name)
 {
-  // Proto: int kernelDiskReadPartitions(void);
-  // Desc : Tells the kernel to (re)read the disk partition tables.
-  return (sysCall_0(_fnum_diskReadPartitions));
+  // Proto: int kernelDiskReadPartitions(const char *);
+  // Desc : Tells the kernel to (re)read the partition table of disk 'name'.
+  return (sysCall_1(_fnum_diskReadPartitions, name));
+}
+
+_X_ static inline int diskReadPartitionsAll(void)
+{
+  // Proto: int kernelDiskReadPartitionsAll(void);
+  // Desc : Tells the kernel to (re)read all the disks' partition tables.
+  return (sysCall_0(_fnum_diskReadPartitionsAll));
 }
 
 _X_ static inline int diskSync(void)
@@ -1032,7 +1040,7 @@ _X_ static inline int diskGetPartType(int code, partitionType *p)
 _X_ static inline partitionType *diskGetPartTypes(void)
 {
   // Proto: partitionType *kernelDiskGetPartTypes(void);
-  // Desc : Like diskGetPartType(), but returns a pointer to a list of all known types.
+  // Desc : Like diskGetPartType(), but returns a pointer to a list of all known types.  The memory is allocated dynamically and should be deallocated with a call to memoryRelease()
   return ((partitionType *) sysCall_0(_fnum_diskGetPartTypes));
 }
 
@@ -1065,12 +1073,20 @@ _X_ static inline int diskReadSectors(const char *name, unsigned sect, unsigned 
 		    (void *) count, buf));
 }
 
-_X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned count, void *buf)
+_X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned count, const void *buf)
 {
-  // Proto: int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *)
+  // Proto: int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *)
   // Desc : Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege.
   return (sysCall_4(_fnum_diskWriteSectors, (void *) name, (void *) sect,
-		    (void *) count, buf));
+		    (void *) count, (void *) buf));
+}
+
+_X_ static inline int diskGetFilesystemType(const char *name, char *buf, unsigned bufSize)
+{
+  // Proto: int kernelDiskGetFilesystemType(const char *, char *, unsigned);
+  // Desc : This function attempts to explicitly detect the filesystem type on disk 'name', and copy up to 'bufSize' bytes of the filesystem type name into 'buf'.  Particularly useful for things like removable media where the correct info may not be automatically provided in the disk structure.
+  return (sysCall_3(_fnum_diskGetFilesystemType, (void *) name, buf,
+		    (void *) bufSize));
 }
 
 
@@ -1083,7 +1099,7 @@ _X_ static inline int filesystemFormat(const char *theDisk, const char *type, co
   // Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int, progress *);
   // Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
   return (sysCall_5(_fnum_filesystemFormat, (void *) theDisk, (void *) type,
-		    (void *) label, (void *) longFormat, prog));
+		    (void *) label, (void *) longFormat, (void *) prog));
 }
 
 _X_ static inline int filesystemClobber(const char *theDisk)
@@ -1098,14 +1114,30 @@ _X_ static inline int filesystemCheck(const char *name, int force, int repair, p
   // Proto: int kernelFilesystemCheck(const char *, int, int, progress *)
   // Desc : Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
   return (sysCall_4(_fnum_filesystemCheck, (void *) name, (void *) force,
-		    (void *) repair, prog));
+		    (void *) repair, (void *) prog));
 }
 
 _X_ static inline int filesystemDefragment(const char *name, progress *prog)
 {
   // Proto: int kernelFilesystemDefragment(const char *, progress *)
   // Desc : Defragment the filesystem on disk 'name'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
-  return (sysCall_2(_fnum_filesystemDefragment, (void *) name, prog));
+  return (sysCall_2(_fnum_filesystemDefragment, (void *) name, (void *) prog));
+}
+
+_X_ static inline int filesystemResizeConstraints(const char *name, unsigned *minBlocks, unsigned *maxBlocks)
+{
+  // Proto: int kernelFilesystemResizeConstraints(const char *, unsigned *, unsigned *);
+  // Desc : Get the minimum ('minBlocks') and maximum ('maxBlocks') number of blocks for a filesystem resize on disk 'name'.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_3(_fnum_filesystemResizeConstraints, (void *) name,
+		    (void *) minBlocks, (void *) maxBlocks));
+}
+
+_X_ static inline int filesystemResize(const char *name, unsigned blocks, progress *prog)
+{
+  // Proto: int kernelFilesystemResize(const char *, unsigned, progress *);
+  // Desc : Resize the filesystem on disk 'name' to the given number of blocks 'blocks'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_3(_fnum_filesystemResize, (void *) name, (void *) blocks,
+		    (void *) prog));
 }
 
 _X_ static inline int filesystemMount(const char *name, const char *mp)
@@ -1414,6 +1446,13 @@ _X_ static inline int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSiz
 		    (void *) kernel));
 }
 
+_X_ static inline int memoryBlockInfo(void *p, memoryBlock *block)
+{
+  // Proto: int kernelMemoryBlockInfo(void *, memoryBlock *);
+  // Desc : Fills in the structure 'block' with information about the allocated memory block starting at virtual address 'p'
+  return (sysCall_2(_fnum_memoryBlockInfo, p, block));
+}
+
 
 //
 // Multitasker functions
@@ -1623,6 +1662,22 @@ _X_ static inline int multitaskerSignalRead(int processId)
   // Proto: int kernelMultitaskerSignalRead(int);
   // Desc : Returns the number code of the next pending signal for the current process, or 0 if no signals are pending.
   return (sysCall_1(_fnum_multitaskerSignalRead, (void *) processId));
+}
+
+_X_ static inline int multitaskerGetIOPerm(int processId, int portNum)
+{
+  // Proto: int kernelMultitaskerGetIOPerm(int, int);
+  // Desc : Returns 1 if the process with process ID 'processId' can do I/O on port 'portNum'
+  return (sysCall_2(_fnum_multitaskerGetIOPerm, (void *) processId,
+		    (void *) portNum));
+}
+
+_X_ static inline int multitaskerSetIOPerm(int processId, int portNum, int yesNo)
+{
+  // Proto: int kernelMultitaskerSetIOPerm(int, int, int);
+  // Desc : Set I/O permission port 'portNum' for the process with process ID 'processId'.  If 'yesNo' is non-zero, permission will be granted.
+  return (sysCall_3(_fnum_multitaskerSetIOPerm, (void *) processId,
+		    (void *) portNum, (void *) yesNo));
 }
 
 
@@ -2092,7 +2147,7 @@ _X_ static inline int windowCenter(objectKey window)
 _X_ static inline int windowSnapIcons(objectKey parent)
 {
   // Proto: void kernelWindowSnapIcons(void *);
-  // Desc : If 'container' (either a window or a windowContainer) has icon components inside it, this will snap them to a grid.
+  // Desc : If 'parent' (either a window or a windowContainer) has icon components inside it, this will snap them to a grid.
   return (sysCall_1(_fnum_windowSnapIcons, parent));
 }
 
@@ -2120,12 +2175,11 @@ _X_ static inline int windowSetMovable(objectKey window, int trueFalse)
 _X_ static inline int windowSetResizable(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetResizable(kernelWindow *, int);
-  // Desc : Tells the windowing system whether to allow 'window' to be resized by the user.
+  // Desc : Tells the windowing system whether to allow 'window' to be resized by the user.  'trueFalse' being non-zero means the window is resizable.  Windows are resizable by default.
   return (sysCall_2(_fnum_windowSetResizable, window, (void *) trueFalse));
 }
 
-_X_ static inline int windowSetHasMinimizeButton(objectKey window,
-						 int trueFalse)
+_X_ static inline int windowSetHasMinimizeButton(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetHasMinimizeButton(kernelWindow *, int);
   // Desc : Tells the windowing system whether to draw a minimize button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a minimize button.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
@@ -2716,11 +2770,11 @@ _X_ static inline int shutdown(int reboot, int nice)
   return (sysCall_2(_fnum_shutdown, (void *) reboot, (void *) nice));
 }
 
-_X_ static inline const char *version(void)
+_X_ static inline const char *getVersion(char *buff, int buffSize)
 {
-  // Proto: const char *kernelVersion(void);
-  // Desc : Get the kernel's version string.
-  return ((const char *) sysCall_0(_fnum_version));
+  // Proto: const char *kernelGetVersion(char *, int);
+  // Desc : Get the kernel's version string int the buffer 'buff', up to 'buffSize' bytes
+  return ((const char *) sysCall_2(_fnum_getVersion, buff, (void *) buffSize));
 }
 
 _X_ static inline int encryptMD5(const char *in, char *out)

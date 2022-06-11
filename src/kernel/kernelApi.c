@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -130,6 +130,8 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   // Disk functions (2000-2999 range)
 
   { _fnum_diskReadPartitions, kernelDiskReadPartitions,
+    1, PRIVILEGE_SUPERVISOR },
+  { _fnum_diskReadPartitionsAll, kernelDiskReadPartitionsAll,
     0, PRIVILEGE_SUPERVISOR },
   { _fnum_diskSync, kernelDiskSync, 0, PRIVILEGE_USER },
   { _fnum_diskGetBoot, kernelDiskGetBoot, 1, PRIVILEGE_USER },
@@ -145,7 +147,9 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskSetDoorState, kernelDiskSetDoorState, 2, PRIVILEGE_USER },
   { _fnum_diskGetMediaState, kernelDiskGetMediaState, 1, PRIVILEGE_USER },
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
-  { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR }
+  { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
+  { _fnum_diskGetFilesystemType, kernelDiskGetFilesystemType,
+    3, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex filesystemFunctionIndex[] = {
@@ -158,6 +162,9 @@ static kernelFunctionIndex filesystemFunctionIndex[] = {
   { _fnum_filesystemCheck, kernelFilesystemCheck, 4, PRIVILEGE_USER },
   { _fnum_filesystemDefragment, kernelFilesystemDefragment,
     2, PRIVILEGE_SUPERVISOR },
+  { _fnum_filesystemResizeConstraints, kernelFilesystemResizeConstraints,
+    3, PRIVILEGE_USER },
+  { _fnum_filesystemResize, kernelFilesystemResize, 3, PRIVILEGE_SUPERVISOR },
   { _fnum_filesystemMount, kernelFilesystemMount, 2, PRIVILEGE_USER },
   { _fnum_filesystemUnmount, kernelFilesystemUnmount, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetFree, kernelFilesystemGetFree, 1, PRIVILEGE_USER },
@@ -214,7 +221,8 @@ static kernelFunctionIndex memoryFunctionIndex[] = {
   { _fnum_memoryChangeOwner, kernelMemoryChangeOwner,
     4, PRIVILEGE_SUPERVISOR },
   { _fnum_memoryGetStats, kernelMemoryGetStats, 2, PRIVILEGE_USER },
-  { _fnum_memoryGetBlocks, kernelMemoryGetBlocks, 3, PRIVILEGE_USER }
+  { _fnum_memoryGetBlocks, kernelMemoryGetBlocks, 3, PRIVILEGE_USER },
+  { _fnum_memoryBlockInfo, kernelMemoryBlockInfo, 2, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex multitaskerFunctionIndex[] = {
@@ -270,7 +278,10 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
     3, PRIVILEGE_USER },
   { _fnum_multitaskerSignal, kernelMultitaskerSignal, 2, PRIVILEGE_USER },
   { _fnum_multitaskerSignalRead, kernelMultitaskerSignalRead,
-    1, PRIVILEGE_USER }
+    1, PRIVILEGE_USER },
+  { _fnum_multitaskerGetIOPerm, kernelMultitaskerGetIOPerm, 2, PRIVILEGE_USER},
+  { _fnum_multitaskerSetIOPerm, kernelMultitaskerSetIOPerm,
+    3, PRIVILEGE_SUPERVISOR}
 };
 
 static kernelFunctionIndex loaderFunctionIndex[] = {
@@ -492,7 +503,7 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   { _fnum_imageLoad, kernelImageLoad, 4, PRIVILEGE_USER },
   { _fnum_imageSave, kernelImageSave, 3, PRIVILEGE_USER },
   { _fnum_shutdown, kernelShutdown, 2, PRIVILEGE_USER },
-  { _fnum_version, kernelVersion, 0, PRIVILEGE_USER },
+  { _fnum_getVersion, kernelGetVersion, 2, PRIVILEGE_USER },
   { _fnum_encryptMD5, kernelEncryptMD5, 2, PRIVILEGE_USER },
   { _fnum_lockGet, kernelLockGet, 1, PRIVILEGE_USER },
   { _fnum_lockRelease, kernelLockRelease, 1, PRIVILEGE_USER },

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -125,7 +125,7 @@ static int flushFSInfo(fatInternalData *fatData)
   int status = 0;
 
   fatData->fsInfo.freeCount = fatData->freeClusters;
-  
+
   // Write the updated FSInfo block back to the disk
   status = kernelDiskWriteSectors((char *) fatData->disk->name,
 				  fatData->bpb.fat32.fsInfo, 1,
@@ -420,7 +420,8 @@ static int readVolumeInfo(fatInternalData *fatData)
 	  (fatData->fsInfo.freeCount != 0xFFFFFFFF))
 	{
 	  // Oops, not a legal value for FAT
-	  kernelError(kernel_error, "Illegal FAT32 free cluster count (%x)");
+	  kernelError(kernel_error, "Illegal FAT32 free cluster count (%x)",
+		      fatData->fsInfo.freeCount);
 	  return (status = ERR_BADDATA);
 	}
 
@@ -1688,8 +1689,9 @@ static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
       dirEntry[0x19] = (unsigned char) (temp >> 8);
 
       // startCluster (word value) 
-      dirEntry[0x1A] = (unsigned char) (entryData->startCluster & 0x000000FF);
-      dirEntry[0x1B] = (unsigned char) (entryData->startCluster >> 8);
+      dirEntry[0x1A] = (unsigned char) (entryData->startCluster & 0xFF);
+      dirEntry[0x1B] =
+	(unsigned char) ((entryData->startCluster  & 0xFF00) >> 8);
 
       // Now we get the size.  If it's a directory we write zero for the size
       // (doubleword value)
@@ -3232,6 +3234,12 @@ static int detect(kernelDisk *theDisk)
     // but we can't be sure otherwise.
     return (status = 0);
 
+  // NTFS $Boot files look a lot like FAT, and we in fact can reach
+  // this point without failing.  Check for NTFS signature.
+  if (!strncmp(bpb.oemName, "NTFS    ", 8))
+    // Maybe NTFS
+    return (status = 0);
+
   // We will accept this as a FAT filesystem.  Gather some information.
 
   // Set the disk's fsType string, tentatively
@@ -3309,8 +3317,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   // Clear out our new FAT data structure
   kernelMemClear((void *) &fatData, sizeof(fatInternalData));
 
-  if (prog)
-    strcpy(prog->statusMessage, "Calculating parameters");
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+    {
+      strcpy((char *) prog->statusMessage, "Calculating parameters");
+      kernelLockRelease(&(prog->lock));
+    }
 
   // Set the disk structure
   fatData.disk = theDisk;
@@ -3427,6 +3438,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 			   (fatData.bpb.numFats * fatData.fatSects) +
 			   fatData.rootDirSects));
   fatData.dataClusters = (fatData.dataSects / fatData.bpb.sectsPerClust);
+  fatData.freeClusters = fatData.dataClusters;
 
   if ((fatData.fsType == fat12) || (fatData.fsType == fat16))
     {
@@ -3468,8 +3480,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       (fatData.bpb.rsvdSectCount + (fatData.bpb.numFats * fatData.fatSects) +
        fatData.rootDirSects);
 
-  if (prog)
-    strcpy(prog->statusMessage, "Clearing control sectors");
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+    {
+      strcpy((char *) prog->statusMessage, "Clearing control sectors");
+      kernelLockRelease(&(prog->lock));
+    }
 
   for (count = 0; count < clearSectors; )
     {
@@ -3486,8 +3501,12 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
       count += doSectors;
 
-      if (prog && (prog->percentFinished < 70))
-	prog->percentFinished = ((count * 100) / clearSectors);
+      if (prog && (prog->percentFinished < 70) &&
+	  (kernelLockGet(&(prog->lock)) >= 0))
+	{
+	  prog->percentFinished = ((count * 100) / clearSectors);
+	  kernelLockRelease(&(prog->lock));
+	}
     }
 
   // Set first two FAT table entries
@@ -3510,7 +3529,6 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       fatData.bpb.fat32.backupBootSect = 6;
       fatData.fsInfo.leadSig = 0x41615252;
       fatData.fsInfo.structSig = 0x61417272;
-      fatData.fsInfo.freeCount = (fatData.dataClusters - 1);
       fatData.fsInfo.nextFree = 3;
       fatData.fsInfo.trailSig = 0xAA550000;
 
@@ -3527,6 +3545,8 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	      return (status);
 	    }
 	}
+      // Used one for the root directory
+      fatData.freeClusters -= 1;
 
       *((unsigned *) sectorBuff) = (0x0FFFFF00 | fatData.bpb.media);
       *((unsigned *)(sectorBuff + 4)) = 0x0FFFFFFF;
@@ -3536,10 +3556,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	fatData.terminalClust;
     }
 
-  if (prog)
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 80;
-      strcpy(prog->statusMessage, "Writing FATs");
+      strcpy((char *) prog->statusMessage, "Writing FATs");
+      kernelLockRelease(&(prog->lock));
     }
 
   // Write the first sector of the FATs
@@ -3555,10 +3576,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       return (status);
     }
 
-  if (prog)
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 85;
-      strcpy(prog->statusMessage, "Writing volume info");
+      strcpy((char *) prog->statusMessage, "Writing volume info");
+      kernelLockRelease(&(prog->lock));
     }
 
   status = flushVolumeInfo(&fatData);
@@ -3581,8 +3603,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	}
     }
 
-  if (prog)
-    prog->percentFinished = 90;
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+    {
+      prog->percentFinished = 90;
+      kernelLockRelease(&(prog->lock));
+    }
 
   // Set the proper filesystem type name on the disk structure
   switch (fatData.fsType)
@@ -3600,10 +3625,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       strcpy((char *) theDisk->fsType, "fat");
     }
 
-  if (prog)
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 95;
-      strcpy(prog->statusMessage, "Syncing disk");
+      strcpy((char *) prog->statusMessage, "Syncing disk");
+      kernelLockRelease(&(prog->lock));
     }
 
   status = kernelDiskSyncDisk((char *) theDisk->name);
@@ -3615,8 +3641,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	    fatData.bpb.sectsPerClust, fatData.rootDirSects,
 	    fatData.fatSects, fatData.dataClusters);
 
-  if (prog)
-    prog->percentFinished = 100;
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+    {
+      prog->percentFinished = 100;
+      kernelLockRelease(&(prog->lock));
+    }
 
   return (status);
 }
@@ -3668,10 +3697,13 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
 	  // Read it into memory, then re-write it, and delete the existing
 	  // cluster chain.
 
-	  if (prog)
-	    snprintf(prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
-		     "Defragmenting %d/%d: %s", (prog->finished + 1),
-		     prog->total, entry->name);
+	  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+	    {
+	      snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
+		       "Defragmenting %d/%d: %s", (prog->finished + 1),
+		       prog->total, entry->name);
+	      kernelLockRelease(&(prog->lock));
+	    }
 
 	  fileData =
 	    kernelMalloc(numClusters * fatData->bpb.sectsPerClust *
@@ -3709,10 +3741,11 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
 	      return (status);
 	    }
 
-	  if (prog)
+	  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
 	    {
 	      prog->finished += 1;
 	      prog->percentFinished = ((prog->finished * 100) / prog->total);
+	      kernelLockRelease(&(prog->lock));
 	    }
 
 	  break;
@@ -3792,8 +3825,11 @@ static int defragment(kernelDisk *theDisk, progress *prog)
       return (status = ERR_NULLPARAMETER);
     }
 
-  if (prog)
-    strcpy(prog->statusMessage, "Reading filesystem info");
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+    {
+      strcpy((char *) prog->statusMessage, "Reading filesystem info");
+      kernelLockRelease(&(prog->lock));
+    }
 
   fatData = getFatData(theDisk);
   if (fatData == NULL)
@@ -3813,8 +3849,12 @@ static int defragment(kernelDisk *theDisk, progress *prog)
   if (status < 0)
     return (status);
 
-  if (prog)
-    snprintf(prog->statusMessage, PROGRESS_MAX_MESSAGELEN, "Analyzing");
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
+    {
+      snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
+	       "Analyzing");
+      kernelLockRelease(&(prog->lock));
+    }
 
   // Check fragmentation
   status = defragRecursive(fatData, theDisk->filesystem.filesystemRoot, 1,
@@ -3822,15 +3862,16 @@ static int defragment(kernelDisk *theDisk, progress *prog)
   if (status < 0)
     return (status);
 
-  if (prog)
+  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->total = status;
-      snprintf(prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
+      snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
 	       "%d files need defragmentation", prog->total);
-    }
+      kernelLockRelease(&(prog->lock));
 
-  if (prog->total == 0)
-    return (status = 0);
+      if (prog->total == 0)
+	return (status = 0);
+    }
 
   // Do the actual defrag
   status =
@@ -4626,6 +4667,8 @@ static kernelFilesystemDriver defaultFatDriver = {
   clobber,
   NULL, // driverCheck
   defragment,
+  NULL, // driverStat
+  NULL, // driverGetResizeConstraints
   NULL, // driverResize
   mount,
   unmount,

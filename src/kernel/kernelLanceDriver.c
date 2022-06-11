@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -424,9 +424,9 @@ static int driverDetect(void *driver)
   int deviceCount, count, shift;
 
   // Get the PCI bus device
-  status = kernelDeviceFind(kernelDeviceGetClass(DEVICECLASS_BUS),
-			    kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI),
-			    &pciDevice, 1);
+  status = kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_BUS),
+				kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI),
+				&pciDevice, 1);
   if (status <= 0)
     return (status);
 

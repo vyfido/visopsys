@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,14 +29,11 @@
 // Definitions
 #define MAX_ERRORTEXT_LENGTH 1024
 
-// Items concerning severity
-typedef enum {
-  kernel_panic, kernel_error,  kernel_warn 
-} kernelErrorKind;
-
 void kernelErrorOutput(const char *, const char *, int, kernelErrorKind, 
-		       const char *, ...);
-void kernelErrorDialog(const char *, const char *, ...);
+		       const char *, ...)
+     __attribute__((format(printf, 5, 6)));
+void kernelErrorDialog(const char *, const char *, ...)
+     __attribute__((format(printf, 2, 3)));
 
 // This macro should be used to invoke all kernel errors
 #define kernelError(kind, message, arg...) \

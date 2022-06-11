@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -837,14 +837,14 @@ static int driverReadSectors(int driveNum, unsigned logicalSector,
 
 
 static int driverWriteSectors(int driveNum, unsigned logicalSector,
-			      unsigned numSectors, void *buffer)
+			      unsigned numSectors, const void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
 
   // This routine is a wrapper for the readWriteSectors routine.
-  return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
-			   0));  // Write operation
+  return (readWriteSectors(driveNum, logicalSector, numSectors,
+			   (void *) buffer, 0));  // Write operation
 }
 
 

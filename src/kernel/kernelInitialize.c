@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,6 +31,7 @@
 #include "kernelLog.h"
 #include "kernelDescriptor.h"
 #include "kernelInterrupt.h"
+#include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelRandom.h"
@@ -42,6 +43,36 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+
+static void writeLoaderLog(char *screen, int chars, int bytesPerChar)
+{
+  // Write the saved screen contents to a 'loader log'
+
+  char *buffer = NULL;
+  fileStream tmpFile;
+  int count;
+
+  buffer = kernelMalloc(chars);
+  if (buffer == NULL)
+    return;
+
+  for (count = 0; count < chars; count ++)
+    buffer[count] = screen[count * bytesPerChar];
+
+  if (kernelFileStreamOpen("/system/vloader.log",
+			   (OPENMODE_WRITE | OPENMODE_CREATE |
+			    OPENMODE_TRUNCATE), &tmpFile) < 0)
+    {
+      kernelFree(buffer);
+      return;
+    }
+
+  kernelFileStreamWrite(&tmpFile, chars, buffer);
+  kernelFileStreamClose(&tmpFile);
+  kernelFree(buffer);
+  return;
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -60,6 +91,9 @@ int kernelInitialize(unsigned kernelMemory)
   // for processing.  Returns 0 if successful, negative on error.
 
   int status;
+  kernelTextOutputStream *consoleOutput = NULL;
+  int bytesPerChar = 0;
+  char *savedScreen = NULL;
   int graphics = 0;
   char welcomeMessage[512];
   static char rootDiskName[DISK_MAX_NAMELENGTH];
@@ -69,6 +103,8 @@ int kernelInitialize(unsigned kernelMemory)
   image splashImage;
   int networking = 0;
   int count;
+
+  extern char *kernelVersion[];
 
   // The kernel config file.  We read it later on in this function
   extern variableList *kernelVariables;
@@ -95,6 +131,19 @@ int kernelInitialize(unsigned kernelMemory)
   if (status < 0)
     return (status);
 
+  // Save the current screen
+  kernelTextScreenSave();
+
+  consoleOutput = kernelTextGetConsoleOutput();
+  bytesPerChar = consoleOutput->textArea->bytesPerChar;
+  savedScreen = kernelMalloc(80 * 50 * bytesPerChar);
+  if (savedScreen)
+    kernelMemCopy(consoleOutput->textArea->savedScreen, savedScreen,
+		  (80 * 50 * bytesPerChar));
+
+  // Clear the screen
+  kernelTextScreenClear();
+
   // Initialize kernel logging
   status = kernelLogInitialize();
   if (status < 0)
@@ -108,8 +157,8 @@ int kernelInitialize(unsigned kernelMemory)
   kernelLogSetToConsole(0);
 
   // Log a starting message
-  sprintf(welcomeMessage, "%s\nCopyright (C) 1998-2005 J. Andrew McLaughlin",
-	  kernelVersion());
+  sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2006 J. Andrew "
+	  "McLaughlin", kernelVersion[0], kernelVersion[1]);
   kernelLog(welcomeMessage);
 
   // Initialize the descriptor tables (GDT and IDT)
@@ -321,7 +370,13 @@ int kernelInitialize(unsigned kernelMemory)
       if (status < 0)
 	// Make a warning, but don't return error.  This is not fatal.
 	kernelError(kernel_warn, "Unable to open the kernel log file");
+
+      if (savedScreen)
+	// Write the saved screen contents to a "boot log"
+	writeLoaderLog(savedScreen, (80 * 50), bytesPerChar);
     }
+  if (savedScreen)
+    kernelFree(savedScreen);
 
   // Read the kernel's symbols from the kernel symbols file, if possible
   kernelReadSymbols(KERNEL_SYMBOLS_FILE);

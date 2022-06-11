@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,6 +29,13 @@
 #define MAX_FILESYSTEMS 32
 #define MAX_FS_NAME_LENGTH 64
 
+typedef struct {
+  unsigned usedSectors;
+  unsigned freeSectors;
+  unsigned blockSize;
+
+} kernelFilesystemStats;
+
 // This is the structure that is used to define a file system
 // driver
 typedef struct {
@@ -39,7 +46,9 @@ typedef struct {
   int (*driverClobber) (kernelDisk *);
   int (*driverCheck) (kernelDisk *, int, int, progress *);
   int (*driverDefragment) (kernelDisk *, progress *);
-  int (*driverResize) (kernelDisk *, diskResizeParameters *, progress *);
+  int (*driverResizeConstraints) (kernelDisk *, unsigned *, unsigned *);
+  int (*driverStat) (kernelDisk *, kernelFilesystemStats *);
+  int (*driverResize) (kernelDisk *, unsigned, progress *);
   int (*driverMount) (kernelDisk *);
   int (*driverUnmount) (kernelDisk *);
   unsigned (*driverGetFree) (kernelDisk *);
@@ -65,6 +74,8 @@ typedef struct {
 int kernelFilesystemExtInitialize(void);
 int kernelFilesystemFatInitialize(void);
 int kernelFilesystemIsoInitialize(void);
+int kernelFilesystemLinuxSwapInitialize(void);
+int kernelFilesystemNtfsInitialize(void);
 
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemScan(kernelDisk *);
@@ -72,6 +83,9 @@ int kernelFilesystemFormat(const char *, const char *, const char *, int,
 			   progress *);
 int kernelFilesystemClobber(const char *);
 int kernelFilesystemDefragment(const char *, progress *);
+int kernelFilesystemStat(const char *, kernelFilesystemStats *);
+int kernelFilesystemResizeConstraints(const char *, unsigned *, unsigned *);
+int kernelFilesystemResize(const char *, unsigned, progress *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
 int kernelFilesystemCheck(const char *, int, int, progress *);

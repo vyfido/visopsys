@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,6 +34,7 @@
 // Functions
 void bcopy(const void *, void *, size_t n);
 void bzero(void *, size_t);
+int ffs(int);
 int memcmp(const void *, const void *, size_t);
 void *memcpy(void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
@@ -43,6 +44,8 @@ char *strcat(char *, const char *);
 char *strchr(const char *, int);
 int strcmp(const char *, const char *);
 char *strcpy(char *, const char *);
+char *strdup(const char *);
+char *strerror(int);
 size_t strlen(const char *);
 int strncasecmp(const char *, const char *, size_t);
 char *strncat(char *, const char *, size_t);

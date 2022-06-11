@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,13 +45,14 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/cdefs.h>
 
 #define LOGINPROGRAM    "/programs/login"
 #define INSTALLPROGRAM  "/programs/install"
 
 static int processId = 0;
 static int readOnly = 1;
-static char *titleString     = "Copyright (C) 1998-2005 J. Andrew McLaughlin";
+static char *titleString     = "Copyright (C) 1998-2006 J. Andrew McLaughlin";
 static char *gplString       =
 "  This program is free software; you can redistribute it and/or modify it  \n"
 "  under the terms of the GNU General Public License as published by the\n"
@@ -200,10 +201,12 @@ static void constructWindow(void)
   // If we are in graphics mode, make a window rather than operating on the
   // command line.
 
+  char versionString[32];
   char title[80];
   componentParameters params;
 
-  sprintf(title, "Welcome to %s", version());
+  getVersion(versionString, 32);
+  sprintf(title, "Welcome to %s", versionString);
 
   // Create a new window, with small, arbitrary size and location
   window = windowNew(processId, title);

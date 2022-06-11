@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,6 +52,7 @@ functionality of PartitionMagic and similar utilities.
 </help>
 */
 
+#include "fdisk.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -60,7 +61,16 @@ functionality of PartitionMagic and similar utilities.
 #include <sys/api.h>
 #include <sys/vsh.h>
 #include <sys/fat.h>
-#include "fdisk.h"
+#include <sys/ntfs.h>
+#include <sys/cdefs.h>
+
+#define PERM             "You must be a privileged user to use this " \
+                         "command.\n(Try logging in as user \"admin\")"
+#define PARTTYPES        "Supported partition types"
+#define STARTCYL_MESSAGE "Enter starting cylinder (%u-%u)"
+#define ENDCYL_MESSAGE   "Enter ending cylinder (%u-%u)\n" \
+                         "or size in megabytes with 'm' (1m-%um),\n" \
+                         "or size in cylinders with 'c' (1c-%uc)"
 
 static const char *programName = NULL;
 static int processId = 0;
@@ -102,6 +112,7 @@ static objectKey menuSetActive = NULL;
 static objectKey menuDelete = NULL;
 static objectKey menuFormat = NULL;
 static objectKey menuDefrag = NULL;
+static objectKey menuResize = NULL;
 static objectKey menuHide = NULL;
 static objectKey menuInfo = NULL;
 static objectKey menuListTypes = NULL;
@@ -123,7 +134,7 @@ static objectKey hideButton = NULL;
 static objectKey infoButton = NULL;
 static objectKey moveButton = NULL;
 static objectKey newButton = NULL;
-static objectKey setTypeButton = NULL;
+static objectKey resizeButton = NULL;
 static unsigned canvasWidth = 600;
 static unsigned canvasHeight = 60;
 
@@ -1696,9 +1707,10 @@ static void drawDiagram(void)
       // represent the partition.
       if (slices[count1].typeId)
 	{
-	  params.foreground.red = colors[colorCounter].red;
-	  params.foreground.green = colors[colorCounter].green;
-	  params.foreground.blue = colors[colorCounter].blue;
+	  slices[count1].color = &colors[colorCounter++];
+	  params.foreground.red = slices[count1].color->red;
+	  params.foreground.green = slices[count1].color->green;
+	  params.foreground.blue = slices[count1].color->blue;
 	  if (slices[count1].entryType == partition_logical)
 	    {
 	      params.xCoord1 += 3;
@@ -1707,7 +1719,6 @@ static void drawDiagram(void)
 	      params.height -= 6;
 	    }
 	  windowComponentSetData(canvas, &params, 1);
-	  colorCounter += 1;
 	}
 
       // If this is the selected slice, draw a border inside it
@@ -1733,7 +1744,7 @@ static void drawDiagram(void)
 static void printBanner(void)
 {
   textScreenClear();
-  printf("%s\nCopyright (C) 1998-2005 J. Andrew McLaughlin\n", programName);
+  printf("%s\nCopyright (C) 1998-2006 J. Andrew McLaughlin\n", programName);
 }
 
 
@@ -1786,13 +1797,14 @@ static void display(void)
 	  windowComponentSetEnabled(menuFormat, 1);
 	  windowComponentSetEnabled(defragButton, isDefrag);
 	  windowComponentSetEnabled(menuDefrag, isDefrag);
+	  windowComponentSetEnabled(resizeButton, 1);
+	  windowComponentSetEnabled(menuResize, 1);
 	  windowComponentSetEnabled(hideButton, isHide);
 	  windowComponentSetEnabled(menuHide, isHide);
 	  windowComponentSetEnabled(moveButton, isMove);
 	  windowComponentSetEnabled(menuMove, isMove);
 	  windowComponentSetEnabled(newButton, 0);
 	  windowComponentSetEnabled(menuNew, 0);
-	  windowComponentSetEnabled(setTypeButton, 1);
 	  windowComponentSetEnabled(menuSetType, 1);
 	}
       else
@@ -1806,13 +1818,14 @@ static void display(void)
 	  windowComponentSetEnabled(menuFormat, 0);
 	  windowComponentSetEnabled(defragButton, 0);
 	  windowComponentSetEnabled(menuDefrag, 0);
+	  windowComponentSetEnabled(menuResize, 0);
 	  windowComponentSetEnabled(hideButton, 0);
 	  windowComponentSetEnabled(menuHide, 0);
 	  windowComponentSetEnabled(moveButton, 0);
 	  windowComponentSetEnabled(menuMove, 0);
 	  windowComponentSetEnabled(newButton, 1);
 	  windowComponentSetEnabled(menuNew, 1);
-	  windowComponentSetEnabled(setTypeButton, 0);
+	  windowComponentSetEnabled(resizeButton, 0);
 	  windowComponentSetEnabled(menuSetType, 0);
 	}
 
@@ -1947,7 +1960,9 @@ static int mountedCheck(slice *entry)
 
   status = diskGet(entry->diskName, &tmpDisk);
   if (status < 0)
-    return (status);
+    // The disk probably doesn't exist (yet).  So, it obviously can't be
+    // mounted
+    return (status = 0);
 
   if (!tmpDisk.mounted)
     return (status = 0);
@@ -2185,9 +2200,22 @@ static void defragment(slice *formatSlice)
   if (status < 0)
     return;
 
+  sprintf(tmpChar, "Please use this feature with caution; it is not\n"
+	  "well tested.  Continue?");
+  if (graphics)
+    {
+      if (!windowNewQueryDialog(window, "New feature", tmpChar))
+	return;
+    }
+  else
+    {
+      if (!yesOrNo(tmpChar))
+	return;
+    }
+
   // Do the defrag
 
-  bzero(&prog, sizeof(progress));
+  bzero((void *) &prog, sizeof(progress));
   if (graphics)
     progressDialog =
       windowNewProgressDialog(window, "Defragmenting...", &prog);
@@ -2200,6 +2228,9 @@ static void defragment(slice *formatSlice)
     windowProgressDialogDestroy(progressDialog);
   else
     vshProgressBarDestroy(&prog);
+
+  // Regenerate the slice list
+  makeSliceList();
 
   if (status < 0)
     error("Error during defragmentation");
@@ -2215,9 +2246,6 @@ static void defragment(slice *formatSlice)
 	  pause();
 	}
     }
-
-  // Regenerate the slice list
-  makeSliceList();
 
   return;
 }
@@ -2299,7 +2327,7 @@ static void listTypes(void)
       if (typesDialog == NULL)
 	{
 	  error("Can't create dialog window");
-	  return;
+	  goto out;
 	}
 
       bzero(&params, sizeof(componentParameters));
@@ -2361,6 +2389,10 @@ static void listTypes(void)
 
   else
     pause();
+
+ out:
+  memoryRelease(types);
+  return;
 }
 
 
@@ -2425,11 +2457,15 @@ static int setType(int partition)
       for (count = 0; types[count].code != 0; count ++)
 	if (types[count].code == newCode)
 	  break;
+
       if (types[count].code == 0)
 	{
 	  error("Unsupported partition type %x", newCode);
+	  memoryRelease(types);
 	  return (status = ERR_INVALID);
 	}
+
+      memoryRelease(types);
 
       // Change the value
       entry.typeId = newCode;
@@ -2479,7 +2515,7 @@ static void writeChanges(int confirm)
 	      selectedDisk->name);
 
       // Tell the kernel to reexamine the partition tables
-      diskReadPartitions();
+      diskReadPartitions(selectedDisk->name);
     }
 }
 
@@ -2500,13 +2536,12 @@ static int move(int sliceId)
   unsigned destSector = 0;
   unsigned sectorsToCopy = 0;
   unsigned sectorsPerOp = 0;
+  int startSeconds = 0;
+  int remainingSeconds = 0;
+  progress prog;
+  objectKey progressDialog = NULL;
   char tmpChar[160];
   int count;
-
-  // Stuff for a progress dialog when in graphics mode
-  objectKey dialogWindow = NULL;
-  componentParameters params;
-  objectKey progressBar = NULL;
 
   if (sliceId < 0)
     return (status = ERR_INVALID);
@@ -2612,11 +2647,10 @@ static int move(int sliceId)
     moveLeft = 1;
  
   sprintf(tmpChar, "Moving partition from cylinder %u to cylinder %u.\n"
-	  "Please use this feature with caution; it is not\nwell tested.  "
 	  "Continue?", entry.startCylinder, newStartCylinder);
   if (graphics)
     {
-      if (!windowNewQueryDialog(window, "New Feature", tmpChar))
+      if (!windowNewQueryDialog(window, "Moving", tmpChar))
 	return (status = 0);
     }
   else
@@ -2624,36 +2658,6 @@ static int move(int sliceId)
       if (!yesOrNo(tmpChar))
 	return (status = 0);
     }
-
-  sprintf(tmpChar, "Moving %u sectors, %u Mb",
-	  entry.sizeLogical, (entry.sizeLogical /
-			      (1048576 / selectedDisk->sectorSize)));
-  if (graphics)
-    {
-      dialogWindow = windowNewDialog(window, "Moving...");
-	      
-      bzero(&params, sizeof(componentParameters));
-      params.gridWidth = 1;
-      params.gridHeight = 1;
-      params.padTop = 5;
-      params.padLeft = 5;
-      params.padRight = 5;
-      params.orientationX = orient_center;
-      params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
-      windowNewTextLabel(dialogWindow, tmpChar, &params);
-      
-      params.gridY = 1;
-      progressBar = windowNewProgressBar(dialogWindow, &params);
-      
-      windowSetHasCloseButton(dialogWindow, 0);
-      windowSetResizable(dialogWindow, 0);
-      windowCenterDialog(window, dialogWindow);
-      windowSetVisible(dialogWindow, 1);
-    }
-  else
-    printf("\n%s\n", tmpChar);
 
   sectorsPerOp = cylinderSectors;
   if (moveLeft && ((entry.startLogical - newStartLogical) < sectorsPerOp))
@@ -2668,10 +2672,8 @@ static int move(int sliceId)
     }
   else
     {
-      srcSector =
-	(entry.startLogical + ((entry.sizeLogical - sectorsPerOp) - 1));
-      destSector =
-	(newStartLogical + ((entry.sizeLogical - sectorsPerOp) - 1));
+      srcSector = (entry.startLogical + (entry.sizeLogical - sectorsPerOp));
+      destSector = (newStartLogical + (entry.sizeLogical - sectorsPerOp));
     }
 
   sectorsToCopy = entry.sizeLogical;
@@ -2685,21 +2687,26 @@ static int move(int sliceId)
       return (status = ERR_MEMORY);
     }
 
+  bzero((void *) &prog, sizeof(progress));
+  prog.total = sectorsToCopy;
+  strcpy((char *) prog.statusMessage, "Time remaining: ?:??");
+
+  sprintf(tmpChar, "Moving %u Mb",
+	  (entry.sizeLogical / (1048576 / selectedDisk->sectorSize)));
+
+  if (graphics)
+    progressDialog = windowNewProgressDialog(window, tmpChar, &prog);
+  else
+    {
+      printf("\n%s\n", tmpChar);
+      vshProgressBar(&prog);
+    }
+
+  startSeconds = rtcUptimeSeconds();
+
   // Copy the data
   while (sectorsToCopy > 0)
     {
-      if (graphics)
-	// Update the progress indicator
-	windowComponentSetData(progressBar,
-			     (void *)(((entry.sizeLogical - sectorsToCopy) *
-				       100) / entry.sizeLogical), 1);
-      else
-	{
-	  textSetColumn(2);
-	  printf("%d%% ", (((entry.sizeLogical - sectorsToCopy) *
-                                       100) / entry.sizeLogical));
-	}
-
       if (sectorsToCopy < sectorsPerOp)
 	sectorsPerOp = sectorsToCopy;
 
@@ -2709,7 +2716,7 @@ static int move(int sliceId)
       if (status < 0)
 	{
 	  error("Read error %d reading sectors %u-%u from disk %s",
-		status, srcSector, ((srcSector + sectorsPerOp) - 1),
+		status, srcSector, (srcSector + (sectorsPerOp - 1)),
 		selectedDisk->name);
 	  goto out;
 	}
@@ -2720,22 +2727,25 @@ static int move(int sliceId)
       if (status < 0)
 	{
 	  error("Write error %d writing sectors %u-%u to disk %s",
-		status, destSector, ((destSector + sectorsPerOp) - 1),
+		status, destSector, (destSector + (sectorsPerOp - 1)),
 		selectedDisk->name);
 	  goto out;
 	}
 
       sectorsToCopy -= sectorsPerOp;
-      
-      if (moveLeft)
+      srcSector += (moveLeft? sectorsPerOp : -sectorsPerOp);
+      destSector += (moveLeft? sectorsPerOp : -sectorsPerOp);
+
+      if (lockGet(&(prog.lock)) >= 0)
 	{
-	  srcSector += min(sectorsToCopy, sectorsPerOp);
-	  destSector += min(sectorsToCopy, sectorsPerOp);
-	}
-      else
-	{
-	  srcSector -= min(sectorsToCopy, sectorsPerOp);
-	  destSector -= min(sectorsToCopy, sectorsPerOp);
+	  prog.finished += sectorsPerOp;
+	  prog.percentFinished = ((prog.finished * 100) / prog.total);
+	  remainingSeconds = (((rtcUptimeSeconds() - startSeconds) *
+			       (sectorsToCopy / sectorsPerOp)) /
+			      (prog.finished / sectorsPerOp));
+	  sprintf((char *) prog.statusMessage, "Time remaining: %d:%02d",
+		  (remainingSeconds / 3600), ((remainingSeconds % 3600) / 60));
+	  lockRelease(&(prog.lock));
 	}
     }
 
@@ -2776,16 +2786,10 @@ static int move(int sliceId)
   // Release memory
   memoryRelease(buffer);
 
-  if (graphics)
-    {
-      windowComponentSetData(progressBar, (void *) 100, 1);
-      windowDestroy(dialogWindow);
-    }
+  if (graphics && progressDialog)
+    windowProgressDialogDestroy(progressDialog);
   else
-    {
-      textSetColumn(2);
-      printf("100%%\n");
-    }
+    vshProgressBarDestroy(&prog);
 
   return (status);
 }
@@ -2908,10 +2912,6 @@ static partEntryType queryPrimaryLogical(objectKey primLogRadio)
 static void create(int sliceNumber)
 {
   enum { units_normal, units_mb, units_cylsize } units = units_normal;
-
-  #define STARTCYL_MESSAGE "Enter starting cylinder (%u-%u)"
-  #define ENDCYL_MESSAGE "Enter ending cylinder (%u-%u)\nor size in " \
-   "megabytes with 'm' (1m-%um),\nor size in cylinders with 'c' (1c-%uc)"
 
   int status = 0;
   char startCyl[10];
@@ -3107,6 +3107,8 @@ static void create(int sliceNumber)
 	  if (status < 0)
 	    return;
 
+	  printf("\n");
+	  
 	  if ((endCyl[0] == 'Q') || (endCyl[0] == 'q'))
 	    return;
 	}
@@ -3264,6 +3266,497 @@ static void deleteAll(void)
 }
 
 
+static void resizePartition(int sliceId, slice *entry, unsigned newEndCylinder,
+			    unsigned newEndHead, unsigned newEndSector,
+			    unsigned newSize)
+{
+  // Resize the partition
+  entry->endCylinder = newEndCylinder;
+  entry->endHead = newEndHead;
+  entry->endSector = newEndSector;
+  entry->sizeLogical = newSize;
+  
+  // Set the partition
+  setPartitionEntry(sliceId, entry);
+  
+  // Redo the slice strings
+  makeSliceList();
+
+  changesPending += 1;
+}
+
+
+static int resize(int sliceId)
+{
+  enum { units_normal, units_mb, units_cylsize } units = units_normal;
+
+  int status = 0;
+  slice entry;
+  int sliceNumber = -1;
+  int resizeFs = 0;
+  unsigned long long minFsSectors = 0;
+  unsigned long long maxFsSectors = 0;
+  int haveResizeConstraints = 0;
+  unsigned minEndCylinder = 0;
+  unsigned maxEndCylinder = 0;
+  objectKey resizeDialog = NULL;
+  objectKey partCanvas = NULL;
+  objectKey endCylField = NULL;
+  objectKey okButton = NULL;
+  objectKey cancelButton = NULL;
+  char newEndString[10];
+  unsigned newEndCylinder = 0;
+  unsigned oldEndCylinder, oldEndHead, oldEndSector, oldSizeLogical;
+  int didResize = 0;
+  componentParameters params;
+  windowDrawParameters drawParams;
+  windowEvent event;
+  unsigned newSize = 0;
+  progress prog;
+  objectKey bannerDialog = NULL;
+  objectKey progressDialog = NULL;
+  char tmpChar[256];
+  int count;
+
+  if (sliceId < 0)
+    return (status = ERR_INVALID);
+
+  status = getPartitionEntry(sliceId, &entry);
+  if (status < 0)
+    return (status);
+
+  // Determine whether or not we can resize the filesystem
+  if ((slices[selectedSlice].opFlags & FS_OP_RESIZE) ||
+      !strcmp(slices[selectedSlice].fsType, "ntfs"))
+    {
+      // We can resize this filesystem.
+      resizeFs = 1;
+
+      char *optionStrings[] =
+	{
+	  "Filesystem and partition (recommended)",
+	  "Partition only"
+	};
+      int selected = -1;
+      
+      // We can resize the filesystem, but does the user want to?
+      strcpy(tmpChar, "Please select the type of resize operation:");
+      if (graphics)
+	selected = windowNewRadioDialog(window, "Resize type",
+					tmpChar, optionStrings, 2, 0);
+      else
+	selected = vshCursorMenu(tmpChar, 2, optionStrings, 0);
+
+      switch (selected)
+	{
+	case 0:
+	  break;
+	case 1:
+	  resizeFs = 0;
+	  break;
+	default:
+	  // Cancelled
+	  return (status = 0);
+	}
+
+      if (resizeFs)
+	{
+	  if (changesPending)
+	    {
+	      error("A filesystem resize cannot be undone, and must be "
+		    "committed\nto disk immediately.  You need to write your "
+		    "other changes\nto disk before continuing.");
+	      return (status = 0);
+	    }
+
+	  if (slices[selectedSlice].opFlags & FS_OP_RESIZECONST)
+	    {
+	      strcpy(tmpChar, "Collecting filesystem resizing constraints...");
+	      if (graphics)
+		bannerDialog = windowNewBannerDialog(window, "Filesystem",
+						     tmpChar);
+	      else
+		printf("\n%s\n\n", tmpChar);
+
+	      status =
+		filesystemResizeConstraints(entry.diskName,
+					    (unsigned *) &minFsSectors,
+					    (unsigned *) &maxFsSectors);
+
+	      if (graphics && bannerDialog)
+		windowDestroy(bannerDialog);
+
+	      if (status < 0)
+		{
+		  sprintf(tmpChar, "Error reading filesystem information.  "
+			  "However, it is\npossible to resize the partition "
+			  "anyway and discard all\nof the data it contains.  "
+			  "Continue?");
+		  if (graphics)
+		    {
+		      if (!windowNewQueryDialog(window, "Can't resize "
+						"filesystem", tmpChar))
+			return (status = 0);
+		    }
+		  else
+		    {
+		      if (!yesOrNo(tmpChar))
+			return (status = 0);
+		    }
+	      
+		  resizeFs = 0;
+		}
+	      else
+		haveResizeConstraints = 1;
+	    }
+	}
+    }
+  else
+    {
+      // We can't resize this filesystem, but we will offer to resize
+      // the partition anyway.
+      sprintf(tmpChar, "Resizing the filesystem on this partition is not "
+	      "supported.\n[ Currently, only Windows NTFS can be resized ]\n"
+	      "However, it is possible to resize the partition anyway and\n"
+	      "discard all of the data it contains.  Continue?");
+      if (graphics)
+	{
+	  if (!windowNewQueryDialog(window, "Can't resize filesystem",
+				    tmpChar))
+	    return (status = 0);
+	}
+      else
+	{
+	  if (!yesOrNo(tmpChar))
+	    return (status = 0);
+	}
+    }
+
+  status = mountedCheck(&entry);
+  if (status < 0)
+    return (status);
+
+  // Find out which slice it is in our list
+  for (count = 0; count < numberSlices; count ++)
+    if (slices[count].typeId && (slices[count].sliceId == sliceId))
+      {
+	sliceNumber = count;
+	break;
+      }
+
+  if (sliceNumber < 0)
+    return (status = sliceNumber);
+
+  // Calculate the minimum and maximum permissable sizes.
+
+  minEndCylinder = entry.startCylinder;
+  if (haveResizeConstraints)
+    minEndCylinder += (((minFsSectors / cylinderSectors) +
+			((minFsSectors % cylinderSectors)? 1 : 0)) - 1);
+
+  if ((sliceNumber < (numberSlices - 1)) && !slices[sliceNumber + 1].typeId)
+    maxEndCylinder = slices[sliceNumber + 1].endCylinder;
+  else
+    maxEndCylinder = entry.endCylinder;
+  if (haveResizeConstraints)
+    maxEndCylinder = min((entry.startCylinder +
+			  ((maxFsSectors / cylinderSectors) +
+			   ((maxFsSectors % cylinderSectors)? 1 : 0)) - 1),
+			 maxEndCylinder);
+
+  while (1)
+    {
+      if (graphics)
+	{
+	  resizeDialog = windowNewDialog(window, "Resize partition");
+
+	  bzero(&params, sizeof(componentParameters));
+	  params.gridWidth = 2;
+	  params.gridHeight = 1;
+	  params.padTop = 10;
+	  params.padLeft = 5;
+	  params.padRight = 5;
+	  params.orientationX = orient_center;
+	  params.orientationY = orient_middle;
+	  params.useDefaultForeground = 1;
+	  params.useDefaultBackground = 1;
+
+	  if (haveResizeConstraints)
+	    {
+	      params.hasBorder = 1;
+	      partCanvas = windowNewCanvas(resizeDialog, (canvasWidth / 2),
+					   canvasHeight, &params);
+	    }
+
+	  // A label and field for the new size
+	  sprintf(tmpChar, "Current ending cylinder: %u\n"ENDCYL_MESSAGE,
+		  entry.endCylinder, minEndCylinder, maxEndCylinder,
+		  cylsToMb(selectedDisk,
+			   (maxEndCylinder - minEndCylinder + 1)),
+		  (maxEndCylinder - minEndCylinder + 1));
+	  params.gridY++;
+	  params.padTop = 5;
+	  params.orientationX = orient_left;
+	  params.hasBorder = 0;
+	  windowNewTextLabel(resizeDialog, tmpChar, &params);
+      
+	  params.gridY++;
+	  params.hasBorder = 1;
+	  endCylField = windowNewTextField(resizeDialog, 10, &params);
+
+	  // Make 'OK' and 'cancel' buttons
+	  params.gridY++;
+	  params.gridWidth = 1;
+	  params.padBottom = 5;
+	  params.orientationX = orient_right;
+	  params.hasBorder = 0;
+	  params.fixedWidth = 1;
+	  okButton = windowNewButton(resizeDialog, "OK", NULL, &params);
+
+	  params.gridX = 1;
+	  params.orientationX = orient_left;
+	  cancelButton =
+	    windowNewButton(resizeDialog, "Cancel", NULL, &params);
+      
+	  // Make the window visible
+	  windowSetResizable(resizeDialog, 0);
+	  windowCenterDialog(window, resizeDialog);
+	  windowSetVisible(resizeDialog, 1);
+
+	  if (haveResizeConstraints)
+	    {
+	      // Set up our drawing parameters for the canvas
+	      bzero(&drawParams, sizeof(windowDrawParameters));
+	      drawParams.operation = draw_rect;
+	      drawParams.mode = draw_normal;
+	      drawParams.width = windowComponentGetWidth(partCanvas);
+	      drawParams.height = canvasHeight;
+	      drawParams.thickness = 1;
+	      drawParams.fill = 1;
+
+	      // Draw a background
+	      drawParams.foreground.red = slices[selectedSlice].color->red;
+	      drawParams.foreground.green = slices[selectedSlice].color->green;
+	      drawParams.foreground.blue  = slices[selectedSlice].color->blue;
+	      windowComponentSetData(partCanvas, &drawParams, 1);
+
+	      // Draw a shaded bit representing the used portion
+	      drawParams.foreground.red =
+		((drawParams.foreground.red * 2) / 3);
+	      drawParams.foreground.green =
+		((drawParams.foreground.green * 2) / 3);
+	      drawParams.foreground.blue =
+		((drawParams.foreground.blue * 2) / 3);
+	      drawParams.width = ((minFsSectors * drawParams.width) /
+				  slices[selectedSlice].sizeLogical);
+	      windowComponentSetData(partCanvas, &drawParams, 1);
+	    }	   
+
+	  while(1)
+	    {
+	      // Check for the OK button
+	      if ((windowComponentEventGet(okButton, &event) > 0) &&
+		  (event.type == EVENT_MOUSE_LEFTUP))
+		break;
+
+	      // Check for the Cancel button
+	      if ((windowComponentEventGet(cancelButton, &event) > 0) &&
+		  (event.type == EVENT_MOUSE_LEFTUP))
+		{
+		  windowDestroy(resizeDialog);
+		  return (status = 0);
+		}
+
+	      // Check for window close events
+	      if ((windowComponentEventGet(resizeDialog, &event) > 0) &&
+		  (event.type == EVENT_WINDOW_CLOSE))
+		{
+		  windowDestroy(resizeDialog);
+		  return (status = 0);
+		}
+
+	      // Check for keyboard events
+	      if ((windowComponentEventGet(endCylField, &event) > 0) &&
+		  (event.type == EVENT_KEY_DOWN) &&
+		  (event.key == (unsigned char) 10))
+		break;
+
+	      // Done
+	      multitaskerYield();
+	    }
+
+	  windowComponentGetData(endCylField, newEndString, 10);
+	  windowDestroy(resizeDialog);
+	}
+
+      else
+	{
+	  printf("\nCurrent ending cylinder: %u\n"ENDCYL_MESSAGE
+		 ", or 'Q' to quit:\n-> ", entry.endCylinder,
+		 minEndCylinder, maxEndCylinder,
+		 cylsToMb(selectedDisk, (maxEndCylinder - minEndCylinder + 1)),
+		 (maxEndCylinder - minEndCylinder + 1));
+	  
+	  status = readLine("0123456789Qq", newEndString, 10);
+	  if (status < 0)
+	    continue;
+
+	  printf("\n");
+	  
+	  if ((newEndString[0] == 'Q') || (newEndString[0] == 'q'))
+	    return (status = 0);
+	}
+
+      count = (strlen(newEndString) - 1);
+
+      if ((newEndString[count] == 'M') || (newEndString[count] == 'm'))
+	{
+	  units = units_mb;
+	  newEndString[count] = '\0';
+	}
+      else if ((newEndString[count] == 'C') || (newEndString[count] == 'c'))
+	{
+	  units = units_cylsize;
+	  newEndString[count] = '\0';
+	}
+
+      newEndCylinder = atoi(newEndString);
+
+      switch (units)
+	{
+	case units_mb:
+	  newEndCylinder = (entry.startCylinder +
+			    mbToCyls(selectedDisk, newEndCylinder) - 1);
+	  break;
+	case units_cylsize:
+	  newEndCylinder = (entry.startCylinder + newEndCylinder - 1);
+	  break;
+	default:
+	  break;
+	}
+
+      if ((newEndCylinder < minEndCylinder) ||
+	  (newEndCylinder > maxEndCylinder))
+	{
+	  error("Invalid ending cylinder number");
+	  continue;
+	}
+
+      newSize = (((newEndCylinder + 1) * selectedDisk->heads *
+		  selectedDisk->sectorsPerCylinder) - entry.startLogical);
+      break;
+    }
+
+  // Before we go, warn that this is a new feature.
+  sprintf(tmpChar, "Resizing partition from %u to %u sectors.\n"
+	  "Please use this feature with caution; it is not\nwell tested.  "
+	  "Continue?", entry.sizeLogical, newSize);
+  if (graphics)
+    {
+      if (!windowNewQueryDialog(window, "New feature", tmpChar))
+	return (status = 0);
+    }
+  else
+    {
+      if (!yesOrNo(tmpChar))
+	return (status = 0);
+    }
+
+  oldEndCylinder = entry.endCylinder;
+  oldEndHead = entry.endHead;
+  oldEndSector = entry.endSector;
+  oldSizeLogical = entry.sizeLogical;
+
+  if (newSize >= entry.sizeLogical)
+    {
+      resizePartition(sliceId, &entry, newEndCylinder,
+		      (selectedDisk->heads - 1),
+		      selectedDisk->sectorsPerCylinder, newSize);
+      didResize = 1;
+    }
+
+  // Now, if we're resizing the filesystem...
+  if (resizeFs)
+    {
+      // Write everything
+      writeChanges(0);
+
+      // For now, we comment out the progress dialog stuff because it's not
+      // playing nice with the NTFS resizing code.  Just use a simple banner
+      // instead.
+
+      bzero((void *) &prog, sizeof(progress));
+      strcpy(tmpChar, "Resizing the filesystem...");
+      if (graphics)
+	progressDialog = windowNewProgressDialog(window, tmpChar, &prog);
+      else
+	vshProgressBar(&prog);
+
+      if (!strcmp(slices[selectedSlice].fsType, "ntfs"))
+	// NTFS resizing is done by our libntfs library
+	status = ntfsResize(entry.diskName, newSize, &prog);
+      else
+	// The kernel will do the resize
+	status = filesystemResize(entry.diskName, newSize, &prog);
+
+      if (graphics)
+	windowProgressDialogDestroy(progressDialog);
+      else
+	vshProgressBarDestroy(&prog);
+
+      // Regenerate the slice list
+      makeSliceList();
+
+      if (status < 0)
+	{
+	  if (didResize)
+	    {
+	      // Undo the partition resize
+	      entry.endCylinder = oldEndCylinder;
+	      entry.endHead = oldEndHead;
+	      entry.endSector = oldEndSector;
+	      entry.sizeLogical = oldSizeLogical;
+	      setPartitionEntry(sliceId, &entry);
+	      changesPending += 1;
+	      writeChanges(0);
+	      makeSliceList();
+	    }
+	  if (status == ERR_CANCELLED)
+	    error("Filesystem resize cancelled");
+	  else
+	    error("Error during filesystem resize");
+	  return (status);
+	}
+    }
+
+  if (!didResize)
+    {
+      resizePartition(sliceId, &entry, newEndCylinder,
+		      (selectedDisk->heads - 1),
+		      selectedDisk->sectorsPerCylinder, newSize);
+      
+      if (resizeFs)
+	// We already resized the filesystem, so write everything
+	writeChanges(0);
+    }
+
+  if (resizeFs)
+    {
+      sprintf(tmpChar, "Filesystem resize complete");
+      if (graphics)
+	windowNewInfoDialog(window, "Success", tmpChar);
+      else
+	{
+	  printf("\n%s\n", tmpChar);
+	  pause();
+	}
+    }
+
+  // Return success
+  return (status = 0);
+}
+
+
 static disk *chooseDiskDialog(void)
 {
   // Graphical way of prompting for disk selection
@@ -3351,11 +3844,8 @@ static int copyDiskIoThread(int argc, char *argv[])
   unsigned doSectors = 0;
   unsigned sectorsPerOp = 0;
   int currentBuffer = 0;
-  int percentage = 0;
   int startSeconds = rtcUptimeSeconds();
-  int elapsedSeconds = 0;
   int remainingSeconds = 0;
-  char statusText[80];
 
   // Are we a reader thread or a writer thread?
   if (argc < 2)
@@ -3425,34 +3915,18 @@ static int copyDiskIoThread(int argc, char *argv[])
       currentSector += sectorsPerOp;
       doSectors -= sectorsPerOp;
 
-      if (args->showProgress)
+      if (!reader && args->prog && (lockGet(&(args->prog->lock)) >= 0))
 	{
-	  percentage =
-	    (((currentSector - args->startSector) * 100) / args->numSectors);
-	  elapsedSeconds = (rtcUptimeSeconds() - startSeconds);
-	  remainingSeconds =
-	    ((elapsedSeconds * (doSectors / sectorsPerOp)) /
-	     ((currentSector - args->startSector) / sectorsPerOp));
-	  sprintf(statusText, "Time remaining: %d:%02d:%02d",
-		  (remainingSeconds / 3600), ((remainingSeconds % 3600) / 60),
-		  (remainingSeconds % 60));
-
-	  if (graphics)
-	    {
-	      if (args->progressBar)
-		// Update the progress indicator
-		windowComponentSetData(args->progressBar, (void *) percentage,
-				       1);
-	      if (args->statusLabel)
-		// Update the status label
-		windowComponentSetData(args->statusLabel, statusText,
-				       strlen(statusText));
-	    }
-	  else
-	    {
-	      textSetColumn(2);
-	      printf("%d%%  (%s)", percentage, statusText);
-	    }
+	  args->prog->finished = (currentSector - args->startSector);
+	  args->prog->percentFinished =
+	    ((args->prog->finished * 100) / args->numSectors);
+	  remainingSeconds = (((rtcUptimeSeconds() - startSeconds) *
+			       (doSectors / sectorsPerOp)) /
+			      (args->prog->finished / sectorsPerOp));
+	  sprintf((char *) args->prog->statusMessage,
+		  "Time remaining: %d:%02d", (remainingSeconds / 3600),
+		  ((remainingSeconds % 3600) / 60));
+	  lockRelease(&(args->prog->lock));
 	}
 
       if (currentBuffer == 0)
@@ -3547,18 +4021,11 @@ static int copyDisk(void)
   ioBuffer buffer;
   int readerPID = 0;
   int writerPID = 0;
-  int cancelled = 0;
   char tmpChar[160];
-  int count;
-
-  // Stuff for a progress dialog when in graphics mode
-  objectKey dialogWindow = NULL;
-  componentParameters params;
-  objectKey progressBar = NULL;
-  objectKey statusLabel = NULL;
-  objectKey cancelButton = NULL;
+  progress prog;
+  objectKey progressDialog = NULL;
   objectKey cancelDialog = NULL;
-  windowEvent event;
+  int count;
 
   if (numberDisks < 2)
     {
@@ -3703,43 +4170,20 @@ static int copyDisk(void)
 	}
     }
 
-  sprintf(tmpChar, "Copying %u sectors, %u Mb", (lastUsedSector + 1),
-	  ((lastUsedSector + 1) / (1048576 / srcDisk->sectorSize)));
-  
+  sprintf(tmpChar, "Copying %u Mb...", ((lastUsedSector + 1) /
+					(1048576 / srcDisk->sectorSize)));
+  bzero((void *) &prog, sizeof(progress));
+  prog.total = (lastUsedSector + 1);
+  strcpy((char *) prog.statusMessage, "Time remaining: ?:??");
+  prog.canCancel = 1;
+
   if (graphics)
-    {
-      dialogWindow = windowNewDialog(window, "Copying...");
-      
-      bzero(&params, sizeof(componentParameters));
-      params.gridWidth = 1;
-      params.gridHeight = 1;
-      params.padTop = 5;
-      params.padLeft = 5;
-      params.padRight = 5;
-      params.orientationX = orient_center;
-      params.orientationY = orient_middle;
-      params.useDefaultForeground = 1;
-      params.useDefaultBackground = 1;
-      windowNewTextLabel(dialogWindow, tmpChar, &params);
-      
-      params.gridY = 1;
-      progressBar = windowNewProgressBar(dialogWindow, &params);
-      
-      params.gridY = 2;
-      statusLabel =
-	windowNewTextLabel(dialogWindow, "Time remaining: ?:??:??", &params);
-      
-      params.gridY = 3;
-      params.padBottom = 5;
-      cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
-      
-      windowSetHasCloseButton(dialogWindow, 0);
-      windowSetResizable(dialogWindow, 0);
-      windowCenterDialog(window, dialogWindow);
-      windowSetVisible(dialogWindow, 1);
-    }
+    progressDialog = windowNewProgressDialog(window, tmpChar, &prog);
   else
-    printf("\n%s\n", tmpChar);
+    {
+      printf("\n%s (press 'Q' to cancel)\n", tmpChar);
+      vshProgressBar(&prog);
+    }
 
   // Set up and start our IO threads
 
@@ -3748,16 +4192,13 @@ static int copyDisk(void)
   readerArgs.startSector = 0;
   readerArgs.numSectors = (lastUsedSector + 1);
   readerArgs.buffer = &buffer;
-  readerArgs.showProgress = 0;
   
   bzero(&writerArgs, sizeof(ioThreadArgs));
   writerArgs.theDisk = destDisk;
   writerArgs.startSector = 0;
   writerArgs.numSectors = (lastUsedSector + 1);
   writerArgs.buffer = &buffer;
-  writerArgs.showProgress = 1;
-  writerArgs.progressBar = progressBar;
-  writerArgs.statusLabel = statusLabel;
+  writerArgs.prog = &prog;
 
   ioThreadsTerminate = 0;
   ioThreadsFinished = 0;
@@ -3782,29 +4223,25 @@ static int copyDisk(void)
       // Now we wait for the IO threads to terminate themselves
       if (!multitaskerProcessIsAlive(readerPID) ||
 	  !multitaskerProcessIsAlive(writerPID))
-	{
-	  cancelled = 1;
-	  break;
-	}
+	prog.cancel = 1;
 
-      if (graphics)
-	{
-	  // Check for the cancel button
-	  status = windowComponentEventGet(cancelButton, &event);
-	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
-	    {
-	      cancelled = 1;
-	      break;
-	    }
-	}
+      if (prog.cancel)
+	// This can be set above, or else by the progress dialog when the
+	// user presses the cancel button
+	break;
 
       multitaskerYield();
     }
 
-  if (cancelled)
+  if (prog.cancel)
     {
-      cancelDialog = windowNewBannerDialog(dialogWindow, "Cancel",
-					   "Terminating processes...");
+      sprintf(tmpChar, "Terminating processes...");
+      if (graphics)
+	cancelDialog =
+	  windowNewBannerDialog(progressDialog, "Cancel", tmpChar);
+      else
+	printf("\n%s\n", tmpChar);
+
       ioThreadsTerminate = 1;
       multitaskerYield();
       if (multitaskerProcessIsAlive(readerPID))
@@ -3817,29 +4254,25 @@ static int copyDisk(void)
   memoryRelease(buffer.buffer[0].data);
   memoryRelease(buffer.buffer[1].data);
 
-  if (cancelled)
+  if (prog.cancel)
     clearDiskLabel(destDisk);
 
   diskSync();
 
   if (graphics)
     {
-      windowComponentSetData(progressBar, (void *) 100, 1);
       if (cancelDialog)
 	windowDestroy(cancelDialog);
-      windowDestroy(dialogWindow);
+      windowProgressDialogDestroy(progressDialog);
     }
   else
-    {
-      textSetColumn(2);
-      printf("100%%\n");
-    }
+    vshProgressBarDestroy(&prog);
 
   status = selectDisk(destDisk);
   if (status < 0)
     return (status);
 
-  if (cancelled)
+  if (prog.cancel)
     return (status = 0);
 
   // Now, if any partitions are ouside (or partially outside) the 
@@ -3890,7 +4323,7 @@ static int copyDisk(void)
   display();
   
   // Tell the kernel to reexamine the partition tables
-  diskReadPartitions();
+  diskReadPartitions(destDisk->name);
 
   return (status);
 }
@@ -3974,7 +4407,7 @@ static void changePartitionOrder(void)
   
   if (graphics)
     {
-      orderDialog = windowNewDialog(window, "Partition Order");
+      orderDialog = windowNewDialog(window, "Partition order");
 
       bzero(&params, sizeof(componentParameters));
       params.gridWidth = 2;
@@ -4438,11 +4871,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	   ((key == menuDeleteAll) && (event->type & EVENT_SELECTION)))
     deleteAll();
 
-  else if (((key == setTypeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuSetType) && (event->type & EVENT_SELECTION)))
+  else if (((key == resizeButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuResize) && (event->type & EVENT_SELECTION)))
     {
       if (slices[selectedSlice].typeId)
-	setType(slices[selectedSlice].sliceId);
+	resize(slices[selectedSlice].sliceId);
     }
 
   else
@@ -4514,6 +4947,8 @@ static void constructWindow(void)
   windowRegisterEventHandler(menuFormat, &eventHandler);
   menuDefrag = windowNewMenuItem(menu3, "Defragment", &params);
   windowRegisterEventHandler(menuDefrag, &eventHandler);
+  menuResize = windowNewMenuItem(menu3, "Resize", &params);
+  windowRegisterEventHandler(menuResize, &eventHandler);
   menuHide = windowNewMenuItem(menu3, "Hide/Unhide", &params);
   windowRegisterEventHandler(menuHide, &eventHandler);
   menuInfo = windowNewMenuItem(menu3, "Info", &params);
@@ -4531,6 +4966,7 @@ static void constructWindow(void)
 
   // Create a container for the disk icon image and the title label
   params.gridY = 1;
+  params.fixedWidth = 1;
   container = windowNewContainer(window, "titleContainer", &params);
   if (container != NULL)
     {
@@ -4555,6 +4991,7 @@ static void constructWindow(void)
   // Make a list for the disks
   params.gridX = 0;
   params.gridY = 2;
+  params.fixedWidth = 0;
   diskList = windowNewList(window, windowlist_textonly, numberDisks, 1, 0,
 			   diskListParams, numberDisks, &params);
   windowRegisterEventHandler(diskList, &eventHandler);
@@ -4636,8 +5073,8 @@ static void constructWindow(void)
       windowRegisterEventHandler(infoButton, &eventHandler);
 
       params.gridX = 3;
-      setTypeButton = windowNewButton(container, "Set type", NULL, &params);
-      windowRegisterEventHandler(setTypeButton, &eventHandler);
+      resizeButton = windowNewButton(container, "Resize", NULL, &params);
+      windowRegisterEventHandler(resizeButton, &eventHandler);
 
       params.gridX = 4;
       undoButton = windowNewButton(container, "Undo", NULL, &params);
@@ -4666,6 +5103,7 @@ static int textMenu(void)
   int isDefrag = 0;
   int isHide = 0;
   int isMove = 0;
+  int topRow, bottomRow;
 
   // This is the main menu bit
   while (1)
@@ -4693,8 +5131,10 @@ static int textMenu(void)
 	    isMove = 1;
 	}
 
-      // Print out the menu choices
-      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+      // Print out the menu choices.  First column.
+      printf("\n");
+      topRow = textGetRow();
+      printf("%s%s%s%s%s%s%s%s%s%s%s%s",
 	     (isPartition? "[A] Set active\n" : ""),
 	     (numberDataPartitions? "[B] Partition order\n" : ""),
 	     "[C] Copy disk\n",
@@ -4706,15 +5146,33 @@ static int textMenu(void)
 	     "[L] List types\n",
 	     (isMove? "[M] Move\n" : ""),
 	     (!isPartition? "[N] New\n" : ""),
-	     (numberPartitions? "[O] Delete all\n" : ""),
-	     "[Q] Quit\n",
-	     (backupAvailable? "[R] Restore backup\n" : ""),
-	     "[S] Select disk\n",
-	     (isPartition? "[T] Set type\n" : ""),
-	     (changesPending? "[U] Undo\n" : ""),
-	     (changesPending? "[W] Write changes\n" : ""),
-	     "[X] Write basic MBR\n",
-	     "[Y] MBR boot menu\n");
+	     (numberPartitions? "[O] Delete all\n" : ""));
+      bottomRow = textGetRow();
+
+      // Second column
+      textSetRow(topRow);
+      #define COL 24
+      textSetColumn(COL);
+      printf("[Q] Quit\n");
+      textSetColumn(COL);
+      printf(backupAvailable? "[R] Restore backup\n" : "");
+      textSetColumn(COL);
+      printf("[S] Select disk\n");
+      textSetColumn(COL);
+      printf(isPartition? "[T] Set type\n" : "");
+      textSetColumn(COL);
+      printf(changesPending? "[U] Undo\n" : "");
+      textSetColumn(COL);
+      printf(changesPending? "[W] Write changes\n" : "");
+      textSetColumn(COL);
+      printf("[X] Write basic MBR\n");
+      textSetColumn(COL);
+      printf("[Y] MBR boot menu\n");
+      textSetColumn(COL);
+      printf(isPartition? "[Z] Resize\n" : "");
+      if (bottomRow > textGetRow())
+	textSetRow(bottomRow);
+      textSetColumn(0);
 
       if (changesPending)
 	printf("  -== %d changes pending ==-\n", changesPending);
@@ -4722,7 +5180,7 @@ static int textMenu(void)
 
       // Construct the string of allowable options, corresponding to what is
       // shown above.
-      sprintf(optionString, "%s%sCc%s%s%s%sIiLl%s%s%sQq%sSs%s%s%sXxYy",
+      sprintf(optionString, "%s%sCc%s%s%s%sIiLl%s%s%sQq%sSs%s%s%sXxYyZz",
 	      (isPartition? "Aa" : ""),
 	      (numberDataPartitions? "Bb" : ""),
 	      (isPartition? "Dd" : ""),
@@ -4860,6 +5318,11 @@ static int textMenu(void)
 	  mbrBootMenu();
 	  continue;
 
+	case 'z':
+	case 'Z':
+	  resize(slices[selectedSlice].sliceId);
+	  continue;
+
 	default:
 	  continue;
 	}
@@ -4908,7 +5371,7 @@ static void makeSliceListHeader(void)
   count += SLICESTRING_DISKFIELD_WIDTH;
   strncpy((sliceListHeader + count), "Partition", 9);
   count += SLICESTRING_LABELFIELD_WIDTH;
-  strncpy((sliceListHeader + count), "FS", 2);
+  strncpy((sliceListHeader + count), "Filesystem", 10);
   count += SLICESTRING_FSTYPEFIELD_WIDTH;
   strncpy((sliceListHeader + count), "Cylinders", 9);
   count += SLICESTRING_CYLSFIELD_WIDTH;

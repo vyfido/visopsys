@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,18 +31,6 @@
 #include "kernelShutdown.h"
 #include "kernelError.h"
 #include <string.h>
-
-
-static inline void grantLock(lock *grantLock, int processId)
-{
-  grantLock->processId = processId;
-}
-
-
-static inline void releaseLock(lock *relLock)
-{
-  relLock->processId = 0;
-}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -87,12 +75,6 @@ int kernelLockGet(lock *getLock)
   int interrupts = 0;
   int currentProcId = 0;
 
-  // These are for priority inversion
-  //int myPriority = 0;
-  //volatile int holder = 0;
-  //volatile int holderPriority = 0;
-  //volatile int inversion = 0;
-
   extern int kernelProcessingInterrupt;
 
   // Make sure the pointer we were given is not NULL
@@ -101,8 +83,6 @@ int kernelLockGet(lock *getLock)
 
   // Get the process Id of the current process
   currentProcId = kernelMultitaskerGetCurrentProcessId();
-
-  // Make sure it's a valid process Id
   if (currentProcId < 0)
     return (currentProcId);
 
@@ -120,78 +100,37 @@ int kernelLockGet(lock *getLock)
       // or released out from under us.
       kernelProcessorSuspendInts(interrupts);
 
-      if (getLock->processId == 0)
-	{
-	  // Give the lock to the requesting process
-	  grantLock(getLock, currentProcId);
+      kernelProcessorLock(getLock->processId, currentProcId);
 
-	  /*
-	  // If we inverted the priority of some process to achieve this lock,
-	  // we need to reset it to its old priority
-	  if (inversion)
-	    {
-	      kernelMultitaskerSetProcessPriority(holder, holderPriority);
-	      holder = 0;
-	      inversion = 0;
-	    }
-	  */
+      kernelProcessorRestoreInts(interrupts);
 
-	  kernelProcessorRestoreInts(interrupts);
-	  break;
-	}
+      if (getLock->processId == currentProcId)
+	break;
 
       // Some other process has locked the resource.  Make sure the process
       // is still alive, and that it is not sleeping, and that it has not
       // become stopped or zombie.  If it has, we will remove the lock given
       // to that process.
       if (!kernelLockVerify(getLock))
-	// We might give the lock to the requesting process at the the start
-	// of the next loop.  Clear the current lock and exit the loop.
-	releaseLock(getLock);
-
-      /*
-      else if (!inversion)
 	{
-	  // Here's where we do priority inversion, if applicable.  
-	  // Basically, the algorithm is as follows:
-	  // - If the holding process has the same or higher priority than 
-	  // the requesting process, do nothing
-	  // - If the holding process has a lower priority level than the
-	  //   requesting process, temporarily give the holding process the 
-	  //   same priority level as the requesting process.
-	  // This prevents a lower priority process from delaying a higher
-	  // priority process for too long a time.
-
-	  myPriority = kernelMultitaskerGetProcessPriority(currentProcId);
-	  holderPriority =
-	    kernelMultitaskerGetProcessPriority(lock->processId);
-	  
-	  if ((myPriority >= 0) && (holderPriority > myPriority))
-	    {
-	      // Priority inversion.
-	      holder = lock->processId;
-	      kernelMultitaskerSetProcessPriority(holder, myPriority);
-	      inversion = 1;
-	    }
+	  // We might give the lock to the requesting process at the the start
+	  // of the next loop.  Clear the current lock and restart the loop.
+	  getLock->processId = 0;
+	  continue;
 	}
-      */
 
-      kernelProcessorRestoreInts(interrupts);
+      // We didn't get the lock.
 
       if (kernelProcessingInterrupt)
-	{
-	  // We can't grant this lock to the interrupt service routine
-	  return (status = ERR_BUSY);
-	}
-      else
-	{
-	  // This process will now have to continue waiting until the lock has 
-	  // been released or becomes invalid
+	// We can't grant this lock to the interrupt service routine
+	return (status = ERR_BUSY);
+
+      // This process will now have to continue waiting until the lock has 
+      // been released or becomes invalid
       
-	  // Yield this time slice back to the scheduler while the process
-	  // waits for the lock
-	  kernelMultitaskerYield();
-	}
+      // Yield this time slice back to the scheduler while the process
+      // waits for the lock
+      kernelMultitaskerYield();
 
       // Loop again
     }
@@ -223,7 +162,7 @@ int kernelLockRelease(lock *relLock)
 
   if (relLock->processId == currentProcId)
     {
-      releaseLock(relLock);
+      relLock->processId = 0;
       return (status = 0);
     }
 

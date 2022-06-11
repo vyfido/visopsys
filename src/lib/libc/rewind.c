@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,6 +34,12 @@ void rewind(FILE *theStream)
   //      (void)fseek(stream, 0L, SEEK_SET)
   // except that the error indicator for the stream is also cleared.  The
   // rewind function returns no value.
+
+  if (visopsys_in_kernel)
+    {
+      errno = ERR_BUG;
+      return;
+    }
 
   // Let the kernel do all the work, baby.
   int status = fileStreamSeek(theStream, 0);

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,11 +22,10 @@
 // This is the standard "calloc" function, as found in standard C libraries
 
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/api.h>
+#include <string.h>
 
 
-void *calloc(size_t items, size_t itemSize)
+void *_calloc(size_t items, size_t itemSize, const char *function)
 {
   // This is what the linux man page says about this function:
   // calloc() allocates memory for an array of  nmemb  elements
@@ -35,28 +34,15 @@ void *calloc(size_t items, size_t itemSize)
 
   size_t totalSize = 0;
   void *memoryPointer = NULL;
-  unsigned count; 
 
   // Total size is (items * itemSize)
   totalSize = (items * itemSize);
 
-  // Make sure the requested size is reasonable (not zero)
-  if (!totalSize)
-    {
-      errno = ERR_NODATA;
-      return NULL;
-    }
+  memoryPointer = _malloc(totalSize, function);
 
-  memoryPointer = memoryGet(totalSize, "user heap");
-
-  if (memoryPointer == NULL)
-    errno = ERR_BADADDRESS;
-  else
-    {
-      // We must clear the memory
-      for (count = 0; count < (totalSize / sizeof(int)); count ++)
-	((int *) memoryPointer)[count] = 0;
-    }
+  if (memoryPointer)
+    // We must clear the memory
+    bzero(memoryPointer, totalSize);
 
   // Return this value, whether or not we were successful
   return (memoryPointer);

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -41,6 +41,12 @@ char *gets(char *s)
   int status = 0;
   int read = 0;
   char c = '\0';
+
+  if (visopsys_in_kernel)
+    {
+      errno = ERR_BUG;
+      return (NULL);
+    }
 
   while(1)
     {

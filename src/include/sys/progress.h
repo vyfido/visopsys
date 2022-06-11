@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +26,10 @@
 
 #if !defined(_PROGRESS_H)
 
+#include <sys/lock.h>
+
 // The maximum length of status messages
-#define PROGRESS_MAX_MESSAGELEN  512
+#define PROGRESS_MAX_MESSAGELEN  240
 
 // These are different kinds of possible responses when the operation
 // needs user feedback
@@ -36,15 +38,19 @@
 #define PROGRESS_RESPONSE_YES     0x0004
 #define PROGRESS_RESPONSE_NO      0x0008
 
-typedef struct {
+typedef volatile struct {
   unsigned total;
   unsigned finished;
   int percentFinished;
-  unsigned needResponse;
-  unsigned response;
   char statusMessage[PROGRESS_MAX_MESSAGELEN];
-  int canInterrupt;
-  int interrupt;
+  char confirmMessage[PROGRESS_MAX_MESSAGELEN];
+  int needConfirm;
+  int confirm;
+  int error;
+  int confirmError;
+  int canCancel;
+  int cancel;
+  lock lock;
 
 } progress;
 

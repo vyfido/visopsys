@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -19,7 +19,7 @@
 //  scanf.c
 //
 
-// This is the standard "printf" function, as found in standard C libraries
+// This is the standard "scanf" function, as found in standard C libraries
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +27,8 @@
 #include <string.h>
 #include <readline.h>
 #include <errno.h>
+#include <sys/api.h>
+#include <sys/cdefs.h>
 
 
 int scanf(const char *format, ...)
@@ -37,6 +39,9 @@ int scanf(const char *format, ...)
   char *input = NULL;
   char tmpChar;
   int count = 0;
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // Go through the format string until we reach the first formatting
   // argument.  Everything before it will be used as our prompt that we

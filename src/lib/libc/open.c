@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -60,6 +60,9 @@ int open(const char *fileName, int flags)
   int newFlags = 0;
 
   // We have to adapt the UNIX/POSIX flags to our flags
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // First the 'exclusive' ones
   if (flags & O_RDONLY)

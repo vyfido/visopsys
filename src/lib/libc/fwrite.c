@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@
 // This is the standard "fwrite" function, as found in standard C libraries
 
 #include <stdio.h>
+#include <errno.h>
 #include <sys/api.h>
 
 
@@ -32,12 +33,19 @@ size_t fwrite(const void *buf, size_t size, size_t number, FILE *theStream)
   int status = 0;
   unsigned count;
 
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
+
   for (count = 0 ; count < number; count ++)
     {
-      status =
-	fileStreamWrite(theStream, size, (void *) (buf + (count * size)));
+      if ((theStream == stdout) || (theStream == stderr))
+	status = textPrint((void *) (buf + (count * size)));
+      else
+	status =
+	  fileStreamWrite(theStream, size, (void *) (buf + (count * size)));
+
       if (status < 0)
-	return (-1);
+	return (errno = status);
     }
 
   return (count);

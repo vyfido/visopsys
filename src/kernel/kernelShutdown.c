@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,6 +34,7 @@
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <stdio.h>
+#include <sys/cdefs.h>
 
 
 static void messageBox(kernelAsciiFont *font, int numLines, char *message[])

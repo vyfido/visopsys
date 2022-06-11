@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,19 +35,6 @@
 #define NULL 0
 #endif
 
-typedef struct {
-  int quot;
-  int rem;
-
-} div_t;
-
-typedef struct {
-  long quot;
-  long rem;
-
-} ldiv_t;
-
-
 // We're supposed to define size_t here???  Same with wchar_t???  I thought
 // they were defined in stddef.h.  Oh well, we're including stddef.h anyway.
 
@@ -55,26 +42,36 @@ typedef struct {
 void abort(void);
 int abs(int);
 int atoi(const char *);
-void *calloc(size_t, size_t);
-div_t div(int, int);
+void *_calloc(size_t, size_t, const char *);
+#define calloc(num, size) _calloc(num, size, __FUNCTION__)
 void exit(int);
-void free(void *);
+void _free(void *, const char *);
+#define free(ptr) _free(ptr, __FUNCTION__)
 long int labs(long int);
-ldiv_t ldiv(long int, long int);
-void *malloc(size_t);
+void *_malloc(size_t, const char *);
+#define malloc(size) _malloc(size, __FUNCTION__)
+int mbtowc(wchar_t *, const char *, size_t);
+size_t mbstowcs(wchar_t *dest, const char *src, size_t n);
 int rand(void);
+void *_realloc(void *, size_t, const char *);
+#define realloc(ptr, size) _realloc(ptr, size, __FUNCTION__)
 void srand(unsigned int);
 int system(const char *);
+int wctomb(char *, wchar_t);
 
 // Not sure where else to put these
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-// Argh.  Isn't there a function that does these?  These are andy-special.
+// Argh.  Aren't there functions that do these?  These are andy-special.
 void itoa(int, char *);
 void itob(int, char *);
 void itox(int, char *);
+void lltoa(long long, char *);
+void lltob(long long, char *);
+void lltox(long long, char *);
 int xtoi(const char *);
+void ulltoa(unsigned long long, char *);
 void utoa(unsigned int, char *);
 
 #define _STDLIB_H

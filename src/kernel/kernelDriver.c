@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,6 +38,8 @@ static void *filesystemDriverInits[] = {
   kernelFilesystemExtInitialize,
   kernelFilesystemFatInitialize,
   kernelFilesystemIsoInitialize,
+  kernelFilesystemLinuxSwapInitialize,
+  kernelFilesystemNtfsInitialize,
   (void *) -1
 };
 
@@ -46,6 +48,8 @@ static struct {
   kernelFilesystemDriver *extDriver;
   kernelFilesystemDriver *fatDriver;
   kernelFilesystemDriver *isoDriver;
+  kernelFilesystemDriver *linuxSwapDriver;
+  kernelFilesystemDriver *ntfsDriver;
   kernelTextOutputDriver *textConsoleDriver;
   kernelTextOutputDriver *graphicConsoleDriver;
 
@@ -53,6 +57,8 @@ static struct {
   NULL, // EXT filesystem driver
   NULL, // FAT filesystem driver
   NULL, // ISO filesystem driver
+  NULL, // Linux swap filesystem driver
+  NULL, // NTFS filesystem driver
   NULL, // Text-mode console driver
   NULL  // Graphic-mode console driver
 };
@@ -141,6 +147,12 @@ int kernelDriverRegister(kernelDriverType type, void *driver)
     case isoDriver:
       allDrivers.isoDriver = (kernelFilesystemDriver *) driver;
       break;
+    case linuxSwapDriver:
+      allDrivers.linuxSwapDriver = (kernelFilesystemDriver *) driver;
+      break;
+    case ntfsDriver:
+      allDrivers.ntfsDriver = (kernelFilesystemDriver *) driver;
+      break;
     case textConsoleDriver:
       allDrivers.textConsoleDriver = (kernelTextOutputDriver *) driver;
       break;
@@ -174,6 +186,20 @@ void *kernelDriverGetIso(void)
 {
   // Return the ISO filesystem driver
   return (allDrivers.isoDriver);
+}
+
+
+void *kernelDriverGetLinuxSwap(void)
+{
+  // Return the Linux swap filesystem driver
+  return (allDrivers.linuxSwapDriver);
+}
+
+
+void *kernelDriverGetNtfs(void)
+{
+  // Return the NTFS filesystem driver
+  return (allDrivers.ntfsDriver);
 }
 
 

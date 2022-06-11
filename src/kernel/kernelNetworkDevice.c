@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -178,8 +178,8 @@ static int sendArp(kernelNetworkDevice *adapter,
     {
       // Can't lock.  Send it now.
       status = kernelNetworkDeviceSend((char *) adapter->device.name,
-					(unsigned char *) arpPacket,
-					sizeof(kernelArpPacket));
+				       (unsigned char *) arpPacket,
+				       sizeof(kernelArpPacket));
       kernelFree(arpPacket);
     }
   else
@@ -515,7 +515,7 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 
 
 int kernelNetworkDeviceSetFlags(const char *adapterName, unsigned flags,
-				 int onOff)
+				int onOff)
 {
   // Changes any user-settable flags associated with a network device
 
@@ -559,8 +559,8 @@ int kernelNetworkDeviceSetFlags(const char *adapterName, unsigned flags,
 
 
 int kernelNetworkDeviceGetAddress(const char *adapterName,
-				   networkAddress *logicalAddress,
-				   networkAddress *physicalAddress)
+				  networkAddress *logicalAddress,
+				  networkAddress *physicalAddress)
 {
   // This function attempts to use the named network adapter to determine
   // the physical address of the host with the supplied logical address.
@@ -630,7 +630,7 @@ int kernelNetworkDeviceGetAddress(const char *adapterName,
 
 
 int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
-			     unsigned bufferLength)
+			    unsigned bufferLength)
 {
   // Send a prepared packet using the named network adapter
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,26 +21,13 @@
 	
 #if !defined(_KERNELMALLOC_H)
 
-#define MEMORY_HEAP_MULTIPLE (1024 * 1024)  // 1 meg
-
 #include <sys/memory.h>
 
-typedef volatile struct {
-  int used;
-  int process;
-  void *start;
-  void *end;
-  void *previous;
-  void *next;
-  const char *function;
-
-} kernelMallocBlock;
-
 // Functions from kernelMalloc.c
-#define kernelMalloc(size) _kernelMalloc(__FUNCTION__, size)
-void *_kernelMalloc(const char *, unsigned);
-#define kernelFree(ptr) _kernelFree(__FUNCTION__, ptr)
-int _kernelFree(const char *, void *);
+void *_kernelMalloc(unsigned, const char *);
+#define kernelMalloc(size) _kernelMalloc(size, __FUNCTION__)
+int _kernelFree(void *, const char *);
+#define kernelFree(ptr) _kernelFree(ptr, __FUNCTION__)
 int kernelMallocGetStats(memoryStats *);
 int kernelMallocGetBlocks(memoryBlock *, int);
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,7 @@
 #include "kernelParameters.h"
 #include "kernelFilesystem.h"
 #include "kernelMalloc.h"
+#include "kernelMemory.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
 #include "kernelMisc.h"
@@ -61,7 +62,7 @@ static partitionType partitionTypes[] = {
   { 0x04, "FAT16 (small)"},
   { 0x05, "Extended"},
   { 0x06, "FAT16"},
-  { 0x07, "HPFS or NTFS"},
+  { 0x07, "NTFS or HPFS"},
   { 0x08, "OS/2 or AIX boot"},
   { 0x09, "AIX data"},
   { 0x0A, "OS/2 Boot Manager"},
@@ -119,6 +120,7 @@ static partitionType partitionTypes[] = {
   { 0xCC, "DR-DOS FAT32 (LBA)"},
   { 0xCE, "DR-DOS FAT16 (LBA)"},
   { 0xEB, "BeOS BFS"},
+  { 0xEE, "EFI GPT protective"},
   { 0xF2, "DOS 3.3+ second"},
   { 0xFA, "Bochs"},
   { 0xFB, "VmWare"},
@@ -1163,7 +1165,7 @@ int kernelDiskInitialize(void)
   initialized = 1;
 
   // Read the partition tables
-  status = kernelDiskReadPartitions();
+  status = kernelDiskReadPartitionsAll();
   if (status < 0)
     kernelError(kernel_error, "Unable to read disk partitions");
 
@@ -1223,6 +1225,7 @@ int kernelDiskSyncDisk(const char *diskName)
   theDisk = kernelDiskGetByName(diskName);
   if (theDisk == NULL)
     {
+      // No such disk.
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
       return (status = ERR_NOSUCHENTRY);
     }
@@ -1372,8 +1375,12 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   userDisk->maxSectors = logical->filesystem.maxSectors;
   userDisk->mounted = logical->filesystem.mounted;
   if (userDisk->mounted)
-    strncpy(userDisk->mountPoint, (char *) logical->filesystem.mountPoint,
-	    MAX_PATH_LENGTH);
+    {
+      userDisk->freeBytes =
+	kernelFilesystemGetFree((char *) logical->filesystem.mountPoint);
+      strncpy(userDisk->mountPoint, (char *) logical->filesystem.mountPoint,
+	      MAX_PATH_LENGTH);
+    }
   userDisk->readOnly = logical->filesystem.readOnly;
 
   return (status = 0);
@@ -1455,7 +1462,7 @@ kernelDisk *kernelDiskGetByPath(const char *path)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelDiskReadPartitions(void)
+int kernelDiskReadPartitions(const char *diskName)
 {
   // Read the partition tables for all the registered physical disks, and
   // (re)build the list of logical disks.  This will be done initially at
@@ -1464,6 +1471,8 @@ int kernelDiskReadPartitions(void)
 
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
+  kernelDisk *newLogicalDisks[DISK_MAXDEVICES];
+  int newLogicalDiskCounter = 0;
   int mounted = 0;
   kernelDisk *logicalDisk = NULL;
   unsigned char sectBuf[512];
@@ -1474,23 +1483,43 @@ int kernelDiskReadPartitions(void)
   unsigned startSector = 0;
   unsigned char partTypeCode = 0;
   partitionType partType;
-  int count1, count2;
+  int count;
 
-  logicalDiskCounter = 0;
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
-  // Loop through all of the registered physical disks
-  for (count1 = 0; count1 < physicalDiskCounter; count1 ++)
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // Find the disk structure.
+  physicalDisk = getPhysicalByName(diskName);
+  if (physicalDisk == NULL)
+    // No such disk.
+    return (status = ERR_NOSUCHENTRY);
+
+  // Add all the logical disks that don't belong to this physical disk
+  for (count = 0; count < logicalDiskCounter; count ++)
+    if (logicalDisks[count]->physical != physicalDisk)
+      newLogicalDisks[newLogicalDiskCounter++] = logicalDisks[count];
+
+  // Assume UNKNOWN (code 0) partition type for now.
+  partType.code = 0;
+  strcpy((char *) partType.description, physicalDisk->description);
+
+  // If this is a hard disk, get the logical disks from reading the partitions.
+  if (physicalDisk->flags & DISKFLAG_HARDDISK)
     {
-      physicalDisk = physicalDisks[count1];
+      // It's a hard disk.  We need to read the partition table
 
       // Make sure it has no mounted partitions.
       mounted = 0;
-      for (count2 = 0; count2 < physicalDisk->numLogical; count2 ++)
-	if (physicalDisk->logical[count2].filesystem.mounted)
+      for (count = 0; count < physicalDisk->numLogical; count ++)
+	if (physicalDisk->logical[count].filesystem.mounted)
 	  {
-	    kernelError(kernel_error, "Logical disk %s is mounted.  Will not "
-			"rescan %s until reboot",
-			physicalDisk->logical[count2].name,
+	    kernelError(kernel_warn, "Logical disk %s is mounted.  Will "
+			"not rescan %s until reboot.",
+			physicalDisk->logical[count].name,
 			physicalDisk->name);
 	    mounted = 1;
 	    break;
@@ -1498,162 +1527,196 @@ int kernelDiskReadPartitions(void)
 
       if (mounted)
 	{
-	  // It has mounted partitions.  Add the existing logical disks to our
-	  // array and continue to the next physical disk.
-	  for (count2 = 0; count2 < physicalDisk->numLogical; count2 ++)
-	    logicalDisks[logicalDiskCounter++] =
-	      &(physicalDisk->logical[count2]);
-	  continue;
+	  // It has mounted partitions.  Add the existing logical disks to
+	  // our array and continue to the next physical disk.
+	  for (count = 0; count < physicalDisk->numLogical; count ++)
+	    newLogicalDisks[newLogicalDiskCounter++] =
+	      &(physicalDisk->logical[count]);
+	  return (status = 1);
 	}
 
-      // Assume UNKNOWN (code 0) partition type for now.
-      partType.code = 0;
-      strcpy((char *) partType.description, physicalDisk->description);
+      // Initialize the sector buffer
+      kernelMemClear(sectBuf, 512);
 
-      // If this is a hard disk, get the logical disks from reading the
-      // partitions.
-      if (physicalDisk->flags & DISKFLAG_HARDDISK)
-	{
-	  // It's a hard disk.  We need to read the partition table
-
-	  // Initialize the sector buffer
-	  kernelMemClear(sectBuf, 512);
-
-	  startSector = 0;
-	  extendedStartSector = 0;
+      startSector = 0;
+      extendedStartSector = 0;
       
-	  // Clear the logical disks
-	  physicalDisk->numLogical = 0;
-	  kernelMemClear(&(physicalDisk->logical),
-			 (sizeof(kernelDisk) * DISK_MAX_PARTITIONS));
+      // Clear the logical disks
+      physicalDisk->numLogical = 0;
+      kernelMemClear(&(physicalDisk->logical),
+		     (sizeof(kernelDisk) * DISK_MAX_PARTITIONS));
 
-	  // Read the first sector of the disk
-	  status =
-	    kernelDiskReadSectors((char *) physicalDisk->name, 0, 1, sectBuf);
-	  if (status < 0)
-	    continue;
+      // Read the first sector of the disk
+      status =
+	kernelDiskReadSectors((char *) physicalDisk->name, 0, 1, sectBuf);
+      if (status < 0)
+	return (status);
 
-	  while (physicalDisk->numLogical < DISK_MAX_PARTITIONS)
-	    {
-	      extendedRecord = NULL;
-
-	      // Is this a valid MBR?
-	      if ((sectBuf[511] == (unsigned char) 0xAA) ||
-		  (sectBuf[510] == (unsigned char) 0x55))
-		{
-		  // Set this pointer to the first partition record in the
-		  // master boot record
-		  partitionRecord = (sectBuf + 0x01BE);
-
-		  // Loop through the partition records, looking for non-zero
-		  // entries
-		  for (partition = 0; partition < 4; partition ++)
-		    {
-		      logicalDisk =
-			&(physicalDisk->logical[physicalDisk->numLogical]);
-
-		      partTypeCode = partitionRecord[4];
-		      if (partTypeCode == 0)
-			// The "rules" say we must be finished with this
-			// physical device.  But that is not the way things
-			// often happen in real life -- empty records often
-			// come before valid ones.
-			continue;
-
-		      if (PARTITION_TYPEID_IS_EXTD(partTypeCode))
-			{
-			  extendedRecord = partitionRecord;
-			  partitionRecord += 16;
-			  continue;
-			}
-
-		      kernelDiskGetPartType(partTypeCode, &partType);
-	  
-		      // We will add a logical disk corresponding to the
-		      // partition we've discovered
-		      sprintf((char *) logicalDisk->name, "%s%c",
-			      physicalDisk->name,
-			      ('a' + physicalDisk->numLogical));
-		      kernelMemCopy(&partType,
-				    (void *) &(logicalDisk->partType),
-				    sizeof(partitionType));
-		      strncpy((char *) logicalDisk->fsType, "unknown",
-			      FSTYPE_MAX_NAMELENGTH);
-		      logicalDisk->physical = (void *) physicalDisk;
-		      logicalDisk->startSector = (startSector +
-				  *((unsigned *)(partitionRecord + 0x08)));
-		      logicalDisk->numSectors =
-			*((unsigned *)(partitionRecord + 0x0C));
-		      if (!extendedStartSector)
-			logicalDisk->primary = 1;
-
-		      logicalDisks[logicalDiskCounter++] = logicalDisk;
-		      
-		      // See if we can determine the filesystem type
-		      kernelFilesystemScan(logicalDisk);
-
-		      kernelLog("Disk %s (hard disk %d, %s partition %d): %s",
-				logicalDisk->name, count1,
-				(logicalDisk->primary? "primary" : "logical"),
-				physicalDisk->numLogical, logicalDisk->fsType);
-
-		      physicalDisk->numLogical++;
-
-		      // Move to the next partition record
-		      partitionRecord += 16;
-		    }
-		}
-
-	      if (!extendedRecord)
-		break;
-
-	      // Make sure the extended entry doesn't loop back on itself.
-	      // It can happen.
-	      if (extendedStartSector &&
-		  ((*((unsigned *)(extendedRecord + 0x08)) +
-		    extendedStartSector) == startSector))
-		{
-		  kernelError(kernel_error, "Extended partition links to "
-			      "itself");
-		  break;
-		}
-
-	      // We have an extended partition chain.  We need to go through
-	      // that as well.
-	      startSector = *((unsigned *)(extendedRecord + 0x08));
-
-	      if (!extendedStartSector)
-		extendedStartSector = startSector;
-	      else
-		startSector += extendedStartSector;	
-
-	      if (kernelDiskReadSectors((char *) physicalDisk->name,
-					startSector, 1, sectBuf) < 0)
-		break;
-	    }
-	}
-      else
+      while (physicalDisk->numLogical < DISK_MAX_PARTITIONS)
 	{
-	  // If this is a not a hard disk, make the logical disk be the same
-	  // as the physical disk
-	  physicalDisk->numLogical = 1;
-	  logicalDisk = &(physicalDisk->logical[0]);
-	  // Logical disk name same as device name
-	  strcpy((char *) logicalDisk->name, (char *) physicalDisk->name);
-	  kernelMemCopy(&partType, (void *) &(logicalDisk->partType),
-			sizeof(partitionType));
-	  if (logicalDisk->fsType[0] == '\0')
-	    strncpy((char *) logicalDisk->fsType, "unknown",
-		    FSTYPE_MAX_NAMELENGTH);
-	  logicalDisk->physical = (void *) physicalDisk;
-	  logicalDisk->startSector = 0;
-	  logicalDisk->numSectors = physicalDisk->numSectors;
+	  extendedRecord = NULL;
 
-	  logicalDisks[logicalDiskCounter++] = logicalDisk;
+	  // Is this a valid MBR?
+	  if ((sectBuf[511] == (unsigned char) 0xAA) ||
+	      (sectBuf[510] == (unsigned char) 0x55))
+	    {
+	      // Set this pointer to the first partition record in the
+	      // master boot record
+	      partitionRecord = (sectBuf + 0x01BE);
+
+	      // Loop through the partition records, looking for non-zero
+	      // entries
+	      for (partition = 0; partition < 4; partition ++)
+		{
+		  logicalDisk =
+		    &(physicalDisk->logical[physicalDisk->numLogical]);
+
+		  partTypeCode = partitionRecord[4];
+		  if (partTypeCode == 0)
+		    // The "rules" say we must be finished with this
+		    // physical device.  But that is not the way things
+		    // often happen in real life -- empty records often
+		    // come before valid ones.
+		    continue;
+
+		  if (PARTITION_TYPEID_IS_EXTD(partTypeCode))
+		    {
+		      extendedRecord = partitionRecord;
+		      partitionRecord += 16;
+		      continue;
+		    }
+
+		  kernelDiskGetPartType(partTypeCode, &partType);
+	  
+		  // We will add a logical disk corresponding to the
+		  // partition we've discovered
+		  sprintf((char *) logicalDisk->name, "%s%c",
+			  physicalDisk->name,
+			  ('a' + physicalDisk->numLogical));
+		  kernelMemCopy(&partType,
+				(void *) &(logicalDisk->partType),
+				sizeof(partitionType));
+		  strncpy((char *) logicalDisk->fsType, "unknown",
+			  FSTYPE_MAX_NAMELENGTH);
+		  logicalDisk->physical = (void *) physicalDisk;
+		  logicalDisk->startSector =
+		    (startSector + *((unsigned *)(partitionRecord + 0x08)));
+		  logicalDisk->numSectors =
+		    *((unsigned *)(partitionRecord + 0x0C));
+		  if (!extendedStartSector)
+		    logicalDisk->primary = 1;
+		  
+		  newLogicalDisks[newLogicalDiskCounter++] = logicalDisk;
+		      
+		  physicalDisk->numLogical++;
+
+		  // Move to the next partition record
+		  partitionRecord += 16;
+		}
+	    }
+
+	  if (!extendedRecord)
+	    break;
+
+	  // Make sure the extended entry doesn't loop back on itself.
+	  // It can happen.
+	  if (extendedStartSector &&
+	      ((*((unsigned *)(extendedRecord + 0x08)) +
+		extendedStartSector) == startSector))
+	    {
+	      kernelError(kernel_error, "Extended partition links to itself");
+	      break;
+	    }
+
+	  // We have an extended partition chain.  We need to go through
+	  // that as well.
+	  startSector = *((unsigned *)(extendedRecord + 0x08));
+
+	  if (!extendedStartSector)
+	    extendedStartSector = startSector;
+	  else
+	    startSector += extendedStartSector;	
+
+	  if (kernelDiskReadSectors((char *) physicalDisk->name, startSector,
+				    1, sectBuf) < 0)
+	    break;
+	}
+    }
+  else
+    {
+      // If this is a not a hard disk, make the logical disk be the same
+      // as the physical disk
+      physicalDisk->numLogical = 1;
+      logicalDisk = &(physicalDisk->logical[0]);
+      // Logical disk name same as device name
+      strcpy((char *) logicalDisk->name, (char *) physicalDisk->name);
+      kernelMemCopy(&partType, (void *) &(logicalDisk->partType),
+		    sizeof(partitionType));
+      if (logicalDisk->fsType[0] == '\0')
+	strncpy((char *) logicalDisk->fsType, "unknown",
+		FSTYPE_MAX_NAMELENGTH);
+      logicalDisk->physical = (void *) physicalDisk;
+      logicalDisk->startSector = 0;
+      logicalDisk->numSectors = physicalDisk->numSectors;
+
+      newLogicalDisks[newLogicalDiskCounter++] = logicalDisk;
+    }
+
+  // Now copy our new array of logical disks
+  for (logicalDiskCounter = 0; logicalDiskCounter < newLogicalDiskCounter;
+       logicalDiskCounter ++)
+    logicalDisks[logicalDiskCounter] = newLogicalDisks[logicalDiskCounter];
+
+  // See if we can determine the filesystem types
+  for (count = 0; count < logicalDiskCounter; count ++)
+    {
+      logicalDisk = logicalDisks[count];
+      
+      if (logicalDisk->physical == physicalDisk)
+	{
+	  if (physicalDisk->motorState)
+	    kernelFilesystemScan(logicalDisk);
+
+	  kernelLog("Disk %s (hard disk %s, %s): %s",
+		    logicalDisk->name, physicalDisk->name,
+		    (logicalDisk->primary? "primary" : "logical"),
+		    logicalDisk->fsType);
 	}
     }
 
   return (status = 0);
+}
+
+
+int kernelDiskReadPartitionsAll(void)
+{
+  // Read the partition tables for all the registered physical disks, and
+  // (re)build the list of logical disks.  This will be done initially at
+  // startup time, but can be re-called during operation if the partitions
+  // have been changed.
+
+  int status = 0;
+  int mounts = 0;
+  int errors = 0;
+  int count;
+
+  if (!initialized)
+    return (errors = ERR_NOTINITIALIZED);
+
+  // Loop through all of the registered physical disks
+  for (count = 0; count < physicalDiskCounter; count ++)
+    {
+      status = kernelDiskReadPartitions((char *) physicalDisks[count]->name);
+      if (status < 0)
+	errors = status;
+      else
+	mounts += status;
+    }
+
+  if (errors)
+    return (status = errors);
+  else
+    return (status = mounts);
 }
 
 
@@ -1771,7 +1834,6 @@ int kernelDiskGet(const char *diskName, disk *userDisk)
   else
     // No such disk.
     return (status = ERR_NOSUCHENTRY);
-    
 
   return (status = 0);
 }
@@ -1831,6 +1893,43 @@ int kernelDiskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
 }
 
 
+int kernelDiskGetFilesystemType(const char *diskName, char *buffer,
+				unsigned buffSize)
+{
+  // This function takes the supplied disk name and attempts to explicitly
+  // detect the filesystem type.  Particularly useful for things like removable
+  // media where the correct info may not be automatically provided in the
+  // disk structure.
+
+  int status = 0;
+  kernelDisk *logicalDisk = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // There must exist a logical disk with this name.
+  logicalDisk = kernelDiskGetByName(diskName);
+  if (logicalDisk == NULL)
+    {
+      // No such disk.
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NOSUCHENTRY);
+    }
+
+  // See if we can determine the filesystem type
+  status = kernelFilesystemScan(logicalDisk);
+  if (status < 0)
+    return (status);
+
+  strncpy(buffer, (char *) logicalDisk->fsType, buffSize);
+  return (status = 0);
+}
+
+
 int kernelDiskGetPartType(int code, partitionType *partType)
 {
   // This function takes the supplied code and returns a corresponding
@@ -1858,10 +1957,16 @@ int kernelDiskGetPartType(int code, partitionType *partType)
 
 partitionType *kernelDiskGetPartTypes(void)
 {
-  // Just returns a pointer to our table of known partition types
-
+  // Allocate and return a copy of our table of known partition types
   // We don't check for initialization; the table is static.
-  return (partitionTypes);
+
+  partitionType *types =
+    kernelMemoryGet(sizeof(partitionTypes), "partition types");
+  if (types == NULL)
+    return (types);
+
+  kernelMemCopy(partitionTypes, types, sizeof(partitionTypes));
+  return (types);
 }
 
 
@@ -2087,7 +2192,7 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
 
 
 int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector, 
-			   unsigned numSectors, void *dataPointer)
+			   unsigned numSectors, const void *dataPointer)
 {
   // This routine is the user-accessible interface to writing data using
   // the various disk routines in this file.  Basically, it is a gatekeeper
@@ -2111,6 +2216,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
       // Try logical
       theDisk = kernelDiskGetByName(diskName);
       if (theDisk == NULL)
+	// No such disk.
 	return (status = ERR_NOSUCHENTRY);
 
       // Start at the beginning of the logical volume.
@@ -2140,7 +2246,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
 
   // Call the read-write routine for a write operation
   status = readWriteSectors(physicalDisk, logicalSector, numSectors,
-			    dataPointer, IOMODE_WRITE);
+			    (void *) dataPointer, IOMODE_WRITE);
 
   // Reset the 'idle since' value
   physicalDisk->idleSince = kernelSysTimerRead();

@@ -1,0 +1,81 @@
+## 
+##  Visopsys
+##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  
+##  Makefile
+##
+
+BUILDDIR=../../../build/system/libraries
+INCDIR=../include/ntfs/
+SYSINCDIR=../../../src/include
+
+CC		= gcc
+AR		= ar
+CPU		= $(shell ../../../utils/cpu.sh)
+STDDEPS		= Makefile.visopsys ${INCDIR}/*.h ${SYSINCDIR}/*.h \
+		${SYSINCDIR}/sys/*.h
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
+WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
+		-Wmissing-declarations -Wredundant-decls -Werror
+INCLUDE         = -nostdinc -I${INCDIR} -I${SYSINCDIR}
+CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
+LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
+OPTS		= ${CFLAGS} ${LFLAGS} -DHAVE_CONFIG_H #-DDEBUG
+
+NAMES	= attrib \
+	attrlist \
+	bitmap \
+	bootsect \
+	collate \
+	compress \
+	debug \
+	device \
+	device_io \
+	dir \
+	index \
+	inode \
+	lcnalloc \
+	logfile \
+	mft \
+	mst \
+	ntfsresize \
+	runlist \
+	unistr \
+	volume
+
+OBJDIR = obj
+OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
+PICOBJDIR = picobj
+PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
+LIBRARY = ${BUILDDIR}/libntfs.a
+SONAME = libntfs.so
+SHAREDLIB = ${BUILDDIR}/${SONAME}
+
+# Targets
+
+all: target-dirs ${LIBRARY} ${SHAREDLIB}
+
+target-dirs:
+	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
+
+${LIBRARY}: ${OBJS}
+	${AR} -rs ${LIBRARY} ${OBJS}
+
+${SHAREDLIB}: ${PICOBJS}
+	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+
+${OBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
+	${CC} ${OPTS} -c $< -o $@
+
+${PICOBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
+	${CC} ${OPTS} -fpic -c $< -o $@
+
+${OBJDIR}/%.o: %.c ${STDDEPS}
+	${CC} ${OPTS} -c $< -o $@
+
+${PICOBJDIR}/%.o: %.c ${STDDEPS}
+	${CC} ${OPTS} -fpic -c $< -o $@
+
+clean:
+	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@
 #include <string.h>
 
 // An array of device classes, with names
-static deviceClass allClasses[] = {
+static kernelDeviceClass allClasses[] = {
   { DEVICECLASS_SYSTEM,   "system"                },
   { DEVICECLASS_CPU,      "CPU"                   },
   { DEVICECLASS_MEMORY,   "memory"                },
@@ -47,7 +47,7 @@ static deviceClass allClasses[] = {
 };
 
 // An array of device subclasses, with names
-static deviceClass allSubClasses[] = {
+static kernelDeviceClass allSubClasses[] = {
   { DEVICESUBCLASS_CPU_X86,             "x86"         },
   { DEVICESUBCLASS_BUS_PCI,             "PCI"         },
   { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"        },
@@ -97,9 +97,31 @@ static kernelDevice *deviceTree = NULL;
 static int numTreeDevices = 0;
 
 
-static int findDevice(kernelDevice *dev, deviceClass *class,
-		      deviceClass *subClass, kernelDevice *devPointers[],
-		      int maxDevices, int numDevices)
+static int isDevInTree(kernelDevice *root, kernelDevice *dev)
+{
+  // This is for checking device pointers passed in from user space to make
+  // sure that they point to devices in our tree.
+
+  while (root)
+    {
+      if (root == dev)
+	return (1);
+      
+      if (root->device.firstChild)
+	if (isDevInTree(root->device.firstChild, dev) == 1)
+	  return (1);
+
+      root = root->device.next;
+    }
+
+  return (0);
+}
+
+
+static int findDeviceType(kernelDevice *dev, kernelDeviceClass *class,
+			  kernelDeviceClass *subClass,
+			  kernelDevice *devPointers[], int maxDevices,
+			  int numDevices)
 {
   // Recurses through the device tree rooted at the supplied device and
   // returns the all instances of devices of the requested type
@@ -113,13 +135,41 @@ static int findDevice(kernelDevice *dev, deviceClass *class,
 	devPointers[numDevices++] = dev;
 
       if (dev->device.firstChild)
-	numDevices += findDevice(dev->device.firstChild, class, subClass,
-				 devPointers, maxDevices, numDevices);
+	numDevices += findDeviceType(dev->device.firstChild, class, subClass,
+				     devPointers, maxDevices, numDevices);
 
       dev = dev->device.next;
     }
 
   return (numDevices);
+}
+
+
+static void device2user(kernelDevice *kernel, device *user)
+{
+  // Convert a kernelDevice structure to the user version
+  
+  kernelMemClear(user, sizeof(device));
+
+  if (kernel->device.class)
+    {
+      user->class.class = kernel->device.class->class;
+      strncpy(user->class.name, kernel->device.class->name, DEV_CLASSNAME_MAX);
+    }
+
+  if (kernel->device.subClass)
+    {
+      user->subClass.class = kernel->device.subClass->class;
+      strncpy(user->subClass.name, kernel->device.subClass->name,
+	      DEV_CLASSNAME_MAX);
+    }
+
+  if (kernel->device.model)
+    strncpy(user->model, kernel->device.model, DEV_MODELNAME_MAX);
+
+  user->parent = kernel->device.parent;
+  user->firstChild = kernel->device.firstChild;
+  user->next = kernel->device.next;
 }
 
 
@@ -138,8 +188,8 @@ int kernelDeviceInitialize(void)
   // driverRegister() functions of all our drivers
 
   int status = 0;
-  deviceClass *class = NULL;
-  deviceClass *subClass = NULL;
+  kernelDeviceClass *class = NULL;
+  kernelDeviceClass *subClass = NULL;
   char driverString[128];
   int driverCount = 0;
 
@@ -195,12 +245,12 @@ int kernelDeviceInitialize(void)
 }
 
 
-deviceClass *kernelDeviceGetClass(int classNum)
+kernelDeviceClass *kernelDeviceGetClass(int classNum)
 {
   // Given a device (sub)class number, return a pointer to the static class
   // description
 
-  deviceClass *classList = allClasses;
+  kernelDeviceClass *classList = allClasses;
   int count;
 
   // Looking for a subclass?
@@ -217,12 +267,13 @@ deviceClass *kernelDeviceGetClass(int classNum)
 }
 
 
-int kernelDeviceFind(deviceClass *class, deviceClass *subClass,
-		     kernelDevice *devPointers[], int maxDevices)
+int kernelDeviceFindType(kernelDeviceClass *class, kernelDeviceClass *subClass,
+			 kernelDevice *devPointers[], int maxDevices)
 {
   // Calls findDevice to return the first device it finds, with the
   // requested device class and subclass
-  return (findDevice(deviceTree, class, subClass, devPointers, maxDevices, 0));
+  return (findDeviceType(deviceTree, class, subClass, devPointers, maxDevices,
+			 0));
 }
 
 
@@ -303,7 +354,7 @@ int kernelDeviceTreeGetRoot(device *rootDev)
       return (status = ERR_NULLPARAMETER);
     }
 
-  kernelMemCopy(&(deviceTree[0].device), rootDev, sizeof(device));
+  device2user(&deviceTree[0], rootDev);
   return (status = 0);
 }
 
@@ -326,11 +377,11 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
       return (status = ERR_NULLPARAMETER);
     }
   
-  if (parentDev->firstChild == NULL)
+  if ((parentDev->firstChild == NULL) ||
+      !isDevInTree(deviceTree, parentDev->firstChild))
     return (status = ERR_NOSUCHENTRY);
-  
-  kernelMemCopy(&(((kernelDevice *) parentDev->firstChild)->device), childDev,
-		sizeof(device));
+
+  device2user(parentDev->firstChild, childDev);
   return (status = 0);
 }
 
@@ -353,10 +404,9 @@ int kernelDeviceTreeGetNext(device *siblingDev)
       return (status = ERR_NULLPARAMETER);
     }
 
-  if (siblingDev->next == NULL)
+  if ((siblingDev->next == NULL) || !isDevInTree(deviceTree, siblingDev->next))
     return (status = ERR_NOSUCHENTRY);
 
-  kernelMemCopy(&(((kernelDevice *) siblingDev->next)->device), siblingDev,
-		sizeof(device));
+  device2user(siblingDev->next, siblingDev);
   return (status = 0);
 }

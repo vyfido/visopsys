@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -345,6 +345,10 @@ static inline unsigned kernelProcessorSwap32(unsigned variable)
   __asm__ __volatile__ ("bswap %0" : "=r" (tmp) : "r" (tmp));
   return (tmp);
 }
+
+#define kernelProcessorLock(lck, proc)         \
+  __asm__ __volatile__ ("lock cmpxchgl %1, %2" \
+			: : "a" (0), "r" (proc), "m" (lck) : "memory")
 
 #define _KERNELPROCESSORX86_H
 #endif

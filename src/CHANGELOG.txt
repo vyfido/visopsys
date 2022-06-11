@@ -1,5 +1,90 @@
 
 ---------------
+Version 0.61
+---------------
+
+  Overview: This is a maintenance release.  Some new features include Disk
+  Manager support for resizing NTFS filesystems and arbitrary partitions,
+  purely unprivileged user-space processes, I/O port permissions and
+  protection, IDE block mode I/O, Linux swap detection and clobber,
+  improved atomic kernel locks, many C library additions, and a calendar
+  program, in addition to assorted bug fixes.
+
+- The Disk Manager can now resize Windows XP (NTFS) partitions, as a result
+of porting Linux ntfsprogs NTFS resizing code.
+- The Disk Manager will now allow partition-only resizing regardless of
+the filesystem type (with appropriate warnings).
+- All userspace programs now run in unprivileged CPU mode, regardless of
+actual privilege level, and I/O privilege maps have been implemented by
+Davide Airaghi.
+- Improved IDE/ATA hard disk driver performance by implementing block-mode
+I/O.
+- Added basic 'stub' NTFS filesystem support (detection and clobber).
+- Added basic 'stub' Linux swap filesystem support (detection and clobber).
+- The kernel's locking code now implements real atomic locking.
+- Added Bauer Vladislav's calendar program.
+- All threads now use the same page directory control data as their process
+parents for better synchronisation.
+- Process stacks now have guard pages at the top which are privileged, so
+that user process stack overflows cause protection faults.
+- The C library now has a proper suite of malloc() functionality -- taken
+from the kernel's implementation -- which is now used by the kernel instead
+so it can be used for user space without code duplication.
+- Added a kernelMemoryBlockInfo() function to return information about an
+allocated memory block.  Useful for the realloc() libc function.
+- Added a kernel disk function for rescanning the partitions of a single
+disk.
+- Added a lock to the 'progress' data structure.
+- Implemented 'confirmation' capability in the progress structure and the
+libvsh and libwindow progress bar/dialog functions.
+- Add a kernel filesystem function for getting statistics about a filesystem
+(whether it's mounted or not, or indeed, properly supported or not).
+- Added a kernel filesystem function for getting resizing constraints.
+- Added a kernel filestystem function for requesting specific detection
+of filesystem type (useful for removable media and such).
+- The text-mode installer now offers to let you partition first.
+- The text mode Disk Manager now show the operations/commands in two
+columns.
+- Added a window library 'radio dialog' for presenting choices in a radio
+button format.
+- The Disk Manager's 'move partition' and 'copy disk' functions now uses
+standard progress dialogs and show time estimates.
+- The kernel logging thread now has a lock on the log, so that the log
+doesn't get garbled by different processes logging at the same time.
+- The OS loader's screen output is now saved in a file (/system/vloader.log)
+so that it can be examined afterwards.
+- Removed the source code from the ISO distribution.
+- Printf()-style C library functions now support left-justification ('-')
+format specifiers.
+- Added C library functions lltoa(), lltob(), lltox(), and ulltoa() to
+support 'long' format specifiers and arguments.
+- Added C library functions mbstowcs(), mbtowc(), and wctomb() for wide-
+character support.
+- Added C library functions fflush(), ffs(), fgets(), realloc(), strdup(),
+strerror(), vfprintf(), vprintf(), vsnprintf(), and vsprintf().
+- Added C library functions for 64-bit divisions such as __div64(),
+__divdi3(), __moddi3(), etc.
+- Enabled the C library functions such as fgetpos(), fread(), fsetpos(),
+fflush(), fgets(), ftell(), fprintf(), fseek() and fwrite() (as applicable)
+to behave correctly when the FILE* stream is 'stdin', 'stdout', or 'stderr'.
+- Added C library header files endian.h, stdint.h, and <sys/cdefs.h>.
+- Fixed: After formatting FAT32, Linux and older Windows installers would
+show the filesystem as 100% full.
+- Fixed: Errors with IDE/ATA hard disks as secondary masters.
+- Fixed: Unformatting (clobbering) a partition in the disk manager didn't
+seem to convince the kernel to un-detect the previous filesystem until
+reboot.
+- Fixed: The graphical 'ifconfig' program wasn't updating the device text
+after starting/stopping networking.
+- Fixed: The wallpaper program was not properly shutting down its window
+thread.
+- Fixed: The imgboot program failed to exit after calling the login
+program.
+- Fixed: There was a (harmless) error message when running the 'ldd' program
+against an executable program because it always tried to load the file as a
+library.
+
+---------------
 Version 0.6
 ---------------
 
@@ -101,7 +186,6 @@ ELF program header entries.
 the program.
 - Fixed: The Program Manager was associating some child threads with the
 wrong parents in the process list.
-
 
 ---------------
 Version 0.58

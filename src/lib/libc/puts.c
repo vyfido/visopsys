@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,6 +29,9 @@
 int puts(const char *s)
 {
   // puts() writes the string s and a trailing newline to stdout.
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   int status = textPrintLine(s);
   if (status < 0)

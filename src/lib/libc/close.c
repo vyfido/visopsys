@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,12 +23,16 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/api.h>
 
 
 int close(int fd)
 {
   // Given a file descriptor, close the file.
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   fileStreamClose((fileStream *) fd);
   free((void *) fd);

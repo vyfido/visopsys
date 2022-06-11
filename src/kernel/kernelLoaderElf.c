@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -830,8 +830,9 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
       if (dynArray[count].d_tag == ELFDT_NEEDED)
 	{
 	  kernelError(kernel_error, "Library %s needs library %s",
-		      library->name, (loadAddress + stringHeader->sh_offset +
-				      dynArray[count].d_un.d_val));
+		      library->name,
+		      (char *) (loadAddress + stringHeader->sh_offset +
+				dynArray[count].d_un.d_val));
 	  return (status = ERR_NOTIMPLEMENTED);
 	}
 

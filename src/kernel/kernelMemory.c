@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -123,8 +123,8 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
 
   // Take the whole range of memory covered by this new block, and mark
   // each of its physical memory blocks as "used" in the free-block bitmap.
-  lastBit = (end / MEMBLOCKSIZE);
-  for (temp = (start / MEMBLOCKSIZE); temp <= lastBit; temp ++)
+  lastBit = (end / MEMORY_BLOCK_SIZE);
+  for (temp = (start / MEMORY_BLOCK_SIZE); temp <= lastBit; temp ++)
     freeBlockBitmap[temp / 8] |= (0x80 >> (temp % 8));
 
   // Return success
@@ -140,8 +140,8 @@ static int requestBlock(int processId, unsigned requestedSize,
   // memory blocks.  It makes the pointer point to the allocated memory 
   // according to the specifications, and returns the amount of memory
   // allocated.  The alignment parameter allows the caller to request the
-  // alignment of the block (but only on a MEMBLOCKSIZE boundary, otherwise
-  // an error will result).  If no particular alignment is needed, 
+  // alignment of the block (but only on a MEMORY_BLOCK_SIZE boundary,
+  // otherwise an error will result).  If no particular alignment is needed, 
   // specifying this parameter as 0 will effectively nullify this.  It
   // returns a pointer to the memory allocated if successful, NULL otherwise.
 
@@ -167,19 +167,19 @@ static int requestBlock(int processId, unsigned requestedSize,
       return (status = ERR_MEMORY);
     }
   
-  // Make sure the requested alignment is a multiple of MEMBLOCKSIZE.
-  // Obviously, if MEMBLOCKSIZE is the size of each block, we can't
+  // Make sure the requested alignment is a multiple of MEMORY_BLOCK_SIZE.
+  // Obviously, if MEMORY_BLOCK_SIZE is the size of each block, we can't
   // really start allocating memory which uses only bits and pieces
   // of blocks
   if (alignment != 0)
-    if ((alignment % MEMBLOCKSIZE) != 0)
+    if ((alignment % MEMORY_BLOCK_SIZE) != 0)
       return (status = ERR_ALIGN);
 
-  // Make the requested size be a multiple of MEMBLOCKSIZE.  Our memory 
+  // Make the requested size be a multiple of MEMORY_BLOCK_SIZE.  Our memory 
   // blocks are all going to be multiples of this size
-  if ((requestedSize % MEMBLOCKSIZE) != 0)
-      requestedSize = (((requestedSize / MEMBLOCKSIZE) + 1) *
-      MEMBLOCKSIZE);
+  if ((requestedSize % MEMORY_BLOCK_SIZE) != 0)
+      requestedSize = (((requestedSize / MEMORY_BLOCK_SIZE) + 1) *
+      MEMORY_BLOCK_SIZE);
 
   // Now, make sure that there's enough total free memory to satisfy
   // this request (whether or not there is a large enough contiguous
@@ -192,7 +192,7 @@ static int requestBlock(int processId, unsigned requestedSize,
     }
 
   // Adjust "alignment" so that it is expressed in blocks
-  alignment /= MEMBLOCKSIZE;
+  alignment /= MEMORY_BLOCK_SIZE;
 
   consecutiveBlocks = 0;
 
@@ -221,10 +221,10 @@ static int requestBlock(int processId, unsigned requestedSize,
       consecutiveBlocks++;
 
       // Do we have enough yet?
-      if ((consecutiveBlocks * MEMBLOCKSIZE) >= requestedSize)
+      if ((consecutiveBlocks * MEMORY_BLOCK_SIZE) >= requestedSize)
 	{
 	  blockPointer = (void *) 
-	    ((count - (consecutiveBlocks - 1)) * MEMBLOCKSIZE);
+	    ((count - (consecutiveBlocks - 1)) * MEMORY_BLOCK_SIZE);
 	  foundBlock = 1;
 	  break;
 	}
@@ -272,9 +272,9 @@ static int releaseBlock(unsigned blockLocation)
     return (status = ERR_NOSUCHENTRY);
 
   // Mark all of the applicable blocks in the free block bitmap as unused
-  lastBit = (usedBlockList[blockLocation]->endLocation / MEMBLOCKSIZE);
-  for (temp = (usedBlockList[blockLocation]->startLocation / MEMBLOCKSIZE);
-       temp <= lastBit; temp ++)
+  lastBit = (usedBlockList[blockLocation]->endLocation / MEMORY_BLOCK_SIZE);
+  for (temp = (usedBlockList[blockLocation]->startLocation /
+	       MEMORY_BLOCK_SIZE); temp <= lastBit; temp ++)
     freeBlockBitmap[temp / 8] &= (0xFF7F >> (temp % 8));
 
   // Adjust the total used and free memory quantities
@@ -340,9 +340,9 @@ int kernelMemoryInitialize(unsigned kernelMemory)
   // Add all the extended memory
   totalMemory += (kernelOsLoaderInfo->extendedMemory * 1024);
 
-  // Make sure that totalMemory is a multiple of MEMBLOCKSIZE.
-  if ((totalMemory % MEMBLOCKSIZE) != 0)
-    totalMemory = ((totalMemory / MEMBLOCKSIZE) * MEMBLOCKSIZE);
+  // Make sure that totalMemory is a multiple of MEMORY_BLOCK_SIZE.
+  if ((totalMemory % MEMORY_BLOCK_SIZE) != 0)
+    totalMemory = ((totalMemory / MEMORY_BLOCK_SIZE) * MEMORY_BLOCK_SIZE);
 
   totalUsed = 0;
   totalFree = totalMemory;
@@ -354,7 +354,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
   for (count = 0; count < MAXMEMORYBLOCKS; count ++)
     usedBlockList[count] = &(usedBlockMemory[count]);
   
-  totalBlocks = (totalMemory / MEMBLOCKSIZE);
+  totalBlocks = (totalMemory / MEMORY_BLOCK_SIZE);
   usedBlocks = 0;
 
   // We need to define memory for the free-block bitmap.  However,
@@ -369,7 +369,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
   bitmapSize = (totalBlocks / 8);
 
   // Make sure the bitmap is allocated to block boundaries
-  bitmapSize += (MEMBLOCKSIZE - (bitmapSize % MEMBLOCKSIZE));
+  bitmapSize += (MEMORY_BLOCK_SIZE - (bitmapSize % MEMORY_BLOCK_SIZE));
 
   // If we want to actually USE the memory we just allocated, we will
   // have to map it into the kernel's address space
@@ -659,7 +659,7 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 	break;
       }
 
-  if ((block) && (block->processId != oldPid))
+  if (block && (block->processId != oldPid))
     {
       kernelError(kernel_error, "Attempt to change memory ownership "
 		  "from incorrect owner (%d should be %d)", oldPid,
@@ -678,18 +678,24 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
     {
       if (remap)
 	{
-	  blockSize = ((block->endLocation - block->startLocation) + 1);
+	  if (kernelMultitaskerGetPageDir(newPid) !=
+	      kernelMultitaskerGetPageDir(oldPid))
+	    {
+	      blockSize = ((block->endLocation - block->startLocation) + 1);
 
-	  // Map the memory into the new owner's address space
-	  status = kernelPageMapToFree(newPid, physicalAddress,
-				       newVirtualAddress, blockSize);
-	  if (status < 0)
-	    return (status);
+	      // Map the memory into the new owner's address space
+	      status = kernelPageMapToFree(newPid, physicalAddress,
+					   newVirtualAddress, blockSize);
+	      if (status < 0)
+		return (status);
 
-	  // Unmap the memory from the old owner's address space
-	  status = kernelPageUnmap(oldPid, oldVirtualAddress, blockSize);
-	  if (status < 0)
-	    return (status);
+	      // Unmap the memory from the old owner's address space
+	      status = kernelPageUnmap(oldPid, oldVirtualAddress, blockSize);
+	      if (status < 0)
+		return (status);
+	    }
+	  else
+	    *newVirtualAddress = oldVirtualAddress;
 	}
 
       // Return success
@@ -723,9 +729,12 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
   // is allowed
 
   // Do we really need to change anything?
-  if (sharerPid == shareePid)
+  if ((sharerPid == shareePid) ||
+      (kernelMultitaskerGetPageDir(sharerPid) ==
+       kernelMultitaskerGetPageDir(shareePid)))
     {
-      // Nope.  The processes are the same.
+      // Nothing to do.  The processes are either the same or else use the
+      // same page directory.
       *newVirtualAddress = oldVirtualAddress;
       return (status = 0);
     }
@@ -813,7 +822,7 @@ int kernelMemoryRelease(void *virtualAddress)
        PRIVILEGE_SUPERVISOR))
     {
       kernelError(kernel_error, "Cannot release system memory block from "
-		  "unprivileged user process %d", virtualAddress);
+		  "unprivileged user process %d", currentPid);
       return (status = ERR_PERMISSION);
     }
 
@@ -1139,5 +1148,66 @@ int kernelMemoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize,
       blocksArray[count1].endLocation = usedBlockList[count1]->endLocation;
     }
   
+  return (status = 0);
+}
+
+
+int kernelMemoryBlockInfo(void *virtualAddress, memoryBlock *block)
+{
+  // Given a virtual address, fill in the user-space memoryBlock structure
+  // with information about that block.
+
+  int status = 0;
+  int currentPid = 0;
+  void *physicalAddress = NULL;
+  int slot = -1;
+  unsigned count;
+
+  // Make sure the memory manager has been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params.  It's OK for virtualAddress to be NULL.
+  if (block == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  currentPid = kernelMultitaskerGetCurrentProcessId();
+
+  // The caller will be pass a virtual address.  Turn it into a physical
+  // address.
+  physicalAddress = kernelPageGetPhysical(currentPid, virtualAddress);
+  if (physicalAddress == NULL)
+    {
+      kernelError(kernel_error, "The memory pointer is not mapped");
+      return (status = ERR_NOSUCHENTRY);
+    }
+  
+  // Obtain a lock on the memory data
+  status = kernelLockGet(&memoryLock);
+  if (status < 0)
+    return (status);
+
+  // Now we can go through the "used" block list watching for a start
+  // value that matches this pointer
+  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
+       count ++)
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
+      {
+	// This is the one.
+	slot = count;
+	break;
+      }
+
+  // Release the lock on the memory data
+  kernelLockRelease(&memoryLock);
+
+  if (slot < 0)
+    return (status = ERR_NOSUCHENTRY);
+
+  kernelMemCopy(usedBlockList[slot], block, sizeof(memoryBlock));
+  block->endLocation = (unsigned)
+    (virtualAddress + (block->endLocation - block->startLocation));
+  block->startLocation = (unsigned) virtualAddress;
+
   return (status = 0);
 }

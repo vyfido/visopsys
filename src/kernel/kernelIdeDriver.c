@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,6 +33,7 @@
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 // List of IDE ports, per device number
 static idePorts ports[] = {
@@ -225,8 +226,10 @@ static int waitOperationComplete(int driveNum)
 	  return (status = 0);
 	}
       else
-	// No interrupt, no error -- just timed out.
-	return (status = ERR_IO);
+	{
+	  // No interrupt, no error -- just timed out.
+	  return (status = ERR_IO);
+	}
     }
 }
 
@@ -313,7 +316,7 @@ static int atapiStartStop(int driveNum, int state)
       if (status < 0)
 	return (status);
 
-      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_READCAPACITY);
+      status = sendAtapiPacket(driveNum, 8, ATAPI_PACKET_READCAPACITY);
       if (status < 0)
 	return (status);
 
@@ -352,7 +355,7 @@ static int atapiStartStop(int driveNum, int state)
       disks[driveNum].logical[0].numSectors = disks[driveNum].numSectors;
       
       // Read the TOC (Table Of Contents)
-      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_READTOC);
+      status = sendAtapiPacket(driveNum, 12, ATAPI_PACKET_READTOC);
       if (status < 0)
 	return (status);
 
@@ -387,6 +390,35 @@ static int atapiStartStop(int driveNum, int state)
 }
 
 
+static int setMultiMode(int driveNum)
+{
+  // Set multiple mode
+
+  int status = 0;
+
+  // Wait for the controller to be ready
+  status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
+  if (status < 0)
+    {
+      kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
+      return (status);
+    }
+
+  // Clear the "interrupt received" byte
+  controllers[driveNum / 2].interruptReceived = 0;
+  
+  // Send the "set multiple mode" command
+  kernelProcessorOutPort8(ports[driveNum].sectorCount,
+			  (unsigned char) disks[driveNum].multiSectors);
+  kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
+			  ATA_SETMULTIMODE); // 0xC6
+  
+  // Wait for the controller to finish the operation
+  status = waitOperationComplete(driveNum);
+  return (status);
+}
+
+
 static int readWriteSectors(int driveNum, unsigned logicalSector,
 			    unsigned numSectors, void *buffer, int read)
 {
@@ -395,6 +427,8 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   
   int status = 0;
   unsigned doSectors = 0;
+  unsigned multi = 0;
+  unsigned reps = 0;
   unsigned char data = 0;
   unsigned transferBytes = 0;
   unsigned count;
@@ -492,7 +526,28 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
       kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
       return (status = 0);
     }
-      
+
+  if (disks[driveNum].multiSectors > 1)
+    {
+      status = setMultiMode(driveNum);
+      if (status < 0)
+	{
+	  while ((status < 0) && (disks[driveNum].multiSectors > 1))
+	    {
+	      disks[driveNum].multiSectors /= 2;
+	      status = setMultiMode(driveNum);
+	    }
+	  if (status < 0)
+	    {
+	      // No more multi-transfers for you
+	      kernelError(kernel_error, "Error setting multi-sector "
+			  "mode for disk %s.  Disabled.",
+			  disks[driveNum].name);
+	      disks[driveNum].multiSectors = 1;
+	    }
+	}
+    }
+
   while (numSectors > 0)
     {
       doSectors = numSectors;
@@ -522,9 +577,6 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	data = (unsigned char) doSectors;
       kernelProcessorOutPort8(ports[driveNum].sectorCount, data);
       
-      // Clear the "interrupt received" byte
-      controllers[driveNum / 2].interruptReceived = 0;
-      
       // Wait for the selected drive to be ready
       status = pollStatus(driveNum, IDE_DRV_RDY, 1);
       if (status < 0)
@@ -534,27 +586,47 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	  return (status);
 	}
       
-      if (read)
-	// Send the "read multiple sectors" command
-	data = ATA_READMULT_RET; // 0xC4
+      // Clear the "interrupt received" byte
+      controllers[driveNum / 2].interruptReceived = 0;
+      
+      if (disks[driveNum].multiSectors > 1)
+	{
+	  if (read)
+	    // Send the "read multiple" command
+	    data = ATA_READMULTIPLE; // 0xC4
+	  else
+	    // Send the "write multiple" command
+	    data = ATA_WRITEMULTIPLE; // 0xC5
+	}
       else
-	// Send the "write multiple sectors" command
-	data = ATA_WRITEMULT_RET; // 0xC5
+	{
+	  if (read)
+	    // Send the "read sectors" command
+	    data = ATA_READSECTS_RET; // 0x20
+	  else
+	    // Send the "write sectors" command
+	    data = ATA_WRITESECTS_RET; // 0x30
+	}
       kernelProcessorOutPort8(ports[driveNum].comStat, data);
       
-      for (count = 0; count < doSectors; count ++)
+      multi = disks[driveNum].multiSectors;
+      reps = ((doSectors / multi) + ((doSectors % multi)? 1 : 0));
+
+      for (count = 0; count < reps; count ++)
 	{
-	  // Transfer the data to/from the disk controller.
-	  
+	  unsigned doMulti = min(multi, doSectors);
+	  if ((doSectors % multi) && (count == (reps - 1)))
+	    doMulti = (doSectors % multi);
+
 	  if (!read)
 	    {
 	      // Wait for DRQ
 	      while (pollStatus(driveNum, IDE_DRV_DRQ, 1));
 
-	      // Transfer one sector's worth of data to the controller.
-	      kernelProcessorRepOutPort16(ports[driveNum].data, buffer, 256);
+	      kernelProcessorRepOutPort16(ports[driveNum].data, buffer,
+					  (doMulti * 256));
 	    }
-	  
+
 	  // Wait for the controller to finish the operation
 	  status = waitOperationComplete(driveNum);
 	  if (status < 0)
@@ -563,17 +635,18 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 			  disks[driveNum].name, (read? "read" : "write"),
 			  numSectors, logicalSector,
 			  errorMessages[evaluateError(driveNum)]);
-	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
+	      kernelLockRelease(&(controllers[driveNum / 2]
+				  .controllerLock));
 	      return (status);
 	    }
 	  
 	  if (read)
-	    // Transfer one sector's worth of data from the controller.
-	    kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
+	    kernelProcessorRepInPort16(ports[driveNum].data, buffer,
+				       (doMulti * 256));
 	  
-	  buffer += 512;
+	  buffer += (doMulti * 512);
 	}
-      
+
       numSectors -= doSectors;
       logicalSector += doSectors;
     }
@@ -1000,11 +1073,11 @@ static int driverReadSectors(int driveNum, unsigned logicalSector,
 
 
 static int driverWriteSectors(int driveNum, unsigned logicalSector,
-			      unsigned numSectors, void *buffer)
+			      unsigned numSectors, const void *buffer)
 {
   // This routine is a wrapper for the readWriteSectors routine.
-  return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
-			   0));  // Write operation
+  return (readWriteSectors(driveNum, logicalSector, numSectors,
+			   (void *) buffer, 0));  // Write operation
 }
 
 
@@ -1025,9 +1098,6 @@ static int driverDetect(void *driver)
   kernelDevice *devices = NULL;
 
   kernelLog("Examining hard disks...");
-
-  // Reset the number of IDE devices
-  numberIdeDisks = 0;
 
   // Clear the controller and disk memory
   kernelMemClear(controllers, (sizeof(ideController) * (MAX_IDE_DISKS / 2)));
@@ -1088,7 +1158,7 @@ static int driverDetect(void *driver)
 	  // This is an ATA hard disk device
 	  kernelLog("Disk %d is an IDE disk", driveNum);
 	      
-	  sprintf((char *) disks[driveNum].name, "hd%d", numberHardDisks++);
+	  sprintf((char *) disks[driveNum].name, "hd%d", numberHardDisks);
 	  disks[driveNum].description = "ATA/IDE hard disk";
 	  disks[driveNum].flags =
 	    (DISKFLAG_PHYSICAL | DISKFLAG_FIXED | DISKFLAG_IDEDISK);
@@ -1096,43 +1166,73 @@ static int driverDetect(void *driver)
 	  // Transfer one sector's worth of data from the controller.
 	  kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
       
-	  /*
-	  // Return some information we know from our device info command
-	  disks[driveNum].heads = (unsigned) buffer[3];
-	  disks[driveNum].cylinders = (unsigned) buffer[1];
-	  disks[driveNum].sectorsPerCylinder = (unsigned) buffer[6];
-	  disks[driveNum].numSectors = *((unsigned *)(buffer + 0x78));
-	  disks[driveNum].sectorSize = (unsigned) buffer[5];
-	  */
-	  disks[driveNum].heads = kernelOsLoaderInfo->hddInfo[driveNum].heads;
+	  disks[driveNum].heads =
+	    kernelOsLoaderInfo->hddInfo[numberHardDisks].heads;
 	  disks[driveNum].cylinders =
-	    kernelOsLoaderInfo->hddInfo[driveNum].cylinders;
+	    kernelOsLoaderInfo->hddInfo[numberHardDisks].cylinders;
 	  disks[driveNum].sectorsPerCylinder = 
-	    kernelOsLoaderInfo->hddInfo[driveNum].sectorsPerCylinder;
+	    kernelOsLoaderInfo->hddInfo[numberHardDisks].sectorsPerCylinder;
 	  disks[driveNum].numSectors =
-	    kernelOsLoaderInfo->hddInfo[driveNum].totalSectors;
+	    kernelOsLoaderInfo->hddInfo[numberHardDisks].totalSectors;
 	  disks[driveNum].sectorSize =
-	    kernelOsLoaderInfo->hddInfo[driveNum].bytesPerSector;
+	    kernelOsLoaderInfo->hddInfo[numberHardDisks].bytesPerSector;
 	  disks[driveNum].motorState = 1;
 
-	  // Sometimes 0?  We can't have that as we are about to use it to
-	  // perform a division operation.
+	  // Sector size sometimes 0?  We can't have that as we are about
+	  // to use it to perform a division operation.
 	  if (disks[driveNum].sectorSize == 0)
 	    {
-	      kernelError(kernel_warn, "Physical disk %d sector size 0; "
-			  "assuming 512", driveNum);
-	      disks[driveNum].sectorSize = 512;
+	      // Try to get it from the 'identify device' info
+	      disks[driveNum].sectorSize = buffer[5];
+
+	      if (disks[driveNum].sectorSize == 0)
+		{
+		  kernelError(kernel_warn, "Physical disk %d sector size 0; "
+			      "assuming 512", driveNum);
+		  disks[driveNum].sectorSize = 512;
+		}
 	    }
 
 	  // In some cases, we are detecting hard disks that don't seem
 	  // to actually exist.  Check whether the number of cylinders
 	  // passed by the loader is non-NULL.
-	  if (!disks[driveNum].cylinders)
+	  if (disks[driveNum].cylinders == 0)
 	    {
-	      kernelError(kernel_warn, "Physical disk %d cylinders 0",
-			  driveNum);
-	      continue;
+	      // Try to get it from the 'identify device' info
+	      disks[driveNum].cylinders = buffer[1];
+	  
+	      if (disks[driveNum].cylinders == 0)
+		kernelError(kernel_warn, "Physical disk %d cylinders 0",
+			    driveNum);
 	    }
+
+	  if (disks[driveNum].heads == 0)
+	    {
+	      // Try to get it from the 'identify device' info
+	      disks[driveNum].heads = buffer[3];
+	  
+	      if (disks[driveNum].heads == 0)
+		kernelError(kernel_warn, "Physical disk %d heads 0", driveNum);
+	    }
+
+	  if (disks[driveNum].sectorsPerCylinder == 0)
+	    {
+	      // Try to get it from the 'identify device' info
+	      disks[driveNum].sectorsPerCylinder = buffer[6];
+	  
+	      if (disks[driveNum].sectorsPerCylinder == 0)
+		kernelError(kernel_warn, "Physical disk %d sectors 0",
+			    driveNum);
+	    }
+
+	  // Get the number of sectors that can be transferred at once in
+	  // block mode (if applicable)
+	  disks[driveNum].multiSectors =
+	    (buffer[0x2F] / disks[driveNum].sectorSize);
+	  if (disks[driveNum].multiSectors < 1)
+	    disks[driveNum].multiSectors = 1;
+
+	  numberHardDisks += 1;
 	}
 
       else
@@ -1175,7 +1275,7 @@ static int driverDetect(void *driver)
 	      goto nextDisk;
 	    }
       
-	  sprintf((char *) disks[driveNum].name, "cd%d", numberCdRoms++);
+	  sprintf((char *) disks[driveNum].name, "cd%d", numberCdRoms);
 	  disks[driveNum].description = "ATAPI CD-ROM";
 	  // Removable?
 	  if (buffer[0] & (unsigned short) 0x0080)
@@ -1200,6 +1300,8 @@ static int driverDetect(void *driver)
 	  disks[driveNum].sectorsPerCylinder = (unsigned) buffer[6];
 	  disks[driveNum].numSectors = 0xFFFFFFFF;
 	  disks[driveNum].sectorSize = 2048;
+
+	  numberCdRoms += 1;
 	}
 
       // Increase the overall count of IDE disks
@@ -1215,28 +1317,25 @@ static int driverDetect(void *driver)
   if (devices == NULL)
     return (status = 0);
 
-  numberIdeDisks = 0;
   for (driveNum = 0; (driveNum < MAX_IDE_DISKS); driveNum ++)
     {
       if (disks[driveNum].name[0])
 	{
-	  devices[numberIdeDisks].device.class =
+	  devices[driveNum].device.class =
 	    kernelDeviceGetClass(DEVICECLASS_DISK);
-	  devices[numberIdeDisks].device.subClass =
+	  devices[driveNum].device.subClass =
 	    kernelDeviceGetClass(DEVICESUBCLASS_DISK_IDE);
-	  devices[numberIdeDisks].driver = driver;
-	  devices[numberIdeDisks].data = (void *) &disks[driveNum];
+	  devices[driveNum].driver = driver;
+	  devices[driveNum].data = (void *) &disks[driveNum];
 
 	  // Register the disk
-	  status = kernelDiskRegisterDevice(&devices[numberIdeDisks]);
+	  status = kernelDiskRegisterDevice(&devices[driveNum]);
 	  if (status < 0)
 	    return (status);
 
-	  status = kernelDeviceAdd(NULL, &devices[numberIdeDisks]);
+	  status = kernelDeviceAdd(NULL, &devices[driveNum]);
 	  if (status < 0)
 	    return (status);
-
-	  numberIdeDisks += 1;
 	}
     }
 

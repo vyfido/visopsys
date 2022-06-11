@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,9 +40,11 @@ Options:
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/cdefs.h>
 
 #define KERNELCONF  "/system/config/kernel.conf"
 #define NODEVS      "No supported network devices."
@@ -55,6 +57,7 @@ static objectKey window = NULL;
 static objectKey enabledLabel = NULL;
 static objectKey enableButton = NULL;
 static objectKey enableCheckbox = NULL;
+static objectKey deviceLabel[NETWORK_MAX_ADAPTERS];
 static objectKey okButton = NULL;
 
 
@@ -174,6 +177,9 @@ static void updateEnabled(void)
   char enabled[80];
   variableList kernelConf;
   int haveConf = 0;
+  char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
+  char *buffer = NULL;
+  int count;
 
   snprintf(enabled, 80, "Networking is %s", (networkEnabled? "enabled" :
 					     "disabled"));
@@ -198,6 +204,20 @@ static void updateEnabled(void)
 
   if (readOnly || !haveConf)
     windowComponentSetEnabled(enableCheckbox, 0);
+
+  // Update the device strings as well.
+  buffer = malloc(MAXSTRINGLENGTH);
+  if (buffer)
+    {
+      for (count = 0; count < numDevices; count ++)
+	{
+	  sprintf(name, "net%d", count);
+	  if (devString(name, buffer) < 0)
+	    continue;
+	  windowComponentSetData(deviceLabel[count], buffer, MAXSTRINGLENGTH);
+	}
+      free(buffer);
+    }
 }
 
 
@@ -260,7 +280,7 @@ static int constructWindow(char *arg)
   int status = 0;
   componentParameters params;
   char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
-  char buffer[MAXSTRINGLENGTH];
+  char *buffer = NULL;
   int count;
 
   // Create a new window
@@ -304,14 +324,21 @@ static int constructWindow(char *arg)
   params.orientationX = orient_center;
   params.fixedWidth = 0;
 
+  buffer = malloc(MAXSTRINGLENGTH);
+  if (buffer == NULL)
+    return (status = ERR_MEMORY);
+
   // Did the user specify a device name?
   if (arg)
     {
       // Get the device information
       status = devString(arg, buffer);
       if (status < 0)
-	return (status);
-      
+	{
+	  free(buffer);
+	  return (status);
+	}
+
       windowNewTextLabel(window, buffer, &params);
       params.gridY += 1;
     }
@@ -327,9 +354,12 @@ static int constructWindow(char *arg)
 	      // Get the device information
 	      status = devString(name, buffer);
 	      if (status < 0)
-		return (status);
-	      
-	      windowNewTextLabel(window, buffer, &params);
+		{
+		  free(buffer);
+		  return (status);
+		}
+
+	      deviceLabel[count] = windowNewTextLabel(window, buffer, &params);
 	      params.gridY += 1;
 	    }
 	}
@@ -339,6 +369,8 @@ static int constructWindow(char *arg)
 	  params.gridY += 1;
 	}
     }
+
+  free(buffer);
   
   // Create an 'OK' button
   params.padBottom = 5;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,6 @@
 
 // Definitions
 #define MAXMEMORYBLOCKS  2048
-#define MEMBLOCKSIZE     MEMORY_PAGE_SIZE
 
 // Functions from kernelMemory.c
 int kernelMemoryInitialize(unsigned);
@@ -40,6 +39,7 @@ int kernelMemoryChangeOwner(int, int, int, void *, void **);
 int kernelMemoryShare(int, int, void *, void **);
 int kernelMemoryGetStats(memoryStats *, int);
 int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
+int kernelMemoryBlockInfo(void *, memoryBlock *);
 
 #define _KERNELMEMORY_H
 #endif

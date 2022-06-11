@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,9 +32,9 @@
 #define EOF -1
 #endif
 
-#define stdout (FILE *) 0
-#define stdin  (FILE *) 1
-#define stderr (FILE *) 2
+#define stdout (FILE *) 1
+#define stdin  (FILE *) 2
+#define stderr (FILE *) 3
 
 // For seeking using fseek()
 #define SEEK_SET 0x01
@@ -45,8 +45,10 @@
 typedef unsigned fpos_t;
 
 // Available functions
+int fflush(FILE *);
 int fgetpos(FILE *, fpos_t *);
-int fprintf(FILE *, const char *, ...);
+char *fgets(char *, int, FILE *);
+int fprintf(FILE *, const char *, ...) __attribute__((format(printf, 2, 3)));
 size_t fread(void *, size_t, size_t, FILE *);
 int fseek(FILE *, long, int);
 int fsetpos(FILE *, fpos_t *);
@@ -56,20 +58,21 @@ int getc(FILE *);
 int getchar(void);
 char *gets(char *);
 void perror(const char *);
-int printf(const char *, ...);
+int printf(const char *, ...) __attribute__((format(printf, 1, 2)));
 int putc(int, FILE *);
 int putchar(int);
 int puts(const char *);
 int remove(const char *);
 int rename(const char *, const char *);
 void rewind(FILE *);
-int scanf(const char *, ...);
-int snprintf(char *, size_t, const char *, ...);
-int sprintf(char *, const char *, ...);
-
-// Internal routines, but are exported
-int _expandFormatString(char *, const char *, va_list);
-int _formatInput(const char *, const char *, va_list);
+int scanf(const char *, ...) __attribute__((format(scanf, 1, 2)));
+int snprintf(char *, size_t, const char *, ...)
+     __attribute__((format(printf, 3, 4)));
+int sprintf(char *, const char *, ...) __attribute__((format(printf, 2, 3)));
+int vfprintf(FILE *, const char *, va_list);
+int vprintf(const char *, va_list);
+int vsnprintf(char *, size_t, const char *, va_list);
+int vsprintf(char *, const char *, va_list);
 
 #define _STDIO_H
 #endif

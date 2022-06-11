@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@
 // This is the standard "write" function, as found in standard C libraries
 
 #include <unistd.h>
+#include <stdio.h>
 #include <errno.h>
 #include <sys/api.h>
 
@@ -29,12 +30,18 @@ size_t write(int fd, const void *buf, size_t count)
 {
   // Write count bytes to the stream
 
-  int status = fileStreamWrite((fileStream *) fd, count, (void *) buf);
+  int status = 0;
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
+
+  if ((fd == (int) stdout) || (fd == (int) stderr))
+    status = textPrint(buf);
+  else
+    status = fileStreamWrite((fileStream *) fd, count, (void *) buf);
+
   if (status < 0)
-    {
-      errno = status;
-      return (-1);
-    }
+    return (errno = status);
 
   return (count);
 }

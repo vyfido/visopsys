@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,7 @@ Options:
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
+#include <sys/cdefs.h>
 
 #define MOUNTPOINT               "/tmp_install"
 #define BASICINSTALL             "/system/install-files.basic"
@@ -61,12 +62,13 @@ static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2005 "
+static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2006 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
   "install:";
 static char *setPasswordString = "Please choose a password for the 'admin' "
                                  "account";
+static char *partitionString = "Partition disks...";
 static install_type installType;
 static unsigned bytesToCopy = 0;
 static unsigned bytesCopied = 0;
@@ -368,7 +370,7 @@ static int chooseDisk(void)
       params.gridX = 1;
       params.padRight = 5;
       params.orientationX = orient_center;
-      partButton = windowNewButton(chooseWindow, "Partition disks...", NULL,
+      partButton = windowNewButton(chooseWindow, partitionString, NULL,
 				   &params);
 
       params.gridX = 2;
@@ -431,11 +433,26 @@ static int chooseDisk(void)
     {
       for (count = 0; count < numberDisks; count ++)
 	diskStrings[count] = diskListParams[count].text;
+      diskStrings[numberDisks] = partitionString;
       diskNumber =
-	vshCursorMenu(chooseVolumeString, numberDisks, diskStrings, 0);
+	vshCursorMenu(chooseVolumeString, (numberDisks + 1), diskStrings, 0);
+      if (diskNumber == numberDisks)
+	{
+	  // The user wants to repartition the disks.  Run the disk
+	  // manager, and start again
+
+	  // Privilege zero, no args, block
+	  loaderLoadAndExec("/programs/fdisk", 0, 1);
+
+	  // Remake our disk list
+	  makeDiskList();
+
+	  // Start again.
+	  printBanner();
+	  goto start;
+	}
     }
 
-  free(diskStrings[0]);
   return (diskNumber);
 }
 
@@ -518,28 +535,63 @@ static unsigned getInstallSize(const char *installFileName)
 
 static void updateStatus(const char *message)
 {
-  // Updates progress messages.  In text mode we just printf() it, but
-  // in graphics mode we have to update a text label
+  // Updates progress messages.
   
   int statusLength = 0;
 
-  if (strlen(prog.statusMessage) &&
-      (prog.statusMessage[strlen(prog.statusMessage) - 1] != '\n'))
-    strcat(prog.statusMessage, message);
-  else
-    strcpy(prog.statusMessage, message);
-
-  statusLength = strlen(prog.statusMessage);
-  if (statusLength >= PROGRESS_MAX_MESSAGELEN)
+  if (lockGet(&(prog.lock)) >= 0)
     {
-      statusLength = (PROGRESS_MAX_MESSAGELEN - 1);
-      prog.statusMessage[statusLength] = '\0';
-    }
-  if (prog.statusMessage[statusLength - 1] == '\n')
-    statusLength -= 1;
+      if (strlen((char *) prog.statusMessage) &&
+	  (prog.statusMessage[strlen((char *) prog.statusMessage) - 1] !=
+	   '\n'))
+	strcat((char *) prog.statusMessage, message);
+      else
+	strcpy((char *) prog.statusMessage, message);
 
-  if (graphics)
-    windowComponentSetData(statusLabel, prog.statusMessage, statusLength);
+      statusLength = strlen((char *) prog.statusMessage);
+      if (statusLength >= PROGRESS_MAX_MESSAGELEN)
+	{
+	  statusLength = (PROGRESS_MAX_MESSAGELEN - 1);
+	  prog.statusMessage[statusLength] = '\0';
+	}
+      if (prog.statusMessage[statusLength - 1] == '\n')
+	statusLength -= 1;
+
+      if (graphics)
+	windowComponentSetData(statusLabel, (char *) prog.statusMessage,
+			       statusLength);
+
+      lockRelease(&(prog.lock));
+    }
+}
+
+
+static int mountedCheck(disk *theDisk)
+{
+  // If the disk is mounted, ask if we can unmount it
+
+  int status = 0;
+  char tmpChar[160];
+
+  if (!(theDisk->mounted))
+    return (status = 0);
+
+  sprintf(tmpChar, "The disk is mounted as %s.  It must be unmounted\n"
+	  "before continuing.  Unmount?",
+	  theDisk->mountPoint);
+
+  if (!yesOrNo(tmpChar))
+    return (status = ERR_CANCELLED);
+
+  // Try to unmount the filesystem
+  status = filesystemUnmount(theDisk->mountPoint);
+  if (status < 0)
+    {
+      error("Unable to unmount %s", theDisk->mountPoint);
+      return (status);
+    }
+  
+  return (status = 0);
 }
 
 
@@ -554,6 +606,16 @@ static int copyBootSector(disk *theDisk)
   file bootSectFile;
 
   updateStatus("Copying boot sector...  ");
+
+  // Make sure we know the filesystem type
+  status = diskGetFilesystemType(theDisk->name, theDisk->fsType,
+				 FSTYPE_MAX_NAMELENGTH);
+  if (status < 0)
+    {
+      error("Unable to determine the filesystem type on disk \"%s\"",
+	    theDisk->name);
+      return (status);
+    }
 
   // Determine which boot sector we should be using
   if (strncmp(theDisk->fsType, "fat", 3))
@@ -682,8 +744,11 @@ static int copyFiles(const char *installFileName)
 
 	  if (graphics)
 	    windowComponentSetData(progressBar, (void *) percent, 1);
-	  else
-	    prog.percentFinished = percent;
+	  else if (lockGet(&(prog.lock)) >= 0)
+	    {
+	      prog.percentFinished = percent;
+	      lockRelease(&(prog.lock));
+	    }
 	}
     }
 
@@ -919,12 +984,13 @@ int main(int argc, char *argv[])
   unsigned diskSize = 0;
   unsigned basicInstallSize = 0xFFFFFFFF;
   unsigned fullInstallSize = 0xFFFFFFFF;
+  int doFormat = 0;
   const char *message = NULL;
   objectKey progressDialog = NULL;
   int selected = 0;
   int count;
 
-  bzero(&prog, sizeof(progress));
+  bzero((void *) &prog, sizeof(progress));
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -979,12 +1045,17 @@ int main(int argc, char *argv[])
   if (graphics)
     constructWindow();
 
+  // Make sure the disk isn't mounted
+  status = mountedCheck(&diskInfo[diskNumber]);
+  if (status < 0)
+    quit(0, "Installation cancelled.");
+
   // Calculate the number of bytes that will be consumed by the various
   // types of install
   basicInstallSize = getInstallSize(BASICINSTALL);
   fullInstallSize = getInstallSize(FULLINSTALL);
 
-  // How much space is available on the disk?
+  // How much space is available on the raw disk?
   diskSize =
     (diskInfo[diskNumber].numSectors * diskInfo[diskNumber].sectorSize);
 
@@ -992,7 +1063,7 @@ int main(int argc, char *argv[])
   if (diskSize < basicInstallSize)
     quit((status = ERR_NOFREE), "Disk %s is too small (%dK) to install "
 	 "Visopsys\n(%dK required)", diskInfo[diskNumber].name,
-	 (diskSize/ 1024), (basicInstallSize / 1024));
+	 (diskSize / 1024), (basicInstallSize / 1024));
 
   // Show basic/full install choices based on whether there's enough space
   // to do both
@@ -1045,12 +1116,17 @@ int main(int argc, char *argv[])
 	installType = install_full;
     }
 
+  bytesToCopy = basicInstallSize;
+  if (installType == install_full)
+    bytesToCopy += fullInstallSize;
+
   sprintf(tmpChar, "Installing on disk %s.  Are you SURE?", diskName);
   if (!yesOrNo(tmpChar))
     quit(0, "Installation cancelled.");
 
   sprintf(tmpChar, "Format disk %s? (destroys all data!)", diskName);
-  if (yesOrNo(tmpChar))
+  doFormat = yesOrNo(tmpChar);
+  if (doFormat)
     {
       updateStatus("Formatting... ");
 
@@ -1078,7 +1154,7 @@ int main(int argc, char *argv[])
 	quit(status, "Error rescanning disk after format.");
 
       updateStatus("Done\n");
-      bzero(&prog, sizeof(progress));
+      bzero((void *) &prog, sizeof(progress));
     }
 
   // Copy the boot sector to the destination disk
@@ -1093,16 +1169,46 @@ int main(int argc, char *argv[])
     quit(status, "Unable to mount the target disk.");
   updateStatus("Done\n");
 
+  // Rescan the disk info so we get the available free space, etc.
+  status = diskGet(diskName, &diskInfo[diskNumber]);
+  if (status < 0)
+    quit(status, "Error rescanning disk after mount.");
+
+  // Try to make sure the filesystem contains enough free space
+  if (diskInfo[diskNumber].freeBytes < bytesToCopy)
+    {
+      if (doFormat)
+	{
+	  // We formatted, so we're pretty sure we won't succeed here.
+	  if (filesystemUnmount(MOUNTPOINT) < 0)
+	    error("Unable to unmount the target disk.");
+	  quit((status = ERR_NOFREE), "The filesystem on disk %s is too small "
+	       "(%dK) for\nthe selected Visopsys installation (%dK required).",
+	       diskName, (diskInfo[diskNumber].freeBytes / 1024),
+	       (bytesToCopy / 1024));
+	}
+      else
+	{
+	  sprintf(tmpChar, "There MAY not be enough free space on disk %s "
+		  "(%dK) for the\nselected Visopsys installation (%dK "
+		  "required).  Continue?", diskName,
+		  (diskInfo[diskNumber].freeBytes / 1024),
+		  (bytesToCopy / 1024));
+	  if (!yesOrNo(tmpChar))
+	    {
+	      if (filesystemUnmount(MOUNTPOINT) < 0)
+		error("Unable to unmount the target disk.");
+	      quit(0, "Installation cancelled.");
+	    }
+	}
+    }
+
   if (!graphics)
     {
-      bzero(&prog, sizeof(progress));
+      bzero((void *) &prog, sizeof(progress));
       printf("\nInstalling...\n");
       vshProgressBar(&prog);
     }
-
-  bytesToCopy = basicInstallSize;
-  if (installType == install_full)
-    bytesToCopy += fullInstallSize;
 
   // Copy the files
 

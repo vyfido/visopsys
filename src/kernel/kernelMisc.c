@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,6 +36,11 @@
 #include <stdio.h>
 #include <string.h>
 
+char *kernelVersion[] = {
+  "Visopsys",
+  _KVERSION_
+} ;
+  
 volatile kernelSymbol *kernelSymbols = NULL;
 volatile int kernelNumberSymbols = 0;
 
@@ -49,23 +54,15 @@ volatile int kernelNumberSymbols = 0;
 /////////////////////////////////////////////////////////////////////////
 
 
-const char *kernelVersion(void)
+void kernelGetVersion(char *buffer, int bufferSize)
 {
   // This function creates and returns a pointer to the kernel's version
   // string.
 
-  static char *kernelInfo[] =
-    {
-      "Visopsys",
-      _KVERSION_
-    } ;
-  
-  static char versionString[64];
-
   // Construct the version string
-  sprintf(versionString, "%s v%s", kernelInfo[0], kernelInfo[1]);
+  snprintf(buffer, bufferSize, "%s v%s", kernelVersion[0], kernelVersion[1]);
 
-  return (versionString);
+  return;
 }
 
 
@@ -85,17 +82,21 @@ void kernelMemCopy(const void *src, void *dest, unsigned bytes)
 }
 
 
-void kernelMemClear(void *dest, unsigned bytes)
+void kernelMemSet(void *dest, unsigned char value, unsigned bytes)
 {
   unsigned dwords = (bytes >> 2);
+  unsigned tmpDword = 0;
   int interrupts = 0;
+
+  if (dwords)
+    tmpDword = ((value << 24) | (value << 16) |	(value << 8) | value);
 
   kernelProcessorSuspendInts(interrupts);
 
   if (((unsigned) dest % 4) || (bytes % 4))
-    kernelProcessorWriteBytes(0, dest, bytes);
+    kernelProcessorWriteBytes(value, dest, bytes);
   else
-    kernelProcessorWriteDwords(0, dest, dwords);
+    kernelProcessorWriteDwords(tmpDword, dest, dwords);
 
   kernelProcessorRestoreInts(interrupts);
 }
@@ -390,8 +391,17 @@ int kernelReadSymbols(const char *filename)
   // through which we can search for addresses.
   
   int status = 0;
+  file tmpFile;
   variableList tmpList;
   int count;
+
+  // See if there is a kernelSymbols file.
+  status = kernelFileFind(filename, &tmpFile);
+  if (status < 0)
+    {
+      kernelLog("No kernel symbols file \"%s\"", filename);
+      return (status);
+    }
 
   // Make a log message
   kernelLog("Reading kernel symbols from \"%s\"", filename);

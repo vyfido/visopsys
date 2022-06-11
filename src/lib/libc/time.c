@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,6 +43,9 @@ time_t time(time_t *t)
   { 31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
     31, /* May */ 30, /* Jun */ 31, /* Jul */ 31, /* Aug */
     30, /* Sep */ 31, /* Aug */ 30 /* Nov */ };
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // Get the date and time according to the kernel
   status = rtcDateTime(&time_struct);

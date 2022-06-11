@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@
 // This is the standard "rand" function, as found in standard C libraries
 
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/api.h>
 
 // The application's random seed for rand() and srand()
@@ -34,6 +35,9 @@ int rand(void)
   // RAND_MAX (defined in <stdlib.h>).  The man pages in linux and solaris
   // say that it uses 'a multiplicative congruential random-number generator
   // with period 2^32'.  Right, ok, well, we'll use the kernel's one instead.
+
+  if (visopsys_in_kernel)
+    return (errno = ERR_BUG);
 
   // __random_seed is initialized with a value of 1.  If the user wants to
   // initialize it, he/she should call srand() first

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,6 +22,7 @@
 #if !defined(_KERNELMULTITASKER_H)
 
 #include "kernelDescriptor.h"
+#include "kernelPage.h"
 #include "kernelText.h"
 #include <time.h>
 #include <sys/process.h>
@@ -37,6 +38,9 @@
 #define PRIORITY_RATIO            3
 #define PRIORITY_DEFAULT          ((PRIORITY_LEVELS / 2) - 1)
 #define FPU_STATE_LEN             108
+#define IO_PORTS                  65536
+#define PORTS_BYTES               (IO_PORTS / 8)
+#define IOBITMAP_OFFSET           0x68
 
 // Exception vector numbers
 #define EXCEPTION_DIVBYZERO       0
@@ -86,9 +90,11 @@ typedef volatile struct {
   unsigned FS;
   unsigned GS;
   unsigned LDTSelector;
-  unsigned IOMap;
-  
-} kernelTSS;
+  unsigned short pad;
+  unsigned short IOMapBase;
+  unsigned char IOMap[PORTS_BYTES];  
+
+} __attribute__((packed)) kernelTSS;
 
 // A structure for processes
 typedef volatile struct {
@@ -98,6 +104,7 @@ typedef volatile struct {
   processType type;
   int priority;
   int privilege;
+  int processorPrivilege;
   int parentProcessId;
   int descendentThreads;
   unsigned startTime;
@@ -113,6 +120,7 @@ typedef volatile struct {
   unsigned userStackSize;
   void *superStack;
   unsigned superStackSize;
+  kernelPageDirectory *pageDirectory;
   kernelSelector tssSelector;
   kernelTSS taskStateSegment;
   char currentDirectory[MAX_PATH_LENGTH];
@@ -169,6 +177,9 @@ int kernelMultitaskerTerminate(int);
 int kernelMultitaskerSignalSet(int, int, int);
 int kernelMultitaskerSignal(int, int);
 int kernelMultitaskerSignalRead(int);
+int kernelMultitaskerGetIOPerm(int, int);
+int kernelMultitaskerSetIOPerm(int, int, int);
+kernelPageDirectory *kernelMultitaskerGetPageDir(int);
 
 #define _KERNELMULTITASKER_H
 #endif

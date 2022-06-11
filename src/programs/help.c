@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 
 adduser           Add a user account to the system
 bootmenu          Install or edit the boot loader menu
+cal               Display the days of the current calendar month
 cat (or type)     Print a file's contents on the screen
 cd                Change the current directory
 cdrom             Control of the CD-ROM device, such as opening and closing

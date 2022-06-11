@@ -1,6 +1,6 @@
 
 	Visopsys
-	Copyright (C) 1998-2005 J. Andrew McLaughlin
+	Copyright (C) 1998-2006 J. Andrew McLaughlin
 
 Unless otherwise stated, all aspects of Visopsys are created/authored by
 Andy McLaughlin.  Other contributions are as follows (please notify
@@ -14,6 +14,9 @@ directories contrib/jonas-net, contrib/jonas-pci, and contrib/jonas-key.
 - Davide Airaghi <davide.airaghi@gmail.com> provided some initial work on
 FPU state saves and an Italian keyboard mapping.  See the directories
 contrib/davide-fpu and contrib/davide-key.
+
+- Bauer Vladislav <bauer@ccfit.nsu.ru> contributed the original 'cal'
+calendar program.  See the directory contrib/vlad-calendar.
 
 - Some icons are adapted from the Noia icons for Windows XP v2.00 Copyright
 (C) 2002 Carles Carbonell Bernadó (Carlitus) <mail@carlitus.net>

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -670,6 +670,8 @@ static kernelFilesystemDriver defaultIsoDriver = {
   NULL,  // driverClobber
   NULL,  // driverCheck
   NULL,  // driverDefragment
+  NULL,  // driverStat
+  NULL,  // driverGetResizeConstraints
   NULL,  // driverResize
   mount,
   unmount,

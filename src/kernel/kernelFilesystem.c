@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,6 +43,8 @@ static void populateDriverArray(void)
       driverArray[driverCounter++] = kernelDriverGetExt();
       driverArray[driverCounter++] = kernelDriverGetFat();
       driverArray[driverCounter++] = kernelDriverGetIso();
+      driverArray[driverCounter++] = kernelDriverGetLinuxSwap();
+      driverArray[driverCounter++] = kernelDriverGetNtfs();
     }
 }
 
@@ -125,11 +127,10 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 
   if (driver)
     {
-      if (!strcmp((char *) theDisk->fsType, "unknown"))
-	// Copy this filesystem type name into the disk structure.  The
-	// filesystem driver can change it if desired.
-	strncpy((char *) theDisk->fsType, driver->driverTypeName,
-		FSTYPE_MAX_NAMELENGTH);
+      // Copy this filesystem type name into the disk structure.  The
+      // filesystem driver can change it if desired.
+      strncpy((char *) theDisk->fsType, driver->driverTypeName,
+	      FSTYPE_MAX_NAMELENGTH);
 
       // Set the operation flags based on which filesystem functions are
       // non-NULL.
@@ -142,6 +143,10 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 	theDisk->opFlags |= FS_OP_CHECK;
       if (driver->driverDefragment)
 	theDisk->opFlags |= FS_OP_DEFRAG;
+      if (driver->driverStat)
+	theDisk->opFlags |= FS_OP_STAT;
+      if (driver->driverResizeConstraints)
+	theDisk->opFlags |= FS_OP_RESIZECONST;
       if (driver->driverResize)
 	theDisk->opFlags |= FS_OP_RESIZE;
     }
@@ -183,6 +188,7 @@ int kernelFilesystemScan(kernelDisk *theDisk)
     }
 
   // Scan a disk to determine its filesystem type, etc.
+  strcpy((char *) theDisk->fsType, "unknown");
   theDisk->filesystem.driver = detectType(theDisk);
 
   if (theDisk->filesystem.driver)
@@ -270,7 +276,12 @@ int kernelFilesystemClobber(const char *diskName)
   for (count = 0; count < driverCounter; count ++)
     {
       if (driverArray[count]->driverClobber)
-	driverArray[count]->driverClobber(theDisk);
+	{
+	  status = driverArray[count]->driverClobber(theDisk);
+	  if (status < 0)
+	    kernelError(kernel_warn, "Couldn't clobber %s",
+			driverArray[count]->driverTypeName);
+	}
     }
 
   // Re-scan the filesystem
@@ -289,6 +300,10 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
   int status = 0;
   kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
 
   theDisk = kernelDiskGetByName(diskName);
   if (theDisk == NULL)
@@ -320,6 +335,150 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 
   // Defrag the filesystem
   status = theDriver->driverDefragment(theDisk, prog);
+  return (status);
+}
+
+
+int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
+{
+  // This function is a wrapper for the filesystem driver's 'stat' function,
+  // if applicable.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+
+  // Check params
+  if ((diskName == NULL) || (stat == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  theDisk = kernelDiskGetByName(diskName);
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (theDisk->filesystem.driver == NULL)
+    {
+      // Try a scan before we error out.
+      if (kernelFilesystemScan(theDisk) < 0)
+	{
+	  kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
+		      "unknown", theDisk->name);
+	  return (status = ERR_NOTIMPLEMENTED);
+	}
+    }
+
+  theDriver = theDisk->filesystem.driver;
+
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverStat == NULL)
+    {
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'stat' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Resize the filesystem
+  status = theDriver->driverStat(theDisk, stat);
+  return (status);
+}
+
+
+int kernelFilesystemResizeConstraints(const char *diskName,
+				      unsigned *minBlocks,
+				      unsigned *maxBlocks)
+{
+  // This function is a wrapper for the filesystem driver's 'get resize
+  // constraints' function, if applicable.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+
+  // Check params
+  if ((diskName == NULL) || (minBlocks == NULL) || (maxBlocks == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  theDisk = kernelDiskGetByName(diskName);
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (theDisk->filesystem.driver == NULL)
+    {
+      // Try a scan before we error out.
+      if (kernelFilesystemScan(theDisk) < 0)
+	{
+	  kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
+		      "unknown", theDisk->name);
+	  return (status = ERR_NOTIMPLEMENTED);
+	}
+    }
+
+  theDriver = theDisk->filesystem.driver;
+
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverResizeConstraints == NULL)
+    {
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'resize constraints' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Resize the filesystem
+  status = theDriver->driverResizeConstraints(theDisk, minBlocks, maxBlocks);
+  return (status);
+}
+
+
+int kernelFilesystemResize(const char *diskName, unsigned blocks,
+			   progress *prog)
+{
+  // This function is a wrapper for the filesystem driver's 'resize'
+  // function, if applicable.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  theDisk = kernelDiskGetByName(diskName);
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (theDisk->filesystem.driver == NULL)
+    {
+      // Try a scan before we error out.
+      if (kernelFilesystemScan(theDisk) < 0)
+	{
+	  kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
+		      "unknown", theDisk->name);
+	  return (status = ERR_NOTIMPLEMENTED);
+	}
+    }
+
+  theDriver = theDisk->filesystem.driver;
+
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverResize == NULL)
+    {
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'resize' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Resize the filesystem
+  status = theDriver->driverResize(theDisk, blocks, prog);
   return (status);
 }
 
@@ -611,17 +770,13 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
  
   // Check params
   if (diskName == NULL)
-    {
-      status = ERR_NULLPARAMETER;
-      goto out;
-    }
+    return (status = ERR_NULLPARAMETER);
 
   theDisk = kernelDiskGetByName(diskName);
   if (theDisk == NULL)
     {
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
-      status = ERR_NULLPARAMETER;
-      goto out;
+      return (status = ERR_NULLPARAMETER);
     }
 
   if (theDisk->filesystem.driver == NULL)
@@ -631,8 +786,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	{
 	  kernelError(kernel_error, "The filesystem type of disk \"%s\" is "
 		      "unknown", theDisk->name);
-	  status = ERR_NOTIMPLEMENTED;
-	  goto out;
+	  return (status = ERR_NOTIMPLEMENTED);
 	}
     }
 
@@ -643,17 +797,11 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
 		  "'check' operation");
-      status = ERR_NOSUCHFUNCTION;
-      goto out;
+      return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Check the filesystem
   status = theDriver->driverCheck(theDisk, force, repair, prog);
-
- out:
-  if (prog)
-    prog->percentFinished = 100;
-
   return (status);
 }
 

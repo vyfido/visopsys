@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
+#include <sys/cdefs.h>
 
 #define FILEBROWSE_CONFIG        "/system/config/filebrowse.conf"
 #define DEFAULT_FOLDERICON_VAR   "icon.folder"
@@ -472,14 +473,14 @@ static void deallocateMemory(void)
 
   if (folderImage.data)
     {
-      free(folderImage.data);
+      memoryRelease(folderImage.data);
       folderImage.data = NULL;
     }
 
   for (count = 0; count < (int) (sizeof(iconList) / sizeof(icon)); count ++)
     if (iconList[count].image->data)
       {
-	free(iconList[count].image->data);
+	memoryRelease(iconList[count].image->data);
 	iconList[count].image->data = NULL;
       }
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -2020,15 +2020,18 @@ int kernelNetworkInitialize(void)
       if (!(adapter->device.flags & NETWORK_ADAPTERFLAG_LINK))
 	continue;
 
-      // Initialize the adapter's network packet input and output streams
-      status = kernelNetworkPacketStreamNew(&(adapter->inputStream));
-      if (status < 0)
-	continue;
-      status = kernelNetworkPacketStreamNew(&(adapter->outputStream));
-      if (status < 0)
-	continue;
+      if (!(adapter->device.flags & NETWORK_ADAPTERFLAG_INITIALIZED))
+	{
+	  // Initialize the adapter's network packet input and output streams
+	  status = kernelNetworkPacketStreamNew(&(adapter->inputStream));
+	  if (status < 0)
+	    continue;
+	  status = kernelNetworkPacketStreamNew(&(adapter->outputStream));
+	  if (status < 0)
+	    continue;
 
-      adapter->device.flags |= NETWORK_ADAPTERFLAG_INITIALIZED;
+	  adapter->device.flags |= NETWORK_ADAPTERFLAG_INITIALIZED;
+	}
 
       status = configureDhcp(adapter, NETWORK_DHCP_DEFAULT_TIMEOUT);
       if (status < 0)
@@ -2078,7 +2081,7 @@ int kernelNetworkShutdown(void)
   networkStop = 1;
   kernelMultitaskerYield();
 
-  // Start each network adapter
+  // Stop each network adapter
   for (count = 0; count < numDevices; count ++)
     {
       adapter = adapters[count];
@@ -2091,6 +2094,9 @@ int kernelNetworkShutdown(void)
       // relinquishing the address.
       if (adapter->device.flags & NETWORK_ADAPTERFLAG_AUTOCONF)
 	releaseDhcp(adapter);
+
+      // The device is still initialized, but no longer running.
+      adapter->device.flags &= ~NETWORK_ADAPTERFLAG_RUNNING;
     }
       
   initialized = 0;

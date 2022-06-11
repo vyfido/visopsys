@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 #include "kernelMisc.h"
 #include <string.h>
 #include <stdio.h>
+#include <sys/cdefs.h>
 
 static char *panicConst = "PANIC";
 static char *errorConst = "Error";

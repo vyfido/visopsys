@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2005 J. Andrew McLaughlin
+//  Copyright (C) 1998-2006 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,15 +22,15 @@
 // This function does all the work of expanding the format strings used
 // by the printf family of functions (and others, if desired)
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/cdefs.h>
 
 
-static int numDigits(unsigned foo, unsigned base)
+static int numDigits(unsigned long long foo, unsigned base)
 {
   int digits = 1;
   while (foo >= base)
@@ -47,8 +47,9 @@ int _expandFormatString(char *output, const char *format, va_list list)
   int inCount = 0;
   int outCount = 0;
   int formatlen = 0;
-  void *argument = NULL;
+  long long argument = NULL;
   int zeroPad = 0;
+  int leftJust = 0;
   int fieldWidth = 0; 
   int isLong = 0;
   int digits = 0;
@@ -80,10 +81,6 @@ int _expandFormatString(char *output, const char *format, va_list list)
       // Move to the next character
       inCount += 1;
 
-      // We have some format characters.  Get the corresponding argument,
-      // move to the next format character.
-      argument = va_arg(list, void *);
-
       // Look for a zero digit, which indicates that any field width argument
       // is to be zero-padded
       if (format[inCount] == '0')
@@ -93,6 +90,16 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	}
       else
 	zeroPad = 0;
+
+      // Look for left-justification (applicable if there's a field-width
+      // specifier to follow
+      if (format[inCount] == '-')
+	{
+	  leftJust = 1;
+	  inCount += 1;
+	}
+      else
+	leftJust = 0;
 
       // Look for field length indicator
       if ((format[inCount] >= '1') && (format[inCount] <= '9'))
@@ -104,14 +111,27 @@ int _expandFormatString(char *output, const char *format, va_list list)
       else
 	fieldWidth = 0;
 
-      // If there's a 'l' qualifier for long values, make note of it
+      // If there's a 'll' qualifier for long values, make note of it
       if (format[inCount] == 'l')
 	{
-	  isLong = 1;
 	  inCount += 1;
+	  if (format[inCount] == 'l')
+	    {
+	      isLong = 1;
+	      inCount += 1;
+	    }
 	}
       else
 	isLong = 0;
+
+      // We have some format characters.  Get the corresponding argument.
+      if (isLong)
+	{
+	  argument = va_arg(list, unsigned);
+	  argument |= ((long long) va_arg(list, unsigned) << 32);
+	}
+      else
+	argument = va_arg(list, unsigned);
 
       // What is it?
       switch(format[inCount])
@@ -122,12 +142,22 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	  // into the destination string
           if (fieldWidth)
             {
-              digits = numDigits((unsigned) argument, 10);
-              while (digits++ < fieldWidth)
-                output[outCount++] = (zeroPad? '0' : ' ');
+	      if (isLong)
+		digits = numDigits(argument, 10);
+	      else
+		digits = numDigits((unsigned) argument, 10);
+	      if (!leftJust)
+		while (digits++ < fieldWidth)
+		  output[outCount++] = (zeroPad? '0' : ' ');
             }
-	  itoa((int) argument, (output + outCount));
+	  if (isLong)
+	    lltoa(argument, (output + outCount));
+	  else
+	    itoa((int) argument, (output + outCount));
 	  outCount = strlen(output);
+	  if (fieldWidth && leftJust)
+	    while (digits++ < fieldWidth)
+	      output[outCount++] = ' ';
 	  break;
 
 	case 'u':
@@ -135,23 +165,43 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	  // the integer into the destination string
 	  if (fieldWidth)
 	    {
-	      digits = numDigits((unsigned) argument, 10);
-	      while (digits++ < fieldWidth)
-		output[outCount++] = (zeroPad? '0' : ' ');
+	      if (isLong)
+		digits = numDigits(argument, 10);
+	      else
+		digits = numDigits((unsigned) argument, 10);
+	      if (!leftJust)
+		while (digits++ < fieldWidth)
+		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
-	  utoa((unsigned) argument, (output + outCount));
+	  if (isLong)
+	    ulltoa((unsigned long long) argument, (output + outCount));
+	  else
+	    utoa((unsigned) argument, (output + outCount));
 	  outCount = strlen(output);
+	  if (fieldWidth && leftJust)
+	    while (digits++ < fieldWidth)
+	      output[outCount++] = ' ';
 	  break;
 
 	case 'b':
 	  if (fieldWidth)
 	    {
-	      digits = numDigits((unsigned) argument, 2);
-	      while (digits++ < fieldWidth)
-		output[outCount++] = (zeroPad? '0' : ' ');
+	      if (isLong)
+		digits = numDigits(argument, 2);
+	      else
+		digits = numDigits((unsigned) argument, 2);
+	      if (!leftJust)
+		while (digits++ < fieldWidth)
+		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
-	  itob((int) argument, (output + outCount));
+	  if (isLong)
+	    lltob(argument, (output + outCount));
+	  else
+	    itob((int) argument, (output + outCount));
 	  outCount = strlen(output);
+	  if (fieldWidth && leftJust)
+	    while (digits++ < fieldWidth)
+	      output[outCount++] = ' ';
 	  break;
 
 	case 'c':
@@ -164,8 +214,8 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	  // to the destnation string and increment outCount appropriately
 	  if (argument)
 	    {
-	      strcpy((output + outCount), (char *) argument);
-	      outCount += strlen((char *) argument);
+	      strcpy((output + outCount), (char *) ((unsigned) argument));
+	      outCount += strlen((char *) ((unsigned) argument));
 	    }
 	  else
 	    {
@@ -179,12 +229,22 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	case 'X':
 	  if (fieldWidth)
 	    {
-	      digits = numDigits((unsigned) argument, 16);
-	      while (digits++ < fieldWidth)
-		output[outCount++] = (zeroPad? '0' : ' ');
+	      if (isLong)
+		digits = numDigits(argument, 16);
+	      else
+		digits = numDigits((unsigned) argument, 16);
+	      if (!leftJust)
+		while (digits++ < fieldWidth)
+		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
-	  itox((int) argument, (output + outCount));
+	  if (isLong)
+	    lltox(argument, (output + outCount));
+	  else
+	    itox((int) argument, (output + outCount));
 	  outCount = strlen(output);
+	  if (fieldWidth && leftJust)
+	    while (digits++ < fieldWidth)
+	      output[outCount++] = ' ';
 	  break;
 
 	default:
