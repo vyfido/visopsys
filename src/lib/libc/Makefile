@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2011 J. Andrew McLaughlin
+##  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -15,7 +15,7 @@ include ${ROOT}/Makefile.include
 STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
-DEBUG          = # -DDEBUG # Uncomment to turn on debugging
+DEBUG		= # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 
 ifeq (${DEBUG},)
@@ -196,8 +196,7 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${CC} -shared -nostdlib -Wl,--soname=${SONAME} ${PICOBJS} -static \
-	-lgcc -o $@
+	${CC} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro ${PICOBJS} -static -lgcc -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  _fmtinpt.c
 //
@@ -37,9 +37,9 @@ int _fmtinpt(const char *input, const char *format, va_list list)
   int inputCount = 0;
   int formatCount = 0;
   unsigned long long *argument = NULL;
-  int zeroPad = 0;
-  int leftJust = 0;
-  int fieldWidth = 0; 
+  //int zeroPad = 0;
+  //int leftJust = 0;
+  //int fieldWidth = 0;
   int isLong = 0;
   int count;
 
@@ -116,32 +116,32 @@ int _fmtinpt(const char *input, const char *format, va_list list)
       // is to be zero-padded
       if (format[formatCount] == '0')
 	{
-	  zeroPad = 1;
+	  //zeroPad = 1;
 	  formatCount  += 1;
 	}
-      else
-	zeroPad = 0;
+      //else
+      //zeroPad = 0;
 
       // Look for left-justification (applicable if there's a field-width
       // specifier to follow
       if (format[formatCount] == '-')
 	{
-	  leftJust = 1;
+	  //leftJust = 1;
 	  formatCount += 1;
 	}
-      else
-	leftJust = 0;
+      //else
+      //leftJust = 0;
 
       // Look for field length indicator
       if ((format[formatCount] >= '1') && (format[formatCount] <= '9'))
 	{
-	  fieldWidth = atoi(format + formatCount);
+	  //fieldWidth = atoi(format + formatCount);
 	  while ((format[formatCount] >= '0') &&
 		 (format[formatCount] <= '9'))   
 	    formatCount++;
         }
-      else
-	fieldWidth = 0;
+      //else
+      //fieldWidth = 0;
 
       // If there's a 'll' qualifier for long values, make note of it
       if (format[formatCount] == 'l')

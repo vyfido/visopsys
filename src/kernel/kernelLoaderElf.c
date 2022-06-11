@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelLoaderElf.c
 //
@@ -33,6 +33,7 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -173,7 +174,6 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
   // Returns the symbol table of the file, dynamic or static symbols.
 
   Elf32Header *header = data;
-  Elf32SectionHeader *sectionHeaders = NULL;
   Elf32SectionHeader *symbolTableHeader = NULL;
   Elf32SectionHeader *stringTableHeader = NULL;
   Elf32Symbol *symbols = NULL;
@@ -186,9 +186,6 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
   if (!header->e_shoff)
     // So section headers, so no symbols
     return (symTable = NULL);
-
-  // Store a pointer to the start of the section headers
-  sectionHeaders = (Elf32SectionHeader *)(data + header->e_shoff);
 
   // Try to use the static symbol and string tables (since they should be
   // supersets of the dynamic ones).  If the statics are not there, use the
@@ -279,6 +276,7 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
   Elf32Header *header = (Elf32Header *) loadAddress;
   Elf32ProgramHeader *programHeader = NULL;
   int loadSegments = 0;
+  unsigned virtualLimit = 0;
   unsigned imageSize = 0;
   void *imageMemory = NULL;
   static char *memoryDesc = "elf executable image";
@@ -329,12 +327,10 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 	      return (status = ERR_INVALID);
 	    }
 
-	  // Add this program segment's memory size (rounded up to
-	  // MEMORY_PAGE_SIZE) to our image size
-	  imageSize +=
-	    kernelPageRoundUp(((unsigned) programHeader[count].p_vaddr %
-			       MEMORY_PAGE_SIZE) +
-			      programHeader[count].p_memsz);
+	  // Keep track of the maximum amount of virtual space needed.
+	  virtualLimit = max(((unsigned) programHeader[count].p_vaddr +
+			      programHeader[count].p_memsz), virtualLimit);
+
 	  loadSegments += 1;
 	}
     }
@@ -344,6 +340,11 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
   if (loadSegments != 2)
     kernelError(kernel_warn, "Unexpected number of loadable ELF program "
 		"header entries (%d)", loadSegments);
+
+  // Calculate our image's memory size (rounded up to MEMORY_PAGE_SIZE).
+  // It's OK for the code virtual address to be zero.
+  imageSize =
+    kernelPageRoundUp(virtualLimit - (unsigned) execImage->virtualAddress);
 
   kernelDebug(debug_loader, "ELF image size=%u", imageSize);
 

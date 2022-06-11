@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelFilesystemFat.h
 //
@@ -31,51 +31,51 @@
 // of files and directories
 
 typedef enum {
-  fat12, fat16, fat32, fatUnknown
+	fat12, fat16, fat32, fatUnknown
 } fatType;
 
 typedef volatile struct {
-  // These are taken directly from directory entries
-  char shortAlias[12];
-  unsigned attributes;
-  unsigned res;
-  unsigned timeTenth;
-  unsigned startCluster;
+	// These are taken directly from directory entries
+	char shortAlias[12];
+	unsigned attributes;
+	unsigned res;
+	unsigned timeTenth;
+	unsigned startCluster;
 
 } fatEntryData;
 
 // This structure will contain all of the internal global data
 // for a particular filesystem on a particular volume
 typedef volatile struct {
-  fatBPB bpb;
-  fatFsInfo fsInfo;
-  unsigned char rootDirLabel[FAT_BYTES_PER_DIR_ENTRY];
+	fatBPB bpb;
+	fatFsInfo fsInfo;
+	unsigned char rootDirLabel[FAT_BYTES_PER_DIR_ENTRY];
 
-  // Things that need to be calculated after we have all of the FAT
-  // volume data from the boot block (see above)
-  fatType fsType;
-  unsigned totalSects;
-  unsigned rootDirSects;
-  unsigned fatSects;
-  unsigned dataSects;
-  unsigned dataClusters;
-  unsigned terminalClust;
+	// Things that need to be calculated after we have all of the FAT
+	// volume data from the boot block (see above)
+	fatType fsType;
+	unsigned totalSects;
+	unsigned rootDirSects;
+	unsigned fatSects;
+	unsigned dataSects;
+	unsigned dataClusters;
+	unsigned terminalClust;
 
-  // Bitmap of free clusters
-  unsigned char *freeClusterBitmap;
-  unsigned freeBitmapSize;
-  unsigned freeClusters;
-  lock freeBitmapLock;
+	// Bitmap of free clusters
+	unsigned char *freeClusterBitmap;
+	unsigned freeBitmapSize;
+	unsigned freeClusters;
+	lock freeBitmapLock;
 
-  // Miscellany
-  kernelDisk *disk;
+	// Miscellany
+	kernelDisk *disk;
   
 } fatInternalData;
 
-#define fatClusterToLogical(fatData, clusterNum)			\
-  (((clusterNum - 2) * fatData->bpb.sectsPerClust) +			\
-   fatData->bpb.rsvdSectCount + (fatData->bpb.numFats * fatData->fatSects) + \
-   fatData->rootDirSects) 
+#define fatClusterToLogical(fatData, clusterNum) \
+	(((clusterNum - 2) * fatData->bpb.sectsPerClust) + \
+	fatData->bpb.rsvdSectCount + \
+	(fatData->bpb.numFats * fatData->fatSects) + fatData->rootDirSects) 
 
 #define _KERNELFILESYSTEMFAT_H
 #endif

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelSysTimer.c
 //
@@ -43,15 +43,14 @@ static void timerInterrupt(void)
   void *address = NULL;
 
   kernelProcessorIsrEnter(address);
-  kernelProcessingInterrupt = 1;
+  kernelInterruptSetCurrent(INTERRUPT_NUM_SYSTIMER);
 
   // Ok, now we can call the routine.
   if (ops->driverTick)
     ops->driverTick();
 
   kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
-
-  kernelProcessingInterrupt = 0;
+  kernelInterruptClearCurrent();
   kernelProcessorIsrExit(address);
 }
 
@@ -89,6 +88,12 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 
   // Set up initial, default values
   kernelSysTimerSetupTimer(0, 3, 0);
+
+  // Don't save any old handler for the dedicated system timer interrupt,
+  // but if there is one, we want to know about it.
+  if (kernelInterruptGetHandler(INTERRUPT_NUM_SYSTIMER))
+    kernelError(kernel_warn, "Not chaining unexpected existing handler for "
+		"system timer int %d", INTERRUPT_NUM_SYSTIMER);
 
   // Register our interrupt handler
   status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt);

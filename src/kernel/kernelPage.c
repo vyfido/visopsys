@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelPage.c
 //
@@ -914,7 +914,6 @@ static int kernelPaging(unsigned kernelMemory)
   kernelPageTablePhysicalMem *oldPageTable = NULL;
   kernelPageTable *newPageTable = NULL;
   int tableNumber = 0;
-  int pageNumber = 0;
   void *kernelAddress;
 
   // Interrupts should currently be disabled at this point.
@@ -965,11 +964,6 @@ static int kernelPaging(unsigned kernelMemory)
   status = firstPageTable();
   if (status < 0)
     return (status = ERR_NOTINITIALIZED);
-
-  // The index of the first page in the page table can also be determined
-  // from the virtual address of the kernel.  This will be the same value
-  // we use to start our new page tables.
-  pageNumber = getPageNumber(KERNEL_VIRTUAL_ADDRESS);
 
   // Copy the RELEVANT contents of the old page table into the new
   // page table.  This suggests that some of the data in the old page

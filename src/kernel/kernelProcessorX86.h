@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelProcessorX86.h
 //
@@ -287,14 +287,26 @@
   __asm__ __volatile__ ("movl %%ebp, %0" : "=r" (addr))
 
 #define kernelProcessorIsrEnter(stAddr) do {	\
+    kernelProcessorDisableInts();		\
     kernelProcessorPushRegs();			\
     kernelProcessorGetStackPointer(stAddr);	\
-  } while (0) 
+  } while (0)
+
+#define kernelProcessorIsrCall(addr) do {				\
+    __asm__ __volatile__ ("pushl %0 \n\t"				\
+			  "pushl %1 \n\t"				\
+			  "movl %%esp, %%eax \n\t"			\
+			  "pushfl \n\t"					\
+			  "lcall *(%%eax) \n\t"				\
+			  "add $8, %%esp"				\
+			  : : "r" (PRIV_CODE), "r" (addr) : "%eax");	\
+} while (0)
 
 #define kernelProcessorIsrExit(stAddr) do {	\
     kernelProcessorSetStackPointer(stAddr);	\
     kernelProcessorPopRegs();			\
     kernelProcessorPopFrame();			\
+    kernelProcessorEnableInts();		\
     kernelProcessorIntReturn();			\
   } while (0)
 
@@ -311,16 +323,11 @@
     kernelProcessorIntReturn();			\
   } while (0)
 
-#define kernelProcessorApiEnter(stAddr) do {	\
-    kernelProcessorPushRegs();			\
-    kernelProcessorGetStackPointer(stAddr);	\
-  } while (0)  
-
 #define kernelProcessorApiExit(stAddr, codeLo, codeHi) do {		\
-    kernelProcessorSetStackPointer(stAddr);				\
-    kernelProcessorPopRegs();						\
-    __asm__ __volatile__ ("movl %0, %%eax" : : "r" (codeLo) : "%eax" ); \
-    __asm__ __volatile__ ("movl %0, %%edx" : : "r" (codeHi) : "%edx" ); \
+    __asm__ __volatile__ ("movl %0, %%eax \n\t"				\
+			  "movl %1, %%edx"				\
+			  : : "r" (codeLo), "r" (codeHi)		\
+			  : "%eax", "%edx" );				\
     kernelProcessorPopFrame();                                          \
     kernelProcessorFarReturn();                                         \
   } while (0)

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelRtcDriver.c
 //
@@ -22,6 +22,7 @@
 // Driver for standard Real-Time Clock (RTC) chips.
 
 #include "kernelDriver.h" // Contains my prototypes
+#include "kernelError.h"
 #include "kernelRtc.h"
 #include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
@@ -36,7 +37,7 @@
 #define YEARREG 9  // Year register
 
 
-static inline void waitReady(void)
+static inline int waitReady(void)
 {
   // This returns when the RTC is ready to be read or written.  Make sure
   // to disable interrupts before calling this routine.
@@ -46,12 +47,19 @@ static inline void waitReady(void)
   // so we know the data we're getting from the clock is reasonable.
 
   unsigned char data = 0x80;
+  int count;
 
-  while (data & 0x80)
+  kernelProcessorOutPort8(0x70, 0x0A);
+  for (count = 0; ((count < 10000) && (data & 0x80)); count ++)
+    kernelProcessorInPort8(0x71, data);
+
+  if (data & 0x80)
     {
-      kernelProcessorOutPort8(0x70, 0x0A);
-      kernelProcessorInPort8(0x71, data);
+      kernelError(kernel_error, "RTC not ready");
+      return (ERR_BUSY);
     }
+  else
+    return (0);
 }
 
 
@@ -67,7 +75,11 @@ static int readRegister(int regNum)
   kernelProcessorSuspendInts(interrupts);
 
   // Wait until the clock is stable
-  waitReady();
+  if (waitReady())
+    {
+      kernelProcessorRestoreInts(interrupts);
+      return (0);
+    }
 
   // Now we have 244 us to read the data we want.  We'd better stop
   // talking and do it.  Disable NMI at the same time.
@@ -83,7 +95,7 @@ static int readRegister(int regNum)
   // Restore interrupts
   kernelProcessorRestoreInts(interrupts);
 
-  // The data is in BCD format.  Sucks.  Convert it to binary.
+  // The data is in BCD format.  Convert it to decimal.
   return ((int) ((((data & 0xF0) >> 4) * 10) + (data & 0x0F)));
 }
 

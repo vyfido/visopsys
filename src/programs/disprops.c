@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  disprops.c
 //
@@ -551,7 +551,7 @@ static void constructWindow(void)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   int status = 0;
   char *language = "";
@@ -569,9 +569,6 @@ int main(int argc, char *argv[])
       printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
       return (status = ERR_NOTINITIALIZED);
     }
-
-  // We don't use argc.  This keeps the compiler happy
-  argc = 0;
 
   // Find out whether we are currently running on a read-only filesystem
   if (!fileGetDisk("/system", &sysDisk))

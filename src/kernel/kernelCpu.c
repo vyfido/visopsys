@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelCpu.c
 //
@@ -26,6 +26,7 @@
 #include "kernelProcessorX86.h"
 #include "kernelRtc.h"
 #include "kernelVariableList.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -90,6 +91,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
   kernelDevice *dev = NULL;
   char variable[80];
   char value[80];
+  int whitespace = 0;
   unsigned count;
 
   dev = regDevice(parent, driver, kernelDeviceGetClass(DEVICECLASS_CPU),
@@ -166,30 +168,31 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
   // See if there's extended CPUID info
   kernelProcessorId(0x80000000, cpuIdLimit, regb, regc, regd);
 
-  if (cpuIdLimit & 0x80000000)
+  if (cpuIdLimit >= 0x80000004)
     {     
-      if (cpuIdLimit >= 0x80000004)
+      // Get the product string
+      value[0] = '\0';
+      for (count = 0x80000002; count <= 0x80000004; count ++)
 	{
-	  // Get the product string
-	  kernelProcessorId(0x80000002, rega, regb, regc, regd);
-	  ((unsigned *) value)[0] = rega;
-	  ((unsigned *) value)[1] = regb;
-	  ((unsigned *) value)[2] = regc;
-	  ((unsigned *) value)[3] = regd;
-	  kernelProcessorId(0x80000003, rega, regb, regc, regd);
-	  ((unsigned *) value)[4] = rega;
-	  ((unsigned *) value)[5] = regb;
-	  ((unsigned *) value)[6] = regc;
-	  ((unsigned *) value)[7] = regd;
-	  kernelProcessorId(0x80000004, rega, regb, regc, regd);
-	  ((unsigned *) value)[8] = rega;
-	  ((unsigned *) value)[9] = regb;
-	  ((unsigned *) value)[10] = regc;
-	  ((unsigned *) value)[11] = regd;
-	  value[48] = '\0';
-	  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
-				value);
+	  kernelProcessorId(count, rega, regb, regc, regd);
+	  strncat(value, (char *) &rega, 4);
+	  strncat(value, (char *) &regb, 4);
+	  strncat(value, (char *) &regc, 4);
+	  strncat(value, (char *) &regd, 4);
 	}
+
+      // Intel sometimes puts whitespace at the beginning -- looks bad in
+      // lsdev/Device Manager.
+      for (count = 0; count < 48; count ++)
+	{
+	  if (isspace(value[count]))
+	    whitespace += 1;
+	  else
+	    break;
+	}
+
+      kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
+			    (value + whitespace));
     }
 
   return (status = 0);

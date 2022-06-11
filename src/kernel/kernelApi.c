@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelApi.c
 //
@@ -1839,7 +1839,6 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
   // This funcion does the far return.
 
   quad_t status = 0;
-  unsigned stackAddress = 0;
   int functionNumber = 0;
   unsigned *functionArgs = 0;
   kernelFunctionIndex *functionEntry = NULL;
@@ -1851,8 +1850,6 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 #if defined(DEBUG)
   const char *symbolName = NULL;
 #endif // defined(DEBUG)
-
-  kernelProcessorApiEnter(stackAddress);
 
   // Check args
   if (args == NULL)
@@ -2021,10 +2018,6 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 
   // Call the function
   status = functionPointer();
-
-  // Clean up the stack
-  while (pushCount)
-    kernelProcessorPop(functionArgs[--pushCount]);
 
  out:
 #if defined(DEBUG)

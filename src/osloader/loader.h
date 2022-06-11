@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 ;;  
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
-;;  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ;;
 ;;  loader.h
 ;;
@@ -39,7 +39,7 @@
 %define DATABUFFERSIZE          (000A0000h - LDRDATABUFFER)
 
 %define KERNELVIRTUALADDRESS    0C0000000h   ;; 3 GB mark
-%define KERNELCODEDATALOCATION	00100000h    ;; 1 MB mark
+%define KERNELLOADADDRESS	00100000h    ;; 1 MB mark
 %define KERNELSTACKSIZE	        00010000h    ;; 64 KB
 
 ;; The length of the progress indicator during kernel load
@@ -47,7 +47,7 @@
 
 ;; Some checks, to make sure the data above is correct
 
-%if ((KERNELCODEDATALOCATION % 4096) != 0)
+%if ((KERNELLOADADDRESS % 4096) != 0)
 %error "Kernel code must start on 4Kb boundary"
 %endif
 %if ((KERNELSTACKSIZE % 4096) != 0)

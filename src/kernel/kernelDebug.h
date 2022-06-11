@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelDebug.h
 //
@@ -28,21 +28,20 @@
 #include <sys/debug.h>
 
 // Definitions
-#define MAX_DEBUGTEXT_LENGTH  1024
-#define MAX_DEBUG_CATEGORIES  16
-#define MAX_DEBUG_FILENAMES   16
+#define MAX_DEBUGTEXT_LENGTH	1024
+#define MAX_DEBUG_CATEGORIES	16
+#define MAX_DEBUG_FILENAMES		16
 
-#define DEBUG_SHOWPROCESS     0x08
-#define DEBUG_SHOWFILE        0x04
-#define DEBUG_SHOWFUNCTION    0x02
+#define DEBUG_SHOWPROCESS		0x08
+#define DEBUG_SHOWFILE			0x04
+#define DEBUG_SHOWFUNCTION		0x02
 
 void kernelDebugInitialize(void);
 void kernelDebugFlags(int);
 void kernelDebugAddCategory(debug_category);
 void kernelDebugAddFile(const char *);
 void kernelDebugOutput(const char *, const char *, int, debug_category,
-		       const char *, ...)
-     __attribute__((format(printf, 5, 6)));
+	const char *, ...) __attribute__((format(printf, 5, 6)));
 void kernelDebugHex(void *, unsigned);
 void kernelDebugHexDwords(void *, unsigned);
 void kernelDebugBinary(void *, unsigned);
@@ -50,10 +49,11 @@ void kernelDebugStack(void *, unsigned, void *, long, unsigned);
 
 // These macros should be used for actual debug calls
 #define kernelDebug(category, message, arg...) \
-  kernelDebugOutput(__FILE__, __FUNCTION__, __LINE__, category, message, ##arg)
+	kernelDebugOutput(__FILE__, __FUNCTION__, __LINE__, category, message, \
+		##arg)
 
 #define kernelDebugError(message, arg...) \
-  kernelError(kernel_warn, message, ##arg)
+	kernelError(kernel_warn, message, ##arg)
 
 #else // !defined(DEBUG)
 

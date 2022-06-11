@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  debug.h
 //
@@ -25,9 +25,9 @@
 #if !defined(_DEBUG_H)
 
 typedef enum {
-  debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_loader,
-  debug_memory, debug_misc, debug_multitasker, debug_pci, debug_power,
-  debug_scsi, debug_usb
+	debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_loader,
+	debug_memory, debug_misc, debug_multitasker, debug_pci, debug_power,
+	debug_scsi, debug_usb, debug_device
 
 } debug_category;
 

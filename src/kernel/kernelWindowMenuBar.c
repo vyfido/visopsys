@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelWindowMenuBar.c
 //
@@ -265,7 +265,6 @@ static int layout(kernelWindowComponent *menuBarComponent)
   kernelWindowMenuBar *menuBar = menuBarComponent->data;
   kernelWindowContainer *container = menuBar->container->data;
   kernelWindowComponent *menuComponent = NULL;
-  kernelWindowMenu *menu = NULL;
   int xCoord = 0;
   int count;
 
@@ -293,8 +292,6 @@ static int layout(kernelWindowComponent *menuBarComponent)
       menuComponent->xCoord = (menuBarComponent->xCoord + xCoord);
       menuComponent->yCoord =
 	(menuBarComponent->yCoord + menuBarComponent->height);
-
-      menu = menuComponent->data;
 
       // If we don't have the menu component's focus() function pointer
       // saved, save it now
@@ -423,7 +420,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   kernelWindowMenuBar *menuBar = component->data;
   kernelWindowContainer *menuBarContainer = menuBar->container->data;
   kernelWindowComponent *menuComponent = NULL;
-  kernelWindowMenu *menu = NULL;
   int xCoord = 0, width = 0;
   int count;
 
@@ -442,7 +438,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   for (count = 0; count < menuBarContainer->numComponents; count ++)
     {
       menuComponent = menuBarContainer->components[count];
-      menu = menuComponent->data;
 
       xCoord = (component->xCoord + menuXCoord(component, count));
       width = menuTitleWidth(component, count);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelLinkedList.c
 //
@@ -23,6 +23,7 @@
 // of linked lists.
 
 #include "kernelLinkedList.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
@@ -37,160 +38,176 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-
 int kernelLinkedListAdd(kernelLinkedList *list, void *data)
 {
-  // Add the specified data value to the linked list.
+	// Add the specified data value to the linked list.
 
-  int status = 0;
-  kernelLinkedListItem *new = NULL;
+	int status = 0;
+	kernelLinkedListItem *new = NULL;
 
-  if ((list == NULL) || (data == NULL))
-    return (status = ERR_NULLPARAMETER);
+	if ((list == NULL) || (data == NULL))
+		return (status = ERR_NULLPARAMETER);
 
-  new = kernelMalloc(sizeof(kernelLinkedListItem));
-  if (new == NULL)
-    return (status = ERR_MEMORY);
+	new = kernelMalloc(sizeof(kernelLinkedListItem));
+	if (new == NULL)
+		return (status = ERR_MEMORY);
 
-  new->data = data;
+	new->data = data;
 
-  status = kernelLockGet(&list->lock);
-  if (status < 0)
-    {
-      kernelFree(new);
-      return (status);
-    }
+	status = kernelLockGet(&list->lock);
+	if (status < 0)
+	{
+		kernelFree(new);
+		return (status);
+	}
 
-  if (list->first)
-    list->first->prev = new;
+	if (list->first)
+		list->first->prev = new;
 
-  new->next = list->first;
-  list->first = new;
+	new->next = list->first;
+	list->first = new;
 
-  list->numItems += 1;
+	list->numItems += 1;
 
-  kernelLockRelease(&list->lock);
-  return (status = 0);
+	kernelLockRelease(&list->lock);
+	return (status = 0);
 }
 
 
 int kernelLinkedListRemove(kernelLinkedList *list, void *data)
 {
-  // Remove the linked list item with the specified data value
+	// Remove the linked list item with the specified data value
 
-  int status = 0;
-  kernelLinkedListItem *iter = NULL;
+	int status = 0;
+	kernelLinkedListItem *iter = NULL;
   
-  if ((list == NULL) || (data == NULL))
-    return (status = ERR_NULLPARAMETER);
+	if ((list == NULL) || (data == NULL))
+		return (status = ERR_NULLPARAMETER);
 
-  status = kernelLockGet(&list->lock);
-  if (status < 0)
-    return (status);
+	status = kernelLockGet(&list->lock);
+	if (status < 0)
+		return (status);
 
-  iter = list->first;
+	iter = list->first;
 
-  while (iter)
-    {
-      if (iter->data == data)
+	while (iter)
 	{
-	  if (iter->prev)
-	    iter->prev->next = iter->next;
+		if (iter->data == data)
+		{
+			if (iter->prev)
+				iter->prev->next = iter->next;
 
-	  if (iter->next)
-	    iter->next->prev = iter->prev;
+			if (iter->next)
+				iter->next->prev = iter->prev;
 
-	  if (iter == list->first)
-	    list->first = iter->next;
+			if (iter == list->first)
+				list->first = iter->next;
 
-	  list->numItems -= 1;
+			list->numItems -= 1;
 
-	  kernelFree(iter);
-	  kernelLockRelease(&list->lock);
-	  return (status = 0);
-	}
+			kernelFree(iter);
+			kernelLockRelease(&list->lock);
+			return (status = 0);
+		}
       
-      iter = iter->next;
-    }
+		iter = iter->next;
+	}
 
-  kernelLockRelease(&list->lock);
-  return (status = ERR_NOSUCHENTRY);
+	kernelLockRelease(&list->lock);
+	return (status = ERR_NOSUCHENTRY);
 }
 
 
 int kernelLinkedListClear(kernelLinkedList *list)
 {
-  // Remove everything in the linked list.
+	// Remove everything in the linked list.
 
-  int status = 0;
-  kernelLinkedListItem *iter = NULL;
-  kernelLinkedListItem *next = NULL;
+	int status = 0;
+	kernelLinkedListItem *iter = NULL;
+	kernelLinkedListItem *next = NULL;
 
-  if (list == NULL)
-    return (status = ERR_NULLPARAMETER);
+	if (list == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  status = kernelLockGet(&list->lock);
-  if (status < 0)
-    return (status);
+	status = kernelLockGet(&list->lock);
+	if (status < 0)
+		return (status);
 
-  iter = list->first;
+	iter = list->first;
 
-  while (iter)
-    {
-      next = iter->next;
-      kernelFree(iter);
-      iter = next;
-    }
+	while (iter)
+	{
+		next = iter->next;
+		kernelFree(iter);
+		iter = next;
+	}
 
-  list->numItems = 0;
+	list->numItems = 0;
 
-  kernelLockRelease(&list->lock);
-  kernelMemClear(list, sizeof(kernelLinkedList));
-  return (status = 0);
+	kernelLockRelease(&list->lock);
+	kernelMemClear(list, sizeof(kernelLinkedList));
+	return (status = 0);
 }
 
 
 void *kernelLinkedListIterStart(kernelLinkedList *list,
-				kernelLinkedListItem **iter)
+	kernelLinkedListItem **iter)
 {
-  // Starts an iteration through the linked list.  Returns the data value from
-  // the first item, if applicable.
+	// Starts an iteration through the linked list.  Returns the data value from
+	// the first item, if applicable.
 
-  // Check params
-  if ((list == NULL) || (iter == NULL))
-    {
-      kernelError(kernel_error, "List or iterator pointer is NULL");
-      return (NULL);
-    }
+	// Check params
+	if ((list == NULL) || (iter == NULL))
+	{
+		kernelError(kernel_error, "List or iterator pointer is NULL");
+		return (NULL);
+	}
 
-  *iter = list->first;
+	*iter = list->first;
 
-  if (!(*iter))
-    return (NULL);
-
-  return ((*iter)->data);
+	if (!(*iter))
+		return (NULL);
+	else
+		return ((*iter)->data);
 }
 
 
 void *kernelLinkedListIterNext(kernelLinkedList *list,
-			       kernelLinkedListItem **iter)
+	kernelLinkedListItem **iter)
 {
-  // Returns the data value from the next item in the list, if applicable.
+	// Returns the data value from the next item in the list, if applicable.
 
-  // Check params
-  if ((list == NULL) || (iter == NULL))
-    {
-      kernelError(kernel_error, "List or iterator pointer is NULL");
-      return (NULL);
-    }
+	// Check params
+	if ((list == NULL) || (iter == NULL))
+	{
+		kernelError(kernel_error, "List or iterator pointer is NULL");
+		return (NULL);
+	}
 
-  if (!(*iter))
-    return (NULL);
+	if (!(*iter))
+		return (NULL);
 
-  *iter = (*iter)->next;
+	*iter = (*iter)->next;
 
-  if (!(*iter))
-    return (NULL);
+	if (!(*iter))
+		return (NULL);
+	else
+		return ((*iter)->data);
+}
 
-  return ((*iter)->data);
+
+void kernelLinkedListDebug(kernelLinkedList *list __attribute__((unused)))
+{
+#ifdef DEBUG
+	kernelLinkedListItem *iter = NULL;
+	void *data = NULL;
+
+	data = kernelLinkedListIterStart(list, &iter);
+	while (data)
+	{
+		kernelDebug(debug_misc, "LIST data=%p next=%p prev=%p", data,
+			iter->next, iter->prev);
+		data = kernelLinkedListIterNext(list, &iter);
+	}
+#endif // DEBUG
 }

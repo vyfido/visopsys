@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  wallpaper.c
 //
@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   char *language = "";
-  int processId = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
 
 #ifdef BUILDLANG
@@ -74,9 +73,6 @@ int main(int argc, char *argv[])
     }
 
   bzero(fileName, MAX_PATH_NAME_LENGTH);
-
-  // We need our process ID to create the windows
-  processId = multitaskerGetCurrentProcessId();
 
   if (argc < 2)
     {

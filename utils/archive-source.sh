@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2011 J. Andrew McLaughlin
+##  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ## 
 ##  archive-source.sh
 ##
@@ -66,7 +66,7 @@ echo Done
 
 echo -n "Archiving... "
 echo "Visopsys $RELEASE Source Release" > /tmp/comment
-echo "Copyright (C) 1998-2011 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2013 J. Andrew McLaughlin" >> /tmp/comment
 rm -f "$DESTDIR".zip
 zip -9 -z -r "$DESTDIR".zip "$DESTDIR" < /tmp/comment > $ZIPLOG 2>&1
 if [ $? -ne 0 ] ; then

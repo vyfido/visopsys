@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelDevice.h
 //
@@ -30,34 +30,34 @@
 // A structure for device classes and subclasses, which just allows us to
 // associate the different types with string names.
 typedef struct {
-  int class;
-  char *name;
+	int class;
+	char *name;
 
 } kernelDeviceClass;
 
 // The generic hardware device structure
 typedef struct _kernelDevice {
-  struct {
-    // Device class and subclass.  Subclass optional.
-    kernelDeviceClass *class;
-    kernelDeviceClass *subClass;
+	struct {
+		// Device class and subclass.  Subclass optional.
+		kernelDeviceClass *class;
+		kernelDeviceClass *subClass;
 
-    // Optional list of text attributes
-    variableList attrs;
+		// Optional list of text attributes
+		variableList attrs;
 
-    // Used for maintaining the list of devices as a tree
-    struct _kernelDevice *parent;
-    struct _kernelDevice *firstChild;
-    struct _kernelDevice *previous;
-    struct _kernelDevice *next;
+		// Used for maintaining the list of devices as a tree
+		struct _kernelDevice *parent;
+		struct _kernelDevice *firstChild;
+		struct _kernelDevice *previous;
+		struct _kernelDevice *next;
 
-  } device;
+	} device;
 
-  // Driver
-  kernelDriver *driver;
+	// Driver
+	kernelDriver *driver;
 
-  // Device class-specific structure
-  void *data;
+	// Device class-specific structure
+	void *data;
 
 } kernelDevice;
 
@@ -67,7 +67,7 @@ int kernelDeviceDetectDisplay(void);
 int kernelDeviceDetect(void);
 kernelDeviceClass *kernelDeviceGetClass(int);
 int kernelDeviceFindType(kernelDeviceClass *, kernelDeviceClass *,
-			 kernelDevice *[], int);
+	kernelDevice *[], int);
 int kernelDeviceHotplug(kernelDevice *, int, int, int, int);
 int kernelDeviceAdd(kernelDevice *, kernelDevice *);
 int kernelDeviceRemove(kernelDevice *);

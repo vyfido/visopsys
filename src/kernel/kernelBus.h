@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelBus.h
 //
@@ -27,35 +27,35 @@
 struct _kernelBus;
 
 typedef enum {
-  bus_pci = 1, bus_usb = 2
+	bus_pci = 1, bus_usb = 2
 } kernelBusType;
 
 typedef struct {
-  struct _kernelBus *bus;
-  int id;
-  kernelDeviceClass *class;
-  kernelDeviceClass *subClass;
-  kernelDriver *claimed;
+	struct _kernelBus *bus;
+	int id;
+	kernelDeviceClass *class;
+	kernelDeviceClass *subClass;
+	kernelDriver *claimed;
 
 } kernelBusTarget;
 
 typedef struct {
-  int (*driverGetTargets)(struct _kernelBus *, kernelBusTarget **);
-  int (*driverGetTargetInfo)(kernelBusTarget *, void *);
-  unsigned (*driverReadRegister)(kernelBusTarget *, int, int);
-  int (*driverWriteRegister)(kernelBusTarget *, int, int, unsigned);
-  void (*driverDeviceClaim) (kernelBusTarget *, kernelDriver *);
-  int (*driverDeviceEnable)(kernelBusTarget *, int);
-  int (*driverSetMaster)(kernelBusTarget *, int);
-  int (*driverRead)(kernelBusTarget *, unsigned, void *);
-  int (*driverWrite)(kernelBusTarget *, unsigned, void *);
+	int (*driverGetTargets)(struct _kernelBus *, kernelBusTarget **);
+	int (*driverGetTargetInfo)(kernelBusTarget *, void *);
+	unsigned (*driverReadRegister)(kernelBusTarget *, int, int);
+	int (*driverWriteRegister)(kernelBusTarget *, int, int, unsigned);
+	void (*driverDeviceClaim) (kernelBusTarget *, kernelDriver *);
+	int (*driverDeviceEnable)(kernelBusTarget *, int);
+	int (*driverSetMaster)(kernelBusTarget *, int);
+	int (*driverRead)(kernelBusTarget *, unsigned, void *);
+	int (*driverWrite)(kernelBusTarget *, unsigned, void *);
 
 } kernelBusOps;
 
 typedef struct _kernelBus {
-  kernelBusType type;
-  kernelDevice *dev;
-  kernelBusOps *ops;
+	kernelBusType type;
+	kernelDevice *dev;
+	kernelBusOps *ops;
 
 } kernelBus;
 

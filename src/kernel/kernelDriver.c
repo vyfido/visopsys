@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelDriverManagement.c
 //
@@ -29,81 +29,81 @@
 // order, except that the initializations are done in sequence
 
 static void *consoleDriverInits[] = {
-  kernelTextConsoleInitialize,
-  kernelGraphicConsoleInitialize,
-  (void *) -1
+	kernelTextConsoleInitialize,
+	kernelGraphicConsoleInitialize,
+	(void *) -1
 };
 
 static void *filesystemDriverInits[] = {
-  kernelFilesystemExtInitialize,
-  kernelFilesystemFatInitialize,
-  kernelFilesystemIsoInitialize,
-  kernelFilesystemLinuxSwapInitialize,
-  kernelFilesystemNtfsInitialize,
-  kernelFilesystemUdfInitialize,
-  (void *) -1
+	kernelFilesystemExtInitialize,
+	kernelFilesystemFatInitialize,
+	kernelFilesystemIsoInitialize,
+	kernelFilesystemLinuxSwapInitialize,
+	kernelFilesystemNtfsInitialize,
+	kernelFilesystemUdfInitialize,
+	(void *) -1
 };
 
 // A structure to hold the kernel's built-in console drivers
 static struct {
-  kernelTextOutputDriver *textConsoleDriver;
-  kernelTextOutputDriver *graphicConsoleDriver;
+	kernelTextOutputDriver *textConsoleDriver;
+	kernelTextOutputDriver *graphicConsoleDriver;
 
 } consoleDrivers = {
-  NULL, // Text-mode console driver
-  NULL  // Graphic-mode console driver
+	NULL, // Text-mode console driver
+	NULL  // Graphic-mode console driver
 };
 
 // A structure to hold all the kernel's built-in filesystem drivers.
 static struct {
-  kernelFilesystemDriver *extDriver;
-  kernelFilesystemDriver *fatDriver;
-  kernelFilesystemDriver *isoDriver;
-  kernelFilesystemDriver *linuxSwapDriver;
-  kernelFilesystemDriver *ntfsDriver;
-  kernelFilesystemDriver *udfDriver;
+	kernelFilesystemDriver *extDriver;
+	kernelFilesystemDriver *fatDriver;
+	kernelFilesystemDriver *isoDriver;
+	kernelFilesystemDriver *linuxSwapDriver;
+	kernelFilesystemDriver *ntfsDriver;
+	kernelFilesystemDriver *udfDriver;
 
 } filesystemDrivers = {
-  NULL, // EXT filesystem driver
-  NULL, // FAT filesystem driver
-  NULL, // ISO filesystem driver
-  NULL, // Linux swap filesystem driver
-  NULL, // NTFS filesystem driver
-  NULL  // UDF filesystem driver
+	NULL, // EXT filesystem driver
+	NULL, // FAT filesystem driver
+	NULL, // ISO filesystem driver
+	NULL, // Linux swap filesystem driver
+	NULL, // NTFS filesystem driver
+	NULL  // UDF filesystem driver
 };
 
 
 static int driversInitialize(void *initArray[])
 {
-  // This function calls the driver initialize() functions of the supplied
+	// This function calls the driver initialize() functions of the supplied
 
-  int status = 0;
-  int errors = 0;
-  int (*driverInit)(void) = NULL;
-  int count;
+	int status = 0;
+	int errors = 0;
+	int (*driverInit)(void) = NULL;
+	int count;
 
-  // Loop through all of the initialization functions we have
-  for (count = 0; ; count ++)
-    {
-      driverInit = initArray[count];
+	// Loop through all of the initialization functions we have
+	for (count = 0; ; count ++)
+	{
+		driverInit = initArray[count];
 
-      if (driverInit == (void *) -1)
-	break;
+		if (driverInit == (void *) -1)
+			break;
 
-      if (driverInit == NULL)
-	continue;
+		if (driverInit == NULL)
+			continue;
 
-      // Call the initialization.  The driver should then call 
-      // kernelDriverRegister() when it has finished initializing
-      status = driverInit();
-      if (status < 0)
-	errors++;
-    }
+		// Call the initialization.  The driver should then call 
+		// kernelSoftwareDriverRegister() when it has finished initializing
+		status = driverInit();
+		if (status < 0)
+			errors++;
+	}
 
-  if (errors)
-    return (status = ERR_NOTINITIALIZED);
-  else
-    return (status = 0);
+	if (errors)
+		return (status = ERR_NOTINITIALIZED);
+	else
+		return (status = 0);
 }
 
 
@@ -118,97 +118,98 @@ static int driversInitialize(void *initArray[])
 
 int kernelConsoleDriversInitialize(void)
 {
-  // This function is called during startup so we can call the initialize()
-  // functions of the console drivers
-  return (driversInitialize(consoleDriverInits));
+	// This function is called during startup so we can call the initialize()
+	// functions of the console drivers
+	return (driversInitialize(consoleDriverInits));
 }
 
 
 int kernelFilesystemDriversInitialize(void)
 {
-  // This function is called during startup so we can call the initialize()
-  // functions of the filesystem drivers
-  return (driversInitialize(filesystemDriverInits));
+	// This function is called during startup so we can call the initialize()
+	// functions of the filesystem drivers
+	return (driversInitialize(filesystemDriverInits));
 }
 
 
-int kernelDriverRegister(kernelDriverType type, void *driver)
+int kernelSoftwareDriverRegister(kernelSoftwareDriverType type, void *driver)
 {
-  // This function is called by the drivers during their initialize() call,
-  // so that we can add them to the table of known drivers.
+	// This function is called by the software drivers during their
+	// initialize() call, so that we can add them to the table of known
+	// drivers.
 
-  int status = 0;
+	int status = 0;
 
-  if (driver == NULL)
-    {
-      kernelError(kernel_error, "Driver to register is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	if (driver == NULL)
+	{
+		kernelError(kernel_error, "Driver to register is NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  switch (type)
-    {
-    case extDriver:
-      filesystemDrivers.extDriver = driver;
-      break;
-    case fatDriver:
-      filesystemDrivers.fatDriver = driver;
-      break;
-    case isoDriver:
-      filesystemDrivers.isoDriver = driver;
-      break;
-    case linuxSwapDriver:
-      filesystemDrivers.linuxSwapDriver = driver;
-      break;
-    case ntfsDriver:
-      filesystemDrivers.ntfsDriver = driver;
-      break;
-    case udfDriver:
-      filesystemDrivers.udfDriver = driver;
-      break;
-    case textConsoleDriver:
-      consoleDrivers.textConsoleDriver = driver;
-      break;
-    case graphicConsoleDriver:
-      consoleDrivers.graphicConsoleDriver = driver;
-      break;
-    default:
-      kernelError(kernel_error, "Unknown driver type %d", type);
-      return (status = ERR_NOSUCHENTRY);
-    }
+	switch (type)
+	{
+		case extDriver:
+			filesystemDrivers.extDriver = driver;
+			break;
+		case fatDriver:
+			filesystemDrivers.fatDriver = driver;
+			break;
+		case isoDriver:
+			filesystemDrivers.isoDriver = driver;
+			break;
+		case linuxSwapDriver:
+			filesystemDrivers.linuxSwapDriver = driver;
+			break;
+		case ntfsDriver:
+			filesystemDrivers.ntfsDriver = driver;
+			break;
+		case udfDriver:
+			filesystemDrivers.udfDriver = driver;
+			break;
+		case textConsoleDriver:
+			consoleDrivers.textConsoleDriver = driver;
+			break;
+		case graphicConsoleDriver:
+			consoleDrivers.graphicConsoleDriver = driver;
+			break;
+		default:
+			kernelError(kernel_error, "Unknown driver type %d", type);
+			return (status = ERR_NOSUCHENTRY);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
-void *kernelDriverGet(kernelDriverType type)
+void *kernelSoftwareDriverGet(kernelSoftwareDriverType type)
 {
-  switch (type)
-    {
-    case extDriver:
-      // Return the EXT filesystem driver
-      return (filesystemDrivers.extDriver);
-    case fatDriver:
-      // Return the FAT filesystem driver
-      return (filesystemDrivers.fatDriver);
-    case isoDriver:
-      // Return the ISO filesystem driver
-      return (filesystemDrivers.isoDriver);
-    case linuxSwapDriver:
-      // Return the Linux swap filesystem driver
-      return (filesystemDrivers.linuxSwapDriver);
-    case ntfsDriver:
-      // Return the NTFS filesystem driver
-      return (filesystemDrivers.ntfsDriver);
-    case udfDriver:
-      // Return the UDF filesystem driver
-      return (filesystemDrivers.udfDriver);
-    case textConsoleDriver:
-      // Return the text mode console driver
-      return (consoleDrivers.textConsoleDriver);
-    case graphicConsoleDriver:
-      // Return the graphic mode console driver
-      return (consoleDrivers.graphicConsoleDriver);
-    default:
-      return (NULL);
-    }
+	switch (type)
+	{
+		case extDriver:
+			// Return the EXT filesystem driver
+			return (filesystemDrivers.extDriver);
+		case fatDriver:
+			// Return the FAT filesystem driver
+			return (filesystemDrivers.fatDriver);
+		case isoDriver:
+			// Return the ISO filesystem driver
+			return (filesystemDrivers.isoDriver);
+		case linuxSwapDriver:
+			// Return the Linux swap filesystem driver
+			return (filesystemDrivers.linuxSwapDriver);
+		case ntfsDriver:
+			// Return the NTFS filesystem driver
+			return (filesystemDrivers.ntfsDriver);
+		case udfDriver:
+			// Return the UDF filesystem driver
+			return (filesystemDrivers.udfDriver);
+		case textConsoleDriver:
+			// Return the text mode console driver
+			return (consoleDrivers.textConsoleDriver);
+		case graphicConsoleDriver:
+			// Return the graphic mode console driver
+			return (consoleDrivers.graphicConsoleDriver);
+		default:
+			return (NULL);
+	}
 }

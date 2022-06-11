@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  bootmenu.c
 //
@@ -61,7 +61,7 @@ choices for the first hard disk, hd0.
 #define VBM_MAGIC           "VBM2"
 #define SLICESTRING_LENGTH  60
 #define TITLE               _("Visopsys Boot Menu Installer\n"		\
-			      "Copyright (C) 1998-2011 J. Andrew McLaughlin")
+			      "Copyright (C) 1998-2013 J. Andrew McLaughlin")
 #define PERM                _("You must be a privileged user to use this " \
 			      "command.\n(Try logging in as user \"admin\")")
 #define WINWARNING          _("Windows Vista and later versions may require " \

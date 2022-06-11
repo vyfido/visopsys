@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelText.h
 //
@@ -34,61 +34,61 @@ struct _kernelWindowComponent;
 // A text input stream.  In single user operation there is only one, and it's
 // where all keyboard input goes.
 typedef volatile struct {
-  stream s;
-  int ownerPid;
-  int echo;
+	stream s;
+	int ownerPid;
+	int echo;
 
 } kernelTextInputStream;
 
 // A data structure to represent a text area on the screen which gets drawn
 // by the appropriate driver functions
 typedef volatile struct {
-  int xCoord;
-  int yCoord;
-  int columns;
-  int rows;
-  int bytesPerChar;
-  int cursorColumn;
-  int cursorRow;
-  int cursorState;
-  int maxBufferLines;
-  int scrollBackLines;
-  int scrolledBackLines;
-  int hidden;
-  color foreground;
-  color background;
-  unsigned char pcColor;
-  kernelTextInputStream *inputStream;
-  volatile struct _kernelTextOutputStream *outputStream;
-  unsigned char *bufferData;
-  unsigned char *visibleData;
-  asciiFont *font;
-  volatile struct _kernelWindowComponent *windowComponent;
-  int noScroll;
+	int xCoord;
+	int yCoord;
+	int columns;
+	int rows;
+	int bytesPerChar;
+	int cursorColumn;
+	int cursorRow;
+	int cursorState;
+	int maxBufferLines;
+	int scrollBackLines;
+	int scrolledBackLines;
+	int hidden;
+	color foreground;
+	color background;
+	unsigned char pcColor;
+	kernelTextInputStream *inputStream;
+	volatile struct _kernelTextOutputStream *outputStream;
+	unsigned char *bufferData;
+	unsigned char *visibleData;
+	asciiFont *font;
+	volatile struct _kernelWindowComponent *windowComponent;
+	int noScroll;
 
 } kernelTextArea;
 
 // This structure contains pointers to all the appropriate functions
 // to output text from a given text stream
 typedef struct {
-  void (*setCursor) (kernelTextArea *, int);
-  int (*getCursorAddress) (kernelTextArea *);
-  int (*setCursorAddress) (kernelTextArea *, int, int);
-  int (*setForeground) (kernelTextArea *, color *);
-  int (*setBackground) (kernelTextArea *, color *);
-  int (*print) (kernelTextArea *, const char *, textAttrs *);
-  int (*delete) (kernelTextArea *);
-  int (*screenDraw) (kernelTextArea *);
-  int (*screenClear) (kernelTextArea *);
-  int (*screenSave) (kernelTextArea *, textScreen *);
-  int (*screenRestore) (kernelTextArea *, textScreen *);
+	void (*setCursor) (kernelTextArea *, int);
+	int (*getCursorAddress) (kernelTextArea *);
+	int (*setCursorAddress) (kernelTextArea *, int, int);
+	int (*setForeground) (kernelTextArea *, color *);
+	int (*setBackground) (kernelTextArea *, color *);
+	int (*print) (kernelTextArea *, const char *, textAttrs *);
+	int (*delete) (kernelTextArea *);
+	int (*screenDraw) (kernelTextArea *);
+	int (*screenClear) (kernelTextArea *);
+	int (*screenSave) (kernelTextArea *, textScreen *);
+	int (*screenRestore) (kernelTextArea *, textScreen *);
 
 } kernelTextOutputDriver;
 
 // This structure is used to refer to a stream made up of text.
 typedef volatile struct _kernelTextOutputStream {
-  kernelTextOutputDriver *outputDriver;
-  kernelTextArea *textArea;
+	kernelTextOutputDriver *outputDriver;
+	kernelTextArea *textArea;
 
 } kernelTextOutputStream;
 
@@ -122,12 +122,12 @@ int kernelTextPutc(int);
 int kernelTextStreamPrint(kernelTextOutputStream *, const char *);
 int kernelTextPrint(const char *, ...) __attribute__((format(printf, 1, 2)));
 int kernelTextStreamPrintAttrs(kernelTextOutputStream *, textAttrs *,
-			       const char *);
+			 const char *);
 int kernelTextPrintAttrs(textAttrs *, const char *, ...)
-  __attribute__((format(printf, 2, 3)));
+	__attribute__((format(printf, 2, 3)));
 int kernelTextStreamPrintLine(kernelTextOutputStream *, const char *);
 int kernelTextPrintLine(const char *, ...)
-  __attribute__((format(printf, 1, 2)));
+	__attribute__((format(printf, 1, 2)));
 void kernelTextStreamNewline(kernelTextOutputStream *);
 void kernelTextNewline(void);
 void kernelTextStreamBackSpace(kernelTextOutputStream *);
@@ -190,20 +190,20 @@ void kernelTextInputSetEcho(int);
 
 // Some useful macros for working with text areas
 #define TEXTAREA_CURSORPOS(area) \
-  ((area->cursorRow * area->columns) + area->cursorColumn)
+	((area->cursorRow * area->columns) + area->cursorColumn)
 #define TEXTAREA_FIRSTSCROLLBACK(area) \
-  (area->bufferData + ((area->maxBufferLines - \
-                        (area->rows + area->scrollBackLines)) * \
-                       (area->columns * area->bytesPerChar)))
+	(area->bufferData + ((area->maxBufferLines - \
+		(area->rows + area->scrollBackLines)) * \
+			(area->columns * area->bytesPerChar)))
 #define TEXTAREA_LASTSCROLLBACK(area) \
-  (area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * \
-                       (area->columns * area->bytesPerChar)))
+	(area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * \
+		(area->columns * area->bytesPerChar)))
 #define TEXTAREA_FIRSTVISIBLE(area) \
-  (area->bufferData + ((area->maxBufferLines - area->rows) * \
-                       (area->columns * area->bytesPerChar)))
+	(area->bufferData + ((area->maxBufferLines - area->rows) * \
+		(area->columns * area->bytesPerChar)))
 #define TEXTAREA_LASTVISIBLE(area) \
-  (area->bufferData + ((area->maxBufferLines - 1) * \
-                       (area->columns * area->bytesPerChar)))
+	(area->bufferData + ((area->maxBufferLines - 1) * \
+		(area->columns * area->bytesPerChar)))
 
 #define _KERNELTEXT_H
 #endif

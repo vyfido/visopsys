@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  windowRadioDialog.c
 //
@@ -50,7 +50,6 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 
   int status = 0;
   objectKey dialogWindow = NULL;
-  objectKey imageComp = NULL;
   objectKey radioButton = NULL;
   objectKey buttonContainer = NULL;
   objectKey okButton = NULL;
@@ -91,8 +90,8 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
       questImage.transColor.red = 0;
       questImage.transColor.green = 255;
       questImage.transColor.blue = 0;
-      imageComp = windowNewImage(dialogWindow, (image *) &questImage,
-				 draw_translucent, &params);
+      windowNewImage(dialogWindow, (image *) &questImage, draw_translucent,
+		     &params);
     }
 
   // Create the label

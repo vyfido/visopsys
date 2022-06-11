@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  fdisk.c
 //
@@ -1364,7 +1364,7 @@ static void drawDiagram(void)
 static void printBanner(void)
 {
   textScreenClear();
-  printf(_("%s\nCopyright (C) 1998-2011 J. Andrew McLaughlin\n"), programName);
+  printf(_("%s\nCopyright (C) 1998-2013 J. Andrew McLaughlin\n"), programName);
 }
 
 
@@ -5241,7 +5241,6 @@ static void constructWindow(void)
   componentParameters params;
   image iconImage;
   objectKey container = NULL;
-  objectKey textLabel = NULL;
   int widest = 0;
   int count;
 
@@ -5329,7 +5328,7 @@ static void constructWindow(void)
   params.padBottom = 0;
   if (fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL) >= 0)
     fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
-  textLabel = windowNewTextLabel(window, sliceListHeader, &params);
+  windowNewTextLabel(window, sliceListHeader, &params);
 
   // Make a list for the slices
   params.gridY++;

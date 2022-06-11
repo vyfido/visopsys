@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelPs2KeyboardDriver.c
 //
@@ -227,6 +227,8 @@ static void readData(void)
   // Read the data from port 60h
   if (inPort60(&data) < 0)
     return;
+  else
+    kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
 
   // If an extended scan code is coming next...
   if (data == EXTENDED)
@@ -395,13 +397,12 @@ static void interrupt(void)
   void *address = NULL;
 
   kernelProcessorIsrEnter(address);
-  kernelProcessingInterrupt = 1;
+  kernelInterruptSetCurrent(INTERRUPT_NUM_KEYBOARD);
 
   kernelDebug(debug_io, "Ps2Key: keyboard interrupt");
   readData();
 
-  kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
-  kernelProcessingInterrupt = 0;
+  kernelInterruptClearCurrent();
   kernelProcessorIsrExit(address);
 }
 
@@ -442,6 +443,12 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
   // Unmap BIOS data
   kernelPageUnmap(KERNELPROCID, biosData, 0x1000);
+
+  // Don't save any old handler for the dedicated keyboard interrupt, but if
+  // there is one, we want to know about it.
+  if (kernelInterruptGetHandler(INTERRUPT_NUM_KEYBOARD))
+    kernelError(kernel_warn, "Not chaining unexpected existing handler for "
+		"keyboard int %d", INTERRUPT_NUM_KEYBOARD);
 
   kernelDebug(debug_io, "Ps2Key: hook interrupt");
 

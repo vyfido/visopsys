@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelScsiDiskDriver.h
 //
@@ -28,37 +28,36 @@
 #define SCSI_MAX_DISKS 16
 
 typedef struct {
-  kernelBusTarget *busTarget;
-  kernelDevice *dev;
-  char vendorId[9];
-  char productId[17];
-  char vendorProductId[26];
-  unsigned numSectors;
-  unsigned sectorSize;
-  struct {
-    usbDevice usbDev;
-    usbEndpointDesc *bulkInDesc;
-    unsigned char bulkInEndpoint;
-    usbEndpointDesc *bulkOutDesc;
-    unsigned char bulkOutEndpoint;
-    usbEndpointDesc *intrInDesc;
-    unsigned char intrInEndpoint;
-    unsigned tag;
-  } usb;
+	kernelBusTarget *busTarget;
+	char vendorId[9];
+	char productId[17];
+	char vendorProductId[26];
+	unsigned numSectors;
+	unsigned sectorSize;
+	struct {
+		usbDevice *usbDev;
+		usbEndpointDesc *bulkInDesc;
+		unsigned char bulkInEndpoint;
+		usbEndpointDesc *bulkOutDesc;
+		unsigned char bulkOutEndpoint;
+		usbEndpointDesc *intrInDesc;
+		unsigned char intrInEndpoint;
+		unsigned tag;
+	} usb;
 } kernelScsiDisk;
 
 typedef struct {
-  unsigned char byte[12];
+	unsigned char byte[12];
 
 } __attribute__((packed)) scsiUsbCmd12;
 
 typedef struct {
-  scsiModeParamHeader header;
-  unsigned char code;
-  unsigned char length;
-  unsigned char cylinders[3];
-  unsigned char heads;
-  unsigned char pad[18];
+	scsiModeParamHeader header;
+	unsigned char code;
+	unsigned char length;
+	unsigned char cylinders[3];
+	unsigned char heads;
+	unsigned char pad[18];
   
 } __attribute__((packed)) scsiDiskGeomPage;
 

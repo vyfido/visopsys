@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  visopsys_io.c
 //
@@ -541,7 +541,7 @@ static int ntfs_device_visopsys_stat(struct ntfs_device *dev,
   //	 -1 if not and errno set. in this case handle is trashed.
 
   int status = 0;
-  visopsys_fd *fd = NULL;
+  //visopsys_fd *fd = NULL;
 
   Vdebug("STAT\n");
 
@@ -552,7 +552,7 @@ static int ntfs_device_visopsys_stat(struct ntfs_device *dev,
       return (status = -1);
     }
 
-  fd = (visopsys_fd *) dev->d_private;
+  //fd = (visopsys_fd *) dev->d_private;
 
   ntfs_log_trace("stat() operation not implemented\n");
   errno = ntfs_visopsys_errno(ERR_NOTIMPLEMENTED);

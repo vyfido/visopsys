@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelUsbHidDriver.h
 //
@@ -39,47 +39,46 @@
 #define USB_HID_MOUSE_LEFTBUTTON     0x01
 
 typedef struct {
-  unsigned char descLength;     // Number of bytes in this descriptor
-  unsigned char descType;       // Type, HID descriptor type
-  unsigned short hidVersion;    // BCD version of HID spec
-  unsigned char countryCode;    // Hardware target country
-  unsigned char numDescriptors; // Number of HID class descriptors to follow
-  unsigned char repDescType;    // Report descriptor type
-  unsigned short repDescLength; // Report descriptor total length
+	unsigned char descLength;		// Number of bytes in this descriptor
+	unsigned char descType;			// Type, HID descriptor type
+	unsigned short hidVersion;		// BCD version of HID spec
+	unsigned char countryCode;		// Hardware target country
+	unsigned char numDescriptors;	// Number of HID class descriptors to follow
+	unsigned char repDescType;		// Report descriptor type
+	unsigned short repDescLength;	// Report descriptor total length
 
 } __attribute__((packed)) usbHidDesc;
 
 typedef enum {
-  hid_mouse, hid_keyboard, hid_any
+	hid_mouse, hid_keyboard, hid_any
 } hidType;
 
 typedef struct {
-  unsigned char modifier;
-  unsigned char res;
-  unsigned char code[6];
+	unsigned char modifier;
+	unsigned char res;
+	unsigned char code[6];
 
 } __attribute__((packed)) usbHidKeyboardData;
 
 typedef struct {
-  unsigned char buttons;
-  char xChange;
-  char yChange;
-  unsigned char devSpec[];
+	unsigned char buttons;
+	char xChange;
+	char yChange;
+	unsigned char devSpec[];
 
 } __attribute__((packed)) usbHidMouseData;
 
 typedef struct {
-  hidType type;
-  kernelBusTarget *busTarget;
-  kernelDevice dev;
-  usbDevice *usbDev;
-  usbHidDesc hidDesc;
-  unsigned char interNum;
-  usbEndpointDesc *intrInDesc;
-  unsigned char intrInEndpoint;
-  usbHidKeyboardData oldKeyboardData;
-  unsigned keyboardFlags;
-  unsigned char oldMouseButtons;
+	hidType type;
+	kernelBusTarget *busTarget;
+	usbDevice *usbDev;
+	usbHidDesc hidDesc;
+	unsigned char interNum;
+	usbEndpointDesc *intrInDesc;
+	unsigned char intrInEndpoint;
+	usbHidKeyboardData oldKeyboardData;
+	unsigned keyboardFlags;
+	unsigned char oldMouseButtons;
 
 } hidDevice;
 

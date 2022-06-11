@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  process.h
 //
@@ -26,45 +26,45 @@
 
 #include <string.h>
 
-#define MAX_PROCNAME_LENGTH  64
-#define MAX_PROCESSES        ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
+#define MAX_PROCNAME_LENGTH		64
+#define MAX_PROCESSES			((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 
 // An enumeration listing possible process states
 typedef enum {
-  proc_running, proc_ready, proc_ioready, proc_waiting, proc_sleeping,
-  proc_stopped, proc_finished, proc_zombie
+	proc_running, proc_ready, proc_ioready, proc_waiting, proc_sleeping,
+	proc_stopped, proc_finished, proc_zombie
 } processState;
 
 // An enumeration listing possible process types
 typedef enum {
-  proc_normal, proc_thread
+	proc_normal, proc_thread
 } processType;
 
 typedef struct {
-  void *virtualAddress;
-  void *entryPoint;
-  void *code;
-  unsigned codeSize;
-  void *data;
-  unsigned dataSize;
-  unsigned imageSize;
-  char commandLine[MAXSTRINGLENGTH];
-  int argc;
-  char *argv[64];
+	void *virtualAddress;
+	void *entryPoint;
+	void *code;
+	unsigned codeSize;
+	void *data;
+	unsigned dataSize;
+	unsigned imageSize;
+	char commandLine[MAXSTRINGLENGTH];
+	int argc;
+	char *argv[64];
 
 } processImage;
 
 typedef struct {
-  char name[MAX_PROCNAME_LENGTH];
-  int userId;
-  int processId;
-  processType type;
-  int priority;
-  int privilege;
-  int parentProcessId;
-  int descendentThreads;
-  int cpuPercent;
-  processState state;
+	char name[MAX_PROCNAME_LENGTH];
+	int userId;
+	int processId;
+	processType type;
+	int priority;
+	int privilege;
+	int parentProcessId;
+	int descendentThreads;
+	int cpuPercent;
+	processState state;
 
 } process;
 

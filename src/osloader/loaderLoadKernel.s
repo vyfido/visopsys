@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -14,12 +14,13 @@
 ;;  
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
-;;  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ;;
 ;;  loaderLoadKernel.s
 ;;
 
 	GLOBAL loaderLoadKernel
+	GLOBAL KERNELENTRY
 
 	EXTERN loaderLoadFile
 	EXTERN loaderMemCopy
@@ -54,7 +55,7 @@ getElfHeaderInfo:
 	;; Copy the first sector of the ELF header into the file data buffer
 	push dword 512
 	push dword [FILEDATABUFFER]
-	push dword KERNELCODEDATALOCATION
+	push dword KERNELLOADADDRESS
 	call loaderMemCopy
 	add SP, 12
 
@@ -86,6 +87,7 @@ getElfHeaderInfo:
 	jmp .done
 	
 	.isElf:
+
 	;; It's an ELF binary.  We will skip doing exhaustive checks, as we
 	;; would do in the case of loading some user binary.  We will,
 	;; however, make sure that it's an executable ELF binary
@@ -109,15 +111,15 @@ getElfHeaderInfo:
 	call loaderPrintNewline
 	mov word [SS:(BP + 16)], -2
 	jmp .done
-	
+
 	.isExec:
 	;; Cool.  Now we start parsing the header, collecting any info
 	;; that we care about.
-	
+
 	;; First the kernel entry point.
 	mov ESI, 24
 	mov EAX, dword [ES:ESI]
-	mov dword [ENTRYPOINT], EAX
+	mov dword [KERNELENTRY], EAX
 
 	;; Now the offset of the program headers
 	mov ESI, 28
@@ -289,16 +291,16 @@ layoutKernel:
 	;; (the getElfHeaderInfo() function should have caught any deviation
 	;; from that state of affairs).
 
-	;; For the code segment, we simply place it at the entry point.  The
-	;; entry point, in physical memory, should be KERNELCODEDATALOCATION.
-	;; Thus, all we do is move all code forward by CODE_OFFSET bytes.
+	;; For the code segment, we simply place it at the hard-coded load
+	;; location (which may be different from the entry point).  Then,
+	;; all we do is move all code forward by CODE_OFFSET bytes.
 	;; This will have the side effect of deleting the ELF header and
 	;; program header from memory.
 
 	mov ECX, dword [CODE_SIZEINFILE]
-	mov ESI, KERNELCODEDATALOCATION
+	mov ESI, KERNELLOADADDRESS
 	add ESI, dword [CODE_OFFSET]
-	mov EDI, KERNELCODEDATALOCATION
+	mov EDI, KERNELLOADADDRESS
 	
 	push ECX
 	push EDI
@@ -321,12 +323,12 @@ layoutKernel:
 	;; so that it matches the difference between the code and data's
 	;; virtual addresses.
 	mov ECX, dword [DATA_SIZEINFILE]
-	mov ESI, KERNELCODEDATALOCATION
+	mov ESI, KERNELLOADADDRESS
 	add ESI, dword [DATA_OFFSET]
 	mov EDI, dword [DATA_VIRTADDR]
 	sub EDI, dword [CODE_VIRTADDR]
 	mov dword [DATA_OFFSET], EDI    ;; This will be different now
-	add EDI, KERNELCODEDATALOCATION
+	add EDI, KERNELLOADADDRESS
 
 	push ECX
 	push EDI
@@ -339,7 +341,7 @@ layoutKernel:
 	;; between the data's file size and its size in memory.
 	mov ECX, dword [DATA_SIZEINMEM]
 	sub ECX, dword [DATA_SIZEINFILE]
-	mov EDI, KERNELCODEDATALOCATION
+	mov EDI, KERNELLOADADDRESS
 	add EDI, dword [DATA_OFFSET]
 	add EDI, dword [DATA_SIZEINFILE]
 
@@ -475,7 +477,7 @@ loaderLoadKernel:
 
 	;; Load the kernel file
 	push word 1		; Show progress indicator
-	push dword KERNELCODEDATALOCATION
+	push dword KERNELLOADADDRESS
 	push word KERNELNAME
 	call loaderLoadFile
 	add SP, 8
@@ -540,7 +542,7 @@ loaderLoadKernel:
 	SEGMENT .data
 	ALIGN 4
 	
-ENTRYPOINT	dd 0
+KERNELENTRY	dd 0
 PROGHEADERS	dd 0
 CODE_OFFSET	dd 0
 CODE_VIRTADDR	dd 0

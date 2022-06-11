@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  windowPromptDialog.c
 //
@@ -49,7 +49,6 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   int status = 0;
   objectKey dialogWindow = NULL;
   componentParameters params;
-  objectKey textLabel = NULL;
   objectKey field = NULL;
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
@@ -82,7 +81,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.orientationY = orient_top;
 
   params.gridWidth = 2;
-  textLabel = windowNewTextLabel(dialogWindow, message, &params);
+  windowNewTextLabel(dialogWindow, message, &params);
 
   params.gridY = 1;
   params.padTop = 5;

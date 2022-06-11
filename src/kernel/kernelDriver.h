@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelDriver.h
 //
@@ -25,41 +25,44 @@
 
 // The generic device driver structure
 typedef struct _kernelDriver {
-  int class;
-  int subClass;
+	int class;
+	int subClass;
 
-  // The registration and detection functions, which all drivers must implement
-  void (*driverRegister)(struct _kernelDriver *);
-  int (*driverDetect)(void *, struct _kernelDriver *);
-  int (*driverHotplug)(void *, int, int, int, struct _kernelDriver *);
+	// The registration and detection functions, which all drivers must implement
+	void (*driverRegister)(struct _kernelDriver *);
+	int (*driverDetect)(void *, struct _kernelDriver *);
+	int (*driverHotplug)(void *, int, int, int, struct _kernelDriver *);
 
-  // Device class-specific operations
-  void *ops;
+	// Device class-specific operations
+	void *ops;
 
 } kernelDriver;
 
-// An enumeration of driver types
+// An enumeration of software driver types
 typedef enum {
-  extDriver, fatDriver, isoDriver, linuxSwapDriver, ntfsDriver, udfDriver,
-  textConsoleDriver, graphicConsoleDriver
-} kernelDriverType;
+	extDriver, fatDriver, isoDriver, linuxSwapDriver, ntfsDriver, udfDriver,
+	textConsoleDriver, graphicConsoleDriver
+
+} kernelSoftwareDriverType;
 
 // Structures
 
 // Functions exported by kernelDriver.c
 int kernelConsoleDriversInitialize(void);
 int kernelFilesystemDriversInitialize(void);
-int kernelDriverRegister(kernelDriverType type, void *);
-void *kernelDriverGet(kernelDriverType);
+int kernelSoftwareDriverRegister(kernelSoftwareDriverType, void *);
+void *kernelSoftwareDriverGet(kernelSoftwareDriverType);
 
 // Registration routines for our built-in drivers
 void kernelAcpiDriverRegister(kernelDriver *);
-void kernelBiosDriverRegister(kernelDriver *);
+void kernelBios32DriverRegister(kernelDriver *);
+void kernelBiosPnpDriverRegister(kernelDriver *);
 void kernelCpuDriverRegister(kernelDriver *);
 void kernelDmaDriverRegister(kernelDriver *);
 void kernelFloppyDriverRegister(kernelDriver *);
 void kernelFramebufferGraphicDriverRegister(kernelDriver *);
 void kernelIdeDriverRegister(kernelDriver *);
+void kernelIsaBridgeDriverRegister(kernelDriver *);
 void kernelLanceDriverRegister(kernelDriver *);
 void kernelMemoryDriverRegister(kernelDriver *);
 void kernelPciDriverRegister(kernelDriver *);

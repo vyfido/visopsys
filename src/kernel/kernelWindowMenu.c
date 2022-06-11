@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelWindowMenu.c
 //
@@ -357,7 +357,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   kernelWindowMenu *menu = component->data;
   kernelWindowContainer *container = menu->container->data;
   kernelWindowComponent *clickedComponent = NULL;
-  kernelWindowMenuItem *clickedItem = NULL;
   int count;
 
   kernelDebug(debug_gui, "menu mouseEvent");
@@ -374,7 +373,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		  container->components[count]->height)))
 	{
 	  clickedComponent = container->components[count];
-	  clickedItem = clickedComponent->data;
 	  menu->selectedItem = count;
 	  break;
 	}
@@ -384,7 +382,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   if (clickedComponent && (clickedComponent->flags & WINFLAG_VISIBLE) &&
       (clickedComponent->flags & WINFLAG_ENABLED))
     {
-      kernelDebug(debug_gui, "menu clicked item %s", clickedItem->params.text);
+      kernelDebug(debug_gui, "menu clicked item %s",
+		  ((kernelWindowMenuItem *) clickedComponent->data)
+		  ->params.text);
 
       if (clickedComponent->mouseEvent)
 	clickedComponent->mouseEvent(clickedComponent, event);
@@ -420,7 +420,6 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
   kernelWindowMenu *menu = component->data;
   kernelWindowContainer *container = menu->container->data;
   kernelWindowComponent *itemComponent = NULL;
-  kernelWindowMenuItem *item = NULL;
   int tmpSelected = menu->selectedItem;
   int newSelected = menu->selectedItem;
   int count;
@@ -451,13 +450,13 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 		}
 
 	      itemComponent = container->components[tmpSelected];
-	      item = itemComponent->data;
 
 	      if (itemComponent && (itemComponent->flags & WINFLAG_VISIBLE) &&
 		  (itemComponent->flags & WINFLAG_ENABLED))
 		{
 		  kernelDebug(debug_gui, "menu selected item %s",
-			      item->params.text);
+			      ((kernelWindowMenuItem *) itemComponent->data)
+			      ->params.text);
 		  newSelected = tmpSelected;
 		  break;
 		}
@@ -468,14 +467,12 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	      if (menu->selectedItem >= 0)
 		{
 		  itemComponent = container->components[menu->selectedItem];
-		  item = itemComponent->data;
 		  if (itemComponent->setSelected)
 		    itemComponent->setSelected(itemComponent, 0);
 		}
 	      if (newSelected >= 0)
 		{
 		  itemComponent = container->components[newSelected];
-		  item = itemComponent->data;
 		  if (itemComponent->setSelected)
 		    itemComponent->setSelected(itemComponent, 1);
 		}

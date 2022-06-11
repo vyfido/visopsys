@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelInterrupt.h
 //
@@ -24,20 +24,21 @@
 #if !defined(_KERNELINTERRUPT_H)
 
 // Interrupt numbers for interrupts we care about
-#define INTERRUPT_VECTORS           16
-#define INTERRUPT_NUM_SYSTIMER      0x00
-#define INTERRUPT_NUM_KEYBOARD      0x01
-#define INTERRUPT_NUM_FLOPPY        0x06
-#define INTERRUPT_NUM_MOUSE         0x0C
-#define INTERRUPT_NUM_PRIMARYIDE    0x0E
-#define INTERRUPT_NUM_SECONDARYIDE  0x0F
-
-// Lets handlers tell everyone else which interrupt number is in service
-extern int kernelProcessingInterrupt;
+#define INTERRUPT_VECTORS			16
+#define INTERRUPT_NUM_SYSTIMER		0x00
+#define INTERRUPT_NUM_KEYBOARD		0x01
+#define INTERRUPT_NUM_FLOPPY		0x06
+#define INTERRUPT_NUM_MOUSE			0x0C
+#define INTERRUPT_NUM_PRIMARYIDE	0x0E
+#define INTERRUPT_NUM_SECONDARYIDE	0x0F
 
 int kernelInterruptInitialize(void);
 void *kernelInterruptGetHandler(int);
 int kernelInterruptHook(int, void *);
+int kernelProcessingInterrupt(void);
+int kernelInterruptGetCurrent(void);
+void kernelInterruptSetCurrent(int);
+void kernelInterruptClearCurrent(void);
 
 #define _KERNELINTERRUPT_H
 #endif

@@ -115,7 +115,7 @@ u64 ntfs_inode_lookup_by_name(ntfs_inode *dir_ni, const ntfschar *uname,
 	u8 *index_end;
 	ntfs_attr *ia_na;
 	int eo, rc;
-	u32 index_block_size, index_vcn_size;
+	u32 index_block_size; //, index_vcn_size;
 	u8 index_vcn_size_bits;
 
 	if (!dir_ni || !dir_ni->mrec || !uname || uname_len <= 0) {
@@ -281,10 +281,10 @@ found_it:
 
 	/* Determine the size of a vcn in the directory index. */
 	if (vol->cluster_size <= index_block_size) {
-		index_vcn_size = vol->cluster_size;
+		//index_vcn_size = vol->cluster_size;
 		index_vcn_size_bits = vol->cluster_size_bits;
 	} else {
-		index_vcn_size = vol->sector_size;
+		//index_vcn_size = vol->sector_size;
 		index_vcn_size_bits = vol->sector_size_bits;
 	}
 

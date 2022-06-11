@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2011 J. Andrew McLaughlin
+##  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##

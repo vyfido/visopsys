@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2011 J. Andrew McLaughlin
+##  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ## 
 ##  Makefile.include
 ##
@@ -12,10 +12,11 @@ CC		= gcc
 CC++		= g++
 AR		= ar
 LD		= ld
-OPT		= -O2
+OPT		= -Os
 ARCH		= -march=pentium
-CODEGEN		= -pipe -fno-omit-frame-pointer -fno-strict-aliasing \
-		-fno-stack-protector -fno-builtin
+CODEGEN		= -pipe -fno-common -fno-strict-aliasing -fno-builtin \
+		-fno-omit-frame-pointer -fno-asynchronous-unwind-tables \
+		-fno-stack-protector
 CCODEGEN	= ${CODEGEN} -ffreestanding
 C++CODEGEN	= ${CODEGEN} -fno-rtti -fno-exceptions
 WARN		= -Wall -W -Wshadow -Wcast-align -Wsign-compare \

@@ -842,7 +842,7 @@ static int collect_resize_constraints(ntfs_resize_t *resize, runlist *rl)
 
 static int collect_relocation_info(ntfs_resize_t *resize, runlist *rl)
 {
-	s64 lcn, lcn_length, start, len, inode;
+	s64 lcn, lcn_length, len, inode; //, start
 	s64 new_vol_size;	/* (last LCN on the volume) + 1 */
 
 	lcn = rl->lcn;
@@ -856,11 +856,11 @@ static int collect_relocation_info(ntfs_resize_t *resize, runlist *rl)
 	if (inode == FILE_Bitmap && resize->ctx->attr->type == AT_DATA)
 		return (0);
 	
-	start = lcn;
+	//start = lcn;
 	len = lcn_length;
 
 	if (lcn < new_vol_size) {
-		start = new_vol_size;
+		//start = new_vol_size;
 		len = lcn_length - (new_vol_size - lcn);
 
 		if (!opt.info && (inode == FILE_MFTMirr)) {

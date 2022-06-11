@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2011 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 ;;  
 ;;  You should have received a copy of the GNU General Public License along
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
-;;  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ;;
 ;;  loaderMain.s
 ;;
@@ -34,6 +34,7 @@
 	EXTERN HARDWAREINFO
 	EXTERN KERNELGMODE
 	EXTERN HDDINFO
+	EXTERN KERNELENTRY
 
 	GLOBAL loaderMain
 	GLOBAL loaderMemCopy
@@ -68,7 +69,7 @@ loaderMain:
 	;; switches the processor to protected mode and starts the kernel.
 
 	cli
-	
+
 	;; Make sure all of the data segment registers point to the same
 	;; segment as the code segment
 	mov EAX, (LDRCODESEGMENTLOCATION / 16)
@@ -200,6 +201,9 @@ loaderMain:
 	;; version
 	lgdt [GDTSTART]
 
+	;; Save the kernel's entry point address in EBX
+	mov EBX, dword [KERNELENTRY]
+
 	;; Here's the big moment.  Switch permanently to protected mode.
 	mov EAX, CR0
 	or AL, 01h
@@ -259,7 +263,9 @@ loaderMain:
 	push dword 0
 
 	;; Start the kernel.
-	jmp PRIV_CODESELECTOR:KERNELVIRTUALADDRESS
+	push dword PRIV_CODESELECTOR
+	push dword EBX
+	retf
 
 	BITS 16
 
@@ -616,7 +622,7 @@ pagingSetup:
 	;; the kernel's code will occupy.  Start this table at address
 	;; (PAGINGDATA + 2000h)
 
-	mov EBX, KERNELCODEDATALOCATION		; Location we're mapping
+	mov EBX, KERNELLOADADDRESS		; Location we're mapping
 	mov ECX, 1024				; 1024 entries
 	mov EDI, (LDRPAGINGDATA + 2000h)	; location in LDRPAGINGDATA
 	
@@ -795,7 +801,7 @@ loaderMemCopy:
 loaderMemSet:
 	;; Uses a 'big real mode' method for initializing a memory region.
 	;; Proto:
-	;;   void loaderMemSet(byte value, dword *dest, dword size);
+	;;   void loaderMemSet(word byte_value, dword *dest, dword size);
 	
 	pusha
 
@@ -947,8 +953,8 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.71' , 0
-LOADMSG2	db 'Copyright (C) 1998-2011 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.72' , 0
+LOADMSG2	db 'Copyright (C) 1998-2013 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
 BOOTHDD		db 'hd', 0

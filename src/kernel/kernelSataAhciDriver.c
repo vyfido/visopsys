@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelSataAhciDriver.c
 //
@@ -43,397 +43,399 @@ static int numControllers = 0;
 /*
 static int reset(int ctrlNum)
 {
-  kernelDebug(debug_io, "PCI AHCI: reset controller %d", ctrlNum);
-  controllers[ctrlNum].regs->ghc |= 1;
+	kernelDebug(debug_io, "PCI AHCI: reset controller %d", ctrlNum);
+	controllers[ctrlNum].regs->ghc |= 1;
 
-  // Wait for the reset to finish
-  while (controllers[ctrlNum].regs->ghc & 1);
+	// Wait for the reset to finish
+	while (controllers[ctrlNum].regs->ghc & 1);
 
-  return 0;
+	return 0;
 }
 */
 
 
 static int detectPciControllers(kernelDevice *controllerDevices,
-				kernelDriver *driver)
+	kernelDriver *driver)
 {
-  // Try to detect AHCI controllers on the PCI bus
+	// Try to detect AHCI controllers on the PCI bus
 
-  int status = 0;
-  kernelBusTarget *pciTargets = NULL;
-  int numPciTargets = 0;
-  int deviceCount = 0;
-  pciDeviceInfo pciDevInfo;
-  int legacySupport = 0;
-  ahciPort *port = NULL;
-  int isAtapi = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-  kernelDevice *diskDevice = NULL;
-  int count;
+	int status = 0;
+	kernelBusTarget *pciTargets = NULL;
+	int numPciTargets = 0;
+	int deviceCount = 0;
+	pciDeviceInfo pciDevInfo;
+	int legacySupport = 0;
+	ahciPort *port = NULL;
+	int isAtapi = 0;
+	kernelPhysicalDisk *physicalDisk = NULL;
+	kernelDevice *diskDevice = NULL;
+	int count;
 
-  // See if there are any AHCI controllers on the PCI bus.  This obviously
-  // depends upon PCI hardware detection occurring before AHCI detection.
+	// See if there are any AHCI controllers on the PCI bus.  This obviously
+	// depends upon PCI hardware detection occurring before AHCI detection.
 
-  // Search the PCI bus(es) for devices
-  numPciTargets = kernelBusGetTargets(bus_pci, &pciTargets);
-  if (numPciTargets <= 0)
-    {
-      kernelDebug(debug_io, "PCI AHCI: no PCI targets");
-      return (numPciTargets);
-    }
-
-  // Search the PCI bus targets for AHCI controllers
-  for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
-    {
-      // If it's not an AHCI controller, skip it
-      if ((pciTargets[deviceCount].class == NULL) ||
-	  (pciTargets[deviceCount].class->class != DEVICECLASS_DISKCTRL) ||
-	  (pciTargets[deviceCount].subClass == NULL) ||
-	  (pciTargets[deviceCount].subClass->class !=
-	   DEVICESUBCLASS_DISKCTRL_SATA))
-	continue;
-
-      // Get the PCI device header
-      status = kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
-      if (status < 0)
+	// Search the PCI bus(es) for devices
+	numPciTargets = kernelBusGetTargets(bus_pci, &pciTargets);
+	if (numPciTargets <= 0)
 	{
-	  kernelDebug(debug_io, "PCI AHCI: error getting target info");
-	  continue;
+		kernelDebug(debug_io, "PCI AHCI: no PCI targets");
+		return (numPciTargets);
 	}
 
-      kernelDebug(debug_io, "PCI AHCI: check device %x %x progif=%02x",
-		  (pciTargets[deviceCount].class?
-		   pciTargets[deviceCount].class->class : 0),
-		  (pciTargets[deviceCount].subClass?
-		   pciTargets[deviceCount].subClass->class : 0),
-		  pciDevInfo.device.progIF);
-
-      // Make sure it's a non-bridge header
-      if (pciDevInfo.device.headerType != PCI_HEADERTYPE_NORMAL)
+	// Search the PCI bus targets for AHCI controllers
+	for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
 	{
-	  kernelDebug(debug_io, "PCI AHCI: Headertype not 'normal' (%d)",
-		      pciDevInfo.device.headerType);
-	  continue;
-	}
-
-      // Make sure it's an AHCI controller (programming interface is 0x01 in
-      // the PCI header)
-      if (pciDevInfo.device.progIF != 0x01)
-	{
-	  kernelDebug(debug_io, "PCI AHCI: SATA controller not AHCI");
-	  continue;
-	}
-
-      kernelDebug(debug_io, "PCI AHCI: Found");
-
-      // Enable bus mastering and disable the memory decoder
-      if (pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE)
-	kernelDebug(debug_io, "PCI AHCI: Bus mastering already enabled");
-      else
-	kernelBusSetMaster(&pciTargets[deviceCount], 1);
-      kernelBusDeviceEnable(&pciTargets[deviceCount], 0);
-
-      // Re-read target info
-      kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
-
-      if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE))
-	{
-	  kernelDebugError("PCI AHCI: Couldn't enable bus mastering");
-	  continue;
-	}
-      kernelDebug(debug_io, "PCI AHCI: Bus mastering enabled in PCI");
-
-      // Make sure the ABAR refers to a memory decoder
-      if (pciDevInfo.device.nonBridge.baseAddress[5] & 0x00000001)
-	{
-	  kernelDebugError("PCI AHCI: ABAR is not a memory decoder");
-	  continue;
-	}
-
-      // (Re)allocate memory for the controllers
-      controllers =
-	kernelRealloc((void *) controllers, ((numControllers + 1) *
-					     sizeof(ahciController)));
-      if (controllers == NULL)
-	return (status = ERR_MEMORY);
-
-      // Print registers
-      kernelDebug(debug_io, "PCI AHCI: Interrupt line=%d",
-		  pciDevInfo.device.nonBridge.interruptLine);
-      kernelDebug(debug_io, "PCI AHCI: ABAR base address reg=%08x",
-		  pciDevInfo.device.nonBridge.baseAddress[5]);
-
-      // Get the interrupt line
-      if (pciDevInfo.device.nonBridge.interruptLine &&
-	  (pciDevInfo.device.nonBridge.interruptLine != 0xFF))
-	{
-	  kernelDebug(debug_io, "PCI AHCI: Using PCI interrupt=%d",
-		      pciDevInfo.device.nonBridge.interruptLine);
-	  controllers[numControllers].interrupt =
-	    pciDevInfo.device.nonBridge.interruptLine;
-	}
-      else
-	kernelDebug(debug_io, "PCI AHCI: Unknown PCI interrupt=%d",
-		    pciDevInfo.device.nonBridge.interruptLine);
-
-      // Get the memory range address
-      controllers[numControllers].physMemSpace =
-	(pciDevInfo.device.nonBridge.baseAddress[5] & 0xFFFFFFF0);
-
-      kernelDebug(debug_io, "PCI AHCI: Registers address %08x",
-		  controllers[numControllers].physMemSpace);
-
-      // Determine the memory space size.  Write all 1s to the register.
-      kernelBusWriteRegister(&pciTargets[deviceCount],
-			     PCI_CONFREG_BASEADDRESS5_32, 32, 0xFFFFFFFF);
-
-      controllers[numControllers].memSpaceSize =
-	(~(kernelBusReadRegister(&pciTargets[deviceCount],
-				 PCI_CONFREG_BASEADDRESS5_32, 32) & ~0xF) + 1);
-
-      kernelDebug(debug_io, "PCI AHCI: address size %08x (%d)",
-		  controllers[numControllers].memSpaceSize,
-		  controllers[numControllers].memSpaceSize);
-
-      // Restore the register we clobbered.
-      kernelBusWriteRegister(&pciTargets[deviceCount],
-			     PCI_CONFREG_BASEADDRESS5_32, 32,
-			     pciDevInfo.device.nonBridge.baseAddress[5]);
-
-      kernelDebug(debug_io, "PCI AHCI: ABAR now %08x",
-		  kernelBusReadRegister(&pciTargets[deviceCount],
-					PCI_CONFREG_BASEADDRESS5_32, 32));
-
-      // Map the physical memory address of the controller's registers into
-      // our virtual address space.
-
-      // Map the physical memory space pointed to by the decoder.
-      status =
-	kernelPageMapToFree(KERNELPROCID, (void *)
-			    controllers[numControllers].physMemSpace,
-			    (void **) &(controllers[numControllers].regs),
-			    controllers[numControllers].memSpaceSize);
-      if (status < 0)
-	{
-	  kernelDebugError("PCI AHCI: Error mapping memory");
-	  continue;
-	}
-
-      // Enable memory mapping access
-      if (pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE)
-	kernelDebug(debug_io, "PCI AHCI: Memory access already enabled");
-      else
-	kernelBusDeviceEnable(&pciTargets[deviceCount],
-			      PCI_COMMAND_MEMORYENABLE);
-
-      // Re-read target info
-      kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
-
-      if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
-	{
-	  kernelDebug(debug_io, "PCI AHCI: Couldn't enable memory access");
-	  continue;
-	}
-      kernelDebug(debug_io, "PCI AHCI: Memory access enabled in PCI");
-
-      // Enable AHCI .  Later we can enable interrupts here as well.
-      if (controllers[numControllers].regs->ghc & (1 << 31))
-	kernelDebug(debug_io, "PCI AHCI: SATA mode already enabled");
-      else
-	controllers[numControllers].regs->ghc |= (1 << 31);
-
-      kernelDebug(debug_io, "PCI AHCI: caps=%08x",
-		  controllers[numControllers].regs->caps);
-      kernelDebug(debug_io, "PCI AHCI: ghc=%08x",
-		  controllers[numControllers].regs->ghc);
-      kernelDebug(debug_io, "PCI AHCI: intStat=%08x",
-		  controllers[numControllers].regs->intStat);
-      kernelDebug(debug_io, "PCI AHCI: portsImpl=%08x",
-		  controllers[numControllers].regs->portsImpl);
-      kernelDebug(debug_io, "PCI AHCI: version=%08x",
-		  controllers[numControllers].regs->version);
-
-      if (controllers[numControllers].regs->caps & (1 << 18))
-	kernelDebug(debug_io, "PCI AHCI: only works in native mode");
-      else
-	{
-	  legacySupport = 1;
-	  kernelDebug(debug_io, "PCI AHCI: supports legacy mode");
-	}
-
-      kernelDebug(debug_io, "PCI AHCI: %d ports supported",
-		  ((controllers[numControllers].regs->caps & 0x1F) + 1));
-
-      // Create a device for it in the kernel.
-      controllerDevices[numControllers].device.class =
-	kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
-      controllerDevices[numControllers].device.subClass =
-	kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_SATA);
-
-      // Register the controller
-      kernelDeviceAdd(pciTargets[deviceCount].bus->dev,
-		      &controllerDevices[numControllers]);
-
-      // For each implemented port, loop through and see whether we think
-      // there's a device attached.  The number of implemented ports is
-      // a zero-based number.
-      for (count = 0; count <= // <- zero based
-	     (int)(controllers[numControllers].regs->caps & 0x1F); count ++)
-	{
-	  // Port implemented?
-	  if (controllers[numControllers].regs->portsImpl & (1 << count))
-	    {
-	      port = &controllers[numControllers].regs->ports[count];
-
-	      // Stop the port
-	      port->CMD &= ~0x1;
-
-	      // Perform device detection
-	      port->SCTL &= ~0xF;
-	      port->SCTL |= 0x1;
-	      kernelSysTimerWaitTicks(1);
-	      port->SCTL &= ~0xF;
-	      kernelSysTimerWaitTicks(1);
-
-	      kernelDebug(debug_io, "PCI AHCI: port %d SIG=%08x", count,
-			  port->SIG);
-
-	      kernelDebug(debug_io, "PCI AHCI: port %d SSTS=%03x", count,
-			  port->SSTS);
-
-	      // Is there a device here?
-	      if (port->SSTS & 0x3)
+		// If it's not an AHCI controller, skip it
+		if ((pciTargets[deviceCount].class == NULL) ||
+			(pciTargets[deviceCount].class->class != DEVICECLASS_DISKCTRL) ||
+			(pciTargets[deviceCount].subClass == NULL) ||
+			(pciTargets[deviceCount].subClass->class !=
+				DEVICESUBCLASS_DISKCTRL_SATA))
 		{
-		  isAtapi = (port->CMD & (1 << 24));
-
-		  kernelDebug(debug_io, "PCI AHCI: port %d %sdevice detected",
-			      count, (isAtapi? "ATAPI " : ""));
-
-		  // For the moment, we haven't implemented a proper driver,
-		  // so only register disks if the controller doesn't support
-		  // legacy mode.
-		  if (!legacySupport)
-		    {
-		      // Allocate memory for the disk structure
-		      physicalDisk = kernelMalloc(sizeof(kernelPhysicalDisk));
-		      if (physicalDisk == NULL)
 			continue;
-
-		      physicalDisk->deviceNumber = deviceCount;
-		      physicalDisk->driver = driver;
-
-		      if (isAtapi)
-			{
-			  physicalDisk->description = "SATA CD-ROM";
-			  physicalDisk->type =
-			    (DISKTYPE_PHYSICAL | DISKTYPE_REMOVABLE |
-			     DISKTYPE_SATACDROM);
-			}
-		      else
-			{
-			  physicalDisk->description = "SATA hard disk";
-			  physicalDisk->type =
-			    (DISKTYPE_PHYSICAL | DISKTYPE_FIXED |
-			     DISKTYPE_SATADISK);
-			  physicalDisk->flags = DISKFLAG_MOTORON;
-			}
-
-		      // Lots of things divide by this
-		      physicalDisk->sectorSize = 512;
-
-		      // Allocate memory for the device
-		      diskDevice = kernelMalloc(sizeof(kernelDevice));
-		      if (diskDevice == NULL)
-			continue;
-
-		      diskDevice->device.class =
-			kernelDeviceGetClass(DEVICECLASS_DISK);
-		      diskDevice->device.subClass =
-			kernelDeviceGetClass(DEVICESUBCLASS_DISK_SATA);
-		      diskDevice->driver = driver;
-		      diskDevice->data = (void *) physicalDisk;
-
-		      // Register the disk
-		      status = kernelDiskRegisterDevice(diskDevice);
-		      if (status < 0)
-			continue;
-
-		      // Add the device
-		      status =
-			kernelDeviceAdd(&controllerDevices[numControllers],
-					diskDevice);
-		      if (status < 0)
-			continue;
-		    }
 		}
-	      else
-		kernelDebug(debug_io, "PCI AHCI: port %d no device", count);
-	    }
-	  else
-	    kernelDebug(debug_io, "PCI AHCI: port %d not implemented", count);
+
+		// Get the PCI device header
+		status = kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
+		if (status < 0)
+		{
+			kernelDebug(debug_io, "PCI AHCI: error getting target info");
+			continue;
+		}
+
+		kernelDebug(debug_io, "PCI AHCI: check device %x %x progif=%02x",
+			(pciTargets[deviceCount].class?
+				pciTargets[deviceCount].class->class : 0),
+			(pciTargets[deviceCount].subClass?
+				pciTargets[deviceCount].subClass->class : 0),
+			pciDevInfo.device.progIF);
+
+		// Make sure it's a non-bridge header
+		if (pciDevInfo.device.headerType != PCI_HEADERTYPE_NORMAL)
+		{
+			kernelDebug(debug_io, "PCI AHCI: Headertype not 'normal' (%d)",
+				pciDevInfo.device.headerType);
+			continue;
+		}
+
+		// Make sure it's an AHCI controller (programming interface is 0x01 in
+		// the PCI header)
+		if (pciDevInfo.device.progIF != 0x01)
+		{
+			kernelDebug(debug_io, "PCI AHCI: SATA controller not AHCI");
+			continue;
+		}
+
+		kernelDebug(debug_io, "PCI AHCI: Found");
+
+		// Try to enable bus mastering
+		if (pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE)
+			kernelDebug(debug_io, "PCI AHCI: Bus mastering already enabled");
+		else
+			kernelBusSetMaster(&pciTargets[deviceCount], 1);
+
+		// Disable the device's memory access and I/O decoder, if applicable
+		kernelBusDeviceEnable(&pciTargets[deviceCount], 0);
+
+		// Re-read target info
+		kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
+
+		if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE))
+			kernelDebugError("PCI AHCI: Couldn't enable bus mastering");
+		else
+			kernelDebug(debug_io, "PCI AHCI: Bus mastering enabled in PCI");
+
+		// Make sure the ABAR refers to a memory decoder
+		if (pciDevInfo.device.nonBridge.baseAddress[5] & 0x00000001)
+		{
+			kernelDebugError("PCI AHCI: ABAR is not a memory decoder");
+			continue;
+		}
+
+		// (Re)allocate memory for the controllers
+		controllers =
+			kernelRealloc((void *) controllers, ((numControllers + 1) *
+				sizeof(ahciController)));
+		if (controllers == NULL)
+			return (status = ERR_MEMORY);
+
+		// Print registers
+		kernelDebug(debug_io, "PCI AHCI: Interrupt line=%d",
+			pciDevInfo.device.nonBridge.interruptLine);
+		kernelDebug(debug_io, "PCI AHCI: ABAR base address reg=%08x",
+			pciDevInfo.device.nonBridge.baseAddress[5]);
+
+		// Get the interrupt line
+		if (pciDevInfo.device.nonBridge.interruptLine &&
+			(pciDevInfo.device.nonBridge.interruptLine != 0xFF))
+		{
+			kernelDebug(debug_io, "PCI AHCI: Using PCI interrupt=%d",
+				pciDevInfo.device.nonBridge.interruptLine);
+			controllers[numControllers].interrupt =
+				pciDevInfo.device.nonBridge.interruptLine;
+		}
+		else
+			kernelDebug(debug_io, "PCI AHCI: Unknown PCI interrupt=%d",
+				pciDevInfo.device.nonBridge.interruptLine);
+
+		// Get the memory range address
+		controllers[numControllers].physMemSpace =
+			(pciDevInfo.device.nonBridge.baseAddress[5] & 0xFFFFFFF0);
+
+		kernelDebug(debug_io, "PCI AHCI: Registers address %08x",
+			controllers[numControllers].physMemSpace);
+
+		// Determine the memory space size.  Write all 1s to the register.
+		kernelBusWriteRegister(&pciTargets[deviceCount],
+			PCI_CONFREG_BASEADDRESS5_32, 32, 0xFFFFFFFF);
+
+		controllers[numControllers].memSpaceSize =
+			(~(kernelBusReadRegister(&pciTargets[deviceCount],
+				PCI_CONFREG_BASEADDRESS5_32, 32) & ~0xF) + 1);
+
+		kernelDebug(debug_io, "PCI AHCI: address size %08x (%d)",
+			controllers[numControllers].memSpaceSize,
+			controllers[numControllers].memSpaceSize);
+
+		// Restore the register we clobbered.
+		kernelBusWriteRegister(&pciTargets[deviceCount],
+			PCI_CONFREG_BASEADDRESS5_32, 32,
+			pciDevInfo.device.nonBridge.baseAddress[5]);
+
+		kernelDebug(debug_io, "PCI AHCI: ABAR now %08x",
+			kernelBusReadRegister(&pciTargets[deviceCount],
+				PCI_CONFREG_BASEADDRESS5_32, 32));
+
+		// Map the physical memory address of the controller's registers into
+		// our virtual address space.
+
+		// Map the physical memory space pointed to by the decoder.
+		status =
+			kernelPageMapToFree(KERNELPROCID, (void *)
+				controllers[numControllers].physMemSpace,
+				(void **) &(controllers[numControllers].regs),
+				controllers[numControllers].memSpaceSize);
+		if (status < 0)
+		{
+			kernelDebugError("PCI AHCI: Error mapping memory");
+			continue;
+		}
+
+		// Enable memory mapping access
+		if (pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE)
+			kernelDebug(debug_io, "PCI AHCI: Memory access already enabled");
+		else
+			kernelBusDeviceEnable(&pciTargets[deviceCount],
+				PCI_COMMAND_MEMORYENABLE);
+
+		// Re-read target info
+		kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
+
+		if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
+		{
+			kernelDebug(debug_io, "PCI AHCI: Couldn't enable memory access");
+			continue;
+		}
+		kernelDebug(debug_io, "PCI AHCI: Memory access enabled in PCI");
+
+		// Enable AHCI .  Later we can enable interrupts here as well.
+		if (controllers[numControllers].regs->ghc & (1 << 31))
+			kernelDebug(debug_io, "PCI AHCI: SATA mode already enabled");
+		else
+			controllers[numControllers].regs->ghc |= (1 << 31);
+
+		kernelDebug(debug_io, "PCI AHCI: caps=%08x",
+			controllers[numControllers].regs->caps);
+		kernelDebug(debug_io, "PCI AHCI: ghc=%08x",
+			controllers[numControllers].regs->ghc);
+		kernelDebug(debug_io, "PCI AHCI: intStat=%08x",
+			controllers[numControllers].regs->intStat);
+		kernelDebug(debug_io, "PCI AHCI: portsImpl=%08x",
+			controllers[numControllers].regs->portsImpl);
+		kernelDebug(debug_io, "PCI AHCI: version=%08x",
+			controllers[numControllers].regs->version);
+
+		if (controllers[numControllers].regs->caps & (1 << 18))
+			kernelDebug(debug_io, "PCI AHCI: only works in native mode");
+		else
+		{
+			legacySupport = 1;
+			kernelDebug(debug_io, "PCI AHCI: supports legacy mode");
+		}
+
+		kernelDebug(debug_io, "PCI AHCI: %d ports supported",
+			((controllers[numControllers].regs->caps & 0x1F) + 1));
+
+		// Create a device for it in the kernel.
+		controllerDevices[numControllers].device.class =
+			kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
+		controllerDevices[numControllers].device.subClass =
+			kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_SATA);
+
+		// Register the controller
+		kernelDeviceAdd(pciTargets[deviceCount].bus->dev,
+			&controllerDevices[numControllers]);
+
+		// For each implemented port, loop through and see whether we think
+		// there's a device attached.  The number of implemented ports is
+		// a zero-based number.
+		for (count = 0; count <= // <- zero based
+			(int)(controllers[numControllers].regs->caps & 0x1F); count ++)
+		{
+			// Port implemented?
+			if (controllers[numControllers].regs->portsImpl & (1 << count))
+			{
+				port = &controllers[numControllers].regs->ports[count];
+
+				// Stop the port
+				port->CMD &= ~0x1;
+
+				// Perform device detection
+				port->SCTL &= ~0xF;
+				port->SCTL |= 0x1;
+				kernelSysTimerWaitTicks(1);
+				port->SCTL &= ~0xF;
+				kernelSysTimerWaitTicks(1);
+
+				kernelDebug(debug_io, "PCI AHCI: port %d SIG=%08x", count,
+					port->SIG);
+
+				kernelDebug(debug_io, "PCI AHCI: port %d SSTS=%03x", count,
+					port->SSTS);
+
+				// Is there a device here?
+				if (port->SSTS & 0x3)
+				{
+					isAtapi = (port->CMD & (1 << 24));
+
+					kernelDebug(debug_io, "PCI AHCI: port %d %sdevice detected",
+						count, (isAtapi? "ATAPI " : ""));
+
+					// For the moment, we haven't implemented a proper driver,
+					// so only register disks if the controller doesn't support
+					// legacy mode.
+					if (!legacySupport)
+					{
+						// Allocate memory for the disk structure
+						physicalDisk = kernelMalloc(sizeof(kernelPhysicalDisk));
+						if (physicalDisk == NULL)
+							continue;
+
+						physicalDisk->deviceNumber = deviceCount;
+						physicalDisk->driver = driver;
+
+						if (isAtapi)
+						{
+							physicalDisk->description = "SATA CD-ROM";
+							physicalDisk->type =
+								(DISKTYPE_PHYSICAL | DISKTYPE_REMOVABLE |
+								DISKTYPE_SATACDROM);
+						}
+						else
+						{
+							physicalDisk->description = "SATA hard disk";
+							physicalDisk->type =
+								(DISKTYPE_PHYSICAL | DISKTYPE_FIXED |
+								DISKTYPE_SATADISK);
+							physicalDisk->flags = DISKFLAG_MOTORON;
+						}
+
+						// Lots of things divide by this
+						physicalDisk->sectorSize = 512;
+
+						// Allocate memory for the device
+						diskDevice = kernelMalloc(sizeof(kernelDevice));
+						if (diskDevice == NULL)
+							continue;
+
+						diskDevice->device.class =
+							kernelDeviceGetClass(DEVICECLASS_DISK);
+						diskDevice->device.subClass =
+							kernelDeviceGetClass(DEVICESUBCLASS_DISK_SATA);
+						diskDevice->driver = driver;
+						diskDevice->data = (void *) physicalDisk;
+
+						// Register the disk
+						status = kernelDiskRegisterDevice(diskDevice);
+						if (status < 0)
+							continue;
+
+						// Add the device
+						status =
+							kernelDeviceAdd(&controllerDevices[numControllers],
+								diskDevice);
+						if (status < 0)
+							continue;
+					}
+				}
+				else
+					kernelDebug(debug_io, "PCI AHCI: port %d no device", count);
+			}
+			else
+				kernelDebug(debug_io, "PCI AHCI: port %d not implemented", count);
+		}
+
+		// Now, since we haven't implemented this driver yet, if the controller
+		// supports legacy mode, deactivate AHCI so we can use our IDE driver.
+		if (legacySupport)
+		{
+			kernelDebug(debug_io, "PCI AHCI: disabling AHCI for legacy mode");
+			controllers[numControllers].regs->ghc &= ~(1 << 31);
+		}
+
+		numControllers += 1;
 	}
 
-      // Now, since we haven't implemented this driver yet, if the controller
-      // supports legacy mode, deactivate AHCI so we can use our IDE driver.
-      if (legacySupport)
-	{
-	  kernelDebug(debug_io, "PCI AHCI: disabling AHCI for legacy mode");
-	  controllers[numControllers].regs->ghc &= ~(1 << 31);
-	}
-
-      numControllers += 1;
-    }
-
-  kernelFree(pciTargets);
-  return (status = 0);
+	kernelFree(pciTargets);
+	return (status = 0);
 }
 
 
 static int driverDetect(void *parent __attribute__((unused)),
-			kernelDriver *driver)
+	kernelDriver *driver)
 {
-  // This routine is used to detect and initialize each device, as well as
-  // registering each one with any higher-level interfaces.  Also does
-  // general driver initialization.
+	// This routine is used to detect and initialize each device, as well as
+	// registering each one with any higher-level interfaces.  Also does
+	// general driver initialization.
   
-  int status = 0;
-  kernelDevice *controllerDevices = NULL;
+	int status = 0;
+	kernelDevice *controllerDevices = NULL;
 
-  kernelLog("AHCI: Examining disks...");
+	kernelLog("AHCI: Examining disks...");
 
-  // Reset controller count
-  numControllers = 0;
+	// Reset controller count
+	numControllers = 0;
 
-  controllerDevices = kernelMalloc(PCI_MAX_DEVICES * sizeof(kernelDevice));
-  if (controllerDevices == NULL)
-    return (status = ERR_MEMORY);
+	controllerDevices = kernelMalloc(PCI_MAX_DEVICES * sizeof(kernelDevice));
+	if (controllerDevices == NULL)
+		return (status = ERR_MEMORY);
 
-  // First see whether we have PCI controller(s)
-  status = detectPciControllers(controllerDevices, driver);
-  if ((status < 0) || (numControllers <= 0))
-    {
-      // Nothing on PCI.
-      kernelDebug(debug_io, "PCI AHCI controller not detected.");
-      kernelFree(controllerDevices);
-      return (status = 0);
-    }
+	// First see whether we have PCI controller(s)
+	status = detectPciControllers(controllerDevices, driver);
+	if ((status < 0) || (numControllers <= 0))
+	{
+		// Nothing on PCI.
+		kernelDebug(debug_io, "PCI AHCI controller not detected.");
+		kernelFree(controllerDevices);
+		return (status = 0);
+	}
 
-  kernelDebug(debug_io, "PCI AHCI: %d controllers detected", numControllers);
+	kernelDebug(debug_io, "PCI AHCI: %d controllers detected", numControllers);
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static kernelDiskOps ahciOps = {
-  NULL, // driverReset
-  NULL, // driverRecalibrate
-  NULL, // driverSetMotorState
-  NULL, // driverSetLockState
-  NULL, // driverSetDoorState
-  NULL, // driverDiskChanged
-  NULL, // driverReadSectors
-  NULL, // driverWriteSectors
-  NULL  // driverFlush
+	NULL, // driverReset
+	NULL, // driverRecalibrate
+	NULL, // driverSetMotorState
+	NULL, // driverSetLockState
+	NULL, // driverSetDoorState
+	NULL, // driverDiskChanged
+	NULL, // driverReadSectors
+	NULL, // driverWriteSectors
+	NULL  // driverFlush
 };
 
 
@@ -448,10 +450,10 @@ static kernelDiskOps ahciOps = {
 
 void kernelSataAhciDriverRegister(kernelDriver *driver)
 {
-  // Device driver registration.
+	// Device driver registration.
 
-  driver->driverDetect = driverDetect;
-  driver->ops = &ahciOps;
+	driver->driverDetect = driverDetect;
+	driver->ops = &ahciOps;
 
-  return;
+	return;
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  users.c
 //
@@ -133,9 +133,7 @@ static int setPasswordDialog(int userNumber)
   int status = 0;
   objectKey dialogWindow = NULL;
   componentParameters params;
-  objectKey oldPasswordLabel = NULL;
   objectKey oldPasswordField = NULL;
-  objectKey label = NULL;
   objectKey passwordField1 = NULL;
   objectKey passwordField2 = NULL;
   objectKey noMatchLabel = NULL;
@@ -168,7 +166,7 @@ static int setPasswordDialog(int userNumber)
   sprintf(labelText, "User name: %s", userListParams[userNumber].text);
   params.gridY = 0;
   params.gridWidth = 2;
-  label = windowNewTextLabel(dialogWindow, labelText, &params);
+  windowNewTextLabel(dialogWindow, labelText, &params);
 
   // If this user is privileged, or we can authenticate with no password,
   // don't prompt for the old password
@@ -178,8 +176,7 @@ static int setPasswordDialog(int userNumber)
       params.gridWidth = 1;
       params.padRight = 0;
       params.orientationX = orient_right;
-      oldPasswordLabel =
-	windowNewTextLabel(dialogWindow, "Old password:", &params);
+      windowNewTextLabel(dialogWindow, "Old password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
@@ -192,7 +189,7 @@ static int setPasswordDialog(int userNumber)
   params.gridWidth = 1;
   params.padRight = 0;
   params.orientationX = orient_right;
-  label = windowNewTextLabel(dialogWindow, "New password:", &params);
+  windowNewTextLabel(dialogWindow, "New password:", &params);
 
   params.gridX = 1;
   params.padRight = 5;
@@ -208,7 +205,7 @@ static int setPasswordDialog(int userNumber)
   params.gridY = 3;
   params.padRight = 0;
   params.orientationX = orient_right;
-  label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
+  windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
   params.gridX = 1;
   params.orientationX = orient_left;

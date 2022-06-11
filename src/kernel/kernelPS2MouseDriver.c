@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelPs2MouseDriver.c
 //
@@ -304,7 +304,7 @@ static void mouseInterrupt(void)
   void *address = NULL;
 
   kernelProcessorIsrEnter(address);
-  kernelProcessingInterrupt = 1;
+  kernelInterruptSetCurrent(INTERRUPT_NUM_MOUSE);
 
   gotInterrupt += 1;
   kernelDebug(debug_io, "Ps2Mouse: Mouse interrupt");
@@ -313,7 +313,7 @@ static void mouseInterrupt(void)
     // Call the routine to read the data
     readData();
 
-  kernelProcessingInterrupt = 0;
+  kernelInterruptClearCurrent();
   kernelProcessorIsrExit(address);
 }
 
@@ -668,6 +668,12 @@ static int driverDetect(void *parent, kernelDriver *driver)
   kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
 
   kernelProcessorRestoreInts(interrupts);
+
+  // Don't save any old handler for the dedicated mouse interrupt, but if
+  // there is one, we want to know about it.
+  if (kernelInterruptGetHandler(INTERRUPT_NUM_MOUSE))
+    kernelError(kernel_warn, "Not chaining unexpected existing handler for "
+		"mouse int %d", INTERRUPT_NUM_MOUSE);
 
   // Register our interrupt handler
   kernelDebug(debug_io, "Ps2Mouse: Hook interrupt...");

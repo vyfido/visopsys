@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelFramebufferGraphicDriver.c
 //
@@ -1008,7 +1008,6 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
   // From a clip of the supplied buffer, make an image from its contents.
 
   int status = 0;
-  unsigned numberPixels = 0;
   int lineLength = 0;
   int numberLines = 0;
   int lineBytes = 0;
@@ -1044,9 +1043,6 @@ static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
   status = kernelImageNew(theImage, lineLength, numberLines);
   if (status < 0)
     return (status);
-
-  // How many pixels will there be?
-  numberPixels = (lineLength * numberLines);
 
   // How many bytes in a line of data?
   lineBytes = (adapter->bytesPerPixel * lineLength);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelFilesystemLinuxSwap.c
 //
@@ -35,430 +35,429 @@ static int initialized = 0;
 
 static int readSwapHeader(const kernelDisk *theDisk, linuxSwapHeader *header)
 {
-  // This simple function will read the swap header into the supplied
-  // structure.  Returns 0 on success negative on error.
+	// This simple function will read the swap header into the supplied
+	// structure.  Returns 0 on success negative on error.
 
-  int status = 0;
-  unsigned sectors = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
+	int status = 0;
+	unsigned sectors = 0;
+	kernelPhysicalDisk *physicalDisk = NULL;
 
-  // Initialize the buffer we were given
-  kernelMemClear(header, sizeof(linuxSwapHeader));
+	// Initialize the buffer we were given
+	kernelMemClear(header, sizeof(linuxSwapHeader));
 
-  physicalDisk = theDisk->physical;
+	physicalDisk = theDisk->physical;
 
-  // The sector size must be non-zero
-  if (physicalDisk->sectorSize == 0)
-    {
-      kernelError(kernel_error, "Disk sector size is zero");
-      return (status = ERR_INVALID);
-    }
+	// The sector size must be non-zero
+	if (physicalDisk->sectorSize == 0)
+	{
+		kernelError(kernel_error, "Disk sector size is zero");
+		return (status = ERR_INVALID);
+	}
 
-  sectors = ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) + 
-	     ((MEMORY_PAGE_SIZE % physicalDisk->sectorSize)? 1 : 0));
+	sectors = ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) + 
+		((MEMORY_PAGE_SIZE % physicalDisk->sectorSize)? 1 : 0));
 
-  // Read the swap header
-  status = kernelDiskReadSectors((char *) theDisk->name, 0, sectors, header);
-  return (status);
+	// Read the swap header
+	status = kernelDiskReadSectors((char *) theDisk->name, 0, sectors, header);
+	return (status);
 }
 
 
 static int writeSwapHeader(const kernelDisk *theDisk, linuxSwapHeader *header)
 {
-  // This simple function will write the swap header from the supplied
-  // structure.  Returns 0 on success negative on error.
+	// This simple function will write the swap header from the supplied
+	// structure.  Returns 0 on success negative on error.
 
-  int status = 0;
-  unsigned sectors = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
+	int status = 0;
+	unsigned sectors = 0;
+	kernelPhysicalDisk *physicalDisk = NULL;
 
-  physicalDisk = theDisk->physical;
+	physicalDisk = theDisk->physical;
 
-  // The sector size must be non-zero
-  if (physicalDisk->sectorSize == 0)
-    {
-      kernelError(kernel_error, "Disk sector size is zero");
-      return (status = ERR_INVALID);
-    }
+	// The sector size must be non-zero
+	if (physicalDisk->sectorSize == 0)
+	{
+		kernelError(kernel_error, "Disk sector size is zero");
+		return (status = ERR_INVALID);
+	}
 
-  sectors = ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) + 
-	     ((MEMORY_PAGE_SIZE % physicalDisk->sectorSize)? 1 : 0));
+	sectors = ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) + 
+		((MEMORY_PAGE_SIZE % physicalDisk->sectorSize)? 1 : 0));
 
-  // Write the swap header
-  status = kernelDiskWriteSectors((char *) theDisk->name, 0, sectors, header);
-  return (status);
+	// Write the swap header
+	status = kernelDiskWriteSectors((char *) theDisk->name, 0, sectors, header);
+	return (status);
 }
 
 
 static int detect(kernelDisk *theDisk)
 {
-  // This function is used to determine whether the data on a disk structure
-  // is using a Linux swap filesystem.  Returns 1 for true, 0 for false,  and
-  // negative if it encounters an error
+	// This function is used to determine whether the data on a disk
+	// structure is using a Linux swap filesystem.  Returns 1 for true, 0 for
+	// false, and negative if it encounters an error
 
-  int status = 0;
-  unsigned char sectBuff[MEMORY_PAGE_SIZE];
-  linuxSwapHeader *header = (linuxSwapHeader *) sectBuff;
+	int status = 0;
+	unsigned char sectBuff[MEMORY_PAGE_SIZE];
+	linuxSwapHeader *header = (linuxSwapHeader *) sectBuff;
 
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Check params
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "Disk structure is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check params
+	if (theDisk == NULL)
+	{
+		kernelError(kernel_error, "Disk structure is NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  // Read the swap header
-  status = readSwapHeader(theDisk, header);
-  if (status < 0)
-    // Not linux-swap
-    return (status = 0);
+	// Read the swap header
+	status = readSwapHeader(theDisk, header);
+	if (status < 0)
+		// Not linux-swap
+		return (status = 0);
 
-  // Check for the signature
-  if (!strncmp(header->magic.magic, "SWAP-SPACE", 10) ||
-      !strncmp(header->magic.magic, "SWAPSPACE2", 10))
-    {
-      // Linux-swap
-      strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
-      strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel,
-	      16);
-      return (status = 1);
-    }
-  else
-    // Not linux-swap
-    return (status = 0);
+	// Check for the signature
+	if (!strncmp(header->magic.magic, "SWAP-SPACE", 10) ||
+		!strncmp(header->magic.magic, "SWAPSPACE2", 10))
+	{
+		// Linux-swap
+		strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
+		strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel,
+			16);
+		return (status = 1);
+	}
+	else
+		// Not linux-swap
+		return (status = 0);
 }
 
 
 static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 {
-  // This function does a basic format of a linux swap filesystem.
+	// This function does a basic format of a linux swap filesystem.
 
-  int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-  unsigned numPages = 0;
-  linuxSwapHeader *header = NULL;
+	int status = 0;
+	kernelPhysicalDisk *physicalDisk = NULL;
+	unsigned numPages = 0;
+	linuxSwapHeader *header = NULL;
 
-  physicalDisk = theDisk->physical;
+	physicalDisk = theDisk->physical;
 
-  // Only format disk with 512-byte sectors
-  if (physicalDisk->sectorSize != 512)
-    {
-      kernelError(kernel_error, "Cannot format a disk with sector size of "
-		  "%u (512 only)", physicalDisk->sectorSize);
-      return (status = ERR_INVALID);
-    }
+	// Only format disk with 512-byte sectors
+	if (physicalDisk->sectorSize != 512)
+	{
+		kernelError(kernel_error, "Cannot format a disk with sector size of "
+			"%u (512 only)", physicalDisk->sectorSize);
+		return (status = ERR_INVALID);
+	}
 
-  if (prog && (kernelLockGet(&prog->progLock) >= 0))
-    {
-      strcpy((char *) prog->statusMessage, "Formatting");
-      kernelLockRelease(&prog->progLock);
-    }
+	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	{
+		strcpy((char *) prog->statusMessage, "Formatting");
+		kernelLockRelease(&prog->progLock);
+	}
 
-  // Get memory for the signature page
-  if (sizeof(linuxSwapHeader) != MEMORY_PAGE_SIZE)
-    kernelError(kernel_error, "linuxSwapHeader size != MEMORY_PAGE_SIZE");
+	// Get memory for the signature page
+	if (sizeof(linuxSwapHeader) != MEMORY_PAGE_SIZE)
+		kernelError(kernel_error, "linuxSwapHeader size != MEMORY_PAGE_SIZE");
 
-  numPages = ((sectors / (MEMORY_PAGE_SIZE / physicalDisk->sectorSize)) - 1);
+	numPages = ((sectors / (MEMORY_PAGE_SIZE / physicalDisk->sectorSize)) - 1);
 
-  if ((numPages < 10) || (numPages > LINUXSWAP_MAXPAGES))
-    {
-      kernelError(kernel_error, "Illegal number of pages (%u) must be 10-%lu",
-		  numPages, LINUXSWAP_MAXPAGES);
-      return (status = ERR_BOUNDS);
-    }
+	if ((numPages < 10) || (numPages > LINUXSWAP_MAXPAGES))
+	{
+		kernelError(kernel_error, "Illegal number of pages (%u) must be "
+			"10-%lu", numPages, LINUXSWAP_MAXPAGES);
+		return (status = ERR_BOUNDS);
+	}
 
-  header = kernelMalloc(sizeof(linuxSwapHeader));
-  if (header == NULL)
-    return (status = ERR_MEMORY);
+	header = kernelMalloc(sizeof(linuxSwapHeader));
+	if (header == NULL)
+		return (status = ERR_MEMORY);
 
-  // Fill out the header
-  strncpy(header->magic.magic, "SWAPSPACE2", 10);
-  header->info.version = 1;
-  header->info.lastPage = (numPages - 1);
+	// Fill out the header
+	strncpy(header->magic.magic, "SWAPSPACE2", 10);
+	header->info.version = 1;
+	header->info.lastPage = (numPages - 1);
 
-  status = kernelDiskWriteSectors((char *) theDisk->name, 0,
-				  (sizeof(linuxSwapHeader) /
-				   physicalDisk->sectorSize), header);
-  kernelFree(header);
+	status = kernelDiskWriteSectors((char *) theDisk->name, 0,
+		(sizeof(linuxSwapHeader) / physicalDisk->sectorSize), header);
+	kernelFree(header);
 
-  if (status < 0)
-    return (status);
+	if (status < 0)
+		return (status);
 
-  strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
+	strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
 
-  if (prog && (kernelLockGet(&prog->progLock) >= 0))
-    {
-      strcpy((char *) prog->statusMessage, "Syncing disk");
-      kernelLockRelease(&prog->progLock);
-    }
+	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	{
+		strcpy((char *) prog->statusMessage, "Syncing disk");
+		kernelLockRelease(&prog->progLock);
+	}
 
-  if (prog && (kernelLockGet(&prog->progLock) >= 0))
-    {
-      prog->percentFinished = 100;
-      kernelLockRelease(&prog->progLock);
-    }
+	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	{
+		prog->percentFinished = 100;
+		kernelLockRelease(&prog->progLock);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int format(kernelDisk *theDisk, const char *type,
-		  const char *label __attribute__((unused)),
-		  int longFormat __attribute__((unused)), progress *prog)
+	const char *label __attribute__((unused)),
+	int longFormat __attribute__((unused)), progress *prog)
 {
-  // This function does a basic format of a linux swap filesystem.
+	// This function does a basic format of a linux swap filesystem.
 
-  int status = 0;
+	int status = 0;
 
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Check params.  It's okay for all other params to be NULL.
-  if ((theDisk == NULL) || (type == NULL))
-    {
-      kernelError(kernel_error, "Disk structure or FS type is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check params.  It's okay for all other params to be NULL.
+	if ((theDisk == NULL) || (type == NULL))
+	{
+		kernelError(kernel_error, "Disk structure or FS type is NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  return (status = formatSectors(theDisk, theDisk->numSectors, prog));
+	return (status = formatSectors(theDisk, theDisk->numSectors, prog));
 }
 
 
 static int clobber(kernelDisk *theDisk)
 {
-  // This function destroys anything that might cause this disk to be detected
-  // as having a linux swap filesystem.
+	// This function destroys anything that might cause this disk to be
+	// detected as having a linux swap filesystem.
 
-  int status = 0;
-  unsigned char sectBuff[MEMORY_PAGE_SIZE];
-  linuxSwapHeader *header = (linuxSwapHeader *) sectBuff;
+	int status = 0;
+	unsigned char sectBuff[MEMORY_PAGE_SIZE];
+	linuxSwapHeader *header = (linuxSwapHeader *) sectBuff;
 
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Check params
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "Disk structure is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check params
+	if (theDisk == NULL)
+	{
+		kernelError(kernel_error, "Disk structure is NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  status = readSwapHeader(theDisk, header);
-  if (status < 0)
-    return (status);
+	status = readSwapHeader(theDisk, header);
+	if (status < 0)
+		return (status);
 
-  kernelMemClear(header->magic.magic, 10);
+	kernelMemClear(header->magic.magic, 10);
 
-  status = writeSwapHeader(theDisk, header);
-  return (status);
+	status = writeSwapHeader(theDisk, header);
+	return (status);
 }
 
 
 static uquad_t getFreeBytes(kernelDisk *theDisk __attribute__((unused)))
 {
-  // This function returns the amount of free disk space, in bytes,
-  // which is always zero.
+	// This function returns the amount of free disk space, in bytes,
+	// which is always zero.
 
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (ERR_NOTINITIALIZED);
 
-  return (0);
+	return (0);
 }
 
 
 static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
-			     uquad_t *maxSectors, progress *prog)
+	uquad_t *maxSectors, progress *prog)
 {
-  // Return the minimum and maximum resize values
+	// Return the minimum and maximum resize values
 
-  int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
+	int status = 0;
+	kernelPhysicalDisk *physicalDisk = NULL;
 
-  physicalDisk = theDisk->physical;
+	physicalDisk = theDisk->physical;
 
-  *minSectors = 10;
-  *maxSectors =
-    ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) * LINUXSWAP_MAXPAGES);
+	*minSectors = 10;
+	*maxSectors =
+		((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) * LINUXSWAP_MAXPAGES);
 
-  if (prog && (kernelLockGet(&prog->progLock) >= 0))
-    {
-      prog->percentFinished = 100;
-      kernelLockRelease(&prog->progLock);
-    }
+	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	{
+		prog->percentFinished = 100;
+		kernelLockRelease(&prog->progLock);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int resize(kernelDisk *theDisk, uquad_t sectors, progress *prog)
 {
-  // This is a dummy resize function, since all we do is format the disk
-  // to the requested size
+	// This is a dummy resize function, since all we do is format the disk
+	// to the requested size
 
-  int status = 0;
+	int status = 0;
 
-  if (sectors > theDisk->numSectors)
-    {
-      kernelError(kernel_error, "Resize value (%llu) exceeds disk size (%llu)",
-		  sectors, theDisk->numSectors);
-      return (status = ERR_RANGE);
-    }
+	if (sectors > theDisk->numSectors)
+	{
+		kernelError(kernel_error, "Resize value (%llu) exceeds disk size "
+			"(%llu)", sectors, theDisk->numSectors);
+		return (status = ERR_RANGE);
+	}
 
-  return (status = formatSectors(theDisk, sectors, prog));
+	return (status = formatSectors(theDisk, sectors, prog));
 }
 
 
 static int readDir(kernelFileEntry *directory)
 {
-  // This is a dummy readDir function.  See comment for mount() above.
+	// This is a dummy readDir function.  See comment for mount() above.
 
-  int status = 0;
+	int status = 0;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Check params
-  if (directory == NULL)
-    {
-      kernelError(kernel_error, "Directory parameter is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check params
+	if (directory == NULL)
+	{
+		kernelError(kernel_error, "Directory parameter is NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  // Make sure it's really a directory, and not a regular file
-  if (directory->type != dirT)
-    {
-      kernelError(kernel_error, "Entry to scan is not a directory");
-      return (status = ERR_NOTADIR);
-    }
+	// Make sure it's really a directory, and not a regular file
+	if (directory->type != dirT)
+	{
+		kernelError(kernel_error, "Entry to scan is not a directory");
+		return (status = ERR_NOTADIR);
+	}
 
-  // Manufacture some "." and ".." entries
-  status = kernelFileMakeDotDirs(directory->parentDirectory, directory);
-  if (status < 0)
-    {
-      kernelError(kernel_warn, "Unable to create '.' and '..' directory "
-		  "entries");
-      return (status);
-    }
+	// Manufacture some "." and ".." entries
+	status = kernelFileMakeDotDirs(directory->parentDirectory, directory);
+	if (status < 0)
+	{
+		kernelError(kernel_warn, "Unable to create '.' and '..' directory "
+			"entries");
+		return (status);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int mount(kernelDisk *theDisk)
 {
-  // Fpr the moment, this is a dummy mount function.  Basically it allows
-  // a 'mount' operation to succeed without actually doing anything --
-  // because for the moment we don't implement swapping, and of course there
-  // are no files in a linux swap partition.  In other words, a placeholder.
+	// Fpr the moment, this is a dummy mount function.  Basically it allows
+	// a 'mount' operation to succeed without actually doing anything --
+	// because for the moment we don't implement swapping, and of course there
+	// are no files in a linux swap partition.  In other words, a placeholder.
 
-  int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-  linuxSwapHeader *header = NULL;
+	int status = 0;
+	kernelPhysicalDisk *physicalDisk = NULL;
+	linuxSwapHeader *header = NULL;
 
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Make sure the disk isn't NULL
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "NULL disk structure");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Make sure the disk isn't NULL
+	if (theDisk == NULL)
+	{
+		kernelError(kernel_error, "NULL disk structure");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  // The filesystem data cannot exist
-  theDisk->filesystem.filesystemData = NULL;
+	// The filesystem data cannot exist
+	theDisk->filesystem.filesystemData = NULL;
 
-  physicalDisk = theDisk->physical;
+	physicalDisk = theDisk->physical;
 
-  // Attach our new FS data
-  header = kernelMalloc(sizeof(linuxSwapHeader));
-  if (header == NULL)
-    return (status = ERR_MEMORY);
+	// Attach our new FS data
+	header = kernelMalloc(sizeof(linuxSwapHeader));
+	if (header == NULL)
+		return (status = ERR_MEMORY);
 
-  status = readSwapHeader(theDisk, header);
-  if (status < 0)
-    return (status);
+	status = readSwapHeader(theDisk, header);
+	if (status < 0)
+		return (status);
 
-  status = readDir(theDisk->filesystem.filesystemRoot);
-  if (status < 0)
-    return (status);
+	status = readDir(theDisk->filesystem.filesystemRoot);
+	if (status < 0)
+		return (status);
 
-  theDisk->filesystem.filesystemData = header;
+	theDisk->filesystem.filesystemData = header;
 
-  // Get the label
-  strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel, 16);
+	// Get the label
+	strncpy((char *) theDisk->filesystem.label, header->info.volumeLabel, 16);
 
-  // Specify the filesystem block size
-  theDisk->filesystem.blockSize = physicalDisk->sectorSize;
+	// Specify the filesystem block size
+	theDisk->filesystem.blockSize = physicalDisk->sectorSize;
 
-  resizeConstraints(theDisk, (uquad_t *) &theDisk->filesystem.minSectors,
-		    (uquad_t *) &theDisk->filesystem.maxSectors, NULL);
+	resizeConstraints(theDisk, (uquad_t *) &theDisk->filesystem.minSectors,
+		(uquad_t *) &theDisk->filesystem.maxSectors, NULL);
 
-  // Read-only
-  theDisk->filesystem.readOnly = 1;
+	// Read-only
+	theDisk->filesystem.readOnly = 1;
 
-  // Set the proper filesystem type name on the disk structure
-  strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
+	// Set the proper filesystem type name on the disk structure
+	strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int unmount(kernelDisk *theDisk)
 {
-  // This is a dummy unmount function.  See comment for mount() above.
+	// This is a dummy unmount function.  See comment for mount() above.
 
-  int status = 0;
+	int status = 0;
   
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Check params
-  if (theDisk == NULL)
-    {
-      kernelError(kernel_error, "NULL disk structure");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check params
+	if (theDisk == NULL)
+	{
+		kernelError(kernel_error, "NULL disk structure");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  // Deallocate memory
-  if (theDisk->filesystem.filesystemData)
-    kernelFree(theDisk->filesystem.filesystemData);
-  theDisk->filesystem.filesystemData = NULL;
+	// Deallocate memory
+	if (theDisk->filesystem.filesystemData)
+		kernelFree(theDisk->filesystem.filesystemData);
+	theDisk->filesystem.filesystemData = NULL;
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static kernelFilesystemDriver defaultLinuxSwapDriver = {
-  FSNAME_LINUXSWAP, // Driver name
-  detect,
-  format,
-  clobber,
-  NULL,  // driverCheck
-  NULL,  // driverDefragment
-  NULL,  // driverStat
-  getFreeBytes,
-  resizeConstraints,
-  resize,
-  mount,
-  unmount,
-  NULL,  // driverNewEntry
-  NULL,  // driverInactiveEntry
-  NULL,  // driverResolveLink
-  NULL,  // driverReadFile
-  NULL,  // driverWriteFile
-  NULL,  // driverCreateFile
-  NULL,  // driverDeleteFile,
-  NULL,  // driverFileMoved,
-  readDir,
-  NULL,  // driverWriteDir
-  NULL,  // driverMakeDir
-  NULL,  // driverRemoveDir
-  NULL,  // driverTimestamp
-  NULL   // driverSetBlocks
+	FSNAME_LINUXSWAP, // Driver name
+	detect,
+	format,
+	clobber,
+	NULL,	// driverCheck
+	NULL,	// driverDefragment
+	NULL,	// driverStat
+	getFreeBytes,
+	resizeConstraints,
+	resize,
+	mount,
+	unmount,
+	NULL,	// driverNewEntry
+	NULL,	// driverInactiveEntry
+	NULL,	// driverResolveLink
+	NULL,	// driverReadFile
+	NULL,	// driverWriteFile
+	NULL,	// driverCreateFile
+	NULL,	// driverDeleteFile,
+	NULL,	// driverFileMoved,
+	readDir,
+	NULL,	// driverWriteDir
+	NULL,	// driverMakeDir
+	NULL,	// driverRemoveDir
+	NULL,	// driverTimestamp
+	NULL	// driverSetBlocks
 };
 
 
@@ -473,14 +472,15 @@ static kernelFilesystemDriver defaultLinuxSwapDriver = {
 
 int kernelFilesystemLinuxSwapInitialize(void)
 {
-  // Initialize the driver
+	// Initialize the driver
 
-  int status = 0;
+	int status = 0;
   
-  // Register our driver
-  status = kernelDriverRegister(linuxSwapDriver, &defaultLinuxSwapDriver);
+	// Register our driver
+	status =
+		kernelSoftwareDriverRegister(linuxSwapDriver, &defaultLinuxSwapDriver);
 
-  initialized = 1;
+	initialized = 1;
 
-  return (status);
+	return (status);
 }

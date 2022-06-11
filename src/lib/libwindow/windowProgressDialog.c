@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 //
 //  You should have received a copy of the GNU Lesser General Public License
 //  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  windowProgressDialog.c
 //
@@ -165,7 +165,6 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   // Desc: Create a 'progress' dialog box, with the parent window 'parentWindow', and the given titlebar text and progress structure.  The dialog creates a thread which monitors the progress structure for changes, and updates the progress bar and status message appropriately.  If the operation is interruptible, it will show a 'CANCEL' button.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns immediately (but the dialog box itself is 'modal').  A call to this function should eventually be followed by a call to windowProgressDialogDestroy() in order to destroy and deallocate the window.
 
   int status = 0;
-  objectKey imageComp = NULL;
   componentParameters params;
     
   if (!libwindow_initialized)
@@ -203,8 +202,8 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	}
     }
   if (waitImage.data)
-    imageComp = windowNewImage(dialogWindow, (image *) &waitImage,
-			       draw_translucent, &params);
+    windowNewImage(dialogWindow, (image *) &waitImage, draw_translucent,
+		   &params);
 
   // Create the progress bar
   params.gridX++;

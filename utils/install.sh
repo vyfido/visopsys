@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2011 J. Andrew McLaughlin
+##  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ## 
 ##  install.sh
 ##
@@ -175,7 +175,18 @@ echo Done
 # touch $MOUNTDIR/nograph
 
 # Unmount the filesystem
-umount $MOUNTDIR
+echo -n "Unmounting...  "
+while [ 1 ] ; do
+	# On some systems, unmount can fail if we do it too quickly, so keep
+	# trying
+	umount -f $MOUNTDIR > /dev/null 2>&1
+	if [ $? -eq 0 ] ; then
+		break;
+	fi
+	echo -n ". "
+	sync ; sleep '0.2'
+done
+echo Done
 
 if [ -d tmp_mnt ] ; then
 	rmdir tmp_mnt

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  install.c
 //
@@ -62,7 +62,7 @@ static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2011 "
+static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2013 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
   "install:";
@@ -811,7 +811,6 @@ static void setAdminPassword(void)
   int status = 0;
   objectKey dialogWindow = NULL;
   componentParameters params;
-  objectKey label = NULL;
   objectKey passwordField1 = NULL;
   objectKey passwordField2 = NULL;
   objectKey noMatchLabel = NULL;
@@ -834,13 +833,13 @@ static void setAdminPassword(void)
       params.padTop = 5;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      label = windowNewTextLabel(dialogWindow, setPasswordString, &params);
+      windowNewTextLabel(dialogWindow, setPasswordString, &params);
 	  
       params.gridY = 1;
       params.gridWidth = 1;
       params.padRight = 0;
       params.orientationX = orient_right;
-      label = windowNewTextLabel(dialogWindow, "New password:", &params);
+      windowNewTextLabel(dialogWindow, "New password:", &params);
 
       params.gridX = 1;
       params.padRight = 5;
@@ -852,7 +851,7 @@ static void setAdminPassword(void)
       params.gridY = 2;
       params.padRight = 0;
       params.orientationX = orient_right;
-      label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
+      windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;

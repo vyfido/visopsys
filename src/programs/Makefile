@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2011 J. Andrew McLaughlin
+##  Copyright (C) 1998-2013 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -120,9 +120,6 @@ all: target-dirs strip messages
 target-dirs:
 	mkdir -p ${BUILDDIR}
 
-${BUILDDIR}/format: format.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lntfs -lwindow -lintl -lvsh -lc -o $@
-
 ${BUILDDIR}/%: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -lvsh -ldl -lc -lgcc -o $@
 
@@ -143,3 +140,6 @@ clean:
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lc -o $@
+
+${BUILDDIR}/format: format.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lntfs -lwindow -lintl -lvsh -lc -o $@

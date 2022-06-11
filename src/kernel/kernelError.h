@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelError.h
 //
@@ -27,17 +27,16 @@
 #include <sys/errors.h>
 
 // Definitions
-#define MAX_ERRORTEXT_LENGTH    1024
-#define ERRORDIALOG_THREADNAME  "error dialog thread"
+#define MAX_ERRORTEXT_LENGTH	1024
+#define ERRORDIALOG_THREADNAME	"error dialog thread"
 
 void kernelErrorOutput(const char *, const char *, int, kernelErrorKind, 
-		       const char *, ...)
-     __attribute__((format(printf, 5, 6)));
+	const char *, ...) __attribute__((format(printf, 5, 6)));
 void kernelErrorDialog(const char *, const char *, const char *);
 
 // This macro should be used to invoke all kernel errors
-#define kernelError(kind, message, arg...) \
-  kernelErrorOutput(__FILE__, __FUNCTION__, __LINE__, kind, message, ##arg)
+#define kernelError(kind, message, arg...)	\
+	kernelErrorOutput(__FILE__, __FUNCTION__, __LINE__, kind, message, ##arg)
 
 #define _KERNELERROR_H
 #endif

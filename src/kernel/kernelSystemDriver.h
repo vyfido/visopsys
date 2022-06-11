@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,27 +14,48 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelSystemDriver.h
 //
 	
 #if !defined(_KERNELSYSTEMDRIVER_H)
 
-#define BIOSAREA_START    0x000E0000
-#define BIOSAREA_END      0x000FFFF0
-#define BIOSAREA_SIZE     ((BIOSAREA_END - BIOSAREA_START) + 1)
-#define BIOSAREA_SIG32    "_32_"
+#define BIOSAREA_START		0x000E0000
+#define BIOSAREA_END		0x000FFFFF
+#define BIOSAREA_SIZE		((BIOSAREA_END - BIOSAREA_START) + 1)
+#define BIOSAREA_SIG_32		"_32_"
+#define BIOSAREA_SIG_PNP	"$PnP"
+#define BIOS_PNP_VERSION	0x10
 
+// The header for a 32-bit BIOS interface
 typedef struct {
-  char signature[4];
-  void *entryPoint;
-  unsigned char revision;
-  unsigned char structLen;
-  unsigned char checksum;
-  unsigned char reserved[5];
-  
-} __attribute__((packed)) kernelBiosHeader;
+	char signature[4];
+	void *entryPoint;
+	unsigned char revision;
+	unsigned char structLen;
+	unsigned char checksum;
+	unsigned char reserved[5];
+
+} __attribute__((packed)) kernelBios32Header;
+
+// The header for a Plug and Play BIOS
+typedef struct {
+	char signature[4];
+	unsigned char version;
+	unsigned char length;
+	unsigned short control;
+	unsigned char checksum;
+	unsigned eventFlagAddr;
+	unsigned short realModeEntry;
+	unsigned short realModeCodeSeg;
+	unsigned short protModeEntry;
+	unsigned protModeCodeSeg;
+	unsigned oemDevId;
+	unsigned short realModeDataSeg;
+	unsigned protModeDataSeg;
+
+} __attribute__((packed)) kernelBiosPnpHeader;
 
 #define _KERNELSYSTEMDRIVER_H
 #endif

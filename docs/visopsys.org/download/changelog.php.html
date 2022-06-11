@@ -40,8 +40,68 @@
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="700">
     <tr>
-      <td>VERSION 0.71<br>
-      28/10/2011<p>Overview: <span LANG="EN-GB"><font SIZE="3">The bulk of this 
+      <td>VERSION 0.72<br>
+      22/08/2013<p>Overview: <span LANG="EN-GB"><font SIZE="3">This release 
+      consists of hardware support updates and bug fixes, with particular focus 
+      on USB. Support for USB 2 controllers and devices has been added.</font></span></p>
+      <span LANG="EN-GB"><font SIZE="3">
+      <ul>
+        <li>Added initial USB2 (EHCI) support.</li>
+        <li>Added a stub USB3 (XHCI) driver.</li>
+        <li>Implemented interrupt sharing and chaining, so that USB controllers 
+        (for example) can share interrupts with one other, as well as other 
+        devices such as disk controllers.</li>
+        <li>Improved the output of the Devices program so that it's a little bit 
+        more readable.</li>
+        <li>Improved the collection and recording of the CPU vendor string.</li>
+        <li>Did a bit more development of the simple ACPI driver.</li>
+        <li>Added a kernelPause() function, that will wait for the specified 
+        number of seconds, or a keypress.</li>
+        <li>Added additional error checking and debugging to the 'bus' subsystem 
+        and the kernel linked list functions.</li>
+        <li>Added some extra PCI structure definitions, needed mostly if we ever 
+        get around to doing PCI interrupt routing.</li>
+        <li>Made some small improvements to PCI - comments, detection, 
+        debugging, iterating and debugging the capabilities list, etc.</li>
+        <li>Added functions for interrupt handlers to get and set the current 
+        interrupt number (the previous implementation failed when the interrupt 
+        number is 0).</li>
+        <li>Ensured that all ISRs disable interrupts whilst inside their 
+        handlers, and save/restore the flags register too (changing the 
+        kernelProcessorIsrEnter and kernelProcessorIsrExit macros).</li>
+        <li>Added &quot;interrupt number out of range&quot; debug error messages to the 
+        kernelInterrupt code.</li>
+        <li>Made build configuration changes for development on newer systems 
+        (like Ubuntu 11) and newer GNU tools (like GCC 4.6), and tweaked some 
+        ELF loading code in the OS loader. Additional ELF loading changes may 
+        need to be make in the kernel.</li>
+        <li>Fixed: USB hub detection could happen twice - once during the 
+        controller's initial device connection detection, and again when device 
+        driver detection happened for hubs.</li>
+        <li>Fixed: The first (number 1) USB port didn't work on many systems.</li>
+        <li>Fixed: Certain USB hard disks not working, and/or causing boot 
+        failure.</li>
+        <li>Fixed: The AHCI driver no longer fails to initialize if PCI bus 
+        mastering can't be enabled.</li>
+        <li>Fixed: ACPI (soft) power off could cause some systems not to boot 
+        the operating system on the next attempt.</li>
+        <li>Fixed: Removed possible infinite loop condition in the 'real time 
+        clock' driver.</li>
+        <li>Fixed: When the OS was installed somewhere via the native installer 
+        (for example on a USB stick) with a FAT32 filesystem type, the volume 
+        label was not being set properly.</li>
+        <li>Fixed: The graphical native installer would often skip the password 
+        setting box (flashing up and then disappearing).</li>
+        <li>Fixed: The TAB key was not working when using a USB keyboard.</li>
+        <li>Fixed: GCC compile errors under Ubuntu 11.10<br>
+&nbsp;</li>
+      </ul>
+      </font></span>
+<hr>
+
+      <p>VERSION 0.71<br>
+      28/10/2011</p>
+      <p>Overview: <span LANG="EN-GB"><font SIZE="3">The bulk of this 
       release consists of general bug fixes, and improvements to hardware 
       detection and device drivers, with particular focus on USB. New features 
       include the ability to boot from a USB device (a new USB image is 

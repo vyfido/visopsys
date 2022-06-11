@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelSataAhciDriver.h
 //
@@ -25,50 +25,50 @@
 
 
 typedef volatile struct {
-  unsigned CLB;
-  unsigned CLBU;
-  unsigned FB;
-  unsigned FBU;
-  unsigned IS;
-  unsigned IE;
-  unsigned CMD;
-  unsigned res1;
-  unsigned TFD;
-  unsigned SIG;
-  unsigned SSTS;
-  unsigned SCTL;
-  unsigned SERR;
-  unsigned SACT;
-  unsigned CI;
-  unsigned SNTF;
-  unsigned res2;
-  unsigned res3[11];
-  unsigned VS[4];
+	unsigned CLB;
+	unsigned CLBU;
+	unsigned FB;
+	unsigned FBU;
+	unsigned IS;
+	unsigned IE;
+	unsigned CMD;
+	unsigned res1;
+	unsigned TFD;
+	unsigned SIG;
+	unsigned SSTS;
+	unsigned SCTL;
+	unsigned SERR;
+	unsigned SACT;
+	unsigned CI;
+	unsigned SNTF;
+	unsigned res2;
+	unsigned res3[11];
+	unsigned VS[4];
 
 } __attribute__((packed)) ahciPort;
 
 typedef volatile struct {
-  // Generic host control
-  unsigned caps;
-  unsigned ghc;
-  unsigned intStat;
-  unsigned portsImpl;
-  unsigned version;
-  unsigned pad[3];
+	// Generic host control
+	unsigned caps;
+	unsigned ghc;
+	unsigned intStat;
+	unsigned portsImpl;
+	unsigned version;
+	unsigned pad[3];
 
-  unsigned reserved[32];
-  unsigned vendSpec[24];
+	unsigned reserved[32];
+	unsigned vendSpec[24];
 
-  // Ports
-  ahciPort ports[32];
+	// Ports
+	ahciPort ports[32];
 
 } __attribute__((packed)) ahciRegs;
 
 typedef volatile struct {
-  int interrupt;
-  unsigned physMemSpace;
-  unsigned memSpaceSize;
-  ahciRegs *regs;
+	int interrupt;
+	unsigned physMemSpace;
+	unsigned memSpaceSize;
+	ahciRegs *regs;
 
 } ahciController;
 

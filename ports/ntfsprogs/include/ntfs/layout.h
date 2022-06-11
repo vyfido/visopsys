@@ -1388,7 +1388,7 @@ typedef struct {
 	u8 revision;
 	u8 sub_authority_count;
 	SID_IDENTIFIER_AUTHORITY identifier_authority;
-	u32 sub_authority[1];		/* At least one sub_authority. */
+	u32 sub_authority[2];		/* At least one sub_authority. */
 } __attribute__((__packed__)) SID;
 
 /**

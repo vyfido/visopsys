@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2011 J. Andrew McLaughlin
+//  Copyright (C) 1998-2013 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -14,7 +14,7 @@
 //  
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  kernelNetworkDevice.c
 //
@@ -38,9 +38,15 @@
 #include <string.h>
 #include <stdio.h>
 
+static int initialized = 0;
+
 // An array of pointers to all network devices.
 static kernelDevice *devices[NETWORK_MAX_ADAPTERS];
 static int numDevices = 0;
+
+// Saved old interrupt handlers
+static void *oldIntHandlers[INTERRUPT_VECTORS];
+
 static networkAddress ethernetBroadcastAddress = {
   { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0 }
 };
@@ -384,51 +390,58 @@ static void networkInterrupt(void)
   kernelDevice *dev = NULL;
   kernelNetworkDevice *adapter = NULL;
   kernelNetworkDeviceOps *ops = NULL;
+  int serviced = 0;
   int count;
 
   kernelProcessorIsrEnter(address);
-  kernelProcessingInterrupt = 1;
 
   // Which interrupt number is active?
   interruptNum = kernelPicGetActive();
   if (interruptNum < 0)
     goto out;
 
+  kernelInterruptSetCurrent(interruptNum);
+
   // Find the device that uses this interrupt
-  for (count = 0; count < numDevices; count ++)
+  for (count = 0; (count < numDevices) && !serviced; count ++)
     if (((kernelNetworkDevice *) devices[count]->data)->device.interruptNum ==
 	interruptNum)
       {
 	dev = devices[count];
-	break;
+	adapter = dev->data;
+	ops = dev->driver->ops;
+
+	// Try to get a lock, though it might fail since we are are inside an
+	// interrupt
+	kernelLockGet(&(adapter->adapterLock));
+
+	if (ops->driverInterruptHandler)
+	  // Call the driver routine.
+	  ops->driverInterruptHandler(adapter);
+
+	if (adapter->device.recvQueued)
+	  {
+	    // Read the data from all queued packets
+	    while (adapter->device.recvQueued)
+	      readData(dev);
+
+	    serviced = 1;
+	  }
+
+	kernelLockRelease(&(adapter->adapterLock));
       }
 
-  if (dev == NULL)
-    // Eek.  Don't know where this came from.
-    return;
+  if (serviced)
+    kernelPicEndOfInterrupt(interruptNum);
 
-  adapter = dev->data;
-  ops = dev->driver->ops;
+  kernelInterruptClearCurrent();
 
-  // Try to get a lock, though it might fail since we are are inside an
-  // interrupt
-  kernelLockGet(&(adapter->adapterLock));
-
-  if (ops->driverInterruptHandler)
-    // Call the driver routine.
-    ops->driverInterruptHandler(adapter);
-
-  // Read the data from all queued packets
-  if (0) { while (adapter->device.recvQueued && (readData(dev) >= 0)); }
-  while (adapter->device.recvQueued)
-    readData(dev);
-
-  kernelLockRelease(&(adapter->adapterLock));
-
-  kernelPicEndOfInterrupt(interruptNum);
+  if (!serviced && oldIntHandlers[interruptNum])
+    // We didn't service this interrupt, and we're sharing this PCI
+    // interrupt with another device whose handler we saved.  Call it.
+    kernelProcessorIsrCall(oldIntHandlers[interruptNum]);
 
  out:
-  kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit(address);
 }
 
@@ -469,6 +482,14 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
   int status = 0;
   kernelNetworkDevice *adapter = NULL;
 
+  if (!initialized)
+    {
+      // Clear old interrupt handlers list
+      kernelMemClear(&oldIntHandlers, (INTERRUPT_VECTORS * sizeof(void *)));
+
+      initialized = 1;
+    }
+
   if (dev == NULL)
     {
       kernelError(kernel_error, "The network device is NULL");
@@ -484,6 +505,13 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 
   adapter = dev->data;
   sprintf((char *) adapter->device.name, "net%d", numDevices);
+
+  // Save any existing handler for the interrupt we're hooking
+  if (!oldIntHandlers[adapter->device.interruptNum] &&
+      (kernelInterruptGetHandler(adapter->device.interruptNum) !=
+       networkInterrupt))
+    oldIntHandlers[adapter->device.interruptNum] =
+      kernelInterruptGetHandler(adapter->device.interruptNum);
 
   // Register our interrupt handler for this device
   status =
@@ -640,7 +668,7 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
   kernelDevice *dev = NULL;
   kernelNetworkDevice *adapter = NULL;
   kernelNetworkDeviceOps *ops = NULL;
-  networkEthernetHeader *header = NULL;
+  //networkEthernetHeader *header = NULL;
 
   // Check params
   if ((adapterName == NULL) || (buffer == NULL))
@@ -675,7 +703,7 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
 
   // Wait until all packets are transmitted before returning, since the memory
   // is needed by the adapter
-  while (adapter->device.transQueued && !kernelProcessingInterrupt)
+  while (adapter->device.transQueued && !kernelProcessingInterrupt())
     kernelMultitaskerYield();
 
   // Release the lock
@@ -684,9 +712,9 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
   if (status >= 0)
     {
       adapter->device.transPackets += 1;
-      header = (networkEthernetHeader *) buffer;
 
       /*
+      header = (networkEthernetHeader *) buffer;
       kernelTextPrint("SEND %d: %02x:%02x:%02x:%02x:%02x:%02x -> "
 		      "%02x:%02x:%02x:%02x:%02x:%02x ",
 		      adapter->transPackets, header->source[0],
