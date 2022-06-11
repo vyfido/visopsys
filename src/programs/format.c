@@ -33,6 +33,7 @@ static int graphics = 0;
 static int processId = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static int numberDisks = 0;
+static int silentMode = 0;
 
 
 static int yesOrNo(char *question)
@@ -86,6 +87,9 @@ static void error(const char *format, ...)
   
   va_list list;
   char output[MAXSTRINGLENGTH];
+
+  if (silentMode)
+    return;
   
   va_start(list, format);
   _expandFormatString(output, format, list);
@@ -248,7 +252,6 @@ static int copyBootSector(const char *destDisk)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  int silentMode = 0;
   char opt;
   int diskNumber = -1;
   char *diskName = NULL;
@@ -271,8 +274,7 @@ int main(int argc, char *argv[])
 	{
 	  if (!optarg)
 	    {
-	      if (!silentMode)
-		error("Missing type argument to '-t' option");
+	      error("Missing type argument to '-t' option");
 	      return (errno = ERR_NULLPARAMETER);
 	    }
 	  strcpy(type, optarg);
@@ -286,13 +288,10 @@ int main(int argc, char *argv[])
   // Call the kernel to give us the number of available disks
   numberDisks = diskGetCount();
 
-  status = diskGetInfo(diskInfo);
+  status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
-    {
-      // Eek.  Problem getting disk info
-      errno = status;
-      return (status);
-    }
+    // Eek.  Problem getting disk info
+    return (errno = status);
 
   if (!graphics && !silentMode)
     // Print a message
@@ -319,9 +318,8 @@ int main(int argc, char *argv[])
   // Check privilege level
   if (multitaskerGetProcessPrivilege(processId) != 0)
     {
-      if (!silentMode)
-	error("You must be a privileged user to use this command.\n(Try "
-	      "logging in as user \"admin\")");
+      error("You must be a privileged user to use this command.\n(Try "
+	    "logging in as user \"admin\")");
       return (errno = ERR_PERMISSION);
     }
 
@@ -338,7 +336,7 @@ int main(int argc, char *argv[])
       if (diskNumber < 0)
 	{
 	  error("No disk selected.  Quitting.");
-	  return (0);
+	  return (errno = status = 0);
 	}
       
       sprintf(tmpChar, "Formatting disk %s as %s.  All data currenly on the "
@@ -347,7 +345,7 @@ int main(int argc, char *argv[])
       if (!yesOrNo(tmpChar))
 	{
 	  printf("\nQuitting.\n");
-	  return (status = 0);
+	  return (errno = status = 0);
 	}
     }
   
@@ -367,22 +365,21 @@ int main(int argc, char *argv[])
 	    if (!yesOrNo(tmpChar))
 	      {
 		printf("\nQuitting.\n");
-		return (status = 0);
+		return (errno = status = 0);
 	      }
 	  }
       }
 
   status = filesystemFormat(diskName, type, "", 0);
   if (status < 0)
-    {
-      errno = status;
-      return (status);
-    }
+    return (errno = status);
 
   // The kernel's format code creates a 'dummy' boot sector.  If we have
   // a proper one stored in the /system/boot directory, copy it to the
   // disk.
-  copyBootSector(diskName);
+  status = copyBootSector(diskName);
+  if (status < 0)
+    return (errno = status);
 
   if (!silentMode)
     {
@@ -393,6 +390,5 @@ int main(int argc, char *argv[])
 	printf("%s\n", tmpChar);
     }
 
-  errno = 0;
-  return (status = 0);
+  return (errno = status = 0);
 }

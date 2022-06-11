@@ -60,7 +60,6 @@ int kernelKeyboardInitialize(void);
 int kernelKeyboardGetMaps(char *, unsigned);
 int kernelKeyboardSetMap(const char *);
 int kernelKeyboardSetStream(stream *);
-int kernelKeyboardReadData(void);
 int kernelKeyboardInput(int, int);
 
 #define _KERNELKEYBOARD_H

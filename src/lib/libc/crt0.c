@@ -38,7 +38,7 @@ int visopsys_in_kernel = 0;
 extern struct lconv _c_locale;
 struct lconv *_current_locale = &_c_locale;
 
-static int status = 0;
+static int _exit_status = 0;
  
 void _start(void);
 void _start(void)
@@ -70,9 +70,8 @@ void _start(void)
   __asm__ __volatile__ ("addl $4, %%esp" : : : "%esp");
 
   // Call the regular program.
-  status = main();
+  _exit_status = main();
 
-  // Now we do an exit call to properly terminate the program after
-  // main returns
-  exit(status);
+  // Do an exit call to properly terminate the program after main returns
+  exit(_exit_status);
 }

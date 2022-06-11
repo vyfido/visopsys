@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
   // Call the kernel to give us the number of available disks
   availableDisks = diskGetCount();
 
-  status = diskGetInfo(diskInfo);
+  status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     {
       // Eek.  Problem getting disk info

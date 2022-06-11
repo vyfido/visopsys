@@ -30,8 +30,7 @@
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <file1> [file2] [...]\n", name);
+  printf("usage:\n%s <file1> [file2] [...]\n", name);
   return;
 }
 

@@ -27,7 +27,6 @@
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>
-#include <sys/errors.h>
 
 static kernelAsciiFont *menuBarFont = NULL;
 static int borderThickness = 3;

@@ -31,7 +31,6 @@
 #include "kernelMiscFunctions.h"
 #include "kernelLog.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
 
 static kernelFilesystem *filesystemPointerArray[MAX_FILESYSTEMS];
@@ -60,8 +59,7 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
   // that work.
 
   // If it's a CD-ROM, only check ISO
-  if ((((kernelPhysicalDisk *) theDisk->physical)->type == idecdrom) ||
-      (((kernelPhysicalDisk *) theDisk->physical)->type == scsicdrom))
+  if (((kernelPhysicalDisk *) theDisk->physical)->flags & DISKFLAG_CDROM)
     {
       tmpDriver = kernelDriverGetIso();
       status = tmpDriver->driverDetect(theDisk);
@@ -596,7 +594,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
     strcpy((char *) theFilesystem->filesystemRoot->name, mountDirName);
 
   // If the disk is removable and has a 'lock' function, lock it
-  if ((physicalDisk->fixedRemovable == removable) &&
+  if ((physicalDisk->flags & DISKFLAG_REMOVABLE) &&
       (physicalDisk->driver->driverSetLockState))
     physicalDisk->driver->driverSetLockState(physicalDisk->deviceNumber, 1);
 
@@ -697,7 +695,7 @@ int kernelFilesystemUnmount(const char *path)
   physicalDisk = (kernelPhysicalDisk *) theFilesystem->disk->physical;
 
   // If this is a removable disk, invalidate the disk cache
-  if (physicalDisk->fixedRemovable == removable)
+  if (physicalDisk->flags & DISKFLAG_REMOVABLE)
     {
       status = kernelDiskInvalidateCache((char *) ((kernelPhysicalDisk *)
 				   theFilesystem->disk->physical)->name);

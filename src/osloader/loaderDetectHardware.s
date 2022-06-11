@@ -195,12 +195,12 @@ detectProcessor:
 	cmp AL, 1
 	jb .pentiumPro
 	;; Pentium CPU
-	mov dword [CPUTYPE], pentium
+	mov dword [CPUTYPE], PENTIUM
 	jmp .detectMMX
 
 	.pentiumPro:	
 	;; Pentium pro CPU
-	mov dword [CPUTYPE], pentiumPro
+	mov dword [CPUTYPE], PENTIUMPRO
 	
 	.detectMMX:
 	;; Are MMX or 3DNow! extensions supported by the processor?
@@ -753,14 +753,14 @@ printCpuInfo:
 	;; What type of CPU was it?
 	mov EAX, dword [CPUTYPE]
 	
-	cmp EAX, pentiumPro
+	cmp EAX, PENTIUMPRO
 	jne .notPPro
 	;; Say we found a pentium pro CPU
 	mov SI, CPUPPRO
 	jmp .printType
 	
 	.notPPro:
-	cmp EAX, pentium
+	cmp EAX, PENTIUM
 	jne .notPentium
 	;; Say we found a Pentium CPU
 	mov SI, CPUPENTIUM

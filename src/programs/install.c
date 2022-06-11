@@ -45,8 +45,8 @@ static char *diskName = NULL;
 static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2005 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
-  "install.  Note that the installation\nvolume MUST be of the same "
-  "filesystem type as the current root filesystem!";
+  "install.  (Note that this\nversion of Visopsys can only install on a "
+  "FAT12 filesystem):";
 static char *setPasswordString = "Please choose a password for the 'admin' "
                                  "account";
 static char statusLabelString[STATUSLENGTH];
@@ -63,6 +63,14 @@ static objectKey statusLabel = NULL;
 static objectKey progressBar = NULL;
 static objectKey installButton = NULL;
 static objectKey quitButton = NULL;
+
+
+static void pause(void)
+{
+  printf("\nPress any key to continue. ");
+  getchar();
+  printf("\n");
+}
 
 
 static void error(const char *format, ...)
@@ -99,6 +107,8 @@ static void quit(int status, const char *message, ...)
 
   if (graphics)
     windowGuiStop();
+  else
+    textScreenRestore();
 
   if (message != NULL)
     {
@@ -109,7 +119,7 @@ static void quit(int status, const char *message, ...)
 	  if (graphics)
 	    windowNewInfoDialog(window, "Complete", output);
 	  else
-	    printf("\n\n%s\n\n", output);
+	    printf("\n%s\n", output);
 	}
     }
 
@@ -136,7 +146,7 @@ static void makeDiskList(void)
   bzero(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   bzero(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
 
-  status = diskGetInfo(tmpDiskInfo);
+  status = diskGetAll(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     // Eek.  Problem getting disk info
     quit(status, "Unable to get disk information.");
@@ -151,8 +161,7 @@ static void makeDiskList(void)
 	continue;
 
       // Skip CD-ROMS
-      if ((tmpDiskInfo[count].type == idecdrom) ||
-	  (tmpDiskInfo[count].type == scsicdrom))
+      if (tmpDiskInfo[count].flags & DISKFLAG_CDROM)
 	continue;
 
       // Otherwise, we will put this in the list
@@ -765,10 +774,6 @@ static void setAdminPassword(void)
   windowEvent event;
   char confirmPassword[17];
   char newPassword[17];
-  fileStream passFile;
-  char hashValue[16];
-  char byte[3];
-  int count;
 
   if (graphics)
     {
@@ -938,34 +943,24 @@ static void setAdminPassword(void)
   else
     printf("\n");
 
-  status = encryptMD5(newPassword, hashValue);
+  // We have a password.  Copy the blank password file for the new system
+  // password file
+  status = fileCopy(MOUNTPOINT "/system/password.blank",
+		    MOUNTPOINT "/system/password");
   if (status < 0)
     {
-      error("Unable to encrypt password.");
+      error("Unable to create the password file");
       return;
     }
 
-  // Turn it into a string
-  char tmp[80];
-  strcpy(tmp, "admin=");
-  for (count = 0; count < 16; count ++)
-    {
-      sprintf(byte, "%02x", (unsigned char) hashValue[count]);
-      strcat(tmp, byte);
-    }
-
-  // Create the password file stream
-  status = fileStreamOpen(MOUNTPOINT "/system/password",
-			  (OPENMODE_WRITE | OPENMODE_CREATE), &passFile);
+  status = userFileSetPassword(MOUNTPOINT "/system/password", "admin", "",
+			       newPassword);
   if (status < 0)
     {
-      error("Unable to create the password file.");
+      error("Unable to set the \"admin\" password");
       return;
     }
   
-  fileStreamWriteLine(&passFile, tmp);
-  fileStreamClose(&passFile);
-
   return;
 }
 
@@ -993,6 +988,7 @@ int main(int argc, char *argv[])
   unsigned diskSize = 0;
   unsigned basicInstallSize = 0xFFFFFFFF;
   unsigned fullInstallSize = 0xFFFFFFFF;
+  const char *message = NULL;
   int count;
 
   processId = multitaskerGetCurrentProcessId();
@@ -1018,7 +1014,10 @@ int main(int argc, char *argv[])
   makeDiskList();
 
   if (!graphics)
-    printBanner();
+    {
+      textScreenSave();
+      printBanner();
+    }
 
   // The user can specify the disk name as an argument.  Try to see
   // whether they did so.
@@ -1101,7 +1100,10 @@ int main(int argc, char *argv[])
       status = vshCursorMenu("Please choose the install type:", 2,
 			     (char *[]) { "Basic", "Full" }, 1);
       if (status < 0)
-	return (status);
+	{
+	  textScreenRestore();
+	  return (status);
+	}
 
       if (status == 1)
 	installType = install_full;
@@ -1130,33 +1132,35 @@ int main(int argc, char *argv[])
   updateStatus("Mounting target disk...  ");
   status = filesystemMount(diskName, MOUNTPOINT);
   if (status < 0)
-    {
-      quit(status, "Unable to mount the target disk.");
-      return (status);
-    }
+    quit(status, "Unable to mount the target disk.");
   updateStatus("Done\n");
 
   if (!graphics)
     makeTextProgressBar();
 
-  // Copy the files
   bytesToCopy = basicInstallSize;
   if (installType == install_full)
     bytesToCopy += fullInstallSize;
+
+  // Copy the files
+
   status = copyFiles(BASICINSTALL);
-  if (installType == install_full)
+  if ((status >= 0) && (installType == install_full))
     status = copyFiles(FULLINSTALL);
 
   if (!graphics)
     // Make sure this shows 100%
     setTextProgressBar(100);
 
-  // Set the start program of the target installation back to the login
-  // program
-  changeStartProgram();
+  if (status >= 0)
+    {
+      // Set the start program of the target installation to be the login
+      // program
+      changeStartProgram();
 
-  // Prompt the user to set the admin password
-  setAdminPassword();
+      // Prompt the user to set the admin password
+      setAdminPassword();
+    }
 
   // Unmount the target filesystem
   updateStatus("Unmounting target disk...  ");
@@ -1165,11 +1169,26 @@ int main(int argc, char *argv[])
   updateStatus("Done\n");
 
   if (status < 0)
-    // Couldn't copy the files
-    quit(status, "Unable to copy files.");
-  
+    {
+      // Couldn't copy the files
+      message = "Unable to copy files.";
+      if (graphics)
+	quit(status, message);
+      else
+	error(message);
+    }
   else
-    quit(status, "Installation successful.");
+    {
+      message = "Installation successful.";
+      if (graphics)
+	quit(status, message);
+      else
+	printf("\n%s\n", message);
+    }
+
+  // Only text mode should fall through to here
+  pause();
+  quit(status, NULL);
 
   // Make the compiler happy
   return (status);

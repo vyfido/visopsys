@@ -25,7 +25,6 @@
 #include "kernelSerial.h"
 #include "kernelParameters.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
 
 /*

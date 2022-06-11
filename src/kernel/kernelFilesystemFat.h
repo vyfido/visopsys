@@ -28,17 +28,17 @@
 // Definitions
 
 // FAT-specific Filesystem things
-#define FAT_MAX_SECTORSIZE 4096
-#define FAT_BYTES_PER_DIR_ENTRY 32
-#define FAT_MAX_DIRTY_FATSECTS 32
+#define FAT_MAX_SECTORSIZE       4096
+#define FAT_BYTES_PER_DIR_ENTRY  32
+#define FAT_MAX_DIRTY_FATSECTS   32
 
 // File attributes
-#define FAT_ATTRIB_READONLY    0x01
-#define FAT_ATTRIB_HIDDEN      0x02
-#define FAT_ATTRIB_SYSTEM      0x04
-#define FAT_ATTRIB_VOLUMELABEL 0x08
-#define FAT_ATTRIB_SUBDIR      0x10
-#define FAT_ATTRIB_ARCHIVE     0x20
+#define FAT_ATTRIB_READONLY     0x01
+#define FAT_ATTRIB_HIDDEN       0x02
+#define FAT_ATTRIB_SYSTEM       0x04
+#define FAT_ATTRIB_VOLUMELABEL  0x08
+#define FAT_ATTRIB_SUBDIR       0x10
+#define FAT_ATTRIB_ARCHIVE      0x20
 
 // Filesystem metadata offsets
 #define FAT_BS_OEMNAME       3

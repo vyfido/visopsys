@@ -30,6 +30,7 @@
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <string.h>
+#include <stdlib.h>
 
 static kernelAsciiFont *defaultFont = NULL;
 
@@ -306,15 +307,15 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 	kernelFontGetDefault(&defaultFont);
     }
 
-  iconComponent->labelWidth =
-    kernelFontGetPrintedWidth(defaultFont, (char *) iconComponent->label[0]);
-  iconComponent->labelLines = 1;
-
   // Copy the image data
   iconComponent->iconImage.data = kernelMalloc(imageCopy->dataLength);
   if (iconComponent->iconImage.data)
     kernelMemCopy(imageCopy->data, iconComponent->iconImage.data,
 		  imageCopy->dataLength);
+
+  iconComponent->labelWidth =
+    kernelFontGetPrintedWidth(defaultFont, (char *) iconComponent->label[0]);
+  iconComponent->labelLines = 1;
 
   // Is the label too wide?  If so, we will break it into 2 lines
   if (iconComponent->labelWidth > 90)
@@ -363,21 +364,14 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 					 iconComponent->label[0]);
       count2 = kernelFontGetPrintedWidth(defaultFont, (char *)
 					 iconComponent->label[1]);
-	
-      if (count1 > count2)
-	iconComponent->labelWidth = count1;
-      else
-	iconComponent->labelWidth = count2;
-
+      iconComponent->labelWidth = max(count1, count2);
       iconComponent->labelLines = 2;
     }
 
   // Now populate the main component
   component->type = iconComponentType;
-  if (imageCopy->width > (unsigned) iconComponent->labelWidth)
-    component->width = imageCopy->width;
-  else
-    component->width = (iconComponent->labelWidth + 2);
+  component->width =
+    max(imageCopy->width, ((unsigned)(iconComponent->labelWidth + 3)));
   component->height = ((imageCopy->height + 5 + (defaultFont->charHeight *
 						 iconComponent->labelLines)));
   

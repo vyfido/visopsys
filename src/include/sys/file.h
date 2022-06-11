@@ -24,8 +24,6 @@
 
 #if !defined(_FILE_H)
 
-#include <sys/memory.h>
-
 // File open modes
 #define OPENMODE_READ        0x01
 #define OPENMODE_WRITE       0x02
@@ -68,4 +66,3 @@ typedef struct
 
 #define _FILE_H
 #endif
-

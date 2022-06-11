@@ -30,9 +30,9 @@
 #include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define ISSEPARATOR(foo) ((foo == '/') || (foo == '\\'))
 
@@ -317,7 +317,7 @@ static void buildFilenameRecursive(kernelFileEntry *theFile, char *buffer)
 }
 
 
-static char *fixupPath(const char *originalPath)
+static char *fixupPath(const char *originalPath, int absolute)
 {
   // This function will take a path string, remove any unneccessary characters 
   // and resolve any '.' or '..' components to their real targets.  It
@@ -329,8 +329,7 @@ static char *fixupPath(const char *originalPath)
   int newLength = 0;
   int count;
 
-  // Make sure there is a leading '/' or '\'
-  if (!ISSEPARATOR(originalPath[0]))
+  if (absolute && !ISSEPARATOR(originalPath[0]))
     {
       kernelError(kernel_error, "Path to fix is not an absolute pathname");
       return (newPath = NULL);
@@ -598,7 +597,8 @@ static int fileCreate(const char *path)
   if (directory == NULL)
     {
       // The directory does not exist
-      kernelError(kernel_error, "Parent directory does not exist");
+      kernelError(kernel_error, "Parent directory (%s) of \"%s\" does not "
+		  "exist", prefix, name);
       return (status = ERR_NOSUCHDIR);
     }
 
@@ -1059,6 +1059,92 @@ static int fileRemoveDir(kernelFileEntry *theDir)
     }
 
   // Return success
+  return (status = 0);
+}
+
+
+static int fileCopy(file *sourceFile,  file *destFile)
+{
+  // This function is used to copy the data of one (open) file to another
+  // (open for creation/writing) file.  Returns 0 on success, negtive
+  // otherwise.
+
+  int status = 0;
+  unsigned srcBlocks = 0;
+  unsigned destBlocks = 0;
+  unsigned bufferSize = 0;
+  unsigned char *copyBuffer = NULL;
+  unsigned srcBlocksPerOp = 0;
+  unsigned destBlocksPerOp = 0;
+  unsigned currentSrcBlock = 0;
+  unsigned currentDestBlock = 0;
+
+  // Any data to copy?
+  if (!sourceFile->blocks)
+    return (status = 0);
+
+  srcBlocks = sourceFile->blocks;
+  destBlocks = max(1, ((sourceFile->size / destFile->blockSize) +
+		       ((sourceFile->size % destFile->blockSize) != 0)));
+
+  // Try to allocate the largest copy buffer that we can.
+
+  bufferSize = max((srcBlocks * sourceFile->blockSize),
+		   (destBlocks * destFile->blockSize));
+
+  while ((copyBuffer = kernelMalloc(bufferSize)) == NULL)
+    {
+      if ((bufferSize <= sourceFile->blockSize) ||
+	  (bufferSize <= destFile->blockSize))
+	{
+	  kernelError(kernel_error, "Not enough memory to copy file %s",
+		      sourceFile->name);
+	  return (status = ERR_MEMORY);
+	}
+
+      bufferSize >>= 1;
+    }
+
+  srcBlocksPerOp = (bufferSize / sourceFile->blockSize);
+  destBlocksPerOp = (bufferSize / destFile->blockSize);
+
+  destFile->blocks = 0;
+
+  // Copy the data.
+  
+  while (srcBlocks)
+    {
+      srcBlocksPerOp = min(srcBlocks, srcBlocksPerOp);
+      destBlocksPerOp = min(destBlocks, destBlocksPerOp);
+      
+      // Read from the source file
+      status = kernelFileRead(sourceFile, currentSrcBlock, srcBlocksPerOp,
+			      copyBuffer);
+      if (status < 0)
+	{
+	  kernelFree(copyBuffer);
+	  return (status);
+	}
+      
+      // Write to the destination file
+      status = kernelFileWrite(destFile, currentDestBlock, destBlocksPerOp,
+			       copyBuffer);
+      if (status < 0)
+	{
+	  kernelFree(copyBuffer);
+	  return (status);
+	}
+
+      // Blocks remaining
+      srcBlocks -= srcBlocksPerOp;
+      destBlocks -= destBlocksPerOp;
+
+      // Block we're on
+      currentSrcBlock += srcBlocksPerOp;
+      currentDestBlock += destBlocksPerOp;
+    }
+
+  kernelFree(copyBuffer);
   return (status = 0);
 }
 
@@ -1575,7 +1661,7 @@ kernelFileEntry *kernelFileLookup(const char *origPath)
     }
 
   // Fix up the path
-  fixedPath = fixupPath(origPath);
+  fixedPath = fixupPath(origPath, 1);
   if (fixedPath == NULL)
     return (lookupItem = NULL);
 
@@ -1783,16 +1869,18 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
   // Make sure the new size is acceptable.  Basically, the number we are
   // being given must fall within the possible values consistent with the
   // number of blocks that are allocated to this file.
-  if ((newSize != 0) || (entry->blocks != 0))
+  if (newSize || entry->blocks)
     {
       if (newSize < ((entry->blocks - 1) * theFilesystem->blockSize))
 	{
-	  kernelError(kernel_error, "New size for file is too small");
+	  kernelError(kernel_error, "New size for file %s is too small",
+		      entry->name);
 	  return (status = ERR_INVALID);
 	}
       else if (newSize > (entry->blocks * theFilesystem->blockSize))
 	{
-	  kernelError(kernel_error, "New size for file is too large");
+	  kernelError(kernel_error, "New size for file %s is too large",
+		      entry->name);
 	  return (status = ERR_INVALID);
 	}
     }
@@ -1845,7 +1933,7 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
       return (status = ERR_NULLPARAMETER);
     }
 
-  tmpPath = fixupPath(originalPath);
+  tmpPath = fixupPath(originalPath, 1);
   if (tmpPath == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -1882,7 +1970,7 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
   pathName[0] = NULL;
 
   // Fix up the path
-  fixedPath = fixupPath(origPath);
+  fixedPath = fixupPath(origPath, 0);
   if (fixedPath == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2143,7 +2231,7 @@ int kernelFileOpen(const char *fileName, int openMode, file *fileStructure)
     }
 
   // Fix up the path name
-  fixedName = fixupPath(fileName);
+  fixedName = fixupPath(fileName, 1);
   if (fixedName == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2331,8 +2419,11 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
 
   // Make sure the number of blocks to write is non-zero
   if (!blocks)
-    // Eek.  Nothing to do.  Why were we called?
-    return (status = ERR_NODATA);
+    {
+      // Eek.  Nothing to do.  Why were we called?
+      kernelError(kernel_error, "File blocks to write is zero");
+      return (status = ERR_NODATA);
+    }
 
   // Has the file been opened properly for writing?
   if (!(fileStructure->openMode & OPENMODE_WRITE))
@@ -2476,7 +2567,7 @@ int kernelFileMakeDir(const char *name)
     }
 
   // Fix up the path name
-  fixedName = fixupPath(name);
+  fixedName = fixupPath(name, 1);
   if (fixedName == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2539,9 +2630,6 @@ int kernelFileCopy(const char *srcName, const char *destName)
   file srcFileStruct;
   file destFileStruct;
   kernelFileEntry *destFile = NULL;
-  //char newDestName[MAX_PATH_NAME_LENGTH];
-  void *fileBuffer = NULL;
-  unsigned destBlocks = 0;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -2554,10 +2642,10 @@ int kernelFileCopy(const char *srcName, const char *destName)
     }
 
   // Fix up the two pathnames
-  fixedSrcName = fixupPath(srcName);
+  fixedSrcName = fixupPath(srcName, 1);
   if (fixedSrcName == NULL)
     return (status = ERR_INVALID);
-  fixedDestName = fixupPath(destName);
+  fixedDestName = fixupPath(destName, 1);
   if (fixedDestName == NULL)
     {
       kernelFree(fixedSrcName);
@@ -2624,53 +2712,19 @@ int kernelFileCopy(const char *srcName, const char *destName)
       goto out;
     }
 
-  // Any data to copy?
-  if (srcFileStruct.size > 0)
+  status = fileCopy(&srcFileStruct, &destFileStruct);
+
+  if (status >= 0)
     {
-      // Copy the data.  Allocate a buffer large enough to hold the entire
-      // source file
-      
-      fileBuffer =
-	kernelMalloc(srcFileStruct.blocks * srcFileStruct.blockSize);
-      if (fileBuffer == NULL)
-	{
-	  kernelError(kernel_error, "Not enough memory to copy file");
-	  status = ERR_MEMORY;
-	  goto out;
-	}
-
-      // Read the source file
-      status = kernelFileRead(&srcFileStruct, 0, srcFileStruct.blocks,
-			      fileBuffer);
-      if (status < 0)
-	goto out;
-      
-      // Calculate the number of blocks that will be used by the destination
-      // file.  It might be different than the source file because of
-      // different block sizes.
-      destBlocks = (srcFileStruct.size / destFileStruct.blockSize);
-      if (srcFileStruct.size % destFileStruct.blockSize)
-	destBlocks += 1;
-
-      // Write the destination file
-      status = kernelFileWrite(&destFileStruct, 0, destBlocks, fileBuffer);
-      if (status < 0)
-	goto out;
+      // Set the size of the destination file so that it matches that of
+      // the source file (as opposed to a multiple of the block size and
+      // the number of blocks it consumes)
+      kernelFileSetSize(destFile, srcFileStruct.size);
     }
-
-  // Set the size of the destination file so that it matches that of
-  // the source file (as opposed to a multiple of the block size and
-  // the number of blocks it consumes)
-  kernelFileSetSize(destFile, srcFileStruct.size);
-
-  // Return success
-  status = 0;
 
  out:
   kernelFree(fixedSrcName);
   kernelFree(fixedDestName);
-  if (fileBuffer)
-    kernelFree(fileBuffer);   
   kernelFileClose(&srcFileStruct);
   kernelFileClose(&destFileStruct);
   return (status);
@@ -2739,13 +2793,13 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
       while (src)
 	{
 	  // Add the file's name to the directory's name
-	  tmpSrcName = fixupPath(srcPath);
+	  tmpSrcName = fixupPath(srcPath, 1);
 	  if (tmpSrcName)
 	    {
 	      strcat(tmpSrcName, "/");
 	      strcat(tmpSrcName, (const char *) src->name);
 	      // Add the file's name to the destination file name
-	      tmpDestName = fixupPath(destPath);
+	      tmpDestName = fixupPath(destPath, 1);
 	      if (tmpDestName)
 		{
 		  strcat(tmpDestName, "/");
@@ -2801,8 +2855,8 @@ int kernelFileMove(const char *srcName, const char *destName)
     }
 
   // Fix up the source and destination path names
-  fixedSrcName = fixupPath(srcName);
-  fixedDestName = fixupPath(destName);
+  fixedSrcName = fixupPath(srcName, 1);
+  fixedDestName = fixupPath(destName, 1);
   if ((fixedSrcName == NULL) || (fixedDestName == NULL))
     {
       if (fixedSrcName)
@@ -2943,7 +2997,7 @@ int kernelFileTimestamp(const char *path)
     }
 
   // Fix up the path name
-  fileName = fixupPath(path);
+  fileName = fixupPath(path, 1);
   if (fileName)
     {
       // Now make sure that the requested file exists

@@ -24,7 +24,6 @@
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelProcessorX86.h"
 
-
 void kernelPS2MouseDriverReadData(void);
 
 static kernelMouseDriver defaultMouseDriver =
@@ -37,7 +36,7 @@ static kernelMouseDriver defaultMouseDriver =
 static int initialized = 0;
 
 
-static inline unsigned inPort60(void)
+static unsigned char inPort60(void)
 {
   // Input a value from the keyboard controller's data port, after checking
   // to make sure that there's some data there for us
@@ -48,11 +47,11 @@ static inline unsigned inPort60(void)
     kernelProcessorInPort8(0x64, data);
 
   kernelProcessorInPort8(0x60, data);
-  return ((unsigned) data);
+  return (data);
 }
 
 
-static inline void outPort60(unsigned value)
+static void outPort60(unsigned char value)
 {
   // Output a value to the keyboard controller's data port, after checking
   // to make sure it's ready for the data
@@ -64,13 +63,13 @@ static inline void outPort60(unsigned value)
   while (data & 0x02)
     kernelProcessorInPort8(0x64, data);
   
-  data = (unsigned char) value;
+  data = value;
   kernelProcessorOutPort8(0x60, data);
   return;
 }
 
 
-static inline void outPort64(unsigned value)
+static void outPort64(unsigned char value)
 {
   // Output a value to the keyboard controller's command port, after checking
   // to make sure it's ready for the command
@@ -82,9 +81,24 @@ static inline void outPort64(unsigned value)
   while (data & 0x02)
     kernelProcessorInPort8(0x64, data);
 
-  data = (unsigned char) value;
+  data = value;
   kernelProcessorOutPort8(0x64, data);
   return;
+}
+
+
+static unsigned char getMouseData(void)
+{
+  // Input a value from the keyboard controller's data port, after checking
+  // to make sure that there's some mouse data there for us
+
+  unsigned char data = 0;
+
+  while ((data & 0x21) != 0x21)
+    kernelProcessorInPort8(0x64, data);
+
+  kernelProcessorInPort8(0x60, data);
+  return (data);
 }
 
 
@@ -101,14 +115,9 @@ int kernelPS2MouseDriverInitialize(void)
 {
   // Talk to the keyboard controller a little bit to initialize the mouse
 
-  int interrupts = 0;
-  unsigned char response;
-  unsigned char deviceId;
+  unsigned char response = 0;
+  unsigned char deviceId = 0;
   int count;
-
-  // Initialize the mouse.
-
-  kernelProcessorSuspendInts(interrupts);
 
   for (count = 0; count < 10; count ++)
     {
@@ -167,13 +176,11 @@ int kernelPS2MouseDriverInitialize(void)
       // Read the ack
       response = inPort60();
       if (response != 0xFA)
-	continue;
+       	continue;
 
       // All set
       break;
     }
-
-  kernelProcessorRestoreInts(interrupts);
 
   initialized = 1;
   return (kernelDriverRegister(mouseDriver, &defaultMouseDriver));
@@ -185,18 +192,24 @@ void kernelPS2MouseDriverReadData(void)
   // This gets called whenever there is a mouse interrupt
 
   static volatile int button1, button2, button3;
-  unsigned char byte1, byte2, byte3;
+  unsigned char byte1 = 0, byte2 = 0, byte3 = 0;
   int xChange, yChange;
+
+  // Disable keyboard output here, because our data reads are not atomic
+  outPort64(0xAD);
 
   // The first byte contains button information and sign information
   // for the next two bytes
-  byte1 = inPort60();
+  byte1 = getMouseData();
 
   // The change in X position
-  byte2 = inPort60();
+  byte2 = getMouseData();
 
   // The change in Y position
-  byte3 = inPort60();
+  byte3 = getMouseData();
+  
+  // Re-enable keyboard output
+  outPort64(0xAE);
 
   if ((byte1 & 0x01) != button1)
     kernelMouseButtonChange(1, button1 = (byte1 & 0x01));

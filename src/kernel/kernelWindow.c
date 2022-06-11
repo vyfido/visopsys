@@ -39,7 +39,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <values.h>
-#include <sys/errors.h>
 
 static int initialized = 0;
 static int screenWidth = 0;
@@ -925,7 +924,9 @@ static int makeConsoleWindow(void)
   params.useDefaultBackground = 1;
   params.font = defaultFont;
 
-  consoleTextArea = kernelWindowNewTextArea(consoleWindow, 80, 50, 0, &params);
+  consoleTextArea =
+    kernelWindowNewTextArea(consoleWindow, 80, 50, DEFAULT_SCROLLBACKLINES,
+			    &params);
   if (consoleTextArea == NULL)
     {
       kernelError(kernel_warn, "Unable to switch text areas to console "

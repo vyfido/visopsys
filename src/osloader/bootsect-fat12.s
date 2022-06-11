@@ -58,9 +58,7 @@
 %define NEXTCLUSTER_SZ		WORD
 %define LOGICALSECTOR		(NEXTCLUSTER + NEXTCLUSTER_SZ)
 %define LOGICALSECTOR_SZ	DWORD
-%define PARTENTRY		(LOGICALSECTOR + LOGICALSECTOR_SZ)
-%define PARTENTRY_SZ		WORD
-%define PARTSTART		(PARTENTRY + PARTENTRY_SZ)
+%define PARTSTART		(LOGICALSECTOR + LOGICALSECTOR_SZ)
 %define PARTSTART_SZ		DWORD
 
 ;; We need space to keep the FAT sectors in memory.  Keep it right after the
@@ -69,29 +67,10 @@
 
 		
 main:
-	jmp short bootCode		; 00 - 01 Jump instruction
-	nop				; 02 - 02 No op
-	
-OEMName		times 8 db ' '		; 03 - 0A OEM Name
-BytesPerSect	dw 0			; 0B - 0C Bytes per sector
-SecPerClust	db 0			; 0D - 0D Sectors per cluster
-ResSectors	dw 0			; 0E - 0F Reserved sectors
-FATs		db 0 			; 10 - 10 Copies of FAT
-RootDirEnts	dw 0			; 11 - 12 Max. rootdir entries
-Sectors		dw 0			; 13 - 14 Sectors in logical image
-Media		db 0	     		; 15 - 15 Media descriptor byte
-FATSecs		dw 0			; 16 - 17 Sectors in FAT
-SecPerTrack	dw 0			; 18 - 19 Sectors per track
-Heads		dw 0			; 1A - 1B Number of heads
-Hidden		dd 0			; 1C - 1F Number of hidden sectors
-HugeSecs	dd 0		    	; 20 - 23 Real number of sectors
-DriveNumber	db 0			; 24 - 24 BIOS drive #
-Reserved1	db 0 			; 25 - 25 ?
-BootSignature	db 0	          	; 26 - 26 Signature
-VolumeID	dd 0		    	; 27 - 2A Volume ID
-VolumeName	times 11 db ' '		; 2B - 35 Volume name
-FSType		times 8 db ' '   	; 36 - 3D Filesystem type
+	jmp short bootCode			; 00 - 01 Jump instruction
+	nop					; 02 - 02 No op
 
+	%include "bootsect-fatBPB.s"	
 
 bootCode:
 
@@ -104,20 +83,21 @@ bootCode:
 
 	;; Set the stack to be at the top of the code
 	mov SS, AX
-	mov SP, 7C00h
+	mov SP, main
 
 	sti
 
+	pusha
+	
 	;; The BIOS will pass the boot device number to us in the DL
 	;; register.  Make sure that our 'DriveNumber' value from the
 	;; boot sector is the correct drive number.
 	mov byte [DriveNumber], DL
 
-	;; If we are not booting from a floppy, then the MBR code should
-	;; have put a pointer to the MBR record for this partition in SI
-	mov word [PARTENTRY], SI
-
-	;; Calculate the partition starting sector, if applicable
+	;; If we are not booting from a floppy, the MBR code should have put
+	;; a pointer to the MBR record for this partition in SI.  Calculate
+	;; the partition starting sector and add it to the PARTSTART value
+	mov dword [PARTSTART], 0
 	cmp DL, 80h
 	jb .noOffset
 	mov EAX, dword [SI + 8]
@@ -126,12 +106,13 @@ bootCode:
 
 	;; Get the drive parameters
 	;; ES:DI = 0000h:0000h to guard against BIOS bugs
+	push ES
 	xor DI, DI
-	mov ES, DI
 	mov AX, 0800h
-	;; DL still has [DriveNumber]
+	mov DL, byte [DriveNumber]
 	int 13h
 	jc near IOError
+	pop ES
 
 	;; Save info
 	shr DX, 8				; Number of heads, 0-based
@@ -241,8 +222,7 @@ bootCode:
 	jmp .FATLoop
 
 	.done:
-	;; Pass the pointer to the partition table entry in SI
-	mov SI, word [PARTENTRY]
+	popa
 	
 	;; Go!
 	jmp LOADERSEGMENT:LOADEROFFSET

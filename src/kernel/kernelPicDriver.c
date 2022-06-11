@@ -22,32 +22,12 @@
 // Driver for standard Programmable Interrupt Controllers (PIC)
 
 #include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelInterrupt.h"
 #include "kernelProcessorX86.h"
-#include <sys/errors.h>
-
-int kernelPicDriverRegisterDevice(void *);
-void kernelPicDriverEndOfInterrupt(int);
+#include "kernelError.h"
 
 
-// Our driver structure.
-static kernelPicDriver defaultPicDriver =
-{
-  kernelPicDriverInitialize,
-  kernelPicDriverRegisterDevice,
-  kernelPicDriverEndOfInterrupt
-};
-
-
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelPicDriverRegisterDevice(void *thePic)
+static int driverRegisterDevice(void *thePic)
 {
   // Initialize the PIC master controller
 
@@ -55,50 +35,40 @@ int kernelPicDriverRegisterDevice(void *thePic)
   if (thePic == NULL)
     return (ERR_NULLPARAMETER);
 
-  // Initialization word 1
+  // Initialization byte 1
   kernelProcessorOutPort8(0x20, 0x11);
-  // Initialization word 2
+  // Initialization byte 2
   kernelProcessorOutPort8(0x21, 0x20);
-  // Initialization word 3
+  // Initialization byte 3
   kernelProcessorOutPort8(0x21, 0x04);
-  // Initialization word 4
+  // Initialization byte 4
   kernelProcessorOutPort8(0x21, 0x01);
   // Normal operation, normal priorities
   kernelProcessorOutPort8(0x20, 0x27);
-  // Mask all ints on
-  kernelProcessorOutPort8(0x21, 0x00);
+  // Mask all ints off initially, except for 2 (the slave controller)
+  kernelProcessorOutPort8(0x21, 0xFB);
 
   // The slave controller
 
-  // Initialization word 1
+  // Initialization byte 1
   kernelProcessorOutPort8(0xA0, 0x11);
-  // Initialization word 2
+  // Initialization byte 2
   kernelProcessorOutPort8(0xA1, 0x28);
-  // Initialization word 3
+  // Initialization byte 3
   kernelProcessorOutPort8(0xA1, 0x02);
-  // Initialization word 4
+  // Initialization byte 4
   kernelProcessorOutPort8(0xA1, 0x01);
   // Normal operation, normal priorities
   kernelProcessorOutPort8(0xA0, 0x27);
-  // Mask all ints on
-  kernelProcessorOutPort8(0xA1, 0x00);
+  // Mask all ints offinitially
+  kernelProcessorOutPort8(0xA1, 0xFF);
 
   // Return success
   return (0);
 }
 
 
-int kernelPicDriverInitialize(void)
-{
-   // Register our driver
-  kernelDriverRegister(picDriver, &defaultPicDriver);
-
-  // Return success.
-  return (0);
-}
-
-
-void kernelPicDriverEndOfInterrupt(int vector)
+static int driverEndOfInterrupt(int vector)
 {
   // Sends end of interrupt (EOI) commands to one or both of the PICs.
   // Our parameter should be the number of the interrupt vector.  If
@@ -112,5 +82,83 @@ void kernelPicDriverEndOfInterrupt(int vector)
   // Issue an end-of-interrupt (EOI) to the master PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  return;
+  return (0);
+}
+
+
+static int driverMask(int vector, int on)
+{
+  // This masks or unmasks an interrupt.  Our parameters should be the number
+  // of the interrupt vector, and an on/off value.
+
+  unsigned char data = 0;
+
+  if (vector < INTERRUPT_VECTOR)
+    // Illegal
+    return (ERR_INVALID);
+
+  vector -= INTERRUPT_VECTOR;
+
+  if (vector <= 0x07)
+    {
+      vector = (0x01 << vector);
+
+      // Get the current mask value
+      kernelProcessorInPort8(0x21, data);
+
+      // An enabled interrupt has its mask bit off
+      if (on)
+	data &= ~vector;
+      else
+	data |= vector;
+
+      kernelProcessorOutPort8(0x21, data);
+    }
+  else
+    {
+      vector -= 0x08;
+      vector = (0x01 << vector);
+
+      // Get the current mask value
+      kernelProcessorInPort8(0xA1, data);
+
+      // An enabled interrupt has its mask bit off
+      if (on)
+	data &= ~vector;
+      else
+	data |= vector;
+
+      kernelProcessorOutPort8(0xA1, data);
+    }
+
+  return (0);
+}
+
+
+// Our driver structure.
+static kernelPicDriver defaultPicDriver =
+{
+  kernelPicDriverInitialize,
+  driverRegisterDevice,
+  driverEndOfInterrupt,
+  driverMask
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelPicDriverInitialize(void)
+{
+   // Register our driver
+  kernelDriverRegister(picDriver, &defaultPicDriver);
+
+  // Return success.
+  return (0);
 }

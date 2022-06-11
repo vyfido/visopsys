@@ -26,8 +26,8 @@
 #include "kernelMalloc.h"
 #include "kernelMemoryManager.h"
 #include "kernelMiscFunctions.h"
+#include "kernelError.h"
 #include <string.h>
-#include <sys/errors.h>
 
 
 static int resize(void *componentData, int width, int height)

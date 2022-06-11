@@ -27,15 +27,16 @@
 #include "kernelMemoryManager.h"
 #include "kernelMalloc.h"
 #include "kernelFile.h"
+#include "kernelMain.h"
 #include "kernelPageManager.h"
 #include "kernelProcessorX86.h"
 #include "kernelPic.h"
 #include "kernelSysTimer.h"
 #include "kernelShutdown.h"
 #include "kernelMiscFunctions.h"
+#include "kernelInterrupt.h"
 #include "kernelLog.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -63,11 +64,9 @@ static volatile int numQueued = 0;
 // go in the queue
 static kernelProcess *schedulerProc = NULL;
 static volatile int schedulerStop = 0;
+static void (*oldSysTimerHandler)(void) = NULL;
 static volatile unsigned schedulerTimeslices = 0;
 static volatile unsigned schedulerTime = 0;
-
-// We use this in several places
-extern int kernelProcessingInterrupt;
 
 #define PROC_KILLABLE(proc) ((proc != kernelProc) &&        \
                              (proc != exceptionProc) &&     \
@@ -341,7 +340,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
 
   // By default, the type is process
   newProcess->type = proc_normal;
-  
+
   // Now, if the process Id is KERNELPROCID, then we are creating the
   // kernel process, and it will be its own parent.  Otherwise, get the
   // current process and make IT be the parent of this new process
@@ -586,72 +585,6 @@ static int deleteProcess(kernelProcess *killProcess)
 }
 
 
-static int markTaskBusy(int tssSelector)
-{
-  // This function gets the requested TSS selector from the GDT and
-  // marks it as busy.  Returns negative on error.
-  
-  int status = 0;
-  kernelDescriptor descriptor;
-  
-  // Initialize our empty descriptor
-  kernelMemClear(&descriptor, sizeof(kernelDescriptor));
-
-  // Fill out our descriptor with data from the "official" one that 
-  // corresponds to the selector we were given
-  status = kernelDescriptorGet(tssSelector, &descriptor);
-  if (status < 0)
-    return (status);
-
-  // Ok, now we can change the selector in the table
-  descriptor.attributes1 |= 0x00000002;
-
-  // Re-set the descriptor in the GDT
-  status =  kernelDescriptorSetUnformatted(tssSelector, 
-   descriptor.segSizeByte1, descriptor.segSizeByte2, descriptor.baseAddress1,
-   descriptor.baseAddress2, descriptor.baseAddress3, descriptor.attributes1, 
-   descriptor.attributes2, descriptor.baseAddress4);
-  if (status < 0)
-    return (status);
-
-  // Return success
-  return (status = 0);
-}
-
-
-static int markTaskUnbusy(int tssSelector)
-{
-  // This function gets the requested TSS selector from the GDT and
-  // marks it as not busy.  Returns negative on error.
-  
-  int status = 0;
-  kernelDescriptor descriptor;
-  
-  // Initialize our empty descriptor
-  kernelMemClear(&descriptor, sizeof(kernelDescriptor));
-
-  // Fill out our descriptor with data from the "official" one that 
-  // corresponds to the selector we were given
-  status = kernelDescriptorGet(tssSelector, &descriptor);
-  if (status < 0)
-    return (status);
-
-  // Ok, now we can change the selector in the table
-  descriptor.attributes1 &= 0xFFFFFFFD;
-
-  // Re-set the descriptor in the GDT
-  status =  kernelDescriptorSetUnformatted(tssSelector, 
-   descriptor.segSizeByte1, descriptor.segSizeByte2, descriptor.baseAddress1,
-   descriptor.baseAddress2, descriptor.baseAddress3, descriptor.attributes1, 
-   descriptor.attributes2, descriptor.baseAddress4);
-  if (status < 0)
-    return (status);
-
-  // Return success
-  return (status = 0);
-}
-
-
 static int exceptionThreadInitialize(void)
 {
   // This function will initialize the kernel's exception handler thread.  
@@ -694,7 +627,7 @@ static int exceptionThreadInitialize(void)
 	       &(exceptionProc->taskStateSegment), // Starts at...
 	       sizeof(kernelTSS),      // Maximum size of a TSS selector
 	       1,                      // Present in memory
-	       0,                      // Highest privilege level
+	       PRIVILEGE_SUPERVISOR,   // Highest privilege level
 	       0,                      // TSS's are system segs
 	       0x9,                    // TSS, 32-bit, non-busy
 	       0,                      // 0 for SMALL size granularity
@@ -778,21 +711,17 @@ static int schedulerShutdown(void)
   // set the variable schedulerStop to a nonzero value.  The scheduler
   // will then invoke this function when it's ready.
 
-  // The kernel's original timer interrupt handler
-  extern void kernelInterruptHandler20(void);
-
   int status = 0;
-
-  // Remove the task gate that we were using to capture the timer
-  // interrupt.  Replace it with the old default timer interrupt handler
-  kernelDescriptorSetIDTInterruptGate(HOOK_TIMER_INT_NUMBER, 
-				      kernelInterruptHandler20);
 
   // Restore the normal operation of the system timer 0, which is
   // mode 3, initial count of 0
   status = kernelSysTimerSetupTimer(0, 3, 0);
   if (status < 0)
-    kernelError(kernel_error, "Could not restore system timer");
+    kernelError(kernel_warn, "Could not restore system timer");
+
+  // Remove the task gate that we were using to capture the timer
+  // interrupt.  Replace it with the old default timer interrupt handler
+  kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, oldSysTimerHandler);
 
   // Give exclusive control to the current task
   schedulerProc->taskStateSegment.oldTSS = kernelCurrentProcess->tssSelector;
@@ -800,6 +729,42 @@ static int schedulerShutdown(void)
   kernelProcessorIntReturn();
 
   // We should never get here
+  return (status = 0);
+}
+
+
+static int markTaskBusy(int tssSelector, int busy)
+{
+  // This function gets the requested TSS selector from the GDT and
+  // marks it as busy/not busy.  Returns negative on error.
+  
+  int status = 0;
+  kernelDescriptor descriptor;
+  
+  // Initialize our empty descriptor
+  kernelMemClear(&descriptor, sizeof(kernelDescriptor));
+
+  // Fill out our descriptor with data from the "official" one that 
+  // corresponds to the selector we were given
+  status = kernelDescriptorGet(tssSelector, &descriptor);
+  if (status < 0)
+    return (status);
+
+  // Ok, now we can change the selector in the table
+  if (busy)
+    descriptor.attributes1 |= 0x00000002;
+  else
+    descriptor.attributes1 &= ~0x00000002;
+    
+  // Re-set the descriptor in the GDT
+  status =  kernelDescriptorSetUnformatted(tssSelector, 
+   descriptor.segSizeByte1, descriptor.segSizeByte2, descriptor.baseAddress1,
+   descriptor.baseAddress2, descriptor.baseAddress3, descriptor.attributes1, 
+   descriptor.attributes2, descriptor.baseAddress4);
+  if (status < 0)
+    return (status);
+
+  // Return success
   return (status = 0);
 }
 
@@ -908,10 +873,6 @@ static int scheduler(void)
       // Make sure.  No interrupts allowed inside this task.
       kernelProcessorDisableInts();
 
-      // Acknowledge the timer interrupt if one occurred
-      if (!schedulerSwitchedByCall)
-	kernelPicEndOfInterrupt(HOOK_TIMER_INT_NUMBER);
-
       // Calculate how many timer ticks were used in the previous time slice.
       // This will be different depending on whether the previous timeslice
       // actually expired, or whether we were called for some other reason
@@ -934,7 +895,7 @@ static int scheduler(void)
 	  // Reset to zero
 	  timerTicks = 0;
 	  
-	  // Call the timer interrupt handler
+	  // Artifically register a system timer tick.
 	  kernelSysTimerTick();
 	}
 
@@ -963,32 +924,6 @@ static int scheduler(void)
       // Get the system timer time
       theTime = kernelSysTimerRead();
 
-      // Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU 
-      // value for each process currently in the queue
-
-      // Check whether we've done another CPU_PERCENT_TIMESLICES timeslices
-      if ((schedulerTimeslices % CPU_PERCENT_TIMESLICES) == 0)
-	{
-	  for (count = 0; count < numQueued; count ++)
-	    {
-	      // Get a pointer to the process
-	      miscProcess = processQueue[count];
-	      
-	      // Calculate the CPU percentage
-	      if (schedulerTime == 0)
-		miscProcess->cpuPercent = 0;
-	      else
-		miscProcess->cpuPercent = 
-		  ((miscProcess->cpuTime * 100) / schedulerTime);
-
-	      // Reset the process' cpuTime counter
-	      miscProcess->cpuTime = 0;
-	    }
-
-	  // Reset the schedulerTime counter
-	  schedulerTime = 0;
-	}
-
       // Reset the selected process to NULL so we can evaluate
       // potential candidates
       nextProcess = NULL;
@@ -999,6 +934,21 @@ static int scheduler(void)
 
       for (count = 0; count < numQueued; count ++)
 	{
+	  // Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU 
+	  // value for each process currently in the queue
+	  if ((schedulerTimeslices % CPU_PERCENT_TIMESLICES) == 0)
+	    {
+	      // Calculate the CPU percentage
+	      if (schedulerTime == 0)
+		processQueue[count]->cpuPercent = 0;
+	      else
+		processQueue[count]->cpuPercent = 
+		  ((processQueue[count]->cpuTime * 100) / schedulerTime);
+
+	      // Reset the process' cpuTime counter
+	      miscProcess->cpuTime = 0;
+	    }
+
 	  // Get a pointer to the process' main process
 	  miscProcess = processQueue[count];
 
@@ -1096,6 +1046,10 @@ static int scheduler(void)
 	    }
 	}
 
+      if ((schedulerTimeslices % CPU_PERCENT_TIMESLICES) == 0)
+	// Reset the schedulerTime counter
+	schedulerTime = 0;
+
       // We should now have selected a process to run.  If not, we should
       // re-start the loop.  This should only be likely to happen if some
       // goombah kills the idle task.  Starting the loop again like this
@@ -1117,9 +1071,6 @@ static int scheduler(void)
       // Export (to the rest of the multitasker) the pointer to the
       // currently selected process.
       kernelCurrentProcess = nextProcess;
-
-      // Reset the "switched by call" flag
-      schedulerSwitchedByCall = 0;
 
       // Make sure the exception handler process is ready to go
       if (exceptionProc)
@@ -1155,6 +1106,27 @@ static int scheduler(void)
 
       // Move the selected task's selector into the link field
       schedulerProc->taskStateSegment.oldTSS = nextProcess->tssSelector;
+
+      markTaskBusy(nextProcess->tssSelector, 1);
+      nextProcess->taskStateSegment.EFLAGS &= ~0x4000;
+
+      // int flags = 0, taskreg = 0;
+      // kernelProcessorGetFlags(flags);
+      // kernelProcessorGetTaskReg(taskreg);
+      // kernelTextPrintLine("Flags: 0x%x Task reg: 0x%x\n"
+      // 			  "Flags: 0x%x EIP: 0x%x Task "
+      // 			  "reg: 0x%x", flags, taskreg,
+      // 			  nextProcess->taskStateSegment.EFLAGS,
+      // 			  nextProcess->taskStateSegment.EIP,
+      // 			  //nextProcess->taskStateSegment.ESP,
+      // 			  nextProcess->tssSelector);
+
+      // Acknowledge the timer interrupt if one occurred
+      if (!schedulerSwitchedByCall)
+	kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
+
+      // Reset the "switched by call" flag
+      schedulerSwitchedByCall = 0;
 
       // Return to the task.  Do an interrupt return.
       kernelProcessorIntReturn();
@@ -1194,39 +1166,29 @@ static int schedulerInitialize(void)
   // Set the instruction pointer to the scheduler task
   schedulerProc->taskStateSegment.EIP = (unsigned) scheduler;
 
-  // Interrupts should always be disabled for this task 
-  schedulerProc->taskStateSegment.EFLAGS = 0x00000002;
+  // Interrupts should always be disabled for this task, and we manually set
+  // the NT (nested task) flag as well, since Virtual PC doesn't do it when
+  // we switch the first time.
+  schedulerProc->taskStateSegment.EFLAGS = 0x00004002;
 
   // Get a page directory
   schedulerProc->taskStateSegment.CR3 =
     (unsigned) kernelPageGetDirectory(KERNELPROCID);
 
   // Not busy
-  markTaskUnbusy(schedulerProc->tssSelector);
+  markTaskBusy(schedulerProc->tssSelector, 0);
 
   // The scheduler task should now be set up to run.  We should set 
   // up the kernel task to resume operation
   
-  // The VMware emulator doesn't seem to 'get' that the kernel's TSS
-  // descriptor should be marked as 'busy' when it is loaded.  When the
-  // scheduler gets called for the first time, it tries to start the kernel
-  // as a new process instead of resuming it, as it should do.  Thus, to
-  // make both VMware and REAL processors happy (and to simplify task
-  // management a little bit, too) all tasks are marked as busy when they
-  // are created.  Then we can simply 'return' to them all the time.
-  // However, one cannot load the task register, below, with a busy TSS
-  // selector...
-
   // Before we load the kernel's selector into the task reg, mark it as
-  // not busy
-  markTaskUnbusy(kernelProc->tssSelector);
+  // not busy, since one cannot load the task register, with a busy TSS
+  // selector...
+  markTaskBusy(kernelProc->tssSelector, 0);
 
   // Make the kernel's Task State Segment be the current one.  In
   // reality, it IS still the currently running code
   kernelProcessorLoadTaskReg(kernelProc->tssSelector);
-
-  // Mark it as busy again
-  markTaskBusy(kernelProc->tssSelector);
 
   // Reset the schedulerTime and schedulerTimeslices
   schedulerTime = 0;
@@ -1235,17 +1197,30 @@ static int schedulerInitialize(void)
   // Make sure the scheduler is set to "run"
   schedulerStop = 0;
 
-  // Reset the "switched by call" flag
+  // Set the "switched by call" flag
   schedulerSwitchedByCall = 0;
+
+  // Make note that the multitasker has been enabled.  We do it a little
+  // early so we can finish some of our tasks of creating threads without
+  // complaints
+  multitaskingEnabled = 1;
+
+  // Yield control to the scheduler
+  kernelMultitaskerYield();
 
   // Disable interrupts, so we can insure that we don't immediately get
   // a timer interrupt.
   kernelProcessorSuspendInts(interrupts);
 
+  // Hook the system timer interrupt.
+  oldSysTimerHandler = kernelInterruptGetHandler(INTERRUPT_NUM_SYSTIMER);
+  if (oldSysTimerHandler == NULL)
+    return (status = ERR_NOTINITIALIZED);
+
   // Install a task gate for the interrupt, which will
   // be the scheduler's timer interrupt.  After this point, our
   // new scheduler task will run with every clock tick
-  status = kernelDescriptorSetIDTTaskGate(HOOK_TIMER_INT_NUMBER, 
+  status = kernelDescriptorSetIDTTaskGate(INTERRUPT_NUM_SYSTIMER, 
 	 				  schedulerProc->tssSelector);
   if (status < 0)
     {
@@ -1287,6 +1262,9 @@ static int createKernelProcess(void)
   if (kernelProc == NULL)
     // Can't access the kernel process
     return (status = ERR_NOSUCHPROCESS);
+
+  // Interrupts are initially disabled for the kernel
+  kernelProc->taskStateSegment.EFLAGS = 0x00000002;
 
   // Set the current process to initially be the kernel process
   kernelCurrentProcess = kernelProc;
@@ -1423,14 +1401,6 @@ int kernelMultitaskerInitialize(void)
     // The scheduler couldn't start
     return (status);
 
-  // Make note that the multitasker has been enabled.  We do it a little
-  // early so we can finish some of our tasks of creating threads without
-  // complaints
-  multitaskingEnabled = 1;
-
-  // Yield control to the scheduler
-  // kernelMultitaskerYield();
-
   // Create an "idle" thread to consume all unused cycles
   status = spawnIdleThread();
   // Make sure it was successful
@@ -1540,33 +1510,35 @@ void kernelExceptionHandler(void)
 
       if (multitaskingEnabled)
 	{
-	  if (kernelSymbols &&
-	      (deadProcess->taskStateSegment.EIP >= KERNEL_VIRTUAL_ADDRESS))
+	  if (deadProcess->taskStateSegment.EIP >= KERNEL_VIRTUAL_ADDRESS)
 	    {
-	      // Find roughly the kernel function where the exception
-	      // happened
 	      char *symbolName = NULL;
-	      for (count = 0; count < kernelNumberSymbols; count ++)
+
+	      if (kernelSymbols)
 		{
-		  if ((deadProcess->taskStateSegment.EIP >=
-		       kernelSymbols[count].address) &&
-		      (deadProcess->taskStateSegment.EIP <
-		       kernelSymbols[count + 1].address))
+		  // Find roughly the kernel function where the exception
+		  // happened
+		  for (count = 0; count < kernelNumberSymbols; count ++)
 		    {
-		      symbolName = kernelSymbols[count].symbol;
-		      break;
+		      if ((deadProcess->taskStateSegment.EIP >=
+			   kernelSymbols[count].address) &&
+			  (deadProcess->taskStateSegment.EIP <
+			   kernelSymbols[count + 1].address))
+			{
+			  symbolName = kernelSymbols[count].symbol;
+			  break;
+			}
 		    }
-		  
 		}
 
 	      if (symbolName)
 		sprintf(tmpMsg, "%s in function %s", tmpMsg, symbolName);
 	      else
-		sprintf(tmpMsg, "%s at kernel address %x", tmpMsg,
+		sprintf(tmpMsg, "%s at kernel address %08x", tmpMsg,
 			deadProcess->taskStateSegment.EIP);
 	    }
 	  else
-	    sprintf(tmpMsg, "%s at application address %x", tmpMsg,
+	    sprintf(tmpMsg, "%s at application address %08x", tmpMsg,
 		    deadProcess->taskStateSegment.EIP);
 	}
 
@@ -1584,25 +1556,29 @@ void kernelExceptionHandler(void)
 	  //  kernelErrorDialog("Fatal exception", tmpMsg);
 	}
 
-      // If we are not processing an interrupt, take ownership of the
-      // process' stack memory so we can do a dump later
-      if (!kernelProcessingInterrupt)
-	kernelMemoryChangeOwner(deadProcess->processId,
-				exceptionProc->processId, 1,
-				deadProcess->userStack, &stackMemory);
-
-      // If possible, we will do a stack memory dump to disk.  Don't try this
-      // if we were servicing an interrupt when we faulted
-      if (!kernelProcessingInterrupt && stackMemory)
+      // If the process was in kernel code, and we are not processing an
+      // interrupt, take ownership of the process' stack memory and do a
+      // stack trace
+      if (!kernelProcessingInterrupt &&
+	  (deadProcess->taskStateSegment.EIP >= KERNEL_VIRTUAL_ADDRESS))
 	{
-	  kernelStackTrace((stackMemory +
-			    ((void *) deadProcess->taskStateSegment.ESP -
-			     deadProcess->userStack)),
-			   (stackMemory + deadProcess->userStackSize -
-			    sizeof(void *)));
+	  kernelMemoryChangeOwner(deadProcess->processId,
+				  exceptionProc->processId, 1,
+				  deadProcess->userStack, &stackMemory);
 
-	  // Release the stack memory
-	  kernelMemoryRelease(stackMemory);
+	  // If possible, we will do a stack memory dump to disk.  Don't try
+	  // this if we were servicing an interrupt when we faulted
+	  if (stackMemory)
+	    {
+	      kernelStackTrace((stackMemory +
+				((void *) deadProcess->taskStateSegment.ESP -
+				 deadProcess->userStack)),
+			       (stackMemory + deadProcess->userStackSize -
+				sizeof(void *)));
+
+	      // Release the stack memory
+	      kernelMemoryRelease(stackMemory);
+	    }
 	}
 
       // The scheduler may now dismantle the process
@@ -2155,7 +2131,7 @@ int kernelMultitaskerProcessIsAlive(int processId)
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (0);
-  
+
   // Try to match the requested process Id number with a real
   // live process structure
   targetProcess = getProcessById(processId);

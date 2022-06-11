@@ -21,8 +21,6 @@
 
 #include "kernelRtc.h"
 #include "kernelError.h"
-#include <sys/errors.h>
-
 
 static kernelRtc *systemRtc = NULL;
 static int startSeconds, startMinutes, startHours, startDayOfMonth,

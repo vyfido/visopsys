@@ -21,9 +21,7 @@
 
 #include "kernelPic.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
-
 
 static kernelPic *systemPic = NULL;
 static int initialized = 0;
@@ -93,34 +91,35 @@ int kernelPicInitialize(void)
 
 int kernelPicEndOfInterrupt(int interruptNumber)
 {
-  // This instructs the PIC to end the current interrupt.  It pretty much 
-  // just calls the associated driver routines, but it also does some
-  // checks and whatnot to make sure that the device, driver, and driver
-  // routines are valid.  Note that the interrupt number parameter is
-  // merely so that the driver can determine which controller(s) to send
-  // the command to.
+  // This instructs the PIC to end the current interrupt.  Note that the
+  // interrupt number parameter is merely so that the driver can determine
+  // which controller(s) to send the command to.
 
   int status = 0;
 
   if (!initialized)
-    {
-      kernelError(kernel_error, "PIC driver not initialized");
-      return (status = ERR_NOTINITIALIZED);
-    }
-
-  // Now make sure the device driver 'end of interrupt' routine has been 
-  // installed
-  if (systemPic->driver->driverEndOfInterrupt == NULL)
-    {
-      kernelError(kernel_error, "The device driver routine is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
+    return (status = ERR_NOTINITIALIZED);
 
   // Ok, now we can call the routine.
-  systemPic->driver->driverEndOfInterrupt(interruptNumber);
+  if (systemPic->driver->driverEndOfInterrupt)
+    status = systemPic->driver->driverEndOfInterrupt(interruptNumber);
 
-  // (The driver function returns void)
+  return (status);
+}
 
-  // Return success
-  return (status = 0);
+
+int kernelPicMask(int interruptNumber, int on)
+{
+  // This instructs the PIC to enable (on) or mask the interrupt.
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Ok, now we can call the routine.
+  if (systemPic->driver->driverMask)
+    status = systemPic->driver->driverMask(interruptNumber, on);
+
+  return (status);
 }

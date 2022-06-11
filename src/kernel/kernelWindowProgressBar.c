@@ -24,8 +24,8 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
+#include "kernelError.h"
 #include <stdio.h>
-#include <sys/errors.h>
 
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;

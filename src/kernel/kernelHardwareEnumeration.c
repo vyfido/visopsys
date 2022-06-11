@@ -31,10 +31,8 @@
 #include "kernelMiscFunctions.h"
 #include "kernelLog.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
-
 
 loaderInfoStruct *systemInfo = NULL;
 
@@ -212,8 +210,8 @@ static int enumerateFloppyDevices(void)
       floppyDevices[count].biosType = systemInfo->fddInfo[count].type;
 
       // Some additional universal default values
-      floppyDevices[count].type = floppy;
-      floppyDevices[count].fixedRemovable = removable;
+      floppyDevices[count].flags =
+	(DISKFLAG_PHYSICAL | DISKFLAG_REMOVABLE | DISKFLAG_FLOPPY);
       floppyDevices[count].deviceNumber = count;
       floppyDevices[count].sectorSize = 512;
       floppyDevices[count].dmaChannel = 2;
@@ -258,7 +256,7 @@ static int enumerateHardDiskDevices(void)
       if (physicalDisk.driver
 	  ->driverDetect(deviceNumber, (void *) &physicalDisk) == 1)
 	{
-	  if (physicalDisk.type == idedisk)
+	  if (physicalDisk.flags & DISKFLAG_IDEDISK)
 	    {
 	      // In some cases, we are detecting hard disks that don't seem
 	      // to actually exist.  Check whether the number of cylinders
@@ -266,7 +264,7 @@ static int enumerateHardDiskDevices(void)
 	      if (!systemInfo->hddInfo[numberHardDisks].cylinders)
 		continue;
 
-	      kernelLog("Device number %d is IDE hard disk", deviceNumber);
+	      kernelLog("Disk %d is an IDE disk", deviceNumber);
 	      
 	      // Hard disk.  Put it into our hard disks array
 	      kernelMemCopy((void *) &physicalDisk,
@@ -309,9 +307,9 @@ static int enumerateHardDiskDevices(void)
 	      numberHardDisks++;
 	    }
 	  
-	  else if (physicalDisk.type == idecdrom)
+	  else if (physicalDisk.flags & DISKFLAG_IDECDROM)
 	    {
-	      kernelLog("Device number %d is IDE CD-ROM", deviceNumber);
+	      kernelLog("Disk %d is an IDE CD-ROM", deviceNumber);
 	      
 	      // Hard disk.  Put it into our hard disks array
 	      kernelMemCopy((void *) &physicalDisk,
@@ -333,7 +331,7 @@ static int enumerateHardDiskDevices(void)
 	}
       
       else
-	kernelLog("Device number %d type is unknown", deviceNumber);
+	kernelLog("Disk %d type is unknown", deviceNumber);
     }
   
   return (numberHardDisks + numberCdRoms);
@@ -467,7 +465,7 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
 
   // Start enumerating devices
 
-  // The PIC device
+  // The PIC device needs to go first
   status = enumeratePicDevice();
   if (status < 0)
     return (status);

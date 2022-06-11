@@ -23,18 +23,67 @@
 
 #include "kernelInterrupt.h"
 #include "kernelProcessorX86.h"
-#include "kernelSysTimer.h"
-#include "kernelKeyboard.h"
-#include "kernelMouse.h"
-#include "kernelMultitasker.h"
 #include "kernelDescriptor.h"
-#include "kernelIdeDriver.h"
-#include <sys/errors.h>
-
-
-extern void kernelFloppyDriverReceiveInterrupt(void);
+#include "kernelMultitasker.h"
+#include "kernelError.h"
 
 int kernelProcessingInterrupt = 0;
+static int initialized = 0;
+
+
+static void intHandlerUnimp(void)
+{
+  // This is the "unimplemented interrupt" handler
+
+  kernelProcessorIsrEnter();
+  kernelProcessingInterrupt = 0xFF;  // Bogus
+
+  // Issue an end-of-interrupt (EOI) to the slave PIC
+  kernelProcessorOutPort8(0xA0, 0x20);
+  // Issue an end-of-interrupt (EOI) to the master PIC
+  kernelProcessorOutPort8(0x20, 0x20);
+
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit();
+}
+
+
+// All the interrupt vectors
+static void *vectorList[] = 
+  {
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp,
+    intHandlerUnimp
+  };
+
+
+static int getVectorNumber(int intNumber)
+{
+  intNumber -= INTERRUPT_VECTOR;
+  
+  if ((intNumber < 0) ||
+      ((unsigned) intNumber >= (sizeof(vectorList) / (sizeof(void *)))))
+    {
+      kernelError(kernel_error, "Invalid interrupt vector number %d",
+		  intNumber);
+      return (ERR_RANGE);
+    }
+  else
+    return (intNumber);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -46,62 +95,34 @@ int kernelProcessingInterrupt = 0;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelInterruptVectorsInstall(void)
+int kernelInterruptInitialize(void)
 {
   // This function is called once at startup time to install all
   // of the appropriate interrupt vectors into the Interrupt Descriptor
   // Table.  Returns 0 on success, negative otherwise.
 
   int status = 0;
-  static int calledOnce = 0;
   int count;
     
-  void *vectorList[] = 
-  {
-    kernelInterruptHandler20,
-    kernelInterruptHandler21,
-    kernelInterruptHandlerUnimp,
-    kernelInterruptHandlerUnimp,
-    kernelInterruptHandlerUnimp,
-    kernelInterruptHandler25,
-    kernelInterruptHandler26,
-    kernelInterruptHandler27,
-    kernelInterruptHandler28,
-    kernelInterruptHandler29,
-    kernelInterruptHandler2A,
-    kernelInterruptHandler2B,
-    kernelInterruptHandler2C,
-    kernelInterruptHandler2D,
-    kernelInterruptHandler2E,
-    kernelInterruptHandler2F
-  };
-
   // Make sure we haven't already been called
-  if (calledOnce)
+  if (initialized)
     return (status = ERR_ALREADY);
 
   // Note that we've been called
-  calledOnce = 1;
+  initialized = 1;
 
   // Initialize the entire table with the vector for the standard
   // "unimplemented" interrupt vector
   for (count = 0; count < IDT_SIZE; count ++)
-    kernelDescriptorSetIDTInterruptGate(count, kernelInterruptHandlerUnimp);
+    kernelDescriptorSetIDTInterruptGate(count, intHandlerUnimp);
 
-  // OK, we need to begin installing the "defined" or "implemented" 
-  // interrupt vectors into the IDT.  We do this with two loops of calls
+  // Set the kernel's exception handler code to handle exceptions as
+  // an interrupt handler until multitasking is enabled.  After that,
+  // exceptions will point to a task gate for the exception handler.
   for (count = 0; count < 19; count ++)
     {
       status =
 	kernelDescriptorSetIDTInterruptGate(count, &kernelExceptionHandler);
-      if (status < 0) 
-	return (status);
-    }
-
-  for (count = 0; count < 16; count ++)
-    {
-      status = kernelDescriptorSetIDTInterruptGate((0x20 + count), 
-						   vectorList[count]);
       if (status < 0) 
 	return (status);
     }
@@ -111,305 +132,42 @@ int kernelInterruptVectorsInstall(void)
 }
 
 
-void kernelInterruptHandler20(void)
+void *kernelInterruptGetHandler(int intNumber)
 {
-  // This is the system timer interrupt handler
+  // Returns the address of the handler for the requested interrupt.
 
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x20;
+  if (!initialized)
+    return (NULL);
 
-  // Issue an end-of-interrupt (EOI) to the PIC
-  kernelProcessorOutPort8(0x20, 0x20);
+  if ((intNumber = getVectorNumber(intNumber)) < 0)
+    return (NULL);
 
-  // Call the kernel's generalized driver function
-  kernelSysTimerTick();
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  return (vectorList[intNumber]);
 }
 
 
-void kernelInterruptHandler21(void)
+int kernelInterruptHook(int intNumber, void *handlerAddress)
 {
-  // This is the keyboard interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x21;
-
-  // Issue an end-of-interrupt (EOI) to the PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Call the kernel's keyboard driver to handle this data
-  kernelKeyboardReadData();
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-	
-void kernelInterruptHandler25(void)
-{
-  // This is the parallel port 2 interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x25;
-
-  // Issue an end-of-interrupt (EOI) to the PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Nothing
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler26(void)
-{
-  // This is the floppy drive interrupt
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x26;
-
-  // Issue an end-of-interrupt (EOI) to the PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Call the kernel's floppy disk driver
-  kernelFloppyDriverReceiveInterrupt();
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler27(void)
-{
-  // This is a 'reserved' (unimplemented?) exception handler
-	
-  static unsigned char data;
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x27;
-
-  // Issue an end-of-interrupt (EOI) to the PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // This interrupt can sometimes occur frivolously from "noise"
-  // on the interrupt request lines.  Before we do anything at all,
-  // we MUST ensure that the interrupt really occurred.
-
-  // Poll bit 7 in the PIC
-  kernelProcessorOutPort8(0x20, 0x0B);
-  kernelProcessorDelay();
-  kernelProcessorInPort8(0x20, data);
-
-  if (data & 0x80)
-    {
-      // Nothing
-    }
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler28(void)
-{
-  // This is the real time clock interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x28;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Nothing
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler29(void)
-{
-  // VGA Retrace interrupt
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x29;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Nothing
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler2A(void)
-{
-  // This is the 'available 1' interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x2A;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Nothing
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler2B(void)
-{
-  // This is the 'available 2' interrupt handler
-
-  static unsigned char data;
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x2B;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // This interrupt can sometimes occur frivolously from "noise"
-  // on the interrupt request lines.  Before we do anything at all,
-  // we MUST ensure that the interrupt really occurred.
-
-  // Poll bit 3 in the PIC
-  kernelProcessorOutPort8(0xA0, 0x0B);
-  kernelProcessorDelay();
-  kernelProcessorInPort8(0xA0, data);
-
-  if (data & 0x08)
-    {
-      // DON'T print the interrupt message.  This looks like it might be
-      // connected somehow to the real-time clock on my K6-2 machine.
-      // Issues one of these interrupts every second (by my count).
-      ;
-    }
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler2C(void)
-{
-  // This is the mouse interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x2C;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Call the kernel's mouse driver
-  kernelMouseReadData();
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler2D(void)
-{
-  // This is the numeric co-processor error interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x2D;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Nothing
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler2E(void)
-{
-  // This is the hard disk interrupt handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x2E;
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Call the kernel's hard disk driver
-  kernelIdeDriverReceiveInterrupt();
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-
-void kernelInterruptHandler2F(void)
-{
-  // This is the 'available 3' interrupt handler.  We will be using
-  // it for the secondary hard disk controller interrupt.
-
-  static unsigned char data;
-	
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x2F;
-
-  // This interrupt can sometimes occur frivolously from "noise"
-  // on the interrupt request lines.  Before we do anything at all,
-  // we MUST ensure that the interrupt really occurred.
-  kernelProcessorOutPort8(0xA0, 0x0B);
-  kernelProcessorInPort8(0xA0, data);
-  if (data & 0x80)
-    {
-      // Issue an end-of-interrupt (EOI) to the slave PIC
-      kernelProcessorOutPort8(0xA0, 0x20);
-      // Issue an end-of-interrupt (EOI) to the master PIC
-      kernelProcessorOutPort8(0x20, 0x20);
-
-      // Call the kernel's hard disk driver
-      kernelIdeDriverReceiveInterrupt();
-    }
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
-}
-
-	
-void kernelInterruptHandlerUnimp(void)
-{
-  // This is the "unimplemented interrupt" handler
-
-  kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0x99;  // Bogus
-
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Nothing
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  // This allows the requested interrupt number to be hooked by a new
+  // handler.  At the moment it doesn't chain them, so anyone who calls
+  // this needs to fully implement the handler, or else chain them manually
+  // using the 'get handler' function, above.  If you don't know what this
+  // means, please stay away from hooking interrupts!  ;)
+
+  int status = 0;
+  int vectorNumber = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  vectorNumber = getVectorNumber(intNumber);
+  if (vectorNumber < 0)
+    return (vectorNumber);
+
+  status = kernelDescriptorSetIDTInterruptGate(intNumber, handlerAddress);
+  if (status < 0)
+    return (status);
+
+  vectorList[vectorNumber] = handlerAddress;
+  return (status = 0);
 }

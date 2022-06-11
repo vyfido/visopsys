@@ -22,12 +22,11 @@
 #include "kernelDriverManagement.h"
 #include "kernelHardwareEnumeration.h"
 #include "kernelError.h"
-#include <sys/errors.h>
-
 
 // Initialization functions for all the kernel's built-in driver.  In no
 // particular order, except that the initializations are done in sequence
 static void *builtinDriverInits[] = {
+  // PIC must be first so that drivers can unmask interrupts
   kernelPicDriverInitialize,
   kernelSysTimerDriverInitialize,
   kernelRtcDriverInitialize,
@@ -105,11 +104,7 @@ int kernelDriversInitialize(void)
     }
 
   if (errors)
-    {
-      kernelError(kernel_error, "%d errors initializing built-in drivers",
-		  errors);
-      return (status = ERR_NOTINITIALIZED);
-    }
+    return (status = ERR_NOTINITIALIZED);
   else
     return (status = 0);
 }

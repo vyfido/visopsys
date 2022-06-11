@@ -31,13 +31,11 @@
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
+#include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "kernelMalloc.h"
 
 static volatile int memoryManagerInitialized = 0;
 static lock memoryManagerLock;

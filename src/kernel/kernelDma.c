@@ -24,9 +24,7 @@
 
 #include "kernelDma.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
-
 
 static kernelDma *systemDma = NULL;
 static int initialized = 0;

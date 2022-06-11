@@ -23,13 +23,12 @@
 // functionality
 
 #include "kernelKeyboard.h"
-#include "kernelMultitasker.h"
-#include "kernelText.h"
+#include "kernelInterrupt.h"
+#include "kernelPic.h"
+#include "kernelProcessorX86.h"
 #include "kernelWindow.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
-
 
 static kernelKeyboard *systemKeyboard = NULL;
 static stream *consoleStream = NULL;
@@ -97,6 +96,24 @@ static kernelKeyMap *allMaps[] = {
 };
 
 
+static void keyboardInterrupt(void)
+{
+  // This is the keyboard interrupt handler.  It calls the keyboard driver
+  // to actually read data from the device.
+
+  kernelProcessorIsrEnter();
+  kernelProcessingInterrupt = INTERRUPT_NUM_KEYBOARD;
+
+  // Ok, now we can call the routine.
+  if (systemKeyboard->driver->driverReadData)
+    systemKeyboard->driver->driverReadData();
+
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit();
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -128,12 +145,24 @@ int kernelKeyboardRegisterDevice(kernelKeyboard *theKeyboard)
 
   // If the driver has a 'register device' function, call it
   if (theKeyboard->driver->driverRegisterDevice)
-    status = theKeyboard->driver->driverRegisterDevice(theKeyboard);
+    {
+      status = theKeyboard->driver->driverRegisterDevice(theKeyboard);
+      if (status < 0)
+	return (status);
+    }
 
   // Alright.  We'll save the pointer to the device
   systemKeyboard = theKeyboard;
 
-  return (status);
+  // Register our interrupt handler
+  status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &keyboardInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
+
+  return (status = 0);
 }
 
 
@@ -253,30 +282,6 @@ int kernelKeyboardSetStream(stream *newStream)
   // Save the address of the kernelStream we were passed to use for
   // keyboard data
   consoleStream = newStream;
-
-  return (status = 0);
-}
-
-
-int kernelKeyboardReadData(void)
-{
-  // This function calls the keyboard driver to read data from the
-  // device.  It pretty much just calls the associated driver routine.
-
-  int status = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Now make sure the device driver 'read data' routine has been installed
-  if (systemKeyboard->driver->driverReadData == NULL)
-    {
-      kernelError(kernel_error, "The driver function is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Ok, now we can call the routine.
-  systemKeyboard->driver->driverReadData();
 
   return (status = 0);
 }

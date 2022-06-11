@@ -22,13 +22,13 @@
 // This contains utility functions for managing mouses.
 
 #include "kernelMouse.h"
-#include "kernelGraphic.h"
+#include "kernelInterrupt.h"
+#include "kernelPic.h"
+#include "kernelProcessorX86.h"
 #include "kernelWindow.h"
 #include "kernelLog.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
-
 
 // The graphics environment
 static int screenWidth = 0;
@@ -88,6 +88,24 @@ static inline void status2event(windowEvent *event)
 }
 
 
+static void mouseInterrupt(void)
+{
+  // This is the mouse interrupt handler.  It calls the mouse driver
+  // to actually read data from the device.
+
+  kernelProcessorIsrEnter();
+  kernelProcessingInterrupt = INTERRUPT_NUM_MOUSE;
+
+  // Ok, now we can call the routine.
+  if (systemMouse->driver->driverReadData)
+    systemMouse->driver->driverReadData();
+
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit();
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -117,12 +135,24 @@ int kernelMouseRegisterDevice(kernelMouse *theMouse)
 
   // If the driver has a 'register device' function, call it
   if (theMouse->driver->driverRegisterDevice)
-    status = theMouse->driver->driverRegisterDevice(theMouse);
+    {
+      status = theMouse->driver->driverRegisterDevice(theMouse);
+      if (status < 0)
+	return (status);
+    }
 
   // Alright.  We'll save the pointer to the device
   systemMouse = theMouse;
 
-  return (status);
+  // Register our interrupt handler
+  status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_MOUSE, 1);
+
+  return (status = 0);
 }
 
 
@@ -159,33 +189,6 @@ int kernelMouseShutdown(void)
 
   initialized = 0;
   return (0);
-}
-
-
-int kernelMouseReadData(void)
-{
-  // This function calls the mouse driver to read data from the
-  // device.  It pretty much just calls the associated driver routines, 
-  // but it also does some checks and whatnot to make sure that the 
-  // device, driver, and driver routines are
-
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Make sure the device driver initialize routine has been  installed
-  if (systemMouse->driver->driverReadData == NULL)
-    {
-      kernelError(kernel_error, "No mouse read data function");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Ok, now we can call the routine.
-  systemMouse->driver->driverReadData();
-
-  return (status = 0);
 }
 
 

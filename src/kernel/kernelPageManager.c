@@ -30,9 +30,8 @@
 #include "kernelProcessorX86.h"
 #include "kernelLog.h"
 #include "kernelMiscFunctions.h"
-#include <sys/errors.h>
+#include "kernelError.h"
 #include <string.h>
-
 
 // The kernel's page directory and first page table
 static kernelPageDirectory *kernelPageDir = NULL;
@@ -50,6 +49,10 @@ static volatile int numberPageTables = 0;
 static unsigned kernelPagingData = 0;
 
 static volatile int initialized = 0;
+
+// Macros used internally
+#define getTableNumber(address) ((((unsigned) address) >> 22) & 0x000003FF)
+#define getPageNumber(address) ((((unsigned) address) >> 12) & 0x000003FF)
 
 
 static kernelPageTable *findPageTable(kernelPageDirectory *directory,
@@ -85,7 +88,7 @@ static unsigned countFreePages(kernelPageDirectory *directory)
   if (directory == kernelPageDir)
     {
       tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-      maxTableNumber = TABLES_PER_DIR;
+      maxTableNumber = PAGE_TABLES_PER_DIR;
     }
   else
     {
@@ -106,15 +109,17 @@ static unsigned countFreePages(kernelPageDirectory *directory)
 }
 
 
-static inline int findFreeTableNumber(kernelPageDirectory *directory)
+static int findFreeTableNumber(kernelPageDirectory *directory)
 {
+  // This returns the first unused page table number.
+
   int tableNumber = 0;
   int maxTableNumber = 0;
   
   if (directory == kernelPageDir)
     {
       tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-      maxTableNumber = TABLES_PER_DIR;
+      maxTableNumber = PAGE_TABLES_PER_DIR;
     }
   else
     {
@@ -149,7 +154,7 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
   if (directory == kernelPageDir)
     {
       tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-      maxTableNumber = TABLES_PER_DIR;
+      maxTableNumber = PAGE_TABLES_PER_DIR;
     }
   else
     {
@@ -162,7 +167,6 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
     {
       // Get a pointer to this page table.
       table = findPageTable(directory, tableNumber);
-
       if (table == NULL)
 	{
 	  numberFree = 0;
@@ -174,7 +178,7 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
       // page and numberFree is zero, set freeSpace to the corresponding
       // virtual address.  If we find a used page, we reset both numberFree
       // and freeStart to NULL
-      for (pageNumber = 0; pageNumber < PAGES_PER_TABLE; pageNumber++)
+      for (pageNumber = 0; pageNumber < PAGE_PAGES_PER_TABLE; pageNumber++)
 	{
 	  if (table->virtual->page[pageNumber] == NULL)
 	    {
@@ -220,7 +224,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
   int count;
 
   // Allocate some physical memory for the page table
-  physicalAddr = kernelMemoryGetPhysical(sizeof(kernelPageTablePhysicalMem), 
+  physicalAddr = kernelMemoryGetPhysical(sizeof(kernelPageTablePhysicalMem),
 					 MEMORY_PAGE_SIZE, "page table");
   if (physicalAddr == NULL)
     return (newTable = NULL);
@@ -244,16 +248,14 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 
   // Try to find 1 free page in kernel space for the table to occupy
   status = findFreePages(kernelPageDir, 1, (void **) &virtualAddr);
-
-  // Did we find one?
   if (status < 0)
+    // Didn't find one
     return (newTable = NULL);
 
   // Get the kernel's kernelPageTable into which this new one will be mapped.
   kernelTableNumber = getTableNumber(virtualAddr);
   kernelPageNumber = getPageNumber(virtualAddr);
   kernelTable = findPageTable(kernelPageDir, kernelTableNumber);
-
   if (kernelTable == NULL)
     return (newTable = NULL);
 
@@ -261,7 +263,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
   // writable bit, and the page present bit.
   kernelTable->virtual->page[kernelPageNumber] = (unsigned) physicalAddr;
   kernelTable->virtual->page[kernelPageNumber] |=
-    (GLOBAL_BIT | WRITABLE_BIT | PAGEPRESENT_BIT);
+    (PAGEFLAG_GLOBAL | PAGEFLAG_WRITABLE | PAGEFLAG_PRESENT);
   kernelTable->freePages--;
 
   // Clear this memory block, since kernelMemoryGetPhysical can't do it for us
@@ -275,7 +277,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
   // Fill in this page table
   newTable->directory = directory;
   newTable->tableNumber = number;
-  newTable->freePages = PAGES_PER_TABLE;
+  newTable->freePages = PAGE_PAGES_PER_TABLE;
   newTable->physical = physicalAddr;
   newTable->virtual = virtualAddr;
 
@@ -283,11 +285,11 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
   // real page table to the requested slot number.  Always enable 
   // read/write and page-present
   directory->virtual->table[number] = (unsigned) newTable->physical;
-  directory->virtual->table[number] |= (WRITABLE_BIT | PAGEPRESENT_BIT);
+  directory->virtual->table[number] |= (PAGEFLAG_WRITABLE | PAGEFLAG_PRESENT);
 
   // Set the 'user' bit, if this page table is not privileged
   if (directory->privilege != PRIVILEGE_SUPERVISOR)
-    directory->virtual->table[number] |= USER_BIT;
+    directory->virtual->table[number] |= PAGEFLAG_USER;
 
   // A couple of extra things we do if this new page table belongs to the
   // kernel or one of its threads
@@ -296,7 +298,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
       // Set the 'global' bit, so that if this is a Pentium Pro or better
       // processor, the page table won't be invalidated during a context
       // switch
-      directory->virtual->table[number] |= GLOBAL_BIT;
+      directory->virtual->table[number] |= PAGEFLAG_GLOBAL;
 
       // It needs to be 'shared' with all of the other real page directories.
       for (count = 0; count < numberPageDirectories; count ++)
@@ -392,14 +394,13 @@ static int deletePageTable(kernelPageDirectory *directory,
 }
 
 
-static unsigned findPageTableEntry(kernelPageDirectory *directory, 
-				   void *virtualAddress)
+static int findPageTableEntry(kernelPageDirectory *directory,
+			      void *virtualAddress, void **entry)
 {
   // Given a page directory and a virtual address, this function will find
   // the appropriate page table entry and return it.  
-  // Returns 0 on error. <-- Hmm.
 
-  unsigned pageTableEntry = 0;
+  int status = 0;
   int tableNumber = 0;
   kernelPageTable *table = NULL;
   int pageNumber = 0;
@@ -407,37 +408,86 @@ static unsigned findPageTableEntry(kernelPageDirectory *directory,
   // virtualAddress is allowed to be NULL.
 
   if ((unsigned) virtualAddress % MEMORY_PAGE_SIZE)
-    return (pageTableEntry = NULL);
+    return (status = ERR_ALIGN);
 
   // Figure out which page table corresponds to this virtual address, and
   // get the page table
   tableNumber = getTableNumber(virtualAddress);
   pageNumber = getPageNumber(virtualAddress);
   table = findPageTable(directory, tableNumber);
-  
   if (table == NULL)
     // We're hosed.  This table should already exist.
-    return (pageTableEntry = NULL);
+    return (status = ERR_NODATA);
 
   // Grab the value from the page table
-  pageTableEntry = (table->virtual->page[pageNumber]);
-  pageTableEntry &= 0xFFFFF000;
-  return (pageTableEntry);
+  *entry = (void *) (table->virtual->page[pageNumber] & 0xFFFFF000);
+  return (status = 0);
 }
 
 
 static inline int getNumPages(unsigned size)
 {
   // Turn a size into a number of pages
-  int numPages = (size / MEMORY_PAGE_SIZE);
-  if ((size % MEMORY_PAGE_SIZE) != 0)
-    numPages += 1;
-  return (numPages);
+  return ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE) != 0));
+}
+
+
+static int areFreePagesAt(kernelPageDirectory *directory, int pages,
+			  void *virtualAddress)
+{
+  // This function will return 1 if the requested number of pages are unused
+  // at the requested address in the supplied page directory.
+
+  int numberFree = 0;
+  kernelPageTable *table = NULL;
+  int tableNumber = 0;
+  int maxTableNumber = 0;
+  int pageNumber = 0;
+
+  if (directory == kernelPageDir)
+    maxTableNumber = PAGE_TABLES_PER_DIR;
+  else
+    maxTableNumber = (getTableNumber(KERNEL_VIRTUAL_ADDRESS) - 1);
+
+  tableNumber = getTableNumber(virtualAddress);
+  pageNumber = getPageNumber(virtualAddress);
+
+  // Loop through the supplied page directory.
+  for ( ; tableNumber < maxTableNumber; tableNumber++)
+    {
+      // Get a pointer to this page table.
+      table = findPageTable(directory, tableNumber);
+      if (table == NULL)
+	{
+	  // Create the page table
+	  table = createPageTable(directory, tableNumber);
+	  if (table == NULL)
+	    return (0);
+	}
+      
+      // Loop through the pages in this page table.  If we find a used
+      // page before 'numberFree' equals 'pages', return 0
+      for ( ; pageNumber < PAGE_PAGES_PER_TABLE; pageNumber++)
+	{
+	  if (table->virtual->page[pageNumber] != NULL)
+	    return (0);
+
+	  numberFree++;
+	  if (numberFree >= pages)
+	    return (1);
+	}
+
+      // If we fall through, we're moving on to the next page table.
+      pageNumber = 0;
+    }
+
+  // If we fall through, we're out of range
+  return (0);
 }
 
 
 static int map(kernelPageDirectory *directory, void *physicalAddress, 
-	       void **virtualAddress, unsigned size)
+	       void **virtualAddress, unsigned size, int flags)
 {
   // This function is used by the rest of the kernel to map physical memory
   // pages in the address space of a process.  This will map the physical
@@ -466,26 +516,46 @@ static int map(kernelPageDirectory *directory, void *physicalAddress,
   if ((unsigned) physicalAddress % MEMORY_PAGE_SIZE)
     return (status = ERR_ALIGN);
 
-  // Ok, now determine how many pages we need to map
+  // Determine how many pages we need to map
   numPages = getNumPages(size);
 
-  // Are there enough free pages in this page directory (plus 1 for
-  // the next page table)?  If not, the first thing we should do is
-  // add another page tables until we have enough.
-
-  while (((numPages + 1) >= countFreePages(directory)) ||
-	 (findFreePages(directory, numPages, virtualAddress) < 0))
+  if (flags == PAGE_MAP_ANY)
     {
-      kernelLog("Increasing page tables");
-      
-      if (createPageTable(directory, findFreeTableNumber(directory)) == NULL)
-	// We're going to be hosed very shortly
-	return (status = ERR_NOFREE);
+      // Are there enough free pages in this page directory (plus 1 for
+      // the next page table)?  If not, add more page tables until we have
+      // enough.
+      while (((numPages + 1) >= countFreePages(directory)) ||
+	     (findFreePages(directory, numPages, virtualAddress) < 0))
+	{
+	  if (createPageTable(directory,
+			      findFreeTableNumber(directory)) == NULL)
+	    return (status = ERR_NOFREE);
+	}
     }
+  else if (flags == PAGE_MAP_EXACT)
+    {
+      if ((unsigned) *virtualAddress % MEMORY_PAGE_SIZE)
+	return (status = ERR_ALIGN);
 
-  // Set the address variables we will use to walk through the table
-  currentVirtualAddress = *virtualAddress;
+      if (!areFreePagesAt(directory, numPages, *virtualAddress))
+	return (status = ERR_NOFREE);
+
+      // Make sure there's enough for the next page table
+      if ((numPages + 1) >= countFreePages(directory))
+	{
+	  if (createPageTable(directory,
+			      findFreeTableNumber(directory)) == NULL)
+	    return (status = ERR_NOFREE);
+
+	  if (!areFreePagesAt(directory, numPages, *virtualAddress))
+	    return (status = ERR_NOFREE);
+	}
+    }
+  else
+    return (status = ERR_INVALID);
+    
   currentPhysicalAddress = physicalAddress;
+  currentVirtualAddress = *virtualAddress;
 
   // Change the entries in the page table
   while (numPages > 0)
@@ -500,7 +570,6 @@ static int map(kernelPageDirectory *directory, void *physicalAddress,
 	  tableNumber = getTableNumber(currentVirtualAddress);
 
 	  pageTable = findPageTable(directory, tableNumber);
-	  
 	  if (pageTable == NULL)
 	    // We're hosed.  This table should already exist.
 	    return (status = ERR_NOSUCHENTRY);
@@ -510,17 +579,18 @@ static int map(kernelPageDirectory *directory, void *physicalAddress,
       // writable bit and the page present bit.
       pageTable->virtual->page[pageNumber] =
 	(unsigned) currentPhysicalAddress;
-      pageTable->virtual->page[pageNumber] |= (WRITABLE_BIT | PAGEPRESENT_BIT);
+      pageTable->virtual->page[pageNumber] |=
+	(PAGEFLAG_WRITABLE | PAGEFLAG_PRESENT);
 
       if (directory == kernelPageDir)
 	// Set the 'global' bit, so that if this is a Pentium Pro or better
 	// processor, the page table won't be invalidated during a context
 	// switch
-	pageTable->virtual->page[pageNumber] |= GLOBAL_BIT;
+	pageTable->virtual->page[pageNumber] |= PAGEFLAG_GLOBAL;
 
       // Set the 'user' bit, if this page is not privileged
       if (directory->privilege != PRIVILEGE_SUPERVISOR)
-	pageTable->virtual->page[pageNumber] |= USER_BIT;
+	pageTable->virtual->page[pageNumber] |= PAGEFLAG_USER;
 
       // Decrease the count of free pages
       pageTable->freePages--;
@@ -547,12 +617,11 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
   // pages from the address space of a process.  
 
   int status = 0;
-  void *physicalAddress = NULL;
   kernelPageTable *pageTable = NULL;
   unsigned tableNumber = 0;
   unsigned pageNumber = 0;
   unsigned numPages = 0;
-  
+
   // Make sure that our arguments are reasonable.  The wrapper functions
   // that are used to call us from external locations do not check them.
 
@@ -562,13 +631,7 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
   if (((unsigned) virtualAddress % MEMORY_PAGE_SIZE) != 0)
     return (status = ERR_ALIGN);
 
-  // Get the physical address of the virtual memory we're unmapping
-  physicalAddress = (void *) findPageTableEntry(directory, virtualAddress);
-
-  if (physicalAddress == NULL)
-    return (ERR_NOSUCHENTRY);
-
-  // Ok, now determine how many pages we need to unmap
+  // Determine how many pages we need to unmap
   numPages = getNumPages(size);
 
   // Change the entries in the page table
@@ -584,7 +647,6 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
 	  tableNumber = getTableNumber(virtualAddress);
 
 	  pageTable = findPageTable(directory, tableNumber);
-
 	  if (pageTable == NULL)
 	    // We're hosed.  This table should already exist.
 	    return (status = ERR_NOSUCHENTRY);
@@ -600,7 +662,7 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
       pageTable->freePages++;
 
       // Is the table now unused?
-      if (pageTable->freePages == PAGES_PER_TABLE)
+      if (pageTable->freePages == PAGE_PAGES_PER_TABLE)
 	// Try to deallocate it
 	deletePageTable(directory, pageTable);
 
@@ -639,8 +701,7 @@ static kernelPageDirectory *createPageDirectory(int processId, int privilege)
 
   // Map it into the kernel's virtual address space.
   status = map(kernelPageDir, (void *) physicalAddr, (void **) &virtualAddr,
-	       sizeof(kernelPageDirPhysicalMem));
-
+	       sizeof(kernelPageDirPhysicalMem), PAGE_MAP_ANY);
   if (status < 0)
     return (directory = NULL);
 
@@ -665,7 +726,7 @@ static kernelPageDirectory *createPageDirectory(int processId, int privilege)
 }
 
 
-static inline kernelPageDirectory *findPageDirectory(int processId)
+static kernelPageDirectory *findPageDirectory(int processId)
 {
   // This function just finds the page directory structure that belongs
   // to the requested process.  Returns NULL on failure.
@@ -719,7 +780,6 @@ static int deletePageDirectory(kernelPageDirectory *directory)
     {
       // Find the parent page directory
       parent = findPageDirectory(directory->parent);
-
       if (parent == NULL)
 	return (status = ERR_NOSUCHENTRY);
 
@@ -734,7 +794,6 @@ static int deletePageDirectory(kernelPageDirectory *directory)
       // Unmap the directory from kernel memory
       status = unmap(kernelPageDir, (void *) directory->virtual,
 		     sizeof(kernelPageDirVirtualMem));
-
       if (status < 0)
 	return (status);
     }
@@ -834,7 +893,7 @@ static int firstPageTable(void)
 
   table->directory = kernelPageDir;
   table->tableNumber = tableNumber;
-  table->freePages = PAGES_PER_TABLE;
+  table->freePages = PAGE_PAGES_PER_TABLE;
 
   table->physical = (kernelPageTablePhysicalMem *) 
     (kernelPagingData + sizeof(kernelPageDirPhysicalMem));
@@ -853,7 +912,7 @@ static int firstPageTable(void)
   // Enable read/write and page-present
   kernelPageDir->physical->table[tableNumber] = (unsigned) table->physical;
   kernelPageDir->physical->table[tableNumber] |=
-    (WRITABLE_BIT | PAGEPRESENT_BIT);
+    (PAGEFLAG_WRITABLE | PAGEFLAG_PRESENT);
 
   return (status = 0);
 }
@@ -911,7 +970,6 @@ static int kernelPaging(unsigned kernelMemory)
   // differently, as opposed to calling createPageDirectory(), since this
   // should not be "mapped" into the current, temporary page directory.
   status = firstPageDirectory();
-
   if (status < 0)
     return (status = ERR_NOTINITIALIZED);
 
@@ -920,7 +978,6 @@ static int kernelPaging(unsigned kernelMemory)
   // this should also not be mapped into the current, temporary page
   // directory.
   status = firstPageTable();
-
   if (status < 0)
     return (status = ERR_NOTINITIALIZED);
 
@@ -938,23 +995,30 @@ static int kernelPaging(unsigned kernelMemory)
   // code needs to assume that the kernel does not cross a 4-Mb boundary.
   
   newPageTable = findPageTable(kernelPageDir, tableNumber);
-
   if (newPageTable == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Map the kernel memory into the existing page directory and page
   // table
-  kernelAddress = (void *) KERNEL_LOAD_ADDRESS;
+  kernelAddress = (void *) KERNEL_VIRTUAL_ADDRESS;
 
-  status = map(kernelPageDir, kernelAddress, &kernelAddress, kernelMemory);
+  // Map the kernel itself at the prescribed virtual address
+  status = map(kernelPageDir, (void *) KERNEL_LOAD_ADDRESS, &kernelAddress,
+	       kernelMemory, PAGE_MAP_EXACT);
+  if (status < 0)
+    return (status);
 
   status = map(kernelPageDir, (void *) kernelPageDir->physical,
 	       (void **) &(kernelPageDir->virtual),
-	       sizeof(kernelPageDirPhysicalMem));
+	       sizeof(kernelPageDirPhysicalMem), PAGE_MAP_ANY);
+  if (status < 0)
+    return (status);
 
   status = map(kernelPageDir, (void *) newPageTable->physical,
 	       (void **) &(newPageTable->virtual),
-	       sizeof(kernelPageTablePhysicalMem));
+	       sizeof(kernelPageTablePhysicalMem), PAGE_MAP_ANY);
+  if (status < 0)
+    return (status);
 
   // Now we should be able to switch the processor to our new page 
   // directory and table(s).
@@ -980,11 +1044,52 @@ static void shareKernelPages(kernelPageDirectory *directory)
 
   // We will do a loop, copying the table entries from the kernel's
   // page directory to the target page directory.
-  for (count = kernelStartingTable; count < TABLES_PER_DIR; count ++)
+  for (count = kernelStartingTable; count < PAGE_TABLES_PER_DIR; count ++)
     directory->virtual->table[count] = kernelPageDir->virtual->table[count];
 
   // Return
   return;
+}
+
+
+static int setPageAttrs(kernelPageDirectory *directory, int set,
+			unsigned char flags, void *virtualAddress, int pages)
+{
+  // This allows the setting/clearing of page attributes
+
+  int status = 0;
+  kernelPageTable *pageTable = NULL;
+  int pageNumber = 0;
+
+  while (pages > 0)
+    {
+      pageTable = findPageTable(directory, getTableNumber(virtualAddress));
+      if (pageTable == NULL)
+	return (status = ERR_NOSUCHENTRY);
+
+      pageNumber = getPageNumber(virtualAddress);
+
+      for ( ; (pages > 0) && (pageNumber < PAGE_PAGES_PER_TABLE);
+	    pageNumber ++)
+	{
+	  if (!pageTable->virtual->page[pageNumber])
+	    {
+	      kernelError(kernel_error, "Virtual address %08x is not mapped",
+			  virtualAddress);
+	      return (status = ERR_NODATA);
+	    }
+
+	  if (set)
+	    pageTable->virtual->page[pageNumber] |= (flags & 0x0FFF);
+	  else
+	    pageTable->virtual->page[pageNumber] &= ~(flags & 0x0FFF);
+
+	  virtualAddress += MEMORY_PAGE_SIZE;
+	  pages -= 1;
+	}
+    }
+
+  return (status = 0);
 }
 
 
@@ -1008,10 +1113,6 @@ int kernelPageManagerInitialize(unsigned kernelMemory)
 
   int status = 0;
   int count;
-
-  // This should only get called once
-  if (initialized)
-    return (status = ERR_ALREADY);
 
   // Clear out the memory we'll use to keep track of all the page 
   // directories and page tables, and set both counters to zero.
@@ -1075,7 +1176,6 @@ void *kernelPageGetDirectory(int processId)
   physicalAddress = (void *) directory->physical;
 
   kernelLockRelease(&(directory->dirLock));
-
   return (physicalAddress);
 }
 
@@ -1218,7 +1318,7 @@ int kernelPageDeleteDirectory(int processId)
   
   // Ok, found it.  We need to walk through all of its page tables,
   // deallocating them as we go.
-  for (count = 0; count < PAGES_PER_TABLE; count ++)
+  for (count = 0; count < PAGE_PAGES_PER_TABLE; count ++)
     {
       table = findPageTable(directory, count);
 
@@ -1241,12 +1341,12 @@ int kernelPageDeleteDirectory(int processId)
 }
 
 
-int kernelPageMapToFree(int processId, void *physicalAddress, 
-			void **virtualAddress, unsigned size)
+int kernelPageMap(int processId, void *physicalAddress, void *virtualAddress,
+		  unsigned size)
 {
   // This is a publicly accessible wrapper function for the map() function.
-  // This one is used to add mapped pages into an address space.  Parameter
-  // checking is done inside the map() function, not here.
+  // It maps physical pages into an address space, at the specified virtual
+  // address.  Parameter checking is done inside the map() function, not here.
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
@@ -1264,10 +1364,41 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
   if (status < 0)
     return (status = ERR_NOLOCK);
   
-  status = map(directory, physicalAddress, virtualAddress, size);
+  status =
+    map(directory, physicalAddress, &virtualAddress, size, PAGE_MAP_EXACT);
 
   kernelLockRelease(&(directory->dirLock));
+  return (status);
+}
 
+
+int kernelPageMapToFree(int processId, void *physicalAddress, 
+			void **virtualAddress, unsigned size)
+{
+  // This is a publicly accessible wrapper function for the map() function.
+  // It maps physical pages into an address space, at the first available
+  // virtual address.  Parameter checking is done inside the map() function,
+  // not here.
+
+  int status = 0;
+  kernelPageDirectory *directory = NULL;
+
+  // Have we been initialized?
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Find the appropriate page directory
+  directory = findPageDirectory(processId);
+  if (directory == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  status = kernelLockGet(&(directory->dirLock));
+  if (status < 0)
+    return (status = ERR_NOLOCK);
+  
+  status = map(directory, physicalAddress, virtualAddress, size, PAGE_MAP_ANY);
+
+  kernelLockRelease(&(directory->dirLock));
   return (status);
 }
 
@@ -1297,7 +1428,6 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
   status = unmap(directory, virtualAddress, size);
 
   kernelLockRelease(&(directory->dirLock));
-
   return (status);
 }
 
@@ -1325,10 +1455,193 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
   if (status < 0)
     return (address = NULL);
   
-  address = (void *) findPageTableEntry(directory, virtualAddress);
+  status = findPageTableEntry(directory, virtualAddress, &address);
 
   kernelLockRelease(&(directory->dirLock));
 
-  return (address);
+  if (status < 0)
+    return (address = NULL);
+  else
+    return (address);
 }
 
+
+void *kernelPageFindFree(int processId, unsigned size)
+{
+  // Simply locate the virtual address of a range of free pages of the
+  // requested size.
+
+  int status = 0;
+  kernelPageDirectory *directory = NULL;
+  int pages = 0;
+  void *address = NULL;
+
+  // Have we been initialized?
+  if (!initialized)
+    return (address = NULL);
+  
+  // Find the appropriate page directory
+  directory = findPageDirectory(processId);
+  if (directory == NULL)
+    return (address = NULL);
+
+  // Calculate the desired number of pages
+  pages = ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE) != 0));
+
+  status = kernelLockGet(&(directory->dirLock));
+  if (status < 0)
+    return (address = NULL);
+
+  status = findFreePages(directory, pages, &address);
+
+  kernelLockRelease(&(directory->dirLock));
+
+  if (status < 0)
+    return (address = NULL);
+  else
+    return (address);
+}
+
+
+int kernelPageSetAttrs(int processId, int set, unsigned char flags,
+		       void *virtualAddress, unsigned size)
+{
+  // This is a wrapper for setPageAttrs() which allows the setting/clearing
+  // of page attributes
+
+  int status = 0;
+  kernelPageDirectory *directory = NULL;
+  int pages = 0;
+
+  // Have we been initialized?
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+  
+  // Find the appropriate page directory
+  directory = findPageDirectory(processId);
+  if (directory == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  // Calculate the number of pages
+  pages = ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE) != 0));
+
+  status = kernelLockGet(&(directory->dirLock));
+  if (status < 0)
+    return (status);
+
+  status = setPageAttrs(directory, set, flags, virtualAddress, pages);
+
+  kernelLockRelease(&(directory->dirLock));
+  return (status);
+}
+
+
+#ifdef PAGE_DEBUG
+void kernelPageTableDebug(int processId)
+{
+  kernelPageDirectory *directory = NULL;
+  int numPages = 0;
+  int numTables = 0;
+  kernelPageTable *pageTable = NULL;
+  void *tableAddress = NULL;
+  void *pageAddress = NULL;
+  void *pagePhysical = NULL;
+  void *rangeStart = (void *) -1;
+  void *rangePhysicalStart = 0;
+  unsigned rangeSize = 0;
+  memoryStats stats;
+  memoryBlock *blocksArray = NULL;
+  int count, tableCount, pageCount;
+
+  // Have we been initialized?
+  if (!initialized)
+    return;
+  
+  // Find the appropriate page directory
+  directory = findPageDirectory(processId);
+  if (directory == NULL)
+    {
+      kernelError(kernel_error, "Page directory %d not found", processId);
+      return;
+    }
+  
+  numPages = (KERNEL_VIRTUAL_ADDRESS / MEMORY_PAGE_SIZE);
+  numTables = (numPages / PAGE_TABLES_PER_DIR);
+
+  kernelTextPrintLine("Directory %d:\nvirtStart->virtEnd = physStart->physEnd "
+		      "(size)\n----------------", processId);
+  rangeStart = (void *) -1;
+
+  for (tableCount = 0; tableCount < numTables; tableCount ++)
+    {
+      pageTable = findPageTable(directory, tableCount);
+      if (pageTable)
+	{
+	  tableAddress = (void *) 
+	    (tableCount * PAGE_PAGES_PER_TABLE * MEMORY_PAGE_SIZE);
+
+	  for (pageCount = 0; pageCount < PAGE_PAGES_PER_TABLE; pageCount ++)
+	    {
+	      pageAddress = (tableAddress + (pageCount * MEMORY_PAGE_SIZE));
+
+	      if (pageTable->virtual->page[pageCount])
+		{
+		  pagePhysical = (void *)
+		    (pageTable->virtual->page[pageCount] & 0xFFFFF000);
+
+		  if (rangeStart == (void *) -1)
+		    {
+		      rangeStart = pageAddress;
+		      rangePhysicalStart = pagePhysical;
+		    }
+		  else if (pageCount &&
+			   ((void *)(pageTable->virtual->page[pageCount - 1] &
+			     0xFFFFF000) != (pagePhysical - MEMORY_PAGE_SIZE)))
+		    {
+		      rangeSize = (pageAddress - rangeStart);
+		      kernelTextPrintLine("%08x->%08x = %08x->%08x (%08x)",
+					  rangeStart, (pageAddress - 1),
+					  rangePhysicalStart,
+					  (rangePhysicalStart + rangeSize - 1),
+					  rangeSize);
+		      rangeStart = pageAddress;
+		      rangePhysicalStart = pagePhysical;
+		    }
+		}
+
+	      else if (rangeStart != (void *) -1)
+		{
+		  rangeSize = (pageAddress - rangeStart);
+		  kernelTextPrintLine("%08x->%08x = %08x->%08x (%08x)",
+				      rangeStart, (pageAddress - 1),
+				      rangePhysicalStart,
+				      (rangePhysicalStart + rangeSize - 1),
+				      rangeSize);
+		  rangeStart = (void *) -1;
+		}
+	    }
+	}
+    }
+
+  kernelTextPrintLine("----------------\nPhysical blocks:");
+
+  kernelMemoryGetStats(&stats, 0);
+  blocksArray = kernelMemoryGet((stats.usedBlocks * sizeof(memoryBlock)),
+				"memory block list");
+  kernelMemoryGetBlocks(blocksArray,
+			(stats.usedBlocks * sizeof(memoryBlock)), 0);
+  for (count = 0; count < (int) stats.usedBlocks; count ++)
+    if (blocksArray[count].processId == processId)
+      kernelTextPrintLine("proc=%d %08x->%08x (size %08x) %s",
+			  blocksArray[count].processId,
+			  blocksArray[count].startLocation,
+			  blocksArray[count].endLocation,
+			  (blocksArray[count].endLocation - 
+			   blocksArray[count].startLocation + 1),
+			  blocksArray[count].description);
+  kernelMemoryRelease(blocksArray);
+  kernelTextPrintLine("---------------- ...done");
+
+  return;
+}
+#endif // PAGE_DEBUG

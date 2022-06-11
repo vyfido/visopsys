@@ -26,9 +26,9 @@
 #include "kernelStream.h"
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
+#include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
-#include <sys/errors.h>
 
 
 static int clear(stream *theStream)

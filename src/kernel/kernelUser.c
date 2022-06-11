@@ -25,50 +25,64 @@
 #include "kernelFile.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
+#include "kernelVariableList.h"
 #include "kernelMiscFunctions.h"
 #include "kernelEncrypt.h"
 #include "kernelMemoryManager.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
-#include <sys/errors.h>
 
-static variableList *userList = NULL;
+static variableList *systemUserList = NULL;
 static kernelUser currentUser;
 static int initialized = 0;
 
 
-static void readPasswordFile(void)
+static variableList *readPasswordFile(const char *fileName)
 {
   // Open and read the password file
 
   int status = 0;
   file tmpFile;
   variableList *tmpUserList = NULL;
+  variableList *userList = NULL;
   unsigned count;
 
-  // Check whether the password file exists
-  status = kernelFileFind(USER_PASSWORDFILE, &tmpFile);
-  if (status < 0)
+  if (!strcmp(fileName, USER_PASSWORDFILE))
     {
-      // Try to use the blank one instead
-      status = kernelFileFind(USER_PASSWORDFILE ".blank", &tmpFile);
-      if (status >= 0)
+      // Check whether the password file exists
+      status = kernelFileFind(fileName, &tmpFile);
+      if (status < 0)
 	{
-	  tmpUserList = kernelConfigurationReader(USER_PASSWORDFILE ".blank");
+	  // Try to use the blank one instead
+	  status = kernelFileFind(USER_PASSWORDFILE ".blank", &tmpFile);
+	  if (status >= 0)
+	    {
+	      tmpUserList =
+		kernelConfigurationReader(USER_PASSWORDFILE ".blank");
 
-	  if(!kernelFilesystemGet("/")->readOnly)
-	    // Try to make a copy for next time
-	    kernelFileCopy(USER_PASSWORDFILE ".blank", USER_PASSWORDFILE);
+	      if(!kernelFilesystemGet("/")->readOnly)
+		// Try to make a copy for next time
+		kernelFileCopy(USER_PASSWORDFILE ".blank", fileName);
+	    }
 	}
+      else
+	tmpUserList = kernelConfigurationReader(fileName);
+
+      if (tmpUserList == NULL)
+	// The password file doesn't exist, and neither does the blank one.
+	// Create a blank variable list.
+	tmpUserList = kernelVariableListCreate(1, 1, "password data");
     }
   else
-    tmpUserList = kernelConfigurationReader(USER_PASSWORDFILE);
-
-  if (tmpUserList == NULL)
-    // The password file doesn't exist, and neither does the blank one.
-    // Create a blank variable list.
-    tmpUserList = kernelVariableListCreate(1, 1, "password data");
+    {
+      tmpUserList = kernelConfigurationReader(fileName);
+      if (tmpUserList == NULL)
+	{
+	  kernelError(kernel_error, "Password file %s not found", fileName);
+	  return (userList = NULL);
+	}
+    }
 
   // Now create a variable list big enough to hold our maximum number of
   // user entries
@@ -77,7 +91,7 @@ static void readPasswordFile(void)
   if (userList == NULL)
     {
       kernelMemoryRelease(tmpUserList);
-      return;
+      return (userList);
     }
 
   // Now transfer all the data from the temporary list to the permanent one
@@ -86,18 +100,22 @@ static void readPasswordFile(void)
       status = kernelVariableListSet(userList, tmpUserList->variables[count],
 				     tmpUserList->values[count]);
       if (status < 0)
-	break;
+	{
+	  kernelMemoryRelease(tmpUserList);
+	  kernelMemoryRelease(userList);
+	  return (userList = NULL);
+	}
     }
 
   kernelMemoryRelease(tmpUserList);
-  return;
+  return (userList);
 }
 
 
-static int writePasswordFile(void)
+static int writePasswordFile(const char *fileName, variableList *userList)
 {
   // Writes the password data in memory out to the password file
-  return (kernelConfigurationWriter(USER_PASSWORDFILE, userList));
+  return (kernelConfigurationWriter(fileName, userList));
 }
 
 
@@ -134,7 +152,7 @@ static int authenticate(const char *userName, const char *password)
   char testHash[33];
 
   // Get the hash of the real password
-  status = kernelVariableListGet(userList, userName, fileHash, 33);
+  status = kernelVariableListGet(systemUserList, userName, fileHash, 33);
   if (status < 0)
     return (status = 0);
 
@@ -146,6 +164,90 @@ static int authenticate(const char *userName, const char *password)
     return (status = 1);
   else
     return (status = 0);
+}
+
+
+static int addUser(variableList *userList, const char *userName,
+		   const char *password)
+{
+  int status = 0;
+  char hash[33];
+
+  // Check permissions
+  if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+    {
+      kernelError(kernel_error, "Adding a user requires supervisor priviege");
+      return (status = ERR_PERMISSION);
+    }
+
+  // Get the hash value of the supplied password
+  status = hashString(password, hash);
+  if (status < 0)
+    return (status);
+
+  // Add it to the variable list
+  status = kernelVariableListSet(userList, userName, hash);
+  if (status < 0)
+    return (status);
+ 
+  return (status = 0);
+}
+
+
+static int deleteUser(variableList *userList, const char *userName)
+{
+  int status = 0;
+
+  // Check permissions
+  if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+    {
+      kernelError(kernel_error, "Deleting a user requires supervisor "
+		  "priviege");
+      return (status = ERR_PERMISSION);
+    }
+
+  // Don't allow the user to delete the last user.  This is dangerous.
+  if (userList->numVariables == 1)
+    {
+      kernelError(kernel_error, "Can't delete the last user account");
+      return (status = ERR_BOUNDS);
+    }
+
+  status = kernelVariableListUnset(userList, userName);
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
+}
+
+
+static int setPassword(variableList *userList, const char *userName,
+		       const char *oldPass, const char *newPass)
+{
+  int status = 0;
+  char newHash[33];
+
+  if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+    {
+      // Authenticate with the old password
+      if (!authenticate(userName, oldPass))
+	{
+	  kernelError(kernel_error, "Authentication of old password failed");
+	  return (status = ERR_PERMISSION);
+	}
+    }
+
+  // Get the hash value of the new password
+  status = hashString(newPass, newHash);
+  if (status < 0)
+    return (status);
+
+  // Add it to the variable list
+  status = kernelVariableListSet(userList, userName, newHash);
+  if (status < 0)
+    return (status);
+  
+  return (status = 0);
 }
 
 
@@ -168,7 +270,9 @@ int kernelUserInitialize(void)
   kernelMemClear(&currentUser, sizeof(kernelUser));
 
   // Try to read the password file.
-  readPasswordFile();
+  systemUserList = readPasswordFile(USER_PASSWORDFILE);
+  if (systemUserList == NULL)
+    return (status = ERR_NOTINITIALIZED);
 
   initialized = 1;
   return (status = 0);
@@ -194,7 +298,7 @@ int kernelUserAuthenticate(const char *userName, const char *password)
     }
 
   // Check to make sure the user exists
-  status = kernelVariableListGet(userList, userName, tmpHash, 256);
+  status = kernelVariableListGet(systemUserList, userName, tmpHash, 256);
   if (status < 0)
     return (status = ERR_NOSUCHUSER);
 
@@ -307,11 +411,11 @@ int kernelUserGetNames(char *buffer, unsigned bufferSize)
   bufferPointer[0] = '\0';
 
   // Loop through the list, appending names and newlines
-  for (count = 0; ((names < userList->numVariables) &&
+  for (count = 0; ((names < systemUserList->numVariables) &&
 		   (strlen(buffer) < bufferSize)); count ++)
     {
-      strcat(bufferPointer, userList->variables[count]);
-      bufferPointer += (strlen(userList->variables[count]) + 1);
+      strcat(bufferPointer, systemUserList->variables[count]);
+      bufferPointer += (strlen(systemUserList->variables[count]) + 1);
       names++;
     }
 
@@ -321,14 +425,14 @@ int kernelUserGetNames(char *buffer, unsigned bufferSize)
 
 int kernelUserAdd(const char *userName, const char *password)
 {
-  // Add a user to the list, with the associated password
+  // Add a user to the list, with the associated password.  This can only be
+  // done by a privileged user
 
   int status = 0;
-  char hash[33];
 
   // Check initialization
   if (!initialized)
-    return (ERR_NOTINITIALIZED);
+    return (status = ERR_NOTINITIALIZED);
   
   // Check params
   if ((userName == NULL) || (password == NULL))
@@ -337,24 +441,11 @@ int kernelUserAdd(const char *userName, const char *password)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Check permissions
-  if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
-    {
-      kernelError(kernel_error, "Adding a user requires supervisor priviege");
-      return (status = ERR_PERMISSION);
-    }
-
-  // Get the hash value of the supplied password
-  status = hashString(password, hash);
-  if (status < 0)
-    return (status);
-
-  // Add it to the variable list
-  status = kernelVariableListSet(userList, userName, hash);
+  status = addUser(systemUserList, userName, password);
   if (status < 0)
     return (status);
   
-  status = writePasswordFile();
+  status = writePasswordFile(USER_PASSWORDFILE, systemUserList);
   return (status);
 }
 
@@ -368,7 +459,7 @@ int kernelUserDelete(const char *userName)
 
   // Check initialization
   if (!initialized)
-    return (ERR_NOTINITIALIZED);
+    return (status = ERR_NOTINITIALIZED);
   
   // Check params
   if (userName == NULL)
@@ -377,26 +468,11 @@ int kernelUserDelete(const char *userName)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Check permissions
-  if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
-    {
-      kernelError(kernel_error, "Deleting a user requires supervisor "
-		  "priviege");
-      return (status = ERR_PERMISSION);
-    }
-
-  // Don't allow the user to delete the last user.  This is dangerous.
-  if (userList->numVariables == 1)
-    {
-      kernelError(kernel_error, "Can't delete the last user account");
-      return (status = ERR_BOUNDS);
-    }
-
-  status = kernelVariableListUnset(userList, userName);
+  status = deleteUser(systemUserList, userName);
   if (status < 0)
     return (status);
-  
-  status = writePasswordFile();
+
+  status = writePasswordFile(USER_PASSWORDFILE, systemUserList);
   return (status);
 }
 
@@ -405,11 +481,10 @@ int kernelUserSetPassword(const char *userName, const char *oldPass,
 			  const char *newPass)
 {
   int status = 0;
-  char newHash[33];
 
   // Check initialization
   if (!initialized)
-    return (ERR_NOTINITIALIZED);
+    return (status = ERR_NOTINITIALIZED);
   
   // Check params
   if ((userName == NULL) || (oldPass == NULL) || (newPass == NULL))
@@ -418,24 +493,11 @@ int kernelUserSetPassword(const char *userName, const char *oldPass,
       return (status = ERR_NULLPARAMETER);
     }
 
-  if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
-    {
-      // Authenticate with the old password
-      if (!authenticate(userName, oldPass))
-	return (status = ERR_PERMISSION);
-    }
-
-  // Get the hash value of the new password
-  status = hashString(newPass, newHash);
+  status = setPassword(systemUserList, userName, oldPass, newPass);
   if (status < 0)
     return (status);
 
-  // Add it to the variable list
-  status = kernelVariableListSet(userList, userName, newHash);
-  if (status < 0)
-    return (status);
-  
-  status = writePasswordFile();
+  status = writePasswordFile(USER_PASSWORDFILE, systemUserList);
   return (status);
 }
 
@@ -498,4 +560,123 @@ int kernelUserSetPid(const char *userName, int loginPid)
   currentUser.loginPid = loginPid;
 
   return (status = 0);
+}
+
+
+int kernelUserFileAdd(const char *passFile, const char *userName,
+		      const char *password)
+{
+  // Add a user to the designated password file, with the given name and
+  // password.  This can only be done by a privileged user.
+
+  int status = 0;
+  variableList *userList = NULL;
+
+  // Check initialization
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+  
+  // Check params
+  if ((passFile == NULL) || (userName == NULL) || (password == NULL))
+    {
+      kernelError(kernel_error, "Password file, user name, or password is "
+		  "NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Try to read the requested password file
+  userList = readPasswordFile(passFile);
+  if (userList == NULL)
+    return (status = ERR_NOSUCHFILE);
+
+  status = addUser(userList, userName, password);
+  if (status < 0)
+    {
+      kernelMemoryRelease(userList);
+      return (status);
+    }
+
+  status = writePasswordFile(passFile, userList);
+
+  kernelMemoryRelease(userList);
+
+  return (status);
+}
+
+
+int kernelUserFileDelete(const char *passFile, const char *userName)
+{
+  // Remove a user from the designated password file.  This can only be done
+  // by a privileged user
+
+  int status = 0;
+  variableList *userList = NULL;
+
+  // Check initialization
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+  
+  // Check params
+  if ((passFile == NULL) || (userName == NULL))
+    {
+      kernelError(kernel_error, "Password file or user name is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Try to read the requested password file
+  userList = readPasswordFile(passFile);
+  if (userList == NULL)
+    return (status = ERR_NOSUCHFILE);
+
+  status = deleteUser(userList, userName);
+  if (status < 0)
+    {
+      kernelMemoryRelease(userList);
+      return (status);
+    }
+
+  status = writePasswordFile(passFile, userList);
+
+  kernelMemoryRelease(userList);
+
+  return (status);
+}
+
+
+int kernelUserFileSetPassword(const char *passFile, const char *userName,
+			      const char *oldPass, const char *newPass)
+{
+  int status = 0;
+  variableList *userList = NULL;
+
+  // Check initialization
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+  
+  // Check params
+  if ((passFile == NULL) || (userName == NULL) || (oldPass == NULL) ||
+      (newPass == NULL))
+    {
+      kernelError(kernel_error, "Password file, user name, or password is "
+		  "NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Try to read the requested password file
+  userList = readPasswordFile(passFile);
+  if (userList == NULL)
+    return (status = ERR_NOSUCHFILE);
+
+  status = setPassword(userList, userName, oldPass, newPass);
+  if (status < 0)
+    {
+      kernelMemoryRelease(userList);
+      return (status);
+    }
+
+  status = writePasswordFile(passFile, userList);
+
+  kernelMemoryRelease(userList);
+
+  return (status);
 }

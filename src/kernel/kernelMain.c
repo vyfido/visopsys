@@ -33,7 +33,6 @@
 #include "kernelError.h"
 #include <string.h>
 
-
 // This is the global 'errno' error status variable for the kernel
 int errno = 0;
 
@@ -50,7 +49,6 @@ variableList *kernelVariables = NULL;
 
 void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 {
-
   // This is the kernel entry point -- and main routine --
   // which starts the entire show and, of course, never returns.
 
@@ -96,8 +94,8 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 	{
 	  // Try to load the login process
 	  pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR,
-					0,     // no args
-					NULL); // no args
+	   				0,     // no args
+	   				NULL); // no args
 	  if (pid < 0)
 	    // Don't fail, but make a warning message
 	    kernelError(kernel_warn, "Couldn't load start program \"%s\"",

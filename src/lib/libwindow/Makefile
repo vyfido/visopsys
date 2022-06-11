@@ -9,6 +9,7 @@ BUILDDIR=../../../build/system/libraries
 
 CC		= gcc
 AR		= ar
+LD		= ld
 CPU		= $(shell ../../../utils/cpu.sh)
 STDDEPS		= Makefile ../shared/*
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \

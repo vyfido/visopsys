@@ -33,13 +33,13 @@ target-dirs:
 bootsectors: ${BOOTBUILDDIR}/bootsect.fatnoboot ${BOOTBUILDDIR}/bootsect.fat12
 
 #
-# Boot sector files
+# MBRs and Boot sectors
 #
 
-${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
 	${AS} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fat12: bootsect-fat12.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fat12: bootsect-fat12.s bootsect-fatBPB.s ${STDDEPEND}
 	${AS} ${SECTOPTS} $< -o $@
 
 #

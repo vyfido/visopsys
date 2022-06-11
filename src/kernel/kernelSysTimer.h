@@ -46,12 +46,11 @@ int kernelSysTimerDriverInitialize(void);
 // Functions exported by kernelSysTimer.c
 int kernelSysTimerRegisterDevice(kernelSysTimer *);
 int kernelSysTimerInitialize(void);
-void kernelSysTimerTick(void);
 unsigned kernelSysTimerRead(void);
 int kernelSysTimerReadValue(int);
 int kernelSysTimerSetupTimer(int, int, int);
 void kernelSysTimerWaitTicks(int);
-
+void kernelSysTimerTick(void);
 
 #define _KERNELSYSTIMER_H
 #endif

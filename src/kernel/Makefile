@@ -8,11 +8,12 @@
 ##  This file is the Makefile for the Visopsys kernel itself.
 
 BUILDDIR=../../build
+LIBDIR=../../build/system/libraries
 
 CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
-STDDEPS		= *.h ../include/sys/*.h Makefile
+STDDEPS		= *.h ../include/sys/*.h ${LIBDIR}/libc.a Makefile
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
@@ -20,8 +21,7 @@ WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
 		-Werror
 INCLUDE		= -nostdinc -I. -I../include
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
-LIB		= -L../../build/system/libraries/
-LFLAGS		= ${LIB} -nostdlib -nodefaultlibs -nostartfiles -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
+LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
 # kernelMain needs to go first
 NAMES =	kernelMain \
@@ -108,7 +108,7 @@ SYMBOLS = ${BUILDDIR}/system/kernelSymbols.txt
 
 # Targets
 
-all: target-dirs ${KERNEL} ${SYMBOLS} strip
+all: target-dirs ${KERNEL} strip
 
 target-dirs:
 	mkdir -p obj
@@ -116,8 +116,6 @@ target-dirs:
 
 ${KERNEL}: ${OBJS}
 	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lc -o $@
-
-${SYMBOLS}: ${KERNEL}
 	../../utils/kernel-symbols.sh ${KERNEL} ${SYMBOLS}
 
 strip: ${KERNEL}

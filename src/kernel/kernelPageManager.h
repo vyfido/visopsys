@@ -24,14 +24,30 @@
 #include "kernelLock.h"
 
 // Definitions
-#define TABLES_PER_DIR  1024
-#define PAGES_PER_TABLE 1024
+
+// x86 constants
+#define PAGE_TABLES_PER_DIR   1024
+#define PAGE_PAGES_PER_TABLE  1024
+
+// Page entry bitfield values for x86, but we'll make them global.
+#define PAGEFLAG_PRESENT      0x0001
+#define PAGEFLAG_WRITABLE     0x0002
+#define PAGEFLAG_USER         0x0004
+#define PAGEFLAG_WRITETHROUGH 0x0008
+#define PAGEFLAG_CACHEDISABLE 0x0010
+#define PAGEFLAG_GLOBAL       0x0100
+
+// Page mapping schemes
+#define PAGE_MAP_ANY          0x01
+#define PAGE_MAP_EXACT        0x02
+
+//#define PAGE_DEBUG 1
 
 // Data structures
 
 typedef volatile struct 
 {
-  unsigned table[TABLES_PER_DIR];
+  unsigned table[PAGE_TABLES_PER_DIR];
 
 } kernelPageDirPhysicalMem;
 
@@ -39,7 +55,7 @@ typedef kernelPageDirPhysicalMem kernelPageDirVirtualMem;
 
 typedef volatile struct 
 {
-  unsigned page[PAGES_PER_TABLE];
+  unsigned page[PAGE_PAGES_PER_TABLE];
 
 } kernelPageTablePhysicalMem;
 
@@ -67,19 +83,27 @@ typedef volatile struct
 
 } kernelPageTable;
 
+// A little macro for rounding up to the nearest page size
+#define kernelPageRoundSize(size)                                        \
+  ((((size) / MEMORY_PAGE_SIZE) + (((size) % MEMORY_PAGE_SIZE) != 0)) *  \
+   MEMORY_PAGE_SIZE)
+
 // Functions exported by kernelPageManager.c
 int kernelPageManagerInitialize(unsigned);
 void *kernelPageGetDirectory(int);
 void *kernelPageNewDirectory(int, int);
 void *kernelPageShareDirectory(int, int);
 int kernelPageDeleteDirectory(int);
+int kernelPageMap(int, void *, void *, unsigned);
 int kernelPageMapToFree(int, void *, void **, unsigned);
 int kernelPageUnmap(int, void *, unsigned);
 void *kernelPageGetPhysical(int, void *);
+void *kernelPageFindFree(int, unsigned);
+int kernelPageSetAttrs(int, int, unsigned char, void *, unsigned);
 
-// Macros
-#define getTableNumber(address) ((((unsigned) address) >> 22) & 0x000003FF)
-#define getPageNumber(address) ((((unsigned) address) >> 12) & 0x000003FF)
+#ifdef PAGE_DEBUG
+void kernelPageTableDebug(int);
+#endif
 
 #define _KERNELPAGEMANAGER_H
 #endif

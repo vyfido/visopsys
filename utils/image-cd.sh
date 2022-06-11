@@ -10,7 +10,6 @@
 
 echo ""
 echo "Making Visopsys CD-ROM IMAGE file"
-echo ""
 
 # Are we doing a release version?  If the argument is "-r" then we use
 # the release number in the destination directory name.  Otherwise, we
@@ -18,21 +17,20 @@ echo ""
 if [ "$1" == "-r" ] ; then
     # What is the current release version?
     RELEASE=`./release.sh`
-    echo "(doing RELEASE version $RELEASE)"
-    echo ""
+    echo " - doing RELEASE version $RELEASE"
     RELFLAG=-r
 else
     # What is the date?
     RELEASE=`date +%Y-%m-%d`
-    echo "(doing INTERIM version $RELEASE -- use -r flag for RELEASES)"
-    echo ""
-	RELFLAG=
+    echo " - doing INTERIM version $RELEASE (use -r flag for RELEASES)"
 fi
+echo ""
 
 BUILDDIR=../build
+ISOBOOT=-isoboot
 NAME=visopsys-$RELEASE
-FLOPPYZIP=$NAME-img.zip
-FLOPPYIMAGE=$NAME.img
+FLOPPYZIP="$NAME""$ISOBOOT"-img.zip
+FLOPPYIMAGE="$NAME""$ISOBOOT".img
 SOURCEDIR=$NAME-src
 ISOIMAGE=$NAME.iso
 ZIPFILE=$NAME-iso.zip
@@ -42,11 +40,12 @@ rm -Rf $TMPDIR
 mkdir -p $TMPDIR
 
 echo -n "Making/copying floppy image... "
-./image-floppy.sh $RELFLAG >& /dev/null
-if [ $? != 0 ] ; then
+./image-floppy.sh $RELFLAG $ISOBOOT >& /dev/null
+if [ $? -ne 0 ] ; then
     exit $?
 fi
 unzip $FLOPPYZIP >& /dev/null
+rm -f $FLOPPYZIP
 mv $FLOPPYIMAGE $TMPDIR
 echo Done
 
@@ -78,6 +77,7 @@ rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment >& /dev/null
 
 rm -f /tmp/comment
+rm -f $FLOPPYIMAGE
 rm -f $ISOIMAGE
 rm -Rf $TMPDIR
 

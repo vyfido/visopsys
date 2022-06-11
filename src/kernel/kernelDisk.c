@@ -26,14 +26,12 @@
 #include "kernelParameters.h"
 #include "kernelFilesystem.h"
 #include "kernelMalloc.h"
-#include "kernelPageManager.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
 #include "kernelMiscFunctions.h"
 #include "kernelSysTimer.h"
 #include "kernelLog.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -672,7 +670,7 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // If it's a fixed disk, we don't turn the motor off, for now
-  if (physicalDisk->fixedRemovable == fixed)
+  if (physicalDisk->flags & DISKFLAG_FIXED)
     return (status = 0);
 
   // Make sure the motor isn't already off
@@ -733,7 +731,7 @@ static void diskd(void)
 
 	  // If the disk is a floppy and has been idle for >= 2 seconds,
 	  // turn off the motor.
-	  if ((physicalDisk->type == floppy) &&
+	  if ((physicalDisk->flags & DISKFLAG_FLOPPY) &&
 	      (currentTime > (physicalDisk->idleSince + 40)))
 	    motorOff(physicalDisk);
 	}
@@ -953,6 +951,65 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
 }
 
 
+static kernelPhysicalDisk *getPhysicalByName(const char *name)
+{
+  // This routine takes the name of a physical disk and finds it in the
+  // array, returning a pointer to the disk.  If the disk doesn't exist,
+  // the function returns NULL
+
+  kernelPhysicalDisk *physicalDisk = NULL;
+  int count;
+
+  if (!initialized)
+    return (physicalDisk = NULL);
+
+  // Check params
+  if (name == NULL)
+    {
+      kernelError(kernel_error, "Disk name is NULL");
+      return (physicalDisk = NULL);
+    }
+
+  for (count = 0; count < physicalDiskCounter; count ++)
+    if (!strcmp(name, (char *) physicalDisks[count]->name))
+      {
+	physicalDisk = physicalDisks[count];
+	break;
+      }
+
+  return (physicalDisk);
+}
+
+
+static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
+{
+  // Takes our physical disk kernel structure and turns it into a user space
+  // 'disk' object
+
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if ((physicalDisk == NULL) || (userDisk == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  strncpy(userDisk->name, (char *) physicalDisk->name, DISK_MAX_NAMELENGTH);
+  userDisk->deviceNumber = physicalDisk->deviceNumber;
+  userDisk->flags = physicalDisk->flags;
+  userDisk->readOnly = physicalDisk->readOnly;
+  userDisk->heads = physicalDisk->heads;
+  userDisk->cylinders = physicalDisk->cylinders;
+  userDisk->sectorsPerCylinder = physicalDisk->sectorsPerCylinder;
+  userDisk->startSector = 0;
+  userDisk->numSectors = physicalDisk->numSectors;
+  userDisk->sectorSize = physicalDisk->sectorSize;
+
+  return (status = 0);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -1007,7 +1064,7 @@ int kernelDiskRegisterDevice(kernelPhysicalDisk *physicalDisk)
     }
   
   // If it's a floppy, make sure the motor is off
-  if (physicalDisk->type == floppy)
+  if (physicalDisk->flags & DISKFLAG_FLOPPY)
     motorOff(physicalDisk);
 
   // Reset the 'idle since' and 'last sync' values
@@ -1054,14 +1111,15 @@ int kernelDiskReadPartitions(void)
       partType.code = 0;
       strcpy((char *) partType.description, physicalDisk->description);
 
-      // If this is a not a hard disk, make the logical disk be the same as
-      // the physical disk
-      if ((physicalDisk->type == idedisk) || (physicalDisk->type == scsidisk))
+      // If this is a hard disk, get the logical disks from reading the
+      // partitions.
+      if (physicalDisk->flags & DISKFLAG_HARDDISK)
 	{
 	  // It's a hard disk.  We need to read the partition table
 
 	  // Initialize the sector buffer
 	  kernelMemClear(sectBuf, 512);
+	  extendedStartSector = 0;
       
 	  // Read the first sector of the disk
 	  status =
@@ -1118,14 +1176,17 @@ int kernelDiskReadPartitions(void)
 				  *((unsigned *)(partitionRecord + 0x08)));
 		      logicalDisk->numSectors =
 			*((unsigned *)(partitionRecord + 0x0C));
+		      if (!extendedStartSector)
+			logicalDisk->primary = 1;
 
 		      logicalDisks[logicalDiskCounter++] = logicalDisk;
 		      
 		      // See if we can determine the filesystem type
 		      kernelFilesystemScan(logicalDisk);
 
-		      kernelLog("Disk %s (hard disk %d, partition %d): %s",
+		      kernelLog("Disk %s (hard disk %d, %s partition %d): %s",
 				logicalDisk->name, count,
+				(logicalDisk->primary? "primary" : "logical"),
 				physicalDisk->numLogical, logicalDisk->fsType);
 
 		      physicalDisk->numLogical++;
@@ -1411,7 +1472,7 @@ int kernelDiskShutdown(void)
     {
       physicalDisk = physicalDisks[count];
 
-      if ((physicalDisk->fixedRemovable == removable) &&
+      if ((physicalDisk->flags & DISKFLAG_REMOVABLE) &&
 	  physicalDisk->motorState)
 	motorOff(physicalDisk);
     }
@@ -1459,6 +1520,94 @@ int kernelDiskGetPhysicalCount(void)
     return (ERR_NOTINITIALIZED);
 
   return (physicalDiskCounter);
+}
+
+
+int kernelDiskGet(const char *diskName, disk *userDisk)
+{
+  // Given a disk name, return the corresponding user space disk structure
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+  kernelDisk *logicalDisk = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if ((diskName == NULL) || (userDisk == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  // Find the disk structure.
+
+  // Try for a physical disk first.
+  if ((physicalDisk = getPhysicalByName(diskName)))
+    return(diskFromPhysical(physicalDisk, userDisk));
+
+  // Try logical instead
+  else if ((logicalDisk = kernelGetDiskByName(diskName)))
+    return(kernelDiskFromLogical(logicalDisk, userDisk));
+
+  else
+    // No such disk.
+    return (status = ERR_NOSUCHENTRY);
+    
+
+  return (status = 0);
+}
+
+
+int kernelDiskGetAll(disk *userDiskArray, unsigned buffSize)
+{
+  // Return user space disk structures for each logical disk, up to
+  // buffSize bytes
+
+  int status = 0;
+  unsigned doDisks = logicalDiskCounter;
+  unsigned count;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (userDiskArray == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  if ((buffSize / sizeof(disk)) < doDisks)
+    doDisks = (buffSize / sizeof(disk));
+
+  // Loop through the disks, filling the array supplied
+  for (count = 0; count < doDisks; count ++)
+    kernelDiskFromLogical(logicalDisks[count], &userDiskArray[count]);
+
+  return (status = 0);
+}
+
+
+int kernelDiskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
+{
+  // Return user space disk structures for each physical disk, up to
+  // buffSize bytes
+
+  int status = 0;
+  unsigned doDisks = physicalDiskCounter;
+  unsigned count;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (userDiskArray == NULL)
+    return (status = ERR_NULLPARAMETER);
+ 
+  if ((buffSize / sizeof(disk)) < doDisks)
+    doDisks = (buffSize / sizeof(disk));
+ 
+  // Loop through the physical disks, filling the array supplied
+  for (count = 0; count < doDisks; count ++)
+    diskFromPhysical(physicalDisks[count], &userDiskArray[count]);
+
+   return (status = 0);
 }
 
 
@@ -1535,8 +1684,7 @@ int kernelDiskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
 
   strncpy(userDisk->name, (char *) physicalDisk->name, DISK_MAX_NAMELENGTH);
   userDisk->deviceNumber = physicalDisk->deviceNumber;
-  userDisk->type = physicalDisk->type;
-  userDisk->fixedRemovable = physicalDisk->fixedRemovable;
+  userDisk->flags = physicalDisk->flags;
   userDisk->readOnly = physicalDisk->readOnly;
   userDisk->heads = physicalDisk->heads;
   userDisk->cylinders = physicalDisk->cylinders;
@@ -1735,7 +1883,7 @@ int kernelDiskSetDoorState(const char *diskName, int state)
     return (status = ERR_NOSUCHENTRY);
 
   // Make sure it's a removable disk
-  if (physicalDisk->fixedRemovable != removable)
+  if (physicalDisk->flags & DISKFLAG_FIXED)
     {
       kernelError(kernel_error, "Cannot open/close a non-removable disk");
       return (status = ERR_INVALID);

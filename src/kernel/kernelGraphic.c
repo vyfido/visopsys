@@ -30,7 +30,6 @@
 #include "kernelMemoryManager.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

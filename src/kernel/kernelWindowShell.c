@@ -29,10 +29,10 @@
 #include "kernelMiscFunctions.h"
 #include "kernelLoader.h"
 #include "kernelWindowEventStream.h"
+#include "kernelLog.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
-#include <sys/errors.h>
 
 typedef struct {
   kernelWindowComponent *itemComponent;
@@ -295,8 +295,11 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
       status = kernelImageLoadBmp(propertyValue, &tmpImage);
 
       if (status == 0)
-	// Put the background image into our window.
-	kernelWindowSetBackgroundImage(rootWindow, &tmpImage);
+	{
+	  // Put the background image into our window.
+	  kernelWindowSetBackgroundImage(rootWindow, &tmpImage);
+	  kernelLog("Background image loaded");
+	}
       else
 	kernelError(kernel_error, "Error loading background image %s",
 		    propertyValue);
@@ -409,6 +412,8 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 		(numberMenuItems * sizeof(windowMenuItem)));
   kernelFree(tmpMenuItems);
 
+  kernelLog("Task menu initialized");
+
   // Try to load icons
 
   // These parameters are the same for all icons
@@ -470,6 +475,8 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 
   // Snap the icons to a grid
   kernelWindowSnapIcons(rootWindow);
+
+  kernelLog("Desktop icons loaded");
 
   // Done.  We don't set it visible for now.
   return (rootWindow);

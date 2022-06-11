@@ -43,7 +43,7 @@
 	GLOBAL SECPERTRACK
 	GLOBAL HEADS
 	GLOBAL SECPERCLUST
-	GLOBAL FATS
+	GLOBAL ROOTDIRCLUST
 	GLOBAL DRIVENUMBER
 	GLOBAL FATALERROR
 	GLOBAL PRINTINFO
@@ -338,8 +338,6 @@ fatalErrorCheck:
 	mov AX, 0000h
 	int 16h
 
-	;; This routine handles the interrupt 9 key pressed event
-	;; All we want to do is restart the machine
 	mov SI, REBOOTING
 	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
@@ -1072,7 +1070,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.53' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.54' , 0
 LOADMSG2	db 'Copyright (C) 1998-2005 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0

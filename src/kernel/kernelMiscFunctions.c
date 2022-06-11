@@ -30,7 +30,6 @@
 #include "kernelLog.h"
 #include "kernelFile.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -414,11 +413,7 @@ int kernelReadSymbols(const char *filename)
   // Try to read the supplied file name
   tmpList = kernelConfigurationReader(filename);
   if (tmpList == NULL)
-    {
-      kernelError(kernel_warn, "Unable to read kernel symbols from \"%s\"",
-		  filename);
-      return (status = ERR_IO);
-    }
+    return (status = ERR_IO);
 
   if (tmpList->numVariables == 0)
     // No symbols were properly read

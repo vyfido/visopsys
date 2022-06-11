@@ -30,8 +30,6 @@
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
-#include <sys/errors.h>
-
 
 static kernelFilesystemDriver defaultIsoDriver = {
   Iso,   // FS type

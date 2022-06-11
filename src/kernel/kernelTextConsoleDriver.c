@@ -26,6 +26,8 @@
 #include "kernelDriverManagement.h"
 #include "kernelProcessorX86.h"
 #include "kernelMiscFunctions.h"
+#include "kernelMalloc.h"
+#include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -344,6 +346,43 @@ static int clearScreen(kernelTextArea *area)
 }
 
 
+static int saveScreen(kernelTextArea *area)
+{
+  // This routine saves the current contents of the screen
+
+  // Get memory for a new save area
+  area->savedScreen = kernelMalloc(area->columns * area->rows * 2);
+  if (area->savedScreen == NULL)
+    return (ERR_MEMORY);
+
+  kernelMemCopy(firstVisible(area), area->savedScreen,
+		(area->rows * area->columns * 2));
+
+  area->savedCursorColumn = area->cursorColumn;
+  area->savedCursorRow = area->cursorRow;
+
+  return (0);
+}
+
+
+static int restoreScreen(kernelTextArea *area)
+{
+  // This routine restores the saved contents of the screen
+
+  kernelMemCopy(area->savedScreen, firstVisible(area), 
+		(area->rows * area->columns * 2));
+
+  // Copy to the visible area
+  kernelMemCopy(area->savedScreen, area->visibleData, 
+		(area->rows * area->columns * 2));
+
+  area->cursorColumn = area->savedCursorColumn;
+  area->cursorRow = area->savedCursorRow;
+  
+  return (0);
+}
+
+
 // Our kernelTextOutputDriver structure
 static kernelTextOutputDriver textModeDriver = {
   kernelTextConsoleInitialize,
@@ -358,7 +397,8 @@ static kernelTextOutputDriver textModeDriver = {
   delete,
   drawScreen,
   clearScreen,
-  NULL // refresh
+  saveScreen,
+  restoreScreen
 };
 
 

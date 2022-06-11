@@ -30,7 +30,7 @@
 #include <sys/api.h>
 
 
-static int numDigits(int foo, int base)
+static int numDigits(unsigned foo, unsigned base)
 {
   int digits = 1;
   while (foo >= base)
@@ -121,7 +121,7 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	  // into the destination string
           if (fieldWidth)
             {
-              digits = numDigits((int) argument, 10);
+              digits = numDigits((unsigned) argument, 10);
               while (digits++ < fieldWidth)
                 output[outCount++] = (zeroPad? '0' : ' ');
             }
@@ -134,7 +134,7 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	  // the integer into the destination string
 	  if (fieldWidth)
 	    {
-	      digits = numDigits((int) argument, 10);
+	      digits = numDigits((unsigned) argument, 10);
 	      while (digits++ < fieldWidth)
 		output[outCount++] = (zeroPad? '0' : ' ');
 	    }
@@ -167,7 +167,7 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	case 'X':
 	  if (fieldWidth)
 	    {
-	      digits = numDigits((int) argument, 16);
+	      digits = numDigits((unsigned) argument, 16);
 	      while (digits++ < fieldWidth)
 		output[outCount++] = (zeroPad? '0' : ' ');
 	    }

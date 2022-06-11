@@ -36,8 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/errors.h>
-
 
 static kernelFilesystemDriver defaultFatDriver = {
   Fat,   // FS type
@@ -3606,7 +3604,7 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   fatData.totalSectors = theDisk->numSectors;
   fatData.sectorsPerCluster = 1;
 
-  if (physicalDisk->fixedRemovable == fixed)
+  if (physicalDisk->flags & DISKFLAG_FIXED)
     fatData.mediaType = 0xF8;
   else
     fatData.mediaType = 0xF0;
@@ -3617,7 +3615,8 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
     fatData.fsType = fat16;
   else if (!strncmp(type, "fat32", 5))
     fatData.fsType = fat32;
-  else if ((physicalDisk->type == floppy) || (fatData.totalSectors < 8400))
+  else if ((physicalDisk->flags & DISKFLAG_FLOPPY) ||
+	   (fatData.totalSectors < 8400))
     fatData.fsType = fat12;
   else if (fatData.totalSectors < 66600)
     fatData.fsType = fat16;
@@ -3680,7 +3679,7 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
       strcpy((char *) fatData.fsSignature, "FAT32   ");
     }
 
-  if (physicalDisk->type == floppy)
+  if (physicalDisk->flags & DISKFLAG_FLOPPY)
     {
       fatData.rootDirSectors = 14;
       fatData.fatSectors = 9;
@@ -3719,7 +3718,7 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
 
   fatData.driveNumber =
     ((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;
-  if (physicalDisk->fixedRemovable == fixed)
+  if (physicalDisk->flags & DISKFLAG_FIXED)
     fatData.driveNumber |= 0x80;
 
   fatData.bootSignature = 0x29;  // Means volume id, label, etc., valid
@@ -3837,12 +3836,26 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
     *((short *) sectorBuff) = 0x3CEB;  // JMP inst
     sectorBuff[2] = 0x90;              // No op
 
+    // Main boot sector
     status = kernelDiskWriteSectors((char *) theDisk->name, 0, 1, sectorBuff);
     if (status < 0)
       {
 	kernelError(kernel_error, "Error re-writing boot sector");
 	kernelFree(sectorBuff);
 	return (status);
+      }
+
+    if (fatData.fsType == fat32)
+      {
+	// Backup boot sector
+	status = kernelDiskWriteSectors((char *) theDisk->name,
+					fatData.backupBootF32, 1, sectorBuff);
+	if (status < 0)
+	  {
+	    kernelError(kernel_error, "Error writing backup boot sector");
+	    kernelFree(sectorBuff);
+	    return (status);
+	  }
       }
   }
 

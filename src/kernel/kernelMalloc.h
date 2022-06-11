@@ -38,9 +38,9 @@ typedef volatile struct
 } kernelMallocBlock;
 
 // Functions from kernelMalloc.c
-#define kernelMalloc(size) _kernelMalloc(__FUNCTION__, size);
+#define kernelMalloc(size) _kernelMalloc(__FUNCTION__, size)
 void *_kernelMalloc(const char *, unsigned);
-#define kernelFree(ptr) _kernelFree(__FUNCTION__, ptr);
+#define kernelFree(ptr) _kernelFree(__FUNCTION__, ptr)
 int _kernelFree(const char *, void *);
 int kernelMallocGetStats(memoryStats *);
 int kernelMallocGetBlocks(memoryBlock *, int);

@@ -43,6 +43,68 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.54<br>
+</font>22/03/2005</p>
+<p><font size="4">Overview: This is a maintenance release, with numerous small 
+improvements and bug fixes including some general back-porting from the 0.6 
+development branch.&nbsp; In addition, IDE disk-to-disk operations have been 
+improved so that they can happen in parallel, the kernel hardware drivers' 
+interrupt handing has been given a new interface, and there is some improved 
+efficiency in a performance-critical section of the multitasker.</font></p>
+<ul>
+  <li><font size="4">Updated the IDE disk controller locking, so that each now 
+  have their own locks; thus I/O can be done in parallel between disks on 
+  different controllers.</font></li>
+  <li><font size="4">Back-ported large numbers small changes and improvements 
+  from the 0.6 development branch.</font></li>
+  <li><font size="4">Cleaned up the kernelInterrupt code, got rid of all the 
+  'default' handlers, added an interface for getting/hooking the vectors, and 
+  changed all the built-in drivers to use the interface. All interrupts are now 
+  initially masked off, and the hardware driver code for each kind of device has 
+  to turn them on after hooking the handler.</font></li>
+  <li><font size="4">The bootable floppy image for the ISO distribution now 
+  contains only the OS loader and the kernel, because only these are used. This 
+  shrinks the (zipped) ISO image size.</font></li>
+  <li><font size="4">The calculation of CPU percentage in the multitasker's 
+  scheduler is now done more efficiently, inside the loop that evaluates the 
+  process queue.</font></li>
+  <li><font size="4">Added text 'save screen' and 'restore screen' functions for 
+  use by programs such as 'fdisk' and 'install' which clear the screen.</font></li>
+  <li><font size="4">Added convenience functions to the kernelUser code for 
+  working with arbitrary password files, so that for example the installer can 
+  set up the destination password file without doing it all manually.</font></li>
+  <li><font size="4">Added kernelDiskGet() (single logical or physical), 
+  kernelDiskGetAll(), and kernelDiskGetAllPhysical() functions.</font></li>
+  <li><font size="4">The kernel's page manager now includes a method for setting 
+  flags on pages (such as writable, present, cache disable, etc), and a function 
+  that allows memory to be mapped at a particular address.</font></li>
+  <li><font size="4">Created a user-space 'process image' structure that can 
+  describe details such as memory page mapping, virtual addresses, entry points, 
+  arguments, and so on.</font></li>
+  <li><font size="4">kernelError.h now contains the include for &lt;sys/errors.h&gt;</font></li>
+  <li><font size="4">Fixed: Copying a big file such as an .iso image could fail 
+  because the copy code tried to allocate enough memory for the whole file. Now 
+  it allocates as much as possible and does multiple reads/writes</font></li>
+  <li><font size="4">Fixed: Typing and using the mouse at the same time was 
+  causing funny things to go on. The interrupt handlers for the two devices 
+  needed to be better synchronized.</font></li>
+  <li><font size="4">Fixed: When dragging an icon, one pixel-width of the icon 
+  title wasn't being erased properly.</font></li>
+  <li><font size="4">Fixed: The FAT12 boot sector source code shipped with 
+  version 0.53 didn't work for floppy disks</font></li>
+  <li><font size="4">Fixed: In the libc's _xpndfmt.c function (used by printf, 
+  sprintf, etc), the numDigits() function was returning the wrong value for 
+  large signed numbers, resulting in double-width numbers for format strings 
+  such as %08x.</font></li>
+  <li><font size="4">Fixed: The graphics mode text driver was not recognizing 
+  'longest lines' if the cursor had been moved around using the textSetRow 
+  function.</font></li>
+  <li><font size="4">Fixed: Doing a second kernel make without changing anything 
+  resulted in an empty kernelSymbols.txt file, since the previous make stripped 
+  the kernel.</font></li>
+</ul>
+<font SIZE="2"><hr></font>
+
 <p><font size="4">VERSION 0.53<br>
 </font>01/02/2005</p>
 <p><font size="4">Overview: This is a maintenance release, with numerous small 
@@ -1032,7 +1094,7 @@ abstraction layer initialization</font></li>
     Andrew McLaughlin<br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    January 14, 2005</font></p>
+    March 22, 2005</font></p>
   </blockquote>
 </blockquote>
 

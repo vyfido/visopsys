@@ -22,14 +22,15 @@
 // Driver for standard ATA/ATAPI/IDE disks
 
 #include "kernelIdeDriver.h"
+#include "kernelDisk.h"
+#include "kernelInterrupt.h"
+#include "kernelPic.h"
+#include "kernelProcessorX86.h"
+#include "kernelSysTimer.h"
 #include "kernelDriverManagement.h"
 #include "kernelParameters.h"
-#include "kernelProcessorX86.h"
-#include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
-#include "kernelLock.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 
 // List of IDE ports, per device number
 static idePorts ports[] = {
@@ -57,23 +58,8 @@ static char *errorMessages[] = {
   "Command timed out"
 };
 
-static kernelPhysicalDisk *disks[MAXHARDDISKS];
-
-static volatile int controllerLock = 0;
-static volatile int interruptReceived = 0;
-
-static kernelDiskDriver defaultIdeDriver = {
-  kernelIdeDriverDetect,
-  kernelIdeDriverRegisterDevice,
-  kernelIdeDriverReset,
-  kernelIdeDriverRecalibrate,
-  NULL, // driverSetMotorState
-  kernelIdeDriverSetLockState,
-  kernelIdeDriverSetDoorState,
-  NULL, // driverDiskChanged
-  kernelIdeDriverReadSectors,
-  kernelIdeDriverWriteSectors,
-};
+static ideController controllers[MAX_IDE_DISKS / 2];
+static kernelPhysicalDisk *disks[MAX_IDE_DISKS];
 
 
 static int selectDrive(int driveNum)
@@ -214,7 +200,7 @@ static int waitOperationComplete(int driveNum)
   unsigned char data = 0;
   unsigned startTime = kernelSysTimerRead();
   
-  while (!interruptReceived)
+  while (!controllers[driveNum / 2].interruptReceived)
     {
       // Yield the rest of this timeslice if we are in multitasking mode
       //kernelMultitaskerYield();
@@ -231,9 +217,9 @@ static int waitOperationComplete(int driveNum)
 
   else
     {
-      if (interruptReceived)
+      if (controllers[driveNum / 2].interruptReceived)
 	{
-	  interruptReceived = 0;
+	  controllers[driveNum / 2].interruptReceived = 0;
 	  return (status = 0);
 	}
       else
@@ -431,7 +417,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
     }
   
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
     return (status);
   
@@ -439,7 +425,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   selectDrive(driveNum);
 
   // If it's an ATAPI device
-  if (disks[driveNum]->type == idecdrom)
+  if (disks[driveNum]->flags & DISKFLAG_IDECDROM)
     {
       // If it's not started, we start it
       if (!disks[driveNum]->motorState)
@@ -447,7 +433,8 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	  status = atapiStartStop(driveNum, 1);
 	  if (status < 0)
 	    {
-	      kernelLockRelease((void *) &controllerLock);
+	      kernelLockRelease((void *)
+				&(controllers[driveNum / 2].controllerLock));
 	      return (status);
 	    }
 	}
@@ -467,7 +454,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	    0, 0 } ));
       if (status < 0)
 	{
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	  return (status);
 	}
 
@@ -482,7 +469,8 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 		{
 		  kernelError(kernel_error,
 			      errorMessages[evaluateError(driveNum)]);
-		  kernelLockRelease((void *) &controllerLock);
+		  kernelLockRelease(&(controllers[driveNum / 2]
+				      .controllerLock));
 		  return (status);
 		}
 	    }
@@ -512,7 +500,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	    }
 	}
 
-      kernelLockRelease((void *) &controllerLock);
+      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
       return (status = 0);
     }
       
@@ -527,7 +515,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
       if (status < 0)
 	{
 	  kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	  return (status);
 	}
       
@@ -546,14 +534,14 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
       kernelProcessorOutPort8(ports[driveNum].sectorCount, data);
       
       // Clear the "interrupt received" byte
-      interruptReceived = 0;
+      controllers[driveNum / 2].interruptReceived = 0;
       
       // Wait for the selected drive to be ready
       status = pollStatus(driveNum, IDE_DRV_RDY, 1);
       if (status < 0)
 	{
 	  kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	  return (status);
 	}
       
@@ -586,7 +574,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 			  disks[driveNum]->name, (read? "read" : "write"),
 			  numSectors, logicalSector,
 			  errorMessages[evaluateError(driveNum)]);
-	      kernelLockRelease((void *) &controllerLock);
+	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	      return (status);
 	    }
 	  
@@ -604,7 +592,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   // We are finished.  The data should be transferred.
   
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
   
   return (status = 0);
 }
@@ -642,8 +630,8 @@ static int reset(int driveNum)
 
   // If either the slave or the master on this controller is an ATAPI device,
   // delay
-  if ((disks[master] && (disks[master]->type == idecdrom)) ||
-      (disks[slave] && (disks[slave]->type == idecdrom)))
+  if ((disks[master] && (disks[master]->flags & DISKFLAG_IDECDROM)) ||
+      (disks[slave] && (disks[slave]->flags & DISKFLAG_IDECDROM)))
     atapiDelay();
 
   // Wait for controller ready
@@ -774,7 +762,7 @@ static int atapiSetDoorState(int driveNum, int open)
 	  status = atapiStartStop(driveNum, 0);
 	  if (status < 0)
 	    {
-	      kernelLockRelease((void *) &controllerLock);
+	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	      return (status);
 	    }
 	}
@@ -791,31 +779,58 @@ static int atapiSetDoorState(int driveNum, int open)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelIdeDriverInitialize(void)
+static void primaryIdeInterrupt(void)
 {
-  // This initializes the driver and returns success.
-  
-  int status = 0;
-  
-  // Clear the "interrupt received" byte
-  interruptReceived = 0;
-  
-  status = kernelDriverRegister(ideDriver, &defaultIdeDriver);
-  
-  return (status);
+  // This is the IDE interrupt handler for the primary controller.  It will
+  // be called whenever the disk controller issues its service interrupt,
+  // and will simply change a data value to indicate that one has been
+  // received.  It's up to the other routines to do something useful with
+  // the information.
+
+  kernelProcessorIsrEnter();
+  kernelProcessingInterrupt = INTERRUPT_NUM_PRIMARYIDE;
+
+  controllers[0].interruptReceived = 1;
+
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_PRIMARYIDE);
+
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit();
 }
 
 
-int kernelIdeDriverDetect(int driveNum, void *diskPointer)
+static void secondaryIdeInterrupt(void)
+{
+  // This is the IDE interrupt handler for the secondary controller.  It will
+  // be called whenever the disk controller issues its service interrupt,
+  // and will simply change a data value to indicate that one has been
+  // received.  It's up to the other routines to do something useful with
+  // the information.
+
+  unsigned char data;
+
+  kernelProcessorIsrEnter();
+
+  // This interrupt can sometimes occur frivolously from "noise"
+  // on the interrupt request lines.  Before we do anything at all,
+  // we MUST ensure that the interrupt really occurred.
+  kernelProcessorOutPort8(0xA0, 0x0B);
+  kernelProcessorInPort8(0xA0, data);
+  if (data & 0x80)
+    {
+      kernelProcessingInterrupt = INTERRUPT_NUM_SECONDARYIDE;
+      
+      controllers[1].interruptReceived = 1;
+      
+      kernelPicEndOfInterrupt(INTERRUPT_NUM_SECONDARYIDE);
+      kernelProcessingInterrupt = 0;
+    }
+  
+  kernelProcessorIsrExit();
+}
+
+
+static int ideDriverDetect(int driveNum, void *diskPointer)
 {
   // Returns 1 if we detect a disk at the requested physical drive number.
   
@@ -830,8 +845,25 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
       return (status = ERR_NULLPARAMETER);
     }
 
+  // Register our interrupt handlers
+  status = kernelInterruptHook(INTERRUPT_NUM_PRIMARYIDE, &primaryIdeInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_PRIMARYIDE, 1);
+
+  // Register our interrupt handlers
+  status = kernelInterruptHook(INTERRUPT_NUM_SECONDARYIDE,
+			       &secondaryIdeInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_SECONDARYIDE, 1);
+
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
     return (status);
   
@@ -842,7 +874,7 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
   status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
   if (status < 0)
     {
-      kernelLockRelease((void *) &controllerLock);
+      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
       return (status);
     }
 
@@ -861,7 +893,7 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
   // respond to that, try the ATAPI "identify packet device" command.
   
   // Clear the "interrupt received" byte
-  interruptReceived = 0;
+  controllers[driveNum / 2].interruptReceived = 0;
   
   // Send the "identify device" command
   kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
@@ -874,8 +906,8 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
     {
       // This is an ATA hard disk device
       disks[driveNum]->description = "ATA/IDE hard disk";
-      disks[driveNum]->fixedRemovable = fixed;
-      disks[driveNum]->type = idedisk;
+      disks[driveNum]->flags =
+	(DISKFLAG_PHYSICAL | DISKFLAG_FIXED | DISKFLAG_IDEDISK);
       
       // Transfer one sector's worth of data from the controller.
       kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
@@ -898,7 +930,7 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
 
       if ((cylinderLow != 0x14) || (cylinderHigh != 0xEB))
 	{
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
           return (status);
 	}
 
@@ -910,14 +942,14 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
       status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
       if (status < 0)
 	{
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 	  return (status);
 	}
 
       // Check for the signature again
       if ((cylinderLow != 0x14) || (cylinderHigh != 0xEB))
 	{
-	  kernelLockRelease((void *) &controllerLock);
+	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
           return (status);
 	}
 
@@ -929,25 +961,23 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
       // Check ATAPI packet interface supported
       if ((buffer[0] & ((unsigned short) 0xC000)) != 0x8000)
         {
-          kernelLockRelease((void *) &controllerLock);
+          kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
           return (status = ERR_NOTIMPLEMENTED);
         }
       
+      disks[driveNum]->description = "ATAPI CD-ROM";
+
       // Removable?
       if (buffer[0] & (unsigned short) 0x0080)
-	disks[driveNum]->fixedRemovable = removable;
+	disks[driveNum]->flags |= DISKFLAG_REMOVABLE;
       else
-	disks[driveNum]->fixedRemovable = fixed;
+	disks[driveNum]->flags |= DISKFLAG_FIXED;
 
       // Device type: Bits 12-8 of buffer[0] should indicate 0x05 for CDROM,
       // but we will just warn if it isn't for now
-      disks[driveNum]->type = ((buffer[0] & (unsigned short) 0x1F00) >> 8);
-      if (disks[driveNum]->type != 0x05)
-	kernelError(kernel_warn, "ATAPI device type %x may not be supported",
-		    disks[driveNum]->type);
-
-      disks[driveNum]->description = "ATAPI CD-ROM";
-      disks[driveNum]->type = idecdrom;
+      disks[driveNum]->flags |= DISKFLAG_IDECDROM;
+      if (((buffer[0] & (unsigned short) 0x1F00) >> 8) != 0x05)
+	kernelError(kernel_warn, "ATAPI device type may not be supported");
 
       if ((buffer[0] & (unsigned short) 0x0003) != 0)
 	kernelError(kernel_warn, "ATAPI packet size not 12");
@@ -962,12 +992,12 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
       disks[driveNum]->sectorSize = 2048;
     }
 
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
   return (status = 1);
 }
 
 
-int kernelIdeDriverRegisterDevice(void *diskPointer)
+static int ideDriverRegisterDevice(void *diskPointer)
 {
   // The disk routine has finished setting up the physical device.  Keep a
   // pointer to it.
@@ -987,7 +1017,7 @@ int kernelIdeDriverRegisterDevice(void *diskPointer)
 }
 
 
-int kernelIdeDriverReset(int driveNum)
+static int ideDriverReset(int driveNum)
 {
   // Does a software reset of the requested disk controller.
   
@@ -1000,7 +1030,7 @@ int kernelIdeDriverReset(int driveNum)
     }
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
     return (status);
 
@@ -1010,13 +1040,13 @@ int kernelIdeDriverReset(int driveNum)
   status = reset(driveNum);
   
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
   
   return (status);
 }
 
 
-int kernelIdeDriverRecalibrate(int driveNum)
+static int ideDriverRecalibrate(int driveNum)
 {
   // Recalibrates the requested drive, causing it to seek to cylinder 0
   
@@ -1029,11 +1059,11 @@ int kernelIdeDriverRecalibrate(int driveNum)
     }
 
   // Don't try to recalibrate ATAPI 
-  if (disks[driveNum]->type == idecdrom)
+  if (disks[driveNum]->flags & DISKFLAG_IDECDROM)
     return (status = 0);
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
     return (status);
   
@@ -1045,7 +1075,7 @@ int kernelIdeDriverRecalibrate(int driveNum)
   if (status < 0)
     {
       kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
-      kernelLockRelease((void *) &controllerLock);
+      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
       return (status);
     }
   
@@ -1059,12 +1089,12 @@ int kernelIdeDriverRecalibrate(int driveNum)
   if (status < 0)
     {
       kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
-      kernelLockRelease((void *) &controllerLock);
+      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
       return (status);
     }
   
   // Clear the "interrupt received" byte
-  interruptReceived = 0;
+  controllers[driveNum / 2].interruptReceived = 0;
   
   // Send the recalibrate command
   kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
@@ -1074,7 +1104,7 @@ int kernelIdeDriverRecalibrate(int driveNum)
   status = waitOperationComplete(driveNum);
   
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
   
   if (status < 0)
     kernelError(kernel_error, errorMessages[evaluateError(driveNum)]);
@@ -1083,7 +1113,7 @@ int kernelIdeDriverRecalibrate(int driveNum)
 }
 
 
-int kernelIdeDriverSetLockState(int driveNum, int lockState)
+static int ideDriverSetLockState(int driveNum, int lockState)
 {
   // This will lock or unlock the CD-ROM door
 
@@ -1103,7 +1133,7 @@ int kernelIdeDriverSetLockState(int driveNum, int lockState)
     }
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
     return (status);
   
@@ -1113,13 +1143,13 @@ int kernelIdeDriverSetLockState(int driveNum, int lockState)
   status = atapiSetLockState(driveNum, lockState);
 
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
 
   return (status);
 }
 
 
-int kernelIdeDriverSetDoorState(int driveNum, int open)
+static int ideDriverSetDoorState(int driveNum, int open)
 {
   // This will open or close the CD-ROM door
 
@@ -1139,7 +1169,7 @@ int kernelIdeDriverSetDoorState(int driveNum, int open)
     }
 
   // Wait for a lock on the controller
-  status = kernelLockGet((void *) &controllerLock);
+  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
     return (status);
   
@@ -1149,14 +1179,14 @@ int kernelIdeDriverSetDoorState(int driveNum, int open)
   status = atapiSetDoorState(driveNum, open);
 
   // Unlock the controller
-  kernelLockRelease((void *) &controllerLock);
+  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
   
   return (status);
 }
 
 
-int kernelIdeDriverReadSectors(int driveNum, unsigned logicalSector,
-			       unsigned numSectors, void *buffer)
+static int ideDriverReadSectors(int driveNum, unsigned logicalSector,
+				unsigned numSectors, void *buffer)
 {
   // This routine is a wrapper for the readWriteSectors routine.
   return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
@@ -1164,8 +1194,8 @@ int kernelIdeDriverReadSectors(int driveNum, unsigned logicalSector,
 }
 
 
-int kernelIdeDriverWriteSectors(int driveNum, unsigned logicalSector,
-				unsigned numSectors, void *buffer)
+static int ideDriverWriteSectors(int driveNum, unsigned logicalSector,
+				 unsigned numSectors, void *buffer)
 {
   // This routine is a wrapper for the readWriteSectors routine.
   return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
@@ -1173,12 +1203,42 @@ int kernelIdeDriverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-void kernelIdeDriverReceiveInterrupt(void)
+static kernelDiskDriver defaultIdeDriver = {
+  ideDriverDetect,
+  ideDriverRegisterDevice,
+  ideDriverReset,
+  ideDriverRecalibrate,
+  NULL, // driverSetMotorState
+  ideDriverSetLockState,
+  ideDriverSetDoorState,
+  NULL, // driverDiskChanged
+  ideDriverReadSectors,
+  ideDriverWriteSectors,
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelIdeDriverInitialize(void)
 {
-  // This routine will be called whenever the disk controller issues its
-  // service interrupt.  It will simply change a data value to indicate that
-  // one has been received.  It's up to other routines to do something useful
-  // with the information.
-  interruptReceived = 1;
-  return;
+  // This initializes the driver and returns success.
+  
+  int status = 0;
+  
+  // Clear the "interrupt received" bytes
+  controllers[0].interruptReceived = 0;
+  controllers[1].interruptReceived = 0;
+  
+  status = kernelDriverRegister(ideDriver, &defaultIdeDriver);
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
 }

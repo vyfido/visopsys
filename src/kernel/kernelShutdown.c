@@ -32,7 +32,6 @@
 #include "kernelMiscFunctions.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <stdio.h>
 
 

@@ -27,7 +27,6 @@
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <string.h>
-#include <sys/errors.h>
 
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;

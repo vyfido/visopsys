@@ -23,8 +23,7 @@
 
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelProcessorX86.h"
-#include <sys/errors.h>
-
+#include "kernelError.h"
 
 int kernelSysTimerDriverRegisterDevice(void *);
 void kernelSysTimerDriverTick(void);

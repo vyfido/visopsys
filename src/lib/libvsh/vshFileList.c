@@ -33,18 +33,17 @@ _X_ int vshFileList(const char *itemName)
   // Desc: Print a listing of a file or directory named 'itemName'.  'itemName' must be an absolute pathname, beginning with '/'.
 
   int status = 0;
-  int count;
   int numberFiles = 0;
   file theFile;
-  unsigned int bytesFree = 0;
+  unsigned bytesFree = 0;
+  int count;
 
   // Make sure file name isn't NULL
   if (itemName == NULL)
     return (errno = ERR_NULLPARAMETER);
   
   // Initialize the file structure
-  for (count = 0; count < (int) sizeof(file); count ++)
-    ((char *) &theFile)[count] = NULL;
+  bzero(&theFile, sizeof(file));
 
   // Call the "find file" routine to see if the file exists
   status = fileFind(itemName, &theFile);

@@ -25,10 +25,10 @@
 #include "kernelDriverManagement.h"
 #include "kernelWindow.h"
 #include "kernelMiscFunctions.h"
+#include "kernelMalloc.h"
+#include "kernelError.h"
 #include <stdlib.h>
 #include <string.h>
-#include <sys/errors.h>
-
 
 // Macros used strictly within this file
 #define cursorPosition(area) ((area->cursorRow * area->columns) + area->cursorColumn)
@@ -231,6 +231,7 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
   // Moves the cursor
 
   int cursorState = area->cursorState;
+  char *line = NULL;
 
   // If we are currently scrolled back, this puts us back to normal
   if (area->scrolledBackLines)
@@ -245,6 +246,13 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
   area->cursorRow = row;
   area->cursorColumn = col;
 
+  // If any of the preceding spots have NULLS in them, fill those with
+  // spaces instead
+  line = (firstVisible(area) + cursorPosition(area) - col);
+  for ( ; col >= 0; col --)
+    if (line[col] == '\0')
+      line[col] = ' ';
+  
   if (cursorState)
     setCursor(area, 1);
 
@@ -423,6 +431,44 @@ static int clearScreen(kernelTextArea *area)
 }
 
 
+static int saveScreen(kernelTextArea *area)
+{
+  // This routine saves the current contents of the screen
+
+  // Get memory for a new save area
+  area->savedScreen = kernelMalloc(area->columns * area->rows);
+  if (area->savedScreen == NULL)
+    return (ERR_MEMORY);
+
+  kernelMemCopy(firstVisible(area), area->savedScreen,
+		(area->rows * area->columns));
+
+  area->savedCursorColumn = area->cursorColumn;
+  area->savedCursorRow = area->cursorRow;
+
+  return (0);
+}
+
+
+static int restoreScreen(kernelTextArea *area)
+{
+  // This routine restores the saved contents of the screen
+
+  kernelMemCopy(area->savedScreen, firstVisible(area), 
+		(area->rows * area->columns));
+
+  // Copy to the visible area
+  kernelMemCopy(area->savedScreen, area->visibleData, 
+		(area->rows * area->columns));
+
+  area->cursorColumn = area->savedCursorColumn;
+  area->cursorRow = area->savedCursorRow;
+
+  drawScreen(area);
+  return (0);
+}
+
+
 static kernelTextOutputDriver graphicModeDriver = {
   kernelGraphicConsoleInitialize,
   setCursor,
@@ -436,7 +482,8 @@ static kernelTextOutputDriver graphicModeDriver = {
   delete,
   drawScreen,
   clearScreen,
-  NULL // refresh
+  saveScreen,
+  restoreScreen
 };
 
 

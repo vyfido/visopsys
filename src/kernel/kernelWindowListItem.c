@@ -25,8 +25,8 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
+#include "kernelError.h"
 #include <string.h>
-#include <sys/errors.h>
 
 static kernelAsciiFont *labelFont = NULL;
 

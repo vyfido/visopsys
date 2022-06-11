@@ -27,7 +27,8 @@ typedef struct
 {
   int (*driverInitialize) (void);
   int (*driverRegisterDevice) (void *);
-  void (*driverEndOfInterrupt) (int);
+  int (*driverEndOfInterrupt) (int);
+  int (*driverMask) (int, int);
 
 } kernelPicDriver;
 
@@ -44,6 +45,7 @@ int kernelPicDriverInitialize(void);
 int kernelPicRegisterDevice(kernelPic *);
 int kernelPicInitialize(void);
 int kernelPicEndOfInterrupt(int);
+int kernelPicMask(int, int);
 
 #define _KERNELPIC_H
 #endif

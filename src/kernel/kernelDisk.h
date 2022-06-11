@@ -93,6 +93,7 @@ typedef volatile struct
   void *physical;
   unsigned startSector;
   unsigned numSectors;
+  int primary;
 
 } kernelDisk;
 
@@ -106,8 +107,7 @@ typedef volatile struct
   int deviceNumber;
   int dmaChannel;
   char *description;
-  diskType type;
-  mediaType fixedRemovable;
+  int flags;
   int readOnly;
 
   // Generic geometry parameters
@@ -154,6 +154,9 @@ int kernelDiskShutdown(void);
 int kernelDiskGetBoot(char *);
 int kernelDiskGetCount(void);
 int kernelDiskGetPhysicalCount(void);
+int kernelDiskGet(const char *, disk *);
+int kernelDiskGetAll(disk *, unsigned);
+int kernelDiskGetAllPhysical(disk *, unsigned);
 int kernelDiskFromLogical(kernelDisk *, disk *);
 int kernelDiskGetInfo(disk *);
 int kernelDiskFromPhysical(kernelPhysicalDisk *, disk *);

@@ -32,7 +32,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/window.h>
-#include <sys/errors.h>
 #include <sys/stream.h>
 
 int kernelKeyboardDriverRegisterDevice(void *);
@@ -205,26 +204,18 @@ void kernelKeyboardDriverReadData(void)
   // console text input stream
 
   unsigned char data = 0;
-  unsigned char tmp = 0;
   int release = 0;
   static int extended = 0;
 
   if (!initialized)
     return;
 
-  // Wait for data to be available
+  // Wait for keyboard data to be available
   while (!(data & 0x01))
     kernelProcessorInPort8(0x64, data);
 
   // Read the data from port 60h
   kernelProcessorInPort8(0x60, data);
-
-  // ACK the data by disabling, then reenabling, the controller
-  kernelProcessorInPort8(0x61, tmp);
-  tmp |= 0x80; // Disable (bit 7 on)
-  kernelProcessorOutPort8(0x61, tmp);
-  tmp &= 0x7F; // Enable (bit 7 off)
-  kernelProcessorOutPort8(0x61, tmp);
 
   // If an extended scan code is coming next...
   if (data == EXTENDED)

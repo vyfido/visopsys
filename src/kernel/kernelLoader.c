@@ -30,7 +30,6 @@
 #include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
 
 

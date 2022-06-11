@@ -31,10 +31,8 @@
 #include "kernelText.h"
 #include "kernelError.h"
 #include "kernelLock.h"
-#include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
-
 
 static kernelMallocBlock *blockList = NULL;
 static kernelMallocBlock *firstUnusedBlock = NULL;

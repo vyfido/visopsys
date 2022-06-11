@@ -655,11 +655,11 @@ loaderDetectVideo:
         jne near .selectMode
 
 	;; Try to load our 'graphics mode' file
-	push word 0		; No spinner
+	push dword 0		; No spinner
 	push dword KERNELCODEDATALOCATION
 	push word GRAPHICSMODE
 	call loaderLoadFile
-	add SP, 8
+	add SP, 10
 
 	cmp AX, 0
 	jl near .selectMode

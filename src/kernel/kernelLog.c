@@ -30,8 +30,6 @@
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
-#include <sys/errors.h>
-
 
 static volatile int logToConsole = 0;
 static volatile int logToFile = 0;

@@ -58,65 +58,117 @@ border="0" width="291" height="56"></strong></font></p>
 <p><big>Visopsys (<font color="#FFFF00">VIS</font>ual <font color="#FFFF00">OP</font>erating
 <font color="#FFFF00">SYS</font>tem) is an alternative operating system for 
 PC-compatible computers
-which is continually in development.&nbsp; It consists of code written
-entirely from scratch.&nbsp; The source
+which is written &quot;from scratch&quot; and continually in development.&nbsp;  The source
 code is available under the terms of the <a href="gpl.html">GNU General Public License</a>.&nbsp; 
 The libraries and header files are licensed under the terms of the
 <a href="lgpl.html">GNU Lesser General Public License</a>.</big></p>
 
-<p><big>The overall goal of Visopsys is to create something new, keep some of the best features of other successful systems, 
-and avoid introducing the more annoying elements.</big></p>
+<p><big>The overall goal of Visopsys is always to cherry-pick the best ideas 
+from other OSes, preferably contribute a few new ideas, and hopefully avoid 
+(re-) introducing some of the more annoying elements.</big></p>
 
-<p><font size="4">H</font><big>owever many ideas Visopsys borrows from other operating
-environments, it is not -- and does not try to be -- entirely compatible with any of those
-other systems.&nbsp; Although some aspects of Visopsys will probably seem familiar, it is
-not a &quot;clone&quot; of any other operating environment.</big></p>
+<p><font size="4">H</font><big>owever many ideas Visopsys borrows from other 
+operating environments, it is not a Windows or UNIX lookalike, nor a clone of 
+any other system.&nbsp; On the other hand, much of what you see in Visopsys will 
+be familiar.&nbsp; There are a number of command line programs that are 
+superficially UNIX- or DOS-like, so you shouldn't have too much trouble finding 
+your way around.&nbsp; It is compatible with existing filesystems, file formats, 
+protocols, and encryption algorithms (among other things).</big></p>
+
+<p><big>The bulk of Visopsys is a fully multitasking, 100% protected mode, 
+virtual-memory, massively-monolithic-style kernel.&nbsp; Added to this is a 
+bare-bones C library and a minimal suite of applications
+<font face="Times New Roman">—</font> together comprising a small but reasonably 
+functional operating system which can operate natively in either graphical or 
+text modes.&nbsp; It's been in continuous development for a number of years, 
+though realistically the target audience remains limited to operating system 
+enthusiasts, students, and assorted other sensation seekers.&nbsp; The ISO and 
+floppy images available from the <a href="../download/index.html">download page</a> 
+can install the system, or operate in 'live demo' mode.<br>
+<br>
+Other operating systems can do more than Visopsys; it doesn't include many 
+applications.&nbsp; Needless to say, it's not as good as Linux or even
+<a href="http://www.skyos.org/">SkyOS</a> or <a href="http://www.syllable.org/">
+Syllable</a>.&nbsp; On the other hand, it's still a one-person project.</big></p>
+
+<p><big>From the perspective of a user — the &quot;but what the heck is it good for?&quot; 
+perspective — its primary selling point is a reasonably functional partition 
+management program (the 'Disk Manager') in the vein of
+<a href="http://www.powerquest.com/partitionmagic/">Symantec's Partition Magic</a>.&nbsp; 
+It can create, delete, and move partitions, and modify their attributes. It can 
+also copy hard disks, and has a simple and friendly graphical interface, but can 
+fit on a bootable floppy disk (or CD-ROM, if you're feeling naughty).</big></p>
+
+<p><big>The Disk Manager does most of what you'd expect from your basic 'fdisk' 
+tool, whilst maintaining safety through MBR backups and 'undo' functionality.&nbsp; 
+The slightly more sophisticated features, such as copying disks and moving 
+partitions, are the beginnings of a project to create a free alternative to 
+certain proprietary tools such as Partition Magic,
+<a href="http://www.powerquest.com/driveimage">Drive Image</a>, and
+<a href="http://www.symantec.com/sabu/ghost/ghost_personal/">Norton Ghost</a>; 
+the same user-friendly GUI environment, yet still small enough to fit on a boot 
+floppy.&nbsp; What it currently lacks are easily accessible ways to error-check 
+and resize filesystems.<br>
+<br>
+A few other simple user applications are provided.&nbsp; These include a 
+'Program Manager'; a basic 'User Manager' for administering user accounts and 
+passwords; a 'Keyboard Mapping' program which provides a choice between 
+(currently) UK and US English keyboard layouts; a 'Display Properties' program 
+for setting graphical boot, screen resolution, colours, background, etc.; and a 
+'Configuration Editor' for modifying the system's configuration files (since 
+there isn't any kind of native text editor, yet!).&nbsp; Additionally there are 
+programs for installing Visopsys, viewing images, and making screen shots, as 
+well as a simple command line shell and associated programs for viewing memory 
+usage, managing processes, and plenty of other simple tasks.<br>
+<br>
+Hardware support is generally limited to devices that conform to popular 
+hardware interface standards, such as VESA, PS2, ATA/ATAPI (IDE), plus all of 
+the standard PC chipset components.&nbsp; Graphics are provided through the 
+(non-performant, but reasonably standard) VESA linear framebuffer interface.&nbsp; 
+At present there aren't any vendor-specific video drivers provided, though this 
+is not so much a design choice as it is the result of limited manpower and time.&nbsp; 
+Memory requirements are small: approximately 5 MB in text mode, and generally 
+less than 20MB in graphics mode depending on screen resolution, etc.<br>
+<br>
+Visopsys supports all variations of FAT filesystem (12, 16, 32/VFAT) as well as 
+read-only EXT2/3 and ISOFS.&nbsp; Upcoming features include support for SCSI, 
+serial mice, resizing filesystems, writable EXT2, and dynamic linking. Ports of 
+the Newlib C library, GNU Binutils and GCC are underway and will be available as 
+add-ons.</big></p>
 
 <p><big>Some of the higher-level conceptual goals are as follows:</big></p>
 
-<p><big>1. <strong>Stability, reliability, and security.</strong>&nbsp; These are primary
-objectives. Not always achieved, but always important.</big></p>
-
-<p><big>2. <strong>&quot;Native&quot; Graphical environment</strong> </big>
+<p><big>1. <strong>&quot;Native&quot; Graphical environment</strong> </big>
 
 <ul>
-  <li><big>The base-level graphics server (analogous to an 'X' server in Unix, but not X)
-    will be integrated into the kernel.&nbsp; A default GUI shell environment must load and
-    run &quot;straight out of the box&quot;, with no complicated setup procedure.</big></li>
-  <li><big>The interface must be trivial to learn and use, even for a computer 
-  novice. Most of its elements should be familiar to all computer users.  </big></li>
-  <li><font size="4">A partial</font><big> contradiction of the previous item: A new
-    metaphor for the GUI environment. The tried and true desktop/office/files/folders
-    paradigm is becoming a little bit dated. While not intended to be 
-  revolutionary, the planned interface will eventually try to put a new spin on 
-  graphical shell design -- without making it unfamiliar or non-intuitive.&nbsp; 
-  The ideas are formed, but the code is not written.</big></li>
+  <li><big>The base-level graphics server (analogous to an 'X' server in Unix, 
+  but not X) is integrated into the kernel.&nbsp; A default GUI environment runs 
+  &quot;straight out of the box&quot;, with no complicated setup procedure.</big></li>
+  <li><font size="4">At a later stage, </font><big>a new metaphor for the GUI 
+  environment.&nbsp; While not intended to be revolutionary, the planned 
+  interface will eventually try to put a new spin on graphical shell design — 
+  without making it unfamiliar or non-intuitive.&nbsp; The ideas are formed, but 
+  the code is not written.</big></li>
   <li><big>To the greatest extent possible, the user should be able to perform all tasks,
-    including administrative ones, using this &quot;point and click&quot; interface -- no
+    including administrative ones, using this &quot;point and click&quot; interface 
+  — no
     need to edit mysterious configuration files by hand.</big></li>
 </ul>
 
-<p><big>3. <strong>Powerful command line capabilities</strong> (text windows and
+<p><font size="4">2</font><big>. <strong>Strong command line capabilities</strong> (text windows and
 scripting) </big>
 
 <ul>
   <li><big>Users must be given the ability to operate in a text-based environment if they
     prefer to do so.</big></li>
-  <li><big>Existing popular command shells will be supported. The native command shell will
-    contain features found in various systems (Unix and non-Unix).</big></li>
-  <li><big>Most common text-mode commands available on other popular systems will be included
-    and will, as much as possible, be use model compatible.</big></li>
-  <li><big>Some of GNU's Unix-like tools will be available (see <a href="http://www.gnu.org">http://www.gnu.org</a>).</big></li>
   <li><big>To the greatest extent possible, the user should be able to perform all tasks,
-    including administrative ones, using this text interface. Configuring mysterious
+    including administrative ones, using the text interface. Configuring mysterious
     configuration files by hand is, therefore, optional.</big></li>
 </ul>
 
-<p><big>4. <strong>Highly networkable.</strong></big></p>
-
-<p><big>5. <strong>Highly compatible.</strong> Visopsys will conform to existing standards
+<p><big>3. <strong>Compatible.</strong>&nbsp; Visopsys will conform to existing standards
 to the greatest extent possible.&nbsp; It is not a goal for Visopsys to define new formats
-(such as a new filesystem type).&nbsp; Examples of supported standards will include: </big>
+(such as a new filesystem type).&nbsp; Examples of such standards include: </big>
 
 <ul>
   <li><big>Filesystem types</big></li>
@@ -125,51 +177,43 @@ to the greatest extent possible.&nbsp; It is not a goal for Visopsys to define n
   <li><big>Encryption algorithms</big></li>
   <li><big>Network protocols</big></li>
   <li><big>Software development environment conventions</big></li>
-  <li><big>Operating system API calls.</big></li>
   <li><big>Hardware interface standards (e.g. VESA)</big></li>
-  <li><big>Basic POSIX compliance, where possible, eventually.<br>
+  <li><big>Some level of POSIX compliance, where possible, eventually.<br>
     </big></li>
 </ul>
 
 <p><strong><big>CURRENT DEVELOPMENT STATUS</big></strong></p>
 
 <p><big>Visopsys is starting to look and feel like a 'real' operating system.&nbsp; 
-Provided that the video card in a system supports the VESA 2 standard, the system 
-boots up quickly into a simple, functional (but nice looking!) GUI.&nbsp; 
+ 
 There's still a long way to go before Visopsys might be useful to the average 
 person, but it's getting there little by little.</big></p>
 
 <p><big>Coding work was begun as a part-time operation in late 1997.&nbsp; The 
 large majority of the code is written in C, with portions in x86 Assembly 
-Language.&nbsp; Following is a list of implemented and unimplemented 
-functionality; keep in mind that this does not represent the complete list of 
-planned features -- only short- and medium term goals are listed here:</big></p>
+Language.&nbsp; Following is a list of some of the implemented and unimplemented 
+functionality</big></p>
 
-<p><font size="4">Features</font><big>: </big>
+<p><font size="4">Implemented Features</font><big>: </big>
 
 <ul>
   <li><big>Graphical User Interface (GUI)</big></li>
   <li><big>Fully 32 bits, &quot;protected&quot; mode</big></li>
-  <li><a href="multitasker.html"><big>Preemptive multitasking and multi-threading</big></a></li>
+  <li><a href="multitasker.html"><font size="4">Fully p</font><big>re-emptive multitasking and multi-threading</big></a></li>
   <li><big>Virtual memory, and memory protection</big></li>
   <li><a href="memory-management.html"><big>Flat linear memory management</big></a></li>
   <li><big>Graceful processor fault and exception handling</big></li>
   <li><big>Good random number capability</big></li>
-  <li><big>Support for ELF and &quot;flat binary&quot; executable formats</big></li>
+  <li><font size="4">Buffered, asynchronous disk I/O</font></li>
+  <li><big>ELF executable format</big></li>
   <li><big>Filesystem support for:<br>
-    </big>Virtual filesystem API<br>
-    Multiple mount points, multiple disk slices (partitions) on a single device<br>
-    Buffered, asynchronous filesystem IO<br>
-    Multi-threaded filesystem functions and device locking<br>
-    12, 16, and 32-bit FAT filesystems (commonly used by DOS and Windows)<br>
+    </big>12, 16, and 32-bit FAT filesystems (commonly used by DOS and Windows)<br>
   Read-only Ext2/Ext3 filesystems (commonly used by Linux)<br>
     CD-ROM filesystems (ISO9660/Joliet)</li>
-  <li><big>Abstracted loading and management of device drivers</big></li>
   <li><big>Native command line shell</big></li>
   <li><big>Small, native C library</big></li>
   <li><font size="4">Native installer program</font></li>
-  <li><font size="4">Native hard disk partitioning program (Disk Manager)</font></li>
-  <li><big>Runtime loader</big></li>
+  <li><font size="4">Hard disk partitioning program (Disk Manager)</font></li>
   <li><font size="4">Hardware d</font><big>evice support for:<br>
     </big>Single    Pentium  (or better) processor<br>
     <a href="memory-management.html">RAM above 64Mb</a><br>
@@ -186,21 +230,15 @@ planned features -- only short- and medium term goals are listed here:</big></p>
     PS2 mouse</li>
 </ul>
 
-<p><big>Unimplemented (or mostly unimplemented): </big>
+<p><big>Unimplemented: </big>
 
 <ul>
   <li><a href="wrong.html#single-user"><big>Multi-user operation</big></a></li>
   <li><big>Inter-Process Communications (IPC) facility</big></li>
   <li><a href="wrong.html#ioprotection"><big>IO Protection</big></a></li>
   <li><a href="wrong.html#float"><big>FPU state saves</big></a></li>
-  <li><big>Support for a.out, and PE executable formats, loader relocation</big></li>
-  <li><big>Dynamically loaded/linked libraries</big></li>
-  <li><big>Assembler and compiler (ports of <a href="http://sourceforge.net/projects/nasm">NASM</a>/<a
-    href="http://www.gnu.org/software/binutils/binutils.html">GAS</a> and <a
-    href="http://www.gnu.org/software/gcc/gcc.html">gcc</a>)</big></li>
-  <li><big>Native linker, or satisfactory port of <a
-    href="http://www.gnu.org/software/binutils/binutils.html">GNU linker, ld</a></big></li>
-  <li><big>Emulation of other operating systems' APIs</big></li>
+  <li><big>Support for a.out and PE executable formats</big></li>
+  <li><big>Dynamic linking</big></li>
   <li><big>Filesystem support for:<br>
     </big>Writable Ext2/Ext3<br>
     NTFS filesystems (commonly used by Windows NT/2000 and Linux)<br>
@@ -210,56 +248,41 @@ planned features -- only short- and medium term goals are listed here:</big></p>
     3DNow! and MMX processor extensions<br>
     Plug and play<br>
     PCI bus devices<br>
-    Accelerated graphics card<br>
-    Serial port (UART chip)<br>
-    Serial mouse<br>
-    Modem<br>
-    NDIS
-    Network Interface Card (NIC)<br>
+  SCSI<br>
+    3D or accelerated graphics<br>
+    Serial ports (UART chip) and serial mice<br>
+    Modems<br>
+    Network  Cards<br>
     Printers<br>
     (many others)<br>
+  <br>
   </li>
 </ul>
 
-<p><big><a name="TEAM"></a><strong>DEVELOPMENT ENVIRONMENT</strong></big></p>
+<p><strong><font size="4">DEVELOPER</font><big>S</big></strong></p>
 
-<p><big>Visopsys is developed under Red Hat Linux 9, using the included GNU C compiler and  NASM assembler.<br>
-</big></p>
+<p><big>It's a very small team: just
+<a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>, a 32 year
+old programmer originally from </big><font size="4">Calgary, Canada</font><big>.&nbsp;
+A couple of years ago, I moved to London, UK, after a year in Boston and 2 years in San Jose, California. Like many other hobby OS writers, I build Visopsys in my
+spare time.</big></p>
 
-<p><strong><big>A TEAM OF HIGHLY SKILLED PROGRAMMERS</big></strong></p>
-
-<p><big>It's a very small team.&nbsp;
-<a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>: 31 year
-old programmer from </big><font size="4">Calgary, Canada</font><big>.&nbsp;
-I have recently moved to London, UK, after a year in Boston and 2 years in Silicon Valley (San Jose, California). Like many other hobby OS writers, I build Visopsys in my
-spare time.<br>
-&nbsp;</big></p>
-
-<p><big><strong>WANT TO HELP?</strong></big></p>
-
-<p><big>I am not actively seeking other programmers to assist in the development of
-Visopsys at this time, but I am open to considering the possibility if talented
-programmers express interest. My main concern is that I want Visopsys to be
-&quot;presentable&quot; before I even attempt to get anyone else excited about it.&nbsp; 
-It's pretty presentable now, but I'm unreasonable about it of course (it's 
-my baby).</big></p>
+<p><big>I am not actively seeking other programmers to assist in the development 
+of Visopsys at this time, but I am open to considering the possibility if 
+talented programmers express interest. My main concern is that I want Visopsys 
+to be &quot;presentable&quot; before I even attempt to get anyone else excited about it.</big></p>
 
 <p><big>An operating system kernel is a big enough challenge to be discouraging at times.&nbsp; 
 In comparison, the Pascal compiler I wrote over an eight month period is trivial.&nbsp; On the other hand, since I do everything by myself I am able to keep the
-development on a unified path. The architecture that develops is -- I hope -- consistent
+development on a unified path. The architecture that develops is — I hope — consistent
 (for better or worse) and thus the end product reflects the vision of a single
 programmer.&nbsp; It can be argued that this is the good, old-fashioned way of producing
 software.<br>
 </big></p>
 
-<p><strong><big>TRY VISOPSYS</big></strong></p>
+<p><big><a name="TEAM"></a><strong>DEVELOPMENT ENVIRONMENT</strong></big></p>
 
-<p><big>The binary
-version that you'll find on the <a href="../download/index.html">download page</a> 
-is intended for anyone who wants to try Visopsys on their own computer. It can 
-install on a single floppy disk, a CD-ROM, or on a hard disk partition.&nbsp; There's also
-a source code distribution on the same page, and there are also some screen shots <a
-href="screenshots.html">here</a>.<br>
+<p><big>Visopsys is still developed using Red Hat Linux 9, using the included GNU C compiler and  NASM assembler.<br>
 </big></p>
 
 <p><big><a name="CREDIT"></a><strong>ACKNOWLEDGEMENTS</strong></big></p>
@@ -268,9 +291,9 @@ href="screenshots.html">here</a>.<br>
 knowledge) to the success of this project: </big>
 
 <ul>
-  <li><big>Graeme McLaughlin (<a href="mailto:graeme@cpsc.ucalgary.ca">graeme@cpsc.ucalgary.ca</a>)
-    for patiently helping me test each version of Visopsys. Graeme is the #1 Alpha Tester.
-    Also, big thanks for hosting the Visopsys.org web site.</big></li>
+  <li><big>Graeme McLaughlin (<a href="mailto:graeme@cpsc.ucalgary.ca">graeme@cpsc.ucalgary.ca</a>) 
+  for patiently helping me test each version of Visopsys. Graeme is the #1 Alpha 
+  Tester.</big></li>
   <li><font size="4">Thomas Kreitner for all his testing and interest, and for 
   finding the weird bugs.&nbsp; Only an evil genius would discover some of these 
   things.</font></li>
@@ -289,22 +312,23 @@ knowledge) to the success of this project: </big>
 
 <ul>
   <li><big>Ralf Brown's (<a href="mailto:ralf@pobox.com">ralf@pobox.com</a>)  indispensable Interrupt List (<a
-    href="http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html">http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html</a>);
-    &nbsp; David Jurgens' <a
-    href="ftp://ftp.simtel.net/pub/simtelnet/msdos/asmutl/helppc21.zip">HelpPC</a>. Both are
-    excellent PC programming resources.</big></li>
-  <li><big>Frank van Gilluwe &quot;<a
+    href="http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html">http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html</a>);</big></li>
+  <li><big>David Jurgens' <a
+    href="ftp://ftp.simtel.net/pub/simtelnet/msdos/asmutl/helppc21.zip">HelpPC</a>.</big></li>
+  <li><big>Frank van Gilluwe's &quot;<a
     href="http://www1.fatbrain.com/asp/bookinfo/bookinfo.asp?theisbn=0201479508">The
     Undocumented PC</a>&quot; (Addison-Wesley, ISBN# 0-201-47950-8);  </big></li>
-  <li><big>Tom Shanley &quot;<a
+  <li><big>Tom Shanley's &quot;<a
     href="http://www1.fatbrain.com/asp/bookinfo/bookinfo.asp?theisbn=020155447X">Protected
     Mode Software Architecture</a>&quot; (Addison-Wesley/Mindshare ISBN# 0-201-55447-X)</big></li>
+  <li><font size="4">Lots of other sources, many of them online; See the
+  <a href="../osdev/index.html">&quot;OS Dev&quot; page</a> for links.</font></li>
 </ul>
 
 <p>&nbsp;</p>
 
 <p><big>Andy McLaughlin<br>
-05/27/2003</big></p>
+03/03/2005</big></p>
 
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
@@ -332,7 +356,7 @@ knowledge) to the success of this project: </big>
     Andrew McLaughlin<br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    January 14, 2005</font></p>
+    March 22, 2005</font></p>
   </blockquote>
 </blockquote>
 

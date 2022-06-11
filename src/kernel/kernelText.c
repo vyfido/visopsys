@@ -27,11 +27,10 @@
 #include "kernelMultitasker.h"
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
+#include "kernelError.h"
 #include <stdio.h>
-#include <sys/errors.h>
 #include <string.h>
 #include <stdlib.h>
-
 
 // There is only ONE kernelTextInputStream for console input
 static kernelTextInputStream originalConsoleInput;
@@ -330,6 +329,9 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 
   if (area->visibleData)
     kernelFree(area->visibleData);
+
+  if (area->savedScreen)
+    kernelFree(area->savedScreen);
 
   kernelMemClear((void *) area, sizeof(kernelTextArea));
   kernelFree((void *) area);
@@ -1414,17 +1416,9 @@ int kernelTextScreenSave(void)
       kernelFree(textArea->savedScreen);
       textArea->savedScreen = NULL;
     }
-
-  // Get memory for a new save area
-  textArea->savedScreen = kernelMalloc(textArea->columns * textArea->rows);
-  if (textArea->savedScreen == NULL)
-    return (ERR_MEMORY);
-
-  // Copy the existing screen data into it
-  kernelMemCopy(textArea->visibleData, textArea->savedScreen,
-		(textArea->columns * textArea->rows));
-  textArea->savedCursorColumn = textArea->cursorColumn;
-  textArea->savedCursorRow = textArea->cursorRow;
+  
+  if (outputStream->outputDriver->screenSave)
+    outputStream->outputDriver->screenSave(textArea);
 
   return (0);
 }
@@ -1445,11 +1439,9 @@ int kernelTextScreenRestore(void)
   // Check to see whether any saved screen data is already there.
   if (textArea->savedScreen)
     {
-      // Copy the saved data back into the screen data
-      kernelMemCopy(textArea->savedScreen, textArea->visibleData,
-		    (textArea->columns * textArea->rows));
-      textArea->cursorColumn = textArea->savedCursorColumn;
-      textArea->cursorRow = textArea->savedCursorRow;
+      if (outputStream->outputDriver->screenRestore)
+	outputStream->outputDriver->screenRestore(textArea);
+
       kernelFree(textArea->savedScreen);
       textArea->savedScreen = NULL;
     }

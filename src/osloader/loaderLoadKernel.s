@@ -474,11 +474,11 @@ loaderLoadKernel:
 	mov BP, SP
 
 	;; Load the kernel file
-	push word 1		; Yes spinner
+	push dword 1		; Yes spinner
 	push dword KERNELCODEDATALOCATION
 	push word KERNELNAME
 	call loaderLoadFile
-	add SP, 8
+	add SP, 10
 
 	;; Make sure the load was successful
 	cmp AX, 0

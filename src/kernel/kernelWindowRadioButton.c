@@ -26,7 +26,6 @@
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>
-#include <sys/errors.h>
 
 #define BUTTON_SIZE 10
 

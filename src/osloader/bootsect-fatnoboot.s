@@ -21,8 +21,6 @@
 
 ;; This code is for a non-bootable FAT12/16 filesystem
 
-	GLOBAL main
-
 	ORG 7C00h
 	SEGMENT .text
 
@@ -31,27 +29,8 @@ main:
 	jmp short bootCode		; 00 - 01 Jump instruction
 	nop				; 02 - 02 No op
 	
-OEMName		times 8 db ' '		; 03 - 0A OEM Name
-BytesPerSect	dw 0			; 0B - 0C Bytes per sector
-SecPerClust	db 0			; 0D - 0D Sectors per cluster
-ResSectors	dw 0			; 0E - 0F Reserved sectors
-FATs		db 0 			; 10 - 10 Copies of FAT
-RootDirEnts	dw 0			; 11 - 12 Max. rootdir entries
-Sectors		dw 0			; 13 - 14 Sectors in logical image
-Media		db 0	     		; 15 - 15 Media descriptor byte
-FATSecs		dw 0			; 16 - 17 Sectors in FAT
-SecPerTrack	dw 0			; 18 - 19 Sectors per track
-Heads		dw 0			; 1A - 1B Number of heads
-Hidden		dd 0			; 1C - 1F Number of hidden sectors
-HugeSecs	dd 0		    	; 20 - 23 Real number of sectors
-DriveNumber	db 0			; 24 - 24 BIOS drive #
-Reserved1	db 0 			; 25 - 25 ?
-BootSignature	db 0	          	; 26 - 26 Signature
-VolumeID	dd 0		    	; 27 - 2A Volume ID
-VolumeName	times 11 db ' '		; 2B - 35 Volume name
-FSType		times 8 db ' '   	; 36 - 3D Filesystem type
+	%include "bootsect-fatBPB.s"	
 
-	
 bootCode:
 
 	;; Make the data segment be zero
@@ -111,5 +90,5 @@ NOBOOT		db 'This is not a bootable Visopsys disk.', 0Dh, 0Ah
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
 	
-TIMES (510-($-$$))	db 0
-endsector:		dw 0AA55h
+times (510-($-$$))	db 0
+ENDSECTOR:		dw 0AA55h

@@ -39,7 +39,6 @@
 #include "kernelEncrypt.h"
 #include "kernelKeyboard.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 
 // We do this so that <sys/api.h> won't complain about being included
 // in a kernel file
@@ -139,7 +138,10 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
   { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
   { /* DEPRECATED kernelDiskReadAbsoluteSectors */ NULL, NULL, NULL, NULL },
-  { /* DEPRECATED kernelDiskWriteAbsoluteSectors */ NULL, NULL, NULL, NULL }
+  { /* DEPRECATED kernelDiskWriteAbsoluteSectors */ NULL, NULL, NULL, NULL },
+  { _fnum_diskGet, kernelDiskGet, 2, PRIVILEGE_USER },
+  { _fnum_diskGetAll, kernelDiskGetAll, 2, PRIVILEGE_USER },
+  { _fnum_diskGetAllPhysical, kernelDiskGetAllPhysical, 2, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex filesystemFunctionIndex[] = {
@@ -434,12 +436,15 @@ static kernelFunctionIndex userFunctionIndex[] = {
   { _fnum_userLogin, kernelUserLogin, 2, PRIVILEGE_SUPERVISOR },
   { _fnum_userLogout, kernelUserLogout, 1, PRIVILEGE_USER },
   { _fnum_userGetNames, kernelUserGetNames, 2, PRIVILEGE_USER },
-  { _fnum_userAdd, kernelUserAdd, 2, PRIVILEGE_USER },
+  { _fnum_userAdd, kernelUserAdd, 2, PRIVILEGE_SUPERVISOR },
   { _fnum_userDelete, kernelUserDelete, 1, PRIVILEGE_SUPERVISOR },
   { _fnum_userSetPassword, kernelUserSetPassword, 3, PRIVILEGE_USER },
   { _fnum_userGetPrivilege, kernelUserGetPrivilege, 1, PRIVILEGE_USER },
   { _fnum_userGetPid, kernelUserGetPid, 0, PRIVILEGE_USER },
-  { _fnum_userSetPid, kernelUserSetPid, 2, PRIVILEGE_SUPERVISOR }
+  { _fnum_userSetPid, kernelUserSetPid, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_userFileAdd, kernelUserFileAdd, 3, PRIVILEGE_SUPERVISOR },
+  { _fnum_userFileDelete, kernelUserFileDelete, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_userFileSetPassword, kernelUserFileSetPassword, 4, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex miscFunctionIndex[] = {

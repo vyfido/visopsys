@@ -1,5 +1,64 @@
 
 ---------------
+Version 0.54
+---------------
+
+  Overview: This is a maintenance release, with numerous small improvements
+  and bugfixes including some general back-porting from the 0.6 development
+  branch.  In addition, IDE disk-to-disk operations have been improved so
+  that they can happen in parallel, the kernel hardware drivers' interrupt
+  handing has been given a new interface, and there is some improved
+  efficiency in a performance-critical section of the multitasker.
+
+- Updated the IDE disk controller locking, so that each now have their own
+locks; thus I/O can be done in parallel between disks on different
+controllers.
+- Back-ported large numbers small changes and improvements from the 0.6
+development branch.
+- Cleaned up the kernelInterrupt code, got rid of all the 'default'
+handlers, added an interface for getting/hooking the vectors, and changed
+all the built-in drivers to use the interface.  All interrupts are now
+initially masked off, and the hardware driver code for each kind of device
+has to turn them on after hooking the handler.
+- The bootable floppy image for the ISO distribution now contains only the
+OS loader and the kernel, because only these are used.  This shrinks the
+(zipped) ISO image size.
+- The calculation of CPU percentage in the multitasker's scheduler is now
+done more efficiently, inside the loop that evaluates the process queue.
+- Added text 'save screen' and 'restore screen' functions for use by
+programs such as 'fdisk' and 'install' which clear the screen.
+- Added convenience functions to the kernelUser code for working with
+arbitrary password files, so that for example the installer can set up the
+destination password file without doing it all manually.
+- Added kernelDiskGet() (single logical or physical), kernelDiskGetAll(),
+and kernelDiskGetAllPhysical() functions.
+- The kernel's page manager now includes a method for setting flags on
+pages (such as writable, present, cache disable, etc), and a function that
+allows memory to be mapped at a particular address.
+- Created a user-space 'process image' structure that can describe details
+such as memory page mapping, virtual addresses, entry points, arguments,
+and so on.
+- kernelError.h now contains the include for <sys/errors.h>
+- Fixed: Copying a big file such as an .iso image could fail because the
+copy code tried to allocate enough memory for the whole file.  Now it
+allocates as much as possible and does multiple reads/writes
+- Fixed: Typing and using the mouse at the same time was causing funny
+things to go on.  The interrupt handlers for the two devices needed to be
+better synchronized.
+- Fixed: When dragging an icon, one pixel-width of the icon title wasn't
+being erased properly.
+- Fixed: The FAT12 boot sector source code shipped with version 0.53 didn't
+work for floppy disks
+- Fixed: In the libc's _xpndfmt.c function (used by printf, sprintf, etc),
+the numDigits() function was returning the wrong value for large signed
+numbers, resulting in double-width numbers for format strings such as %08x.
+- Fixed: The graphics mode text driver was not recognizing 'longest lines'
+if the cursor had been moved around using the textSetRow function.
+- Fixed: Doing a second kernel make without changing anything resulted in
+an empty kernelSymbols.txt file, since the previous make stripped the
+kernel.
+
+---------------
 Version 0.53
 ---------------
 

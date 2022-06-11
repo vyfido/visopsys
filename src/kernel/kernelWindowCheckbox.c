@@ -27,7 +27,6 @@
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
-#include <sys/errors.h>
 
 #define CHECKBOX_SIZE 10
 

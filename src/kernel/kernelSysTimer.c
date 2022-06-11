@@ -19,20 +19,39 @@
 //  kernelSysTimer.c
 //
 
-#include "kernelSysTimer.h"
-#include "kernelError.h"
-#include <sys/errors.h>
-#include <string.h>
-
-
 // These are the generic C "wrapper" functions for the routines which
 // reside in the system timer driver.  Most of them basically just call
 // their associated functions, but there will be extra functionality here
 // as well.
 
+#include "kernelSysTimer.h"
+#include "kernelInterrupt.h"
+#include "kernelPic.h"
+#include "kernelProcessorX86.h"
+#include "kernelError.h"
+#include <string.h>
 
 static kernelSysTimer *systemTimer = NULL;
-int initialized = 0;
+static int initialized = 0;
+
+
+static void timerInterrupt(void)
+{
+  // This is the system timer interrupt handler.  It calls the timer driver
+  // to actually read data from the device.
+
+  kernelProcessorIsrEnter();
+  kernelProcessingInterrupt = INTERRUPT_NUM_SYSTIMER;
+
+  // Ok, now we can call the routine.
+  if (systemTimer->driver->driverTimerTick)
+    systemTimer->driver->driverTimerTick();
+
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
+
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit();
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -65,10 +84,22 @@ int kernelSysTimerRegisterDevice(kernelSysTimer *theTimer)
 
   // If the driver has a 'register device' function, call it
   if (theTimer->driver->driverRegisterDevice)
-    status = theTimer->driver->driverRegisterDevice(theTimer);
+    {
+      status = theTimer->driver->driverRegisterDevice(theTimer);
+      if (status < 0)
+	return (status);
+    }
 
   // Alright.  We'll save the pointer to the device
   systemTimer = theTimer;
+
+  // Register our interrupt handler
+  status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_SYSTIMER, 1);
 
   // Return success
   return (status = 0);
@@ -235,16 +266,9 @@ void kernelSysTimerTick(void)
   if (!initialized)
     return;
 
-  // Now make sure the device driver timer tick routine has been 
-  // installed
-  if (systemTimer->driver->driverTimerTick == NULL)
-    {
-      kernelError(kernel_error, "The device driver routine is NULL");
-      return;
-    }
-
   // Ok, now we can call the routine.
-  systemTimer->driver->driverTimerTick();
-
+  if (systemTimer->driver->driverTimerTick)
+    systemTimer->driver->driverTimerTick();
+ 
   return;
 }

@@ -28,23 +28,32 @@
 #define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 
 // An enumeration listing possible process states
-typedef enum
-{
+typedef enum {
   proc_running, proc_ready, proc_waiting, proc_sleeping, proc_stopped,
   proc_finished, proc_zombie
 
 } processState;
 
 // An enumeration listing possible process types
-typedef enum
-{
+typedef enum {
   proc_normal, proc_thread
 
 } processType;
 
+typedef struct {
+  void *virtualAddress;
+  void *entryPoint;
+  void *code;
+  unsigned codeSize;
+  void *data;
+  unsigned dataSize;
+  unsigned imageSize;
+  int argc;
+  char *argv[64];
 
-typedef struct
-{
+} processImage;
+
+typedef struct {
   char processName[MAX_PROCNAME_LENGTH];
   int userId;
   int processId;

@@ -48,6 +48,10 @@ int kernelUserSetPassword(const char *, const char *, const char *);
 int kernelUserGetPrivilege(const char *);
 int kernelUserGetPid(void);
 int kernelUserSetPid(const char *, int);
+int kernelUserFileAdd(const char *, const char *, const char *);
+int kernelUserFileDelete(const char *, const char *);
+int kernelUserFileSetPassword(const char *, const char *, const char *,
+			      const char *);
 
 #define _KERNELUSER_H
 #endif

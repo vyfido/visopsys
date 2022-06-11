@@ -144,7 +144,7 @@ static void constructWindow(void)
   bzero(&sysDisk, sizeof(disk));
   if (!fileGetDisk("/", &sysDisk))
     {
-      if ((sysDisk.type == idecdrom) || (sysDisk.type == scsicdrom))
+      if (sysDisk.flags & DISKFLAG_CDROM)
 	{
 	  // Yes.  Make an 'eject cd' checkbox.
 	  params.gridX = 0;

@@ -28,7 +28,6 @@
 #include "kernelMiscFunctions.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 
 static kernelGraphicAdapter *adapter = NULL;
 static kernelGraphicBuffer wholeScreen;

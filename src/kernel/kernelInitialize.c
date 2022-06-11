@@ -39,7 +39,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/errors.h>
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -87,7 +86,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 
   // Initialize all our built-in drivers.  We need this before text
   // initialization, but we can't print any error messages until after.
-  int tmpStatus = kernelDriversInitialize();
+  int driverStatus = kernelDriversInitialize();
 
   // Initialize the text screen output.  This needs to be done after paging
   // has been initialized so that our screen memory can be mapped to a
@@ -96,10 +95,10 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   if (status < 0)
     return (status);
 
-  if (tmpStatus < 0)
+  if (driverStatus < 0)
     {
       kernelError(kernel_error, "Driver initialization failed");
-      return (status);
+      return (driverStatus);
     }
 
   // Initialize kernel logging
@@ -131,7 +130,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // that interrupts are not enabled here; that is done during hardware
   // enumeration after the Programmable Interrupt Controller has been
   // set up.
-  status = kernelInterruptVectorsInstall();
+  status = kernelInterruptInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "Interrupt vector initialization failed");

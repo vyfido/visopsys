@@ -28,15 +28,14 @@
 #include <sys/process.h>
 
 // Definitions
-#define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
-#define PRIORITY_LEVELS 8
-#define DEFAULT_STACK_SIZE (32 * 1024)
-#define DEFAULT_SUPER_STACK_SIZE (32 * 1024)
-#define HOOK_TIMER_INT_NUMBER 0x20
-#define TIME_SLICE_LENGTH 0x00002000
-#define CPU_PERCENT_TIMESLICES 300
-#define PRIORITY_RATIO 3
-#define PRIORITY_DEFAULT ((PRIORITY_LEVELS / 2) - 1)
+#define MAX_PROCESSES             ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
+#define PRIORITY_LEVELS           8
+#define DEFAULT_STACK_SIZE        (32 * 1024)
+#define DEFAULT_SUPER_STACK_SIZE  (32 * 1024)
+#define TIME_SLICE_LENGTH         0x00002000
+#define CPU_PERCENT_TIMESLICES    300
+#define PRIORITY_RATIO            3
+#define PRIORITY_DEFAULT          ((PRIORITY_LEVELS / 2) - 1)
 
 // A structure representing x86 TSSes (Task State Sements)
 typedef volatile struct

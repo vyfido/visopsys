@@ -677,7 +677,8 @@ int main(int argc, char *argv[])
         }
         
         return (status = loaderLoadAndExec(fileName, myPrivilege, (argc - 2),
-                                           &(argv[2]), 1 /* block */));
+                                           &(argv[2]), 1 // block
+					   ));
     }
 
   // Make a message

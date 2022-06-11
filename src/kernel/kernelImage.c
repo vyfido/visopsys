@@ -29,7 +29,6 @@
 #include "kernelFile.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 #include <string.h>
 
 // For the image file types that we support

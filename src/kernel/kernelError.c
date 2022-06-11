@@ -26,7 +26,6 @@
 #include "kernelMultitasker.h"
 #include <string.h>
 #include <stdio.h>
-#include <sys/errors.h>
 
 static char *panicConst = "PANIC";
 static char *errorConst = "Error";

@@ -46,7 +46,7 @@ static int scanDisks(void)
     return (status = ERR_NOSUCHENTRY);
 
   // Read disk info into our temporary structure
-  status = diskGetPhysicalInfo(tmpDiskInfo);
+  status = diskGetAllPhysical(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     // Eek.  Problem getting disk info
     return (status);
@@ -54,8 +54,7 @@ static int scanDisks(void)
   // Loop through these disks, figuring out which ones are CD-ROMS
   // and putting them into the regular array
   for (count = 0; count < tmpNumberDisks; count ++)
-    if ((tmpDiskInfo[count].type == idecdrom) ||
-	(tmpDiskInfo[count].type == scsicdrom))
+    if (tmpDiskInfo[count].flags & DISKFLAG_CDROM)
       {
 	memcpy(&diskInfo[numberDisks], &tmpDiskInfo[count], sizeof(disk));
 	numberDisks ++;

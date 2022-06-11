@@ -24,6 +24,8 @@
 
 #if !defined(_KERNELERROR_H)
 
+#include <sys/errors.h>
+
 // Definitions
 #define MAX_ERRORTEXT_LENGTH 1024
 

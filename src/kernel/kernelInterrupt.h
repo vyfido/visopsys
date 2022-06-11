@@ -23,24 +23,21 @@
 
 #if !defined(_KERNELINTERRUPT_H)
 
-// Here is a list of all of the external interrupt handlers we will be
-// installing into the descriptor table
-extern void kernelInterruptHandler20(void);
-extern void kernelInterruptHandler21(void);
-extern void kernelInterruptHandler25(void);
-extern void kernelInterruptHandler26(void);
-extern void kernelInterruptHandler27(void);
-extern void kernelInterruptHandler28(void);
-extern void kernelInterruptHandler29(void);
-extern void kernelInterruptHandler2A(void);
-extern void kernelInterruptHandler2B(void);
-extern void kernelInterruptHandler2C(void);
-extern void kernelInterruptHandler2D(void);
-extern void kernelInterruptHandler2E(void);
-extern void kernelInterruptHandler2F(void);
-extern void kernelInterruptHandlerUnimp(void);
+// Interrupt numbers for interrupts we care about
+#define INTERRUPT_VECTOR            0x20
+#define INTERRUPT_NUM_SYSTIMER      (INTERRUPT_VECTOR + 0x00)
+#define INTERRUPT_NUM_KEYBOARD      (INTERRUPT_VECTOR + 0x01)
+#define INTERRUPT_NUM_FLOPPY        (INTERRUPT_VECTOR + 0x06)
+#define INTERRUPT_NUM_MOUSE         (INTERRUPT_VECTOR + 0x0C)
+#define INTERRUPT_NUM_PRIMARYIDE    (INTERRUPT_VECTOR + 0x0E)
+#define INTERRUPT_NUM_SECONDARYIDE  (INTERRUPT_VECTOR + 0x0F)
 
-int kernelInterruptVectorsInstall(void);
+// Lets handlers tell everyone else which interrupt number is in service
+extern int kernelProcessingInterrupt;
+
+int kernelInterruptInitialize(void);
+void *kernelInterruptGetHandler(int);
+int kernelInterruptHook(int, void *);
 
 #define _KERNELINTERRUPT_H
 #endif

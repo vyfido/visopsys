@@ -42,7 +42,9 @@
 #include <sys/file.h>
 #include <sys/image.h>
 #include <sys/process.h>
+#include <sys/loader.h>
 #include <sys/lock.h>
+#include <sys/memory.h>
 #include <sys/variable.h>
 #include <sys/stream.h>
 #include <sys/window.h>
@@ -121,6 +123,9 @@ extern int visopsys_in_kernel;
 #define _fnum_diskWriteSectors                       2012
 // DEPRECATED _fnum_diskReadAbsoluteSectors          2013
 // DEPRECATED _fnum_diskWriteAbsoluteSectors         2014
+#define _fnum_diskGet                                2015
+#define _fnum_diskGetAll                             2016
+#define _fnum_diskGetAllPhysical                     2017
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -325,6 +330,9 @@ extern int visopsys_in_kernel;
 #define _fnum_userGetPrivilege                       13007
 #define _fnum_userGetPid                             13008
 #define _fnum_userSetPid                             13009
+#define _fnum_userFileAdd                            13010
+#define _fnum_userFileDelete                         13011
+#define _fnum_userFileSetPassword                    13012
 
 // Miscellaneous functions.  All are in the 99000-99999 range
 #define _fnum_fontGetDefault                         99000
@@ -957,6 +965,28 @@ _X_ static inline int diskGetPhysicalCount(void)
   return (sysCall_0(_fnum_diskGetPhysicalCount));
 }
 
+_X_ static inline int diskGet(const char *name, disk *userDisk)
+{
+  // Proto: int kernelDiskGet(const char *, disk *);
+  // Desc : Given a disk name string 'name', fill in the corresponding user space disk structure 'userDisk.
+  return(sysCall_2(_fnum_diskGet, (void *) name, userDisk));
+}
+
+_X_ static inline int diskGetAll(disk *userDiskArray, unsigned buffSize)
+{
+  // Proto: int kernelDiskGetAll(disk *, unsigned);
+  // Desc : Return user space disk structures in 'userDiskArray' for each logical disk, up to 'buffSize' bytes.
+  return(sysCall_2(_fnum_diskGetAll, userDiskArray, (void *) buffSize));
+}
+
+_X_ static inline int diskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
+{
+  // Proto: int kernelDiskGetAllPhysical(disk *, unsigned);
+  // Desc : Return user space disk structures in 'userDiskArray' for each physical disk, up to 'buffSize' bytes.
+  return(sysCall_2(_fnum_diskGetAllPhysical, userDiskArray,
+		   (void *) buffSize));
+}
+
 _X_ static inline int diskGetInfo(disk *d)
 {
   // Proto: int kernelDiskGetInfo(disk *);
@@ -1416,7 +1446,6 @@ _X_ static inline int multitaskerSetProcessState(int pid, int state)
 		   (void *) state));
 }
 
-
 _X_ static inline int multitaskerProcessIsAlive(int pid)
 {
   // Proto: int kernelMultitaskerProcessIsAlive(int);
@@ -1579,7 +1608,7 @@ _X_ static inline int loaderExecProgram(int processId, int block)
 
 _X_ static inline int loaderLoadAndExec(const char *name, int privilege, int argc, char *argv[], int block)
 {
-  // Proto: kernelLoaderLoadAndExec(const char *, int, char *[], int);
+  // Proto: int kernelLoaderLoadAndExec(const char *, int, int, char *[], int);
   // Desc : This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
   return (sysCall_5(_fnum_loaderLoadAndExec, (void *) name,
 		    (void *) privilege, (void *) argc, argv, (void *) block));
@@ -2447,6 +2476,30 @@ _X_ static inline int userSetPid(const char *name, int pid)
   // Proto: int kernelUserSetPid(const char *, int);
   // Desc : Set the login PID of user 'name' to 'pid'.  This is the process that gets killed when the user indicates that they want to logout.  In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell.
   return (sysCall_2(_fnum_userSetPid, (void *) name, (void *) pid));
+}
+
+_X_ static inline int userFileAdd(const char *passFile, const char *userName, const char *password)
+{
+  // Proto: int kernelUserFileAdd(const char *, const char *, const char *);
+  // Desc : Add a user to the designated password file, with the given name and password.  This can only be done by a privileged user.
+  return (sysCall_3(_fnum_userFileAdd, (void *) passFile, (void *) userName,
+		    (void *) password));
+}
+
+_X_ static inline int userFileDelete(const char *passFile, const char *userName)
+{
+  // Proto: int kernelUserFileDelete(const char *, const char *);
+  // Desc : Remove a user from the designated password file.  This can only be done by a privileged user
+  return (sysCall_2(_fnum_userFileDelete, (void *) passFile,
+		    (void *) userName));
+}
+
+_X_ static inline int userFileSetPassword(const char *passFile, const char *userName, const char *oldPass, const char *newPass)
+{
+  // Proto: int kernelUserFileSetPassword(const char *, const char *, const char *, const char *);
+  // Desc : Set the password of user 'userName' in the designated password file.  If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'.  The new password is supplied in 'newPass'.
+  return (sysCall_4(_fnum_userFileSetPassword, (void *) passFile,
+		    (void *) userName, (void *) oldPass, (void *) newPass));
 }
 
 

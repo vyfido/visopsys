@@ -22,24 +22,17 @@
 // Driver for standard 3.5" floppy disks
 
 #include "kernelDriverManagement.h"
-#include "kernelParameters.h"
+#include "kernelInterrupt.h"
+#include "kernelPic.h"
 #include "kernelProcessorX86.h"
+#include "kernelParameters.h"
 #include "kernelMemoryManager.h"
 #include "kernelPageManager.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-#include <sys/errors.h>
 
-int kernelFloppyDriverRegisterDevice(void *);
-int kernelFloppyDriverReset(int);
-int kernelFloppyDriverRecalibrate(int);
-int kernelFloppyDriverSetMotorState(int, int);
-int kernelFloppyDriverDiskChanged(int);
-int kernelFloppyDriverReadSectors(int, unsigned, unsigned, void *);
-int kernelFloppyDriverWriteSectors(int, unsigned, unsigned, void *);
-void kernelFloppyDriverReceiveInterrupt(void);
 
 // Error codes and messages
 #define FLOPPY_ABNORMAL           0
@@ -100,20 +93,6 @@ static volatile unsigned char statusRegister3;
 // An area for doing floppy disk DMA transfers (physically aligned, etc)
 static volatile void *xFerPhysical = NULL;
 static volatile void *xFer = NULL;
-
-static kernelDiskDriver defaultFloppyDriver =
-{
-  NULL, // driverDetect
-  kernelFloppyDriverRegisterDevice,
-  kernelFloppyDriverReset,
-  kernelFloppyDriverRecalibrate,
-  kernelFloppyDriverSetMotorState,
-  NULL, // driverLockState
-  NULL, // driverDoorState
-  kernelFloppyDriverDiskChanged,
-  kernelFloppyDriverReadSectors,
-  kernelFloppyDriverWriteSectors,
-};
 
 
 static void commandWrite(unsigned char cmd)
@@ -643,59 +622,42 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelFloppyDriverInitialize(void)
+static void floppyInterrupt(void)
 {
-  // This initializes the driver and returns success
+  // This is the floppy interrupt handler.  It will simply change a data
+  // value to indicate that one has been received, and acknowldege the
+  // interrupt to the PIC.  It's up to the other routines to do something
+  // useful with the information.
 
-  int status = 0;
+  kernelProcessorIsrEnter();
+  kernelProcessingInterrupt = INTERRUPT_NUM_FLOPPY;
 
-  // Get memory for a disk transfer area.
-
-  // We need to get a physical memory address to pass to the DMA controller
-  // (in the case of floppies).  Therefore, we ask the memory manager
-  // specifically for the physical address.
-  xFerPhysical =
-    kernelMemoryGetPhysical(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
-			    "floppy disk transfer");
-  if (xFerPhysical == NULL)
+  // Check whether to do the "sense interrupt status" command.
+  if (readStatusOnInterrupt)
     {
-      kernelError(kernel_error, "Unable to allocate memory for floppy "
-		  "disk transfer area");
-      return (status = ERR_MEMORY);
-    }
-  
-  // Map it into the kernel's address space
-  status = kernelPageMapToFree(KERNELPROCID, (void *) xFerPhysical,
-			       (void **) &xFer, DISK_CACHE_ALIGN);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Unable to map memory for floppy disk "
-		  "transfer area");
-      return (status);
+      // Tell the diskette drive that the interrupt was serviced.  This
+      // helps the drive stop doing the operation, and returns some status
+      // operation, which we will save.
+
+      commandWrite((unsigned char) 0x08);
+
+      statusRegister0 = statusRead();
+      currentTrack = (unsigned) statusRead();
+      
+      readStatusOnInterrupt = 0;
     }
 
-  // Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
-  // it for us
-  kernelMemClear((void *) xFer, DISK_CACHE_ALIGN);
+  // Note that we got the interrupt.
+  interruptReceived = 1;
 
-  // Clear the "interrupt received" byte
-  interruptReceived = 0;
-  readStatusOnInterrupt = 0;    
-  
-  return (kernelDriverRegister(floppyDriver, &defaultFloppyDriver));
+  kernelPicEndOfInterrupt(INTERRUPT_NUM_FLOPPY);
+
+  kernelProcessingInterrupt = 0;
+  kernelProcessorIsrExit();
 }
 
 
-int kernelFloppyDriverRegisterDevice(void *diskPointer)
+static int floppyDriverRegisterDevice(void *diskPointer)
 {
   // This function should be called before any attempt is made to use the
   // drive in question.  This allows us to store some information about this
@@ -785,6 +747,14 @@ int kernelFloppyDriverRegisterDevice(void *diskPointer)
   // Save the pointer to the disk info
   floppies[newDisk->deviceNumber] = newDisk;
 
+  // Register our interrupt handler
+  status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_FLOPPY, 1);
+
   // Select the drive on the controller
   selectDrive(newDisk->deviceNumber);
 
@@ -795,7 +765,7 @@ int kernelFloppyDriverRegisterDevice(void *diskPointer)
 }
 
 
-int kernelFloppyDriverReset(int driveNum)
+static int floppyDriverReset(int driveNum)
 {
   // Does a software reset of the requested floppy controller.  Always
   // returns success.
@@ -840,7 +810,7 @@ int kernelFloppyDriverReset(int driveNum)
 }
 
 
-int kernelFloppyDriverRecalibrate(int driveNum)
+static int floppyDriverRecalibrate(int driveNum)
 {
   // Recalibrates the selected drive, causing it to seek to track 0
 
@@ -890,7 +860,7 @@ int kernelFloppyDriverRecalibrate(int driveNum)
 }
 
 
-int kernelFloppyDriverSetMotorState(int driveNum, int onOff)
+static int floppyDriverSetMotorState(int driveNum, int onOff)
 {
   // Turns the floppy motor on or off
 
@@ -910,7 +880,7 @@ int kernelFloppyDriverSetMotorState(int driveNum, int onOff)
 }
 
 
-int kernelFloppyDriverDiskChanged(int driveNum)
+static int floppyDriverDiskChanged(int driveNum)
 {
   // This routine determines whether the media in the floppy has changed.
   // drive.  It takes no parameters, and returns 1 if the disk is missing
@@ -945,8 +915,8 @@ int kernelFloppyDriverDiskChanged(int driveNum)
 }
 
 
-int kernelFloppyDriverReadSectors(int driveNum, unsigned logicalSector,
-				  unsigned numSectors, void *buffer)
+static int floppyDriverReadSectors(int driveNum, unsigned logicalSector,
+				   unsigned numSectors, void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
@@ -957,8 +927,8 @@ int kernelFloppyDriverReadSectors(int driveNum, unsigned logicalSector,
 }
 
 
-int kernelFloppyDriverWriteSectors(int driveNum, unsigned logicalSector,
-				   unsigned numSectors, void *buffer)
+static int floppyDriverWriteSectors(int driveNum, unsigned logicalSector,
+				    unsigned numSectors, void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
@@ -969,30 +939,68 @@ int kernelFloppyDriverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-void kernelFloppyDriverReceiveInterrupt(void)
+static kernelDiskDriver defaultFloppyDriver =
 {
-  // This routine will be called whenever the floppy drive issues its service
-  // interrupt.  It will simply change a data value to indicate that one has
-  // been received, and acknowldege the interrupt to the PIC.  It's up to
-  // other routines to do something useful with the information.
+  NULL, // driverDetect
+  floppyDriverRegisterDevice,
+  floppyDriverReset,
+  floppyDriverRecalibrate,
+  floppyDriverSetMotorState,
+  NULL, // driverLockState
+  NULL, // driverDoorState
+  floppyDriverDiskChanged,
+  floppyDriverReadSectors,
+  floppyDriverWriteSectors,
+};
 
-  // Check whether to do the "sense interrupt status" command.
-  if (readStatusOnInterrupt)
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelFloppyDriverInitialize(void)
+{
+  // This initializes the driver and returns success
+
+  int status = 0;
+
+  // Get memory for a disk transfer area.
+
+  // We need to get a physical memory address to pass to the DMA controller
+  // (in the case of floppies).  Therefore, we ask the memory manager
+  // specifically for the physical address.
+  xFerPhysical =
+    kernelMemoryGetPhysical(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
+			    "floppy disk transfer");
+  if (xFerPhysical == NULL)
     {
-      // Tell the diskette drive that the interrupt was serviced.  This
-      // helps the drive stop doing the operation, and returns some status
-      // operation, which we will save.
-
-      commandWrite((unsigned char) 0x08);
-
-      statusRegister0 = statusRead();
-      currentTrack = (unsigned) statusRead();
-      
-      readStatusOnInterrupt = 0;
+      kernelError(kernel_error, "Unable to allocate memory for floppy "
+		  "disk transfer area");
+      return (status = ERR_MEMORY);
+    }
+  
+  // Map it into the kernel's address space
+  status = kernelPageMapToFree(KERNELPROCID, (void *) xFerPhysical,
+			       (void **) &xFer, DISK_CACHE_ALIGN);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Unable to map memory for floppy disk "
+		  "transfer area");
+      return (status);
     }
 
-  // Note that we got the interrupt.
-  interruptReceived = 1;
+  // Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
+  // it for us
+  kernelMemClear((void *) xFer, DISK_CACHE_ALIGN);
 
-  return;
+  // Clear the "interrupt received" byte
+  interruptReceived = 0;
+  readStatusOnInterrupt = 0;    
+  
+  return (kernelDriverRegister(floppyDriver, &defaultFloppyDriver));
 }

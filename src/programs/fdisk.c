@@ -146,8 +146,8 @@ static int quit(int force)
     }
   else
     {
+      textScreenRestore();
       printf("\nQuitting.\n");
-      //textScreenRestore();
     }
 
   if (tmpBackupName != NULL)
@@ -950,7 +950,7 @@ static int getFsType(slice *entry)
   // Call the kernel to give us the number of available disks
   tmpNumberDisks = diskGetCount();
 
-  status = diskGetInfo(tmpDisks);
+  status = diskGetAll(tmpDisks, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     return (status);
 
@@ -1446,7 +1446,7 @@ static int scanDisks(void)
     return (status = ERR_NOSUCHENTRY);
 
   // Read disk info into our temporary structure
-  status = diskGetPhysicalInfo(tmpDiskInfo);
+  status = diskGetAllPhysical(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     // Eek.  Problem getting disk info
     return (status);
@@ -1454,7 +1454,7 @@ static int scanDisks(void)
   // Loop through these disks, figuring out which ones are hard disks
   // and putting them into the regular array
   for (count = 0; count < tmpNumberDisks; count ++)
-    if (tmpDiskInfo[count].fixedRemovable == fixed)
+    if (tmpDiskInfo[count].flags & DISKFLAG_HARDDISK)
       {
 	memcpy(&diskInfo[numberDisks], &tmpDiskInfo[count], sizeof(disk));
 
@@ -1925,8 +1925,8 @@ static void format(slice *formatSlice)
 
   if (changesPending)
     {
-      error("A partition format cannot be undone, and this requires that\n"
-	    "you to write your other changes to disk before continuing.");
+      error("A partition format cannot be undone, and it is required that\n"
+	    "you write your other changes to disk before continuing.");
       return;
     }
 
@@ -3767,10 +3767,10 @@ static void changePartitionOrder(void)
       int foregroundColor = textGetForeground();
       int backgroundColor = textGetBackground();
       textSetCursor(0);
+      textInputSetEcho(0);
 
-      bzero(lineString, (SLICESTRING_LENGTH + 2));
-      for (count1 = 0; count1 <= SLICESTRING_LENGTH; count1 ++)
-	lineString[count1] = 196;
+      memset(lineString, 196, (SLICESTRING_LENGTH + 1));
+      lineString[SLICESTRING_LENGTH + 1] = '\0';
 
       while (1)
 	{
@@ -3816,6 +3816,7 @@ static void changePartitionOrder(void)
 	      makeSliceList();
 	      changesPending += 1;
 	      textSetCursor(1);
+	      textInputSetEcho(1);
 	      return;
 
 	    case (unsigned char) 17:
@@ -3859,6 +3860,7 @@ static void changePartitionOrder(void)
 	    case 'q':
 	    case 'Q':
 	      textSetCursor(1);
+	      textInputSetEcho(1);
 	      return;
 
 	    default:
@@ -4554,7 +4556,7 @@ int main(int argc, char *argv[])
   bzero(diskInfo, sizeof(disk));
   if (!fileGetDisk(TEMP_DIR, diskInfo) && !diskInfo->readOnly)
     {
-      if (!fileGetDisk(BACKUP_DIR, diskInfo) && !diskInfo->readOnly)
+      if (!fileGetDisk(BOOT_DIR, diskInfo) && !diskInfo->readOnly)
 	readOnly = 0;
     }
   bzero(diskInfo, sizeof(disk));
@@ -4587,7 +4589,7 @@ int main(int argc, char *argv[])
     }
   else
     {
-      //textScreenSave();
+      textScreenSave();
       printBanner();
     }
 
@@ -4622,6 +4624,7 @@ int main(int argc, char *argv[])
 	    {
 	      printf("\n\nNo disk selected.  Quitting.\n\n");
 	      freeMemory();
+	      textScreenRestore();
 	      return (errno = status);
 	    }
 	}
@@ -4643,7 +4646,10 @@ int main(int argc, char *argv[])
       status = 0;
     }
   else
-    status = textMenu();
+    {
+      status = textMenu();
+      textScreenRestore();
+    }
 
   freeMemory();
   return (status);

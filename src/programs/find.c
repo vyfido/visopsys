@@ -79,11 +79,9 @@ int main(int argc, char *argv[])
   file theFile;
   char fileName[MAX_PATH_NAME_LENGTH];
   char fullName[MAX_PATH_NAME_LENGTH];
-  int count = 0;
 
   // Initialize the file structure
-  for (count = 0; count < (int) sizeof(file); count ++)
-    ((char *) &theFile)[count] = NULL;
+  bzero(&theFile, sizeof(file));
 
   if (argc == 1)
     // No args.  Assume current directory

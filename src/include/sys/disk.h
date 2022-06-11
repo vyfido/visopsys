@@ -52,8 +52,21 @@
 #define FS_OP_CHECK                     0x02
 #define FS_OP_DEFRAG                    0x04
 
-typedef enum { floppy, idecdrom, scsicdrom, idedisk, scsidisk } diskType;
-typedef enum { fixed, removable } mediaType;
+// Flags to describe what kind of disk is described by a disk structure
+#define DISKFLAG_LOGICAL              0x20000000
+#define DISKFLAG_PHYSICAL             0x10000000
+#define DISKFLAG_PRIMARY              0x01000000
+#define DISKFLAG_LOGICALPHYSICAL      (DISKFLAG_PHYSICAL | DISKFLAG_LOGICAL)
+#define DISKFLAG_FIXED                0x00200000
+#define DISKFLAG_REMOVABLE            0x00100000
+#define DISKFLAG_FIXEDREMOVABLE       (DISKFLAG_FIXED | DISKFLAG_REMOVABLE)
+#define DISKFLAG_FLOPPY               0x00000100
+#define DISKFLAG_SCSICDROM            0x00000020
+#define DISKFLAG_IDECDROM             0x00000010
+#define DISKFLAG_CDROM                (DISKFLAG_SCSICDROM | DISKFLAG_IDECDROM)
+#define DISKFLAG_SCSIDISK             0x00000002
+#define DISKFLAG_IDEDISK              0x00000001
+#define DISKFLAG_HARDDISK             (DISKFLAG_SCSIDISK | DISKFLAG_IDEDISK)
 
 // This structure is used to describe a known partition type
 typedef struct
@@ -67,8 +80,7 @@ typedef struct
 {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
-  diskType type;
-  mediaType fixedRemovable;
+  int flags;
   int readOnly;
   partitionType partType;
   char fsType[FSTYPE_MAX_NAMELENGTH];

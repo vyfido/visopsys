@@ -28,7 +28,6 @@
 #include "kernelError.h"
 #include <string.h>
 #include <sys/window.h>
-#include <sys/errors.h>
 
 
 /////////////////////////////////////////////////////////////////////////

@@ -28,8 +28,9 @@
 #define DISK_MANAGER     "Visopsys Disk Manager"
 #define PARTITION_LOGIC  "Partition Logic"
 #define TEMP_DIR         "/temp"
-#define BACKUP_DIR       "/system/boot"
-#define BACKUP_MBR       BACKUP_DIR"/backup-%s.mbr"
+#define BOOT_DIR         "/system/boot"
+#define BACKUP_MBR       BOOT_DIR"/backup-%s.mbr"
+#define SIMPLE_MBR_FILE  BOOT_DIR"/mbr.simple"
 #define PERM             "You must be a privileged user to use this command."
 #define PARTTYPES        "Supported partition types"
 

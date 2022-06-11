@@ -29,7 +29,6 @@
 #include "kernelLock.h"
 #include "kernelError.h"
 #include <string.h>
-#include <sys/errors.h>
 
 
 static int findVariable(variableList *list, const char *variable)

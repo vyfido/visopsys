@@ -88,12 +88,19 @@
 %define FS_FAT16    2
 %define FS_FAT32    3
 
+;; Filesystem values
+%define FAT_BYTESPERDIRENTRY   32
+%define FAT12_NYBBLESPERCLUST  3
+%define FAT16_NYBBLESPERCLUST  4
+%define FAT32_NYBBLESPERCLUST  8
+
 ;; CPU types
 %define i486       0
-%define pentium    1
-%define pentiumPro 2
-%define pentiumII  3
-%define pentiumIII 4
+%define PENTIUM    1
+%define PENTIUMPRO 2
+%define PENTIUM2   3
+%define PENTIUM3   4
+%define PENTIUM4   5
 
 ;; Number of elements in our memory map
 %define MEMORYMAPSIZE 50

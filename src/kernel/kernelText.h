@@ -28,7 +28,7 @@
 // Definitions
 #define TEXTSTREAMSIZE 32768
 #define DEFAULT_TAB 8
-#define DEFAULT_SCROLLBACKLINES 200
+#define DEFAULT_SCROLLBACKLINES 256
 
 // Colours for the text console
 // 0  = black
@@ -97,7 +97,8 @@ typedef struct
   int (*delete) (kernelTextArea *);
   int (*screenDraw) (kernelTextArea *);
   int (*screenClear) (kernelTextArea *);
-  int (*screenRefresh) (kernelTextArea *);
+  int (*screenSave) (kernelTextArea *);
+  int (*screenRestore) (kernelTextArea *);
 
 } kernelTextOutputDriver;
 

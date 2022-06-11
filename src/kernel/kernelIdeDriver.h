@@ -24,6 +24,10 @@
 
 #if !defined(_KERNELIDEDRIVER_H)
 
+#include "kernelLock.h"
+
+#define MAX_IDE_DISKS 4
+
 // Status register bits
 #define IDE_CTRL_BSY   0x80
 #define IDE_DRV_RDY    0x40
@@ -110,6 +114,12 @@ typedef struct {
 
 } idePorts;
 
+typedef struct {
+  lock controllerLock;
+  int interruptReceived;
+
+} ideController;
+
 // Some predefined ATAPI packets
 #define ATAPI_PACKET_UNLOCK \
  ((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
@@ -127,17 +137,6 @@ typedef struct {
  ((unsigned char[]) { ATAPI_READCAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
 #define ATAPI_PACKET_READTOC \
  ((unsigned char[]) { ATAPI_READTOC, 0, 1, 0, 0, 0, 0, 0, 12, 0x40, 0, 0 } )
-
-// Functions exported from kernelIdeDriver.c
-int kernelIdeDriverDetect(int, void *);
-int kernelIdeDriverRegisterDevice(void *);
-int kernelIdeDriverReset(int);
-int kernelIdeDriverRecalibrate(int);
-int kernelIdeDriverSetLockState(int, int);
-int kernelIdeDriverSetDoorState(int, int);
-int kernelIdeDriverReadSectors(int, unsigned , unsigned, void *);
-int kernelIdeDriverWriteSectors(int, unsigned , unsigned, void *);
-void kernelIdeDriverReceiveInterrupt(void);
 
 #define _KERNELIDEDRIVER_
 #endif

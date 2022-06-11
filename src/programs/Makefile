@@ -6,19 +6,19 @@
 ##
 
 BUILDDIR=../../build/programs
+LIBDIR=../../build/system/libraries
 
 CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
-STDDEPS		= Makefile*
+STDDEPS		= Makefile* ${LIBDIR}/*.a
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I../include
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
-LIB		= -L../../build/system/libraries
-LFLAGS		= ${LIB} -nostdlib -nodefaultlibs -nostartfiles -Wl,../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
+LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -Wl,../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
 OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES	= adduser \
@@ -75,6 +75,7 @@ OBJS = $(addprefix ${BUILDDIR}/, ${NAMES})
 # Targets
 
 all: target-dirs ${OBJS}
+	strip -s ${OBJS}
 	#make -C mines
 
 target-dirs:

@@ -361,7 +361,7 @@ int main(int argc, char *argv[])
 	  showVersion();
 	  return (0);
 	case 'f':
-	  // Login using the supplied user name
+	  // Login using the supplied user name and no password
 	  strncpy(login, optarg, MAX_LOGIN_LENGTH);
 	  skipLogin = 1;
 	  break;

@@ -21,15 +21,6 @@
 
 #if !defined(_KERNELPROCESSORX86_H)
 
-// Definitions
-#define PAGEPRESENT_BIT   0x00000001
-#define WRITABLE_BIT      0x00000002
-#define USER_BIT          0x00000004
-#define WRITETHROUGH_BIT  0x00000008
-#define CACHEDISABLE_BIT  0x00000010
-#define GLOBAL_BIT        0x00000100
-
-
 #define kernelProcessorStop()      \
   __asm__ __volatile__ ("cli \n\t" \
 			"hlt")
@@ -130,6 +121,20 @@
                         "popfl"              \
                         : : "a" (selector))
 
+#define kernelProcessorGetTaskReg(variable) \
+  __asm__ __volatile__ ("str %0"            \
+                        : "=r" (variable))
+
+#define kernelProcessorGetFlags(variable) \
+  __asm__ __volatile__ ("pushfl \n\t"     \
+                        "popl %0"         \
+                        : "=r" (variable))
+
+#define kernelProcessorSetFlags(variable) \
+  __asm__ __volatile__ ("pushl %0 \n\t"   \
+                        "popfl"           \
+                        : : "r" (variable))
+
 #define kernelProcessorInPort8(port, data) \
   __asm__ __volatile__ ("inb %%dx, %%al"   \
                         : "=a" (data) : "d" (port))
@@ -212,15 +217,17 @@ do                                           \
 } while (0)
 
 #define kernelProcessorIsrEnter()              \
-  __asm__ __volatile__ ("cli \n\t"             \
-			"movl %ebp, %esp \n\t" \
-			"pushal")
+  __asm__ __volatile__ ("movl %ebp, %esp \n\t" \
+			"pushal \n\t"          \
+			"pushfl \n\t"          \
+			"cli")
 
 #define kernelProcessorIsrExit()               \
   __asm__ __volatile__ ("movl %ebp, %esp \n\t" \
-                        "subl $32, %esp \n\t"  \
-                        "popal \n\t"           \
-                        "popl %ebp \n\t"       \
+			"subl $36, %esp \n\t"  \
+			"popfl \n\t"           \
+			"popal \n\t"           \
+			"popl %ebp \n\t"       \
 			"iret")
 
 #define kernelProcessorApiEnter()              \

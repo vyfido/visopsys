@@ -16,12 +16,11 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  vshRenameFile.c
+//  vshMoveFile.c
 //
 
 // This contains some useful functions written for the shell
 
-#include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
@@ -29,23 +28,17 @@
 
 _X_ int vshRenameFile(const char *srcFile, const char *destFile)
 {
-  // Desc: Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
- 
+  // Desc: Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames -- beginning with '/' -- and must be within the same filesystem.
+
   int status = 0;
   
   // Make sure filename arguments aren't NULL
   if ((srcFile == NULL) || (destFile == NULL))
-    return -1;
+    return (errno = ERR_NULLPARAMETER);
    
   // Attempt to rename the file
   status = fileMove(srcFile, destFile);
   if (status < 0)
-    {
-      errno = status;
-      perror("rename file");
-      return (status);
-    }
- 
-  // Return success
-  return (status = 0);
+    errno = status;
+  return (status);
 }

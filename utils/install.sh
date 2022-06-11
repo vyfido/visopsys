@@ -11,7 +11,7 @@
 # permissions which allow direct writes by the invoking user. 
 
 BUILDDIR=../build
-BOOTSECTOR=${BUILDDIR}/system/boot/bootsect.fat12
+BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat12
 OSLOADER=vloader
 FSTAB=/etc/fstab
 BASICFILES=../dist/system/install-files.basic
@@ -24,6 +24,9 @@ echo ""
 
 if [ "$1" == "-basic" ] ; then
     INSTTYPE=basic
+    shift
+elif [ "$1" == "-isoboot" ] ; then
+    INSTTYPE=isoboot
     shift
 fi
 
@@ -109,22 +112,28 @@ fi
 
 # Copy files from the build directory
 echo -n "Copying files...  "
-for FILE in `cat $BASICFILES` ; do
-    if [ -d "$BUILDDIR""$FILE" ] ; then
-	mkdir -p "$MOUNTDIR""$FILE"
-    elif [ -f "$BUILDDIR""$FILE" ] ; then
+if [ "$INSTTYPE" = "isoboot" ] ; then
+    for FILE in /vloader /visopsys ; do
 	cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
-    fi
-done
-
-if [ "$INSTTYPE" != "basic" ] ; then
-    for FILE in `cat $FULLFILES` ; do
+    done
+else
+    for FILE in `cat $BASICFILES` ; do
 	if [ -d "$BUILDDIR""$FILE" ] ; then
 	    mkdir -p "$MOUNTDIR""$FILE"
 	elif [ -f "$BUILDDIR""$FILE" ] ; then
 	    cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
 	fi
     done
+
+    if [ "$INSTTYPE" != "basic" ] ; then
+	for FILE in `cat $FULLFILES` ; do
+	    if [ -d "$BUILDDIR""$FILE" ] ; then
+		mkdir -p "$MOUNTDIR""$FILE"
+	    elif [ -f "$BUILDDIR""$FILE" ] ; then
+		cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
+	    fi
+	done
+    fi
 fi
 
 sync
