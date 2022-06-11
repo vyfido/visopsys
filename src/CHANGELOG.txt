@@ -1,5 +1,41 @@
 
 ---------------
+Version 0.51
+---------------
+
+  Overview: This is a maintenance and bugfix release, with some additional
+  features, such as the Disk Manager's ability to fix small partition table
+  consistency errors.
+
+- Enhanced the bootstrap code so that it is possible to boot on some
+trickier hardware platforms, such as Toshiba laptops.
+- The disk manager now offers to fix errors turned up by the partition
+table check.
+- The disk thread now respawns when it is killed [ thanks Thomas Kreitner ].
+- The 'install' program now show a progress meter in text mode while
+copying files.
+- When the shutdown program is attempting to eject the disk, it now shows
+a banner dialog since sometimes it takes a couple of seconds.
+- In the text area code, when the screen is cleared, the existing screen
+contents are no longer rolled back into the buffer -- they are discarded.
+- Deprecated the windowPack() and windowSetPacked() API functions.
+- While attempting builds with gcc version 3.4.2, fixed a number of bugs
+and details that the newer compiler found.
+- Fixed: The program manager wasn't really putting threads under their
+correct process parents; it merely put them in order as received from the
+kernel.
+- Fixed: The getopt() library function was being used incorrectly by a
+number of the user applications.
+- Fixed: It was possible to kill the exception handler thread, which caused
+an immediate triple fault [ thanks Thomas Kreitner ].
+- Fixed: Broken CD-ROM floppy disk emulations no longer trick the loader
+into detecting nonexistent floppies.
+- Fixed: On some hardware, the kernel's hardware detection could be tricked
+into detecting nonexistent fixed disks with NULL geometry.
+- Fixed: The 'megabytes' value being printed for hard disks by the loader
+was severely wrong.
+
+---------------
 Version 0.5
 ---------------
 

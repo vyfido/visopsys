@@ -45,7 +45,7 @@ static int multitaskingEnabled = 0;
 static volatile int processIdCounter = KERNELPROCID;
 static kernelProcess *kernelProc = NULL;
 static kernelProcess *idleProc = NULL;
-static kernelProcess *exceptionHandlerProc;
+static kernelProcess *exceptionProc = NULL;
 static kernelProcess *deadProcess;
 static volatile int schedulerSwitchedByCall = 0;
 
@@ -69,6 +69,11 @@ static volatile unsigned schedulerTime = 0;
 // We use this in several places
 extern int kernelProcessingInterrupt;
 
+#define PROC_KILLABLE(proc) ((proc != kernelProc) &&        \
+                             (proc != exceptionProc) &&     \
+                             (proc != idleProc) &&          \
+                             (proc != kernelCurrentProcess))
+  
 
 static kernelProcess *getProcessById(int processId)
 {
@@ -645,7 +650,7 @@ static int markTaskUnbusy(int tssSelector)
 }
 
 
-static int exceptionHandlerInitialize(void)
+static int exceptionThreadInitialize(void)
 {
   // This function will initialize the kernel's exception handler thread.  
   // It should be called after multitasking has been initialized.  
@@ -662,29 +667,29 @@ static int exceptionHandlerInitialize(void)
 
   // OK, we will now create the kernel's exception handler thread.
 
-  procId = kernelMultitaskerSpawn(&kernelExceptionHandler,
-				  "exception handler", 0, NULL);
+  procId = kernelMultitaskerSpawn(&kernelExceptionHandler, "exception thread",
+				  0, NULL);
   if (procId < 0)
     {
       kernelError(kernel_error, "Unable to create the kernel's exception "
-		  "handler thread");
+		  "thread");
       return (procId);
     }
 
-  exceptionHandlerProc = getProcessById(procId);
-  if (exceptionHandlerProc == NULL)
+  exceptionProc = getProcessById(procId);
+  if (exceptionProc == NULL)
     {
       kernelError(kernel_error, "Unable to create the kernel's exception "
-		  "handler thread");
+		  "thread");
       return (procId);
     }
 
   // Set the process state to sleep
-  exceptionHandlerProc->state = proc_sleeping;
+  exceptionProc->state = proc_sleeping;
 
   status = kernelDescriptorSet(
-	       exceptionHandlerProc->tssSelector, // TSS selector
-	       &(exceptionHandlerProc->taskStateSegment), // Starts at...
+	       exceptionProc->tssSelector, // TSS selector
+	       &(exceptionProc->taskStateSegment), // Starts at...
 	       sizeof(kernelTSS),      // Maximum size of a TSS selector
 	       1,                      // Present in memory
 	       0,                      // Highest privilege level
@@ -697,14 +702,14 @@ static int exceptionHandlerInitialize(void)
     return (status);
 
   // Interrupts should always be disabled for this task 
-  exceptionHandlerProc->taskStateSegment.EFLAGS = 0x00000002;
+  exceptionProc->taskStateSegment.EFLAGS = 0x00000002;
 
   // Set up interrupt task gates to send all the exceptions to this new
   // thread
   for (count = 0; count < 19; count ++)
     {
-      status = kernelDescriptorSetIDTTaskGate(count, exceptionHandlerProc
-					      ->tssSelector);
+      status =
+	kernelDescriptorSetIDTTaskGate(count, exceptionProc->tssSelector);
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to set interrupt task gate for "
@@ -738,9 +743,7 @@ static int spawnIdleThread(void)
   int idleProcId = 0;
 
   // The idle thread needs to be a child of the kernel
-  idleProcId =
-    kernelMultitaskerSpawn(idleThread, "idle thread", 0, // no arguments
-			   NULL);
+  idleProcId = kernelMultitaskerSpawn(idleThread, "idle thread", 0, NULL);
   if (idleProcId < 0)
     return (idleProcId);
 
@@ -749,8 +752,8 @@ static int spawnIdleThread(void)
     return (status = ERR_NOSUCHPROCESS);
 
   // Set it to the lowest priority
-  status = kernelMultitaskerSetProcessPriority(idleProcId, 
-					       (PRIORITY_LEVELS - 1));
+  status =
+    kernelMultitaskerSetProcessPriority(idleProcId, (PRIORITY_LEVELS - 1));
   if (status < 0)
     // There's no reason we should have to fail here, but make a warning
     kernelError(kernel_warn, "The multitasker was unable to lower the "
@@ -1117,11 +1120,11 @@ static int scheduler(void)
       schedulerSwitchedByCall = 0;
 
       // Make sure the exception handler process is ready to go
-      if (exceptionHandlerProc)
+      if (exceptionProc)
 	{
 	  status = kernelDescriptorSet(
-		   exceptionHandlerProc->tssSelector, // TSS selector
-		   &(exceptionHandlerProc->taskStateSegment), // Starts at...
+		   exceptionProc->tssSelector, // TSS selector
+		   &(exceptionProc->taskStateSegment), // Starts at...
 		   sizeof(kernelTSS),      // Maximum size of a TSS selector
 		   1,                      // Present in memory
 		   0,                      // Highest privilege level
@@ -1129,7 +1132,7 @@ static int scheduler(void)
 		   0x9,                    // TSS, 32-bit, non-busy
 		   0,                      // 0 for SMALL size granularity
 		   0);                     // Must be 0 in TSS
-	  exceptionHandlerProc->taskStateSegment.EIP = (unsigned)
+	  exceptionProc->taskStateSegment.EIP = (unsigned)
 	    &kernelExceptionHandler;
 	}
 
@@ -1433,7 +1436,7 @@ int kernelMultitaskerInitialize(void)
     return (status);
 
   // Start the exception handler thread.
-  status = exceptionHandlerInitialize();
+  status = exceptionThreadInitialize();
   // Make sure it was successful
   if (status < 0)
     return (status);
@@ -1505,13 +1508,13 @@ void kernelExceptionHandler(void)
       deadProcess = kernelCurrentProcess;
       deadProcess->state = proc_stopped;
 
-      kernelCurrentProcess = exceptionHandlerProc;
+      kernelCurrentProcess = exceptionProc;
 
       // Don't get into a loop.
-      if (exceptionHandlerProc->state != proc_sleeping)
+      if (exceptionProc->state != proc_sleeping)
 	kernelPanic("Double-fault while processing exception");
 
-      exceptionHandlerProc->state = proc_running;
+      exceptionProc->state = proc_running;
 
       // If the fault occurred while we were processing an interrupt,
       // we should tell the PIC that the interrupt service routine is
@@ -1583,7 +1586,7 @@ void kernelExceptionHandler(void)
       // process' stack memory so we can do a dump later
       if (!kernelProcessingInterrupt)
 	kernelMemoryChangeOwner(deadProcess->processId,
-				exceptionHandlerProc->processId, 1,
+				exceptionProc->processId, 1,
 				deadProcess->userStack, &stackMemory);
 
       // If possible, we will do a stack memory dump to disk.  Don't try this
@@ -1606,12 +1609,11 @@ void kernelExceptionHandler(void)
       kernelProcessingInterrupt = 0;
 
       // Make sure that when we return, we return to the scheduler
-      exceptionHandlerProc->taskStateSegment.oldTSS =
-	schedulerProc->tssSelector;
+      exceptionProc->taskStateSegment.oldTSS = schedulerProc->tssSelector;
 
       // Mark the process as finished and yield the timeslice back to the
       // scheduler.  The scheduler will take care of dismantling the process
-      exceptionHandlerProc->state = proc_sleeping;
+      exceptionProc->state = proc_sleeping;
       kernelMultitaskerYield();
     }
 }
@@ -2714,6 +2716,14 @@ int kernelMultitaskerKillProcess(int processId, int force)
       return (status = ERR_INVALID);
     }
 
+  // You can't kill the exception handler thread on purpose
+  if (killProcess == exceptionProc)
+    {
+      kernelError(kernel_error, "It's not possible to kill the exception "
+		  "thread");
+      return (status = ERR_INVALID);
+    }
+
   // If a thread is trying to kill its parent, we won't do that here.
   // Instead we will mark it as 'finished' and let the kernel clean us
   // all up later
@@ -2838,7 +2848,7 @@ int kernelMultitaskerKillAll(void)
   int status = 0;
   kernelProcess *killProcess = NULL;
   int count;
-  
+
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
@@ -2848,28 +2858,20 @@ int kernelMultitaskerKillAll(void)
 
   // Stop all processes, except the kernel process, and the current process.
   for (count = 0; count < numQueued; count ++)
-    if ((processQueue[count] != kernelProc) &&
-	(processQueue[count] != exceptionHandlerProc) &&
-	(processQueue[count] != idleProc) &&
-	(processQueue[count] != kernelCurrentProcess))
+    if (PROC_KILLABLE(processQueue[count]))
       processQueue[count]->state = proc_stopped;
 
   for (count = 0; count < numQueued; )
     {
-      killProcess = processQueue[count];
-
-      // Make sure it's not the kernel process, the idle process,
-      // or the current process
-      if ((killProcess == kernelProc) ||
-	  (killProcess == exceptionHandlerProc) ||
-	  (killProcess == idleProc) ||
-	  (killProcess == kernelCurrentProcess))
+      if (!PROC_KILLABLE(processQueue[count]))
 	{
 	  count++;
 	  continue;
 	}
 
-      // Otherwise we will attempt to kill it.
+      killProcess = processQueue[count];
+
+      // Attempt to kill it.
       status =
 	kernelMultitaskerKillProcess(killProcess->processId, 0); // no force
       if (status < 0)

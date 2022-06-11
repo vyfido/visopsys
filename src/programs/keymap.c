@@ -159,7 +159,6 @@ static void constructWindow(void)
 
 int main(int argc, char *argv[])
 {
-  char opt;
   char *buffPtr = NULL;
   int names = 0;
   int count;
@@ -173,12 +172,9 @@ int main(int argc, char *argv[])
   // Graphics enabled?
   graphics = graphicsAreEnabled();
 
-  while ((opt = getopt(argc, argv, "T")) != -1)
-    {
-      // Force text mode?
-      if (opt == 'T')
-	graphics = 0;
-    }
+  if (getopt(argc, argv, "T") == 'T')
+    // Force text mode
+    graphics = 0;
 
   errno = getMapNames();
   if (errno)

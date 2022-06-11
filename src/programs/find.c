@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
   if (status < 0)
     {
       errno = status;
-      perror((argc > 0)? argv[0] : "find");
+      perror(argv[0]);
       return (status);
     }
 

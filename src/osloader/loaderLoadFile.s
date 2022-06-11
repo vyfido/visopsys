@@ -26,7 +26,6 @@
 	EXTERN loaderBigRealMode
         EXTERN loaderPrint
         EXTERN loaderPrintNewline
-	EXTERN loaderPrintNumber
 	EXTERN loaderDiskError
 	EXTERN loaderGetCursorAddress
 	EXTERN loaderSetCursorAddress
@@ -119,8 +118,8 @@ calculateVolInfo:
 
 
 readSector:
-	;; Takes the logical sector number in EAX, segment in ES, offset in
-	;; BX, count in CX, and does the read.
+	;; Proto: int readSector(dword logical, word seg, word offset,
+	;;                       word count);
 
 	;; Save a word on the stack for our return value
 	push word 0
@@ -128,35 +127,36 @@ readSector:
 	;; Save regs
 	pusha
 
-	;; Save the stack register
+	;; Save the stack pointer
 	mov BP, SP
 
-	mov dword [LOGICALSECTOR], EAX
-	
 	push word 0		; To keep track of read attempts
 
 	.readAttempt:
 	;; Determine whether int13 extensions are available
 	cmp word [DRIVENUMBER], 80h
 	jb .noExtended
-	push BX
-	mov AH, 41h
+	
+	mov AX, 4100h
 	mov BX, 55AAh
 	mov DX, word [DRIVENUMBER]
 	int 13h
-	pop BX
 
 	jc .noExtended
 
 	;; We have a nice extended read function which will allow us to
 	;; just use the logical sector number for the read
 
-	mov word [DISKPACKET + 2], CX
-	mov word [DISKPACKET + 4], BX
-	mov word [DISKPACKET + 6], ES
-	mov EAX, dword [LOGICALSECTOR]
-	mov dword [DISKPACKET + 8], EAX
-	mov AH, 42h
+	mov word [DISKPACKET], 0010h		; Packet size
+	mov AX, word [SS:(BP + 28)]		; >
+	mov word [DISKPACKET + 2], AX		; > Sector count
+	mov AX, word [SS:(BP + 26)]		; >
+	mov word [DISKPACKET + 4], AX		; > Offset
+	mov AX, word [SS:(BP + 24)]		; > 
+	mov word [DISKPACKET + 6], AX		; > Segment
+	mov EAX, dword [SS:(BP + 20)]		; > 
+	mov dword [DISKPACKET + 8], EAX		; > Logical sector 
+	mov AX, 4200h
 	mov DX, word [DRIVENUMBER]
 	mov SI, DISKPACKET
 	int 13h
@@ -164,19 +164,24 @@ readSector:
 	jmp .done
 	
 	.noExtended:
+
 	;; Calculate the CHS
-	mov EAX, dword [LOGICALSECTOR]
+	mov EAX, dword [SS:(BP + 20)]
 	call headTrackSector
 
-	push CX			; Number to read
-	mov CX, word [CYLINDER]
-	rol CX, 8
-	or CL, byte [SECTOR]
-	mov DX, word [DRIVENUMBER]
-	mov DH, byte [HEAD]
-	pop AX			; Number to read
+	mov AX, word [SS:(BP + 28)]	; Number to read
 	mov AH, 02h		; Subfunction 2
+	mov CX, word [CYLINDER]		; >
+	rol CX, 8			; > Cylinder
+	shl CL, 6			; >
+	or CL, byte [SECTOR]		; Sector
+	mov DX, word [DRIVENUMBER]	; Drive
+	mov DH, byte [HEAD]		; Head
+	mov BX, word [SS:(BP + 26)]	; Offset
+	push ES				; Save ES
+	mov ES, word [SS:(BP + 24)]	; Use user-supplied segment
 	int 13h
+	pop ES				; Restore ES
 	jc .IOError
 	jmp .done
 	
@@ -200,6 +205,7 @@ readSector:
 	.done:
 	pop AX			; Counter
 	popa
+	xor EAX, EAX
 	pop AX			; Status
 	ret
 
@@ -224,14 +230,13 @@ loadFAT:
 	add EAX, [PARTENTRY + 8]
 	.noOffset:
 	
-	;; Now load the FAT table.  We need to make ES point to the data
-	;; buffer
-	push ES
-	mov ES, word [FATSEGMENT]
-	xor BX, BX			; Put at beginning of buffer
-	mov CX, word [FATSECS]		; Read entire FAT
+	;; Now load the FAT table.
+	push word [FATSECS]		; Read entire FAT
+	push word 0			; Offset (beginning of buffer)
+	push word [FATSEGMENT]		; Segment of data buffer
+	push dword EAX
 	call readSector
-	pop ES
+	add SP, 10
 
 	;; Check status
 	cmp AX, 0
@@ -265,27 +270,25 @@ loadDirectory:
 
 	;; Get the logical sector number of the root directory
 	xor EAX, EAX
-	xor EBX, EBX
 	mov AX, word [RESSECS]		; The reserved sectors
-	mov BX, word [FATSECS]		; Sectors for 1st FAT
-	add EAX, EBX
-	mov BX, word [FATSECS]		; Sectors for 2nd FAT
-	add EAX, EBX
+	xor EBX, EBX
+	mov BX, word [FATSECS]		; Sectors per FAT
+	add EAX, EBX			; Sectors for 1st FAT
+	add EAX, EBX			; Sectors for 2nd FAT
 	
 	cmp word [DRIVENUMBER], 80h
 	jb .noOffset
 	add EAX, [PARTENTRY + 8]
 	.noOffset:
 	
-	;; We need to make ES point to the data buffer.  This is normally
-	;; where we will keep the FAT data, but we will put the directory
-	;; here temporarily
-	push ES
-	mov ES, word [FATSEGMENT]
-	xor BX, BX			; Load at offset 0 of the data buffer
-	mov CX, word [DIRSECTORS]	; Number of sectors to read
+	;; This is normally where we will keep the FAT data, but we will
+	;; put the directory here temporarily
+	push word [DIRSECTORS]		; Number of sectors to read
+	push word 0			; Load at offset 0 of the data buffer
+	push word [FATSEGMENT]		; Segment of the data buffer
+	push dword EAX
 	call readSector
-	pop ES
+	add SP, 10
 		
 	;; Check status
 	cmp AX, 0
@@ -293,6 +296,7 @@ loadDirectory:
 
 	;; Call the 'disk error' routine
 	call loaderDiskError
+	
 	;; Put a -1 as our return code
 	mov word [SS:(BP + 16)], -1
 	
@@ -584,13 +588,15 @@ loadFile:
 	mov EAX, dword [NEXTCLUSTER]
 	call clusterToLogical
 
-	;; We need to make ES point to the portion of loader's data buffer
-	;; that comes AFTER the FAT data.  This is where we will initially
-	;; load each cluster's contents.
-	mov ES, word [CLUSTERSEGMENT]
-	xor BX, BX			; ES:BX is real-mode buffer for data
-	mov CX, word [SECPERCLUST] 	; Read 1 cluster's worth of sectors
+	;; Use the portion of loader's data buffer that comes AFTER the
+	;; FAT data.  This is where we will initially load each cluster's
+	;; contents.
+	push word [SECPERCLUST]		; Read 1 cluster's worth of sectors
+	push word 0			; >
+	push word [CLUSTERSEGMENT]	; > Real-mode buffer for data
+	push dword EAX
 	call readSector
+	add SP, 10
 	
 	cmp AX, 0
 	je .gotCluster
@@ -618,10 +624,10 @@ loadFile:
 	mov BX, AX
 	sub BX, word [OLDPROGRESS]
 	cmp BX, (100 / PROGRESSLENGTH)
-	jb .noSpin
+	jb .noProgress
 	mov word [OLDPROGRESS], AX
 	call updateProgress
-	.noSpin:
+	.noProgress:
 	
 	;; This part of the function operates in "big real mode" so that it
 	;; can load the kernel at an arbitrary address in memory (not just
@@ -724,11 +730,11 @@ loadFile:
 	.success:
 	;; Return 0 for success
 	mov word [SS:(BP + 16)], 0
+	call killProgress
 
 	.done:
 	;; Restore ES
 	pop ES
-
 	popa
 	;; Pop our return code
 	xor EAX, EAX
@@ -802,7 +808,7 @@ loaderLoadFile:
 	;; filesystem.
 	;; Proto:
 	;;   int loaderLoadFile(char *filename, (dword) loadOffset, int
-	;;			spinner)
+	;;			showProgress)
 
 	;; Save a word for our return code
 	push word 0
@@ -900,7 +906,6 @@ loaderLoadFile:
 	mov word [SS:(BP + 16)], AX
 	
 	.done:
-	call loaderBigRealMode	; This gets screwed up somewhere here
 	popa
 	;; Pop the return code
 	xor EAX, EAX
@@ -926,17 +931,15 @@ CYLINDER	dw 0
 HEAD		db 0
 SECTOR		db 0
 
-;; For extended int13 disk ops
-LOGICALSECTOR	dd 0
-DISKPACKET:	db 10h, 0		; Disk cmd packet for ext. int13 
-		dw 0, 0, 0, 0, 0, 0, 0
+;; Disk cmd packet for ext. int13 
+DISKPACKET:	dd 0, 0, 0, 0
 	
 PARTENTRY	times 16 db 0	;; Partition table entry of bootable partition
 
 ;; Stuff for the progress indicator
 PROGRESSCHARS	dw 0	;; Number of progress indicator chars showing
 OLDPROGRESS	dw 0	;; Percentage of file load completed
-SHOWPROGRESS	dw 0	;; Whether or not to show a progress spinner
+SHOWPROGRESS	dw 0	;; Whether or not to show a progress bar
 PROGRESSTOP	db 218
 		times PROGRESSLENGTH db 196
 		db 191, 0

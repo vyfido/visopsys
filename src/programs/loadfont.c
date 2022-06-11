@@ -55,12 +55,12 @@ int main(int argc, char *argv[])
     }
 
   // Check for -f ('fixed width') option
-  while (getopt(argc, argv, "f") != -1)
+  if (getopt(argc, argv, "f") == 'f')
     fixedWidth = 1;
 
   if (argc < 3)
     {
-      usage((argc > 0)? argv[0] : "loadfont");
+      usage(argv[0]);
       errno = ERR_ARGUMENTCOUNT;
       return (status = errno);
     }

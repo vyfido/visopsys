@@ -915,23 +915,33 @@ static int writeEntry(partitionTable *table, int entryNumber, slice *entry)
 }
 
 
-static int checkTable(partitionTable *table)
+static int checkTable(partitionTable *table, int fix)
 {
   // Does a series of correctness checks on the table that's currently in
   // memory, and outputs warnings for any problems it finds
 
   slice *entry = NULL;
+  int errors = 0;
   unsigned expectCylinder = 0;
   unsigned expectHead = 0;
   unsigned expectSector = 0;
   char output[MAXSTRINGLENGTH];
   int count;
 
-  bzero(output, MAXSTRINGLENGTH);
+  sprintf(output, "%s table:\n", (table->extended? "Extended" : "Main"));
 
   if (table->extended && (table->numberEntries > table->maxEntries))
-    sprintf((output + strlen(output)), "Table has %d entries; max is %d",
-	    table->numberEntries, table->maxEntries);
+    {
+      sprintf((output + strlen(output)), "Table has %d entries; max is %d",
+	      table->numberEntries, table->maxEntries);
+      if (fix)
+	{
+	  table->numberEntries = table->maxEntries;
+	  changesPending += 1;
+	}
+      else
+	errors += 1;
+    }
 
   // For each partition entry, check that its starting/ending
   // cylinder/head/sector values match with its starting logical value
@@ -947,49 +957,107 @@ static int checkTable(partitionTable *table)
 
       expectCylinder = (entry->startLogical / cylinderSectors);
       if (expectCylinder != entry->startCylinder)
-	sprintf((output + strlen(output)), "Partition %d starting cylinder "
-		"is %u, should be %u\n", entry->partition,
-		entry->startCylinder, expectCylinder);
+	{
+	  sprintf((output + strlen(output)), "Partition %d starting cylinder "
+		  "is %u, should be %u\n", entry->partition,
+		  entry->startCylinder, expectCylinder);
+	  if (fix)
+	    {
+	      entry->startCylinder = expectCylinder;
+	      changesPending += 1;
+	    }
+	  else
+	    errors += 1;
+	}
 
       expectCylinder = (endLogical / cylinderSectors);
       if (expectCylinder != entry->endCylinder)
-	sprintf((output + strlen(output)), "Partition %d ending cylinder "
-		"is %u, should be %u\n", entry->partition, entry->endCylinder,
-		expectCylinder);
+	{
+	  sprintf((output + strlen(output)), "Partition %d ending cylinder "
+		  "is %u, should be %u\n", entry->partition,
+		  entry->endCylinder, expectCylinder);
+	  if (fix)
+	    {
+	      entry->endCylinder = expectCylinder;
+	      changesPending += 1;
+	    }
+	  else
+	    errors += 1;
+	}
 
       expectHead = ((entry->startLogical % cylinderSectors) /
 		    selectedDisk->sectorsPerCylinder);
       if (expectHead != entry->startHead)
-	sprintf((output + strlen(output)), "Partition %d starting head is "
-		"%u, should be %u\n", entry->partition, entry->startHead,
-		expectHead);
+	{
+	  sprintf((output + strlen(output)), "Partition %d starting head is "
+		  "%u, should be %u\n", entry->partition, entry->startHead,
+		  expectHead);
+	  if (fix)
+	    {
+	      entry->startHead = expectHead;
+	      changesPending += 1;
+	    }
+	  else
+	    errors += 1;
+	}
 
       expectHead =
 	((endLogical % cylinderSectors) / selectedDisk->sectorsPerCylinder);
       if (expectHead != entry->endHead)
-	sprintf((output + strlen(output)), "Partition %d ending head is %u, "
-		"should be %u\n", entry->partition, entry->endHead,
-		expectHead);
+	{
+	  sprintf((output + strlen(output)), "Partition %d ending head is %u, "
+		  "should be %u\n", entry->partition, entry->endHead,
+		  expectHead);
+	  if (fix)
+	    {
+	      entry->endHead = expectHead;
+	      changesPending += 1;
+	    }
+	  else
+	    errors += 1;
+	}
 
       expectSector = (((entry->startLogical % cylinderSectors) %
 		       selectedDisk->sectorsPerCylinder) + 1);
       if (expectSector != entry->startSector)
-	sprintf((output + strlen(output)), "Partition %d starting CHS sector "
-		"is %u, should be %u\n", entry->partition, entry->startSector,
-		expectSector);
+	{
+	  sprintf((output + strlen(output)), "Partition %d starting CHS "
+		  "sector is %u, should be %u\n", entry->partition,
+		  entry->startSector, expectSector);
+	  if (fix)
+	    {
+	      entry->startSector = expectSector;
+	      changesPending += 1;
+	    }
+	  else
+	    errors += 1;
+	}
 
       expectSector = (((endLogical % cylinderSectors) %
 		       selectedDisk->sectorsPerCylinder) + 1);
       if (expectSector != entry->endSector)
-	sprintf((output + strlen(output)), "Partition %d ending CHS sector "
-		"is %u, should be %u\n", entry->partition, entry->endSector,
-		expectSector);
+	{
+	  sprintf((output + strlen(output)), "Partition %d ending CHS sector "
+		  "is %u, should be %u\n", entry->partition, entry->endSector,
+		  expectSector);
+	  if (fix)
+	    {
+	      entry->endSector = expectSector;
+	      changesPending += 1;
+	    }
+	  else
+	    errors += 1;
+	}
     }
   
-  if (output[0] != '\0')
+  if (errors)
     {
-      warning(output);
-      return (ERR_INVALID);
+      sprintf((output + strlen(output)), "\nFix th%s error%s?",
+	      ((errors == 1)? "is" : "ese"), ((errors == 1)? "" : "s"));
+      if (yesOrNo(output))
+	return (checkTable(table, 1));
+      else
+	return (ERR_INVALID);
     }
   else
     return (0);
@@ -1085,7 +1153,7 @@ static void scanPartitionTable(const char *diskName, partitionTable *table,
     extendedEntry->partition = numberPartitions++;
 
   // Do a check on the table
-  checkTable(table);
+  checkTable(table, 0);
 
   // If we have an extended partition, we need to delve into the chain of
   // partition tables.
@@ -1256,7 +1324,7 @@ static int writePartitionTable(const char *diskName, partitionTable *table)
     }
 
   // Do a check on the table
-  status = checkTable(table);
+  status = checkTable(table, 0);
   if ((status < 0) && !yesOrNo("The consistency check failed.  Write anyway?"))
     return (status);
 
@@ -3903,7 +3971,7 @@ int main(int argc, char *argv[])
   // Check for -partlogic option.  If set, we call ourselves something
   // different
   programName = DISKMANAGER;
-  while ((opt = getopt(argc, argv, "p:To")) != -1)
+  while (strchr("p:To", (opt = getopt(argc, argv, "p:To"))))
     {
       // Run as Partition Logic?
       if ((opt != ':') && !strcmp(optarg, "artlogic"))

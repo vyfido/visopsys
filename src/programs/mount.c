@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   
   if (argc < 3)
     {
-      usage((argc > 0)? argv[0] : "mount");
+      usage(argv[0]);
       return (status = ERR_ARGUMENTCOUNT);
     }
 

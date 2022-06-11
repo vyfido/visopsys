@@ -43,6 +43,45 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.51<br>
+</font>31/12/2004</p>
+<p><font size="4">Overview: This is a maintenance and bugfix release, with some 
+additional features, such as the Disk Manager's ability to fix small partition 
+table consistency errors.</font></p>
+<ul>
+  <li><font size="4">Enhanced the bootstrap code so that it is possible to boot 
+  on some trickier hardware platforms, such as Toshiba laptops.</font></li>
+  <li><font size="4">The disk manager now offers to fix errors turned up by the 
+  partition table check.</font></li>
+  <li><font size="4">The disk thread now respawns when it is killed [ thanks 
+  Thomas Kreitner ].</font></li>
+  <li><font size="4">The 'install' program now show a progress meter in text 
+  mode while copying files.</font></li>
+  <li><font size="4">When the shutdown program is attempting to eject the disk, 
+  it now shows a banner dialog since sometimes it takes a couple of seconds.</font></li>
+  <li><font size="4">In the text area code, when the screen is cleared, the 
+  existing screen contents are no longer rolled back into the buffer -- they are 
+  discarded.</font></li>
+  <li><font size="4">Deprecated the windowPack() and windowSetPacked() API 
+  functions.</font></li>
+  <li><font size="4">While attempting builds with gcc version 3.4.2, fixed a 
+  number of bugs and details that the newer compiler found.</font></li>
+  <li><font size="4">Fixed: The program manager wasn't really putting threads 
+  under their correct process parents; it merely put them in order as received 
+  from the kernel.</font></li>
+  <li><font size="4">Fixed: The getopt() library function was being used 
+  incorrectly by a number of the user applications.</font></li>
+  <li><font size="4">Fixed: It was possible to kill the exception handler 
+  thread, which caused an immediate triple fault [ thanks Thomas Kreitner ].</font></li>
+  <li><font size="4">Fixed: Broken CD-ROM floppy disk emulations no longer trick 
+  the loader into detecting nonexistent floppies.</font></li>
+  <li><font size="4">Fixed: On some hardware, the kernel's hardware detection 
+  could be tricked into detecting nonexistent fixed disks with NULL geometry.</font></li>
+  <li><font size="4">Fixed: The 'megabytes' value being printed for hard disks 
+  by the loader was severely wrong.</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.5<br>
 </font>12/12/2004</p>
 <p><font size="4">Overview: This release adds logical partition capabilities to 

@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
   graphics = graphicsAreEnabled();
 
   // Check for options
-  while((opt = (char) getopt(argc, argv, "vf:T")) != (char) -1)
+  while (strchr("vf:T", (opt = getopt(argc, argv, "vf:T"))))
     {
       switch(opt)
 	{

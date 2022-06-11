@@ -21,6 +21,7 @@
 
 	GLOBAL loaderDetectHardware
 	GLOBAL HARDWAREINFO
+	GLOBAL HDDINFO
 
 	EXTERN loaderFindFile
 	EXTERN loaderDetectVideo
@@ -96,7 +97,8 @@ loaderDetectHardware:
 	je .notCDROM
 	cmp AL, 04h
 	ja .notCDROM
-	
+
+	mov byte [CD_EMULATION], 1
 	mov dword [BOOTDISK], 00306463h ; ("cd0")
 	jmp .doneBootName
 	
@@ -106,7 +108,7 @@ loaderDetectHardware:
 
 	mov word [BOOTDISK], 6468h ; ("hd")
 	mov AX, word [DRIVENUMBER]
-	sub AL, 80h
+	sub AX, 0080h
 	add AL, 30h		; ("0")
 	mov byte [BOOTDISK + 2], AL
 	jmp .doneBootName
@@ -375,25 +377,36 @@ detectFloppies:
 
 	.floppyLoop:
 
-	;; Pre-decrement the disk counter so we can 'continue' if we get
+	;; Pre-increment the disk counter so we can 'continue' if we get
 	;; any funny things, without missing any following devices
 	pop DX
 	mov AX, DX
 	inc AX
 	push AX
 	
+	;; My Toshiba laptop reports the 'fake' floppy from bootable
+	;; CD-ROM emulations as a real one, indistinguishable from real
+	;; ones.  So, if the emulation disk number is the same as this one,
+	;; skip it.
+	cmp byte [CD_EMULATION], 1
+	jne .noEmul
+	cmp DL, byte [EMUL_SAVE + 2]
+	je .floppyLoop
+	.noEmul:
+
 	;; Any more to do?
 	cmp DX, 2
 	jae .print
 	
+	;; Guards againt BIOS bugs, apparently
 	push word 0
 	pop ES
 	xor DI, DI
 
 	;; Now the screwy interrupt
+	mov AX, 0800h
 	xor BX, BX
 	xor CX, CX
-	mov AX, 0800h
 	int 13h
 
 	;; If there was an error, continue
@@ -413,11 +426,6 @@ detectFloppies:
 	cmp CX, 0
 	je .floppyLoop
 	cmp DX, 0
-	je .floppyLoop
-
-	;; If the type is 10h, it's probably not a real floppy; perhaps a
-	;; floppy emulation for an ATAPI CD-ROM.  In that case, skip it.
-	cmp BL, 10h
 	je .floppyLoop
 
 	;; Count it
@@ -499,8 +507,15 @@ detectHardDisks:
 	;; This interrupt call will destroy ES, so save it
 	push ES
 	
-	mov AH, 08h
-	mov DL, 80h
+	;; Guards againt BIOS bugs, apparently
+	push word 0
+	pop ES
+	xor DI, DI
+
+	mov AX, 0800h
+	xor BX, BX
+	xor CX, CX
+	mov DX, 0080h
 	int 13h
 
 	;; Restore ES
@@ -510,7 +525,7 @@ detectHardDisks:
 	;; and we're finished
 	jc near .done
 
-	;; Otherwise, save the number
+	;; Save the number
 	xor EAX, EAX
 	mov AL, DL
 	mov dword [HARDDISKS], EAX
@@ -553,15 +568,25 @@ detectHardDisks:
 	.notBoot:
 	;; This interrupt call will destroy ES, so save it
 	push ECX		; Save this first
+	push EDI
 	push ES
 	
-	mov AH, 08h		; Read disk drive parameters
-	mov DL, CL
-	add DL, 80h
+	;; Guards againt BIOS bugs, apparently
+	push word 0
+	pop ES
+	xor DI, DI
+
+	mov AX, 0800h		; Read disk drive parameters
+	xor BX, BX
+	xor DX, DX
+	mov DL, 80h
+	add DL, CL
+	xor CX, CX
 	int 13h
 
 	;; Restore
 	pop ES
+	pop EDI
 	
 	;; If carry set, the call was unsuccessful (for whatever reason)
 	;; and we will move to the next disk
@@ -580,14 +605,16 @@ detectHardDisks:
 	mov AL, DH
 	inc AX			; Number is 0-based
 	mov dword [EDI + hddInfoBlock.heads], EAX
+
 	;; cylinders
 	xor EAX, EAX
 	mov AL, CL		; Two bits of cylinder number in bits 6&7
 	and AL, 11000000b	; Mask it
 	shl AX, 2		; Move them to bits 8&9
 	mov AL, CH		; Rest of the cylinder bits
-	add EAX, 2		; Number is 0-based
+	inc AX			; Number is 0-based
 	mov dword [EDI + hddInfoBlock.cylinders], EAX
+
 	;; sectors
 	xor EAX, EAX
 	mov AL, CL		; Bits 0-5
@@ -769,7 +796,6 @@ printCpuInfo:
 	mov SI, CLOSEBRACKETS
 	call loaderPrint
 	.noCPUID:
-
 	
 	;; Do we have MMX?
 	cmp dword [MMXEXT], 1
@@ -881,6 +907,7 @@ printHddInfo:
 	call loaderPrint
 
 	mov EAX, dword [EBX + hddInfoBlock.totalSectors]
+	shr EAX, 11		; Turn (assumed) 512-byte sectors to MB
 	call loaderPrintNumber
 	
 	mov DL, FOREGROUNDCOLOR
@@ -1086,12 +1113,13 @@ DISKCHECK	db ' disk(s)', 0
 HEADS		db ' heads, ', 0
 TRACKS		db ' tracks, ', 0
 CYLS		db ' cyls, ', 0
-SECTS		db ' sects   ', 0
+SECTS		db ' sects  ', 0
 MEGA		db ' Mbytes', 0
 NOGRAPHICS	db 'NOGRAPH    ', 0
 
+CD_EMULATION	db 0
 EMUL_SAVE	times 20 db 0
-	
+
 ;;
 ;; These are error messages related to hardware detection
 ;;

@@ -319,9 +319,6 @@ static int clearScreen(kernelTextArea *area)
   unsigned tmpData = 0;
   int dwords = 0;
 
-  // Scroll the buffer back by area->cursorRow lines
-  scrollBuffer(area, area->cursorRow);
-
   // Construct the dword of data that we will replicate all over the screen.
   // It consists of the NULL character twice, plus the color byte twice
   tmpData = ((area->foreground.blue << 24) | (area->foreground.blue << 8));

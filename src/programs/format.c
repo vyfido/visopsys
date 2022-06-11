@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
   graphics = graphicsAreEnabled();
 
   // Check for options
-  while ((opt = getopt(argc, argv, "st:")) != -1)
+  while (strchr("st:", (opt = getopt(argc, argv, "st:"))))
     {
       // Operate in silent/script mode?
       if (opt == 's')

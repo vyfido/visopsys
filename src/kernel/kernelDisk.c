@@ -741,7 +741,7 @@ static int spawnDiskd(void)
 {
   // Launches the disk daemon
 
-  diskdPID = kernelMultitaskerSpawn(diskd, "disk monitor", 0, NULL);
+  diskdPID = kernelMultitaskerSpawnKernelThread(diskd, "disk thread", 0, NULL);
   if (diskdPID < 0)
     return (diskdPID);
 
@@ -768,6 +768,7 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
   int status = 0;
   unsigned doSectors = 0;
   unsigned extraSectors = 0;
+  processState tmpState;
 
   // Make sure the appropriate device driver routine has been installed
   if (((mode & IOMODE_READ) &&
@@ -775,7 +776,8 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
       ((mode & IOMODE_WRITE) &&
        (physicalDisk->driver->driverWriteSectors == NULL)))
     {
-      kernelError(kernel_error, "Driver routine is NULL");
+      kernelError(kernel_error, "Disk cannot %s",
+		  ((mode & IOMODE_READ)? "read" : "write"));
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -797,14 +799,10 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
     }
 #endif // DISK_CACHE
 
-  if (physicalDisk->fixedRemovable == removable)
-    {
       // Make sure the disk daemon is running
-      processState tmpState;
       if (kernelMultitaskerGetProcessState(diskdPID, &tmpState) < 0)
 	// Re-spawn the disk daemon
 	spawnDiskd();
-    }
 
   // Now we start the actual read/write operation
 
@@ -1206,7 +1204,7 @@ int kernelDiskInitialize(const char *physicalBootDisk, unsigned bootSector)
   // Spawn the disk daemon
   status = spawnDiskd();
   if (status < 0)
-    kernelError(kernel_warn, "Unable to start disk monitor");
+    kernelError(kernel_warn, "Unable to start disk thread");
 
   // We're initialized
   initialized = 1;

@@ -35,8 +35,8 @@
 static int processId = 0;
 static int privilege = 0;
 static char *processBuffer = NULL;
-static char *processStrings[PROCESS_STRING_LENGTH];
-static process processes[SHOW_MAX_PROCESSES];
+static char *processStrings[SHOW_MAX_PROCESSES];
+static process *processes = NULL;
 static int numProcesses = 0;
 static objectKey window = NULL;
 static objectKey processList = NULL;
@@ -63,15 +63,65 @@ static void error(const char *format, ...)
 }
 
 
-static void quit(void)
+static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 {
-  stop = 1;
-  windowGuiStop();
-  windowDestroy(window);
-  free(processBuffer);
+  // (Recursively) sort any children of the last process in the process list
+  // from the temporary list into our regular list.  Skip threads if
+  // applicable.
 
-  // Done
-  exit(0);
+  process *parent = NULL;
+  int count;
+
+  if (numProcesses == 0)
+    // No parent to sort children for.
+    return;
+
+  parent = &processes[numProcesses - 1];
+
+  if (showThreads)
+    // Do threads first
+    for (count = 0; count < tmpNumProcesses; count ++)
+      {
+	// Did we process this one already?
+	if (tmpProcessArray[count].processName[0] == '\0')
+	  continue;
+	
+	if ((tmpProcessArray[count].type == proc_thread) &&
+	    (tmpProcessArray[count].parentProcessId == parent->processId))
+	  {
+	    // Copy this thread into the regular array
+	    bcopy(&tmpProcessArray[count], &processes[numProcesses++],
+		  sizeof(process));
+	    bzero(&tmpProcessArray[count], sizeof(process));
+	    
+	    // Now sort any children, grandchildren, etc., behind it.
+	    sortChildren(tmpProcessArray, tmpNumProcesses);
+	  }
+      }
+
+  for (count = 0; count < tmpNumProcesses; count ++)
+    {
+      // Did we process this one already?
+      if (tmpProcessArray[count].processName[0] == '\0')
+	continue;
+
+      if (!showThreads && (tmpProcessArray[count].type == proc_thread))
+	{
+	  bzero(&tmpProcessArray[count], sizeof(process));
+	  continue;
+	}
+
+      if (tmpProcessArray[count].parentProcessId == parent->processId)
+	{
+	  // Copy this process into the regular array
+	  bcopy(&tmpProcessArray[count], &processes[numProcesses++],
+		sizeof(process));
+	  bzero(&tmpProcessArray[count], sizeof(process));
+
+	  // Now sort any children, grandchildren, etc., behind it.
+	  sortChildren(tmpProcessArray, tmpNumProcesses);
+	}
+    }
 }
 
 
@@ -81,39 +131,60 @@ static int getProcesses(void)
 
   int status = 0;
   char *bufferPointer = NULL;
-  process *tmpProcess;
+  process *tmpProcessArray = NULL;
+  process *tmpProcess = NULL;
   int tmpNumProcesses = 0;
   int count;
   
-  tmpNumProcesses = 
-    multitaskerGetProcesses(processes, (SHOW_MAX_PROCESSES * sizeof(process)));
+  tmpProcessArray = malloc(SHOW_MAX_PROCESSES * sizeof(process));
+  if (tmpProcessArray == NULL)
+    {
+      error("Can't get temporary memory for processes");
+      return (status = ERR_MEMORY);
+    }
+
+  tmpNumProcesses =
+    multitaskerGetProcesses(tmpProcessArray,
+			    (SHOW_MAX_PROCESSES * sizeof(process)));
   if (tmpNumProcesses < 0)
-    return (tmpNumProcesses);
+    {
+      free(tmpProcessArray);
+      return (tmpNumProcesses);
+    }
+
+  numProcesses = 0;
+
+  // Sort the processes from our temporary array into our regular array
+  // so that we are skipping threads, if applicable, and so that all children
+  // follow their parents
+
+  for (count = 0; count < tmpNumProcesses; count ++)
+    {
+      // Did we process this one already?
+      if (tmpProcessArray[count].processName[0] == '\0')
+	continue;
+
+      if (!showThreads && (tmpProcessArray[count].type == proc_thread))
+	{
+	  bzero(&tmpProcessArray[count], sizeof(process));
+	  continue;
+	}
+
+      // Copy this process into the regular array
+      bcopy(&tmpProcessArray[count], &processes[numProcesses++],
+	    sizeof(process));
+      bzero(&tmpProcessArray[count], sizeof(process));
+
+      // Now sort any children, grandchildren, etc., behind it.
+      sortChildren(tmpProcessArray, tmpNumProcesses);
+    }
+
+  free(tmpProcessArray);
 
   for (count = 0; count < (SHOW_MAX_PROCESSES * PROCESS_STRING_LENGTH);
        count ++)
     processBuffer[count] = ' ';
   bufferPointer = processBuffer;
-
-  // If we are not showing threads, take them out of our list now
-  if (!showThreads)
-    {
-      for (count = 0; count < tmpNumProcesses; count ++)
-	{
-	  if (processes[count].type == proc_normal)
-	    continue;
-	  
-	  if (count < (tmpNumProcesses - 1))
-	    {
-	      bcopy(&processes[count + 1], &processes[count],
-		    ((tmpNumProcesses - count) * sizeof(process)));
-	      count = -1;
-	    }
-	  tmpNumProcesses -= 1;
-	}
-    }
-
-  numProcesses = tmpNumProcesses;
 
   for (count = 0; count < numProcesses; count ++)
     {
@@ -125,41 +196,43 @@ static int getProcesses(void)
       bufferPointer[strlen(bufferPointer)] = ' ';
       sprintf((bufferPointer + 26), "%d", tmpProcess->processId);
        bufferPointer[strlen(bufferPointer)] = ' ';
-      sprintf((bufferPointer + 30), "%d", tmpProcess->userId);
+      sprintf((bufferPointer + 30), "%d", tmpProcess->parentProcessId);
+       bufferPointer[strlen(bufferPointer)] = ' ';
+      sprintf((bufferPointer + 35), "%d", tmpProcess->userId);
       bufferPointer[strlen(bufferPointer)] = ' ';
-      sprintf((bufferPointer + 34), "%d", tmpProcess->priority);
+      sprintf((bufferPointer + 39), "%d", tmpProcess->priority);
       bufferPointer[strlen(bufferPointer)] = ' ';
-      sprintf((bufferPointer + 38), "%d", tmpProcess->privilege);
+      sprintf((bufferPointer + 43), "%d", tmpProcess->privilege);
       bufferPointer[strlen(bufferPointer)] = ' ';
-      sprintf((bufferPointer + 43), "%d", tmpProcess->cpuPercent);
+      sprintf((bufferPointer + 48), "%d", tmpProcess->cpuPercent);
       bufferPointer[strlen(bufferPointer)] = ' ';
 
       // Get the state
       switch(tmpProcess->state)
 	{
 	case proc_running:
-	  strcpy((bufferPointer + 48), "running");
+	  strcpy((bufferPointer + 53), "running ");
 	  break;
 	case proc_ready:
-	  strcpy((bufferPointer + 48), "ready");
+	  strcpy((bufferPointer + 53), "ready ");
 	  break;
 	case proc_waiting:
-	  strcpy((bufferPointer + 48), "waiting");
+	  strcpy((bufferPointer + 53), "waiting ");
 	  break;
 	case proc_sleeping:
-	  strcpy((bufferPointer + 48), "sleeping");
+	  strcpy((bufferPointer + 53), "sleeping ");
 	  break;
 	case proc_stopped:
-	  strcpy((bufferPointer + 48), "stopped");
+	  strcpy((bufferPointer + 53), "stopped ");
 	  break;
 	case proc_finished:
-	  strcpy((bufferPointer + 48), "finished");
+	  strcpy((bufferPointer + 53), "finished ");
 	  break;
 	case proc_zombie:
-	  strcpy((bufferPointer + 48), "zombie");
+	  strcpy((bufferPointer + 53), "zombie ");
 	  break;
 	default:
-	  strcpy((bufferPointer + 48), "unknown");
+	  strcpy((bufferPointer + 53), "unknown ");
 	  break;
 	}
 
@@ -287,7 +360,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   // Check for the window being closed by a GUI event.
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-    quit();
+    {
+      stop = 1;
+      windowGuiStop();
+      windowDestroy(window);
+    }
   
   else if ((key == showThreadsCheckbox) &&
 	   (event->type == EVENT_MOUSE_LEFTDOWN))
@@ -344,8 +421,8 @@ static void constructWindow(void)
   params.useDefaultBackground = 1;
   fontGetDefault(&(params.font));
   // Create the label of column headers for the list below
-  windowNewTextLabel(window, "Process                   PID UID Pri Priv CPU% "
-		     "STATE   ", &params);
+  windowNewTextLabel(window, "Process                   PID PPID UID Pri Priv "
+		     "CPU% STATE   ", &params);
 
   // Create the list of processes
   params.gridY = 1;
@@ -406,25 +483,33 @@ int main(int argc, char *argv[])
   if (!graphicsAreEnabled())
     {
       printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
+      return (errno = ERR_NOTINITIALIZED);
     }
 
   processId = multitaskerGetCurrentProcessId();
   privilege = multitaskerGetProcessPrivilege(processId);
 
-  // Get a buffer for processe strings
+  // Get a buffer for process structures
+  processes = malloc(SHOW_MAX_PROCESSES * sizeof(process));
+  // Get a buffer for process strings
   processBuffer = malloc(SHOW_MAX_PROCESSES * PROCESS_STRING_LENGTH);
-  if (processBuffer == NULL)
+
+  if ((processes == NULL) || (processBuffer == NULL))
     {
-      error("Error getting buffer memory");
-      return (status = ERR_MEMORY);
+      if (processes)
+	free(processes);
+      if (processBuffer)
+	free(processBuffer);
+      error("Error getting memory");
+      return (errno = ERR_MEMORY);
     }
+
 
   // Get the list of process strings
   status = getProcesses();
   if (status < 0)
     {
+      free(processes);
       free(processBuffer);
       errno = status;
       perror(argv[0]);
@@ -439,10 +524,12 @@ int main(int argc, char *argv[])
 
   while (!stop)
     {
-      getProcesses();
       windowComponentSetData(processList, processStrings, numProcesses);
       multitaskerWait(20);
+      getProcesses();
     }
 
-  return (status = 0);
+  free(processes);
+  free(processBuffer);
+  return (status = errno = 0);
 }

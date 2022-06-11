@@ -48,16 +48,16 @@ int main(int argc, char *argv[])
 
   if (argc < 2)
     {
-      usage((argc > 0)? argv[0] : "kill");
+      usage(argv[0]);
       return (status = ERR_ARGUMENTCOUNT);
     }
 
   // Check for -f ('force') option
-  if (getopt(argc, argv, "f") != -1)
+  if (getopt(argc, argv, "f") == 'f')
     {
       if (argc < 3)
 	{
-	  usage((argc > 0)? argv[0] : "kill");
+	  usage(argv[0]);
 	  return (status = ERR_ARGUMENTCOUNT);
 	}
 

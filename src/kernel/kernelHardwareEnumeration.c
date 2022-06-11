@@ -244,7 +244,7 @@ static int enumerateHardDiskDevices(void)
   numberHardDisks = 0;
 
   // Make a message
-  kernelLog("Examining hard disk partitions...");
+  kernelLog("Examining hard disks...");
 
   for (deviceNumber = 0; (deviceNumber < MAXHARDDISKS); deviceNumber ++)
     {
@@ -260,6 +260,12 @@ static int enumerateHardDiskDevices(void)
 	{
 	  if (physicalDisk.type == idedisk)
 	    {
+	      // In some cases, we are detecting hard disks that don't seem
+	      // to actually exist.  Check whether the number of cylinders
+	      // passed by the loader is non-NULL.
+	      if (!systemInfo->hddInfo[numberHardDisks].cylinders)
+		continue;
+
 	      kernelLog("Device number %d is IDE hard disk", deviceNumber);
 	      
 	      // Hard disk.  Put it into our hard disks array

@@ -2236,40 +2236,6 @@ int kernelWindowSetLocation(kernelWindow *window, int xCoord, int yCoord)
 }
 
 
-int kernelWindowPack(kernelWindow *window)
-{
-  // Performs an auto-size of the window.
-
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check parameters
-  if (window == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Turn on the 'pack' flag
-  window->flags |= WINFLAG_PACKED;
-
-  // Make it non-visible while we pack it
-  kernelWindowSetVisible(window, 0);
-
-  status = layoutWindow(window);
-  if (status < 0)
-    return (status);
-
-  status = autoSizeWindow(window);
-  if (status < 0)
-    return (status);
-
-  kernelWindowSetVisible(window, 1);
-
-  return (status = 0);
-}
-
-
 int kernelWindowCenter(kernelWindow *window)
 {
   // Centers a window on the screen
@@ -2426,29 +2392,6 @@ int kernelWindowSetResizable(kernelWindow *window, int trueFalse)
     window->flags |= WINFLAG_RESIZABLE;
   else
     window->flags &= ~WINFLAG_RESIZABLE;
-
-  // Return success
-  return (status = 0);
-}
-
-
-int kernelWindowSetPacked(kernelWindow *window, int trueFalse)
-{
-  // Sets the 'is packed' attribute
-
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  if (window == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
-  if (trueFalse)
-    window->flags |= WINFLAG_PACKED;
-  else
-    window->flags &= ~WINFLAG_PACKED;
 
   // Return success
   return (status = 0);

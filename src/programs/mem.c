@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
   int kernelMem = 0;
 
   // Want kernel memory stats?
-  if (getopt(argc, argv, "k") != -1)
+  if (getopt(argc, argv, "k") == 'k')
     kernelMem = 1;
 
   // Print memory usage information

@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
   // There need to be at least a source and destination file
   if (argc < 3)
     {
-      usage((argc > 0)? argv[0] : "move");
+      usage(argv[0]);
       return (status = ERR_ARGUMENTCOUNT);
     }
 

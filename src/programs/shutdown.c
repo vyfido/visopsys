@@ -37,6 +37,9 @@ static disk sysDisk;
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
+  int status = 0;
+  objectKey bannerDialog = NULL;
+
   // Check for the window being closed by a GUI event.
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
     {
@@ -52,16 +55,28 @@ static void eventHandler(objectKey key, windowEvent *event)
 
       if (ejectCheckbox && (windowComponentGetSelected(ejectCheckbox) == 1))
 	{
+	  bannerDialog = windowNewBannerDialog(window, "Ejecting",
+					       "Ejecting CD, please wait...");
+
 	  if (diskSetLockState(sysDisk.name, 0) < 0)
-	    windowNewErrorDialog(window, "Error", "Unable to unlock the "
-				 "CD-ROM tray");
-	  else if (diskSetDoorState(sysDisk.name, 1) < 0)
-	    windowNewInfoDialog(window, "Hmm", "Can't seem to eject.  Try "
-				"pushing\nthe 'eject' button now.");
-	  //else
-	  // Give the user a chance to grab it.
-	  //   windowNewInfoDialog(window, "Continue", "Click OK when the "
-	  //			"CD-ROM\nhas been recovered");
+	    {
+	      if (bannerDialog)
+		windowDestroy(bannerDialog);
+
+	      windowNewErrorDialog(window, "Error", "Unable to unlock the "
+				   "CD-ROM tray");
+	    }
+	  else
+	    {
+	      status = diskSetDoorState(sysDisk.name, 1);
+
+	      if (bannerDialog)
+		windowDestroy(bannerDialog);
+
+	      if (status < 0)
+		windowNewInfoDialog(window, "Hmm", "Can't seem to eject.  Try "
+				    "pushing\nthe 'eject' button now.");
+	    }
 	}
       
       windowDestroy(window);
@@ -156,7 +171,7 @@ int main(int argc, char *argv[])
   int force = 0;
 
   // Shut down forcefully?
-  if (getopt(argc, argv, "f") != -1)
+  if (getopt(argc, argv, "f") == 'f')
     force = 1;
 
   // If graphics are enabled, show a query dialog asking whether to shut

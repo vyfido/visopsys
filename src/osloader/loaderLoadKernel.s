@@ -22,6 +22,7 @@
 	GLOBAL loaderLoadKernel
 
 	EXTERN loaderLoadFile
+	EXTERN loaderBigRealMode
 	EXTERN loaderPrint
 	EXTERN loaderPrintNewline
 	EXTERN loaderPrintNumber
@@ -496,6 +497,10 @@ loaderLoadKernel:
 	
 	.okLoad:
 	;; We were successful.  The kernel's size is in AX.  Ignore it.
+
+	;; Set up 'big real mode'
+	call loaderBigRealMode
+
 	;; Now we need to examine the elf header.
 	call getElfHeaderInfo
 
@@ -509,6 +514,7 @@ loaderLoadKernel:
 	jmp .done
 
 	.okEval:
+
 	;; OK, call the routine to create the proper layout for the kernel
 	;; based on the ELF information we gathered
 	call layoutKernel
@@ -560,6 +566,8 @@ DATA_SIZEINMEM	dd 0
 
 KERNELNAME	db 'VISOPSYS   ', 0
 	
+OKSTARTLAYOUT	db 'Kernel load completed, starting layout', 0
+
 ;;
 ;; The error messages
 ;;

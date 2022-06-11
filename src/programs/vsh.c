@@ -587,7 +587,7 @@ int main(int argc, char *argv[])
   myPrivilege = multitaskerGetProcessPrivilege(myProcId);
 
   // If we have a -c option, we just execute the command
-  if ((getopt(argc, argv, "c") != -1) && (argc > 2))
+  if ((getopt(argc, argv, "c") == 'c') && (argc > 2))
     {
       // Operating in non-interactive mode.
 

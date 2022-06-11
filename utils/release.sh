@@ -8,5 +8,5 @@
 
 # Echoes the release number of Visopsys
 
-echo "0.5"
+echo "0.51"
 exit 0

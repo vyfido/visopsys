@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
   int force = 0;
 
   // Reboot forcefully?
-  if (getopt(argc, argv, "f") != -1)
+  if (getopt(argc, argv, "f") == 'f')
     force = 1;
 
   status = shutdown(1, force);

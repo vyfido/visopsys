@@ -167,7 +167,6 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 
 	  kernelWindowSetHasMinimizeButton(window, 0);
 	  kernelWindowSetHasCloseButton(window, 0);
-	  kernelWindowPack(window);
 	  kernelWindowGetSize(window, &windowWidth, &windowHeight);
 	  kernelWindowSetLocation(window, ((screenWidth - windowWidth) / 2),
 				  ((screenHeight - windowHeight) / 3));

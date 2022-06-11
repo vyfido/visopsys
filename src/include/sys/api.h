@@ -258,14 +258,14 @@ extern int visopsys_in_kernel;
 #define _fnum_windowSetSize                          12008
 #define _fnum_windowGetLocation                      12009
 #define _fnum_windowSetLocation                      12010
-#define _fnum_windowPack                             12011
+// DEPRECATED _fnum_windowPack                       12011
 #define _fnum_windowCenter                           12012
 #define _fnum_windowSnapIcons                        12013
 #define _fnum_windowSetHasBorder                     12014
 #define _fnum_windowSetHasTitleBar                   12015
 #define _fnum_windowSetMovable                       12016
 #define _fnum_windowSetResizable                     12017
-#define _fnum_windowSetPacked                        12018
+// DEPRECATED _fnum_windowSetPacked                  12018
 #define _fnum_windowSetHasMinimizeButton             12019
 #define _fnum_windowSetHasCloseButton                12020
 #define _fnum_windowSetColors                        12021
@@ -1952,8 +1952,8 @@ _X_ static inline int windowSetLocation(objectKey window, int xCoord, int yCoord
 _X_ static inline int windowPack(objectKey window)
 {
   // Proto: int kernelWindowPack(kernelWindow *);
-  // Desc : Pack and resize 'window' based on the sizes and parameters of the components it contains.
-  return (sysCall_1(_fnum_windowPack, window));
+  // Desc : *DEPRECATED*
+  return (0);
 }
 
 _X_ static inline int windowCenter(objectKey window)
@@ -2001,8 +2001,8 @@ _X_ static inline int windowSetResizable(objectKey window, int trueFalse)
 _X_ static inline int windowSetPacked(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetPacked(kernelWindow *, int);
-  // Desc : Calling this function with 'trueFalse' set to 1 will set 'window's packed attribute.  Packed windows will automatically resize to the smallest appropriate size based on the sizes and parameters of the components it contains.
-  return (sysCall_2(_fnum_windowSetPacked, window, (void *) trueFalse));
+  // Desc : *DEPRECATED*
+  return (0);
 }
 
 _X_ static inline int windowSetHasMinimizeButton(objectKey window,

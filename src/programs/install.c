@@ -29,10 +29,11 @@
 #include <sys/api.h>
 #include <sys/vsh.h>
 
-#define MOUNTPOINT    "/tmp_install"
-#define BASICINSTALL  "/system/install-files.basic"
-#define FULLINSTALL   "/system/install-files.full"
-#define STATUSLENGTH  80
+#define MOUNTPOINT               "/tmp_install"
+#define BASICINSTALL             "/system/install-files.basic"
+#define FULLINSTALL              "/system/install-files.full"
+#define STATUSLENGTH             80
+#define TEXT_PROGRESSBAR_LENGTH  20
 
 typedef enum { install_basic, install_full } install_type;
 
@@ -52,6 +53,7 @@ static char statusLabelString[STATUSLENGTH];
 static install_type installType;
 static unsigned bytesToCopy = 0;
 static unsigned bytesCopied = 0;
+static int textProgressBarRow = 0;
 
 // GUI stuff
 static int graphics = 0;
@@ -514,6 +516,77 @@ static void updateStatus(const char *message)
 }
 
 
+static void makeTextProgressBar(void)
+{
+  // Make an initial text mode progress bar.
+
+  char row[TEXT_PROGRESSBAR_LENGTH + 3];
+  int count;
+
+  // Make the top row
+  row[0] = 218;
+  for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
+    row[count] = 196;
+  row[count++] = 191;
+  row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
+  printf("\n%s\n", row);
+
+  // Remember this row
+  textProgressBarRow = textGetRow();
+
+  // Middle row
+  row[0] = 179;
+  for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
+    row[count] = ' ';
+  row[count++] = 179;
+  row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
+  printf("%s\n", row);
+
+  // Bottom row
+  row[0] = 192;
+  for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
+    row[count] = 196;
+  row[count++] = 217;
+  row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
+  printf("%s\n\n", row);
+}
+
+
+static void setTextProgressBar(int percent)
+{
+  // Set the value of the text mode progress bar.
+
+  int tempColumn = textGetColumn();
+  int tempRow = textGetRow();
+  int progressChars = 0;
+  int column = 0;
+  char row[TEXT_PROGRESSBAR_LENGTH + 1];
+  int count;
+
+  progressChars = ((percent * TEXT_PROGRESSBAR_LENGTH) / 100);
+
+  textSetColumn(1);
+  textSetRow(textProgressBarRow);
+
+  for (count = 0; count < progressChars; count ++)
+    row[count] = 177;
+  row[count] = '\0';
+  printf("%s\n", row);
+
+  column = (TEXT_PROGRESSBAR_LENGTH / 2);
+  if (percent < 10)
+    column += 1;
+  else if (percent >= 100)
+    column -= 1;
+  textSetColumn(column);
+  printf("%d%%", percent);
+
+  // Back to where we were
+  textSetColumn(tempColumn);
+  textSetRow(tempRow);
+}
+
+
 static int copyBootSector(const char *destDisk)
 {
   // Overlay the boot sector from the root disk onto the boot sector of
@@ -585,6 +658,7 @@ static int copyFiles(const char *installFileName)
   int status = 0;
   fileStream installFile;
   file theFile;
+  int percent = 0;
   char buffer[BUFFSIZE];
   char tmpFileName[128];
 
@@ -656,12 +730,16 @@ static int copyFiles(const char *installFileName)
 
 	  bytesCopied += theFile.size;
 
+	  percent = ((bytesCopied * 100) / bytesToCopy);
+
 	  // Sync periodially
-	  if (!(((bytesCopied * 100) / bytesToCopy) % 10))
+	  if (!(percent % 10))
 	    diskSync();
 
-	  windowComponentSetData(progressBar,
-			 (void *)((bytesCopied * 100) / bytesToCopy), 1);
+	  if (graphics)
+	    windowComponentSetData(progressBar, (void *) percent, 1);
+	  else
+	    setTextProgressBar(percent);
 	}
     }
 
@@ -915,7 +993,6 @@ static void changeStartProgram(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char opt;
   int diskNumber = -1;
   char tmpChar[80];
   unsigned diskSize = 0;
@@ -928,12 +1005,9 @@ int main(int argc, char *argv[])
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
 
-  while ((opt = getopt(argc, argv, "T")) != -1)
-    {
-      // Force text mode?
-      if (opt == 'T')
-	graphics = 0;
-    }
+  if (getopt(argc, argv, "T") == 'T')
+    // Force text mode
+    graphics = 0;
 
   // Check privilege level
   if (multitaskerGetProcessPrivilege(processId) != 0)
@@ -1067,6 +1141,9 @@ int main(int argc, char *argv[])
     }
   updateStatus("Done\n");
 
+  if (!graphics)
+    makeTextProgressBar();
+
   // Copy the files
   bytesToCopy = basicInstallSize;
   if (installType == install_full)
@@ -1074,6 +1151,10 @@ int main(int argc, char *argv[])
   status = copyFiles(BASICINSTALL);
   if (installType == install_full)
     status = copyFiles(FULLINSTALL);
+
+  if (!graphics)
+    // Make sure this shows 100%
+    setTextProgressBar(100);
 
   // Set the start program of the target installation back to the login
   // program

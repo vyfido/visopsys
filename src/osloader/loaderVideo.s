@@ -19,6 +19,7 @@
 ;;  loaderVideo.s
 ;;
 
+	EXTERN loaderBigRealMode
 	EXTERN loaderPrint
 	EXTERN loaderPrintNumber
 	EXTERN loaderPrintNewline
@@ -664,6 +665,7 @@ loaderDetectVideo:
 	jl near .selectMode
 
 	;; Get values
+	call loaderBigRealMode
 	mov ESI, KERNELCODEDATALOCATION
 	mov EDX, dword [GS:(ESI + 8)] ; BPP
 	mov ECX, dword [GS:(ESI + 4)] ; Y resolution

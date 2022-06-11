@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
       if (output == NULL)
 	{
 	  errno = ERR_MEMORY;
-	  perror((argc > 0)? argv[0] : "md5");
+	  perror(argv[0]);
 	  return (status = errno);
 	}
 
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
       if (status < 0)
 	{
 	  errno = status;
-	  perror((argc > 0)? argv[0] : "md5");
+	  perror(argv[0]);
 	  free(output);
 	  return (status);
 	}

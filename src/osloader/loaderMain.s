@@ -30,6 +30,7 @@
 	EXTERN PARTENTRY
 	EXTERN HARDWAREINFO
 	EXTERN KERNELGMODE
+	EXTERN HDDINFO
 
 	GLOBAL loaderMain
 	GLOBAL loaderBigRealMode
@@ -162,10 +163,6 @@ loaderMain:
 	;; Enable the A20 address line so that we will have access to the
 	;; entire extended memory space
 	call enableA20
-
-	;; Switch to 'big real mode', keeping a 'global' (32-bit) selector
-	;; in GS
-	call loaderBigRealMode
 
 	;; Call the routine to do the hardware detection
 	call loaderDetectHardware
@@ -344,9 +341,11 @@ bootDevice:
 	;; Guards againt BIOS bugs, apparently
 	push word 0
 	pop ES
-	mov DI, 0
+	xor DI, DI
 	
-	mov AH, 08h
+	mov AX, 0800h
+	xor BX, BX
+	xor CX, CX
 	mov DX, word [DRIVENUMBER]
 	int 13h
 
@@ -380,24 +379,52 @@ bootDevice:
 	jmp .done
 
 	.gotDiskInfo:
-	;; DH is the number of heads, 0 based
-	xor AX, AX
-	mov AL, DH
-	add AX, 1
-	mov word [HEADS], AX
 
-	;; We need to make a copy of some of the info we get from
-	;; register CX
-	mov BL, CL
-	and BX, 003Fh		; Mask out the top ten bits
-	mov word [SECPERTRACK], BX
+	;; Heads
+	xor EAX, EAX
+	mov AL, DH
+	inc AX			; Number is 0-based
+	mov dword [HEADS], EAX
+
+	;; cylinders
+	xor EAX, EAX
+	mov AL, CL		; Two bits of cylinder number in bits 6&7
+	and AL, 11000000b	; Mask it
+	shl AX, 2		; Move them to bits 8&9
+	mov AL, CH		; Rest of the cylinder bits
+	inc AX			; Number is 0-based
+	mov dword [CYLINDERS], EAX
 	
-	mov BH, CL
-	and BH, 0C0h		; Mask out the bottom 6 bits
-	shr BH, 6		; Shift right 6 bits
-	mov BL, CH
-	add BX, 1
-	mov word [CYLINDERS], BX
+	;; sectors
+	xor EAX, EAX
+	mov AL, CL		; Bits 0-5
+	and AL, 00111111b	; Mask it
+	mov dword [SECPERTRACK], EAX
+	
+	;; Determine whether we can use an extended BIOS function to give
+	;; us the number of sectors
+
+	mov word [HDDINFO], 42h  ; Size of the info buffer we provide
+	mov AX, 4800h
+	mov DX, word [DRIVENUMBER]
+	mov SI, HDDINFO
+	int 13h
+	
+	;; Function call successful?
+	jc .done
+
+	;; Save the number of sectors
+	mov EAX, dword [HDDINFO + 10h]
+	mov dword [TOTALSECS], EAX
+
+	;; Recalculate the number of cylinders
+	mov EAX, dword [HEADS]		; heads
+	mul dword [SECPERTRACK]		; sectors per cyl
+	mov ECX, EAX			; total secs per cyl 
+	xor EDX, EDX
+	mov EAX, dword [TOTALSECS]
+	div ECX
+	mov dword [CYLINDERS], EAX	; new cyls value 
 
 	.done:
 	popa
@@ -420,24 +447,25 @@ printBootDevice:
 	call loaderPrint
 	xor EAX, EAX
 	mov AX, word [DRIVENUMBER]
+	cmp AX, 80h
+	jb .noSub
+	sub AX, 80h
+	.noSub:
 	call loaderPrintNumber
 	mov SI, DEVDISK2
 	call loaderPrint
 	
-	xor EAX, EAX
-	mov AX, word [HEADS]
+	mov EAX, dword [HEADS]
 	call loaderPrintNumber
 	mov SI, DEVHEADS
 	call loaderPrint
 	
-	xor EAX, EAX
-	mov AX, word [CYLINDERS]
+	mov EAX, dword [CYLINDERS]
 	call loaderPrintNumber
 	mov SI, DEVCYLS
 	call loaderPrint
 	
-	xor EAX, EAX
-	mov AX, word [SECPERTRACK]
+	mov EAX, dword [SECPERTRACK]
 	call loaderPrintNumber
 	mov SI, DEVSECTS
 	call loaderPrint
@@ -821,8 +849,8 @@ loaderBigRealMode:
 	BITS 32
 	
 	;; Load GS with the global data segment selector
-	mov EAX, PRIV_DATASELECTOR
-	mov GS, AX
+	push dword PRIV_DATASELECTOR
+	pop dword GS
 
 	;; Return to real mode
 	mov EAX, CR0
@@ -1000,7 +1028,7 @@ FATALERROR	db 0 	;; Fatal error encountered?
 
 	
 ;;
-;; Things passed from the boot sector code
+;; Info about our boot device and filesystem.
 ;;
 	ALIGN 4
 
@@ -1009,9 +1037,10 @@ ROOTDIRENTS	dw 0
 FSTYPE		dw 0
 RESSECS		dw 0
 FATSECS		dw 0
-SECPERTRACK	dw 0
-CYLINDERS	dw 0
-HEADS		dw 0
+TOTALSECS	dd 0
+CYLINDERS	dd 0
+HEADS		dd 0
+SECPERTRACK	dd 0
 SECPERCLUST	dw 0
 FATS		dw 0
 DRIVENUMBER	dw 0
@@ -1058,14 +1087,14 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.5' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.51' , 0
 LOADMSG2	db 'Copyright (C) 1998-2004 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0
 DEVDISK2	db ', ', 0
-DEVHEADS	db ' hd, ', 0
-DEVCYLS		db ' cyl, ', 0
-DEVSECTS	db ' sect, type: ', 0
+DEVHEADS	db ' heads, ', 0
+DEVCYLS		db ' cyls, ', 0
+DEVSECTS	db ' sects, type: ', 0
 FAT12MES	db 'FAT12', 0
 FAT16MES	db 'FAT16', 0
 UNKNOWNFS	db 'UNKNOWN', 0

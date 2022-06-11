@@ -523,7 +523,6 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char opt;
   char userName[17];
   int setPass = 0;
   disk sysDisk;
@@ -538,18 +537,10 @@ int main(int argc, char *argv[])
     }
 
   // Check options
-  while((opt = (char) getopt(argc, argv, "p:")) != (char) -1)
+  if (getopt(argc, argv, "p:") == 'p')
     {
-      switch(opt)
-	{
-	case 'p':
-	  strncpy(userName, optarg, 17);
-	  setPass = 1;
-	  break;
-	default:
-	  error("Unknown option '%c'.", opt);
-	  break;
-	}
+      strncpy(userName, optarg, 17);
+      setPass = 1;
     }
 
   // Find out whether we are currently running on a read-only filesystem

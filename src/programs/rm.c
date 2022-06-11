@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 
   if (argc < 2)
     {
-      usage((argc > 0)? argv[0] : "rm");
+      usage(argv[0]);
       return (status = ERR_ARGUMENTCOUNT);
     }
 

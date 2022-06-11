@@ -404,9 +404,6 @@ static int clearScreen(kernelTextArea *area)
 			   (area->columns * area->font->charWidth),
 			   (area->rows * area->font->charHeight));
 
-  // Scroll the buffer back by area->cursorRow lines
-  scrollBuffer(area, area->cursorRow);
-
   // Empty all the data
   kernelMemClear(firstVisible(area), (area->columns * area->rows));
 

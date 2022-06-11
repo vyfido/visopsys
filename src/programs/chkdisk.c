@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
   // Our argument is the disk number
   if (argc < 2)
     {
-      usage((argc > 0)? argv[0] : "chkdisk");
+      usage(argv[0]);
 
       // Try to list the disks in the system
       loaderLoadAndExec("/programs/disks", 3 /* user privilege */, 0, NULL,

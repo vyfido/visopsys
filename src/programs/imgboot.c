@@ -252,7 +252,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   disk sysDisk;
-  char opt;
   int options = 3;
   int selectedOption = 0;
   char *optionStrings[] =
@@ -271,12 +270,9 @@ int main(int argc, char *argv[])
     quit(ERR_PERMISSION, "This program can only be run as a privileged user."
 	 "\n(Try logging in as user \"admin\").");
 
-  while ((opt = getopt(argc, argv, "T")) != -1)
-    {
-      // Force text mode?
-      if (opt == 'T')
-	graphics = 0;
-    }
+  if (getopt(argc, argv, "T") == 'T')
+    // Force text mode
+    graphics = 0;
 
   // Find out whether we are currently running on a read-only filesystem
   bzero(&sysDisk, sizeof(disk));

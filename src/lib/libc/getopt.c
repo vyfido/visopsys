@@ -29,6 +29,7 @@ int optind = 0;
 int opterr = 1;
 int optopt = 0;
 
+
 int getopt(int argc, char *const argv[], const char *optstring)
 {
   /*  From the GNU man page:
