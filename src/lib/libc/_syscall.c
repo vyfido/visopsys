@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,7 +37,7 @@
 			: "=r" (retCode) : : "%eax", "memory");
 
 
-int _sysCall(int fnum, int numArgs, ...)
+int _syscall(int fnum, int numArgs, ...)
 {
   // This function sets up the stack and arguments, invokes the kernel API,
   // cleans up the stack, and returns the return code.

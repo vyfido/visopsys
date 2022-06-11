@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,10 +32,8 @@
 #define INTERRUPT_NUM_PRIMARYIDE    0x0E
 #define INTERRUPT_NUM_SECONDARYIDE  0x0F
 
-// Lets handlers tell everyone else which interrupt or exception number
-// is in service
+// Lets handlers tell everyone else which interrupt number is in service
 extern int kernelProcessingInterrupt;
-extern int kernelProcessingException;
 
 int kernelInterruptInitialize(void);
 void *kernelInterruptGetHandler(int);

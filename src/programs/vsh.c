@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,11 +43,12 @@ double-quotes (").
 </help>
 */
 
+#include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/file.h>
 #include <sys/api.h>
@@ -64,8 +65,7 @@ static int promptCatchup = 0;
 
 static void showPrompt(void)
 {
-  char tmpPath[MAX_PATH_LENGTH];
-  char tmpFile[MAX_NAME_LENGTH];
+  char *dirName = NULL;
   
   // If there are characters already in the input buffer, tell the reader
   // routine to put them after the prompt
@@ -74,10 +74,12 @@ static void showPrompt(void)
 
   // This routine puts a prompt on the screen
   multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-  fileSeparateLast(cwd, tmpPath, tmpFile);
-  if (tmpFile[0] == '\0')
-    strcpy(tmpFile, "/");
-  printf("%s%s", tmpFile, SIMPLESHELLPROMPT);
+
+  dirName = basename(cwd);
+
+  printf("%s%s", dirName, SIMPLESHELLPROMPT);
+
+  free(dirName);
 
   return;
 }
@@ -88,9 +90,8 @@ static void interpretCommand(char *commandLine)
   int status = 0;
   int numArgs = 0;
   char *args[MAX_ARGS];
+  char *commandName = NULL;
   char *fullCommand = NULL;
-  char *fileName1 = NULL;
-  char *fileName2 = NULL;
   char *getEnvBuff = NULL;
   int temp = 0;
   int block = 1;
@@ -99,10 +100,9 @@ static void interpretCommand(char *commandLine)
   // Initialize stack memory
   bzero(args, (MAX_ARGS * sizeof(char *)));
 
+  commandName = malloc(MAX_PATH_NAME_LENGTH);
   fullCommand = malloc(MAXSTRINGLENGTH);
-  fileName1 = malloc(MAX_PATH_NAME_LENGTH);
-  fileName2 = malloc(MAX_PATH_NAME_LENGTH);
-  if ((fullCommand == NULL) || (fileName1 == NULL) || (fileName2 == NULL))
+  if ((commandName == NULL) || (fullCommand == NULL))
     {
       errno = ERR_MEMORY;
       perror("vsh");
@@ -111,7 +111,7 @@ static void interpretCommand(char *commandLine)
 
   // We have to separate the command and arguments into an array of
   // strings
-  status = vshParseCommand(commandLine, fileName1, &numArgs, args);
+  status = vshParseCommand(commandLine, commandName, &numArgs, args);
   if (status < 0)
     {
       perror("vsh");
@@ -130,24 +130,22 @@ static void interpretCommand(char *commandLine)
   else if (!strcmp(args[0], "cd"))
     {
       if (numArgs > 1)
-	vshMakeAbsolutePath(args[1], fileName1);
-
+	strcpy(cwd, args[1]);
       else
 	// No arg means / for now
-	strncpy(fileName1, "/", 2);
+	strcpy(cwd, "/");
 
-      // Fix up the cwd and make it official
-      fileFixupPath(fileName1, cwd);
+      // Make it official
       temp = multitaskerSetCurrentDirectory(cwd);
 
-      // Were we successful?  If not, call back the multitasker to set it
-      // back to the real cwd and make an error message
+      // Were we successful?  If not, make an error message.
       if (temp < 0)
 	{
 	  errno = temp;
 	  perror("cd");
-	  multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
 	}
+
+      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
     }
 
   else if (!strcmp(args[0], "dir") || !strcmp(args[0], "ls"))
@@ -164,10 +162,7 @@ static void interpretCommand(char *commandLine)
 	{
 	  for (count = 1; count < numArgs; count ++)
 	    {
-	      // If any of the arguments are RELATIVE pathnames, we should
-	      // insert the pwd before it
-	      vshMakeAbsolutePath(args[count], fileName1);
-	      status = vshFileList(fileName1);
+	      status = vshFileList(args[count]);
 	      if (status < 0)
 		perror(args[0]);
 	    }
@@ -181,10 +176,7 @@ static void interpretCommand(char *commandLine)
 	{
 	  for (count = 1; count < numArgs; count ++)
 	    {
-	      // If any of the arguments are RELATIVE pathnames, we should
-	      // insert the pwd before it
-	      vshMakeAbsolutePath(args[count], fileName1);
-	      status = vshDumpFile(fileName1);
+	      status = vshDumpFile(args[count]);
 	      if (status < 0)
 		perror(args[0]);
 	    }
@@ -203,10 +195,7 @@ static void interpretCommand(char *commandLine)
 	{
 	  for (count = 1; count < numArgs; count ++)
 	    {
-	      // If any of the arguments are RELATIVE pathnames, we should
-	      // insert the pwd before it
-	      vshMakeAbsolutePath(args[count], fileName1);
-	      status = vshDeleteFile(fileName1);
+	      status = vshDeleteFile(args[count]);
 	      if (status < 0)
 		perror(args[0]);
 	    }
@@ -223,12 +212,7 @@ static void interpretCommand(char *commandLine)
     {
       if (numArgs > 2)
 	{
-	  // If any of the arguments are RELATIVE pathnames, we should
-	  // insert the pwd before it
-	  vshMakeAbsolutePath(args[1], fileName1);
-	  vshMakeAbsolutePath(args[2], fileName2);
-
-	  status = vshCopyFile(fileName1, fileName2);
+	  status = vshCopyFile(args[1], args[2]);
 	  if (status < 0)
 	    perror(args[0]);
 	}
@@ -245,12 +229,7 @@ static void interpretCommand(char *commandLine)
     {
       if (numArgs > 2)
 	{
-	  // If any of the arguments are RELATIVE pathnames, we should
-	  // insert the pwd before it
-	  vshMakeAbsolutePath(args[1], fileName1);
-	  vshMakeAbsolutePath(args[2], fileName2);
-
-	  status = vshMoveFile(fileName1, fileName2);
+	  status = vshMoveFile(args[1], args[2]);
 	  if (status < 0)
 	    perror(args[0]);
 	}
@@ -338,7 +317,7 @@ static void interpretCommand(char *commandLine)
   else if (!strcmp(args[0], "printenv"))
     environmentDump();
 
-  else if (fileName1[0] != '\0')
+  else if (commandName[0] != '\0')
     {
       // The user has typed the name of a program (s)he wants to execute
 
@@ -355,7 +334,7 @@ static void interpretCommand(char *commandLine)
 	}
       
       // Reconstitute the full command line
-      sprintf(fullCommand, "\"%s\" ", fileName1);
+      sprintf(fullCommand, "\"%s\" ", commandName);
       for (count = 1; count < numArgs; count ++)
 	sprintf((fullCommand + strlen(fullCommand)), "\"%s\" ", args[count]);
 
@@ -366,12 +345,10 @@ static void interpretCommand(char *commandLine)
     printf("Unknown command \"%s\".\n", args[0]);
 
  out:
+  if (commandName)
+    free(commandName);
   if (fullCommand)
     free(fullCommand);
-  if (fileName1)
-    free(fileName1);
-  if (fileName2)
-    free(fileName2);
   return;
 }
 
@@ -693,7 +670,7 @@ int main(int argc, char *argv[])
       vshMakeAbsolutePath(argv[2], fileName);
 
       // Does the file exist?
-      status = fileFind(fileName, &theFile);
+      status = fileFind(argv[2], &theFile);
       if (status < 0)
         {
           // Not found in the current directory.  Let's try searching the

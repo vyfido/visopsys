@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,7 +49,6 @@ Options:
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
-#include <sys/cdefs.h>
 
 #define MOUNTPOINT               "/tmp_install"
 #define BASICINSTALL             "/system/install-files.basic"
@@ -62,7 +61,7 @@ static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2006 "
+static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2007 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
   "install:";
@@ -99,6 +98,7 @@ static void pause(void)
 }
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -107,7 +107,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -117,6 +117,8 @@ static void error(const char *format, ...)
 }
 
 
+static void quit(int, const char *, ...) __attribute__((format(printf, 2, 3)))
+  __attribute__((noreturn));
 static void quit(int status, const char *message, ...)
 {
   // Shut everything down
@@ -127,7 +129,7 @@ static void quit(int status, const char *message, ...)
   if (message != NULL)
     {
       va_start(list, message);
-      _expandFormatString(output, MAXSTRINGLENGTH, message, list);
+      vsnprintf(output, MAXSTRINGLENGTH, message, list);
       va_end(list);
     }
 

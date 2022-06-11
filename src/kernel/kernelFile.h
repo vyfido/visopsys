@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -82,9 +82,9 @@ int kernelFileCountDirEntries(kernelFileEntry *);
 int kernelFileMakeDotDirs(kernelFileEntry *, kernelFileEntry *);
 int kernelFileUnbufferRecursive(kernelFileEntry *);
 int kernelFileSetSize(kernelFileEntry *, unsigned);
+int kernelFileSeparateLast(const char *, char *, char *);
 // More functions, but also exported to user space
 int kernelFileFixupPath(const char *, char *);
-int kernelFileSeparateLast(const char *, char *, char *);
 int kernelFileGetDisk(const char *, disk *);
 int kernelFileCount(const char *);
 int kernelFileFirst(const char *, file *);

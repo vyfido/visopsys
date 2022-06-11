@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,14 +45,13 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
-#include <sys/cdefs.h>
 
 #define LOGINPROGRAM    "/programs/login"
 #define INSTALLPROGRAM  "/programs/install"
 
 static int processId = 0;
 static int readOnly = 1;
-static char *titleString     = "Copyright (C) 1998-2006 J. Andrew McLaughlin";
+static char *titleString     = "Copyright (C) 1998-2007 J. Andrew McLaughlin";
 static char *gplString       =
 "  This program is free software; you can redistribute it and/or modify it  \n"
 "  under the terms of the GNU General Public License as published by the\n"
@@ -74,6 +73,7 @@ static objectKey runButton = NULL;
 static objectKey goAwayCheckbox = NULL;
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -82,7 +82,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -92,6 +92,8 @@ static void error(const char *format, ...)
 }
 
 
+static void quit(int, const char *, ...) __attribute__((format(printf, 2, 3)))
+  __attribute__((noreturn));
 static void quit(int status, const char *message, ...)
 {
   // Shut everything down
@@ -102,7 +104,7 @@ static void quit(int status, const char *message, ...)
   if (message)
     {
       va_start(list, message);
-      _expandFormatString(output, MAXSTRINGLENGTH, message, list);
+      vsnprintf(output, MAXSTRINGLENGTH, message, list);
       va_end(list);
     }
 
@@ -280,9 +282,9 @@ static void changeStartProgram(void)
 }
 
 
+int main(int, char *[]) __attribute__((noreturn));
 int main(int argc, char *argv[])
 {
-  int status = 0;
   disk sysDisk;
   int options = 3;
   int selected = 0;
@@ -372,8 +374,5 @@ int main(int argc, char *argv[])
 	}
     }
 
-  quit(0, "");
-
-  // Make the compiler happy
-  return (status);
+  quit(0, NULL);
 }

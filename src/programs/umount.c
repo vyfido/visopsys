@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
   // Attempts to unmount the named filesystem from the named mount point
 
   int status = 0;
-  char filesystem[MAX_PATH_LENGTH];
   
   if (argc < 2)
     {
@@ -70,13 +69,10 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  // We allow relative pathnames
-  vshMakeAbsolutePath(argv[1], filesystem);
-
-  status = filesystemUnmount(filesystem);
+  status = filesystemUnmount(argv[1]);
   if (status < 0)
     {
-      printf("Error unmounting %s\n", filesystem);
+      printf("Error unmounting %s\n", argv[1]);
       errno = status;
       perror(argv[0]);
       return (status = errno);

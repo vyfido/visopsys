@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -257,9 +257,6 @@ layoutKernel:
 	;; This function takes information about the kernel ELF file
 	;; sections and modifies the kernel image appropriately in memory.
 
-	;; Save a word for our return code
-	sub SP, 2
-
 	;; Save regs
 	pusha
 
@@ -280,7 +277,7 @@ layoutKernel:
 	mov ESI, KERNELCODEDATALOCATION
 	add ESI, dword [CODE_OFFSET]
 	mov EDI, KERNELCODEDATALOCATION
-
+	
 	push ECX
 	push EDI
 	push ESI
@@ -301,7 +298,6 @@ layoutKernel:
 	;; it.  Move the initialized data forward from the original offset
 	;; so that it matches the difference between the code and data's
 	;; virtual addresses.
-
 	mov ECX, dword [DATA_SIZEINFILE]
 	mov ESI, KERNELCODEDATALOCATION
 	add ESI, dword [DATA_OFFSET]
@@ -331,15 +327,7 @@ layoutKernel:
 	call loaderMemSet
 	add SP, 10
 	
-	.success:
-	;; Make 0 be our return code
-	mov word [SS:(BP + 16)], 0
-	
-	.done:
 	popa
-	;; Pop our return code
-	xor EAX, EAX
-	pop AX
 	ret
 	
 
@@ -413,7 +401,10 @@ evaluateLoadError:
 	jmp .done
 
 	.errorFILE:
-	;; There must have been an error loading the kernel file itself.
+	;; Was there an error loading the kernel file itself?
+	cmp AX, -4
+	jne .errorUNKNOWN
+	
 	mov SI, THEFILE
 	call loaderPrint
 	call loaderPrintNewline
@@ -424,6 +415,13 @@ evaluateLoadError:
 	call loaderPrint
 	call loaderPrintNewline
 	mov SI, CORRUPTFS2
+	call loaderPrint
+	call loaderPrintNewline
+	jmp .done
+
+	.errorUNKNOWN:
+	;; We should really have a proper error message for this.
+	mov SI, UNKNOWN
 	call loaderPrint
 	call loaderPrintNewline
 	
@@ -454,14 +452,14 @@ loaderLoadKernel:
 	mov BP, SP
 
 	;; Load the kernel file
-	push dword 1		; Yes spinner
+	push word 1		; Show progress indicator
 	push dword KERNELCODEDATALOCATION
 	push word KERNELNAME
 	call loaderLoadFile
-	add SP, 10
+	add SP, 8
 
 	;; Make sure the load was successful
-	cmp AX, 0
+	cmp EAX, 0
 	jge near .okLoad
 
 	;; We failed to load the kernel.  The following call will determine
@@ -491,21 +489,10 @@ loaderLoadKernel:
 	jmp .done
 
 	.okEval:
-
 	;; OK, call the routine to create the proper layout for the kernel
 	;; based on the ELF information we gathered
 	call layoutKernel
 		
-	;; Make sure the layout was successful
-	cmp AX, 0
-	jge near .success
-
-	;; We failed.  Return the error code.
-	;; code from the call
-	mov word [SS:(BP + 16)], AX
-	jmp .done
-
-	.success:
 	;; Set the size of the kernel image, which is the combined memory
 	;; size of the code and data segments.  Return 0
 	mov EAX, dword [CODE_SIZEINFILE]
@@ -562,3 +549,4 @@ NUMSEGS		db ' does not contain exactly 2 ELF segments.', 0
 SEGALIGN	db ' has incorrectly aligned ELF segments.', 0
 SEGLAYOUT	db ' has an incorrect ELF segment layout.', 0
 REINSTALL	db 'You will probably need to reinstall Visopsys on this boot media.', 0
+UNKNOWN		db 'The error code is unknown.', 0

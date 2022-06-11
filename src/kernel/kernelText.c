@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,11 +28,10 @@
 #include "kernelWindow.h"
 #include "kernelMisc.h"
 #include "kernelError.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <signal.h>
-#include <sys/cdefs.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // There is only ONE kernelTextInputStream for console input
 static kernelTextInputStream originalConsoleInput;
@@ -60,8 +59,9 @@ static kernelTextArea consoleArea =
     0,                            // scrollback lines
     0,                            // scrolled back lines
     0,                            // hidden
-    { 0, 0, TEXT_DEFAULT_FOREGROUND },  // foreground
-    { 0, 0, TEXT_DEFAULT_BACKGROUND },  // background
+    TEXT_DEFAULT_FOREGROUND,      // foreground
+    TEXT_DEFAULT_BACKGROUND,      // background
+    0,                            // pcColor
     NULL,                         // inputStream
     NULL,                         // outputStream
     NULL,                         // buffer data
@@ -209,10 +209,10 @@ int kernelTextInitialize(int columns, int rows)
   // Set the foreground/background colors
   if (consoleOutput->outputDriver->setForeground)
     consoleOutput->outputDriver
-      ->setForeground(consoleOutput->textArea, TEXT_DEFAULT_FOREGROUND);
+      ->setForeground(consoleOutput->textArea, &TEXT_DEFAULT_FOREGROUND);
   if (consoleOutput->outputDriver->setBackground)
     consoleOutput->outputDriver
-      ->setBackground(consoleOutput->textArea, TEXT_DEFAULT_BACKGROUND);
+      ->setBackground(consoleOutput->textArea, &TEXT_DEFAULT_BACKGROUND);
 
   consoleArea.outputStream = consoleOutput;
 
@@ -629,7 +629,7 @@ int kernelTextNewOutputStream(kernelTextOutputStream *newStream)
 }
 
 
-int kernelTextGetForeground(void)
+int kernelTextGetForeground(color *foreground)
 {
   int status = 0;
   kernelTextOutputStream *outputStream = NULL;
@@ -638,23 +638,22 @@ int kernelTextGetForeground(void)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
+  if (foreground == NULL)
+    return (status = ERR_NULLPARAMETER);
+
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
-
   if (outputStream == NULL)
     return (status = ERR_INVALID);
 
-  // Get it from text output driver
-  if (outputStream->outputDriver->getForeground)
-    status = outputStream->outputDriver->getForeground(outputStream->textArea);
-  else
-    status = ERR_NOSUCHFUNCTION;
-
-  return (status);
+  kernelMemCopy((color *) &(outputStream->textArea->foreground), foreground,
+		sizeof(color));
+  return (status = 0);
 }
 
 
-int kernelTextSetForeground(int newColor)
+int kernelTextSetForeground(color *foreground)
 {
   // Sets the foreground color of the screen output.
 
@@ -665,24 +664,27 @@ int kernelTextSetForeground(int newColor)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
+  if (foreground == NULL)
+    return (status = ERR_NULLPARAMETER);
+
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
-
   if (outputStream == NULL)
     return (status = ERR_INVALID);
 
-  // Set it in the text output driver
   if (outputStream->outputDriver->setForeground)
+    // Set it in the text output driver
     status = outputStream->outputDriver
-      ->setForeground(outputStream->textArea, newColor);
-  else
-    status = ERR_NOSUCHFUNCTION;
+      ->setForeground(outputStream->textArea, foreground);
 
+  kernelMemCopy(foreground, (color *)
+		&(outputStream->textArea->foreground), sizeof(color));
   return (status);
 }
 
 
-int kernelTextGetBackground(void)
+int kernelTextGetBackground(color *background)
 {
   int status = 0;
   kernelTextOutputStream *outputStream = NULL;
@@ -691,23 +693,22 @@ int kernelTextGetBackground(void)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
+  if (background == NULL)
+    return (status = ERR_NULLPARAMETER);
+
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
-
   if (outputStream == NULL)
     return (status = ERR_INVALID);
 
-  // Get it from text output driver
-  if (outputStream->outputDriver->getBackground)
-    status = outputStream->outputDriver->getBackground(outputStream->textArea);
-  else
-    status = ERR_NOSUCHFUNCTION;
-
-  return (status);
+  kernelMemCopy((color *) &(outputStream->textArea->background), background,
+		sizeof(color));
+  return (status = 0);
 }
 
 
-int kernelTextSetBackground(int newColor)
+int kernelTextSetBackground(color *background)
 {
   // Sets the background color of the screen output.
 
@@ -718,23 +719,22 @@ int kernelTextSetBackground(int newColor)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
+  if (background == NULL)
+    return (status = ERR_NULLPARAMETER);
+
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
-
   if (outputStream == NULL)
-    return (status = ERR_INVALID);
-
-  // Check to make sure it's a valid color
-  if ((newColor < 0) || (newColor > 15))
     return (status = ERR_INVALID);
 
   // Set it in the text output driver
   if (outputStream->outputDriver->setBackground)
     status = outputStream->outputDriver
-      ->setBackground(outputStream->textArea, newColor);
-  else
-    status = ERR_NOSUCHFUNCTION;
+      ->setBackground(outputStream->textArea, background);
 
+  kernelMemCopy(background, (color *)
+		&(outputStream->textArea->background), sizeof(color));
   return (status);
 }
 
@@ -758,7 +758,7 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
   // we were passed
   if (outputStream->outputDriver->print)
     status =
-      outputStream->outputDriver->print(outputStream->textArea, theChar);
+      outputStream->outputDriver->print(outputStream->textArea, theChar, NULL);
   else
     status = ERR_NOSUCHFUNCTION;
   
@@ -790,13 +790,15 @@ int kernelTextStreamPrint(kernelTextOutputStream *outputStream,
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
   if ((outputStream == NULL) || (output == NULL))
-    return (status = ERR_INVALID);
+    return (status = ERR_NULLPARAMETER);
 
   // We will call the text stream output driver routine with the 
   // characters we were passed
   if (outputStream->outputDriver->print)
-    status = outputStream->outputDriver->print(outputStream->textArea, output);
+    status = outputStream->outputDriver
+      ->print(outputStream->textArea, output, NULL);
   else
     status = ERR_NOSUCHFUNCTION;
 
@@ -815,14 +817,15 @@ int kernelTextPrint(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   kernelTextOutputStream *outputStream = NULL;
 
+  // Check params
   if (format == NULL)
-    return (status = ERR_INVALID);
+    return (status = ERR_NULLPARAMETER);
 
   // Initialize the argument list
   va_start(list, format);
 
   // Expand the format string into an output string
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 
@@ -830,6 +833,65 @@ int kernelTextPrint(const char *format, ...)
   outputStream = kernelMultitaskerGetTextOutput();
 
   return (kernelTextStreamPrint(outputStream, output));
+}
+
+
+int kernelTextStreamPrintAttrs(kernelTextOutputStream *outputStream,
+			       textAttrs *attrs, const char *output)
+{
+  int status = 0;
+
+  // Don't do anything unless we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params.  It's pointless for 'attrs' to be NULL, but it's allowed
+  if ((outputStream == NULL) || (output == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  // We will call the text stream output driver routine with the 
+  // characters we were passed
+  if (outputStream->outputDriver->print)
+    status = outputStream->outputDriver
+      ->print(outputStream->textArea, output, attrs);
+  else
+    status = ERR_NOSUCHFUNCTION;
+
+  return (status);
+}
+
+
+int kernelTextPrintAttrs(textAttrs *attrs, const char *format, ...)
+{
+  // Determines the current target of character output, then makes calls
+  // to output the text (without a newline).  Returns 0 if successful, 
+  // negative otherwise.
+
+  int status = 0;
+  va_list list;
+  char output[MAXSTRINGLENGTH];
+  kernelTextOutputStream *outputStream = NULL;
+
+  // Check params
+  if (format == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // Initialize the argument list
+  va_start(list, format);
+
+  if (attrs->flags & TEXT_ATTRS_NOFORMAT)
+    // Just copy the format string to the output string
+    strncpy(output, format, MAXSTRINGLENGTH);
+  else
+    // Expand the format string into an output string
+    vsnprintf(output, MAXSTRINGLENGTH, format, list);
+
+  va_end(list);
+
+  // Get the text output stream for the current process
+  outputStream = kernelMultitaskerGetTextOutput();
+
+  return (kernelTextStreamPrintAttrs(outputStream, attrs, output));
 }
 
 
@@ -842,17 +904,18 @@ int kernelTextStreamPrintLine(kernelTextOutputStream *outputStream,
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
   if ((outputStream == NULL) || (output == NULL))
-    return (status = ERR_INVALID);
+    return (status = ERR_NULLPARAMETER);
 
   // We will call the text stream output driver routine with the 
   // characters we were passed
   if (outputStream->outputDriver->print)
     {
       status = outputStream->outputDriver
-	->print(outputStream->textArea, output);
+	->print(outputStream->textArea, output, NULL);
       // Print the newline too
-      outputStream->outputDriver->print(outputStream->textArea, "\n");
+      outputStream->outputDriver->print(outputStream->textArea, "\n", NULL);
     }
   else
     status = ERR_NOSUCHFUNCTION;
@@ -879,7 +942,7 @@ int kernelTextPrintLine(const char *format, ...)
   va_start(list, format);
 
   // Expand the format string into an output string
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 
@@ -901,7 +964,7 @@ void kernelTextStreamNewline(kernelTextOutputStream *outputStream)
 
   // Call the text stream output driver routine to print the newline
   if (outputStream->outputDriver->print)
-    outputStream->outputDriver->print(outputStream->textArea, "\n");
+    outputStream->outputDriver->print(outputStream->textArea, "\n", NULL);
 
   return;
 }
@@ -1003,7 +1066,7 @@ void kernelTextStreamTab(kernelTextOutputStream *outputStream)
 
   // Call the text stream output driver to print the spaces
   if (outputStream->outputDriver->print)
-    outputStream->outputDriver->print(outputStream->textArea, spaces);
+    outputStream->outputDriver->print(outputStream->textArea, spaces, NULL);
 
   return;
 }
@@ -1291,8 +1354,9 @@ int kernelTextStreamGetNumColumns(kernelTextOutputStream *outputStream)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
   if (outputStream == NULL)
-    return (status = ERR_INVALID);
+    return (status = ERR_NULLPARAMETER);
       
   return (outputStream->textArea->columns);
 }
@@ -1319,8 +1383,9 @@ int kernelTextStreamGetNumRows(kernelTextOutputStream *outputStream)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
   if (outputStream == NULL)
-    return (status = ERR_INVALID);
+    return (status = ERR_NULLPARAMETER);
       
   return (outputStream->textArea->rows);
 }

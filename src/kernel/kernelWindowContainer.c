@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -283,6 +283,104 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 }
 
 
+static int add(kernelWindowComponent *containerComponent,
+	       kernelWindowComponent *component)
+{
+  // Add the supplied component to the container.
+
+  int status = 0;
+  kernelWindowContainer *container = containerComponent->data;
+  int maxComponents = 0;
+  kernelWindowComponent **components = NULL;
+  int count;
+
+  // Check params
+  if ((containerComponent == NULL) || (component == NULL))
+    {
+      kernelError(kernel_error, "NULL container or component");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (containerComponent->type != containerComponentType)
+    {
+      kernelError(kernel_error, "Component is not a container");
+      return (status = ERR_INVALID);
+    }
+  
+  // Make sure there's room for more components
+  if (container->numComponents >= container->maxComponents)
+    {
+      // Try to make more room
+      maxComponents = (container->maxComponents * 2);
+      components =
+	kernelMalloc(maxComponents * sizeof(kernelWindowComponent *));
+      if (components == NULL)
+	{
+	  kernelError(kernel_error, "Component container is full");
+	  return (status = ERR_MEMORY);
+	}
+
+      for (count = 0; count < container->numComponents; count ++)
+	components[count] = container->components[count];
+
+      container->maxComponents = maxComponents;
+      kernelFree(container->components);
+      container->components = components;
+    }
+
+  // Add it to the container
+  container->components[container->numComponents++] = component;
+  component->container = containerComponent;
+  component->window = containerComponent->window;
+  component->buffer = containerComponent->buffer;
+
+  return (status);
+}
+
+
+static int remove(kernelWindowComponent *containerComponent,
+		  kernelWindowComponent *component)
+{
+  // Removes a component from a container
+
+  int status = 0;
+  kernelWindowContainer *container = containerComponent->data;
+  int count = 0;
+
+  // Check params
+  if ((containerComponent == NULL) || (component == NULL))
+    {
+      kernelError(kernel_error, "NULL container or component");
+      return (status = ERR_NULLPARAMETER);
+    }
+  
+  if (containerComponent->type != containerComponentType)
+    {
+      kernelError(kernel_error, "Component is not a container");
+      return (status = ERR_INVALID);
+    }
+  
+  for (count = 0; count < container->numComponents; count ++)
+    if (container->components[count] == component)
+      {
+	// Replace the component with the last one, if applicable
+	container->numComponents--;
+
+	if ((container->numComponents > 0) &&
+	    (count < container->numComponents))
+	  container->components[count] =
+	    container->components[container->numComponents];
+
+	component->container = NULL;
+	return (status = 0);
+      }
+
+  // If we fall through, it was not found
+  kernelError(kernel_error, "No such component in container");
+  return (status = ERR_NOSUCHENTRY);
+}
+
+
 static int numComps(kernelWindowComponent *component)
 {
   // Count up the number of components in a container and any subcomponents.
@@ -562,6 +660,9 @@ static int destroy(kernelWindowComponent *component)
   // Release all our memory
   if (container)
     {
+      while (container->numComponents)
+	kernelWindowComponentDestroy(container->components[0]);
+
       if (container->components)
 	kernelFree(container->components);
 
@@ -570,104 +671,6 @@ static int destroy(kernelWindowComponent *component)
     }
 
   return (status = 0);
-}
-
-
-static int add(kernelWindowComponent *containerComponent,
-	       kernelWindowComponent *component)
-{
-  // Add the supplied component to the container.
-
-  int status = 0;
-  kernelWindowContainer *container = containerComponent->data;
-  int maxComponents = 0;
-  kernelWindowComponent **components = NULL;
-  int count;
-
-  // Check params
-  if ((containerComponent == NULL) || (component == NULL))
-    {
-      kernelError(kernel_error, "NULL container or component");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (containerComponent->type != containerComponentType)
-    {
-      kernelError(kernel_error, "Component is not a container");
-      return (status = ERR_INVALID);
-    }
-  
-  // Make sure there's room for more components
-  if (container->numComponents >= container->maxComponents)
-    {
-      // Try to make more room
-      maxComponents = (container->maxComponents * 2);
-      components =
-	kernelMalloc(maxComponents * sizeof(kernelWindowComponent *));
-      if (components == NULL)
-	{
-	  kernelError(kernel_error, "Component container is full");
-	  return (status = ERR_MEMORY);
-	}
-
-      for (count = 0; count < container->numComponents; count ++)
-	components[count] = container->components[count];
-
-      container->maxComponents = maxComponents;
-      kernelFree(container->components);
-      container->components = components;
-    }
-
-  // Add it to the container
-  container->components[container->numComponents++] = component;
-  component->container = containerComponent;
-  component->window = containerComponent->window;
-  component->buffer = containerComponent->buffer;
-
-  return (status);
-}
-
-
-static int remove(kernelWindowComponent *containerComponent,
-		  kernelWindowComponent *component)
-{
-  // Removes a component from a container
-
-  int status = 0;
-  kernelWindowContainer *container = containerComponent->data;
-  int count = 0;
-
-  // Check params
-  if ((containerComponent == NULL) || (component == NULL))
-    {
-      kernelError(kernel_error, "NULL container or component");
-      return (status = ERR_NULLPARAMETER);
-    }
-  
-  if (containerComponent->type != containerComponentType)
-    {
-      kernelError(kernel_error, "Component is not a container");
-      return (status = ERR_INVALID);
-    }
-  
-  for (count = 0; count < container->numComponents; count ++)
-    if (container->components[count] == component)
-      {
-	// Replace the component with the last one, if applicable
-	container->numComponents--;
-
-	if ((container->numComponents > 0) &&
-	    (count < container->numComponents))
-	  container->components[count] =
-	    container->components[container->numComponents];
-
-	component->container = NULL;
-	return (status = 0);
-      }
-
-  // If we fall through, it was not found
-  kernelError(kernel_error, "No such component in container");
-  return (status = ERR_NOSUCHENTRY);
 }
 
 
@@ -797,8 +800,6 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
       return (component = NULL);
     }
 
-  container->add = &add;
-  container->remove = &remove;
   container->drawGrid = &drawGrid;
 
   component->type = containerComponentType;
@@ -806,6 +807,8 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
   component->data = (void *) container;
 
   // The functions
+  component->add = &add;
+  component->remove = &remove;
   component->numComps = &numComps;
   component->flatten = &flatten;
   component->layout = &layout;

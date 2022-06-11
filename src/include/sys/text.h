@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,32 +24,29 @@
 
 #if !defined(_TEXT_H)
 
+#include <sys/color.h>
+
 // Definitions
 #define TEXT_STREAMSIZE               32768
 #define TEXT_DEFAULT_TAB              8
 #define TEXT_DEFAULT_SCROLLBACKLINES  256
 
-// Colours for the text console
-#define TEXT_COLOR_BLACK              0
-#define TEXT_COLOR_BLUE               1
-#define TEXT_COLOR_GREEN              2
-#define TEXT_COLOR_CYAN               3
-#define TEXT_COLOR_RED                4
-#define TEXT_COLOR_MAGENTA            5
-#define TEXT_COLOR_BROWN              6
-#define TEXT_COLOR_LIGHTGREY          7
-#define TEXT_COLOR_DARKGREY           8
-#define TEXT_COLOR_LIGHTBLUE          9
-#define TEXT_COLOR_LIGHTGREEN         10
-#define TEXT_COLOR_LIGHTCYAN          11
-#define TEXT_COLOR_LIGHTRED           12
-#define TEXT_COLOR_LIGHTMAGENTA       13
-#define TEXT_COLOR_YELLOW             14
-#define TEXT_COLOR_WHITE              15
+#define TEXT_DEFAULT_FOREGROUND       COLOR_LIGHTGRAY
+#define TEXT_DEFAULT_BACKGROUND       COLOR_BLUE
 
-#define TEXT_DEFAULT_FOREGROUND       TEXT_COLOR_LIGHTGREY
-#define TEXT_DEFAULT_BACKGROUND       TEXT_COLOR_BLUE
-#define TEXT_DEFAULT_ERRORFOREGROUND  TEXT_COLOR_BROWN
+// Flag values for the 'flags' field in the textAttrs structure
+#define TEXT_ATTRS_NOFORMAT           0x10
+#define TEXT_ATTRS_FOREGROUND         0x08
+#define TEXT_ATTRS_BACKGROUND         0x04
+#define TEXT_ATTRS_REVERSE            0x02
+#define TEXT_ATTRS_BLINKING           0x01
+
+typedef struct {
+  int flags;
+  color foreground;
+  color background;
+
+} textAttrs;
 
 typedef struct {
   int column;

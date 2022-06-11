@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -307,7 +307,7 @@ int kernelDeviceDetect(void)
   int driverCount = 0;
   int count;
 
-  kernelTextPrintLine("");
+  kernelTextPrint("\n");
   textNumColumns = kernelTextGetNumColumns();
 
   // Loop for each hardware driver, and see if it has any devices for us

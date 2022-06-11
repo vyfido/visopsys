@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,8 @@
 
 // Functions exported by kernelShutdown.c
 int kernelShutdown(int, int);
-void kernelPanicOutput(const char *, const char *, int, const char *, ...);
+void kernelPanicOutput(const char *, const char *, int, const char *, ...)
+  __attribute__((format(printf, 4, 5)));
 
 #define kernelPanic(message, arg...) \
   kernelPanicOutput(__FILE__, __FUNCTION__, __LINE__, message, ##arg)

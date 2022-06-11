@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,8 +29,8 @@
 #include "kernelSysTimer.h"
 #include "kernelMisc.h"
 #include "kernelError.h"
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 static int readPrimaryVolDesc(isoInternalData *isoData)

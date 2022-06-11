@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@
 // This contains some useful functions written for the shell
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/vsh.h>
@@ -32,20 +33,27 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 {
   // Desc: This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 
-  int foregroundColor = textGetForeground();
-  int backgroundColor = textGetBackground();
   int itemWidth = 0;
+  char *buffer = NULL;
   int selectedOption = defaultSelection;
+  textAttrs attrs;
   int count1, count2;
 
   // Check params
   if ((prompt == NULL) || (items == NULL))
     return (errno = ERR_NULLPARAMETER);
 
+  bzero(&attrs, sizeof(textAttrs));
+
   // Get the width of the widest item and set our item width
   for (count1 = 0; count1 < numItems; count1 ++)
     if ((int) strlen(items[count1]) > itemWidth)
       itemWidth = strlen(items[count1]);
+  itemWidth = min(itemWidth, textGetNumColumns());
+
+  buffer = malloc(itemWidth + 1);
+  if (buffer == NULL)
+    return (errno = ERR_MEMORY);
 
   // Print prompt message
   printf("\n%s\n", prompt);
@@ -67,25 +75,16 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 	{
 	  printf(" ");
 
+	  sprintf(buffer, " %s ", items[count1]);
+	  for (count2 = 0;
+	       count2 < (itemWidth - (int) strlen(items[count1])); count2 ++)
+	    strcat(buffer, " ");
 	  if (selectedOption == count1)
-	    {
-	      // Reverse the colors
-	      textSetForeground(backgroundColor);
-	      textSetBackground(foregroundColor);
-	    }
-	  
-	    printf(" %s ", items[count1]);
-	    for (count2 = 0;
-		 count2 < (itemWidth - (int) strlen(items[count1])); count2 ++)
-	      printf(" ");
-	    printf("\n");
-	  
-	    if (selectedOption == count1)
-	      {
-		// Restore the colors
-		textSetForeground(foregroundColor);
-		textSetBackground(backgroundColor);
-	      }
+	    attrs.flags = TEXT_ATTRS_REVERSE;
+	  else
+	    attrs.flags = 0;
+	  textPrintAttrs(&attrs, buffer);
+	  printf("\n");
 	}
 
       printf("\n  [Cursor up/down to change, Enter to select, 'Q' to quit]\n");
@@ -110,12 +109,14 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defau
 	case (unsigned char) 10:
 	  // Enter
 	  textSetCursor(1);
+	  free(buffer);
 	  return (selectedOption);
 
 	case 'Q':
 	case 'q':
 	  // Cancel
 	  textSetCursor(1);
+	  free(buffer);
 	  return (errno = ERR_CANCELLED);
 	}
     }

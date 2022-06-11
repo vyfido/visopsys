@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,49 @@ static void scrollBuffer(kernelTextArea *area, int lines)
 }
 
 
+static unsigned char getPcColor(color *realColor)
+{
+  // Convert a real color into a PC's text-mode color code.  This
+  // will be necessarily approximate, except that our approximation must
+  // equal the pre-defined values such as COLOR_WHITE, COLOR_RED, etc. in
+  // <sys/color.h>.
+
+  unsigned char pcColor = 0;
+  int intense = 0;
+
+  if (realColor->blue > 85)
+    {
+      pcColor |= 1;
+      if (realColor->blue > 170)
+	intense = 1;
+    }
+  if (realColor->green > 85)
+    {
+      pcColor |= 2;
+      if (realColor->green > 170)
+	intense = 1;
+    }
+  if (realColor->red > 85)
+    {
+      pcColor |= 4;
+      if (realColor->red > 170)
+	intense = 1;
+    }
+
+  // Dark gray is a special case.  It has non-intense values but needs the
+  // 'intense' bit (it is represented as "intense black")
+  if ((realColor->blue && (realColor->blue <= 85)) &&
+      (realColor->green && (realColor->green <= 85)) &&
+      (realColor->red && (realColor->red <= 85)))
+    intense = 1;
+
+  if (intense)
+    pcColor |= 8;
+
+  return (pcColor);
+}
+
+
 static void setCursor(kernelTextArea *area, int onOff)
 {
   // This sets the cursor on or off at the requested cursor position
@@ -56,10 +99,10 @@ static void setCursor(kernelTextArea *area, int onOff)
   int idx = (TEXTAREA_CURSORPOS(area) * 2);
 
   if (onOff)
-    area->visibleData[idx + 1] = ((area->foreground.blue & 0x0F) << 4) |
-      ((area->foreground.blue & 0xF0) >> 4);
+    area->visibleData[idx + 1] = ((area->pcColor & 0x0F) << 4) |
+      ((area->pcColor & 0xF0) >> 4);
   else
-    area->visibleData[idx + 1] = area->foreground.blue;
+    area->visibleData[idx + 1] = area->pcColor;
 
   area->cursorState = onOff;
 
@@ -88,7 +131,7 @@ static void scrollLine(kernelTextArea *area)
   for (count = 0; count < lineLength; )
     {
       lastRow[count++] = '\0';
-      lastRow[count++] = area->foreground.blue;
+      lastRow[count++] = area->pcColor;
     }
 
   // Copy our buffer data to the visible area
@@ -160,72 +203,54 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 }
 
 
-static int getForeground(kernelTextArea *area)
-{
-  // Gets the foreground color
-
-  // We just use the first byte of the foreground color structure (the 'blue'
-  // byte) to store our 1-byte foreground/background color value
-  return (area->foreground.blue & 0x0F);
-}
-
-
-static int setForeground(kernelTextArea *area, int newForeground)
+static int setForeground(kernelTextArea *area, color *foreground)
 {
   // Sets a new foreground color
-
-  // Check to make sure it's a valid color
-  if ((newForeground < 0) || (newForeground > 15))
-    return (-1);
-
-  // We just use the first byte of the foreground color structure (the 'blue'
-  // byte) to store our 1-byte foreground/background color value
-  area->foreground.blue &= 0xF0;
-  area->foreground.blue |= (newForeground & 0x0F);
-
+  area->pcColor &= 0xF0;
+  area->pcColor |= (getPcColor(foreground) & 0x0F);
   return (0);
 }
 
 
-static int getBackground(kernelTextArea *area)
-{
-  // Gets the background color
-
-  // We just use the first byte of the foreground color structure (the 'blue'
-  // byte) to store our 1-byte foreground/background color value
-  return ((area->foreground.blue & 0xF0) >> 4);
-}
-
-
-static int setBackground(kernelTextArea *area, int newBackground)
+static int setBackground(kernelTextArea *area, color *background)
 {
   // Sets a new background color
 
-  // Check to make sure it's a valid color
-  if ((newBackground < 0) || (newBackground > 15))
-    return (-1);
-
-  // We just use the first byte of the foreground color structure (the 'blue'
-  // byte) to store our 1-byte foreground/background color value
-  area->foreground.blue &= 0x0F;
-  area->foreground.blue |= (newBackground & 0x0F) << 4;
-
+  area->pcColor &= 0x0F;
+  area->pcColor |= ((getPcColor(background) & 0x07) << 4);
   return (0);
 }
 
 
-static int print(kernelTextArea *area, const char *string)
+static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 {
   // Prints ascii text strings to the text console.
 
+  unsigned char pcColor = area->pcColor;
   int cursorState = area->cursorState;
   unsigned char *bufferAddress = NULL;
   unsigned char *visibleAddress = NULL;
   int length = 0;
   int count;
 
-  // How long is the string?
-  length = strlen(string);
+  // See whether we're printing with special attributes
+  if (attrs)
+    {
+      if (attrs->flags & TEXT_ATTRS_FOREGROUND)
+	{
+	  pcColor &= 0xF0;
+	  pcColor |= (getPcColor(&attrs->foreground) & 0x0F);
+	}
+      if (attrs->flags & TEXT_ATTRS_BACKGROUND)
+	{
+	  pcColor &= 0x0F;
+	  pcColor |= ((getPcColor(&attrs->background) & 0x07) << 4);
+	}
+      if (attrs->flags & TEXT_ATTRS_REVERSE)
+	pcColor = (((pcColor & 0x07) << 4) | ((pcColor & 0x70) >> 4));
+      if (attrs->flags & TEXT_ATTRS_BLINKING)
+	pcColor |= 0x80;
+    }
 
   // If we are currently scrolled back, this puts us back to normal
   if (area->scrolledBackLines)
@@ -242,6 +267,9 @@ static int print(kernelTextArea *area, const char *string)
 		   (TEXTAREA_CURSORPOS(area) * 2));
   visibleAddress = (area->visibleData + (TEXTAREA_CURSORPOS(area) * 2));
 
+  // How long is the string?
+  length = strlen(string);
+
   // Loop through the string, putting one byte into every even-numbered
   // screen address.  Put the color byte into every odd address
   for (count = 0; count < length; count ++)
@@ -250,8 +278,8 @@ static int print(kernelTextArea *area, const char *string)
 	{
 	  *(bufferAddress++) = string[count];
 	  *(visibleAddress++) = string[count];
-	  *(bufferAddress++) = area->foreground.blue;
-	  *(visibleAddress++) = area->foreground.blue;
+	  *(bufferAddress++) = pcColor;
+	  *(visibleAddress++) = pcColor;
 	  area->cursorColumn += 1;
 	}
 
@@ -305,7 +333,9 @@ static int delete(kernelTextArea *area)
 
   // Delete the character in our buffers
   *(TEXTAREA_FIRSTVISIBLE(area) + position) = '\0';
+  *(TEXTAREA_FIRSTVISIBLE(area) + position + 1) = area->pcColor;
   *(area->visibleData + position) = '\0';
+  *(area->visibleData + position + 1) = area->pcColor;
 
   if (cursorState)
     // Turn on the cursor
@@ -325,7 +355,7 @@ static int clearScreen(kernelTextArea *area)
 
   // Construct the dword of data that we will replicate all over the screen.
   // It consists of the NULL character twice, plus the color byte twice
-  tmpData = ((area->foreground.blue << 24) | (area->foreground.blue << 8));
+  tmpData = ((area->pcColor << 24) | (area->pcColor << 8));
 
   // Calculate the number of dwords that make up the screen
   // Formula is ((COLS * ROWS) / 2)
@@ -391,9 +421,7 @@ static kernelTextOutputDriver textModeDriver = {
   setCursor,
   getCursorAddress,
   setCursorAddress,
-  getForeground,
   setForeground,
-  getBackground,
   setBackground,
   print,
   delete,

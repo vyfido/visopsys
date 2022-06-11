@@ -1,4 +1,4 @@
-/*
+/**
  * debug.c - Debugging output functions. Part of the Linux-NTFS project.
  *
  * Copyright (c) 2002-2004 Anton Altaparmakov
@@ -17,112 +17,29 @@
  * along with this program (in the main directory of the Linux-NTFS
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Modified 12/2005 by Andy McLaughlin for Visopsys port.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
 
 #include "types.h"
-#include "attrib.h"
+#include "runlist.h"
 #include "debug.h"
+#include "logging.h"
 
-/**
- * Sprintf - silencable output to stderr
- * @silent:	if 0 string is output to stderr
- * @fmt:	printf style format string
- * @...:	optional arguments for the printf style format string
- *
- * If @silent is 0, output the string @fmt to stderr.
- *
- * This is basically a replacement for:
- *
- *	if (!silent)
- *		fprintf(stderr, fmt, ...);
- *
- * It is more convenient to use Sprintf instead of the above code and perhaps
- * more importantly, Sprintf makes it much easier to turn it into a "do
- * nothing" function, by defining it to "do {} while (0)" in debug.h instead of
- * to * __Sprintf, thus removing the whole output completely.
- */
-void __Sprintf(const int silent, const char *fmt, ...)
-{
-	int eo;
-	va_list ap;
-
-	if (silent)
-		return;
-	eo = errno;
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-	errno = eo;
-}
-
-#ifdef DEBUG
-
-/* Debug output to stderr.  To get it run ./configure --enable-debug. */
-
-void __ntfs_error(const char *function, const char *fmt, ...)
-{
-	int eo = errno;
-	int flen = 0;
-	va_list args;
-	char err_buf[1024];
-
-	if (function)
-		flen = strlen(function);
-	va_start(args, fmt);
-	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
-	va_end(args);
-	printf("NTFS error: %s(): %s\n", flen ? function : "",
-			err_buf);
-	errno = eo;
-}
-
-void __ntfs_debug (const char *filenm, int line, const char *function,
-		const char *fmt, ...)
-{
-	int flen = 0;
-	va_list args;
-	char err_buf[1024];
-
-	if (function)
-		flen = strlen(function);
-	va_start(args, fmt);
-	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
-	va_end(args);
-	printf("NTFS DEBUG (%s, %d): %s(): %s\n", filenm, line,
-			flen ? function : "", err_buf);
-}
-
-void __Dprintf(const char *fmt, ...)
-{
-	int eo = errno;
-	va_list ap;
-
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-	errno = eo;
-}
-
-void __Dputs(const char *s)
-{
-	int eo = errno;
-	printf("%s\n", s);
-	errno = eo;
-}
-
-void __Dperror(const char *s)
-{
-	int eo = errno;
-	perror(s);
-	errno = eo;
-}
-
+#ifndef NTFS_DISABLE_DEBUG_LOGGING
 /**
  * ntfs_debug_runlist_dump - Dump a runlist.
+ * @rl:
+ *
+ * Description...
+ *
+ * Returns:
  */
 void ntfs_debug_runlist_dump(const runlist_element *rl)
 {
@@ -131,12 +48,12 @@ void ntfs_debug_runlist_dump(const runlist_element *rl)
 				   "LCN_ENOENT       ", "LCN_EINVAL       ",
 				   "LCN_unknown      " };
 
-	Dputs("NTFS-fs DEBUG: Dumping runlist (values in hex):");
+	ntfs_log_debug("NTFS-fs DEBUG: Dumping runlist (values in hex):\n");
 	if (!rl) {
-		Dputs("Run list not present.");
+		ntfs_log_debug("Run list not present.\n");
 		return;
 	}
-	Dputs("VCN              LCN               Run length");
+	ntfs_log_debug("VCN              LCN               Run length\n");
 	do {
 		LCN lcn = (rl + i)->lcn;
 
@@ -145,14 +62,11 @@ void ntfs_debug_runlist_dump(const runlist_element *rl)
 
 			if (idx > -LCN_EINVAL - 1)
 				idx = 4;
-			Dprintf("%-16llx %s %-16llx%s\n", rl[i].vcn,
-					lcn_str[idx], rl[i].length,
-					rl[i].length ? "" : " (runlist end)");
+			ntfs_log_debug("%-16llx %s %-16llx%s\n", rl[i].vcn, lcn_str[idx], rl[i].length, rl[i].length ? "" : " (runlist end)");
 		} else
-			Dprintf("%-16llx %-16llx  %-16llx%s\n", rl[i].vcn,
-					rl[i].lcn, rl[i].length,
-					rl[i].length ? "" : " (runlist end)");
+			ntfs_log_debug("%-16llx %-16llx  %-16llx%s\n", rl[i].vcn, rl[i].lcn, rl[i].length, rl[i].length ? "" : " (runlist end)");
 	} while (rl[i++].length);
 }
 
 #endif
+

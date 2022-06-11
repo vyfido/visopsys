@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,9 +26,9 @@
 //    Copyright (c) 2003-2004 Lode Leroy
 //    Copyright (c) 2003-2005 Anton Altaparmakov
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <sys/api.h>
 #include "device.h"
 
@@ -41,9 +41,9 @@ typedef struct {
 
 } visopsys_fd;
 
-#define Vdebug(f, a...) do {               \
-  Dprintf("VISOPSYS: %s: ", __FUNCTION__); \
-  Dprintf(f, ##a);                         \
+#define Vdebug(f, a...) do {                      \
+  ntfs_log_debug("VISOPSYS: %s: ", __FUNCTION__); \
+  ntfs_log_debug(f, ##a);                         \
 } while(0)
 
 static int ntfs_visopsys_errno(unsigned error)
@@ -89,7 +89,10 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
   // If the name is not a Visopsys disk name, treat it as a file.
 
   int status = 0;
+  file f;
   visopsys_fd *fd = NULL;
+
+  Vdebug("OPEN\n");
 
   if (NDevOpen(dev))
     {
@@ -97,10 +100,10 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
       return (status = -1);
     }
 
-  if (strncmp(dev->d_name, "hd", 2))
+  // File name?
+  if (fileFind(dev->d_name, &f) >= 0)
     {
-      // File name?
-      Vdebug("Can't open regular files\n");
+      ntfs_log_trace("Can't open regular files\n");
       errno = ntfs_visopsys_errno(ERR_NOTIMPLEMENTED);
       return (status = -1);
     }
@@ -108,7 +111,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
   fd = malloc(sizeof(visopsys_fd));
   if (fd == NULL)
     {
-      Vdebug("Memory allocation failure\n");
+      ntfs_log_trace("Memory allocation failure\n");
       errno = ntfs_visopsys_errno(ERR_MEMORY);
       return (status = -1);
     }
@@ -119,7 +122,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
   status = diskGet(dev->d_name, &(fd->disk));
   if (status < 0)
     {
-      Vdebug("Can't get disk information\n");
+      ntfs_log_trace("Can't get disk information\n");
       goto error_out;
     }
 
@@ -127,7 +130,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
   // physical one
   if ((fd->disk.flags & DISKFLAG_LOGICALPHYSICAL) != DISKFLAG_LOGICAL)
     {
-      Vdebug("Can't open physical disks\n");
+      ntfs_log_trace("Can't open physical disks\n");
       status = ERR_NOTIMPLEMENTED;
       goto error_out;
     }
@@ -135,7 +138,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
   // Make sure the sector size is set
   if (fd->disk.sectorSize == 0)
     {
-      Vdebug("Disk sector size is NULL\n");
+      ntfs_log_trace("Disk sector size is NULL\n");
       status = ERR_BUG;
       goto error_out;
     }
@@ -169,17 +172,19 @@ static int ntfs_device_visopsys_close(struct ntfs_device *dev)
   int status = 0;
   visopsys_fd *fd = NULL;
 
+  Vdebug("CLOSE\n");
+
   // Check params
   if (dev == NULL)
     {
-      Vdebug("NULL device parameter\n");
+      ntfs_log_trace("NULL device parameter\n");
       errno = ntfs_visopsys_errno(ERR_NULLPARAMETER);
       return (status = -1);
     }
 
   if (!NDevOpen(dev))
     {
-      Vdebug("Can't open device\n");
+      ntfs_log_trace("Can't open device\n");
       errno = ntfs_visopsys_errno(ERR_INVALID);
       return (status = -1);
     }
@@ -209,10 +214,12 @@ static s64 ntfs_device_visopsys_seek(struct ntfs_device *dev, s64 offset,
   s64 abs_ofs = 0;
   visopsys_fd *fd = NULL;
 
+  //Vdebug("SEEK\n");
+
   // Check params
   if (dev == NULL)
     {
-      Vdebug("NULL device parameter\n");
+      ntfs_log_trace("NULL device parameter\n");
       errno = ntfs_visopsys_errno(ERR_NULLPARAMETER);
       return (abs_ofs = -1);
     }
@@ -240,7 +247,7 @@ static s64 ntfs_device_visopsys_seek(struct ntfs_device *dev, s64 offset,
       break;
 
     default:
-      Vdebug("Invalid 'whence' seek argument %d\n", whence);
+      ntfs_log_trace("Invalid 'whence' seek argument %d\n", whence);
       errno = ntfs_visopsys_errno(ERR_INVALID);
       return (abs_ofs = -1);
     }
@@ -248,20 +255,20 @@ static s64 ntfs_device_visopsys_seek(struct ntfs_device *dev, s64 offset,
   // abs_ofs should be a multiple of the block size
   if (abs_ofs % (s64) fd->disk.sectorSize)
     {
-      Vdebug("Seek address is not a multiple of sector size\n");
+      ntfs_log_trace("Seek address is not a multiple of sector size\n");
       errno = ntfs_visopsys_errno(ERR_INVALID);
       return (abs_ofs = -1);
     }
 
   if ((abs_ofs < 0) || (abs_ofs > fd->partLength))
     {
-      Vdebug("Seek outside partition (sector %llu)",
+      ntfs_log_trace("Seek outside partition (sector %llu)",
 	     (abs_ofs / (s64) fd->disk.sectorSize));
       if (abs_ofs < 0)
-	Vdebug("(abs_ofs (%llu) < 0)\n", abs_ofs);
+	ntfs_log_trace("(abs_ofs (%llu) < 0)\n", abs_ofs);
       else
-	Vdebug("(abs_ofs (%llu) > fd->partLength (%llu))\n", abs_ofs,
-	       fd->partLength);
+	ntfs_log_trace("(abs_ofs (%llu) > fd->partLength (%llu))\n", abs_ofs,
+		       fd->partLength);
       errno = EINVAL;
       return (abs_ofs = -1);
     }
@@ -288,10 +295,12 @@ static s64 ntfs_device_visopsys_read(struct ntfs_device *dev, void *buff,
   void *saveBuff = NULL;
   s64 br = 0;
 
+  //Vdebug("READ\n");
+
   // Check params
   if ((dev == NULL) || (buff == NULL) || (count <= 0))
     {
-      Vdebug("NULL parameter\n");
+      ntfs_log_trace("NULL parameter\n");
       errno = ntfs_visopsys_errno(ERR_NULLPARAMETER);
       return (status = -1);
     }
@@ -317,7 +326,7 @@ static s64 ntfs_device_visopsys_read(struct ntfs_device *dev, void *buff,
       buff = malloc(sectorCount * fd->disk.sectorSize);
       if (buff == NULL)
 	{
-	  Vdebug("Memory allocation failure\n");
+	  ntfs_log_trace("Memory allocation failure\n");
 	  errno = ntfs_visopsys_errno(ERR_MEMORY);
 	  return (status = -1);
 	}
@@ -328,7 +337,7 @@ static s64 ntfs_device_visopsys_read(struct ntfs_device *dev, void *buff,
 			   (unsigned) sectorCount, buff);
   if (status < 0)
     {
-      Vdebug("Error %d doing disk read\n", status);
+      ntfs_log_trace("Error %d doing disk read\n", status);
       errno = ntfs_visopsys_errno(status);
       return (status = -1);
     }
@@ -363,17 +372,19 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
   void *saveBuff = NULL;
   s64 br = 0;
 
+  //Vdebug("WRITE\n");
+
   // Check params
   if ((dev == NULL) || (buff == NULL) || (count <= 0))
     {
-      Vdebug("NULL parameter\n");
+      ntfs_log_trace("NULL parameter\n");
       errno = ntfs_visopsys_errno(ERR_NULLPARAMETER);
       return (status = -1);
     }
 
   if (NDevReadOnly(dev))
     {
-      Vdebug("Device is read-only\n");
+      ntfs_log_trace("Device is read-only\n");
       errno = EROFS;
       return (status = -1);
     }
@@ -399,7 +410,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
       buff = malloc(sectorCount * fd->disk.sectorSize);
       if (buff == NULL)
 	{
-	  Vdebug("Memory allocation failure\n");
+	  ntfs_log_trace("Memory allocation failure\n");
 	  errno = ntfs_visopsys_errno(ERR_MEMORY);
 	  return (status = -1);
 	}
@@ -412,7 +423,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 				   (void *) buff);
 	  if (status < 0)
 	    {
-	      Vdebug("Error %d doing disk read\n", status);
+	      ntfs_log_trace("Error %d doing disk read\n", status);
 	      free((void *) buff);
 	      errno = ntfs_visopsys_errno(status);
 	      return (status = -1);
@@ -431,7 +442,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 				     fd->disk.sectorSize)));
 	  if (status < 0)
 	    {
-	      Vdebug("Error %d doing disk read\n", status);
+	      ntfs_log_trace("Error %d doing disk read\n", status);
 	      free((void *) buff);
 	      errno = ntfs_visopsys_errno(status);
 	      return (status = -1);
@@ -452,7 +463,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 
   if (status < 0)
     {
-      Vdebug("Error %d doing disk write\n", status);
+      ntfs_log_trace("Error %d doing disk write\n", status);
       errno = ntfs_visopsys_errno(status);
       return (status = -1);
     }
@@ -468,6 +479,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 static s64 ntfs_device_visopsys_pread(struct ntfs_device *dev, void *b,
 				      s64 count, s64 offset)
 {
+  //Vdebug("PREAD\n");
   return (ntfs_pread(dev, offset, count, b));
 }
 
@@ -475,6 +487,7 @@ static s64 ntfs_device_visopsys_pread(struct ntfs_device *dev, void *b,
 static s64 ntfs_device_visopsys_pwrite(struct ntfs_device *dev, const void *b,
 				       s64 count, s64 offset)
 {
+  //Vdebug("PWRITE\n");
   return (ntfs_pwrite(dev, offset, count, b));
 }
 
@@ -489,10 +502,12 @@ static int ntfs_device_visopsys_sync(struct ntfs_device *dev)
   int status = 0;
   visopsys_fd *fd = NULL;
 
+  Vdebug("SYNC\n");
+
   // Check params
   if (dev == NULL)
     {
-      Vdebug("NULL device parameter\n");
+      ntfs_log_trace("NULL device parameter\n");
       errno = ntfs_visopsys_errno(ERR_NULLPARAMETER);
       return (status = -1);
     }
@@ -504,7 +519,7 @@ static int ntfs_device_visopsys_sync(struct ntfs_device *dev)
       status = diskSync();
       if (status < 0)
 	{
-	  Vdebug("Error syncing disk\n");
+	  ntfs_log_trace("Error syncing disk\n");
 	  errno = ntfs_visopsys_errno(errno);
 	  return (status = -1);
 	}
@@ -529,6 +544,8 @@ static int ntfs_device_visopsys_stat(struct ntfs_device *dev,
   int status = 0;
   visopsys_fd *fd = NULL;
 
+  Vdebug("STAT\n");
+
   // Check params
   if ((dev == NULL) || (buff == NULL))
     {
@@ -538,7 +555,7 @@ static int ntfs_device_visopsys_stat(struct ntfs_device *dev,
 
   fd = (visopsys_fd *) dev->d_private;
 
-  Vdebug("stat() operation not implemented\n");
+  ntfs_log_trace("stat() operation not implemented\n");
   errno = ntfs_visopsys_errno(ERR_NOTIMPLEMENTED);
   return (status = -1);
 }
@@ -550,10 +567,12 @@ static int ntfs_device_visopsys_ioctl(struct ntfs_device *dev, int request,
   int status = 0;
   visopsys_fd *fd = NULL;
 
+  Vdebug("IOCTL %x\n", request);
+
   // Check params
   if ((dev == NULL) || (argp == NULL))
     {
-      Vdebug("NULL parameter\n");
+      ntfs_log_trace("NULL parameter\n");
       errno = ntfs_visopsys_errno(ERR_NULLPARAMETER);
       return (status = -1);
     }
@@ -563,6 +582,7 @@ static int ntfs_device_visopsys_ioctl(struct ntfs_device *dev, int request,
   switch (request)
     {
     case BLKGETSIZE:
+      // Get the size of the device in sectors
       if (fd->partLength >= 0)
 	{
 	  *((int *) argp) = (fd->disk.numSectors);
@@ -570,9 +590,12 @@ static int ntfs_device_visopsys_ioctl(struct ntfs_device *dev, int request,
 	}
       break;
 
+    case BLKBSZSET:
+      // Set the device sector size.  Not applicable.
+      break;
+
     default:
-      Vdebug("IOCTL %x not implemented\n", request);
-      while(1);
+      ntfs_log_trace("IOCTL %x not implemented\n", request);
       errno = ntfs_visopsys_errno(ERR_NOTIMPLEMENTED);
       return (status = -1);
     }

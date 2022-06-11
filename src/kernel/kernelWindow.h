@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,7 @@
 #include "kernelGraphic.h"
 #include "kernelText.h"
 #include "kernelVariableList.h"
+#include <string.h>
 #include <sys/window.h>
 
 // Definitions
@@ -167,6 +168,10 @@ typedef volatile struct _kernelWindowComponent {
 
   // Routines that should be implemented by components that 'contain'
   // or instantiate other components
+  int (*add) (volatile struct _kernelWindowComponent *,
+	      volatile struct _kernelWindowComponent *);
+  int (*remove) (volatile struct _kernelWindowComponent *,
+		 volatile struct _kernelWindowComponent *);
   int (*numComps) (volatile struct _kernelWindowComponent *);
   int (*flatten) (volatile struct _kernelWindowComponent *,
 		  volatile struct _kernelWindowComponent **, int *, unsigned);
@@ -220,8 +225,6 @@ typedef volatile struct {
   int numRows;
 
   // Functions
-  int (*add) (kernelWindowComponent *, kernelWindowComponent *);
-  int (*remove) (kernelWindowComponent *, kernelWindowComponent *);
   void (*drawGrid) (kernelWindowComponent *);
 
 } kernelWindowContainer;
@@ -273,11 +276,14 @@ typedef volatile struct {
 typedef volatile struct {
   kernelGraphicBuffer buffer;
   kernelWindowComponent *container;
-  int menuBarSelected;
 
 } kernelWindowMenu;
 
-typedef kernelWindowContainer kernelWindowMenuBar;
+typedef volatile struct {
+  kernelWindowComponent *visibleMenu;
+  kernelWindowComponent *container;
+
+} kernelWindowMenuBar;
 
 typedef kernelWindowListItem kernelWindowMenuItem;
 
@@ -455,13 +461,9 @@ static inline int doAreasIntersect(screenArea *firstArea,
 static inline void removeFromContainer(kernelWindowComponent *component)
 {
   // Remove the component from its parent container
-  
-  if (component->container)
-    {
-      kernelWindowContainer *tmpContainer = component->container->data;
-      if (tmpContainer->remove)
-	tmpContainer->remove(component->container, component);
-    }
+  if (component->container && component->container->remove)
+    component->container->remove(component->container, component);
+  component->container = NULL;
 }
 
 #ifdef DEBUG

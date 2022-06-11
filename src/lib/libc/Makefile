@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -16,18 +16,14 @@ STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
-OPTS		= ${CFLAGS} ${LFLAGS}
 
-CDEFNAMES	= _div64 \
-		_divdi3 \
-		_fmtinpt \
-		_moddi3 \
+CDEFNAMES	= _fmtinpt \
+		_numdgts \
+		_num2str \
+		_str2num \
 		_syscall \
-		_udivdi3 \
-		_umoddi3 \
 		_xpndfmt \
-		readline		
+		readline
 
 CTYPENAMES	= isalnum \
 		isalpha \
@@ -45,6 +41,9 @@ CTYPENAMES	= isalnum \
 		toupper
 
 FCNTLNAMES	= open
+
+LIBGENNAMES	= basename \
+		dirname
 
 LOCALENAMES	= setlocale
 
@@ -72,6 +71,7 @@ STDIONAMES	= fclose \
 		fopen \
 		fprintf \
 		fread \
+		fscanf \
 		fseek \
 		fsetpos \
 		ftell \
@@ -90,34 +90,29 @@ STDIONAMES	= fclose \
 		scanf \
 		snprintf \
 		sprintf \
+		sscanf \
 		vfprintf \
+		vfscanf \
 		vprintf \
+		vscanf \
 		vsnprintf \
-		vsprintf
+		vsprintf \
+		vsscanf
 
 STDLIBNAMES	= abort \
 		abs \
-		atoi \
 		calloc \
 		exit \
-		itoa \
-		itob \
-		itox \
 		labs \
-		lltoa \
-		lltob \
-		lltox \
 		malloc \
 		mbtowc \
 		mbstowcs \
 		rand \
 		realloc \
+		realpath \
 		srand \
 		system \
-		ulltoa \
-		utoa \
-		wctomb \
-		xtoi
+		wctomb
 
 STRINGNAMES	= bcopy \
 		bzero \
@@ -139,6 +134,7 @@ STRINGNAMES	= bcopy \
 		strncat \
 		strncmp \
 		strncpy \
+		strnlen \
 		strrchr \
 		strspn \
 		strstr
@@ -156,9 +152,9 @@ UNISTDNAMES	= close \
 		swab \
 		write
 
-ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} \
-	${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} \
-	${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
+ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LIBGENNAMES} \
+	${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} \
+	${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
 OBJDIR = obj
 PICOBJDIR = picobj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
@@ -176,13 +172,14 @@ target-dirs:
 	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
 
 ${CRT0}: crt0.c ${STDDEPS}
-	${CC} ${OPTS} -c $< -o $@
+	${CC} ${CFLAGS} -c $< -o $@
 
 ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+	${CC} -shared -nostdlib -Wl,--soname=${SONAME} ${PICOBJS} -static \
+	-lgcc -o $@
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
@@ -191,4 +188,5 @@ ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -fpic -c $< -o $@
 
 clean:
-	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${CRT0} ${LIBRARY} ${SHAREDLIB}
+	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${CRT0} ${LIBRARY} \
+	${SHAREDLIB}

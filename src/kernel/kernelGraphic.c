@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -149,11 +149,12 @@ int kernelGraphicInitialize(kernelDevice *dev)
       kernelFree((void *) component);
       return (status = ERR_NOTINITIALIZED);
     }
-  component->buffer = buffer;
 
   buffer->width = adapterDevice->xRes;
   buffer->height = adapterDevice->yRes;
   buffer->data = adapterDevice->framebuffer;
+
+  component->buffer = buffer;
 
   // Initialize the font functions
   status = kernelFontInitialize();
@@ -768,7 +769,7 @@ int kernelGraphicClearArea(kernelGraphicBuffer *buffer, color *background,
   if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
-  // Color and area not NULL
+  // Color not NULL
   if (background == NULL)
     return (status = ERR_NULLPARAMETER);
 

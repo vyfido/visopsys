@@ -33,11 +33,12 @@ typedef struct _ntfs_attr_search_ctx ntfs_attr_search_ctx;
 #include "runlist.h"
 #include "volume.h"
 #include "debug.h"
+#include "logging.h"
 
 extern ntfschar AT_UNNAMED[];
 
 /**
- * ntfs_lcn_special_values - special return values for ntfs_*_vcn_to_lcn()
+ * enum ntfs_lcn_special_values - special return values for ntfs_*_vcn_to_lcn()
  *
  * Special return values for ntfs_rl_vcn_to_lcn() and ntfs_attr_vcn_to_lcn().
  *
@@ -52,7 +53,7 @@ typedef enum {
 } ntfs_lcn_special_values;
 
 /**
- * ntfs_attr_search_ctx - search context used in attribute search functions
+ * struct ntfs_attr_search_ctx - search context used in attribute search functions
  * @mrec:	buffer containing mft record to search
  * @attr:	attribute record in @mrec where to begin/continue search
  * @is_first:	if true lookup_attr() begins search with @attr, else after @attr
@@ -125,7 +126,7 @@ static __inline__ int ntfs_attrs_walk(ntfs_attr_search_ctx *ctx)
 }
 
 /**
- * ntfs_attr - ntfs in memory non-resident attribute structure
+ * struct ntfs_attr - ntfs in memory non-resident attribute structure
  * @rl:			if not NULL, the decompressed runlist
  * @ni:			base ntfs inode to which this attribute belongs
  * @type:		attribute type
@@ -135,7 +136,7 @@ static __inline__ int ntfs_attrs_walk(ntfs_attr_search_ctx *ctx)
  * @allocated_size:	copy from the attribute record
  * @data_size:		copy from the attribute record
  * @initialized_size:	copy from the attribute record
- * @compressed_size: 	copy from the attribute record
+ * @compressed_size:	copy from the attribute record
  * @compression_block_size:		size of a compression block (cb)
  * @compression_block_size_bits:	log2 of the size of a cb
  * @compression_block_clusters:		number of clusters per cb
@@ -183,7 +184,7 @@ struct _ntfs_attr {
 };
 
 /**
- * ntfs_attr_state_bits - bits for the state field in the ntfs_attr structure
+ * enum ntfs_attr_state_bits - bits for the state field in the ntfs_attr structure
  */
 typedef enum {
 	NA_Initialized,		/* 1: structure is initialized. */
@@ -202,35 +203,35 @@ typedef enum {
 #define NAttrSetNonResident(na)		  set_nattr_flag(na, NonResident)
 #define NAttrClearNonResident(na)	clear_nattr_flag(na, NonResident)
 
-#define GenNAttrIno(flag)					\
-static inline int NAttr##flag(ntfs_attr *na)			\
+#define GenNAttrIno(func_name,flag)				\
+static inline int NAttr##func_name(ntfs_attr *na)		\
 {								\
 	if (na->type == AT_DATA && na->name == AT_UNNAMED)	\
-		return NIno##flag(na->ni);			\
+		return (na->ni->flags & FILE_ATTR_##flag);	\
 	return 0;						\
 }								\
-static inline void NAttrSet##flag(ntfs_attr *na)		\
+static inline void NAttrSet##func_name(ntfs_attr *na)		\
 {								\
 	if (na->type == AT_DATA && na->name == AT_UNNAMED)	\
-		NInoSet##flag(na->ni);				\
+		na->ni->flags |= FILE_ATTR_##flag;		\
 	else							\
-		Dprintf("%s(): BUG! Should be called only for "	\
-			"unnamed data attribute.\n",		\
-			__FUNCTION__);				\
+		ntfs_log_trace("BUG! Should be called only for "\
+			"unnamed data attribute.\n");		\
 }								\
-static inline void NAttrClear##flag(ntfs_attr *na)		\
+static inline void NAttrClear##func_name(ntfs_attr *na)		\
 {								\
 	if (na->type == AT_DATA && na->name == AT_UNNAMED)	\
-		NInoClear##flag(na->ni);			\
+		na->ni->flags &= ~FILE_ATTR_##flag;		\
 }
 
-GenNAttrIno(Compressed)
-GenNAttrIno(Encrypted)
-GenNAttrIno(Sparse)
+GenNAttrIno(Compressed, COMPRESSED)
+GenNAttrIno(Encrypted, ENCRYPTED)
+GenNAttrIno(Sparse, SPARSE_FILE)
 
-/*
- * Union of all known attribute values. For convenience. Used in the attr
- * structure.
+/**
+ * union attr_val - Union of all known attribute values
+ *
+ * For convenience. Used in the attr structure.
  */
 typedef union {
 	u8 _default;	/* Unnamed u8 to serve as default when just using
@@ -269,6 +270,9 @@ extern s64 ntfs_attr_pread(ntfs_attr *na, const s64 pos, s64 count,
 extern s64 ntfs_attr_pwrite(ntfs_attr *na, const s64 pos, s64 count,
 		const void *b);
 
+extern void *ntfs_attr_readall(ntfs_inode *ni, const ATTR_TYPES type,
+			       ntfschar *name, u32 name_len, s64 *data_size);
+
 extern s64 ntfs_attr_mst_pread(ntfs_attr *na, const s64 pos,
 		const s64 bk_cnt, const u32 bk_size, void *dst);
 extern s64 ntfs_attr_mst_pwrite(ntfs_attr *na, const s64 pos,
@@ -304,12 +308,12 @@ extern int ntfs_attr_rm(ntfs_attr *na);
 extern int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size);
 
 extern int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
-		const u32 newsize);
+		const u32 new_size);
 
 extern int ntfs_attr_record_move_to(ntfs_attr_search_ctx *ctx, ntfs_inode *ni);
 extern int ntfs_attr_record_move_away(ntfs_attr_search_ctx *ctx, int extra);
 
-extern int ntfs_attr_update_mapping_pairs(ntfs_attr *na);
+extern int ntfs_attr_update_mapping_pairs(ntfs_attr *na, VCN from_vcn);
 
 extern int ntfs_attr_truncate(ntfs_attr *na, const s64 newsize);
 

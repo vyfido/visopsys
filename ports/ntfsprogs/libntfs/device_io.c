@@ -18,12 +18,12 @@
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Modified 12/2005 by Andy McLaughlin for Visopsys port.
+ * Modified 01/2007 by Andy McLaughlin for Visopsys port.
  */
 
-#ifndef NO_NTFS_DEVICE_DEFAULT_IO_OPS
-
 #include "config.h"
+
+#ifndef NO_NTFS_DEVICE_DEFAULT_IO_OPS
 
 #if !defined(__CYGWIN32__) && !defined(__VISOPSYS__)
 

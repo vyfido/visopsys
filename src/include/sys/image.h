@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,14 +24,16 @@
 
 #if !defined(_IMAGE_H)
 
+#include <sys/color.h>
+
 // Definitions
-#define IMAGETYPE_MONO  1
-#define IMAGETYPE_COLOR 2
+#define IMAGETYPE_MONO   1
+#define IMAGETYPE_COLOR  2
 
-#define IMAGEFORMAT_BMP 1
-#define IMAGEFORMAT_JPG 2
+#define IMAGEFORMAT_BMP  1
+#define IMAGEFORMAT_JPG  2
 
-#define MAXVIDEOMODES   20
+#define MAXVIDEOMODES    20
 
 // An enumeration for different drawing modes.
 typedef enum {
@@ -39,13 +41,6 @@ typedef enum {
 } drawMode;
 
 // Structures for manipulating generic images.
-
-typedef struct {
-  unsigned char blue;
-  unsigned char green;
-  unsigned char red;
-
-} color;
 
 typedef color pixel;
 

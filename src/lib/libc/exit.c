@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,18 +28,17 @@
 
 void exit(int status)
 {
-  // I'm sure there will be lots of shutdown things to do here in the
-  // future
-
   if (visopsys_in_kernel)
     {
+      // Screwed
       errno = ERR_BUG;
-      return;
+      goto out;
     }
 
   // Shut down
   multitaskerTerminate(status);
 
+ out:
   // Now, there's nothing else we can do except wait to be killed
   while(1);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -69,8 +69,6 @@ int main(int argc, char *argv[])
   // Attempts to mount the named filesystem to the named mount point
 
   int status = 0;
-  char *diskName = NULL;
-  char filesystem[MAX_PATH_NAME_LENGTH];
   
   if (argc < 3)
     {
@@ -78,11 +76,7 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  diskName = argv[1];
-  
-  vshMakeAbsolutePath(argv[2], filesystem);
-
-  status = filesystemMount(diskName, filesystem);
+  status = filesystemMount(argv[1], argv[2]);
   if (status < 0)
     {
       errno = status;

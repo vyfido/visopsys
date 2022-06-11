@@ -1,4 +1,4 @@
-/*
+/**
  * unistr.c - Unicode string handling. Part of the Linux-NTFS project.
  *
  * Copyright (c) 2000-2004 Anton Altaparmakov
@@ -18,10 +18,12 @@
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Modified 12/2005 by Andy McLaughlin for Visopsys port.
+ * Modified 01/2007 by Andy McLaughlin for Visopsys port.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
@@ -39,9 +41,11 @@
 #include <errno.h>
 #endif
 
+#include "attrib.h"
 #include "types.h"
 #include "unistr.h"
 #include "debug.h"
+#include "logging.h"
 
 /*
  * IMPORTANT
@@ -55,7 +59,8 @@
  * This is used by the name collation functions to quickly determine what
  * characters are (in)valid.
  */
-const u8 legal_ansi_char_array[0x40] = {
+#if 0
+static const u8 legal_ansi_char_array[0x40] = {
 	0x00, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
 	0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
 
@@ -68,6 +73,7 @@ const u8 legal_ansi_char_array[0x40] = {
 	0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17,
 	0x17, 0x17, 0x04, 0x16, 0x18, 0x16, 0x18, 0x18,
 };
+#endif
 
 /**
  * ntfs_names_are_equal - compare two Unicode names for equality
@@ -120,20 +126,20 @@ BOOL ntfs_names_are_equal(const ntfschar *s1, size_t s1_len,
  */
 int ntfs_names_collate(const ntfschar *name1, const u32 name1_len,
 		const ntfschar *name2, const u32 name2_len,
-		const int err_val, const IGNORE_CASE_BOOL ic,
-		const ntfschar *upcase, const u32 upcase_len)
+		const int err_val __attribute__((unused)),
+		const IGNORE_CASE_BOOL ic, const ntfschar *upcase,
+		const u32 upcase_len)
 {
 	u32 cnt;
 	ntfschar c1, c2;
 
 #ifdef DEBUG
 	if (!name1 || !name2 || (ic && (!upcase || !upcase_len))) {
-		Dputs("ntfs_names_collate received NULL pointer!");
+		ntfs_log_debug("ntfs_names_collate received NULL pointer!\n");
 		exit(1);
 	}
 #endif
-	for (cnt = 0; cnt < min(name1_len, name2_len); ++cnt)
-	{
+	for (cnt = 0; cnt < min(name1_len, name2_len); ++cnt) {
 		c1 = le16_to_cpu(*name1);
 		name1++;
 		c2 = le16_to_cpu(*name2);
@@ -144,8 +150,10 @@ int ntfs_names_collate(const ntfschar *name1, const u32 name1_len,
 			if (c2 < upcase_len)
 				c2 = le16_to_cpu(upcase[c2]);
 		}
+#if 0
 		if (c1 < 64 && legal_ansi_char_array[c1] & 8)
 			return err_val;
+#endif
 		if (c1 < c2)
 			return -1;
 		if (c1 > c2)
@@ -156,9 +164,11 @@ int ntfs_names_collate(const ntfschar *name1, const u32 name1_len,
 	if (name1_len == name2_len)
 		return 0;
 	/* name1_len > name2_len */
+#if 0
 	c1 = le16_to_cpu(*name1);
 	if (c1 < 64 && legal_ansi_char_array[c1] & 8)
 		return err_val;
+#endif
 	return 1;
 }
 
@@ -183,7 +193,7 @@ int ntfs_ucsncmp(const ntfschar *s1, const ntfschar *s2, size_t n)
 
 #ifdef DEBUG
 	if (!s1 || !s2) {
-		Dputs("ntfs_wcsncmp() received NULL pointer!");
+		ntfs_log_debug("ntfs_wcsncmp() received NULL pointer!\n");
 		exit(1);
 	}
 #endif
@@ -226,7 +236,7 @@ int ntfs_ucsncasecmp(const ntfschar *s1, const ntfschar *s2, size_t n,
 
 #ifdef DEBUG
 	if (!s1 || !s2 || !upcase) {
-		Dputs("ntfs_wcsncasecmp() received NULL pointer!");
+		ntfs_log_debug("ntfs_wcsncasecmp() received NULL pointer!\n");
 		exit(1);
 	}
 #endif
@@ -301,7 +311,15 @@ ntfschar *ntfs_ucsndup(const ntfschar *s, u32 maxlen)
 
 #ifndef __VISOPSYS__
 /**
- * ntfs_name_upcase
+ * ntfs_name_upcase - Map an Unicode name to its uppercase equivalent
+ * @name:
+ * @name_len:
+ * @upcase:
+ * @upcase_len:
+ *
+ * Description...
+ *
+ * Returns:
  */
 void ntfs_name_upcase(ntfschar *name, u32 name_len, const ntfschar *upcase,
 		const u32 upcase_len)
@@ -313,11 +331,16 @@ void ntfs_name_upcase(ntfschar *name, u32 name_len, const ntfschar *upcase,
 		if ((u = le16_to_cpu(name[i])) < upcase_len)
 			name[i] = upcase[u];
 }
-#endif /* __VISOPSYS__ */
 
-#ifndef __VISOPSYS__
 /**
- * ntfs_file_value_upcase
+ * ntfs_file_value_upcase - Convert a filename to upper case
+ * @file_name_attr:
+ * @upcase:
+ * @upcase_len:
+ *
+ * Description...
+ *
+ * Returns:
  */
 void ntfs_file_value_upcase(FILE_NAME_ATTR *file_name_attr,
 		const ntfschar *upcase, const u32 upcase_len)
@@ -328,7 +351,17 @@ void ntfs_file_value_upcase(FILE_NAME_ATTR *file_name_attr,
 #endif /* __VISOPSYS__ */
 
 /**
- * ntfs_file_values_compare
+ * ntfs_file_values_compare - Which of two filenames should be listed first
+ * @file_name_attr1:
+ * @file_name_attr2:
+ * @err_val:
+ * @ic:
+ * @upcase:
+ * @upcase_len:
+ *
+ * Description...
+ *
+ * Returns:
  */
 int ntfs_file_values_compare(const FILE_NAME_ATTR *file_name_attr1,
 		const FILE_NAME_ATTR *file_name_attr2,
@@ -428,7 +461,7 @@ int ntfs_ucstombs(const ntfschar *ins, const int ins_len, char **outs,
 		if (cnt == -1)
 			goto err_out;
 		if (cnt <= 0) {
-			Dprintf("Eeek. cnt <= 0, cnt = %i\n", cnt);
+			ntfs_log_debug("Eeek. cnt <= 0, cnt = %i\n", cnt);
 			errno = EINVAL;
 			goto err_out;
 		}
@@ -437,7 +470,7 @@ int ntfs_ucstombs(const ntfschar *ins, const int ins_len, char **outs,
 #ifdef HAVE_MBSINIT
 	/* Make sure we are back in the initial state. */
 	if (!mbsinit(&mbstate)) {
-		Dputs("Eeek. mbstate not in initial state!");
+		ntfs_log_debug("Eeek. mbstate not in initial state!\n");
 		errno = EILSEQ;
 		goto err_out;
 	}
@@ -572,7 +605,7 @@ int ntfs_mbstoucs(const char *ins, ntfschar **outs, int outs_len)
 		if (cnt == -1)
 			goto err_out;
 		if (cnt < -1) {
-			Dprintf("%s(): Eeek. cnt = %i\n", __FUNCTION__, cnt);
+			ntfs_log_trace("Eeek. cnt = %i\n", cnt);
 			errno = EINVAL;
 			goto err_out;
 		}
@@ -588,8 +621,7 @@ int ntfs_mbstoucs(const char *ins, ntfschar **outs, int outs_len)
 #ifdef HAVE_MBSINIT
 	/* Make sure we are back in the initial state. */
 	if (!mbsinit(&mbstate)) {
-		Dprintf("%s(): Eeek. mbstate not in initial state!\n",
-				__FUNCTION__);
+		ntfs_log_trace("Eeek. mbstate not in initial state!\n");
 		errno = EILSEQ;
 		goto err_out;
 	}
@@ -673,3 +705,55 @@ void ntfs_upcase_table_build(ntfschar *uc, u32 uc_len)
 	for (r = 0; uc_byte_table[r][0]; r++)
 		uc[uc_byte_table[r][0]] = uc_byte_table[r][1];
 }
+
+/**
+ * ntfs_str2ucs - convert a string to a valid NTFS file name
+ * @s:		input string
+ * @len:	length of output buffer in Unicode characters
+ *
+ * Convert the input @s string into the corresponding little endian,
+ * 2-byte Unicode string. The length of the converted string is less 
+ * or equal to the maximum length allowed by the NTFS format (255).
+ *
+ * If @s is NULL then return AT_UNNAMED.
+ *
+ * On success the function returns the Unicode string in an allocated 
+ * buffer and the caller is responsible to free it when it's not needed
+ * anymore.
+ *
+ * On error NULL is returned and errno is set to the error code.
+ */
+ntfschar *ntfs_str2ucs(const char *s, int *len)
+{
+	ntfschar *ucs = NULL;
+
+	if (s && ((*len = ntfs_mbstoucs(s, &ucs, 0)) == -1)) {
+		ntfs_log_perror("Couldn't convert '%s' to Unicode", s);
+		return NULL;
+	}
+	if (*len > 0xff) {
+		free(ucs);
+		errno = ENAMETOOLONG;
+		return NULL;
+	}
+	if (!ucs || !*len) {
+		ucs  = AT_UNNAMED;
+		*len = 0;
+	}
+	return ucs;
+}
+
+/**
+ * ntfs_ucsfree - free memory allocated by ntfs_str2ucs()
+ * @ucs		input string to be freed
+ *
+ * Free memory at @ucs and which was allocated by ntfs_str2ucs.
+ *
+ * Return value: none.
+ */
+void ntfs_ucsfree(ntfschar *ucs)
+{
+	if (ucs && (ucs != AT_UNNAMED))
+		free(ucs);
+}
+

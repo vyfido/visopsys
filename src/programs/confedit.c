@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -434,7 +434,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   disk theDisk;
-  char tmpFilename[MAX_PATH_NAME_LENGTH];
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -454,17 +453,12 @@ int main(int argc, char *argv[])
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter a "
 			    "configuration file to edit:", "/system/config",
-			    tmpFilename, MAX_PATH_NAME_LENGTH);
+			    fileName, MAX_PATH_NAME_LENGTH);
       if (status != 1)
-	{
-	  windowGuiStop();
-	  return (errno = status);
-	}
+	return (errno = status);
     }
   else
-    strncpy(tmpFilename, argv[1], MAX_PATH_NAME_LENGTH);
-
-  vshMakeAbsolutePath(tmpFilename, fileName);
+    strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
 
   // Find out whether we are currently running on a read-only filesystem
   if (!fileGetDisk(fileName, &theDisk))

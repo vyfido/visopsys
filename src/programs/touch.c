@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -60,8 +60,6 @@ int main(int argc, char *argv[])
   // of the file to the current date and time.
 
   int status = 0;
-  int argNumber = 0;
-  char fileName[MAX_PATH_NAME_LENGTH];
   file theFile;
   int count;
 
@@ -72,29 +70,25 @@ int main(int argc, char *argv[])
     }
 
   // Loop through all of our directory name arguments
-  for (argNumber = 1; argNumber < argc; argNumber ++)
+  for (count = 1; count < argc; count ++)
     {
       // Make sure the name isn't NULL
-      if (argv[argNumber] == NULL)
+      if (argv[count] == NULL)
 	return (status = ERR_NULLPARAMETER);
 
-      // Make sure the name is complete
-      vshMakeAbsolutePath(argv[argNumber], fileName);
-
       // Initialize the file structure
-      for (count = 0; count < (int) sizeof(file); count ++)
-	((char *) &theFile)[count] = NULL;
+      bzero(&theFile, sizeof(file));
 
       // Call the "find file" routine to see if the file exists
-      status = fileFind(fileName, &theFile);
+      status = fileFind(argv[count], &theFile);
 
       // Now, either the file exists or it doesn't...
       
       if (status < 0)
 	{
 	  // The file doesn't exist.  We will create the file.
-	  status = 
-	    fileOpen(fileName, (OPENMODE_WRITE | OPENMODE_CREATE), &theFile);
+	  status = fileOpen(argv[count], (OPENMODE_WRITE | OPENMODE_CREATE),
+			    &theFile);
 	  if (status < 0)
 	    {
 	      errno = status;
@@ -109,7 +103,7 @@ int main(int argc, char *argv[])
       else
 	{
 	  // The file exists.  We need to update the date and time of the file
-	  status = fileTimestamp(fileName);
+	  status = fileTimestamp(argv[count]);
 	  if (status < 0)
 	    {
 	      errno = status;

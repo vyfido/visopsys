@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,8 +62,6 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char srcFileName[MAX_PATH_NAME_LENGTH];
-  char destFileName[MAX_PATH_NAME_LENGTH];
   int count;
 
   // There need to be at least a source and destination file
@@ -78,12 +76,7 @@ int main(int argc, char *argv[])
     if (argv[count] == NULL)
       return (status = ERR_NULLPARAMETER);
 
-  // If any of the arguments are RELATIVE pathnames, we should
-  // insert the pwd before it
-  vshMakeAbsolutePath(argv[1], srcFileName);
-  vshMakeAbsolutePath(argv[2], destFileName);
-
-  status = vshCopyFile(srcFileName, destFileName);
+  status = vshCopyFile(argv[1], argv[2]);
   if (status < 0)
     perror(argv[0]);
 

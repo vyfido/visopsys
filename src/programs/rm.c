@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,7 +63,6 @@ int main(int argc, char *argv[])
   int status = 0;
   char opt;
   int recurse = 0;
-  char fileName[MAX_PATH_NAME_LENGTH];
   int count;
 
   if (argc < 2)
@@ -91,14 +90,11 @@ int main(int argc, char *argv[])
       if (argv[count] == NULL)
 	return (status = ERR_NULLPARAMETER);
 
-      // Make sure the directory name is complete
-      vshMakeAbsolutePath(argv[count], fileName);
-      
       // Attempt to remove the file
       if (recurse)
-	status = fileDeleteRecursive(fileName);
+	status = fileDeleteRecursive(argv[count]);
       else
-	status = fileDelete(fileName);
+	status = fileDelete(argv[count]);
 
       if (status < 0)
 	{

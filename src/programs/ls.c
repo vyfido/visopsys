@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -73,11 +73,7 @@ int main(int argc, char *argv[])
   else
     for (count = 1; count < argc; count ++)
       {
-	// If any of the arguments are RELATIVE pathnames, we should
-	// insert the pwd before it
-	vshMakeAbsolutePath(argv[count], fileName);
-
-	status = vshFileList(fileName);
+	status = vshFileList(argv[count]);
 	if (status < 0)
 	  perror(argv[0]);
       }

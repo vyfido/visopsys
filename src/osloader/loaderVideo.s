@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -655,13 +655,13 @@ loaderDetectVideo:
         jne near .selectMode
 
 	;; Try to load our 'graphics mode' file
-	push dword 0		; No spinner
+	push word 0		; No progress indicator
 	push dword [FILEDATABUFFER]
 	push word GRAPHICSMODE
 	call loaderLoadFile
-	add SP, 10
+	add SP, 8
 
-	cmp AX, 0
+	cmp EAX, 0
 	jl near .selectMode
 
 	;; Get values

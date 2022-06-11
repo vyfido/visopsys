@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,6 @@ functionality of PartitionMagic and similar utilities.
 #include <sys/vsh.h>
 #include <sys/fat.h>
 #include <sys/ntfs.h>
-#include <sys/cdefs.h>
 
 #define PERM             "You must be a privileged user to use this " \
                          "command.\n(Try logging in as user \"admin\")"
@@ -356,6 +355,7 @@ static void pause(void)
 }
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -368,7 +368,7 @@ static void error(const char *format, ...)
     return;
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -383,6 +383,7 @@ static void error(const char *format, ...)
 }
 
 
+static void warning(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void warning(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -395,7 +396,7 @@ static void warning(const char *format, ...)
     return;
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -1857,7 +1858,7 @@ static void drawDiagram(void)
 static void printBanner(void)
 {
   textScreenClear();
-  printf("%s\nCopyright (C) 1998-2006 J. Andrew McLaughlin\n", programName);
+  printf("%s\nCopyright (C) 1998-2007 J. Andrew McLaughlin\n", programName);
 }
 
 
@@ -1866,11 +1867,10 @@ static void display(void)
   listItemParameters *sliceListParams = NULL;
   char lineString[SLICESTRING_LENGTH + 2];
   int slc = 0;
-  int foregroundColor = textGetForeground();
-  int backgroundColor = textGetBackground();
   int isDefrag = 0;
   int isHide = 0;
   int isMove = 0;
+  textAttrs attrs;
   int count;
 
   if (graphics)
@@ -1987,6 +1987,7 @@ static void display(void)
   else
     {
       printBanner();
+      bzero(&attrs, sizeof(textAttrs));
       bzero(lineString, (SLICESTRING_LENGTH + 2));
       for (count = 0; count <= SLICESTRING_LENGTH; count ++)
 	lineString[count] = 196;
@@ -2000,23 +2001,15 @@ static void display(void)
 	  printf(" ");
 	  
 	  if (slc == selectedSlice)
-	    {
-	      // Reverse the colors
-	      textSetForeground(backgroundColor);
-	      textSetBackground(foregroundColor);
-	    }
-	  
-	  printf(" %s", slices[slc].string);
+	    attrs.flags = TEXT_ATTRS_REVERSE;
+	  else
+	    attrs.flags = 0;
+
+	  textPrintAttrs(&attrs, " ");
+	  textPrintAttrs(&attrs, slices[slc].string);
 	  for (count = strlen(slices[slc].string); count < SLICESTRING_LENGTH;
 	       count ++)
-	    printf(" ");
-
-	  if (slc == selectedSlice)
-	    {
-	      // Restore the colors
-	      textSetForeground(foregroundColor);
-	      textSetBackground(backgroundColor);
-	    }
+	    textPrintAttrs(&attrs, " ");
 
 	  printf("\n");
 	}
@@ -2328,7 +2321,7 @@ static void defragment(slice *formatSlice)
 
   status = filesystemDefragment(formatSlice->diskName, &prog);
 
-  if (graphics)
+  if (graphics && progressDialog)
     windowProgressDialogDestroy(progressDialog);
   else
     vshProgressBarDestroy(&prog);
@@ -3899,8 +3892,9 @@ static int resize(int sliceId)
 
   // Before we go, warn that this is a new feature.
   snprintf(tmpChar, 256, "Resizing partition from %u to %u sectors.\n"
-	  "Please use this feature with caution; it is not\nwell tested.  "
-	  "Continue?", entry.sizeLogical, newSize);
+	   "Please use this feature with caution, and only after\n"
+	   "making a backup of all important data.  Continue?",
+	   entry.sizeLogical, newSize);
   if (graphics)
     {
       if (!windowNewQueryDialog(window, "New Feature", tmpChar))
@@ -3949,7 +3943,7 @@ static int resize(int sliceId)
 	// The kernel will do the resize
 	status = filesystemResize(entry.diskName, newSize, &prog);
 
-      if (graphics)
+      if (graphics && progressDialog)
 	windowProgressDialogDestroy(progressDialog);
       else
 	vshProgressBarDestroy(&prog);
@@ -4349,7 +4343,7 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 
   diskSync();
 
-  if (graphics)
+  if (graphics && progressDialog)
     windowProgressDialogDestroy(progressDialog);
   else
     vshProgressBarDestroy(&prog);
@@ -4677,7 +4671,8 @@ static int copyDisk(void)
     {
       if (cancelDialog)
 	windowDestroy(cancelDialog);
-      windowProgressDialogDestroy(progressDialog);
+      if (progressDialog)
+	windowProgressDialogDestroy(progressDialog);
     }
   else
     vshProgressBarDestroy(&prog);
@@ -4882,6 +4877,7 @@ static void changePartitionOrder(void)
   objectKey cancelButton = NULL;
   int selected = 0;
   windowEvent event;
+  textAttrs attrs;
   int count1, count2;
 
   // Make a copy of the main partition table
@@ -5011,8 +5007,7 @@ static void changePartitionOrder(void)
     }
   else
     {
-      int foregroundColor = textGetForeground();
-      int backgroundColor = textGetBackground();
+      bzero(&attrs, sizeof(textAttrs));
       textSetCursor(0);
       textInputSetEcho(0);
 
@@ -5030,23 +5025,15 @@ static void changePartitionOrder(void)
 	      printf(" ");
 	  
 	      if (count1 == selected)
-		{
-		  // Reverse the colors
-		  textSetForeground(backgroundColor);
-		  textSetBackground(foregroundColor);
-		}
-	  
-	      printf(" %s", orderListParams[count1].text);
+		attrs.flags = TEXT_ATTRS_REVERSE;
+	      else
+		attrs.flags = 0;
+
+	      textPrintAttrs(&attrs, " ");
+	      textPrintAttrs(&attrs, orderListParams[count1].text);
 	      for (count2 = strlen(orderListParams[count1].text);
 		   count2 < SLICESTRING_LENGTH; count2 ++)
-		printf(" ");
-
-	      if (count1 == selected)
-		{
-		  // Restore the colors
-		  textSetForeground(foregroundColor);
-		  textSetBackground(backgroundColor);
-		}
+		textPrintAttrs(&attrs, " ");
 
 	      printf("\n");
 	    }
@@ -5212,7 +5199,7 @@ static void restoreBackup(void)
 
   if (status < 0)
     {
-      error("Error opening backup partition table file %s");
+      error("Error opening backup partition table file");
       return;
     }
 

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -52,6 +52,7 @@ char *fgets(char *, int, FILE *);
 FILE *fopen(const char *, const char *);
 int fprintf(FILE *, const char *, ...) __attribute__((format(printf, 2, 3)));
 size_t fread(void *, size_t, size_t, FILE *);
+int fscanf(FILE *, const char *, ...) __attribute__((format(scanf, 2, 3)));
 int fseek(FILE *, long, int);
 int fsetpos(FILE *, fpos_t *);
 long ftell(FILE *);
@@ -71,10 +72,14 @@ int scanf(const char *, ...) __attribute__((format(scanf, 1, 2)));
 int snprintf(char *, size_t, const char *, ...)
      __attribute__((format(printf, 3, 4)));
 int sprintf(char *, const char *, ...) __attribute__((format(printf, 2, 3)));
+int sscanf(const char *, const char *, ...);
 int vfprintf(FILE *, const char *, va_list);
+int vfscanf(FILE *, const char *, va_list);
 int vprintf(const char *, va_list);
+int vscanf(const char *, va_list);
 int vsnprintf(char *, size_t, const char *, va_list);
 int vsprintf(char *, const char *, va_list);
+int vsscanf(const char *, const char *, va_list);
 
 #define _STDIO_H
 #endif

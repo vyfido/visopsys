@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,12 +42,11 @@ browser window for that filesystem.
 </help>
 */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/window.h>
 #include <sys/api.h>
-#include <sys/cdefs.h>
+#include <sys/window.h>
 
 #define DEFAULT_WINDOWTITLE  "Computer"
 #define DEFAULT_ROWS         4
@@ -69,6 +68,7 @@ static objectKey iconList = NULL;
 static int stop = 0;
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code
@@ -77,7 +77,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(window, "Error", output);

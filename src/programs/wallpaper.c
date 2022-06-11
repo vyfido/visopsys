@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,8 +54,7 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int processId = 0;
-  char rawFileName[MAX_PATH_NAME_LENGTH];
-  char fullFileName[MAX_PATH_NAME_LENGTH];
+  char fileName[MAX_PATH_NAME_LENGTH];
   file tmpFile;
 
   // Only work in graphics mode
@@ -66,8 +65,7 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  bzero(rawFileName, MAX_PATH_NAME_LENGTH);
-  bzero(fullFileName, MAX_PATH_NAME_LENGTH);
+  bzero(fileName, MAX_PATH_NAME_LENGTH);
   bzero(&tmpFile, sizeof(file));
 
   // We need our process ID to create the windows
@@ -80,11 +78,8 @@ int main(int argc, char *argv[])
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter the "
 			    "background image\nfile name:",
-			    "/system/wallpaper", rawFileName,
+			    "/system/wallpaper", fileName,
 			    MAX_PATH_NAME_LENGTH);
-
-      windowGuiStop();
-
       if (status != 1)
 	{
 	  if (status == 0)
@@ -96,19 +91,16 @@ int main(int argc, char *argv[])
     }
   
   else
-    strncpy(rawFileName, argv[1], MAX_PATH_NAME_LENGTH);
+    strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
 
-  // Make sure the file name is complete
-  vshMakeAbsolutePath(rawFileName, fullFileName);
-
-  status = fileFind(fullFileName, &tmpFile);
+  status = fileFind(fileName, &tmpFile);
   if (status < 0)
     {
       printf("File not found\n");
       return (errno = status);
     }
 
-  status = windowTileBackground(fullFileName);
+  status = windowTileBackground(fileName);
 
   return (errno = status);
 }

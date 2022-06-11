@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,7 +44,6 @@ Options:
 #include <unistd.h>
 #include <errno.h>
 #include <sys/api.h>
-#include <sys/cdefs.h>
 
 #define KERNELCONF  "/system/config/kernel.conf"
 #define NODEVS      "No supported network devices."
@@ -66,6 +65,7 @@ static objectKey okButton = NULL;
 static objectKey cancelButton = NULL;
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -74,7 +74,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)

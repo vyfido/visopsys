@@ -30,7 +30,9 @@
 #if HAVE_STDINT_H || !HAVE_CONFIG_H
 #include <stdint.h>
 #endif
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 
 typedef uint8_t  u8;			/* Unsigned types of an exact size */
 typedef uint16_t u16;
@@ -45,6 +47,11 @@ typedef int64_t s64;
 typedef u16 le16;
 typedef u32 le32;
 typedef u64 le64;
+
+/*
+ * Declare sle{16,32,64} to be unsigned because we do not want sign extension
+ * on BE architectures.
+ */
 typedef u16 sle16;
 typedef u32 sle32;
 typedef u64 sle64;
@@ -74,19 +81,34 @@ typedef sle64 leLSN;
  * As long as this file will be included after <windows.h> were fine.
  */
 #ifndef _WINDEF_H
-/*
- * These are just to make the code more readable...
+/**
+ * enum BOOL - These are just to make the code more readable...
  */
 typedef enum {
+#ifndef FALSE
 	FALSE = 0,
+#endif
+#ifndef NO
 	NO = 0,
+#endif
+#ifndef ZERO
 	ZERO = 0,
+#endif
+#ifndef TRUE
 	TRUE = 1,
+#endif
+#ifndef YES
 	YES = 1,
+#endif
+#ifndef ONE
 	ONE = 1,
+#endif
 } BOOL;
 #endif /* defined _WINDEF_H */
 
+/**
+ * enum IGNORE_CASE_BOOL -
+ */
 typedef enum {
 	CASE_SENSITIVE = 0,
 	IGNORE_CASE = 1,

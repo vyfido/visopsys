@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -31,6 +31,7 @@
 	EXTERN FATALERROR
 	EXTERN PRINTINFO
 	EXTERN DRIVENUMBER
+	EXTERN CYLINDERS
 	EXTERN PARTENTRY
 
 	SEGMENT .text
@@ -83,22 +84,13 @@ loaderDetectHardware:
 	mov AX, word [DRIVENUMBER]
 	mov dword [BOOTDEVICE], EAX
 	
+	;; Check for CD-ROM emulation stuffs
+	call detectCdEmul
+	
 	;; Record the Visopsys name for the boot disk
 
-	;; Check for CD-ROM emulation stuffs
-	mov AX, 4B01h
-	mov DX, word [DRIVENUMBER]
-	mov SI, EMUL_SAVE
-	int 13h
-	jc .notCDROM
-	mov AL, byte [EMUL_SAVE + 1]
-	and AL, 07h
-	cmp AL, 0
-	je .notCDROM
-	cmp AL, 04h
-	ja .notCDROM
-
-	mov byte [CD_EMULATION], 1
+	cmp byte [CD_EMULATION], 1
+	jne .notCDROM
 	mov dword [BOOTDISK], 00306463h ; ("cd0")
 	jmp .doneBootName
 	
@@ -124,6 +116,22 @@ loaderDetectHardware:
 	;; Detect floppy drives, if any
 	call detectFloppies
 
+	cmp word [PRINTINFO], 1
+	jne .noEmul
+	;; If we're booting from CD-ROM in emulation mode, print a message
+	cmp byte [CD_EMULATION], 1
+	jne .noEmul
+	mov DL, 02h
+	mov SI, HAPPY
+	call loaderPrint
+	mov SI, CDCHECK
+	call loaderPrint
+	mov DL, FOREGROUNDCOLOR
+	mov SI, CDEMUL
+	call loaderPrint
+	call loaderPrintNewline
+	.noEmul:
+	
 	;; Detect Fixed disk drives, if any
 	call detectHardDisks
 
@@ -191,14 +199,14 @@ detectProcessor:
 	mov dword [CPUTYPE], i486
 	jmp .detectMMX
 	
-	.checkPentium:	
+	.checkPentium:
 	cmp AL, 1
 	jb .pentiumPro
 	;; Pentium CPU
 	mov dword [CPUTYPE], PENTIUM
 	jmp .detectMMX
 
-	.pentiumPro:	
+	.pentiumPro:
 	;; Pentium pro CPU
 	mov dword [CPUTYPE], PENTIUMPRO
 	
@@ -227,7 +235,7 @@ detectProcessor:
 	call printCpuInfo
 	jmp .unhook6
 		
-	.badCPU:	
+	.badCPU:
 	;; Print out the fatal message that we're not running an
 	;; adequate processor
 	mov DL, ERRORCOLOR	; Use error color
@@ -357,6 +365,54 @@ detectMemory:
 	ret
 
 
+detectCdEmul:
+	;; This routine will detect CD-ROM emulation stuffs
+	
+	;; Save regs
+	pusha
+
+	cmp word [DRIVENUMBER], 80h
+	jae .notEmul
+	
+	mov AX, 4B01h
+	mov DX, word [DRIVENUMBER]
+	mov SI, EMUL_SAVE
+	int 13h
+	jnc .emulCheck
+	
+	;; Couldn't check for CD-ROM emulation.  This might cause CD-ROM
+	;; booting to fail on this system.  *However*, it appers that in
+	;; some of these cases, the number of cylinders will be
+	;; unrealistically large, so we will assume in that case.
+
+	cmp dword [CYLINDERS], 256
+	ja .isEmul
+
+	;; Else, print a warning.
+	mov DL, ERRORCOLOR	; Use error color
+	mov SI, SAD
+	call loaderPrint
+	mov SI, EMULCHECKBAD
+	call loaderPrint
+	call loaderPrintNewline
+	jmp .notEmul
+
+	.emulCheck:
+	mov AL, byte [EMUL_SAVE + 1]
+	and AL, 07h
+	cmp AL, 0
+	je .notEmul
+	cmp AL, 04h
+	ja .notEmul
+
+	.isEmul:
+	mov byte [CD_EMULATION], 1
+	
+	.notEmul:
+	popa
+	ret
+
+	
 detectFloppies:
 	;; This routine will detect the number and types of floppy
 	;; disk drives on board
@@ -1108,6 +1164,8 @@ MMX		db 'with MMX', 0
 MEMDETECT1	db 'Extended RAM ', 10h, ' ', 0
 KREPORTED	db 'K reported', 0
 FDDCHECK	db 'Floppy disks ', 10h, ' ', 0
+CDCHECK		db 'CD/DVD       ', 10h, ' ', 0
+CDEMUL		db 'Booting in emulation mode', 0
 HDDCHECK	db 'Hard disks   ', 10h, ' ', 0
 DISKCHECK	db ' disk(s)', 0
 HEADS		db ' heads, ', 0
@@ -1125,6 +1183,10 @@ EMUL_SAVE	times 20 db 0
 ;;
 
 SAD		db 'x ', 0
-CPUCHECKBAD	db ': This processor is not adequate to run Visopsys.  Visopsys', 0
-CPUCHECKBAD2	db 'requires an i486 or better processor in order to function', 0
+EMULCHECKBAD	db 'CD-ROM emulation check failed.  CD booting might not be '
+		db 'successful.', 0
+CPUCHECKBAD	db ': This processor is not adequate to run Visopsys.  '
+		db 'Visopsys', 0
+CPUCHECKBAD2	db 'requires an i486 or better processor in order to '
+		db 'function', 0
 CPUCHECKBAD3	db 'properly.  Please see your computer dealer.', 0

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,8 +62,6 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char srcFileName[MAX_PATH_NAME_LENGTH];
-  char destFileName[MAX_PATH_NAME_LENGTH];
   int count;
 
   // There need to be at least a source and destination file
@@ -73,16 +71,10 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  // If the dest filename is relative, we should fix it up
-  vshMakeAbsolutePath(argv[argc - 1], destFileName);
-
   // Attempt to move the file(s)
   for (count = 1; count < (argc - 1); count ++)
     {
-      // Likewise, fix up the src filename
-      vshMakeAbsolutePath(argv[count], srcFileName);
-
-      status = fileMove(srcFileName, destFileName);
+      status = fileMove(argv[count], argv[argc - 1]);
       if (status < 0)
 	{
 	  errno = status;

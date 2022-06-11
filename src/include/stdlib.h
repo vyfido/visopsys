@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,8 +23,9 @@
 
 #if !defined(_STDLIB_H)
 
-#include <stddef.h>
 #include <limits.h>
+#include <stddef.h>
+#include <sys/cdefs.h>
 
 #define EXIT_FAILURE  -1
 #define EXIT_SUCCESS  0
@@ -39,12 +40,13 @@
 // they were defined in stddef.h.  Oh well, we're including stddef.h anyway.
 
 // Functions
-void abort(void);
+void abort(void) __attribute__((noreturn));
 int abs(int);
-int atoi(const char *);
+#define atoi(string) ((int) _str2num(string, 10, 1))
+#define atoll(string) ((long long) _str2num(string, 10, 1))
 void *_calloc(size_t, size_t, const char *);
 #define calloc(num, size) _calloc(num, size, __FUNCTION__)
-void exit(int);
+void exit(int) __attribute__((noreturn));
 void _free(void *, const char *);
 #define free(ptr) _free(ptr, __FUNCTION__)
 long int labs(long int);
@@ -55,6 +57,7 @@ size_t mbstowcs(wchar_t *dest, const char *src, size_t n);
 int rand(void);
 void *_realloc(void *, size_t, const char *);
 #define realloc(ptr, size) _realloc(ptr, size, __FUNCTION__)
+char *realpath(const char *, char *);
 void srand(unsigned int);
 int system(const char *);
 int wctomb(char *, wchar_t);
@@ -63,16 +66,18 @@ int wctomb(char *, wchar_t);
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-// Argh.  Aren't there functions that do these?  These are andy-special.
-void itoa(int, char *);
-void itob(int, char *);
-void itox(int, char *);
-void lltoa(long long, char *);
-void lltob(long long, char *);
-void lltox(long long, char *);
-int xtoi(const char *);
-void ulltoa(unsigned long long, char *);
-void utoa(unsigned int, char *);
+// These are unofficial, Andy-special extensions of the atoi() and atoll()
+// paradigm.
+#define atou(string) ((unsigned) _str2num(string, 10, 0))
+#define atoull(string) ((unsigned long long) _str2num(string, 10, 0))
+#define itoa(num, string) _num2str((int) num, string, 10, 1)
+#define itox(num, string) _num2str((int) num, string, 16, 1)
+#define lltoa(num, string) _num2str((long long) num, string, 10, 1)
+#define lltox(num, string) _num2str((long long) num, string, 16, 1)
+#define xtoi(string) ((int) _str2num(string, 16, 1))
+#define xtoll(string) ((long long) _str2num(string, 16, 1))
+#define ulltoa(num, string) _num2str((unsigned long long) num, string, 10, 0)
+#define utoa(num, string) _num2str((unsigned) num, string, 10, 0)
 
 #define _STDLIB_H
 #endif

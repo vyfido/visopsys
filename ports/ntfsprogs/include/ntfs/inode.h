@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2001,2002 Anton Altaparmakov
  * Copyright (c) 2004-2005 Yura Pakhuchiy
+ * Copyright (c) 2004-2005 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -19,7 +20,7 @@
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Modified 12/2005 by Andy McLaughlin for Visopsys port.
+ * Modified 01/2007 by Andy McLaughlin for Visopsys port.
  */
 
 #ifndef _NTFS_INODE_H
@@ -34,7 +35,9 @@ typedef struct _ntfs_inode ntfs_inode;
 #include "volume.h"
 #include <time.h>
 
-/*
+/**
+ * enum ntfs_inode_state_bits -
+ *
  * Defined bits for the state field in the ntfs_inode structure.
  * (f) = files only, (d) = directories only
  */
@@ -45,9 +48,6 @@ typedef enum {
 	NI_AttrList,		/* 1: Mft record contains an attribute list. */
 	NI_AttrListDirty,	/* 1: Attribute list needs to be written to the
 				      mft record and then to disk. */
-	NI_Compressed,		/* 1: Inode is compressed. */
-	NI_Encrypted,		/* 1: Inode is encrypted. */
-	NI_Sparse,		/* 1: Inode is sparse. */
 	NI_FileNameDirty,	/* 1: FILE_NAME attributes need to be updated
 				      in the index. */
 } ntfs_inode_state_bits;
@@ -87,18 +87,6 @@ typedef enum {
 #define NInoAttrListTestAndSetDirty(ni)	    test_and_set_nino_al_flag(ni, Dirty)
 #define NInoAttrListTestAndClearDirty(ni) test_and_clear_nino_al_flag(ni, Dirty)
 
-#define NInoCompressed(ni)		 test_nino_flag(ni, Compressed)
-#define NInoSetCompressed(ni)		  set_nino_flag(ni, Compressed)
-#define NInoClearCompressed(ni)		clear_nino_flag(ni, Compressed)
-
-#define NInoEncrypted(ni)		 test_nino_flag(ni, Encrypted)
-#define NInoSetEncrypted(ni)		  set_nino_flag(ni, Encrypted)
-#define NInoClearEncrypted(ni)		clear_nino_flag(ni, Encrypted)
-
-#define NInoSparse(ni)			 test_nino_flag(ni, Sparse)
-#define NInoSetSparse(ni)		  set_nino_flag(ni, Sparse)
-#define NInoClearSparse(ni)		clear_nino_flag(ni, Sparse)
-
 #define NInoFileNameDirty(ni)			\
 					  test_nino_flag(ni, FileNameDirty)
 #define NInoFileNameSetDirty(ni)		\
@@ -110,9 +98,11 @@ typedef enum {
 #define NInoFileNameTestAndClearDirty(ni)	\
 				test_and_clear_nino_flag(ni, FileNameDirty)
 
-/*
- * The NTFS in-memory inode structure. It is just used as an extension to the
- * fields already provided in the VFS inode.
+/**
+ * struct _ntfs_inode - The NTFS in-memory inode structure.
+ *
+ * It is just used as an extension to the fields already provided in the VFS
+ * inode.
  */
 struct _ntfs_inode {
 	u64 mft_no;		/* Inode / mft record number. */
@@ -120,6 +110,8 @@ struct _ntfs_inode {
 	ntfs_volume *vol;	/* Pointer to the ntfs volume of this inode. */
 	unsigned long state;	/* NTFS specific flags describing this inode.
 				   See ntfs_inode_state_bits above. */
+	FILE_ATTR_FLAGS flags;	/* Flags describing the file.
+				   (Copy from STANDARD_INFORMATION) */
 	/*
 	 * Attribute list support (for use by the attribute lookup functions).
 	 * Setup during ntfs_open_inode() for all inodes with attribute lists.
@@ -140,12 +132,18 @@ struct _ntfs_inode {
 					   inode of the base mft record. */
 	};
 
-	void *private_data;	/* Temp: for directory handling */
+	/* Temp: for directory handling */
+	void *private_data;	/* ntfs_dt containing this inode */
 	int ref_count;
 
-	/* Below 2 fields needed to update indexes. They valid if != -1. */
-	s64 data_size;
-	s64 allocated_size;
+	/* Below fields are valid only for base inode. */
+	s64 data_size;		/* Data size stored in the filename index. */
+	s64 allocated_size;	/* Allocated size stored in the filename
+				   index. (NOTE: Equal to allocated size of
+				   the unnamed data attribute for normal or
+				   encrypted files and to compressed size
+				   of the unnamed data attribute for sparse or
+				   compressed files.) */
 
 	time_t creation_time;
 	time_t last_data_change_time;
@@ -181,10 +179,23 @@ static __inline__ void ntfs_inode_mark_dirty(ntfs_inode *ni)
 		NInoSetDirty(ni->base_ni);
 }
 
+extern void ntfs_inode_update_atime(ntfs_inode *ni);
+extern void ntfs_inode_update_time(ntfs_inode *ni);
+
 extern int ntfs_inode_sync(ntfs_inode *ni);
 
 extern int ntfs_inode_add_attrlist(ntfs_inode *ni);
 
 extern int ntfs_inode_free_space(ntfs_inode *ni, int size);
+
+extern int ntfs_inode_badclus_bad(u64 mft_no, ATTR_RECORD *a);
+
+#ifdef NTFS_RICH
+
+int ntfs_inode_close2(ntfs_inode *ni);
+ntfs_inode * ntfs_inode_open2(ntfs_volume *vol, const MFT_REF mref);
+ntfs_inode * ntfs_inode_open3(ntfs_volume *vol, const MFT_REF mref);
+
+#endif /* NTFS_RICH */
 
 #endif /* defined _NTFS_INODE_H */

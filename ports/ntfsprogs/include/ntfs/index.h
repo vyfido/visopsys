@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2004 Anton Altaparmakov
  * Copyright (c) 2005 Yura Pakhuchiy
+ * Copyright (c) 2004-2005 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -30,20 +31,23 @@
 #include "mft.h"
 
 /**
- * @ni:		inode containing the @entry described by this context
- * @name:	name of the index described by this context
- * @name_len:	length of the index name
- * @entry:	index entry (points into @ir or @ia)
- * @data:	index entry data (points into @entry)
- * @data_len:	length in bytes of @data
- * @is_in_root:	TRUE if @entry is in @ir and FALSE if it is in @ia
- * @ir:		index root if @is_in_root and NULL otherwise
- * @actx:	attribute search context if @is_in_root and NULL otherwise
- * @ia:		index block if @is_in_root is FALSE and NULL otherwise
- * @ia_na:	opened INDEX_ALLOCATION attribute
- * @ia_vcn:	VCN from which @ia where read from
- * @ia_dirty:	TRUE if index block was changed
- * @block_size:	index block size
+ * struct ntfs_index_context -
+ * @ni:			inode containing the @entry described by this context
+ * @name:		name of the index described by this context
+ * @name_len:		length of the index name
+ * @entry:		index entry (points into @ir or @ia)
+ * @data:		index entry data (points into @entry)
+ * @data_len:		length in bytes of @data
+ * @is_in_root:		TRUE if @entry is in @ir or FALSE if it is in @ia
+ * @ir:			index root if @is_in_root or NULL otherwise
+ * @actx:		attribute search context if in root or NULL otherwise
+ * @ia:			index block if @is_in_root is FALSE or NULL otherwise
+ * @ia_na:		opened INDEX_ALLOCATION attribute
+ * @ia_vcn:		VCN from which @ia where read from
+ * @ia_dirty:		TRUE if index block was changed
+ * @block_size:		index block size
+ * @vcn_size:		VCN size for this index block
+ * @vcn_size_bits:	use instead of @vcn_size to speedup multiplication
  *
  * @ni is the inode this context belongs to.
  *
@@ -85,6 +89,8 @@ typedef struct {
 	VCN ia_vcn;
 	BOOL ia_dirty;
 	u32 block_size;
+	u32 vcn_size;
+	u8 vcn_size_bits;
 } ntfs_index_context;
 
 extern ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *ni,
@@ -98,6 +104,8 @@ extern int ntfs_index_lookup(const void *key, const int key_len,
 extern int ntfs_index_add_filename(ntfs_inode *ni, FILE_NAME_ATTR *fn,
 		MFT_REF mref);
 extern int ntfs_index_rm(ntfs_index_context *ictx);
+
+extern INDEX_ROOT *ntfs_index_root_get(ntfs_inode *ni, ATTR_RECORD *attr);
 
 /**
  * ntfs_index_entry_mark_dirty - mark an index entry dirty
@@ -121,4 +129,21 @@ static inline void ntfs_index_entry_mark_dirty(ntfs_index_context *ictx)
 		ictx->ia_dirty = TRUE;
 }
 
+
+#ifdef NTFS_RICH
+
+#include "layout.h"
+
+void ntfs_ie_free(INDEX_ENTRY *ie);
+INDEX_ENTRY * ntfs_ie_create(void);
+VCN ntfs_ie_get_vcn(INDEX_ENTRY *ie);
+INDEX_ENTRY * ntfs_ie_copy(INDEX_ENTRY *ie);
+INDEX_ENTRY * ntfs_ie_set_vcn(INDEX_ENTRY *ie, VCN vcn);
+INDEX_ENTRY * ntfs_ie_remove_vcn(INDEX_ENTRY *ie);
+INDEX_ENTRY * ntfs_ie_set_name(INDEX_ENTRY *ie, ntfschar *name, int namelen, FILE_NAME_TYPE_FLAGS nametype);
+INDEX_ENTRY * ntfs_ie_remove_name(INDEX_ENTRY *ie);
+
+#endif /* NTFS_RICH */
+
 #endif /* _NTFS_INDEX_H */
+

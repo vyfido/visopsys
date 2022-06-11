@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,12 +21,11 @@
 
 // This contains functions for user programs to operate GUI components.
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/window.h>
 #include <sys/api.h>
-#include <sys/cdefs.h>
+#include <sys/window.h>
 
 #define FILEBROWSE_CONFIG        "/system/config/filebrowse.conf"
 #define DEFAULT_FOLDERICON_VAR   "icon.folder"
@@ -110,6 +109,7 @@ static icon iconList[] = {
 };
     
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code
@@ -118,7 +118,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(NULL, "Error", output);
@@ -133,6 +133,7 @@ static int loadIcon(const char *variableName, const char *defaultIcon,
 
   int status = 0;
   char variableValue[MAX_PATH_NAME_LENGTH];
+  file tmpFile;
 
   // First try the variable
   status = variableListGet(&config, variableName, variableValue,
@@ -141,6 +142,10 @@ static int loadIcon(const char *variableName, const char *defaultIcon,
     defaultIcon = variableValue;
 
   // Try to load the image
+  status = fileFind(defaultIcon, &tmpFile);
+  if (status < 0)
+    return (status);
+
   return (imageLoad(defaultIcon, 0, 0, theImage));
 }
 
@@ -274,28 +279,13 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 	  return (status = ERR_MEMORY);
 	}
   
-      status = fileFirst(path, &tmpFile);
-      if (status < 0)
+      for (count = 0; count < totalFiles; count ++)
 	{
-	  error("Error reading first file in \"%s\"", path);
-	  free(tmpFileEntries);
-	  return (status);
-	}
-  
-      if (strcmp(tmpFile.name, "."))
-	{
-	  memcpy(&(tmpFileEntries[tmpNumFileEntries].file), &tmpFile,
-		 sizeof(file));
-	  sprintf(tmpFileName, "%s/%s", path, tmpFile.name);
-	  fileFixupPath(tmpFileName,
-			tmpFileEntries[tmpNumFileEntries].fullName);
-	  if (!classifyEntry(&tmpFileEntries[tmpNumFileEntries]))
-	    tmpNumFileEntries += 1;
-	}
+	  if (count == 0)
+	    status = fileFirst(path, &tmpFile);
+	  else
+	    status = fileNext(path, &tmpFile);
 
-      for (count = 1; count < totalFiles; count ++)
-	{
-	  status = fileNext(path, &tmpFile);
 	  if (status < 0)
 	    {
 	      error("Error reading files in \"%s\"", path);

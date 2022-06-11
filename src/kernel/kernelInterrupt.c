@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,13 +22,12 @@
 // Interrupt handling routines for basic exceptions and hardware interfaces.
 
 #include "kernelInterrupt.h"
-#include "kernelProcessorX86.h"
 #include "kernelDescriptor.h"
-#include "kernelMultitasker.h"
 #include "kernelError.h"
+#include "kernelMultitasker.h"
+#include "kernelProcessorX86.h"
 
 int kernelProcessingInterrupt = 0;
-int kernelProcessingException = 0;
 static int initialized = 0;
 
 
@@ -38,11 +37,7 @@ static inline void exHandlerX(int exceptionNum)
   unsigned exceptionAddress = 0;
 
   kernelProcessorExceptionEnter(stackAddress, exceptionAddress);
-
-  kernelExceptionHandler(exceptionNum, exceptionAddress);
-
-  // If the exception is handled, then this code is reached and we return
-  // to the address of the exception.
+  kernelException(exceptionNum, exceptionAddress);
   kernelProcessorExceptionExit(stackAddress);
 }
 

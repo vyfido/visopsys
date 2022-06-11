@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,7 +30,6 @@
 #include "kernelMultitasker.h"
 #include "kernelRtc.h"
 #include <stdio.h>
-#include <sys/cdefs.h>
 
 static void kernelLogUpdater(void) __attribute__((noreturn));
 
@@ -260,7 +259,7 @@ int kernelLog(const char *format, ...)
   va_start(list, format);
 
   // Expand the format string into an output string
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 

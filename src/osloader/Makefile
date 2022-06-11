@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -17,7 +17,9 @@ WARN		= -w+orphan-labels
 SECTOPTS	= -f bin ${WARN}
 LDROPTS		= -f elf ${WARN}
 LINKOPTS	= -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
-STDDEPEND	= loader.h Makefile
+STDDEPS		= loader.h Makefile
+BOOTDEPS	= bootsect-fatBPB.s bootsect-diskparms.s bootsect-print.s \
+		bootsect-error.s bootsect-read.s 
 OBJS		= obj/loaderMain.o \
 		obj/loaderVideo.o \
 		obj/loaderDetectHardware.o \
@@ -37,35 +39,35 @@ bootsectors: ${BOOTBUILDDIR}/mbr.simple ${BOOTBUILDDIR}/mbr.bootmenu ${BOOTBUILD
 # MBRs and Boot sectors
 #
 
-${BOOTBUILDDIR}/mbr.simple: mbr-simple.s ${STDDEPEND}
+${BOOTBUILDDIR}/mbr.simple: mbr-simple.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/mbr.bootmenu: mbr-bootmenu.s ${STDDEPEND}
+${BOOTBUILDDIR}/mbr.bootmenu: mbr-bootmenu.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootmenu: bootmenu.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootmenu: bootmenu.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fat: bootsect-fat.s bootsect-fatBPB.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fat: bootsect-fat.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fat32: bootsect-fat.s bootsect-fatBPB.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fat32: bootsect-fat.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} -DFAT32 $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s ${BOOTDEPS} ${STDDEPS}
 	${NASM} ${SECTOPTS} -DFAT32 $< -o $@
 
 #
 # Loader files
 #
 
-${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPEND}
+${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPS}
 	${CC} -nodefaultlibs -nostartfiles ${OPT} ${LINKOPTS} ${OBJS} -o $@
 
-obj/%.o: %.s ${STDDEPEND}
+obj/%.o: %.s ${STDDEPS}
 	${NASM} ${LDROPTS} $< -o $@
 
 #

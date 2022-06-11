@@ -1,7 +1,7 @@
 /*
  * device.h - Exports for low level device io. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2000-2004 Anton Altaparmakov
+ * Copyright (c) 2000-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -31,13 +31,16 @@
 #include "support.h"
 #include "volume.h"
 
-/*
+/**
+ * enum ntfs_device_state_bits -
+ *
  * Defined bits for the state field in the ntfs_device structure.
  */
 typedef enum {
 	ND_Open,	/* 1: Device is open. */
 	ND_ReadOnly,	/* 1: Device is read-only. */
 	ND_Dirty,	/* 1: Device is dirty, needs sync. */
+	ND_Block,	/* 1: Device is a block device. */
 } ntfs_device_state_bits;
 
 #define  test_ndev_flag(nd, flag)	   test_bit(ND_##flag, (nd)->d_state)
@@ -56,7 +59,13 @@ typedef enum {
 #define NDevSetDirty(nd)	  set_ndev_flag(nd, Dirty)
 #define NDevClearDirty(nd)	clear_ndev_flag(nd, Dirty)
 
-/*
+#define NDevBlock(nd)		 test_ndev_flag(nd, Block)
+#define NDevSetBlock(nd)	  set_ndev_flag(nd, Block)
+#define NDevClearBlock(nd)	clear_ndev_flag(nd, Block)
+
+/**
+ * struct ntfs_device -
+ *
  * The ntfs device structure defining all operations needed to access the low
  * level device underlying the ntfs volume.
  */
@@ -70,7 +79,9 @@ struct ntfs_device {
 
 struct stat;
 
-/*
+/**
+ * struct ntfs_device_operations -
+ *
  * The ntfs device operations defining all operations that can be performed on
  * the low level device described by an ntfs device structure.
  */
@@ -111,5 +122,7 @@ extern s64 ntfs_device_size_get(struct ntfs_device *dev, int block_size);
 extern s64 ntfs_device_partition_start_sector_get(struct ntfs_device *dev);
 extern int ntfs_device_heads_get(struct ntfs_device *dev);
 extern int ntfs_device_sectors_per_track_get(struct ntfs_device *dev);
+extern int ntfs_device_sector_size_get(struct ntfs_device *dev);
+extern int ntfs_device_block_size_set(struct ntfs_device *dev, int block_size);
 
 #endif /* defined _NTFS_DEVICE_H */

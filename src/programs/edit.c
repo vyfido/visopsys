@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,15 +36,14 @@ Usage:
 </help>
 */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/vsh.h>
 #include <sys/api.h>
-#include <sys/cdefs.h>
 #include <sys/text.h>
+#include <sys/vsh.h>
 
 typedef struct {
   unsigned filePos;
@@ -59,8 +58,6 @@ typedef struct {
 static int processId = 0;
 static int screenColumns = 0;
 static int screenRows = 0;
-static int foregroundColor = 0;
-static int backgroundColor = 0;
 static file theFile;
 static unsigned fileSize = 0;
 static char *buffer = NULL;
@@ -108,6 +105,7 @@ static void usage(char *name)
 }
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -116,7 +114,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -134,6 +132,10 @@ static void updateStatus(void)
   int column = textGetColumn();
   int row = textGetRow();
   char statusMessage[MAXSTRINGLENGTH];
+  textAttrs attrs;
+
+  bzero(&attrs, sizeof(textAttrs));
+  attrs.flags = TEXT_ATTRS_REVERSE;
 
   sprintf(statusMessage, "%s%s  %u/%u", theFile.name,
 	  (modified? " (modified)" : ""), line, numLines);
@@ -143,20 +145,17 @@ static void updateStatus(void)
 
   else
     {
-      // Put the cursor on the last line and switch colors
-      textSetForeground(backgroundColor);
-      textSetBackground(foregroundColor);
+      // Extend to the end of the line
+      while (textGetColumn() < (screenColumns - 1))
+	strcat(statusMessage, " ");
+
+      // Put the cursor on the last line
       textSetColumn(0);
       textSetRow(screenRows);
 
-      printf(statusMessage);
-      // Extend to the end of the line
-      while (textGetColumn() < (screenColumns - 1))
-	putchar(' ');
+      textPrintAttrs(&attrs, statusMessage);
 
-      // Restore colors and put the cursor back where it belongs
-      textSetForeground(foregroundColor);
-      textSetBackground(backgroundColor);
+      // Put the cursor back where it belongs
       textSetColumn(column);
       textSetRow(row);
     }
@@ -800,9 +799,8 @@ static int askFileName(char *fileName)
   if (graphics)
     {
       // Prompt for a file name
-      status =
-	windowNewFileDialog(window, "Enter filename", fileNameQuestion, "/",
-			    fileName, MAX_PATH_NAME_LENGTH);
+      status = windowNewFileDialog(window, "Enter filename", fileNameQuestion,
+				   "/", fileName, MAX_PATH_NAME_LENGTH);
       return (status);
     }
   else
@@ -1009,8 +1007,7 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   textScreen screen;
-  char *shortFileName = NULL;
-  char *fullFileName = NULL;
+  char *fileName = NULL;
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -1042,18 +1039,14 @@ int main(int argc, char *argv[])
   if (!graphics)
     // Save one for the status line
     screenRows -= 1;
-  foregroundColor = textGetForeground();
-  backgroundColor = textGetBackground();
 
   // Clear it
   textScreenClear();
   textEnableScroll(0);
 
   screenLines = malloc(screenRows * sizeof(screenLineInfo));
-  shortFileName = malloc(MAX_PATH_NAME_LENGTH);
-  fullFileName = malloc(MAX_PATH_NAME_LENGTH);
-  if ((screenLines == NULL) || (shortFileName == NULL) ||
-      (fullFileName == NULL))
+  fileName = malloc(MAX_PATH_NAME_LENGTH);
+  if ((screenLines == NULL) || (fileName == NULL))
     {
       errno = status = ERR_MEMORY;
       perror(argv[0]);
@@ -1065,7 +1058,7 @@ int main(int argc, char *argv[])
       if (graphics)
 	{
 	  // Prompt for a file name
-	  status = askFileName(shortFileName);
+	  status = askFileName(fileName);
 
 	  if (status != 1)
 	    {
@@ -1087,12 +1080,9 @@ int main(int argc, char *argv[])
 	}
     }
   else
-    strcpy(shortFileName, argv[argc - 1]);
+    strcpy(fileName, argv[argc - 1]);
 
-  // Make sure the file name is complete
-  vshMakeAbsolutePath(shortFileName, fullFileName);
-
-  status = loadFile(fullFileName);
+  status = loadFile(fileName);
   if (status < 0)
     {
       errno = status;
@@ -1127,10 +1117,8 @@ int main(int argc, char *argv[])
 
   if (screenLines)
     free(screenLines);
-  if (shortFileName)
-    free(shortFileName);
-  if (fullFileName)
-    free (fullFileName);
+  if (fileName)
+    free (fileName);
   if (buffer)
     free(buffer);
 

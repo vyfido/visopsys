@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,9 +26,8 @@
 #include "kernelMultitasker.h"
 #include "kernelWindow.h"
 #include "kernelMisc.h"
-#include <string.h>
 #include <stdio.h>
-#include <sys/cdefs.h>
+#include <string.h>
 
 static char *panicConst = "PANIC";
 static char *errorConst = "Error";
@@ -177,24 +176,21 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
   // Output the context of the message
   kernelLog(errorText);
 
-  // If console logging is disabled, output the message to the screen
-  // manually
-  if (!kernelLogGetToConsole())
-    kernelTextPrintLine(errorText);
+  // Output the message to the screen
+  kernelTextPrintLine(errorText);
   
   // Initialize the argument list
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expandFormatString(errorText, MAX_ERRORTEXT_LENGTH, message, list);
+  vsnprintf(errorText, MAX_ERRORTEXT_LENGTH, message, list);
 
   va_end(list);
 
   // Output the message
   kernelLog(errorText);
 
-  if (!kernelLogGetToConsole())
-    kernelTextPrintLine(errorText);
+  kernelTextPrintLine(errorText);
 
   return;
 }
@@ -220,12 +216,11 @@ void kernelErrorDialog(const char *title, const char *message, ...)
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expandFormatString(errorText, MAX_ERRORTEXT_LENGTH, message, list);
+  vsnprintf(errorText, MAX_ERRORTEXT_LENGTH, message, list);
 
   va_end(list);
 
-  kernelMultitaskerSpawnKernelThread(&errorDialogThread, "error dialog thread",
-				     2, args);
-
+  kernelMultitaskerSpawnKernelThread(&errorDialogThread,
+				     ERRORDIALOG_THREADNAME, 2, args);
   return;
 }

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -33,11 +33,25 @@ main:
 
 bootCode:
 
-	;; Make the data segment be zero
+	cli
+
+	;; Adjust the data segment registers
+	xor AX, AX
+	mov DS, AX
+	mov ES, AX
+
+	;; Set the stack to be at the top of the code
+	mov SS, AX
+	mov SP, main
+
+	;; Apparently, some broken BIOSes jump to 07C0h:0000h instead of
+	;; 0000h:7C00h.
+	jmp (0):.adjCsIp
+	.adjCsIp:
+	
+	sti
+
 	pusha
-	push DS
-	push word 0
-	pop DS
 
 	mov SI, NOBOOT
 	call print
@@ -46,7 +60,6 @@ bootCode:
 	mov AX, 0000h
 	int 16h
 
-	pop DS
 	popa
 	
 	;; According to the docs by compaq/intel, we should issue an 
@@ -59,25 +72,7 @@ bootCode:
 	hlt
 
 	
-print:
-	;; The offset to the chars should already be in SI
-
-	pusha
-
-	mov AH, 0Eh
-	mov BH, 0
-	
-	.characterLoop:
-	mov AL, byte [SI]
-	cmp AL, 0
-	je .end
-	int 10h
-	inc SI
-	jmp .characterLoop
-	
-	.end:
-	popa
-	ret
+%include "bootsect-print.s"
 
 	
 ;; Data.  There is no data segment, so this space will have to do

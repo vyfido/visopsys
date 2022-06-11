@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -38,5 +38,5 @@
 	shr DX, 8				; Number of heads, 0-based
 	inc DX
 	mov word [NUMHEADS], DX
-	and CX, 003Fh				; Sectors per cylinder
+	and CX, 003Fh				; Sectors per track/cylinder
 	mov word [NUMSECTS], CX

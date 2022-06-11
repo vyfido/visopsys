@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -17,7 +17,7 @@ CFLAGS		= ${OPT} -pipe ${WARN}
 all: copy-boot
 
 copy-boot: ${SRCDIR}/copy-boot.c Makefile
-	${CC} ${CFLAGS} ${SRCDIR}/copy-boot.c -lc -o $@
+	${CC} ${CFLAGS} ${SRCDIR}/copy-boot.c -o $@
 
 clean:
 	rm -f *~ core *.zip *.iso *.img copy-boot *.log

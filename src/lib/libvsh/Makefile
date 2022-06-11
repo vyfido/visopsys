@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -16,8 +16,7 @@ STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
-OPTS		= ${CFLAGS} ${LFLAGS}
+LFLAGS		= -nostdlib
 
 NAMES		= vshCompleteFilename \
 		vshCopyFile \
@@ -56,10 +55,10 @@ ${SHAREDLIB}: ${PICOBJS}
 	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
-	${CC} ${OPTS} -c $< -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
 
 ${PICOBJDIR}/%.o: %.c ${STDDEPS}
-	${CC} ${OPTS} -fpic -c $< -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
 clean:
 	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}

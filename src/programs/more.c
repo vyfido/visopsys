@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,8 +49,6 @@ line, press any other key.
 
 static int screenColumns = 0;
 static int screenRows = 0;
-static int foregroundColor = 0;
-static int backgroundColor = 0;
 
 
 static void usage(char *name)
@@ -69,11 +67,15 @@ static int viewFile(const char *fileName)
   int charEntered = 0;
   int charsSoFar = 0;
   int cursorPos1, cursorPos2;
+  textAttrs attrs;
+  char buffer[32];
   unsigned count1;
   int count2;
 
-  // Initialize the file structure
+  // Initialize stack data
   bzero(&theFile, sizeof(file));
+  bzero(&attrs, sizeof(textAttrs));
+  attrs.flags = TEXT_ATTRS_REVERSE;
 
   // Call the "find file" routine to see if we can get the file
   status = fileFind(fileName, &theFile);
@@ -117,15 +119,9 @@ static int viewFile(const char *fileName)
       // Are we at the end of a screenful of data?
       if (charsSoFar >= (screenColumns * (screenRows - 1)))
 	{
-	  // Reverse the colors
-	  textSetForeground(backgroundColor);
-	  textSetBackground(foregroundColor);
-	  
-	  printf("--More--(%d%%)", ((count1 * 100) / theFile.size));
-	  
-	  // Restore the colors
-	  textSetForeground(foregroundColor);
-	  textSetBackground(backgroundColor);
+	  snprintf(buffer, 32, "--More--(%d%%)",
+		   ((count1 * 100) / theFile.size));
+	  textPrintAttrs(&attrs, buffer);
 	  
 	  // Wait for user input
 	  textInputSetEcho(0);
@@ -198,7 +194,6 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int argNumber = 0;
-  char fileName[MAX_PATH_NAME_LENGTH];
 
   if (argc < 2)
     {
@@ -209,8 +204,6 @@ int main(int argc, char *argv[])
   // Get screen parameters
   screenColumns = textGetNumColumns();
   screenRows = textGetNumRows();
-  foregroundColor = textGetForeground();
-  backgroundColor = textGetBackground();
 
   // Loop through all of our file name arguments
   for (argNumber = 1; argNumber < argc; argNumber ++)
@@ -219,10 +212,7 @@ int main(int argc, char *argv[])
       if (argv[argNumber] == NULL)
 	return (status = ERR_NULLPARAMETER);
 
-      // Make sure the name is complete
-      vshMakeAbsolutePath(argv[argNumber], fileName);
-
-      status = viewFile(fileName);
+      status = viewFile(argv[argNumber]);
       if (status < 0)
 	{
 	  errno = status;

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -52,6 +52,10 @@ static void progressThread(void)
   windowComponentSetData(statusLabel, prog->statusMessage,
 			 strlen(prog->statusMessage));
   windowComponentSetEnabled(cancelButton, prog->canCancel);
+  if (prog->canCancel)
+    windowSwitchPointer(dialogWindow, "default");
+  else
+    windowSwitchPointer(dialogWindow, "busy");
 
   while (1)
     {
@@ -73,7 +77,13 @@ static void progressThread(void)
 
 	      // Look for 'can cancel' flag changes
 	      if (prog->canCancel != lastProg.canCancel)
-		windowComponentSetEnabled(cancelButton, prog->canCancel);
+		{
+		  windowComponentSetEnabled(cancelButton, prog->canCancel);
+		  if (prog->canCancel)
+		    windowSwitchPointer(dialogWindow, "default");
+		  else
+		    windowSwitchPointer(dialogWindow, "busy");
+		}
 
 	      // If the 'percent finished' is 100, quit
 	      if (prog->percentFinished >= 100)

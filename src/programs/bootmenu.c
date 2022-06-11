@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,24 +45,24 @@ choices for the first hard disk, hd0.
 </help>
 */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
-#include <sys/cdefs.h>
 
-#define MBR_FILENAME       "/system/boot/mbr.bootmenu"
-#define BOOTMENU_FILENAME  "/system/boot/bootmenu"
-#define SLICESTRING_LENGTH 60
-#define TITLE              "Visopsys Boot Menu Installer\n" \
-                           "Copyright (C) 1998-2006 J. Andrew McLaughlin"
-#define PERMISSION         "You must be a privileged user to use this command."
-#define PARTITIONS         "Partitions on the disk:"
-#define ENTRIES            "Chain-loadable entries for the boot menu:"
-#define WRITTEN            "Boot menu written."
-#define DEFAULTTIMEOUT     10 // Seconds
+#define MBR_FILENAME        "/system/boot/mbr.bootmenu"
+#define BOOTMENU_FILENAME   "/system/boot/bootmenu"
+#define SLICESTRING_LENGTH  60
+#define TITLE               "Visopsys Boot Menu Installer\n" \
+                            "Copyright (C) 1998-2007 J. Andrew McLaughlin"
+#define PERMISSION          "You must be a privileged user to use this " \
+                             "command."
+#define PARTITIONS          "Partitions on the disk:"
+#define ENTRIES             "Chain-loadable entries for the boot menu:"
+#define WRITTEN             "Boot menu written."
+#define DEFAULTTIMEOUT      10 // Seconds
 
 // Structures we write into the bootmenu
 typedef struct {
@@ -102,6 +102,7 @@ static void usage(char *name)
 }
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -110,7 +111,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -649,6 +650,7 @@ int main(int argc, char *argv[])
   disk theDisk;
   file theFile;
   char string[SLICESTRING_LENGTH];
+  textAttrs attrs;
   int count;
 
   if (argc != 2)
@@ -657,6 +659,8 @@ int main(int argc, char *argv[])
       errno = EINVAL;
       return (status = -1);
     }
+
+  bzero(&attrs, sizeof(textAttrs));
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -750,8 +754,6 @@ int main(int argc, char *argv[])
     }
   else
     {
-      int foregroundColor = textGetForeground();
-      int backgroundColor = textGetBackground();
       textSetCursor(0);
       textInputSetEcho(0);
       int selected = 0;
@@ -769,22 +771,15 @@ int main(int argc, char *argv[])
 	      printf(" ");
 
 	      if (count == selected)
-		{
-		  // Reverse the colors
-		  textSetForeground(backgroundColor);
-		  textSetBackground(foregroundColor);
-		}
+		attrs.flags = TEXT_ATTRS_REVERSE;
+	      else
+		attrs.flags = 0;
 
-	      printf(" %s%s ",
-		     ((count == entryArray->defaultEntry)? " * " : "   "),
-		     entryArray->entries[count].string);
-
-	      if (count == selected)
-		{
-		  // Restore the colors
-		  textSetForeground(foregroundColor);
-		  textSetBackground(backgroundColor);
-		}
+	      if (count == entryArray->defaultEntry)
+		textPrintAttrs(&attrs, " * ");
+	      else
+		textPrintAttrs(&attrs, "   ");
+	      textPrintAttrs(&attrs, entryArray->entries[count].string);
 
 	      printf("\n");
 	    }

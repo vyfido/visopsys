@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -17,9 +17,8 @@ STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
 INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles \
+LFLAGS		= -L${LIBDIR} -nostdlib \
 		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
-OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES	= adduser \
 	bootmenu \
@@ -101,7 +100,7 @@ target-dirs:
 	mkdir -p ${BUILDDIR}
 
 ${BUILDDIR}/%: %.c ${STDDEPS}
-	${CC} ${OPTS} $< -lwindow -lvsh -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvsh -lc -o $@
 
 clean:
 	rm -Rf *~ *.o core ${OBJS}
@@ -109,7 +108,7 @@ clean:
 # Object files with explicit rules
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
-	${CC} ${OPTS} -DVISOPSYS $< -lvsh -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lc -o $@
 
 ${BUILDDIR}/fdisk: fdisk.c fdisk.h ${STDDEPS}
-	${CC} ${OPTS} ${PARTLOGIC} $< -lntfs -lwindow -lvsh -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} ${PARTLOGIC} $< -lntfs -lwindow -lvsh -lc -o $@

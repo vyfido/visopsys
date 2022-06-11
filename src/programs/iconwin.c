@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,7 +47,6 @@ custom icons for each.
 #include <sys/window.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
-#include <sys/cdefs.h>
 
 #define DEFAULT_WINDOWTITLE  "Icon Window"
 #define DEFAULT_ROWS         4
@@ -71,6 +70,7 @@ static objectKey window = NULL;
 static objectKey iconList = NULL;
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code
@@ -79,7 +79,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(window, "Error", output);
@@ -90,11 +90,10 @@ static int readConfig(const char *fileName)
 {
   int status = 0;
   variableList config;
-  char tmp[MAXSTRINGLENGTH];
-  char *icon = NULL;
+  char *name = NULL;
   char variable[128];
-  char command[128];
   char fullCommand[128];
+  char command[128];
   int argc = 0;
   char *argv[64];
   file tmpFile;
@@ -125,106 +124,86 @@ static int readConfig(const char *fileName)
 
   // Are the number of rows specified?
   rows = DEFAULT_ROWS;
-  status = variableListGet(&config, "list.rows", tmp, MAXSTRINGLENGTH);
-  if ((status >= 0) && (atoi(tmp) > 0))
-    rows = atoi(tmp);
+  status = variableListGet(&config, "list.rows", variable, 128);
+  if ((status >= 0) && (atoi(variable) > 0))
+    rows = atoi(variable);
 
   // Are the number of columns specified?
   columns = DEFAULT_COLUMNS;
-  status = variableListGet(&config, "list.columns", tmp, MAXSTRINGLENGTH);
-  if ((status >= 0) && (atoi(tmp) > 0))
-    columns = atoi(tmp);
+  status = variableListGet(&config, "list.columns", variable, 128);
+  if ((status >= 0) && (atoi(variable) > 0))
+    columns = atoi(variable);
 
-  memset(tmp, '\0', MAXSTRINGLENGTH);
-  status = variableListGet(&config, "icons", tmp, MAXSTRINGLENGTH);
-  if (status >= 0)
+  // Figure out how many icons we *might* have
+  for (count = 0; count < config.numVariables; count ++)
+    if (!strncmp(config.variables[count], "icon.name.", 10))
+      numIcons += 1;
+
+  // Allocate memory for our list of listItemParameters structures and the
+  // commands for each icon
+  iconParams = malloc(numIcons * sizeof(listItemParameters));
+  icons = malloc(numIcons * sizeof(iconInfo));
+  if ((iconParams == NULL) || (icons == NULL))
     {
-      if (tmp[0])
-	{
-	  // Figure out how many icons we have
-	  numIcons = 1;
-	  icon = tmp;
-	  while ((icon = strchr(icon, ',')) && icon[1])
-	    {
-	      icon[0] = '\0';
-	      numIcons += 1;
-	      icon += 1;
-	    }
-
-	  // Allocate memory for our list of listItemParameters structures
-	  // and the commands for each icon
-	  iconParams = malloc(numIcons * sizeof(listItemParameters));
-	  icons = malloc(numIcons * sizeof(iconInfo));
-	  if ((iconParams == NULL) || (icons == NULL))
-	    {
-	      error("Memory allocation error");
-	      variableListDestroy(&config);
-	      return (status = ERR_MEMORY);
-	    }
-
-	  // Get the text, image, and command for each icon
-	  icon = tmp;
-	  for (count = 0; count < numIcons; count ++)
-	    {
-	      sprintf(variable, "icon.%s.text", icon);
-	      status = variableListGet(&config, variable,
-				       iconParams[count].text,
-				       WINDOW_MAX_LABEL_LENGTH);
-	      if (status < 0)
-		strcpy(iconParams[count].text, " ");
-
-	      sprintf(variable, "icon.%s.image", icon);
-	      status = variableListGet(&config, variable,
-				       icons[count].imageFile,
-				       MAX_PATH_NAME_LENGTH);
-	      if (status < 0)
-		// Try the default icon
-		strcpy(icons[count].imageFile, "/system/icons/icon.bmp");
-
-	      sprintf(variable, "icon.%s.command", icon);
-	      status = variableListGet(&config, variable,
-				       icons[count].command,
-				       MAX_PATH_NAME_LENGTH);
-	      if (status < 0)
-		{
-		  numIcons -= 1;
-		  count -= 1;
-		  goto skip;
-		}
-
-	      // See whether the command exists
-	      strncpy(fullCommand, icons[count].command, 128);
-	      if ((vshParseCommand(fullCommand, command, &argc, argv) < 0) ||
-		  (fileFind(command, &tmpFile) < 0))
-		{
-		  numIcons -= 1;
-		  count -= 1;
-		  goto skip;
-		}
-
-	      // Load the icon image
-	      status = imageLoad(icons[count].imageFile, 0, 0,
-				 &(iconParams[count].iconImage));
-	      if (status < 0)
-		{
-		  // Try the default icon
-		  strcpy(icons[count].imageFile, "/system/icons/icon.bmp");
-
-		  status = imageLoad(icons[count].imageFile, 0, 0,
-				     &(iconParams[count].iconImage));
-		  if (status < 0)
-		    {
-		      numIcons -= 1;
-		      count -= 1;
-		      goto skip;
-		    }
-		}
-	      
-	    skip:
-	      icon += (strlen(icon) + 1);
-	    }
-	}
+      error("Memory allocation error");
+      variableListDestroy(&config);
+      return (status = ERR_MEMORY);
     }
+
+  // Try to gather the information for the icons
+  numIcons = 0;
+  for (count = 0; count < config.numVariables; count ++)
+    if (!strncmp(config.variables[count], "icon.name.", 10))
+      {
+	name = (config.variables[count] + 10);
+
+	// Get the text
+	sprintf(variable, "icon.name.%s", name);
+	status = variableListGet(&config, variable, iconParams[numIcons].text,
+				 WINDOW_MAX_LABEL_LENGTH);
+	if (status < 0)
+	  // Use something 'blank'.
+	  strcpy(iconParams[numIcons].text, "???");
+
+	// Get the image name
+	sprintf(variable, "icon.%s.image", name);
+	status = variableListGet(&config, variable, icons[numIcons].imageFile,
+				 MAX_PATH_NAME_LENGTH);
+	if ((status < 0) ||
+	    (fileFind(icons[numIcons].imageFile, &tmpFile) < 0) ||
+	    (imageLoad(icons[numIcons].imageFile, 0, 0,
+		       &(iconParams[numIcons].iconImage)) < 0))
+	  {
+	    // Try the default image.
+	    strcpy(icons[numIcons].imageFile, "/system/icons/execicon.ico");
+	    if ((fileFind(icons[numIcons].imageFile, &tmpFile) < 0) ||
+		(imageLoad(icons[numIcons].imageFile, 0, 0,
+			   &(iconParams[numIcons].iconImage)) < 0))
+	      if (status < 0)
+		// Can't get an icon image.  We won't be showing this one.
+		continue;
+	  }
+
+	// Get the command string
+	sprintf(variable, "icon.%s.command", name);
+	status = variableListGet(&config, variable, icons[numIcons].command,
+				 MAX_PATH_NAME_LENGTH);
+	if (status < 0)
+	  // We won't be showing this one.
+	  continue;
+	
+	strncpy(fullCommand, icons[numIcons].command, 128);
+
+	// See whether the command exists
+	if ((vshParseCommand(fullCommand, command, &argc, argv) < 0) ||
+	    !command[0] || (fileFind(command, &tmpFile) < 0))
+	  // Command is not there, or we can't parse it.  We won't be showing
+	  // this one.
+	  continue;
+
+	// OK.
+	numIcons += 1;
+      }
 
   variableListDestroy(&config);
   return (status = 0);
@@ -316,7 +295,6 @@ static void deallocateMemory(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char fileName[MAX_PATH_NAME_LENGTH];
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -339,15 +317,19 @@ int main(int argc, char *argv[])
       return (errno = ERR_INVALID);
     }
   
-  // If the argument is RELATIVE pathnames, we should insert the pwd before it
-  vshMakeAbsolutePath(argv[1], fileName);
-
   // Try to read the specified config file
-  status = readConfig(fileName);
+  status = readConfig(argv[1]);
   if (status < 0)
     {
       deallocateMemory();
       return (errno = status);
+    }
+
+  // Make sure there were some icons successfully specified.
+  if (numIcons <= 0)
+    {
+      error("Config file %s specifies no valid icons", argv[1]);
+      return (errno = ERR_INVALID);
     }
 
   status = constructWindow();
@@ -361,7 +343,6 @@ int main(int argc, char *argv[])
   windowGuiRun();
 
   // We're back.
-  windowGuiStop();
   windowDestroy(window);
 
   // Deallocate memory

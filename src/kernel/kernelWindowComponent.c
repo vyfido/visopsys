@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -99,8 +99,8 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
   // window.
 
   int status = 0;
+  kernelWindowComponent *parentComponent = NULL;
   kernelWindowComponent *component = NULL;
-  kernelWindowContainer *tmpContainer = NULL;
 
   // Check params
   if ((parent == NULL) || (params == NULL))
@@ -160,28 +160,16 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
   component->erase = &erase;
   component->grey = &grey;
 
-  // Now we need to add the component somewhere.  If 'parent' is a window,
-  // we will attempt to add it there (a couple of different possibilities).
-  // Otherwise, we assume it is a container of some sort and use the container
-  // add routine.
+  // Now we need to add the component somewhere.
+
   if (((kernelWindow *) parent)->type == windowType)
-    {
-      kernelWindow *tmpWindow = parent;
-      if (tmpWindow->mainContainer)
-	{
-	  tmpContainer = tmpWindow->mainContainer->data;
-	  if (tmpContainer->add)
-	    status = tmpContainer->add(tmpWindow->mainContainer, component);
-	}
-    }
-  else if (((kernelWindowComponent *) parent)->type == containerComponentType)
-    {
-      // Not a window
-      kernelWindowComponent *tmpComponent = parent;
-      tmpContainer = tmpComponent->data;
-      if (tmpContainer->add)
-	status = tmpContainer->add(tmpComponent, component);
-    }
+    // The parent is a window, so we use the window's main container.
+    parentComponent = ((kernelWindow *) parent)->mainContainer;
+
+  else if (((kernelWindowComponent *) parent)->add)
+    // Not a window but a component with an 'add' function.
+    parentComponent = parent;
+
   else
     {
       kernelError(kernel_error, "Invalid parent object for new component");
@@ -189,21 +177,25 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
       return (component = NULL);
     }
 
+  if (parentComponent && parentComponent->add)
+    status = parentComponent->add(parentComponent, component);
+
   if (status < 0)
     {
       kernelFree((void *) component);
       return (component = NULL);
     }
   else
-    return (component);
+    {
+      if (component->container == NULL)
+	component->container = parentComponent;
+      return (component);
+    }
 }
 
 
 void kernelWindowComponentDestroy(kernelWindowComponent *component)
 {
-  kernelWindowComponent *containerComponent = NULL;
-  kernelWindowContainer *container = NULL;
-
   extern kernelWindow *consoleWindow;
   extern kernelWindowComponent *consoleTextArea;
 
@@ -211,32 +203,8 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
   if (component == NULL)
     return;
 
-  // If the component is a container, recurse for each thing that's in it.
-  if (component->type == containerComponentType)
-    {
-      container = component->data;
-
-      while (container->numComponents)
-	kernelWindowComponentDestroy(container->components[0]);
-    }
-
   // Make sure the component is removed from any containers it's in
-  if (component->container != NULL)
-    {
-      containerComponent = component->container;
-
-      if (containerComponent->type == containerComponentType)
-	{
-	  container = containerComponent->data;
-	  if (container == NULL)
-	    {
-	      kernelError(kernel_error, "Container data is null");
-	      return;
-	    }
-
-	  container->remove(containerComponent, component);
-	}
-    }
+  removeFromContainer(component);
 
   // Never destroy the console text area.  If this is the console text area,
   // move it back to our console window
@@ -312,11 +280,16 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 				    int enabled)
 {
   // Set a component enabled or not enabled.  What we do is swap the 'draw'
-  // and 'grey' functions of the component.
+  // and 'grey' functions of the component and any sub-components, if
+  // applicable
 
   int status = 0;
   kernelWindow *window = NULL;
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
   int (*tmpDraw) (kernelWindowComponent *) = NULL;
+  kernelWindowComponent *tmpComponent = NULL;
+  int count;
 
   // Check params
   if (component == NULL)
@@ -324,26 +297,48 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 
   window = component->window;
 
-  if (enabled && !(component->flags & WINFLAG_ENABLED))
+  if (component->numComps)
+    numComponents = component->numComps(component);
+  else
+    numComponents = 1;
+
+  array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return (status = ERR_MEMORY);
+
+  array[0] = component;
+  numComponents = 1;
+
+  if (component->flatten)
+    component->flatten(component, array, &numComponents, 0);
+
+  for (count = 0; count < numComponents; count ++)
     {
-      component->flags |= WINFLAG_ENABLED;
+      tmpComponent = array[count];
 
-      tmpDraw = component->grey;
-      component->grey = component->draw;
-      component->draw = tmpDraw;
+      if (enabled && !(tmpComponent->flags & WINFLAG_ENABLED))
+	{
+	  tmpComponent->flags |= WINFLAG_ENABLED;
+	  tmpDraw = tmpComponent->grey;
+	  tmpComponent->grey = tmpComponent->draw;
+	  tmpComponent->draw = tmpDraw;
+	}
+      else if (!enabled && (tmpComponent->flags & WINFLAG_ENABLED))
+	{
+	  if ((window->focusComponent == tmpComponent) &&
+	      window->focusNextComponent)
+	    // Make sure it doesn't have the focus
+	    window->focusNextComponent(window);
+
+	  tmpComponent->flags &= ~WINFLAG_ENABLED;
+	  tmpDraw = tmpComponent->grey;
+	  tmpComponent->grey = tmpComponent->draw;
+	  tmpComponent->draw = tmpDraw;
+	}
     }
-  else if (!enabled && (component->flags & WINFLAG_ENABLED))
-    {
-      if ((window->focusComponent == component) && window->focusNextComponent)
-	// Make sure it doesn't have the focus
-	window->focusNextComponent(window);
 
-      component->flags &= ~WINFLAG_ENABLED;
-
-      tmpDraw = component->grey;
-      component->grey = component->draw;
-      component->draw = tmpDraw;
-    }
+  if (array)
+    kernelFree(array);
 
   // Redraw a clip of that part of the window
   if (window->drawClip)

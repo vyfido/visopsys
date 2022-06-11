@@ -26,8 +26,6 @@
 #include "types.h"
 #include "layout.h"
 
-extern const u8 legal_ansi_char_array[0x40];
-
 extern BOOL ntfs_names_are_equal(const ntfschar *s1, size_t s1_len,
 		const ntfschar *s2, size_t s2_len, const IGNORE_CASE_BOOL ic,
 		const ntfschar *upcase, const u32 upcase_size);
@@ -62,6 +60,10 @@ extern int ntfs_ucstombs(const ntfschar *ins, const int ins_len, char **outs,
 extern int ntfs_mbstoucs(const char *ins, ntfschar **outs, int outs_len);
 
 extern void ntfs_upcase_table_build(ntfschar *uc, u32 uc_len);
+
+extern ntfschar *ntfs_str2ucs(const char *s, int *len);
+
+extern void ntfs_ucsfree(ntfschar *ucs);
 
 #endif /* defined _NTFS_UNISTR_H */
 

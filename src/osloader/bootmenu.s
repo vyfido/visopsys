@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -92,24 +92,8 @@ bootCode:
 	call print
 	add SP, 2
 	
-	;; Get the drive parameters
-	;; ES:DI = 0000h:0000h to guard against BIOS bugs
-	xor DI, DI
-	push ES
-	mov AX, 0
-	mov ES, AX
-	mov AX, 0800h
-	mov DL, byte [DISK]
-	int 13h
-	pop ES
-	jc near IOError
-
-	;; Save info
-	shr DX, 8				; Number of heads, 0-based
-	inc DX
-	mov word [NUMHEADS], DX
-	and CX, 003Fh				; Sectors per cylinder
-	mov word [NUMSECTS], CX
+	;; Get disk parameters
+	%include "bootsect-diskparms.s"
 
 	;; Make sure there's at least one boot target
 	cmp word [NUM_TARGETS], 0
@@ -236,12 +220,12 @@ bootCode:
 	;; Get the selected entry start sector
 	
 	;; Load the target bootsector
-	push dword 1				; Read 1 sector
+	push word 1				; Read 1 sector
 	push word 7C00h				; Offset where we'll move it
 	push word 0				; Segment where we'll move it
 	push dword [STARTSECTOR]
 	call read
-	add SP, 12
+	add SP, 10
 	
 	popa
 
@@ -557,92 +541,17 @@ IOError:
 	push word IOERR
 	call print
 	add SP, 2
-	
+
 	int 18h
 
 	;; Stop, just in case
 	.fatalErrorLoop:
 	jmp .fatalErrorLoop
 
-
-read:
-	;; Proto: int read(dword logical, word seg, word offset, dword count);
-
-	pusha
 	
-	;; Save the stack pointer
-	mov BP, SP
+	%include "bootsect-read.s"
 
-	;; Determine whether int13 extensions are available
-	cmp byte [DISK], 80h
-	jb .noExtended
-	
-	mov AH, 41h
-	mov BX, 55AAh
-	mov DL, byte [DISK]
-	int 13h
 
-	jc .noExtended
-
-	;; We have a nice extended read function which will allow us to
-	;; just use the logical sector number for the read
-
-	mov word [DISKPACKET], 0010h		; Packet size
-	mov EAX, dword [SS:(BP + 26)]		; >
-	mov word [DISKPACKET + 2], AX		; > Sector count
-	mov AX, word [SS:(BP + 24)]		; >
-	mov word [DISKPACKET + 4], AX		; > Offset
-	mov AX, word [SS:(BP + 22)]		; > 
-	mov word [DISKPACKET + 6], AX		; > Segment
-	mov EAX, dword [SS:(BP + 18)]		; > 
-	mov dword [DISKPACKET + 8], EAX		; > Logical sector 
-	mov AX, 4200h
-	mov DL, byte [DISK]
-	mov SI, DISKPACKET
-	int 13h
-	jc IOError
-
-	;; Done
-	jmp .done
-	
-	.noExtended:
-	;; Calculate the CHS.  First the sector
-	mov EAX, dword [SS:(BP + 18)]
-	xor EBX, EBX
-	xor EDX, EDX
-	mov BX, word [NUMSECTS]
-	div EBX
-	mov byte [SECTOR], DL		; The remainder
-	add byte [SECTOR], 1		; Sectors start at 1
-	
-	;; Now the head and track
-	xor EDX, EDX			; Don't need the remainder anymore
-	xor EBX, EBX
-	mov BX, word [NUMHEADS]
-	div EBX
-	mov byte [HEAD], DL		; The remainder
-	mov word [CYLINDER], AX
-
-	mov EAX, dword [SS:(BP + 26)]	; Number to read
-	mov AH, 02h			; Subfunction 2
-	mov CX, word [CYLINDER]		; >
-	rol CX, 8			; > Cylinder
-	shl CL, 6			; >
-	or CL, byte [SECTOR]		; Sector
-	mov DH, byte [HEAD]		; Head
-	mov DL, byte [DISK]		; Disk
-	mov BX, word [SS:(BP + 24)]	; Offset
-	push ES				; Save ES
-	mov ES, word [SS:(BP + 22)]	; Use user-supplied segment
-	int 13h
-	pop ES				; Restore ES
-	jc IOError
-
-	.done:	
-	popa
-	ret
-
-	
 ;;
 ;; The data segment
 ;;
@@ -651,7 +560,7 @@ read:
 	ALIGN 4
 	
 LOADMSG		db 0Dh, 0Ah, ' Visopsys Boot Menu' , 0Dh, 0Ah
-		db ' Copyright (C) 1998-2006 J. Andrew McLaughlin', 0Dh, 0Ah
+		db ' Copyright (C) 1998-2007 J. Andrew McLaughlin', 0Dh, 0Ah
 		db 0Dh, 0Ah, 0
 NOTARGETS	db ' No targets to boot!  Did you run the installer program?'
 		db 0Dh, 0Ah, 0

@@ -12,6 +12,7 @@ Anton Altaparmakov <aia21@cantab.net>
 Albert D. Cahalan <acahalan@cs.uml.edu>
 Russ Christensen <rchriste@cs.utah.edu>
 Pete Curran <curran@rpi.edu>
+Mario Emmenlauer <mario@emmenlauer.de>
 Andras Erdei <ccg@freemail.hu>
 Matthew J. Fanto <mattjf@uncompiled.com>
 Yuval Fledel (no email address on request)
@@ -29,7 +30,8 @@ Per Olofsson <pelle@dsv.su.se>
 Yura Pakhuchiy <pakhuchiy@gmail.com>
 Yuri Per <yuri@acronis.com>
 Richard Russon <ntfs@flatcap.org>
-Szakacsits Szabolcs <szaka@sienet.hu>
+Erik Sørnes <erso1970@yahoo.no>
+Szabolcs Szakacsits <szaka@sienet.hu>
 
 Also, various code snippets and especially the autoconf/automake automated
 configuration, compilation and installation system have been ripped shamelessly

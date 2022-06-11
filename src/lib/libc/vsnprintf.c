@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,10 +21,10 @@
 
 // This is the standard "vsnprintf" function, as found in standard C libraries
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/cdefs.h>
 
 
@@ -34,16 +34,15 @@ int vsnprintf(char *output, size_t size, const char *format, va_list list)
   // string and arguments that are passed, up to 'size' bytes.  Returns the
   // number of characters copied to the output string.
 
-  char tmpOutput[MAXSTRINGLENGTH];
-  int outputLen = 0;
+  int len = 0;
 
-  bzero(tmpOutput, MAXSTRINGLENGTH);
+  size = min(size, MAXSTRINGLENGTH);
+
+  bzero(output, size);
 
   // Fill out the output line based on 
-  outputLen = _expandFormatString(tmpOutput, MAXSTRINGLENGTH, format, list);
-
-  strncpy(output, tmpOutput, size);
+  len = _xpndfmt(output, size, format, list);
 
   // Return the number of characters we wrote to the string
-  return (min(outputLen, (int) size));
+  return (len);
 }

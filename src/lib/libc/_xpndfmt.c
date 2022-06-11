@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,28 +22,14 @@
 // This function does all the work of expanding the format strings used
 // by the printf family of functions (and others, if desired)
 
+#include <errno.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <sys/api.h>
 #include <sys/cdefs.h>
 
 
-static int numDigits(unsigned long long foo, unsigned base)
-{
-  int digits = 1;
-  while (foo >= base)
-    {
-      digits++;
-      foo /= base;
-    }
-  return (digits);
-}
-
-
-int _expandFormatString(char *output, int outputLen, const char *format,
-			va_list list)
+int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 {
   int inCount = 0;
   int outCount = 0;
@@ -58,9 +44,15 @@ int _expandFormatString(char *output, int outputLen, const char *format,
   // How long is the format string?
   formatLen = strlen(format);
   if (formatLen < 0)
-    return (errno = formatLen);
-  if ((formatLen > outputLen) || (formatLen > MAXSTRINGLENGTH))
-    return (errno = ERR_BOUNDS);
+    {
+      errno = formatLen;
+      return (outCount = 0);
+    }
+  if (formatLen > outputLen)
+    {
+      errno = ERR_BOUNDS;
+      return (outCount = 0);
+    }
   formatLen = min(formatLen, MAXSTRINGLENGTH);
 
   // The argument list must already have been initialized using va_start
@@ -89,7 +81,7 @@ int _expandFormatString(char *output, int outputLen, const char *format,
       if (format[inCount] == '0')
 	{
 	  zeroPad = 1;
-	  inCount++;
+	  inCount += 1;
 	}
       else
 	zeroPad = 0;
@@ -114,7 +106,7 @@ int _expandFormatString(char *output, int outputLen, const char *format,
       else
 	fieldWidth = 0;
 
-      // If there's a 'll' qualifier for long values, make note of it
+      // If there's an 'll' qualifier for long values, make note of it
       if (format[inCount] == 'l')
 	{
 	  inCount += 1;
@@ -130,8 +122,8 @@ int _expandFormatString(char *output, int outputLen, const char *format,
       // We have some format characters.  Get the corresponding argument.
       if (isLong)
 	{
-	  argument = va_arg(list, unsigned);
-	  argument |= ((long long) va_arg(list, unsigned) << 32);
+	  argument = (long long) va_arg(list, unsigned);
+	  argument |= (((long long) va_arg(list, unsigned)) << 32);
 	}
       else
 	argument = va_arg(list, unsigned);
@@ -145,10 +137,7 @@ int _expandFormatString(char *output, int outputLen, const char *format,
 	  // into the destination string
           if (fieldWidth)
             {
-	      if (isLong)
-		digits = numDigits(argument, 10);
-	      else
-		digits = numDigits((unsigned) argument, 10);
+	      digits = _numdgts(argument, 10, 1);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
@@ -156,7 +145,7 @@ int _expandFormatString(char *output, int outputLen, const char *format,
 	  if (isLong)
 	    lltoa(argument, (output + outCount));
 	  else
-	    itoa((int) argument, (output + outCount));
+	    itoa(argument, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)
@@ -168,39 +157,15 @@ int _expandFormatString(char *output, int outputLen, const char *format,
 	  // the integer into the destination string
 	  if (fieldWidth)
 	    {
-	      if (isLong)
-		digits = numDigits(argument, 10);
-	      else
-		digits = numDigits((unsigned) argument, 10);
+	      digits = _numdgts(argument, 10, 0);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
 	  if (isLong)
-	    ulltoa((unsigned long long) argument, (output + outCount));
+	    ulltoa(argument, (output + outCount));
 	  else
-	    utoa((unsigned) argument, (output + outCount));
-	  outCount = strlen(output);
-	  if (fieldWidth && leftJust)
-	    while (digits++ < fieldWidth)
-	      output[outCount++] = ' ';
-	  break;
-
-	case 'b':
-	  if (fieldWidth)
-	    {
-	      if (isLong)
-		digits = numDigits(argument, 2);
-	      else
-		digits = numDigits((unsigned) argument, 2);
-	      if (!leftJust)
-		while (digits++ < fieldWidth)
-		  output[outCount++] = (zeroPad? '0' : ' ');
-	    }
-	  if (isLong)
-	    lltob(argument, (output + outCount));
-	  else
-	    itob((int) argument, (output + outCount));
+	    utoa(argument, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)
@@ -241,10 +206,7 @@ int _expandFormatString(char *output, int outputLen, const char *format,
 	    }
 	  if (fieldWidth)
 	    {
-	      if (isLong)
-		digits = numDigits(argument, 16);
-	      else
-		digits = numDigits((unsigned) argument, 16);
+	      digits = _numdgts(argument, 16, 0);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
@@ -252,7 +214,7 @@ int _expandFormatString(char *output, int outputLen, const char *format,
 	  if (isLong)
 	    lltox(argument, (output + outCount));
 	  else
-	    itox((int) argument, (output + outCount));
+	    itox(argument, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)

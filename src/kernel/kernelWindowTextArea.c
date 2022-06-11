@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -82,8 +82,11 @@ static int flatten(kernelWindowComponent *component,
   kernelWindowTextArea *textArea = component->data;
 
   if (textArea->scrollBar && ((textArea->scrollBar->flags & flags) == flags))
-    // Add our scrollbar
-    array[*numItems++] = textArea->scrollBar;
+    {
+      // Add our scrollbar
+      array[*numItems] = textArea->scrollBar;
+      *numItems += 1;
+    }
 
   return (0);
 }
@@ -485,19 +488,7 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	}
 
       // Remove the scrollbar from the parent container
-      if (((kernelWindow *) parent)->type == windowType)
-	{
-	  kernelWindowContainer *tmpContainer = window->mainContainer->data;
-	  if (tmpContainer->remove)
-	    tmpContainer->remove(window->mainContainer, textArea->scrollBar);
-	}
-      else
-	{
-	  kernelWindowComponent *tmpComponent = parent;
-	  kernelWindowContainer *tmpContainer = tmpComponent->data;
-	  if (tmpContainer->remove)
-	    tmpContainer->remove(tmpComponent, textArea->scrollBar);
-	}
+      removeFromContainer(textArea->scrollBar);
 
       textArea->scrollBar->xCoord = component->width;
       component->width += textArea->scrollBar->width;

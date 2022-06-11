@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  install.sh
 ##
@@ -75,9 +75,9 @@ if [ -b "$DEVICE" ] ; then
 	/sbin/mkdosfs -v $DEVICE >& $MKDOSFSLOG
 	RET=$? 
 	if [ $RET -ne 0 ] ; then
-		# Wait, will specifying FAT32 work?
-		echo -n "(trying FAT32)...  "
 		if [ `grep -c "too large" $MKDOSFSLOG` -ne 0 ] ; then
+			# Wait, will specifying FAT32 work?
+			echo -n "(trying FAT32)...  "
 			/sbin/mkdosfs -F32 -v $DEVICE >& $MKDOSFSLOG
 			RET=$?
 		fi

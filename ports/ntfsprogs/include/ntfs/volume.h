@@ -2,7 +2,8 @@
  * volume.h - Exports for NTFS volume handling. Part of the Linux-NTFS project.
  *
  * Copyright (c) 2000-2004 Anton Altaparmakov
- * Copyright (c)      2005 Yura Pakhuchiy
+ * Copyright (c) 2005-2006 Yura Pakhuchiy
+ * Copyright (c) 2004-2005 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -19,7 +20,7 @@
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Modified 12/2005 by Andy McLaughlin for Visopsys port.
+ * Modified 01/2007 by Andy McLaughlin for Visopsys port.
  */
 
 #ifndef _NTFS_VOLUME_H
@@ -29,22 +30,38 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 #ifdef HAVE_SYS_PARAM_H
-#	include <sys/param.h>
+#include <sys/param.h>
 #endif
 #ifdef HAVE_SYS_MOUNT_H
-#	include <sys/mount.h>
+#include <sys/mount.h>
 #endif
 #ifdef HAVE_MNTENT_H
-#	include <mntent.h>
+#include <mntent.h>
 #endif
 
-/* Both under Cygwin and DJGPP we do not have MS_RDONLY, so we define it. */
-#if !defined(MS_RDONLY)
-typedef enum {
-	MS_RDONLY = 1,
-} MS_MOUNT;
+#include <sys/progress.h>
+
+/*
+ * Under Cygwin, DJGPP and FreeBSD we do not have MS_RDONLY and MS_NOATIME,
+ * so we define them ourselves.
+ */
+#ifndef MS_RDONLY
+#define MS_RDONLY 1
+#endif
+/*
+ * Solaris defines MS_RDONLY but not MS_NOATIME thus we need to carefully
+ * define MS_NOATIME.
+ */
+#ifndef MS_NOATIME
+#if (MS_RDONLY != 1)
+#	define MS_NOATIME 1
+#else
+#	define MS_NOATIME 2
+#endif
 #endif
 
 /* Forward declaration */
@@ -56,7 +73,9 @@ typedef struct _ntfs_volume ntfs_volume;
 #include "inode.h"
 #include "attrib.h"
 
-/*
+/**
+ * enum ntfs_mount_flags -
+ *
  * Flags returned by the ntfs_check_if_mounted() function.
  */
 typedef enum {
@@ -67,13 +86,16 @@ typedef enum {
 
 extern int ntfs_check_if_mounted(const char *filenm, unsigned long *mnt_flags);
 
-/*
+/**
+ * enum ntfs_volume_state_bits -
+ *
  * Defined bits for the state field in the ntfs_volume structure.
  */
 typedef enum {
 	NV_ReadOnly,		/* 1: Volume is read-only. */
 	NV_CaseSensitive,	/* 1: Volume is mounted case-sensitive. */
 	NV_LogFileEmpty,	/* 1: $logFile journal is empty. */
+	NV_NoATime,		/* 1: Do not update access time. */
 } ntfs_volume_state_bits;
 
 #define  test_nvol_flag(nv, flag)	 test_bit(NV_##flag, (nv)->state)
@@ -92,11 +114,15 @@ typedef enum {
 #define NVolSetLogFileEmpty(nv)		  set_nvol_flag(nv, LogFileEmpty)
 #define NVolClearLogFileEmpty(nv)	clear_nvol_flag(nv, LogFileEmpty)
 
+#define NVolNoATime(nv)			 test_nvol_flag(nv, NoATime)
+#define NVolSetNoATime(nv)		  set_nvol_flag(nv, NoATime)
+#define NVolClearNoATime(nv)		clear_nvol_flag(nv, NoATime)
+
 /*
  * NTFS version 1.1 and 1.2 are used by Windows NT4.
  * NTFS version 2.x is used by Windows 2000 Beta
  * NTFS version 3.0 is used by Windows 2000.
- * NTFS version 3.1 is used by Windows XP, Windows Server 2003 and Longhorn.
+ * NTFS version 3.1 is used by Windows XP, 2003 and Vista.
  */
 
 #define NTFS_V1_1(major, minor) ((major) == 1 && (minor) == 1)
@@ -107,8 +133,8 @@ typedef enum {
 
 #define NTFS_BUF_SIZE 8192
 
-/*
- * ntfs_volume - structure describing an open volume in memory
+/**
+ * struct _ntfs_volume - structure describing an open volume in memory.
  */
 struct _ntfs_volume {
 	union {
@@ -183,27 +209,40 @@ struct _ntfs_volume {
 	s32 attrdef_len;	/* Size of the attribute definition table in
 				   bytes. */
 
-	void *private_data;	/* Temp: for directory handling */
-	void *private_bmp1;
-	void *private_bmp2;
+	/* Temp: for directory handling */
+	void *private_data;	/* ntfs_dir for . */
+	void *private_bmp1;	/* ntfs_bmp for $MFT/$BITMAP */
+	void *private_bmp2;	/* ntfs_bmp for $Bitmap */
 };
 
 extern ntfs_volume *ntfs_volume_alloc(void);
 
 extern ntfs_volume *ntfs_volume_startup(struct ntfs_device *dev,
-		unsigned long rwflag);
+		unsigned long flags);
 
 extern ntfs_volume *ntfs_device_mount(struct ntfs_device *dev,
-		unsigned long rwflag);
+		unsigned long flags);
 extern int ntfs_device_umount(ntfs_volume *vol, const BOOL force);
 
-extern ntfs_volume *ntfs_mount(const char *name, unsigned long rwflag);
+extern ntfs_volume *ntfs_mount(const char *name, unsigned long flags);
 extern int ntfs_umount(ntfs_volume *vol, const BOOL force);
 
 extern int ntfs_version_is_supported(ntfs_volume *vol);
-extern int ntfs_logfile_reset(ntfs_volume *vol);
+extern int ntfs_logfile_reset(ntfs_volume *vol, progress *, int);
 
-extern int ntfs_volume_write_flags(ntfs_volume *v, const u16 flags);
+extern int ntfs_volume_write_flags(ntfs_volume *vol, const u16 flags);
+extern void progress_update(progress *, int, u64, u64);
+
+#ifdef NTFS_RICH
+
+int ntfs_volume_commit(ntfs_volume *vol);
+int ntfs_volume_rollback(ntfs_volume *vol);
+int ntfs_volume_umount2(ntfs_volume *vol, const BOOL force);
+ntfs_volume * ntfs_volume_mount2(const char *device, unsigned long flags, BOOL force);
+int utils_valid_device(const char *name, int force);
+ntfs_volume * utils_mount_volume(const char *device, unsigned long flags, BOOL force);
+
+#endif /* NTFS_RICH */
 
 #endif /* defined _NTFS_VOLUME_H */
 

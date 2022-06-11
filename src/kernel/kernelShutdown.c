@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,7 +35,6 @@
 #include "kernelUsbDriver.h"
 #include "kernelWindow.h"
 #include <stdio.h>
-#include <sys/cdefs.h>
 
 
 static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
@@ -291,45 +290,38 @@ int kernelShutdown(int reboot, int force)
 }
 
 
-void kernelPanicOutput(const char *module, const char *function, int line,
+void kernelPanicOutput(const char *fileName, const char *function, int line,
 		       const char *message, ...)
 {
   // This is a quick shutdown for kernel panic which puts nice messages
   // on the screen in graphics mode as well.
 
-  int graphics = 0;
   kernelAsciiFont *font = NULL;
-  char *panicMessage = "SYSTEM HALTED";
+  char panicMessage[MAX_ERRORTEXT_LENGTH];
   char errorText[MAX_ERRORTEXT_LENGTH];
   va_list list;
 
-  extern int kernelProcessingInterrupt;
+  kernelProcessorDisableInts();
+
+  snprintf(panicMessage, MAX_ERRORTEXT_LENGTH, "SYSTEM HALTED: Panic at "
+	   "%s:%s(%d)", fileName, function, line);
 
   // Expand the message if there were any parameters
   va_start(list, message);
-  _expandFormatString(errorText, MAX_ERRORTEXT_LENGTH, message, list);
+  vsnprintf(errorText, MAX_ERRORTEXT_LENGTH, message, list);
   va_end(list);
 
-  graphics = kernelGraphicsAreEnabled();
-  
-  if (graphics)
+  if (kernelGraphicsAreEnabled())
     {
-      kernelFontGetDefault(&font);
       // Draw a box with the panic message
-      messageBox(font, 2, (char *[]){ panicMessage, (char *) errorText } );
+      kernelFontGetDefault(&font);
+      messageBox(font, 2, (char *[]){ panicMessage, errorText } );
+    }
+  else
+    {
+      kernelTextPrintLine(panicMessage);
+      kernelTextPrintLine(errorText);
     }
 
-  if (kernelProcessingInterrupt)
-    kernelLogSetFile(NULL);
-
-  kernelErrorOutput(module, function, line, kernel_panic, errorText);
-      
-  if (!kernelProcessingInterrupt)
-    // Try to sync the disks
-    kernelDiskSync();
-
-  kernelTextPrintLine(panicMessage);
-
   kernelProcessorStop();
-  return; // Compiler nice
 }

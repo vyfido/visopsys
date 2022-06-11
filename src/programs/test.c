@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,6 +37,234 @@ static textScreen screen;
 static char failMess[MAXFAILMESS];
 #define FAILMESS(message, arg...) \
   snprintf(failMess, MAXFAILMESS, message, ##arg)
+
+
+static int format_strings(void)
+{
+  // Tests the C library's handling of printf/scanf -style format strings
+
+  int status = 0;
+  char format[80];
+  char buff[80];
+  unsigned long long val[2];
+  char charVal[2];
+  char stringVal[8];
+  int typeCount, widthCount, count;
+
+  struct {
+    const char *spec;
+    int bits;
+    int sign;
+  } types[] = {
+    { "d", 32, 1 },
+    { "lld", 64, 1 },
+    { "u", 32, 0 },
+    { "llu", 64, 0 },
+    { "p", 32, 0 },
+    { "x", 32, 0 },
+    { "X", 32, 0 },
+    { NULL, 0, 0, }
+  };
+
+  for (typeCount = 0; types[typeCount].spec; typeCount ++)
+    {
+      for (widthCount = 0; widthCount < 4; widthCount ++)
+	{
+	  strcpy(format, "foo %");
+
+	  if (widthCount == 3)
+	    strcat(format, "-");
+	  if (widthCount == 2)
+	    strcat(format, "0");
+	  if (widthCount > 0)
+	    {
+	      if (types[typeCount].bits == 32)
+		strcat(format, "8");
+	      else if (types[typeCount].bits == 64)
+		strcat(format, "16");
+	    }
+
+	  strcat(format, types[typeCount].spec);
+	  strcat(format, " bar");
+
+	  for (count = 0; count < 100; count ++)
+	    {
+	      val[0] = (unsigned long long) randomUnformatted();
+	      if (types[typeCount].bits == 64)
+		{
+		  val[0] <<= 32;
+		  val[0] |= randomUnformatted();
+		}
+
+	      if (types[typeCount].bits == 32)
+		status = snprintf(buff, 80, format, (unsigned) val[0]);
+	      else
+		status = snprintf(buff, 80, format, val[0]);
+
+	      if (status < 0)
+		{
+		  FAILMESS("Error expanding \"%s\" format", format);
+		  goto out;
+		}
+
+	      val[1] = 0;
+	      if (types[typeCount].bits == 32)
+		status = sscanf(buff, format, (unsigned *) &(val[1]));
+	      else if (types[typeCount].bits == 64)
+		status = sscanf(buff, format, &(val[1]));
+
+	      if (status < 0)
+		{
+		  FAILMESS("Error code %d while reading \"%s\" input", status,
+			   format);
+		  goto out;
+		}
+
+	      if (status != 1)
+		{
+		  FAILMESS("Couldn't read \"%s\" input", format);
+		  status = ERR_INVALID;
+		  goto out;
+		}
+
+	      if (val[1] != val[0])
+		{
+		  if (types[typeCount].sign)
+		    FAILMESS("\"%s\" output %lld does not match input %lld",
+			     format, val[1], val[0]);
+		  else
+		    FAILMESS("\"%s\" output %llu does not match input %llu",
+			     format, val[1], val[0]);
+		  status = ERR_INVALID;
+		  goto out;
+		}
+	    }
+	}
+    }
+
+  for (count = 0; count < 10; count ++)
+    {
+      // Test character output first, then input, by reading back the output
+      charVal[0] = randomFormatted(' ', '~');
+      strcpy(format, "%c");
+      status = snprintf(buff, 80, format, charVal[0]);
+      if (status < 0)
+	{
+	  FAILMESS("Error expanding char format");
+	  goto out;
+	}
+      status = sscanf(buff, format, &(charVal[1]));
+      if (status < 0)
+	{
+	  FAILMESS("Error formatting char input");
+	  goto out;
+	}
+      if (status != 1)
+	{
+	  FAILMESS("Error formatting char input");
+	  status = ERR_INVALID;
+	  goto out;
+	}
+      if (charVal[0] != charVal[1])
+	{
+	  FAILMESS("Char output '%c' does not match input '%c'",
+		   charVal[1], charVal[0]);
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  // Test string output first, then input, by reading back the output
+  strcpy(format, "%s");
+  status = snprintf(buff, 80, format, "FOOBAR!");
+  if (status < 0)
+    {
+      FAILMESS("Error expanding string format");
+      goto out;
+    }
+  status = sscanf(buff, format, stringVal);
+  if (status < 0)
+    {
+      FAILMESS("Error formatting string input");
+      goto out;
+    }
+  if (status != 1)
+    {
+      FAILMESS("Error formatting string input");
+      status = ERR_INVALID;
+      goto out;
+    }
+  if (strcmp(stringVal, "FOOBAR!"))
+    {
+      FAILMESS("String output %s does not match input %s",
+	       stringVal, "FOOBAR!");
+      status = ERR_INVALID;
+      goto out;
+    }
+
+  status = 0;
+
+ out:
+  return (status);
+}
+
+
+static int crashThread(void)
+{
+  // This deliberately causes a divide-by-zero exception.
+
+  int a = 1;
+  int b = 0;
+
+  return (a / b);
+}
+
+
+static int exceptions(void)
+{
+  // Tests the kernel's exception handing.
+
+  int status = 0;
+  int procId = 0;
+  int count = 0;
+
+  // Save the current text screen
+  status = textScreenSave(&screen);
+  if (status < 0)
+    goto out;
+
+  for (count = 0; count < 10; count ++)
+    {
+      procId = multitaskerSpawn(&crashThread, "crashy thread", 0, NULL);
+      if (procId < 0)
+	return (status = procId);
+
+      // Let it run
+      multitaskerYield();
+      multitaskerYield();
+
+      if (graphicsAreEnabled())
+	// Try to get rid of any exception dialogs we caused
+	multitaskerKillByName("error dialog thread", 0);
+
+      // Now it should be dead
+      if (multitaskerProcessIsAlive(procId))
+	{
+	  FAILMESS("Kernel did not kill exception-causing process");
+	  status = ERR_INVALID;
+	  goto out;
+	}
+    }
+
+  status = 0;
+
+ out:
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
 
 
 static int text_output(void)
@@ -166,6 +394,109 @@ static int text_output(void)
  out:
   if (buffer)
     free(buffer);
+
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
+static int text_colors(void)
+{
+  // Tests the setting/printing of text colors.
+
+  int status = 0;
+  int columns = 0;
+  color foreground;
+  char *buffer = NULL;
+  color tmpColor;
+  textAttrs attrs;
+  int count1, count2;
+
+  color allColors[16] = {
+    COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, COLOR_CYAN,
+    COLOR_RED, COLOR_MAGENTA, COLOR_BROWN, COLOR_LIGHTGRAY,
+    COLOR_DARKGRAY, COLOR_LIGHTBLUE, COLOR_LIGHTGREEN, COLOR_LIGHTCYAN,
+    COLOR_LIGHTRED, COLOR_LIGHTMAGENTA, COLOR_YELLOW, COLOR_WHITE
+  };
+
+  // Save the current text screen
+  status = textScreenSave(&screen);
+  if (status < 0)
+    goto out;
+
+  columns = textGetNumColumns();
+  if (columns < 0)
+    {
+      status = columns;
+      goto out;
+    }
+
+  // Save the current foreground color
+  status = textGetForeground(&foreground);
+  if (status < 0)
+    goto out;
+
+  buffer = malloc(columns);
+  if (buffer == NULL)
+    {
+      FAILMESS("Error getting memory");
+      status = ERR_MEMORY;
+      goto out;
+    }
+
+  for (count1 = 0; count1 < (columns - 1); count1 ++)
+    buffer[count1] = '#';
+  buffer[columns - 1] = '\0';
+
+  textNewline();
+
+  for (count1 = 0; count1 < 16; count1 ++)
+    {
+      status = textSetForeground(&allColors[count1]);
+      if (status < 0)
+	{
+	  FAILMESS("Failed to set the foreground color");
+	  goto out;
+	}
+
+      status = textGetForeground(&tmpColor);
+      if (status < 0)
+	{
+	  FAILMESS("Failed to get the foreground color");
+	  goto out;
+	}
+
+      if (memcmp(&allColors[count1], &tmpColor, sizeof(color)))
+	{
+	  FAILMESS("Foreground color not set correctly");
+	  status = ERR_INVALID;
+	  goto out;
+	}
+
+      textPrintLine(buffer);
+    }
+
+  for (count1 = 0; count1 < 16; count1 ++)
+    for (count2 = 0; count2 < 16; count2 ++)
+      {
+	bzero(&attrs, sizeof(textAttrs));
+	attrs.flags = (TEXT_ATTRS_FOREGROUND | TEXT_ATTRS_BACKGROUND);
+	memcpy(&attrs.foreground, &allColors[count1], sizeof(color));
+	memcpy(&attrs.background, &allColors[count2], sizeof(color));
+	textPrintAttrs(&attrs, buffer);
+	textPrintLine("");
+      }
+
+  textNewline();
+
+ out:
+  if (buffer)
+    free(buffer);
+
+  // Restore old foreground color
+  textSetForeground(&foreground);
 
   // Restore the text screen
   textScreenRestore(&screen);
@@ -522,11 +853,14 @@ struct {
 
 } functions[] = {
 
-  // function     name           run graphics
-  { text_output,  "text output", 0,  0 },
-  { port_io,      "port io",     0,  0 },
-  { floats,       "floats",      0,  0 },
-  { gui,          "gui",         0,  1 },
+  // function        name               run graphics
+  { format_strings,  "format strings",  0,  0 },
+  { exceptions,      "exceptions",      0,  0 },
+  { text_output,     "text output",     0,  0 },
+  { text_colors,     "text colors",     0,  0 },
+  { port_io,         "port io",         0,  0 },
+  { floats,          "floats",          0,  0 },
+  { gui,             "gui",             0,  1 },
   { NULL, NULL, 0, 0 }
 };
 

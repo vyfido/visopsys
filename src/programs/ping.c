@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,7 +50,6 @@ Options:
 #include <errno.h>
 #include <sys/api.h>
 #include <sys/network.h>
-#include <sys/cdefs.h>
 
 static int graphics = 0;
 static char pingWhom[80];
@@ -65,6 +64,7 @@ static int pingPacketSize = 88;
 static int packetsReceived = 0;
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -73,7 +73,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -90,6 +90,7 @@ static void usage(char *name)
 }
 
 
+static void quit(int) __attribute__((noreturn));
 static void quit(int status)
 {
   stop = 1;

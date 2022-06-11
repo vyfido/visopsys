@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -142,7 +142,7 @@ extern kernelProcess *kernelCurrentProcess;
 // Functions exported by kernelMultitasker.c
 int kernelMultitaskerInitialize(void);
 int kernelMultitaskerShutdown(int);
-void kernelExceptionHandler(int, unsigned);
+void kernelException(int, unsigned);
 void kernelMultitaskerDumpProcessList(void);
 int kernelMultitaskerGetCurrentProcessId(void);
 int kernelMultitaskerGetProcess(int, process *);

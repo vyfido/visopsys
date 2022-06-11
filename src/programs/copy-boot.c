@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,7 +47,6 @@ Example:
 
 #ifdef VISOPSYS
 #include <sys/api.h>
-#include <sys/vsh.h>
 #define OSLOADER  "/vloader"
 #else
 #define _GNU_SOURCE
@@ -504,8 +503,8 @@ static int setOsLoaderParams(const char *outputName,
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char sourceName[1024];
-  char destName[1024];
+  char *sourceName = NULL;
+  char *destName = NULL;
   unsigned char oldBootsect[512];
   unsigned char newBootsect[512];
 
@@ -538,17 +537,8 @@ int main(int argc, char *argv[])
       return (status = -1);
     }
 
-#ifdef VISOPSYS
-  file tmpFile;
-  vshMakeAbsolutePath(argv[1], sourceName);
-  if (fileFind(sourceName, &tmpFile) < 0)
-#endif
-    strncpy(sourceName, argv[1], 1024);
-#ifdef VISOPSYS
-  vshMakeAbsolutePath(argv[2], destName);
-  if (fileFind(destName, &tmpFile) < 0)
-#endif
-    strncpy(destName, argv[2], 1024);
+  sourceName = argv[1];
+  destName = argv[2];
 
   // Read the new boot sector from the source file
   status = readBootsect(sourceName, newBootsect);

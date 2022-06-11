@@ -1,13 +1,17 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  image-floppy.sh
 ##
 
 # Installs the Visopsys system into a zipped floppy image file
 
+BOOTSECTOR=visopsys.bss
+MOUNTDIR=./tmp_mnt
+SYSLINUXCFG=./syslinux.cfg
+SYSLINUXLOG=./syslinux.log
 ZIPLOG=./zip.log
 
 echo ""
@@ -27,6 +31,12 @@ while [ "$1" != "" ] ; do
 		# Only doing an ISO boot floppy (just the kernel and OS loader)
 		ISOBOOT=-isoboot
 		echo " - doing ISO boot image"
+	fi
+
+	if [ "$1" == "-syslinux" ] ; then
+		# Make it a syslinux image
+		SYSLINUX=-syslinux
+		echo " - doing SYSLINUX boot image"
 	fi
 
 	shift
@@ -55,9 +65,33 @@ if [ $? -ne 0 ] ; then
 	exit $?
 fi
 
+if [ "$SYSLINUX" != "" ] ; then
+	dd if=$IMAGEFILE bs=512 count=1 of=./$BOOTSECTOR >& /dev/null
+	syslinux $IMAGEFILE >& $SYSLINUXLOG
+	if [ $? -ne 0 ] ; then
+		echo ""
+		echo -n "Not able to make syslinux image.  See $SYSLINUXLOG.  "
+		echo "Terminating"
+		echo ""
+		exit $?
+	fi
+	MOUNTDIR=tmp_mnt
+	mkdir -p $MOUNTDIR
+	mount -o loop -t msdos $IMAGEFILE $MOUNTDIR
+	echo "default visopsys" > $SYSLINUXCFG
+	echo "label visopsys" >> $SYSLINUXCFG
+	echo "	kernel $BOOTSECTOR" >> $SYSLINUXCFG
+	cp ./$BOOTSECTOR $SYSLINUXCFG $MOUNTDIR
+	umount $MOUNTDIR
+	rm -f ./$BOOTSECTOR $SYSLINUXCFG $SYSLINUXLOG
+	if [ -d $MOUNTDIR ] ; then
+		rmdir $MOUNTDIR
+	fi
+fi
+
 echo -n "Archiving... "
 echo "Visopsys $RELEASE Image Release" > /tmp/comment
-echo "Copyright (C) 1998-2006 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2007 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $IMAGEFILE < /tmp/comment >& $ZIPLOG
 if [ $? -ne 0 ] ; then

@@ -1,14 +1,14 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
 ROOT=../../..
-UTILSDIR=${ROOT}/utils
 BUILDDIR=${ROOT}/build/system/libraries
 INCDIR=../include/ntfs/
+PROGDIR=../ntfsprogs
 SYSINCDIR=${ROOT}/src/include
 
 include ${ROOT}/Makefile.include
@@ -16,9 +16,9 @@ include ${ROOT}/Makefile.include
 STDDEPS		= ${ROOT}/Makefile.include Makefile.visopsys ${INCDIR}/*.h \
 		${SYSINCDIR}/*.h ${SYSINCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR} -I${SYSINCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
-OPTS		= ${CFLAGS} ${LFLAGS} -DHAVE_CONFIG_H #-DDEBUG
+CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} \
+		-DHAVE_CONFIG_H #-DDEBUG
+LFLAGS		= -nostdlib
 
 NAMES	= attrib \
 	attrlist \
@@ -34,6 +34,7 @@ NAMES	= attrib \
 	inode \
 	lcnalloc \
 	logfile \
+	logging \
 	mft \
 	mst \
 	ntfsresize \
@@ -60,19 +61,26 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs ${LIBRARY} ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+	${CC} -shared -nostdlib -Wl,-soname=${SONAME} ${PICOBJS} -static \
+	-lgcc -o $@
 
 ${OBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
-	${CC} ${OPTS} -c $< -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
 
 ${PICOBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
-	${CC} ${OPTS} -fpic -c $< -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
+
+${OBJDIR}/ntfsresize.o: ${PROGDIR}/ntfsresize.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
+
+${PICOBJDIR}/ntfsresize.o: ${PROGDIR}/ntfsresize.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
-	${CC} ${OPTS} -c $< -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@
 
 ${PICOBJDIR}/%.o: %.c ${STDDEPS}
-	${CC} ${OPTS} -fpic -c $< -o $@
+	${CC} ${CFLAGS} ${LFLAGS} -fpic -c $< -o $@
 
 clean:
 	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}

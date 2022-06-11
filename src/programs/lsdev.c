@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -112,7 +112,7 @@ static void printTree(device *dev, int level)
   return;
 }
 
-
+static void quit(int) __attribute__((noreturn));
 static void quit(int status)
 {
   if (graphics)
@@ -181,6 +181,7 @@ static void constructWindow(void)
 }
 
 
+int main(int, char *[]) __attribute__((noreturn));
 int main(int argc, char *argv[])
 {
   int status = 0;
@@ -212,6 +213,4 @@ int main(int argc, char *argv[])
     printf("\n");
 
   quit(0);
-  // Compiler happy
-  return (status = 0);
 }

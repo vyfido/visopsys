@@ -26,7 +26,14 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
+#endif
+
+/*
+ * Our mailing list. Use this define to prevent typos in email address.
+ */
+#define NTFS_DEV_LIST	"linux-ntfs-dev@lists.sf.net"
 
 /*
  * Generic macro to convert pointers to values for comparison purposes.

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,10 +41,12 @@
 #include "kernelShutdown.h"
 #include "kernelSysTimer.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 
 #define PROC_KILLABLE(proc) ((proc != kernelProc) &&        \
+                             (proc != exceptionProc) &&     \
                              (proc != idleProc) &&          \
                              (proc != kernelCurrentProcess))
 
@@ -55,12 +57,16 @@ do { bitmap[port / 8] &= ~(1 << (port % 8)); } while (0)
 #define GET_PORT_BIT(bitmap, port) ((bitmap[port / 8] >> (port % 8)) & 0x01)
   
 static void idleThread(void) __attribute__((noreturn));
+static void exceptionHandler(void) __attribute__((noreturn));
 
 // Global multitasker stuff
 static int multitaskingEnabled = 0;
 static volatile int processIdCounter = KERNELPROCID;
 static kernelProcess *kernelProc = NULL;
 static kernelProcess *idleProc = NULL;
+static kernelProcess *exceptionProc = NULL;
+static volatile int processingException = 0;
+static volatile unsigned exceptionAddress = 0;
 static volatile int schedulerSwitchedByCall = 0;
 static int fpuProcess = 0;
 
@@ -83,12 +89,13 @@ static volatile unsigned schedulerTimeslices = 0;
 static volatile unsigned schedulerTime = 0;
 
 // An array of exception types.  The selectors are initialized later.
-struct {
+static struct {
   int index;
   kernelSelector tssSelector;
   const char *a;
   const char *name;
   int (*handler) (void);
+
 } exceptionVector[19] = {
   { EXCEPTION_DIVBYZERO, 0, "a", "divide-by-zero", NULL },
   { EXCEPTION_DEBUG, 0, "a", "debug", NULL },
@@ -755,6 +762,171 @@ static int deleteProcess(kernelProcess *killProcess)
 }
 
 
+static void exceptionHandler(void)
+{
+  // This code is the general exception handler.  Before multitasking starts,
+  // it will be called as a function in the exception context (the context
+  // of the process that experienced the exception).  After multitasking
+  // starts, it is a separate kernel thread that sleeps until woken up.
+
+  char message[256];
+  char *symbolName = NULL;
+  int count;
+  
+  extern kernelSymbol *kernelSymbols;
+  extern int kernelNumberSymbols;
+
+  while (1)
+    {
+      // We got an exception.
+
+      if (multitaskingEnabled && (kernelCurrentProcess == NULL))
+	// We have to make an error here.  We can't return to the program
+	// that caused the exception, and we can't tell the multitasker
+	// to kill it.  We'd better make a kernel panic.
+	kernelPanic("Exception handler unable to determine current process");
+
+      // If the fault occurred while we were processing an interrupt,
+      // we should tell the PIC that the interrupt service routine is
+      // finished.  It's not really fair to kill a process because an
+      // interrupt handler is screwy, but that's what we have to do for
+      // the time being.
+      if (kernelProcessingInterrupt)
+	kernelPicEndOfInterrupt(0xFF);
+
+      else if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
+	sprintf(message, "The kernel has experienced %s %s exception",
+		exceptionVector[processingException].a,
+		exceptionVector[processingException].name);
+      else
+	sprintf(message, "Process \"%s\" caused %s %s exception",
+		kernelCurrentProcess->processName,
+		exceptionVector[processingException].a,
+		exceptionVector[processingException].name);
+
+      if (multitaskingEnabled)
+	{
+	  kernelCurrentProcess->state = proc_stopped;
+
+	  if (exceptionAddress >= KERNEL_VIRTUAL_ADDRESS)
+	    {
+	      if (kernelSymbols)
+		{
+		  // Find roughly the kernel function where the exception
+		  // happened
+		  for (count = 0; count < kernelNumberSymbols; count ++)
+		    {
+		      if ((exceptionAddress >= kernelSymbols[count].address) &&
+			  (exceptionAddress <
+			   kernelSymbols[count + 1].address))
+			{
+			  symbolName = kernelSymbols[count].symbol;
+			  break;
+			}
+		    }
+		}
+
+	      if (symbolName)
+		sprintf((message + strlen(message)), " in function %s (%08x)",
+			symbolName, exceptionAddress);
+	      else
+		sprintf((message + strlen(message)), " at kernel address %08x",
+			exceptionAddress);
+	    }
+	  else
+	    sprintf((message + strlen(message)), " at application address "
+		    "%08x", exceptionAddress);
+	}
+
+      if (kernelProcessingInterrupt)
+	sprintf((message + strlen(message)), " while processing interrupt %d",
+		kernelPicGetActive());
+
+      if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
+	// If it's the kernel, we're finished
+	kernelPanic(message);
+
+      else
+	{
+	  kernelError(kernel_error, message);
+
+	  // If we're in graphics mode, make an error dialog (but don't get
+	  // into an endless loop if the crashed process was an error dialog
+	  // thread itself).
+	  if (kernelGraphicsAreEnabled() &&
+	      strcmp(kernelCurrentProcess->processName,
+		     ERRORDIALOG_THREADNAME))
+	    kernelErrorDialog("Application Exception", message);
+	}
+
+      /*
+      // If the process was in kernel code do a stack trace
+      if (!kernelProcessingInterrupt && (address >= KERNEL_VIRTUAL_ADDRESS))
+	kernelStackTrace((kernelCurrentProcess->userStack +
+			  ((void *) kernelCurrentProcess
+			   ->taskStateSegment.ESP -
+			   kernelCurrentProcess->userStack)),
+			 (kernelCurrentProcess->userStack +
+			  kernelCurrentProcess->userStackSize -
+			  sizeof(void *)));
+      */
+
+      // The scheduler may now dismantle the process
+      kernelCurrentProcess->state = proc_finished;
+
+      kernelProcessingInterrupt = 0;
+      processingException = 0;
+      exceptionAddress = 0;
+
+      // Yield the timeslice back to the scheduler.  The scheduler will take
+      // care of dismantling the process
+      kernelMultitaskerYield();
+    }
+}
+
+
+static int spawnExceptionThread(void)
+{
+  // This function will initialize the kernel's exception handler thread.  
+  // It should be called after multitasking has been initialized.  
+
+  int status = 0;
+  int procId = 0;
+
+  // Create the kernel's exception handler thread.
+  procId =
+    kernelMultitaskerSpawn(&exceptionHandler, "exception thread", 0, NULL);
+  if (procId < 0)
+    return (status = procId);
+
+  exceptionProc = getProcessById(procId);
+  if (exceptionProc == NULL)
+    return (status = ERR_NOCREATE);
+
+  // Set the process state to sleep
+  exceptionProc->state = proc_sleeping;
+
+  status = kernelDescriptorSet(
+	       exceptionProc->tssSelector, // TSS selector
+	       &(exceptionProc->taskStateSegment), // Starts at...
+	       sizeof(kernelTSS),      // Maximum size of a TSS selector
+	       1,                      // Present in memory
+	       PRIVILEGE_SUPERVISOR,   // Highest privilege level
+	       0,                      // TSS's are system segs
+	       0x9,                    // TSS, 32-bit, non-busy
+	       0,                      // 0 for SMALL size granularity
+	       0);                     // Must be 0 in TSS
+  if (status < 0)
+    // Something went wrong
+    return (status);
+
+  // Interrupts should always be disabled for this task 
+  exceptionProc->taskStateSegment.EFLAGS = 0x00000002;
+
+  return (status = 0);
+}
+
+
 static void idleThread(void)
 {
   // This is the idle task.  It runs in this loop whenever no other 
@@ -1156,7 +1328,7 @@ static int scheduler(void)
 	}
 
       // If the exception handler process was active, keep it active
-      if (kernelProcessingException)
+      if (processingException)
 	nextProcess = previousProcess;
       else
 	nextProcess = chooseNextProcess();
@@ -1182,6 +1354,11 @@ static int scheduler(void)
       // Export (to the rest of the multitasker) the pointer to the
       // currently selected process.
       kernelCurrentProcess = nextProcess;
+
+      // Make sure the exception handler process is ready to go
+      if (exceptionProc)
+	// Mark the task not busy so it can be jumped to.
+	markTaskBusy(exceptionProc->tssSelector, 0);
 
       // Set the system timer 0 to interrupt this task after a known
       // period of time (mode 0)
@@ -1549,6 +1726,12 @@ int kernelMultitaskerInitialize(void)
   // Set up any specific exception handlers.
   exceptionVector[EXCEPTION_DEVNOTAVAIL].handler = fpuExceptionHandler;
 
+  // Start the exception handler thread.
+  status = spawnExceptionThread();
+  // Make sure it was successful
+  if (status < 0)
+    return (status);
+
   // Log a boot message
   kernelLog("Multitasking started");
 
@@ -1597,128 +1780,38 @@ int kernelMultitaskerShutdown(int nice)
 }
 
 
-void kernelExceptionHandler(int exceptionNum, unsigned address)
+void kernelException(int num, unsigned address)
 {
-  // This code sleeps until woken up by an exception.
-
-  char message[256];
-  char *symbolName = NULL;
-  int count;
-
-  extern kernelSymbol *kernelSymbols;
-  extern int kernelNumberSymbols;
-
-  // We got an exception.
-  
   // If we are already processing one, then it's a double-fault and we are
   // totally finished
-  if (kernelProcessingException)
+  if (processingException)
     kernelPanic("Double-fault (%s) while processing %s %s exception",
-		exceptionVector[exceptionNum].name,
-		exceptionVector[kernelProcessingException].a,
-		exceptionVector[kernelProcessingException].name);
+		exceptionVector[num].name,
+		exceptionVector[processingException].a,
+		exceptionVector[processingException].name);
 
-  kernelProcessingException = exceptionNum;
+  processingException = num;
+  exceptionAddress = address;
 
   // If there's a handler for this exception type, call it
-  if (exceptionVector[kernelProcessingException].handler &&
-      (exceptionVector[kernelProcessingException].handler() >= 0))
+  if (exceptionVector[processingException].handler &&
+      (exceptionVector[processingException].handler() >= 0))
     {
-      // The exception was handled.  Return to the task.
-      kernelProcessingException = 0;
+      // The exception was handled.  Return to the caller.
+      processingException = 0;
+      exceptionAddress = 0;
       return;
     }
 
-  if (multitaskingEnabled && (kernelCurrentProcess == NULL))
-    // We have to make an error here.  We can't return to the program
-    // that caused the exception, and we can't tell the multitasker
-    // to kill it.  We'd better make a kernel panic.
-    kernelPanic("Exception handler unable to determine current process");
-
-  // If the fault occurred while we were processing an interrupt,
-  // we should tell the PIC that the interrupt service routine is
-  // finished.  It's not really fair to kill a process because an
-  // interrupt handler is screwy, but that's what we have to do for
-  // the time being.
-  if (kernelProcessingInterrupt)
-    kernelPicEndOfInterrupt(0xFF);
-
-  else if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
-    sprintf(message, "The kernel has experienced %s %s exception",
-	    exceptionVector[exceptionNum].a,
-	    exceptionVector[exceptionNum].name);
-  else
-    sprintf(message, "Process \"%s\" caused %s %s exception",
-	    kernelCurrentProcess->processName,
-	    exceptionVector[exceptionNum].a,
-	    exceptionVector[exceptionNum].name);
-
+  // If multitasking is enabled, switch to the exception thread.  Otherwise
+  // just call the exception handler as a function.
   if (multitaskingEnabled)
-    {
-      kernelCurrentProcess->state = proc_stopped;
-
-      if (address >= KERNEL_VIRTUAL_ADDRESS)
-	{
-	  if (kernelSymbols)
-	    {
-	      // Find roughly the kernel function where the exception
-	      // happened
-	      for (count = 0; count < kernelNumberSymbols; count ++)
-		{
-		  if ((address >= kernelSymbols[count].address) &&
-		      (address <  kernelSymbols[count + 1].address))
-		    {
-		      symbolName = kernelSymbols[count].symbol;
-		      break;
-		    }
-		}
-	    }
-
-	  if (symbolName)
-	    sprintf((message + strlen(message)), " in function %s (%08x)",
-		    symbolName, address);
-	  else
-	    sprintf((message + strlen(message)), " at kernel address %08x",
-		    address);
-	}
-      else
-	sprintf((message + strlen(message)), " at application address %08x",
-		address);
-    }
-
-  if (kernelProcessingInterrupt)
-    sprintf((message + strlen(message)), " while processing interrupt %d",
-	    kernelPicGetActive());
-
-  if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
-    // If it's the kernel, we're finished
-    kernelPanic(message);
-
+    kernelProcessorFarCall(exceptionProc->tssSelector);
   else
-    {
-      kernelError(kernel_error, message);
-      if (kernelGraphicsAreEnabled())
-	kernelErrorDialog("Application Exception", message);
-    }
+    exceptionHandler();
 
-  /*
-  // If the process was in kernel code do a stack trace
-  if (!kernelProcessingInterrupt && (address >= KERNEL_VIRTUAL_ADDRESS))
-    kernelStackTrace((kernelCurrentProcess->userStack +
-		      ((void *) kernelCurrentProcess->taskStateSegment.ESP -
-		       kernelCurrentProcess->userStack)),
-		     (kernelCurrentProcess->userStack +
-		      kernelCurrentProcess->userStackSize - sizeof(void *)));
-  */
-
-  // The scheduler may now dismantle the process
-  kernelCurrentProcess->state = proc_finished;
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessingException = 0;
-
-  // Yield control.
-  kernelMultitaskerYield();
+  // If the exception is handled, then this code is reached we return.
+  return;
 }
 
 
@@ -2302,52 +2395,45 @@ int kernelMultitaskerGetCurrentDirectory(char *buffer, int buffSize)
 
   // Now, the number of characters we will copy is the lesser of 
   // buffSize or MAX_PATH_LENGTH
-  if (buffSize < MAX_PATH_LENGTH)
-    lengthToCopy = buffSize;
-  else
-    lengthToCopy = MAX_PATH_LENGTH;
+  lengthToCopy = min(buffSize, MAX_PATH_LENGTH);
 
   // Otay, copy the name of the current directory into the caller's buffer
   strncpy(buffer, (char *) kernelCurrentProcess->currentDirectory,
 	  lengthToCopy);
-  buffer[lengthToCopy - 1] = '\0';
 
   // Return success
   return (status = 0);
 }
 
 
-int kernelMultitaskerSetCurrentDirectory(const char *newDirectoryName)
+int kernelMultitaskerSetCurrentDirectory(const char *newDirName)
 {
   // This function will change the current directory of the current
   // process.  Returns 0 on success, negative otherwise.
 
   int status = 0;
-  file newDirectory;
+  kernelFileEntry *newDir = NULL;
 
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
   
-  // Make sure the buffer we've been passed is not NULL
-  if (newDirectoryName == NULL)
+  // Check params
+  if (newDirName == NULL)
     return (status = ERR_NULLPARAMETER);
-
-  // Initialize our file
-  kernelMemClear((void *) &newDirectory, sizeof(file));
 
   // Call the appropriate filesystem function to find this supposed new 
   // directory.
-  kernelFileFind(newDirectoryName, &newDirectory);
-
-  // Make sure the target file is actually a directory
-  if (newDirectory.type != dirT)
+  newDir = kernelFileLookup(newDirName);
+  if (newDir == NULL)
     return (status = ERR_NOSUCHDIR);
 
-  // Okay, copy the name of the current directory into the process
-  strncpy((char *) kernelCurrentProcess->currentDirectory, newDirectoryName,
-	  MAX_PATH_LENGTH);
-  kernelCurrentProcess->currentDirectory[MAX_PATH_LENGTH - 1] = '\0';
+  // Make sure the target is actually a directory
+  if (newDir->type != dirT)
+    return (status = ERR_NOTADIR);
+
+  // Okay, copy the full name of the directory into the process
+  kernelFileGetFullName(newDir, kernelCurrentProcess->currentDirectory);
 
   // Return success
   return (status = 0);
@@ -2735,6 +2821,14 @@ int kernelMultitaskerKillProcess(int processId, int force)
     {
       kernelError(kernel_error, "It's not possible to kill the kernel "
 		  "process");
+      return (status = ERR_INVALID);
+    }
+
+  // You can't kill the exception handler thread on purpose
+  if (killProcess == exceptionProc)
+    {
+      kernelError(kernel_error, "It's not possible to kill the exception "
+		  "thread");
       return (status = ERR_INVALID);
     }
 

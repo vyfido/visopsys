@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -51,11 +51,11 @@ mallocKernelOps mallocKernOps;
     id = multitaskerGetCurrentProcessId();               \
 } while (0)
 
-#define kernelMemoryGetSystem(size, desc, ptr) do {  \
-  if (visopsys_in_kernel)                            \
-    ptr = mallocKernOps.memoryGetSystem(size, desc); \
-  else                                               \
-    ptr = memoryGet(size, desc);                     \
+#define kernelMemoryGetSystem(size, ptr) do {                 \
+  if (visopsys_in_kernel)                                     \
+    ptr = mallocKernOps.memoryGetSystem(size, "kernel heap"); \
+  else                                                        \
+    ptr = memoryGet(size, "application heap");                \
 } while (0)
 
 #define kernelLockGet(lk, status) do {  \
@@ -144,7 +144,7 @@ static int growList(void)
   int numBlocks = 0;
   int count;
 
-  kernelMemoryGetSystem(MEMORY_BLOCK_SIZE, "application memory", newBlocks);
+  kernelMemoryGetSystem(MEMORY_BLOCK_SIZE, newBlocks);
   if (newBlocks == NULL)
     {
       kernelError(kernel_error, "Unable to allocate heap management memory");
@@ -317,7 +317,7 @@ static int growHeap(unsigned minSize)
     minSize = mallocHeapMultiple;
 
   // Get the heap memory
-  kernelMemoryGetSystem(minSize, "application memory", newHeap);
+  kernelMemoryGetSystem(minSize, newHeap);
   if (newHeap == NULL)
     {
       kernelError(kernel_error, "Unable to allocate heap memory");

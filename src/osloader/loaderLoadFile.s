@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -26,8 +26,8 @@
 	GLOBAL FILEDATABUFFER
 
 	EXTERN loaderMemCopy
-        EXTERN loaderPrint
-        EXTERN loaderPrintNewline
+	EXTERN loaderPrint
+	EXTERN loaderPrintNewline
 	EXTERN loaderDiskError
 	EXTERN loaderGetCursorAddress
 	EXTERN loaderSetCursorAddress
@@ -65,7 +65,7 @@ headTrackSector:
 	div EBX
 	mov byte [SECTOR], DL		; The remainder
 	add byte [SECTOR], 1		; Sectors start at 1
-	
+
 	;; Now the head and track
 	xor EDX, EDX			; Don't need the remainder anymore
 	xor EBX, EBX
@@ -73,7 +73,7 @@ headTrackSector:
 	div EBX
 	mov byte [HEAD], DL		; The remainder
 	mov word [CYLINDER], AX
-	
+
 	popa
 	ret
 
@@ -96,26 +96,26 @@ read:
 	;; Determine whether int13 extensions are available
 	cmp word [DRIVENUMBER], 80h
 	jb .noExtended
-	
+
 	mov AX, 4100h
 	mov BX, 55AAh
 	mov DX, word [DRIVENUMBER]
 	int 13h
-
 	jc .noExtended
 
 	;; We have a nice extended read function which will allow us to
 	;; just use the logical sector number for the read
 
 	mov word [DISKPACKET], 0010h		; Packet size
-	mov EAX, dword [SS:(BP + 28)]		; >
-	mov word [DISKPACKET + 2], AX		; > Sector count
-	mov AX, word [SS:(BP + 26)]		; >
-	mov word [DISKPACKET + 4], AX		; > Offset
-	mov AX, word [SS:(BP + 24)]		; > 
-	mov word [DISKPACKET + 6], AX		; > Segment
-	mov EAX, dword [SS:(BP + 20)]		; > 
-	mov dword [DISKPACKET + 8], EAX		; > Logical sector 
+ 	mov EAX, dword [SS:(BP + 28)]
+	mov word [DISKPACKET + 2], AX		; Sector count
+	mov AX, word [SS:(BP + 26)]
+	mov word [DISKPACKET + 4], AX		; Offset
+	mov AX, word [SS:(BP + 24)]
+	mov word [DISKPACKET + 6], AX		; Segment
+	mov EAX, dword [SS:(BP + 20)]
+	mov dword [DISKPACKET + 8], EAX		; Logical sector
+	mov dword [DISKPACKET + 12], 0		;
 	mov AX, 4200h
 	mov DX, word [DRIVENUMBER]
 	mov SI, DISKPACKET
@@ -124,7 +124,6 @@ read:
 	jmp .done
 
 	.noExtended:
-
 	;; Calculate the CHS
 	mov EAX, dword [SS:(BP + 20)]
 	call headTrackSector
@@ -139,20 +138,21 @@ read:
 	mov DH, byte [HEAD]		; Head
 	mov BX, word [SS:(BP + 26)]	; Offset
 	push ES				; Save ES
-	mov ES, word [SS:(BP + 24)]	; Use user-supplied segment
+	push word [SS:(BP + 24)]	; Use user-supplied segment
+	pop ES
 	int 13h
 	pop ES				; Restore ES
 	jc .IOError
 	jmp .done
-	
+
 	.IOError:
 	;; We'll reset the disk and retry up to 4 more times
 
 	;; Reset the disk controller
-	xor AH, AH
+	xor AX, AX
 	mov DX, word [DRIVENUMBER]
 	int 13h
-			
+
 	;; Increment the counter
 	pop AX
 	inc AX
@@ -169,14 +169,14 @@ read:
 	pop AX			; Status
 	ret
 
-		
+
 loadFAT:
 	;; This routine will load the entire FAT table into memory at 
 	;; location [FATSEGMENT:0000]
 
 	;; Save 1 word for our return code
 	push word 0
-	
+
 	pusha
 
 	;; Save the stack pointer
@@ -188,10 +188,10 @@ loadFAT:
 	jb .noShrink
 	mov EBX, 64
 	.noShrink:
-	
+
 	xor EAX, EAX
 	mov AX, word [RESSECS]		; FAT starts after reserved sectors
-	
+
 	cmp word [DRIVENUMBER], 80h
 	jb .noOffset
 	add EAX, dword [PARTENTRY + 8]
@@ -219,7 +219,7 @@ loadFAT:
 	xor EAX, EAX
 	pop AX
 	ret
-	
+
 
 loadDirectory:
 	;; This subroutine finds the root directory of the boot volume
@@ -227,7 +227,7 @@ loadDirectory:
 
 	;; Save 1 word for our return code
 	push word 0
-	
+
 	;; Save regs
 	pusha
 
@@ -240,7 +240,7 @@ loadDirectory:
 	mov EBX, dword [FATSECS]	; Sectors per FAT
 	add EAX, EBX			; Sectors for 1st FAT
 	add EAX, EBX			; Sectors for 2nd FAT
-	
+
 	cmp word [FSTYPE], FS_FAT32
 	jne .notFat32
 
@@ -249,7 +249,7 @@ loadDirectory:
 	jb .noOffset
 	add EAX, dword [PARTENTRY + 8]
 	.noOffset:
-	
+
 	;; This is normally where we will keep the FAT data, but we will
 	;; put the directory here temporarily
 	xor EBX, EBX
@@ -260,17 +260,17 @@ loadDirectory:
 	push dword EAX
 	call read
 	add SP, 12
-		
+	
 	;; Check status
 	cmp AX, 0
 	je .done
 
 	;; Call the 'disk error' routine
 	call loaderDiskError
-	
+
 	;; Put a -1 as our return code
 	mov word [SS:(BP + 16)], -1
-	
+
 	.done:
 	popa
 	;; Pop the return code
@@ -307,7 +307,7 @@ searchFile:
 	;; We need to make ES point to the data buffer
 	push ES
 	mov ES, word [FATSEGMENT]
-		
+
 	.entryLoop:
 	;; Determine whether this is a valid, undeleted file.
 	;; E5 means this is a deleted entry
@@ -348,7 +348,7 @@ searchFile:
 	jae .noFile
 
 	jmp .entryLoop
-	
+
 	.noFile:
 	;; Restore ES
 	pop ES
@@ -356,7 +356,7 @@ searchFile:
 	mov dword [SS:(BP + 16)], -1
 	;; Jump to the end.  We're finished
 	jmp .done
-	
+
 	.foundFile:	
 	;; Return the starting cluster number of the file
 	xor EAX, EAX
@@ -368,22 +368,15 @@ searchFile:
 	mov AX, word [ES:BX]
 	mov dword [SS:(BP + 16)], EAX
 
-        ;; Record the size of the file
-        mov BX, word [ENTRYSTART]
-        add BX, 001Ch           ;; Offset in directory entry
-        mov EAX, dword [ES:BX]
-        xor EDX, EDX
-        mov ECX, 1024           ;; We want the size in kilobytes (div by 1024)
-        div ECX
-        cmp EDX, 0              ;; Round up?
-        je .noRound
-        add EAX, 1              ;; Round up to the next highest K
-        .noRound:
-        mov word [FILESIZE], AX
+	;; Record the size of the file
+	mov BX, word [ENTRYSTART]
+	add BX, 001Ch		;; Offset in directory entry
+	mov EAX, dword [ES:BX]
+	mov dword [FILESIZE], EAX
 
 	;; Restore ES
 	pop ES
-	
+
 	.done:
 	popa
 	;; Pop our return value
@@ -397,9 +390,9 @@ makeProgress:
 
 	pusha
 
-	cmp word [SHOWPROGRESS], 0
+	cmp byte [SHOWPROGRESS], 0
 	je .done
-	
+
 	;; Disable the cursor
 	mov CX, 2000h
 	mov AH, 01h
@@ -427,20 +420,20 @@ makeProgress:
 	.done:
 	popa
 
-	
+
 updateProgress:
 	pusha
 
-	cmp word [SHOWPROGRESS], 0
+	cmp byte [SHOWPROGRESS], 0
 	je .done
-	
+
 	;; Make sure we're not already at the end
 	mov AX, word [PROGRESSCHARS]
 	cmp AX, PROGRESSLENGTH
 	jae .done
 	inc AX
 	mov word [PROGRESSCHARS], AX
-	
+
 	;; Print the character on the screen
 	mov DL, 2
 	mov CX, 1
@@ -451,24 +444,18 @@ updateProgress:
 	popa
 	ret
 
-	
+
 killProgress:
 	;; Get rid of the progress indicator
 
 	pusha
 
-	cmp word [SHOWPROGRESS], 0
+	cmp byte [SHOWPROGRESS], 0
 	je .done
-	
-	;; Re-enable the cursor
-	;; xor CX, CX
-	;; mov CL, 07h
-	;; mov AH, 01h
-	;; int 10h
 
 	call loaderPrintNewline
 	call loaderPrintNewline
-	
+
 	.done:	
 	popa
 	ret
@@ -486,7 +473,7 @@ clusterToLogical:
 
 	;; Save the stack pointer
 	mov BP, SP
-	
+
 	sub EAX, 2			;  Subtract 2 (because they start at 2)
 	xor EBX, EBX
 	mov BX, word [SECPERCLUST]	; How many sectors per cluster?
@@ -508,25 +495,25 @@ clusterToLogical:
 	mov BX, word [DIRSECTORS]	; Root dir sectors
 	add EAX, EBX
 	.noAddDir:
-	
+
 	cmp word [DRIVENUMBER], 80h
 	jb .noOffset
 	add EAX, dword [PARTENTRY + 8]
 	.noOffset:
-	
+
 	mov dword [SS:(BP + 16)], EAX
 
 	popa
 	pop EAX
 	ret
-	
-	
+
+
 loadFile:
 	;; This routine is responsible for loading the requested file into
 	;; the requested memory location.  The FAT table must have previously
 	;; been loaded at memory location LDRDATABUFFER
 	;; Proto:
-	;;   int loadFile(dword cluster, dword memory_address); 
+	;;   word loadFile(dword cluster, dword memory_address); 
 
 	;; Save a word for our return code
 	push word 0
@@ -543,9 +530,9 @@ loadFile:
 	;; The second parameter is a DWORD pointer to the absolute memory
 	;; location where we should load the file.
 
-	mov word [BYTESREAD], 0
-	mov word [OLDPROGRESS], 0
-	
+	mov dword [BYTESREAD], 0
+	mov dword [OLDPROGRESS], 0
+
 	;; Make a little progress indicator so the user gets transfixed,
 	;; and suddenly doesn't mind the time it takes to load the file.
 	call makeProgress
@@ -557,7 +544,7 @@ loadFile:
 	;; Put the starting memory offset in MEMORYMARKER
 	mov EAX, dword [SS:(BP + 24)]
 	mov dword [MEMORYMARKER], EAX
-	
+
 	;; Save ES, because we're going to dick with it throughout.
 	push ES
 
@@ -577,49 +564,63 @@ loadFile:
 	push dword EAX
 	call read
 	add SP, 12
-	
+
 	cmp AX, 0
 	je .gotCluster
 
 	;; Make an error message
 	call killProgress
 	call loaderDiskError
+
 	;; Return -1 as our error code
 	mov word [SS:(BP + 16)], -1
 	jmp .done
-	
+
 	.gotCluster:
 	;; Update the number of bytes read
-	mov AX, word [BYTESREAD]
-	add AX, word [BYTESPERCLUST]
-	mov word [BYTESREAD], AX
+	mov EAX, dword [BYTESREAD]
+	add EAX, dword [BYTESPERCLUST]
+	mov dword [BYTESREAD], EAX
 
 	;; Determine whether we should update the progress indicator
-	mov AX, word [BYTESREAD]
-	shr AX, 10
-	mov BX, 100
-	mul BX
-	xor DX, DX
-	div word [FILESIZE]
-	mov BX, AX
-	sub BX, word [OLDPROGRESS]
-	cmp BX, (100 / PROGRESSLENGTH)
+	mov EAX, dword [BYTESREAD]
+	mov EBX, 100
+	mul EBX
+	xor EDX, EDX
+	div dword [FILESIZE]
+	mov EBX, EAX
+	sub EBX, dword [OLDPROGRESS]
+	cmp EBX, (100 / PROGRESSLENGTH)
 	jb .noProgress
-	mov word [OLDPROGRESS], AX
+	mov dword [OLDPROGRESS], EAX
 	call updateProgress
 	.noProgress:
 
-	xor EAX, EAX
-	mov AX, word [BYTESPERCLUST]
+	mov EAX, dword [BYTESPERCLUST]
 	push dword EAX
 	push dword [MEMORYMARKER]
 	push dword [CLUSTERBUFFER]	; 32-bit source address 
 	call loaderMemCopy
 	add SP, 12
+
+	cmp AX, 0
+	je .copiedData
+
+	;; Couldn't copy the data into high memory
+	call killProgress
+	call loaderPrintNewline
+	mov DL, ERRORCOLOR
+	mov SI, INT15ERR
+	call loaderPrint
+	call loaderPrintNewline
+
+	;; Return -2 as our error code
+	mov word [SS:(BP + 16)], -2
+	jmp .done
 	
+	.copiedData:
 	;; Increment the buffer pointer
-	xor EAX, EAX
-	mov AX, word [BYTESPERCLUST]
+	mov EAX, dword [BYTESPERCLUST]
 	add dword [MEMORYMARKER], EAX
 
 	;; Now make ES point to the beginning of loader's data buffer,
@@ -661,7 +662,7 @@ loadFile:
 	cmp AX, 0FF8h
 	jae .success
 	jmp .next
-	
+
 	.fat16:
 	mov EBX, dword [NEXTCLUSTER]
 	;; FAT16_NYBBLESPERCLUST is 4, so we can just shift
@@ -670,15 +671,15 @@ loadFile:
 	cmp AX, 0FFF8h
 	jae .success
 	jmp .next
-	
+
 	.fat32:
 	mov EBX, dword [NEXTCLUSTER]
 	;; FAT32_NYBBLESPERCLUST is 8, so we can just shift
 	shl EBX, 2
 	mov EAX, dword [ES:EBX]
-	cmp EAX, 0FFFFFFF8h
+	cmp EAX, 0FFFFFF8h
 	jae .success
-	
+
 	.next:
 	mov dword [NEXTCLUSTER], EAX
 	jmp .FATLoop
@@ -706,14 +707,15 @@ loaderCalcVolInfo:
 	pusha
 
 	;; Calculate the number of bytes per cluster in this volume
+	xor EAX, EAX
 	mov AX, word [BYTESPERSECT]
 	mul word [SECPERCLUST]
-	mov word [BYTESPERCLUST], AX
+	mov dword [BYTESPERCLUST], EAX
 
 	mov AX, word [FSTYPE]
 	cmp AX, FS_FAT32
 	je .fat32
-	
+
 	;; How many root directory sectors are there?
 	mov AX, FAT_BYTESPERDIRENTRY
 	mul word [ROOTDIRENTS]
@@ -726,7 +728,7 @@ loaderCalcVolInfo:
 	;; Just do one cluster of the root dir
 	mov AX, word [SECPERCLUST]
 	mov word [DIRSECTORS], AX
-	
+
 	.doneRoot:
 	;; Calculate the segment where we will keep FAT (and directory)
 	;; data after loading them.  It comes at the beginning of the
@@ -745,8 +747,7 @@ loaderCalcVolInfo:
 
 	;; Calculate a buffer for general file data.  It comes after the
 	;; buffer for cluster data
-	xor EAX, EAX
-	mov AX, word [BYTESPERCLUST]
+	mov EAX, dword [BYTESPERCLUST]
 	add EAX, dword [CLUSTERBUFFER]
 	mov dword [FILEDATABUFFER], EAX
 
@@ -766,7 +767,7 @@ loaderFindFile:
 
 	;; Save registers
 	pusha
-	
+
 	;; Save the stack pointer
 	mov BP, SP
 
@@ -781,23 +782,23 @@ loaderFindFile:
 	;; means error.
 	cmp AX, 0
 	jge .search
-	
+
 	;; Failed to load the directory.  Put a 0 as our return code
 	mov word [SS:(BP + 16)], 0
 	jmp .done
-	
+
 	.search:
 	;; Now we need to search for the requested file in the root
 	;; directory.
 	push word [SS:(BP + 20)]
 	call searchFile
 	add SP, 2
-	
+
 	;; If the file was found successfully, put a 1 as our return
 	;; code.  Otherwise, put 0
 	cmp EAX, 0
 	jge .success
-	
+
 	mov word [SS:(BP + 16)], 0
 	jmp .done
 
@@ -815,15 +816,15 @@ loaderLoadFile:
 	;; the requested memory location.  It is specific to the FAT-12 
 	;; filesystem.
 	;; Proto:
-	;;   int loaderLoadFile(char *filename, dword loadOffset,
-	;;			dword showProgress)
+	;;   dword loaderLoadFile(char *filename, dword loadOffset,
+	;;			  word showProgress)
 
-	;; Save a word for our return code
-	push word 0
+	;; Save a dword for our return code
+	push dword 0
 
 	;; Save registers
 	pusha
-	
+
 	;; Save the stack pointer
 	mov BP, SP
 
@@ -841,31 +842,31 @@ loaderLoadFile:
 	;; means error.
 	cmp AX, 0
 	jge .search
-	
+
 	;; Failed to load the directory.  Put a -1 as our return code
-	mov word [SS:(BP + 16)], -1
+	mov dword [SS:(BP + 16)], -1
 	jmp .done
-	
+
 	.search:
 	;; Now we need to search for the requested file in the root
 	;; directory.
-	push word [SS:(BP + 20)]
+	push word [SS:(BP + 22)]
 	call searchFile
 	add SP, 2
-	
+
 	;; Was that successful?  Do a signed comparison.  Less than 0
 	;; means error.
 	cmp EAX, 0
 	jge .loadFAT
 
 	;; Failed to find the file.  Put a -2 as our return code
-	mov word [SS:(BP + 16)], -2
+	mov dword [SS:(BP + 16)], -2
 	jmp .done
 
 	.loadFAT:
 	;; Save the starting cluster of the file (it's in EAX)
 	mov dword [NEXTCLUSTER], EAX
-	
+
 	;; Now we load the FAT table into memory
 	call loadFAT
 
@@ -875,7 +876,7 @@ loaderLoadFile:
 	jge .loadFile
 
 	;; Failed to load the FAT.  Put -3 as our return code
-	mov word [SS:(BP + 16)], -3
+	mov dword [SS:(BP + 16)], -3
 	jmp .done
 
 	.loadFile:
@@ -885,10 +886,10 @@ loaderLoadFile:
 	;; load location of the file (which was THIS function's second
 	;; parameter, also)
 
-	mov EAX, dword [SS:(BP + 26)]
-	mov word [SHOWPROGRESS], AX
+	mov AX, word [SS:(BP + 28)]
+	mov byte [SHOWPROGRESS], AL
 
-	push dword [SS:(BP + 22)]
+	push dword [SS:(BP + 24)]
 	push dword [NEXTCLUSTER]
 	call loadFile
 	add SP, 8
@@ -899,19 +900,18 @@ loaderLoadFile:
 	jge .success
 
 	;; Failed to load the file.  Put -4 as our return code
-	mov word [SS:(BP + 16)], -4
+	mov dword [SS:(BP + 16)], -4
 	jmp .done
 
 	.success:
 	;; Success.  Put the file size as our return code.
-	mov AX, word [FILESIZE]
-	mov word [SS:(BP + 16)], AX
-	
+	mov EAX, dword [FILESIZE]
+	mov dword [SS:(BP + 16)], EAX
+
 	.done:
 	popa
 	;; Pop the return code
-	xor EAX, EAX
-	pop AX
+	pop EAX
 	ret
 
 
@@ -924,10 +924,10 @@ CLUSTERBUFFER	dd 0	;; The buffer for cluster data
 CLUSTERSEGMENT	dw 0	;; The segment of the buffer for cluster data
 FILEDATABUFFER	dd 0	;; The buffer for general file data
 DIRSECTORS	dw 0	;; The size of the root directory, in sectors
-BYTESPERCLUST   dw 0	;; Bytes per cluster
+BYTESPERCLUST   dd 0	;; Bytes per cluster
 ENTRYSTART	dw 0 	;; Directory entry start
-FILESIZE	dw 0	;; Size of the file we're loading
-BYTESREAD	dw 0    ;; Number of bytes read so far
+FILESIZE	dd 0	;; Size of the file we're loading
+BYTESREAD	dd 0    ;; Number of bytes read so far
 NEXTCLUSTER	dd 0	;; Next cluster to load
 
 ;; For int13 disk ops
@@ -935,15 +935,15 @@ CYLINDER	dw 0
 HEAD		db 0
 SECTOR		db 0
 
-;; Disk cmd packet for ext. int13 
+;; Disk cmd packet for ext. int13
 DISKPACKET:	dd 0, 0, 0, 0
-	
+
 PARTENTRY	times 16 db 0	;; Partition table entry of bootable partition
 
 ;; Stuff for the progress indicator
 PROGRESSCHARS	dw 0	;; Number of progress indicator chars showing
-OLDPROGRESS	dw 0	;; Percentage of file load completed
-SHOWPROGRESS	dw 0	;; Whether or not to show a progress bar
+OLDPROGRESS	dd 0	;; Percentage of file load completed
+SHOWPROGRESS	db 0	;; Whether or not to show a progress bar
 PROGRESSTOP	db 218
 		times PROGRESSLENGTH db 196
 		db 191, 0
@@ -954,3 +954,5 @@ PROGRESSBOTTOM	db 192
 		times PROGRESSLENGTH db 196
 		db 217, 0
 PROGRESSCHAR	db 177, 0
+
+INT15ERR	db 'The computer', 27h, 's BIOS was unable to move data into high memory.', 0

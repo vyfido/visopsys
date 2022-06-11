@@ -1,6 +1,6 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
@@ -15,3 +15,4 @@ clean:
 	rm -f *~ *.o core
 	make -C include/ntfs -f Makefile.visopsys clean
 	make -C libntfs -f Makefile.visopsys clean
+	make -C ntfsprogs -f Makefile.visopsys clean

@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -16,8 +16,7 @@ include ${ROOT}/Makefile.include
 STDDEP		= ${ROOT}/Makefile.include Makefile.visopsys sys/*.h
 INCLUDE         = -nostdinc -I. -I ${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -nostdlib -nodefaultlibs -nostartfiles
-OPTS		= ${CFLAGS} ${LFLAGS}
+LFLAGS		= -nostdlib
 
 OBJS  	= close.o \
 	crt0.o \
@@ -42,7 +41,7 @@ OBJS  	= close.o \
 all: ${OBJS}
 
 .c.o:
-	${CC} ${OPTS} -c $<
+	${CC} ${CFLAGS} ${LFLAGS} -c $<
 
 # Miscellany
 

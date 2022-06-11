@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,18 +56,14 @@ static void recurseDirectory(const char *dirPath)
   int status = 0;
   file theFile;
   char newDirPath[MAX_PATH_LENGTH];
-  char fullDirPath[MAX_PATH_LENGTH];
   int count = 0;
 
   // Initialize the file structure
   for (count = 0; count < (int) sizeof(file); count ++)
     ((char *) &theFile)[count] = NULL;
 
-  // Get the absolute name of the directory
-  vshMakeAbsolutePath(dirPath, fullDirPath);
-
   // Get the first item in the directory
-  status = fileFirst(fullDirPath, &theFile);
+  status = fileFirst(dirPath, &theFile);
   if (status < 0)
     return;
 
@@ -88,7 +84,7 @@ static void recurseDirectory(const char *dirPath)
 	}
 
       // Move to the next item
-      status = fileNext(fullDirPath, &theFile);
+      status = fileNext(dirPath, &theFile);
       if (status < 0)
 	break;
     }
@@ -100,7 +96,6 @@ int main(int argc, char *argv[])
   int status = 0;
   file theFile;
   char fileName[MAX_PATH_NAME_LENGTH];
-  char fullName[MAX_PATH_NAME_LENGTH];
 
   // Initialize the file structure
   bzero(&theFile, sizeof(file));
@@ -119,11 +114,8 @@ int main(int argc, char *argv[])
       lastChar--;
     }
 
-  // Make sure the file name is an absolute pathname
-  vshMakeAbsolutePath(fileName, fullName);
-
   // Call the "find file" routine to see if the file exists
-  status = fileFind(fullName, &theFile);
+  status = fileFind(fileName, &theFile);
   if (status < 0)
     {
       errno = status;

@@ -16,7 +16,8 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
     <img src="../img/nav_buttons/home.gif" alt="Home" border="0" width="53" height="25"></a><br>
     <br>
     <a href="../about/index.html">
-    <img src="../img/nav_buttons/about.gif" alt="About" border="0" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" width="60" height="25"></a></font><br>
+    <br>
     <a href="../about/news.html">
     <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
     <br>
@@ -45,6 +46,93 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <p align="center">
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
+
+<p><font size="4">VERSION 0.66<br>
+</font><font size="2">01012/2007</font></p>
+
+<p><font size="4">Overview: This is a maintenance release, featuring the ability 
+to resize Windows Vista partitions, more reliable loading on various systems, 
+better exception handling, color text in graphics mode, improvements to the C 
+library, and a number of bug fixes.</font></p>
+<ul>
+  <li><font size="4">Ported ntfsprogs 1.13.1 (including ntfsresize 1.13.1.1) so 
+  that the Disk Manager can successfully resize Windows Vista NTFS partitions.</font></li>
+  <li><font size="4">Modified the vloader OS loader so that it only uses int 15 
+  to move data into high memory. Improves reliability of loading on more 
+  systems.</font></li>
+  <li><font size="4">The exception handler is now a separate task, for proper 
+  debugging and better reliability (in case of stack corruption, etc)</font></li>
+  <li><font size="4">Implemented proper color text output in both text and 
+  graphics modes.</font></li>
+  <li><font size="4">The boot sector code was further groomed and streamlined, 
+  though the work highlighted a bug in the GRUB bootloader that will always 
+  prevent chain-loading Visopsys from the second hard disk.</font></li>
+  <li><font size="4">The MBR bootmenu code no longer has the number of sectors 
+  to load hardcoded into it. It now reads a tracks' worth. Also changed some of 
+  the memory locations used, since there might have been conflicts there.</font></li>
+  <li><font size="4">Improved the Disk Manager's confirmation/warning message 
+  before resizing a partition.</font></li>
+  <li><font size="4">When the progress dialog's 'Cancel' button is disabled, the 
+  mouse cursor shows 'busy'.</font></li>
+  <li><font size="4">In the Disk Manager, progress indicator more accurately 
+  represents the actual times of the different stages of an NTFS resize.</font></li>
+  <li><font size="4">In the Disk Manager, the &quot;Resetting $Logfile&quot; portion of an 
+  NTFS resize shows progress indication.</font></li>
+  <li><font size="4">The kernel now accepts relative pathnames to file-related 
+  API functions.&nbsp; Removed all the absolute path hand-waving from programs, 
+  libs, etc.</font></li>
+  <li><font size="4">Implemented the family of scanf() C library functioms, 
+  including fscanf(), sscanf(), vfscanf(), vscanf(), and vsscanf().</font></li>
+  <li><font size="4">Added the C library functions_num2str(), _numdgts(), and 
+  _str2num().&nbsp; Removed the custom atoi(), itoa(), itob(), itox(), lltoa(), 
+  lltob(), lltox(), ulltoa(), utoa(), and xtoi() functions and made them all 
+  macros in &lt;stdlib.h&gt; using the 3 new functions, above.</font></li>
+  <li><font size="4">Added realpath() and strnlen() C library functions.</font></li>
+  <li><font size="4">Added the C library functions basename() and dirname(), and 
+  removed the kernel API function fileSeparateLast().</font></li>
+  <li><font size="4">Removed the custom C library functions _div64(), 
+  _divdi3(),_moddi3(), _udivdi3(), and_umoddi3(). We now use the libgcc 
+  versions.</font></li>
+  <li><font size="4">The GUI &quot;menu bar&quot; component is no longer a container. It 
+  now *has* a container, so that it can also have state information about which 
+  menu is visible. Previously, raising a right-click menu in the Disk Manager 
+  could cause the corresponding menu bar title to draw itself raised when it 
+  shouldn't.</font></li>
+  <li><font size="4">It is now possible to 'focus' the root window (without it 
+  going over top of the other windows, obviously).</font></li>
+  <li><font size="4">Fixed: FAT32 bug in which the vloader OS loader was looking 
+  for the wrong terminating cluster number.</font></li>
+  <li><font size="4">Fixed: When a window was bigger than the screen dimensions, 
+  moving the left side of it off the screen, then moving the mouse around the 
+  right side of the window caused mouse tracers (and perhaps a GUI crash).</font></li>
+  <li><font size="4">Fixed: Dragging the 'imgboot' window off the left side of 
+  the screen caused a system crash.</font></li>
+  <li><font size="4">Fixed: When a list component is disabled, the list items no 
+  longer appear greyed-out.</font></li>
+  <li><font size="4">Fixed: If the 'iconwin' program can't find the icon, it 
+  will try to use the standard 'executable' one instead of the generic visopsys 
+  one.</font></li>
+  <li><font size="4">Fixed: The 'iconwin' program could still show an icon for a 
+  program that wasn't available. Also changed the config file format so that a 
+  list of icon names is not required to be specified before the individual specs</font></li>
+  <li><font size="4">Fixed: In text mode, the 'more' command could leave its 
+  reverse characters on the last line if you're scrolling with any other key 
+  than [space].</font></li>
+  <li><font size="4">Fixed: Printing a legitimately-escaped format sequence such 
+  as %%d in user space using printf() and friends didn't work, as the kernel's 
+  print routines would try to format their input again. </font></li>
+  <li><font size="4">Fixed: The C library memcmp function was comparing one too 
+  many bytes.</font></li>
+  <li><font size="4">Fixed: When the text was a different color (such as an 
+  error) and the screen scrolled, the cursor could remain the color of the 
+  previous line.</font></li>
+  <li><font size="4">Fixed: When booting from a CD there was an error message:<br>
+  Error:kernel process:kernelFile.c:fileCreate(614):<br>
+  Filesystem is read-only.</font></li>
+  <li><font size="4">Fixed: Broken CD-ROM emulation was not recognized on some 
+  systems.</font></li>
+</ul>
+<hr>
 
 <p><font size="4">VERSION 0.65<br>
 </font><font size="2">17/12/2006</font></p>
@@ -1853,11 +1941,11 @@ abstraction layer initialization</font></li>
     <img
     src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2006, <a href="mailto:andy@visopsys.org">J.
+    This site is copyright © 1999-2007, <a href="mailto:andy@visopsys.org">J.
     Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    September 24, 2006</font></p>
+    January 06, 2007</font></p>
   </blockquote>
 </blockquote>
 

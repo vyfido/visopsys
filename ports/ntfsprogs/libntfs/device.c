@@ -1,7 +1,7 @@
-/*
+/**
  * device.c - Low level device io functions. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2004 Anton Altaparmakov
+ * Copyright (c) 2004-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -18,10 +18,12 @@
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Modified 12/2005 by Andy McLaughlin for Visopsys port.
+ * Modified 01/2007 by Andy McLaughlin for Visopsys port.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -48,19 +50,26 @@
 #include <fcntl.h>
 #endif
 #ifdef HAVE_SYS_IOCTL_H
-#	include <sys/ioctl.h>
+#include <sys/ioctl.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
 #endif
 #ifdef HAVE_LINUX_FD_H
-#	include <linux/fd.h>
+#include <linux/fd.h>
 #endif
 #ifdef HAVE_LINUX_HDREG_H
-#	include <linux/hdreg.h>
+#include <linux/hdreg.h>
 #endif
 
 #include "types.h"
 #include "mst.h"
 #include "debug.h"
 #include "device.h"
+#include "logging.h"
 
 #if defined(linux) && defined(_IO) && !defined(BLKGETSIZE)
 #define BLKGETSIZE	_IO(0x12,96)  /* Get device size in 512-byte blocks. */
@@ -71,13 +80,19 @@
 #if defined(linux) && !defined(HDIO_GETGEO)
 #define HDIO_GETGEO	0x0301	/* Get device geometry. */
 #endif
+#if defined(linux) && defined(_IO) && !defined(BLKSSZGET)
+#	define BLKSSZGET _IO(0x12,104) /* Get device sector size in bytes. */
+#endif
+#if defined(linux) && defined(_IO) && !defined(BLKBSZSET)
+#	define BLKBSZSET _IOW(0x12,113,size_t) /* Set device block size in bytes. */
+#endif
 
 /**
  * ntfs_device_alloc - allocate an ntfs device structure and pre-initialize it
- * name:	name of the device (must be present)
- * state:	initial device state (usually zero)
- * dops:	ntfs device operations to use with the device (must be present)
- * priv_data:	pointer to private data (optional)
+ * @name:	name of the device (must be present)
+ * @state:	initial device state (usually zero)
+ * @dops:	ntfs device operations to use with the device (must be present)
+ * @priv_data:	pointer to private data (optional)
  *
  * Allocate an ntfs device structure and pre-initialize it with the user-
  * specified device operations @dops, device state @state, device name @name,
@@ -134,8 +149,7 @@ int ntfs_device_free(struct ntfs_device *dev)
 		errno = EBUSY;
 		return -1;
 	}
-	if (dev->d_name)
-		free(dev->d_name);
+	free(dev->d_name);
 	free(dev);
 	return 0;
 }
@@ -164,8 +178,7 @@ s64 ntfs_pread(struct ntfs_device *dev, const s64 pos, s64 count, void *b)
 	s64 br, total;
 	struct ntfs_device_operations *dops;
 
-	Dprintf("%s(): Entering for pos 0x%llx, count 0x%llx.\n", __FUNCTION__,
-			pos, count);
+	ntfs_log_trace("Entering for pos 0x%llx, count 0x%llx.\n", pos, count);
 	if (!b || count < 0 || pos < 0) {
 		errno = EINVAL;
 		return -1;
@@ -175,8 +188,8 @@ s64 ntfs_pread(struct ntfs_device *dev, const s64 pos, s64 count, void *b)
 	dops = dev->d_ops;
 	/* Locate to position. */
 	if (dops->seek(dev, pos, SEEK_SET) == (off_t)-1) {
-		Dprintf("ntfs_pread: device seek to 0x%llx returned error: "
-				"%s\n", pos, strerror(errno));
+		ntfs_log_perror("ntfs_pread: device seek to 0x%llx returned error",
+				pos);
 		return -1;
 	}
 	/* Read the data. */
@@ -220,8 +233,7 @@ s64 ntfs_pwrite(struct ntfs_device *dev, const s64 pos, s64 count,
 	s64 written, total;
 	struct ntfs_device_operations *dops;
 
-	Dprintf("%s(): Entering for pos 0x%llx, count 0x%llx.\n", __FUNCTION__,
-			pos, count);
+	ntfs_log_trace("Entering for pos 0x%llx, count 0x%llx.\n", pos, count);
 	if (!b || count < 0 || pos < 0) {
 		errno = EINVAL;
 		return -1;
@@ -235,8 +247,8 @@ s64 ntfs_pwrite(struct ntfs_device *dev, const s64 pos, s64 count,
 	dops = dev->d_ops;
 	/* Locate to position. */
 	if (dops->seek(dev, pos, SEEK_SET) == (off_t)-1) {
-		Dprintf("ntfs_pwrite: seek to 0x%llx returned error: %s\n",
-				pos, strerror(errno));
+		ntfs_log_perror("ntfs_pwrite: seek to 0x%llx returned error",
+				pos);
 		return -1;
 	}
 	NDevSetDirty(dev);
@@ -380,9 +392,7 @@ s64 ntfs_mst_pwrite(struct ntfs_device *dev, const s64 pos, s64 count,
 	/* Finally, return the number of complete blocks written. */
 	return written / bksize;
 }
-#endif /* __VISOPSYS__ */
 
-#ifndef __VISOPSYS__
 /**
  * ntfs_cluster_read - read ntfs clusters
  * @vol:	volume to read from
@@ -410,14 +420,12 @@ s64 ntfs_cluster_read(const ntfs_volume *vol, const s64 lcn, const s64 count,
 	br = ntfs_pread(vol->dev, lcn << vol->cluster_size_bits,
 			count << vol->cluster_size_bits, b);
 	if (br < 0) {
-		Dperror("Error reading cluster(s)");
+		ntfs_log_perror("Error reading cluster(s)");
 		return br;
 	}
 	return br >> vol->cluster_size_bits;
 }
-#endif /* __VISOPSYS__ */
 
-#ifndef __VISOPSYS__
 /**
  * ntfs_cluster_write - write ntfs clusters
  * @vol:	volume to write to
@@ -448,7 +456,7 @@ s64 ntfs_cluster_write(const ntfs_volume *vol, const s64 lcn,
 	else
 		bw = count << vol->cluster_size_bits;
 	if (bw < 0) {
-		Dperror("Error writing cluster(s)");
+		ntfs_log_perror("Error writing cluster(s)");
 		return bw;
 	}
 	return bw >> vol->cluster_size_bits;
@@ -499,7 +507,7 @@ s64 ntfs_device_size_get(struct ntfs_device *dev, int block_size)
 	{	u64 size;
 
 		if (dev->d_ops->ioctl(dev, BLKGETSIZE64, &size) >= 0) {
-			Dprintf("BLKGETSIZE64 nr bytes = %llu (0x%llx)\n",
+			ntfs_log_debug("BLKGETSIZE64 nr bytes = %llu (0x%llx)\n",
 					(unsigned long long)size,
 					(unsigned long long)size);
 			return (s64)size / block_size;
@@ -510,8 +518,8 @@ s64 ntfs_device_size_get(struct ntfs_device *dev, int block_size)
 	{	unsigned long size;
 
 		if (dev->d_ops->ioctl(dev, BLKGETSIZE, &size) >= 0) {
-			Dprintf("BLKGETSIZE nr 512 byte blocks = %lu "
-					"(0x%lx)\n", size, size);
+			ntfs_log_debug("BLKGETSIZE nr 512 byte blocks = %lu (0x%lx)\n",
+					size, size);
 			return (s64)size * 512 / block_size;
 		}
 	}
@@ -520,7 +528,7 @@ s64 ntfs_device_size_get(struct ntfs_device *dev, int block_size)
 	{       struct floppy_struct this_floppy;
 
 		if (dev->d_ops->ioctl(dev, FDGETPRM, &this_floppy) >= 0) {
-			Dprintf("FDGETPRM nr 512 byte blocks = %lu (0x%lx)\n",
+			ntfs_log_debug("FDGETPRM nr 512 byte blocks = %lu (0x%lx)\n",
 					(unsigned long)this_floppy.size,
 					(unsigned long)this_floppy.size);
 			return (s64)this_floppy.size * 512 / block_size;
@@ -569,7 +577,7 @@ s64 ntfs_device_partition_start_sector_get(struct ntfs_device *dev)
 	{	struct hd_geometry geo;
 
 		if (!dev->d_ops->ioctl(dev, HDIO_GETGEO, &geo)) {
-			Dprintf("HDIO_GETGEO start_sect = %lu (0x%lx)\n",
+			ntfs_log_debug("HDIO_GETGEO start_sect = %lu (0x%lx)\n",
 					geo.start, geo.start);
 			return geo.start;
 		}
@@ -579,9 +587,7 @@ s64 ntfs_device_partition_start_sector_get(struct ntfs_device *dev)
 #endif
 	return -1;
 }
-#endif /* __VISOPSYS__ */
 
-#ifndef __VISOPSYS__
 /**
  * ntfs_device_heads_get - get number of heads of device
  * @dev:		open device
@@ -604,7 +610,7 @@ int ntfs_device_heads_get(struct ntfs_device *dev)
 	{	struct hd_geometry geo;
 
 		if (!dev->d_ops->ioctl(dev, HDIO_GETGEO, &geo)) {
-			Dprintf("HDIO_GETGEO heads = %u (0x%x)\n",
+			ntfs_log_debug("HDIO_GETGEO heads = %u (0x%x)\n",
 					(unsigned)geo.heads,
 					(unsigned)geo.heads);
 			return geo.heads;
@@ -615,9 +621,7 @@ int ntfs_device_heads_get(struct ntfs_device *dev)
 #endif
 	return -1;
 }
-#endif /* __VISOPSYS__ */
 
-#ifndef __VISOPSYS__
 /**
  * ntfs_device_sectors_per_track_get - get number of sectors per track of device
  * @dev:		open device
@@ -640,7 +644,7 @@ int ntfs_device_sectors_per_track_get(struct ntfs_device *dev)
 	{	struct hd_geometry geo;
 
 		if (!dev->d_ops->ioctl(dev, HDIO_GETGEO, &geo)) {
-			Dprintf("HDIO_GETGEO sectors_per_track = %u (0x%x)\n",
+			ntfs_log_debug("HDIO_GETGEO sectors_per_track = %u (0x%x)\n",
 					(unsigned)geo.sectors,
 					(unsigned)geo.sectors);
 			return geo.sectors;
@@ -651,4 +655,79 @@ int ntfs_device_sectors_per_track_get(struct ntfs_device *dev)
 #endif
 	return -1;
 }
+
+/**
+ * ntfs_device_sector_size_get - get sector size of a device
+ * @dev:	open device
+ *
+ * On success, return the sector size in bytes of the device @dev.
+ * On error return -1 with errno set to the error code.
+ *
+ * The following error codes are defined:
+ *	EINVAL		Input parameter error
+ *	EOPNOTSUPP	System does not support BLKSSZGET ioctl
+ *	ENOTTY		@dev is a file or a device not supporting BLKSSZGET
+ */
+int ntfs_device_sector_size_get(struct ntfs_device *dev)
+{
+	if (!dev) {
+		errno = EINVAL;
+		return -1;
+	}
+#ifdef BLKSSZGET
+	{
+		int sect_size = 0;
+
+		if (!dev->d_ops->ioctl(dev, BLKSSZGET, &sect_size)) {
+			ntfs_log_debug("BLKSSZGET sector size = %d bytes\n",
+					sect_size);
+			return sect_size;
+		}
+	}
+#else
+	errno = EOPNOTSUPP;
+#endif
+	return -1;
+}
 #endif /* __VISOPSYS__ */
+
+/**
+ * ntfs_device_block_size_set - set block size of a device
+ * @dev:	open device
+ * @block_size: block size to set @dev to
+ *
+ * On success, return 0.
+ * On error return -1 with errno set to the error code.
+ *
+ * The following error codes are defined:
+ *	EINVAL		Input parameter error
+ *	EOPNOTSUPP	System does not support BLKBSZSET ioctl
+ *	ENOTTY		@dev is a file or a device not supporting BLKBSZSET
+ */
+int ntfs_device_block_size_set(struct ntfs_device *dev,
+		int block_size __attribute__((unused)))
+{
+	if (!dev) {
+		errno = EINVAL;
+		return -1;
+	}
+#ifdef BLKBSZSET
+	{
+		size_t s_block_size = block_size;
+		if (!dev->d_ops->ioctl(dev, BLKBSZSET, &s_block_size)) {
+			ntfs_log_debug("Used BLKBSZSET to set block size to "
+					"%d bytes.\n", block_size);
+			return 0;
+		}
+		/* If not a block device, pretend it was successful. */
+		if (!NDevBlock(dev))
+			return 0;
+	}
+#else
+	/* If not a block device, pretend it was successful. */
+	if (!NDevBlock(dev))
+		return 0;
+	errno = EOPNOTSUPP;
+#endif
+	return -1;
+}

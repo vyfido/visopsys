@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -274,18 +274,35 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 }
 
 
-static int print(kernelTextArea *area, const char *text)
+static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 {
   // Prints text to the text area.
 
   kernelGraphicBuffer *buffer =
     ((kernelWindowComponent *) area->windowComponent)->buffer;
-  int length = 0;
   int cursorState = area->cursorState;
+  int length = 0;
+  color *foreground = (color *) &(area->foreground);
+  color *background = (color *) &(area->background);
   char lineBuffer[1024];
   int inputCounter = 0;
   int bufferCounter = 0;
   unsigned count;
+
+  // See whether we're printing with special attributes
+  if (attrs)
+    {
+      if (attrs->flags & TEXT_ATTRS_FOREGROUND)
+	foreground = &attrs->foreground;
+      if (attrs->flags & TEXT_ATTRS_BACKGROUND)
+	background = &attrs->background;
+      if (attrs->flags & TEXT_ATTRS_REVERSE)
+	{
+	  color *tmpColor = foreground;
+	  foreground = background;
+	  background = tmpColor;
+	}
+    }
 
   // If we are currently scrolled back, this puts us back to normal
   if (area->scrolledBackLines)
@@ -341,8 +358,7 @@ static int print(kernelTextArea *area, const char *text)
 		    (area->columns - area->cursorColumn));
 
 	  // Draw it
-	  kernelGraphicDrawText(buffer, (color *) &(area->foreground),
-				(color *) &(area->background),
+	  kernelGraphicDrawText(buffer, foreground, background,
 				area->font, lineBuffer, draw_normal, 
 				(area->xCoord + (area->cursorColumn *
 						 area->font->charWidth)),
@@ -512,9 +528,7 @@ static kernelTextOutputDriver graphicModeDriver = {
   setCursor,
   getCursorAddress,
   setCursorAddress,
-  NULL, // getForeground
   NULL, // setForeground
-  NULL, // getBackground
   NULL, // setBackground
   print,
   delete,

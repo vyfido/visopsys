@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,11 +53,11 @@ The currently-supported file formats are:
 #include <sys/vsh.h>
 #include <sys/window.h>
 #include <sys/api.h>
-#include <sys/cdefs.h>
 
 static objectKey window = NULL;
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -66,7 +66,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(NULL, "Error", output);
@@ -133,8 +133,7 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int processId = 0;
-  char *shortFileName = NULL;
-  char *fullFileName = NULL;
+  char *fileName = NULL;
   char *windowTitle = NULL;
   file tmpFile;
   loaderFileClass class;
@@ -150,12 +149,10 @@ int main(int argc, char *argv[])
 
   processId = multitaskerGetCurrentProcessId();
 
-  shortFileName = malloc(MAX_PATH_NAME_LENGTH);
-  fullFileName = malloc(MAX_PATH_NAME_LENGTH);
+  fileName = malloc(MAX_PATH_NAME_LENGTH);
   windowTitle = malloc(MAX_PATH_NAME_LENGTH + 8);
 
-  if ((shortFileName == NULL) || (fullFileName == NULL) ||
-      (windowTitle == NULL))
+  if ((fileName == NULL) || (windowTitle == NULL))
     {
       status = ERR_MEMORY;
       perror(argv[0]);
@@ -166,7 +163,7 @@ int main(int argc, char *argv[])
     {
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter the name "
-			    "of the file to view:", NULL, shortFileName,
+			    "of the file to view:", NULL, fileName,
 			    MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{
@@ -177,22 +174,19 @@ int main(int argc, char *argv[])
 	}
     }
   else
-    strncpy(shortFileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
-
-  // Turn it into an absolute pathname
-  vshMakeAbsolutePath(shortFileName, fullFileName);
+    strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
   // Make sure the file exists
-  if (fileFind(fullFileName, &tmpFile) < 0)
+  if (fileFind(fileName, &tmpFile) < 0)
     {
-      error("The file \"%s\" was not found", shortFileName);
+      error("The file \"%s\" was not found", fileName);
       goto deallocate;
     }
 
   // Get the classification of the file.
-  if (loaderClassifyFile(fullFileName, &class) == NULL)
+  if (loaderClassifyFile(fileName, &class) == NULL)
     {
-      error("Unable to classify the file \"%s\"", shortFileName);
+      error("Unable to classify the file \"%s\"", fileName);
       goto deallocate;
     }
 
@@ -203,7 +197,7 @@ int main(int argc, char *argv[])
   params.orientationY = orient_middle;
 
   // Create a new window, with small, arbitrary size and location
-  sprintf(windowTitle, "View \"%s\"", shortFileName);
+  sprintf(windowTitle, "View \"%s\"", fileName);
   window = windowNew(processId, windowTitle);
 
   if (class.flags & LOADERFILECLASS_IMAGE)
@@ -211,10 +205,10 @@ int main(int argc, char *argv[])
       image showImage;
 
       // Try to load the image file
-      status = imageLoad(fullFileName, 0, 0, &showImage);
+      status = imageLoad(fileName, 0, 0, &showImage);
       if (status < 0)
 	{
-	  error("Unable to load the image \"%s\"\n", shortFileName);
+	  error("Unable to load the image \"%s\"\n", fileName);
 	  goto deallocate;
 	}
   
@@ -231,10 +225,10 @@ int main(int argc, char *argv[])
       int textLines = 0;
       objectKey textAreaComponent = NULL;
 
-      textData = loaderLoad(fullFileName, &showFile);
+      textData = loaderLoad(fileName, &showFile);
       if (textData == NULL)
 	{
-	  error("Unable to load the file \"%s\"\n", shortFileName);
+	  error("Unable to load the file \"%s\"\n", fileName);
 	  goto deallocate;
 	}
 
@@ -278,11 +272,8 @@ int main(int argc, char *argv[])
   status = 0;
 
  deallocate:
-  windowGuiStop();
-  if (shortFileName)
-    free(shortFileName);
-  if (fullFileName)
-    free(fullFileName);
+  if (fileName)
+    free(fileName);
   if (windowTitle)
     free(windowTitle);
 

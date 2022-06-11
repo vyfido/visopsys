@@ -1,10 +1,10 @@
 
 	Visopsys
-	Copyright (C) 1998-2006 J. Andrew McLaughlin
+	Copyright (C) 1998-2007 J. Andrew McLaughlin
 
 Unless otherwise stated, all aspects of Visopsys are created/authored by
-Andy McLaughlin.  Other contributions are as follows (please notify
-me <andy@visopsys.org> if I've missed anything):
+Andy McLaughlin.  Other contributions are as follows (please notify me
+<andy@visopsys.org> if you believe I've missed anything):
 
 - Jonas Zaddach <jonaszaddach@gmx.de> has made a number of contributions
 including early 'Lance' network driver support, the foundations for PCI

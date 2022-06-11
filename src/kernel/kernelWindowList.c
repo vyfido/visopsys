@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -298,8 +298,11 @@ static int flatten(kernelWindowComponent *component,
     status = list->container->flatten(list->container, array, numItems, flags);
 
   if (list->scrollBar && ((list->scrollBar->flags & flags) == flags))
-    // Add our scrollbar
-    array[*numItems++] = list->scrollBar;
+    {
+      // Add our scrollbar
+      array[*numItems] = list->scrollBar;
+      *numItems += 1;
+    }
 
   return (status);
 }

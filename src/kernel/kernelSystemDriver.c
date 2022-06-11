@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,8 +34,6 @@
 #include "kernelProcessorX86.h"
 #include <stdio.h>
 #include <string.h>
-
-#include "kernelText.h"
 
 
 static struct {

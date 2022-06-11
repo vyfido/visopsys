@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -77,7 +77,7 @@ static int allocateFileEntries(void)
 }
 
 
-static inline int isLeafDir(kernelFileEntry *dir)
+static int isLeafDir(kernelFileEntry *dir)
 {
   // This function will determine whether the supplied directory entry
   // is a 'leaf' directory.  A leaf directory is defined as a directory
@@ -142,7 +142,7 @@ static int unbufferDirectory(kernelFileEntry *dir)
 }
 
 
-static inline void fileEntry2File(kernelFileEntry *fileEntry, file *theFile)
+static void fileEntry2File(kernelFileEntry *fileEntry, file *theFile)
 {
   // This little function will copy the applicable parts from a file
   // entry structure to an external 'file' structure.
@@ -286,17 +286,13 @@ static inline void updateAccessedTime(kernelFileEntry *entry)
 }
 
 
-static inline void updateAllTimes(kernelFileEntry *entry)
+static void updateAllTimes(kernelFileEntry *entry)
 {
   // This will update all the dates and times of a file entry.
-  
-  entry->creationDate = kernelRtcPackedDate();
-  entry->creationTime = kernelRtcPackedTime();
-  entry->modifiedDate = entry->creationDate;
-  entry->modifiedTime = entry->creationTime;
-  entry->accessedDate = entry->creationDate;
-  entry->accessedTime = entry->creationTime;
-  entry->lastAccess = kernelSysTimerRead();
+
+  updateCreationTime(entry);
+  updateModifiedTime(entry);
+  updateAccessedTime(entry);
   return;
 }
 
@@ -306,33 +302,32 @@ static void buildFilenameRecursive(kernelFileEntry *theFile, char *buffer)
   // Head-recurse back to the root of the filesystem, constructing the full
   // pathname of the file
 
-  if ((theFile->parentDirectory) &&
-      strcmp((char *) theFile->parentDirectory->name, "/"))
+  int isRoot = 0;
+
+  if (!strcmp((char *) theFile->name, "/"))
+    isRoot = 1;
+
+  if ((theFile->parentDirectory) && !isRoot)
     buildFilenameRecursive(theFile->parentDirectory, buffer);
 
-  strcat(buffer, "/");
+  if (!isRoot && (buffer[strlen(buffer) - 1] != '/'))
+    strcat(buffer, "/");
+
   strcat(buffer, (char *) theFile->name);
 }
 
 
-static char *fixupPath(const char *originalPath, int absolute)
+static char *fixupPath(const char *originalPath)
 {
-  // This function will take a path string, remove any unneccessary characters 
-  // and resolve any '.' or '..' components to their real targets.  It
-  // allocates memory for the result, so it is the responsibility of the
-  // caller to free it.
+  // This function will take a path string, possibly add the CWD as a prefix,
+  // remove any unneccessary characters, and resolve any '.' or '..'
+  // components to their real targets.  It allocates memory for the result,
+  // so it is the responsibility of the caller to free it.
 
   char *newPath = NULL;
   int originalLength = 0;
   int newLength = 0;
   int count;
-
-  if (absolute && !ISSEPARATOR(originalPath[0]))
-    {
-      kernelError(kernel_error, "Path \"%s\" to fix is not an absolute "
-		  "pathname", originalPath);
-      return (newPath = NULL);
-    }
 
   newPath = kernelMalloc(MAX_PATH_NAME_LENGTH);
   if (newPath == NULL)
@@ -340,8 +335,24 @@ static char *fixupPath(const char *originalPath, int absolute)
 
   originalLength = strlen(originalPath);
 
-  // OK, we step through the original path, dealing with the 
-  // various possibilities
+  if (!ISSEPARATOR(originalPath[0]))
+    {
+      // The original path doesn't appear to be an absolute path.  We will
+      // try prepending the CWD.
+      if (kernelCurrentProcess)
+	{
+	  strcpy(newPath, kernelCurrentProcess->currentDirectory);
+	  newLength += strlen(newPath);
+	}
+
+      if (!newLength || (newPath[newLength - 1] != '/'))
+	// Append a '/', which if multitasking is not enabled will just make
+	// the CWD '/'
+	newPath[newLength++] = '/';
+    }
+
+  // OK, we step through the original path, dealing with the various
+  // possibilities
   for (count = 0; count < originalLength; count ++)
     {
       // Deal with slashes
@@ -1711,7 +1722,7 @@ kernelFileEntry *kernelFileLookup(const char *origPath)
     }
 
   // Fix up the path
-  fixedPath = fixupPath(origPath, 1);
+  fixedPath = fixupPath(origPath);
   if (fixedPath == NULL)
     return (lookupItem = NULL);
 
@@ -1954,17 +1965,6 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-//  Below here, the functions are basically external wrappers for
-//  functions above, which are exported outside the kernel and accept
-//  text strings for file names, etc.
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
 int kernelFileFixupPath(const char *originalPath, char *newPath)
 {
   // This function is a user-accessible wrapper for our internal
@@ -1973,14 +1973,14 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
   int status = 0;
   char *tmpPath = NULL;
 
-  // Check the string pointers and make sure they're not NULL
+  // Check params
   if ((originalPath == NULL) || (newPath == NULL))
     {
       kernelError(kernel_error, "Character string pointer is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  tmpPath = fixupPath(originalPath, 1);
+  tmpPath = fixupPath(originalPath);
   if (tmpPath == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2017,7 +2017,7 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
   pathName[0] = NULL;
 
   // Fix up the path
-  fixedPath = fixupPath(origPath, 0);
+  fixedPath = fixupPath(origPath);
   if (fixedPath == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2042,9 +2042,11 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
   // a(nother) '/' or '\' character.  Of course, that might be the '/' 
   // or '\' of root directory fame.  We know we'll hit at least one.
   for (count = (combinedLength - 1); 
-       ((count >= 0) && !ISSEPARATOR(fixedPath[count])); count --);
-  // (empty loop body is deliberate)
-  
+       ((count >= 0) && !ISSEPARATOR(fixedPath[count])); count --)
+    {
+      // (empty loop body is deliberate)
+    }
+
   // Now, count points at the offset of the last '/' or '\' character before
   // the final component of the path name
 
@@ -2079,6 +2081,17 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
   kernelFree(fixedPath);
   return (status = 0);
 }
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are basically external wrappers for
+//  functions above, which are exported outside the kernel and accept
+//  text strings for file names, etc.
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 int kernelFileGetDisk(const char *path, disk *userDisk)
@@ -2309,7 +2322,7 @@ int kernelFileOpen(const char *fileName, int openMode, file *fileStructure)
     }
 
   // Fix up the path name
-  fixedName = fixupPath(fileName, 1);
+  fixedName = fixupPath(fileName);
   if (fixedName == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2673,7 +2686,7 @@ int kernelFileMakeDir(const char *name)
     }
 
   // Fix up the path name
-  fixedName = fixupPath(name, 1);
+  fixedName = fixupPath(name);
   if (fixedName == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -2748,10 +2761,10 @@ int kernelFileCopy(const char *srcName, const char *destName)
     }
 
   // Fix up the two pathnames
-  fixedSrcName = fixupPath(srcName, 1);
+  fixedSrcName = fixupPath(srcName);
   if (fixedSrcName == NULL)
     return (status = ERR_INVALID);
-  fixedDestName = fixupPath(destName, 1);
+  fixedDestName = fixupPath(destName);
   if (fixedDestName == NULL)
     {
       kernelFree(fixedSrcName);
@@ -2899,13 +2912,13 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
       while (src)
 	{
 	  // Add the file's name to the directory's name
-	  tmpSrcName = fixupPath(srcPath, 1);
+	  tmpSrcName = fixupPath(srcPath);
 	  if (tmpSrcName)
 	    {
 	      strcat(tmpSrcName, "/");
 	      strcat(tmpSrcName, (const char *) src->name);
 	      // Add the file's name to the destination file name
-	      tmpDestName = fixupPath(destPath, 1);
+	      tmpDestName = fixupPath(destPath);
 	      if (tmpDestName)
 		{
 		  strcat(tmpDestName, "/");
@@ -2961,8 +2974,8 @@ int kernelFileMove(const char *srcName, const char *destName)
     }
 
   // Fix up the source and destination path names
-  fixedSrcName = fixupPath(srcName, 1);
-  fixedDestName = fixupPath(destName, 1);
+  fixedSrcName = fixupPath(srcName);
+  fixedDestName = fixupPath(destName);
   if ((fixedSrcName == NULL) || (fixedDestName == NULL))
     {
       if (fixedSrcName)
@@ -3103,7 +3116,7 @@ int kernelFileTimestamp(const char *path)
     }
 
   // Fix up the path name
-  fileName = fixupPath(path, 1);
+  fileName = fixupPath(path);
   if (fileName)
     {
       // Now make sure that the requested file exists
@@ -3178,7 +3191,7 @@ int kernelFileGetTemp(file *tmpFile)
   // Check params
   if (tmpFile == NULL)
     {
-      kernelError(kernel_error, "file parameter pointer is NULL");
+      kernelError(kernel_error, "File pointer is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -3190,25 +3203,23 @@ int kernelFileGetTemp(file *tmpFile)
     }
 
   fileName = kernelMalloc(MAX_PATH_NAME_LENGTH);
-  if (fileName)
-    {
-      while(1)
-	{
-	  // Construct the file name
-	  sprintf(fileName, "/temp/%03d-%08x.tmp",
-		  kernelCurrentProcess->processId, kernelSysTimerRead());
-
-	  // Make sure it doesn't already exist
-	  if (!fileLookup(fileName))
-	    break;
-	}
-
-      // Create and open it for reading/writing
-      status = kernelFileOpen(fileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
-					 OPENMODE_READWRITE), tmpFile);
-      kernelFree(fileName);
-      return (status);
-    }
-  else
+  if (fileName == NULL)
     return (status = ERR_MEMORY);
+
+  while(1)
+    {
+      // Construct the file name
+      sprintf(fileName, "/temp/%03d-%08x.tmp",
+	      kernelCurrentProcess->processId, kernelSysTimerRead());
+
+      // Make sure it doesn't already exist
+      if (!fileLookup(fileName))
+	break;
+    }
+
+  // Create and open it for reading/writing
+  status = kernelFileOpen(fileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
+				     OPENMODE_READWRITE), tmpFile);
+  kernelFree(fileName);
+  return (status);
 }

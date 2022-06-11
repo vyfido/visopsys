@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
   void *fileData = NULL;
   file theFile;
   loaderFileClass class;
-  char fullName[MAX_PATH_NAME_LENGTH];
   loaderSymbolTable *symTable = NULL;
   int count1, count2;
 
@@ -88,11 +87,8 @@ int main(int argc, char *argv[])
       bzero(&theFile, sizeof(file));
       bzero(&class, sizeof(loaderFileClass));
 
-      // Make sure the file name is an absolute pathname
-      vshMakeAbsolutePath(argv[count1], fullName);
-
       // Load the file
-      fileData = loaderLoad(fullName, &theFile);
+      fileData = loaderLoad(argv[count1], &theFile);
       if (fileData == NULL)
 	{
 	  errno = ERR_NODATA;
@@ -101,7 +97,7 @@ int main(int argc, char *argv[])
 	}
 
       // Make sure it's a shared library
-      if (loaderClassify(fullName, fileData, theFile.size, &class) == NULL)
+      if (loaderClassify(argv[count1], fileData, theFile.size, &class) == NULL)
 	{
 	  printf("File type of \"%s\" is unknown\n", argv[count1]);
 	  continue;
@@ -119,7 +115,7 @@ int main(int argc, char *argv[])
       fileData = NULL;
 
       // Get dynamic symbols
-      symTable = loaderGetSymbols(fullName, 1 /* dynamic */);
+      symTable = loaderGetSymbols(argv[count1], 1 /* dynamic */);
       if (symTable == NULL)
 	{
 	  printf("Unable to get dynamic symbols from \"%s\".\n", argv[count1]);

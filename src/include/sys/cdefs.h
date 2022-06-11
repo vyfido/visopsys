@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,10 +28,13 @@
 
 uquad_t __div64(uquad_t, uquad_t, uquad_t *);
 quad_t __divdi3(quad_t, quad_t);
-int _expandFormatString(char *, int, const char *, va_list);
-int _formatInput(const char *, const char *, va_list);
+int _xpndfmt(char *, int, const char *, va_list);
+int _fmtinpt(const char *, const char *, va_list);
 quad_t __moddi3(quad_t, quad_t);
-int _sysCall(int, int, ...);
+void _num2str(unsigned long long, char *, unsigned, int);
+int _numdgts(unsigned long long, unsigned, int);
+unsigned long long _str2num(const char *, unsigned, int);
+int _syscall(int, int, ...);
 uquad_t __udivdi3(uquad_t, uquad_t);
 uquad_t __umoddi3(uquad_t, uquad_t);
 

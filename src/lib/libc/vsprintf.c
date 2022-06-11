@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,6 +21,7 @@
 
 // This is the standard "vsprintf" function, as found in standard C libraries
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/cdefs.h>
@@ -28,13 +29,16 @@
 
 int vsprintf(char *output, const char *format, va_list list)
 {
-  int outputLen = 0;
+  int len = 0;
   
   // Fill out the output line
-  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
-  if (outputLen < 0)
-    return (0);
-
-  return (outputLen);
+  if (len < 0)
+    {
+      errno = len;
+      return (0);
+    }
+  else
+    return (len);
 }

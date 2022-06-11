@@ -32,8 +32,8 @@ typedef runlist_element runlist;
 #include "attrib.h"
 #include "volume.h"
 
-/*
- * runlist_element - in memory vcn to lcn mapping array element
+/**
+ * struct _runlist_element - in memory vcn to lcn mapping array element.
  * @vcn:	starting vcn of the current array element
  * @lcn:	starting lcn of the current array element
  * @length:	length in clusters of the current array element
@@ -74,13 +74,13 @@ extern int ntfs_mapping_pairs_build(const ntfs_volume *vol, u8 *dst,
 		const int dst_len, const runlist_element *rl,
 		const VCN start_vcn, VCN *const stop_vcn);
 
-extern int ntfs_rl_truncate(runlist **rl, const VCN start_vcn);
+extern int ntfs_rl_truncate(runlist **arl, const VCN start_vcn);
 
 extern int ntfs_rl_sparse(runlist *rl);
 extern s64 ntfs_rl_get_compressed_size(ntfs_volume *vol, runlist *rl);
 
 #ifdef NTFS_TEST
-int test_rl_main (int argc, char *argv[]);
+int test_rl_main(int argc, char *argv[]);
 #endif
 
 #endif /* defined _NTFS_RUNLIST_H */

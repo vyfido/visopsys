@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,6 +57,7 @@ typedef volatile struct {
   int hidden;
   color foreground;
   color background;
+  unsigned char pcColor;
   kernelTextInputStream *inputStream;
   volatile struct _kernelTextOutputStream *outputStream;
   unsigned char *bufferData;
@@ -73,11 +74,9 @@ typedef struct {
   void (*setCursor) (kernelTextArea *, int);
   int (*getCursorAddress) (kernelTextArea *);
   int (*setCursorAddress) (kernelTextArea *, int, int);
-  int (*getForeground) (kernelTextArea *);
-  int (*setForeground) (kernelTextArea *, int);
-  int (*getBackground) (kernelTextArea *);
-  int (*setBackground) (kernelTextArea *, int);
-  int (*print) (kernelTextArea *, const char *);
+  int (*setForeground) (kernelTextArea *, color *);
+  int (*setBackground) (kernelTextArea *, color *);
+  int (*print) (kernelTextArea *, const char *, textAttrs *);
   int (*delete) (kernelTextArea *);
   int (*screenDraw) (kernelTextArea *);
   int (*screenClear) (kernelTextArea *);
@@ -114,16 +113,21 @@ kernelTextOutputStream *kernelTextGetCurrentOutput(void);
 int kernelTextSetCurrentOutput(kernelTextOutputStream *);
 int kernelTextNewInputStream(kernelTextInputStream *);
 int kernelTextNewOutputStream(kernelTextOutputStream *);
-int kernelTextGetForeground(void);
-int kernelTextSetForeground(int);
-int kernelTextGetBackground(void);
-int kernelTextSetBackground(int);
+int kernelTextGetForeground(color *);
+int kernelTextSetForeground(color *);
+int kernelTextGetBackground(color *);
+int kernelTextSetBackground(color *);
 int kernelTextStreamPutc(kernelTextOutputStream *, int);
 int kernelTextPutc(int);
 int kernelTextStreamPrint(kernelTextOutputStream *, const char *);
-int kernelTextPrint(const char *, ...);
+int kernelTextPrint(const char *, ...) __attribute__((format(printf, 1, 2)));
+int kernelTextStreamPrintAttrs(kernelTextOutputStream *, textAttrs *,
+			       const char *);
+int kernelTextPrintAttrs(textAttrs *, const char *, ...)
+  __attribute__((format(printf, 2, 3)));
 int kernelTextStreamPrintLine(kernelTextOutputStream *, const char *);
-int kernelTextPrintLine(const char *, ...);
+int kernelTextPrintLine(const char *, ...)
+  __attribute__((format(printf, 1, 2)));
 void kernelTextStreamNewline(kernelTextOutputStream *);
 void kernelTextNewline(void);
 void kernelTextStreamBackSpace(kernelTextOutputStream *);

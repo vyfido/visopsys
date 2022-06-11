@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +22,8 @@
 // This is the standard "snprintf" function, as found in standard C libraries
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdarg.h>
 #include <sys/cdefs.h>
 
@@ -35,21 +35,18 @@ int snprintf(char *output, size_t size, const char *format, ...)
   // number of characters copied to the output string.
 
   va_list list;
-  char tmpOutput[MAXSTRINGLENGTH];
-  int outputLen = 0;
+  int len = 0;
 
-  bzero(tmpOutput, MAXSTRINGLENGTH);
+  bzero(output, size);
 
   // Initialize the argument list
   va_start(list, format);
 
   // Fill out the output line based on 
-  outputLen = _expandFormatString(tmpOutput, MAXSTRINGLENGTH, format, list);
+  len = _xpndfmt(output, size, format, list);
 
   va_end(list);
 
-  strncpy(output, tmpOutput, size);
-
   // Return the number of characters we wrote to the string
-  return (min(outputLen, (int) size));
+  return (len);
 }

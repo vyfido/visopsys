@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -337,9 +337,19 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
     bufferClip->bottomY = (window->buffer.height - 1);
 
   visibleAreas[0].leftX = (window->xCoord + bufferClip->leftX);
-  visibleAreas[0].topY =  (window->yCoord + bufferClip->topY);
-  visibleAreas[0].rightX =  (window->xCoord + bufferClip->rightX);
-  visibleAreas[0].bottomY =  (window->yCoord + bufferClip->bottomY);
+  visibleAreas[0].topY = (window->yCoord + bufferClip->topY);
+  visibleAreas[0].rightX = (window->xCoord + bufferClip->rightX);
+  visibleAreas[0].bottomY = (window->yCoord + bufferClip->bottomY);
+
+  // Make sure we're not trying to draw outside the screen
+  if (visibleAreas[0].leftX < 0)
+    visibleAreas[0].leftX = 0;
+  if (visibleAreas[0].topY < 0)
+    visibleAreas[0].topY = 0;
+  if (visibleAreas[0].rightX >= screenWidth)
+    visibleAreas[0].rightX = (screenWidth - 1);
+  if (visibleAreas[0].bottomY >= screenHeight)
+    visibleAreas[0].bottomY = (screenHeight - 1);
 
   // Lock the window list
   if (kernelLockGet(&windowListLock) < 0)
@@ -484,21 +494,12 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
   // Render all of the visible portions
   for (count1 = 0; count1 < numVisibleAreas; count1 ++)
     {
-      // Adjust it so that it's a clip inslide the window buffer
+      // All the clips were evaluated as absolute screen areas.  Now, adjust
+      // each one so that it's a clip inside the window buffer.
       visibleAreas[count1].leftX -= window->xCoord;
       visibleAreas[count1].topY -= window->yCoord;
       visibleAreas[count1].rightX -= window->xCoord;
       visibleAreas[count1].bottomY -= window->yCoord;
-
-      // Adjust it so that it's fully on the screen
-      if (visibleAreas[count1].leftX < 0)
-	visibleAreas[count1].leftX = 0;
-      if (visibleAreas[count1].topY < 0)
-	visibleAreas[count1].topY = 0;
-      if (visibleAreas[count1].rightX >= screenWidth)
-	visibleAreas[count1].rightX = (screenWidth - 1);
-      if (visibleAreas[count1].bottomY >= screenHeight)
-	visibleAreas[count1].bottomY = (screenHeight - 1);
 
       kernelGraphicRenderBuffer(&(window->buffer),
 	window->xCoord, window->yCoord, visibleAreas[count1].leftX,
@@ -624,10 +625,10 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 
       if (doAreasIntersect(&((screenArea)
 	{ xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ),
-			   &((screenArea)
-			     { component->xCoord, component->yCoord,
-				 (component->xCoord + component->width - 1),
-				 (component->yCoord + component->height - 1) } )))
+		   &((screenArea)
+		     { component->xCoord, component->yCoord,
+			 (component->xCoord + component->width - 1),
+			 (component->yCoord + component->height - 1) } )))
 	{
 	  if (component->level > lowestLevel)
 	    lowestLevel = component->level;
@@ -1112,37 +1113,17 @@ static void changeWindowFocus(kernelWindow *window)
   
   int count;
   
-  // The root window never gets or loses the focus
-  if ((window == NULL) || (window == rootWindow))
+  if (focusWindow && (window != focusWindow))
     {
-      focusWindow = NULL;
-      return;
-    }
+      // Remove the focus from the previously focused window
 
-  if (window != focusWindow)
-    {
-      // Lock the window list
-      if (kernelLockGet(&windowListLock) < 0)
-       	return;
-
-      // Decrement the levels of all windows that used to be above us
-      for (count = 0; count < numberWindows; count ++)
-	if ((windowList[count] != window) &&
-	    (windowList[count]->level <= window->level))
-	  windowList[count]->level++;
-  
-      kernelLockRelease(&windowListLock);
-
-      if (focusWindow)
-	{
-	  // Remove the focus from the previously focused window
-
-	  // This is not the focus window any more.  We do this so that the
-	  // title bar 'draw' routine won't make it look focused
-	  focusWindow->flags &= ~WINFLAG_HASFOCUS;
+      // This is not the focus window any more.  We do this so that the
+      // title bar 'draw' routine won't make it look focused
+      focusWindow->flags &= ~WINFLAG_HASFOCUS;
 	  
-	  if (focusWindow->titleBar)
-	    focusWindow->titleBar->draw(focusWindow->titleBar);
+      if (focusWindow->titleBar)
+	{
+	  focusWindow->titleBar->draw(focusWindow->titleBar);
 
 	  // Redraw the window's title bar area only
 	  windowUpdate(focusWindow, focusWindow->titleBar->xCoord,
@@ -1152,8 +1133,34 @@ static void changeWindowFocus(kernelWindow *window)
 	}
     }
 
-  // This window becomes topmost
-  window->level = 0;
+  // If there's no window to focus, we're finished
+  if (window == NULL)
+    {
+      focusWindow = NULL;
+      return;
+    }
+
+  // Raise the new focus window to the top, unless it's the root window.
+  if (window != rootWindow)
+    {
+      if (window != focusWindow)
+	{
+	  // Lock the window list
+	  if (kernelLockGet(&windowListLock) < 0)
+	    return;
+	  
+	  // Decrement the levels of all windows that used to be above us
+	  for (count = 0; count < numberWindows; count ++)
+	    if ((windowList[count] != window) &&
+		(windowList[count]->level <= window->level))
+	      windowList[count]->level++;
+	  
+	  kernelLockRelease(&windowListLock);
+	}
+      
+      // This window becomes topmost
+      window->level = 0;
+    }
 
   // Mark it as focused
   window->flags |= WINFLAG_HASFOCUS;
@@ -1172,9 +1179,9 @@ static void changeWindowFocus(kernelWindow *window)
     // Set the mouse pointer to that of the window
     kernelMouseSetPointer(window->pointer);
 
-  // Redraw the whole window, since all of it is now visible (otherwise we
-  // would call drawVisiblePortions()).
+  // Redraw the window
   windowUpdate(window, 0, 0, window->buffer.width, window->buffer.height);
+
   return;
 }
 
@@ -1353,8 +1360,7 @@ static void processEvents(void)
   
 	  // If it was a click and the window is not in focus, and not
 	  // the root window, give it the focus
-	  if ((event.type & EVENT_MOUSE_DOWN) && (window != focusWindow) &&
-	      (window != rootWindow))
+	  if ((event.type & EVENT_MOUSE_DOWN) && (window != focusWindow))
 	    // Give the window the focus
 	    changeWindowFocus(window);
 
@@ -1485,7 +1491,7 @@ static void windowThread(void)
   kernelWindowComponent *component = NULL;  
   windowEvent event;
   int processId = 0;
-  static int winCount, compCount;
+  int winCount, compCount;
 
   while(1)
     {
@@ -1504,8 +1510,12 @@ static void windowThread(void)
 	  window = windowList[winCount];
 	  
 	  if (!window)
-	    continue;
-	  
+	    {
+	      // Restart the loop
+	      winCount = -1;
+	      continue;
+	    }
+
 	  processId = window->processId;
 
 	  // Check to see whether the process that owns the window is still
@@ -1525,20 +1535,20 @@ static void windowThread(void)
 	       compCount ++)
 	    {
 	      component = container->components[compCount];
- 
+
 	      // Any handler for the event?  Any events pending?
 	      if (component->eventHandler &&
 		  (kernelWindowEventStreamRead(&(component->events),
 					       &event) > 0))
 		{
-		  component->eventHandler((objectKey) component, &event);
+		  component->eventHandler(component, &event);
 
 		  // Window closed?  Don't want to loop here any more.
 		  if (!kernelMultitaskerProcessIsAlive(processId))
 		    break;
 		}
 	    }
-	}
+ 	}
     
       kernelLockRelease(&windowListLock);
 
@@ -2835,15 +2845,23 @@ void kernelWindowRedrawArea(int xCoord, int yCoord, int width, int height)
   if (!initialized)
     return;
 
-  area.leftX = xCoord;
-  area.topY = yCoord;
-  area.rightX = (xCoord + (width - 1));
-  area.bottomY = (yCoord + (height - 1));
+  // Don't do off the screen
+  xCoord = max(0, xCoord);
+  yCoord = max(0, yCoord);
+  if ((xCoord + width) > screenWidth)
+    width = (screenWidth - xCoord - 1);
+  if ((yCoord + height) > screenHeight)
+    height = (screenHeight - yCoord - 1);
 
   // If the root window has not yet been shown, clear the area first
   if ((rootWindow == NULL) || !(rootWindow->flags & WINFLAG_VISIBLE))
     kernelGraphicClearArea(NULL, &kernelDefaultDesktop, xCoord, yCoord,
 			   width, height);
+
+  area.leftX = xCoord;
+  area.topY = yCoord;
+  area.rightX = (xCoord + (width - 1));
+  area.bottomY = (yCoord + (height - 1));
 
   // Loop through the window list, looking for any visible ones that
   // intersect this area
@@ -3166,7 +3184,10 @@ int kernelWindowTileBackground(const char *filename)
   if (status >= 0)
     {
       kernelVariableListSet(&settings, "background.image", filename);
-      kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
+      kernelDisk *configDisk =
+	kernelDiskGetByPath(WINDOW_DEFAULT_DESKTOP_CONFIG);
+      if (configDisk && !configDisk->filesystem.readOnly)
+	kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
       kernelVariableListDestroy(&settings);
     }
 
@@ -3561,7 +3582,6 @@ void kernelWindowMoveConsoleTextArea(kernelWindow *oldWindow,
   // window
 
   kernelWindowTextArea *textArea = consoleTextArea->data;
-  kernelWindowContainer *container = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -3571,14 +3591,13 @@ void kernelWindowMoveConsoleTextArea(kernelWindow *oldWindow,
     return;
 
   // Remove it from the old window
-  container = oldWindow->mainContainer->data;
-  if (container->remove)
-    container->remove(oldWindow->mainContainer, consoleTextArea);
+  if (oldWindow->mainContainer->remove)
+    oldWindow->mainContainer
+      ->remove(oldWindow->mainContainer, consoleTextArea);
 
   // Add it to the new window
-  container = newWindow->mainContainer->data;
-  if (container->add)
-    container->add(newWindow->mainContainer, consoleTextArea);
+  if (newWindow->mainContainer->add)
+    newWindow->mainContainer->add(newWindow->mainContainer, consoleTextArea);
 
   consoleTextArea->window = newWindow;
   consoleTextArea->buffer = &(newWindow->buffer);

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2006 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -21,9 +21,13 @@
 
 ;; Constants
 
+%define BYTE			1
+%define WORD			2
+%define DWORD			4
+
 ;; Memory locations for loading the kernel
 
-%define LDRCODESEGMENTLOCATION 	00001000h
+%define LDRCODESEGMENTLOCATION 	00008000h
 %define LDRCODESEGMENTSIZE	00005000h
 %define LDRSTCKSEGMENTLOCATION 	(LDRCODESEGMENTLOCATION + LDRCODESEGMENTSIZE)
 %define LDRSTCKSEGMENTSIZE	00001000h   ; Only needs a small stack
@@ -55,56 +59,56 @@
 
 ;; Segment descriptor information for the temporary GDT
 
-%define PRIV_CODEINFO1	  10011010b
-%define PRIV_CODEINFO2	  11001111b
-%define PRIV_DATAINFO1	  10010010b
-%define PRIV_DATAINFO2	  11001111b
-%define PRIV_STCKINFO1	  10010010b
-%define PRIV_STCKINFO2	  11001111b
+%define PRIV_CODEINFO1	        10011010b
+%define PRIV_CODEINFO2	        11001111b
+%define PRIV_DATAINFO1	        10010010b
+%define PRIV_DATAINFO2	        11001111b
+%define PRIV_STCKINFO1	        10010010b
+%define PRIV_STCKINFO2	        11001111b
 
-%define LDRCODEINFO1      10011010b
-%define LDRCODEINFO2	  01000000b
+%define LDRCODEINFO1            10011010b
+%define LDRCODEINFO2	        01000000b
 
-%define SCREENSTART       0x000B8000
+%define SCREENSTART             0x000B8000
 
-%define VIDEOPAGE	  0
-%define ROWS		  50
-%define COLUMNS		  80
-%define FOREGROUNDCOLOR   7
-%define BACKGROUNDCOLOR   1 
-%define ERRORCOLOR        6
+%define VIDEOPAGE	        0
+%define ROWS		        50
+%define COLUMNS		        80
+%define FOREGROUNDCOLOR         7
+%define BACKGROUNDCOLOR         1
+%define ERRORCOLOR              6
 
 ;; Selectors in the GDT
-%define PRIV_CODESELECTOR 0x0008
-%define PRIV_DATASELECTOR 0x0010
-%define PRIV_STCKSELECTOR 0x0018
-%define LDRCODESELECTOR   0x0020
+%define PRIV_CODESELECTOR       0x0008
+%define PRIV_DATASELECTOR       0x0010
+%define PRIV_STCKSELECTOR       0x0018
+%define LDRCODESELECTOR         0x0020
 
 ;; Filesystem types
-%define FS_UNKNOWN  0
-%define FS_FAT12    1
-%define FS_FAT16    2
-%define FS_FAT32    3
+%define FS_UNKNOWN              0
+%define FS_FAT12                1
+%define FS_FAT16                2
+%define FS_FAT32                3
 
 ;; Filesystem values
-%define FAT_BYTESPERDIRENTRY   32
-%define FAT12_NYBBLESPERCLUST  3
-%define FAT16_NYBBLESPERCLUST  4
-%define FAT32_NYBBLESPERCLUST  8
+%define FAT_BYTESPERDIRENTRY    32
+%define FAT12_NYBBLESPERCLUST   3
+%define FAT16_NYBBLESPERCLUST   4
+%define FAT32_NYBBLESPERCLUST   8
 
 ;; CPU types
-%define i486       0
-%define PENTIUM    1
-%define PENTIUMPRO 2
-%define PENTIUM2   3
-%define PENTIUM3   4
-%define PENTIUM4   5
+%define i486                    0
+%define PENTIUM                 1
+%define PENTIUMPRO              2
+%define PENTIUM2                3
+%define PENTIUM3                4
+%define PENTIUM4                5
 
 ;; Number of elements in our memory map
-%define MEMORYMAPSIZE 50
+%define MEMORYMAPSIZE           50
 
 ;; Maximum number of graphics modes we check
-%define MAXVIDEOMODES 20
+%define MAXVIDEOMODES           20
 
 ;; Our data structures that we pass to the kernel, mostly having to do with
 ;; hardware

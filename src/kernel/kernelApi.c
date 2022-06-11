@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -70,13 +70,14 @@ static kernelFunctionIndex textFunctionIndex[] = {
     0, PRIVILEGE_USER },
   { _fnum_textSetCurrentOutput, kernelTextSetCurrentOutput,
     1, PRIVILEGE_USER },
-  { _fnum_textGetForeground, kernelTextGetForeground, 0, PRIVILEGE_USER },
+  { _fnum_textGetForeground, kernelTextGetForeground, 1, PRIVILEGE_USER },
   { _fnum_textSetForeground, kernelTextSetForeground, 1, PRIVILEGE_USER },
-  { _fnum_textGetBackground, kernelTextGetBackground, 0, PRIVILEGE_USER },
+  { _fnum_textGetBackground, kernelTextGetBackground, 1, PRIVILEGE_USER },
   { _fnum_textSetBackground, kernelTextSetBackground, 1, PRIVILEGE_USER },
   { _fnum_textPutc, kernelTextPutc, 1, PRIVILEGE_USER },
-  { _fnum_textPrint, kernelTextPrint, 1, PRIVILEGE_USER },
-  { _fnum_textPrintLine, kernelTextPrintLine, 1, PRIVILEGE_USER },
+  { _fnum_textPrint, (void *) kernelTextPrint, 1, PRIVILEGE_USER },
+  { _fnum_textPrintAttrs, (void *) kernelTextPrintAttrs, 2, PRIVILEGE_USER },
+  { _fnum_textPrintLine, (void *) kernelTextPrintLine, 1, PRIVILEGE_USER },
   { _fnum_textNewline, kernelTextNewline, 0, PRIVILEGE_USER },
   { _fnum_textBackSpace, kernelTextBackSpace, 0, PRIVILEGE_USER },
   { _fnum_textTab, kernelTextTab, 0, PRIVILEGE_USER },
@@ -179,7 +180,6 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   // File functions (4000-4999 range)
 
   { _fnum_fileFixupPath, kernelFileFixupPath, 2, PRIVILEGE_USER },
-  { _fnum_fileSeparateLast, kernelFileSeparateLast, 3, PRIVILEGE_USER },
   { _fnum_fileGetDisk, kernelFileGetDisk, 2, PRIVILEGE_USER },
   { _fnum_fileCount, kernelFileCount, 1, PRIVILEGE_USER },
   { _fnum_fileFirst, kernelFileFirst, 2, PRIVILEGE_USER },

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -97,6 +97,21 @@ static int findSelected(kernelWindowMenu *menu)
 }
 
 
+static int add(kernelWindowComponent *menuComponent,
+	       kernelWindowComponent *component)
+{
+  // Add the supplied component to the menu.
+
+  int status = 0;
+  kernelWindowMenu *menu = menuComponent->data;
+  
+  if (menu->container && menu->container->add)
+    status = menu->container->add(menu->container, component);
+
+  return (status);
+}
+
+
 static int numComps(kernelWindowComponent *component)
 {
   int numItems = 0;
@@ -120,25 +135,6 @@ static int flatten(kernelWindowComponent *component,
   if (menu->container && menu->container->flatten)
     // Flatten our container
     status = menu->container->flatten(menu->container, array, numItems, flags);
-
-  return (status);
-}
-
-
-static int setBuffer(kernelWindowComponent *component,
-		     kernelGraphicBuffer *buffer)
-{
-  // Set the graphics buffer for the component's subcomponents.
-
-  int status = 0;
-  kernelWindowMenu *menu = component->data;
-
-  if (menu->container && menu->container->setBuffer)
-    {
-      // Do our container
-      status = menu->container->setBuffer(menu->container, buffer);
-      menu->container->buffer = buffer;
-    }
 
   return (status);
 }
@@ -209,6 +205,25 @@ static int layout(kernelWindowComponent *component)
   component->doneLayout = 1;
 
   return (status = 0);
+}
+
+
+static int setBuffer(kernelWindowComponent *component,
+		     kernelGraphicBuffer *buffer)
+{
+  // Set the graphics buffer for the component's subcomponents.
+
+  int status = 0;
+  kernelWindowMenu *menu = component->data;
+
+  if (menu->container && menu->container->setBuffer)
+    {
+      // Do our container
+      status = menu->container->setBuffer(menu->container, buffer);
+      menu->container->buffer = buffer;
+    }
+
+  return (status);
 }
 
 
@@ -458,6 +473,7 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
   component->buffer = &(menu->buffer);
   component->data = (void *) menu;
 
+  component->add = &add;
   component->numComps = &numComps;
   component->flatten = &flatten;
   component->layout = &layout;
@@ -471,16 +487,13 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
   component->destroy = &destroy;
 
   // Get our container component
-  menu->container = kernelWindowNewContainer(parent, name, params);
+  menu->container = kernelWindowNewContainer(component, name, params);
   if (menu->container == NULL)
     {
       kernelFree((void *) component);
       kernelFree((void *) menu);
       return (component = NULL);
     }
-
-  // Remove the container from the parent container
-  removeFromContainer(menu->container);
 
   if (contents)
     {

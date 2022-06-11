@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -68,9 +68,8 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char *origFileName = NULL;
+  char *fileName = NULL;
   char *fontName = NULL;
-  char fileName[MAX_PATH_NAME_LENGTH];
   int fixedWidth = 0;
   objectKey font;
 
@@ -93,11 +92,8 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
   
-  origFileName = argv[argc - 2];
+  fileName = argv[argc - 2];
   fontName = argv[argc - 1];
-
-  // Make sure the file name is complete
-  vshMakeAbsolutePath(origFileName, fileName);
 
   // Call the kernel to load the font
   status = fontLoad(fileName, fontName, &font, fixedWidth);

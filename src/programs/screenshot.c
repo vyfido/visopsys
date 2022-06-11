@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,7 +53,7 @@ Currently only the uncompressed, 24-bit bitmap format is supported.
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char filename[MAX_PATH_NAME_LENGTH];
+  char fileName[MAX_PATH_NAME_LENGTH];
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -65,18 +65,15 @@ int main(int argc, char *argv[])
 
   // Did the user supply a file name?
   if (argc > 1)
-    strncpy(filename, argv[argc - 1], MAX_PATH_NAME_LENGTH);
+    strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
   else
     {
       // Prompt for a file name
       status =
-	windowNewFileDialog(NULL, "Enter filename", "Please enter the file "
-			    "name to use:", NULL, filename,
+	windowNewFileDialog(NULL, "Enter file name", "Please enter the file "
+			    "name to use:", NULL, fileName,
 			    MAX_PATH_NAME_LENGTH);
-
-      windowGuiStop();
-
       if (status != 1)
 	{
 	  errno = status;
@@ -85,9 +82,9 @@ int main(int argc, char *argv[])
 	  return (errno);
 	}
     }
-  filename[MAX_PATH_NAME_LENGTH - 1] = '\0';
+  fileName[MAX_PATH_NAME_LENGTH - 1] = '\0';
 
-  status = windowSaveScreenShot(filename);
+  status = windowSaveScreenShot(fileName);
   if (status < 0)
     {
       windowNewErrorDialog(NULL, "Error", "Couldn't save the screenshot.\n"

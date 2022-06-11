@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,6 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   loaderFileClass class;
-  char fullName[MAX_PATH_NAME_LENGTH];
   int count;
 
   // Need at least one argument
@@ -79,11 +78,8 @@ int main(int argc, char *argv[])
       // Initialize the file class structure
       bzero(&class, sizeof(loaderFileClass));
 
-      // Make sure the file name is an absolute pathname
-      vshMakeAbsolutePath(argv[count], fullName);
-
       // Get the file class information
-      if (loaderClassifyFile(fullName, &class) == NULL)
+      if (loaderClassifyFile(argv[count], &class) == NULL)
 	strcpy(class.className, "unknown file class");
 
       // Print this item

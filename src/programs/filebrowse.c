@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,7 +52,6 @@ filebrowse will attempt to execute it -- etc.
 #include <sys/window.h>
 #include <sys/lock.h>
 #include <sys/api.h>
-#include <sys/cdefs.h>
 
 static int processId;
 static int privilege;
@@ -82,6 +81,7 @@ windowMenuContents viewMenuContents = {
 };
 
 
+static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 static void error(const char *format, ...)
 {
   // Generic error message code
@@ -90,7 +90,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  vsnprintf(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(window, "Error", output);
@@ -283,25 +283,21 @@ int main(int argc, char *argv[])
 
   if (argc > 1)
     {
-      vshMakeAbsolutePath(argv[argc - 1], cwd);
-      
-      status = multitaskerSetCurrentDirectory(cwd);
+      status = multitaskerSetCurrentDirectory(argv[argc - 1]);
       if (status < 0)
 	{
-	  error("Can't change to directory \"%s\"", cwd);
+	  error("Can't change to directory \"%s\"", argv[argc - 1]);
 	  free(cwd);
 	  return (errno = status);
 	}
     }
-  else
+
+  status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
+  if (status < 0)
     {
-      status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-      if (status < 0)
-	{
-	  error("Can't determine current directory");
-	  free(cwd);
-	  return (errno = status);
-	}
+      error("Can't determine current directory");
+      free(cwd);
+      return (errno = status);
     }
 
   status = constructWindow(cwd);

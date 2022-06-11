@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,26 +21,31 @@
 
 // This is the standard "vprintf" function, as found in standard C libraries
 
-#include <stdio.h>
-#include <stdarg.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <sys/api.h>
 #include <sys/cdefs.h>
 
 
 int vprintf(const char *format, va_list list)
 {
-  int outputLen = 0;
+  int len = 0;
   char output[MAXSTRINGLENGTH];
+  textAttrs attrs;
 
   if (visopsys_in_kernel)
     return (errno = ERR_BUG);
 
   // Fill out the output line based on 
-  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
-  if (outputLen > 0)
-    textPrint(output);
+  if (len > 0)
+    {
+      bzero(&attrs, sizeof(textAttrs));
+      attrs.flags |= TEXT_ATTRS_NOFORMAT;
+      textPrintAttrs(&attrs, output);
+    }
   
-  return (outputLen);
+  return (len);
 }

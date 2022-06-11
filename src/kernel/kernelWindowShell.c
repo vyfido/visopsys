@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 
 #include "kernelWindow.h"
 #include "kernelDebug.h"
+#include "kernelDisk.h"
 #include "kernelError.h"
 #include "kernelLoader.h"
 #include "kernelLog.h"
@@ -98,7 +99,6 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 static void menuEvent(kernelWindowComponent *component, windowEvent *event)
 {
   int status = 0;
-  kernelWindowComponent *itemComponent = NULL;
   int count;
 
   kernelDebug(debug_gui, "Taskbar menu event");
@@ -107,11 +107,9 @@ static void menuEvent(kernelWindowComponent *component, windowEvent *event)
     {
       kernelDebug(debug_gui, "Taskbar menu selection");
 
-      component->getData(component, &itemComponent, 1);
-
       for (count = 0; count < numMenuItems; count ++)
 	{
-	  if (itemComponent == menuItems[count].itemComponent)
+	  if (component == menuItems[count].itemComponent)
 	    {
 	      if (menuItems[count].command[0] != NULL)
 		{
@@ -140,7 +138,6 @@ static void menuEvent(kernelWindowComponent *component, windowEvent *event)
 static void windowMenuEvent(kernelWindowComponent *component,
 			    windowEvent *event)
 {
-  kernelWindowComponent *itemComponent = NULL;
   int count;
 
   kernelDebug(debug_gui, "Taskbar window menu event");
@@ -149,12 +146,10 @@ static void windowMenuEvent(kernelWindowComponent *component,
     {
       kernelDebug(debug_gui, "Taskbar window menu selection");
 
-      component->getData(component, &itemComponent, 1);
-
       // See if this is one of our window menu components
       for (count = 0; count < numWinMenuItems; count ++)
 	{
-	  if (itemComponent == winMenuItems[count].itemComponent)
+	  if (component == winMenuItems[count].itemComponent)
 	    {
 	      // Restore it
 	      kernelWindowSetMinimized(winMenuItems[count].window, 0);
@@ -202,6 +197,29 @@ static void runPrograms(void)
 }
 
 
+static void scanMenuItemEvents(menuItem *items, int numItems)
+{
+  // Scan through events in a list of our menu items 
+
+  kernelWindowComponent *component = NULL;  
+  windowEvent event;
+  int count;
+
+  for (count = 0; count < numItems; count ++)
+    {
+      component = items[count].itemComponent;
+
+      // Any events pending?  Any event handler?
+      if (component->eventHandler &&
+	  (kernelWindowEventStreamRead(&(component->events), &event) > 0))
+	{
+	  kernelDebug(debug_gui, "Root menu item got event");
+	  component->eventHandler(component, &event);
+	}
+    }
+}
+
+
 static void scanContainerEvents(kernelWindowContainer *container)
 {
   // Recursively scan through events in components of a container
@@ -215,11 +233,11 @@ static void scanContainerEvents(kernelWindowContainer *container)
       component = container->components[count];
       
       // Any events pending?  Any event handler?
-      if (kernelWindowEventStreamRead(&(component->events), &event) > 0)
+      if (component->eventHandler &&
+	  (kernelWindowEventStreamRead(&(component->events), &event) > 0))
 	{
 	  kernelDebug(debug_gui, "Scan container got event");
-	  if (component->eventHandler)
-	    component->eventHandler((objectKey) component, &event);
+	  component->eventHandler(component, &event);
 	}
 
       // If this component is a container type, recurse
@@ -239,7 +257,12 @@ static void windowShellThread(void)
 
   while(1)
     {
-      scanContainerEvents(rootWindow->sysContainer->data);
+      if (winMenuItems)
+	scanMenuItemEvents(winMenuItems, numWinMenuItems);
+
+      if (menuItems)
+	scanMenuItemEvents(menuItems, numMenuItems);
+
       scanContainerEvents(rootWindow->mainContainer->data);
 
       // Done
@@ -380,7 +403,6 @@ kernelWindow *kernelWindowMakeRoot(void)
 
 	  menuComponent =
 	    kernelWindowNewMenu(taskMenuBar, menuLabel, NULL, &params);
-	  kernelWindowRegisterEventHandler(menuComponent, &menuEvent);
 
 	  // Now loop and get any components for this menu
 	  for (count2 = 0; count2 < settings.numVariables; count2 ++)
@@ -397,6 +419,9 @@ kernelWindow *kernelWindowMakeRoot(void)
 
 		  tmpMenuItems[numMenuItems].itemComponent =
 		    kernelWindowNewMenuItem(menuComponent, itemLabel, &params);
+
+		  kernelWindowRegisterEventHandler(tmpMenuItems[numMenuItems]
+						   .itemComponent, &menuEvent);
 
 		  // See if there's an associated command
 		  sprintf(propertyName, "taskBar.%s.%s.command", menuName,
@@ -416,7 +441,6 @@ kernelWindow *kernelWindowMakeRoot(void)
 	    {
 	      kernelDebug(debug_gui, "Created window menu");
 	      windowMenu = menuComponent;
-	      kernelWindowRegisterEventHandler(windowMenu, &windowMenuEvent);
 
 	      // Get memory for the window menu items
 	      winMenuItems =
@@ -507,10 +531,16 @@ kernelWindow *kernelWindowMakeRoot(void)
 
   kernelLog("Desktop icons loaded");
 
-  // Re-write the config file
-  status = kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
-  if (status >= 0)
-    kernelLog("Updated desktop configuration");
+  kernelDisk *configDisk = kernelDiskGetByPath(WINDOW_DEFAULT_DESKTOP_CONFIG);
+  if (configDisk && !configDisk->filesystem.readOnly)
+    {
+      // Re-write the config file
+      status =
+	kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
+      if (status >= 0)
+	kernelLog("Updated desktop configuration");
+    }
+
   kernelVariableListDestroy(&settings);
 
   initialized = 1;
@@ -565,8 +595,8 @@ void kernelWindowShellUpdateList(kernelWindow *windowList[], int numberWindows)
 	kernelWindowComponentDestroy(container
 				     ->components[container
 						  ->numComponents - 1]);
-
-      kernelMemClear(winMenuItems, (WINDOW_MAXWINDOWS * sizeof(menuItem)));
+      kernelMemClear(winMenuItems, (numWinMenuItems * sizeof(menuItem)));
+      numWinMenuItems = 0;
 
       // Copy the parameters from the menu to use 
       kernelMemCopy((void *) &(windowMenu->params), &params,
@@ -586,6 +616,8 @@ void kernelWindowShellUpdateList(kernelWindow *windowList[], int numberWindows)
 
 	  item = kernelWindowNewMenuItem(windowMenu, (char *)
 					 windowList[count]->title, &params);
+
+	  kernelWindowRegisterEventHandler(item, &windowMenuEvent);
 
 	  winMenuItems[numWinMenuItems].itemComponent = item;
 	  winMenuItems[numWinMenuItems].window = windowList[count];

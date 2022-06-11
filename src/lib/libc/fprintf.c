@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2006 J. Andrew McLaughlin
+//  Copyright (C) 1998-2007 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,7 +33,7 @@ int fprintf(FILE *theStream, const char *format, ...)
 {
   int status = 0;
   va_list list;
-  int outputLen = 0;
+  int len = 0;
   char output[MAXSTRINGLENGTH];
   
   if (visopsys_in_kernel)
@@ -49,19 +49,22 @@ int fprintf(FILE *theStream, const char *format, ...)
     }
 
   // Fill out the output line
-  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
+  len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 
-  if (outputLen < 0)
-    return (0);
+  if (len < 0)
+    {
+      errno = len;
+      return (0);
+    }
 
-  status = fileStreamWrite((fileStream *) theStream, outputLen, output);
+  status = fileStreamWrite((fileStream *) theStream, len, output);
   if (status < 0)
     {
       errno = status;
       return (0);
     }
   
-  return (outputLen);
+  return (len);
 }

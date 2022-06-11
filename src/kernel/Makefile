@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2006 J. Andrew McLaughlin
+##  Copyright (C) 1998-2007 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -25,7 +25,7 @@ INCLUDE		= -nostdinc -I. -I${INCDIR}
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL \
 		${DEBUG}
-LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static \
+LFLAGS		= -L${LIBDIR} -nostdlib -static \
 		-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
 # kernelMain needs to go first
@@ -143,7 +143,7 @@ target-dirs:
 	mkdir -p ${BUILDDIR}
 
 ${KERNEL}: ${OBJS}
-	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lc -lgcc -o $@
 	${UTILSDIR}/kernel-symbols.sh ${KERNEL} ${SYMBOLS}
 
 strip: ${KERNEL}
