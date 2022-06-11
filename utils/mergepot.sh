@@ -22,3 +22,4 @@ echo -n Merge $TEMPLATE into message file $MSGFILE
 msgmerge -U $MSGFILE $TEMPLATE
 
 exit 0
+

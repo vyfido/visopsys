@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -24,176 +24,190 @@ msgid "Network Devices"
 msgstr "Ag Aygitlari"
 
 #: ifconfig.c:69
+msgid "Enable"
+msgstr "Etkinlestir"
+
+#: ifconfig.c:70
+msgid "Disable"
+msgstr "Devre disi birak"
+
+#: ifconfig.c:71
 msgid "Enabled at startup"
 msgstr "Sistem açilisinda etkin"
 
-#: ifconfig.c:70
+#: ifconfig.c:72
 msgid "Host name"
 msgstr "Saglayici adi"
 
-#: ifconfig.c:71
+#: ifconfig.c:73
 msgid "Domain name"
 msgstr "Alan adi"
 
-#: ifconfig.c:72
+#: ifconfig.c:74
+#, fuzzy
+msgid "Devices"
+msgstr "Ag Aygitlari"
+
+#: ifconfig.c:75
 msgid "OK"
 msgstr "Tamam"
 
-#: ifconfig.c:73
+#: ifconfig.c:76
 msgid "Cancel"
 msgstr "Iptal"
 
-#: ifconfig.c:74
+#: ifconfig.c:77
 msgid "No supported network devices."
 msgstr "Desteklenen ag aygiti yok."
 
-#: ifconfig.c:138
+#: ifconfig.c:145
 msgid "Error"
 msgstr "Hata"
 
-#: ifconfig.c:156
+#: ifconfig.c:163
 msgid "Local Loopback"
 msgstr ""
 
-#: ifconfig.c:159
+#: ifconfig.c:166
 msgid "Ethernet"
 msgstr "Ethernet"
 
-#: ifconfig.c:162
+#: ifconfig.c:169
 msgid "Unknown"
 msgstr "Bilinmiyor"
 
-#: ifconfig.c:168
+#: ifconfig.c:175
 msgid "Link encap"
 msgstr "Link encap"
 
-#: ifconfig.c:171
+#: ifconfig.c:178
 msgid "HWaddr"
 msgstr "HWaddr"
 
-#: ifconfig.c:178
+#: ifconfig.c:185
 msgid "inet addr"
 msgstr "inet addr"
 
-#: ifconfig.c:183
+#: ifconfig.c:190
 msgid "Mask"
 msgstr "Mask"
 
-#: ifconfig.c:188
+#: ifconfig.c:195
 msgid "Bcast"
 msgstr "Bcast"
 
-#: ifconfig.c:193
+#: ifconfig.c:200
 msgid "Gateway"
 msgstr ""
 
-#: ifconfig.c:198
+#: ifconfig.c:205
 msgid "DNS"
 msgstr ""
 
-#: ifconfig.c:203
+#: ifconfig.c:210
 msgid "RX packets"
 msgstr "RX packets"
 
-#: ifconfig.c:206 ifconfig.c:218
+#: ifconfig.c:213 ifconfig.c:225
 msgid "errors"
 msgstr "errors"
 
-#: ifconfig.c:209 ifconfig.c:221
+#: ifconfig.c:216 ifconfig.c:228
 msgid "dropped"
 msgstr "dropped"
 
-#: ifconfig.c:212 ifconfig.c:224
+#: ifconfig.c:219 ifconfig.c:231
 msgid "overruns"
 msgstr "overruns"
 
-#: ifconfig.c:215
+#: ifconfig.c:222
 msgid "TX packets"
 msgstr "TX packets"
 
-#: ifconfig.c:227
+#: ifconfig.c:234
 msgid "link status"
 msgstr "link status"
 
-#: ifconfig.c:229
+#: ifconfig.c:236
 msgid "LINK"
 msgstr "LINK"
 
-#: ifconfig.c:229
+#: ifconfig.c:236
 msgid "NOLINK"
 msgstr "LINK YOK"
 
-#: ifconfig.c:231
+#: ifconfig.c:238
 msgid "running"
 msgstr "running"
 
-#: ifconfig.c:233
+#: ifconfig.c:240
 msgid "UP"
 msgstr "YUKARI"
 
-#: ifconfig.c:233
+#: ifconfig.c:240
 msgid "DOWN"
 msgstr "ASAGI"
 
-#: ifconfig.c:235
+#: ifconfig.c:242
 msgid "collisions"
 msgstr "collisions"
 
-#: ifconfig.c:238
+#: ifconfig.c:245
 msgid "txqueuelen"
 msgstr "txqueuelen"
 
-#: ifconfig.c:241
+#: ifconfig.c:248
 msgid "Interrupt"
 msgstr "Interrupt"
 
-#: ifconfig.c:257
+#: ifconfig.c:264 ifconfig.c:732
 #, c-format
 msgid "Can't get info for device %s"
 msgstr "%s aygiti için bilgi alinamiyor"
 
-#: ifconfig.c:347
+#: ifconfig.c:396
 #, c-format
 msgid "Networking is %s"
 msgstr "Ag %s"
 
-#: ifconfig.c:347
+#: ifconfig.c:396
 msgid "enabled"
 msgstr "etkin"
 
-#: ifconfig.c:348
+#: ifconfig.c:397
 msgid "disabled"
 msgstr "devre disi"
 
-#: ifconfig.c:350
-msgid "Disable"
+#: ifconfig.c:516
+#, fuzzy
+msgid "Disabling device"
 msgstr "Devre disi birak"
 
-#: ifconfig.c:351 ifconfig.c:586
-msgid "Enable"
-msgstr "Etkinlestir"
+#: ifconfig.c:516
+msgid "Enabling device"
+msgstr ""
 
-#: ifconfig.c:494
-msgid "Shutting down networking"
-msgstr "Ag kapatiliyor"
-
-#: ifconfig.c:494
-msgid "Initializing networking"
-msgstr "Ag etkinlestiriliyor"
-
-#: ifconfig.c:495
+#: ifconfig.c:517 ifconfig.c:559
 msgid "One moment please..."
 msgstr "Bir saniye lütfen..."
 
-#: ifconfig.c:581
+#: ifconfig.c:558
+msgid "Shutting down networking"
+msgstr "Ag kapatiliyor"
+
+#: ifconfig.c:558
+msgid "Initializing networking"
+msgstr "Ag etkinlestiriliyor"
+
+#: ifconfig.c:657
 msgid "Networking is disabled"
 msgstr "Ag devre disi birakildi"
 
-#: ifconfig.c:752
+#: ifconfig.c:863
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:760
+#: ifconfig.c:871
 msgid "Can't get the count of network devices"
 msgstr "Ag aygitlarinin sayisi alinamiyor"

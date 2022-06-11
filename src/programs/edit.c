@@ -1068,8 +1068,8 @@ static void refreshMenuContents(void)
 
 static void refreshWindow(void)
 {
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
 
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
@@ -1274,8 +1274,8 @@ int main(int argc, char *argv[])
 	// For the moment, only operate in graphics mode
 	if (!graphics)
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
-			(argc? argv[0] : ""));
+		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
+			"mode\n"), (argc? argv[0] : ""));
 		return (status = ERR_NOTINITIALIZED);
 	}
 

@@ -2130,9 +2130,8 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 			(unsigned *) &newItem->blocks);
 		if (status < 0)
 		{
-			kernelDebugError("Couldn't determine the number of clusters for "
-				"entry %s", newItem->name);
-			return (status);
+			kernelError(kernel_warn, "Couldn't determine the number of "
+				"clusters for entry %s", newItem->name);
 		}
 
 		if (entryData->attributes & FAT_ATTRIB_SUBDIR)

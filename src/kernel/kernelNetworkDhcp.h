@@ -24,7 +24,7 @@
 #include "kernelNetwork.h"
 
 // Internal constants for DHCP
-#define NETWORK_DHCP_DEFAULT_TIMEOUT	5000 /* ms */
+#define NETWORK_DHCP_DEFAULT_TIMEOUT	10000 /* ms */
 
 // Functions exported from kernelNetworkDhcp.c
 int kernelNetworkDhcpConfigure(kernelNetworkDevice *, const char *,

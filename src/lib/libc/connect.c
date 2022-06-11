@@ -21,20 +21,20 @@
 
 // This is the standard "connect" function, as found in standard C libraries
 
-#include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/api.h>
 #include <sys/cdefs.h>
+#include <sys/network.h>
 #include <sys/socket.h>
 
 
 int connect(int fd, const struct sockaddr *addr, socklen_t addrLen)
 {
-	// Initiate a network connection previously instantiated with a call to
-	// socket()
+	// Initiate an outbound network connection using a file descriptor
+	// previously instantiated with a call to socket()
 
 	int status = 0;
 	fileDescType type = filedesc_unknown;
@@ -45,6 +45,12 @@ int connect(int fd, const struct sockaddr *addr, socklen_t addrLen)
 	if (visopsys_in_kernel)
 	{
 		errno = ERR_BUG;
+		return (status = -1);
+	}
+
+	if (!addr)
+	{
+		errno = ERR_NULLPARAMETER;
 		return (status = -1);
 	}
 

@@ -26,10 +26,11 @@
 #include "kernelLock.h"
 #include <sys/network.h>
 
-#define NETWORK_PACKETS_PER_STREAM			64
-#define NETWORK_DATASTREAM_LENGTH			0xFFFF
+#define NETWORK_DEVICE_TIMEOUT_MS			30000
+#define NETWORK_PACKETS_PER_STREAM			256
+#define NETWORK_DATASTREAM_LENGTH			1048576
 
-// Number of ARP items cached per network adapter.
+// Number of ARP items cached per network device.
 #define NETWORK_ARPCACHE_SIZE				64
 
 // A structure to describe and point to sections inside a buffer of packet
@@ -68,7 +69,7 @@ typedef struct _kernelNetworkPacket {
 
 } kernelNetworkPacket;
 
-// Items in the network adapter's ARP cache
+// Items in the network device's ARP cache
 typedef struct {
 	networkAddress logicalAddress;
 	networkAddress physicalAddress;
@@ -91,7 +92,7 @@ typedef struct {
 
 } kernelNetworkPacketPool;
 
-// The network adapter structure
+// The network device structure
 typedef volatile struct {
 	networkDevice device;
 	kernelDhcpConfig dhcpConfig;
@@ -123,7 +124,7 @@ typedef volatile struct {
 	networkAddress address;
 	networkFilter filter;
 	networkStream inputStream;
-	kernelNetworkDevice *adapter;
+	kernelNetworkDevice *netDev;
 	kernelNetworkIpState ip;
 
 } kernelNetworkConnection;
@@ -151,7 +152,7 @@ int kernelNetworkSendData(kernelNetworkConnection *, unsigned char *,
 // More functions, but also exported to user space
 int kernelNetworkEnabled(void);
 int kernelNetworkEnable(void);
-int kernelNetworkShutdown(void);
+int kernelNetworkDisable(void);
 kernelNetworkConnection *kernelNetworkOpen(int, networkAddress *,
 	networkFilter *);
 int kernelNetworkAlive(kernelNetworkConnection *);

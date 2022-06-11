@@ -411,8 +411,8 @@ int kernelConfigRead(const char *fileName, variableList *list)
 	status = kernelFileStreamOpen(fileName, OPENMODE_READ, configFile);
 	if (status < 0)
 	{
-		kernelError(kernel_warn, "Unable to read the configuration file \"%s\"",
-			fileName);
+		kernelError(kernel_warn, "Unable to read the configuration file "
+			"\"%s\"", fileName);
 		kernelFree(configFile);
 		return (status);
 	}
@@ -441,7 +441,9 @@ int kernelConfigRead(const char *fileName, variableList *list)
 		for (count = 0; count < status; count ++)
 		{
 			if (isspace(lineBuffer[count]))
+			{
 				continue;
+			}
 			else
 			{
 				if (lineBuffer[count] != '#')
@@ -454,8 +456,11 @@ int kernelConfigRead(const char *fileName, variableList *list)
 			continue;
 
 		variable = lineBuffer;
-		for (count = 0; (lineBuffer[count] != '=') && (count < 255); count ++);
+		for (count = 0; (lineBuffer[count] != '=') && (count < 255);
+			count ++);
+		{
 			lineBuffer[count] = '\0';
+		}
 
 		if (strlen(variable) < 255)
 			// Everything after the '=' is the value
@@ -465,8 +470,8 @@ int kernelConfigRead(const char *fileName, variableList *list)
 		kernelVariableListSet(list, variable, value);
 	}
 
-	kernelFree(configFile);
 	kernelFileStreamClose(configFile);
+	kernelFree(configFile);
 
 	return (status = 0);
 }
@@ -498,8 +503,9 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 	// Is there already an old version of the config file?
 	if (!kernelFileFind(fileName, NULL))
 	{
-		// Yup.  Open it for reading, and make our temporary filename different
-		// so that we don't overwrite anything until we've been successful.
+		// Yup.  Open it for reading, and make our temporary filename
+		// different so that we don't overwrite anything until we've been
+		// successful.
 
 		oldFileStream = kernelMalloc(sizeof(fileStream));
 		if (!oldFileStream)
@@ -515,7 +521,9 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 		sprintf(tmpName, "%s.TMP", fileName);
 	}
 	else
+	{
 		strcpy(tmpName, fileName);
+	}
 
 	newFileStream = kernelMalloc(sizeof(fileStream));
 	if (!newFileStream)
@@ -553,8 +561,8 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 			strcpy(lineBuffer, "#");
 			while (lineBuffer[0] == '#')
 			{
-				status =
-					kernelFileStreamReadLine(oldFileStream, 256, lineBuffer);
+				status = kernelFileStreamReadLine(oldFileStream, 256,
+					lineBuffer);
 				if (status < 0)
 					break;
 
@@ -563,7 +571,9 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 				for (count2 = 0; count2 < status; count2 ++)
 				{
 					if (isspace(lineBuffer[count2]))
+					{
 						continue;
+					}
 					else
 					{
 						if (lineBuffer[count2] != '#')
@@ -575,8 +585,8 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 				if (!hasContent)
 				{
 					// Just write it back out verbatim
-					status =
-						kernelFileStreamWriteLine(newFileStream, lineBuffer);
+					status = kernelFileStreamWriteLine(newFileStream,
+						lineBuffer);
 					if (status < 0)
 					{
 						kernelFileStreamClose(oldFileStream);

@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -103,7 +103,7 @@ msgstr "Lütfen çalistirilacak komutu girin:"
 msgid "Unable to execute program"
 msgstr "Program çalistirilamiyor"
 
-#: progman.c:407 progman.c:616
+#: progman.c:407 progman.c:630
 msgid "Set priority"
 msgstr "Önem seviyesini ayarla"
 
@@ -115,24 +115,24 @@ msgstr "Lütfen belirlenen önem seviyesini girin"
 msgid "Unable to launch file dialog"
 msgstr "Dosya diyalogu baslatilamadi"
 
-#: progman.c:575
+#: progman.c:585
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr "Islem                   PID PPID UID Pri Priv CPU% DURUMU   "
 
-#: progman.c:589
+#: progman.c:606
 msgid "Show all sub-processes"
 msgstr "Tüm alt islemleri göster"
 
-#: progman.c:609
+#: progman.c:623
 msgid "Run program"
 msgstr "Program çalistir"
 
-#: progman.c:622
+#: progman.c:636
 msgid "Kill process"
 msgstr "Islemi durdur(KILL)"
 
-#: progman.c:645
+#: progman.c:658
 #, c-format
 msgid ""
 "\n"
@@ -141,6 +141,6 @@ msgstr ""
 "\n"
 "\"%s\" komutu sadece grafik modda çalisabilir\n"
 
-#: progman.c:664
+#: progman.c:677
 msgid "Error getting memory"
 msgstr "Bellege alinirken hata"

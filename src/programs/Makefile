@@ -122,7 +122,7 @@ target-dirs:
 	mkdir -p ${BUILDDIR}
 
 ${BUILDDIR}/%: %.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -lvsh -ldl -lc -lgcc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -lvsh -lc -lgcc -o $@
 
 ${BUILDDIR}/%: %.cpp ${STDDEPS}
 	${CC++} ${C++FLAGS} ${LFLAGS} $< -lstdc++ -lc -lgcc -o $@
@@ -146,8 +146,14 @@ ${BUILDDIR}/archman: archman.c ${STDDEPS}
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lintl -lc -lgcc -o $@
 
+${BUILDDIR}/format: format.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -ldl -lvsh -lc -o $@
+
 ${BUILDDIR}/tar: tar.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
+
+${BUILDDIR}/test: test.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lintl -ldl -lc -lgcc -o $@
 
 ${BUILDDIR}/unzip: unzip.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@

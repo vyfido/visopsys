@@ -54,6 +54,11 @@
 #define MSG_MORE        	0x00008000	// sender has more data to send
 #define MSG_CMSG_CLOEXEC	0x40000000	// close file descriptor on exec
 
+// Shutdown modes for shutdown()
+#define SHUT_RD				0
+#define SHUT_WR				1
+#define SHUT_RDWR			2
+
 typedef unsigned socklen_t;
 
 // Types of sockets
@@ -94,9 +99,13 @@ struct sockaddr_storage {
 	unsigned char __ss_pad[_SS_PADSIZE];
 };
 
+int accept(int, const struct sockaddr *, socklen_t *);
+int bind(int, const struct sockaddr *, socklen_t);
 int connect(int, const struct sockaddr *, socklen_t);
+int listen(int, int);
 ssize_t recv(int, void *, size_t, int);
 ssize_t send(int, const void *, size_t, int);
+int shutdown(int, int);
 int socket(int, int, int);
 
 #define _SOCKET_H

@@ -3803,9 +3803,13 @@ static void copyIoThread(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[1], "reader"))
+	{
 		reader = 1;
+	}
 	else if (!strcmp(argv[1], "writer"))
+	{
 		reader = 0;
+	}
 	else
 	{
 		error("Invalid IO thread argument \"%s\"", argv[0]);

@@ -37,6 +37,7 @@ int vshDeleteFile(const char *);
 int vshDumpFile(const char *);
 int vshFileList(const char *);
 void vshMakeAbsolutePath(const char *, char *);
+int vshMakeDirRecursive(char *);
 int vshMoveFile(const char *, const char *);
 int vshParseCommand(char *, char *, int *, char *[]);
 void vshPasswordPrompt(const char *, char *);

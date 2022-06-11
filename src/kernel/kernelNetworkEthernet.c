@@ -35,7 +35,7 @@
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelNetworkEthernetPrependHeader(kernelNetworkDevice *adapter,
+int kernelNetworkEthernetPrependHeader(kernelNetworkDevice *netDev,
 	kernelNetworkPacket *packet)
 {
 	// Create the ethernet header for this packet and adjust the packet data
@@ -57,7 +57,7 @@ int kernelNetworkEthernetPrependHeader(kernelNetworkDevice *adapter,
 	else
 	{
 		// Get the 6-byte ethernet destination address
-		status = kernelNetworkDeviceGetAddress((char *) adapter->device.name,
+		status = kernelNetworkDeviceGetAddress((char *) netDev->device.name,
 			&packet->destAddress, (networkAddress *) &header->dest);
 		if (status < 0)
 		{
@@ -68,7 +68,7 @@ int kernelNetworkEthernetPrependHeader(kernelNetworkDevice *adapter,
 	}
 
 	// Copy the 6-byte ethernet source address
-	networkAddressCopy(&header->source, &adapter->device.hardwareAddress,
+	networkAddressCopy(&header->source, &netDev->device.hardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Always the same for our purposes

@@ -25,9 +25,9 @@
 #include "kernelApi.h"
 #include "kernelCharset.h"
 #include "kernelCpu.h"
+#include "kernelCrypt.h"
 #include "kernelDebug.h"
 #include "kernelDisk.h"
-#include "kernelEncrypt.h"
 #include "kernelEnvironment.h"
 #include "kernelError.h"
 #include "kernelFile.h"
@@ -1738,6 +1738,10 @@ static kernelArgInfo args_networkGetDomainName[] =
 static kernelArgInfo args_networkSetDomainName[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_networkDeviceEnable[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_networkDeviceDisable[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_networkDeviceGet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -1759,7 +1763,7 @@ static kernelFunctionIndex networkFunctionIndex[] = {
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_networkEnable, kernelNetworkEnable,
 		PRIVILEGE_SUPERVISOR, 0, NULL, type_val },
-	{ _fnum_networkShutdown, kernelNetworkShutdown,
+	{ _fnum_networkDisable, kernelNetworkDisable,
 		PRIVILEGE_SUPERVISOR, 0, NULL, type_val },
 	{ _fnum_networkOpen, kernelNetworkOpen,
 		PRIVILEGE_USER, 3, args_networkOpen, type_ptr },
@@ -1781,6 +1785,10 @@ static kernelFunctionIndex networkFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_networkGetDomainName, type_val },
 	{ _fnum_networkSetDomainName, kernelNetworkSetDomainName,
 		PRIVILEGE_SUPERVISOR, 2, args_networkSetDomainName, type_val },
+	{ _fnum_networkDeviceEnable, kernelNetworkDeviceEnable,
+		PRIVILEGE_SUPERVISOR, 1, args_networkDeviceEnable, type_val },
+	{ _fnum_networkDeviceDisable, kernelNetworkDeviceDisable,
+		PRIVILEGE_SUPERVISOR, 1, args_networkDeviceDisable, type_val },
 	{ _fnum_networkDeviceGetCount, kernelNetworkDeviceGetCount,
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_networkDeviceGet, kernelNetworkDeviceGet,
@@ -1795,7 +1803,7 @@ static kernelFunctionIndex networkFunctionIndex[] = {
 
 // Miscellaneous functions (0xFF000-0xFFFFF range)
 
-static kernelArgInfo args_shutdown[] =
+static kernelArgInfo args_systemShutdown[] =
 	{ { 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_getVersion[] =
@@ -1803,8 +1811,9 @@ static kernelArgInfo args_getVersion[] =
 		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_systemInfo[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_encryptMD5[] =
+static kernelArgInfo args_cryptHashMd5[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_lockGet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -1866,14 +1875,14 @@ static kernelArgInfo args_cpuSpinMs[] =
 	{ { 1, type_val, API_ARG_ANYVAL } };
 
 static kernelFunctionIndex miscFunctionIndex[] = {
-	{ _fnum_shutdown, kernelShutdown,
-		PRIVILEGE_USER, 2, args_shutdown, type_val },
+	{ _fnum_systemShutdown, kernelSystemShutdown,
+		PRIVILEGE_USER, 2, args_systemShutdown, type_val },
 	{ _fnum_getVersion, kernelGetVersion,
 		PRIVILEGE_USER, 2, args_getVersion, type_void },
 	{ _fnum_systemInfo, kernelSystemInfo,
 		PRIVILEGE_USER, 1, args_systemInfo, type_val },
-	{ _fnum_encryptMD5, kernelEncryptMD5,
-		PRIVILEGE_USER, 2, args_encryptMD5, type_val },
+	{ _fnum_cryptHashMd5, kernelCryptHashMd5,
+		PRIVILEGE_USER, 3, args_cryptHashMd5, type_val },
 	{ _fnum_lockGet, kernelLockGet,
 		PRIVILEGE_USER, 1, args_lockGet, type_val },
 	{ _fnum_lockRelease, kernelLockRelease,

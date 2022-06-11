@@ -77,6 +77,8 @@ int wctomb(char *, wchar_t);
 // paradigm.
 #define atou(string) ((unsigned) _str2num(string, 10, 0, NULL))
 #define atoull(string) _str2num(string, 10, 0, NULL)
+#define atoo(string) ((unsigned) _str2num(string, 8, 0, NULL))
+#define atooll(string) _str2num(string, 8, 0, NULL)
 #define dtoa(num, string, round) _dbl2str(num, string, round)
 #define ftoa(num, string) _flt2str(num, string, round)
 #define itoa(num, string) _num2str(num, string, 10, 1)

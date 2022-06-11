@@ -316,6 +316,8 @@
 /system/headers/sys/window.h
 /system/icons/archive.ico
 /system/icons/archman.ico
+/system/icons/arrowup.ico
+/system/icons/audio.ico
 /system/icons/bootsect.ico
 /system/icons/cal.ico
 /system/icons/calc.ico
@@ -350,6 +352,7 @@
 /system/icons/screenshot.ico
 /system/icons/sysdiag.ico
 /system/icons/users.ico
+/system/icons/video.ico
 /system/icons/view.ico
 /system/icons/zoomin.ico
 /system/icons/zoomout.ico

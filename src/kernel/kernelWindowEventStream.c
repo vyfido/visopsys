@@ -60,7 +60,6 @@ int kernelWindowEventStreamNew(windowEventStream *newStream)
 		return (status);
 	}
 
-	// Yahoo, all set.
 	return (status = 0);
 }
 
@@ -81,9 +80,8 @@ int kernelWindowEventStreamPeek(windowEventStream *theStream)
 
 	if (theStream->count >= WINDOW_EVENT_DWORDS)
 	{
-		if (theStream->pop(theStream, &type))
+		if (theStream->peek(theStream, &type))
 			return (type = 0);
-		theStream->push(theStream, type);
 	}
 
 	// Return the type, or NULL
@@ -124,8 +122,8 @@ int kernelWindowEventStreamRead(windowEventStream *theStream,
 int kernelWindowEventStreamWrite(windowEventStream *theStream,
 	windowEvent *event)
 {
-	// This function will write the data from the supplied windowEvent structure
-	// to the window event stream
+	// This function will write the data from the supplied windowEvent
+	// structure to the window event stream
 
 	int status = 0;
 

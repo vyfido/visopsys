@@ -22,8 +22,8 @@
 // This file contains the functions designed for managing user access
 
 #include "kernelUser.h"
+#include "kernelCrypt.h"
 #include "kernelDisk.h"
-#include "kernelEncrypt.h"
 #include "kernelEnvironment.h"
 #include "kernelError.h"
 #include "kernelFile.h"
@@ -78,12 +78,13 @@ static int hashString(const char *plain, char *hash)
 	// Turns a plain text string into a hash
 
 	int status = 0;
-	char hashValue[16];
+	unsigned char hashValue[16];
 	char byte[3];
 	int count;
 
 	// Get the MD5 hash of the supplied string
-	status = kernelEncryptMD5(plain, hashValue);
+	status = kernelCryptHashMd5((unsigned char *) plain, strlen(plain),
+		hashValue);
 	if (status < 0)
 		return (status = 0);
 

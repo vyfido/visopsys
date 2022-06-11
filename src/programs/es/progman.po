@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -99,7 +99,7 @@ msgstr "Por favor ingrese un comando para ejecutar:"
 msgid "Unable to execute program"
 msgstr "No se puede ejecutar"
 
-#: progman.c:407 progman.c:616
+#: progman.c:407 progman.c:630
 msgid "Set priority"
 msgstr "Configurar prioridad"
 
@@ -111,24 +111,24 @@ msgstr "Ingrese la prioridad deseada"
 msgid "Unable to launch file dialog"
 msgstr "No se puede abrir dialogo de archivos"
 
-#: progman.c:575
+#: progman.c:585
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr "Proceso                   PID PPID UID Pri Priv CPU% STATUS   "
 
-#: progman.c:589
+#: progman.c:606
 msgid "Show all sub-processes"
 msgstr "Mostrar subprocesos"
 
-#: progman.c:609
+#: progman.c:623
 msgid "Run program"
 msgstr "Ejecutar Programa"
 
-#: progman.c:622
+#: progman.c:636
 msgid "Kill process"
 msgstr "Matar proceso"
 
-#: progman.c:645
+#: progman.c:658
 #, c-format
 msgid ""
 "\n"
@@ -137,6 +137,6 @@ msgstr ""
 "\n"
 "El comando \"%s\" solo funciona en modo grafico\n"
 
-#: progman.c:664
+#: progman.c:677
 msgid "Error getting memory"
 msgstr "Error al obtener memoria"

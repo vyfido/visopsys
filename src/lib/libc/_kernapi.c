@@ -2432,15 +2432,15 @@ _X_ int networkEnabled(void)
 _X_ int networkEnable(void)
 {
 	// Proto: int kernelNetworkEnable(void);
-	// Desc: Initialize and start networking.
+	// Desc: Enable networking.
 	return (_syscall(_fnum_networkEnable, NULL));
 }
 
-_X_ int networkShutdown(void)
+_X_ int networkDisable(void)
 {
-	// Proto: int kernelNetworkShutdown(void);
-	// Desc: Shut down networking.
-	return (_syscall(_fnum_networkShutdown, NULL));
+	// Proto: int kernelNetworkDisable(void);
+	// Desc: Disable networking.
+	return (_syscall(_fnum_networkDisable, NULL));
 }
 
 _X_ objectKey networkOpen(int mode, networkAddress *address _U_, networkFilter *filter _U_)
@@ -2513,6 +2513,20 @@ _X_ int networkSetDomainName(const char *buffer, int bufferSize _U_)
 	return (_syscall(_fnum_networkSetDomainName, &buffer));
 }
 
+_X_ int networkDeviceEnable(const char *name)
+{
+	// Proto: int kernelNetworkDeviceEnable(const char *);
+	// Desc: Enables the requested (by 'name') network device.
+	return (_syscall(_fnum_networkDeviceEnable, &name));
+}
+
+_X_ int networkDeviceDisable(const char *name)
+{
+	// Proto: int kernelNetworkDeviceDisable(const char *);
+	// Desc: Disables the requested (by 'name') network device.
+	return (_syscall(_fnum_networkDeviceDisable, &name));
+}
+
 _X_ int networkDeviceGetCount(void)
 {
 	// Proto: int kernelNetworkDeviceGetCount(void);
@@ -2553,11 +2567,11 @@ _X_ unsigned networkDeviceSniff(objectKey hook, unsigned char *buffer _U_, unsig
 // Miscellaneous functions
 //
 
-_X_ int shutdown(int reboot, int nice _U_)
+_X_ int systemShutdown(int reboot, int nice _U_)
 {
-	// Proto: int kernelShutdown(int, int);
+	// Proto: int kernelSystemShutdown(int, int);
 	// Desc : Shut down the system.  If 'reboot' is non-zero, the system will reboot.  If 'nice' is zero, the shutdown will be orderly and will abort if serious errors are detected.  If 'nice' is non-zero, the system will go down like a kamikaze regardless of errors.
-	return (_syscall(_fnum_shutdown, &reboot));
+	return (_syscall(_fnum_systemShutdown, &reboot));
 }
 
 _X_ void getVersion(char *buff, int buffSize _U_)
@@ -2574,11 +2588,11 @@ _X_ int systemInfo(struct utsname *uts)
 	return (_syscall(_fnum_systemInfo, &uts));
 }
 
-_X_ int encryptMD5(const char *in, char *out _U_)
+_X_ int cryptHashMd5(const unsigned char *in, unsigned len _U_, unsigned char *out _U_)
 {
-	// Proto: int kernelEncryptMD5(const char *, char *);
-	// Desc : Given the input string 'in', return the encrypted numerical message digest in the buffer 'out'.
-	return (_syscall(_fnum_encryptMD5, &in));
+	// Proto: int kernelCryptHashMd5(const unsigned char *, unsigned len, unsigned char *);
+	// Desc : Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.
+	return (_syscall(_fnum_cryptHashMd5, &in));
 }
 
 _X_ int lockGet(lock *getLock)

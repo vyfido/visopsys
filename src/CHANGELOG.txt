@@ -1,5 +1,119 @@
 --------------
- Version 0.82   05/02/2018
+ Version 0.83   09/08/2018
+--------------
+
+  Overview: This maintenance version features user experience enhancements and
+  reliability improvements, and a more capable Archive Manager program.  Bug
+  fixes cover a number of GUI flaws and memory leaks, and some of the low-
+  level network infrastructure code has been refined.
+
+- The Archive Manager program now supports the creation of archives.
+Extensively enhanced, it now has 'New', 'Open', 'Add' and 'Delete' operations,
+and the ability to navigate through levels of archives.  By default, it opens
+a new, temporary working archive, and will offer to save in uncompressed
+(.tar) or compressed (.tar.gz) formats.
+- The File Browser now launches a thread to generate custom thumbnail icons
+in the background, rather than processing the entire directory contents before
+showing anything.  This makes a big difference when browsing directories full
+of images.
+- Added the ability to recognize Flash, AVI, MP4, and QuickTime videos to the
+kernel loader, and for the file browser to display an appropriate icon.
+- Added the ability to recognize MP3 and WAV audio files to the kernel loader,
+and for the file browser to display an appropriate icon.
+- Tweaked the XHCI USB 3 driver to be able to handle overlapping input/output
+device endpoint numbers (e.g. 0x01 and 0x81).
+- Added kernel functionality for enabling or disabling individual network
+devices, and made that available to the user in the Network Devices program,
+and the command-line version 'ifconfig'.
+- Added a new kernel thread for configuring (e.g. via DHCP) network devices
+that runs in the background and retries devices for up to 30 seconds.  This
+prevents network startup from holding up system boot.
+- Improved some network packet reference counting, memory management, locking,
+error messages, and tweaked DHCP timeouts.
+- Improved the compression library's efficiency when adding members to a .tar
+archive.  Particulary noticeable when adding many items recursively.
+- Overhauled the kernel's generic data streams functionality for improved
+correctness and performance, removed its 'push' functions, and added 'peek'
+functions.
+- Changed the initial GUI container grid layout so that by default, resizable
+components spanning multiple cells only distribute their excess width/height
+amongst cells that already contain other resizable components.
+- Enhanced the window library's file selection dialog so that the caller can
+specify an unknown type, rather than just a file, or just a directory -
+permitting the user to select either/anything.
+- The window library's file dialog window and file list widget have been
+modified to improve re-entrancy, getting rid of global data items and using
+dynamically-allocated memory.
+- Converted the kernelEncryptMD5() function to a kernelCryptHashMd5()
+function, which takes a length argument and is able to hash any data - not
+just strings.
+- Added the network-related C library function shutdown() and renamed the
+kernel's shutdown() function to systemShutdown() (kernelSystemShutdown()).
+- Added the network-related C library functions accept(), bind(), and
+listen() - although the accept() function is just a stub, since the kernel's
+network code still doesn't handle incoming connections.
+- The scanf() family of C library functions can now read octal numbers using
+the '%o' format specifier (also added verification in the test program).
+- Minor cleanup and formatting edits to the C library functions basename(),
+dirname(), and strstr().
+- Added vshMakeDirRecursive() to the VSH library, removed the files from the
+'shared' lib directory, and incorporated their code into the
+vshMakeAbsolutePath() and vshSearchPath() functions.
+- Removed libdl from the list of libraries that are linked to program
+executables by default.
+- Fixed - The FAT filesystem driver no longer refuses to read a directory if
+it can't count the clusters of every file.  A corrupt file could render whole
+directory trees inaccessible, or if in the root directory, could cause the
+filesystem to become unmountable, and the system unbootable.
+- Fixed - The framebuffer graphics driver's image drawing functions when
+drawing images that are partially inside the graphics buffer - particularly
+when at negative X,Y coordinates - such as when dragging an icon off the left
+or top edges of the screen.
+- Fixed - Window title bars with text that was too long were being shortened
+incorrectly, leading to crashy behaviour, such as when clicking on small icon
+images in the file browser.
+- Fixed - The GUI's icon code could crash when the number of label lines
+overflowed.  It now truncates the last line with ' ...' if it's too long.
+- Fixed - The image viewer program's image scaling, memory management, and
+error handling.  Clicking on some supported images in the file browser wasn't
+working as it should, and could cause crashlike behaviour.  Initial image
+scaling was off for some images, and should be better now.
+- Fixed - The Jpeg image processing code was getting confused about how to
+handle arrays of multiple Huffman tables in the same marker section, and
+corrupting memory, or else missing table data and falling back to defaults,
+potentially hurting image quality.  Also sped up the processing of Jpeg
+headers.
+- Fixed - A (rare) kernel panic - double fault - when windows were opening or
+closing, and the window list was being updated.
+- Fixed - Spurious warning messages when resizing images by a large ratio,
+for example shrinking a large picture to a small thumbnail.
+- Fixed - In some cases, the Visopsys client's host name wasn't appearing
+correctly on the DHCP server.  Implemented smarter DHCP option handing, and
+changed the default behaviour when sending both host and domain names back to
+the server.
+- Fixed - A bug could result in receive queue overruns in the AMD PcNet
+network adapter driver.
+- Fixed - An error due to a bug when opening a file stream to write in
+'append' mode when the existing size is a multiple of the filesystem block
+size.
+- Fixed - The kernel's runtime loader, in the case where the
+kernelLoaderClassifyFile() function is passed the name of a directory, it
+will return an appropriate response (that it's a directory).
+- Fixed - Some window library dialog boxes were leaking icon image memory.
+- Fixed - A small memory leak in which the memory for thread command-line
+arguments was not being deallocated when the thread terminated.
+- Fixed - The GUI's button component, when displaying an image (rather than a
+text label), was freeing image memory directly, instead of calling the
+kernelImageFree() function, resulting in a memory leak of the image's alpha
+channel data.
+- Fixed - The kernelConfigRead() function was freeing its file stream memory
+before closing the stream, resulting in a memory leak.
+- Fixed - File stream buffer memory is now allocated as normal process memory,
+rather then kernel memory, to prevent leaks if the process fails to close the
+stream.
+
+--------------
+ Version 0.82   05/03/2018
 --------------
 
   Overview: This maintenance version features a small number of user-visible
@@ -82,7 +196,7 @@ crash and kernel panic.
 that it was smaller than the original size, the icon list component/container
 wouldn't resize to less than its original height, and the bottom of the
 scrollbar would show outside the window buffer.
-- Fixed: Adding windowMenuItems to a menu bar or changing windowMenu titles; 
+- Fixed: Adding windowMenuItems to a menu bar or changing windowMenu titles;
 tweaked the layout code.
 - Fixed: The ELF runtime loader so that it does not ignore 'weak' symbols in
 dynamic libraries.

@@ -94,9 +94,11 @@ static void renderComponent(kernelWindowComponent *component)
 
 	// Redraw a clip of that part of the window
 	if (window->drawClip)
+	{
 		window->drawClip(window, (component->xCoord - 2),
 			(component->yCoord - 2), (component->width + 4),
 			(component->height + 4));
+	}
 }
 
 
@@ -283,8 +285,6 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 
 	// Free the component itself
 	kernelFree((void *) component);
-
-	return;
 }
 
 

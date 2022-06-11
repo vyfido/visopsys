@@ -72,9 +72,8 @@ static int setData(kernelWindowComponent *component, void *buffer,
 	if (component->draw)
 		component->draw(component);
 
-	component->window
-		->update(component->window, component->xCoord, component->yCoord,
-			component->width, component->height);
+	component->window->update(component->window, component->xCoord,
+		component->yCoord, component->width, component->height);
 
 	return (0);
 }
@@ -105,8 +104,8 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
-	drawMode mode, componentParameters *params)
+kernelWindowComponent *kernelWindowNewImage(objectKey parent,
+	image *imageCopy, drawMode mode, componentParameters *params)
 {
 	// Formats a kernelWindowComponent as a kernelWindowImage
 

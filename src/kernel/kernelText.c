@@ -1817,13 +1817,8 @@ int kernelTextInputStreamPeek(kernelTextInputStream *inputStream,
 			return (status = ERR_NOSUCHENTRY);
 	}
 
-	// Call the 'pop' function for this stream
-	status = inputStream->s.pop(&inputStream->s, returnChar);
-	if (status)
-		return (status);
-
-	// Push the character back into the stream
-	status = inputStream->s.push(&inputStream->s, *returnChar);
+	// Call the 'peek' function for this stream
+	status = inputStream->s.peek(&inputStream->s, returnChar);
 
 	// Return the status from the call
 	return (status);

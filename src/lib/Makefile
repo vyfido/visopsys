@@ -30,7 +30,6 @@ clean:
 	${MAKE} -C libtimer clean
 	${MAKE} -C libvsh clean
 	${MAKE} -C libwindow clean
-	${MAKE} -C shared clean
 	rm -f *~ *.o core
 	rm -Rf ${BUILDDIR}
 

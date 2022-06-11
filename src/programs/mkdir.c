@@ -42,11 +42,11 @@ Options:
 */
 
 #include <errno.h>
-#include <libgen.h>
 #include <libintl.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
@@ -60,29 +60,6 @@ static void usage(char *name)
 	printf("%s", _("usage:\n"));
 	printf(_("%s <directory1> [directory2] [...]\n"), name);
 	return;
-}
-
-
-static int makeDirRecursive(char *path)
-{
-	int status = 0;
-	char *parent = NULL;
-
-	if (fileFind(path, NULL) >= 0)
-		return (status = 0);
-
-	parent = dirname(path);
-	if (!parent)
-		return (status = ERR_NOSUCHENTRY);
-
-	status = makeDirRecursive(parent);
-
-	free(parent);
-
-	if (status < 0)
-		return (status);
-
-	return (status = fileMakeDir(path));
 }
 
 
@@ -128,7 +105,7 @@ int main(int argc, char *argv[])
 
 		// Attempt to create the directory
 		if (recurse)
-			status = makeDirRecursive(argv[count]);
+			status = vshMakeDirRecursive(argv[count]);
 		else
 			status = fileMakeDir(argv[count]);
 

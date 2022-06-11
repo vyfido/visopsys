@@ -361,7 +361,7 @@ static void keyboardThread(void)
 								(buffer[count].keyboard->state.shiftState &
 									KEYBOARD_ALT_PRESSED))
 							{
-								kernelShutdown(1, 1);
+								kernelSystemShutdown(1, 1);
 								while (1);
 							}
 							break;

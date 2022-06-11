@@ -52,7 +52,40 @@
 #endif
 
 
-static unsigned tarMemberHeaderChecksum(tarHeader *header)
+static int seekEnd(FILE *outStream)
+{
+	// Seek to the end of the archive
+
+	int status = 0;
+	long fpos = 0;
+
+	fpos = ftell(outStream);
+
+	if (!fpos)
+		// Empty file
+		return (status = 0);
+
+	if (fpos & (TAR_BLOCKSIZE - 1))
+	{
+		fprintf(stderr, "Length is not a multiple of block size\n");
+		return (status = ERR_INVALID);
+	}
+
+	if (fpos <= (TAR_BLOCKSIZE * 2))
+	{
+		fprintf(stderr, "Archive not properly terminated\n");
+		return (status = ERR_INVALID);
+	}
+
+	status = fseek(outStream, -(TAR_BLOCKSIZE * 2), SEEK_END);
+	if (status < 0)
+		status = errno;
+
+	return (status);
+}
+
+
+static unsigned memberHeaderChecksum(tarHeader *header)
 {
 	unsigned checksum = 0;
 	unsigned char *ptr = (unsigned char *) header;
@@ -73,7 +106,25 @@ static unsigned tarMemberHeaderChecksum(tarHeader *header)
 }
 
 
-static int tarReadMemberHeader(FILE *inStream, archiveMemberInfo *info)
+static int terminate(FILE *outStream)
+{
+	unsigned char empty[TAR_BLOCKSIZE];
+
+	memset(empty, 0, TAR_BLOCKSIZE);
+
+	// Append two empty blocks
+	if ((fwrite(empty, TAR_BLOCKSIZE, 1, outStream) < 1) ||
+		(fwrite(empty, TAR_BLOCKSIZE, 1, outStream) < 1))
+	{
+		fprintf(stderr, "Error writing empty blocks\n");
+		return (ERR_IO);
+	}
+
+	return (0);
+}
+
+
+static int readMemberHeader(FILE *inStream, archiveMemberInfo *info)
 {
 	// Read the next member header of a TAR file, and return the relevant
 	// info from it.
@@ -96,21 +147,20 @@ static int tarReadMemberHeader(FILE *inStream, archiveMemberInfo *info)
 		return (status = errno);
 
 	// Look out for an empty block - indicates end of archive (actually 2 of
-	// them
-	for (count = 0; count < 512; count ++)
+	// them)
+	for (count = 0; count < TAR_BLOCKSIZE; count ++)
 	{
 		if (((char *) &header)[count])
 			break;
 	}
 
-	if (count >= 512)
+	if (count >= TAR_BLOCKSIZE)
 	{
 		// Finished, we guess.  No more members.
 		DEBUGMSG("End of TAR archive\n");
 
 		// Try to put the file pointer back to the start of the NULL blocks
 		fseek(inStream, info->startOffset, SEEK_SET);
-
 		return (status = 0);
 	}
 
@@ -121,8 +171,7 @@ static int tarReadMemberHeader(FILE *inStream, archiveMemberInfo *info)
 		return (status = ERR_BADDATA);
 	}
 
-	if (tarMemberHeaderChecksum(&header) != strtoul(header.checksum, NULL,
-		 8))
+	if (memberHeaderChecksum(&header) != strtoul(header.checksum, NULL, 8))
 	{
 		fprintf(stderr, "TAR entry checksum failure\n");
 		return (status = ERR_BADDATA);
@@ -197,10 +246,13 @@ static int tarReadMemberHeader(FILE *inStream, archiveMemberInfo *info)
 
 	DEBUGMSG("Member data size: %u\n", info->compressedDataSize);
 
-	// Total size is aligned to a 512-byte coundary
+	// Total size is aligned to a block boundary
 	info->totalSize = (sizeof(tarHeader) + info->compressedDataSize);
-	if (info->compressedDataSize & 0x1FF /* % 512 */)
-		info->totalSize += (0x200 - (info->compressedDataSize & 0x1FF));
+	if (info->compressedDataSize & (TAR_BLOCKSIZE - 1) /* %TAR_BLOCKSIZE */)
+	{
+		info->totalSize += (TAR_BLOCKSIZE - (info->compressedDataSize &
+			(TAR_BLOCKSIZE - 1)));
+	}
 
 	DEBUGMSG("Member total size: %u\n", info->totalSize);
 
@@ -215,24 +267,6 @@ out:
 	}
 
 	return (status);
-}
-
-
-static int tarTerminate(FILE *outStream)
-{
-	unsigned char empty[512];
-
-	memset(empty, 0, sizeof(empty));
-
-	// Append two empty 512-blocks
-	if ((fwrite(empty, sizeof(empty), 1, outStream) < 1) ||
-		(fwrite(empty, sizeof(empty), 1, outStream) < 1))
-	{
-		fprintf(stderr, "Error writing empty blocks\n");
-		return (ERR_IO);
-	}
-
-	return (0);
 }
 
 
@@ -276,7 +310,6 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 	FILE *inStream = NULL;
 	char constOutFileName[MAX_NAME_LENGTH];
 	FILE *outStream = NULL;
-	archiveMemberInfo info;
 	tarHeader header;
 
 	if (visopsys_in_kernel)
@@ -296,8 +329,11 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 	memset(&st, 0, sizeof(struct stat));
 	memset(&class, 0, sizeof(loaderFileClass));
 	memset(constOutFileName, 0, sizeof(constOutFileName));
-	memset(&info, 0, sizeof(archiveMemberInfo));
 	memset(&header, 0, sizeof(tarHeader));
+
+	// Strip any leading '/'s
+	while (inFileName[0] == '/')
+		inFileName += 1;
 
 	DEBUGMSG("TAR add %s\n", inFileName);
 
@@ -338,7 +374,7 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 	}
 
 	// Open output stream
-	outStream = fopen(outFileName, "a+");
+	outStream = fopen(outFileName, "a");
 	if (!outStream)
 	{
 		fprintf(stderr, "Couldn't open %s\n", outFileName);
@@ -346,18 +382,10 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 		goto out;
 	}
 
-	// In Visopsys, the nonstandard "a+" mode doesn't automatically read from
-	// the beginning of the file, so seek to it
-	if (fseek(outStream, 0, SEEK_SET))
-	{
-		fprintf(stderr, "Couldn't seek %s\n", outFileName);
-		status = ERR_IO;
+	// Seek to the end of the archive
+	status = seekEnd(outStream);
+	if (status < 0)
 		goto out;
-	}
-
-	// Loop through the members until we hit the end of the archive
-	while (tarMemberInfo(outStream, &info, NULL /* progress */) >= 1)
-		archiveInfoContentsFree(&info);
 
 	// Add the member
 
@@ -391,7 +419,7 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 	strncpy(header.magic, TAR_OLDMAGIC, 8);
 	strncpy(header.uname, "user", 32);
 	strncpy(header.gname, "group", 32);
-	snprintf(header.checksum, 8, "%o", tarMemberHeaderChecksum(&header));
+	snprintf(header.checksum, 8, "%o", memberHeaderChecksum(&header));
 
 	// Write the header
 	if (fwrite(&header, sizeof(tarHeader), 1, outStream) < 1)
@@ -409,12 +437,14 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 			goto out;
 	}
 
-	memset(&header, 0, sizeof(tarHeader));
-
-	// Extend it to a 512-block boundary, if necessary
-	if (st.st_size & 0x1FF /* % 512 */)
+	// Extend it to a block boundary, if necessary
+	if (st.st_size & (TAR_BLOCKSIZE - 1) /* %TAR_BLOCKSIZE */)
 	{
-		if (fwrite(&header, (0x200 - (st.st_size & 0x1FF)), 1, outStream) < 1)
+		// Use the header memory as an empty block-buffer
+		memset(&header, 0, sizeof(tarHeader));
+
+		if (fwrite(&header, (TAR_BLOCKSIZE - (st.st_size &
+			(TAR_BLOCKSIZE - 1))), 1, outStream) < 1)
 		{
 			fprintf(stderr, "Error writing %s\n", outFileName);
 			status = ERR_IO;
@@ -422,8 +452,8 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 		}
 	}
 
-	// Append two empty 512-blocks
-	status = tarTerminate(outStream);
+	// Append two empty blocks
+	status = terminate(outStream);
 	if (status < 0)
 		goto out;
 
@@ -465,14 +495,15 @@ int tarMemberInfo(FILE *inStream, archiveMemberInfo *info,
 	if (!inStream || !info)
 	{
 		fprintf(stderr, "NULL parameter\n");
-		return (status = ERR_NULLPARAMETER);
+		status = ERR_NULLPARAMETER;
+		goto out;
 	}
 
 	memset(info, 0, sizeof(archiveMemberInfo));
 
 	DEBUGMSG("TAR get member info\n");
 
-	status = tarReadMemberHeader(inStream, info);
+	status = readMemberHeader(inStream, info);
 	if (status <= 0)
 		goto out;
 
@@ -524,7 +555,7 @@ int tarExtractNextMember(FILE *inStream, progress *prog)
 
 	DEBUGMSG("TAR extract member\n");
 
-	status = tarReadMemberHeader(inStream, &info);
+	status = readMemberHeader(inStream, &info);
 	if (status <= 0)
 		// Finished, we guess
 		goto out;
@@ -844,7 +875,7 @@ int tarDeleteMember(const char *inFileName, const char *memberName,
 		}
 	}
 
-	status = tarTerminate(outStream);
+	status = terminate(outStream);
 	if (status < 0)
 		goto out;
 

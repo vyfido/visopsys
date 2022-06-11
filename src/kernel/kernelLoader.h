@@ -29,6 +29,7 @@
 #include <sys/image.h>
 #include <sys/process.h>
 
+#define FILECLASS_NAME_DIR		"directory"
 #define FILECLASS_NAME_EMPTY	"empty"
 #define FILECLASS_NAME_TEXT		"text"
 #define FILECLASS_NAME_BIN		"binary"
@@ -39,6 +40,8 @@
 #define FILECLASS_NAME_LIB		"library"
 #define FILECLASS_NAME_CORE		"core"
 #define FILECLASS_NAME_IMAGE	"image"
+#define FILECLASS_NAME_AUDIO	"audio"
+#define FILECLASS_NAME_VIDEO	"video"
 #define FILECLASS_NAME_DATA		"data"
 #define FILECLASS_NAME_DOC		"document"
 #define FILECLASS_NAME_ARCHIVE	"archive"
@@ -52,6 +55,12 @@
 #define FILECLASS_NAME_GIF		"GIF"
 #define FILECLASS_NAME_PNG		"PNG"
 #define FILECLASS_NAME_PPM		"PPM"
+#define FILECLASS_NAME_MP3		"MP3"
+#define FILECLASS_NAME_WAV		"WAV"
+#define FILECLASS_NAME_FLV		"Flash"
+#define FILECLASS_NAME_AVI		"AVI"
+#define FILECLASS_NAME_MP4		"MP4"
+#define FILECLASS_NAME_MOV		"QuickTime"
 #define FILECLASS_NAME_PDF		"PDF"
 #define FILECLASS_NAME_ELF		"ELF"
 #define FILECLASS_NAME_ZIP		"zip"
@@ -64,7 +73,7 @@
 #define FILECLASS_NAME_MESSAGE	"message"
 #define FILECLASS_NAME_CONFIG	"configuration"
 #define FILECLASS_NAME_HTML		"HTML"
-#define LOADER_NUM_FILECLASSES	22
+#define LOADER_NUM_FILECLASSES	28
 
 // A generic structure to represent a relocation entry
 typedef struct {
@@ -153,6 +162,12 @@ kernelFileClass *kernelFileClassJpg(void);
 kernelFileClass *kernelFileClassGif(void);
 kernelFileClass *kernelFileClassPng(void);
 kernelFileClass *kernelFileClassPpm(void);
+kernelFileClass *kernelFileClassMp3(void);
+kernelFileClass *kernelFileClassWav(void);
+kernelFileClass *kernelFileClassFlv(void);
+kernelFileClass *kernelFileClassAvi(void);
+kernelFileClass *kernelFileClassMp4(void);
+kernelFileClass *kernelFileClassMov(void);
 kernelFileClass *kernelFileClassBoot(void);
 kernelFileClass *kernelFileClassKeymap(void);
 kernelFileClass *kernelFileClassPdf(void);

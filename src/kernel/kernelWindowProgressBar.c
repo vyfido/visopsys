@@ -110,9 +110,8 @@ static int setData(kernelWindowComponent *component, void *data, int length)
 	if (component->draw)
 		status = component->draw(component);
 
-	component->window
-		->update(component->window, component->xCoord, component->yCoord,
-			component->width, component->height);
+	component->window->update(component->window, component->xCoord,
+		component->yCoord, component->width, component->height);
 
 	return (0);
 }

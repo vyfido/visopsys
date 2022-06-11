@@ -46,6 +46,12 @@ static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES])(void) = {
 	kernelFileClassGif,
 	kernelFileClassPng,
 	kernelFileClassPpm,
+	kernelFileClassMp3,
+	kernelFileClassWav,
+	kernelFileClassFlv,
+	kernelFileClassAvi,
+	kernelFileClassMp4,
+	kernelFileClassMov,
 	kernelFileClassBoot,
 	kernelFileClassKeymap,
 	kernelFileClassPdf,
@@ -66,6 +72,7 @@ static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES])(void) = {
 	kernelFileClassBinary
 };
 
+kernelFileClass dirFileClass = { FILECLASS_NAME_DIR, NULL, { } };
 kernelFileClass emptyFileClass = { FILECLASS_NAME_EMPTY, NULL, { } };
 static kernelFileClass *fileClassList[LOADER_NUM_FILECLASSES];
 static int numFileClasses = 0;
@@ -382,6 +389,23 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 
 	// Initialize the file structure we're going to use
 	memset(&theFile, 0, sizeof(file));
+
+	status = kernelFileFind(fileName, &theFile);
+	if (status < 0)
+		return (class = NULL);
+
+	// What type of file is it?
+	switch (theFile.type)
+	{
+		case dirT:
+			strcpy(fileClass->name, FILECLASS_NAME_DIR);
+			fileClass->type = LOADERFILECLASS_DIR;
+			fileClass->subType = LOADERFILESUBCLASS_NONE;
+			return (&dirFileClass);
+
+		default:
+			break;
+	}
 
 	status = kernelFileOpen(fileName, OPENMODE_READ, &theFile);
 	if (status < 0)

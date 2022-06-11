@@ -47,8 +47,7 @@ typedef volatile struct _stream {
 	int (*intercept)(volatile struct _stream *, ...);
 	int (*append)(volatile struct _stream *, ...);
 	int (*appendN)(volatile struct _stream *, unsigned, ...);
-	int (*push)(volatile struct _stream *, ...);
-	int (*pushN)(volatile struct _stream *, unsigned, ...);
+	int (*peek)(volatile struct _stream *, ...);
 	int (*pop)(volatile struct _stream *, ...);
 	int (*popN)(volatile struct _stream *, unsigned, ...);
 

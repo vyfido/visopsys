@@ -27,7 +27,7 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelFile.h"
-#include "kernelMalloc.h"
+#include "kernelMemory.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -99,7 +99,7 @@ static int writeBlock(fileStream *theStream)
 }
 
 
-static int attachToFile(fileStream *newStream, int openMode)
+static int attachToFile(fileStream *theStream, int openMode)
 {
 	// Given a fileStream structure with a valid file inside it, start up the
 	// stream.
@@ -107,29 +107,39 @@ static int attachToFile(fileStream *newStream, int openMode)
 	int status = 0;
 
 	kernelDebug(debug_io, "FileStream attach to fileStream %s",
-		newStream->f.name);
+		theStream->f.name);
 
 	// Get memory for the buffer
-	newStream->buffer = kernelMalloc(newStream->f.blockSize);
-	if (!newStream->buffer)
+	theStream->buffer = kernelMemoryGet(theStream->f.blockSize,
+		"filestream buffer");
+	if (!theStream->buffer)
 		return (status = ERR_MEMORY);
 
-	newStream->size = newStream->f.size;
+	theStream->size = theStream->f.size;
 
 	// If the file is opened write-only, we are in 'append' mode.
 	if (OPENMODE_ISWRITEONLY(openMode))
 	{
-		newStream->offset = newStream->size;
-		newStream->block = (newStream->offset / newStream->f.blockSize);
+		theStream->offset = theStream->size;
+		theStream->block = (theStream->offset / theStream->f.blockSize);
 	}
 
 	// If there's existing data in the file, read the current (first or last)
 	// block into the buffer
-	if (newStream->f.blocks)
+	if (theStream->block < theStream->f.blocks)
 	{
-		status = readBlock(newStream);
+		status = readBlock(theStream);
 		if (status < 0)
+		{
+			kernelMemoryRelease(theStream->buffer);
+			theStream->buffer = NULL;
 			return (status);
+		}
+	}
+	else if (theStream->f.openMode & OPENMODE_WRITE)
+	{
+		// Simply clear the buffer
+		memset(theStream->buffer, 0, theStream->f.blockSize);
 	}
 
 	return (status = 0);
@@ -144,7 +154,8 @@ static int attachToFile(fileStream *newStream, int openMode)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
+int kernelFileStreamOpen(const char *name, int openMode,
+	fileStream *theStream)
 {
 	// This function initializes the new fileStream structure, opens the
 	// requested file using the supplied mode number, and attaches it to the
@@ -153,7 +164,7 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 	int status = 0;
 
 	// Check params
-	if (!name || !newStream)
+	if (!name || !theStream)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
@@ -162,18 +173,18 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 	kernelDebug(debug_io, "FileStream open %s mode %x", name, openMode);
 
 	// Clear out the fileStream structure
-	memset(newStream, 0, sizeof(fileStream));
+	memset(theStream, 0, sizeof(fileStream));
 
 	// Attempt to open the file with the requested name.  Supply a pointer
 	// to the file structure in the new stream structure
-	status = kernelFileOpen(name, openMode, &newStream->f);
+	status = kernelFileOpen(name, openMode, &theStream->f);
 	if (status < 0)
 		return (status);
 
-	status = attachToFile(newStream, openMode);
+	status = attachToFile(theStream, openMode);
 	if (status < 0)
 	{
-		kernelFileClose(&newStream->f);
+		kernelFileClose(&theStream->f);
 		return (status);
 	}
 
@@ -691,7 +702,7 @@ int kernelFileStreamClose(fileStream *theStream)
 		return (status);
 
 	// Free the buffer and clear the structure.
-	kernelFree(theStream->buffer);
+	kernelMemoryRelease(theStream->buffer);
 	memset(theStream, 0, sizeof(fileStream));
 
 	return (status = 0);

@@ -31,6 +31,7 @@
 #include <sys/image.h>
 #include <sys/keyboard.h>
 #include <sys/loader.h>
+#include <sys/lock.h>
 #include <sys/mouse.h>
 #include <sys/paths.h>
 #include <sys/progress.h>
@@ -285,11 +286,16 @@ typedef struct _windowFileList {
 	void *fileEntries;
 	int numFileEntries;
 	int browseFlags;
-	void (*selectionCallback)(file *, char *, loaderFileClass *);
+	int iconThreadPid;
+	lock lock;
+	void *data;
+
+	void (*selectionCallback)(struct _windowFileList *, file *, char *,
+		loaderFileClass *);
 
 	// Externally-callable service functions
-	int (*eventHandler)(struct _windowFileList *, windowEvent *);
 	int (*update)(struct _windowFileList *);
+	int (*eventHandler)(struct _windowFileList *, windowEvent *);
 	int (*destroy)(struct _windowFileList *);
 
 } windowFileList;
@@ -406,8 +412,8 @@ int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, const char *,
 	char *, unsigned, fileType, int);
 windowFileList *windowNewFileList(objectKey, windowListType, int, int,
-	const char *, int, void (*)(file *, char *, loaderFileClass *),
-	componentParameters *);
+	const char *, int, void (*)(windowFileList *, file *, char *,
+	loaderFileClass *), componentParameters *);
 int windowNewInfoDialog(objectKey, const char *, const char *);
 windowKeyboard *windowNewKeyboard(objectKey, int, int, void *,
 	componentParameters *);

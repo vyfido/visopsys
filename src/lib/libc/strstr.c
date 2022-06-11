@@ -32,21 +32,17 @@ char *strstr(const char *s1, const char *s2)
 	// substring, or NULL if the substring is not found.
 
 	int count = 0;
-	char *ptr = NULL;
-	int s1_length = strlen(s1);
-	int s2_length = strlen(s2);
+	int s2Len = strlen(s2);
 
-	ptr = (char *) s1;
-
-	for (count = 0; count < s1_length; count ++)
+	for (count = 0; s1[0]; count ++)
 	{
-		if (!strncmp(ptr, s2, s2_length))
-			return (ptr);
+		if (!strncmp(s1, s2, s2Len))
+			return ((char *) s1);
 		else
-			ptr++;
+			s1 ++;
 	}
 
 	// Not found
-	return (ptr = NULL);
+	return (NULL);
 }
 

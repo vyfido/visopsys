@@ -764,9 +764,6 @@ static int getWindowGraphicBuffer(kernelWindow *window, int width,
 	int status = 0;
 	unsigned bufferBytes = 0;
 
-	window->buffer.width = width;
-	window->buffer.height = height;
-
 	// Get the number of bytes of memory we need to reserve for this window's
 	// graphicBuffer, depending on the size of the window
 	bufferBytes = kernelGraphicCalculateAreaBytes(width, height);
@@ -775,6 +772,21 @@ static int getWindowGraphicBuffer(kernelWindow *window, int width,
 	window->buffer.data = kernelMalloc(bufferBytes);
 	if (!window->buffer.data)
 		return (status = ERR_MEMORY);
+
+	window->buffer.width = width;
+	window->buffer.height = height;
+
+	if (window->sysContainer && window->sysContainer->setBuffer)
+	{
+		window->sysContainer->setBuffer(window->sysContainer,
+			&window->buffer);
+	}
+
+	if (window->mainContainer && window->mainContainer->setBuffer)
+	{
+		window->mainContainer->setBuffer(window->mainContainer,
+			&window->buffer);
+	}
 
 	return (status = 0);
 }
@@ -796,7 +808,6 @@ static int setWindowSize(kernelWindow *window, int width, int height)
 
 	// Save the old graphic buffer data just in case
 	oldBufferData = window->buffer.data;
-	window->buffer.data = NULL;
 
 	// Set the size.
 	status = getWindowGraphicBuffer(window, width, height);
@@ -883,7 +894,7 @@ static int autoSizeWindow(kernelWindow *window)
 	newHeight = (window->mainContainer->yCoord +
 		window->mainContainer->height);
 
-	// Adjust for borders
+	// Adjust for right and bottom borders
 	if (window->flags & WINFLAG_HASBORDER)
 	{
 		newWidth += windowVariables->border.thickness;
@@ -2884,7 +2895,7 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (!window)
+	if (!window || !width || !height)
 		return (status = ERR_NULLPARAMETER);
 
 	// If layout has not been done, do it now

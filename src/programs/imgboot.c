@@ -396,7 +396,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (rebootNow())
 		{
 			doEject();
-			shutdown(1, 1);
+			systemShutdown(1, 1);
 		}
 		else
 		{
@@ -677,7 +677,7 @@ int main(int argc, char *argv[])
 		if (selected < 0)
 		{
 			doEject();
-			shutdown(1, 1);
+			systemShutdown(1, 1);
 		}
 		else if (optionStrings[selected] == _(instOption))
 		{
@@ -686,7 +686,7 @@ int main(int argc, char *argv[])
 			if (rebootNow())
 			{
 				doEject();
-				shutdown(1, 1);
+				systemShutdown(1, 1);
 			}
 			else
 			{

@@ -59,7 +59,7 @@ static unsigned short icmpChecksum(networkIcmpHeader *header, int length)
 int kernelNetworkIcmpSetupReceivedPacket(kernelNetworkPacket *packet)
 {
 	// This takes a semi-raw 'received' ICMP packet, as from the network
-	// adapter's packet input stream,  and tries to interpret the rest and
+	// device's packet input stream,  and tries to interpret the rest and
 	// set up the remainder of the packet's fields.
 
 	int status = 0;
@@ -87,7 +87,7 @@ int kernelNetworkIcmpSetupReceivedPacket(kernelNetworkPacket *packet)
 }
 
 
-void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *adapter,
+void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *netDev,
 	kernelNetworkPacket *packet)
 {
 	// Take the appropriate action for whatever ICMP message we received.
@@ -122,7 +122,7 @@ void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *adapter,
 			filter.netProtocol = NETWORK_NETPROTOCOL_IP4;
 			filter.transProtocol = NETWORK_TRANSPROTOCOL_ICMP;
 
-			connection = kernelNetworkConnectionOpen(adapter,
+			connection = kernelNetworkConnectionOpen(netDev,
 				NETWORK_MODE_WRITE, (networkAddress *) &ip4Header->srcAddress,
 				&filter, 0 /* no input stream */);
 			if (!connection)

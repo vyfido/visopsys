@@ -178,6 +178,9 @@ int archiveAddRecursive(const char *inFileName, const char *outFileName,
 		goto out;
 	}
 
+	if (prog)
+		sprintf((char *) prog->statusMessage, "Adding %s", inFileName);
+
 	// Add the member we were passed
 	status = archiveAddMember(inFileName, outFileName, type, comment, prog);
 	if (status < 0)

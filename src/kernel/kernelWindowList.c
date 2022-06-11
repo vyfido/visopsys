@@ -706,9 +706,11 @@ static void populateList(kernelWindowComponent *listComponent,
 	setItemSizes(list);
 
 	if (listComponent->doneLayout)
+	{
 		// We're re-populating the list, so re-calculate the number of rows
 		// and columns
 		setRowsAndColumns(listComponent);
+	}
 
 	// Do layout
 	layout(listComponent);

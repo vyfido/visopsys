@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -41,7 +41,7 @@ msgstr ""
 msgid "Write"
 msgstr ""
 
-#: fdisk.c:136 fdisk.c:6172
+#: fdisk.c:136 fdisk.c:6176
 msgid "Undo"
 msgstr ""
 
@@ -77,7 +77,7 @@ msgstr ""
 msgid "Erase disk"
 msgstr ""
 
-#: fdisk.c:158 fdisk.c:5427
+#: fdisk.c:158 fdisk.c:5431
 msgid "New disk label"
 msgstr ""
 
@@ -89,23 +89,23 @@ msgstr ""
 msgid "Paste"
 msgstr ""
 
-#: fdisk.c:182 fdisk.c:6130
+#: fdisk.c:182 fdisk.c:6134
 msgid "Set active"
 msgstr ""
 
-#: fdisk.c:183 fdisk.c:6155
+#: fdisk.c:183 fdisk.c:6159
 msgid "Delete"
 msgstr ""
 
-#: fdisk.c:184 fdisk.c:6144
+#: fdisk.c:184 fdisk.c:6148
 msgid "Format"
 msgstr ""
 
-#: fdisk.c:185 fdisk.c:6139
+#: fdisk.c:185 fdisk.c:6143
 msgid "Defragment"
 msgstr ""
 
-#: fdisk.c:186 fdisk.c:6168
+#: fdisk.c:186 fdisk.c:6172
 msgid "Resize"
 msgstr ""
 
@@ -113,7 +113,7 @@ msgstr ""
 msgid "Hide/Unhide"
 msgstr ""
 
-#: fdisk.c:188 fdisk.c:2784 fdisk.c:5282 fdisk.c:6164
+#: fdisk.c:188 fdisk.c:2784 fdisk.c:5286 fdisk.c:6168
 msgid "Info"
 msgstr ""
 
@@ -121,15 +121,15 @@ msgstr ""
 msgid "List types"
 msgstr ""
 
-#: fdisk.c:190 fdisk.c:6135
+#: fdisk.c:190 fdisk.c:6139
 msgid "Move"
 msgstr ""
 
-#: fdisk.c:191 fdisk.c:6126
+#: fdisk.c:191 fdisk.c:6130
 msgid "Create"
 msgstr ""
 
-#: fdisk.c:192 fdisk.c:6148
+#: fdisk.c:192 fdisk.c:6152
 msgid "Delete all"
 msgstr ""
 
@@ -272,8 +272,8 @@ msgstr ""
 msgid "Select"
 msgstr ""
 
-#: fdisk.c:1644 fdisk.c:1822 fdisk.c:2218 fdisk.c:3601 fdisk.c:4107
-#: fdisk.c:4257 fdisk.c:4741
+#: fdisk.c:1644 fdisk.c:1822 fdisk.c:2218 fdisk.c:3601 fdisk.c:4111
+#: fdisk.c:4261 fdisk.c:4745
 msgid "Cancel"
 msgstr ""
 
@@ -346,15 +346,15 @@ msgid ""
 "type:"
 msgstr ""
 
-#: fdisk.c:2157 fdisk.c:5242
+#: fdisk.c:2157 fdisk.c:5246
 msgid "Primary"
 msgstr ""
 
-#: fdisk.c:2157 fdisk.c:5244
+#: fdisk.c:2157 fdisk.c:5248
 msgid "Logical"
 msgstr ""
 
-#: fdisk.c:2214 fdisk.c:3596 fdisk.c:4253 fdisk.c:4737
+#: fdisk.c:2214 fdisk.c:3596 fdisk.c:4257 fdisk.c:4741
 msgid "OK"
 msgstr ""
 
@@ -438,7 +438,7 @@ msgstr ""
 msgid "Format complete"
 msgstr ""
 
-#: fdisk.c:2602 fdisk.c:2683 fdisk.c:3765 fdisk.c:5398
+#: fdisk.c:2602 fdisk.c:2683 fdisk.c:3765 fdisk.c:5402
 msgid "Success"
 msgstr ""
 
@@ -573,7 +573,7 @@ msgstr ""
 msgid "Unable to allocate memory"
 msgstr ""
 
-#: fdisk.c:2930 fdisk.c:4028 fdisk.c:5138
+#: fdisk.c:2930 fdisk.c:4032 fdisk.c:5142
 msgid "Time remaining: ?? hours ?? minutes"
 msgstr ""
 
@@ -724,74 +724,74 @@ msgstr ""
 msgid "Filesystem resize complete"
 msgstr ""
 
-#: fdisk.c:3860
+#: fdisk.c:3864
 #, c-format
 msgid "Error %d reading %u sectors at %llu from disk %s"
 msgstr ""
 
-#: fdisk.c:3864
+#: fdisk.c:3868
 msgid "Ignore read errors, and continue trying to copy?"
 msgstr ""
 
-#: fdisk.c:3872
+#: fdisk.c:3876
 #, c-format
 msgid "Error %d writing %u sectors at %llu to disk %s"
 msgstr ""
 
-#: fdisk.c:3876
+#: fdisk.c:3880
 msgid "Ignore write errors, and continue trying to copy?"
 msgstr ""
 
-#: fdisk.c:3950
+#: fdisk.c:3954
 #, c-format
 msgid "Errors %s %u sectors of disk %s.  Disk may be failing."
 msgstr ""
 
-#: fdisk.c:3951
+#: fdisk.c:3955
 msgid "reading"
 msgstr ""
 
-#: fdisk.c:3951
+#: fdisk.c:3955
 msgid "writing"
 msgstr ""
 
-#: fdisk.c:4016
+#: fdisk.c:4020
 msgid "Unable to allocate memory buffer!"
 msgstr ""
 
-#: fdisk.c:4022
+#: fdisk.c:4026
 #, c-format
 msgid "Copying %u MB..."
 msgstr ""
 
-#: fdisk.c:4037
+#: fdisk.c:4041
 #, c-format
 msgid ""
 "\n"
 "%s (press 'Q' to cancel)\n"
 msgstr ""
 
-#: fdisk.c:4104
+#: fdisk.c:4108
 msgid "Terminating processes..."
 msgstr ""
 
-#: fdisk.c:4231
+#: fdisk.c:4235
 msgid "Choose Disk"
 msgstr ""
 
-#: fdisk.c:4304
+#: fdisk.c:4308
 msgid "No other disks to copy to"
 msgstr ""
 
-#: fdisk.c:4340
+#: fdisk.c:4344
 msgid "Please choose the disk to copy to:"
 msgstr ""
 
-#: fdisk.c:4352
+#: fdisk.c:4356
 msgid "Not much point in copying a disk to itself!"
 msgstr ""
 
-#: fdisk.c:4361
+#: fdisk.c:4365
 #, c-format
 msgid ""
 "Copy disk %s to disk %s.\n"
@@ -799,13 +799,13 @@ msgid ""
 "ARE YOU SURE YOU WANT TO DO THIS?"
 msgstr ""
 
-#: fdisk.c:4384
+#: fdisk.c:4388
 msgid ""
 "No partitions on the disk.  Do you want to copy the whole\n"
 "disk anyway?"
 msgstr ""
 
-#: fdisk.c:4396
+#: fdisk.c:4400
 #, c-format
 msgid ""
 "Disk %s is smaller than the amount of data on disk %s.\n"
@@ -814,45 +814,45 @@ msgid ""
 "doing.  CONTINUE?"
 msgstr ""
 
-#: fdisk.c:4483
+#: fdisk.c:4487
 msgid "No partition copied to the clipboard"
 msgstr ""
 
-#: fdisk.c:4540
+#: fdisk.c:4544
 #, c-format
 msgid ""
 "Partition %s is too big (%llu sectors) to fit in the\n"
 "selected empty space (%llu sectors)"
 msgstr ""
 
-#: fdisk.c:4550
+#: fdisk.c:4554
 msgid ""
 "A partition paste cannot be undone, and it is required that you\n"
 "write your other changes to disk before continuing."
 msgstr ""
 
-#: fdisk.c:4557
+#: fdisk.c:4561
 #, c-format
 msgid "Paste partition %s to selected empty space on disk %s?"
 msgstr ""
 
-#: fdisk.c:4695
+#: fdisk.c:4699
 msgid "Must be more than one primary partition to reorder!"
 msgstr ""
 
-#: fdisk.c:4701
+#: fdisk.c:4705
 msgid "Partition Order"
 msgstr ""
 
-#: fdisk.c:4725
+#: fdisk.c:4729
 msgid "Up"
 msgstr ""
 
-#: fdisk.c:4729
+#: fdisk.c:4733
 msgid "Down"
 msgstr ""
 
-#: fdisk.c:4820
+#: fdisk.c:4824
 #, c-format
 msgid ""
 "\n"
@@ -861,7 +861,7 @@ msgid ""
 " %s\n"
 msgstr ""
 
-#: fdisk.c:4843
+#: fdisk.c:4847
 #, c-format
 msgid ""
 " %s\n"
@@ -870,404 +870,404 @@ msgid ""
 "   Enter to accept, 'Q' to quit]"
 msgstr ""
 
-#: fdisk.c:4941 fdisk.c:5011
+#: fdisk.c:4945 fdisk.c:5015
 msgid ""
 "This operation cannot be undone, and it is required that\n"
 "you write your other changes to disk before continuing."
 msgstr ""
 
-#: fdisk.c:4947
+#: fdisk.c:4951
 msgid ""
 "After you write changes, the \"active\" partition will\n"
 "always boot automatically.  Proceed?"
 msgstr ""
 
-#: fdisk.c:4958
+#: fdisk.c:4962
 #, c-format
 msgid "Can't locate simple MBR file %s"
 msgstr ""
 
-#: fdisk.c:4966
+#: fdisk.c:4970
 msgid "Error getting memory"
 msgstr ""
 
-#: fdisk.c:4974
+#: fdisk.c:4978
 msgid "Couldn't read MBR sector"
 msgstr ""
 
-#: fdisk.c:4983
+#: fdisk.c:4987
 #, c-format
 msgid "Can't read simple MBR file %s"
 msgstr ""
 
-#: fdisk.c:4994
+#: fdisk.c:4998
 msgid "Couldn't write MBR sector"
 msgstr ""
 
-#: fdisk.c:5021
+#: fdisk.c:5025
 #, c-format
 msgid "Error %d running bootmenu command"
 msgstr ""
 
-#: fdisk.c:5036
+#: fdisk.c:5040
 msgid "Restore old partition table from backup?"
 msgstr ""
 
-#: fdisk.c:5055
+#: fdisk.c:5059
 msgid "Error opening backup partition table file"
 msgstr ""
 
-#: fdisk.c:5068 fdisk.c:5080
+#: fdisk.c:5072 fdisk.c:5084
 msgid "Error reading backup partition table file"
 msgstr ""
 
-#: fdisk.c:5098
+#: fdisk.c:5102
 msgid ""
 "Erasing clears the data securely by overwriting successive\n"
 "passes of random data.  More passes is more secure but\n"
 "takes longer.  Choose the security level:"
 msgstr ""
 
-#: fdisk.c:5101
+#: fdisk.c:5105
 msgid "basic (clear only)"
 msgstr ""
 
-#: fdisk.c:5101
+#: fdisk.c:5105
 msgid "secure"
 msgstr ""
 
-#: fdisk.c:5102
+#: fdisk.c:5106
 msgid "more secure"
 msgstr ""
 
-#: fdisk.c:5102
+#: fdisk.c:5106
 msgid "most secure"
 msgstr ""
 
-#: fdisk.c:5106
+#: fdisk.c:5110
 msgid "Erase security level"
 msgstr ""
 
-#: fdisk.c:5144
+#: fdisk.c:5148
 msgid "Erasing data..."
 msgstr ""
 
-#: fdisk.c:5148
+#: fdisk.c:5152
 msgid ""
 "\n"
 "Erasing data... (press 'Q' to cancel)\n"
 msgstr ""
 
-#: fdisk.c:5215
+#: fdisk.c:5219
 #, c-format
 msgid ""
 "DISK %s INFO:\n"
 "\n"
 msgstr ""
 
-#: fdisk.c:5217
+#: fdisk.c:5221
 #, c-format
 msgid "Label type: %s\n"
 msgstr ""
 
-#: fdisk.c:5219
+#: fdisk.c:5223
 #, c-format
 msgid "Total sectors: %llu\n"
 msgstr ""
 
-#: fdisk.c:5221
+#: fdisk.c:5225
 #, c-format
 msgid "%u MB, %u bytes/sec\n"
 msgstr ""
 
-#: fdisk.c:5224
+#: fdisk.c:5228
 #, c-format
 msgid "Cyls/Hds/Sects: %u/%u/%u\n"
 msgstr ""
 
-#: fdisk.c:5227
+#: fdisk.c:5231
 #, c-format
 msgid "First usable sector: %llu\n"
 msgstr ""
 
-#: fdisk.c:5229
+#: fdisk.c:5233
 #, c-format
 msgid "Last usable sector: %llu\n"
 msgstr ""
 
-#: fdisk.c:5236
+#: fdisk.c:5240
 #, c-format
 msgid ""
 "\n"
 "Partition %d:\n"
 msgstr ""
 
-#: fdisk.c:5248
+#: fdisk.c:5252
 #, c-format
 msgid ", tag=%02x"
 msgstr ""
 
-#: fdisk.c:5253
+#: fdisk.c:5257
 msgid ", GUID="
 msgstr ""
 
-#: fdisk.c:5261
+#: fdisk.c:5265
 msgid ", active/bootable "
 msgstr ""
 
-#: fdisk.c:5269
+#: fdisk.c:5273
 #, c-format
 msgid ""
 "  Starting Cyl/Hd/Sect: %u/%u/%u, ending: %u/%u/%u\n"
 "  Logical start: %llu, end: %llu, size: %llu"
 msgstr ""
 
-#: fdisk.c:5300
+#: fdisk.c:5304
 msgid "Erase the partition or the whole disk?:"
 msgstr ""
 
-#: fdisk.c:5301 fdisk.c:5392
+#: fdisk.c:5305 fdisk.c:5396
 msgid "partition"
 msgstr ""
 
-#: fdisk.c:5301
+#: fdisk.c:5305
 msgid "whole disk"
 msgstr ""
 
-#: fdisk.c:5310
+#: fdisk.c:5314
 msgid "Erase partition or disk?"
 msgstr ""
 
-#: fdisk.c:5334
+#: fdisk.c:5338
 msgid ""
 "A partition erase cannot be undone, and it is required that you\n"
 "write your other changes to disk before continuing."
 msgstr ""
 
-#: fdisk.c:5357
+#: fdisk.c:5361
 #, c-format
 msgid "Erase whole disk %s"
 msgstr ""
 
-#: fdisk.c:5362
+#: fdisk.c:5366
 #, c-format
 msgid "Erase partition %s"
 msgstr ""
 
-#: fdisk.c:5364
+#: fdisk.c:5368
 msgid "Erase this reserved space"
 msgstr ""
 
-#: fdisk.c:5366
+#: fdisk.c:5370
 msgid "Erase this empty space"
 msgstr ""
 
-#: fdisk.c:5369
+#: fdisk.c:5373
 msgid ""
 "?\n"
 "(This change cannot be undone)"
 msgstr ""
 
-#: fdisk.c:5391
+#: fdisk.c:5395
 #, c-format
 msgid "Error %d erasing %s"
 msgstr ""
 
-#: fdisk.c:5392
+#: fdisk.c:5396
 msgid "disk"
 msgstr ""
 
-#: fdisk.c:5398
+#: fdisk.c:5402
 msgid "Erase complete"
 msgstr ""
 
-#: fdisk.c:5402
+#: fdisk.c:5406
 msgid "Erase complete\n"
 msgstr ""
 
-#: fdisk.c:5419
+#: fdisk.c:5423
 msgid "Create a new disk label? (deletes all partitions):"
 msgstr ""
 
-#: fdisk.c:5421
+#: fdisk.c:5425
 msgid "MS-DOS"
 msgstr ""
 
-#: fdisk.c:5421
+#: fdisk.c:5425
 msgid "GPT"
 msgstr ""
 
-#: fdisk.c:5485 fdisk.c:6017
+#: fdisk.c:5489 fdisk.c:6021
 msgid "Disk"
 msgstr ""
 
-#: fdisk.c:5488 fdisk.c:6023
+#: fdisk.c:5492 fdisk.c:6027
 msgid "Partition"
 msgstr ""
 
-#: fdisk.c:5491
+#: fdisk.c:5495
 msgid "Filesystem"
 msgstr ""
 
-#: fdisk.c:5494
+#: fdisk.c:5498
 msgid "Start (MB)"
 msgstr ""
 
-#: fdisk.c:5497
+#: fdisk.c:5501
 msgid "Size (MB)"
 msgstr ""
 
-#: fdisk.c:5500
+#: fdisk.c:5504
 msgid "Attributes"
 msgstr ""
 
-#: fdisk.c:6011
+#: fdisk.c:6015
 msgid "File"
 msgstr ""
 
-#: fdisk.c:6069
+#: fdisk.c:6073
 msgid "Show removable disks"
 msgstr ""
 
-#: fdisk.c:6159
+#: fdisk.c:6163
 msgid "Hide/unhide"
 msgstr ""
 
-#: fdisk.c:6176
+#: fdisk.c:6180
 msgid "Write changes"
 msgstr ""
 
-#: fdisk.c:6248
+#: fdisk.c:6252
 msgid "[A] Set active\n"
 msgstr ""
 
-#: fdisk.c:6249
+#: fdisk.c:6253
 msgid "[B] Partition order\n"
 msgstr ""
 
-#: fdisk.c:6250
+#: fdisk.c:6254
 msgid "[C] Copy disk\n"
 msgstr ""
 
-#: fdisk.c:6251
+#: fdisk.c:6255
 msgid "[D] Delete\n"
 msgstr ""
 
-#: fdisk.c:6252
+#: fdisk.c:6256
 msgid "[E] Copy partition\n"
 msgstr ""
 
-#: fdisk.c:6253
+#: fdisk.c:6257
 msgid "[F] Format\n"
 msgstr ""
 
-#: fdisk.c:6254
+#: fdisk.c:6258
 msgid "[G] Defragment\n"
 msgstr ""
 
-#: fdisk.c:6255
+#: fdisk.c:6259
 msgid "[H] Hide/Unhide\n"
 msgstr ""
 
-#: fdisk.c:6256
+#: fdisk.c:6260
 msgid "[I] Info\n"
 msgstr ""
 
-#: fdisk.c:6257
+#: fdisk.c:6261
 msgid "[J] New disk label\n"
 msgstr ""
 
-#: fdisk.c:6258
+#: fdisk.c:6262
 msgid "[K] Disk info\n"
 msgstr ""
 
-#: fdisk.c:6259
+#: fdisk.c:6263
 msgid "[L] List types\n"
 msgstr ""
 
-#: fdisk.c:6260
+#: fdisk.c:6264
 msgid "[M] Move\n"
 msgstr ""
 
-#: fdisk.c:6261
+#: fdisk.c:6265
 msgid "[N] Create new\n"
 msgstr ""
 
-#: fdisk.c:6268
+#: fdisk.c:6272
 msgid "[O] Delete all\n"
 msgstr ""
 
-#: fdisk.c:6271
+#: fdisk.c:6275
 msgid "[P] Paste partition\n"
 msgstr ""
 
-#: fdisk.c:6273
+#: fdisk.c:6277
 msgid "[Q] Quit\n"
 msgstr ""
 
-#: fdisk.c:6275
+#: fdisk.c:6279
 msgid "[R] Restore backup\n"
 msgstr ""
 
-#: fdisk.c:6277
+#: fdisk.c:6281
 msgid "[S] Select disk\n"
 msgstr ""
 
-#: fdisk.c:6279
+#: fdisk.c:6283
 msgid "[T] Set type\n"
 msgstr ""
 
-#: fdisk.c:6281
+#: fdisk.c:6285
 msgid "[U] Undo\n"
 msgstr ""
 
-#: fdisk.c:6283
+#: fdisk.c:6287
 msgid "[V] Erase\n"
 msgstr ""
 
-#: fdisk.c:6285
+#: fdisk.c:6289
 msgid "[W] Write changes\n"
 msgstr ""
 
-#: fdisk.c:6287
+#: fdisk.c:6291
 msgid "[X] Write basic MBR\n"
 msgstr ""
 
-#: fdisk.c:6289
+#: fdisk.c:6293
 msgid "[Y] MBR boot menu\n"
 msgstr ""
 
-#: fdisk.c:6291
+#: fdisk.c:6295
 msgid "[Z] Resize\n"
 msgstr ""
 
-#: fdisk.c:6297
+#: fdisk.c:6301
 #, c-format
 msgid "  -== %d changes pending ==-\n"
 msgstr ""
 
-#: fdisk.c:6428
+#: fdisk.c:6432
 msgid "No disk selected.  Quitting."
 msgstr ""
 
-#: fdisk.c:6494
+#: fdisk.c:6498
 msgid "Disk Manager"
 msgstr ""
 
-#: fdisk.c:6508
+#: fdisk.c:6512
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: fdisk.c:6547
+#: fdisk.c:6551
 msgid "No hard disks registered"
 msgstr ""
 
-#: fdisk.c:6549
+#: fdisk.c:6553
 msgid "Problem getting hard disk info"
 msgstr ""
 
-#: fdisk.c:6597
+#: fdisk.c:6601
 msgid ""
 "\n"
 "\n"

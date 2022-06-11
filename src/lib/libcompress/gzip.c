@@ -196,7 +196,7 @@ out:
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int gzipAddMember(FILE *inStream, FILE *outStream, const char *name,
+int gzipAddMember(FILE *inStream, FILE *outStream, const char *memberName,
 	const char *comment, unsigned modTime, int textFile, progress *prog)
 {
 	int status = 0;
@@ -223,7 +223,7 @@ int gzipAddMember(FILE *inStream, FILE *outStream, const char *name,
 
 	member.sig = GZIP_MAGIC;
 	member.compMethod = GZIP_COMP_DEFLATE;
-	if (name)
+	if (memberName)
 		member.flags |= GZIP_FLG_FNAME;
 	if (comment)
 		member.flags |= GZIP_FLG_FCOMMENT;
@@ -240,11 +240,15 @@ int gzipAddMember(FILE *inStream, FILE *outStream, const char *name,
 		goto out;
 	}
 
-	if (name)
+	if (memberName)
 	{
+		// Strip any leading '/'s
+		while (memberName[0] == '/')
+			memberName += 1;
+
 		// Output the NULL-terminated member name (original file name, perhaps)
-		if (fwrite(name, 1, (strlen(name) + 1), outStream) <
-			(strlen(name) + 1))
+		if (fwrite(memberName, 1, (strlen(memberName) + 1), outStream) <
+			(strlen(memberName) + 1))
 		{
 			fprintf(stderr, "Error writing\n");
 			status = ERR_IO;
@@ -360,8 +364,8 @@ int gzipCompressFile(const char *inFileName, const char *outFileName,
 		goto out;
 	}
 
-	// Classify the file.  We're interested in knowing whether this is a binary
-	// or text file.
+	// Classify the file.  We're interested in knowing whether this is a
+	// binary or text file.
 	if (loaderClassifyFile(inFileName, &class))
 	{
 		if (class.type & LOADERFILECLASS_TEXT)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: progman\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: 2014-08-13 22:29+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -102,7 +102,7 @@ msgstr "Введите команду для запуска:"
 msgid "Unable to execute program"
 msgstr "Невозможно запустить программу"
 
-#: progman.c:407 progman.c:616
+#: progman.c:407 progman.c:630
 msgid "Set priority"
 msgstr "Установить приоритет"
 
@@ -114,24 +114,24 @@ msgstr "Введите желаемый приоритет"
 msgid "Unable to launch file dialog"
 msgstr "Невозможно запустить файловый диалог"
 
-#: progman.c:575
+#: progman.c:585
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr "Process                   PID PPID UID Pri Priv CPU% STATE   "
 
-#: progman.c:589
+#: progman.c:606
 msgid "Show all sub-processes"
 msgstr "Показать все под-процессы"
 
-#: progman.c:609
+#: progman.c:623
 msgid "Run program"
 msgstr "Запустить программу"
 
-#: progman.c:622
+#: progman.c:636
 msgid "Kill process"
 msgstr "Убить процесс"
 
-#: progman.c:645
+#: progman.c:658
 #, c-format
 msgid ""
 "\n"
@@ -140,6 +140,6 @@ msgstr ""
 "\n"
 "Команда \"%s\" работает только в графическом режиме\n"
 
-#: progman.c:664
+#: progman.c:677
 msgid "Error getting memory"
 msgstr "Ошибка получения памяти"

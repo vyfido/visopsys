@@ -19,7 +19,7 @@
 //  kernelNetworkLoopDriver.h
 //
 
-// Definitions for the loopback virtual network adapter
+// Definitions for the loopback virtual network device
 
 #if !defined(_KERNELNETWORKLOOPDRIVER_H)
 

@@ -41,7 +41,7 @@ NAMES = kernelMain \
 	kernelDisk \
 	kernelDma \
 	kernelDriver \
-	kernelEncryptMD5 \
+	kernelCryptHashMd5 \
 	kernelEnvironment \
 	kernelError \
 	kernelFile \

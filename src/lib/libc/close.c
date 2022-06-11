@@ -23,7 +23,6 @@
 
 #include <unistd.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <sys/api.h>
 #include <sys/cdefs.h>
 

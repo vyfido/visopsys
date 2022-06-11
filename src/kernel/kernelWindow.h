@@ -236,7 +236,8 @@ typedef volatile struct _kernelWindowComponent {
 	int (*setData)(volatile struct _kernelWindowComponent *, void *, int);
 	int (*getSelected)(volatile struct _kernelWindowComponent *, int *);
 	int (*setSelected)(volatile struct _kernelWindowComponent *, int);
-	int (*mouseEvent)(volatile struct _kernelWindowComponent *, windowEvent *);
+	int (*mouseEvent)(volatile struct _kernelWindowComponent *,
+		windowEvent *);
 	int (*keyEvent)(volatile struct _kernelWindowComponent *, windowEvent *);
 	int (*destroy)(volatile struct _kernelWindowComponent *);
 
@@ -276,7 +277,7 @@ typedef volatile struct {
 	int selected;
 	image iconImage;
 	image selectedImage;
-	char labelData[WINDOW_MAX_LABEL_LENGTH];
+	char labelData[WINDOW_MAX_LABEL_LENGTH + 1];
 	char *labelLine[WINDOW_MAX_LABEL_LINES];
 	int labelLines;
 	int labelWidth;
@@ -439,8 +440,8 @@ typedef volatile struct _kernelWindow {
 	int (*changeComponentFocus)(volatile struct _kernelWindow *,
 		kernelWindowComponent *);
 	void (*focus)(volatile struct _kernelWindow *, int);
-	int (*mouseEvent)(volatile struct _kernelWindow *, kernelWindowComponent *,
-		windowEvent *);
+	int (*mouseEvent)(volatile struct _kernelWindow *,
+		kernelWindowComponent *, windowEvent *);
 	int (*keyEvent)(volatile struct _kernelWindow *, kernelWindowComponent *,
 		windowEvent *);
 

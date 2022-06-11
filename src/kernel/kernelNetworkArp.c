@@ -88,7 +88,7 @@ static void debugArp(networkArpHeader *arp)
 #endif
 
 
-static void addArpCache(kernelNetworkDevice *adapter,
+static void addArpCache(kernelNetworkDevice *netDev,
 	networkAddress *logicalAddress, networkAddress *physicalAddress)
 {
 	// Add the supplied entry to our ARP cache
@@ -97,16 +97,16 @@ static void addArpCache(kernelNetworkDevice *adapter,
 	// list grows to its maximum size, the oldest entries fall off the bottom.
 
 	// Shift all down
-	memmove((void *) &adapter->arpCache[1], (void *) &adapter->arpCache[0],
+	memmove((void *) &netDev->arpCache[1], (void *) &netDev->arpCache[0],
 		((NETWORK_ARPCACHE_SIZE - 1) * sizeof(kernelArpCacheItem)));
 
-	networkAddressCopy(&adapter->arpCache[0].logicalAddress, logicalAddress,
+	networkAddressCopy(&netDev->arpCache[0].logicalAddress, logicalAddress,
 		sizeof(networkAddress));
-	networkAddressCopy(&adapter->arpCache[0].physicalAddress,
-		physicalAddress, sizeof(networkAddress));
+	networkAddressCopy(&netDev->arpCache[0].physicalAddress, physicalAddress,
+		sizeof(networkAddress));
 
-	if (adapter->numArpCaches < NETWORK_ARPCACHE_SIZE)
-		adapter->numArpCaches += 1;
+	if (netDev->numArpCaches < NETWORK_ARPCACHE_SIZE)
+		netDev->numArpCaches += 1;
 }
 
 
@@ -118,20 +118,20 @@ static void addArpCache(kernelNetworkDevice *adapter,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelNetworkArpSearchCache(kernelNetworkDevice *adapter,
+int kernelNetworkArpSearchCache(kernelNetworkDevice *netDev,
 	networkAddress *logicalAddress)
 {
-	// Search the adapter's ARP cache for an entry corresponding to the
+	// Search the device's ARP cache for an entry corresponding to the
 	// supplied logical address, and if found, copy the physical address into
 	// the supplied pointer.
 
 	int status = 0;
 	int count;
 
-	for (count = 0; count < adapter->numArpCaches; count ++)
+	for (count = 0; count < netDev->numArpCaches; count ++)
 	{
 		if (networkAddressesEqual(logicalAddress,
-			&adapter->arpCache[count].logicalAddress, NETWORK_ADDRLENGTH_IP4))
+			&netDev->arpCache[count].logicalAddress, NETWORK_ADDRLENGTH_IP4))
 		{
 			return (count);
 		}
@@ -166,7 +166,7 @@ int kernelNetworkArpSetupReceivedPacket(kernelNetworkPacket *packet)
 }
 
 
-int kernelNetworkArpProcessPacket(kernelNetworkDevice *adapter,
+int kernelNetworkArpProcessPacket(kernelNetworkDevice *netDev,
 	kernelNetworkPacket *packet)
 {
 	// This gets called anytime we receive an ARP packet (request or reply)
@@ -183,13 +183,13 @@ int kernelNetworkArpProcessPacket(kernelNetworkDevice *adapter,
 		return (status = ERR_NOTIMPLEMENTED);
 
 	// See whether the sender is in our cache
-	arpPosition = kernelNetworkArpSearchCache(adapter, (networkAddress *)
+	arpPosition = kernelNetworkArpSearchCache(netDev, (networkAddress *)
 		&arp->srcLogicalAddress);
 
 	if (arpPosition >= 0)
 	{
 		// Update the entry in our cache
-		networkAddressCopy(&adapter->arpCache[arpPosition].physicalAddress,
+		networkAddressCopy(&netDev->arpCache[arpPosition].physicalAddress,
 			&arp->srcHardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
 	}
 	else
@@ -197,12 +197,12 @@ int kernelNetworkArpProcessPacket(kernelNetworkDevice *adapter,
 		// Add an entry to our cache.  Perhaps we shouldn't do this unless the
 		// ARP packet is for us, but we suppose for the moment it can't hurt
 		// too badly to have a few extras in our table.
-		addArpCache(adapter, (networkAddress *) &arp->srcLogicalAddress,
+		addArpCache(netDev, (networkAddress *) &arp->srcLogicalAddress,
 			(networkAddress *) &arp->srcHardwareAddress);
 	}
 
 	// Now if this wasn't for us, ignore it.
-	if (!networkAddressesEqual(&adapter->device.hostAddress,
+	if (!networkAddressesEqual(&netDev->device.hostAddress,
 		&arp->destLogicalAddress, NETWORK_ADDRLENGTH_IP4))
 	{
 		return (status = 0);
@@ -212,7 +212,7 @@ int kernelNetworkArpProcessPacket(kernelNetworkDevice *adapter,
 	{
 		// Someone is asking for us.  Send a reply, but it should be queued
 		// instead of immediate.
-		kernelNetworkArpSend(adapter,
+		kernelNetworkArpSend(netDev,
 			(networkAddress *) &arp->srcLogicalAddress,
 			(networkAddress *) &arp->srcHardwareAddress, NETWORK_ARPOP_REPLY,
 			0 /* not immediate */);
@@ -222,7 +222,7 @@ int kernelNetworkArpProcessPacket(kernelNetworkDevice *adapter,
 }
 
 
-int kernelNetworkArpSend(kernelNetworkDevice *adapter,
+int kernelNetworkArpSend(kernelNetworkDevice *netDev,
 	networkAddress *destLogicalAddress, networkAddress *destPhysicalAddress,
 	int opCode, int immediate)
 {
@@ -259,9 +259,9 @@ int kernelNetworkArpSend(kernelNetworkDevice *adapter,
 			&NETWORK_BROADCAST_ADDR_ETHERNET, NETWORK_ADDRLENGTH_ETHERNET);
 	}
 
-	// Source is the adapter hardware address
+	// Source is the device hardware address
 	networkAddressCopy(&arpPacket->ethHeader.source,
-		&adapter->device.hardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
+		&netDev->device.hardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Ethernet type is ARP
 	arpPacket->ethHeader.type = htons(NETWORK_ETHERTYPE_ARP);
@@ -279,10 +279,10 @@ int kernelNetworkArpSend(kernelNetworkDevice *adapter,
 
 	// Our source hardware address
 	networkAddressCopy(&arp->srcHardwareAddress,
-		&adapter->device.hardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
+		&netDev->device.hardwareAddress, NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Our source logical address
-	networkAddressCopy(&arp->srcLogicalAddress, &adapter->device.hostAddress,
+	networkAddressCopy(&arp->srcLogicalAddress, &netDev->device.hostAddress,
 		NETWORK_ADDRLENGTH_IP4);
 
 	// Our desired logical address
@@ -298,7 +298,7 @@ int kernelNetworkArpSend(kernelNetworkDevice *adapter,
 
 	debugArp(arp);
 
-	status = kernelNetworkSendPacket(adapter, packet, immediate);
+	status = kernelNetworkSendPacket(netDev, packet, immediate);
 
 	kernelNetworkPacketRelease(packet);
 

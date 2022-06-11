@@ -229,8 +229,8 @@ int main(int argc, char *argv[])
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
-			argv[0]);
+		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
+			"mode\n"), (argc? argv[0] : ""));
 		return (status = ERR_NOTINITIALIZED);
 	}
 

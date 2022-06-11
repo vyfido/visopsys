@@ -298,8 +298,8 @@ static void execProgram(int argc, char *argv[])
 
 static void refreshWindow(void)
 {
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
 
 	variableList tmpConfig;
 	const char *variable = NULL;
@@ -460,8 +460,8 @@ int main(int argc, char *argv[])
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
-			(argc? argv[0] : ""));
+		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
+			"mode\n"), (argc? argv[0] : ""));
 		return (errno = ERR_NOTINITIALIZED);
 	}
 

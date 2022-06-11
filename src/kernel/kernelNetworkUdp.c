@@ -98,7 +98,7 @@ static unsigned short udpChecksum(networkIp4Header *ip4Header)
 int kernelNetworkUdpSetupReceivedPacket(kernelNetworkPacket *packet)
 {
 	// This takes a semi-raw 'received' UDP packet, as from the network
-	// adapter's packet input stream,  and tries to interpret the rest and
+	// device's packet input stream,  and tries to interpret the rest and
 	// set up the remainder of the packet's fields.
 
 	int status = 0;

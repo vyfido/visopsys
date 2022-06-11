@@ -37,6 +37,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define ENDPOINT_INDEX(endpoint) (((endpoint) & (USB_MAX_ENDPOINTS - 1)) << 1)
+#define TRANSRING_INDEX(endpoint) \
+	(ENDPOINT_INDEX(endpoint) + ((endpoint) >> 7))
+#define CONTEXT_INDEX(endpoint) \
+	((ENDPOINT_INDEX(endpoint) - 1) + ((endpoint) >> 7))
+#define DOORBELL_INDEX(endpoint) ((endpoint)? TRANSRING_INDEX(endpoint) : 1)
 
 #ifdef DEBUG
 static inline void debugCapRegs(xhciData *xhci)
@@ -949,9 +955,9 @@ static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 	kernelDebug(debug_usb, "XHCI initialize endpoint 0x%02x", endpoint);
 
 	// Allocate the transfer ring for the endpoint
-	slot->transRings[endpoint & 0xF] =
+	slot->transRings[TRANSRING_INDEX(endpoint)] =
 		allocTrbRing(XHCI_TRANSRING_SIZE, 1 /* circular */);
-	if (!slot->transRings[endpoint & 0xF])
+	if (!slot->transRings[TRANSRING_INDEX(endpoint)])
 		return (status = ERR_MEMORY);
 
 	// Get a pointer to the endpoint input context
@@ -960,12 +966,12 @@ static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 		if (bits64)
 		{
 			inputEndpointCtxt64 = &slot->inputCtxt64->devCtxt
-				.endpointCtxt[(((endpoint & 0xF) * 2) - 1) + (endpoint >> 7)];
+				.endpointCtxt[CONTEXT_INDEX(endpoint)];
 		}
 		else
 		{
 			inputEndpointCtxt32 = &slot->inputCtxt32->devCtxt
-				.endpointCtxt[(((endpoint & 0xF) * 2) - 1) + (endpoint >> 7)];
+				.endpointCtxt[CONTEXT_INDEX(endpoint)];
 		}
 	}
 	else
@@ -989,7 +995,7 @@ static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 				((3 << 1) & XHCI_EPCTXT_CERR) /* cerr */);
 
 		inputEndpointCtxt64->trDeqPtrLo =
-			(slot->transRings[endpoint & 0xF]->trbsPhysical |
+			(slot->transRings[TRANSRING_INDEX(endpoint)]->trbsPhysical |
 				 XHCI_TRBFLAG_CYCLE);
 	}
 	else
@@ -1004,7 +1010,7 @@ static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 				((3 << 1) & XHCI_EPCTXT_CERR) /* cerr */);
 
 		inputEndpointCtxt32->trDeqPtrLo =
-			(slot->transRings[endpoint & 0xF]->trbsPhysical |
+			(slot->transRings[TRANSRING_INDEX(endpoint)]->trbsPhysical |
 				 XHCI_TRBFLAG_CYCLE);
 	}
 
@@ -1462,7 +1468,7 @@ static xhciTrb *queueIntrDesc(xhciData *xhci, xhciSlot *slot, int endpoint,
 	xhciTrbRing *transRing = NULL;
 	xhciTrb *destTrb = NULL;
 
-	transRing = slot->transRings[endpoint & 0xF];
+	transRing = slot->transRings[TRANSRING_INDEX(endpoint)];
 	if (!transRing)
 	{
 		kernelError(kernel_error, "Endpoint 0x%02x has no transfer ring",
@@ -1504,11 +1510,7 @@ static xhciTrb *queueIntrDesc(xhciData *xhci, xhciSlot *slot, int endpoint,
 
 	// Ring the slot doorbell with the endpoint number
 	kernelDebug(debug_usb, "XHCI ring endpoint 0x%02x doorbell", endpoint);
-	if (endpoint)
-		xhci->dbRegs->doorbell[slot->num] =
-			(((endpoint & 0xF) * 2) + (endpoint >> 7));
-	else
-		xhci->dbRegs->doorbell[slot->num] = 1;
+	xhci->dbRegs->doorbell[slot->num] = DOORBELL_INDEX(endpoint);
 
 	return (destTrb);
 }
@@ -1543,8 +1545,8 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 			slot = getDevSlot(xhci, intrReg->usbDev);
 			if (slot)
 			{
-				if ((eventTrb->paramLo & ~0xFU) ==
-					trbPhysical(slot->transRings[intrReg->endpoint & 0xF],
+				if ((eventTrb->paramLo & ~0xFU) == trbPhysical(
+					slot->transRings[TRANSRING_INDEX(intrReg->endpoint)],
 						intrReg->queuedTrb))
 				{
 					bytes = (intrReg->dataLen - (eventTrb->status & 0xFFFFFF));
@@ -1714,8 +1716,7 @@ static int configDevSlot(xhciData *xhci, xhciSlot *slot, usbDevice *usbDev)
 		if (!endpoint->number)
 			continue;
 
-		ctxtIndex = ((((endpoint->number & 0xF) * 2) - 1) +
-			(endpoint->number >> 7));
+		ctxtIndex = CONTEXT_INDEX(endpoint->number);
 
 		kernelDebug(debug_usb, "XHCI configure endpoint 0x%02x, ctxtIndex=%d",
 			endpoint->number, ctxtIndex);
@@ -1859,7 +1860,7 @@ static int transfer(usbController *controller, xhciSlot *slot, int endpoint,
 	uquad_t endTime = 0;
 	int trbCount;
 
-	transRing = slot->transRings[endpoint & 0xF];
+	transRing = slot->transRings[TRANSRING_INDEX(endpoint)];
 	if (!transRing)
 	{
 		kernelError(kernel_error, "Endpoint 0x%02x has no transfer ring",
@@ -1912,11 +1913,7 @@ static int transfer(usbController *controller, xhciSlot *slot, int endpoint,
 
 	// Ring the slot doorbell with the endpoint number
 	kernelDebug(debug_usb, "XHCI ring endpoint 0x%02x doorbell", endpoint);
-	if (endpoint)
-		xhci->dbRegs->doorbell[slot->num] =
-			(((endpoint & 0xF) * 2) + (endpoint >> 7));
-	else
-		xhci->dbRegs->doorbell[slot->num] = 1;
+	xhci->dbRegs->doorbell[slot->num] = DOORBELL_INDEX(endpoint);
 
 	// Unlock the controller while we wait
 	kernelLockRelease(&controller->lock);
@@ -3804,8 +3801,10 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	// Warn if the controller is pre-release
 	hciver = (xhci->capRegs->capslenHciver >> 16);
 	if (hciver < 0x0100)
+	{
 		kernelLog("USB: XHCI warning, version is older than 1.0 (%d.%d%d)",
 			((hciver >> 8) & 0xFF), ((hciver >> 4) & 0xF), (hciver & 0xF));
+	}
 
 	//debugCapRegs(xhci);
 	//debugHcsParams1(xhci);

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -101,7 +101,7 @@ msgstr ""
 msgid "Unable to execute program"
 msgstr ""
 
-#: progman.c:407 progman.c:616
+#: progman.c:407 progman.c:630
 msgid "Set priority"
 msgstr ""
 
@@ -113,30 +113,30 @@ msgstr ""
 msgid "Unable to launch file dialog"
 msgstr ""
 
-#: progman.c:575
+#: progman.c:585
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr ""
 
-#: progman.c:589
+#: progman.c:606
 msgid "Show all sub-processes"
 msgstr ""
 
-#: progman.c:609
+#: progman.c:623
 msgid "Run program"
 msgstr ""
 
-#: progman.c:622
+#: progman.c:636
 msgid "Kill process"
 msgstr ""
 
-#: progman.c:645
+#: progman.c:658
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: progman.c:664
+#: progman.c:677
 msgid "Error getting memory"
 msgstr ""

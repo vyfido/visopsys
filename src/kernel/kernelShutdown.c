@@ -112,7 +112,7 @@ static void messageBox(kernelFont *font, int numLines, char *message[])
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelShutdown(int reboot, int force)
+int kernelSystemShutdown(int reboot, int force)
 {
 	// This function will shut down the kernel, and reboot the computer
 	// if the 'reboot' argument dictates.  This function must include
@@ -195,7 +195,7 @@ int kernelShutdown(int reboot, int force)
 		kernelTextPrintLine("%s", SHUTDOWN_MSG2);
 
 	// Stop networking
-	status = kernelNetworkShutdown();
+	status = kernelNetworkDisable();
 	if (status < 0)
 		kernelError(kernel_error, "Network shutdown failed");
 

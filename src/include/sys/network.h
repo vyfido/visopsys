@@ -26,18 +26,19 @@
 
 #define NETWORK_MAX_HOSTNAMELENGTH			32
 #define NETWORK_MAX_DOMAINNAMELENGTH		(256 - NETWORK_MAX_HOSTNAMELENGTH)
-#define NETWORK_MAX_ADAPTERS				16
-#define NETWORK_ADAPTER_MAX_NAMELENGTH		32
+#define NETWORK_MAX_DEVICES					16
+#define NETWORK_DEVICE_MAX_NAMELENGTH		32
 
 // Flags for network devices
-#define NETWORK_ADAPTERFLAG_INITIALIZED		0x8000
-#define NETWORK_ADAPTERFLAG_RUNNING			0x4000
-#define NETWORK_ADAPTERFLAG_LINK			0x2000
-#define NETWORK_ADAPTERFLAG_AUTOCONF		0x1000
-#define NETWORK_ADAPTERFLAG_PROMISCUOUS		0x0008
-#define NETWORK_ADAPTERFLAG_AUTOSTRIP		0x0004
-#define NETWORK_ADAPTERFLAG_AUTOPAD			0x0002
-#define NETWORK_ADAPTERFLAG_AUTOCRC			0x0001
+#define NETWORK_DEVICEFLAG_INITIALIZED		0x10000
+#define NETWORK_DEVICEFLAG_DISABLED			0x08000
+#define NETWORK_DEVICEFLAG_RUNNING			0x04000
+#define NETWORK_DEVICEFLAG_LINK				0x02000
+#define NETWORK_DEVICEFLAG_AUTOCONF			0x01000
+#define NETWORK_DEVICEFLAG_PROMISCUOUS		0x00008
+#define NETWORK_DEVICEFLAG_AUTOSTRIP		0x00004
+#define NETWORK_DEVICEFLAG_AUTOPAD			0x00002
+#define NETWORK_DEVICEFLAG_AUTOCRC			0x00001
 
 // Flags for network filter fields
 #define NETWORK_FILTERFLAG_HEADERS			0x40
@@ -250,9 +251,9 @@ typedef union {
 
 } __attribute__((packed)) networkAddress;
 
-// A network adapter device
+// A network device
 typedef struct {
-	char name[NETWORK_ADAPTER_MAX_NAMELENGTH];
+	char name[NETWORK_DEVICE_MAX_NAMELENGTH];
 	unsigned flags;
 	// Physical network address
 	networkAddress hardwareAddress;
@@ -322,9 +323,9 @@ typedef struct {
 	unsigned char destHardwareAddress[NETWORK_ADDRLENGTH_ETHERNET];
 	unsigned char destLogicalAddress[NETWORK_ADDRLENGTH_IP4];
 	// Padding to bring us up to the mininum 46 byte ethernet packet size.
-	// Some adapters can't automatically pad it for us.
+	// Some devices can't automatically pad it for us.
 	char pad[18];
-	// Space for the ethernet FCS checksum.  Some adapters can't automatically
+	// Space for the ethernet FCS checksum.  Some devices can't automatically
 	// add it for us.
 	unsigned Fcs;
 

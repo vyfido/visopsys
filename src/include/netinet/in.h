@@ -27,6 +27,9 @@
 #define INET_ADDRSTRLEN			16
 #define INET6_ADDRSTRLEN		46
 
+#define INADDR_ANY				0x00000000
+#define IN6ADDR_ANY_INIT	\
+	((unsigned char[]) { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })
 #define INADDR_LOOPBACK			0x7F000001
 #define IN6ADDR_LOOPBACK_INIT	\
 	((unsigned char[]) { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 })

@@ -28,7 +28,7 @@
 #include <arpa/inet.h>
 
 
-static int ipPortInUse(kernelNetworkDevice *adapter, int portNumber)
+static int ipPortInUse(kernelNetworkDevice *netDev, int portNumber)
 {
 	// Returns 1 if there is a connection using the specified local IP port
 	// number
@@ -37,7 +37,7 @@ static int ipPortInUse(kernelNetworkDevice *adapter, int portNumber)
 	kernelNetworkConnection *connection = NULL;
 
 	connection = kernelLinkedListIterStart((kernelLinkedList *)
-		&adapter->connections, &iter);
+		&netDev->connections, &iter);
 
 	while (connection)
 	{
@@ -48,7 +48,7 @@ static int ipPortInUse(kernelNetworkDevice *adapter, int portNumber)
 		}
 
 		connection = kernelLinkedListIterNext((kernelLinkedList *)
-			&adapter->connections, &iter);
+			&netDev->connections, &iter);
 	}
 
 	return (0);
@@ -84,12 +84,12 @@ static unsigned short ipChecksum(networkIp4Header *header)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelNetworkIp4GetLocalPort(kernelNetworkDevice *adapter, int portNum)
+int kernelNetworkIp4GetLocalPort(kernelNetworkDevice *netDev, int portNum)
 {
 	// If a local port number has been specified, make sure it is not in use
 	if (portNum)
 	{
-		if (ipPortInUse(adapter, portNum))
+		if (ipPortInUse(netDev, portNum))
 		{
 			kernelError(kernel_error, "Local IP port %d is in use", portNum);
 			return (portNum = ERR_BUSY);
@@ -98,7 +98,7 @@ int kernelNetworkIp4GetLocalPort(kernelNetworkDevice *adapter, int portNum)
 	else
 	{
 		// Find a random port > 1024 that is free
-		while (!portNum || ipPortInUse(adapter, portNum))
+		while (!portNum || ipPortInUse(netDev, portNum))
 			portNum = kernelRandomFormatted(1025, 0xFFFF);
 	}
 
@@ -135,7 +135,7 @@ int kernelNetworkIp4SetupReceivedPacket(kernelNetworkPacket *packet)
 	networkAddressCopy(&packet->destAddress, &header->destAddress,
 		NETWORK_ADDRLENGTH_IP4);
 
-	// Some adapters can return more data than is actually contained in the
+	// Some devices can return more data than is actually contained in the
 	// packet (e.g. rounded up from 58 to 64).  We should correct it here.
 	packet->length = (packet->netHeaderOffset + ntohs(header->totalLength));
 

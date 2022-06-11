@@ -220,10 +220,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (event->type == EVENT_MOUSE_LEFTUP)
 	{
 		if (key == rebootButton)
-			shutdown(reboot, 0);
+			systemShutdown(reboot, 0);
 
 		else if (key == shutdownButton)
-			shutdown(halt, 0);
+			systemShutdown(halt, 0);
 	}
 
 	else if ((event->type == EVENT_KEY_DOWN) && (event->key == keyEnter))

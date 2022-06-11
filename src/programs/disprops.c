@@ -386,8 +386,8 @@ static color *getSelectedColor(void)
 
 static void refreshWindow(void)
 {
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
 
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
@@ -952,7 +952,7 @@ static void constructWindow(void)
 }
 
 
-int main(int argc __attribute__((unused)), char *argv[])
+int main(int argc, char *argv[])
 {
 	int status = 0;
 	disk sysDisk;
@@ -965,8 +965,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
-			argv[0]);
+		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
+			"mode\n"), (argc? argv[0] : ""));
 		return (status = ERR_NOTINITIALIZED);
 	}
 

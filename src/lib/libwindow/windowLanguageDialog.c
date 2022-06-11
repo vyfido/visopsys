@@ -235,6 +235,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 				strncpy(pickedLanguage, langs[selected].text, 6);
 				status = 0;
 			}
+
 			break;
 		}
 

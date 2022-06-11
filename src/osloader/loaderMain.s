@@ -991,7 +991,7 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys BIOS OS Loader v0.82', 0
+LOADMSG1	db 'Visopsys BIOS OS Loader v0.83', 0
 LOADMSG2	db 'Copyright (C) 1998-2018 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0

@@ -39,18 +39,18 @@ extern color kernelDefaultBackground;
 static inline void bilinearInterpolation(double distanceX, double distanceY,
 	pixel **src, float **srcAlpha, pixel *dest, float *destAlpha)
 {
-	double row0red = (((1.0 - distanceX) * src[0]->red) +
-		(distanceX * src[1]->red));
-	double row0green = (((1.0 - distanceX) * src[0]->green) +
-		(distanceX * src[1]->green));
-	double row0blue = (((1.0 - distanceX) * src[0]->blue) +
-		(distanceX * src[1]->blue));
-	double row1red = (((1.0 - distanceX) * src[1]->red) +
-		(distanceX * src[2]->red));
-	double row1green = (((1.0 - distanceX) * src[1]->green) +
-		(distanceX * src[2]->green));
-	double row1blue = (((1.0 - distanceX) * src[1]->blue) +
-		(distanceX * src[2]->blue));
+	double row0red = (((1.0 - distanceX) * src[0]->red) + (distanceX *
+		src[1]->red));
+	double row0green = (((1.0 - distanceX) * src[0]->green) + (distanceX *
+		src[1]->green));
+	double row0blue = (((1.0 - distanceX) * src[0]->blue) + (distanceX *
+		src[1]->blue));
+	double row1red = (((1.0 - distanceX) * src[1]->red) + (distanceX *
+		src[2]->red));
+	double row1green = (((1.0 - distanceX) * src[1]->green) + (distanceX *
+		src[2]->green));
+	double row1blue = (((1.0 - distanceX) * src[1]->blue) + (distanceX *
+		src[2]->blue));
 
 	dest->red = (((1.0 - distanceY) * row0red) + (distanceY * row1red));
 	dest->green = (((1.0 - distanceY) * row0green) + (distanceY * row1green));
@@ -59,10 +59,10 @@ static inline void bilinearInterpolation(double distanceX, double distanceY,
 	// Are we also interpolating the alpha channel?
 	if (srcAlpha && destAlpha)
 	{
-		double row0alpha =
-			(((1.0 - distanceX) * *srcAlpha[0]) + (distanceX * *srcAlpha[1]));
-		double row1alpha =
-			(((1.0 - distanceX) * *srcAlpha[1]) + (distanceX * *srcAlpha[2]));
+		double row0alpha = (((1.0 - distanceX) * *srcAlpha[0]) + (distanceX *
+			*srcAlpha[1]));
+		double row1alpha = (((1.0 - distanceX) * *srcAlpha[1]) + (distanceX *
+			*srcAlpha[2]));
 		*destAlpha = (((1.0 - distanceY) * row0alpha) + (distanceY *
 			row1alpha));
 	}
@@ -71,8 +71,8 @@ static inline void bilinearInterpolation(double distanceX, double distanceY,
 
 static int imageCopy(image *srcImage, image *destImage, int kernel)
 {
-	// Given an image, make a copy of it.  If 'kernel' is non-zero, use
-	// kernel memory for the new image.
+	// Given an image, make a copy of it.  If 'kernel' is non-zero, use kernel
+	// memory for the new image.
 
 	int status = 0;
 
@@ -175,6 +175,7 @@ int kernelImageFree(image *freeImage)
 			kernelFree(freeImage->data);
 		else
 			kernelMemoryRelease(freeImage->data);
+
 		freeImage->data = NULL;
 	}
 
@@ -360,8 +361,9 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 	// Determine the width and height ratios of the new size.
 	ratioX = ((double) resizeImage->width / (double) width);
 	ratioY = ((double) resizeImage->height / (double) height);
+
 	kernelDebug(debug_misc, "Image resize ratio %fx%f", ratioX, ratioY);
-	if ((ratioX < 0) || (ratioX > 10) || (ratioY < 0) || (ratioY > 10))
+	if ((ratioX < 0) || (ratioY < 0))
 		kernelDebugError("Ratio seems strange");
 
 	srcPixels = (pixel *) resizeImage->data;
@@ -531,9 +533,12 @@ int kernelImagePaste(image *srcImage, image *destImage, int xCoord,
 	srcAlpha = (void *) srcImage->alpha;
 	if (srcAlpha && !destImage->alpha)
 		kernelImageGetAlpha(destImage);
+
 	if (destImage->alpha)
+	{
 		destAlpha = ((void *) destImage->alpha + (((yCoord *
 			destImage->width) + xCoord) * sizeof(float)));
+	}
 
 	maxLines = min(srcImage->height, (destImage->height - yCoord));
 	lineWidth = min(srcImage->width, (destImage->width - xCoord));

@@ -29,6 +29,7 @@
 
 #define TAR_MAGIC				"ustar"
 #define TAR_OLDMAGIC			"ustar  "
+#define TAR_BLOCKSIZE			512
 #define TAR_MAX_NAMELEN			100
 #define TAR_MAX_PREFIX			155
 #define TAR_OLD_SPARSES			4

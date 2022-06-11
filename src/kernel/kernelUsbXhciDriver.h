@@ -514,7 +514,7 @@ typedef struct {
 	xhciDevCtxt32 *devCtxt32;
 	xhciDevCtxt64 *devCtxt64;
 	unsigned devCtxtPhysical;
-	xhciTrbRing *transRings[USB_MAX_ENDPOINTS];
+	xhciTrbRing *transRings[USB_MAX_ENDPOINTS << 1];
 
 } xhciSlot;
 

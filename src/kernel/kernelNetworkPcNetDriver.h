@@ -19,7 +19,7 @@
 //  kernelNetworkPcNetDriver.h
 //
 
-// Definitions for the driver for PcNet ethernet network adapters.  Based in
+// Definitions for the driver for PcNet ethernet network devices.  Based in
 // part on a driver contributed by Jonas Zaddach: See the files in the
 // directory contrib/jonas-net
 
@@ -179,8 +179,7 @@ typedef volatile struct {
 } __attribute__((packed)) pcNetTransDesc16;
 
 typedef struct {
-	int head;
-	int tail;
+	int next;
 	union {
 		pcNetRecvDesc16 *recv;
 		pcNetTransDesc16 *trans;

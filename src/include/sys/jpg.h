@@ -116,14 +116,18 @@ typedef struct {
 
 } __attribute__((packed)) jpgExifHeader;
 
-// This is the on-disk Huffman table header
+// This is the on-disk Huffman table
+typedef struct {
+	unsigned char classIdent;
+	unsigned char sizes[16];
+	unsigned char values[];
+
+} __attribute__((packed)) jpgHuffTableHeader;
+
+// This is the on-disk Huffman tables header
 typedef struct {
 	unsigned short length;
-	struct {
-		unsigned char classIdent;
-		unsigned char sizes[16];
-		unsigned char values[JPG_HUFF_VALUES];
-	} table[];
+	jpgHuffTableHeader table[];
 
 } __attribute__((packed)) jpgHuffHeader;
 

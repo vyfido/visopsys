@@ -425,7 +425,7 @@ extern int visopsys_in_kernel;
 // Network functions.  All are in the 0x11000-0x11FFF range.
 #define _fnum_networkEnabled					0x11000
 #define _fnum_networkEnable						0x11001
-#define _fnum_networkShutdown					0x11002
+#define _fnum_networkDisable					0x11002
 #define _fnum_networkOpen						0x11003
 #define _fnum_networkClose						0x11004
 #define _fnum_networkCount						0x11005
@@ -436,17 +436,19 @@ extern int visopsys_in_kernel;
 #define _fnum_networkSetHostName				0x1100A
 #define _fnum_networkGetDomainName				0x1100B
 #define _fnum_networkSetDomainName				0x1100C
-#define _fnum_networkDeviceGetCount				0x1100D
-#define _fnum_networkDeviceGet					0x1100E
-#define _fnum_networkDeviceHook					0x1100F
-#define _fnum_networkDeviceUnhook				0x11010
-#define _fnum_networkDeviceSniff				0x11011
+#define _fnum_networkDeviceEnable				0x1100D
+#define _fnum_networkDeviceDisable				0x1100E
+#define _fnum_networkDeviceGetCount				0x1100F
+#define _fnum_networkDeviceGet					0x11010
+#define _fnum_networkDeviceHook					0x11011
+#define _fnum_networkDeviceUnhook				0x11012
+#define _fnum_networkDeviceSniff				0x11013
 
 // Miscellaneous functions.  All are in the 0xFF000-0xFFFFF range.
-#define _fnum_shutdown							0xFF000
+#define _fnum_systemShutdown					0xFF000
 #define _fnum_getVersion						0xFF001
 #define _fnum_systemInfo						0xFF002
-#define _fnum_encryptMD5						0xFF003
+#define _fnum_cryptHashMd5						0xFF003
 #define _fnum_lockGet							0xFF004
 #define _fnum_lockRelease						0xFF005
 #define _fnum_lockVerify						0xFF006
@@ -880,7 +882,7 @@ int userFileSetPassword(const char *, const char *, const char *, const char *);
 //
 int networkEnabled(void);
 int networkEnable(void);
-int networkShutdown(void);
+int networkDisable(void);
 objectKey networkOpen(int, networkAddress *, networkFilter *);
 int networkClose(objectKey);
 int networkCount(objectKey);
@@ -891,6 +893,8 @@ int networkGetHostName(char *, int);
 int networkSetHostName(const char *, int);
 int networkGetDomainName(char *, int);
 int networkSetDomainName(const char *, int);
+int networkDeviceEnable(const char *);
+int networkDeviceDisable(const char *);
 int networkDeviceGetCount(void);
 int networkDeviceGet(const char *, networkDevice *);
 int networkDeviceHook(const char *, objectKey *, int);
@@ -900,10 +904,10 @@ unsigned networkDeviceSniff(objectKey, unsigned char *, unsigned);
 //
 // Miscellaneous functions
 //
-int shutdown(int, int);
+int systemShutdown(int, int);
 void getVersion(char *, int);
 int systemInfo(struct utsname *);
-int encryptMD5(const char *, char *);
+int cryptHashMd5(const unsigned char *, unsigned, unsigned char *);
 int lockGet(lock *);
 int lockRelease(lock *);
 int lockVerify(lock *);

@@ -74,8 +74,8 @@ int kernelNetworkPacketStreamRead(kernelNetworkPacketStream *theStream,
 	kernelNetworkPacket **packet)
 {
 	// This function will read a packet pointer from the packet stream into
-	// the supplied packet pointer.  Does release the packet; that's up to the
-	// caller to do when finished with it.
+	// the supplied packet pointer.  Does not release the packet; that's up to
+	// the caller to do when finished with it.
 
 	int status = 0;
 
@@ -104,26 +104,32 @@ int kernelNetworkPacketStreamWrite(kernelNetworkPacketStream *theStream,
 	// This function will write the pointer to the supplied packet into the
 	// network packet stream, and add a reference count to it.
 
+	int status = 0;
 	kernelNetworkPacket *lostPacket = NULL;
 
-	// Check arguments
+	// Check params
 	if (!theStream || !packet)
 	{
 		kernelError(kernel_error, "NULL parameter");
-		return (ERR_NULLPARAMETER);
+		return (status = ERR_NULLPARAMETER);
 	}
 
 	// If the stream is full, release the one at the head
 	if (theStream->count >= NETWORK_PACKETS_PER_STREAM)
 	{
+		kernelError(kernel_error, "Packet stream is full");
 		if (theStream->pop(theStream, &lostPacket) >= 0)
 			kernelNetworkPacketRelease(lostPacket);
 	}
 
+	// Write the pointer to the stream
+	status = theStream->append(theStream, packet);
+	if (status < 0)
+		return (status);
+
 	// Add a reference count
 	kernelNetworkPacketHold(packet);
 
-	// Write the pointer to the stream
-	return (theStream->append(theStream, packet));
+	return (status = 0);
 }
 

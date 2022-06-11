@@ -22,7 +22,7 @@
 #if !defined(_KERNELSHUTDOWN_H)
 
 // Functions exported by kernelShutdown.c
-int kernelShutdown(int, int);
+int kernelSystemShutdown(int, int);
 void kernelPanicOutput(const char *, const char *, int, const char *, ...)
   __attribute__((format(printf, 4, 5)));
 

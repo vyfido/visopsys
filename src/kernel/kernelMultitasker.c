@@ -483,8 +483,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		if (!kernelCurrentProcess)
 		{
 			kernelError(kernel_error, "No current process!");
-			releaseProcess(newProcess);
-			return (status = ERR_NOSUCHPROCESS);
+			status = ERR_NOSUCHPROCESS;
+			goto out;
 		}
 
 		// Fill in the process' parent Id number
@@ -517,11 +517,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// things like changing memory ownerships
 	status = addProcessToQueue(newProcess);
 	if (status < 0)
-	{
 		// Not able to queue the process.
-		releaseProcess(newProcess);
-		return (status);
-	}
+		goto out;
 
 	// Do we need to create a new page directory and a set of page tables for
 	// this process?
@@ -533,9 +530,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		{
 			kernelError(kernel_error, "New process \"%s\" executable image is "
 				"missing data", name);
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status = ERR_NODATA);
+			status = ERR_NODATA;
+			goto out;
 		}
 
 		// We need to make a new page directory, etc.
@@ -544,9 +540,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		if (!newProcess->pageDirectory)
 		{
 			// Not able to setup a page directory
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status = ERR_NOVIRTUAL);
+			status = ERR_NOVIRTUAL;
+			goto out;
 		}
 
 		// Get the physical address of the code/data
@@ -558,33 +553,21 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		status = kernelMemoryChangeOwner(newProcess->parentProcessId,
 			newProcess->processId, 0, execImage->code, NULL);
 		if (status < 0)
-		{
 			// Couldn't make the process own its memory
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status);
-		}
+			goto out;
 
 		// Remap the code/data to the requested virtual address.
 		status = kernelPageMap(newProcess->processId, physicalCodeData,
 			execImage->virtualAddress, execImage->imageSize);
 		if (status < 0)
-		{
 			// Couldn't map the process memory
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status);
-		}
+			goto out;
 
 		// Code should be read-only
 		status = kernelPageSetAttrs(newProcess->processId, 0,
 			PAGEFLAG_WRITABLE, execImage->virtualAddress, execImage->codeSize);
 		if (status < 0)
-		{
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status);
-		}
+			goto out;
 	}
 	else
 	{
@@ -593,9 +576,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 			newProcess->parentProcessId, newProcess->processId);
 		if (!newProcess->pageDirectory)
 		{
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status = ERR_NOVIRTUAL);
+			status = ERR_NOVIRTUAL;
+			goto out;
 		}
 	}
 
@@ -610,9 +592,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	{
 		// We couldn't make a stack for the new process.  Maybe the system
 		// doesn't have anough available memory?
-		removeProcessFromQueue(newProcess);
-		releaseProcess(newProcess);
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
 	}
 
 	// Copy 'argc' and 'argv' arguments to the new process' stack while we
@@ -633,34 +614,28 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	argMemory = kernelMemoryGet(argMemorySize, "process arguments");
 	if (!argMemory)
 	{
-		kernelMemoryRelease(stackMemoryAddr);
-		removeProcessFromQueue(newProcess);
-		releaseProcess(newProcess);
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
+	}
+
+	// Change ownership to the new process.  If it has its own page directory,
+	// renap, and share it back with this process.
+
+	if (kernelMemoryChangeOwner(newProcess->parentProcessId,
+		newProcess->processId, (newPageDir? 1 : 0 /* remap */), argMemory,
+		(newPageDir? (void **) &newArgPtr : NULL /* newVirtual */)) < 0)
+	{
+		status = ERR_MEMORY;
+		goto out;
 	}
 
 	if (newPageDir)
 	{
-		// Change ownership to the new process, and share it back with this
-		// process.
-		if (kernelMemoryChangeOwner(newProcess->parentProcessId,
-			newProcess->processId, 1, argMemory, (void **) &newArgPtr) < 0)
-		{
-			kernelMemoryRelease(stackMemoryAddr);
-			kernelMemoryRelease(argMemory);
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status = ERR_MEMORY);
-		}
-
 		if (kernelMemoryShare(newProcess->processId,
 			newProcess->parentProcessId, newArgPtr, (void **) &argMemory) < 0)
 		{
-			kernelMemoryRelease(stackMemoryAddr);
-			kernelMemoryRelease(argMemory);
-			removeProcessFromQueue(newProcess);
-			releaseProcess(newProcess);
-			return (status = ERR_MEMORY);
+			status = ERR_MEMORY;
+			goto out;
 		}
 	}
 	else
@@ -696,22 +671,21 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	argv[execImage->argc] = NULL;
 
 	if (newPageDir)
+	{
 		// Unmap the argument space from this process
 		kernelPageUnmap(newProcess->parentProcessId, argMemory, argMemorySize);
+		argMemory = NULL;
+	}
 
 	// Make the process own its stack memory
 	status = kernelMemoryChangeOwner(newProcess->parentProcessId,
 		newProcess->processId, 1 /* remap */, stackMemoryAddr,
 		(void **) &newProcess->userStack);
 	if (status < 0)
-	{
 		// Couldn't make the process own its stack memory
-		kernelMemoryRelease(stackMemoryAddr);
-		kernelMemoryRelease(argMemory);
-		removeProcessFromQueue(newProcess);
-		releaseProcess(newProcess);
-		return (status);
-	}
+		goto out;
+
+	stackMemoryAddr = NULL;
 
 	// Make the topmost page of the user stack privileged, so that we have
 	// have a 'guard page' that produces a page fault in case of (userspace)
@@ -732,14 +706,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// Create the TSS (Task State Segment) for this process.
 	status = createTaskStateSegment(newProcess);
 	if (status < 0)
-	{
 		// Not able to create the TSS
-		kernelMemoryRelease(stackMemoryAddr);
-		kernelMemoryRelease(argMemory);
-		removeProcessFromQueue(newProcess);
-		releaseProcess(newProcess);
-		return (status);
-	}
+		goto out;
 
 	// Adjust the stack pointer to account for the arguments that we copied to
 	// the process' stack
@@ -752,15 +720,27 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	newProcess->environment = kernelMalloc(sizeof(variableList));
 	if (!newProcess->environment)
 	{
-		kernelMemoryRelease(stackMemoryAddr);
-		kernelMemoryRelease(argMemory);
-		removeProcessFromQueue(newProcess);
-		releaseProcess(newProcess);
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
 	}
 
 	// Return the processId on success.
-	return (status = newProcess->processId);
+	status = newProcess->processId;
+
+out:
+	if (status < 0)
+	{
+		if (stackMemoryAddr)
+			kernelMemoryRelease(stackMemoryAddr);
+
+		if (argMemory)
+			kernelMemoryRelease(argMemory);
+
+		removeProcessFromQueue(newProcess);
+		releaseProcess(newProcess);
+	}
+
+	return (status);
 }
 
 
@@ -1587,7 +1567,7 @@ static int schedulerInitialize(void)
 	};
 
 	status = createNewProcess("scheduler process", kernelProc->priority,
-		kernelProc->privilege, &schedImage, 0);
+		kernelProc->privilege, &schedImage, 0 /* no page directory */);
 	if (status < 0)
 		return (status);
 
@@ -1675,7 +1655,7 @@ static int createKernelProcess(void *kernelStack, unsigned kernelStackSize)
 	// The kernel process is its own parent, of course, and it is owned by
 	// "admin".  We create no page table, and there are no arguments.
 	kernelProcId = createNewProcess("kernel process", 1, PRIVILEGE_SUPERVISOR,
-		&kernImage, 0);
+		&kernImage, 0 /* no page directory */);
 	if (kernelProcId < 0)
 		// Damn.  Not able to create the kernel process
 		return (kernelProcId);
@@ -2193,7 +2173,7 @@ int kernelMultitaskerCreateProcess(const char *name, int privilege,
 
 	// Create the new process
 	processId = createNewProcess(name, PRIORITY_DEFAULT, privilege, execImage,
-		1); // create page directory
+		1 /* create page directory */);
 
 	// Get the pointer to the new process from its process Id
 	newProcess = getProcessById(processId);
@@ -2260,7 +2240,8 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
 
 	// OK, now we should create the new process
 	processId = createNewProcess(name, kernelCurrentProcess->priority,
-		kernelCurrentProcess->privilege, &execImage, 0);
+		kernelCurrentProcess->privilege, &execImage,
+		0 /* no page directory */);
 	if (processId < 0)
 		return (status = processId);
 
@@ -3298,7 +3279,6 @@ int kernelMultitaskerKillProcess(int processId, int force)
 			((processQueue[count]->type == proc_thread) ||
 				(killProcess->waitForProcess ==
 					processQueue[count]->processId)))
-
 		{
 			status = kernelMultitaskerKillProcess(processQueue[count]
 				->processId, force);

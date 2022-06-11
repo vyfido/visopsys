@@ -261,6 +261,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 int kernelGraphicsAreEnabled(void)
 {
 	// Returns 1 if graphics are enabled, 0 otherwise
+
 	if (systemAdapter)
 		return (1);
 	else
@@ -274,6 +275,7 @@ int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
 
 	size = max(size, (sizeof(videoMode) * MAXVIDEOMODES));
 	memcpy(modeBuffer, &adapterDevice->supportedModes, size);
+
 	return (adapterDevice->numberModes);
 }
 
@@ -281,10 +283,12 @@ int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
 int kernelGraphicGetMode(videoMode *mode)
 {
 	// Get the current graphics mode
+
 	mode->mode = adapterDevice->mode;
 	mode->xRes = adapterDevice->xRes;
 	mode->yRes = adapterDevice->yRes;
 	mode->bitsPerPixel = adapterDevice->bitsPerPixel;
+
 	return (0);
 }
 
@@ -343,8 +347,9 @@ int kernelGraphicCalculateAreaBytes(int width, int height)
 {
 	// Return the number of bytes needed to store a graphicBuffer's data that
 	// can be drawn on the current display (this varies depending on the
-	// bites-per-pixel, etc, that higher-level code shouldn't have to know
+	// bytes-per-pixel, etc, that higher-level code shouldn't have to know
 	// about)
+
 	return (width * height * adapterDevice->bytesPerPixel);
 }
 
@@ -610,7 +615,7 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 	const char *text, drawMode mode, int xCoord, int yCoord)
 {
 	// Draws a line of text using the supplied font at the requested
-	// coordinates.  Uses the default foreground and background colors.
+	// coordinates, with the supplied foreground and background colors.
 
 	int status = 0;
 	int length = 0;
@@ -644,10 +649,14 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 	for (count1 = 0; count1 < length; count1 ++)
 	{
 		if ((unsigned char) text[count1] < CHARSET_IDENT_CODES)
+		{
 			unicode = text[count1];
+		}
 		else
-			unicode = kernelCharsetToUnicode(charSet,
-				(unsigned char) text[count1]);
+		{
+			unicode = kernelCharsetToUnicode(charSet, (unsigned char)
+				text[count1]);
+		}
 
 		for (count2 = 0; count2 < font->numGlyphs; count2 ++)
 		{
@@ -732,8 +741,8 @@ int kernelGraphicCopyBuffer(graphicBuffer *srcBuffer,
 	destWidth = (destBuffer->width * adapterDevice->bytesPerPixel);
 
 	srcPointer = srcBuffer->data;
-	destPointer = (destBuffer->data + (yCoord * destWidth) +
-		(xCoord * adapterDevice->bytesPerPixel));
+	destPointer = (destBuffer->data + (yCoord * destWidth) + (xCoord *
+		adapterDevice->bytesPerPixel));
 
 	for (rowCount = 0; rowCount < srcBuffer->height; rowCount ++)
 	{
@@ -747,7 +756,7 @@ int kernelGraphicCopyBuffer(graphicBuffer *srcBuffer,
 
 
 int kernelGraphicRenderBuffer(graphicBuffer *buffer, int drawX, int drawY,
-	int clipX, int clipY, int clipWidth,	int clipHeight)
+	int clipX, int clipY, int clipWidth, int clipHeight)
 {
 	// Take a graphicBuffer and render it on the screen
 
@@ -770,15 +779,19 @@ int kernelGraphicRenderBuffer(graphicBuffer *buffer, int drawX, int drawY,
 		clipWidth += clipX;
 		clipX = 0;
 	}
+
 	if (clipY < 0)
 	{
 		clipHeight += clipY;
 		clipY = 0;
 	}
+
 	if ((clipX + clipWidth) >= buffer->width)
 		clipWidth = (buffer->width - clipX);
+
 	if ((clipY + clipHeight) >= buffer->height)
 		clipHeight = (buffer->height - clipY);
+
 	if ((clipWidth <= 0) || (clipHeight <= 0))
 		return (status = 0);
 
@@ -881,17 +894,19 @@ void kernelGraphicDrawGradientBorder(graphicBuffer *buffer, int drawX,
 
 		// Top
 		if (type & border_top)
-			kernelGraphicDrawLine(buffer,
-				&((color){drawBlue, drawGreen, drawRed}), draw_normal,
-				(leftX - count), (topY - count), (rightX + count),
-				(topY - count));
+		{
+			kernelGraphicDrawLine(buffer, &((color){ drawBlue, drawGreen,
+				drawRed }), draw_normal, (leftX - count), (topY - count),
+				(rightX + count), (topY - count));
+		}
 		// Left
 		if (type & border_left)
-			kernelGraphicDrawLine(buffer,
-				&((color){drawBlue, drawGreen, drawRed}), draw_normal,
-				(leftX - count), (topY - count), (leftX - count),
-				(bottomY + count));
+		{
+			kernelGraphicDrawLine(buffer, &((color){ drawBlue, drawGreen,
+				drawRed }), draw_normal, (leftX - count), (topY - count),
+				(leftX - count), (bottomY + count));
 		}
+	}
 
 	shadingIncrement *= -1;
 
@@ -918,19 +933,19 @@ void kernelGraphicDrawGradientBorder(graphicBuffer *buffer, int drawX,
 
 		// Bottom
 		if (type & border_bottom)
-			kernelGraphicDrawLine(buffer,
-				&((color){drawBlue, drawGreen, drawRed}), draw_normal,
-				(leftX - count), (bottomY + count), (rightX + count),
-				(bottomY + count));
+		{
+			kernelGraphicDrawLine(buffer, &((color){ drawBlue, drawGreen,
+				drawRed }), draw_normal, (leftX - count), (bottomY + count),
+				(rightX + count), (bottomY + count));
+		}
 		// Right
 		if (type & border_right)
-			kernelGraphicDrawLine(buffer,
-				&((color){drawBlue, drawGreen, drawRed}), draw_normal,
-				(rightX + count), (topY - count), (rightX + count),
-				(bottomY + count));
+		{
+			kernelGraphicDrawLine(buffer, &((color){ drawBlue, drawGreen,
+				drawRed }), draw_normal, (rightX + count), (topY - count),
+				(rightX + count), (bottomY + count));
+		}
 	}
-
-	return;
 }
 
 
@@ -984,21 +999,19 @@ void kernelGraphicConvexShade(graphicBuffer *buffer, color *drawColor,
 		}
 		else
 		{
-			kernelGraphicDrawLine(buffer, drawColor, draw_normal,
-				(drawX + count), drawY, (drawX + count),
-				(drawY + height - 1));
+			kernelGraphicDrawLine(buffer, drawColor, draw_normal, (drawX +
+				count), drawY, (drawX + count), (drawY + height - 1));
 		}
 
 		if ((type == shade_fromtop) || (type == shade_fromleft))
 		{
 			if (count == ((limit / 2) - 1))
 			{
-				drawColor->red =
-					max((drawColor->red - (centerDiff * 2)), 0);
-				drawColor->green =
-					max((drawColor->green - (centerDiff * 2)), 0);
-				drawColor->blue =
-					max((drawColor->blue - (centerDiff * 2)), 0);
+				drawColor->red = max((drawColor->red - (centerDiff * 2)), 0);
+				drawColor->green = max((drawColor->green -
+					(centerDiff * 2)), 0);
+				drawColor->blue = max((drawColor->blue -
+					(centerDiff * 2)), 0);
 			}
 			else
 			{
@@ -1011,12 +1024,12 @@ void kernelGraphicConvexShade(graphicBuffer *buffer, color *drawColor,
 		{
 			if (count == ((limit / 2) - 1))
 			{
-				drawColor->red =
-					min((drawColor->red + (centerDiff  * 2)), 0xFF);
-				drawColor->green =
-					min((drawColor->green + (centerDiff * 2)), 0xFF);
-				drawColor->blue =
-					min((drawColor->blue + (centerDiff * 2)), 0xFF);
+				drawColor->red = min((drawColor->red + (centerDiff  * 2)),
+					0xFF);
+				drawColor->green = min((drawColor->green + (centerDiff * 2)),
+					0xFF);
+				drawColor->blue = min((drawColor->blue + (centerDiff * 2)),
+					0xFF);
 			}
 			else
 			{
@@ -1026,7 +1039,5 @@ void kernelGraphicConvexShade(graphicBuffer *buffer, color *drawColor,
 			}
 		}
 	}
-
-	return;
 }
 

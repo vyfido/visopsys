@@ -1034,6 +1034,9 @@ void kernelWindowShellUpdateList(kernelLinkedList *list)
 
 		while (itemData)
 		{
+			kernelLinkedListRemove((kernelLinkedList *)
+				&shellData.winMenuItemsList, itemData);
+
 			kernelWindowComponentDestroy(itemData->itemComponent);
 
 			kernelFree(itemData);

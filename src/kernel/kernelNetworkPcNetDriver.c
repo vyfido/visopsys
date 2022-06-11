@@ -19,7 +19,7 @@
 //  kernelNetworkPcNetDriver.c
 //
 
-// Driver for PcNet ethernet network adapters.  Based in part on a driver
+// Driver for PcNet ethernet network devices.  Based in part on a driver
 // contributed by Jonas Zaddach: See the files in the directory
 // contrib/jonas-net
 
@@ -105,29 +105,28 @@ static void modifyCSR(pcNetDevice *pcNet, int idx, unsigned data, opType op)
 }
 
 
-static int driverInterruptHandler(kernelNetworkDevice *adapter)
+static int driverInterruptHandler(kernelNetworkDevice *netDev)
 {
 	// This is the 'body' of the interrupt handler for pcNet devices.  Called
 	// from the networkInterrupt() function in kernelNetworkDevice.c
 
 	unsigned csr0 = 0, csr4 = 0;
 	pcNetDevice *pcNet = NULL;
-	int head = 0;
-	int *tail = NULL;
+	int next = 0;
 	unsigned short flags;
 
 	// Check params
-	if (!adapter)
+	if (!netDev)
 		return (ERR_NULLPARAMETER);
 
-	pcNet = adapter->data;
+	pcNet = netDev->data;
 
 	// Get the contents of the status registers
 	csr0 = readCSR(pcNet, PCNET_CSR_STATUS);
 	csr4 = readCSR(pcNet, PCNET_CSR_FEAT);
 
 	if (!(csr0 & PCNET_CSR_STATUS_INTR))
-		// This adapter didn't interrupt
+		// This device didn't interrupt
 		return (ERR_NODATA);
 
 	kernelDebug(debug_net, "PcNet interrupt, CSR0=%04x, CSR4=%04x", csr0,
@@ -135,7 +134,10 @@ static int driverInterruptHandler(kernelNetworkDevice *adapter)
 
 	// Check for collision errors
 	if (csr0 & PCNET_CSR_STATUS_CERR)
-		adapter->device.collisions += 1;
+	{
+		kernelDebugError("Collision error");
+		netDev->device.collisions += 1;
+	}
 
 	// Why the interrupt, bub?
 	if (csr0 & PCNET_CSR_STATUS_RINT)
@@ -148,37 +150,24 @@ static int driverInterruptHandler(kernelNetworkDevice *adapter)
 		if (csr0 & PCNET_CSR_STATUS_ERR)
 		{
 			kernelDebugError("Receive error");
-			adapter->device.recvErrors += 1;
+			netDev->device.recvErrors += 1;
+
 			if (csr0 & PCNET_CSR_STATUS_MISS)
-				adapter->device.recvOverruns += 1;
+				netDev->device.recvOverruns += 1;
 		}
 
 		// Count the number of queued receive packets
-		head = pcNet->recvRing.head;
-		while ((adapter->device.recvQueued < adapter->device.recvQueueLen) &&
-			!(pcNet->recvRing.desc.recv[head].flags & PCNET_DESCFLAG_OWN))
+		next = pcNet->recvRing.next;
+		while ((netDev->device.recvQueued < netDev->device.recvQueueLen) &&
+			!(pcNet->recvRing.desc.recv[next].flags & PCNET_DESCFLAG_OWN))
 		{
-			flags = pcNet->recvRing.desc.recv[head].flags;
-
-			// Check for receive errors with this packet
-			if (flags & PCNET_DESCFLAG_ERR)
-			{
-				adapter->device.recvErrors += 1;
-				if (flags & PCNET_DESCFLAG_RCV_DROPPED)
-					adapter->device.recvDropped += 1;
-			}
-
 			// Increase the count of packets queued for receiving
-			adapter->device.recvQueued += 1;
+			netDev->device.recvQueued += 1;
 
 			// Move to the next receive descriptor
-			head += 1;
-			if (head >= adapter->device.recvQueueLen)
-				head = 0;
-
-			if (head == pcNet->recvRing.head)
-				// We wrapped all the way around.
-				break;
+			next += 1;
+			if (next >= netDev->device.recvQueueLen)
+				next = 0;
 		}
 	}
 
@@ -192,33 +181,41 @@ static int driverInterruptHandler(kernelNetworkDevice *adapter)
 		if (csr0 & PCNET_CSR_STATUS_ERR)
 		{
 			kernelDebugError("Transmit error");
-			adapter->device.transErrors += 1;
+			netDev->device.transErrors += 1;
+
 			if (csr0 & PCNET_CSR_STATUS_MISS)
-				adapter->device.transOverruns += 1;
+				netDev->device.transOverruns += 1;
 		}
 
 		// Loop for each transmitted packet
-		tail = &pcNet->transRing.tail;
-		while (adapter->device.transQueued &&
-			!(pcNet->transRing.desc.trans[*tail].flags & PCNET_DESCFLAG_OWN))
+		next = pcNet->transRing.next;
+		while (netDev->device.transQueued &&
+			!(pcNet->transRing.desc.trans[next].flags & PCNET_DESCFLAG_OWN))
 		{
-			flags = pcNet->transRing.desc.trans[*tail].flags;
+			flags = pcNet->transRing.desc.trans[next].flags;
 
 			// Check for transmit errors with this packet
 			if (flags & PCNET_DESCFLAG_ERR)
 			{
-				adapter->device.transErrors += 1;
+				netDev->device.transErrors += 1;
 				if (flags & PCNET_DESCFLAG_TRANS_DROPPED)
-					adapter->device.transDropped += 1;
+				{
+					kernelDebugError("Transmit error - packet dropped");
+					netDev->device.transDropped += 1;
+				}
+				else
+				{
+					kernelDebugError("Transmit error");
+				}
 			}
 
 			// Reduce the counter of packets queued for transmission
-			adapter->device.transQueued -= 1;
+			netDev->device.transQueued -= 1;
 
 			// Move to the next transmit descriptor
-			*tail += 1;
-			if (*tail >= adapter->device.transQueueLen)
-				*tail = 0;
+			next += 1;
+			if (next >= netDev->device.transQueueLen)
+				next = 0;
 		}
 	}
 
@@ -230,55 +227,55 @@ static int driverInterruptHandler(kernelNetworkDevice *adapter)
 }
 
 
-static int driverSetFlags(kernelNetworkDevice *adapter, unsigned flags,
+static int driverSetFlags(kernelNetworkDevice *netDev, unsigned flags,
 	int onOff)
 {
-	// Changes any user-settable flags associated with the adapter
+	// Changes any user-settable flags associated with the device
 
 	int status = 0;
 	pcNetDevice *pcNet = NULL;
 
 	// Check params
-	if (!adapter)
+	if (!netDev)
 		return (status = ERR_NULLPARAMETER);
 
 	kernelDebug(debug_net, "PcNet set flags");
 
-	pcNet = adapter->data;
+	pcNet = netDev->data;
 
 	// Change any flags that are settable for this NIC.  Ignore any that
 	// aren't supported.
 
-	if (flags & NETWORK_ADAPTERFLAG_AUTOSTRIP)
+	if (flags & NETWORK_DEVICEFLAG_AUTOSTRIP)
 	{
 		if (onOff)
 		{
 			modifyCSR(pcNet, PCNET_CSR_FEAT, PCNET_CSR_FEAT_ASTRPRCV, op_or);
-			adapter->device.flags |= NETWORK_ADAPTERFLAG_AUTOSTRIP;
+			netDev->device.flags |= NETWORK_DEVICEFLAG_AUTOSTRIP;
 		}
 		else
 		{
 			modifyCSR(pcNet, PCNET_CSR_FEAT, ~PCNET_CSR_FEAT_ASTRPRCV,
 				op_and);
-			adapter->device.flags &= ~NETWORK_ADAPTERFLAG_AUTOSTRIP;
+			netDev->device.flags &= ~NETWORK_DEVICEFLAG_AUTOSTRIP;
 		}
 	}
 
-	if (flags & NETWORK_ADAPTERFLAG_AUTOPAD)
+	if (flags & NETWORK_DEVICEFLAG_AUTOPAD)
 	{
 		if (onOff)
 		{
 			modifyCSR(pcNet, PCNET_CSR_FEAT, PCNET_CSR_FEAT_APADXMT, op_or);
-			adapter->device.flags |= NETWORK_ADAPTERFLAG_AUTOPAD;
+			netDev->device.flags |= NETWORK_DEVICEFLAG_AUTOPAD;
 		}
 		else
 		{
 			modifyCSR(pcNet, PCNET_CSR_FEAT, ~PCNET_CSR_FEAT_APADXMT, op_and);
-			adapter->device.flags &= ~NETWORK_ADAPTERFLAG_AUTOPAD;
+			netDev->device.flags &= ~NETWORK_DEVICEFLAG_AUTOPAD;
 		}
 	}
 
-	if (flags & NETWORK_ADAPTERFLAG_AUTOCRC)
+	if (flags & NETWORK_DEVICEFLAG_AUTOCRC)
 	{
 	}
 
@@ -286,7 +283,7 @@ static int driverSetFlags(kernelNetworkDevice *adapter, unsigned flags,
 }
 
 
-static unsigned driverReadData(kernelNetworkDevice *adapter,
+static unsigned driverReadData(kernelNetworkDevice *netDev,
 	unsigned char *buffer)
 {
 	// This function copies 1 network packet's worth data from our ring buffer
@@ -296,41 +293,85 @@ static unsigned driverReadData(kernelNetworkDevice *adapter,
 
 	unsigned messageLen = 0;
 	pcNetDevice *pcNet = NULL;
-	int *head = NULL;
+	int *next = 0;
 	pcNetRecvDesc16 *recv = NULL;
 
 	// Check params
-	if (!adapter || !buffer)
+	if (!netDev || !buffer)
 		return (messageLen = 0);
 
 	kernelDebug(debug_net, "PcNet read data");
 
-	pcNet = adapter->data;
-	head = &pcNet->recvRing.head;
-	recv = &pcNet->recvRing.desc.recv[*head];
+	pcNet = netDev->data;
 
-	if (adapter->device.recvQueued && !(recv->flags & PCNET_DESCFLAG_OWN))
+	if (netDev->device.recvQueued)
 	{
-		messageLen = (unsigned) recv->messageSize;
+		next = &pcNet->recvRing.next;
+		recv = &pcNet->recvRing.desc.recv[*next];
 
-		memcpy(buffer, pcNet->recvRing.buffers[*head], messageLen);
+		if (!(recv->flags & PCNET_DESCFLAG_OWN))
+		{
+			// Check for receive errors with this packet
+			if (recv->flags & PCNET_DESCFLAG_ERR)
+			{
+				netDev->device.recvErrors += 1;
+				if (recv->flags & PCNET_DESCFLAG_RCV_DROPPED)
+				{
+					kernelDebugError("Receive error - packet dropped");
+					netDev->device.recvDropped += 1;
+				}
+				else
+				{
+					kernelDebugError("Receive error");
+				}
+			}
+			else
+			{
+				messageLen = (unsigned) recv->messageSize;
+				if (messageLen)
+				{
+					memcpy(buffer, pcNet->recvRing.buffers[*next],
+						messageLen);
+				}
+				else
+				{
+					kernelError(kernel_error, "Packet has 0 size");
+				}
+			}
 
-		adapter->device.recvQueued -= 1;
+			netDev->device.recvQueued -= 1;
 
-		// Return ownership to the controller
-		recv->flags |= PCNET_DESCFLAG_OWN;
+			// Return ownership of the previous one to the controller (we
+			// retain this one, to prevent overruns)
 
-		*head += 1;
-		if (*head >= adapter->device.recvQueueLen)
-			*head = 0;
+			if (*next)
+			{
+				recv = &pcNet->recvRing.desc.recv[*next - 1];
+			}
+			else
+			{
+				recv = &pcNet->recvRing.desc.recv[
+					netDev->device.recvQueueLen - 1];
+			}
+
+			recv->flags |= PCNET_DESCFLAG_OWN;
+
+			*next += 1;
+			if (*next >= netDev->device.recvQueueLen)
+				*next = 0;
+		}
+		else
+		{
+			kernelError(kernel_error, "Head of queue is owned by device");
+		}
 	}
 
 	return (messageLen);
 }
 
 
-static int driverWriteData(kernelNetworkDevice *adapter,
-	unsigned char *buffer, unsigned bufferSize)
+static int driverWriteData(kernelNetworkDevice *netDev, unsigned char *buffer,
+	unsigned bufferSize)
 {
 	// This function writes network packet data
 
@@ -339,20 +380,23 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 	unsigned bufferPhysical = 0;
 	kernelIoMemory sendBuff;
 	int block = 0;
-	int *head = NULL;
+	int *next = NULL;
 	pcNetTransDesc16 *trans = NULL;
 
 	// Check params
-	if (!adapter || !buffer)
+	if (!netDev || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	kernelDebug(debug_net, "PcNet write data, %u bytes", bufferSize);
 
-	pcNet = adapter->data;
+	pcNet = netDev->data;
 
 	// Make sure we've got room for another packet
-	if (adapter->device.transQueued >= adapter->device.transQueueLen)
+	if (netDev->device.transQueued >= netDev->device.transQueueLen)
+	{
+		kernelDebugError("Packet not written - trans queue full");
 		return (status = ERR_NOFREE);
+	}
 
 	// Get the physical address of the buffer.  At present, the upper layer
 	// only passes us packets allocated in kernel memory.  However, if we
@@ -383,35 +427,38 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 		block = 1;
 	}
 
-	head = &pcNet->transRing.head;
-	trans = &pcNet->transRing.desc.trans[*head];
+	next = &pcNet->transRing.next;
+	trans = &pcNet->transRing.desc.trans[*next];
 
-	if (!(trans->flags & PCNET_DESCFLAG_OWN))
-	{
-		trans->buffAddrLow = (unsigned short)(bufferPhysical & 0xFFFF);
-		trans->buffAddrHigh = (unsigned char)
-			((bufferPhysical & 0x00FF0000) >> 16);
-		trans->bufferSize = (unsigned short)
-			(0xF000 | (((short) -bufferSize) & 0x0FFF));
-		trans->transFlags = 0;
+	while (trans->flags & PCNET_DESCFLAG_OWN)
+		// Need to wait until the device has caught up
+		kernelMultitaskerYield();
 
-		adapter->device.transQueued += 1;
+	trans->buffAddrLow = (unsigned short)(bufferPhysical & 0xFFFF);
+	trans->buffAddrHigh = (unsigned char)((bufferPhysical &
+		0x00FF0000) >> 16);
+	trans->bufferSize = (unsigned short)(0xF000 | (((short) -bufferSize) &
+		0x0FFF));
+	trans->transFlags = 0;
 
-		// Set the start packet and end packet bits, and give the descriptor
-		// to the controller for transmitting.
-		trans->flags = (PCNET_DESCFLAG_OWN | PCNET_DESCFLAG_STP |
-			PCNET_DESCFLAG_ENP);
+	netDev->device.transQueued += 1;
 
-		*head += 1;
-		if (*head >= adapter->device.transQueueLen)
-			*head = 0;
-	}
+	// Set the start packet and end packet bits, and give the descriptor to
+	// the controller for transmitting.
+	trans->flags = (PCNET_DESCFLAG_OWN | PCNET_DESCFLAG_STP |
+		PCNET_DESCFLAG_ENP);
+
+	*next += 1;
+	if (*next >= netDev->device.transQueueLen)
+		*next = 0;
 
 	if (block)
 	{
 		while (trans->flags & PCNET_DESCFLAG_OWN)
+			// Need to wait until the data has been transmitted
 			kernelMultitaskerYield();
 
+		// Now we can free the memory
 		kernelMemoryReleaseIo(&sendBuff);
 	}
 
@@ -464,14 +511,14 @@ static int driverDetect(void *parent __attribute__((unused)),
 {
 	// This function is used to detect and initialize each device, as well as
 	// registering each one with any higher-level interfaces.  Also issues the
-	// appropriate commands to the netork adapter to initialize it.
+	// appropriate commands to the netork device to initialize it.
 
 	int status = 0;
 	kernelBusTarget *busTargets = NULL;
 	int numBusTargets = 0;
 	pciDeviceInfo pciDevInfo;
 	kernelDevice *dev = NULL;
-	kernelNetworkDevice *adapter = NULL;
+	kernelNetworkDevice *netDev = NULL;
 	pcNetDevice *pcNet = NULL;
 	unsigned ioSpaceSize = 0;
 	kernelIoMemory recvBuff;
@@ -491,7 +538,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	if (numBusTargets <= 0)
 		return (status = ERR_NODATA);
 
-	// Search the bus targets for ethernet adapters
+	// Search the bus targets for ethernet devices
 	for (deviceCount = 0; deviceCount < numBusTargets; deviceCount ++)
 	{
 		// If it's not an ethernet device, skip it
@@ -539,7 +586,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		// bit 0 being set.
 		if (!(pciDevInfo.device.nonBridge.baseAddress[0] & 1))
 		{
-			kernelError(kernel_error, "Unknown adapter I/O address");
+			kernelError(kernel_error, "Unknown device I/O address");
 			continue;
 		}
 
@@ -551,8 +598,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 			return (status = ERR_MEMORY);
 		}
 
-		adapter = kernelMalloc(sizeof(kernelNetworkDevice));
-		if (!adapter)
+		netDev = kernelMalloc(sizeof(kernelNetworkDevice));
+		if (!netDev)
 		{
 			kernelFree(dev);
 			kernelFree(busTargets);
@@ -562,13 +609,13 @@ static int driverDetect(void *parent __attribute__((unused)),
 		pcNet = kernelMalloc(sizeof(pcNetDevice));
 		if (!pcNet)
 		{
-			kernelFree((void *) adapter);
+			kernelFree((void *) netDev);
 			kernelFree(dev);
 			kernelFree(busTargets);
 			return (status = ERR_MEMORY);
 		}
 
-		adapter->data = pcNet;
+		netDev->data = pcNet;
 
 		pcNet->ioAddress = (void *)
 			(pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFFC);
@@ -589,25 +636,25 @@ static int driverDetect(void *parent __attribute__((unused)),
 			PCI_CONFREG_BASEADDRESS0_32, 32,
 			pciDevInfo.device.nonBridge.baseAddress[0]);
 
-		adapter->device.flags = (NETWORK_ADAPTERFLAG_AUTOPAD |
-			NETWORK_ADAPTERFLAG_AUTOSTRIP | NETWORK_ADAPTERFLAG_AUTOCRC);
-		adapter->device.linkProtocol = NETWORK_LINKPROTOCOL_ETHERNET;
-		adapter->device.interruptNum =
+		netDev->device.flags = (NETWORK_DEVICEFLAG_AUTOPAD |
+			NETWORK_DEVICEFLAG_AUTOSTRIP | NETWORK_DEVICEFLAG_AUTOCRC);
+		netDev->device.linkProtocol = NETWORK_LINKPROTOCOL_ETHERNET;
+		netDev->device.interruptNum =
 			pciDevInfo.device.nonBridge.interruptLine;
-		adapter->device.recvQueueLen = PCNET_NUM_RINGBUFFERS;
-		adapter->device.transQueueLen = PCNET_NUM_RINGBUFFERS;
+		netDev->device.recvQueueLen = PCNET_NUM_RINGBUFFERS;
+		netDev->device.transQueueLen = PCNET_NUM_RINGBUFFERS;
 
 		// Reset it
 		reset(pcNet);
 
-		// Stop the adapter
+		// Stop the device
 		writeCSR(pcNet, PCNET_CSR_STATUS, PCNET_CSR_STATUS_STOP);
 
 		// Get the ethernet address
 		for (count = 0; count < NETWORK_ADDRLENGTH_ETHERNET; count ++)
 		{
 			processorInPort8((pcNet->ioAddress + count),
-				adapter->device.hardwareAddress.byte[count]);
+				netDev->device.hardwareAddress.byte[count]);
 		}
 
 		// Get chip version and set the model name
@@ -638,20 +685,19 @@ static int driverDetect(void *parent __attribute__((unused)),
 			}
 
 			// Record the interrupt number
-			sprintf(value, "%d", adapter->device.interruptNum);
-			kernelVariableListSet(&dev->device.attrs, "adapter.interrupt",
+			sprintf(value, "%d", netDev->device.interruptNum);
+			kernelVariableListSet(&dev->device.attrs, "device.interrupt",
 				value);
 
 			// Record the MAC address
 			sprintf(value, "%02x:%02x:%02x:%02x:%02x:%02x",
-				adapter->device.hardwareAddress.byte[0],
-				adapter->device.hardwareAddress.byte[1],
-				adapter->device.hardwareAddress.byte[2],
-				adapter->device.hardwareAddress.byte[3],
-				adapter->device.hardwareAddress.byte[4],
-				adapter->device.hardwareAddress.byte[5]);
-			kernelVariableListSet(&dev->device.attrs, "adapter.address",
-				value);
+				netDev->device.hardwareAddress.byte[0],
+				netDev->device.hardwareAddress.byte[1],
+				netDev->device.hardwareAddress.byte[2],
+				netDev->device.hardwareAddress.byte[3],
+				netDev->device.hardwareAddress.byte[4],
+				netDev->device.hardwareAddress.byte[5]);
+			kernelVariableListSet(&dev->device.attrs, "mac.address", value);
 			kernelDebug(debug_net, "PcNet MAC address %s",value);
 		}
 
@@ -669,8 +715,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		receiveBufferPhysical = recvBuff.physical;
 
 		// Set up the receive ring descriptors
-		pcNet->recvRing.head = 0;
-		pcNet->recvRing.tail = 0;
+		pcNet->recvRing.next = 0;
 
 		status = kernelMemoryGetIo((PCNET_NUM_RINGBUFFERS *
 			sizeof(pcNetRecvDesc16)), 16 /* 8-byte alignment for 16-bit,
@@ -692,7 +737,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 				(receiveBufferPhysical & 0xFFFF);
 			pcNet->recvRing.desc.recv[count].buffAddrHigh = (unsigned char)
 				((receiveBufferPhysical & 0x00FF0000) >> 16);
-			pcNet->recvRing.desc.recv[count].flags = PCNET_DESCFLAG_OWN;
+			if (count < (PCNET_NUM_RINGBUFFERS - 1))
+				pcNet->recvRing.desc.recv[count].flags = PCNET_DESCFLAG_OWN;
 			pcNet->recvRing.desc.recv[count].bufferSize = (unsigned short)
 				(0xF000 | (((short) -PCNET_RINGBUFFER_SIZE) & 0x0FFF));
 			pcNet->recvRing.buffers[count] = receiveBuffer;
@@ -702,8 +748,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		}
 
 		// Set up the transmit ring descriptors
-		pcNet->transRing.head = 0;
-		pcNet->transRing.tail = 0;
+		pcNet->transRing.next = 0;
 
 		status = kernelMemoryGetIo((PCNET_NUM_RINGBUFFERS *
 			sizeof(pcNetTransDesc16)), 16 /* 8-byte alignment for 16-bit,
@@ -750,7 +795,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		for (count = 0; count < NETWORK_ADDRLENGTH_ETHERNET; count ++)
 		{
 			initBlock->physAddr[count] =
-				adapter->device.hardwareAddress.byte[count];
+				netDev->device.hardwareAddress.byte[count];
 		}
 
 		// Accept all multicast packets for now.
@@ -796,18 +841,18 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		// Record link status
 		if (readBCR(pcNet, PCNET_BCR_LINK) & PCNET_BCR_LINK_LEDOUT)
-			adapter->device.flags |= NETWORK_ADAPTERFLAG_LINK;
+			netDev->device.flags |= NETWORK_DEVICEFLAG_LINK;
 
 		dev->device.class = kernelDeviceGetClass(DEVICECLASS_NETWORK);
 		dev->device.subClass =
 			kernelDeviceGetClass(DEVICESUBCLASS_NETWORK_ETHERNET);
 		dev->driver = driver;
-		dev->data = (void *) adapter;
+		dev->data = (void *) netDev;
 
 		// Claim the controller device in the list of PCI targets.
 		kernelBusDeviceClaim(&busTargets[deviceCount], driver);
 
-		// Register the network adapter device
+		// Register the network device
 		status = kernelNetworkDeviceRegister(dev);
 		if (status < 0)
 		{

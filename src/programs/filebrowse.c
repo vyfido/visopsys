@@ -216,8 +216,8 @@ static void execProgram(int argc, char *argv[])
 }
 
 
-static void doFileSelection(file *theFile, char *fullName,
-	loaderFileClass *loaderClass)
+static void doFileSelection(windowFileList *list __attribute__((unused)),
+	file *theFile, char *fullName, loaderFileClass *loaderClass)
 {
 	char command[MAX_PATH_NAME_LENGTH];
 	int pid = 0;
@@ -583,7 +583,7 @@ int main(int argc, char *argv[])
 out:
 	windowGuiStop();
 
-	if (fileList)
+	if (fileList && fileList->destroy)
 		fileList->destroy(fileList);
 
 	if (window)

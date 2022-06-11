@@ -83,6 +83,8 @@ MATHNAMES = \
 	tanf
 
 NETNAMES = \
+	accept \
+	bind \
 	connect \
 	getprotobyname \
 	getprotobynumber \
@@ -90,9 +92,11 @@ NETNAMES = \
 	getservbyport \
 	inet_ntop \
 	inet_pton \
+	listen \
 	poll \
 	recv \
 	send \
+	shutdown \
 	socket
 
 SIGNALNAMES = signal

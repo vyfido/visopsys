@@ -107,9 +107,14 @@ static int update(windowArchiveList *archList, archiveMemberInfo *members,
 
 	// Clear the list
 	windowComponentSetData(archList->key, NULL, 0, 0 /* no redraw */);
+
+	// Re-populate the list
 	windowComponentSetData(archList->key, iconParams, archList->numMembers,
 		1 /* redraw */);
-	windowComponentSetSelected(archList->key, 0);
+
+	// If it has any members, select the first one
+	if (archList->numMembers)
+		windowComponentSetSelected(archList->key, 0);
 
 	if (iconParams)
 		free(iconParams);

@@ -286,8 +286,11 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 
 	// If a custom background was specified, fill it with that color
 	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	{
 		kernelGraphicDrawRect(&canvas->buffer, &params->background,
-			draw_normal, 0, 0, width, height, 1 /* thickness */, 1 /* fill */);
+			draw_normal, 0, 0, width, height, 1 /* thickness */,
+			1 /* fill */);
+	}
 
 	return (component);
 }

@@ -528,8 +528,8 @@ out:
 
 static void refreshWindow(void)
 {
-	// We got a 'window refresh' event (probably because of a language switch),
-	// so we need to update things
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
 
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));

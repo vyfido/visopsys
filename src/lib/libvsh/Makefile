@@ -29,6 +29,7 @@ NAMES = vshCompleteFilename \
 	vshDumpFile \
 	vshFileList \
 	vshMakeAbsolutePath \
+	vshMakeDirRecursive \
 	vshParseCommand \
 	vshPasswordPrompt \
 	vshPrintDate \

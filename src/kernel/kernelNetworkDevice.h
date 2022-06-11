@@ -34,6 +34,10 @@ typedef struct {
 
 // Functions exported from kernelNetworkDevice.c
 int kernelNetworkDeviceRegister(kernelDevice *);
+int kernelNetworkDeviceStart(const char *, int);
+int kernelNetworkDeviceStop(const char *);
+int kernelNetworkDeviceEnable(const char *);
+int kernelNetworkDeviceDisable(const char *);
 int kernelNetworkDeviceSetFlags(const char *, unsigned, int);
 int kernelNetworkDeviceGetAddress(const char *, networkAddress *,
 	networkAddress *);

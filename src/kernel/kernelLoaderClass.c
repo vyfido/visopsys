@@ -164,6 +164,206 @@ static int pngDetect(const char *fileName, void *dataPtr, unsigned size,
 }
 
 
+static int mp3Detect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must be binary, and have the signature 'ID3'
+
+	#define MP3_MAGIC "ID3"
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < 3)
+		return (0);
+
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		!strncmp(dataPtr, MP3_MAGIC, 3))
+	{
+		// We will call this an MP3 audio file
+		sprintf(class->name, "%s %s", FILECLASS_NAME_MP3,
+			FILECLASS_NAME_AUDIO);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_AUDIO);
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
+static int wavDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must be binary, and have the signatures 'RIFF' and 'WAVE'
+
+	#define WAV_MAGIC1 "RIFF" // followed by 4 bytes
+	#define WAV_MAGIC2 "WAVE"
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < 16)
+		return (0);
+
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		!strncmp(dataPtr, WAV_MAGIC1, 4) &&
+		!strncmp((dataPtr + 8), WAV_MAGIC2, 4))
+	{
+		// We will call this a WAV audio file
+		sprintf(class->name, "%s %s", FILECLASS_NAME_WAV,
+			FILECLASS_NAME_AUDIO);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_AUDIO);
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
+static int flvDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must be binary, and have the signature 'FLV'
+
+	#define FLV_MAGIC "FLV"
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < 3)
+		return (0);
+
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		!strncmp(dataPtr, FLV_MAGIC, 3))
+	{
+		// We will call this a FLV (Flash) video
+		sprintf(class->name, "%s %s", FILECLASS_NAME_FLV,
+			FILECLASS_NAME_VIDEO);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_VIDEO);
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
+static int aviDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must be binary, and have the signatures 'RIFF' and 'AVI LIST'
+
+	#define AVI_MAGIC1 "RIFF" // followed by 4 bytes
+	#define AVI_MAGIC2 "AVI LIST"
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < 16)
+		return (0);
+
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		!strncmp(dataPtr, AVI_MAGIC1, 4) &&
+		!strncmp((dataPtr + 8), AVI_MAGIC2, 8))
+	{
+		// We will call this a FLV (flash) video
+		sprintf(class->name, "%s %s", FILECLASS_NAME_AVI,
+			FILECLASS_NAME_VIDEO);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_VIDEO);
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
+static int mp4Detect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must be binary, and have one of several possible signatures at offset 4
+
+	#define MP4_MAGIC1 "ftypMSNV"	// MPEG-4 video file
+	#define MP4_MAGIC2 "ftypisom"	// ISO Base Media file (MPEG-4) v1
+	#define MP4_MAGIC3 "ftypmp42"	// MPEG-4 video|QuickTime file
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < 12)
+		return (0);
+
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		(!strncmp((dataPtr + 4), MP4_MAGIC1, 8) ||
+			!strncmp((dataPtr + 4), MP4_MAGIC2, 8) ||
+			!strncmp((dataPtr + 4), MP4_MAGIC3, 8)))
+	{
+		// We will call this an MP4 video
+		sprintf(class->name, "%s %s", FILECLASS_NAME_MP4,
+			FILECLASS_NAME_VIDEO);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_VIDEO);
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
+static int movDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must be binary, and have the signature 'ftypqt  ' at offset 4
+
+	#define MOV_MAGIC "ftypqt  "
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < 12)
+		return (0);
+
+	if (binaryDetect(fileName, dataPtr, size, class) &&
+		!strncmp((dataPtr + 4), MOV_MAGIC, 8))
+	{
+		// We will call this a QuickTime video
+		sprintf(class->name, "%s %s", FILECLASS_NAME_MOV,
+			FILECLASS_NAME_VIDEO);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_VIDEO);
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
 static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 	loaderFileClass *class)
 {
@@ -590,6 +790,48 @@ kernelFileClass pngFileClass = {
 	{ }
 };
 
+// MP3 audio.
+kernelFileClass mp3FileClass = {
+	FILECLASS_NAME_MP3,
+	&mp3Detect,
+	{ }
+};
+
+// WAV audio.
+kernelFileClass wavFileClass = {
+	FILECLASS_NAME_WAV,
+	&wavDetect,
+	{ }
+};
+
+// FLV (Flash) videos.
+kernelFileClass flvFileClass = {
+	FILECLASS_NAME_FLV,
+	&flvDetect,
+	{ }
+};
+
+// AVI videos.
+kernelFileClass aviFileClass = {
+	FILECLASS_NAME_AVI,
+	&aviDetect,
+	{ }
+};
+
+// MP4 videos.
+kernelFileClass mp4FileClass = {
+	FILECLASS_NAME_MP4,
+	&mp4Detect,
+	{ }
+};
+
+// QuickTime videos.
+kernelFileClass movFileClass = {
+	FILECLASS_NAME_MOV,
+	&movDetect,
+	{ }
+};
+
 // Boot files.
 kernelFileClass bootFileClass = {
 	FILECLASS_NAME_BOOT,
@@ -703,6 +945,54 @@ kernelFileClass *kernelFileClassPng(void)
 	// The loader will call this function so that we can return a structure
 	// for managing PNG images
 	return (&pngFileClass);
+}
+
+
+kernelFileClass *kernelFileClassMp3(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing MP3 audio files
+	return (&mp3FileClass);
+}
+
+
+kernelFileClass *kernelFileClassWav(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing WAV audio files
+	return (&wavFileClass);
+}
+
+
+kernelFileClass *kernelFileClassFlv(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing FLV (Flash) videos
+	return (&flvFileClass);
+}
+
+
+kernelFileClass *kernelFileClassAvi(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing AVI videos
+	return (&aviFileClass);
+}
+
+
+kernelFileClass *kernelFileClassMp4(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing MP4 videos
+	return (&mp4FileClass);
+}
+
+
+kernelFileClass *kernelFileClassMov(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing MOV (QuickTime) videos
+	return (&movFileClass);
 }
 
 

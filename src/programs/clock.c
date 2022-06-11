@@ -108,7 +108,7 @@ static void makeTime(void)
 }
 
 
-int main(int argc __attribute__((unused)), char *argv[])
+int main(int argc, char *argv[])
 {
 	int status = 0;
 	objectKey taskBarLabel = NULL;
@@ -119,8 +119,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
-			argv[0]);
+		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
+			"mode\n"), (argc? argv[0] : ""));
 		errno = ERR_NOTINITIALIZED;
 		return (status = errno);
 	}

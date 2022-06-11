@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2018-08-06 01:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,93 +15,93 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: kernelFilesystemFat.c:3069
+#: kernelFilesystemFat.c:3068
 #, c-format
 msgid "Defragmenting %llu/%llu: %s"
 msgstr "Defragmentando %llu/%llu: %s"
 
-#: kernelFilesystemFat.c:4290 kernelFilesystemFat.c:4564
+#: kernelFilesystemFat.c:4289 kernelFilesystemFat.c:4563
 msgid "Reading filesystem info"
 msgstr "Leyendo informacion del sistema de archivos"
 
-#: kernelFilesystemFat.c:4329
+#: kernelFilesystemFat.c:4328
 msgid "Analyzing"
 msgstr "Analizando"
 
-#: kernelFilesystemFat.c:4343
+#: kernelFilesystemFat.c:4342
 #, c-format
 msgid "%llu files need defragmentation"
 msgstr "%llu archivos necesitan defragmentacion"
 
-#: kernelFilesystemFat.c:4453
+#: kernelFilesystemFat.c:4452
 msgid "Checking constraints"
 msgstr "Chequeando limites"
 
-#: kernelFilesystemFat.c:4545
+#: kernelFilesystemFat.c:4544
 msgid "Error getting resizing constraints"
 msgstr "Error al buscar los límites de cambio de tamaño"
 
-#: kernelFilesystemFat.c:4552
+#: kernelFilesystemFat.c:4551
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
 msgstr ""
 "El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El minimo "
 "es %llu)"
 
-#: kernelFilesystemFat.c:4555
+#: kernelFilesystemFat.c:4554
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
 msgstr ""
 "El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El maximo "
 "es %llu)"
 
-#: kernelFilesystemFat.c:4572 kernelFilesystemFat.c:4628
+#: kernelFilesystemFat.c:4571 kernelFilesystemFat.c:4627
 msgid "Error reading filesystem info"
 msgstr "Error al leer la informacion del sistema de archivos"
 
-#: kernelFilesystemFat.c:4580 kernelFilesystemFat.c:4637
+#: kernelFilesystemFat.c:4579 kernelFilesystemFat.c:4636
 msgid "Unable to create the free cluster bitmap"
 msgstr ""
 
-#: kernelFilesystemFat.c:4612
+#: kernelFilesystemFat.c:4611
 #, fuzzy
 msgid "Defragmenting"
 msgstr "Defragmentando"
 
-#: kernelFilesystemFat.c:4620
+#: kernelFilesystemFat.c:4619
 msgid "Error defragmenting filesystem"
 msgstr "Error al defragmentar"
 
-#: kernelFilesystemFat.c:4650
+#: kernelFilesystemFat.c:4649
 #, fuzzy, c-format
 msgid "Data exists outside the new size (%llu >= %llu)"
 msgstr "Aún existe informacion fuera del nuevo tamaño (%llu >= %llu)"
 
-#: kernelFilesystemFat.c:4678
+#: kernelFilesystemFat.c:4677
 msgid "Error moving data"
 msgstr "Error moviendo datos"
 
-#: kernelFilesystemFat.c:4689
+#: kernelFilesystemFat.c:4688
 msgid "Clearing new FAT sectors"
 msgstr "Limpiando nuevos sectores FAT"
 
-#: kernelFilesystemFat.c:4696
+#: kernelFilesystemFat.c:4695
 msgid "Error getting memory"
 msgstr "Error ubicando memoria"
 
-#: kernelFilesystemFat.c:4715
+#: kernelFilesystemFat.c:4714
 msgid "Error clearing new FAT sectors"
 msgstr "Error limpiando sectores FAT"
 
-#: kernelFilesystemFat.c:4728
+#: kernelFilesystemFat.c:4727
 msgid "Error synching FAT copies"
 msgstr "Error al sincronizar las copias FAT"
 
-#: kernelFilesystemFat.c:4738
+#: kernelFilesystemFat.c:4737
 msgid "Updating filesystem info"
 msgstr "Actualizando informacion del sistema de archivos"
 
-#: kernelFilesystemFat.c:4753 kernelFilesystemFat.c:4762
+#: kernelFilesystemFat.c:4752 kernelFilesystemFat.c:4761
 msgid "Error updating filesystem info"
 msgstr "Error actualizando informacion del sistema de archivos"
 

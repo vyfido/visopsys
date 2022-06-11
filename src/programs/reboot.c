@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 	if (eject && (sysDisk.type & DISKTYPE_CDROM))
 		doEject();
 
-	status = shutdown(1, force);
+	status = systemShutdown(1, force);
 	if (status < 0)
 	{
 		if (!force)
