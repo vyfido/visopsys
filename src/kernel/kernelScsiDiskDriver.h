@@ -23,6 +23,7 @@
 
 #include "kernelBus.h"
 #include "kernelUsbDriver.h"
+#include "kernelScsiDriver.h"
 
 #define SCSI_MAX_DISKS 16
 
@@ -37,12 +38,24 @@ typedef struct {
   unsigned sectorSize;
   struct {
     usbDevice usbDev;
-    usbEndpointDesc *bulkIn;
+    usbEndpointDesc *bulkInDesc;
     unsigned char bulkInEndpoint;
-    usbEndpointDesc *bulkOut;
+    usbEndpointDesc *bulkOutDesc;
     unsigned char bulkOutEndpoint;
+    usbEndpointDesc *intrInDesc;
+    unsigned char intrInEndpoint;
   } usb;
 } kernelScsiDisk;
+
+typedef struct {
+  scsiModeParamHeader header;
+  unsigned char code;
+  unsigned char length;
+  unsigned char cylinders[3];
+  unsigned char heads;
+  unsigned char pad[18];
+  
+} __attribute__((packed)) scsiDiskGeomPage;
 
 #define _KERNELSCSIDISKDRIVER_H
 #endif

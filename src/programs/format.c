@@ -29,13 +29,14 @@
 This command will create a new, empty filesystem.
 
 Usage:
-  format [-l] [-s] [-t type] [-T] [disk_name]
+  format [-l] [-n name] [-s] [-t type] [-T] [disk_name]
 
 The 'format' program is interactive, and operates in both text and graphics
 mode.  The -l option forces a 'long' format (if supported), which clears the
-entire data area of the filesystem.  The -s option forces 'silent' mode
-(i.e. no unnecessary output or status messages are printed/displayed).  The
--T option forces format to operate in text-only mode.  
+entire data area of the filesystem.  The -n option sets the volume name
+(label).  The -s option forces 'silent' mode (i.e. no unnecessary output
+or status messages are printed/displayed).  The -T option forces format to
+operate in text-only mode.  
 
 The -t option is the desired filesystem type.  Currently the default type,
 if none is specified, is FAT.  The names of supported filesystem types are
@@ -63,6 +64,7 @@ the driver for the requested filesystem type supports this functionality.
 
 Options:
 -l         : Long format
+-n <name>  : Set the volume name (label)
 -s         : Silent mode
 -t <type>  : Format as this filesystem type.
 -T         : Force text mode operation
@@ -74,7 +76,6 @@ Options:
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
 
@@ -369,6 +370,14 @@ static int copyBootSector(disk *theDisk, const char *fsType)
 }
 
 
+static void usage(char *name)
+{
+  printf("usage:\n");
+  printf("%s [-l] [-s] [-t type] [-T] [disk_name]\n", name);
+  return;
+}
+
+
 int main(int argc, char *argv[])
 {
   int status = 0;
@@ -376,11 +385,15 @@ int main(int argc, char *argv[])
   int diskNumber = -1;
   char rootDisk[DISK_MAX_NAMELENGTH];
   char type[16];
+  char volName[MAX_NAME_LENGTH];
   int longFormat = 0;
   progress prog;
   objectKey progressDialog = NULL;
   char tmpChar[240];
   int count;
+
+  // Clear stack data
+  bzero(volName, MAX_NAME_LENGTH);
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
@@ -389,30 +402,57 @@ int main(int argc, char *argv[])
   strcpy(type, "fat");
 
   // Check for options
-  while (strchr("lst:T", (opt = getopt(argc, argv, "lst:T"))))
+  while (strchr("ln:st:T?", (opt = getopt(argc, argv, "ln:st:T"))))
     {
-      // Do a long format?
-      if (opt == 'l')
-	longFormat = 1;
-
-      // Operate in silent/script mode?
-      if (opt == 's')
-	silentMode = 1;
-
-      // Desired filetype?
-      if (opt == 't')
+      switch (opt)
 	{
+	case 'l':
+	  // Long format
+	  longFormat = 1;
+	  break;
+
+	case 'n':
+	  // Volume name
 	  if (!optarg)
 	    {
-	      error("Missing type argument to '-t' option");
-	      return (errno = ERR_NULLPARAMETER);
+	      error("Missing volume name argument for '-n' option");
+	      usage(argv[0]);
+	      return (status = ERR_NULLPARAMETER);
+	    }
+	  strcpy(volName, optarg);
+	  break;
+
+	case 's':
+	  // Operate in silent/script mode
+	  silentMode = 1;
+	  break;
+
+	case 't':
+	  // Desired filesystem type
+	  if (!optarg)
+	    {
+	      error("Missing type argument for '-t' option");
+	      usage(argv[0]);
+	      return (status = ERR_NULLPARAMETER);
 	    }
 	  strcpy(type, optarg);
-	}
+	  break;
 
-      // Force text mode?
-      if (opt == 'T')
-	graphics = 0;
+	case 'T':
+	  // Force text mode
+	  graphics = 0;
+	  break;
+
+	case ':':
+	  error("Missing parameter for %s option", argv[optind - 1]);
+	  usage(argv[0]);
+	  return (status = ERR_NULLPARAMETER);
+
+	case '?':
+	  error("Unknown option '%c'", optopt);
+	  usage(argv[0]);
+	  return (status = ERR_INVALID);
+	}
     }
 
   // Call the kernel to give us the number of available disks
@@ -421,7 +461,7 @@ int main(int argc, char *argv[])
   status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
   if (status < 0)
     // Eek.  Problem getting disk info
-    return (errno = status);
+    return (status);
 
   if (!graphics && !silentMode)
     // Print a message
@@ -447,14 +487,14 @@ int main(int argc, char *argv[])
     {
       error("You must be a privileged user to use this command.\n(Try "
 	    "logging in as user \"admin\")");
-      return (errno = ERR_PERMISSION);
+      return (status = ERR_PERMISSION);
     }
 
   if (diskNumber == -1)
     {
       if (silentMode)
 	// Can't prompt for a disk in silent mode
-	return (errno = ERR_INVALID);
+	return (status = ERR_INVALID);
 
       // The user has not specified a disk name.  We need to display the
       // list of available disks and prompt them.
@@ -476,7 +516,7 @@ int main(int argc, char *argv[])
   // Make sure it's not mounted
   status = mountedCheck(&diskInfo[diskNumber]);
   if (status < 0)
-    return (errno = status);
+    return (status);
 
   // Get the root disk
   status = diskGetBoot(rootDisk);
@@ -509,8 +549,8 @@ int main(int argc, char *argv[])
       prog.percentFinished = 100;
     }
   else
-    status =
-      filesystemFormat(diskInfo[diskNumber].name, type, "", longFormat, &prog);
+    status = filesystemFormat(diskInfo[diskNumber].name, type, volName,
+			      longFormat, &prog);
 
   if (!graphics)
     vshProgressBarDestroy(&prog);
@@ -535,5 +575,5 @@ int main(int argc, char *argv[])
   if (graphics)
     windowProgressDialogDestroy(progressDialog);
 
-  return (errno = status);
+  return (status);
 }

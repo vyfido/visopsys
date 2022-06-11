@@ -49,7 +49,6 @@ kernel.conf, and the window manager configuration, windowmanager.conf.
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
 
@@ -78,16 +77,36 @@ windowMenuContents fileMenuContents = {
 };
 
 
+__attribute__((format(printf, 1, 2)))
+static void error(const char *format, ...)
+{
+  // Generic error message code
+  
+  va_list args;
+  char output[MAXSTRINGLENGTH];
+  
+  va_start(args, format);
+  vsnprintf(output, MAXSTRINGLENGTH, format, args);
+  va_end(args);
+
+  windowNewErrorDialog(window, "Error", output);
+}
+
+
 static int readConfigFile(void)
 {
   // Read the configuration file
 
-  int status = configurationReader(fileName, &list);
+  int status = 0;
+
+  status = configurationReader(fileName, &list);
   if (status < 0)
-    return (status);
+    {
+      error("Error %d reading configuration file.", status);
+      return (status);
+    }
 
   changesPending = 0;
-
   return (status = 0);
 }
 
@@ -96,11 +115,15 @@ static int writeConfigFile(void)
 {
   // Write the configuration file
 
-  int status = configurationWriter(fileName, &list);
+  int status = 0;
 
-  changesPending = 0;
+  status = configurationWriter(fileName, &list);
+  if (status < 0)
+    error("Error %d writing configuration file.", status);
+  else
+    changesPending = 0;
 
-  return(status);
+  return (status);
 }
 
 
@@ -110,11 +133,20 @@ static void fillList(void)
 
   if (listItemParams)
     free(listItemParams);
-  listItemParams = malloc(list.numVariables * sizeof(listItemParameters));
 
-  for (count = 0; count < list.numVariables; count ++)
-    snprintf(listItemParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s=%s",
-	     list.variables[count], list.values[count]);
+  listItemParams = NULL;
+
+  if (list.numVariables)
+    {
+      listItemParams = malloc(list.numVariables * sizeof(listItemParameters));
+
+      for (count = 0; count < list.numVariables; count ++)
+	snprintf(listItemParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s=%s",
+		 list.variables[count], list.values[count]);
+    }
+
+  windowComponentSetEnabled(changeVariableButton, list.numVariables);
+  windowComponentSetEnabled(deleteVariableButton, list.numVariables);
 }
 
 
@@ -392,7 +424,7 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
-  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+  params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   params.font = NULL;
   buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 
@@ -403,7 +435,7 @@ static void constructWindow(void)
   params.padRight = 0;
   params.padTop = 0;
   params.padBottom = 0;
-  params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
+  params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   addVariableButton =
     windowNewButton(buttonContainer, "Add variable", NULL, &params);
   windowRegisterEventHandler(addVariableButton, &eventHandler);
@@ -414,12 +446,14 @@ static void constructWindow(void)
   changeVariableButton =
     windowNewButton(buttonContainer, "Change variable", NULL, &params);
   windowRegisterEventHandler(changeVariableButton, &eventHandler);
+  windowComponentSetEnabled(changeVariableButton, list.numVariables);
       
   // Create a 'delete variable' button
   params.gridY += 1;
   deleteVariableButton =
     windowNewButton(buttonContainer, "Delete variable", NULL, &params);
   windowRegisterEventHandler(deleteVariableButton, &eventHandler);
+  windowComponentSetEnabled(deleteVariableButton, list.numVariables);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -434,13 +468,13 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   disk theDisk;
+  file tmpFile;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
     {
       printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
+      return (status = ERR_NOTINITIALIZED);
     }
 
   processId = multitaskerGetCurrentProcessId();
@@ -455,10 +489,24 @@ int main(int argc, char *argv[])
 			    "configuration file to edit:", "/system/config",
 			    fileName, MAX_PATH_NAME_LENGTH);
       if (status != 1)
-	return (errno = status);
+	return (status);
     }
   else
     strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
+
+  // See whether the file exists
+  status = fileFind(fileName, &tmpFile);
+  if (status < 0)
+    {
+      status = fileOpen(fileName, OPENMODE_CREATE, &tmpFile);
+      if (status < 0)
+	{
+	  error("Error %d creating new configuration file.", status);
+	  return (status);
+	}
+
+      fileClose(&tmpFile);
+    }
 
   // Find out whether we are currently running on a read-only filesystem
   if (!fileGetDisk(fileName, &theDisk))
@@ -467,7 +515,7 @@ int main(int argc, char *argv[])
   // Read the config file
   status = readConfigFile();
   if (status < 0)
-    return (errno = status);
+    return (status);
 
   fillList();
 
@@ -482,5 +530,5 @@ int main(int argc, char *argv[])
   variableListDestroy(&list);
 
   // Done
-  return (errno = 0);
+  return (status = 0);
 }

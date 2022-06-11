@@ -16,21 +16,21 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  _num2str.c
+//  _lnum2str.c
 //
 
-// This is a generic function to turns a number into a string.
+// This is a generic function to turns a long number into a string.
 
 #include <errno.h>
 #include <sys/cdefs.h>
 
 
-void _num2str(unsigned num, char *string, int base, int sign)
+void _lnum2str(unsigned long long num, char *string, int base, int sign)
 {
-  int digits = _digits(num, base, sign);
+  int digits = _ldigits(num, base, sign);
   int charCount = 0;
-  unsigned place = 1;
-  unsigned rem = 0;
+  unsigned long long place = 1;
+  unsigned long long rem = 0;
   int count;
 
   if (string == NULL)
@@ -40,15 +40,15 @@ void _num2str(unsigned num, char *string, int base, int sign)
     }
 
   // Negative?
-  if (sign && ((int) num < 0))
+  if (sign && ((long long) num < 0))
     {
       string[charCount++] = '-';
-      num = ((int) num * -1);
+      num = ((long long) num * -1);
       digits -= 1;
     }
 
   for (count = 0; count < (digits - 1); count ++)
-    place *= (unsigned) base;
+    place *= (unsigned long long) base;
 
   while (place)
     {
@@ -60,7 +60,7 @@ void _num2str(unsigned num, char *string, int base, int sign)
       else
 	string[charCount++] = ('a' + (num - 10));
       num = rem;
-      place /= (unsigned) base;
+      place /= (unsigned long long) base;
     }
 
   string[charCount] = '\0';

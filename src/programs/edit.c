@@ -29,9 +29,12 @@
 Simple, interactive text editor.
 
 Usage:
-  edit <file>
+  edit [-T] [file]
 
 (Only available in graphics mode)
+
+Options:
+-T              : Force text mode operation
 
 </help>
 */
@@ -44,6 +47,8 @@ Usage:
 #include <sys/api.h>
 #include <sys/text.h>
 #include <sys/vsh.h>
+
+#define UNTITLED_FILENAME "Untitled"
 
 typedef struct {
   unsigned filePos;
@@ -58,7 +63,8 @@ typedef struct {
 static int processId = 0;
 static int screenColumns = 0;
 static int screenRows = 0;
-static file theFile;
+static char *editFileName = NULL;
+static file editFile;
 static unsigned fileSize = 0;
 static char *buffer = NULL;
 static unsigned bufferSize = 0;
@@ -71,7 +77,7 @@ static int cursorColumn = 0;
 static unsigned line = 0;
 static unsigned screenLine = 0;
 static unsigned numLines = 0;
-static int readOnly = 1;
+static int readOnly = 0;
 static int modified = 0;
 static char *discardQuestion  = "File has been modified.  Discard changes?";
 static char *fileNameQuestion = "Please enter the name of the file to edit:";
@@ -95,14 +101,6 @@ windowMenuContents fileMenuContents = {
     { "Quit", NULL }
   }
 };
-
-
-static void usage(char *name)
-{
-  printf("usage:\n");
-  printf("%s <file>\n", name);
-  return;
-}
 
 
 __attribute__((format(printf, 1, 2)))
@@ -137,8 +135,12 @@ static void updateStatus(void)
   bzero(&attrs, sizeof(textAttrs));
   attrs.flags = TEXT_ATTRS_REVERSE;
 
-  sprintf(statusMessage, "%s%s  %u/%u", theFile.name,
-	  (modified? " (modified)" : ""), line, numLines);
+  if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
+    sprintf(statusMessage, "%s%s  %u/%u", UNTITLED_FILENAME,
+	    (modified? " (modified)" : ""), line, numLines);
+  else
+    sprintf(statusMessage, "%s%s  %u/%u", editFile.name,
+	    (modified? " (modified)" : ""), line, numLines);
 
   if (graphics)
     windowComponentSetData(statusLabel, statusMessage, strlen(statusMessage));
@@ -299,24 +301,25 @@ static void setCursorColumn(int column)
 }
 
 
-static int loadFile(const char *fileName)
+static int doLoadFile(const char *fileName)
 {
   int status = 0;
   disk theDisk;
   int openFlags = OPENMODE_READWRITE;
 
   // Initialize the file structure
-  bzero(&theFile, sizeof(file));
+  bzero(&editFile, sizeof(file));
 
   if (buffer)
     free(buffer);
 
-  // Call the "find file" routine to see if we can get the file
-  status = fileFind(fileName, &theFile);
+  // Call the "find file" routine to see if we can get the file.
+  status = fileFind(fileName, &editFile);
 
   if (status >= 0)
     {
-      // Find out whether we are currently running on a read-only filesystem
+      // Find out whether we are currently running on a read-only
+      // filesystem
       if (!fileGetDisk(fileName, &theDisk))
 	readOnly = theDisk.readOnly;
 
@@ -324,7 +327,7 @@ static int loadFile(const char *fileName)
 	openFlags = OPENMODE_READ;
     }
 
-  if ((status < 0) || (theFile.size == 0))
+  if ((status < 0) || (editFile.size == 0))
     {
       // The file either doesn't exist or is zero-length.
 
@@ -332,12 +335,12 @@ static int loadFile(const char *fileName)
 	// The file doesn't exist; try to create one
 	openFlags |= OPENMODE_CREATE;
 
-      status = fileOpen(fileName, openFlags, &theFile);
+      status = fileOpen(fileName, openFlags, &editFile);
       if (status < 0)
 	return (status);
 
       // Use a default initial buffer size of one file block
-      bufferSize = theFile.blockSize;
+      bufferSize = editFile.blockSize;
       buffer = malloc(bufferSize);
       if (buffer == NULL)
 	return (status = ERR_MEMORY);
@@ -346,22 +349,91 @@ static int loadFile(const char *fileName)
     {
       // The file exists and has data in it
 
-      status = fileOpen(fileName, openFlags, &theFile);
+      status = fileOpen(fileName, openFlags, &editFile);
       if (status < 0)
 	return (status);
 
       // Allocate a buffer to store the file contents in
-      bufferSize = (theFile.blocks * theFile.blockSize);
+      bufferSize = (editFile.blocks * editFile.blockSize);
       buffer = malloc(bufferSize);
       if (buffer == NULL)
 	return (status = ERR_MEMORY);
 
-      status = fileRead(&theFile, 0, theFile.blocks, buffer);
+      status = fileRead(&editFile, 0, editFile.blocks, buffer);
       if (status < 0)
 	return (status);
     }
 
-  fileSize = theFile.size;
+  strncpy(editFileName, fileName, MAX_PATH_NAME_LENGTH);
+  return (status = 0);
+}
+
+
+static int askFileName(char *fileName)
+{
+  int status = 0;
+  char pwd[MAX_PATH_NAME_LENGTH];
+
+  multitaskerGetCurrentDirectory(pwd, MAX_PATH_NAME_LENGTH);
+
+  if (graphics)
+    {
+      // Prompt for a file name
+      status = windowNewFileDialog(window, "Enter filename", fileNameQuestion,
+				   pwd, fileName, MAX_PATH_NAME_LENGTH);
+      return (status);
+    }
+  else
+    return (status = 0);
+}
+
+
+static int loadFile(const char *fileName)
+{
+  int status = 0;
+
+  // Did the user specify a file name?
+  if (fileName)
+    {
+      // Yes.  Do the load.
+      status = doLoadFile(fileName);
+      if (status < 0)
+	return (status);
+    }
+  else
+    {
+      // No.  Try to open a new temporary file to use as an 'untitled' file
+      // that we will prompt for a file name later when it gets saved.
+      status = fileGetTemp(&editFile);
+      if (status >= 0)
+	{
+	  // Use a default initial buffer size of one file block.
+	  bufferSize = editFile.blockSize;
+	  buffer = malloc(bufferSize);
+	  if (buffer == NULL)
+	    return (status = ERR_MEMORY);
+
+	  strncpy(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH);
+	}
+      else
+	{
+	  // Couldn't open a temporary file.  We might be running from a
+	  // read-only filesystem, for example.  Prompt for some file to
+	  // open, otherwise there's no point really.
+	  status = askFileName(editFileName);
+	  if (status != 1)
+	    return (status = ERR_NOSUCHFILE);
+
+	  fileName = editFileName;
+
+	  // Do the load.
+	  status = doLoadFile(fileName);
+	  if (status < 0)
+	    return (status);
+	}
+    }
+
+  fileSize = editFile.size;
   firstLineFilePos = 0;
   lastLineFilePos = 0;
   cursorLineFilePos = 0;
@@ -380,7 +452,6 @@ static int loadFile(const char *fileName)
       if (readOnly)
 	windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key,
 				  0);
-
       windowComponentFocus(textArea);
     }
 
@@ -391,10 +462,38 @@ static int loadFile(const char *fileName)
 static int saveFile(void)
 {
   int status = 0;
-  int blocks =
-    ((fileSize / theFile.blockSize) + ((fileSize % theFile.blockSize)? 1 : 0));
+  int blocks = ((fileSize / editFile.blockSize) +
+		((fileSize % editFile.blockSize)? 1 : 0));
+  file tmpFile;
 
-  status = fileWrite(&theFile, 0, blocks, buffer);
+  if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
+    {
+      if (graphics)
+	{
+	  // Prompt for a file name
+	  status = askFileName(editFileName);
+
+	  if (status != 1)
+	    {
+	      if (status < 0)
+		return (status);
+	      else
+		return (status = ERR_CANCELLED);
+	    }
+	}
+
+      // Open the file (truncate if necessary)
+      status = fileOpen(editFileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
+				       OPENMODE_READWRITE), &tmpFile);
+      if (status < 0)
+	return (status);
+
+      // Close the temp file and swap the info.
+      fileClose(&editFile);
+      memcpy(&editFile, &tmpFile, sizeof(file));
+    }
+
+  status = fileWrite(&editFile, 0, blocks, buffer);
   if (status < 0)
     return (status);
 
@@ -548,9 +647,9 @@ static int expandBuffer(unsigned length)
   char *tmpBuffer = NULL;
 
   // Allocate more buffer, rounded up to the nearest block size of the file
-  tmpBufferSize = (bufferSize + (((length / theFile.blockSize) +
-				  ((length % theFile.blockSize)? 1 : 0)) *
-				 theFile.blockSize));
+  tmpBufferSize = (bufferSize + (((length / editFile.blockSize) +
+				  ((length % editFile.blockSize)? 1 : 0)) *
+				 editFile.blockSize));
   tmpBuffer = realloc(buffer, tmpBufferSize);
   if (tmpBuffer == NULL)
     return (status = ERR_MEMORY);
@@ -792,24 +891,6 @@ static int askDiscardChanges(void)
 }
 
 
-static int askFileName(char *fileName)
-{
-  int status = 0;
-
-  if (graphics)
-    {
-      // Prompt for a file name
-      status = windowNewFileDialog(window, "Enter filename", fileNameQuestion,
-				   "/", fileName, MAX_PATH_NAME_LENGTH);
-      return (status);
-    }
-  else
-    {
-      return (status = 0);
-    }
-}
-
-
 static void openFileThread(void)
 {
   int status = 0;
@@ -1006,8 +1087,9 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  textScreen screen;
+  char opt;
   char *fileName = NULL;
+  textScreen screen;  
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -1023,9 +1105,15 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  if (getopt(argc, argv, "T") == 'T')
-    // Force text mode
-    graphics = 0;
+  while (strchr("T", (opt = getopt(argc, argv, "T"))))
+    {
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+    }
+
+  if (optind < argc)
+    fileName = argv[optind];
 
   if (graphics)
     constructWindow();
@@ -1045,42 +1133,13 @@ int main(int argc, char *argv[])
   textEnableScroll(0);
 
   screenLines = malloc(screenRows * sizeof(screenLineInfo));
-  fileName = malloc(MAX_PATH_NAME_LENGTH);
-  if ((screenLines == NULL) || (fileName == NULL))
+  editFileName = malloc(MAX_PATH_NAME_LENGTH);
+  if ((screenLines == NULL) || (editFileName == NULL))
     {
       errno = status = ERR_MEMORY;
       perror(argv[0]);
       goto out;
     }
-
-  if (argc < 2)
-    {
-      if (graphics)
-	{
-	  // Prompt for a file name
-	  status = askFileName(fileName);
-
-	  if (status != 1)
-	    {
-	      if (status != 0)
-		{
-		  errno = status;
-		  perror(argv[0]);
-		}
-
-	      goto out;
-	    }
-	}
-      else
-	{
-	  // In text mode we need a filename as an argument
-	  usage(argv[0]);      
-	  status = errno = ERR_ARGUMENTCOUNT;
-	  goto out;
-	}
-    }
-  else
-    strcpy(fileName, argv[argc - 1]);
 
   status = loadFile(fileName);
   if (status < 0)
@@ -1117,8 +1176,8 @@ int main(int argc, char *argv[])
 
   if (screenLines)
     free(screenLines);
-  if (fileName)
-    free (fileName);
+  if (editFileName)
+    free (editFileName);
   if (buffer)
     free(buffer);
 

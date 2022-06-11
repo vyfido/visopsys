@@ -16,55 +16,38 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  _num2str.c
+//  _digits.c
 //
 
-// This is a generic function to turns a number into a string.
+// This function takes a numeric value and a base, and returns the number
+// of digits required to represent it, including a sign character if
+// applicable.
 
 #include <errno.h>
 #include <sys/cdefs.h>
 
 
-void _num2str(unsigned num, char *string, int base, int sign)
+int _digits(unsigned num, int base, int sign)
 {
-  int digits = _digits(num, base, sign);
-  int charCount = 0;
-  unsigned place = 1;
-  unsigned rem = 0;
-  int count;
+  int digits = 1;
 
-  if (string == NULL)
+  if (base < 2)
     {
-      errno = ERR_NULLPARAMETER;
-      return;
+      errno = ERR_INVALID;
+      return (digits = -1);
     }
 
-  // Negative?
   if (sign && ((int) num < 0))
     {
-      string[charCount++] = '-';
       num = ((int) num * -1);
-      digits -= 1;
+      digits += 1;
     }
 
-  for (count = 0; count < (digits - 1); count ++)
-    place *= (unsigned) base;
-
-  while (place)
+  while (num >= (unsigned) base)
     {
-      rem = (num % place);
-      num = (num / place);
-
-      if (num < 10)
-	string[charCount++] = ('0' + num);
-      else
-	string[charCount++] = ('a' + (num - 10));
-      num = rem;
-      place /= (unsigned) base;
+      digits += 1;
+      num /= (unsigned) base;
     }
 
-  string[charCount] = '\0';
-
-  // Done
-  return;
+  return (digits);
 }

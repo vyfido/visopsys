@@ -43,8 +43,8 @@ typedef struct {
   void (*driverWriteRegister) (int, int, int, unsigned);
   int (*driverDeviceEnable) (int, int);
   int (*driverSetMaster) (int, int);
-  int (*driverRead) (int, void *);
-  int (*driverWrite) (int, void *);
+  int (*driverRead) (int, unsigned, void *);
+  int (*driverWrite) (int, unsigned, void *);
 
 } kernelBusOps;
 
@@ -62,8 +62,8 @@ unsigned kernelBusReadRegister(kernelBusType, int, int, int);
 void kernelBusWriteRegister(kernelBusType, int, int, int, unsigned);
 int kernelBusDeviceEnable(kernelBusType, int, int);
 int kernelBusSetMaster(kernelBusType, int, int);
-int kernelBusRead(kernelBusType, int, void *);
-int kernelBusWrite(kernelBusType, int, void *);
+int kernelBusRead(kernelBusType, int, unsigned, void *);
+int kernelBusWrite(kernelBusType, int, unsigned, void *);
 
 #define _KERNELBUS_H
 #endif

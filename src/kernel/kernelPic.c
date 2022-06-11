@@ -104,14 +104,14 @@ int kernelPicGetActive(void)
 {
   // This asks the PIC for the currently-active interrupt
 
-  int interruptNumber = 0;
+  int interruptNum = 0;
 
   if (systemPic == NULL)
-    return (interruptNumber = ERR_NOTINITIALIZED);
+    return (interruptNum = ERR_NOTINITIALIZED);
 
   // Ok, now we can call the routine.
   if (ops->driverGetActive)
-    interruptNumber = ops->driverGetActive();
+    interruptNum = ops->driverGetActive();
 
-  return (interruptNumber);
+  return (interruptNum);
 }

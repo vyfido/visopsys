@@ -894,7 +894,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
   for (count = 0; count < numberFloppies; count ++)
     {
       // The device name and filesystem type
-      sprintf(disks[count].name, "fd%d", count);
+      sprintf((char *) disks[count].name, "fd%d", count);
 
       // The head, track and sector values we got from the loader
       disks[count].heads = kernelOsLoaderInfo->fddInfo[count].heads;

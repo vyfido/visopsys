@@ -769,6 +769,7 @@ static void exceptionHandler(void)
 
   char message[256];
   char *symbolName = NULL;
+  int interrupt = 0;
   int count;
   
   extern kernelSymbol *kernelSymbols;
@@ -778,11 +779,17 @@ static void exceptionHandler(void)
     {
       // We got an exception.
 
-      if (multitaskingEnabled && (kernelCurrentProcess == NULL))
-	// We have to make an error here.  We can't return to the program
-	// that caused the exception, and we can't tell the multitasker
-	// to kill it.  We'd better make a kernel panic.
-	kernelPanic("Exception handler unable to determine current process");
+      if (multitaskingEnabled)
+	{
+	  if (kernelCurrentProcess == NULL)
+	    // We have to make an error here.  We can't return to the program
+	    // that caused the exception, and we can't tell the multitasker
+	    // to kill it.  We'd better make a kernel panic.
+	    kernelPanic("Exception handler unable to determine current "
+			"process");
+	  else
+	    kernelCurrentProcess->state = proc_stopped;
+	}
 
       // If the fault occurred while we were processing an interrupt,
       // we should tell the PIC that the interrupt service routine is
@@ -802,43 +809,42 @@ static void exceptionHandler(void)
 		exceptionVector[processingException].a,
 		exceptionVector[processingException].name);
 
-      if (multitaskingEnabled)
+      if (exceptionAddress >= KERNEL_VIRTUAL_ADDRESS)
 	{
-	  kernelCurrentProcess->state = proc_stopped;
-
-	  if (exceptionAddress >= KERNEL_VIRTUAL_ADDRESS)
+	  if (kernelSymbols)
 	    {
-	      if (kernelSymbols)
+	      // Find roughly the kernel function where the exception
+	      // happened
+	      for (count = 0; count < kernelNumberSymbols; count ++)
 		{
-		  // Find roughly the kernel function where the exception
-		  // happened
-		  for (count = 0; count < kernelNumberSymbols; count ++)
+		  if ((exceptionAddress >= kernelSymbols[count].address) &&
+		      (exceptionAddress <
+		       kernelSymbols[count + 1].address))
 		    {
-		      if ((exceptionAddress >= kernelSymbols[count].address) &&
-			  (exceptionAddress <
-			   kernelSymbols[count + 1].address))
-			{
-			  symbolName = kernelSymbols[count].symbol;
-			  break;
-			}
+		      symbolName = kernelSymbols[count].symbol;
+		      break;
 		    }
 		}
-
-	      if (symbolName)
-		sprintf((message + strlen(message)), " in function %s (%08x)",
-			symbolName, exceptionAddress);
-	      else
-		sprintf((message + strlen(message)), " at kernel address %08x",
-			exceptionAddress);
 	    }
+
+	  if (symbolName)
+	    sprintf((message + strlen(message)), " in function %s (%08x)",
+		    symbolName, exceptionAddress);
 	  else
-	    sprintf((message + strlen(message)), " at application address "
-		    "%08x", exceptionAddress);
+	    sprintf((message + strlen(message)), " at kernel address %08x",
+		    exceptionAddress);
 	}
+      else
+	sprintf((message + strlen(message)), " at application address "
+		"%08x", exceptionAddress);
 
       if (kernelProcessingInterrupt)
-	sprintf((message + strlen(message)), " while processing interrupt %d",
-		kernelPicGetActive());
+	{
+	  interrupt = kernelPicGetActive();
+	  if (interrupt >= 0)
+	    sprintf((message + strlen(message)), " while processing interrupt "
+		    "%d", interrupt);
+	}
 
       if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
 	// If it's the kernel, we're finished
@@ -1770,7 +1776,7 @@ int kernelMultitaskerShutdown(int nice)
   multitaskingEnabled = 0;
 
   // Deallocate the stack used by the scheduler
-  kernelMemoryReleaseSystem(schedulerProc->userStack);
+  kernelMemoryRelease(schedulerProc->userStack);
 
   // Print a message
   kernelLog("Multitasking stopped");
@@ -2623,10 +2629,7 @@ void kernelMultitaskerYield(void)
 
   // Don't do this inside an interrupt
   if (kernelProcessingInterrupt)
-    {
-      kernelError(kernel_warn, "Cannot yield() inside interrupt handler");
-      return;
-    }
+    return;
 
   // We accomplish a yield by doing a far call to the scheduler's task.
   // The scheduler sees this almost as if the current timeslice had expired.

@@ -69,6 +69,8 @@ typedef volatile struct {
 
 } kernelPageDirectory;
 
+extern kernelPageDirectory *kernelPageDir;
+
 typedef volatile struct {
   kernelPageDirectory *directory;
   int tableNumber;

@@ -938,11 +938,16 @@ static void componentToTop(kernelWindow *window,
   int numComponents = 0;
   int count;
 
-  array =
-    kernelMalloc(window->mainContainer->numComps(window->mainContainer) *
-		 sizeof(kernelWindowComponent *));
+  if (!window->mainContainer->numComps ||
+      !(numComponents = window->mainContainer
+	->numComps(window->mainContainer)))
+    return;
+
+  array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
   if (array == NULL)
     return;
+
+  numComponents = 0;
 
   window->mainContainer
     ->flatten(window->mainContainer, array, &numComponents, 0);
@@ -1027,11 +1032,17 @@ static void focusFirstComponent(kernelWindow *window)
   int numComponents = 0;
   int count;
   
+  if (!window->mainContainer->numComps ||
+      !(numComponents = window->mainContainer
+	->numComps(window->mainContainer)))
+    return;
+
   // Flatten the window container so we can iterate through it
-  array = kernelMalloc(window->mainContainer->numComps(window->mainContainer) *
-		       sizeof(kernelWindowComponent *));
+  array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
   if (array == NULL)
     return;
+
+  numComponents = 0;
 
   window->mainContainer
     ->flatten(window->mainContainer, array, &numComponents,
@@ -2298,7 +2309,7 @@ int kernelWindowGetSize(kernelWindow *window, int *width, int *height)
     return (status = ERR_NULLPARAMETER);
 
   // If layout has not been done, do it now
-  if (!(window->sysContainer->doneLayout))
+  if (!window->sysContainer->doneLayout)
     {
       status = layoutWindow(window);
       if (status < 0)
@@ -2462,7 +2473,7 @@ int kernelWindowSnapIcons(objectKey parent)
       container = containerComponent->data;
 
       // Make sure the window has been laid out
-      if (!(window->mainContainer->doneLayout))
+      if (!window->mainContainer->doneLayout)
 	layoutWindow(window);
     }
   else if (((kernelWindowComponent *) parent)->type == containerComponentType)
@@ -2718,7 +2729,7 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
     {
       // If the window is becoming visible and hasn't yet had its layout done,
       // do that now
-      if (!(window->sysContainer->doneLayout))
+      if (!window->sysContainer->doneLayout)
 	{
 	  status = layoutWindow(window);
 	  if (status < 0)

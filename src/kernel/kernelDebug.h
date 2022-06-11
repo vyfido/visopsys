@@ -43,6 +43,7 @@ void kernelDebugAddFile(const char *);
 void kernelDebugOutput(const char *, const char *, int, kernelDebugCategory,
 		       const char *, ...)
      __attribute__((format(printf, 5, 6)));
+void kernelDebugHex(void *, unsigned);
 
 // These macro should be used for actual debug calls
 #define kernelDebug(category, message, arg...) \
@@ -55,6 +56,7 @@ void kernelDebugOutput(const char *, const char *, int, kernelDebugCategory,
 #define kernelDebugAddCategory(...) do {} while (0)
 #define kernelDebugAddFile(...) do {} while (0)
 #define kernelDebug(...) do {} while (0)
+#define kernelDebugHex(...) do {} while (0)
 
 #endif // defined(DEBUG)
 #define _KERNELDEBUG_H

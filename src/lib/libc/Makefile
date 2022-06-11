@@ -18,8 +18,10 @@ INCLUDE         = -nostdinc -I${INCDIR}
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CODEGEN} ${WARN} ${INCLUDE} ${DEBUG}
 
-CDEFNAMES	= _fmtinpt \
-		_numdgts \
+CDEFNAMES	= _digits \
+		_fmtinpt \
+		_ldigits \
+		_lnum2str \
 		_num2str \
 		_str2num \
 		_syscall \

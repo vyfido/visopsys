@@ -21,6 +21,8 @@
 
 #if !defined(_KERNELUSBUHCIDRIVER_H)
 
+#include "kernelLinkedList.h"
+
 // USB UHCI Host controller port offsets
 #define USBUHCI_PORTOFFSET_CMD      0x00
 #define USBUHCI_PORTOFFSET_STAT     0x02
@@ -49,6 +51,12 @@
 #define USBUHCI_STAT_ERRINT         0x02
 #define USBUHCI_STAT_USBINT         0x01
 
+// Bitfields for the USB UHCI interrupt enable register
+#define USBUHCI_INTR_SPD            0x08
+#define USBUHCI_INTR_IOC            0x04
+#define USBUHCI_INTR_RESUME         0x02
+#define USBUHCI_INTR_TIMEOUTCRC     0x01
+
 // Bitfields for the 2 USB UHCI port registers
 #define USBUHCI_PORT_SUSPEND        0x1000
 #define USBUHCI_PORT_RESET          0x0200
@@ -61,16 +69,16 @@
 #define USBUHCI_PORT_CONNSTAT       0x0001
 
 // Bitfields for link pointers
+#define USBUHCI_LINKPTR_DEPTHFIRST  0x00000004
 #define USBUHCI_LINKPTR_QHEAD       0x00000002
 #define USBUHCI_LINKPTR_TERM        0x00000001
 
 // Bitfields for transfer descriptors
-#define USBUHCI_TDLINK_DEPTHFIRST   0x00000004
 #define USBUHCI_TDCONTSTAT_SPD      0x20000000
 #define USBUHCI_TDCONTSTAT_ERRCNT   0x18000000
 #define USBUHCI_TDCONTSTAT_LSPEED   0x04000000
 #define USBUHCI_TDCONTSTAT_ISOC     0x02000000
-#define USBUHCI_TDCONTSTAT_INTR     0x01000000
+#define USBUHCI_TDCONTSTAT_IOC      0x01000000
 #define USBUHCI_TDCONTSTAT_STATUS   0x00FF0000
 #define USBUHCI_TDCONTSTAT_ACTIVE   0x00800000
 #define USBUHCI_TDCONTSTAT_ERROR    0x007E0000
@@ -88,41 +96,67 @@
 #define USBUHCI_TDTOKEN_PID         0x000000FF
 #define USBUHCI_TD_NULLDATA         0x000007FF
 
+// Forward declarations, where necessary
+struct __usbUhciTransDesc;
+
 typedef volatile struct {
   unsigned linkPointer;
   unsigned element;
+  // Our use, also helps ensure 16-byte alignment.
+  unsigned saveElement;
+  volatile struct _usbUhciTransDesc *transDescs;
 
 } __attribute__((packed)) __attribute((aligned(16))) usbUhciQueueHead;
 
 // One memory page worth of queue heads
-#define USBUHCI_NUM_QUEUEHEADS      4
+#define USBUHCI_NUM_FRAMES          1024
+#define USBUHCI_FRAMELIST_MEMSIZE   (USBUHCI_NUM_FRAMES * sizeof(unsigned))
+#define USBUHCI_NUM_QUEUEHEADS      11
 #define USBUHCI_QUEUEHEADS_MEMSIZE  (USBUHCI_NUM_QUEUEHEADS * \
 				     sizeof(usbUhciQueueHead))
+// For the queue heads array
+#define USBUHCI_QH_INT128           0
+#define USBUHCI_QH_INT64            1
+#define USBUHCI_QH_INT32            2
+#define USBUHCI_QH_INT16            3
+#define USBUHCI_QH_INT8             4
+#define USBUHCI_QH_INT4             5
+#define USBUHCI_QH_INT2             6
+#define USBUHCI_QH_INT1             7
+#define USBUHCI_QH_CONTROL          8
+#define USBUHCI_QH_BULK             9
+#define USBUHCI_QH_TERM             10
 
-typedef volatile struct {
+typedef volatile struct _usbUhciTransDesc {
   unsigned linkPointer;
   unsigned contStatus;
   unsigned tdToken;
   void *buffer;
-  // The last 4 dwords are reserved for our use; we use the first one to
-  // store the virtual address of the buffer pointer.  The second one is
-  // the buffer length
-  void *buffVirtAddr;
+  // The last 4 dwords are reserved for our use, also helps ensure 16-byte
+  // alignment.
+  void *buffVirtual;
   unsigned buffSize;
+  volatile struct _usbUhciTransDesc *prev;
+  volatile struct _usbUhciTransDesc *next;
 
 } __attribute__((packed)) __attribute((aligned(16))) usbUhciTransDesc;
 
 typedef struct {
+  usbDevice *usbDev;
+  usbUhciQueueHead *queueHead;
+  usbUhciTransDesc *transDesc;
+  void (*callback)(usbDevice *, void *, unsigned);
+
+} usbUhciInterruptReg;
+
+typedef struct {
   void *frameListPhysical;
   unsigned *frameList;
-  usbUhciQueueHead *intrQueueHead;
-  usbUhciQueueHead *controlQueueHead;
-  usbUhciQueueHead *bulkQueueHead;
-  usbUhciQueueHead *termQueueHead;
+  usbUhciQueueHead *queueHeads[USBUHCI_NUM_QUEUEHEADS];
   usbUhciTransDesc *termTransDesc;  
-  
-} usbUhciData;
+  kernelLinkedList intrRegs;
 
+} usbUhciData;
 
 #define _KERNELUSBUHCIDRIVER_H
 #endif

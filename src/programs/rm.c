@@ -60,7 +60,7 @@ Note the -S option is not allowed if the -R option is used.
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s [-R] <file1> [file2] [...]\n", name);
+  printf("%s [-R] [-S#] <file1> [file2] [...]\n", name);
   return;
 }
 
@@ -112,13 +112,15 @@ int main(int argc, char *argv[])
       return (status = ERR_NOTIMPLEMENTED);
     }
 
+  if (optind >= argc)
+    {
+      fprintf(stderr, "No file names to delete\n");
+      return (status = ERR_NULLPARAMETER);
+    }
+
   // Loop through all of our file name arguments
   for (count = optind ; count < argc; count ++)
     {
-      // Make sure the name isn't NULL
-      if (argv[count] == NULL)
-	return (status = ERR_NULLPARAMETER);
-
       // Attempt to remove the file
       if (recurse)
 	status = fileDeleteRecursive(argv[count]);

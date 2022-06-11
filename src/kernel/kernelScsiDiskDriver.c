@@ -22,40 +22,42 @@
 // Driver for standard and USB SCSI disks
 
 #include "kernelScsiDiskDriver.h"
-#include "kernelScsiDriver.h"
 #include "kernelDebug.h"
 #include "kernelDisk.h"
 #include "kernelError.h"
 #include "kernelFilesystem.h"
-#include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelProcessorX86.h"
 #include "kernelRandom.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 static kernelPhysicalDisk *disks[SCSI_MAX_DISKS];
 static int numDisks = 0;
 
 
+static void usbInterrupt(usbDevice *usbDev __attribute((unused)), void *buffer __attribute((unused)), unsigned length __attribute((unused)))
+{
+  kernelDebug(debug_scsi, "USB MS interrupt");
+}
+
+
 static int usbClearHalt(kernelScsiDisk *dsk, unsigned char endpoint)
 {
-  usbTransaction usbTrans;
+  int status = 0;
 
-  // Set up the USB transaction to send the 'clear (halt) feature' to the
+  kernelDebug(debug_scsi, "USB MS clear halt, endpoint %d", endpoint);
+
+  // Do the control transfer to send the 'clear (halt) feature' to the
   // endpoint
-  kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
-  usbTrans.type = usbxfer_control;
-  usbTrans.address = dsk->usb.usbDev.address;
-  usbTrans.control.request = USB_CLEAR_FEATURE;
-  usbTrans.control.value = USB_FEATURE_ENDPOINTHALT;
-  usbTrans.control.index = endpoint;
+  status = kernelUsbControlTransfer(&dsk->usb.usbDev, USB_CLEAR_FEATURE,
+				    USB_FEATURE_ENDPOINTHALT, endpoint, 0,
+				    NULL, NULL);
+  if (status < 0)
+    kernelDebug(debug_scsi, "USB MS clear halt failed");
 
-  // Write the command
-  kernelDebug(debug_scsi, "USB mass storage clear halt");
-  return (kernelBusWrite(dsk->busType, dsk->target, (void *) &usbTrans));
+  return (status);
 }
 
 
@@ -65,26 +67,23 @@ static int usbMassStorageReset(kernelScsiDisk *dsk)
   // the device
 
   int status = 0;
-  usbTransaction usbTrans;
 
-  // Set up the USB transaction to send the reset command
-  kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
-  usbTrans.type = usbxfer_control;
-  usbTrans.address = dsk->usb.usbDev.address;
-  usbTrans.control.requestType =
-    (USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_INTERFACE);
-  usbTrans.control.request = USB_MASSSTORAGE_RESET;
-  usbTrans.control.index = dsk->usb.usbDev.interDesc[0]->interNum;
+  kernelDebug(debug_scsi, "USB MS reset");
 
-  // Write the command
-  kernelDebug(debug_scsi, "USB mass storage reset");
-  status = kernelBusWrite(dsk->busType, dsk->target, (void *) &usbTrans);
+  // Do the control transfer to send the reset command
+  status = kernelUsbControlTransfer(&dsk->usb.usbDev, USB_MASSSTORAGE_RESET,
+				    0, dsk->usb.usbDev.interDesc[0]->interNum,
+				    0, NULL, NULL);
   if (status < 0)
-    return (status);
+    {
+      kernelDebug(debug_scsi, "USB MS reset failed");
+      return (status);
+    }
 
-  usbClearHalt(dsk, dsk->usb.bulkOutEndpoint);
+  if ((usbClearHalt(dsk, dsk->usb.bulkInEndpoint) >= 0) &&
+      (usbClearHalt(dsk, dsk->usb.bulkOutEndpoint) >= 0))
+    kernelDebug(debug_scsi, "USB MS reset successful");
 
-  kernelDebug(debug_scsi, "USB mass storage reset complete");
   return (status = 0);
 }
 
@@ -97,108 +96,146 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun, void *cmd,
   // the device.
   
   int status = 0;
+  int retries = 0;
   usbCmdBlockWrapper cmdWrapper;
   usbCmdStatusWrapper statusWrapper;
-  usbTransaction usbTrans;
+  usbTransaction trans[3];
+  usbTransaction *cmdTrans = NULL;
+  usbTransaction *dataTrans = NULL;
+  usbTransaction *statusTrans = NULL;
+  int transCount = 0;
 
-  kernelDebug(debug_scsi, "USB mass storage command %02x datalength %d",
-	      ((scsiCmd6 *) cmd)->byte[0], dataLength);
-
-  // Set up the command wrapper
-  kernelMemClear(&cmdWrapper, sizeof(usbCmdBlockWrapper));
-  cmdWrapper.signature = USB_CMDBLOCKWRAPPER_SIG;
-  cmdWrapper.tag = kernelRandomUnformatted();
-  cmdWrapper.dataLength = dataLength;
-  cmdWrapper.flags = (read << 7);
-  cmdWrapper.lun = lun;
-  cmdWrapper.cmdLength = cmdLength;
-  // Copy the command data into the wrapper
-  kernelMemCopy(cmd, cmdWrapper.cmd, cmdLength);
-
-  // Set up the USB transaction to send the command
-  kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
-  usbTrans.type = usbxfer_bulk;
-  usbTrans.address = dsk->usb.usbDev.address;
-  usbTrans.endpoint = dsk->usb.bulkOutEndpoint;
-  usbTrans.pid = USB_PID_OUT;
-  usbTrans.length = sizeof(usbCmdBlockWrapper);
-  usbTrans.buffer = &cmdWrapper;
-
-  // Write the command
-  kernelDebug(debug_scsi, "USB mass storage write command length %d",
-	      cmdWrapper.cmdLength);
-  status = kernelBusWrite(dsk->busType, dsk->target, (void *) &usbTrans);
-  if (status < 0)
-    return (status);
-
-  if (dataLength)
+  for (retries = 0; retries < 3; retries ++)
     {
-      if (bytes)
-	*bytes = 0;
+      transCount = 0;
 
-      // Set up the USB transaction to read or write the data
+      kernelDebug(debug_scsi, "USB MS command 0x%02x datalength %d",
+		  ((scsiCmd6 *) cmd)->byte[0], dataLength);
 
-      kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
-      usbTrans.type = usbxfer_bulk;
-      usbTrans.address = dsk->usb.usbDev.address;
-      usbTrans.length = dataLength;
-      usbTrans.buffer = data;
+      kernelMemClear((void *) trans, (3 * sizeof(usbTransaction)));
 
-      if (read)
+      // Set up the command wrapper
+      kernelMemClear(&cmdWrapper, sizeof(usbCmdBlockWrapper));
+      cmdWrapper.signature = USB_CMDBLOCKWRAPPER_SIG;
+      cmdWrapper.tag = kernelRandomUnformatted();
+      cmdWrapper.dataLength = dataLength;
+      cmdWrapper.flags = (read << 7);
+      cmdWrapper.lun = lun;
+      cmdWrapper.cmdLength = cmdLength;
+      // Copy the command data into the wrapper
+      kernelMemCopy(cmd, cmdWrapper.cmd, cmdLength);
+      kernelDebug(debug_scsi, "USB MS command length %d",
+		  cmdWrapper.cmdLength);
+
+      // Set up the USB transaction to send the command
+      cmdTrans = &trans[transCount++];
+      cmdTrans->type = usbxfer_bulk;
+      cmdTrans->address = dsk->usb.usbDev.address;
+      cmdTrans->endpoint = dsk->usb.bulkOutEndpoint;
+      cmdTrans->pid = USB_PID_OUT;
+      cmdTrans->length = sizeof(usbCmdBlockWrapper);
+      cmdTrans->buffer = &cmdWrapper;
+
+      if (dataLength)
 	{
-	  usbTrans.endpoint = dsk->usb.bulkInEndpoint;
-	  usbTrans.pid = USB_PID_IN;
+	  if (bytes)
+	    *bytes = 0;
+
+	  // Set up the USB transaction to read or write the data
+	  dataTrans = &trans[transCount++];
+	  dataTrans->type = usbxfer_bulk;
+	  dataTrans->address = dsk->usb.usbDev.address;
+	  dataTrans->length = dataLength;
+	  dataTrans->buffer = data;
+
+	  if (read)
+	    {
+	      dataTrans->endpoint = dsk->usb.bulkInEndpoint;
+	      dataTrans->pid = USB_PID_IN;
+	    }
+	  else
+	    {
+	      dataTrans->endpoint = dsk->usb.bulkOutEndpoint;
+	      dataTrans->pid = USB_PID_OUT;
+	    }
+
+	  kernelDebug(debug_scsi, "USB MS datalength=%u", dataLength);
+	}
+
+      // Set up the status wrapper
+      kernelMemClear(&statusWrapper, sizeof(usbCmdStatusWrapper));
+      statusWrapper.signature = USB_CMDSTATUSWRAPPER_SIG;
+      statusWrapper.tag = cmdWrapper.tag;
+
+      // Set up the USB transaction to read the status
+      statusTrans = &trans[transCount++];
+      statusTrans->type = usbxfer_bulk;
+      statusTrans->address = dsk->usb.usbDev.address;
+      statusTrans->endpoint = dsk->usb.bulkInEndpoint;
+      statusTrans->pid = USB_PID_IN;
+      statusTrans->length = sizeof(usbCmdStatusWrapper);
+      statusTrans->buffer = &statusWrapper;
+      kernelDebug(debug_scsi, "USB MS status length=%u", statusTrans->length);
+
+      // Write the transactions
+      status = kernelBusWrite(dsk->busType, dsk->target,
+			      (transCount * sizeof(usbTransaction)),
+			      (void *) &trans);
+      if (status < 0)
+	{
+	  kernelDebug(debug_scsi, "USB MS trans error=%d", status);
+
+	  // Try to clear the stall
+	  if (usbClearHalt(dsk, dsk->usb.bulkInEndpoint) >= 0)
+	    {
+	      // Retry the status block
+	      kernelDebug(debug_scsi, "USB MS retry status block");
+	      status = kernelBusWrite(dsk->busType, dsk->target,
+				      sizeof(usbTransaction),
+				      (void *) statusTrans);
+	    }
+
+	  // This will happen if clearing the stall failed, above, but
+	  // also if the status block retry fails.
+	  if (status < 0)
+	    {
+	      // Try a reset
+	      if (usbMassStorageReset(dsk) < 0)
+		break;
+	    }
+
+	  continue;
+	}
+
+      if (dataLength)
+	{
+	  if (!dataTrans->bytes)
+	    {
+	      kernelDebug(debug_scsi, "USB MS data trans no data error");
+	      status = ERR_NODATA;
+	      continue;
+	    }
+      
+	  if (bytes)
+	    *bytes = (unsigned) dataTrans->bytes;
+	}
+
+      if (statusWrapper.status & SCSI_STAT_MASK)
+	{
+	  kernelDebug(debug_scsi, "USB MS command error status %02x",
+		      (statusWrapper.status & SCSI_STAT_MASK));
+	  status = ERR_IO;
+	  continue;
 	}
       else
 	{
-	  usbTrans.endpoint = dsk->usb.bulkOutEndpoint;
-	  usbTrans.pid = USB_PID_OUT;
+	  kernelDebug(debug_scsi, "USB MS command successful");
+	  status = 0;
+	  break;
 	}
-
-      // Write the command
-      kernelDebug(debug_scsi, "USB mass storage data %s %d bytes to %p",
-		  (read? "read" : "write"), dataLength, data);
-      status = kernelBusWrite(dsk->busType, dsk->target, (void *) &usbTrans);
-      if ((status < 0) && !usbTrans.bytes)
-	return (status);
-
-      /* Eh?!?!  I don't think we really want this, but don't delete the code
-	 for a little while.
-      if (usbTrans.bytes < usbTrans.length)
-	{
-	  if (read)
-	    dsk->usb.bulkIn->maxPacketSize = usbTrans.bytes;
-	  else
-	    dsk->usb.bulkOut->maxPacketSize = usbTrans.bytes;
-	}
-      */
-
-      if (bytes)
-	*bytes = (unsigned) usbTrans.bytes;
     }
 
-  // Now read the status
-  kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
-  usbTrans.type = usbxfer_bulk;
-  usbTrans.address = dsk->usb.usbDev.address;
-  usbTrans.endpoint = dsk->usb.bulkInEndpoint;
-  usbTrans.pid = USB_PID_IN;
-  usbTrans.length = sizeof(usbCmdStatusWrapper);
-  usbTrans.buffer = &statusWrapper;
-
-  // Write the command
-  kernelDebug(debug_scsi, "USB mass storage read status");
-  status = kernelBusWrite(dsk->busType, dsk->target, (void *) &usbTrans);
-  if (status < 0)
-    return (status);
-
-  if (!(statusWrapper.status & SCSI_STAT_MASK))
-    kernelDebug(debug_scsi, "USB mass storage command successful");
-  else
-    kernelDebug(debug_scsi, "USB mass storage command error status %02x",
-		(statusWrapper.status & SCSI_STAT_MASK));
-
-  return (status = 0);
+  return (status);
 }
 
 
@@ -206,26 +243,31 @@ static void debugInquiry(scsiInquiryData *inquiryData)
 {
   char vendorId[9];
   char productId[17];
+  char productRev[17];
 
   strncpy(vendorId, inquiryData->vendorId, 8);
   vendorId[8] = '\0';
   strncpy(productId, inquiryData->productId, 16);
   productId[16] = '\0';
+  strncpy(productRev, inquiryData->productRev, 4);
+  productRev[4] = '\0';
 
-  kernelDebug(debug_scsi, "Debug inquiry data:\n"
-	      "    byte0=%02x\n"
-	      "    byte1=%02x\n"
-	      "    byte2=%02x\n"
-	      "    byte3=%02x\n"
-	      "    byte4=%02x\n"
-	      "    byte7=%02x\n"
+  kernelDebug(debug_scsi, "SCSI debug inquiry data:\n"
+	      "    qual/devType=%02x\n"
+	      "    removable=%02x\n"
+	      "    version=%02x\n"
+	      "    normACA/hiSup/format=%02x\n"
+	      "    addlLength=%02x\n"
+	      "    byte5Flags=%02x\n"
+	      "    byte6Flags=%02x\n"
+	      "    relAddr=%02x\n"
 	      "    vendorId=%s\n"
 	      "    productId=%s\n"
-	      "    productRev=%08x", inquiryData->byte0.periQual,
-	      inquiryData->byte1.removable, inquiryData->byte2.isoVersion,
-	      inquiryData->byte3.aenc, inquiryData->byte4.addlLength,
-	      inquiryData->byte7.relAdr, vendorId, productId,
-	      inquiryData->productRev);
+	      "    productRev=%s", inquiryData->byte0.periQual,
+	      inquiryData->byte1.removable, inquiryData->byte2.ansiVersion,
+	      inquiryData->byte3.dataFormat, inquiryData->byte4.addlLength,
+	      inquiryData->byte5, inquiryData->byte6,
+	      inquiryData->byte7.relAdr, vendorId, productId, productRev);
 }
 
 
@@ -238,32 +280,31 @@ static int scsiInquiry(kernelScsiDisk *dsk, unsigned char lun,
   scsiCmd6 cmd6;
   unsigned bytes = 0;
 
+  kernelDebug(debug_scsi, "SCSI inquiry");
+  kernelMemClear(&cmd6, sizeof(scsiCmd6));
+  cmd6.byte[0] = SCSI_CMD_INQUIRY;
+  cmd6.byte[1] = (lun << 5);
+  cmd6.byte[4] = sizeof(scsiInquiryData);
+
   if (dsk->busType == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'inquiry' command.
-      kernelDebug(debug_scsi, "USB mass storage SCSI inquiry");
-      kernelMemClear(&cmd6, sizeof(scsiCmd6));
-      cmd6.byte[0] = SCSI_CMD_INQUIRY;
-      cmd6.byte[1] = (lun << 5);
-      cmd6.byte[4] = sizeof(scsiInquiryData);
-
       status = usbScsiCommand(dsk, lun, &cmd6, sizeof(scsiCmd6), inquiryData,
 			      sizeof(scsiInquiryData), &bytes, 1);
       if ((status < 0) && (bytes < 36))
 	return (status);
-
-      debugInquiry(inquiryData);
     }
   else
     return (status = ERR_NOTIMPLEMENTED);
 
+  debugInquiry(inquiryData);
   return (status = 0);
 }
 
 
 /*
 static int scsiModeSense(kernelScsiDisk *dsk, unsigned char lun,
-			 scsiModeSenseData *modeSenseData)
+			 int pageCode, unsigned char *buffer, unsigned length)
 {
   // Do a SCSI 'mode sense' command.
 
@@ -271,18 +312,20 @@ static int scsiModeSense(kernelScsiDisk *dsk, unsigned char lun,
   scsiCmd6 cmd6;
   unsigned bytes = 0;
 
+  kernelDebug(debug_scsi, "SCSI mode sense");
+  kernelMemClear(&cmd6, sizeof(scsiCmd6));
+  cmd6.byte[0] = SCSI_CMD_MODESENSE6;
+  cmd6.byte[1] = ((lun << 5) | 0x08);
+  cmd6.byte[2] = pageCode;
+  cmd6.byte[4] = length;
+
   if (dsk->busType == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'mode sense' command.
-      kernelDebug(debug_scsi, "USB mass storage SCSI mode sense");
-      kernelMemClear(&cmd6, sizeof(scsiCmd6));
-      cmd6.byte[0] = SCSI_CMD_MODESENSE6;
-      cmd6.byte[1] = (lun << 5);
-      cmd6.byte[4] = sizeof(scsiModeSenseData);
-
-      status = usbScsiCommand(dsk, lun, &cmd6, sizeof(scsiCmd6), modeSenseData,
-			      dsk->usb.bulkIn->maxPacketSize, &bytes, 1);
-      if ((status < 0) && (bytes < sizeof(scsiModeSenseData)))
+      status = usbScsiCommand(dsk, lun, &cmd6, sizeof(scsiCmd6), buffer,
+			      min(dsk->usb.bulkIn->maxPacketSize, length),
+			      &bytes, 1);
+      if ((status < 0) && (bytes < length))
 	return (status);
     }
   else
@@ -293,11 +336,11 @@ static int scsiModeSense(kernelScsiDisk *dsk, unsigned char lun,
 */
 
 
-static int scsiRead(kernelScsiDisk *dsk, unsigned char lun,
-		    unsigned logicalSector, unsigned short numSectors,
-		    void *buffer)
+static int scsiReadWrite(kernelScsiDisk *dsk, unsigned char lun,
+			 unsigned logicalSector, unsigned short numSectors,
+			 void *buffer, int read)
 {
-  // Do a SCSI 'read' command
+  // Do a SCSI 'read' or 'write' command
 
   int status = 0;
   unsigned dataLength = 0;
@@ -305,28 +348,31 @@ static int scsiRead(kernelScsiDisk *dsk, unsigned char lun,
   unsigned bytes = 0;
 
   dataLength = (numSectors * dsk->sectorSize);
-  kernelDebug(debug_scsi, "Read %u bytes sectorsize %u", dataLength,
-	      dsk->sectorSize);
+  kernelDebug(debug_scsi, "SCSI %s %u bytes sectorsize %u",
+	      (read? "read" : "write"), dataLength, dsk->sectorSize);
+
+  kernelMemClear(&cmd10, sizeof(scsiCmd10));
+  if (read)
+    cmd10.byte[0] = SCSI_CMD_READ10;
+  else
+    cmd10.byte[0] = SCSI_CMD_WRITE10;
+  cmd10.byte[1] = (lun << 5);
+  *((unsigned *) &cmd10.byte[2]) = kernelProcessorSwap32(logicalSector);
+  *((unsigned short *) &cmd10.byte[7]) = kernelProcessorSwap16(numSectors);
 
   if (dsk->busType == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'read' command.
-      kernelDebug(debug_scsi, "USB mass storage read");
-      kernelMemClear(&cmd10, sizeof(scsiCmd10));
-      cmd10.byte[0] = SCSI_CMD_READ10;
-      cmd10.byte[1] = (lun << 5);
-      *((unsigned *) &cmd10.byte[2]) = kernelProcessorSwap32(logicalSector);
-      *((unsigned short *) &cmd10.byte[7]) = kernelProcessorSwap16(numSectors);
-      
       status = usbScsiCommand(dsk, lun, &cmd10, sizeof(scsiCmd10), buffer,
-			      dataLength, &bytes, 1);
+			      dataLength, &bytes, read);
       if ((status < 0) && (bytes < dataLength))
 	return (status);
     }
   else
     return (status = ERR_NOTIMPLEMENTED);
 
-  kernelDebug(debug_scsi, "Read successul %u bytes", bytes);
+  kernelDebug(debug_scsi, "SCSI %s successul %u bytes",
+	      (read? "read" : "write"), bytes);
   return (status = 0);
 }
 
@@ -340,14 +386,14 @@ static int scsiReadCapacity(kernelScsiDisk *dsk, unsigned char lun,
   scsiCmd10 cmd10;
   unsigned bytes = 0;
 
+  kernelDebug(debug_scsi, "SCSI read capacity");
+  kernelMemClear(&cmd10, sizeof(scsiCmd10));
+  cmd10.byte[0] = SCSI_CMD_READCAPACITY;
+  cmd10.byte[1] = (lun << 5);
+
   if (dsk->busType == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'read capacity' command.
-      kernelDebug(debug_scsi, "USB mass storage SCSI read capacity");
-      kernelMemClear(&cmd10, sizeof(scsiCmd10));
-      cmd10.byte[0] = SCSI_CMD_READCAPACITY;
-      cmd10.byte[1] = (lun << 5);
-
       status =
 	usbScsiCommand(dsk, lun, &cmd10, sizeof(scsiCmd10), capacityData,
 		       sizeof(scsiCapacityData), &bytes, 1);
@@ -361,8 +407,46 @@ static int scsiReadCapacity(kernelScsiDisk *dsk, unsigned char lun,
   capacityData->blockNumber = kernelProcessorSwap32(capacityData->blockNumber);
   capacityData->blockLength = kernelProcessorSwap32(capacityData->blockLength);
 
+  kernelDebug(debug_scsi, "SCSI read capacity successul");
   return (status = 0);
 }
+
+
+/*
+static int scsiRequestSense(kernelScsiDisk *dsk, unsigned char lun,
+			    scsiSenseData *senseData)
+{
+  // Do a SCSI 'request sense' command.
+
+  int status = 0;
+  scsiCmd10 cmd10;
+  unsigned bytes = 0;
+
+  kernelDebug(debug_scsi, "SCSI request sense");
+  kernelMemClear(&cmd10, sizeof(scsiCmd10));
+  cmd10.byte[0] = SCSI_CMD_REQUESTSENSE;
+  cmd10.byte[1] = (lun << 5);
+  cmd10.byte[4] = sizeof(scsiSenseData);
+
+  if (dsk->busType == bus_usb)
+    {
+      // Set up the USB transaction, with the SCSI 'request sense' command.
+      status = usbScsiCommand(dsk, lun, &cmd10, sizeof(scsiCmd10), senseData,
+			      sizeof(scsiSenseData), &bytes, 1);
+      if ((status < 0) && (bytes < sizeof(scsiSenseData)))
+	return (status);
+    }
+  else
+    return (status = ERR_NOTIMPLEMENTED);
+
+  // Swap bytes around
+  senseData->info = kernelProcessorSwap32(senseData->info);
+  senseData->cmdSpecific = kernelProcessorSwap32(senseData->cmdSpecific);
+
+  kernelDebug(debug_scsi, "SCSI request sense successul");
+  return (status = 0);
+}
+*/
 
 
 static int scsiStartStopUnit(kernelScsiDisk *dsk, unsigned char lun,
@@ -373,16 +457,15 @@ static int scsiStartStopUnit(kernelScsiDisk *dsk, unsigned char lun,
   int status = 0;
   scsiCmd6 cmd6;
 
+  kernelDebug(debug_scsi, "SCSI %s unit", (startStop? "start" : "stop"));
+  kernelMemClear(&cmd6, sizeof(scsiCmd6));
+  cmd6.byte[0] = SCSI_CMD_STARTSTOPUNIT;
+  cmd6.byte[1] = (lun << 5);
+  cmd6.byte[4] = (((loadEject & 0x01) << 1) | (startStop & 0x01));
+
   if (dsk->busType == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'start/stop unit' command.
-      kernelDebug(debug_scsi, "USB mass storage SCSI %s unit",
-		  (startStop? "start" : "stop"));
-      kernelMemClear(&cmd6, sizeof(scsiCmd6));
-      cmd6.byte[0] = SCSI_CMD_STARTSTOPUNIT;
-      cmd6.byte[1] = (lun << 5);
-      cmd6.byte[4] = (((loadEject & 0x01) << 1) | (startStop & 0x01));
-
       status =
 	usbScsiCommand(dsk, lun, &cmd6, sizeof(scsiCmd6), NULL, 0, NULL, 0);
       if (status < 0)
@@ -391,6 +474,8 @@ static int scsiStartStopUnit(kernelScsiDisk *dsk, unsigned char lun,
   else
     return (status = ERR_NOTIMPLEMENTED);
 
+  kernelDebug(debug_scsi, "SCSI %s unit successful",
+	      (startStop? "start" : "stop"));
   return (status = 0);
 }
 
@@ -402,14 +487,14 @@ static int scsiTestUnitReady(kernelScsiDisk *dsk, unsigned char lun)
   int status = 0;
   scsiCmd6 cmd6;
 
+  kernelDebug(debug_scsi, "SCSI test unit ready");
+  kernelMemClear(&cmd6, sizeof(scsiCmd6));
+  cmd6.byte[0] = SCSI_CMD_TESTUNITREADY;
+  cmd6.byte[1] = (lun << 5);
+
   if (dsk->busType == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'test unit ready' command.
-      kernelDebug(debug_scsi, "USB mass storage SCSI test unit ready");
-      kernelMemClear(&cmd6, sizeof(scsiCmd6));
-      cmd6.byte[0] = SCSI_CMD_TESTUNITREADY;
-      cmd6.byte[1] = (lun << 5);
-
       status =
 	usbScsiCommand(dsk, lun, &cmd6, sizeof(scsiCmd6), NULL, 0, NULL, 0);
       if (status < 0)
@@ -418,44 +503,7 @@ static int scsiTestUnitReady(kernelScsiDisk *dsk, unsigned char lun)
   else
     return (status = ERR_NOTIMPLEMENTED);
 
-  return (status = 0);
-}
-
-
-static int scsiWrite(kernelScsiDisk *dsk, unsigned char lun,
-		     unsigned logicalSector, unsigned short numSectors,
-		     void *buffer)
-{
-  // Do a SCSI 'write' command
-
-  int status = 0;
-  unsigned dataLength = 0;
-  scsiCmd10 cmd10;
-  unsigned bytes = 0;
-
-  dataLength = (numSectors * dsk->sectorSize);
-  kernelDebug(debug_scsi, "Write %u bytes sectorsize %u", dataLength,
-	      dsk->sectorSize);
-
-  if (dsk->busType == bus_usb)
-    {
-      // Set up the USB transaction, with the SCSI 'write' command.
-      kernelDebug(debug_scsi, "USB mass storage write");
-      kernelMemClear(&cmd10, sizeof(scsiCmd10));
-      cmd10.byte[0] = SCSI_CMD_WRITE10;
-      cmd10.byte[1] = (lun << 5);
-      *((unsigned *) &cmd10.byte[2]) = kernelProcessorSwap32(logicalSector);
-      *((unsigned short *) &cmd10.byte[7]) = kernelProcessorSwap16(numSectors);
-      
-      status = usbScsiCommand(dsk, lun, &cmd10, sizeof(scsiCmd10), buffer,
-			      dataLength, &bytes, 0);
-      if ((status < 0) && (bytes < dataLength))
-	return (status);
-    }
-  else
-    return (status = ERR_NOTIMPLEMENTED);
-
-  kernelDebug(debug_scsi, "Write successul %u bytes", bytes);
+  kernelDebug(debug_scsi, "SCSI test unit ready successful");
   return (status = 0);
 }
 
@@ -481,6 +529,66 @@ static int getNewDiskNumber(void)
 }
 
 
+static void guessDiskGeom(kernelPhysicalDisk *physicalDisk)
+{
+  // Given a disk with the number of sectors field set, try to figure out
+  // some geometry values that make sense
+
+  struct {
+    unsigned heads;
+    unsigned sectors;
+  } guesses[] = {
+    { 255, 63 },
+    { 16, 63 },
+    { 255, 32 },
+    { 16, 32 },
+    { 0, 0 }
+  };
+  int count;
+
+  // See if any of our guesses match up with the number of sectors.
+  for (count = 0; guesses[count].heads; count ++)
+    {
+      if (!(physicalDisk->numSectors %
+	    (guesses[count].heads * guesses[count].sectors)))
+	{
+	  physicalDisk->heads = guesses[count].heads;
+	  physicalDisk->sectorsPerCylinder = guesses[count].sectors;
+	  physicalDisk->cylinders =
+	    (physicalDisk->numSectors /
+	     (guesses[count].heads * guesses[count].sectors));
+	  goto out;
+	}
+    }
+
+  // Nothing yet.  Instead, try to calculate something on the fly.
+  physicalDisk->heads = 16;
+  physicalDisk->sectorsPerCylinder = 32;
+  while (physicalDisk->heads < 256)
+    {
+      if (!(physicalDisk->numSectors %
+	    (physicalDisk->heads * physicalDisk->sectorsPerCylinder)))
+	{
+	  physicalDisk->cylinders =
+	    (physicalDisk->numSectors /
+	     (physicalDisk->heads * physicalDisk->sectorsPerCylinder));
+	  goto out;
+	}
+
+      physicalDisk->heads += 1;
+    }
+
+  kernelError(kernel_warn, "Unable to guess disk geometry");
+  return;
+
+ out:
+
+  kernelDebug(debug_scsi, "SCSI geom %u/%u/%u", physicalDisk->cylinders,
+	      physicalDisk->heads, physicalDisk->sectorsPerCylinder);
+  return;
+}
+
+
 static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 					void *driver)
 {
@@ -493,7 +601,6 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
   kernelScsiDisk *dsk = NULL;
   scsiInquiryData inquiryData;
   scsiCapacityData capacityData;
-  //scsiModeSenseData modeSenseData;
   int count;
 
   dev = kernelMalloc(sizeof(kernelDevice));
@@ -516,45 +623,74 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
     {
       // Try to get the USB information about the target
       status =
-	kernelBusGetTargetInfo(busType, target, (void *) &(dsk->usb.usbDev));
+	kernelBusGetTargetInfo(busType, target, (void *) &dsk->usb.usbDev);
       if (status < 0)
 	goto err_out;
 
       // If the USB class is 0x08 and the subclass is 0x06 then we believe
       // we have a SCSI device
       if ((dsk->usb.usbDev.classCode != 0x08) ||
-	  (dsk->usb.usbDev.subClassCode != 0x06))
+	  (dsk->usb.usbDev.subClassCode != 0x06) ||
+	  (dsk->usb.usbDev.protocol != 0x50))
 	goto err_out;
 
-      // Record the bulk-in and bulk-out endpoints
+      // Record the bulk-in and bulk-out endpoints, and any interrupt endpoint
       for (count = 0; count < dsk->usb.usbDev.interDesc[0]->numEndpoints;
 	   count ++)
 	{
-	  if (dsk->usb.usbDev.endpointDesc[count]->attributes != 0x02)
-	    continue;
-
-	  if (!dsk->usb.bulkInEndpoint &&
+	  if ((dsk->usb.usbDev.endpointDesc[count]->attributes == 2) &&
+	      !dsk->usb.bulkInDesc &&
 	      (dsk->usb.usbDev.endpointDesc[count]->endpntAddress & 0x80))
 	    {
-	      dsk->usb.bulkIn = dsk->usb.usbDev.endpointDesc[count];
-	      dsk->usb.bulkInEndpoint = (dsk->usb.bulkIn->endpntAddress & 0xF);
+	      dsk->usb.bulkInDesc = dsk->usb.usbDev.endpointDesc[count];
+	      dsk->usb.bulkInEndpoint =
+		(dsk->usb.bulkInDesc->endpntAddress & 0xF);
+	      kernelDebug(debug_scsi, "USB MS bulk in endpoint %d",
+			  dsk->usb.bulkInEndpoint);
 	    }
 
-	  if (!dsk->usb.bulkOutEndpoint &&
+	  if ((dsk->usb.usbDev.endpointDesc[count]->attributes == 2) &&
+	      !dsk->usb.bulkOutDesc &&
+	      (dsk->usb.usbDev.endpointDesc[count]->attributes == 2) &&
 	      (!(dsk->usb.usbDev.endpointDesc[count]->endpntAddress & 0x80)))
 	    {
-	      dsk->usb.bulkOut = dsk->usb.usbDev.endpointDesc[count];
+	      dsk->usb.bulkOutDesc = dsk->usb.usbDev.endpointDesc[count];
 	      dsk->usb.bulkOutEndpoint =
-		(dsk->usb.bulkOut->endpntAddress & 0xF);
+		(dsk->usb.bulkOutDesc->endpntAddress & 0xF);
+	      kernelDebug(debug_scsi, "USB MS bulk out endpoint %d",
+			  dsk->usb.bulkOutEndpoint);
+	    }
+
+	  if ((dsk->usb.usbDev.endpointDesc[count]->attributes == 3) &&
+	      !dsk->usb.intrInDesc)
+	    {
+	      dsk->usb.intrInDesc = dsk->usb.usbDev.endpointDesc[count];
+	      dsk->usb.intrInEndpoint =
+		(dsk->usb.intrInDesc->endpntAddress & 0xF);
+	      kernelDebug(debug_scsi, "USB MS interrupt endpoint %d",
+			  dsk->usb.intrInEndpoint);
 	    }
 	}
 
-      kernelDebug(debug_scsi, "USB SCSI device detected");
+      // If there's an interrupt endpoint, try to register an interrupt
+      // callback.
+      if (dsk->usb.intrInDesc)
+	kernelUsbScheduleInterrupt(&dsk->usb.usbDev, dsk->usb.intrInEndpoint,
+				   dsk->usb.intrInDesc->interval,
+				   dsk->usb.intrInDesc->maxPacketSize,
+				   &usbInterrupt);
+      
+      kernelDebug(debug_scsi, "USB MS device detected");
       physicalDisk->type |= DISKTYPE_FLASHDISK;
 
       status = usbMassStorageReset(dsk);
       if (status < 0)
 	goto err_out;
+    }
+  else
+    {
+      status = ERR_NOTIMPLEMENTED;
+      goto err_out;
     }
 
   // Try to communicate with the new target by sending 'start unit' command
@@ -622,33 +758,28 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
   if (status < 0)
     goto err_out;
 
-  dsk->numSectors = capacityData.blockNumber;
+  dsk->numSectors = (capacityData.blockNumber + 1);
   dsk->sectorSize = capacityData.blockLength;
 
   if ((dsk->sectorSize <= 0) || (dsk->sectorSize > 4096))
     {
       kernelError(kernel_error, "Unsupported sector size %u", dsk->sectorSize);
+      status = ERR_NOTIMPLEMENTED;
       goto err_out;
     }
 
-  kernelDebug(debug_scsi, "Disk \"%s\" sectors %u sectorsize %u ptr %p",
-	      dsk->vendorProductId, dsk->numSectors, dsk->sectorSize, dsk);
-
-  /*
-  // Send a 'mode sense' command
-  status = scsiModeSense(dsk, 0, &modeSenseData);
-  if (status < 0)
-    goto err_out;
-  */
+  kernelDebug(debug_scsi, "SCSI disk \"%s\" sectors %u sectorsize %u",
+	      dsk->vendorProductId, dsk->numSectors, dsk->sectorSize);
 
   physicalDisk->deviceNumber = getNewDiskNumber();
   sprintf((char *) physicalDisk->name, "sd%d", physicalDisk->deviceNumber);
-  kernelDebug(debug_scsi, "Disk %s detected, number %d", physicalDisk->name,
-	      physicalDisk->deviceNumber);
+  kernelDebug(debug_scsi, "SCSI disk %s detected, number %d",
+	      physicalDisk->name, physicalDisk->deviceNumber);
   physicalDisk->description = dsk->vendorProductId;
   physicalDisk->type |= (DISKTYPE_PHYSICAL | DISKTYPE_SCSIDISK);
   physicalDisk->flags = DISKFLAG_MOTORON;
   physicalDisk->numSectors = dsk->numSectors;
+  guessDiskGeom(physicalDisk);
   physicalDisk->sectorSize = dsk->sectorSize;
   physicalDisk->driverData = (void *) dsk;
   physicalDisk->driver = driver;
@@ -656,10 +787,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_DISK_SCSI);
-  kernelVariableListCreate(&(dev->device.attrs));
-  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_MODEL,
+  kernelVariableListCreate(&dev->device.attrs);
+  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
 			dsk->vendorId);
-  kernelVariableListSet(&(dev->device.attrs), DEVICEATTRNAME_MODEL,
+  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
 			dsk->productId);
   dev->driver = driver;
   dev->data = (void *) physicalDisk;
@@ -675,6 +806,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
   return (physicalDisk);
 
  err_out:
+
+  kernelError(kernel_error, "Error %d while detecting %sSCSI device",
+	      status, ((dsk->busType == bus_usb)? "USB " : ""));
+
   if (dev)
     kernelFree(dev);
   if (physicalDisk)
@@ -777,19 +912,18 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
       return (status = ERR_NOSUCHENTRY);
     }
 
-  kernelDebug(debug_scsi, "%s %u sectors to %p on \"%s\" at %u sectorsize %u "
-	      "ptr %p", (read? "read" : "write"), numSectors, buffer,
-	      dsk->vendorProductId, logicalSector, dsk->sectorSize, dsk);
-
-  if (read)
-    status = scsiRead(dsk, 0, logicalSector, numSectors, buffer);
-  else
-    status = scsiWrite(dsk, 0, logicalSector, numSectors, buffer);
-
+  // Send a 'test unit ready' command
+  status = scsiTestUnitReady(dsk, 0);
   if (status < 0)
     return (status);
 
-  return (status = 0);
+  kernelDebug(debug_scsi, "SCSI %s %u sectors on \"%s\" at %u sectorsize %u",
+	      (read? "read" : "write"), numSectors, dsk->vendorProductId,
+	      logicalSector, dsk->sectorSize);
+
+  status = scsiReadWrite(dsk, 0, logicalSector, numSectors, buffer, read);
+
+  return (status);
 }
 
 
@@ -884,9 +1018,13 @@ static int driverHotplug(void *parent, int busType, int target, int connected,
 
       physicalDisk = findBusTarget(busType, target);
       if (physicalDisk == NULL)
-	return (status = ERR_NOSUCHENTRY);
+	{
+	  kernelError(kernel_error, "No such SCSI device %d", target);
+	  return (status = ERR_NOSUCHENTRY);
+	}
 
-      kernelDebug(debug_scsi, "USB SCSI device removed");
+      // Found it.
+      kernelDebug(debug_scsi, "SCSI device removed");
 
       // If there are filesystems mounted on this disk, try to unmount them
       for (count = 0; count < physicalDisk->numLogical; count ++)
@@ -898,7 +1036,7 @@ static int driverHotplug(void *parent, int busType, int target, int connected,
 
       dev = ((kernelScsiDisk *) physicalDisk->driverData)->dev;
 
-      // Found it.  Remove it from the system's disks
+      // Remove it from the system's disks
       kernelDiskRemoveDevice(dev);
 
       // Remove it from the device tree

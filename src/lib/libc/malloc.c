@@ -536,7 +536,7 @@ void *_doMalloc(unsigned size, const char *function __attribute__((unused)))
   // assume something has gone wrong in the calling program
   if (size == 0)
     {
-      error("Can't allocate 0 bytes");
+      error("Can't allocate 0 bytes (%s)", function);
       errno = ERR_INVALID;
       return (address = NULL);
     }
@@ -581,7 +581,7 @@ void _doFree(void *start, const char *function __attribute__((unused)))
 
   if (start == NULL)
     {
-      error("Can't free NULL pointer");
+      error("Can't free NULL pointer (%s)", function);
       errno = ERR_INVALID;
       return;
     }

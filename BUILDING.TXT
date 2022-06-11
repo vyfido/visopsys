@@ -1,21 +1,24 @@
 BUILDING VISOPSYS
 
-Visopsys is developed on SuSE Linux 9.3.  To build Visopsys you will
-need the following tools (the first two of which are available on the
-SuSE CDs):
+Visopsys is developed on Fedora Core release 5 (Bordeaux).  To build Visopsys
+you will need the following tools (the first two of which are available on the
+Fedora CDs):
 
 - The GNU C Compiler (gcc).  The most recent version tested with Visopsys
-  is 3.3.5.
+  is 4.1.1.
+
 - A "make" utility of some kind.  I use GNU Make version 3.80.
+
 - The Netwide Assembler (NASM).  The most recent version tested with Visopsys
-  is 0.98.39.  (Available at http://nasm.sourceforge.net/)
+  is 0.98.39.  (Available at http://nasm.sourceforge.net/, or else use the
+  command 'yum install nasm' on Fedora)
 
 You might be able to get away with using something other than gcc without
 modifications (doubtful), but you will need NASM-compatible assembler to
 build this code.
 
-Once you have all the requisite tools as listed above, you build by simply
-executing a 'make' command in the top-level directory.
+Once you have the requisite tools listed above, you build by simply executing
+a 'make' command in the top-level directory.
 
 After you've built the system, you might want to use it.  If this is the case,
 you can install it using the install.sh script in the utils directory.
@@ -30,7 +33,12 @@ to install a basic system on the first floppy disk, or
 
 to install a full system on the second partition of the first IDE hard disk.
 
-If you want to create an ISO distribution, change to the utils directory,
+If you want to create a floppy disk image, change to the utils directory,
+become the 'root' user, and do:
+
+	./image-floppy.sh
+
+If you want to create an ISO (CD-ROM) image, change to the utils directory,
 become the 'root' user, and do:
 
 	./image-cd.sh
@@ -43,4 +51,4 @@ and do:
 Good luck, and let me know if there's any help I can offer.
 
 Andy McLaughlin <andy@visopsys.org>
-16/07/2005
+28/05/2007

@@ -16,7 +16,7 @@
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  kernelUsbEhciDriver.c
+//  kernelUsbOhciDriver.c
 //
 
 #include "kernelUsbDriver.h"
@@ -37,11 +37,11 @@
 #endif // DEBUG
 
 
-kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
+kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
 				  kernelBusTarget *busTarget,
 				  kernelDriver *driver)
 {
-  // This routine is used to detect and initialize a potential EHCI USB
+  // This routine is used to detect and initialize a potential OHCI USB
   // device, as well as registering it with the higher-level interfaces.
 
   int status = 0;
@@ -55,9 +55,9 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
   if (status < 0)
     goto err_out;
 
-  // Make sure it's an EHCI controller (programming interface is 0x20 in
+  // Make sure it's an OHCI controller (programming interface is 0x10 in
   // the PCI header)
-  if (pciDevInfo.device.progIF != 0x20)
+  if (pciDevInfo.device.progIF != 0x10)
     goto err_out;
 
   // After this point, we believe we have a supported device.
@@ -76,9 +76,8 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
   if (controller == NULL)
     goto err_out;
 
-  // Get the USB version number
-  controller->usbVersion =
-    kernelBusReadRegister(bus_pci, busTarget->target, 0x60, 8);
+  // The USB version number.  Fake this.
+  controller->usbVersion = 0x10;
 
   // Don't care about the 'multi-function' bit in the header type
   if (pciDevInfo.device.headerType & PCI_HEADERTYPE_MULTIFUNC)
@@ -103,15 +102,13 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
     }
   else
     {
-      debugError("EHCI: Unsupported USB controller header type %d",
+      debugError("OHCI: Unsupported USB controller header type %d",
 		 pciDevInfo.device.headerType);
       goto err_out;
     }
 
-  kernelLog("USB: EHCI controller USB %d.%d interrupt %d PCI type: %s",
-	    ((controller->usbVersion & 0xF0) >> 4),
-	    (controller->usbVersion & 0xF), controller->interruptNum,
-	    headerType);
+  kernelLog("USB: OHCI controller interrupt %d PCI type: %s",
+	    controller->interruptNum, headerType);
 
   // Get the I/O space base address.  For USB, it comes in the 5th
   // PCI base address register
@@ -120,7 +117,7 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
 
   if (controller->ioAddress == NULL)
     {
-      debugError("EHCI: Unknown USB controller I/O address");
+      debugError("OHCI: Unknown USB controller I/O address");
       goto err_out;
     }
 
@@ -133,7 +130,7 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
   // Initialize the variable list for attributes of the controller
   status = kernelVariableListCreate(&dev->device.attrs);
   if (status >= 0)
-    kernelVariableListSet(&dev->device.attrs, "controller.type", "EHCI");
+    kernelVariableListSet(&dev->device.attrs, "controller.type", "OHCI");
 
   status = kernelDeviceAdd(parent, dev);
   if (status < 0)

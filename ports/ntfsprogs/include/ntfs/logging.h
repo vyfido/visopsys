@@ -33,7 +33,7 @@
 #include "types.h"
 
 /* Function prototype for the logging handlers */
-typedef int (ntfs_log_handler)(const char *function, const char *file, int line,
+typedef int (ntfs_log_handler)(const char *function, const char *f, int line,
 	u32 level, void *data, const char *format, va_list args);
 
 /* Set the logging handler from one of the functions, below. */
@@ -60,7 +60,7 @@ u32 ntfs_log_get_flags(void);
 /* Turn command-line options into logging flags */
 BOOL ntfs_log_parse_option(const char *option);
 
-int ntfs_log_redirect(const char *function, const char *file, int line,
+int ntfs_log_redirect(const char *function, const char *f, int line,
 	u32 level, void *data, const char *format, ...)
 	__attribute__((format(printf, 6, 7)));
 

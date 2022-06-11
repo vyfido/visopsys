@@ -138,13 +138,26 @@ static int readConfig(const char *fileName)
 
   // Allocate memory for our list of listItemParameters structures and the
   // commands for each icon
-  iconParams = malloc(numIcons * sizeof(listItemParameters));
-  icons = malloc(numIcons * sizeof(iconInfo));
-  if ((iconParams == NULL) || (icons == NULL))
+  if (iconParams)
     {
-      error("Memory allocation error");
-      variableListDestroy(&config);
-      return (status = ERR_MEMORY);
+      free(iconParams);
+      iconParams = NULL;
+    }
+  if (icons)
+    {
+      free(icons);
+      icons = NULL;
+    }
+  if (numIcons)
+    {
+      iconParams = malloc(numIcons * sizeof(listItemParameters));
+      icons = malloc(numIcons * sizeof(iconInfo));
+      if ((iconParams == NULL) || (icons == NULL))
+	{
+	  error("Memory allocation error");
+	  variableListDestroy(&config);
+	  return (status = ERR_MEMORY);
+	}
     }
 
   // Try to gather the information for the icons

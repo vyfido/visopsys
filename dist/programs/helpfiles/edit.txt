@@ -4,7 +4,10 @@
 Simple, interactive text editor.
 
 Usage:
-  edit <file>
+  edit [-T] [file]
 
 (Only available in graphics mode)
+
+Options:
+-T              : Force text mode operation
 

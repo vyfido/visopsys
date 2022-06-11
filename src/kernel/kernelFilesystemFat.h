@@ -60,11 +60,6 @@ typedef volatile struct {
   unsigned dataClusters;
   unsigned terminalClust;
 
-  // The FAT table itself
-  unsigned char *FAT;
-  unsigned dirtyFatSectList[FAT_MAX_DIRTY_FATSECTS];
-  unsigned numDirtyFatSects;
-
   // Bitmap of free clusters
   unsigned char *freeClusterBitmap;
   unsigned freeBitmapSize;

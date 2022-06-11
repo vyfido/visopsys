@@ -22,79 +22,110 @@
 #if !defined(_KERNELUSBDRIVER_H)
 
 #include "kernelBus.h"
+#include "kernelLinkedList.h"
 
-#define USB_MAX_CONTROLLERS       2
-#define USB_MAX_DEVICES           0x7F
-#define USB_MAX_INTERFACES        8
-#define USB_MAX_ENDPOINTS         16
-
-// USB class codes
-#define USB_CLASSCODE_HUB         0x09
-
-// USB device classes
-#define USB_DEVCLASS_DISPLAY      1
-#define USB_DEVCLASS_COMMS        2
-#define USB_DEVCLASS_AUDIO        3
-#define USB_DEVCLASS_STORAGE      4
-#define USB_DEVCLASS_HID          5
+#define USB_MAX_CONTROLLERS          2
+#define USB_MAX_DEVICES              0x7F
+#define USB_MAX_INTERFACES           8
+#define USB_MAX_ENDPOINTS            16
 
 // USB descriptor types
-#define USB_DESCTYPE_DEVICE       1
-#define USB_DESCTYPE_CONFIG       2
-#define USB_DESCTYPE_STRING       3
-#define USB_DESCTYPE_INTERFACE    4
-#define USB_DESCTYPE_ENDPOINT     5
+#define USB_DESCTYPE_DEVICE          1
+#define USB_DESCTYPE_CONFIG          2
+#define USB_DESCTYPE_STRING          3
+#define USB_DESCTYPE_INTERFACE       4
+#define USB_DESCTYPE_ENDPOINT        5
 // USB 2.0+
-#define USB_DESCTYPE_DEVICEQUAL   6
-#define USB_DESCTYPE_OTHERSPEED   7
-#define USB_DESCTYPE_INTERPOWER   8
+#define USB_DESCTYPE_DEVICEQUAL      6
+#define USB_DESCTYPE_OTHERSPEED      7
+#define USB_DESCTYPE_INTERPOWER      8
 // Class-specific
-#define USB_DESCTYPE_HID          0x21
-#define USB_DESCTYPE_HIDREPORT    0x22
-#define USB_DESCTYPE_HIDPHYSDESC  0x23
+#define USB_DESCTYPE_HID             33
+#define USB_DESCTYPE_HIDREPORT       34
+#define USB_DESCTYPE_HIDPHYSDESC     35
+#define USB_DESCTYPE_HUB             41
 
 // USB commands (control transfer types)
-#define USB_GET_STATUS            0
-#define USB_CLEAR_FEATURE         1
-#define USB_SET_FEATURE           3
-#define USB_SET_ADDRESS           5
-#define USB_GET_DESCRIPTOR        6
-#define USB_SET_DESCRIPTOR        7
-#define USB_GET_CONFIGURATION     8
-#define USB_SET_CONFIGURATION     9
-#define USB_GET_INTERFACE         10
-#define USB_SET_INTERFACE         11
-#define USB_SYNCH_FRAME           12
+#define USB_GET_STATUS               0
+#define USB_CLEAR_FEATURE            1
+#define USB_GET_STATE                2
+#define USB_SET_FEATURE              3
+#define USB_SET_ADDRESS              5
+#define USB_GET_DESCRIPTOR           6
+#define USB_SET_DESCRIPTOR           7
+#define USB_GET_CONFIGURATION        8
+#define USB_SET_CONFIGURATION        9
+#define USB_GET_INTERFACE            10
+#define USB_SET_INTERFACE            11
+#define USB_SYNCH_FRAME              12
 // Class-specific
-#define USB_MASSSTORAGE_RESET     0xFF
+#define USB_HID_GET_REPORT           0x01
+#define USB_HID_GET_IDLE             0x02
+#define USB_HID_GET_PROTOCOL         0x03
+#define USB_HID_SET_REPORT           0x09
+#define USB_HID_SET_IDLE             0x0A
+#define USB_HID_SET_PROTOCOL         0x0B
+#define USB_MASSSTORAGE_RESET        0xFF
 
 // USB device request types
-#define USB_DEVREQTYPE_HOST2DEV   0x00
-#define USB_DEVREQTYPE_DEV2HOST   0x80
-#define USB_DEVREQTYPE_STANDARD   0x00
-#define USB_DEVREQTYPE_CLASS      0x20
-#define USB_DEVREQTYPE_VENDOR     0x40
-#define USB_DEVREQTYPE_RESERVED   0x60
-#define USB_DEVREQTYPE_DEVICE     0x00
-#define USB_DEVREQTYPE_INTERFACE  0x01
-#define USB_DEVREQTYPE_ENDPOINT   0x02
-#define USB_DEVREQTYPE_OTHER      0x03
+#define USB_DEVREQTYPE_HOST2DEV      0x00
+#define USB_DEVREQTYPE_DEV2HOST      0x80
+#define USB_DEVREQTYPE_STANDARD      0x00
+#define USB_DEVREQTYPE_CLASS         0x20
+#define USB_DEVREQTYPE_VENDOR        0x40
+#define USB_DEVREQTYPE_RESERVED      0x60
+#define USB_DEVREQTYPE_DEVICE        0x00
+#define USB_DEVREQTYPE_INTERFACE     0x01
+#define USB_DEVREQTYPE_ENDPOINT      0x02
+#define USB_DEVREQTYPE_OTHER         0x03
 
 // USB features (for set/clear commands)
-#define USB_FEATURE_REMOTEWAKEUP  0x01
-#define USB_FEATURE_ENDPOINTHALT  0x00
-#define USB_FEATURE_TESTMODE      0x02
+#define USB_FEATURE_ENDPOINTHALT     0x00
+#define USB_FEATURE_REMOTEWAKEUP     0x01
+#define USB_FEATURE_TESTMODE         0x02
 
-#define USB_INVALID_CLASSCODE     -1
-#define USB_INVALID_SUBCLASSCODE  -2
+#define USB_INVALID_CLASSCODE        -1
+#define USB_INVALID_SUBCLASSCODE     -2
 
 // Values for the 'packet ID' field of USB transfer descriptors
-#define USB_PID_IN                0x69
-#define USB_PID_OUT               0xE1
-#define USB_PID_SETUP             0x2D
+#define USB_PID_IN                   0x69
+#define USB_PID_OUT                  0xE1
+#define USB_PID_SETUP                0x2D
 
-#define USB_CMDBLOCKWRAPPER_SIG   0x43425355
-#define USB_CMDSTATUSWRAPPER_SIG  0x53425355
+// Hub status/change bits
+#define USB_HUBSTAT_LOCPOWER         0x0001
+#define USB_HUBSTAT_OVERCURR         0x0002
+
+// Port status/change bits
+#define USB_HUBPORTSTAT_CONN         0x0001
+#define USB_HUBPORTSTAT_ENABLE       0x0002
+#define USB_HUBPORTSTAT_SUSPEND      0x0004
+#define USB_HUBPORTSTAT_OVERCURR     0x0008
+#define USB_HUBPORTSTAT_RESET        0x0010
+#define USB_HUBPORTSTAT_POWER        0x0100
+#define USB_HUBPORTSTAT_LOWSPEED     0x0200
+
+// For hub feature set/clear
+#define USB_HUBFEAT_HUBLOCPOWER_CH   0
+#define USB_HUBFEAT_HUBOVERCURR_CH   1
+
+// For port feature set/clear
+#define USB_HUBFEAT_PORTCONN         0
+#define USB_HUBFEAT_PORTENABLE       1
+#define USB_HUBFEAT_PORTSUSPEND      2
+#define USB_HUBFEAT_PORTOVERCURR     3
+#define USB_HUBFEAT_PORTRESET        4
+#define USB_HUBFEAT_PORTPOWER        8
+#define USB_HUBFEAT_PORTLOWSPEED     9
+#define USB_HUBFEAT_PORTCONN_CH      16
+#define USB_HUBFEAT_PORTENABLE_CH    17
+#define USB_HUBFEAT_PORTSUSPEND_CH   18
+#define USB_HUBFEAT_PORTOVERCURR_CH  19
+#define USB_HUBFEAT_PORTRESET_CH     20
+
+// USB mass storage command and status block signatures
+#define USB_CMDBLOCKWRAPPER_SIG      0x43425355
+#define USB_CMDSTATUSWRAPPER_SIG     0x53425355
 
 // The 4 USB data transfer types
 typedef enum {
@@ -184,39 +215,16 @@ typedef struct {
 
 } __attribute__((packed)) usbStringDesc;
 
-typedef volatile struct {
-  unsigned char controller;
-  unsigned char port;
-  unsigned char address;
-  unsigned short usbVersion;
-  unsigned char classCode;
-  unsigned char subClassCode;
-  unsigned char protocol;
-  unsigned short vendorId;
-  unsigned short deviceId;
-  usbDeviceDesc deviceDesc;
-  usbDevQualDesc devQualDesc;
-  usbConfigDesc *configDesc;
-  usbInterDesc *interDesc[USB_MAX_INTERFACES];
-  usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
-  char dataToggle[USB_MAX_ENDPOINTS];
-
-} usbDevice;
-
 typedef struct {
-  int subClassCode;
-  const char name[32];
-  int systemClassCode;
-  int systemSubClassCode;
+  unsigned char descLength;     // Number of bytes in this descriptor
+  unsigned char descType;       // Type, HUB descriptor type
+  unsigned char numPorts;       // Number of ports on the hub
+  unsigned short hubAttrs;      // Bitmap of hub characteristics
+  unsigned char pwrOn2PwrGood;  // 2ms intervals till power stable on a port
+  unsigned char maxPower;       // Max consumption of the controller
+  unsigned devRemovable[];      // Bitmap of removable devices
 
-} usbSubClass;
-
-typedef struct {
-  int classCode;
-  const char name[32];
-  usbSubClass *subClasses;
-
-} usbClass;
+} __attribute__((packed)) usbHubDesc;
 
 typedef volatile struct {
   usbxferType type;
@@ -234,6 +242,98 @@ typedef volatile struct {
   unsigned char pid;
 
 } usbTransaction;
+
+// Forward declarations, where necessary
+struct _usbController;
+
+typedef volatile struct {
+  volatile struct _usbController *controller;
+  unsigned char port;
+  unsigned char lowSpeed;
+  unsigned char address;
+  unsigned short usbVersion;
+  unsigned char classCode;
+  unsigned char subClassCode;
+  unsigned char protocol;
+  unsigned short vendorId;
+  unsigned short deviceId;
+  usbDeviceDesc deviceDesc;
+  usbDevQualDesc devQualDesc;
+  usbConfigDesc *configDesc;
+  usbInterDesc *interDesc[USB_MAX_INTERFACES];
+  usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
+  int numEndpoints;
+  char dataToggle[USB_MAX_ENDPOINTS];
+  void *data;
+
+} usbDevice;
+
+typedef struct {
+  unsigned short status;
+  unsigned short change;
+
+} __attribute__((packed)) usbHubStatus;
+
+typedef struct {
+  unsigned short status;
+  unsigned short change;
+
+} __attribute__((packed)) usbPortStatus;
+
+typedef volatile struct _usbHub {
+  volatile struct _usbController *controller;
+  int target;
+  kernelDevice dev;
+  usbDevice *usbDev;
+  usbHubDesc hubDesc;
+  usbHubStatus hubStatus;
+  usbPortStatus *portStatus;
+  usbEndpointDesc *intrInDesc;
+  unsigned char intrInEndpoint;
+  kernelLinkedList devices;
+
+  // Functions for managing the hub
+  void (*threadCall) (volatile struct _usbHub *);
+
+} usbHub;
+
+typedef volatile struct _usbController {
+  kernelDevice *device;
+  unsigned char num;
+  unsigned short usbVersion;
+  void *ioAddress;
+  int interruptNum;
+  unsigned char addressCounter;
+  usbHub hub;
+  lock lock;
+  void *data;
+
+  // Functions provided by the specific USB root hub driver
+  void (*reset) (volatile struct _usbController *);
+  void (*interrupt)(volatile struct _usbController *);
+  int (*queue) (volatile struct _usbController *, usbDevice *,
+		usbTransaction *, int);
+  int (*schedInterrupt)(volatile struct _usbController *, usbDevice *,
+			unsigned char, int, unsigned,
+			void (*)(usbDevice *, void *, unsigned));
+  int (*unschedInterrupt)(volatile struct _usbController *, usbDevice *);
+
+} usbController;
+
+typedef struct {
+  int subClassCode;
+  const char name[32];
+  int systemClassCode;
+  int systemSubClassCode;
+
+} usbSubClass;
+
+typedef struct {
+  int classCode;
+  const char name[32];
+  usbSubClass *subClasses;
+
+} usbClass;
 
 typedef struct {
   unsigned signature;
@@ -254,32 +354,6 @@ typedef struct {
   
 } __attribute__((packed)) usbCmdStatusWrapper;
 
-typedef volatile struct _usbRootHub {
-  kernelDevice *device;
-  unsigned char controller;
-  unsigned short usbVersion;
-  void *ioAddress;
-  int interrupt;
-  unsigned char addressCounter;
-  usbDevice *devices[USB_MAX_DEVICES];
-  unsigned char numDevices;
-  int didEnum;
-  lock lock;
-  void *data;
-
-  // Functions provided by the core USB driver
-  void (*getClass) (int, usbClass **);
-  void (*getSubClass) (usbClass *, int,	int, usbSubClass **);
-  int (*getClassName) (int, int, int, char **, char **);
-
-  // Functions provided by the specific USB root hub driver
-  void (*reset) (volatile struct _usbRootHub *);
-  void (*threadCall) (volatile struct _usbRootHub *);
-  int (*transaction) (volatile struct _usbRootHub *, usbDevice *,
-		      usbTransaction *);
-
-} usbRootHub;
-
 // Make our proprietary USB target code
 #define usbMakeTargetCode(controller, address, endpoint)                \
   ((((controller) & 0xFF) << 16) | (((address) & 0xFF) << 8) |          \
@@ -294,9 +368,23 @@ typedef volatile struct _usbRootHub {
 // Functions exported by kernelUsbDriver.c
 int kernelUsbInitialize(void);
 int kernelUsbShutdown(void);
+usbClass *kernelUsbGetClass(int);
+usbSubClass *kernelUsbGetSubClass(usbClass *, int, int);
+int kernelUsbGetClassName(int, int, int, char **, char **);
+int kernelUsbDevConnect(usbController *, usbHub *, int, int);
+void kernelUsbDevDisconnect(usbController *, usbHub *, int);
+usbDevice *kernelUsbGetDevice(int);
+int kernelUsbControlTransfer(usbDevice *, unsigned char, unsigned short,
+			     unsigned short, unsigned short, void *,
+			     unsigned *);
+int kernelUsbScheduleInterrupt(usbDevice *, unsigned char, int, unsigned,
+			       void (*)(usbDevice *, void *, unsigned));
+int kernelUsbUnscheduleInterrupt(usbDevice *);
 
 // Detection routines for different driver types
 kernelDevice *kernelUsbUhciDetect(kernelDevice *, kernelBusTarget *,
+				  kernelDriver *);
+kernelDevice *kernelUsbOhciDetect(kernelDevice *, kernelBusTarget *,
 				  kernelDriver *);
 kernelDevice *kernelUsbEhciDetect(kernelDevice *, kernelBusTarget *,
 				  kernelDriver *);

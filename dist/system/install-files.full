@@ -81,7 +81,6 @@
 /programs/keymap
 /programs/kill
 /programs/loadfont
-/programs/logout
 /programs/ls
 /programs/md5
 /programs/mem
@@ -152,6 +151,7 @@
 /system/headers/sys/api.h
 /system/headers/sys/cdefs.h
 /system/headers/sys/color.h
+/system/headers/sys/debug.h
 /system/headers/sys/device.h
 /system/headers/sys/disk.h
 /system/headers/sys/errors.h
@@ -160,6 +160,7 @@
 /system/headers/sys/file.h
 /system/headers/sys/image.h
 /system/headers/sys/iso.h
+/system/headers/sys/keyboard.h
 /system/headers/sys/linuxswap.h
 /system/headers/sys/loader.h
 /system/headers/sys/lock.h

@@ -48,7 +48,6 @@ static void setVisibleItems(kernelWindowComponent *component)
   for (count = 0; count < container->numComponents; count ++)
     {
       listItemComponent = container->components[count];
-      listItemComponent->flags &= ~WINFLAG_VISIBLE;
 
       if ((listItemComponent->params.gridY >= list->firstVisibleRow) &&
 	  (listItemComponent->params.gridY <
@@ -74,7 +73,13 @@ static void setVisibleItems(kernelWindowComponent *component)
 	      listItemComponent->yCoord = yCoord;
 	    }
  
-	  listItemComponent->flags |= WINFLAG_VISIBLE;
+	  if (!(listItemComponent->flags & WINFLAG_VISIBLE))
+	    kernelWindowComponentSetVisible(listItemComponent, 1);
+	}
+      else
+	{
+	  if (listItemComponent->flags & WINFLAG_VISIBLE)
+	    kernelWindowComponentSetVisible(listItemComponent, 0);
 	}
     }
 }
@@ -516,13 +521,6 @@ static void populateList(kernelWindowComponent *listComponent,
     kernelWindowComponentDestroy(container
 				 ->components[container->numComponents - 1]);
 
-  // If no items, nothing to do
-  if (numItems == 0)
-    {
-      list->selectedItem = ERR_NODATA;
-      return;
-    }
-
   // If the selected item is greater than the new number we have, make it the
   // last one
   if (list->selectedItem >= numItems)
@@ -660,7 +658,8 @@ static int resize(kernelWindowComponent *component, int width, int height)
   if (list->scrollBar)
     list->container->width -= list->scrollBar->width;
 
-  if ((width != component->width) || (height != component->height))
+  if (component->doneLayout &&
+      ((width != component->width) || (height != component->height)))
     // Re-calculate the number of rows and columns
     setRowsAndColumns(component);
 
@@ -892,7 +891,7 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
   componentParameters subParams;
 
   // Check parameters.
-  if ((parent == NULL) || (items == NULL) || (params == NULL))
+  if ((parent == NULL) || (params == NULL))
     return (component = NULL);
 
   kernelDebug(debug_gui, "windowList new list rows %d, columns %d, "
@@ -990,6 +989,14 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 
   // Fill up
   populateList(component, items, numItems);
+
+  if (!numItems)
+    {
+      // Set some minimum sizes
+      component->resize(component, 100, 50);
+      component->width = 100;
+      component->height = 50;
+    }
 
   component->minWidth = component->width;
   component->minHeight = component->height;

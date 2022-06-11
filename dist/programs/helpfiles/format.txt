@@ -4,13 +4,14 @@
 This command will create a new, empty filesystem.
 
 Usage:
-  format [-l] [-s] [-t type] [-T] [disk_name]
+  format [-l] [-n name] [-s] [-t type] [-T] [disk_name]
 
 The 'format' program is interactive, and operates in both text and graphics
 mode.  The -l option forces a 'long' format (if supported), which clears the
-entire data area of the filesystem.  The -s option forces 'silent' mode
-(i.e. no unnecessary output or status messages are printed/displayed).  The
--T option forces format to operate in text-only mode.  
+entire data area of the filesystem.  The -n option sets the volume name
+(label).  The -s option forces 'silent' mode (i.e. no unnecessary output
+or status messages are printed/displayed).  The -T option forces format to
+operate in text-only mode.  
 
 The -t option is the desired filesystem type.  Currently the default type,
 if none is specified, is FAT.  The names of supported filesystem types are
@@ -38,6 +39,7 @@ the driver for the requested filesystem type supports this functionality.
 
 Options:
 -l         : Long format
+-n <name>  : Set the volume name (label)
 -s         : Silent mode
 -t <type>  : Format as this filesystem type.
 -T         : Force text mode operation

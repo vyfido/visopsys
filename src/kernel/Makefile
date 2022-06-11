@@ -58,6 +58,7 @@ NAMES =	kernelMain \
 	kernelInitialize \
 	kernelInterrupt \
 	kernelKeyboard \
+	kernelLinkedList \
 	kernelLoader \
 	kernelLoaderClass \
 	kernelLoaderElf \
@@ -113,11 +114,11 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelFramebufferGraphicDriver \
 	kernelGraphicConsoleDriver \
 	kernelIdeDriver \
-	kernelKeyboardDriver \
 	kernelLanceDriver \
 	kernelPciDriver \
 	kernelPicDriver \
-	kernelPS2MouseDriver \
+	kernelPs2KeyboardDriver \
+	kernelPs2MouseDriver \
 	kernelRtcDriver \
 	kernelScsiDiskDriver \
 	kernelSysTimerDriver \
@@ -126,6 +127,8 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelUsbDriver \
 	kernelUsbEhciDriver \
 	kernelUsbHidDriver \
+	kernelUsbHubDriver \
+	kernelUsbOhciDriver \
 	kernelUsbUhciDriver
 
 ALLNAMES = ${NAMES} ${DRIVERNAMES}

@@ -34,7 +34,7 @@
 #include <string.h>
 
 // The kernel's page directory and first page table
-static kernelPageDirectory *kernelPageDir = NULL;
+kernelPageDirectory *kernelPageDir = NULL;
 
 // A list of all the page directories and page tables we've created, so we 
 // can keep track of all the physical vs. virtual addresses of these.

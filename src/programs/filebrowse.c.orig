@@ -363,6 +363,7 @@ int main(int argc, char *argv[])
   // Loop, looking for changes in the current directory
   while (!stop && multitaskerProcessIsAlive(guiThreadPid))
     {
+if (0) {
       while (lockGet(&dirStackLock) < 0)
 	multitaskerYield();
 
@@ -387,7 +388,7 @@ int main(int argc, char *argv[])
 	  lockRelease(&dirStackLock);
 	  break;
 	}
-
+ }
       multitaskerYield();
     }
 

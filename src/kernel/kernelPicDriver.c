@@ -100,6 +100,9 @@ static int driverGetActive(void)
   // First ask the master pic
   kernelProcessorOutPort8(0x20, 0x0B);
   kernelProcessorInPort8(0x20, data);
+
+  if (!data)
+    return (intNumber = ERR_NODATA);
   
   while (!((data >> intNumber) & 1))
     intNumber += 1;
@@ -111,6 +114,9 @@ static int driverGetActive(void)
       kernelProcessorOutPort8(0xA0, 0x0B);
       kernelProcessorInPort8(0xA0, data);
 
+      if (!data)
+	return (intNumber = ERR_NODATA);
+  
       intNumber = 8;
       while (!((data >> (intNumber - 8)) & 1))
 	intNumber += 1;

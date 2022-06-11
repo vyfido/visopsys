@@ -302,7 +302,7 @@ int kernelBusSetMaster(kernelBusType type, int target, int master)
 }
 
 
-int kernelBusRead(kernelBusType type, int target, void *buffer)
+int kernelBusRead(kernelBusType type, int target, unsigned size, void *buffer)
 {
   // This is a wrapper for the bus-specific driver function
 
@@ -328,12 +328,11 @@ int kernelBusRead(kernelBusType type, int target, void *buffer)
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  status = bus->ops->driverRead(target, buffer);
-  return (status);
+  return (bus->ops->driverRead(target, size, buffer));
 }
 
 
-int kernelBusWrite(kernelBusType type, int target, void *buffer)
+int kernelBusWrite(kernelBusType type, int target, unsigned size, void *buffer)
 {
   // This is a wrapper for the bus-specific driver function
 
@@ -359,7 +358,6 @@ int kernelBusWrite(kernelBusType type, int target, void *buffer)
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  status = bus->ops->driverWrite(target, buffer);
-  return (status);
+  return (bus->ops->driverWrite(target, size, buffer));
 }
 

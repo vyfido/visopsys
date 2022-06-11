@@ -176,6 +176,7 @@ int kernelDiskSetFlags(const char *, unsigned, int);
 int kernelDiskSetLockState(const char *, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskGetMediaState(const char *);
+int kernelDiskChanged(const char *);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, const void *);
 int kernelDiskEraseSectors(const char *, unsigned, unsigned, int);

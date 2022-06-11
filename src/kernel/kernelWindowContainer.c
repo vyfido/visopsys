@@ -51,10 +51,10 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
     return;
 
   // Clear our arrays
-  bzero(columnWidth, (container->maxComponents * sizeof(int)));
-  bzero(columnStartX, (container->maxComponents * sizeof(int)));
-  bzero(rowHeight, (container->maxComponents * sizeof(int)));
-  bzero(rowStartY, (container->maxComponents * sizeof(int)));
+  kernelMemClear(columnWidth, (container->maxComponents * sizeof(int)));
+  kernelMemClear(columnStartX, (container->maxComponents * sizeof(int)));
+  kernelMemClear(rowHeight, (container->maxComponents * sizeof(int)));
+  kernelMemClear(rowStartY, (container->maxComponents * sizeof(int)));
 
   container->numColumns = 0;
   container->numRows = 0;

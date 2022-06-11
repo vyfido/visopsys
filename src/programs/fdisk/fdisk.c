@@ -1082,7 +1082,7 @@ static void makeSliceList(partitionTable *t)
 
       t->numSlices += 1;
     }
-  
+
   updateSliceList(t);
 }
 
@@ -1104,6 +1104,15 @@ static int selectDisk(disk *theDisk)
 	}
   
       table->changesPending = 0;
+    }
+
+  // Check for geometry.  The way things are currently implemented, we need
+  // some of these values to be non-zero.
+  if (!theDisk->cylinders || !theDisk->heads ||
+      !theDisk->sectorsPerCylinder || !theDisk->sectorSize)
+    {
+      error("Disk \"%s\" is missing geometry information.", theDisk->name);
+      return (status = ERR_NOTIMPLEMENTED);
     }
 
   status = readPartitionTable(theDisk, table);

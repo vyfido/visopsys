@@ -162,17 +162,19 @@ static int initialized = 0;
 
 
 #if defined(DEBUG)
-static void debugLockCheck(kernelPhysicalDisk *physicalDisk)
+static void debugLockCheck(kernelPhysicalDisk *physicalDisk,
+			   const char *function)
 {
   if (physicalDisk->lock.processId != kernelMultitaskerGetCurrentProcessId())
     {
-      kernelError(kernel_error, "%s is not locked by process %d!",
-		  physicalDisk->name, kernelMultitaskerGetCurrentProcessId());
+      kernelError(kernel_error, "%s is not locked by process %d in function "
+		  "%s", physicalDisk->name,
+		  kernelMultitaskerGetCurrentProcessId(), function);
       while(1);
     }
 }
 #else
-#define debugLockCheck(physicalDisk) do {} while (0)
+#define debugLockCheck(physicalDisk, function) do {} while (0)
 #endif // DEBUG
 
 
@@ -183,7 +185,7 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
   int status = 0;
   kernelDiskOps *ops = (kernelDiskOps *) physicalDisk->driver->ops;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   // Reset the 'last access' value.
   physicalDisk->lastAccess = kernelSysTimerRead();
@@ -285,7 +287,7 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk,
   kernelDiskOps *ops = (kernelDiskOps *) physicalDisk->driver->ops;
   processState tmpState;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   // Make sure the disk daemon is running
   if (kernelMultitaskerGetProcessState(diskdPID, &tmpState) < 0)
@@ -371,7 +373,7 @@ static int cacheSync(kernelPhysicalDisk *physicalDisk)
   kernelDiskCacheBuffer *buffer = physicalDisk->cache.buffer;
   int errors = 0;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   if (!physicalDisk->cache.dirty || (physicalDisk->flags & DISKFLAG_READONLY))
     return (status = 0);
@@ -404,7 +406,7 @@ static kernelDiskCacheBuffer *cacheGetBuffer(kernelPhysicalDisk *physicalDisk,
 
   kernelDiskCacheBuffer *buffer = NULL;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   // Get memory for the structure
   buffer = kernelMalloc(sizeof(kernelDiskCacheBuffer));
@@ -448,7 +450,7 @@ static int cacheInvalidate(kernelPhysicalDisk *physicalDisk)
   kernelDiskCacheBuffer *buffer = physicalDisk->cache.buffer;
   kernelDiskCacheBuffer *next = NULL;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   // Try to sync dirty sectors first.
   cacheSync(physicalDisk);
@@ -481,7 +483,7 @@ static kernelDiskCacheBuffer *cacheFind(kernelPhysicalDisk *physicalDisk,
   unsigned endSector = (startSector + numSectors - 1);
   kernelDiskCacheBuffer *buffer = physicalDisk->cache.buffer;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   while (buffer)
     {
@@ -518,7 +520,7 @@ static unsigned cacheQueryRange(kernelPhysicalDisk *physicalDisk,
   kernelDiskCacheBuffer *buffer = NULL;
   unsigned numCached = 0;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   buffer = cacheFind(physicalDisk, startSector, numSectors);
   if (buffer)
@@ -645,7 +647,7 @@ static void cacheCheck(kernelPhysicalDisk *physicalDisk)
 static void cacheRemove(kernelPhysicalDisk *physicalDisk,
 			kernelDiskCacheBuffer *buffer)
 {
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   if (buffer == physicalDisk->cache.buffer)
     physicalDisk->cache.buffer = buffer->next;
@@ -671,7 +673,7 @@ static void cachePrune(kernelPhysicalDisk *physicalDisk)
   unsigned oldestTime = 0;
   kernelDiskCacheBuffer *oldestBuffer = NULL;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   while (physicalDisk->cache.size > DISK_MAX_CACHE)
     {
@@ -741,7 +743,7 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
   //kernelDebug(debug_io, "%s adding %u->%u", physicalDisk->name,
   //      startSector, (startSector + numSectors - 1));
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   // Should we prune stuff out of the existing cache first?
   if (physicalDisk->cache.size > DISK_MAX_CACHE)
@@ -806,7 +808,7 @@ static int cacheRead(kernelPhysicalDisk *physicalDisk, unsigned startSector,
   unsigned notCached = 0;
   kernelDiskCacheBuffer *buffer = NULL;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   while (numSectors)
     {
@@ -1004,7 +1006,7 @@ static int cacheWrite(kernelPhysicalDisk *physicalDisk, unsigned startSector,
   unsigned notCached = 0;
   kernelDiskCacheBuffer *buffer = NULL;
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   while (numSectors)
     {
@@ -1088,7 +1090,7 @@ static int readWrite(kernelPhysicalDisk *physicalDisk, unsigned startSector,
   int status = 0;
   unsigned startTime = kernelSysTimerRead();
 
-  debugLockCheck(physicalDisk);
+  debugLockCheck(physicalDisk, __FUNCTION__);
 
   // Don't try to write a read-only disk
   if ((mode & IOMODE_WRITE) && (physicalDisk->flags & DISKFLAG_READONLY))
@@ -1796,6 +1798,23 @@ int kernelDiskReadPartitions(const char *diskName)
 		      
 		  physicalDisk->numLogical++;
 
+		  // If the partition's ending geometry values (heads and
+		  // sectors) are larger than what we've already recorded for
+		  // the physical disk, change the values in the physical disk
+		  // to patch the partitions.
+		  if ((partitionRecord[5] >= physicalDisk->heads) ||
+		      ((partitionRecord[6] & 0x3F) >
+		       physicalDisk->sectorsPerCylinder))
+		    {
+		      physicalDisk->heads = (partitionRecord[5] + 1);
+		      physicalDisk->sectorsPerCylinder =
+			(partitionRecord[6] & 0x3F);
+		      physicalDisk->cylinders =
+			(physicalDisk->numSectors /
+			 (physicalDisk->heads *
+			  physicalDisk->sectorsPerCylinder));
+		    }
+
 		  // Move to the next partition record
 		  partitionRecord += 16;
 		}
@@ -2424,20 +2443,31 @@ int kernelDiskGetMediaState(const char *diskName)
 	return (status = 0);
     }
 
+  // Reset the 'last access' value
+  physicalDisk->lastAccess = kernelSysTimerRead();
+
   // Make sure it's a removable disk
   if (!(physicalDisk->type & DISKTYPE_REMOVABLE))
     return (status = 1);
-
-  // Reset the 'last access' value
-  physicalDisk->lastAccess = kernelSysTimerRead();
 
   buffer = kernelMalloc(physicalDisk->sectorSize);
   if (buffer == NULL)
     return (status = 0);
 
+  // Lock the disk
+  status = kernelLockGet(&physicalDisk->lock);
+  if (status < 0)
+    {
+      kernelFree(buffer);
+      return (status = 0);
+    }
+
   // Try to read one sector
   status =
     readWrite(physicalDisk, 0, 1, buffer, (IOMODE_READ | IOMODE_NOCACHE));
+
+  // Unlock the disk
+  kernelLockRelease(&physicalDisk->lock);
 
   kernelFree(buffer);
 
@@ -2445,6 +2475,69 @@ int kernelDiskGetMediaState(const char *diskName)
     return (0);
   else
     return (1);  
+}
+
+
+int kernelDiskChanged(const char *diskName)
+{
+  // Returns 1 if the device a) is a removable type; and b) supports the
+  // driverDiskChanged() function; and c) has had the disk changed.
+
+  int changed = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+  kernelDisk *logicalDisk = NULL;
+
+  if (!initialized)
+    return (changed = 0);
+
+  // Check params
+  if (diskName == NULL)
+    return (changed = 0);
+
+  // Get the disk structure
+  physicalDisk = getPhysicalByName(diskName);
+  if (physicalDisk == NULL)
+    {
+      // Try logical
+      if ((logicalDisk = kernelDiskGetByName(diskName)))
+	physicalDisk = logicalDisk->physical;
+      else
+	return (changed = 0);
+    }
+
+  // Reset the 'last access' value
+  physicalDisk->lastAccess = kernelSysTimerRead();
+
+  // Make sure it's a removable disk
+  if (!(physicalDisk->type & DISKTYPE_REMOVABLE))
+    return (changed = 0);
+
+  // Make sure the the 'disk changed' function is implemented
+  if (((kernelDiskOps *) physicalDisk->driver->ops)->driverDiskChanged == NULL)
+    return (changed = 0);
+
+  // Lock the disk
+  if (kernelLockGet(&physicalDisk->lock) < 0)
+    return (changed = 0);
+
+  changed = ((kernelDiskOps *) physicalDisk->driver->ops)
+    ->driverDiskChanged(physicalDisk->deviceNumber);
+
+  if (changed)
+    {
+#if (DISK_CACHE)
+  // Make sure the cache is invalidated
+  cacheInvalidate(physicalDisk);
+#endif
+    }
+
+  // Reset the 'last access' value
+  physicalDisk->lastAccess = kernelSysTimerRead();
+
+  // Unlock the disk
+  kernelLockRelease(&physicalDisk->lock);
+
+  return (changed);
 }
 
 

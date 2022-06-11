@@ -55,21 +55,23 @@ void *kernelDriverGet(kernelDriverType);
 // Registration routines for our built-in drivers
 void kernelBiosDriverRegister(kernelDriver *);
 void kernelCpuDriverRegister(kernelDriver *);
-void kernelMemoryDriverRegister(kernelDriver *);
-void kernelPicDriverRegister(kernelDriver *);
-void kernelSysTimerDriverRegister(kernelDriver *);
-void kernelRtcDriverRegister(kernelDriver *);
 void kernelDmaDriverRegister(kernelDriver *);
-void kernelKeyboardDriverRegister(kernelDriver *);
 void kernelFloppyDriverRegister(kernelDriver *);
-void kernelIdeDriverRegister(kernelDriver *);
-void kernelScsiDiskDriverRegister(kernelDriver *);
 void kernelFramebufferGraphicDriverRegister(kernelDriver *);
-void kernelPS2MouseDriverRegister(kernelDriver *);
-void kernelPciDriverRegister(kernelDriver *);
-void kernelUsbDriverRegister(kernelDriver *);
-void kernelUsbMouseDriverRegister(kernelDriver *);
+void kernelIdeDriverRegister(kernelDriver *);
 void kernelLanceDriverRegister(kernelDriver *);
+void kernelMemoryDriverRegister(kernelDriver *);
+void kernelPciDriverRegister(kernelDriver *);
+void kernelPicDriverRegister(kernelDriver *);
+void kernelPs2KeyboardDriverRegister(kernelDriver *);
+void kernelPs2MouseDriverRegister(kernelDriver *);
+void kernelRtcDriverRegister(kernelDriver *);
+void kernelScsiDiskDriverRegister(kernelDriver *);
+void kernelSysTimerDriverRegister(kernelDriver *);
+void kernelUsbDriverRegister(kernelDriver *);
+void kernelUsbHubDriverRegister(kernelDriver *);
+void kernelUsbKeyboardDriverRegister(kernelDriver *);
+void kernelUsbMouseDriverRegister(kernelDriver *);
 
 #define _KERNELDRIVER_H
 #endif

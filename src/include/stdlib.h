@@ -65,21 +65,22 @@ int wctomb(char *, wchar_t);
 // Not sure where else to put these
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
+#define offsetof(type, field) ((unsigned long) &(((type *)0L)->field))
 
 // These are unofficial, Andy-special extensions of the atoi() and atoll()
 // paradigm.
 #define atou(string) ((unsigned) _str2num(string, 10, 0))
-#define atoull(string) ((unsigned long long) _str2num(string, 10, 0))
-#define itoa(num, string) _num2str((int) num, string, 10, 1)
-#define itoux(num, string) _num2str((int) num, string, 16, 0)
-#define itox(num, string) _num2str((int) num, string, 16, 1)
-#define lltoa(num, string) _num2str((long long) num, string, 10, 1)
-#define lltoux(num, string) _num2str((long long) num, string, 16, 0)
-#define lltox(num, string) _num2str((long long) num, string, 16, 1)
+#define atoull(string) _str2num(string, 10, 0)
+#define itoa(num, string) _num2str(num, string, 10, 1)
+#define itoux(num, string) _num2str(num, string, 16, 0)
+#define itox(num, string) _num2str(num, string, 16, 1)
+#define lltoa(num, string) _lnum2str(num, string, 10, 1)
+#define lltoux(num, string) _lnum2str(num, string, 16, 0)
+#define lltox(num, string) _lnum2str(num, string, 16, 1)
 #define xtoi(string) ((int) _str2num(string, 16, 1))
 #define xtoll(string) ((long long) _str2num(string, 16, 1))
-#define ulltoa(num, string) _num2str((unsigned long long) num, string, 10, 0)
-#define utoa(num, string) _num2str((unsigned) num, string, 10, 0)
+#define ulltoa(num, string) _lnum2str(num, string, 10, 0)
+#define utoa(num, string) _num2str(num, string, 10, 0)
 
 #define _STDLIB_H
 #endif

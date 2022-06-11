@@ -47,6 +47,94 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.69<br>
+</font><font size="2">24/09/2007</font></p>
+
+<p><font size="4">Overview: Four months in the making, this is a maintenance 
+release comprising the final round of tweaks and bug fixes to the 0.6x series of 
+Visopsys, featuring lots of work on the USB subsystem including support for USB 
+mice/keyboards and hubs, tuning of the FAT filesystem driver, usability fixes 
+for various user programs, and loads of OS kernel and C library improvements and 
+bug fixes.</font></p>
+<ul>
+  <li><font size="4">Lots of improvements to the USB subsystem, the UHCI 
+  controller driver, and the USB SCSI disk driver.</font></li>
+  <li><font size="4">Added support for USB mice and keyboards</font></li>
+  <li><font size="4">Implemented a driver for USB hubs.</font></li>
+  <li><font size="4">Extensive tuning of the FAT filesystem driver, and the 
+  scanning of the FAT at mount time is much faster. Also fixed a small 
+  fragmentation bug, and turned a bunch of extraneous error messages into debug 
+  messages.</font></li>
+  <li><font size="4">The FAT filesystem driver no longer stores the entire FAT 
+  in memory.</font></li>
+  <li><font size="4">Added basic hardware detection for OpenHCI (OHCI) USB 
+  controllers so that they're at least indicated correctly at boot time.</font></li>
+  <li><font size="4">Improved checks for removable (CD, floppy, flash, etc.) 
+  media changes, invalidating the disk cache when the media changes.</font></li>
+  <li><font size="4">The 'filebrowse' program now shows the name of the current 
+  directory, and remembers any selection from the parent directory so that it's 
+  still selected if the user goes back up.</font></li>
+  <li><font size="4">Re-wrote much of the PS/2 mouse driver, primarily to deal 
+  with out-of-sync situations that could cause the mouse pointer to jump around.</font></li>
+  <li><font size="4">Re-added the 'logout' program to the basic installation -- 
+  without it there's no 'logout' option in the shutdown menu.</font></li>
+  <li><font size="4">Added a &quot;linked list&quot; implementation to the kernel for 
+  generic management of lists of pointers.</font></li>
+  <li><font size="4">Replaced bzero() calls in the kernel with kernelMemClear() 
+  calls.</font></li>
+  <li><font size="4">Updated the kernel's exception handler so that it will 
+  print exception address/symbol information even if multitasking isn't yet 
+  enabled.</font></li>
+  <li><font size="4">Added a '-n' option to the 'format' program, for specifying 
+  the volume name (label).</font></li>
+  <li><font size="4">Added a kernelDebugHex() function for doing simple hex 
+  dumps.</font></li>
+  <li><font size="4">Renamed the kernelKeyBoardDriver to the 
+  kernelPs2KeyboardDriver and the kernelPS2MouseDriver to the 
+  kernelPs2MouseDriver</font></li>
+  <li><font size="4">Got rid of the kernelMemoryReleaseSystem() function -- the 
+  regular kernelMemoryRelease() function can now handle releasing system memory 
+  blocks.</font></li>
+  <li><font size="4">The printf() and family %x format specifiers now print only 
+  unsigned values.</font></li>
+  <li><font size="4">Fixed: The Disk Manager showed partitions with the starting 
+  and ending cylinders determined from information in the partition table. This 
+  could be inconsistent (particularly in the case where geometries are guessed) 
+  with the geometry of the disk as seen by the kernel.</font></li>
+  <li><font size="4">Fixed: Using the Disk Manager with a hotplugged USB disk 
+  caused a divide-by-zero exception because the geometry values were zeros. The 
+  kernel SCSI disk driver now determines/guesses a geometry, and the Disk 
+  Manager now ensures that the values are non-zero.</font></li>
+  <li><font size="4">Fixed: Using the Configuration Editor to open a config file 
+  with no predefined variables resulted in a window with no 'list' component.</font></li>
+  <li><font size="4">Fixed: The text editor couldn't create a new file.</font></li>
+  <li><font size="4">Fixed: The 'filebrowse' program could crash when you using 
+  the 'del' key to delete files.</font></li>
+  <li><font size="4">Fixed: An occasional problem with ejecting ATAPI (CD-ROM, 
+  etc) devices in the kernelIdeDriver code.</font></li>
+  <li><font size="4">Fixed: Spurious interrupts could cause the 
+  kernelPicGetActive() function call to hang in the driver.</font></li>
+  <li><font size="4">Fixed: Command line option processing for the 'format' and 
+  'rm' commands.</font></li>
+  <li><font size="4">Fixed: Calling the component 'set visible' function didn't 
+  work for containers.</font></li>
+  <li><font size="4">Fixed: USB &quot;can't enable port&quot; messages.</font></li>
+  <li><font size="4">Fixed: Error messages were being double-printed on the 
+  screen when console logging was in effect.</font></li>
+  <li><font size="4">Fixed: The USB UHCI driver was not returning the number of 
+  bytes transferred for transactions with a data phase.</font></li>
+  <li><font size="4">Fixed: Some window ops were generating error messages 
+  because they were trying to malloc() 0 bytes when the root window contained no 
+  components.</font></li>
+  <li><font size="4">Fixed: The _xpndfmt() function was causing an exception 
+  when printing pointers in hex using the %p format specifier.</font></li>
+  <li><font size="4">Fixed: The _xpndfmt() function was causing a divide-by-zero 
+  fault when printing GUIDs in the Disk Manager.</font></li>
+  <li><font size="4">Fixed: The kernelDiskGetMediaState() function wasn't 
+  locking the disk before accessing the disk structure.</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.68<br>
 </font><font size="2">10/05/2007</font></p>
 

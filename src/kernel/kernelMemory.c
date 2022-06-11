@@ -795,12 +795,11 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
 int kernelMemoryRelease(void *virtualAddress)
 {
   // This routine will determine the blockId of the block that contains
-  // the memory location pointed to by the parameter.  After it has done
-  // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
-  // 0 if successful, negative otherwise.
+  // the memory location pointed to by the parameter, unmap it from the
+  // relevant page table, and deallocate it.
 
   int status = 0;
-  int currentPid = 0;
+  int pid = 0;
   void *physicalAddress = NULL;
   memoryBlock *block = NULL;
   unsigned count;
@@ -809,26 +808,33 @@ int kernelMemoryRelease(void *virtualAddress)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // It's OK for virtualAddress to be NULL.
+  // Check params
+  if (virtualAddress == NULL)
+    {
+      kernelError(kernel_error, "The memory pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
 
-  currentPid = kernelMultitaskerGetCurrentProcessId();
+  pid = kernelMultitaskerGetCurrentProcessId();
 
   // Permission check: This function can only be used to release system
   // blocks by privileged processes because it is accessible to user functions
   if ((virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS) &&
-      (currentPid != KERNELPROCID) &&
-      (kernelMultitaskerGetProcessPrivilege(currentPid) !=
-       PRIVILEGE_SUPERVISOR))
+      (pid != KERNELPROCID) &&
+      (kernelMultitaskerGetProcessPrivilege(pid) != PRIVILEGE_SUPERVISOR))
     {
       kernelError(kernel_error, "Cannot release system memory block from "
-		  "unprivileged user process %d", currentPid);
+		  "unprivileged user process %d", pid);
       return (status = ERR_PERMISSION);
     }
+
+  if (virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS)
+    pid = KERNELPROCID;    
 
   // The caller will be pass memoryPointer as a virtual address.  Turn the 
   // memoryPointer into a physical address.  We could simply unmap it
   // here except that we don't yet know the size of the block.
-  physicalAddress = kernelPageGetPhysical(currentPid, virtualAddress);
+  physicalAddress = kernelPageGetPhysical(pid, virtualAddress);
   if (physicalAddress == NULL)
     {
       kernelError(kernel_error, "The memory pointer is not mapped");
@@ -859,105 +865,23 @@ int kernelMemoryRelease(void *virtualAddress)
   kernelLockRelease(&memoryLock);
 
   if (block)
-      {
-	//  Now that we know the size of the memory block, we can unmap it
-	// from the virtual address space.
-	status = kernelPageUnmap(currentPid, virtualAddress, 
-				 (block->endLocation - 
-				  block->startLocation + 1));
-	if (status < 0)
-	  {
-	    kernelError(kernel_error, "Unable to unmap memory from the "
-			"virtual address space");
-	    return (status);
-	  }
-	
-	// Return success
-	return (status = 0);
-      }
-  else
-    return (status = ERR_NOSUCHENTRY);
-}
-
-
-int kernelMemoryReleaseSystem(void *virtualAddress)
-{
-  // This routine will determine the blockId of the block that contains
-  // the memory location pointed to by the parameter.  After it has done
-  // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
-  // 0 if successful, negative otherwise.
-
-  int status = 0;
-  void *physicalAddress = NULL;
-  memoryBlock *block = NULL;
-  unsigned count;
-
-  // Make sure the memory manager has been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // It is NOT OK for virtualAddress to be NULL in this function.  System
-  // memory blocks should never start at 0
-  if (virtualAddress == NULL)
     {
-      kernelError(kernel_error, "The memory pointer is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // The virtual address must be in kernel address space
-  if (virtualAddress < (void *) KERNEL_VIRTUAL_ADDRESS)
-    {
-      kernelError(kernel_error, "The system memory block to release is not "
-		  "in the kernel's address space");
-      return (status = ERR_INVALID);
-    }
-
-  // The caller will be pass memoryPointer as a virtual address.  Turn the 
-  // memoryPointer into a physical address.  We could simply unmap it
-  // here except that we don't yet know the size of the block.
-  physicalAddress = kernelPageGetPhysical(KERNELPROCID, virtualAddress);
-  if (physicalAddress == NULL)
-    {
-      kernelError(kernel_error, "The memory pointer is NULL");
-      return (status = ERR_NOSUCHENTRY);
-    }
-  
-  // Obtain a lock on the memory data
-  status = kernelLockGet(&memoryLock);
-  if (status < 0)
-    return (status);
-
-  // Now we can go through the "used" block list watching for a start
-  // value that matches this pointer
-  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
-       count ++)
-    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
-      {
-	block = usedBlockList[count];
-	break;
-      }
-
-  if (block)
-    // Call the releaseBlock routine with this block's blockId.
-    releaseBlock(count);
-
-  // Release the lock on the memory data
-  kernelLockRelease(&memoryLock);
-  
-  if (block)
-    {
-      // Now that we know the size of the memory block, we can unmap it
+      //  Now that we know the size of the memory block, we can unmap it
       // from the virtual address space.
       status =
-	kernelPageUnmap(KERNELPROCID, virtualAddress, 
-			((block->endLocation - block->startLocation) + 1));
+	kernelPageUnmap(pid, virtualAddress,
+			(block->endLocation - block->startLocation + 1));
       if (status < 0)
-	kernelError(kernel_error, "Unable to unmap memory from the virtual "
-		    "address space");
-      return (status);
+	{
+	  kernelError(kernel_error, "Unable to unmap memory from the "
+		      "virtual address space");
+	  return (status);
+	}
+	
+      // Return success
+      return (status = 0);
     }
   else
-    // We didn't find the requested block
     return (status = ERR_NOSUCHENTRY);
 }
 

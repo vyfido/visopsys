@@ -45,14 +45,17 @@
 #define CHANNEL(driveNum)     controller.channel[driveNum / 2]
 #define DISK(driveNum)        CHANNEL(driveNum).disk[driveNum % 2]
 #define DISKISMULTI(driveNum) (DISK(driveNum).featureFlags & IDE_FEATURE_MULTI)
-#define DISKISDMA(driveNum)						\
+#define DISKISDMA(driveNum)     \
   (controller.busMaster && (DISK(driveNum).featureFlags & IDE_FEATURE_DMA))
 #define DISKISSMART(driveNum) (DISK(driveNum).featureFlags & IDE_FEATURE_SMART)
-#define DISKISRCACHE(driveNum)				\
+#define DISKISRCACHE(driveNum)  \
   (DISK(driveNum).featureFlags & IDE_FEATURE_RCACHE)
-#define DISKISWCACHE(driveNum)				\
+#define DISKISWCACHE(driveNum)  \
   (DISK(driveNum).featureFlags & IDE_FEATURE_WCACHE)
-#define DISKIS48(driveNum)    (DISK(driveNum).featureFlags & IDE_FEATURE_48BIT)
+#define DISKISMEDSTAT(driveNum) \
+  (DISK(driveNum).featureFlags & IDE_FEATURE_MEDSTAT)
+#define DISKIS48(driveNum)      \
+  (DISK(driveNum).featureFlags & IDE_FEATURE_MEDSTAT)
 #define BMPORT_CH0_CMD        (controller.busMasterIo)
 #define BMPORT_CH0_STATUS     (controller.busMasterIo + 2)
 #define BMPORT_CH0_PRDADDR    (controller.busMasterIo + 4)
@@ -75,11 +78,12 @@ static ideDmaMode dmaModes[] = {
   { NULL, 0, 0, 0, 0, 0 }
 };
 
-// Read cache (lookahead) and write cache
+// Miscellaneous IDE features
 static ideFeature features[] = {
   { "SMART", 82, 0x0001, 0, 0, 0, IDE_FEATURE_SMART },
   { "write caching", 82, 0x0020, 0x02, 85, 0x0020, IDE_FEATURE_WCACHE },
   { "read caching", 82, 0x0040, 0xAA, 85, 0x0040, IDE_FEATURE_RCACHE },
+  { "media status", 83, 0x0010, 0x95, 86, 0x0010, IDE_FEATURE_MEDSTAT },
   { "48-bit addressing", 83, 0x0400, 0, 0, 0, IDE_FEATURE_48BIT },
   { NULL, 0, 0, 0, 0, 0, 0 }
 };
@@ -222,11 +226,17 @@ static int evaluateError(int driveNum)
   else if (data & 0x04)
     errorCode = IDE_INVALIDCOMMAND;
   else if (data & 0x08)
-    errorCode = IDE_MEDIAREQ;
+    {
+      errorCode = IDE_MEDIAREQ;
+      DISK(driveNum).mediaChanged = 1;
+    }
   else if (data & 0x10)
     errorCode = IDE_SECTNOTFOUND;
   else if (data & 0x20)
-    errorCode = IDE_MEDIACHANGED;
+    {
+      errorCode = IDE_MEDIACHANGED;
+      DISK(driveNum).mediaChanged = 1;
+    }
   else if (data & 0x40)
     errorCode = IDE_BADDATA;
   else if (data & 0x80)
@@ -1172,17 +1182,6 @@ static int atapiSetDoorState(int driveNum, int open)
 
   if (open)
     {
-      // If the disk is started, stop it
-      if (disks[driveNum].flags & DISKFLAG_MOTORON)
-	{
-	  status = atapiStartStop(driveNum, 0);
-	  if (status < 0)
-	    {
-	      kernelLockRelease(&(CHANNEL(driveNum).lock));
-	      return (status);
-	    }
-	}
-
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_EJECT);
       disks[driveNum].flags |= DISKFLAG_DOOROPEN;
     }
@@ -1554,37 +1553,6 @@ static kernelDevice *driverDetectPci(void)
     }
   kernelDebug(debug_io, "PCI IDE: Bus mastering enabled in controller");
 
-  /*
-    I don't think we really need to do this, as we don't have any particular
-    reason to remap the I/O addresses and/or interrupt numbers.
-
-  // Check whether the device claims to be able to operate in 100% native
-  // mode.  For the moment we will only try to operate in full native-PCI
-  // mode if both channels can do it.
-  if (((pciDevInfo.device.progIF & 0x05) == 0x05) ||
-      ((pciDevInfo.device.progIF & 0x0A) == 0x0A))
-    {
-      pciDevInfo.device.progIF |= 0x05;
-      kernelBusWriteRegister(bus_pci, pciTargets[deviceCount].target,
-			     PCI_CONFREG_PROGIF_8, 8,
-			     pciDevInfo.device.progIF);
-
-      // Both channels should now be in PCI mode
-      pciDevInfo.device.progIF =
-	kernelBusReadRegister(bus_pci, pciTargets[deviceCount].target,
-			      PCI_CONFREG_PROGIF_8, 8);
-      if ((pciDevInfo.device.progIF & 0x05) == 0x05)
-	kernelDebug(debug_io, "PCI IDE: Successfully switched to native-PCI "
-		    "mode");
-      else
-	kernelDebug(debug_io, "PCI IDE: Can't switch to native-PCI mode "
-		    "(progIF=%02x)", pciDevInfo.device.progIF);
-    }
-  else
-    // Both channels are not native-PCI
-    kernelLog("IDE: PCI controller in compatibility mode only");
-  */
-
   // Success.
   controller.busMaster = 1;
   kernelLog("IDE: Bus mastering PCI controller enabled");
@@ -1735,13 +1703,6 @@ static int driverSetLockState(int driveNum, int lockState)
       return (status = ERR_NOSUCHENTRY);
     }
 
-  if (lockState && (disks[driveNum].flags & DISKFLAG_DOOROPEN))
-    {
-      // Don't to lock the door if it is open
-      kernelError(kernel_error, "Drive door is open");
-      return (status = ERR_PERMISSION);
-    }
-
   // Wait for a lock on the controller
   status = kernelLockGet(&(CHANNEL(driveNum).lock));
   if (status < 0)
@@ -1790,8 +1751,95 @@ static int driverSetDoorState(int driveNum, int open)
 
   // Unlock the controller
   kernelLockRelease(&(CHANNEL(driveNum).lock));
+
+  DISK(driveNum).mediaChanged = 1;
   
   return (status);
+}
+
+
+static int driverDiskChanged(int driveNum)
+{
+  // This routine returns 1 if the media in the drive has changed, i.e.
+  // if the device a) is a removable type; and b) has had the disk changed.
+
+  int status = 0;
+  int changed = 0;
+  unsigned char data = 0;
+
+  if (!disks[driveNum].name[0])
+    {
+      kernelError(kernel_error, "No such drive %d", driveNum);
+      return (changed = 0);
+    }
+
+  if (!(disks[driveNum].type & DISKTYPE_REMOVABLE))
+    return (changed = 0);
+
+  if (DISKISMEDSTAT(driveNum))
+    {
+      // Wait for a lock on the controller
+      status = kernelLockGet(&(CHANNEL(driveNum).lock));
+      if (status < 0)
+	return (changed = 0);
+  
+      // Select the drive
+      selectDrive(driveNum);
+
+      // Wait for the controller to be ready
+      status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
+      if (status < 0)
+	{
+	  kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
+	  goto out;
+	}
+
+      // Wait for the selected drive to be ready
+      status = pollStatus(driveNum, IDE_DRV_RDY, 1);
+      if (status < 0)
+	{
+	  kernelError(kernel_error, errorMessages[IDE_TIMEOUT]);
+	  goto out;
+	}
+
+      data = ((driveNum & 0x01) << 4);
+      kernelProcessorOutPort8(CHANNEL(driveNum).ports.device, data);
+
+      // Issue the command
+      kernelDebug(debug_io, "IDE: Sending command");
+
+      kernelProcessorOutPort8(CHANNEL(driveNum).ports.comStat,
+			      ATA_MEDIASTATUS);
+
+      kernelProcessorInPort8(CHANNEL(driveNum).ports.featErr, data);
+  
+      // Check for 'abort', meaning the command is not supported.
+      if (data & 0x04)
+	{
+	  kernelDebug(debug_io, "IDE: Media status notification not "
+		      "supported");
+	  DISK(driveNum).featureFlags &= ~IDE_FEATURE_MEDSTAT;
+	  goto out;
+	}
+
+      // Check for the NM (no media), MCR (media change request), and MC (media
+      // change) bytes
+      kernelDebug(debug_io, "IDE: Media status %02x", data);
+      if (data & 0x2A)
+	changed = 1;
+
+    out:
+      // Unlock the controller
+      kernelLockRelease(&(CHANNEL(driveNum).lock));
+    }
+  else
+    {
+      kernelDebug(debug_io, "IDE: Using manual media changed flag");
+      changed = DISK(driveNum).mediaChanged;
+      DISK(driveNum).mediaChanged = 0;
+    }
+
+  return (changed);
 }
 
 
@@ -2254,6 +2302,9 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	    if (DISKISRCACHE(driveNum))
 	      strcat(value, ",rcache");
 
+	    if (DISKISMEDSTAT(driveNum))
+	      strcat(value, ",medstat");
+
 	    if (DISKISWCACHE(driveNum))
 	      strcat(value, ",wcache");
 	    
@@ -2275,7 +2326,7 @@ static kernelDiskOps ideOps = {
   NULL, // driverSetMotorState
   driverSetLockState,
   driverSetDoorState,
-  NULL, // driverDiskChanged
+  driverDiskChanged,
   driverReadSectors,
   driverWriteSectors,
   driverFlush

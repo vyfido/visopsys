@@ -25,6 +25,7 @@
 /programs/imgboot
 /programs/install
 /programs/login
+/programs/logout
 /programs/lsdev
 /programs/mkdir
 /programs/more

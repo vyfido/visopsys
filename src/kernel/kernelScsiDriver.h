@@ -223,35 +223,6 @@ typedef struct {
 } __attribute__((packed)) scsiCmd10;
 
 typedef struct {
-  unsigned char density;
-  unsigned char numBlocks0;
-  unsigned char numBlocks1;
-  unsigned char numBlocks2;
-  unsigned char res;
-  unsigned char blockLength0;
-  unsigned char blockLength1;
-  unsigned char blockLength2;
-  
-} __attribute__((packed)) scsiBlockDescriptor;
-
-typedef struct {
-  struct {
-    unsigned char modeDataLength;
-    unsigned char mediumType;
-    unsigned char devSpecParam;
-    unsigned char blockDescSpec;
-  } header;
-  scsiBlockDescriptor blockDescripor[];
-
-} __attribute__((packed)) scsiModeSenseData;
-
-typedef struct {
-  unsigned blockNumber;
-  unsigned blockLength;
-
-} __attribute__((packed)) scsiCapacityData;
-
-typedef struct {
   union {
     unsigned char periQual;     // 7-5 |
     unsigned char periDevType;  //     | 4-0
@@ -273,7 +244,8 @@ typedef struct {
   union {
     unsigned char addlLength;   // 7-0
   } byte4;
-  unsigned short res1;
+  unsigned char byte5;          // 7-0
+  unsigned char byte6;          // 7-0
   union {
     unsigned char relAdr;       //  7  |     |     |     |     |     |
     unsigned char wBus32;       //     |  6  |     |     |     |     |
@@ -285,9 +257,51 @@ typedef struct {
   } byte7;
   char vendorId[8];
   char productId[16];
-  unsigned productRev;
+  char productRev[4];
 
-}  __attribute__((packed)) scsiInquiryData;
+} __attribute__((packed)) scsiInquiryData;
+
+typedef struct {
+    unsigned char dataLength;
+    unsigned char mediaType;
+    unsigned char devSpec;
+    unsigned char blockDescLen;
+
+} __attribute__((packed)) scsiModeParamHeader;
+
+typedef struct {
+  unsigned char density;
+  unsigned char numBlocks0;
+  unsigned char numBlocks1;
+  unsigned char numBlocks2;
+  unsigned char res;
+  unsigned char blockLength0;
+  unsigned char blockLength1;
+  unsigned char blockLength2;
+  
+} __attribute__((packed)) scsiBlockDescriptor;
+
+typedef struct {
+  unsigned blockNumber;
+  unsigned blockLength;
+
+} __attribute__((packed)) scsiCapacityData;
+
+typedef struct {
+  unsigned char validErrCode;
+  unsigned char segment;
+  unsigned char flagsKey;
+  unsigned info;
+  unsigned char addlLength;
+  unsigned cmdSpecific;
+  unsigned char addlCode;
+  unsigned char addlCodeQual;
+  unsigned char fieldRepUnitCode;
+  unsigned char sksvKeySpecific;
+  unsigned short keySpecific;
+  unsigned char addlBytes[234];
+
+} __attribute__((packed)) scsiSenseData;
 
 #define _KERNELSCSIDRIVER_H
 #endif

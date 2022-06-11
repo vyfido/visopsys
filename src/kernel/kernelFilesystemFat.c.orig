@@ -637,7 +637,7 @@ static int getFatEntries(fatInternalData *fatData, unsigned firstEntry,
 	  // the word value.  If the extra nybble is in the most-significant
 	  // spot, we need to mask it out.  If it's in the least significant
 	  // spot, we need to shift the word right by 4 bits.
-	  if ((firstEntry + count) % 2)
+	  if (count % 2)
 	    {
 	      entries[count] >>= 4;
 	      entryOffset += 2;
@@ -1020,7 +1020,6 @@ static void makeFreeBitmap(void)
 	}
     }
 
-  kernelDebug(debug_fs, "Finished making free cluster bitmap");
   status = 0;
 
  out:
@@ -2320,7 +2319,6 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
       dirEntry = (dirBuffer + (count1 * FAT_BYTES_PER_DIR_ENTRY));
 
       // Now we must determine whether this is a valid, undeleted file.
-
       // E5 means this is a deleted entry
       if (dirEntry[0] == 0xE5)
 	continue;
@@ -2454,8 +2452,6 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 	    newItem->name[count2] = tolower(newItem->name[count2]);
 	}
 
-      kernelDebug(debug_fs, "Scanning directory entry for %s", newItem->name);
-
       // Get the entry's various other information
 
       // Attributes (byte value)
@@ -2514,8 +2510,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 			      (unsigned *) &newItem->blocks);
       if (status < 0)
 	{
-	  debugError("Couldn't determine the number of clusters for entry %s",
-		     newItem->name);
+	  debugError("Couldn't determine the number of clusters");
 	  return (status);
 	}
 

@@ -24,21 +24,18 @@
 // This is the master code that wraps around the keyboard driver
 // functionality
 
-#include "kernelKeyboard.h"
-#include "kernelInterrupt.h"
-#include "kernelPic.h"
-#include "kernelProcessorX86.h"
-#include "kernelWindow.h"
 #include "kernelError.h"
+#include "kernelKeyboard.h"
+#include "kernelText.h"
+#include "kernelWindow.h"
 #include <string.h>
 
-static kernelDevice *systemKeyboard = NULL;
-static kernelKeyboard *keyboardDevice = NULL;
-static kernelKeyboardOps *ops = NULL;
-static stream *consoleStream = NULL;
+static int initialized = 0;
 static int graphics = 0;
+static stream *consoleStream = NULL;
+keyMap *kernelKeyMap = NULL;
 
-static kernelKeyMap EN_US = {
+static keyMap EN_US = {
   "English (US)",
   // Regular map
   { 27,'1','2','3','4','5','6','7','8','9','0','-','=',8,9,'q',    // 00-0F
@@ -74,7 +71,7 @@ static kernelKeyMap EN_US = {
   }
 };
 
-static kernelKeyMap EN_UK = {
+static keyMap EN_UK = {
   "English (UK)",
   // Regular map
   { 27,'1','2','3','4','5','6','7','8','9','0','-','=',8,9,'q',    // 00-0F
@@ -110,7 +107,7 @@ static kernelKeyMap EN_UK = {
   }
 };
 
-static kernelKeyMap DE_DE = {
+static keyMap DE_DE = {
   "Deutsch (DE)",
   // Regular map
   { 27,'1','2','3','4','5','6','7','8','9','0',225,'\'',8,9,'q',   // 00-0F
@@ -146,7 +143,7 @@ static kernelKeyMap DE_DE = {
   }
 };
 
-static kernelKeyMap IT_IT = {
+static keyMap IT_IT = {
   "Italian (IT)",
   // Regular map
   { 27,'1','2','3','4','5','6','7','8','9','0','\'',141,8,9,'q',   // 00-0F
@@ -182,29 +179,9 @@ static kernelKeyMap IT_IT = {
   },
 };
 
-static kernelKeyMap *allMaps[] = {
+static keyMap *allMaps[] = {
   &EN_US, &EN_UK, &DE_DE, &IT_IT, NULL
 };
-
-
-static void keyboardInterrupt(void)
-{
-  // This is the keyboard interrupt handler.  It calls the keyboard driver
-  // to actually read data from the device.
-
-  void *address = NULL;
-
-  kernelProcessorIsrEnter(address);
-  kernelProcessingInterrupt = 1;
-
-  // Ok, now we can call the routine.
-  if (ops->driverReadData)
-    ops->driverReadData();
-
-  kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit(address);
-}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -216,44 +193,25 @@ static void keyboardInterrupt(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelKeyboardInitialize(kernelDevice *dev)
+int kernelKeyboardInitialize(void)
 {
   // This function initializes the keyboard code, and sets the default
   // keyboard mapping
 
   int status = 0;
 
-  if (dev == NULL)
-    {
-      kernelError(kernel_error, "The keyboard device is NULL");
-      return (status = ERR_NOTINITIALIZED);
-    }
-
-  systemKeyboard = dev;
-
-  if ((systemKeyboard->data == NULL) || (systemKeyboard->driver == NULL) ||
-      (systemKeyboard->driver->ops == NULL))
-    {
-      kernelError(kernel_error, "The keyboard, driver or ops are NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  keyboardDevice = (kernelKeyboard *) systemKeyboard->data;
-  ops = systemKeyboard->driver->ops;
+  if (initialized)
+    return (status = 0);
 
   // We use US English as default, because, well, Americans would be so
   // confused if it wasn't.  Everyone else understands the concept of
   // setting it.
-  keyboardDevice->keyMap = &EN_US;
+  kernelKeyMap = &EN_US;
 
-  // Register our interrupt handler
-  status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &keyboardInterrupt);
-  if (status < 0)
-    return (status);
+  // Set the default keyboard data stream to be the console input
+  consoleStream = &(kernelTextGetConsoleInput()->s);
 
-  // Turn on the interrupt
-  kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
-
+  initialized = 1;
   return (status = 0);
 }
 
@@ -268,7 +226,7 @@ int kernelKeyboardGetMaps(char *buffer, unsigned size)
   int names = 1;
   int count;
 
-  if (systemKeyboard == NULL)
+  if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
@@ -276,8 +234,8 @@ int kernelKeyboardGetMaps(char *buffer, unsigned size)
     return (status = ERR_NULLPARAMETER);
 
   // First, copy the name of the current map
-  bytes = strlen(keyboardDevice->keyMap->name) + 1;
-  strncpy(buffer, keyboardDevice->keyMap->name, size);
+  bytes = strlen(kernelKeyMap->name) + 1;
+  strncpy(buffer, kernelKeyMap->name, size);
   buffer += bytes;
   buffCount += bytes;
 
@@ -287,8 +245,7 @@ int kernelKeyboardGetMaps(char *buffer, unsigned size)
     {
       bytes = strlen(allMaps[count]->name) + 1;
 
-      if ((allMaps[count] != keyboardDevice->keyMap) &&
-	  ((buffCount + bytes) < size))
+      if ((allMaps[count] != kernelKeyMap) && ((buffCount + bytes) < size))
 	{
 	  strcpy(buffer, allMaps[count]->name);
 	  buffer += bytes;
@@ -309,7 +266,7 @@ int kernelKeyboardSetMap(const char *name)
   int status = 0;
   int count;
 
-  if (systemKeyboard == NULL)
+  if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
@@ -323,7 +280,7 @@ int kernelKeyboardSetMap(const char *name)
       if (!strcmp(allMaps[count]->name, name))
 	{
 	  // Found it.  Set the mapping.
-	  keyboardDevice->keyMap = allMaps[count];
+	  kernelKeyMap = allMaps[count];
 	  return (status = 0);
 	}
     }
@@ -340,7 +297,7 @@ int kernelKeyboardSetStream(stream *newStream)
   
   int status = 0;
 
-  if (systemKeyboard == NULL)
+  if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Are graphics enabled?
@@ -358,7 +315,12 @@ int kernelKeyboardInput(int ascii, int eventType)
 {
   // This gets called by the keyboard driver to tell us that a key has been
   // pressed.
+
+  int status = 0;
   windowEvent event;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
   if (graphics)
     {
@@ -377,5 +339,5 @@ int kernelKeyboardInput(int ascii, int eventType)
 	consoleStream->append(consoleStream, (char) ascii);
     }
 
-  return (0);
+  return (status = 0);
 }

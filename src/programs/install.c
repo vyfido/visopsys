@@ -874,6 +874,7 @@ static void setAdminPassword(void)
       params.padBottom = 5;
       params.padRight = 0;
       params.orientationX = orient_right;
+      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
       okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   
       // Create the Cancel button

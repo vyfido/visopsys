@@ -58,7 +58,7 @@ void *_kernelMalloc(unsigned size, const char *function)
       mallocKernOps.multitaskerGetCurrentProcessId =
 	&kernelMultitaskerGetCurrentProcessId;
       mallocKernOps.memoryGet = &kernelMemoryGetSystem;
-      mallocKernOps.memoryRelease = &kernelMemoryReleaseSystem;
+      mallocKernOps.memoryRelease = &kernelMemoryRelease;
       mallocKernOps.lockGet = &kernelLockGet;
       mallocKernOps.lockRelease = &kernelLockRelease;
 #if defined(DEBUG)

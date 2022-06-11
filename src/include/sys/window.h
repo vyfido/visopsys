@@ -200,6 +200,7 @@ typedef struct {
 
 typedef struct _windowFileList {
   objectKey key;
+  char cwd[MAX_PATH_LENGTH];
   void *fileEntries;
   int numFileEntries;
   int browseFlags;
@@ -207,7 +208,7 @@ typedef struct _windowFileList {
 
   // Externally-callable service routines
   int (*eventHandler) (struct _windowFileList *, windowEvent *);
-  int (*update) (struct _windowFileList *, const char *);
+  int (*update) (struct _windowFileList *);
   int (*destroy) (struct _windowFileList *);
 
 } windowFileList;

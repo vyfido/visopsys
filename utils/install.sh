@@ -72,13 +72,13 @@ MNTARGS=
 if [ -b "$DEVICE" ] ; then
 	echo -n "Formatting...  "
 	# Format the disk.  Stop if the command fails.
-	/sbin/mkdosfs -v $DEVICE >& $MKDOSFSLOG
+	/sbin/mkdosfs -n Visopsys -v $DEVICE >& $MKDOSFSLOG
 	RET=$? 
 	if [ $RET -ne 0 ] ; then
 		if [ `grep -c "too large" $MKDOSFSLOG` -ne 0 ] ; then
 			# Wait, will specifying FAT32 work?
 			echo -n "(trying FAT32)...  "
-			/sbin/mkdosfs -F32 -v $DEVICE >& $MKDOSFSLOG
+			/sbin/mkdosfs -F32 -n Visopsys -v $DEVICE >& $MKDOSFSLOG
 			RET=$?
 		fi
 	fi

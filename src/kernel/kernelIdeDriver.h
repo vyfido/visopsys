@@ -30,7 +30,8 @@
 
 // IDE feature flags.  These don't represent all possible features; just the
 // ones we [plan to] support.
-#define IDE_FEATURE_48BIT    0x40
+#define IDE_FEATURE_48BIT    0x80
+#define IDE_FEATURE_MEDSTAT  0x40
 #define IDE_FEATURE_WCACHE   0x20
 #define IDE_FEATURE_RCACHE   0x10
 #define IDE_FEATURE_SMART    0x08
@@ -89,6 +90,7 @@
 #define ATA_SETMULTIMODE     0xC6
 #define ATA_READDMA          0xC8
 #define ATA_WRITEDMA         0xCA
+#define ATA_MEDIASTATUS      0xDA
 #define ATA_FLUSHCACHE       0xE7
 #define ATA_FLUSHCACHE_EXT   0xEA
 #define ATA_IDENTIFY         0xEC
@@ -156,6 +158,7 @@ typedef struct {
 
 typedef struct {
   int featureFlags;
+  int mediaChanged;
   char *dmaMode;
 
 } ideDisk;

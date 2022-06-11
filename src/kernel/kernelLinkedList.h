@@ -16,30 +16,34 @@
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  kernelMemory.h
+//  kernelLinkedList.h
 //
-	
-#if !defined(_KERNELMEMORY_H)
 
-#include <sys/memory.h>
+#if !defined(_KERNELLINKEDLIST_H)
 
-// Definitions
-#define MAXMEMORYBLOCKS  2048
+#include "kernelLock.h"
 
-// Functions from kernelMemory.c
-int kernelMemoryInitialize(unsigned);
-void *kernelMemoryGet(unsigned, const char *);
-void *kernelMemoryGetSystem(unsigned, const char *);
-void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);
-int kernelMemoryRelease(void *);
-//int kernelMemoryReleaseSystem(void *);
-int kernelMemoryReleasePhysical(void *);
-int kernelMemoryReleaseAllByProcId(int);
-int kernelMemoryChangeOwner(int, int, int, void *, void **);
-int kernelMemoryShare(int, int, void *, void **);
-int kernelMemoryGetStats(memoryStats *, int);
-int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
-int kernelMemoryBlockInfo(void *, memoryBlock *);
+typedef struct _kernelLinkedListItem {
+  void *data;
+  struct _kernelLinkedListItem *next;
+  struct _kernelLinkedListItem *prev;
 
-#define _KERNELMEMORY_H
+} kernelLinkedListItem;
+
+typedef struct {
+  kernelLinkedListItem *first;
+  kernelLinkedListItem *iter;
+  int numItems;
+  lock lock;
+
+} kernelLinkedList;
+
+int kernelLinkedListAdd(kernelLinkedList *, void *);
+int kernelLinkedListRemove(kernelLinkedList *, void *);
+int kernelLinkedListClear(kernelLinkedList *);
+void *kernelLinkedListIterStart(kernelLinkedList *);
+void *kernelLinkedListIterNext(kernelLinkedList *);
+int kernelLinkedListIterEnd(kernelLinkedList *);
+
+#define _KERNELLINKEDLIST_H
 #endif

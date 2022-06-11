@@ -141,10 +141,12 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
   // This routine takes a bunch of parameters and outputs a kernel error
   // which is output to the text console and the kernel log.
 
+  int printErrors = !kernelLogGetToConsole();
   va_list list;
   const char *errorType = NULL;
   char processName[MAX_PROCNAME_LENGTH];
   char errorText[MAX_ERRORTEXT_LENGTH];
+  int interrupt = 0;
 
   // Copy the kind of the error
   switch(kind)
@@ -164,8 +166,8 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
     }
 
   processName[0] = '\0';
-  if (kernelProcessingInterrupt)
-    sprintf(processName, "interrupt %02X", kernelPicGetActive());
+  if (kernelProcessingInterrupt && ((interrupt = kernelPicGetActive()) >= 0))
+    sprintf(processName, "interrupt %02X", interrupt);
   else if (kernelCurrentProcess)
     strncpy(processName, (char *) kernelCurrentProcess->processName,
 	    MAX_PROCNAME_LENGTH);
@@ -173,11 +175,12 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
   sprintf(errorText, "%s:%s:%s:%s(%d):", errorType, processName, fileName,
 	  function, line);
 
-  // Output the context of the message
+  // Log the context of the message
   kernelLog(errorText);
 
-  // Output the message to the screen
-  kernelTextPrintLine(errorText);
+  if (printErrors)
+    // Output the context of the message to the screen
+    kernelTextPrintLine(errorText);
   
   // Initialize the argument list
   va_start(list, message);
@@ -187,10 +190,12 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
 
   va_end(list);
 
-  // Output the message
+  // Log the message
   kernelLog(errorText);
 
-  kernelTextPrintLine(errorText);
+  if (printErrors)
+    // Output the message to the screen
+    kernelTextPrintLine(errorText);
 
   return;
 }

@@ -16,29 +16,27 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  cdefs.h
+//  keyboard.h
 //
 
-// This is the Visopsys version of the standard header file cdefs.h
+// This file contains definitions and structures for using and manipulating
+// keyboards and keymaps in Visopsys.
 
-#if !defined(_CDEFS_H)
+#if !defined(_KEYBOARD_H)
 
-#include <stdarg.h>
-#include <sys/types.h>
+#define KEYSCAN_CODES  86
+#define KEYMAP_DIR     "/system/keymaps"
+#define KEYMAP_MAGIC   "keymap"
 
-int _digits(unsigned, int, int);
-uquad_t __div64(uquad_t, uquad_t, uquad_t *);
-quad_t __divdi3(quad_t, quad_t);
-int _xpndfmt(char *, int, const char *, va_list);
-int _fmtinpt(const char *, const char *, va_list);
-int _ldigits(unsigned long long, int, int);
-void _lnum2str(unsigned long long, char *, int, int);
-quad_t __moddi3(quad_t, quad_t);
-void _num2str(unsigned, char *, int, int);
-unsigned long long _str2num(const char *, unsigned, int);
-int _syscall(int, int, ...);
-uquad_t __udivdi3(uquad_t, uquad_t);
-uquad_t __umoddi3(uquad_t, uquad_t);
+// A structure for holding keyboard key mappings
+typedef struct {
+  char name[32];
+  char regMap[KEYSCAN_CODES];
+  char shiftMap[KEYSCAN_CODES];
+  char controlMap[KEYSCAN_CODES];
+  char altGrMap[KEYSCAN_CODES];
 
-#define _CDEFS_H
+} keyMap;
+
+#define _KEYBOARD_H
 #endif

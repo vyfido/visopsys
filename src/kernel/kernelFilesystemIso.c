@@ -20,7 +20,7 @@
 //
 
 // This file contains the routines designed to interpret the ISO9660
-// filesystem (commonly found on Linux disks)
+// filesystem (commonly found on CD-ROM disks)
 
 #include "kernelFilesystemIso.h"
 #include "kernelFilesystem.h"
@@ -164,7 +164,7 @@ static void readDirRecord(isoDirectoryRecord *record,
 
 static isoInternalData *getIsoData(kernelDisk *theDisk)
 {
-  // This function reads the filesystem parameters from the superblock
+  // This function reads the filesystem parameters from the disk.
 
   int status = 0;
   isoInternalData *isoData = theDisk->filesystem.filesystemData;
@@ -181,7 +181,7 @@ static isoInternalData *getIsoData(kernelDisk *theDisk)
   // Attach the disk structure to the isoData structure
   isoData->disk = theDisk;
 
-  // Read the superblock into our isoInternalData buffer
+  // Read the primary volume descriptor into our isoInternalData buffer
   status = readPrimaryVolDesc(isoData);
   if (status < 0)
     {
@@ -471,10 +471,6 @@ static int newEntry(kernelFileEntry *entry)
 
   int status = 0;
 
-  //isoFileData *directoryRecord = NULL;
-  //isoFileData *newDirectoryRecords = NULL;
-  //int count;
-  
   // Check params
   if (entry == NULL)
     {
@@ -669,7 +665,7 @@ static kernelFilesystemDriver defaultIsoDriver = {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
-//  Below here, the functions are exported for isoernal use
+//  Below here, the functions are exported for external use
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////

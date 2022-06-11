@@ -137,7 +137,10 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  // into the destination string
           if (fieldWidth)
             {
-	      digits = _numdgts(argument, 10, 1);
+	      if (isLong)
+		digits = _ldigits(argument, 10, 1);
+	      else
+		digits = _digits(argument, 10, 1);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
@@ -157,7 +160,10 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  // the integer into the destination string
 	  if (fieldWidth)
 	    {
-	      digits = _numdgts(argument, 10, 0);
+	      if (isLong)
+		digits = _ldigits(argument, 10, 0);
+	      else
+		digits = _digits(argument, 10, 0);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
@@ -198,7 +204,10 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  output[outCount++] = '0';
 	  output[outCount++] = 'x';
 	  fieldWidth = (2 * sizeof(void *));
-	  digits = _numdgts(argument, 16, 0);
+	  if (isLong)
+	    digits = _ldigits(argument, 16, 0);
+	  else
+	    digits = _digits(argument, 16, 0);
 	  if (!leftJust)
 	    while (digits++ < fieldWidth)
 	      output[outCount++] = '0';
@@ -216,15 +225,18 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	case 'X':
 	  if (fieldWidth)
 	    {
-	      digits = _numdgts(argument, 16, 1);
+	      if (isLong)
+		digits = _ldigits(argument, 16, 0);
+	      else
+		digits = _digits(argument, 16, 0);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');
 	    }
 	  if (isLong)
-	    lltox(argument, (output + outCount));
+	    lltoux(argument, (output + outCount));
 	  else
-	    itox(argument, (output + outCount));
+	    itoux(argument, (output + outCount));
 	  outCount = strlen(output);
 	  if (fieldWidth && leftJust)
 	    while (digits++ < fieldWidth)

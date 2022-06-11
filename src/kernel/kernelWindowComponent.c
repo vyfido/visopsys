@@ -240,6 +240,10 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 
   int status = 0;
   kernelWindow *window = NULL;
+  int numComponents = 0;
+  kernelWindowComponent **array = NULL;
+  kernelWindowComponent *tmpComponent = NULL;
+  int count;
 
   // Check params
   if (component == NULL)
@@ -247,26 +251,51 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 
   window = component->window;
 
-  if (visible)
-    {
-      component->flags |= WINFLAG_VISIBLE;
-      if (component->draw)
-      	component->draw(component);
-    }
-  else
-    {
-      if ((window->focusComponent == component) && window->focusNextComponent)
-	// Make sure it doesn't have the focus
-	window->focusNextComponent(window);
+  if (component->numComps)
+    numComponents = component->numComps(component);
 
-      component->flags &= ~WINFLAG_VISIBLE;
-      if (component->erase)
-      	component->erase(component);
+  // One for the component itself.
+  numComponents += 1;
+
+  array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return (status = ERR_MEMORY);
+
+  array[0] = component;
+  numComponents = 1;
+
+  if (component->flatten)
+    component->flatten(component, array, &numComponents, 0);
+
+  for (count = 0; count < numComponents; count ++)
+    {
+      tmpComponent = array[count];
+
+      if (visible && !(tmpComponent->flags & WINFLAG_VISIBLE))
+	{
+	  tmpComponent->flags |= WINFLAG_VISIBLE;
+	  if (tmpComponent->draw)
+	    tmpComponent->draw(tmpComponent);
+	}
+      else if (!visible && (tmpComponent->flags & WINFLAG_VISIBLE))
+	{
+	  if ((window->focusComponent == tmpComponent) &&
+	      window->focusNextComponent)
+	    // Make sure it doesn't have the focus
+	    window->focusNextComponent(window);
+
+	  tmpComponent->flags &= ~WINFLAG_VISIBLE;
+	  if (tmpComponent->erase)
+	    tmpComponent->erase(tmpComponent);
+	}
     }
+
+  if (array)
+    kernelFree(array);
 
   // Redraw a clip of that part of the window
   if (window->drawClip)
-    window->drawClip(component->window, component->xCoord, component->yCoord,
+    window->drawClip(window, component->xCoord, component->yCoord,
 		     component->width, component->height);
 
   // Redraw the mouse just in case it was within this area
@@ -299,8 +328,9 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 
   if (component->numComps)
     numComponents = component->numComps(component);
-  else
-    numComponents = 1;
+
+  // One for the component itself.
+  numComponents += 1;
 
   array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
   if (array == NULL)

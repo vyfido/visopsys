@@ -155,6 +155,35 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
 }
 
 
+static void checkRemovable(kernelDisk *theDisk)
+{
+  // Check whether a removable disk has had its media changed, etc., and if
+  // so, re-scan the filesystem
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+
+  physicalDisk = theDisk->physical;
+
+  if (!(physicalDisk->type & DISKTYPE_REMOVABLE))
+    return;
+
+  status = kernelDiskGetMediaState((char *) physicalDisk->name);
+  if (status < 0)
+    goto changed;
+
+  if (kernelDiskChanged((char *) physicalDisk->name))
+    goto changed;
+
+  return;
+
+ changed:
+  kernelMemClear((void *) &theDisk->filesystem, sizeof(theDisk->filesystem));
+  strcpy((char *) theDisk->fsType, "unknown");
+  return;
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -178,6 +207,9 @@ int kernelFilesystemScan(kernelDisk *theDisk)
       return (status = ERR_NULLPARAMETER);
     }
 
+  kernelMemClear((void *) &theDisk->filesystem, sizeof(theDisk->filesystem));
+  strcpy((char *) theDisk->fsType, "unknown");
+
   physicalDisk = theDisk->physical;
 
   // Is it removable?  If so, make sure there's media
@@ -188,7 +220,6 @@ int kernelFilesystemScan(kernelDisk *theDisk)
     }
 
   // Scan a disk to determine its filesystem type, etc.
-  strcpy((char *) theDisk->fsType, "unknown");
   theDisk->filesystem.driver = detectType(theDisk);
 
   if (theDisk->filesystem.driver)
@@ -314,6 +345,9 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
       return (status = ERR_NULLPARAMETER);
     }
 
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
   if (theDisk->filesystem.driver == NULL)
     {
       // Try a scan before we error out.
@@ -336,8 +370,7 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
     }
 
   // Defrag the filesystem
-  status = theDriver->driverDefragment(theDisk, prog);
-  return (status);
+  return (status = theDriver->driverDefragment(theDisk, prog));
 }
 
 
@@ -361,6 +394,9 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
       return (status = ERR_NULLPARAMETER);
     }
 
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
   if (theDisk->filesystem.driver == NULL)
     {
       // Try a scan before we error out.
@@ -374,7 +410,7 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 
   theDriver = theDisk->filesystem.driver;
 
-  // Make sure the driver's checking routine is not NULL
+  // Make sure the driver's stat routine is not NULL
   if (theDriver->driverStat == NULL)
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
@@ -382,9 +418,8 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  // Resize the filesystem
-  status = theDriver->driverStat(theDisk, stat);
-  return (status);
+  // Stat the filesystem
+  return (status = theDriver->driverStat(theDisk, stat));
 }
 
 
@@ -410,6 +445,9 @@ int kernelFilesystemResizeConstraints(const char *diskName,
       return (status = ERR_NULLPARAMETER);
     }
 
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
   if (theDisk->filesystem.driver == NULL)
     {
       // Try a scan before we error out.
@@ -432,8 +470,8 @@ int kernelFilesystemResizeConstraints(const char *diskName,
     }
 
   // Resize the filesystem
-  status = theDriver->driverResizeConstraints(theDisk, minBlocks, maxBlocks);
-  return (status);
+  return (status = theDriver->driverResizeConstraints(theDisk, minBlocks,
+						      maxBlocks));
 }
 
 
@@ -458,6 +496,9 @@ int kernelFilesystemResize(const char *diskName, unsigned blocks,
       return (status = ERR_NULLPARAMETER);
     }
 
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
   if (theDisk->filesystem.driver == NULL)
     {
       // Try a scan before we error out.
@@ -480,8 +521,7 @@ int kernelFilesystemResize(const char *diskName, unsigned blocks,
     }
 
   // Resize the filesystem
-  status = theDriver->driverResize(theDisk, blocks, prog);
-  return (status);
+  return (status = theDriver->driverResize(theDisk, blocks, prog));
 }
 
 
@@ -509,6 +549,9 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
       return (status = ERR_NULLPARAMETER);
     }
+
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
 
   if (theDisk->filesystem.driver == NULL)
     {
@@ -778,6 +821,9 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
       return (status = ERR_NULLPARAMETER);
     }
 
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
   if (theDisk->filesystem.driver == NULL)
     {
       // Try a scan before we error out.
@@ -800,8 +846,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
     }
 
   // Check the filesystem
-  status = theDriver->driverCheck(theDisk, force, repair, prog);
-  return (status);
+  return (status = theDriver->driverCheck(theDisk, force, repair, prog));
 }
 
 
@@ -843,6 +888,9 @@ unsigned kernelFilesystemGetFree(const char *path)
       return (status = ERR_BUG);
     }
 
+  if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+    checkRemovable(theDisk);
+
   if (theDisk->filesystem.driver == NULL)
     {
       // Try a scan before we error out.
@@ -867,10 +915,7 @@ unsigned kernelFilesystemGetFree(const char *path)
     }
 
   // Lastly, we can call our target function
-  freeSpace = theDriver->driverGetFree(theDisk);
-
-  // Return the same value as the driver function.
-  return (freeSpace);
+  return (freeSpace = theDriver->driverGetFree(theDisk));
 }
 
 

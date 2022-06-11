@@ -38,8 +38,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "kernelText.h"
-
 // An array of pointers to all network devices.
 static kernelDevice *devices[NETWORK_MAX_ADAPTERS];
 static int numDevices = 0;
@@ -393,6 +391,8 @@ static void networkInterrupt(void)
 
   // Which interrupt number is active?
   interruptNum = kernelPicGetActive();
+  if (interruptNum < 0)
+    goto out;
 
   // Find the device that uses this interrupt
   for (count = 0; count < numDevices; count ++)
@@ -426,6 +426,8 @@ static void networkInterrupt(void)
   kernelLockRelease(&(adapter->adapterLock));
 
   kernelPicEndOfInterrupt(interruptNum);
+
+ out:
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit(address);
 }

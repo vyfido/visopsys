@@ -163,6 +163,7 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
   va_list list;
   char *debugText = NULL;
   kernelTextOutputStream *console = kernelTextGetConsoleOutput();
+  int interrupt = 0;
 
   // See whether we should skip this message
   if (!debugAll && !isCategory(category) && !isFileName(fileName))
@@ -178,9 +179,9 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
   strcpy(debugText, "DEBUG " );
   if (showProcess)
     {
-      if (kernelProcessingInterrupt)
-	sprintf((debugText + strlen(debugText)), "interrupt %x",
-		kernelPicGetActive());
+      if (kernelProcessingInterrupt &&
+	  ((interrupt = kernelPicGetActive()) >= 0))
+	sprintf((debugText + strlen(debugText)), "interrupt %x", interrupt);
       else
 	sprintf((debugText + strlen(debugText)), "%s:",
 		kernelCurrentProcess->processName);
@@ -204,6 +205,34 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
   kernelFree(debugText);
 
   return;
+}
+
+
+void kernelDebugHex(void *ptr, unsigned length)
+{
+  unsigned char *buff = ptr;
+  char *debugText = NULL;
+  kernelTextOutputStream *console = kernelTextGetConsoleOutput();
+  unsigned count1, count2;
+
+  debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
+  if (debugText == NULL)
+    return;
+
+  for (count1 = 0; count1 < ((length / 16) + ((length % 16)? 1 : 0));
+       count1 ++)
+    {
+      strcpy(debugText, "DEBUG HEX " );
+
+      for (count2 = 0; (count2 < 16) && (((count1 * 16) + count2) < length);
+	   count2 ++)
+	sprintf((debugText + strlen(debugText)),
+		"%02x ", buff[(count1 * 16) + count2]);
+      
+      kernelTextStreamPrintLine(console, debugText);
+    }
+
+  kernelFree(debugText);
 }
 
 

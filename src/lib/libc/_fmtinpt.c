@@ -167,20 +167,30 @@ int _fmtinpt(const char *input, const char *format, va_list list)
 	  // This is an integer.  Read the characters for the integer
 	  // from the input string
 	  if (isLong)
-	    *argument = atoll(input + inputCount);
+	    {
+	      *argument = atoll(input + inputCount);
+	      inputCount += _ldigits(*argument, 10, 1);
+	    }
 	  else
-	    *((int *) argument) = atoi(input + inputCount);
-	  inputCount += _numdgts(*argument, 10, 1);
+	    {
+	      *((int *) argument) = atoi(input + inputCount);
+	      inputCount += _digits(*argument, 10, 1);
+	    }
 	  break;
 
 	case 'u':
 	  // This is an unsigned integer.  Put the characters for
 	  // the integer into the destination string
 	  if (isLong)
-	    *argument = atoull(input + inputCount);
+	    {
+	      *argument = atoull(input + inputCount);
+	      inputCount += _ldigits(*argument, 10, 0);
+	    }
 	  else
-	    *((unsigned *) argument) = atou(input + inputCount);
-	  inputCount += _numdgts(*argument, 10, 0);
+	    {
+	      *((unsigned *) argument) = atou(input + inputCount);
+	      inputCount += _digits(*argument, 10, 0);
+	    }
 	  break;
 
 	case 'c':
@@ -206,10 +216,15 @@ int _fmtinpt(const char *input, const char *format, va_list list)
 		inputCount += 2;
 	    }
 	  if (isLong)
-	    *argument = xtoll(input + inputCount);
+	    {
+	      *argument = xtoll(input + inputCount);
+	      inputCount += _ldigits(*argument, 16, 1);
+	    }
 	  else
-	    *((int *) argument) = xtoi(input + inputCount);
-	  inputCount += _numdgts(*argument, 16, 1);
+	    {
+	      *((int *) argument) = xtoi(input + inputCount);
+	      inputCount += _digits(*argument, 16, 1);
+	    }
 	  break;
 
 	default:
