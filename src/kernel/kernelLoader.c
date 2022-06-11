@@ -55,7 +55,6 @@ static void parseCommand(char *commandLine, int *argc, char *argv[])
   // Attempts to take a raw 'commandLine' string and parse it into a command
   // name and arguments.
 
-  int argLen = 0;
   int count;
 
   *argc = 0;
@@ -64,15 +63,13 @@ static void parseCommand(char *commandLine, int *argc, char *argv[])
 
   for (count = 0; *commandLine != '\0'; count ++)
     {
-      // remove leading whitespace
+      // Remove leading whitespace
       while ((*commandLine == ' ') && (*commandLine != '\0'))
 	commandLine += 1;
 
       if (*commandLine == '\0')
 	break;
 
-      argLen = 0;
-      
       // If the argument starts with a double-quote, we will discard
       // that character and accept characters (including whitespace)
       // until we hit another double-quote (or the end)

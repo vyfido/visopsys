@@ -159,7 +159,8 @@ static kernelFunctionIndex filesystemFunctionIndex[] = {
   { _fnum_filesystemUnmount, kernelFilesystemUnmount, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetFree, kernelFilesystemGetFree, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetBlockSize, kernelFilesystemGetBlockSize,
-    1, PRIVILEGE_USER }
+    1, PRIVILEGE_USER },
+  { _fnum_filesystemClobber, kernelFilesystemClobber, 1, PRIVILEGE_SUPERVISOR }
 };
 
 static kernelFunctionIndex fileFunctionIndex[] = {

@@ -25,11 +25,6 @@
 #include <errno.h>
 #include <sys/api.h>
 
-#define SECPERMIN 60
-#define SECPERHR  (SECPERMIN * 60)
-#define SECPERDAY (SECPERHR * 24)
-#define SECPERYR  (SECPERDAY * 365)
-
 
 time_t time(time_t *t)
 {
@@ -69,12 +64,12 @@ time_t time(time_t *t)
   // 01/01/1970.
 
   // Calculate seconds for all complete years
-  time_simple = (((time_struct.tm_year - 1) - 1970) * SECPERYR);
+  time_simple = ((time_struct.tm_year - 1970) * SECPERYR);
 
   // Add 1 days's worth of seconds for every complete leap year.  There
   // is a leap year in every year divisible by 4 except for years which
   // are both divisible by 100 not by 400.  Got it?
-  for (count = (time_struct.tm_year - 1); count >= 1972; count--)
+  for (count = time_struct.tm_year; count >= 1972; count--)
     if (((count % 4) == 0) && (((count % 100) != 0) || ((count % 400) == 0)))
       time_simple += SECPERDAY;
 

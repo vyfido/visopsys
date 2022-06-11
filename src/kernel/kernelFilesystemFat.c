@@ -3394,7 +3394,7 @@ static int checkAllClusters(kernelFilesystem *filesystem,
 }
 
 
-static int detect(const kernelDisk *theDisk)
+static int detect(kernelDisk *theDisk)
 {
   // This function is used to determine whether the data on a disk structure
   // is using a FAT filesystem.  It uses a simple test or two to determine
@@ -3403,8 +3403,7 @@ static int detect(const kernelDisk *theDisk)
   // and negative if it encounters an error
 
   int status = 0;
-  unsigned char bootSector[FAT_MAX_SECTORSIZE];
-  unsigned temp = 0;
+  fatBPB bpb;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -3420,7 +3419,7 @@ static int detect(const kernelDisk *theDisk)
   // sector").
 
   // Call the function that reads the boot sector
-  status = readBootSector((kernelDisk *) theDisk, (fatBPB *) bootSector);
+  status = readBootSector(theDisk, &bpb);
   // Make sure we were successful
   if (status < 0)
     // Couldn't read the boot sector, or it was bad
@@ -3430,51 +3429,48 @@ static int detect(const kernelDisk *theDisk)
   // 510 of the boot sector (regardless of the sector size of this device).  
   // If it does not, then this is not only NOT a FAT boot sector, but 
   // may not be a valid boot sector at all.
-  if ((bootSector[510] != (unsigned char) 0x55) || 
-      (bootSector[511] != (unsigned char) 0xAA))
+  if (bpb.signature != 0xAA55)
     return (status = 0);
 
   // What if we cannot be sure that this is a FAT filesystem?  In the 
   // interest of data integrity, we will decline the invitation to use 
   // this as FAT.  It must pass a few tests here.
 
-  // The word at offset 11, the bytes-per-sector field, may only contain 
-  // one of the following values: 512, 1024, 2048 or 4096.  Anything else 
-  // is illegal according to MS.  512 is almost always the value found here.
-  temp = (unsigned) ((bootSector[12] << 8) + bootSector[11]);
-  if ((temp != 512) && (temp != 1024) && (temp != 2048) && (temp != 4096))
+  // The bytes-per-sector field may only contain one of the following values:
+  // 512, 1024, 2048 or 4096.  Anything else is illegal according to MS.
+  // 512 is almost always the value found here.
+  if ((bpb.bytesPerSect != 512) && (bpb.bytesPerSect != 1024) &&
+      (bpb.bytesPerSect != 2048) && (bpb.bytesPerSect != 4096))
     // Not a legal value for FAT
     return (status = 0);
 
   // Check the media type byte.  There are only a small number of legal
   // values that can occur here (so it's a reasonabe test to determine
   // whether this is a FAT)
-  if ((bootSector[21] < (unsigned char) 0xF8) && 
-      (bootSector[21] != (unsigned char) 0xF0))
+  if ((bpb.media < 0xF8) && (bpb.media != 0xF0))
     // Oops, not a legal value for FAT
     return (status = 0);
 
-  // Look for the extended boot block signature.  Byte value.
-  if (bootSector[38] == (unsigned char) 0x29)
-    {
-      // Now we look for the substring "FAT" in the boot sector.
-      // If this is really a FAT filesystem, we SHOULD find the substring 
-      // "FAT" in the first 3 characters of the fsSignature field
-      if (strncmp((bootSector + 0x36), "FAT", 3))
-	// We will say this is not a FAT filesystem.  We might be wrong, 
-	// but we can't be sure otherwise.
-	return (status = 0);
-    }
+  // Look for the extended boot block signatures.  If we find them, we
+  // should be able to find the substring "FAT" in the first 3 bytes of
+  // the fileSysType field.
+  if (((bpb.fat.bootSig == 0x29) &&
+       (strncmp(bpb.fat.fileSysType, "FAT", 3))) ||
+      ((bpb.fat32.bootSig == 0x29) &&
+       (strncmp(bpb.fat32.fileSysType, "FAT", 3))))
+    // We will say this is not a FAT filesystem.  We might be wrong, 
+    // but we can't be sure otherwise.
+    return (status = 0);
 
-  // We will accept this as a FAT filesystem.
+  // We will accept this as a FAT filesystem.  Gather some information.
 
   // Set the disk's fsType string, tentatively
   strcpy((char *) theDisk->fsType, "fat");
-  if (!strncmp((bootSector + 0x36), "FAT12", 5))
+  if (!strncmp(bpb.fat.fileSysType, "FAT12", 5))
     strcpy((char *) theDisk->fsType, "fat12");
-  else if (!strncmp((bootSector + 0x36), "FAT16", 5))
+  else if (!strncmp(bpb.fat.fileSysType, "FAT16", 5))
     strcpy((char *) theDisk->fsType, "fat16");
-  else if (!strncmp((bootSector + 0x52), "FAT32", 5))
+  else if (!strncmp(bpb.fat32.fileSysType, "FAT32", 5))
     strcpy((char *) theDisk->fsType, "fat32");
 
   return (status = 1);
@@ -3559,11 +3555,11 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   else
     fatData.bpb.media = 0xF0;
 
-  if (!strncmp(type, "fat12", 5))
+  if (!strncasecmp(type, "fat12", 5))
     fatData.fsType = fat12;
-  else if (!strncmp(type, "fat16", 5))
+  else if (!strncasecmp(type, "fat16", 5))
     fatData.fsType = fat16;
-  else if (!strncmp(type, "fat32", 5))
+  else if (!strncasecmp(type, "fat32", 5))
     fatData.fsType = fat32;
   else if ((physicalDisk->flags & DISKFLAG_FLOPPY) ||
 	   (fatData.totalSects < 8400))
@@ -3819,6 +3815,39 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 }
 
 
+static int clobber(kernelDisk *theDisk)
+{
+  // This function destroys anything that might cause this disk to be detected
+  // as having an FAT filesystem.
+
+  int status = 0;
+  fatBPB bpb;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params.
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "Disk structure is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+  
+  status = readBootSector(theDisk, &bpb);
+  if (status < 0)
+    return (status);
+
+  // In the case of FAT, we clear out the 'fileSysType' fields for both FAT
+  // and FAT32, and remove the AA55 signature
+  strncpy(bpb.fat.fileSysType, "        ", 8);
+  strncpy(bpb.fat32.fileSysType, "        ", 8);
+  bpb.signature = 0;
+
+  status = kernelDiskWriteSectors((char *) theDisk->name, 0, 1, &bpb);
+  return (status);
+}
+
+
 static int mount(kernelFilesystem *filesystem)
 {
   // This function initializes the filesystem driver by gathering all
@@ -4000,7 +4029,7 @@ static int check(kernelFilesystem *checkFilesystem, int force, int repair)
   kernelTextPrintLine("Checking FAT filesystem...");
 
   // Make sure there's really a FAT filesystem on the disk
-  if (!detect(checkFilesystem->disk))
+  if (!detect((kernelDisk *) checkFilesystem->disk))
     {
       kernelError(kernel_error, "Disk structure to check does not contain "
 		  "a FAT filesystem");
@@ -4695,13 +4724,15 @@ static int timestamp(kernelFileEntry *theFile)
 
 static kernelFilesystemDriver defaultFatDriver = {
   Fat,   // FS type
-  "FAT", // Driver name
+  "fat", // Driver name
   detect,
   format,
+  clobber,
+  check,
   NULL, // driverDefragment
+  NULL, // driverResize
   mount,
   unmount,
-  check,
   getFreeBytes,
   newEntry,
   inactiveEntry,

@@ -29,6 +29,7 @@
 #include "kernelMultitasker.h"
 #include "kernelSysTimer.h"
 #include "kernelMiscFunctions.h"
+#include "kernelLog.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
@@ -75,6 +76,32 @@ static int readSuperblock(const kernelDisk *theDisk, extSuperblock *superblock)
     return (status = ERR_BADDATA);
 
   return (status = 0);
+}
+
+
+static int writeSuperblock(const kernelDisk *theDisk,
+			   extSuperblock *superblock)
+{
+  // This simple function will write the superblock from the supplied buffer.
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+
+  physicalDisk = theDisk->physical;
+
+  // The sector size must be non-zero
+  if (physicalDisk->sectorSize == 0)
+    {
+      kernelError(kernel_error, "Disk sector size is zero");
+      return (status = ERR_INVALID);
+    }
+
+  // Write the superblock
+  status =
+    kernelDiskWriteSectors((char *) theDisk->name, EXT_SUPERBLOCK_SECTOR,
+			   (sizeof(extSuperblock) / physicalDisk->sectorSize),
+			   superblock);
+  return (status);
 }
 
 
@@ -129,15 +156,19 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
 
   // Calculate the number of block groups
   extData->numGroups =
-    (extData->superblock.blocks_count / extData->superblock.blocks_per_group);
+    ((extData->superblock.blocks_count /
+      extData->superblock.blocks_per_group) +
+     ((extData->superblock.blocks_count %
+       extData->superblock.blocks_per_group) > 0));
 
   // Attach the disk structure to the extData structure
   extData->disk = filesystem->disk;
 
-  groupDescriptorBlocks = ((extData->numGroups * sizeof(extGroupDescriptor)) /
-			   extData->blockSize);
-  if ((extData->numGroups * sizeof(extGroupDescriptor)) % extData->blockSize)
-    groupDescriptorBlocks++;
+  groupDescriptorBlocks =
+    (((extData->numGroups * sizeof(extGroupDescriptor)) /
+      extData->blockSize) +
+     (((extData->numGroups * sizeof(extGroupDescriptor)) %
+       extData->blockSize) > 0));
 
   // Get some memory for our array of group descriptors
   extData->groups = kernelMalloc(groupDescriptorBlocks * extData->blockSize);
@@ -299,6 +330,7 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
   kernelFree(indexBuffer);
   return (status = 0);
 }
+
 
 static int read(extInternalData *extData, kernelFileEntry *fileEntry,
 		unsigned startBlock, unsigned numBlocks, void *buffer)
@@ -465,7 +497,8 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
   // Make sure it's not zero-length.  Shouldn't ever happen.
   if (dirInode->blocks == 0)
     {
-      kernelError(kernel_error, "Directory has no data");
+      kernelError(kernel_error, "Directory \"%s\" has no data",
+		  dirEntry->name);
       return (status = ERR_NODATA);
     }
 
@@ -474,7 +507,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 
   if (bufferSize < dirEntry->size)
     {
-      kernelError(kernel_error, "Wrong buffer size for directory!");
+      kernelError(kernel_error, "Invalid buffer size for directory!");
       return (status = ERR_BADDATA);
     }
 
@@ -497,6 +530,18 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
     {
       realEntry.inode = *((unsigned *) entry);
       realEntry.rec_len = *((unsigned short *)(entry + 4));
+
+      if (!realEntry.inode)
+	{
+	  if (!realEntry.rec_len)
+	    // End of entries, we must suppose
+	    break;
+
+	  // Deleted file perhaps?
+	  entry += realEntry.rec_len;
+	  continue;
+	}      
+
       realEntry.name_len = *((unsigned char *)(entry + 6));
       realEntry.file_type = *((unsigned char *)(entry + 7));
       strncpy((char *) realEntry.name, (entry + 8), realEntry.name_len);
@@ -521,7 +566,8 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
       status = readInode(extData, realEntry.inode, inode);
       if (status < 0)
 	{
-	  kernelError(kernel_error, "Unable to read inode");
+	  kernelError(kernel_error, "Unable to read inode for directory "
+		      "entry \"%s\"", realEntry.name);
 	  kernelFree(buffer);
 	  return (status);  
 	}
@@ -529,17 +575,15 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
       strncpy((char *) fileEntry->name, (char *) realEntry.name,
 	      MAX_NAME_LENGTH);
 
-      switch (realEntry.file_type)
+      switch (inode->i_mode & EXT_S_IFMT)
 	{
-        case EXT_FT_UNKNOWN:
-          fileEntry->type = unknownT;
-          break;
-	case EXT_FT_DIR:
+	case EXT_S_IFDIR:
 	  fileEntry->type = dirT;
 	  break;
-        case EXT_FT_SYMLINK:
+        case EXT_S_IFLNK:
           fileEntry->type = linkT;
           break; 
+        case EXT_S_IFREG:
         default:
           fileEntry->type = fileT;
           break;
@@ -609,7 +653,7 @@ static int readRootDir(extInternalData *extData, kernelFilesystem *filesystem)
 }
 
 
-static int detect(const kernelDisk *theDisk)
+static int detect(kernelDisk *theDisk)
 {
   // This function is used to determine whether the data on a disk structure
   // is using a EXT filesystem.  It uses a simple test or two to determine
@@ -642,6 +686,453 @@ static int detect(const kernelDisk *theDisk)
   else
     // Not EXT
     return (status = 0);
+}
+
+
+static int isSuperGroup(int groupNumber)
+{
+  // Returns 1 if the supplied block group number should have a superblock
+  // (or superblock backup) under the SPARSE_SUPER scheme.  Block groups 0
+  // and 1, and powers of 3, 5, and 7.
+
+  int do3 = 1, do5 = 1, do7 = 1;
+  int count, tmp3, tmp5, tmp7;
+
+  // Shortcut some little ones.
+  if ((groupNumber == 0) || (groupNumber == 1) || (groupNumber == 3) ||
+      (groupNumber == 5) || (groupNumber == 7))
+    return (1);
+
+  for (count = 2; (do3 || do5 || do7) ; count ++)
+    {
+      if (do3)
+	{
+	  tmp3 = POW(3, count);
+	  if (tmp3 == groupNumber)
+	    return (1);
+	  if (tmp3 > groupNumber)
+	    do3 = 0;
+	}
+
+      if (do5)
+	{
+	  tmp5 = POW(5, count);
+	  if (tmp5 == groupNumber)
+	    return (1);
+	  if (tmp5 > groupNumber)
+	    do5 = 0;
+	}
+
+      if (do7)
+	{
+	  tmp7 = POW(7, count);
+	  if (tmp7 == groupNumber)
+	    return (1);
+	  if (tmp7 > groupNumber)
+	    do7 = 0;
+	}
+    }
+
+  return (0);
+}
+
+
+static inline void setBitmap(unsigned char *bitmap, int index, int onOff)
+{
+  if (onOff)
+    bitmap[index / 8] |= (0x01 << (index % 8));
+  else
+    bitmap[index / 8] &= ~(0x01 << (index % 8));
+}
+
+
+static int format(kernelDisk *theDisk, const char *type, const char *label,
+		  int longFormat)
+{
+  // This function does a basic format of an EXT2 filesystem.
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+  extSuperblock superblock;
+  int blockSize = 0;
+  int sectsPerBlock = 0;
+  int blockGroups = 0;
+  int inodeTableBlocks = 0;
+  int groupDescBlocks = 0;
+  unsigned char *bitmaps = NULL;
+  extGroupDescriptor *groupDescs = NULL;
+  extInode *inodeTable = NULL;
+  void *dirBuffer = NULL;
+  extDirectoryEntry *dirEntry = NULL;
+  int count1;
+  unsigned count2;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params.  It's okay for all other params to be NULL.
+  if ((theDisk == NULL) || (type == NULL))
+    {
+      kernelError(kernel_error, "Disk structure or FS type is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+  // Keep the compiler happy about unused variables
+  if (longFormat) {}
+  
+  if (strncasecmp(type, "ext", 3) ||
+      ((strlen(type) > 3) && strcasecmp(type, "ext2")))
+    {
+      kernelError(kernel_error, "Filesystem type %s not supported", type);
+      return (status = ERR_INVALID);
+    }
+
+  physicalDisk = theDisk->physical;
+
+  // Only format disk with 512-byte sectors
+  if (physicalDisk->sectorSize != 512)
+    {
+      kernelError(kernel_error, "Cannot format a disk with sector size of "
+		  "%u (512 only)", physicalDisk->sectorSize);
+      return (status = ERR_INVALID);
+    }
+
+  // Clear memory
+  kernelMemClear(&superblock, sizeof(extSuperblock));
+
+  // "Heuristically" determine the block size.  Everything else flows from
+  // this, but it is rubbish.  Not based on anything sensible really: If it's
+  // a floppy, use 1K blocks.  Otherwise use 4K blocks.
+  if (physicalDisk->flags & DISKFLAG_FLOPPY)
+    blockSize = 1024;
+  else
+    blockSize = 4096;
+
+  sectsPerBlock = (blockSize / physicalDisk->sectorSize);
+ 
+  superblock.blocks_count = (theDisk->numSectors / sectsPerBlock);
+  superblock.r_blocks_count = ((superblock.blocks_count / 100) * 5); // 5%
+  superblock.first_data_block = (1024 / blockSize); // Always 1 or 0
+  for (count1 = 0; ((blockSize >> count1) >= 1024); count1 ++)
+    superblock.log_block_size = count1;
+  superblock.log_frag_size = superblock.log_block_size;
+  superblock.blocks_per_group = (blockSize * 8); // Bits in 1-block bitmap.
+  superblock.frags_per_group = superblock.blocks_per_group;
+  superblock.mtime = kernelUnixTime();
+  superblock.wtime = superblock.mtime;
+  superblock.max_mnt_count = 25;
+  superblock.magic = EXT_MAGICNUMBER;
+  superblock.state = EXT_VALID_FS;
+  superblock.errors = EXT_ERRORS_DEFAULT;
+  superblock.lastcheck = superblock.mtime;
+  superblock.checkinterval = (SECPERDAY * 180); // 180 days, in seconds
+  superblock.creator_os = EXT_OS_VISOPSYS;
+  superblock.rev_level = EXT_DYNAMIC_REV;
+  superblock.first_ino = EXT_GOOD_OLD_FIRST_INODE;
+  superblock.inode_size = EXT_GOOD_OLD_INODE_SIZE;
+  superblock.feature_ro_compat = EXT_ROCOMPAT_SPARSESUPER;
+  kernelGuidGenerate((kernelGuid *) &superblock.uuid);
+  if (label)
+    strncpy(superblock.volume_name, label, 16);
+
+  blockGroups =
+    ((superblock.blocks_count / superblock.blocks_per_group) +
+     ((superblock.blocks_count % superblock.blocks_per_group) > 0));
+
+  superblock.inodes_per_group =
+    (((((superblock.blocks_count / blockGroups) * EXT_GOOD_OLD_INODE_SIZE) /
+       blockSize) * blockSize) / EXT_GOOD_OLD_INODE_SIZE);
+  superblock.inodes_count = (blockGroups * superblock.inodes_per_group);
+
+  groupDescBlocks =
+    (((blockGroups * sizeof(extGroupDescriptor)) / blockSize) +
+     (((blockGroups * sizeof(extGroupDescriptor)) % blockSize) > 0));
+
+  inodeTableBlocks =
+    (((superblock.inodes_per_group * superblock.inode_size) / blockSize) +
+     (((superblock.inodes_per_group * superblock.inode_size) % blockSize) >0));
+
+  // Get buffers for group descriptors and bitmaps
+  groupDescs = kernelMalloc(groupDescBlocks * blockSize);
+  bitmaps = kernelMalloc(2 * blockSize);
+  inodeTable = kernelMalloc(inodeTableBlocks * blockSize);
+  if ((groupDescs == NULL) || (bitmaps == NULL) || (inodeTable == NULL))
+    return (status = ERR_MEMORY);
+
+  // Create the group descriptors
+  for (count1 = 0; count1 < blockGroups; count1 ++)
+    {
+      unsigned currentBlock = (count1 * superblock.blocks_per_group);
+      
+      if (count1 < (blockGroups - 1))
+	{
+	  groupDescs[count1].free_blocks_count = superblock.blocks_per_group;
+	  groupDescs[count1].free_inodes_count = superblock.inodes_per_group;
+	}
+      else
+	{
+	  groupDescs[count1].free_blocks_count =
+	    (superblock.blocks_count - (count1 * superblock.blocks_per_group));
+	  groupDescs[count1].free_inodes_count = 
+	    (superblock.inodes_count - (count1 * superblock.inodes_per_group));
+	}
+
+      if (isSuperGroup(count1))
+	{
+	  // The superblock and group descriptors backups
+	  groupDescs[count1].free_blocks_count -= (1 + groupDescBlocks);
+	  currentBlock += (1 + groupDescBlocks);
+	}
+
+      groupDescs[count1].block_bitmap = currentBlock++;
+      groupDescs[count1].inode_bitmap = currentBlock++;
+      groupDescs[count1].free_blocks_count -= 2;
+
+      groupDescs[count1].inode_table = currentBlock;
+      groupDescs[count1].free_blocks_count -= inodeTableBlocks;
+      currentBlock += inodeTableBlocks;
+
+      if (count1 == 0)
+	{
+	  // Subtract the reserved inodes, plus 1 for the lost+found directory,
+	  // plus 1 block each for the root and lost+found directories
+	  groupDescs[count1].free_blocks_count -= 2;
+	  groupDescs[count1].free_inodes_count -= superblock.first_ino;
+
+	  // Also mention the root and lost+found directories
+	  groupDescs[count1].used_dirs_count = 2;
+	}
+
+      superblock.free_blocks_count += groupDescs[count1].free_blocks_count;
+      superblock.free_inodes_count += groupDescs[count1].free_inodes_count;
+    }
+
+  // Clear/write the blocks of all control sectors, block groups, etc
+  for (count1 = 0; count1 < blockGroups; count1 ++)
+    {
+      unsigned currentBlock = (count1 * superblock.blocks_per_group);
+      #define CURRENTSECTOR ((currentBlock) * sectsPerBlock)
+
+      if (isSuperGroup(count1))
+	{
+	  // Superblock
+	  
+	  superblock.block_group_nr = count1;
+	  
+	  if (currentBlock == 0)
+	    status =
+	      kernelDiskWriteSectors((char *) theDisk->name,
+				     (1024 / physicalDisk->sectorSize),
+				     (sizeof(extSuperblock) /
+				      physicalDisk->sectorSize), &superblock);
+	  else
+	    status =
+	      kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
+				     (sizeof(extSuperblock) /
+				      physicalDisk->sectorSize), &superblock);
+	  if (status < 0)
+	    {
+	      kernelFree(groupDescs);
+	      kernelFree(bitmaps);
+	      kernelFree(inodeTable);
+	      return (status);
+	    }
+
+	  currentBlock += 1;
+
+	  // Group descriptors
+	  status =
+	    kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
+				   (groupDescBlocks * sectsPerBlock),
+				   groupDescs);
+	  if (status < 0)
+	    {
+	      kernelFree(groupDescs);
+	      kernelFree(bitmaps);
+	      kernelFree(inodeTable);
+	      return (status);
+	    }
+
+	  currentBlock += groupDescBlocks;
+
+	  // Set up the block and inode bitmaps
+	  kernelMemClear(bitmaps, (2 * blockSize));
+	  for (count2 = 0; count2 < (unsigned)
+		 (1 + groupDescBlocks + 2 + inodeTableBlocks); count2 ++)
+	    setBitmap(bitmaps, count2, 1);
+	}
+      else
+	{
+	  // Set up the block and inode bitmaps
+	  kernelMemClear(bitmaps, (2 * blockSize));
+	  for (count2 = 0; count2 < (unsigned) (2 + inodeTableBlocks);
+	       count2 ++)
+	    setBitmap(bitmaps, count2, 1);
+	}
+
+      if (count1 == 0)
+	{
+	  // Mark the blocks for the root and lost+found directories
+	  setBitmap(bitmaps,
+		    (1 + groupDescBlocks + 2 + inodeTableBlocks), 1);
+	  setBitmap(bitmaps,
+		    (1 + groupDescBlocks + 2 + inodeTableBlocks + 1), 1);
+
+	  // Mark the reserved inodes, plus 1 for the lost+found directory
+	  for (count2 = 0; count2 < superblock.first_ino; count2 ++)
+	    setBitmap((bitmaps + blockSize), count2, 1);
+	}
+
+      if (count1 == (blockGroups - 1))
+	{
+	  // Mark any nonexistant blocks as used.
+	  for (count2 = (superblock.blocks_count -
+			 (count1 * superblock.blocks_per_group));
+	       count2 < superblock.blocks_per_group; count2 ++)
+	    setBitmap(bitmaps, count2, 1);
+	}
+
+      kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
+			     (2 * sectsPerBlock), bitmaps);
+
+      currentBlock += 2;
+
+      // Clear the inode table
+      kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
+			     (inodeTableBlocks * sectsPerBlock), inodeTable);
+    }
+
+  kernelFree(groupDescs);
+  kernelFree(bitmaps);
+
+  // Create the root inode
+  inodeTable[EXT_ROOT_INO - 1].i_mode =
+    (EXT_S_IFDIR | EXT_S_IRUSR | EXT_S_IWUSR | EXT_S_IXUSR |
+     EXT_S_IRGRP | EXT_S_IXGRP | EXT_S_IROTH | EXT_S_IXOTH);
+  inodeTable[EXT_ROOT_INO - 1].size = blockSize;
+  inodeTable[EXT_ROOT_INO - 1].atime = superblock.mtime;
+  inodeTable[EXT_ROOT_INO - 1].ctime = superblock.mtime;
+  inodeTable[EXT_ROOT_INO - 1].mtime = superblock.mtime;
+  inodeTable[EXT_ROOT_INO - 1].links_count = 3;
+  inodeTable[EXT_ROOT_INO - 1].blocks = sectsPerBlock;
+  inodeTable[EXT_ROOT_INO - 1].block[0] =
+    (1 + groupDescBlocks + 2 + inodeTableBlocks);
+
+  // Create the lost+found inode
+  inodeTable[superblock.first_ino - 1].i_mode =
+    (EXT_S_IFDIR | EXT_S_IRUSR | EXT_S_IWUSR | EXT_S_IXUSR);
+  inodeTable[superblock.first_ino - 1].size = blockSize;
+  inodeTable[superblock.first_ino - 1].atime = superblock.mtime;
+  inodeTable[superblock.first_ino - 1].ctime = superblock.mtime;
+  inodeTable[superblock.first_ino - 1].mtime = superblock.mtime;
+  inodeTable[superblock.first_ino - 1].links_count = 2;
+  inodeTable[superblock.first_ino - 1].blocks = sectsPerBlock;
+  inodeTable[superblock.first_ino - 1].block[0] =
+    (inodeTable[EXT_ROOT_INO - 1].block[0] + 1);
+
+  kernelDiskWriteSectors((char *) theDisk->name,
+			 ((3 + groupDescBlocks) * sectsPerBlock),
+			 sectsPerBlock, inodeTable);
+
+  // Create the root directory
+
+  dirBuffer = kernelMalloc(inodeTable[EXT_ROOT_INO - 1].size);
+  if (dirBuffer == NULL)
+    return (status = ERR_MEMORY);
+
+  dirEntry = dirBuffer;
+  dirEntry->inode = EXT_ROOT_INO;
+  strcpy(dirEntry->name, ".");
+  dirEntry->name_len = strlen(dirEntry->name);
+  //dirEntry->file_type = EXT_FT_DIR;  // Why don't we want this?
+  dirEntry->rec_len = 12;
+
+  dirEntry = ((void *) dirEntry + dirEntry->rec_len);
+  dirEntry->inode = EXT_ROOT_INO;
+  strcpy(dirEntry->name, "..");
+  dirEntry->name_len = strlen(dirEntry->name);
+  //dirEntry->file_type = EXT_FT_DIR;  // Why don't we want this?
+  dirEntry->rec_len = 12;
+
+  dirEntry = ((void *) dirEntry + dirEntry->rec_len);
+  dirEntry->inode = superblock.first_ino;
+  strcpy(dirEntry->name, "lost+found");
+  dirEntry->name_len = strlen(dirEntry->name);
+  //dirEntry->file_type = EXT_FT_DIR;  // Why don't we want this?
+  dirEntry->rec_len = (inodeTable[EXT_ROOT_INO - 1].size -
+		       ((unsigned) dirEntry - (unsigned) dirBuffer));
+
+  kernelDiskWriteSectors((char *) theDisk->name,
+			 (inodeTable[EXT_ROOT_INO - 1].block[0] *
+			  sectsPerBlock), inodeTable[EXT_ROOT_INO - 1].blocks,
+			 dirBuffer);
+
+  // Create the lost+found directory
+
+  kernelMemClear(dirBuffer, inodeTable[EXT_ROOT_INO - 1].size);
+
+  dirEntry = dirBuffer;
+  dirEntry->inode = superblock.first_ino;
+  strcpy(dirEntry->name, ".");
+  dirEntry->name_len = strlen(dirEntry->name);
+  //dirEntry->file_type = EXT_FT_DIR;  // Why don't we want this?
+  dirEntry->rec_len = 12;
+
+  dirEntry = ((void *) dirEntry + dirEntry->rec_len);
+  dirEntry->inode = EXT_ROOT_INO;
+  strcpy(dirEntry->name, "..");
+  dirEntry->name_len = strlen(dirEntry->name);
+  //dirEntry->file_type = EXT_FT_DIR;  // Why don't we want this?
+  dirEntry->rec_len = (inodeTable[EXT_ROOT_INO - 1].size -
+		       ((unsigned) dirEntry - (unsigned) dirBuffer));
+
+  kernelDiskWriteSectors((char *) theDisk->name,
+  			 (inodeTable[superblock.first_ino - 1].block[0] *
+  			  sectsPerBlock),
+			 inodeTable[superblock.first_ino - 1].blocks,
+			 dirBuffer);
+
+  kernelFree(inodeTable);
+  kernelFree(dirBuffer);
+
+  strcpy((char *) theDisk->fsType, "ext2");
+
+  status = kernelDiskSyncDisk((char *) theDisk->name);
+
+  kernelLog("Format: Type: %s  Total blocks: %u  Bytes per block: %u  "
+	    "Sectors per block: %u  Block group size: %u  Block groups: %u",
+	    theDisk->fsType, superblock.blocks_count, blockSize,
+	    (blockSize / physicalDisk->sectorSize),
+	    superblock.blocks_per_group, blockGroups);
+
+  return (status);
+}
+
+
+static int clobber(kernelDisk *theDisk)
+{
+  // This function destroys anything that might cause this disk to be detected
+  // as having an EXT filesystem.
+
+  int status = 0;
+  extSuperblock superblock;
+
+  // Check params.
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "Disk structure is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+  
+  // In the case of EXT, we simply remove the EXT signature from where the
+  // superblock would be.
+  status = readSuperblock(theDisk, &superblock);
+  if (status < 0)
+    return (status);
+
+  superblock.magic = 0;
+
+  status = writeSuperblock(theDisk, &superblock);
+  return (status);
 }
 
 
@@ -1041,13 +1532,15 @@ static int readDir(kernelFileEntry *directory)
 
 static kernelFilesystemDriver defaultExtDriver = {
   Ext,   // FS type
-  "EXT", // Driver name
+  "ext", // Driver name
   detect,
-  NULL,  // driverFormat
+  format,
+  clobber,
+  NULL,  // driverCheck
   NULL,  // driverDefragment
+  NULL,  // driverResize
   mount,
   unmount,
-  NULL,  // driverCheck
   getFreeBytes,
   newEntry,
   inactiveEntry,

@@ -25,6 +25,11 @@
 
 #include <stddef.h>
 
+#define SECPERMIN 60
+#define SECPERHR  (SECPERMIN * 60)
+#define SECPERDAY (SECPERHR * 24)
+#define SECPERYR  (SECPERDAY * 365)
+
 #define CLOCKS_PER_SEC
 
 #ifndef NULL

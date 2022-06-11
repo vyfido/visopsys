@@ -70,10 +70,11 @@
                         ((slc)->entryType == partition_logical))
 
 typedef enum {
-  partition_primary  = 1,
-  partition_logical  = 2,
-  partition_extended = 3,
-  partition_any      = 4
+  partition_none,
+  partition_primary,
+  partition_logical,
+  partition_extended,
+  partition_any
 } partEntryType;
 
 // This stucture represents both used partitions and empty spaces.
@@ -93,7 +94,8 @@ typedef struct {
   int sliceId;
   partEntryType entryType;
   int partition;
-  char name1[6];
+  char sliceName[6];
+  char diskName[6];
   char fsType[FSTYPE_MAX_NAMELENGTH];
   void *extendedTable;
   char string[MAX_DESCSTRING_LENGTH];

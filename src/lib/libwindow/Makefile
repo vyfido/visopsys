@@ -23,6 +23,7 @@ OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES		= windowBannerDialog \
 		windowCenterDialog \
+		windowChoiceDialog \
 		windowColorDialog \
 		windowFileDialog \
 		windowMain \

@@ -136,6 +136,7 @@ extern int visopsys_in_kernel;
 #define _fnum_filesystemUnmount                      3004
 #define _fnum_filesystemGetFree                      3005
 #define _fnum_filesystemGetBlockSize                 3006
+#define _fnum_filesystemClobber                      3007
 
 // File functions.  All are in the 4000-4999 range.
 #define _fnum_fileFixupPath                          4000
@@ -1078,6 +1079,13 @@ _X_ static inline int filesystemFormat(const char *theDisk, const char *type, co
   // Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
   return (sysCall_4(_fnum_filesystemFormat, (void *) theDisk, (void *) type,
 		    (void *) label, (void *) longFormat));
+}
+
+_X_ static inline int filesystemClobber(const char *theDisk)
+{
+  // Proto: int kernelFilesystemClobber(const char *);
+  // Desc : Clobber all known filesystem types on the logical volume 'theDisk'.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_1(_fnum_filesystemClobber, (void *) theDisk));
 }
 
 _X_ static inline int filesystemCheck(const char *name, int force, int repair)

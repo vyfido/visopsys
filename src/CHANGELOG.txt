@@ -1,5 +1,43 @@
 
 ---------------
+Version 0.58
+---------------
+
+  Overview: This is a maintenance and bugfix release.  Some new features
+  include support for EXT2 filesystem formatting, German keyboard layouts,
+  GUID (Globally-Unique Identifier) generation, and filesystem clobber.
+  Also includes a number of important bugfixes to the Disk Manager program.
+
+- Implemented EXT2 formatting.
+- Added Jonas Zaddach's German keyboard layout
+- Added GUID-generating capability to the kernel.
+- Filesystem drivers that support 'format' functionality now also support
+'clobber' functions, so that for example when a format is done, the
+filesystem doesn't still get detected as the previous type. 
+- The filesystems code now has a proper array of all the different
+filesystem drivers, that can be iterated through (for example, when doing
+filesystem detection).
+- Implemented a "multi choice dialog" that shows buttons with user-
+specified text strings and returns the index of the specified choice.
+- Fixed: In the Disk Manager, when creating partitions, it wasn't possible
+to create logical partitions.  When choosing primary, no primary/logical
+attribute was shown.
+- Fixed: The EXT filesystem code would fail to mount small filesystems with
+only a single block group, where the number of blocks was less than the
+maximum blocks per group.
+- Fixed: In the graphics mode Disk Manager, after specifying start and end
+values for a new partition, pressing 'Cancel' in the tag type dialog didn't
+stop the partition from being created.
+- Fixed: The Disk Manager's 'move' function check for empty space on either
+side of a partition could produce a false error
+- Fixed: The Disk Manager was telling the kernel to reread the partitions
+too frivolously (especially in between writing the main and extended
+partition tables).
+- Fixed: The vsh shell's code for marshalling quoted arguments was broken
+(e.g. 'touch "foo bar"' created 2 files, foo and bar)
+- Fixed: The libc time() function is producing dates off (slow) by 1 year.
+
+---------------
 Version 0.57
 ---------------
 
@@ -56,7 +94,6 @@ appear.
 name supplied in the file dialog was an absolute path.
 - Fixed: The window list item code had an error in which it undercalculated
 the length of the text string.
-
 
 ---------------
 Version 0.56

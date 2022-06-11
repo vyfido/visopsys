@@ -85,12 +85,14 @@ typedef volatile struct {
 typedef struct {
   kernelFileSysTypeEnum driverType;
   char *driverTypeName;
-  int (*driverDetect) (const kernelDisk *);
+  int (*driverDetect) (kernelDisk *);
   int (*driverFormat) (kernelDisk *, const char *, const char *, int);
+  int (*driverClobber) (kernelDisk *);
+  int (*driverCheck) (kernelFilesystem *, int, int);
   int (*driverDefragment) (kernelFilesystem *);
+  int (*driverResize) (kernelDisk *, diskResizeParameters *);
   int (*driverMount) (kernelFilesystem *);
   int (*driverUnmount) (kernelFilesystem *);
-  int (*driverCheck) (kernelFilesystem *, int, int);
   unsigned (*driverGetFree) (kernelFilesystem *);
   int (*driverNewEntry) (kernelFileEntry *);
   int (*driverInactiveEntry) (kernelFileEntry *);
@@ -118,6 +120,7 @@ int kernelFilesystemIsoInitialize(void);
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemScan(kernelDisk *);
 int kernelFilesystemFormat(const char *, const char *, const char *, int);
+int kernelFilesystemClobber(const char *);
 int kernelFilesystemDefragment(const char *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);

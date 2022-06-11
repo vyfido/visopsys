@@ -303,10 +303,20 @@ static void eventHandler(objectKey key, windowEvent *event)
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
       ((key == menuQuit) && (event->type & EVENT_SELECTION)))
     {
-      if (changesPending && !readOnly &&
-	  !windowNewQueryDialog(window, "Unsaved changes",
-				"Quit without saving changes?"))
-	return;
+      if (changesPending && !readOnly)
+	{
+	  selected =
+	    windowNewChoiceDialog(window, "Unsaved changes",
+				  "Quit without saving changes?",
+				  (char *[]) { "Save", "Quit", "Cancel" },
+				  3, 0);
+
+	  if ((selected < 0) || (selected == 2))
+	    return;
+
+	  else if (selected == 0)
+	    writeConfigFile();
+	}
       windowGuiStop();
     }
   else if ((key == menuSave) && (event->type & EVENT_SELECTION))

@@ -30,6 +30,7 @@ typedef struct {
   char regMap[86];
   char shiftMap[86];
   char controlMap[86];
+  char altGrMap[86];
 
 } kernelKeyMap;
 

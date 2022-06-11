@@ -48,7 +48,7 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argCount,
   // Now copy each argument, if there are any
   for (count = 0; *commandLine != '\0'; count ++)
     {
-      // remove leading whitespace
+      // Remove leading whitespace
       while ((*commandLine == ' ') && (*commandLine != '\0'))
 	commandLine += 1;
 

@@ -43,6 +43,50 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.58<br>
+</font><font size="2">03/10/2005</font></p>
+<p><font size="4">Overview: This is a maintenance and bugfix release. Some new 
+features include support for EXT2 filesystem formatting, German keyboard 
+layouts, GUID (Globally-Unique Identifier) generation, and filesystem clobber.&nbsp; 
+Also includes a number of important bugfixes to the Disk Manager program.</font></p>
+<ul>
+  <li><font size="4">Implemented EXT2 formatting.</font></li>
+  <li><font size="4">Added Jonas Zaddach's German keyboard layout</font></li>
+  <li><font size="4">Added GUID-generating capability to the kernel.</font></li>
+  <li><font size="4">Filesystem drivers that support 'format' functionality now 
+  also support 'clobber' functions, so that for example when a format is done, 
+  the filesystem doesn't still get detected as the previous type. </font></li>
+  <li><font size="4">The filesystems code now has a proper array of all the 
+  different filesystem drivers, that can be iterated through (for example, when 
+  doing filesystem detection).</font></li>
+  <li><font size="4">Implemented a &quot;multi choice dialog&quot; that shows buttons with 
+  user-specified text strings and returns the index of the specified choice.</font></li>
+  <li><font size="4">Fixed: In the Disk Manager, when creating partitions, it 
+  wasn't possible to create logical partitions. When choosing primary, no 
+  primary/logical attribute was shown.</font></li>
+  <li><font size="4">Fixed: The EXT filesystem code would fail to mount small 
+  filesystems with only a single block group, where the number of blocks was 
+  less than the maximum blocks per group.</font></li>
+  <li><font size="4">Fixed: In the graphics mode Disk Manager, after specifying 
+  start and end values for a new partition, pressing 'Cancel' in the tag type 
+  dialog didn't stop the partition from being created.</font></li>
+  <li><font size="4">Fixed: The Disk Manager's 'move' function check for empty 
+  space on either side of a partition could produce a false error</font></li>
+  <li><font size="4">Fixed: The Disk Manager was telling the kernel to reread 
+  the partitions too frivolously (especially in between writing the main and 
+  extended partition tables).</font></li>
+  <li><font size="4">Fixed: The vsh shell's code for marshalling quoted 
+  arguments was broken (e.g. 'touch &quot;foo bar&quot;' created 2 files, foo and bar)</font></li>
+  <li><font size="4">Fixed: The libc time() function is producing dates off 
+  (slow) by 1 year.</font></li>
+</ul>
+
+<font SIZE="2">
+
+<hr>
+
+</font>
+
 <p>
 
 <font SIZE="2">

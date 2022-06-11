@@ -130,12 +130,8 @@ static int yesOrNo(char *question)
   char character;
 
   if (graphics)
-    {
-      if (windowNewQueryDialog(window, "Confirmation", question))
-	return (1);
-      else
-	return (0);
-    }
+    return (windowNewQueryDialog(window, "Confirmation", question));
+
   else
     {
       printf("\n%s (y/n): ", question);
@@ -169,8 +165,6 @@ static int quit(int force)
   if (!force && changesPending && !yesOrNo("Quit without writing changes?"))
     return (0);
 
-  errno = 0;
-
   if (graphics)
     {
       windowGuiStop();
@@ -188,6 +182,7 @@ static int quit(int force)
       tmpBackupName = NULL;
     }
 
+  errno = 0;
   return (1);
 }
 
@@ -225,13 +220,6 @@ static char readKey(const char *choices, int allowCursor)
     {
       character = getchar();
       
-      if (errno)
-	{
-	  // Eek.  We can't get input.  Quit.
-	  textInputSetEcho(1);
-	  return (0);
-	}
-
       if (allowCursor &&
 	  ((character == (unsigned char) 17) ||
 	   (character == (unsigned char) 20)))
@@ -259,13 +247,6 @@ static int readLine(const char *choices, char *buffer, int length)
     {
       buffer[count1] = getchar();
       
-      if (errno)
-	{
-	  // Eek.  We can't get input.  Quit.
-	  textInputSetEcho(1);
-	  return (ERR_INVALID);
-	}
-
       if (buffer[count1] == 10) // Newline
 	{
 	  buffer[count1] = '\0';
@@ -474,12 +455,13 @@ static void setPartitionNumbering(partitionTable *table, int reset)
 	}
 
       table->entries[count].partition = numberDataPartitions++;
+      sprintf(table->entries[count].diskName, "%s%c", selectedDisk->name,
+	      ('a' + table->entries[count].partition));
 #ifdef PARTLOGIC
-      sprintf(table->entries[count].name1, "%d",
+      sprintf(table->entries[count].sliceName, "%d",
 	      (table->entries[count].partition + 1));
 #else
-      sprintf(table->entries[count].name1, "%s%c", selectedDisk->name,
-	      ('a' + table->entries[count].partition));
+      strcpy(table->entries[count].sliceName, table->entries[count].diskName);
 #endif
     }
 
@@ -521,7 +503,7 @@ static void makeSliceString(slice *slc)
   else
     {
       // Disk name
-      strcpy(slc->string, slc->name1);
+      strcpy(slc->string, slc->sliceName);
       slc->string[strlen(slc->string)] = ' ';
       position += SLICESTRING_DISKFIELD_WIDTH;
 
@@ -556,6 +538,8 @@ static void makeSliceString(slice *slc)
 	sprintf((slc->string + position), "extended");
       else if (slc->entryType == partition_logical)
 	sprintf((slc->string + position), "logical");
+      else
+	sprintf((slc->string + position), "unknown");
 
       if (slc->active)
 	strcat(slc->string, "/active");
@@ -592,6 +576,22 @@ static void makeEmptySlice(slice *emptySlice, unsigned startCylinder,
     (((endLogical % cylinderSectors) % selectedDisk->sectorsPerCylinder) + 1);
 
   makeSliceString(emptySlice);
+}
+
+
+static int getFsType(slice *entry)
+{
+  int status = 0;
+  disk tmpDisk;
+
+  status = diskGet(entry->diskName, &tmpDisk);
+  if (status < 0)
+    return (status);
+
+  if (strcmp(tmpDisk.fsType, "unknown"))
+    strncpy(entry->fsType, tmpDisk.fsType, FSTYPE_MAX_NAMELENGTH);
+
+  return (status = 0);
 }
 
 
@@ -659,6 +659,7 @@ static void makeSliceList(void)
 
       // Now add a slice for the current partition
       memcpy(&slices[numberSlices], &partition, sizeof(slice));
+      getFsType(&slices[numberSlices]);
       makeSliceString(&slices[numberSlices]);
       numberSlices += 1;
     }
@@ -875,7 +876,7 @@ static int readEntry(partitionTable *table, int entryNumber, slice *entry)
   entry->startLogical = (unsigned) ((unsigned *) partRecord)[2];
   entry->sizeLogical = (unsigned) ((unsigned *) partRecord)[3];
 
-  if (PARTITION_TYPEID_IS_EXTENDED(entry->typeId))
+  if (PARTITION_TYPEID_IS_EXTD(entry->typeId))
     entry->entryType = partition_extended;
   else
     entry->entryType = partition_primary;
@@ -965,33 +966,6 @@ static int writeEntry(partitionTable *table, int entryNumber, slice *entry)
   partRecord[ENTRYOFFSET_END_CYL] = (unsigned char) (endCyl & 0x0FF);
   ((unsigned *) partRecord)[2] = entry->startLogical;
   ((unsigned *) partRecord)[3] = entry->sizeLogical;
-
-  return (status = 0);
-}
-
-
-static int getFsType(slice *entry)
-{
-  int status = 0;
-  int tmpNumberDisks = 0;
-  disk tmpDisks[DISK_MAXDEVICES];
-  int count;
-
-  // Call the kernel to give us the number of available disks
-  tmpNumberDisks = diskGetCount();
-
-  status = diskGetAll(tmpDisks, (DISK_MAXDEVICES * sizeof(disk)));
-  if (status < 0)
-    return (status);
-
-  for (count = 0; count < tmpNumberDisks; count ++)
-    if (!strcmp(tmpDisks[count].name, entry->name1))
-      {
-	if (strcmp(tmpDisks[count].fsType, "unknown"))
-	  strncpy(entry->fsType, tmpDisks[count].fsType,
-		  FSTYPE_MAX_NAMELENGTH);
-	break;
-      }
 
   return (status = 0);
 }
@@ -1229,10 +1203,12 @@ static void scanPartitionTable(const disk *theDisk, partitionTable *table,
 
       entry->sliceId = numberPartitions++;
       entry->partition = numberDataPartitions++;
-      sprintf(entry->name1, "%s%c", theDisk->name, ('a' + entry->partition));
-      getFsType(entry);
+      sprintf(entry->diskName, "%s%c", theDisk->name,
+	      ('a' + entry->partition));
 #ifdef PARTLOGIC
-      sprintf(entry->name1, "%d", (entry->partition + 1));
+      sprintf(entry->sliceName, "%d", (entry->partition + 1));
+#else
+      strcpy(entry->sliceName, entry->diskName);
 #endif
     }
 
@@ -1458,8 +1434,7 @@ static int writePartitionTable(const disk *theDisk, partitionTable *table)
   diskSync();
   changesPending = 0;
 
-  // Tell the kernel to reexamine the partition tables
-  return (status = diskReadPartitions());
+  return (status = 0);
 }
 
 
@@ -1958,7 +1933,7 @@ static void format(slice *formatSlice)
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
   windowEvent event;
-  char *fsTypes[] = { "FAT", "EXT2" };
+  char *fsTypes[] = { "FAT", "EXT2", "None" };
   int selectedType = 0;
   char tmpChar[160];
 
@@ -1971,7 +1946,7 @@ static void format(slice *formatSlice)
 
   if (graphics)
     {
-      sprintf(tmpChar, "Format partition %s", formatSlice->name1);
+      sprintf(tmpChar, "Format partition %s", formatSlice->sliceName);
       formatDialog = windowNewDialog(window, tmpChar);
 
       bzero(&params, sizeof(componentParameters));
@@ -1989,9 +1964,8 @@ static void format(slice *formatSlice)
 
       // A radio button for the filesystem type
       params.gridY = 1;
-      fsTypeRadio = windowNewRadioButton(formatDialog, 2, 1, fsTypes, 2 ,
+      fsTypeRadio = windowNewRadioButton(formatDialog, 3, 1, fsTypes, 3,
 					 &params);
-      windowComponentSetEnabled(fsTypeRadio, 0);
       
       // Make 'OK' and 'cancel' buttons
       params.gridY = 2;
@@ -2037,34 +2011,54 @@ static void format(slice *formatSlice)
     }
   else
     {
-      // Don't bother with this for the moment since we really don't offer
-      // any choice other than FAT.  The graphical version above is merely
-      // eye candy for the moment.
+      selectedType =
+	vshCursorMenu("Choose the filesystem type:", 3, fsTypes, 0);
+      if (selectedType < 0)
+	return;
     }
 
-  sprintf(tmpChar, "Format partition %s as %s?\n(This change cannot be "
-	  "undone)", formatSlice->name1, fsTypes[selectedType]);
-  if (yesOrNo(tmpChar))
+  if (!strcasecmp(fsTypes[selectedType], "none"))
     {
+      sprintf(tmpChar, "Unformat partition %s?  (This change cannot be "
+	      "undone)", formatSlice->sliceName);
+
+      if (!yesOrNo(tmpChar))
+	return;
+
+      status = filesystemClobber(formatSlice->diskName);
+    }
+  else
+    {
+      sprintf(tmpChar, "Format partition %s as %s?\n(This change cannot be "
+	      "undone)", formatSlice->sliceName, fsTypes[selectedType]);
+
+      if (!yesOrNo(tmpChar))
+	return;
+
       // Do the format
       sprintf(tmpChar, "/programs/format -s -t %s %s", fsTypes[selectedType],
-	      formatSlice->name1);
-      status = system(tmpChar);
-      if (status < 0)
-	error("Error during format");
+	      formatSlice->diskName);
 
+      status = system(tmpChar);
+    }
+
+  if (status < 0)
+    error("Error during format");
+
+  else
+    {
+      sprintf(tmpChar, "Format complete");
+      if (graphics)
+	windowNewInfoDialog(window, "Success", tmpChar);
       else
 	{
-	  sprintf(tmpChar, "Format complete");
-	  if (graphics)
-	    windowNewInfoDialog(window, "Success", tmpChar);
-	  else
-	    {
-	      printf("%s\n", tmpChar);
-	      pause();
-	    }
+	  printf("%s\n", tmpChar);
+	  pause();
 	}
     }
+
+  // Regenerate the slice list
+  makeSliceList();
 
   return;
 }
@@ -2101,7 +2095,7 @@ static void info(int sliceNumber)
 
   if (slc->typeId)
     sprintf(buff, "PARTITION %s INFO:\n\nActive : %s\nType ID : %02x\n",
-	    slc->name1, (slc->active? "yes" : "no"), slc->typeId);
+	    slc->sliceName, (slc->active? "yes" : "no"), slc->typeId);
   else
     sprintf(buff, "EMPTY SPACE INFO:\n\n");
 
@@ -2329,6 +2323,9 @@ static void writeChanges(int confirm)
       if (status < 0)
 	error("Unable to write the partition table of %s.",
 	      selectedDisk->name);
+
+      // Tell the kernel to reexamine the partition tables
+      diskReadPartitions();
     }
 }
 
@@ -2374,7 +2371,7 @@ static int move(int sliceId)
 
   // Find out which slice it is in our list
   for (count = 0; count < numberSlices; count ++)
-    if (slices[count].sliceId == sliceId)
+    if (slices[count].typeId && (slices[count].sliceId == sliceId))
       {
 	sliceNumber = count;
 	break;
@@ -2717,6 +2714,39 @@ static partEntryType canCreate(int sliceNumber)
 }
 
 
+static partEntryType queryPrimaryLogical(objectKey primLogRadio)
+{
+  partEntryType retType = partition_none;
+  int response = -1;
+
+  if (graphics)
+    {
+      if (windowComponentGetSelected(primLogRadio, &response) < 0)
+	return (retType = partition_none);
+    }
+  else
+    {
+      response = vshCursorMenu("Choose the partition type:", 2,
+			       (char *[]){ "primary", "logical" }, 0);
+      if (response < 0)
+	return (retType = partition_none);
+    }
+
+  switch (response)
+    {
+    case 0:
+    default:
+      retType = partition_primary;
+      break;
+    case 1:
+      retType = partition_logical;
+      break;
+    }
+  
+  return (retType);
+}
+
+
 static void create(int sliceNumber)
 {
   enum { units_normal, units_mb, units_cylsize } units = units_normal;
@@ -2787,8 +2817,8 @@ static void create(int sliceNumber)
 	      { "Primary", "Logical" }, 2 , &params);
 	  if (newEntry.entryType != partition_any)
 	    {
-	      windowComponentSetSelected(primLogRadio,
-					 (int) newEntry.entryType);
+	      if (newEntry.entryType == partition_logical)
+		windowComponentSetSelected(primLogRadio, 1);
 	      windowComponentSetEnabled(primLogRadio, 0);
 	    }
 
@@ -2872,8 +2902,9 @@ static void create(int sliceNumber)
 	      multitaskerYield();
 	    }
 
-	  windowComponentGetSelected(primLogRadio,
-				     (int *) &newEntry.entryType);
+	  newEntry.entryType = queryPrimaryLogical(primLogRadio);
+	  if (newEntry.entryType == partition_none)
+	    return;
 
 	  windowComponentGetData(startCylField, startCyl, 10);
 	  windowComponentGetData(endCylField, endCyl, 10);
@@ -2885,10 +2916,8 @@ static void create(int sliceNumber)
 	  if (newEntry.entryType == partition_any)
 	    {
 	      // Does the user prefer primary or logical?
-	      newEntry.entryType =
-		vshCursorMenu("Choose the partition type:", 2,
-			      (char *[]){ "primary", "logical" }, 0);
-	      if ((int) newEntry.entryType < 0)
+	      newEntry.entryType = queryPrimaryLogical(NULL);
+	      if (newEntry.entryType == partition_none)
 		return;
 	    }
 	  else
@@ -3048,7 +3077,12 @@ static void create(int sliceNumber)
       return;
     }
 
-  setType(slices[newSliceNumber].sliceId);
+  if (setType(slices[newSliceNumber].sliceId) < 0)
+    {
+      // Cancelled.  Remove it again.
+      deletePartitionEntry(slices[newSliceNumber].sliceId);
+      makeSliceList();
+    }
 
   return;
 }
@@ -3685,17 +3719,21 @@ static int copyDisk(void)
   // Write out the partition table
   status = writePartitionTable(destDisk, mainTable);
 
-  // Make sure the disk geometries of any FAT partitions are correct for the
-  // new disk.
-  for (count = 0; count < mainTable->numberEntries; count ++)
-    {
-      if (!strncmp(entry.fsType, "fat", 3))
-	setFatGeometry(destDisk, entry.sliceId);
-    }
+  if (status >= 0)
+    // Make sure the disk geometries of any FAT partitions are correct for
+    // the new disk.
+    for (count = 0; count < mainTable->numberEntries; count ++)
+      {
+	if (!strncmp(entry.fsType, "fat", 3))
+	  setFatGeometry(destDisk, entry.sliceId);
+      }
 
   makeSliceList();
   display();
   
+  // Tell the kernel to reexamine the partition tables
+  diskReadPartitions();
+
   return (status);
 }
 
@@ -3721,14 +3759,16 @@ static void swapEntries(slice *firstSlice, slice *secondSlice)
       secondSlice->partition = firstSlice->partition;
       firstSlice->partition = tmpPartition;
 
-#ifdef PARTLOGIC
-      sprintf(firstSlice->name1, "%d", (firstSlice->partition + 1));
-      sprintf(secondSlice->name1, "%d", (secondSlice->partition + 1));
-#else
-      sprintf(firstSlice->name1, "%s%c", selectedDisk->name,
+      sprintf(firstSlice->diskName, "%s%c", selectedDisk->name,
 	      ('a' + firstSlice->partition));
-      sprintf(secondSlice->name1, "%s%c", selectedDisk->name,
+      sprintf(secondSlice->diskName, "%s%c", selectedDisk->name,
 	      ('a' + secondSlice->partition));
+#ifdef PARTLOGIC
+      sprintf(firstSlice->sliceName, "%d", (firstSlice->partition + 1));
+      sprintf(secondSlice->sliceName, "%d", (secondSlice->partition + 1));
+#else
+      strcpy(firstSlice->sliceName, firstSlice->diskName);
+      strcpy(secondSlice->sliceName, secondSlice->diskName);
 #endif
       makeSliceString(firstSlice);
       makeSliceString(secondSlice);

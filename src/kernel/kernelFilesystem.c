@@ -32,8 +32,43 @@
 #include "kernelError.h"
 #include <string.h>
 
+static kernelFilesystemDriver *driverArray[MAX_FILESYSTEMS];
+static int driverCounter = 0;
 static kernelFilesystem *filesystemPointerArray[MAX_FILESYSTEMS];
 static int filesystemCounter = 0;
+
+
+static void populateDriverArray(void)
+{
+  if (!driverCounter)
+    {
+      driverArray[driverCounter++] = kernelDriverGetExt();
+      driverArray[driverCounter++] = kernelDriverGetFat();
+      driverArray[driverCounter++] = kernelDriverGetIso();
+    }
+}
+
+
+static kernelFilesystemDriver *getDriver(const char *name)
+{
+  int count;
+
+  if (!driverCounter)
+    populateDriverArray();
+
+  // First, look for exact matches
+  for (count = 0; count < driverCounter; count ++)
+    if (!strcasecmp(name, driverArray[count]->driverTypeName))
+      return (driverArray[count]);
+
+  // Next, look for partial matches
+  for (count = 0; count < driverCounter; count ++)
+    if (!strncasecmp(name, driverArray[count]->driverTypeName, strlen(name)))
+      return (driverArray[count]);
+
+  // Not found
+  return (NULL);
+}
 
 
 static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
@@ -51,41 +86,42 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
   int status = 0;
   kernelFilesystemDriver *tmpDriver = NULL;
   kernelFilesystemDriver *driver = NULL;
+  int count;
 
   // We will assume that the detection routines being called will do
   // all of the necessary checking of the kernelDisk before using
   // it.  Since we're not actually using it here, we won't duplicate
   // that work.
 
+  if (!driverCounter)
+    populateDriverArray();
+
   // If it's a CD-ROM, only check ISO
   if (((kernelPhysicalDisk *) theDisk->physical)->flags & DISKFLAG_CDROM)
     {
-      tmpDriver = kernelDriverGetIso();
-      status = tmpDriver->driverDetect(theDisk);
-      if (status == 1)
+      tmpDriver = getDriver("iso");
+      if (tmpDriver)
 	{
-	  driver = tmpDriver;
-	  goto finished;
+	  status = tmpDriver->driverDetect(theDisk);
+	  if (status == 1)
+	    {
+	      driver = tmpDriver;
+	      goto finished;
+	    }
 	}
     }
   else
     {
-      // Check for FAT
-      tmpDriver = kernelDriverGetFat();
-      status = tmpDriver->driverDetect(theDisk);
-      if (status == 1)
-	{
-	  driver = tmpDriver;
-	  goto finished;
-	}
+      // Check them all
 
-      // Check for EXT
-      tmpDriver = kernelDriverGetExt();
-      status = tmpDriver->driverDetect(theDisk);
-      if (status == 1)
+      for (count = 0; count < driverCounter; count ++)
 	{
-	  driver = tmpDriver;
-	  goto finished;
+	  status = driverArray[count]->driverDetect(theDisk);
+	  if (status == 1)
+	    {
+	      driver = driverArray[count];
+	      goto finished;
+	    }
 	}
     }
   
@@ -104,10 +140,14 @@ static kernelFilesystemDriver *detectType(kernelDisk *theDisk)
       theDisk->opFlags = 0;
       if (driver->driverFormat)
 	theDisk->opFlags |= FS_OP_FORMAT;
+      if (driver->driverClobber)
+	theDisk->opFlags |= FS_OP_CLOBBER;
       if (driver->driverCheck)
 	theDisk->opFlags |= FS_OP_CHECK;
       if (driver->driverDefragment)
 	theDisk->opFlags |= FS_OP_DEFRAG;
+      if (driver->driverResize)
+	theDisk->opFlags |= FS_OP_RESIZE;
     }
 
   return (driver);
@@ -268,7 +308,6 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
     return (status = ERR_NULLPARAMETER);
 
   theDisk = kernelGetDiskByName(diskName);
-  // Make sure it exists
   if (theDisk == NULL)
     {
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
@@ -277,7 +316,9 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 
   // Get a temporary filesystem driver to use for formatting
   if (!strncasecmp(type, "fat", 3))
-    theDriver = kernelDriverGetFat();
+    theDriver = getDriver("fat");
+  else if (!strncasecmp(type, "ext", 3))
+    theDriver = getDriver("ext");
 
   if (theDriver == NULL)
     {
@@ -286,7 +327,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
       return (status = ERR_NOSUCHENTRY);
     }
 
-  // Make sure the driver's checking routine is not NULL
+  // Make sure the driver's formatting routine is not NULL
   if (theDriver->driverFormat == NULL)
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
@@ -305,6 +346,43 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 
   // Finished
   return (status);
+}
+
+
+int kernelFilesystemClobber(const char *diskName)
+{
+  // This function destroys anything that might cause this disk to be detected
+  // as any filesystem we know about.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  int count;
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  theDisk = kernelGetDiskByName(diskName);
+  if (theDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (!driverCounter)
+    populateDriverArray();
+
+  for (count = 0; count < driverCounter; count ++)
+    {
+      if (driverArray[count]->driverClobber)
+	driverArray[count]->driverClobber(theDisk);
+    }
+
+  // Get the kernel to re-scan the partition tables
+  kernelDiskReadPartitions();
+
+  // Finished
+  return (status = 0);
 }
 
 

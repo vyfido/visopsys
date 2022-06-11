@@ -75,7 +75,7 @@
 #define EXT_ERRORS_CONTINUE      1  // Continue as if nothing happened
 #define EXT_ERRORS_RO            2  // Remount read-only
 #define EXT_ERRORS_PANIC         3  // Cause a kernel panic
-#define EXT_ERRORS_DEFAULT       EXT2_ERRORS_CONTINUE
+#define EXT_ERRORS_DEFAULT       EXT_ERRORS_CONTINUE
 
 // EXT_OS: 32-bit identifier of the OS that created the file system for
 // the 'creator_os' field in the superblock
@@ -89,10 +89,21 @@
 // 32-bit revision level value for the 'rev_level' field in the superblock
 #define EXT_GOOD_OLD_REV         0  // Original format
 #define EXT_DYNAMIC_REV          1  // V2 format with dynamic inode sizes
+
+// Superblock flags
+#define EXT_ROCOMPAT_SPARSESUPER 0x01
+#define EXT_ROCOMPAT_LARGEFILE   0x02
+#define EXT_ROCOMPAT_BTREEDIR    0x04
+#define EXT_ROCOMPAT_ANY         0xffffffff
+
 // If the revision level (above) is EXT_GOOD_OLD_REV, here are a coupla
 // fixed values
 #define EXT_GOOD_OLD_FIRST_INODE 11
 #define EXT_GOOD_OLD_INODE_SIZE  128
+
+// File system states
+#define EXT_VALID_FS             1  // Unmounted cleanly
+#define EXT_ERROR_FS             2  // Errors detected
 
 // Reserved inode numbers for the inode table
 #define EXT_BAD_INO              1  // Bad blocks inode
@@ -121,10 +132,10 @@
 #define EXT_S_IFLNK              0xA000  // Symbolic link
 #define EXT_S_IFREG              0x8000  // Regular file
 #define EXT_S_IFBLK              0x6000  // Block device
-//                 -- access rights --
 #define EXT_S_IFDIR              0x4000  // Directory
 #define EXT_S_IFCHR              0x2000  // Character device
 #define EXT_S_IFIFO              0x1000  // Fifo
+//                 -- access rights --
 #define EXT_S_ISUID              0x0800  // SUID
 #define EXT_S_ISGID              0x0400  // SGID
 #define EXT_S_ISVTX              0x0200  // Sticky bit

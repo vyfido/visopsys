@@ -2171,12 +2171,16 @@ int kernelFileFirst(const char *path, file *fileStructure)
 
   // Make the starting directory correspond to the path we were given
   directory = kernelFileLookup(path);
-  // Make sure it's good, and that it's really a subdirectory
-  if ((directory == NULL) || (directory->type != dirT))
+  if (directory == NULL)
     {
-      kernelError(kernel_error, "Invalid directory \"%s\" for lookup",
+      kernelError(kernel_error, "No such directory \"%s\" for lookup",
 		  path);
       return (status = ERR_NOSUCHFILE);
+    }
+  if (directory->type != dirT)
+    {
+      kernelError(kernel_error, "\"%s\" is not a directory", path);
+      return (status = ERR_INVALID);
     }
 
   fileStructure->handle = (void *) NULL;  // INVALID

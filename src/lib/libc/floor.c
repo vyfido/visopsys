@@ -26,18 +26,8 @@
 
 double floor(double d)
 {
-  // The floor() function computes the largest integral value not
-  // greater than x.
+  // Rounds d down to the nearest integer.
 
-  int c = (int) d;
-
-  if (d > 0)
-    d = (double) c;
-
-  else if (d > 0)
-    // ??? what to do ???  Is floor(-5.5) == -5.0, or is
-    // floor(-5.5) == -6.0?  -6.0 according to the description.
-    d = (double) (c - 1);
-
-  return (d);
+  int i = (int) d;
+  return ((double) i);
 }

@@ -1428,10 +1428,12 @@ int kernelDiskReadPartitions(void)
 		      partTypeCode = partitionRecord[4];
 		      if (partTypeCode == 0)
 			// The "rules" say we must be finished with this
-			// physical device.
-			break;
+			// physical device.  But that is not the way things
+			// often happen in real life -- empty records often
+			// come before valid ones.
+			continue;
 
-		      if (PARTITION_TYPEID_IS_EXTENDED(partTypeCode))
+		      if (PARTITION_TYPEID_IS_EXTD(partTypeCode))
 			{
 			  extendedRecord = partitionRecord;
 			  partitionRecord += 16;

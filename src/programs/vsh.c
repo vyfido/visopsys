@@ -354,13 +354,9 @@ static void interpretCommand(char *commandLine)
 	}
       
       // Reconstitute the full command line
-      strcpy(fullCommand, fileName1);
-      strcat(fullCommand, " ");
+      sprintf(fullCommand, "\"%s\" ", fileName1);
       for (count = 1; count < numArgs; count ++)
-	{
-	  strcat(fullCommand, args[count]);
-	  strcat(fullCommand, " ");
-	}
+	sprintf((fullCommand + strlen(fullCommand)), "\"%s\" ", args[count]);
 
       loaderLoadAndExec(fullCommand, myPrivilege, block);
     }

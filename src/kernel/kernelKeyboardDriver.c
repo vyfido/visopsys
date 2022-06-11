@@ -41,10 +41,10 @@
 // Some special scan values that we care about
 #define KEY_RELEASE      128
 #define EXTENDED         224
-#define LEFT_SHIFT       42
-#define RIGHT_SHIFT      54
-#define LEFT_CTRL        29
-#define LEFT_ALT         56
+#define LEFTSHIFT_KEY    42
+#define RIGHTSHIFT_KEY   54
+#define LEFTCTRL_KEY     29
+#define ALT_KEY          56
 #define ASTERISK_KEY     55
 #define F1_KEY           59
 #define F2_KEY           60
@@ -52,17 +52,18 @@
 #define PAGEUP_KEY       73
 #define PAGEDOWN_KEY     81
 #define DEL_KEY          83
-#define CAPSLOCK         58
-#define NUMLOCK          69
-#define SCROLLLOCK       70
+#define CAPSLOCK_KEY     58
+#define NUMLOCK_KEY      69
+#define SCROLLLOCK_KEY   70
 
-#define INSERT_FLAG      0x80
-#define CAPSLOCK_FLAG    0x40
-#define NUMLOCK_FLAG     0x20
-#define SCROLLLOCK_FLAG  0x10
-#define ALT_FLAG         0x08
-#define CONTROL_FLAG     0x04
-#define SHIFT_FLAG       0x03
+#define ALTGR_FLAG       0x0100
+#define INSERT_FLAG      0x0080
+#define CAPSLOCK_FLAG    0x0040
+#define NUMLOCK_FLAG     0x0020
+#define SCROLLLOCK_FLAG  0x0010
+#define ALT_FLAG         0x0008
+#define CONTROL_FLAG     0x0004
+#define SHIFT_FLAG       0x0003
 
 #define SCROLLLOCK_LIGHT 0
 #define NUMLOCK_LIGHT    1
@@ -177,18 +178,22 @@ static void driverReadData(void)
 
       switch (data)
 	{
-	case (KEY_RELEASE + LEFT_SHIFT):
-	case (KEY_RELEASE + RIGHT_SHIFT):
+	case (KEY_RELEASE + LEFTSHIFT_KEY):
+	case (KEY_RELEASE + RIGHTSHIFT_KEY):
 	  // Left or right shift release.
 	  keyboardDevice->flags &= ~SHIFT_FLAG;
 	  return;
-	case (KEY_RELEASE + LEFT_CTRL):
+	case (KEY_RELEASE + LEFTCTRL_KEY):
 	  // Left control release.
 	  keyboardDevice->flags &= ~CONTROL_FLAG;
 	  return;
-	case (KEY_RELEASE + LEFT_ALT):
-	  // Left Alt release.
-	  keyboardDevice->flags &= ~ALT_FLAG;
+	case (KEY_RELEASE + ALT_KEY):
+	  if (extended)
+	    // Right Alt release.
+	    keyboardDevice->flags &= ~ALTGR_FLAG;
+	  else
+	    // Left Alt release.
+	    keyboardDevice->flags &= ~ALT_FLAG;
 	  return;
 	default:
 	  data -= KEY_RELEASE;
@@ -203,20 +208,24 @@ static void driverReadData(void)
 
       switch (data)
 	{
-	case LEFT_SHIFT:
-	case RIGHT_SHIFT:
+	case LEFTSHIFT_KEY:
+	case RIGHTSHIFT_KEY:
 	  // Left shift or right shift press.
 	  keyboardDevice->flags |= SHIFT_FLAG;
 	  return;
-	case LEFT_CTRL:
+	case LEFTCTRL_KEY:
 	  // Left control press.
 	  keyboardDevice->flags |= CONTROL_FLAG;
 	  return;
-	case LEFT_ALT:
-	  // Left alt press.
-	  keyboardDevice->flags |= ALT_FLAG;
+	case ALT_KEY:
+	  if (extended)
+	    // Right alt press.
+	    keyboardDevice->flags |= ALTGR_FLAG;
+	  else
+	    // Left alt press.
+	    keyboardDevice->flags |= ALT_FLAG;
 	  return;
-	case CAPSLOCK:
+	case CAPSLOCK_KEY:
 	  if (keyboardDevice->flags & CAPSLOCK_FLAG)
 	    // Capslock off
 	    keyboardDevice->flags ^= CAPSLOCK_FLAG;
@@ -225,7 +234,7 @@ static void driverReadData(void)
 	    keyboardDevice->flags |= CAPSLOCK_FLAG;
 	  setLight(CAPSLOCK_LIGHT, (keyboardDevice->flags & CAPSLOCK_FLAG));
 	  return;
-	case NUMLOCK:
+	case NUMLOCK_KEY:
 	  if (keyboardDevice->flags & NUMLOCK_FLAG)
 	    // Numlock off
 	    keyboardDevice->flags ^= NUMLOCK_FLAG;
@@ -234,7 +243,7 @@ static void driverReadData(void)
 	    keyboardDevice->flags |= NUMLOCK_FLAG;
 	  setLight(NUMLOCK_LIGHT, (keyboardDevice->flags & NUMLOCK_FLAG));
 	  return;
-	case SCROLLLOCK:
+	case SCROLLLOCK_KEY:
 	  if (keyboardDevice->flags & SCROLLLOCK_FLAG)
 	    // Scroll lock off
 	    keyboardDevice->flags ^= SCROLLLOCK_FLAG;
@@ -284,6 +293,9 @@ static void driverReadData(void)
       else
 	data = keyboardDevice->keyMap->controlMap[data - 1];
     }
+
+  else if (keyboardDevice->flags & ALTGR_FLAG)
+    data = keyboardDevice->keyMap->altGrMap[data - 1];
   
   else
     data = keyboardDevice->keyMap->regMap[data - 1];

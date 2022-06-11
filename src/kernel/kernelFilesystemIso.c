@@ -331,7 +331,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 }
 
 
-static int detect(const kernelDisk *theDisk)
+static int detect(kernelDisk *theDisk)
 {
   // This function is used to determine whether the data on a disk structure
   // is using an ISO filesystem.  It just looks for a 'magic number' on the
@@ -341,7 +341,6 @@ static int detect(const kernelDisk *theDisk)
 
   int status = 0;
   isoInternalData isoData;
-  int isIso = 0;
   
   // Check params
   if (theDisk == NULL)
@@ -361,14 +360,14 @@ static int detect(const kernelDisk *theDisk)
     return (status);
 
   // Check for the standard identifier
-  if (!strncmp((char *) isoData.volDesc.identifier, ISO_STANDARD_IDENTIFIER,
-	       strlen(ISO_STANDARD_IDENTIFIER)))
-    {
-      strcpy((char *) theDisk->fsType, "iso9660");
-      isIso = 1;
-    }
+  if (strncmp((char *) isoData.volDesc.identifier, ISO_STANDARD_IDENTIFIER,
+	      strlen(ISO_STANDARD_IDENTIFIER)))
+    // Not ISO
+    return (status = 0);
 
-  return (isIso);
+  strcpy((char *) theDisk->fsType, "iso9660");
+
+  return (status = 1);
 }
 
 
@@ -655,13 +654,15 @@ static int readDir(kernelFileEntry *directory)
 
 static kernelFilesystemDriver defaultIsoDriver = {
   Iso,   // FS type
-  "ISO", // Driver name
+  "iso", // Driver name
   detect,
   NULL,  // driverFormat
+  NULL,  // driverClobber
+  NULL,  // driverCheck
   NULL,  // driverDefragment
+  NULL,  // driverResize
   mount,
   unmount,
-  NULL,  // driverCheck
   getFree,
   newEntry,
   inactiveEntry,

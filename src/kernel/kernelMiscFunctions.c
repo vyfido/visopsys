@@ -27,6 +27,8 @@
 #include "kernelMultitasker.h"
 #include "kernelMemoryManager.h"
 #include "kernelProcessorX86.h"
+#include "kernelRandom.h"
+#include "kernelRtc.h"
 #include "kernelLog.h"
 #include "kernelFile.h"
 #include "kernelError.h"
@@ -423,6 +425,133 @@ int kernelReadSymbols(const char *filename)
 
   // Release our variable list
   kernelMemoryRelease(tmpList.memory);
+
+  return (status = 0);
+}
+
+
+time_t kernelUnixTime(void)
+{
+  // Unix time is seconds since 00:00:00 January 1, 1970
+
+  int status = 0;
+  time_t returnTime = 0;
+  struct tm timeStruct;
+  int count;
+
+  static int month_days[] =
+  { 31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
+    31, /* May */ 30, /* Jun */ 31, /* Jul */ 31, /* Aug */
+    30, /* Sep */ 31, /* Aug */ 30 /* Nov */ };
+
+  // Get the date and time according to the kernel
+  status = kernelRtcDateTime(&timeStruct);
+  if (status < 0)
+    return (returnTime = -1);
+
+  if (timeStruct.tm_year < 1970)
+    return (returnTime = -1);
+
+  // Calculate seconds for all complete years
+  returnTime = ((timeStruct.tm_year - 1970) * SECPERYR);
+
+  // Add 1 days's worth of seconds for every complete leap year.  There
+  // is a leap year in every year divisible by 4 except for years which
+  // are both divisible by 100 not by 400.  Got it?
+  for (count = timeStruct.tm_year; count >= 1972; count--)
+    if (((count % 4) == 0) && (((count % 100) != 0) || ((count % 400) == 0)))
+      returnTime += SECPERDAY;
+
+  // Add seconds for all complete months this year
+  for (count = (timeStruct.tm_mon - 1); count >= 0; count --)
+    returnTime += (month_days[count] * SECPERDAY);
+
+  // Add seconds for all complete days in this month
+  returnTime += ((timeStruct.tm_mday - 1) * SECPERDAY);
+
+  // Add one day's worth of seconds if THIS is a leap year, and if the
+  // current month and day are greater than Feb 28
+  if (((timeStruct.tm_year % 4) == 0) &&
+      (((timeStruct.tm_year % 100) != 0) ||
+       ((timeStruct.tm_year % 400) == 0)))
+    {
+      if ((timeStruct.tm_mon > 1) ||
+	  ((timeStruct.tm_mon == 1) &&
+	   (timeStruct.tm_mday > 28)))
+	returnTime += SECPERDAY;
+    }
+
+  // Add seconds for all complete hours in this day
+  returnTime += (timeStruct.tm_hour * SECPERHR);
+
+  // Add seconds for all complete minutes in this hour
+  returnTime += (timeStruct.tm_min * SECPERMIN);
+
+  // Add the current seconds
+  returnTime += timeStruct.tm_sec;
+
+  return (returnTime);
+}
+
+
+int kernelGuidGenerate(kernelGuid *guid)
+{
+  // Generates our best approximation of a GUID, which is not to spec but
+  // so what, really?  Will generate GUIDs unique enough for us.
+
+  int status = 0;
+  unsigned long long longTime = 0;
+  static unsigned clockSeq = 0;
+  lock globalLock;
+
+  // Check params
+  if (guid == NULL)
+    {
+      kernelError(kernel_error, "GUID parameter is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Get the lock
+  status = kernelLockGet(&globalLock);
+  if (status < 0)
+    return (status);
+
+  if (clockSeq == 0)
+    clockSeq = kernelRandomUnformatted();
+
+  // Increment the clock
+  clockSeq += 1;
+
+  // Get the time as a 60-bit value representing a count of 100-nanosecond
+  // intervals since 00:00:00.00, 15 October 1582 (the date of Gregorian
+  // reform to the Christian calendar).
+  //
+  // Umm.  Overkill on the time thing?  Maybe?  Nanoseconds since 1582?
+  // Why are we wasting the number of nanoseconds in the 400 years before
+  // most of us ever touched computers?
+
+  longTime = ((kernelUnixTime() * 10000000) + 0x01b21dd213814000ULL);
+
+  guid->fields.timeLow = (unsigned) (longTime & 0x00000000FFFFFFFF);
+  guid->fields.timeMid = (unsigned) ((longTime >> 32) & 0x0000FFFF);
+  guid->fields.timeHighVers = (((unsigned)(longTime >> 48) & 0x0FFF) | 0x1000);
+  guid->fields.clockSeqRes = (((clockSeq >> 16) & 0x3FFF) | 0x8000);
+  guid->fields.clockSeqLow = (clockSeq & 0xFFFF);
+  // Random node ID
+  *((unsigned *) guid->fields.node) = kernelRandomUnformatted();
+  *((unsigned *) (guid->fields.node + 4)) = (kernelRandomUnformatted() >> 16);
+
+  /* 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+  kernelTextPrintLine("GUID %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		      guid->fields.timeLow, guid->fields.timeMid,
+		      guid->fields.timeHighVers, guid->fields.clockSeqRes,
+		      guid->fields.clockSeqLow, guid->fields.node[0],
+		      guid->fields.node[1], guid->fields.node[2],
+		      guid->fields.node[3], guid->fields.node[4],
+		      guid->fields.node[5]);
+  */
+
+  kernelLockRelease(&globalLock);
 
   return (status = 0);
 }

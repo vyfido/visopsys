@@ -185,6 +185,8 @@ void windowGuiStop(void);
 int windowGuiThread(void);
 int windowGuiThreadPid(void);
 objectKey windowNewBannerDialog(objectKey, const char *, const char *);
+int windowNewChoiceDialog(objectKey, const char *, const char *, char *[],
+			  int, int);
 int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, char *,

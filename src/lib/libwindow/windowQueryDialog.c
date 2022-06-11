@@ -23,11 +23,7 @@
 
 #include <string.h>
 #include <sys/window.h>
-#include <sys/api.h>
 #include <sys/errors.h>
-
-
-static volatile image questImage;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -44,123 +40,23 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   // Desc: Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
   int status = 0;
-  objectKey dialogWindow = NULL;
-  objectKey imageComp = NULL;
-  objectKey mainLabel = NULL;
-  objectKey okButton = NULL;
-  objectKey cancelButton = NULL;
-  componentParameters params;
-  windowEvent event;
+  int choice = 0;
   
   // Check params.  It's okay for parentWindow to be NULL.
   if ((title == NULL) || (message == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Create the dialog.  Arbitrary size and coordinates
-  if (parentWindow)
-    dialogWindow = windowNewDialog(parentWindow, title);
+  choice = windowNewChoiceDialog(parentWindow, title, message,
+				 (char *[]) { "OK", "Cancel" } , 2, 0);
+
+  if (choice < 0)
+    return (choice);
+
+  if (choice == 0)
+    // OK button
+    return (status = 1);
+
   else
-    dialogWindow = windowNew(multitaskerGetCurrentProcessId(), title);
-  if (dialogWindow == NULL)
-    return (status = ERR_NOCREATE);
-
-  bzero(&params, sizeof(componentParameters));
-  params.gridWidth = 1;
-  params.gridHeight = 1;
-  params.padLeft = 5;
-  params.padTop = 5;
-  params.orientationX = orient_center;
-  params.orientationY = orient_middle;
-  params.useDefaultForeground = 1;
-  params.useDefaultBackground = 1;
-
-  if (questImage.data == NULL)
-    status = imageLoad(QUESTIMAGE_NAME, 0, 0, (image *) &questImage);
-
-  if (status == 0)
-    {
-      questImage.translucentColor.red = 0;
-      questImage.translucentColor.green = 255;
-      questImage.translucentColor.blue = 0;
-      imageComp = windowNewImage(dialogWindow, (image *) &questImage,
-				 draw_translucent, &params);
-    }
-
-  // Create the label
-  params.gridX = 1;
-  params.gridWidth = 2;
-  params.padRight = 5;
-  params.orientationX = orient_center;
-  mainLabel = windowNewTextLabel(dialogWindow, message, &params);
-  if (mainLabel == NULL)
-    {
-      windowDestroy(dialogWindow);
-      return (status = ERR_NOCREATE);
-    }
-
-  // Create the OK button
-  params.gridY = 1;
-  params.gridWidth = 1;
-  params.orientationX = orient_right;
-  params.fixedWidth = 1;
-  params.padBottom = 5;
-  okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
-  if (okButton == NULL)
-    {
-      windowDestroy(dialogWindow);
-      return (status = ERR_NOCREATE);
-    }
-
-  // Create the Cancel button
-  params.gridX = 2;
-  params.orientationX = orient_left;
-  cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
-  if (cancelButton == NULL)
-    {
-      windowDestroy(dialogWindow);
-      return (status = ERR_NOCREATE);
-    }
-
-  if (parentWindow)
-    windowCenterDialog(parentWindow, dialogWindow);
-  windowSetVisible(dialogWindow, 1);
-  
-  while(1)
-    {
-      // Check for our OK button
-      status = windowComponentEventGet(okButton, &event);
-      if (status < 0)
-	{
-	  status = 0;
-	  break;
-	}
-      else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
-	{
-	  status = 1;
-	  break;
-	}
-
-      // Check for our Cancel button
-      status = windowComponentEventGet(cancelButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
-	{
-	  status = 0;
-	  break;
-	}
-
-      // Check for window close events
-      status = windowComponentEventGet(dialogWindow, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
-	{
-	  status = 0;
-	  break;
-	}
-
-      // Done
-      multitaskerYield();
-    }
-
-  windowDestroy(dialogWindow);
-
-  return (status);
+    // Cancel button or whatever
+    return (status = 0);
 }

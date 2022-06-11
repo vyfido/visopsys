@@ -23,13 +23,45 @@
 
 #include "kernelFileStream.h"
 #include "kernelVariableList.h"
+#include <time.h>
 
 #define MAX_SYMBOL_LENGTH 80
+
 typedef struct {
   unsigned address;
   char symbol[MAX_SYMBOL_LENGTH];
 
 } kernelSymbol;
+
+typedef struct {
+  union {
+    struct {
+      unsigned timeLow;
+      unsigned short timeMid;
+      unsigned short timeHighVers;
+      unsigned char clockSeqRes;
+      unsigned char clockSeqLow;
+      unsigned char node[6];
+    } fields;
+    unsigned char bytes[16];
+  };
+} kernelGuid;
+
+static inline int POW(int x, int y)
+{
+  int ret = 0;
+  int count;
+
+  if (y == 0)
+    ret = 1;
+  else
+    {
+      ret = x;
+      for (count = 1; count < y; count ++)
+	ret *= x;
+    }
+  return (ret);
+}
 
 const char *kernelVersion(void);
 void kernelMemCopy(const void *, void *, unsigned);
@@ -40,6 +72,8 @@ void kernelConsoleLogin(void);
 int kernelConfigurationReader(const char *, variableList *);
 int kernelConfigurationWriter(const char *, variableList *);
 int kernelReadSymbols(const char *);
+time_t kernelUnixTime(void);
+int kernelGuidGenerate(kernelGuid *);
 
 #define _KERNELMISCFUNCTIONS_H
 #endif

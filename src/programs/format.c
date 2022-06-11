@@ -76,12 +76,8 @@ static int yesOrNo(char *question)
   char character;
 
   if (graphics)
-    {
-      if (windowNewQueryDialog(NULL, "Confirmation", question))
-	return (1);
-      else
-	return (0);
-    }
+    return (windowNewQueryDialog(NULL, "Confirmation", question));
+
   else
     {
       printf("\n%s (y/n): ", question);
@@ -243,7 +239,7 @@ static int chooseDisk(void)
 }
 
 
-static int copyBootSector(disk *theDisk)
+static int copyBootSector(disk *theDisk, const char *fsType)
 {
   // Overlay the "no boot" code from a /system/boot/ boot sector onto the
   // boot sector of the target disk
@@ -253,15 +249,22 @@ static int copyBootSector(disk *theDisk)
   char command[MAX_PATH_NAME_LENGTH];
   file bootSectFile;
 
-  strcpy(bootSectFilename, "/system/boot/bootsect.fatnoboot");
-  if (!strcmp(theDisk->fsType, "fat32"))
-    strcat(bootSectFilename, "32");
+  if (!strncasecmp(fsType, "fat", 3))
+    {
+      strcpy(bootSectFilename, "/system/boot/bootsect.fatnoboot");
+      if (!strcasecmp(fsType, "fat32"))
+	strcat(bootSectFilename, "32");
+    }
+  else
+    // No non-FAT boot sectors at the moment.
+    return (status = 0);
 
   // Find the boot sector
   status = fileFind(bootSectFilename, &bootSectFile);
   if (status < 0)
     {
-      error("Unable to find the boot sector file \"%s\"", bootSectFilename);
+      // Isn't one.  No worries.
+      printf("No boot sector available for filesystem type %s\n", fsType);
       return (status);
     }
 
@@ -274,7 +277,7 @@ static int copyBootSector(disk *theDisk)
 
   if (status < 0)
     {
-      error("Error %d copying boot sector \"%s\" to disk %s",
+      error("Error %d copying boot sector \"%s\" to disk %s", status,
 	    bootSectFilename, theDisk->name);
       return (status);
     }
@@ -411,9 +414,7 @@ int main(int argc, char *argv[])
   // The kernel's format code creates a 'dummy' boot sector.  If we have
   // a proper one stored in the /system/boot directory, copy it to the
   // disk.
-  status = copyBootSector(&diskInfo[diskNumber]);
-  if (status < 0)
-    return (errno = status);
+  copyBootSector(&diskInfo[diskNumber], type);
 
   if (!silentMode)
     {

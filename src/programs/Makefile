@@ -12,7 +12,7 @@ LIBDIR=../../build/system/libraries
 CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
-STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h ${LIBDIR}/*.a
+STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
 		-ffreestanding
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
