@@ -1,0 +1,15 @@
+
+ -- cdrom --
+
+This command can be used to control operations of CD-ROM devices.
+
+Usage:
+  cdrom [disk_name] <operation>
+
+    where 'operation' is one of: open, eject, close, lock, unlock 
+
+The first (optional) parameter is the name of a CD-ROM disk (use the 'disks'
+command to list the disks).  If no disk name is specified, the cdrom command
+will attempt to guess the most likely device.  The second (mandatory)
+argument tells the CD-ROM which operation to perform.
+

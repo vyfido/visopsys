@@ -21,7 +21,7 @@
 
 // This code is for managing kernelWindowScrollBar objects.
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include <stdlib.h>

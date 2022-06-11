@@ -24,10 +24,13 @@
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelProcessorX86.h"
 #include "kernelMultitasker.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelShutdown.h"
+#include "kernelFile.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
+#include <string.h>
+#include <stdio.h>
 #include <sys/window.h>
 #include <sys/errors.h>
 #include <sys/stream.h>
@@ -37,29 +40,30 @@ int kernelKeyboardDriverSetStream(stream *);
 void kernelKeyboardDriverReadData(void);
 
 // Some special scan values that we care about
-#define KEY_RELEASE  128
-#define EXTENDED     224
-#define LEFT_SHIFT   42
-#define RIGHT_SHIFT  54
-#define LEFT_CTRL    29
-#define LEFT_ALT     56
-#define F1_KEY       59
-#define F2_KEY       60
-#define F3_KEY       61
-#define PAGEUP_KEY   73
-#define PAGEDOWN_KEY 81
-#define DEL_KEY      83
-#define CAPSLOCK     58
-#define NUMLOCK      69
-#define SCROLLLOCK   70
+#define KEY_RELEASE      128
+#define EXTENDED         224
+#define LEFT_SHIFT       42
+#define RIGHT_SHIFT      54
+#define LEFT_CTRL        29
+#define LEFT_ALT         56
+#define ASTERISK_KEY     55
+#define F1_KEY           59
+#define F2_KEY           60
+#define F3_KEY           61
+#define PAGEUP_KEY       73
+#define PAGEDOWN_KEY     81
+#define DEL_KEY          83
+#define CAPSLOCK         58
+#define NUMLOCK          69
+#define SCROLLLOCK       70
 
-#define INSERT_FLAG     0x80
-#define CAPSLOCK_FLAG   0x40
-#define NUMLOCK_FLAG    0x20
-#define SCROLLLOCK_FLAG 0x10
-#define ALT_FLAG        0x08
-#define CONTROL_FLAG    0x04
-#define SHIFT_FLAG      0x03
+#define INSERT_FLAG      0x80
+#define CAPSLOCK_FLAG    0x40
+#define NUMLOCK_FLAG     0x20
+#define SCROLLLOCK_FLAG  0x10
+#define ALT_FLAG         0x08
+#define CONTROL_FLAG     0x04
+#define SHIFT_FLAG       0x03
 
 #define SCROLLLOCK_LIGHT 0
 #define NUMLOCK_LIGHT    1
@@ -113,6 +117,39 @@ static void setLight(int whichLight, int onOff)
   kernelProcessorInPort8(0x60, data);
   
   return;
+}
+
+
+static void rebootThread(void)
+{
+  // This gets called when the user presses CTRL-ALT-DEL.
+
+  // Reboot, force
+  kernelShutdown(1, 1);
+  while(1);
+}
+
+
+static void screenshotThread(void)
+{
+  // This gets called when the user presses the 'print screen' key
+
+  char fileName[32];
+  file theFile;
+  int count = 1;
+
+  // Determine the file name we want to use
+
+  strcpy(fileName, "/screenshot1.bmp");
+
+  // Loop until we get a filename that doesn't already exist
+  while (!kernelFileFind(fileName, &theFile))
+    {
+      count += 1;
+      sprintf(fileName, "/screenshot%d.bmp", count);
+    }
+
+  kernelMultitaskerTerminate(kernelWindowSaveScreenShot(fileName));
 }
 
 
@@ -285,7 +322,17 @@ void kernelKeyboardDriverReadData(void)
 	  break;
 	}
     }
-      
+     
+  // If this is an 'extended' asterisk (*), we probably have a 'print screen'
+  // or 'sys req'.
+  if (extended && (data == ASTERISK_KEY) && !release)
+    {
+      kernelMultitaskerSpawn(screenshotThread, "screenshot", 0, NULL);
+      // Clear the extended flag
+      extended = 0;
+      return;
+    }
+
   // Check whether the control or shift keys are pressed.  Shift
   // overrides control.
   if (!extended && ((theKeyboard->flags & SHIFT_FLAG) ||
@@ -296,11 +343,11 @@ void kernelKeyboardDriverReadData(void)
   else if (theKeyboard->flags & CONTROL_FLAG)
     {
       // CTRL-ALT-DEL?
-      if ((theKeyboard->flags & ALT_FLAG) && (data == DEL_KEY))
+      if ((theKeyboard->flags & ALT_FLAG) && (data == DEL_KEY) && release)
 	{
 	  // CTRL-ALT-DEL means reboot
-	  kernelProcessorReboot();
-	  while(1);
+	  kernelMultitaskerSpawn(rebootThread, "reboot", 0, NULL);
+	  return;
 	}
       else
 	data = theKeyboard->keyMap->controlMap[data - 1];

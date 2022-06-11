@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowProgressBar objects.
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include <stdio.h>
 

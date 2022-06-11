@@ -31,6 +31,8 @@
 static objectKey window = NULL;
 static objectKey rebootIcon = NULL;
 static objectKey shutdownIcon = NULL;
+static objectKey ejectCheckbox = NULL;
+static disk sysDisk;
 
 
 static void eventHandler(objectKey key, windowEvent *event)
@@ -43,21 +45,28 @@ static void eventHandler(objectKey key, windowEvent *event)
       exit(0);
     }
 
-  // Check for the reboot icon
-  if ((key == rebootIcon) && (event->type == EVENT_MOUSE_LEFTUP))
+  if (((key == rebootIcon) || (key == shutdownIcon)) &&
+      (event->type == EVENT_MOUSE_LEFTUP))
     {
       windowGuiStop();
-      windowDestroy(window);
-      shutdown(1, 0);
-      while(1);
-    }
 
-  // Check for the shutdown icon
-  if ((key == shutdownIcon) && (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      windowGuiStop();
+      if (ejectCheckbox && (windowComponentGetSelected(ejectCheckbox) == 1))
+	{
+	  if (diskSetLockState(sysDisk.name, 0) < 0)
+	    windowNewErrorDialog(window, "Error", "Unable to unlock the "
+				 "CD-ROM tray");
+	  else if (diskSetDoorState(sysDisk.name, 1) < 0)
+	    windowNewInfoDialog(window, "Hmm", "Can't seem to eject.  Try "
+				"pushing\nthe 'eject' button now.");
+	  //else
+	  // Give the user a chance to grab it.
+	  //   windowNewInfoDialog(window, "Continue", "Click OK when the "
+	  //			"CD-ROM\nhas been recovered");
+	}
+      
       windowDestroy(window);
-      shutdown(0, 0);
+
+      shutdown((key == rebootIcon), 0);
       while(1);
     }
 }
@@ -92,7 +101,7 @@ static void constructWindow(void)
   bzero(&iconImage, sizeof(image));
   if (!imageLoadBmp("/system/icons/rebticon.bmp", &iconImage))
     {
-      rebootIcon = windowNewIcon(window, &iconImage, "Reboot", NULL, &params);
+      rebootIcon = windowNewIcon(window, &iconImage, "Reboot", &params);
       windowRegisterEventHandler(rebootIcon, &eventHandler);
       memoryRelease(iconImage.data);
     }
@@ -103,9 +112,32 @@ static void constructWindow(void)
     {
       params.gridX = 1;
       shutdownIcon =
-	windowNewIcon(window, &iconImage, "Shut down", NULL, &params);
+	windowNewIcon(window, &iconImage, "Shut down", &params);
       windowRegisterEventHandler(shutdownIcon, &eventHandler);
       memoryRelease(iconImage.data);
+    }
+
+  // Find out whether we are currently running from a CD-ROM
+  bzero(&sysDisk, sizeof(disk));
+  if (!fileGetDisk("/", &sysDisk))
+    {
+      if ((sysDisk.type == idecdrom) || (sysDisk.type == scsicdrom))
+	{
+	  // Yes.  Make an 'eject cd' checkbox.
+	  params.gridX = 0;
+	  params.gridY = 1;
+	  params.gridWidth = 2;
+	  params.padTop = 0;
+	  params.useDefaultForeground = 0;
+	  params.foreground.red = 255;
+	  params.foreground.green = 255;
+	  params.foreground.blue = 255;
+	  params.useDefaultBackground = 0;
+	  params.background.red = 40;
+	  params.background.green = 93;
+	  params.background.blue = 171;
+	  ejectCheckbox = windowNewCheckbox(window, "Eject CD-ROM", &params);
+	}
     }
 
   // Register an event handler to catch window close events

@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  copy-boot.sh
+##
 
 # Writes the boot sector from the first argument (device?) to the second
 # without discarding the FAT filesystem parameters from the second boot

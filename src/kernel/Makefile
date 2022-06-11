@@ -2,20 +2,6 @@
 ##  Visopsys
 ##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
-##  This program is free software; you can redistribute it and/or modify it
-##  under the terms of the GNU General Public License as published by the Free
-##  Software Foundation; either version 2 of the License, or (at your option)
-##  any later version.
-## 
-##  This program is distributed in the hope that it will be useful, but
-##  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-##  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-##  for more details.
-##  
-##  You should have received a copy of the GNU General Public License along
-##  with this program; if not, write to the Free Software Foundation, Inc.,
-##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-##
 ##  Makefile
 ##
 
@@ -78,6 +64,7 @@ OBJS =	obj/kernelMain.o \
 	obj/kernelText.o \
 	obj/kernelUser.o \
 	obj/kernelVariableList.o \
+	obj/kernelWindow.o \
 	obj/kernelWindowBorder.o \
 	obj/kernelWindowButton.o \
 	obj/kernelWindowCanvas.o \
@@ -88,7 +75,6 @@ OBJS =	obj/kernelMain.o \
 	obj/kernelWindowImage.o \
 	obj/kernelWindowList.o \
 	obj/kernelWindowListItem.o \
-	obj/kernelWindowManager.o \
 	obj/kernelWindowMenu.o \
 	obj/kernelWindowMenuBar.o \
 	obj/kernelWindowMenuItem.o \
@@ -96,6 +82,7 @@ OBJS =	obj/kernelMain.o \
 	obj/kernelWindowProgressBar.o \
 	obj/kernelWindowRadioButton.o \
 	obj/kernelWindowScrollBar.o \
+	obj/kernelWindowShell.o \
 	obj/kernelWindowTextArea.o \
 	obj/kernelWindowTextField.o \
 	obj/kernelWindowTextLabel.o \
@@ -254,70 +241,73 @@ obj/kernelUser.o: kernelUser.c kernelUser.h ${STDDEPS}
 obj/kernelVariableList.o: kernelVariableList.c kernelVariableList.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelVariableList.c -o $@
 
-obj/kernelWindowBorder.o: kernelWindowBorder.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindow.o: kernelWindow.c kernelWindow.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindow.c -o $@
+
+obj/kernelWindowBorder.o: kernelWindowBorder.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowBorder.c -o $@
 
-obj/kernelWindowButton.o: kernelWindowButton.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowButton.o: kernelWindowButton.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowButton.c -o $@
 
-obj/kernelWindowCanvas.o: kernelWindowCanvas.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowCanvas.o: kernelWindowCanvas.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowCanvas.c -o $@
 
-obj/kernelWindowCheckbox.o: kernelWindowCheckbox.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowCheckbox.o: kernelWindowCheckbox.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowCheckbox.c -o $@
 
-obj/kernelWindowContainer.o: kernelWindowContainer.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowContainer.o: kernelWindowContainer.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowContainer.c -o $@
 
-obj/kernelWindowEventStream.o: kernelWindowEventStream.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowEventStream.o: kernelWindowEventStream.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowEventStream.c -o $@
 
-obj/kernelWindowIcon.o: kernelWindowIcon.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowIcon.o: kernelWindowIcon.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowIcon.c -o $@
 
-obj/kernelWindowImage.o: kernelWindowImage.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowImage.o: kernelWindowImage.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowImage.c -o $@
 
-obj/kernelWindowList.o: kernelWindowList.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowList.o: kernelWindowList.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowList.c -o $@
 
-obj/kernelWindowListItem.o: kernelWindowListItem.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowListItem.o: kernelWindowListItem.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowListItem.c -o $@
 
-obj/kernelWindowManager.o: kernelWindowManager.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowManager.c -o $@
-
-obj/kernelWindowMenu.o: kernelWindowMenu.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowMenu.o: kernelWindowMenu.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowMenu.c -o $@
 
-obj/kernelWindowMenuBar.o: kernelWindowMenuBar.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowMenuBar.o: kernelWindowMenuBar.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowMenuBar.c -o $@
 
-obj/kernelWindowMenuItem.o: kernelWindowMenuItem.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowMenuItem.o: kernelWindowMenuItem.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowMenuItem.c -o $@
 
-obj/kernelWindowPasswordField.o: kernelWindowPasswordField.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowPasswordField.o: kernelWindowPasswordField.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowPasswordField.c -o $@
 
-obj/kernelWindowProgressBar.o: kernelWindowProgressBar.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowProgressBar.o: kernelWindowProgressBar.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowProgressBar.c -o $@
 
-obj/kernelWindowRadioButton.o: kernelWindowRadioButton.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowRadioButton.o: kernelWindowRadioButton.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowRadioButton.c -o $@
 
-obj/kernelWindowScrollBar.o: kernelWindowScrollBar.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowScrollBar.o: kernelWindowScrollBar.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowScrollBar.c -o $@
 
-obj/kernelWindowTextArea.o: kernelWindowTextArea.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowShell.o: kernelWindowShell.c kernelWindow.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowShell.c -o $@
+
+obj/kernelWindowTextArea.o: kernelWindowTextArea.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowTextArea.c -o $@
 
-obj/kernelWindowTextField.o: kernelWindowTextField.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowTextField.o: kernelWindowTextField.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowTextField.c -o $@
 
-obj/kernelWindowTextLabel.o: kernelWindowTextLabel.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowTextLabel.o: kernelWindowTextLabel.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowTextLabel.c -o $@
 
-obj/kernelWindowTitleBar.o: kernelWindowTitleBar.c kernelWindowManager.h ${STDDEPS}
+obj/kernelWindowTitleBar.o: kernelWindowTitleBar.c kernelWindow.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowTitleBar.c -o $@
 
 #

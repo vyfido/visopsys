@@ -22,6 +22,7 @@
 // This is the UNIX-style command for adding a user
 
 #include <stdio.h>
+#include <errno.h>
 #include <sys/api.h>
 
 

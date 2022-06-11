@@ -27,23 +27,22 @@
 
 int memcmp(const void *first, const void *second, size_t length)
 {
-  int result = 0;
+  int result;
 
   // We don't set errno in this function
   errno = 0;
 
-  // We trip through the strings, counting as we go.  If we get to
+  // We loop through the strings, counting as we go.  If we get to
   // "length" and everything matches, we return 0.  Otherwise, we return
   // whether first is less than or greater than second
 
-  for (result = 0; result < length; result ++)
-    if (((unsigned char *) first)[result] !=
-	((unsigned char *) second)[result])
+  for (result = 1; result <= length; result ++)
+    if (((unsigned char *) first)[result - 1] !=
+	((unsigned char *) second)[result - 1])
       {
-	if (((unsigned char *) first)[result] <
-	    ((unsigned char *) second)[result])
+	if (((unsigned char *) first)[result - 1] <
+	    ((unsigned char *) second)[result - 1])
 	  return (result *= -1);
-	
 	else
 	  return (result);
       }		

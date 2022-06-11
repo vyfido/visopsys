@@ -34,7 +34,6 @@
 #include <sys/errors.h>
 #include <string.h>
 
-
 static kernelFilesystem *filesystemPointerArray[MAX_FILESYSTEMS];
 static int filesystemCounter = 0;
 

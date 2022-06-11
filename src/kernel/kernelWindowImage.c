@@ -23,7 +23,7 @@
 // These are just images that appear inside windows and buttons, etc
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include <string.h>

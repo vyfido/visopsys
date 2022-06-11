@@ -1,0 +1,7 @@
+
+ -- clock --
+
+Show a simple clock in the corner of the screen.
+
+Usage:
+  clock

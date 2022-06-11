@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/api.h>
 
 static int processId = 0;
@@ -59,20 +60,18 @@ static int getUserNames(void)
 {
   // Get the list of user names from the kernel
 
-  int status = 0;
   char *bufferPointer = NULL;
   int count;
 
   bzero(userBuffer, 1024);
 
-  status = userGetNames(userBuffer, 1024);
-  if (status < 0)
+  numUserNames = userGetNames(userBuffer, 1024);
+  if (numUserNames < 0)
     {
       error("Error getting user names");
-      return (status);
+      return (numUserNames);
     }
 
-  numUserNames = status;
   bufferPointer = userBuffer;
 
   for (count = 0; count < numUserNames; count ++)
@@ -81,7 +80,7 @@ static int getUserNames(void)
       bufferPointer += (strlen(userNames[count]) + 1);
     }
 
-  return (status = 0);
+  return (0);
 }
 
 
@@ -468,13 +467,11 @@ static void constructWindow(void)
   componentParameters params;
 
   // Create a new window
-  printf("Contruct my window...\n");
   window = windowNew(processId, "User Manager");
   if (window == NULL)
     return;
 
   bzero(&params, sizeof(componentParameters));
-
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 5;

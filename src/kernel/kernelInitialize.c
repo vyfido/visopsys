@@ -34,7 +34,7 @@
 #include "kernelFile.h"
 #include "kernelGraphic.h"
 #include "kernelUser.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
@@ -65,6 +65,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   char value[128];
   char splashName[128];
   image splashImage;
+  int count;
 
   // The kernel config file.  We read it later on in this function
   extern variableList *kernelVariables;
@@ -196,8 +197,27 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   status = kernelFilesystemMount(bootDisk, "/");
   if (status < 0)
     {
-      kernelError(kernel_error, "Mounting root filesystem failed");
-      return (status = ERR_NOTINITIALIZED);
+      // If it's a CD, it might be some other than cd0.  Our boot loader can't
+      // distinguish which one it is.  Try other possibilities.
+      if (!strcmp(bootDisk, "cd0"))
+	{
+	  for (count = 1; count < MAXHARDDISKS; count ++)
+	    {
+	      sprintf(bootDisk, "cd%d", count);
+	      if (kernelGetDiskByName(bootDisk))
+		{
+		  status = kernelFilesystemMount(bootDisk, "/");
+		  if (status == 0)
+		    break;
+		}
+	    }
+	}
+
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Mounting root filesystem failed");
+	  return (status = ERR_NOTINITIALIZED);
+	}
     }
 
   rootFilesystem = kernelFilesystemGet("/");
@@ -262,11 +282,9 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 
 	  // Get the name of the splash image (used only if we are in
 	  // graphics mode)
-	  kernelVariableListGet(kernelVariables, "splash.image", value, 128);
-	  if (value[0] != '\0')
-	    strncpy(splashName, value, 128);
-	  else
-	    strcpy(splashName, DEFAULT_SPLASH);
+	  kernelMemClear(splashName, 128);
+	  kernelVariableListGet(kernelVariables, "splash.image", splashName,
+				128);
 	}
     }
 
@@ -275,21 +293,19 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       // Clear the screen with our default background color
       kernelGraphicClearScreen(&kernelDefaultDesktop);
 
-      // Try to load the default splash image to use when starting/restarting
-      kernelMemClear(&splashImage, sizeof(image));
-      kernelImageLoadBmp(splashName, &splashImage);
-      if (splashImage.data)
+      if (splashName[0] != '\0')
 	{
-	  splashImage.translucentColor.red = 0;
-	  splashImage.translucentColor.green = 0xFF;
-	  splashImage.translucentColor.blue = 0;
-
-	  // Loaded successfully.  Put it in the middle of the screen.
-	  kernelGraphicDrawImage(NULL, &splashImage, draw_translucent, 
-				 ((kernelGraphicGetScreenWidth() -
-				   splashImage.width) / 2),
-				 ((kernelGraphicGetScreenHeight() -
-				   splashImage.height) / 2), 0, 0, 0, 0);
+	  // Try to load the default splash image to use when starting/
+	  // restarting
+	  kernelMemClear(&splashImage, sizeof(image));
+	  kernelImageLoadBmp(splashName, &splashImage);
+	  if (splashImage.data)
+	    // Loaded successfully.  Put it in the middle of the screen.
+	    kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
+				   ((kernelGraphicGetScreenWidth() -
+				     splashImage.width) / 2),
+				   ((kernelGraphicGetScreenHeight() -
+				     splashImage.height) / 2), 0, 0, 0, 0);
 	}
     }
 

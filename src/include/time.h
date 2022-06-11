@@ -55,20 +55,8 @@ struct tm *localtime(const time_t *timep);
 time_t mktime(struct tm *timeptr);
 time_t time(time_t *t);
 
-// For dealing with unimplemented functions
-#define not_implemented_int()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (ERR_NOTIMPLEMENTED); \
-  }
-#define not_implemented_uns()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return 0;                    \
-  }
-
 // These functions are unimplemented
-#define strftime(s, n, format, tptr) not_implemented_uns()
+size_t strftime(char *s, size_t max, const char *format, const struct tm *tm);
 
 #define _TIME_H
 #endif

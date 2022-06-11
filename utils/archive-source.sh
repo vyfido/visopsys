@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  archive-source.sh
+##
 
 # This just does all of the things necessary to prepare an archive (zipfile)
 # of the visopsys sources and utilities.

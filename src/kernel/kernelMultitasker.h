@@ -25,9 +25,9 @@
 #include "kernelEnvironment.h"
 #include "kernelText.h"
 #include <time.h>
+#include <sys/process.h>
 
 // Definitions
-#define MAX_PROCNAME_LENGTH 64
 #define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 #define PRIORITY_LEVELS 8
 #define DEFAULT_STACK_SIZE (32 * 1024)
@@ -37,20 +37,6 @@
 #define CPU_PERCENT_TIMESLICES 300
 #define PRIORITY_RATIO 3
 #define PRIORITY_DEFAULT ((PRIORITY_LEVELS / 2) - 1)
-
-// An enumeration listing possible process states
-typedef enum
-{
-  running, ready, waiting, sleeping, stopped, finished, zombie
-
-} kernelProcessState;
-
-// An enumeration listing possible process types
-typedef enum
-{
-  process, thread
-
-} kernelProcessType;
 
 // A structure representing x86 TSSes (Task State Sements)
 typedef volatile struct
@@ -90,7 +76,7 @@ typedef volatile struct
   char processName[MAX_PROCNAME_LENGTH];
   int userId;
   int processId;
-  kernelProcessType type;
+  processType type;
   int priority;
   int privilege;
   int parentProcessId;
@@ -103,7 +89,7 @@ typedef volatile struct
   unsigned waitUntil;
   int waitForProcess;
   int blockingExitCode;
-  kernelProcessState state;
+  processState state;
   void *codeDataPointer;
   unsigned codeDataSize;
   void *userStack;
@@ -129,17 +115,17 @@ int kernelMultitaskerShutdown(int);
 void kernelExceptionHandler(void);
 void kernelMultitaskerDumpProcessList(void);
 int kernelMultitaskerGetCurrentProcessId(void);
-kernelProcess *kernelMultitaskerGetProcess(int);
+int kernelMultitaskerGetProcess(int, process *);
+int kernelMultitaskerGetProcessByName(const char *, process *);
+int kernelMultitaskerGetProcesses(void *, unsigned);
 int kernelMultitaskerCreateProcess(void *, unsigned, const char *, int, int,
 				   void *);
 int kernelMultitaskerSpawn(void *, const char *, int, void *);
 int kernelMultitaskerSpawnKernelThread(void *, const char *, int, void *);
 //int kernelMultitaskerFork(void);
 int kernelMultitaskerPassArgs(int, int, void *);
-int kernelMultitaskerGetProcessOwner(int);
-const char *kernelMultitaskerGetProcessName(int);
-int kernelMultitaskerGetProcessState(int, kernelProcessState *);
-int kernelMultitaskerSetProcessState(int, kernelProcessState);
+int kernelMultitaskerGetProcessState(int, processState *);
+int kernelMultitaskerSetProcessState(int, processState);
 int kernelMultitaskerProcessIsAlive(int);
 int kernelMultitaskerGetProcessPriority(int);
 int kernelMultitaskerSetProcessPriority(int, int);

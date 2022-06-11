@@ -23,9 +23,12 @@
 // images, such as CD-ROM ISOs
 
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/api.h>
+#include <sys/vsh.h>
 
 #define LOGINPROGRAM    "/programs/login"
 #define INSTALLPROGRAM  "/programs/install"
@@ -40,8 +43,8 @@ static char *gplString       =
 "  option) any later version.\n\n"
 "  This program is distributed in the hope that it will be useful, but\n"
 "  WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the file\n"
-"  COPYING.TXT for more details.";
+"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n"
+"  the file /system/COPYING.txt for more details.";
 static char *rebootQuestion  = "Would you like to reboot now?";
 static char *adminString     = "Using the administrator account 'admin'.\n"
                                "There is no password set.";
@@ -193,14 +196,15 @@ static void constructWindow(void)
   windowNewTextLabel(window, titleString, &params);
 
   params.gridY = 1;
-  fontLoad("arial-bold-10.bmp", "arial-bold-10", &(params.font), 0);
+  fontLoad("/system/fonts/arial-bold-10.bmp", "arial-bold-10",
+	   &(params.font), 0);
   windowNewTextLabel(window, gplString, &params);
 
   params.gridY = 2;
   params.orientationX = orient_center;
   params.font = NULL;
   windowNewTextLabel(window, "Would you like to install Visopsys, or just run "
-		     "it now?", &params);
+  		     "it now?", &params);
 
   params.gridY = 3;
   params.gridWidth = 1;
@@ -223,7 +227,8 @@ static void constructWindow(void)
   if (readOnly)
     windowComponentSetEnabled(goAwayCheckbox, 0);
 
-  // No close button on the window
+  // No minimize or close buttons on the window
+  windowSetHasMinimizeButton(window, 0);
   windowSetHasCloseButton(window, 0);
 
   // Go
@@ -247,12 +252,14 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   disk sysDisk;
-  int foregroundColor = textGetForeground();
-  int backgroundColor = textGetBackground();
+  char opt;
   int options = 3;
   int selectedOption = 0;
-  char character;
-  int count;
+  char *optionStrings[] =
+    { "o Install                          ",
+      "o Run now                          ",
+      "o Always run (never ask to install)"
+    };
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -264,6 +271,13 @@ int main(int argc, char *argv[])
     quit(ERR_PERMISSION, "This program can only be run as a privileged user."
 	 "\n(Try logging in as user \"admin\").");
 
+  while ((opt = getopt(argc, argv, "T")) != -1)
+    {
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+    }
+
   // Find out whether we are currently running on a read-only filesystem
   bzero(&sysDisk, sizeof(disk));
   if (!fileGetDisk("/system", &sysDisk))
@@ -274,8 +288,8 @@ int main(int argc, char *argv[])
       constructWindow();
       windowGuiRun();
 
-      // If the user selected (or, actually, didn't deselect) the 'go away'
-      // checkbox, change the start program in the kernel's config file.
+      // If the user selected the 'go away' checkbox, change the start
+      // program in the kernel's config file.
       if (windowComponentGetSelected(goAwayCheckbox))
 	{
 	  changeStartProgram();
@@ -291,98 +305,43 @@ int main(int argc, char *argv[])
       // Print title message, and ask whether to install or run
       printf("\n%s\n", gplString);
 
-      printf("\nPlease select from the following options\n");
-
-      int column = textGetColumn();
-      int row = textGetRow();
-
       if (readOnly)
 	options -= 1;
 
-      while(1)
+      selectedOption = vshCursorMenu("\nPlease select from the following "
+				     "options", options, optionStrings, 0);
+      if (selectedOption < 0)
+	shutdown(1, 1);
+
+      else if (selectedOption == 0)
 	{
-	  textSetColumn(column);
-	  textSetRow(row);
-	  textSetCursor(0);
-
-	  for (count = 0; count < options; count ++)
+	  // Install
+	  loaderLoadAndExec(INSTALLPROGRAM, 0, 0, NULL, 1);
+	  if (rebootNow())
+	    shutdown(1, 1);
+	  else
 	    {
-	      if (selectedOption == count)
-		{
-		  // Reverse the colors
-		  textSetForeground(backgroundColor);
-		  textSetBackground(foregroundColor);
-		}
-
-	      if (count == 0)
-		printf(" o Install                \n");
-	      else if (count == 1)
-		printf(" o Run now                \n");
-	      else if (count == 2)
-		printf(" o Always run             \n"
-		       "   (never ask to install) ");
-
-	      textSetForeground(foregroundColor);
-	      textSetBackground(backgroundColor);
+	      int pid = loaderLoadProgram(LOGINPROGRAM, 0, 2,
+					  (char *[]){"-f", "admin"});
+	      // Give the login program a copy of the I/O streams
+	      multitaskerDuplicateIO(processId, pid, 0);
+	      loaderExecProgram(pid, 0);
 	    }
+	}
 
-	  textInputSetEcho(0);
-	  character = getchar();
-      
-	  if (character == (unsigned char) 17)
+      else
+	{
+	  if (selectedOption == 2)
 	    {
-	      if (selectedOption > 0)
-		// Cursor up.
-		selectedOption -= 1;
+	      changeStartProgram();
+	      printf("\n%s\n", adminString);
 	    }
-
-	  else if (character == (unsigned char) 20)
-	    {
-	      // Cursor down.
-	      if (selectedOption < (options - 1))
-		selectedOption += 1;
-	    }
-
-	  else if (character == (unsigned char) 10)
-	    {
-	      // Enter
-	      textSetCursor(1);
-	      textInputSetEcho(1);
-	      printf("\n");
-
-	      if (selectedOption == 0)
-		{
-		  // Install
-		  loaderLoadAndExec(INSTALLPROGRAM, 0, 0, NULL, 1);
-		  if (rebootNow())
-		    shutdown(1, 1);
-		  else
-		    {
-		      int pid = loaderLoadProgram(LOGINPROGRAM, 0, 2,
-						  (char *[]){"-f", "admin"});
-		      // Give the login program a copy of the I/O streams
-		      multitaskerDuplicateIO(processId, pid, 0);
-		      loaderExecProgram(pid, 0);
-		      break;
-		    }
-		}
-
-	      else
-		{
-		  if (selectedOption == 2)
-		    {
-		      changeStartProgram();
-		      printf("\n%s\n", adminString);
-		    }
-
-		  int pid = loaderLoadProgram(LOGINPROGRAM, 0, 2,
-					      (char *[]){"-f", "admin"});
-		  // Give the login program a copy of the I/O streams
-		  multitaskerDuplicateIO(processId, pid, 0);
-		  loaderExecProgram(pid, 0);
-		  break;
-		}
-	    }
+	  
+	  int pid = loaderLoadProgram(LOGINPROGRAM, 0, 2,
+				      (char *[]){"-f", "admin"});
+	  // Give the login program a copy of the I/O streams
+	  multitaskerDuplicateIO(processId, pid, 0);
+	  loaderExecProgram(pid, 0);
 	}
     }
 

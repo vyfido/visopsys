@@ -85,11 +85,7 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
   // Read the boot sector
   status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, buffer);
   if (status < 0)
-    {
-      // Couldn't read the boot sector.
-      kernelError(kernel_error, "Unable to read the boot block");
-      return (status);
-    }
+    return (status);
 
   // Return success
   return (status = 0);
@@ -3702,13 +3698,13 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
 			     fatData.rootDirSectors));
   fatData.dataClusters = (fatData.dataSectors / fatData.sectorsPerCluster);
 
-  kernelTextPrint("Type: %s\nTotal Sectors: %u\nBytes Per Sector: "
-		  "%u\nSectors Per Cluster: %u\nRoot Directory Sectors: "
-		  "%u\nFat Sectors: %u\nData Clusters: %u\n\n",
-		  fatData.fsSignature, fatData.totalSectors,
-		  fatData.bytesPerSector, fatData.sectorsPerCluster,
-		  fatData.rootDirSectors, fatData.fatSectors,
-		  fatData.dataClusters);
+  kernelLog("Format: Type: %s  Total Sectors: %u  Bytes Per Sector: "
+	    "%u  Sectors Per Cluster: %u  Root Directory Sectors: "
+	    "%u  Fat Sectors: %u  Data Clusters: %u",
+	    fatData.fsSignature, fatData.totalSectors,
+	    fatData.bytesPerSector, fatData.sectorsPerCluster,
+	    fatData.rootDirSectors, fatData.fatSectors,
+	    fatData.dataClusters);
 
   fatData.driveNumber =
     ((kernelPhysicalDisk *) theDisk->physical)->deviceNumber;

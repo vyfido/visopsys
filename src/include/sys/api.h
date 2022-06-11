@@ -41,6 +41,7 @@
 #include <sys/disk.h>
 #include <sys/file.h>
 #include <sys/image.h>
+#include <sys/process.h>
 #include <sys/lock.h>
 #include <sys/variable.h>
 #include <sys/stream.h>
@@ -114,11 +115,12 @@ extern int visopsys_in_kernel;
 #define _fnum_diskGetPhysicalInfo                    2006
 #define _fnum_diskGetPartType                        2007
 #define _fnum_diskGetPartTypes                       2008
-#define _fnum_diskSetDoorState                       2009
-#define _fnum_diskReadSectors                        2010
-#define _fnum_diskWriteSectors                       2011
-#define _fnum_diskReadAbsoluteSectors                2012
-#define _fnum_diskWriteAbsoluteSectors               2013
+#define _fnum_diskSetLockState                       2009
+#define _fnum_diskSetDoorState                       2010
+#define _fnum_diskReadSectors                        2011
+#define _fnum_diskWriteSectors                       2012
+#define _fnum_diskReadAbsoluteSectors                2013
+#define _fnum_diskWriteAbsoluteSectors               2014
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -131,31 +133,33 @@ extern int visopsys_in_kernel;
 
 // File functions.  All are in the 4000-4999 range.
 #define _fnum_fileFixupPath                          4000
-#define _fnum_fileGetDisk                            4001
-#define _fnum_fileFirst                              4002
-#define _fnum_fileNext                               4003
-#define _fnum_fileFind                               4004
-#define _fnum_fileOpen                               4005
-#define _fnum_fileClose                              4006
-#define _fnum_fileRead                               4007
-#define _fnum_fileWrite                              4008
-#define _fnum_fileDelete                             4009
-#define _fnum_fileDeleteSecure                       4010
-#define _fnum_fileMakeDir                            4011
-#define _fnum_fileRemoveDir                          4012
-#define _fnum_fileCopy                               4013
-#define _fnum_fileCopyRecursive                      4014
-#define _fnum_fileMove                               4015
-#define _fnum_fileTimestamp                          4016
-#define _fnum_fileStreamOpen                         4017
-#define _fnum_fileStreamSeek                         4018
-#define _fnum_fileStreamRead                         4019
-#define _fnum_fileStreamReadLine                     4020
-#define _fnum_fileStreamWrite                        4021
-#define _fnum_fileStreamWriteStr                     4022
-#define _fnum_fileStreamWriteLine                    4023
-#define _fnum_fileStreamFlush                        4024
-#define _fnum_fileStreamClose                        4025
+#define _fnum_fileSeparateLast                       4001
+#define _fnum_fileGetDisk                            4002
+#define _fnum_fileFirst                              4003
+#define _fnum_fileNext                               4004
+#define _fnum_fileFind                               4005
+#define _fnum_fileOpen                               4006
+#define _fnum_fileClose                              4007
+#define _fnum_fileRead                               4008
+#define _fnum_fileWrite                              4009
+#define _fnum_fileDelete                             4010
+#define _fnum_fileDeleteSecure                       4011
+#define _fnum_fileMakeDir                            4012
+#define _fnum_fileRemoveDir                          4013
+#define _fnum_fileCopy                               4014
+#define _fnum_fileCopyRecursive                      4015
+#define _fnum_fileMove                               4016
+#define _fnum_fileTimestamp                          4017
+#define _fnum_fileGetTemp                            4018
+#define _fnum_fileStreamOpen                         4019
+#define _fnum_fileStreamSeek                         4020
+#define _fnum_fileStreamRead                         4021
+#define _fnum_fileStreamReadLine                     4022
+#define _fnum_fileStreamWrite                        4023
+#define _fnum_fileStreamWriteStr                     4024
+#define _fnum_fileStreamWriteLine                    4025
+#define _fnum_fileStreamFlush                        4026
+#define _fnum_fileStreamClose                        4027
 
 // Memory manager functions.  All are in the 5000-5999 range.
 #define _fnum_memoryPrintUsage                       5000
@@ -169,29 +173,27 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerCreateProcess               6000
 #define _fnum_multitaskerSpawn                       6001
 #define _fnum_multitaskerGetCurrentProcessId         6002
-#define _fnum_multitaskerGetProcessOwner             6003
-#define _fnum_multitaskerGetProcessName              6004
-#define _fnum_multitaskerGetProcessState             6005
+#define _fnum_multitaskerGetProcess                  6003
+#define _fnum_multitaskerGetProcessByName            6004
+#define _fnum_multitaskerGetProcesses                6005
 #define _fnum_multitaskerSetProcessState             6006
-#define _fnum_multitaskerGetProcessPriority          6007
-#define _fnum_multitaskerSetProcessPriority          6008
-#define _fnum_multitaskerGetProcessPrivilege         6009
-#define _fnum_multitaskerGetCurrentDirectory         6010
-#define _fnum_multitaskerSetCurrentDirectory         6011
-#define _fnum_multitaskerGetTextInput                6012
-#define _fnum_multitaskerSetTextInput                6013
-#define _fnum_multitaskerGetTextOutput               6014
-#define _fnum_multitaskerSetTextOutput               6015
-#define _fnum_multitaskerDuplicateIO                 6016
-#define _fnum_multitaskerGetProcessorTime            6017
-#define _fnum_multitaskerYield                       6018
-#define _fnum_multitaskerWait                        6019
-#define _fnum_multitaskerBlock                       6020
-#define _fnum_multitaskerDetach                      6021
-#define _fnum_multitaskerKillProcess                 6022
-#define _fnum_multitaskerKillByName                  6023
-#define _fnum_multitaskerTerminate                   6024
-#define _fnum_multitaskerDumpProcessList             6025
+#define _fnum_multitaskerSetProcessPriority          6007
+#define _fnum_multitaskerGetProcessPrivilege         6008
+#define _fnum_multitaskerGetCurrentDirectory         6009
+#define _fnum_multitaskerSetCurrentDirectory         6010
+#define _fnum_multitaskerGetTextInput                6011
+#define _fnum_multitaskerSetTextInput                6012
+#define _fnum_multitaskerGetTextOutput               6013
+#define _fnum_multitaskerSetTextOutput               6014
+#define _fnum_multitaskerDuplicateIO                 6015
+#define _fnum_multitaskerGetProcessorTime            6016
+#define _fnum_multitaskerYield                       6017
+#define _fnum_multitaskerWait                        6018
+#define _fnum_multitaskerBlock                       6019
+#define _fnum_multitaskerDetach                      6020
+#define _fnum_multitaskerKillProcess                 6021
+#define _fnum_multitaskerKillByName                  6022
+#define _fnum_multitaskerTerminate                   6023
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
@@ -258,53 +260,56 @@ extern int visopsys_in_kernel;
 #define _fnum_windowSetLocation                      12010
 #define _fnum_windowPack                             12011
 #define _fnum_windowCenter                           12012
-#define _fnum_windowSetHasBorder                     12013
-#define _fnum_windowSetHasTitleBar                   12014
-#define _fnum_windowSetMovable                       12015
-#define _fnum_windowSetResizable                     12016
-#define _fnum_windowSetPacked                        12017
-#define _fnum_windowSetHasCloseButton                12018
-#define _fnum_windowSetColors                        12019
-#define _fnum_windowSetVisible                       12020
-#define _fnum_windowAddConsoleTextArea               12021
-#define _fnum_windowRedrawArea                       12022
-#define _fnum_windowProcessEvent                     12023
-#define _fnum_windowComponentEventGet                12024
-#define _fnum_windowTileBackground                   12025
-#define _fnum_windowCenterBackground                 12026
-#define _fnum_windowScreenShot                       12027
-#define _fnum_windowSaveScreenShot                   12028
-#define _fnum_windowSetTextOutput                    12029
-#define _fnum_windowComponentSetVisible              12030
-#define _fnum_windowComponentSetEnabled              12031
-#define _fnum_windowComponentGetWidth                12032
-#define _fnum_windowComponentSetWidth                12033
-#define _fnum_windowComponentGetHeight               12034
-#define _fnum_windowComponentSetHeight               12035
-#define _fnum_windowComponentFocus                   12036
-#define _fnum_windowComponentDraw                    12037
-#define _fnum_windowComponentGetData                 12038
-#define _fnum_windowComponentSetData                 12039
-#define _fnum_windowComponentGetSelected             12040
-#define _fnum_windowComponentSetSelected             12041
-#define _fnum_windowNewButton                        12042
-#define _fnum_windowNewCanvas                        12043
-#define _fnum_windowNewCheckbox                      12044
-#define _fnum_windowNewContainer                     12045
-#define _fnum_windowNewIcon                          12046
-#define _fnum_windowNewImage                         12047
-#define _fnum_windowNewList                          12048
-#define _fnum_windowNewListItem                      12049
-#define _fnum_windowNewMenu                          12050
-#define _fnum_windowNewMenuBar                       12051
-#define _fnum_windowNewMenuItem                      12052
-#define _fnum_windowNewPasswordField                 12053
-#define _fnum_windowNewProgressBar                   12054
-#define _fnum_windowNewRadioButton                   12055
-#define _fnum_windowNewScrollBar                     12056
-#define _fnum_windowNewTextArea                      12057
-#define _fnum_windowNewTextField                     12058
-#define _fnum_windowNewTextLabel                     12059
+#define _fnum_windowSnapIcons                        12013
+#define _fnum_windowSetHasBorder                     12014
+#define _fnum_windowSetHasTitleBar                   12015
+#define _fnum_windowSetMovable                       12016
+#define _fnum_windowSetResizable                     12017
+#define _fnum_windowSetPacked                        12018
+#define _fnum_windowSetHasMinimizeButton             12019
+#define _fnum_windowSetHasCloseButton                12020
+#define _fnum_windowSetColors                        12021
+#define _fnum_windowSetVisible                       12022
+#define _fnum_windowSetMinimized                     12023 
+#define _fnum_windowAddConsoleTextArea               12024
+#define _fnum_windowRedrawArea                       12025
+#define _fnum_windowProcessEvent                     12026
+#define _fnum_windowComponentEventGet                12027
+#define _fnum_windowTileBackground                   12028
+#define _fnum_windowCenterBackground                 12029
+#define _fnum_windowScreenShot                       12030
+#define _fnum_windowSaveScreenShot                   12031
+#define _fnum_windowSetTextOutput                    12032
+#define _fnum_windowComponentSetVisible              12033
+#define _fnum_windowComponentSetEnabled              12034
+#define _fnum_windowComponentGetWidth                12035
+#define _fnum_windowComponentSetWidth                12036
+#define _fnum_windowComponentGetHeight               12037
+#define _fnum_windowComponentSetHeight               12038
+#define _fnum_windowComponentFocus                   12039
+#define _fnum_windowComponentDraw                    12040
+#define _fnum_windowComponentGetData                 12041
+#define _fnum_windowComponentSetData                 12042
+#define _fnum_windowComponentGetSelected             12043
+#define _fnum_windowComponentSetSelected             12044
+#define _fnum_windowNewButton                        12045
+#define _fnum_windowNewCanvas                        12046
+#define _fnum_windowNewCheckbox                      12047
+#define _fnum_windowNewContainer                     12048
+#define _fnum_windowNewIcon                          12049
+#define _fnum_windowNewImage                         12050
+#define _fnum_windowNewList                          12051
+#define _fnum_windowNewListItem                      12052
+#define _fnum_windowNewMenu                          12053
+#define _fnum_windowNewMenuBar                       12054
+#define _fnum_windowNewMenuItem                      12055
+#define _fnum_windowNewPasswordField                 12056
+#define _fnum_windowNewProgressBar                   12057
+#define _fnum_windowNewRadioButton                   12058
+#define _fnum_windowNewScrollBar                     12059
+#define _fnum_windowNewTextArea                      12060
+#define _fnum_windowNewTextField                     12061
+#define _fnum_windowNewTextLabel                     12062
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -977,10 +982,17 @@ _X_ static inline partitionType *diskGetPartTypes(void)
   return ((partitionType *) sysCall_0(_fnum_diskGetPartTypes));
 }
 
+_X_ static inline int diskSetLockState(const char *name, int state)
+{
+  // Proto: int kernelDiskSetLockState(const char *diskName, int state);
+  // Desc : Set the locked state of the disk 'name' to either unlocked (0) or locked (1)
+  return (sysCall_2(_fnum_diskSetLockState, (void *) name, (void *) state));
+}
+
 _X_ static inline int diskSetDoorState(const char *name, int state)
 {
   // Proto: int kernelDiskSetDoorState(const char *, int);
-  // Desc : Set the locked state of the disk 'name' to either unlocked (0) or locked (1)
+  // Desc : Open (1) or close (0) the disk 'name'.  May require a unlocking the door first, see diskSetLockState().
   return (sysCall_2(_fnum_diskSetDoorState, (void *) name, (void *) state));
 }
 
@@ -1082,6 +1094,14 @@ _X_ static inline int fileFixupPath(const char *orig, char *new)
   // Proto: int kernelFileFixupPath(const char *, char *);
   // Desc : Take the absolute pathname in 'orig' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
   return (sysCall_2(_fnum_fileFixupPath, (void *) orig, new));
+}
+
+_X_ static inline int fileSeparateLast(const char *origPath, char *pathName, char *fileName)
+{
+  // Proto: int kernelFileSeparateLast(const char *, char *, char *);
+  // Desc : This function will take a combined pathname/filename string and separate the two.  The user will pass in the "combined" string along with two pre-allocated char arrays to hold the resulting separated elements.
+  return (sysCall_3(_fnum_fileSeparateLast, (char *) origPath, pathName,
+		    fileName));
 }
 
 _X_ static inline int fileGetDisk(const char *path, disk *d)
@@ -1199,6 +1219,13 @@ _X_ static inline int fileTimestamp(const char *name)
   return (sysCall_1(_fnum_fileTimestamp, (void *) name));
 }
 
+_X_ static inline int fileGetTemp(file *f)
+{
+  // Proto: int kernelFileGetTemp(void);
+  // Desc : Create and open a temporary file in write mode.
+  return (sysCall_1(_fnum_fileGetTemp, f));
+}
+
 _X_ static inline int fileStreamOpen(const char *name, int mode, fileStream *f)
 {
   // Proto: int kernelFileStreamOpen(const char *, int, fileStream *);
@@ -1287,7 +1314,7 @@ _X_ static inline void *memoryGetPhysical(unsigned size, unsigned align, const c
 {
   // Proto: void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);
   // Desc : Return a pointer to a new physical block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'.  If no specific alignment is required, use '0'.  Memory allocated using this function is NOT automatically cleared.  'Physical' refers to an actual physical memory address, and is not necessarily useful to external programs.
-  return ((void *) sysCall_3(_fnum_memoryGetPhysical, (void *) size, 
+  return ((void *) sysCall_3(_fnum_memoryGetPhysical, (void *) size,
 			     (void *) align, (void *) desc));
 }
 
@@ -1341,26 +1368,25 @@ _X_ static inline int multitaskerGetCurrentProcessId(void)
   return (sysCall_0(_fnum_multitaskerGetCurrentProcessId));
 }
 
-_X_ static inline int multitaskerGetProcessOwner(int pid)
+_X_ static inline int multitaskerGetProcess(int pid, process *proc)
 {
-  // Proto: int kernelMultitaskerGetProcessOwner(int);
-  // Desc : Returns the user ID of the user that owns the process referenced by process ID 'pid'.
-  return (sysCall_1(_fnum_multitaskerGetProcessOwner, (void *) pid));
+  // Proto: int kernelMultitaskerGetProcess(int, process *);
+  // Desc : Returns the process structure for the supplied process ID.
+  return (sysCall_2(_fnum_multitaskerGetProcess, (void *) pid, proc));
 }
 
-_X_ static inline const char *multitaskerGetProcessName(int pid)
+_X_ static inline int multitaskerGetProcessByName(const char *name, process *proc)
 {
-  // Proto: const char *kernelMultitaskerGetProcessName(int);
-  // Desc : Returns the process name of the process referenced by process ID 'pid'.
-  return ((const char *) sysCall_1(_fnum_multitaskerGetProcessName,
-				   (void *) pid));
+  // Proto: int kernelMultitaskerGetProcessByName(const char *, process *);
+  // Desc : Returns the process structure for the supplied process name
+  return (sysCall_2(_fnum_multitaskerGetProcessByName, (void *) name, proc));
 }
 
-_X_ static inline int multitaskerGetProcessState(int pid, int *statep)
+_X_ static inline int multitaskerGetProcesses(void *buffer, unsigned buffSize)
 {
-  // Proto: int kernelMultitaskerGetProcessState(int, kernelProcessState *);
-  // Desc : Gets the state of the process referenced by process ID 'pid'.  Puts the result in 'statep'.
-  return (sysCall_2(_fnum_multitaskerGetProcessState, (void *) pid, statep));
+  // Proto: int kernelMultitaskerGetProcesses(void *, unsigned);
+  // Desc : Fills 'buffer' with up to 'buffSize' bytes' worth of process structures, and returns the number of structures copied.
+  return (sysCall_2(_fnum_multitaskerGetProcesses, buffer, (void *) buffSize));
 }
 
 _X_ static inline int multitaskerSetProcessState(int pid, int state)
@@ -1369,13 +1395,6 @@ _X_ static inline int multitaskerSetProcessState(int pid, int state)
   // Desc : Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
   return (sysCall_2(_fnum_multitaskerSetProcessState, (void *) pid, 
 		   (void *) state));
-}
-
-_X_ static inline int multitaskerGetProcessPriority(int pid)
-{
-  // Proto: int kernelMultitaskerGetProcessPriority(int);
-  // Desc : Gets the priority of the process referenced by process ID 'pid'.
-  return (sysCall_1(_fnum_multitaskerGetProcessPriority, (void *) pid));
 }
 
 _X_ static inline int multitaskerSetProcessPriority(int pid, int priority)
@@ -1500,13 +1519,6 @@ _X_ static inline int multitaskerTerminate(int code)
   // Proto: int kernelMultitaskerTerminate(int);
   // Desc : Terminate the calling process, returning the exit code 'code'
   return (sysCall_1(_fnum_multitaskerTerminate, (void *) code));
-}
-
-_X_ static inline void multitaskerDumpProcessList(void)
-{
-  // Proto: void kernelMultitaskerDumpProcessList(void);
-  // Desc : Print a listing of all current processes to the current text output stream.  Might not be the current output stream of the calling process, but rather the console output stream.  This could be considered a bug, but is more of a "currently necessary peculiarity".
-  sysCall_0(_fnum_multitaskerDumpProcessList);
 }
 
 
@@ -1951,6 +1963,13 @@ _X_ static inline int windowCenter(objectKey window)
   return (sysCall_1(_fnum_windowCenter, window));
 }
 
+_X_ static inline void windowSnapIcons(objectKey window)
+{
+  // Proto: void kernelWindowSnapIcons(kernelWindow *);
+  // Desc : If 'window' has icon components inside it, this will snap them to a grid so that they fit inside the window.
+  sysCall_1(_fnum_windowSnapIcons, window);
+}
+
 _X_ static inline int windowSetHasBorder(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetHasBorder(kernelWindow *, int);
@@ -1986,6 +2005,15 @@ _X_ static inline int windowSetPacked(objectKey window, int trueFalse)
   return (sysCall_2(_fnum_windowSetPacked, window, (void *) trueFalse));
 }
 
+_X_ static inline int windowSetHasMinimizeButton(objectKey window,
+						 int trueFalse)
+{
+  // Proto: int kernelWindowSetHasMinimizeButton(kernelWindow *, int);
+  // Desc : Tells the windowing system whether to draw a minimize button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a minimize button.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
+  return (sysCall_2(_fnum_windowSetHasMinimizeButton, window,
+		    (void *) trueFalse));
+}  
+
 _X_ static inline int windowSetHasCloseButton(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetHasCloseButton(kernelWindow *, int);
@@ -2004,8 +2032,15 @@ _X_ static inline int windowSetColors(objectKey window, color *background)
 _X_ static inline int windowSetVisible(objectKey window, int visible)
 {
   // Proto: int kernelWindowSetVisible(kernelWindow *, int);
-  // Desc : Tell the windowing system whether to make the window 'window' visible or not.  Non-zero 'visible' means make the window visible.  When windows are created, they are not visible by default so you can add components, do layout, set the size, etc.
+  // Desc : Tell the windowing system whether to make 'window' visible or not.  Non-zero 'visible' means make the window visible.  When windows are created, they are not visible by default so you can add components, do layout, set the size, etc.
   return (sysCall_2(_fnum_windowSetVisible, window, (void *) visible));
+}
+
+_X_ static inline void windowSetMinimized(objectKey window, int minimized)
+{
+  // Proto: void kernelWindowSetMinimized(kernelWindow *, int);
+  // Desc : Tell the windowing system whether to make 'window' minimized or not.  Non-zero 'minimized' means make the window non-visible, but accessible via the task bar.  Zero 'minimized' means restore a minimized window to its normal, visible size.
+  sysCall_2(_fnum_windowSetMinimized, window, (void *) minimized);
 }
 
 _X_ static inline int windowAddConsoleTextArea(objectKey window, componentParameters *params)
@@ -2196,12 +2231,12 @@ _X_ static inline objectKey windowNewContainer(objectKey parent, const char *nam
 				(void *) name, params));
 }
 
-_X_ static inline objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, const char *command, componentParameters *params)
+_X_ static inline objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, componentParameters *params)
 {
   // Proto: kernelWindowComponent *kernelWindowNewIcon(volatile void *, image *, const char *, const char *, componentParameters *);
-  // Desc : Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'.  If you want the icon to execute a command when clicked, you should specify it in 'command'.
-  return ((objectKey) sysCall_5(_fnum_windowNewIcon, parent, iconImage,
-				(void *) label, (void *) command, params));
+  // Desc : Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'.
+  return ((objectKey) sysCall_4(_fnum_windowNewIcon, parent, iconImage,
+				(void *) label, params));
 }
 
 _X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, drawMode mode, componentParameters *params)

@@ -29,23 +29,11 @@ _X_ void vshPrintTime(unsigned unformattedTime)
 {
   // Desc: Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- in a (for now, arbitrary) human-readable format to standard output.
 
-  int seconds = 0;
-  int minutes = 0;
-  int hours = 0;
+  int seconds = (unformattedTime & 0x0000003F);
+  int minutes = ((unformattedTime & 0x00000FC0) >> 6);
+  int hours = ((unformattedTime & 0x0003F000) >> 12);
 
-  seconds = (unformattedTime & 0x0000003F);
-  minutes = ((unformattedTime & 0x00000FC0) >> 6);
-  hours = ((unformattedTime & 0x0003F000) >> 12);
-
-  if (hours < 10)
-    putchar('0');
-  printf("%u:", hours);
-  if (minutes < 10)
-    putchar('0');
-  printf("%u:", minutes);
-  if (seconds < 10)
-    putchar('0');
-  printf("%u", seconds);
+  printf("%02u:%02u:%02u", hours, minutes, seconds);
 
   return;
 }

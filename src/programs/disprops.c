@@ -35,6 +35,7 @@ typedef struct {
 } modeInfo;
 
 static int processId = 0;
+static int privilege = 0;
 static int readOnly = 1;
 static int numberModes = 0;
 static int showingClock = 0;
@@ -114,22 +115,21 @@ static void eventHandler(objectKey key, windowEvent *event)
   int mode = 0;
   int clockSelected = 0;
   variableList *list = NULL;
-  char programList[128];
   char string[160];
+  file tmp;
 
   // Check for the window being closed by a GUI event.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
       ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+    windowGuiStop();
+
+  else if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
-      windowGuiStop();
-      windowDestroy(window);
-      exit(0);
+      loaderLoadAndExec("/programs/wallpaper", privilege, 0, NULL, 0);
+      return;
     }
 
-  if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_LEFTUP))
-    system("/programs/wallpaper");
-
-  if ((key == colorsRadio) || (key == changeColorsButton))
+  else if ((key == colorsRadio) || (key == changeColorsButton))
     {
       color *selectedColor = NULL;
       int selected = windowComponentGetSelected(colorsRadio);
@@ -156,72 +156,48 @@ static void eventHandler(objectKey key, windowEvent *event)
 	drawColor(selectedColor);
     }
 
-  if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+  else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Does the user not want to boot in graphics mode?
       if (!windowComponentGetSelected(bootGraphicsCheckbox))
 	{
 	  // Try to create the /nograph file
-	  file tmp;
+	  bzero(&tmp, sizeof(file));
 	  fileOpen("/nograph", (OPENMODE_WRITE | OPENMODE_CREATE |
 				OPENMODE_TRUNCATE), &tmp);
 	  fileClose(&tmp);
 	}
-      
+
       // Does the user want to show a clock on the desktop?
       clockSelected = windowComponentGetSelected(showClockCheckbox);
       if ((!showingClock && clockSelected) || (showingClock && !clockSelected))
 	{
-	  list = configurationReader("/system/windowmanager.conf");
-	  if (list != NULL)
+	  if (!readOnly)
+	    list = configurationReader("/system/windowmanager.conf");
+
+	  if (!showingClock && clockSelected)
 	    {
-	      programList[0] = '\0';
-	      variableListGet(list, "programs", programList, 128);
+	      // Run the clock program now.  No block.
+	      loaderLoadAndExec("/programs/clock", privilege, 0, NULL, 0);
 	      
-	      if (!showingClock && clockSelected)
-		{
-		  // Add 'clock' to the 'programs=' variable
-		  if (programList[0] != '\0')
-		    strcat(programList, ",");
-		  strcat(programList, "clock");
-		  variableListSet(list, "programs", programList);
+	      if (list)
+		// Add a variable for the clock
+		variableListSet(list, "program.clock", "/programs/clock");
+	    }
+	  else
+	    {
+	      // Try to kill any clock program(s) currently running
+	      multitaskerKillByName("clock", 0);
 
-		  // Add a variable for the clock
-		  variableListSet(list, "program.clock", "/programs/clock");
+	      if (list)
+		// Remove any 'program.clock=' variable
+		variableListUnset(list, "program.clock");
+	    }
 
-		  // Run the clock program now.
-		  loaderLoadAndExec("/programs/clock",
-				    multitaskerGetProcessPrivilege(
-					   multitaskerGetCurrentProcessId()),
-				    0, NULL, 0);
-		}
-	      else
-		{
-		  // Remove 'clock' from the 'programs=' variable
-		  if (!strcmp(programList, "clock"))
-		    variableListUnset(list, "programs");
-		  else
-		    {
-		      char *tmpStr = strstr(programList, ",clock");
-		      if (tmpStr == NULL)
-			tmpStr = strstr(programList, "clock,");
-		      if (tmpStr != NULL)
-			{
-			  tmpStr[0] = '\0';
-			  strcpy(tmpStr, (tmpStr + 6));
-			  variableListSet(list, "programs", programList);
-			}
-		    }
-
-		  // Remove the  variable for the clock
-		  variableListUnset(list, "program.clock");
-
-		  // Try to kill any clock programs currently running
-		  multitaskerKillByName("clock", 0);
-		}
-
+	  if (list)
+	    {
 	      configurationWriter("/system/windowmanager.conf", list);
-	      //free(list);
+	      free(list);
 	    }
 	}
 
@@ -249,9 +225,9 @@ static void eventHandler(objectKey key, windowEvent *event)
       graphicSetColor("desktop", &desktop);
 
       windowGuiStop();
-      windowDestroy(window);
-      exit(0);
     }
+
+  return;
 }
 
 
@@ -262,8 +238,7 @@ static void constructWindow(void)
 
   componentParameters params;
   objectKey container = NULL;
-  variableList *list = NULL;
-  char programList[128];
+  process tmpProc;
   int count;
 
   // Create a new window, with small, arbitrary size and location
@@ -315,15 +290,13 @@ static void constructWindow(void)
   params.gridY = 2;
   showClockCheckbox =
     windowNewCheckbox(container, "Show a clock on the desktop", &params);
+
   // Are we currently set to show one?
-  list = configurationReader("/system/windowmanager.conf");
-  if (list != NULL)
+  bzero(&tmpProc, sizeof(process));
+  if (multitaskerGetProcessByName("clock", &tmpProc) == 0)
     {
-      if (!variableListGet(list, "programs", programList, 128))
-	if (strstr(programList, "clock"))
-	  showingClock = 1;
+      showingClock = 1;
       windowComponentSetSelected(showClockCheckbox, showingClock);
-      free(list);
     }
 
   // Make a container for the right hand side components
@@ -434,8 +407,9 @@ int main(int argc, char *argv[])
   if (!fileGetDisk("/system", &sysDisk))
     readOnly = sysDisk.readOnly;
 
-  // We need our process ID to create the windows
+  // We need our process ID and privilege to create the windows
   processId = multitaskerGetCurrentProcessId();
+  privilege = multitaskerGetProcessPrivilege(processId);
 
   // Get the list of supported video modes
   status = getVideoModes();
@@ -450,6 +424,7 @@ int main(int argc, char *argv[])
 
   // Run the GUI
   windowGuiRun();
+  windowDestroy(window);
 
   errno = status;
   return (status);

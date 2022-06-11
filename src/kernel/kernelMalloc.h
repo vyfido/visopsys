@@ -31,15 +31,15 @@ typedef volatile struct
   void *end;
   void *previous;
   void *next;
-  char *function;
+  const char *function;
 
 } kernelMallocBlock;
 
 // Functions from kernelMalloc.c
 #define kernelMalloc(size) _kernelMalloc(__FUNCTION__, size);
-void *_kernelMalloc(char *, unsigned);
+void *_kernelMalloc(const char *, unsigned);
 #define kernelFree(ptr) _kernelFree(__FUNCTION__, ptr);
-int _kernelFree(char *, void *);
+int _kernelFree(const char *, void *);
 void kernelMallocDump(void);
 
 #define _KERNELMALLOC_H

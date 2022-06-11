@@ -2,20 +2,6 @@
 ##  Visopsys
 ##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ##  
-##  This library is free software; you can redistribute it and/or modify it
-##  under the terms of the GNU Lesser General Public License as published by
-##  the Free Software Foundation; either version 2.1 of the License, or (at
-##  your option) any later version.
-##
-##  This library is distributed in the hope that it will be useful, but
-##  WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-##  General Public License for more details.
-##
-##  You should have received a copy of the GNU Lesser General Public License
-##  along with this library; if not, write to the Free Software Foundation,
-##  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-##
 ##  Makefile
 ##
 
@@ -34,10 +20,12 @@ STDDEP		= Makefile ../shared/*
 
 OBJS	= obj/vshCompleteFilename.o \
 	obj/vshCopyFile.o \
+	obj/vshCursorMenu.o \
 	obj/vshDeleteFile.o \
 	obj/vshDumpFile.o \
 	obj/vshFileList.o \
 	obj/vshMakeAbsolutePath.o \
+	obj/vshParseCommand.o \
 	obj/vshPasswordPrompt.o \
 	obj/vshPrintDate.o \
 	obj/vshPrintTime.o \
@@ -59,6 +47,9 @@ obj/vshCompleteFilename.o: vshCompleteFilename.c ${STDDEP}
 obj/vshCopyFile.o: vshCopyFile.c ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c vshCopyFile.c -o $@
 
+obj/vshCursorMenu.o: vshCursorMenu.c ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c vshCursorMenu.c -o $@
+
 obj/vshDeleteFile.o: vshDeleteFile.c ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c vshDeleteFile.c -o $@
 
@@ -70,6 +61,9 @@ obj/vshFileList.o: vshFileList.c ${STDDEP}
 
 obj/vshMakeAbsolutePath.o: vshMakeAbsolutePath.c ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c vshMakeAbsolutePath.c -o $@
+
+obj/vshParseCommand.o: vshParseCommand.c ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c vshParseCommand.c -o $@
 
 obj/vshPasswordPrompt.o: vshPasswordPrompt.c ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c vshPasswordPrompt.c -o $@

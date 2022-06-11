@@ -23,7 +23,7 @@
 // using the kernelGraphic functions.
 
 #include "kernelDriverManagement.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelMiscFunctions.h"
 #include <stdlib.h>
 #include <string.h>
@@ -140,11 +140,13 @@ static int scrollLine(kernelTextArea *area)
 	longestLine = lineLength;
     }
 
-  kernelGraphicCopyArea(area->graphicBuffer, area->xCoord,
-			(area->yCoord + area->font->charHeight),
-			(longestLine * area->font->charWidth),
-			((area->rows - 1) * area->font->charHeight),
-			area->xCoord, area->yCoord);
+  if (area->graphicBuffer->height > area->font->charHeight)
+    // Copy everything up by one line
+    kernelGraphicCopyArea(area->graphicBuffer, area->xCoord,
+			  (area->yCoord + area->font->charHeight),
+			  (longestLine * area->font->charWidth),
+			  ((area->rows - 1) * area->font->charHeight),
+			  area->xCoord, area->yCoord);
 
   // Erase the last line
   kernelGraphicClearArea(area->graphicBuffer, (color *) &(area->background),
@@ -246,30 +248,6 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
   if (cursorState)
     setCursor(area, 1);
 
-  return (0);
-}
-
-
-static int getForeground(kernelTextArea *area)
-{
-  return (0);
-}
-
-
-static int setForeground(kernelTextArea *area, int newForeground)
-{
-  return (0);
-}
-
-
-static int getBackground(kernelTextArea *area)
-{
-  return (0);
-}
-
-
-static int setBackground(kernelTextArea *area, int newBackground)
-{
   return (0);
 }
 
@@ -453,10 +431,10 @@ static kernelTextOutputDriver graphicModeDriver = {
   setCursor,
   getCursorAddress,
   setCursorAddress,
-  getForeground,
-  setForeground,
-  getBackground,
-  setBackground,
+  NULL, // getForeground
+  NULL, // setForeground
+  NULL, // getBackground
+  NULL, // setBackground
   print,
   delete,
   drawScreen,

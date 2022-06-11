@@ -22,6 +22,7 @@
 // This is a program for installing the system on a target disk (filesystem).
 
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -39,8 +40,12 @@ static int processId = 0;
 static char rootDisk[DISK_MAX_NAMELENGTH];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
+static char *diskName = NULL;
 static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2004 "
                            "J. Andrew McLaughlin";
+static char *chooseVolumeString = "Please choose the volume on which to "
+  "install.  Note that the installation\nvolume MUST be of the same "
+  "filesystem type as the current root filesystem!";
 static char *setPasswordString = "Please choose a password for the 'admin' "
                                  "account";
 static char statusLabelString[STATUSLENGTH];
@@ -57,13 +62,6 @@ static objectKey statusLabel = NULL;
 static objectKey progressBar = NULL;
 static objectKey installButton = NULL;
 static objectKey quitButton = NULL;
-
-
-static void usage(char *name)
-{
-  printf("usage:\n%s [disk]\n", name);
-  return;
-}
 
 
 static void error(const char *format, ...)
@@ -195,7 +193,6 @@ static void constructWindow(void)
     quit(ERR_NOCREATE, "Can't create window!");
 
   bzero(&params, sizeof(componentParameters));
-
   params.gridWidth = 2;
   params.gridHeight = 1;
   params.padTop = 5;
@@ -205,16 +202,18 @@ static void constructWindow(void)
   params.orientationY = orient_middle;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-
   textLabel = windowNewTextLabel(window, titleString, &params);
   
+  params.gridY = 1;
+  char tmp[40];
+  sprintf(tmp, "[ Installing on disk %s ]", diskName);
+  windowNewTextLabel(window, tmp, &params);
+
   params.gridY = 2;
-  params.gridWidth = 1;
   installTypeRadio = windowNewRadioButton(window, 2, 1, (char *[])
       { "Basic install", "Full install" }, 2 , &params);
   windowComponentSetEnabled(installTypeRadio, 0);
 
-  params.gridX = 0;
   params.gridY = 3;
   params.gridWidth = 2;
   statusLabel = windowNewTextLabel(window, "", &params);
@@ -293,8 +292,6 @@ static int chooseDisk(void)
 
   int status = 0;
   int diskNumber = -1;
-  unsigned char character[2];
-  char tmpChar[320];
   objectKey chooseWindow = NULL;
   componentParameters params;
   objectKey diskList = NULL;
@@ -309,7 +306,6 @@ static int chooseDisk(void)
  start:
 
   bzero(&params, sizeof(componentParameters));
-
   params.gridX = 0;
   params.gridY = 0;
   params.gridWidth = 3;
@@ -322,18 +318,6 @@ static int chooseDisk(void)
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
-  sprintf(tmpChar, "Please choose the volume on which to install.  Note that "
-	  "the installation\nvolume MUST be of the same filesystem type as "
-	  "the current root filesystem!");
-
-  if (graphics)
-    {
-      chooseWindow = windowNew(processId, "Choose Installation Disk");
-      windowNewTextLabel(chooseWindow, tmpChar, &params);
-    }
-  else
-    printf("%s\n", tmpChar);
-
   char *tmp = malloc(numberDisks * 80);
   for (count = 0; count < numberDisks; count ++)
     {
@@ -344,9 +328,12 @@ static int chooseDisk(void)
 
   if (graphics)
     {
+      chooseWindow = windowNew(processId, "Choose Installation Disk");
+      windowNewTextLabel(chooseWindow, chooseVolumeString, &params);
+
       // Make a window list with all the disk choices
       params.gridY = 1;
-      diskList = windowNewList(chooseWindow, numberDisks, 1, 0, diskStrings,
+      diskList = windowNewList(chooseWindow, 5, 1, 0, diskStrings,
 			       numberDisks, &params);
       free(diskStrings[0]);
 
@@ -370,6 +357,7 @@ static int chooseDisk(void)
       cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
 
       // Make the window visible
+      windowSetHasMinimizeButton(chooseWindow, 0);
       windowSetHasCloseButton(chooseWindow, 0);
       windowSetResizable(chooseWindow, 0);
       windowSetVisible(chooseWindow, 1);
@@ -416,36 +404,10 @@ static int chooseDisk(void)
     }
 
   else
-    {
-      // Just print the disk strings, with numbers
-      for (count = 0; count < numberDisks; count ++)
-	printf("%d: %s\n", count, diskStrings[count]);
-      printf("-> ");
+    diskNumber =
+      vshCursorMenu(chooseVolumeString, numberDisks, diskStrings, 0);
 
-      free(diskStrings[0]);
-
-      while(1)
-	{
-	  character[0] = getchar();
-	  
-	  if ((character[0] >= '0') && (character[0] <= '9'))
-	    {
-	      character[1] = '\0';
-	      printf("\n");
-	      diskNumber = atoi(character);
-	      if (diskNumber > (numberDisks - 1))
-		{
-		  printf("Invalid volume number %d.\n-> ", diskNumber);
-		  continue;
-		}
-	      printf("\n");
-	      break;
-	    }
-	  else
-	    quit(ERR_NODATA, "No disk selected.");
-	}
-    }
-
+  free(diskStrings[0]);
   return (diskNumber);
 }
 
@@ -471,10 +433,8 @@ static unsigned getInstallSize(const char *installFileName)
   // Open the install file
   status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
   if (status < 0)
-    {
-      // Can't open the install file.
-      return (bytes = 0);
-    }
+    // Can't open the install file.
+    return (bytes = 0);
 
   // Read it line by line
   while (1)
@@ -486,12 +446,18 @@ static unsigned getInstallSize(const char *installFileName)
 	  fileStreamClose(&installFile);
 	  return (bytes = 0);
 	}
+
+      else if ((buffer[0] == '\n') || (buffer[0] == '#'))
+	// Ignore blank lines and comments
+	continue;
+
       else if (status == 0)
 	{
 	  // End of file
 	  fileStreamClose(&installFile);
 	  break;
 	}
+
       else
 	{
 	  // If there's a newline at the end of the line, remove it
@@ -502,15 +468,17 @@ static unsigned getInstallSize(const char *installFileName)
 	  // file and add its size to the number of bytes
 	  status = fileFind(buffer, &theFile);
 	  if (status < 0)
-	    // Later we should do something here to make a message listing
-	    // the names of any missing files
-	    continue;
+	    {
+	      error("Can't open source file \"%s\"", buffer);
+	      continue;
+	    }
 
 	  bytes += theFile.size;
 	}
     }
 
-  return (bytes);
+  // Add 1K for a little buffer space
+  return (bytes + 1024);
 }
 
 
@@ -643,16 +611,22 @@ static int copyFiles(const char *installFileName)
       status = fileStreamReadLine(&installFile, BUFFSIZE, buffer);
       if (status < 0)
 	{
-	  error("Error reading from install file \"%s\"", installFileName);
 	  fileStreamClose(&installFile);
-	  return (status);
+	  error("Error reading from install file \"%s\"", installFileName);
+	  goto done;
 	}
+
+      else if ((buffer[0] == '\n') || (buffer[0] == '#'))
+	// Ignore blank lines and comments
+	continue;
+
       else if (status == 0)
 	{
 	  // End of file
 	  fileStreamClose(&installFile);
 	  break;
 	}
+
       else
 	{
 	  // Use the line of data as the name of a file.  We try to find the
@@ -678,21 +652,27 @@ static int copyFiles(const char *installFileName)
 	    status = fileCopy(buffer, tmpFileName);
 
 	  if (status < 0)
-	    return (status);
-	  
+	    goto done;
+
 	  bytesCopied += theFile.size;
 
+	  // Sync periodially
+	  if (!(((bytesCopied * 100) / bytesToCopy) % 10))
+	    diskSync();
+
 	  windowComponentSetData(progressBar,
-				 (void *)((bytesCopied * 100) / bytesToCopy),
-				 1);
+			 (void *)((bytesCopied * 100) / bytesToCopy), 1);
 	}
     }
 
+  status = 0;
+
+ done:
   diskSync();
 
   updateStatus("Done\n");
 
-  return (status = 0);
+  return (status);
 }
 
 
@@ -935,24 +915,25 @@ static void changeStartProgram(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char opt;
   int diskNumber = -1;
-  char *diskName = NULL;
   char tmpChar[80];
   unsigned diskSize = 0;
   unsigned basicInstallSize = 0xFFFFFFFF;
   unsigned fullInstallSize = 0xFFFFFFFF;
   int count;
 
-  if (argc > 2)
-    {
-      usage((argc > 0)? argv[0] : "install");
-      return(errno = ERR_ARGUMENTCOUNT);
-    }
+  processId = multitaskerGetCurrentProcessId();
 
   // Are graphics enabled?
   graphics = graphicsAreEnabled();
 
-  processId = multitaskerGetCurrentProcessId();
+  while ((opt = getopt(argc, argv, "T")) != -1)
+    {
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+    }
 
   // Check privilege level
   if (multitaskerGetProcessPrivilege(processId) != 0)
@@ -972,23 +953,17 @@ int main(int argc, char *argv[])
 
   // The user can specify the disk name as an argument.  Try to see
   // whether they did so.
-  if (argc == 2)
+  if (argc > 1)
     {
       for (count = 0; count < numberDisks; count ++)
-	if (!strcmp(diskInfo[count].name, argv[1]))
+	if (!strcmp(diskInfo[count].name, argv[argc - 1]))
 	  {
 	    diskNumber = count;
 	    break;
 	  }
-
-      if (diskNumber < 0)
-	{
-	  // Oops, not a valid disk name
-	  usage(argv[0]);
-	  return (errno = ERR_INVALID);
-	}
     }
-  else
+
+  if (diskNumber < 0)
     // The user has not specified a disk number.  We need to display the
     // list of available disks and prompt them.
     diskNumber = chooseDisk();
@@ -996,10 +971,10 @@ int main(int argc, char *argv[])
   if (diskNumber < 0)
     quit(diskNumber, NULL);
 
+  diskName = diskInfo[diskNumber].name;
+
   if (graphics)
     constructWindow();
-
-  diskName = diskInfo[diskNumber].name;
 
   // Calculate the number of bytes that will be consumed by the various
   // types of install
@@ -1009,6 +984,12 @@ int main(int argc, char *argv[])
   // How much space is available on the disk?
   diskSize =
     (diskInfo[diskNumber].numSectors * diskInfo[diskNumber].sectorSize);
+
+  // Make sure there's at least room for a basic install
+  if (diskSize < basicInstallSize)
+    quit((status = ERR_NOFREE), "Disk %s is too small (%dK) to install "
+	 "Visopsys\n(%dK required)", diskInfo[diskNumber].name,
+	 (diskSize/ 1024), (basicInstallSize / 1024));
 
   // Show basic/full install choices based on whether there's enough space
   // to do both
@@ -1027,6 +1008,8 @@ int main(int argc, char *argv[])
       // We're ready to go, enable the buttons
       windowComponentSetEnabled(installButton, 1);
       windowComponentSetEnabled(quitButton, 1);
+      // Focus the 'install' button by default
+      windowComponentFocus(installButton);
 
       windowGuiRun();
 
@@ -1041,6 +1024,17 @@ int main(int argc, char *argv[])
   if (graphics)
     {
       if (windowComponentGetSelected(installTypeRadio) == 1)
+	installType = install_full;
+    }
+  else if (fullInstallSize &&
+	   ((basicInstallSize + fullInstallSize) < diskSize))
+    {
+      status = vshCursorMenu("Please choose the install type:", 2,
+			     (char *[]) { "Basic", "Full" }, 1);
+      if (status < 0)
+	return (status);
+
+      if (status == 1)
 	installType = install_full;
     }
 

@@ -22,6 +22,7 @@
 // Yup, it's the DOS-style command for moving/renaming files
 
 #include <stdio.h>
+#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 

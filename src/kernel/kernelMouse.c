@@ -23,7 +23,7 @@
 
 #include "kernelMouse.h"
 #include "kernelGraphic.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <sys/errors.h>
@@ -150,6 +150,15 @@ int kernelMouseInitialize(void)
   initialized = 1;
 
   return (status = 0);
+}
+
+
+int kernelMouseShutdown(void)
+{
+  // Stop processing mouse stuff.
+
+  initialized = 0;
+  return (0);
 }
 
 

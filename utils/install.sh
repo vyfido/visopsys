@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  install.sh
+##
 
 # Installs the Visopsys system on the requested device.  Suitable for use
 # only with Visopsys SOURCE distribution.  Note that the device must have
@@ -8,8 +14,8 @@ BUILDDIR=../build
 BOOTSECTOR=${BUILDDIR}/system/boot/bootsect.fat12
 OSLOADER=vloader
 FSTAB=/etc/fstab
-BASICFILES=dist/system/install-files.basic
-FULLFILES=dist/system/install-files.full
+BASICFILES=../dist/system/install-files.basic
+FULLFILES=../dist/system/install-files.full
 INSTTYPE=full
 
 echo ""
@@ -106,7 +112,7 @@ echo -n "Copying files...  "
 for FILE in `cat $BASICFILES` ; do
     if [ -d "$BUILDDIR""$FILE" ] ; then
 	mkdir -p "$MOUNTDIR""$FILE"
-    else
+    elif [ -f "$BUILDDIR""$FILE" ] ; then
 	cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
     fi
 done
@@ -115,7 +121,7 @@ if [ "$INSTTYPE" != "basic" ] ; then
     for FILE in `cat $FULLFILES` ; do
 	if [ -d "$BUILDDIR""$FILE" ] ; then
 	    mkdir -p "$MOUNTDIR""$FILE"
-	else
+	elif [ -f "$BUILDDIR""$FILE" ] ; then
 	    cp "$BUILDDIR""$FILE" "$MOUNTDIR""$FILE"
 	fi
     done

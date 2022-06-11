@@ -43,7 +43,7 @@ static volatile unsigned usedBlocks = 0;
 static volatile unsigned totalMemory = 0;
 static volatile unsigned usedMemory = 0;
 
-static char *FUNCTION;
+static const char *FUNCTION;
 static lock locksLock;
 
 #define blockSize(block) ((block->end - block->start) + 1)
@@ -484,7 +484,7 @@ static int deallocateBlock(void *start)
 /////////////////////////////////////////////////////////////////////////
 
 
-void *_kernelMalloc(char *function, unsigned size)
+void *_kernelMalloc(const char *function, unsigned size)
 {
   // Just like a malloc(), for kernel memory, but the data is cleared like
   // calloc.
@@ -522,7 +522,7 @@ void *_kernelMalloc(char *function, unsigned size)
 }
 
 
-int _kernelFree(char *function, void *start)
+int _kernelFree(const char *function, void *start)
 {
   // Just like free(), for kernel memory
 

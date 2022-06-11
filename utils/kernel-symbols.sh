@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  kernel-symbols.sh
+##
 
 # This thing just dumps the symbol table of the kernel and creates a simple
 # list of all global function symbols and their addresses.

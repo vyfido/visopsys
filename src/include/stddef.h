@@ -16,10 +16,10 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  stdarg.h
+//  stddef.h
 //
 
-// This is the Visopsys version of the standard header file stdarg.h
+// This is the Visopsys version of the standard header file stddef.h
 
 #if !defined(_STDDEF_H)
 

@@ -115,16 +115,13 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
     {
       // Check for the OK button
       status = windowComponentEventGet(okButton, &event);
-      if (status < 0)
-	{
-	  fileName[0] = '\0';
-	  status = 0;
-	  break;
-	}
-      else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+      if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
 	  windowComponentGetData(textField, fileName, maxLength);
-	  status = 1;
+	  if (fileName[0] == '\0')
+	    status = 0;
+	  else
+	    status = 1;
 	  break;
 	}
 
@@ -167,7 +164,10 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	  else if (event.key == (unsigned char) 10)
 	    {
 	      windowComponentGetData(textField, fileName, maxLength);
-	      status = 1;
+	      if (fileName[0] == '\0')
+		status = 0;
+	      else
+		status = 1;
 	      break;
 	    }
 	}

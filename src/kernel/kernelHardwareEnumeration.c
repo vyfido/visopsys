@@ -255,77 +255,81 @@ static int enumerateHardDiskDevices(void)
       kernelInstallIdeDriver(&physicalDisk);
 
       // Call the detect routine
-      if (physicalDisk.driver->driverDetect)
+      if (physicalDisk.driver
+	  ->driverDetect(deviceNumber, (void *) &physicalDisk) == 1)
 	{
-	  status = physicalDisk.driver
-	    ->driverDetect(deviceNumber, (void *) &physicalDisk);
-	  if (status != 1)
-	    continue;
-	}
-
-      if (physicalDisk.type == idedisk)
-	{
-	  // Hard disk.  Put it into our hard disks array
-	  kernelMemCopy((void *) &physicalDisk,
-			(void *) &(hardDiskDevices[numberHardDisks]),
-			sizeof(kernelPhysicalDisk));
-
-	  // The device name
-	  sprintf((char *) hardDiskDevices[numberHardDisks].name,
-		  (char *) "hd%d", numberHardDisks);
-
-	  // We get more hard disk info from the physical disk info we were
-	  //passed.
-	  hardDiskDevices[numberHardDisks].heads = 
-	    systemInfo->hddInfo[numberHardDisks].heads;
-	  hardDiskDevices[numberHardDisks].cylinders = 
-	    systemInfo->hddInfo[numberHardDisks].cylinders;
-	  hardDiskDevices[numberHardDisks].sectorsPerCylinder = 
-	    systemInfo->hddInfo[numberHardDisks].sectorsPerCylinder;
-	  hardDiskDevices[numberHardDisks].numSectors = (unsigned)
-	    systemInfo->hddInfo[numberHardDisks].totalSectors;
-	  hardDiskDevices[numberHardDisks].sectorSize = 
-	    systemInfo->hddInfo[numberHardDisks].bytesPerSector;
-	  // Sometimes 0?  We can't have that as we are about to use it to
-	  // perform a division operation.
-	  if (hardDiskDevices[numberHardDisks].sectorSize == 0)
+	  if (physicalDisk.type == idedisk)
 	    {
-	      kernelError(kernel_warn, "Physical disk %d sector size 0; "
-			  "assuming 512", deviceNumber);
-	      hardDiskDevices[numberHardDisks].sectorSize = 512;
+	      kernelLog("Device number %d is IDE hard disk", deviceNumber);
+	      
+	      // Hard disk.  Put it into our hard disks array
+	      kernelMemCopy((void *) &physicalDisk,
+			    (void *) &(hardDiskDevices[numberHardDisks]),
+			    sizeof(kernelPhysicalDisk));
+	      
+	      // The device name
+	      sprintf((char *) hardDiskDevices[numberHardDisks].name,
+		      (char *) "hd%d", numberHardDisks);
+	      
+	      // We get more hard disk info from the physical disk info we were
+	      // passed.
+	      hardDiskDevices[numberHardDisks].heads = 
+		systemInfo->hddInfo[numberHardDisks].heads;
+	      hardDiskDevices[numberHardDisks].cylinders = 
+		systemInfo->hddInfo[numberHardDisks].cylinders;
+	      hardDiskDevices[numberHardDisks].sectorsPerCylinder = 
+		systemInfo->hddInfo[numberHardDisks].sectorsPerCylinder;
+	      hardDiskDevices[numberHardDisks].numSectors = (unsigned)
+		systemInfo->hddInfo[numberHardDisks].totalSectors;
+	      hardDiskDevices[numberHardDisks].sectorSize = 
+		systemInfo->hddInfo[numberHardDisks].bytesPerSector;
+	      // Sometimes 0?  We can't have that as we are about to use it to
+	      // perform a division operation.
+	      if (hardDiskDevices[numberHardDisks].sectorSize == 0)
+		{
+		  kernelError(kernel_warn, "Physical disk %d sector size 0; "
+			      "assuming 512", deviceNumber);
+		  hardDiskDevices[numberHardDisks].sectorSize = 512;
+		}
+	      hardDiskDevices[numberHardDisks].motorState = 1;
+	      
+	      // Register the hard disk device
+	      status =
+		kernelDiskRegisterDevice(&hardDiskDevices[numberHardDisks]);
+	      if (status < 0)
+		return (status);
+	      
+	      // Increase the number of logical hard disk devices
+	      numberHardDisks++;
 	    }
-	  hardDiskDevices[numberHardDisks].motorState = 1;
-
-	  // Register the hard disk device
-	  status = kernelDiskRegisterDevice(&hardDiskDevices[numberHardDisks]);
-	  if (status < 0)
-	    return (status);
-
-	  // Increase the number of logical hard disk devices
-	  numberHardDisks++;
+	  
+	  else if (physicalDisk.type == idecdrom)
+	    {
+	      kernelLog("Device number %d is IDE CD-ROM", deviceNumber);
+	      
+	      // Hard disk.  Put it into our hard disks array
+	      kernelMemCopy((void *) &physicalDisk,
+			    (void *) &(cdRomDevices[numberCdRoms]),
+			    sizeof(kernelPhysicalDisk));
+	      
+	      // The device name
+	      sprintf((char *) cdRomDevices[numberCdRoms].name,
+		      (char *) "cd%d", numberCdRoms);
+	      
+	      // Register the CDROM device
+	      status = kernelDiskRegisterDevice(&cdRomDevices[numberCdRoms]);
+	      if (status < 0)
+		return (status);
+	      
+	      // Increase the number of logical hard disk devices
+	      numberCdRoms++;
+	    }
 	}
-
-      else if (physicalDisk.type == idecdrom)
-	{
-	  // Hard disk.  Put it into our hard disks array
-	  kernelMemCopy((void *) &physicalDisk,
-			(void *) &(cdRomDevices[numberCdRoms]),
-			sizeof(kernelPhysicalDisk));
-
-	  // The device name
-	  sprintf((char *) cdRomDevices[numberCdRoms].name,
-		  (char *) "cd%d", numberCdRoms);
-
-	  // Register the CDROM device
-	  status = kernelDiskRegisterDevice(&cdRomDevices[numberCdRoms]);
-	  if (status < 0)
-	    return (status);
-
-	  // Increase the number of logical hard disk devices
-	  numberCdRoms++;
-	}
+      
+      else
+	kernelLog("Device number %d type is unknown", deviceNumber);
     }
-
+  
   return (numberHardDisks + numberCdRoms);
 }
 

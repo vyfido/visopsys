@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowRadioButton objects.
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>

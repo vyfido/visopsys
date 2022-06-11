@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
 
@@ -290,7 +291,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
       ((key == menuQuit) && (event->type == EVENT_MOUSE_LEFTUP)))
     {
-      if (changesPending &&
+      if (changesPending && !readOnly &&
 	  !windowNewQueryDialog(window, "Unsaved changes",
 				"Quit without saving changes?"))
 	return;
@@ -351,6 +352,8 @@ static void constructWindow(void)
   objectKey menu = windowNewMenu(menuBar, "File", &params);
   menuSave = windowNewMenuItem(menu, "Save", &params);
   windowRegisterEventHandler(menuSave, &eventHandler);
+  if (privilege || readOnly)
+    windowComponentSetEnabled(menuSave, 0);
   menuQuit = windowNewMenuItem(menu, "Quit", &params);
   windowRegisterEventHandler(menuQuit, &eventHandler);
 
@@ -379,24 +382,18 @@ static void constructWindow(void)
   addVariableButton =
     windowNewButton(buttonContainer, "Add variable", NULL, &params);
   windowRegisterEventHandler(addVariableButton, &eventHandler);
-  if (privilege || readOnly)
-    windowComponentSetEnabled(addVariableButton, 0);
 
   // Create a 'change variable' button
   params.gridY = 1;
   changeVariableButton =
     windowNewButton(buttonContainer, "Change variable", NULL, &params);
   windowRegisterEventHandler(changeVariableButton, &eventHandler);
-  if (privilege || readOnly)
-    windowComponentSetEnabled(changeVariableButton, 0);
       
   // Create a 'delete variable' button
   params.gridY = 2;
   deleteVariableButton =
     windowNewButton(buttonContainer, "Delete variable", NULL, &params);
   windowRegisterEventHandler(deleteVariableButton, &eventHandler);
-  if (privilege || readOnly)
-    windowComponentSetEnabled(deleteVariableButton, 0);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);

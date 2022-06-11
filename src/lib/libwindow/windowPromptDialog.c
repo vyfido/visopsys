@@ -52,7 +52,6 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   if ((title == NULL) || (message == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bzero(&params, sizeof(componentParameters));
   buffer[0] = '\0';
 
   // Create the dialog.
@@ -63,6 +62,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   if (dialogWindow == NULL)
     return (status = ERR_NOCREATE);
 
+  bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 5;
@@ -109,7 +109,8 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.orientationX = orient_left;
   cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
 
-  windowCenterDialog(parentWindow, dialogWindow);
+  if (parentWindow)
+    windowCenterDialog(parentWindow, dialogWindow);
   windowSetVisible(dialogWindow, 1);
   
   while(1)

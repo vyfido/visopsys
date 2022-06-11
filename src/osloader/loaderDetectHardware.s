@@ -97,9 +97,6 @@ loaderDetectHardware:
 	cmp AL, 04h
 	ja .notCDROM
 	
-	;; Make note that there's emulation
-	mov byte [EMULATION], 1
-
 	mov dword [BOOTDISK], 00306463h ; ("cd0")
 	jmp .doneBootName
 	
@@ -128,16 +125,6 @@ loaderDetectHardware:
 	;; Detect Fixed disk drives, if any
 	call detectHardDisks
 
-	;; If we were doing CD-ROM emulation, turn it back on
-	cmp byte [EMULATION], 1
-	jne .noEmul
-
-	;; Put the real information into the disk hardware information
-	mov EAX, [FD1 + fddInfoBlock.type]
-	mov dword [FD0 + fddInfoBlock.type], EAX
-		
-	.noEmul:	
-	
 	;; Serial ports
 	call detectSerial
 
@@ -377,28 +364,61 @@ detectFloppies:
 	
 	;; Initialize 'number of floppies' value
 	mov dword [FLOPPYDISKS], 0
-	
-	;; We need to test for up to two floppy disks.  We could do this
-	;; in a loop, but that would be silly for two iterations
 
-	;; Test for floppy 0.  
-	
-	;; This interrupt call will destroy ES, so save it
+	;; This is a buggy, overloaded, screwy interrupt call.  We need to
+	;; do this carefully to make sure we get good/real info.  It will
+	;; destroy ES, so save it
 	push ES
+
+	mov SI, FD0
+	push word 0		; Disk number counter
+
+	.floppyLoop:
+
+	;; Pre-decrement the disk counter so we can 'continue' if we get
+	;; any funny things, without missing any following devices
+	pop DX
+	mov AX, DX
+	inc AX
+	push AX
 	
-	mov AX, 0800h
-	xor DX, DX		; Disk 0
-	int 13h
+	;; Any more to do?
+	cmp DX, 2
+	jae .print
 	
-	;; Restore ES
+	push word 0
 	pop ES
-	
-	;; If there was an error, we will say there are no floppies
+	xor DI, DI
+
+	;; Now the screwy interrupt
+	xor BX, BX
+	xor CX, CX
+	mov AX, 0800h
+	int 13h
+
+	;; If there was an error, continue
 	jc .print
 
-	;; Is the disk installed?  If not, we will say no floppies
+	;; If ES:DI is NULL, continue
+	xor EAX, EAX
+	mov AX, ES
+	shl EAX, 16
+	mov AX, DI
+	cmp EAX, 0
+	je .floppyLoop
+
+	;; If any of these registers are empty, continue
+	cmp BX, 0
+	je .floppyLoop
 	cmp CX, 0
-	je .print
+	je .floppyLoop
+	cmp DX, 0
+	je .floppyLoop
+
+	;; If the type is 10h, it's probably not a real floppy; perhaps a
+	;; floppy emulation for an ATAPI CD-ROM.  In that case, skip it.
+	cmp BL, 10h
+	je .floppyLoop
 
 	;; Count it
 	add dword [FLOPPYDISKS], 1
@@ -406,52 +426,25 @@ detectFloppies:
 	;; Put the type/head/track/sector values into the data structures
 	xor EAX, EAX
 	mov AL, BL
-	mov dword [FD0 + fddInfoBlock.type], EAX
+	mov dword [SI + fddInfoBlock.type], EAX
 	inc DH			; Number is 0-based
 	mov AL, DH
-	mov dword [FD0 + fddInfoBlock.heads], EAX
+	mov dword [SI + fddInfoBlock.heads], EAX
 	inc CH			; Number is 0-based
 	mov AL, CH
-	mov dword [FD0 + fddInfoBlock.tracks], EAX
+	mov dword [SI + fddInfoBlock.tracks], EAX
 	mov AL, CL
-	mov dword [FD0 + fddInfoBlock.sectors], EAX
+	mov dword [SI + fddInfoBlock.sectors], EAX
+
+	;; Move our pointer to the next disk
+	add SI, fddInfoBlock_size
+
+	jmp .floppyLoop
 	
-	;; Test for floppy 1
-
-	;; This interrupt call will destroy ES, so save it
-	push ES
-	
-	mov AX, 0800h
-	mov DX, 0001h		; Disk 1
-	int 13h
-
-	;; Restore ES
-	pop ES
-	
-	;; If there was an error, we're finished
-	jc .print
-
-	;; Is the disk installed?  If not, we're finished
-	cmp CX, 0
-	je .print
-
-	;; Count it
-	add dword [FLOPPYDISKS], 1
-
-	;; Put the type/head/track/sector values into the data structures
-	xor EAX, EAX
-	mov AL, BL
-	mov dword [FD1 + fddInfoBlock.type], EAX
-	inc DH			; Number is 0-based
-	mov AL, DH
-	mov dword [FD1 + fddInfoBlock.heads], EAX
-	inc CH			; Number is 0-based
-	mov AL, CH
-	mov dword [FD1 + fddInfoBlock.tracks], EAX
-	mov AL, CL
-	mov dword [FD1 + fddInfoBlock.sectors], EAX
-
 	.print:
+	sti	; Buggy BIOSes can apparently leave ints disabled
+	pop AX	; Loop control
+	pop ES
 	cmp word [PRINTINFO], 1
 	jne .done
 	
@@ -1076,7 +1069,6 @@ HARDWAREINFO:
 ;; These are general messages related to hardware detection
 ;;
 
-EMULATION	db 0
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
 PROCESSOR	db 'Processor    ', 10h, ' ', 0

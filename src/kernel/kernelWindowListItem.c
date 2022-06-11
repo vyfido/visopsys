@@ -23,7 +23,7 @@
 // selectable items that occur inside of kernelWindowList components.
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include <string.h>
 #include <sys/errors.h>

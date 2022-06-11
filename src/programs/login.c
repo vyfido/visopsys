@@ -265,9 +265,10 @@ static void constructWindow(int myProcessId)
   shutdownButton = windowNewButton(window, "Shut down", NULL, &params);
   windowRegisterEventHandler(shutdownButton, &eventHandler);
 
-  // Don't want the user closing this window.  It will just confuse them
-  // later because they won't be able to login unless they use the 'F1'
-  // trick.
+  // Don't want the user minimizing or closing this window.  It will just
+  // confuse them later because they won't be able to login unless they use
+  // the 'F1' trick.
+  windowSetHasMinimizeButton(window, 0);
   windowSetHasCloseButton(window, 0);
 
   return;
@@ -351,7 +352,7 @@ int main(int argc, char *argv[])
   graphics = graphicsAreEnabled();
 
   // Check for options
-  while((opt = (char) getopt(argc, argv, "vf:")) != (char) -1)
+  while((opt = (char) getopt(argc, argv, "vf:T")) != (char) -1)
     {
       switch(opt)
 	{
@@ -364,6 +365,9 @@ int main(int argc, char *argv[])
 	  strncpy(login, optarg, MAX_LOGIN_LENGTH);
 	  skipLogin = 1;
 	  break;
+	case 'T':
+	  // Force text mode
+	  graphics = 0;
 	}
     }
 
@@ -385,8 +389,6 @@ int main(int argc, char *argv[])
       // Inner loop, which goes until we authenticate successfully
       while (1)
 	{
-	  windowComponentSetData(loginField, "Goobar", 7);
-
 	  if (!skipLogin)
 	    getLogin();
 	  skipLogin = 0;

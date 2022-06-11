@@ -43,8 +43,8 @@
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-developers.gif" border="0" align="middle" width="291" height="56"></p>
 
-<p><b><font size="4">THE VISOPSYS WINDOW LIBRARY (Version 0.4)<br>
-</font></b>(version 0.3 is <a href="window_library_0.3.html">here</a>)</p>
+<p><b><font size="4">THE VISOPSYS WINDOW LIBRARY (Version 0.5)<br>
+</font></b>(version 0.4 is <a href="window_library_0.4.html">here</a>)</p>
 <p><font size="4">The window library is a set of functions to aid GUI 
 development on the Visopsys platform. At present the list of functions is small, 
 but it does provide very useful functionality. This includes an interface for 
@@ -52,12 +52,23 @@ registering window event callbacks for GUI components, and a 'run' function to
 poll for such events.</font></p>
 <p><font size="4">The functions are defined in the header file &lt;sys/window.h&gt; 
 and the code is contained in libwindow.a (link with '-lwindow').</font></p>
+
 <p>&nbsp;</p>
 
+<p><p><font face="Courier New">objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, const char *message)
+</font></p>
+<blockquote>
+  <p>Create a 'banner' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  This is the very simplest kind of dialog; it just contains the supplied message with no acknowledgement mechanism for the user.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns the object key of the dialog window.  The caller must destroy the window when finished with it.
+</p></blockquote>
 <p><font face="Courier New">void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
 </font></p>
 <blockquote>
   <p>Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.
+</p></blockquote>
+<p><font face="Courier New">int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
+</font></p>
+<blockquote>
+  <p>Create an 'color chooser' dialog box, with the parent window 'parentWindow', and a pointer to the color structure 'pickedColor'.  Currently the window consists of red/green/blue sliders and a canvas displaying the current color.  The initial color displayed will be whatever is supplied in 'pickedColor'.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 </p></blockquote>
 <p><font face="Courier New">int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, char *fileName, unsigned maxLength)
 </font></p>
@@ -114,7 +125,6 @@ and the code is contained in libwindow.a (link with '-lwindow').</font></p>
 <blockquote>
   <p>Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 </p></blockquote>
-
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
 <blockquote>

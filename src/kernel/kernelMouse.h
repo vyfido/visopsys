@@ -55,6 +55,7 @@ int kernelPS2MouseDriverInitialize(void);
 // Functions exported by kernelMouse.c
 int kernelMouseRegisterDevice(kernelMouse *);
 int kernelMouseInitialize(void);
+int kernelMouseShutdown(void);
 int kernelMouseReadData(void);
 int kernelMouseLoadPointer(const char *, const char *);
 int kernelMouseSwitchPointer(const char *);

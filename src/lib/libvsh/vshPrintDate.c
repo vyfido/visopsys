@@ -80,11 +80,7 @@ _X_ void vshPrintDate(unsigned unformattedDate)
       break;
     }
 
-  putchar(' ');
-
-  if (day < 10)
-    putchar('0');
-  printf("%u %u", day, year);
+  printf(" %02u %u", day, year);
 
   return;
 }

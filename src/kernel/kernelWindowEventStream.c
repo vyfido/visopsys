@@ -78,6 +78,32 @@ int kernelWindowEventStreamNew(volatile windowEventStream *newStream)
 }
 
 
+int kernelWindowEventStreamPeek(volatile windowEventStream *theStream)
+{
+  // This function will peek at the next window event from the window event
+  // stream, and return the type, if any.
+
+  int type = 0;
+
+  // Check arguments
+  if (theStream == NULL)
+    {
+      kernelError(kernel_error, "NULL event stream");
+      return (ERR_NULLPARAMETER);
+    }
+
+  if (theStream->s.count > 0)
+    {
+      if (theStream->s.pop((stream *) &(theStream->s), &type))
+	return (type = 0);
+      theStream->s.push((stream *) &(theStream->s), type);
+    }
+
+  // Return the type, or NULL
+  return (type);
+}
+
+
 int kernelWindowEventStreamRead(volatile windowEventStream *theStream,
 				windowEvent *event)
 {

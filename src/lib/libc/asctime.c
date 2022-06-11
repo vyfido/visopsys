@@ -23,6 +23,7 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <errno.h>
 
 
 char *asctime(const struct tm *timePtr)
@@ -37,10 +38,9 @@ char *asctime(const struct tm *timePtr)
   // ctime() time format:
   // "Wed Jun 30 21:49:08 1993\n"
 
-  static char *weekDay[] = { "Mon ", "Tue ", "Wed ", "Thu ", "Fri ", 
-			     "Sat ", "Sun "};
-  static char *month[] = { "Jan ", "Feb ", "Mar ", "Apr ", "May ", "Jun ", 
-			   "Jul ", "Aug ", "Sep ", "Oct ", "Nov ", "Dec " };
+  static char *weekDay[] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+  static char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+			   "Aug", "Sep", "Oct", "Nov", "Dec" };
   static char timeString[25];
 
   // Make sure timePtr is not NULL

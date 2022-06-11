@@ -19,8 +19,8 @@
 //  screenshot.c
 //
 
-// Saves a screen shot, either with the default filename 'scrnshot.bmp' in
-// the current directory, or with the supplied filename
+// Saves a screen shot, either with the supplied filename, or else it
+// will query the user for one.
 
 #include <stdio.h>
 #include <errno.h>
@@ -32,13 +32,7 @@
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char filename[1024];
-  int count;
-
-  // Make sure none of our args are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
+  char filename[MAX_PATH_NAME_LENGTH];
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -50,21 +44,23 @@ int main(int argc, char *argv[])
 
   // Did the user supply a file name?
   if (argc > 1)
-    strncpy(filename, argv[1], 1024);
+    strncpy(filename, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
   else
     {
       // Prompt for a file name
-      status = windowNewFileDialog(NULL, "Enter filename", "Please enter "
-				   "the file name to use:", filename, 1024);
+      status =
+	windowNewFileDialog(NULL, "Enter filename", "Please enter the file "
+			    "name to use:", filename, MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{
 	  errno = status;
-	  perror(argv[0]);
-	  return (status);
+	  if (errno)
+	    perror(argv[0]);
+	  return (errno);
 	}
-      filename[1023] = '\0';
     }
+  filename[MAX_PATH_NAME_LENGTH - 1] = '\0';
 
   status = windowSaveScreenShot(filename);
   if (status < 0)

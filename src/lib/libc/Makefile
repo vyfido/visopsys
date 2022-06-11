@@ -2,20 +2,6 @@
 ##  Visopsys
 ##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ##  
-##  This library is free software; you can redistribute it and/or modify it
-##  under the terms of the GNU Lesser General Public License as published by
-##  the Free Software Foundation; either version 2.1 of the License, or (at
-##  your option) any later version.
-##
-##  This library is distributed in the hope that it will be useful, but
-##  WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-##  General Public License for more details.
-##
-##  You should have received a copy of the GNU Lesser General Public License
-##  along with this library; if not, write to the Free Software Foundation,
-##  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-##
 ##  Makefile
 ##
 
@@ -125,21 +111,21 @@ STDLIBOBJS	= obj/abort.o \
 
 STRINGOBJS	= obj/bcopy.o \
 		obj/bzero.o \
-		obj/index.o \
 		obj/memcmp.o \
 		obj/memcpy.o \
 		obj/memmove.o \
 		obj/memset.o \
-		obj/rindex.o \
-		obj/strcat.o \
-		obj/strcmp.o \
 		obj/strcasecmp.o \
+		obj/strcat.o \
+		obj/strchr.o \
+		obj/strcmp.o \
 		obj/strcpy.o \
 		obj/strlen.o \
+		obj/strncasecmp.o \
 		obj/strncat.o \
 		obj/strncmp.o \
-		obj/strncasecmp.o \
 		obj/strncpy.o \
+		obj/strrchr.o \
 		obj/strspn.o \
 		obj/strstr.o
 
@@ -447,9 +433,6 @@ obj/bcopy.o: bcopy.c ../../include/string.h ${STDDEP}
 obj/bzero.o: bzero.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c bzero.c -o $@
 
-obj/index.o: index.c ../../include/string.h ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c index.c -o $@
-
 obj/memcmp.o: memcmp.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c memcmp.c -o $@
 
@@ -462,17 +445,17 @@ obj/memmove.o: memmove.c ../../include/string.h ${STDDEP}
 obj/memset.o: memset.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c memset.c -o $@
 
-obj/rindex.o: rindex.c ../../include/string.h ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c rindex.c -o $@
+obj/strcasecmp.o: strcasecmp.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strcasecmp.c -o $@
 
 obj/strcat.o: strcat.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcat.c -o $@
 
+obj/strchr.o: strchr.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strchr.c -o $@
+
 obj/strcmp.o: strcmp.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcmp.c -o $@
-
-obj/strcasecmp.o: strcasecmp.c ../../include/string.h ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c strcasecmp.c -o $@
 
 obj/strcpy.o: strcpy.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcpy.c -o $@
@@ -480,17 +463,20 @@ obj/strcpy.o: strcpy.c ../../include/string.h ${STDDEP}
 obj/strlen.o: strlen.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strlen.c -o $@
 
+obj/strncasecmp.o: strncasecmp.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strncasecmp.c -o $@
+
 obj/strncat.o: strncat.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncat.c -o $@
 
 obj/strncmp.o: strncmp.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncmp.c -o $@
 
-obj/strncasecmp.o: strncasecmp.c ../../include/string.h ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c strncasecmp.c -o $@
-
 obj/strncpy.o: strncpy.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncpy.c -o $@
+
+obj/strrchr.o: strrchr.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strrchr.c -o $@
 
 obj/strspn.o: strspn.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strspn.c -o $@

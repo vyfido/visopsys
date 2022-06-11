@@ -28,6 +28,7 @@
 
 // Functions exported by kernelStream.c
 int kernelStreamNew(stream *, unsigned, streamItemSize);
+int kernelStreamDestroy(stream *);
 
 #define _KERNELSTREAM_H
 #endif

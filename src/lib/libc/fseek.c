@@ -51,7 +51,7 @@ int fseek(FILE *stream, long offset, int whence)
   else if (whence == SEEK_CUR)
     {
       // What is the current position in the file?
-      pos = ((stream->block * stream->f.blockSize) + stream->s.next);
+      pos = ((stream->block * stream->f.blockSize) + stream->s.last);
 
       // Set position to current location plus offset.
       new_pos = (pos + offset);

@@ -23,7 +23,7 @@
 // These are just lines of text that occur inside windows
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include <string.h>
 #include <sys/errors.h>

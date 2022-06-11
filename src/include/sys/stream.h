@@ -36,7 +36,7 @@ typedef struct
   unsigned buffSize;
   unsigned size;
   unsigned first;
-  unsigned next;
+  unsigned last;
   unsigned count;
 
   // Stream functions

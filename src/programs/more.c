@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 
@@ -88,13 +89,12 @@ static int viewFile(const char *fileName)
       return (status);
     }
 
-  textInputSetEcho(0);
   charsSoFar = 0;
 
   // Print the file, one screen at a time
   for (count = 0; count < theFile.size; count ++)
     {
-      // Are we at the eld of a screenful of data?
+      // Are we at the end of a screenful of data?
       if (charsSoFar >= (screenColumns * (screenRows - 1)))
 	{
 	  // Reverse the colors
@@ -108,7 +108,9 @@ static int viewFile(const char *fileName)
 	  textSetBackground(backgroundColor);
 	  
 	  // Wait for user input
+	  textInputSetEcho(0);
 	  charEntered = getchar();
+	  textInputSetEcho(1);
 	  
 	  // Erase the "more" thing
 	  cursorPos1 = textGetColumn();
@@ -164,8 +166,6 @@ static int viewFile(const char *fileName)
 	  charsSoFar += 1;
 	}
     }
-  
-  textInputSetEcho(1);
   
   // Free the memory
   free(fileBuffer);

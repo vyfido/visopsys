@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/api.h>
 
 
@@ -78,6 +79,7 @@ static void printDisks(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  int count;
 
   // Gather the disk info
   status = scanDisks();
@@ -104,26 +106,43 @@ int main(int argc, char *argv[])
     }
 
   // Determine which disk is requested.  If there's only one it's easy
-  if (numberDisks > 1)
+  if ((numberDisks > 1) && (argc > 2))
     {
+      // Did the user specify which cdrom to use?
+      for (count = 0; count < numberDisks; count ++)
+	if (!strcmp(argv[1], diskInfo[count].name))
+	  {
+	    selectedDisk = &diskInfo[count];
+	    break;
+	  }
     }
-  else
+
+  if (selectedDisk == NULL)
     selectedDisk = &(diskInfo[0]);
 
   if (!strcasecmp(argv[argc - 1], "open") ||
       !strcasecmp(argv[argc - 1], "eject"))
-    diskSetDoorState(selectedDisk->name , 1);
+    status = diskSetDoorState(selectedDisk->name , 1);
+
+  else if (!strcasecmp(argv[argc - 1], "lock"))
+    status = diskSetLockState(selectedDisk->name , 1);
+
+  else if (!strcasecmp(argv[argc - 1], "unlock"))
+    status = diskSetLockState(selectedDisk->name , 0);
 
   else if (!strcasecmp(argv[argc - 1], "close"))
-    diskSetDoorState(selectedDisk->name , 0);
+    status = diskSetDoorState(selectedDisk->name , 0);
 
   else
     {
       printf("\n\nUnknown command \"%s\"\n\n", argv[argc - 1]);
-      errno = ERR_INVALID;
-      return (status = errno);
+      status = ERR_INVALID;
     }
 
-  errno = 0;
-  return (status = 0);
+  errno = status;
+
+  if (status < 0)
+    perror(argv[0]);
+
+  return (status);
 }

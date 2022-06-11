@@ -88,7 +88,7 @@ typedef volatile struct
 
   char name[DISK_MAX_NAMELENGTH];
   partitionType partType;
-  char fsType [FSTYPE_MAX_NAMELENGTH];
+  char fsType[FSTYPE_MAX_NAMELENGTH];
   unsigned opFlags;
   void *physical;
   unsigned startSector;
@@ -128,6 +128,7 @@ typedef volatile struct
   lock diskLock;
   int motorState;
   int lockState;
+  int doorState;
   unsigned idleSince;
 
   kernelDiskDriver *driver;
@@ -161,6 +162,7 @@ int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);
 kernelDisk *kernelGetDiskByName(const char *);
 kernelPhysicalDisk *kernelGetPhysicalDiskByName(const char *);
+int kernelDiskSetLockState(const char *diskName, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *);

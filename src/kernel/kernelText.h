@@ -106,6 +106,7 @@ typedef struct
 typedef volatile struct 
 {
   stream s;
+  int ownerPid;
   int echo;
 
 } kernelTextInputStream;
@@ -126,7 +127,7 @@ int kernelGraphicConsoleInitialize(void);
 
 int kernelTextInitialize(int, int);
 kernelTextArea *kernelTextAreaNew(int, int, int);
-void kernelTextAreaDelete(kernelTextArea *);
+void kernelTextAreaDestroy(kernelTextArea *);
 int kernelTextSwitchToGraphics(kernelTextArea *);
 kernelTextInputStream *kernelTextGetConsoleInput(void);
 kernelTextOutputStream *kernelTextGetConsoleOutput(void);

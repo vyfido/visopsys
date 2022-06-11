@@ -1,0 +1,23 @@
+
+ -- fdisk --
+
+Also known as the "Disk Manager".  This program can be used to perform
+maintenance on fixed disks.
+
+Usage:
+  fdisk [-T] [-o <disk name>] [disk name]
+
+The fdisk program is interactive, and can be used in either text or graphics
+mode.  It provides the same functionality in both modes but graphics mode
+will tend to be more fluid and user-friendly.  Development of this program
+is ongoing and will be a major focus of improvements in future releases,
+aiming towards providing much of the same functionality of PartitionMagic
+and similar utilities.  If the disk name can be specified as the last
+argument.
+
+Options:
+
+-T  Force text mode operation
+-o <disk name>  Clear the partition table of the specified disk
+
+

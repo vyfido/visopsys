@@ -243,7 +243,7 @@ int kernelLockVerify(lock *verLock)
   // it is invalid, the function returns 0.
 
   int status = 0;
-  kernelProcessState tmpState;
+  processState tmpState;
   
   // Make sure the pointer we were given is not NULL
   if (verLock == NULL)
@@ -258,8 +258,8 @@ int kernelLockVerify(lock *verLock)
       
   // Is the process that holds the lock still valid?
   if ((status < 0) || 
-      (tmpState == sleeping) || (tmpState == stopped) ||
-      (tmpState == finished) || (tmpState == zombie))
+      (tmpState == proc_sleeping) || (tmpState == proc_stopped) ||
+      (tmpState == proc_finished) || (tmpState == proc_zombie))
     {
       // This process either no longer exists, or else it shouldn't
       // continue holding this lock.

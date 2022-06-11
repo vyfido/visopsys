@@ -1,5 +1,126 @@
 
 ---------------
+Version 0.5
+---------------
+
+  Overview: This release adds logical partition capabilities to both the
+  kernel and the Disk Manager (which has been substantially rewritten),
+  window minimizing, a GUI taskbar for managing windows, new icons and
+  cleaner desktop layout, a 'Program Manager' application, and a temporary
+  file interface -- as well as lots of bug fixes and smaller tweaks.
+
+- Added support for hard disk logical partitions
+- Added a 'taskbar' menu to the top of the root window.
+- Added 'minimize' functionality to windows.
+- Made a 'program manager' program that allows a user to manage running
+processes, etc.
+- Enlarged the disk manager window and its canvas, and added a more action
+buttons. 
+- Added a 'show info' action to the disk manager.
+- Implemented the ability to 'hide' partitions in the disk manager
+- The disk manager now includes an option for writing a fresh partition
+table to a disk.
+- The disk manager now allows the disk to be specified as a command line
+argument.
+- The disk manager now has a better GUI interface for creating a new
+partition.
+- Implemented a temporary file interface
+- The install program now shows which install disk is selected when in
+graphics mode.
+- Made a new 'shell' icon for the command window, added icons for the program
+manager and configuration editor, and removed the 'logout' and 'shutdown'
+icons from the desktop.
+- Programs that can run in both graphics and text modes (such as the disk
+manager and the installer) now have a standard -T argument that causes them
+to run in text mode.
+- Added a libvsh 'cursor menu'.  Converted imgboot, fdisk, etc. to use it.
+- Added the ability to have comment lines in the install files
+- Created a libvsh function for parsing a command line into command and args,
+suitable for passing to the loaderLoadAndExec function.
+- Added a user-space 'process' struct, and converted the 'ps' command to
+use it.
+- The date/time printing library functions have been cleaned up and fixed
+so that they don't print superfluous spaces
+- Restored the 'ownership' attributes of input streams, and restored the
+CTRL-C functionality.
+- Moved the 'dist' directory out of the 'utils' area and into the top
+level directory
+- Added strchr and strrchr C library functions
+- Added a kernelStreamDestroy() function to complement kernelStreamNew()
+- Attempting to mount a CD will now close the tray before the attempt, if
+it's open.
+- Removed the icons= line from windowmanager.conf.  The window shell will
+now figure out the list of icons dynamically based on which ones are
+actually specified in the file
+- The 'format' now has 2 additional modes: a graphical mode, and a non-
+interactive 'silent' mode.
+- (Re)-implemented the ability to get a screen shot from a key press.
+The 'instant screenshot' is triggered by [PRINT SCRN] key, and multiple
+shots can be taken this way without overwriting one another.
+- The vsh prompt is no longer the whole directory path; just the current
+directory name.
+- The window checkbox widget now ignores the user-specified foreground
+color for the 'x', since we always use white for the background behind it,
+and if the foreground was white, no 'x' would be visible.
+- The graphical shutdown program now offers an 'eject CD-ROM' checkbox
+when booted from CD-ROM, since otherwise the door stays locked and getting
+the CD out during the BIOS POST can be tricky.
+- CTRL-ALT-DEL now does a proper shutdown, so that the disks are synced
+before rebooting.
+- Removed the exception handler's 'core dump' code, since it wasn't all
+that useful without tracing/debugging facilities.
+- Clicking outside of all of a window's components now removes the focus
+from any focussed component.
+- Fixed: The 'cdrom' program's help page claimed that it will attempt to
+guess the name of the device is not specified, but that hadn't been
+implemented.  It always picked the first cdrom.
+- Fixed: The ATAPI driver was not reliably ejecting CD-ROMs.
+- Fixed: The window manager screenshot code was crashy
+- Fixed: The 'display settings' program's 'show clock on the desktop'
+thing was very crashy.
+- Fixed: The kernelFileStreamClose() function now destroys the stream.
+Previously it didn't do so and was a memory leak.
+- Fixed: The installation program now calculates the required space more
+accurately, and verifies adequate disk space *before* starting the
+installation.
+- Fixed: Extra (second) floppy disks were showing up where they didn't exist
+- Fixed: The disk manager's formatting functionality was crashy  
+- Fixed: In graphics mode, the disk manager's action buttons were not being
+laid out properly.
+- Fixed: In graphics mode, the disk name argument of the disk manager didn't
+properly select the disk in the disk list.
+- Fixed: The kernel logger was inserting random characters into the log at
+512-byte boundaries.
+- Fixed: The return value of the library memcmp function.  If comparison
+failed on the first byte, it was returning success (0).
+- Fixed: Partition Magic was complaining about the disk manager's CHS values
+being incorrect.  In particular it wasn't liking our 'maxed out' head and
+sector values when a partition started or ended at a cylinder > 1024.
+- Fixed: When creating new partitions in the disk manager, Partition Magic
+was showing multiple ones as active.
+- Fixed: Dragging an icon was executing the program, as if the icon were
+simply clicked
+- Fixed: Seeking/writing to the end of a file stream was broken.
+- Fixed: Typing during a graphics mode screen scroll left stray cursors on
+the screen and could cause crashes
+- Fixed: When snapping the icons in the root window, the window layout was
+being redone too many times (once for *every* icon that moved).
+- Fixed: The menu bar component was ignoring any user-specified font.
+- Fixed: Window title bar menus are no longer drawn if there are no items
+in them.
+- Fixed: The window canvas component was generating a kernelMemoryRelease
+message about a pointer not being mapped.
+- Fixed: Causing the console text area to scroll while it wasn't visible
+caused a triple-fault.
+- Fixed: The status messages in the graphical install program were wrapping
+off the window.
+- Fixed: If a CD-ROM was a master with a slave, that CD-ROM was not detected.
+If the slave was also a CD-ROM, neither was detected.
+- Fixed: The system was unable to boot from the second CD-ROM device.
+- Fixed: Running the 'install' program with a disk name argument was not
+working
+
+---------------
 Version 0.42
 ---------------
 

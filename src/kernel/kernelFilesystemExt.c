@@ -95,10 +95,7 @@ static int readSuperblock(const kernelDisk *theDisk, unsigned char *buffer)
 			  (EXT_SUPERBLOCK_SIZE / physicalDisk->sectorSize),
 			  buffer);
   if (status < 0)
-    {
-      kernelError(kernel_error, "Unable to read the EXT superblock");
-      return (status);
-    }
+    return (status);
 
   // Check for the EXT magic number
   if (*((unsigned short *)(buffer + EXT_MAGICNUMBER_OFFSET)) !=

@@ -138,7 +138,7 @@ static int readWriteSectors(kernelPhysicalDisk *, unsigned, unsigned, void *,
 
 
 #if (DISK_CACHE)
-static int getDiskCache(kernelPhysicalDisk *theDisk)
+static int getDiskCache(kernelPhysicalDisk *physicalDisk)
 {
   // This routine is called when a physical disk structure is first used
   // by the read/write function.  It initializes the cache memory and
@@ -147,42 +147,45 @@ static int getDiskCache(kernelPhysicalDisk *theDisk)
   int status = 0;
   int count;
 
-  if (!theDisk->cache.initialized)
+  if (!physicalDisk->cache.initialized)
     {
       // Get some memory for our array of disk cache sector metadata
-      theDisk->cache.numSectors = (DISK_MAX_CACHE / theDisk->sectorSize);
+      physicalDisk->cache.numSectors =
+	(DISK_MAX_CACHE / physicalDisk->sectorSize);
   
-      theDisk->cache.sectors = kernelMalloc(theDisk->cache.numSectors *
-					    sizeof(kernelDiskCacheSector *));
-      theDisk->cache.sectorMemory =
-	kernelMalloc(theDisk->cache.numSectors *
+      physicalDisk->cache.sectors =
+	kernelMalloc(physicalDisk->cache.numSectors *
+		     sizeof(kernelDiskCacheSector *));
+      physicalDisk->cache.sectorMemory =
+	kernelMalloc(physicalDisk->cache.numSectors *
 		     sizeof(kernelDiskCacheSector));
-      theDisk->cache.dataMemory = kernelMalloc(DISK_MAX_CACHE);
+      physicalDisk->cache.dataMemory = kernelMalloc(DISK_MAX_CACHE);
   
-      if ((theDisk->cache.sectors == NULL) ||
-	  (theDisk->cache.sectorMemory == NULL) ||
-	  (theDisk->cache.dataMemory == NULL))
+      if ((physicalDisk->cache.sectors == NULL) ||
+	  (physicalDisk->cache.sectorMemory == NULL) ||
+	  (physicalDisk->cache.dataMemory == NULL))
 	{
 	  kernelError(kernel_error, "Unable to get disk cache memory");
 	  return (status = ERR_MEMORY);
 	}
 
       // Initialize the cache structures
-      for (count = 0; count < theDisk->cache.numSectors; count ++)
+      for (count = 0; count < physicalDisk->cache.numSectors; count ++)
 	{
 	  // The pointers to the sector structures
-	  theDisk->cache.sectors[count] =
-	    &(theDisk->cache.sectorMemory[count]);
+	  physicalDisk->cache.sectors[count] =
+	    &(physicalDisk->cache.sectorMemory[count]);
 
-	  theDisk->cache.sectors[count]->number = -1;
-	  theDisk->cache.sectors[count]->dirty = 0;
+	  physicalDisk->cache.sectors[count]->number = -1;
+	  physicalDisk->cache.sectors[count]->dirty = 0;
 	  
 	  // The data memory pointers in the sector structures
-	  theDisk->cache.sectors[count]->data =
-	    (theDisk->cache.dataMemory + (count * theDisk->sectorSize));
+	  physicalDisk->cache.sectors[count]->data =
+	    (physicalDisk->cache.dataMemory +
+	     (count * physicalDisk->sectorSize));
 	}
 
-      theDisk->cache.initialized = 1;
+      physicalDisk->cache.initialized = 1;
     }
 
   // Return success
@@ -190,7 +193,7 @@ static int getDiskCache(kernelPhysicalDisk *theDisk)
 }
 
 
-static inline int findCachedSector(kernelPhysicalDisk *theDisk,
+static inline int findCachedSector(kernelPhysicalDisk *physicalDisk,
 				   unsigned sectorNum)
 {
   // Just loops through the cache and returns the index of a cached
@@ -199,22 +202,22 @@ static inline int findCachedSector(kernelPhysicalDisk *theDisk,
   int status = 0;
   int count;
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
-  for (count = 0; (count < theDisk->cache.usedSectors); count ++)
-    if (theDisk->cache.sectors[count]->number == sectorNum)
+  for (count = 0; (count < physicalDisk->cache.usedSectors); count ++)
+    if (physicalDisk->cache.sectors[count]->number == sectorNum)
       {
-	kernelLockRelease(&(theDisk->cache.cacheLock));
+	kernelLockRelease(&(physicalDisk->cache.cacheLock));
 	return (count);
       }
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (status = ERR_NOSUCHENTRY);
 }
 
 
-static int countUncachedSectors(kernelPhysicalDisk *theDisk,
+static int countUncachedSectors(kernelPhysicalDisk *physicalDisk,
 				unsigned startSector, int sectorCount)
 {
   // This function returns the number of consecutive uncached clusters
@@ -225,27 +228,27 @@ static int countUncachedSectors(kernelPhysicalDisk *theDisk,
   int status = 0;
   int index;
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // Loop through the cache until we find a sector number that is >=
   // startSector
-  for (index = 0; index < theDisk->cache.usedSectors; index++)
-    if (theDisk->cache.sectors[index]->number >= startSector)
+  for (index = 0; index < physicalDisk->cache.usedSectors; index++)
+    if (physicalDisk->cache.sectors[index]->number >= startSector)
       {
-	kernelLockRelease(&(theDisk->cache.cacheLock));
+	kernelLockRelease(&(physicalDisk->cache.cacheLock));
 
 	// The sector number of this sector determines the value we return.
-	if ((theDisk->cache.sectors[index]->number - startSector) >
+	if ((physicalDisk->cache.sectors[index]->number - startSector) >
 	    sectorCount)
 	  return (sectorCount);
 	else
-	  return (theDisk->cache.sectors[index]->number - startSector);
+	  return (physicalDisk->cache.sectors[index]->number - startSector);
       }
 
   // There were no sectors with a >= number.  Return sectorCount.
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (sectorCount);
 }
 
@@ -308,7 +311,7 @@ static int writeConsecutiveDirty(kernelPhysicalDisk *physicalDisk,
 }
 
 
-static int cacheSync(kernelPhysicalDisk *theDisk)
+static int cacheSync(kernelPhysicalDisk *physicalDisk)
 {
   // Write all dirty cached sectors to the disk
 
@@ -316,19 +319,19 @@ static int cacheSync(kernelPhysicalDisk *theDisk)
   int errors = 0;
   int count;
 
-  if (!(theDisk->cache.dirty) || theDisk->readOnly)
+  if (!(physicalDisk->cache.dirty) || physicalDisk->readOnly)
     return (0);
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
-  for (count = 0; count < theDisk->cache.usedSectors; count ++)
+  for (count = 0; count < physicalDisk->cache.usedSectors; count ++)
     // If the disk sector is dirty, write it and any consecutive ones
     // after it that are dirty
-    if (theDisk->cache.sectors[count]->dirty)
+    if (physicalDisk->cache.sectors[count]->dirty)
       {
-	status = writeConsecutiveDirty(theDisk, count);
+	status = writeConsecutiveDirty(physicalDisk, count);
 	if (status < 0)
 	  errors = status;
 	else
@@ -337,39 +340,40 @@ static int cacheSync(kernelPhysicalDisk *theDisk)
 
   // Reset the dirty flag for the whole cache
   if (!errors)
-    theDisk->cache.dirty = 0;
+    physicalDisk->cache.dirty = 0;
 
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (errors);
 }
 
 
-static int cacheInvalidate(kernelPhysicalDisk *theDisk)
+static int cacheInvalidate(kernelPhysicalDisk *physicalDisk)
 {
   // Evacuate the disk cache
 
   int status = 0;
   int count;
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
-  for (count = 0; count < theDisk->cache.usedSectors; count ++)
+  for (count = 0; count < physicalDisk->cache.usedSectors; count ++)
     {
-      theDisk->cache.sectors[count]->number = -1;
-      theDisk->cache.sectors[count]->dirty = 0;
+      physicalDisk->cache.sectors[count]->number = -1;
+      physicalDisk->cache.sectors[count]->dirty = 0;
     }
 
-  theDisk->cache.usedSectors = 0;
-  theDisk->cache.dirty = 0;
+  physicalDisk->cache.usedSectors = 0;
+  physicalDisk->cache.dirty = 0;
 
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (status);
 }
 
 
-static int uncacheSectors(kernelPhysicalDisk *theDisk, unsigned sectorCount)
+static int uncacheSectors(kernelPhysicalDisk *physicalDisk,
+			  unsigned sectorCount)
 {
   // Removes the least recently used sectors from the cache
   
@@ -378,78 +382,81 @@ static int uncacheSectors(kernelPhysicalDisk *theDisk, unsigned sectorCount)
   kernelDiskCacheSector *tmpSector = NULL;
   int count1, count2;
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // If we're supposed to uncache everything, that's easy
-  if (sectorCount == theDisk->cache.usedSectors)
+  if (sectorCount == physicalDisk->cache.usedSectors)
     {
-      kernelLockRelease(&(theDisk->cache.cacheLock));
-      status = cacheSync(theDisk);
-      for (count1 = 0; count1 < theDisk->cache.usedSectors; count1 ++)
+      kernelLockRelease(&(physicalDisk->cache.cacheLock));
+      status = cacheSync(physicalDisk);
+      for (count1 = 0; count1 < physicalDisk->cache.usedSectors; count1 ++)
 	{
-	  theDisk->cache.sectors[count1]->number = -1;
-	  theDisk->cache.sectors[count1]->dirty = 0;
+	  physicalDisk->cache.sectors[count1]->number = -1;
+	  physicalDisk->cache.sectors[count1]->dirty = 0;
 	}
       if (status == 0)
-	theDisk->cache.usedSectors = 0;
+	physicalDisk->cache.usedSectors = 0;
       return (status);
     }
 
   // Bubble-sort it by age, most-recently-used first
-  for (count1 = 0; count1 < theDisk->cache.usedSectors; count1 ++)
-    for (count2 = 0;  count2 < (theDisk->cache.usedSectors - 1); count2 ++)
-      if (theDisk->cache.sectors[count2]->lastAccess <
-	  theDisk->cache.sectors[count2 + 1]->lastAccess)
+  for (count1 = 0; count1 < physicalDisk->cache.usedSectors; count1 ++)
+    for (count2 = 0; count2 < (physicalDisk->cache.usedSectors - 1); count2 ++)
+      if (physicalDisk->cache.sectors[count2]->lastAccess <
+	  physicalDisk->cache.sectors[count2 + 1]->lastAccess)
 	{
-	  tmpSector = theDisk->cache.sectors[count2 + 1];
-	  theDisk->cache.sectors[count2 + 1] = theDisk->cache.sectors[count2];
-	  theDisk->cache.sectors[count2] = tmpSector;
+	  tmpSector = physicalDisk->cache.sectors[count2 + 1];
+	  physicalDisk->cache.sectors[count2 + 1] =
+	    physicalDisk->cache.sectors[count2];
+	  physicalDisk->cache.sectors[count2] = tmpSector;
 	}
 
   // Now our list has the youngest sectors at the front.
 
   // Write any dirty sectors that we are discarding from the end
-  for (count1 = (theDisk->cache.usedSectors - sectorCount);
-       count1 < theDisk->cache.usedSectors; count1 ++)
-    if (theDisk->cache.sectors[count1]->dirty)
+  for (count1 = (physicalDisk->cache.usedSectors - sectorCount);
+       count1 < physicalDisk->cache.usedSectors; count1 ++)
+    if (physicalDisk->cache.sectors[count1]->dirty)
       {
-	status = writeConsecutiveDirty(theDisk, count1);
+	status = writeConsecutiveDirty(physicalDisk, count1);
 	if (status < 0)
 	  errors = status;
 	else
 	  count1 += (status - 1);
       }
 
-  for (count1 = (theDisk->cache.usedSectors - sectorCount);
-       count1 < theDisk->cache.usedSectors; count1 ++)
+  for (count1 = (physicalDisk->cache.usedSectors - sectorCount);
+       count1 < physicalDisk->cache.usedSectors; count1 ++)
     {
-      theDisk->cache.sectors[count1]->number = -1;
-      theDisk->cache.sectors[count1]->dirty = 0;
+      physicalDisk->cache.sectors[count1]->number = -1;
+      physicalDisk->cache.sectors[count1]->dirty = 0;
     }
  
   if (!errors)
-    theDisk->cache.usedSectors -= sectorCount;
+    physicalDisk->cache.usedSectors -= sectorCount;
 
   // Bubble-sort the remaining ones again by sector number
-  for (count1 = 0; count1 < theDisk->cache.usedSectors; count1 ++)
-    for (count2 = 0;  count2 < (theDisk->cache.usedSectors - 1); count2 ++)
-      if (theDisk->cache.sectors[count2]->number >
-	  theDisk->cache.sectors[count2 + 1]->number)
+  for (count1 = 0; count1 < physicalDisk->cache.usedSectors; count1 ++)
+    for (count2 = 0; count2 < (physicalDisk->cache.usedSectors - 1); count2 ++)
+      if (physicalDisk->cache.sectors[count2]->number >
+	  physicalDisk->cache.sectors[count2 + 1]->number)
 	{
-	  tmpSector = theDisk->cache.sectors[count2 + 1];
-	  theDisk->cache.sectors[count2 + 1] = theDisk->cache.sectors[count2];
-	  theDisk->cache.sectors[count2] = tmpSector;
+	  tmpSector = physicalDisk->cache.sectors[count2 + 1];
+	  physicalDisk->cache.sectors[count2 + 1] =
+	    physicalDisk->cache.sectors[count2];
+	  physicalDisk->cache.sectors[count2] = tmpSector;
 	}
 
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (status = errors);
 }
 
 
-static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
-			   unsigned sectorCount, void *data, int dirty)
+static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
+			   unsigned startSector, unsigned sectorCount,
+			   void *data, int dirty)
 {
   // This routine will add disk sectors to the cache.
 
@@ -458,16 +465,18 @@ static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
   int index, count;
 
   // Only cache what will fit
-  if (sectorCount > theDisk->cache.numSectors)
-    sectorCount = theDisk->cache.numSectors;
+  if (sectorCount > physicalDisk->cache.numSectors)
+    sectorCount = physicalDisk->cache.numSectors;
 
   // Make sure the cache isn't full
-  if ((theDisk->cache.usedSectors + sectorCount) > theDisk->cache.numSectors)
+  if ((physicalDisk->cache.usedSectors + sectorCount) >
+      physicalDisk->cache.numSectors)
     {
       // Uncache some sectors
       status =
-	uncacheSectors(theDisk, ((theDisk->cache.usedSectors +
-				  sectorCount) - theDisk->cache.numSectors)); 
+	uncacheSectors(physicalDisk,
+		       ((physicalDisk->cache.usedSectors + sectorCount) -
+			physicalDisk->cache.numSectors)); 
       if (status < 0)
 	return (status);
     }
@@ -476,7 +485,8 @@ static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
   // clever things to take care of such a case, but no, we want to keep
   // it simple here.  It is the caller's responsibility to ensure that we
   // are not 're-caching' things.
-  if (countUncachedSectors(theDisk, startSector, sectorCount) != sectorCount)
+  if (countUncachedSectors(physicalDisk, startSector, sectorCount) !=
+      sectorCount)
     {
       kernelError(kernel_error, "Attempt to cache a range of disk sectors "
 		  "(%u-%u) that are already (partially) cached", startSector,
@@ -484,53 +494,53 @@ static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
       return (status = ERR_ALREADY);
     }
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // Find the spot in the cache where these should go.  That will be in the
   // spot where the next sector's number is > startSector
-  if ((theDisk->cache.usedSectors == 0) ||
-      (theDisk->cache.sectors[theDisk->cache.usedSectors - 1]->number <
-       startSector))
+  if ((physicalDisk->cache.usedSectors == 0) ||
+      (physicalDisk->cache.sectors[physicalDisk->cache.usedSectors - 1]
+       ->number < startSector))
     // Put these new ones at the end
-    index = theDisk->cache.usedSectors;
+    index = physicalDisk->cache.usedSectors;
 
   else
     {
-      for (index = 0; index < theDisk->cache.usedSectors; index++)
-	if (theDisk->cache.sectors[index]->number >= startSector)
+      for (index = 0; index < physicalDisk->cache.usedSectors; index++)
+	if (physicalDisk->cache.sectors[index]->number >= startSector)
 	  {
 	    // We will have to shift all sectors starting from here to make
 	    // room for our new ones.
 
-	    for (count = (theDisk->cache.usedSectors - (index + 1));
+	    for (count = (physicalDisk->cache.usedSectors - (index + 1));
 		 count >= 0; count --)
 	      {
 		cacheSector =
-		  theDisk->cache.sectors[index + sectorCount + count];
-		theDisk->cache.sectors[index + sectorCount + count] =
-		  theDisk->cache.sectors[index + count];
-		theDisk->cache.sectors[index + count] = cacheSector;
+		  physicalDisk->cache.sectors[index + sectorCount + count];
+		physicalDisk->cache.sectors[index + sectorCount + count] =
+		  physicalDisk->cache.sectors[index + count];
+		physicalDisk->cache.sectors[index + count] = cacheSector;
 	      }
 	    break;
 	  }
     }
 
-  theDisk->cache.usedSectors += sectorCount;
+  physicalDisk->cache.usedSectors += sectorCount;
 
   // Now copy our new sectors into the cache
   
   for ( count = 0; count < sectorCount; count ++)
     {
-      cacheSector = theDisk->cache.sectors[index + count];
+      cacheSector = physicalDisk->cache.sectors[index + count];
 
       // Set the number
       cacheSector->number = (startSector + count);
 
       // Copy the data
-      kernelMemCopy((data + (count * theDisk->sectorSize)), cacheSector->data,
-		    theDisk->sectorSize);
+      kernelMemCopy((data + (count * physicalDisk->sectorSize)),
+		    cacheSector->data, physicalDisk->sectorSize);
 
       // Clean or dirty?
       cacheSector->dirty = dirty;
@@ -540,15 +550,15 @@ static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
     }
 
   if (dirty)
-    theDisk->cache.dirty = 1;
+    physicalDisk->cache.dirty = 1;
 
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (status = sectorCount);
 }
 
 
-static int getCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
-			    int sectorCount, void *data)
+static int getCachedSectors(kernelPhysicalDisk *physicalDisk,
+			    unsigned sectorNum, int sectorCount, void *data)
 {
   // This function is used to retrieve one or more (consecutive) sectors from
   // the cache.  If sectors are cached, this routine copies the data into the
@@ -559,41 +569,41 @@ static int getCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
   int copied = 0;
   kernelDiskCacheSector *cacheSector = NULL;
 
-  index = findCachedSector(theDisk, sectorNum);
+  index = findCachedSector(physicalDisk, sectorNum);
   if (index < 0)
     return (copied = 0);
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // We've found the starting sector.  Start copying data
-  for ( ; (index < theDisk->cache.usedSectors) &&
+  for ( ; (index < physicalDisk->cache.usedSectors) &&
 	  (copied < sectorCount) ; index ++)
     {
-      cacheSector = theDisk->cache.sectors[index];
+      cacheSector = physicalDisk->cache.sectors[index];
       
       if (cacheSector->number != sectorNum)
 	break;
       
       // This sector is cached.  Copy the data.
-      kernelMemCopy(cacheSector->data, data, theDisk->sectorSize);
+      kernelMemCopy(cacheSector->data, data, physicalDisk->sectorSize);
       
       copied++;
       sectorNum++;
-      data += theDisk->sectorSize;
+      data += physicalDisk->sectorSize;
 	      
       // Set the last access time
       cacheSector->lastAccess = kernelSysTimerRead();
     }
 
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (copied);
 }
 
 
-static int writeCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
-			      int sectorCount, void *data)
+static int writeCachedSectors(kernelPhysicalDisk *physicalDisk,
+			      unsigned sectorNum, int sectorCount, void *data)
 {
   // This function is used to change one or more (consecutive) sectors stored
   // in the cache.  If sectors are cached, this routine copies the data from
@@ -604,42 +614,42 @@ static int writeCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
   int copied = 0;
   kernelDiskCacheSector *cacheSector = NULL;
 
-  index = findCachedSector(theDisk, sectorNum);
+  index = findCachedSector(physicalDisk, sectorNum);
   if (index < 0)
     return (copied = 0);
 
-  status = kernelLockGet(&(theDisk->cache.cacheLock));
+  status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // We've found the starting sector.  Start copying data
-  for ( ; (index < theDisk->cache.usedSectors) &&
+  for ( ; (index < physicalDisk->cache.usedSectors) &&
 	  (copied < sectorCount) ; index ++)
     {
-      cacheSector = theDisk->cache.sectors[index];
+      cacheSector = physicalDisk->cache.sectors[index];
       
       if (cacheSector->number != sectorNum)
 	break;
       
       // This sector is cached.  Copy the data if it's different
-      if (kernelMemCmp(data, cacheSector->data, theDisk->sectorSize))
+      if (kernelMemCmp(data, cacheSector->data, physicalDisk->sectorSize))
 	{
-	  kernelMemCopy(data, cacheSector->data, theDisk->sectorSize);
+	  kernelMemCopy(data, cacheSector->data, physicalDisk->sectorSize);
 	  
 	  // The sector and cache are now dirty
 	  cacheSector->dirty = 1;
-	  theDisk->cache.dirty = 1;
+	  physicalDisk->cache.dirty = 1;
 	}
 
       copied++;
       sectorNum++;
-      data += theDisk->sectorSize;
+      data += physicalDisk->sectorSize;
 
       // Set the last access time
       cacheSector->lastAccess = kernelSysTimerRead();
     }
 
-  kernelLockRelease(&(theDisk->cache.cacheLock));
+  kernelLockRelease(&(physicalDisk->cache.cacheLock));
   return (copied);
 }
 #endif // DISK_CACHE
@@ -790,7 +800,7 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
   if (physicalDisk->fixedRemovable == removable)
     {
       // Make sure the disk daemon is running
-      kernelProcessState tmpState;
+      processState tmpState;
       if (kernelMultitaskerGetProcessState(diskdPID, &tmpState) < 0)
 	// Re-spawn the disk daemon
 	spawnDiskd();
@@ -1014,8 +1024,11 @@ int kernelDiskReadPartitions(void)
   kernelPhysicalDisk *physicalDisk = NULL;
   kernelDisk *logicalDisk = NULL;
   unsigned char sectBuf[512];
-  unsigned char *partitionRecord = NULL;
   int partition = 0;
+  unsigned char *partitionRecord = NULL;
+  unsigned char *extendedRecord = NULL;
+  unsigned extendedStartSector = 0;
+  unsigned startSector = 0;
   unsigned char partTypeCode = 0;
   partitionType partType;
   int count;
@@ -1049,64 +1062,103 @@ int kernelDiskReadPartitions(void)
 	  status = kernelDiskReadAbsoluteSectors((char *) physicalDisk->name,
 						 0, 1, sectBuf);
 	  if (status < 0)
-	    {
-	      kernelError(kernel_error, "Can't read partitions: disk %s", 
-				  (char *) physicalDisk->name);
-	      continue;
-	    }
+	    continue;
 
-	  // Is this a valid MBR?
-	  if ((sectBuf[511] == (unsigned char) 0xAA) ||
-	      (sectBuf[510] == (unsigned char) 0x55))
+	  while (physicalDisk->numLogical < DISK_MAX_PARTITIONS)
 	    {
-	      // Set this pointer to the first partition record in the master
-	      // boot record
-	      partitionRecord = (sectBuf + 0x01BE);
+	      extendedRecord = NULL;
 
-	      // Loop through the partition records, looking for non-zero
-	      // entries
-	      for (partition = 0; partition < 4; partition ++)
+	      // Is this a valid MBR?
+	      if ((sectBuf[511] == (unsigned char) 0xAA) ||
+		  (sectBuf[510] == (unsigned char) 0x55))
 		{
-		  logicalDisk = &(physicalDisk->logical[partition]);
+		  // Set this pointer to the first partition record in the
+		  // master boot record
+		  partitionRecord = (sectBuf + 0x01BE);
 
-		  partTypeCode = partitionRecord[4];
-		  if (partTypeCode == 0)
-		    // The "rules" say we must be finished with this physical
-		    // device.
-		    break;
+		  // Loop through the partition records, looking for non-zero
+		  // entries
+		  for (partition = 0; partition < 4; partition ++)
+		    {
+		      logicalDisk =
+			&(physicalDisk->logical[physicalDisk->numLogical]);
 
-		  kernelDiskGetPartType(partTypeCode, &partType);
+		      partTypeCode = partitionRecord[4];
+		      if (partTypeCode == 0)
+			// The "rules" say we must be finished with this
+			// physical device.
+			break;
+
+		      if (PARTITION_TYPEID_IS_EXTENDED(partTypeCode))
+			{
+			  extendedRecord = partitionRecord;
+			  partitionRecord += 16;
+			  continue;
+			}
+
+		      kernelDiskGetPartType(partTypeCode, &partType);
 	  
-		  // We will add a logical disk corresponding to the partition
-		  // we've discovered
-		  sprintf((char *) logicalDisk->name, "%s%c",
-			  physicalDisk->name, ('a' + partition));
-		  kernelMemCopy(&partType, (void *) &(logicalDisk->partType),
-				sizeof(partitionType));
-		  strncpy((char *) logicalDisk->fsType, "unknown",
-			  FSTYPE_MAX_NAMELENGTH);
-		  logicalDisk->physical = (void *) physicalDisk;
-		  logicalDisk->startSector =
-		    *((unsigned *)(partitionRecord + 0x08));
-		  logicalDisk->numSectors =
-		    *((unsigned *)(partitionRecord + 0x0C));
-		  physicalDisk->numLogical++;
+		      // We will add a logical disk corresponding to the
+		      // partition we've discovered
+		      sprintf((char *) logicalDisk->name, "%s%c",
+			      physicalDisk->name,
+			      ('a' + physicalDisk->numLogical));
+		      kernelMemCopy(&partType,
+				    (void *) &(logicalDisk->partType),
+				    sizeof(partitionType));
+		      strncpy((char *) logicalDisk->fsType, "unknown",
+			      FSTYPE_MAX_NAMELENGTH);
+		      logicalDisk->physical = (void *) physicalDisk;
+		      logicalDisk->startSector = (startSector +
+				  *((unsigned *)(partitionRecord + 0x08)));
+		      logicalDisk->numSectors =
+			*((unsigned *)(partitionRecord + 0x0C));
 
-		  logicalDisks[logicalDiskCounter++] = logicalDisk;
+		      logicalDisks[logicalDiskCounter++] = logicalDisk;
+		      
+		      // See if we can determine the filesystem types
+		      status = kernelFilesystemScan(logicalDisk);
+		      if (status < 0)
+			strncpy((char *) logicalDisk->fsType,
+				partType.description, FSTYPE_MAX_NAMELENGTH);
 
-		  // See if we can determine the filesystem types
-		  status = kernelFilesystemScan(logicalDisk);
-		  if (status < 0)
-		    strncpy((char *) logicalDisk->fsType,
-			    partType.description, FSTYPE_MAX_NAMELENGTH);
+		      kernelLog("Disk %s (hard disk %d, partition %d): %s",
+				logicalDisk->name, count,
+				physicalDisk->numLogical, logicalDisk->fsType);
 
-		  kernelLog("Disk %s (hard disk %d, partition %d): %s",
-			    logicalDisk->name, count, partition,
-			    logicalDisk->fsType);
+		      physicalDisk->numLogical++;
 
-		  // Move to the next partition record
-		  partitionRecord += 16;
+		      // Move to the next partition record
+		      partitionRecord += 16;
+		    }
 		}
+
+	      if (!extendedRecord)
+		break;
+
+	      // Make sure the extended entry doesn't loop back on itself.
+	      // It can happen.
+	      if (extendedStartSector &&
+		  ((*((unsigned *)(extendedRecord + 0x08)) +
+		    extendedStartSector) == startSector))
+		{
+		  kernelError(kernel_error, "Extended partition links to "
+			      "itself");
+		  break;
+		}
+
+	      // We have an extended partition chain.  We need to go through
+	      // that as well.
+	      startSector = *((unsigned *)(extendedRecord + 0x08));
+
+	      if (!extendedStartSector)
+		extendedStartSector = startSector;
+	      else
+		startSector += extendedStartSector;	
+
+	      if (kernelDiskReadAbsoluteSectors((char *) physicalDisk->name,
+						startSector, 1, sectBuf) < 0)
+		break;
 	    }
 	}
       else
@@ -1140,7 +1192,6 @@ int kernelDiskInitialize(const char *physicalBootDisk, unsigned bootSector)
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
   kernelDisk *logicalDisk = NULL;
-  int found = 0;
   int count1, count2;
 
   // Check whether any disks have been registered.  If not, that's 
@@ -1188,20 +1239,11 @@ int kernelDiskInitialize(const char *physicalBootDisk, unsigned bootSector)
 		  if (logicalDisk->startSector == bootSector)
 		    {
 		      strcpy(bootDisk, (char *) logicalDisk->name);
-		      found = 1;
 		      break;
 		    }
 		}
 	      break;
 	    }
-	}
-
-      // Disk not found?  Perhaps it was really a CD-ROM.  Try that.
-      if (!found)
-	{
-	  kernelError(kernel_warn, "Boot device \"%s\" not found.  Trying cd0 "
-		      "instead");
-	  strcpy(bootDisk, "cd0");
 	}
     }
 
@@ -1475,7 +1517,7 @@ int kernelDiskGetInfo(disk *array)
 }
 
 
-int kernelDiskFromPhysical(kernelPhysicalDisk *physical, disk *userDisk)
+int kernelDiskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
 {
   // Takes our physical disk kernel structure and turns it into a user space
   // 'disk' object
@@ -1486,20 +1528,20 @@ int kernelDiskFromPhysical(kernelPhysicalDisk *physical, disk *userDisk)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if ((physical == NULL) || (userDisk == NULL))
+  if ((physicalDisk == NULL) || (userDisk == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  strncpy(userDisk->name, (char *) physical->name, DISK_MAX_NAMELENGTH);
-  userDisk->deviceNumber = physical->deviceNumber;
-  userDisk->type = physical->type;
-  userDisk->fixedRemovable = physical->fixedRemovable;
-  userDisk->readOnly = physical->readOnly;
-  userDisk->heads = physical->heads;
-  userDisk->cylinders = physical->cylinders;
-  userDisk->sectorsPerCylinder = physical->sectorsPerCylinder;
+  strncpy(userDisk->name, (char *) physicalDisk->name, DISK_MAX_NAMELENGTH);
+  userDisk->deviceNumber = physicalDisk->deviceNumber;
+  userDisk->type = physicalDisk->type;
+  userDisk->fixedRemovable = physicalDisk->fixedRemovable;
+  userDisk->readOnly = physicalDisk->readOnly;
+  userDisk->heads = physicalDisk->heads;
+  userDisk->cylinders = physicalDisk->cylinders;
+  userDisk->sectorsPerCylinder = physicalDisk->sectorsPerCylinder;
   userDisk->startSector = 0;
-  userDisk->numSectors = physical->numSectors;
-  userDisk->sectorSize = physical->sectorSize;
+  userDisk->numSectors = physicalDisk->numSectors;
+  userDisk->sectorSize = physicalDisk->sectorSize;
 
   return (status = 0);
 }
@@ -1618,6 +1660,55 @@ kernelPhysicalDisk *kernelGetPhysicalDiskByName(const char *name)
       }
 
   return (physicalDisk);
+}
+
+
+int kernelDiskSetLockState(const char *diskName, int state)
+{
+  // This routine is the user-accessible interface for locking or unlocking
+  // a removable disk device.
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // Get the disk structure
+  physicalDisk = kernelGetPhysicalDiskByName(diskName);
+  if (physicalDisk == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  // Reset the 'idle since' value
+  physicalDisk->idleSince = kernelSysTimerRead();
+  
+  // Make sure the operation is supported
+  if (physicalDisk->driver->driverSetLockState == NULL)
+    {
+      kernelError(kernel_error, "Driver routine is NULL");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+  
+  // Lock the disk
+  status = kernelLockGet(&(physicalDisk->diskLock));
+  if (status < 0)
+    return (status = ERR_NOLOCK);
+
+  // Call the door lock operation
+  status = physicalDisk->driver
+    ->driverSetLockState(physicalDisk->deviceNumber, state);
+
+  // Reset the 'idle since' value
+  physicalDisk->idleSince = kernelSysTimerRead();
+
+  // Unlock the disk
+  kernelLockRelease(&(physicalDisk->diskLock));
+
+  return (status);
 }
 
 

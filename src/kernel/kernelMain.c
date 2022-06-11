@@ -81,6 +81,9 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
       kernelProcessorReboot();
     }
 
+  // Set any default environment variables
+  kernelEnvironmentSet("PATH", DEFAULT_PATH);
+
   if (kernelVariables != NULL)
     {
       // Find out which initial program to launch
@@ -115,20 +118,21 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
   if (pid < 0)
     kernelConsoleLogin();
 
-  // Finally, we will change the kernel state to 'sleeping'.  This is
-  // done because there's nothing that needs to be actively done by
-  // the kernel process itself; it just needs to remain resident in
-  // memory.  Changing to a 'sleeping' state means that it won't get invoked
-  // again by the scheduler.
-  status = kernelMultitaskerSetProcessState(KERNELPROCID, sleeping);
-  if (status < 0)
-    kernelError(kernel_error, "The kernel process could not go to sleep.");
+  while(1)
+    {
+      // Finally, we will change the kernel state to 'sleeping'.  This is
+      // done because there's nothing that needs to be actively done by
+      // the kernel process itself; it just needs to remain resident in
+      // memory.  Changing to a 'sleeping' state means that it won't get
+      // invoked again by the scheduler.
+      status = kernelMultitaskerSetProcessState(KERNELPROCID, proc_sleeping);
+      if (status < 0)
+	kernelError(kernel_error, "The kernel process could not go to sleep.");
 
-  // Yield the rest of this time slice back to the scheduler
-  kernelMultitaskerYield();
+      // Yield the rest of this time slice back to the scheduler
+      kernelMultitaskerYield();
 
-  // If we ever get here, something went wrong.  We should never get here.
-  // We're stopping.
-  kernelPanic("The kernel process was unexpectedly woken up");
-  return; // Compiler nice
+      // We should never get here.  But we put it inside a while loop anyway.
+      kernelError(kernel_error, "The kernel was unexpectedly woken up");
+    }
 }

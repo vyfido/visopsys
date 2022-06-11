@@ -27,38 +27,179 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/api.h>
+#include <sys/vsh.h>
+
+static int graphics = 0;
+static int processId = 0;
+static disk diskInfo[DISK_MAXDEVICES];
+static int numberDisks = 0;
 
 
-static int yesOrNo(void)
+static int yesOrNo(char *question)
 {
   char character;
 
-  textInputSetEcho(0);
-
-  while(1)
+  if (graphics)
     {
-      character = getchar();
+      if (windowNewQueryDialog(NULL, "Confirmation", question))
+	return (1);
+      else
+	return (0);
+    }
+  else
+    {
+      printf("\n%s (y/n): ", question);
+      textInputSetEcho(0);
       
-      if (errno)
+      while(1)
 	{
-	  // Eek.  We can't get input.  Quit.
-	  textInputSetEcho(1);
-	  return (0);
-	}
-      
-      if ((character == 'y') || (character == 'Y'))
-	{
-	  printf("Yes\n");
-	  textInputSetEcho(1);
-	  return (1);
-	}
-      else if ((character == 'n') || (character == 'N'))
-	{
-	  printf("No\n");
-	  textInputSetEcho(1);
-	  return (0);
+	  character = getchar();
+	  
+	  if ((character == 'y') || (character == 'Y'))
+	    {
+	      printf("Yes\n");
+	      textInputSetEcho(1);
+	      return (1);
+	    }
+	  else if ((character == 'n') || (character == 'N'))
+	    {
+	      printf("No\n");
+	      textInputSetEcho(1);
+	      return (0);
+	    }
 	}
     }
+}
+
+
+static void pause(void)
+{
+  printf("\nPress any key to continue. ");
+  getchar();
+  printf("\n");
+}
+
+
+static void error(const char *format, ...)
+{
+  // Generic error message code for either text or graphics modes
+  
+  va_list list;
+  char output[MAXSTRINGLENGTH];
+  
+  va_start(list, format);
+  _expandFormatString(output, format, list);
+  va_end(list);
+
+  if (graphics)
+    windowNewErrorDialog(NULL, "Error", output);
+  else
+    {
+      printf("\n\n%s\n", output);
+      pause();
+    }
+}
+
+
+static int chooseDisk(void)
+{
+  // This is where the user chooses the disk on which to install
+
+  int status = 0;
+  int diskNumber = -1;
+  objectKey chooseWindow = NULL;
+  componentParameters params;
+  objectKey diskList = NULL;
+  objectKey okButton = NULL;
+  objectKey cancelButton = NULL;
+  char *diskStrings[DISK_MAXDEVICES];
+  windowEvent event;
+  int count;
+
+  #define CHOOSEDISK_STRING "Please choose the disk to format:"
+
+  bzero(&params, sizeof(componentParameters));
+  params.gridX = 0;
+  params.gridY = 0;
+  params.gridWidth = 2;
+  params.gridHeight = 1;
+  params.padTop = 5;
+  params.padLeft = 5;
+  params.padRight = 5;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+  params.useDefaultForeground = 1;
+  params.useDefaultBackground = 1;
+
+  char *tmp = malloc(numberDisks * 80);
+  for (count = 0; count < numberDisks; count ++)
+    {
+      diskStrings[count] = (tmp + (count * 80));
+      sprintf(diskStrings[count], "%s  [ %s ]", diskInfo[count].name,
+	      diskInfo[count].partType.description);
+    }
+
+  if (graphics)
+    {
+      chooseWindow = windowNew(processId, "Choose Disk");
+      windowNewTextLabel(chooseWindow, CHOOSEDISK_STRING, &params);
+
+      // Make a window list with all the disk choices
+      params.gridY = 1;
+      diskList = windowNewList(chooseWindow, 5, 1, 0, diskStrings,
+			       numberDisks, &params);
+      free(diskStrings[0]);
+
+      // Make 'OK' and 'cancel' buttons
+      params.gridY = 2;
+      params.gridWidth = 1;
+      params.padBottom = 5;
+      params.padRight = 0;
+      params.orientationX = orient_right;
+      okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
+
+      params.gridX = 1;
+      params.padRight = 5;
+      params.padLeft = 0;
+      params.orientationX = orient_left;
+      cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
+
+      // Make the window visible
+      windowSetHasMinimizeButton(chooseWindow, 0);
+      windowSetHasCloseButton(chooseWindow, 0);
+      windowSetResizable(chooseWindow, 0);
+      windowSetVisible(chooseWindow, 1);
+
+      while(1)
+	{
+	  // Check for our OK button
+	  status = windowComponentEventGet(okButton, &event);
+	  if ((status < 0) || ((status > 0) &&
+	      (event.type == EVENT_MOUSE_LEFTUP)))
+	    {
+	      diskNumber = windowComponentGetSelected(diskList);
+	      break;
+	    }
+
+	  // Check for our Cancel button
+	  status = windowComponentEventGet(cancelButton, &event);
+	  if ((status < 0) || ((status > 0) &&
+	      (event.type == EVENT_MOUSE_LEFTUP)))
+	    break;
+
+	  // Done
+	  multitaskerYield();
+	}
+
+      windowDestroy(chooseWindow);
+      chooseWindow = NULL;
+    }
+
+  else
+    diskNumber = vshCursorMenu(CHOOSEDISK_STRING, numberDisks, diskStrings, 0);
+
+  free(diskStrings[0]);
+  return (diskNumber);
 }
 
 
@@ -107,18 +248,43 @@ static int copyBootSector(const char *destDisk)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  int silentMode = 0;
   char opt;
-  int availableDisks = 0;
   int diskNumber = -1;
   char *diskName = NULL;
-  disk diskInfo[DISK_MAXDEVICES];
   char rootDisk[DISK_MAX_NAMELENGTH];
   char type[16];
-  unsigned char character[2];
-  int count1, count2;
+  char tmpChar[240];
+  int count;
+
+  // Are graphics enabled?
+  graphics = graphicsAreEnabled();
+
+  // Check for options
+  while ((opt = getopt(argc, argv, "st:")) != -1)
+    {
+      // Operate in silent/script mode?
+      if (opt == 's')
+	silentMode = 1;
+
+      if (opt == 't')
+	{
+	  if (!optarg)
+	    {
+	      if (!silentMode)
+		error("Missing type argument to '-t' option");
+	      return (errno = ERR_NULLPARAMETER);
+	    }
+	  strcpy(type, optarg);
+	}
+
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+    }
 
   // Call the kernel to give us the number of available disks
-  availableDisks = diskGetCount();
+  numberDisks = diskGetCount();
 
   status = diskGetInfo(diskInfo);
   if (status < 0)
@@ -128,103 +294,57 @@ int main(int argc, char *argv[])
       return (status);
     }
 
-  // Print a message
-  printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2004 J. Andrew "
-	 "McLaughlin\n\n");
+  if (!graphics && !silentMode)
+    // Print a message
+    printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2004 J. Andrew "
+	   "McLaughlin\n\n");
 
   // By default, we do 'generic' (i.e. let the driver make decisions) FAT.
   strcpy(type, "fat");
-
-  // Check for -t ('type') option
-  while ((opt = getopt(argc, argv, "t:")) != -1)
-    {
-      if (opt == ':')
-	{
-	  printf("\nMissing type argument to '-t' option\n\n");
-	  return (errno = ERR_NULLPARAMETER);
-	}
-
-      strcpy(type, optarg);
-    }
 
   if (argc > 1)
     {
       // The user can specify the disk name as an argument.  Try to see
       // whether they did so.
-      for (count2 = 0; count2 < availableDisks; count2 ++)
-	if (!strcmp(diskInfo[count2].name, argv[argc - 1]))
+      for (count = 0; count < numberDisks; count ++)
+	if (!strcmp(diskInfo[count].name, argv[argc - 1]))
 	  {
-	    diskNumber = count2;
+	    diskNumber = count;
 	    break;
 	  }
-      
-      if (diskNumber == -1)
-	{
-	  printf("\nInvalid disk name \"%s\"\n\n", argv[argc - 1]);
-	  return (errno = ERR_INVALID);
-	}
     }
 
+  processId = multitaskerGetCurrentProcessId();
+
   // Check privilege level
-  if (multitaskerGetProcessPrivilege(multitaskerGetCurrentProcessId()) != 0)
+  if (multitaskerGetProcessPrivilege(processId) != 0)
     {
-      printf("\nYou must be a privileged user to use this command.\n(Try "
-	     "logging in as user \"admin\")\n\n");
+      if (!silentMode)
+	error("You must be a privileged user to use this command.\n(Try "
+	      "logging in as user \"admin\")");
       return (errno = ERR_PERMISSION);
     }
 
   if (diskNumber == -1)
     {
+      if (silentMode)
+	// Can't prompt for a disk in silent mode
+	return (errno = ERR_INVALID);
+
       // The user has not specified a disk name.  We need to display the
       // list of available disks and prompt them.
 
-      printf("Please choose the disk to format:\n");
-      
-      // Loop through all the possibilities, getting the disk info and
-      // displaying it
-      for (count1 = 0; count1 < availableDisks; count1 ++)
-	// Print disk info
-	printf("%d: %s  [ %s ]\n", count1, diskInfo[count1].name,
-	       diskInfo[count1].partType.description);
-
-      printf("-> ");
-
-      while(1)
+      diskNumber = chooseDisk();
+      if (diskNumber < 0)
 	{
-	  character[0] = getchar();
-
-	  if (errno)
-	    {
-	      // Eek.  We can't get input.  Quit.
-	      perror(argv[0]);
-	      return (status = errno);
-	    }
-
-	  if ((character[0] >= '0') && (character[0] <= '9'))
-	    {
-	      character[1] = '\0';
-	      printf("\n");
-	      diskNumber = atoi(character);
-	      if (diskNumber > (availableDisks - 1))
-		{
-		  printf("Invalid volume number %d.\n-> ", diskNumber);
-		  continue;
-		}
-	      printf("\n");
-	      break;
-	    }
-	  else
-	    {
-	      printf("\nNo disk selected.  Quitting.\n");
-	      return (0);
-	    }
+	  error("No disk selected.  Quitting.");
+	  return (0);
 	}
-
-      printf("Formatting disk %s as %s.  All data currenly on the disk will "
-	     "be lost.\nAre you sure? (y/n): ", diskInfo[diskNumber].name,
-	     type);
-
-      if (!yesOrNo())
+      
+      sprintf(tmpChar, "Formatting disk %s as %s.  All data currenly on the "
+	      "disk will be lost.\nAre you sure?",
+	      diskInfo[diskNumber].name, type);
+      if (!yesOrNo(tmpChar))
 	{
 	  printf("\nQuitting.\n");
 	  return (status = 0);
@@ -238,19 +358,19 @@ int main(int argc, char *argv[])
   if (status >= 0)
     if (!strcmp(rootDisk, diskName))
       {
-	printf("\nYOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  I probably "
-	       "shouldn't let you\ndo this.  After format is complete, you "
-	       "should shut down the computer.\nAre you SURE you want to "
-	       "proceed? (y/n): ");
-
-	if (!yesOrNo())
+	if (!silentMode)
 	  {
-	    printf("\nQuitting.\n");
-	    return (status = 0);
+	    sprintf(tmpChar, "\nYOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  "
+		    "I probably shouldn't let you\ndo this.  After format is "
+		    "complete, you should shut down the computer.\nAre you "
+		    "SURE you want to proceed?");
+	    if (!yesOrNo(tmpChar))
+	      {
+		printf("\nQuitting.\n");
+		return (status = 0);
+	      }
 	  }
       }
-
-  printf("\n");
 
   status = filesystemFormat(diskName, type, "", 0);
   if (status < 0)
@@ -263,6 +383,15 @@ int main(int argc, char *argv[])
   // a proper one stored in the /system/boot directory, copy it to the
   // disk.
   copyBootSector(diskName);
+
+  if (!silentMode)
+    {
+      sprintf(tmpChar, "Format complete");
+      if (graphics)
+	windowNewInfoDialog(NULL, "Success", tmpChar);
+      else
+	printf("%s\n", tmpChar);
+    }
 
   errno = 0;
   return (status = 0);

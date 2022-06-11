@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowMenu objects.  These are subclasses
 // of containers, which are filled with kernelWindowMenuItems
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelWindowEventStream.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
@@ -44,6 +44,9 @@ static int draw(void *componentData)
   kernelWindow *window = component->window;
   kernelGraphicBuffer *buffer = &(window->buffer);
   int count;
+
+  if (!menu->numComponents)
+    return (status = 0);
 
   // Draw the background of the menu bar
   kernelGraphicDrawRect(buffer, (color *) &(component->parameters.background),

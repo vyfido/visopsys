@@ -21,18 +21,68 @@
 
 // This is the UNIX-style command for viewing a list of running processes
 
+#include <stdio.h>
+#include <string.h>
 #include <sys/api.h>
 
+#define SHOW_MAX_PROCESSES 100
 
 int main(int argc, char *argv[])
 {
-  // This command will prompt the multitasker to dump a list of all active
-  // processes.  This is a temporary hack until the system has an api for
-  // allowing a user process to access the data by itself.  In other words,
-  // the kernel should not print this stuff on the screen by itself.
+  // This command will query the kernel for a list of all active processes,
+  // and print information about them on the screen.
+
+  process processes[SHOW_MAX_PROCESSES];
+  int numberProcesses = 0;
+  process *tmpProcess;
+  char lineBuffer[160];
+  int count;
   
-  // This is easy
-  multitaskerDumpProcessList();
+  numberProcesses =
+    multitaskerGetProcesses(processes, (SHOW_MAX_PROCESSES * sizeof(process)));
+
+  printf("Process list:\n");
+  for (count = 0; count < numberProcesses; count ++)
+    {
+      tmpProcess = &processes[count];
+	  
+      sprintf(lineBuffer, "\"%s\"  PID=%d UID=%d priority=%d "
+	      "priv=%d parent=%d\n        %d%% CPU State=",
+	      (char *) tmpProcess->processName,
+	      tmpProcess->processId, tmpProcess->userId,
+	      tmpProcess->priority, tmpProcess->privilege,
+	      tmpProcess->parentProcessId, tmpProcess->cpuPercent);
+
+      // Get the state
+      switch(tmpProcess->state)
+	{
+	case proc_running:
+	  strcat(lineBuffer, "running");
+	  break;
+	case proc_ready:
+	  strcat(lineBuffer, "ready");
+	  break;
+	case proc_waiting:
+	  strcat(lineBuffer, "waiting");
+	  break;
+	case proc_sleeping:
+	  strcat(lineBuffer, "sleeping");
+	  break;
+	case proc_stopped:
+	  strcat(lineBuffer, "stopped");
+	  break;
+	case proc_finished:
+	  strcat(lineBuffer, "finished");
+	  break;
+	case proc_zombie:
+	  strcat(lineBuffer, "zombie");
+	  break;
+	default:
+	  strcat(lineBuffer, "unknown");
+	  break;
+	}
+      printf("%s\n", lineBuffer);
+    }
 
   // Return success
   return (0);

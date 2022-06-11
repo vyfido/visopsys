@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowTextField components.
 // These are just kernelWindowTextArea that consist of a single line
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMiscFunctions.h"
 #include <string.h>
 

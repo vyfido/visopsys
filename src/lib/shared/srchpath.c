@@ -41,7 +41,7 @@
     return (status = ERR_NOSUCHFILE);
 
   // Get the value of the PATH environment variable
-  status = environmentGet("PATH", path, 1024);
+  status = environmentGet("PATH", path, MAX_PATH_LENGTH);
   if (status < 0)
     return (status);
 
@@ -51,7 +51,7 @@
   // separated by colon characters.  When we hit a NULL character we are
   // at the end.
 
-  while(path[pathCount] != '\0')
+  while (path[pathCount] != '\0')
     {
       pathElementCount = 0;
 

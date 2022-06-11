@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowList objects.  These are containers
 // for kernelWindowListItem components.
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"

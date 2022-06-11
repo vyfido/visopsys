@@ -24,7 +24,7 @@
 
 #include "kernelShutdown.h"
 #include "kernelGraphic.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelMultitasker.h"
 #include "kernelLog.h"
 #include "kernelFilesystem.h"
@@ -161,9 +161,11 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 	    {
 	      params.gridY = 1;
 	      params.padTop = 0;
-	      label2 = kernelWindowNewTextLabel(window, SHUTDOWN_MSG2, &params);
+	      label2 =
+		kernelWindowNewTextLabel(window, SHUTDOWN_MSG2, &params);
 	    }
 
+	  kernelWindowSetHasMinimizeButton(window, 0);
 	  kernelWindowSetHasCloseButton(window, 0);
 	  kernelWindowPack(window);
 	  kernelWindowGetSize(window, &windowWidth, &windowHeight);
@@ -247,6 +249,8 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
       return (status);
     }
 
+  // Don't want the user moving the mousie over our message stuff.
+  kernelMouseShutdown();
 
   // What final message will we be displaying today?
   if (shutdownType == reboot)

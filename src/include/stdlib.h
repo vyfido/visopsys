@@ -71,27 +71,11 @@ int system(const char *);
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-// For dealing with unimplemented functions
-#define not_implemented_void()   \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return;                      \
-  }
-#define not_implemented_int()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (ERR_NOTIMPLEMENTED); \
-  }
-#define not_implemented_ptr()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (NULL);               \
-  }
-#define not_implemented_uns()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return 0;                    \
-  }
+// Argh.  Isn't there a function that does these?  These are andy-special.
+void itoa(int, char *);
+void itox(int, char *);
+int xtoi(const char *);
+void utoa(unsigned int, char *);
 
 // These functions are unimplemented
 int atexit(void (*)(void));
@@ -100,21 +84,6 @@ long atol(const char *);
 void *bsearch(const void *, const void *, size_t, size_t size,
 	      int (*)(const void *, const void *));
 char *getenv(const char *);
-#define mblen(s, n) not_implemented_int()
-#define mbstowcs(wcs, s, n) not_implemented_uns()
-#define mbtowc(pwc, s, n) not_implemented_int()
-#define qsort(base, nelem, size, cmp) not_implemented_void()
-#define strtod(s, endptr) not_implemented_int()
-#define strtol(s, endptr, base) not_implemented_int()
-#define strtoul(s, endptr, base) not_implemented_uns()
-#define wcstombs(s, wcs, n) not_implemented_uns()
-#define wctomb(s, wchar) not_implemented_int()
-
-// Argh.  Isn't there a function that does these?  These are andy-special.
-void itoa(int, char *);
-void itox(int, char *);
-int xtoi(const char *);
-void utoa(unsigned int, char *);
 
 #define _STDLIB_H
 #endif

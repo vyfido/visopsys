@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/api.h>
 
 #define HELPFILES_DIR  "/programs/helpfiles"

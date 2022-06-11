@@ -66,6 +66,7 @@ int kernelFileMove(const char *, const char *);
 int kernelFileSetSize(file *, unsigned);
 int kernelFileTimestamp(const char *);
 int kernelFileUnbufferRecursive(kernelFileEntry *);
+int kernelFileGetTemp(file *);
 
 #define _KERNELFILE_H
 #endif

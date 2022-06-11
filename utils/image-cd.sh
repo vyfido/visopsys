@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  image-cd.sh
+##
 
 # Installs the Visopsys system into a zipped CD-ROM ISO image file
 
@@ -61,7 +67,10 @@ mv $TMPDIR/source/$SOURCEDIR/docs $TMPDIR/
 echo Done
 
 rm -f $ISOIMAGE
-mkisofs -U -D -floppy-boot -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE -hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 -L -o $ISOIMAGE $TMPDIR
+mkisofs -U -D -floppy-boot -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE -hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 -L -o $ISOIMAGE $TMPDIR >& /dev/null
+if [ $? != 0 ] ; then
+    exit $?
+fi
 
 echo "Visopsys $RELEASE CD-ROM Release" > /tmp/comment
 echo "Copyright (C) 1998-2004 J. Andrew McLaughlin" >> /tmp/comment

@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowIcon objects.
 // These are just images that appear inside windows and buttons, etc
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelParameters.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
@@ -241,7 +241,6 @@ static int destroy(void *componentData)
 
 kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 					   image *imageCopy, const char *label,
-					   const char *command,
 					   componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowIcon
@@ -295,12 +294,6 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 
   strncpy((char *) iconComponent->label[0], label, WINDOW_MAX_LABEL_LENGTH);
   iconComponent->label[0][WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-
-  if (command)
-    {
-      strncpy((char *) iconComponent->command, command, 128);
-      iconComponent->command[127] = '\0';
-    }
 
   if (defaultFont == NULL)
     {
@@ -389,6 +382,8 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 						 iconComponent->labelLines)));
   
   component->data = (void *) iconComponent;
+
+  component->flags |= WINFLAG_CANFOCUS;
 
   // The functions
   component->draw = &draw;

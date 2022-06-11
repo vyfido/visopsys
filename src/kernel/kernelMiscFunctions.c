@@ -176,7 +176,7 @@ void kernelConsoleLogin(void)
   // also possibly by the keyboard driver when some hot-key is pressed.
 
   static int loginPid = 0;
-  kernelProcessState tmp;
+  processState tmp;
 
   // Try to make sure we don't start multiple logins at once
   if (loginPid)

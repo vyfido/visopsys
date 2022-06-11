@@ -43,9 +43,8 @@
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-developers.gif" border="0" align="middle" width="291" height="56"></p>
 
-<p><font size="4"><b>THE VISOPSYS KERNEL API (Version 0.4)<br>
-</b></font>(version 0.3 is <a href="kernel_API_0.3.html">here</a>, and version
-0.2 is <a href="kernel_API_0.2.html">here</a>)</p>
+<p><font size="4"><b>THE VISOPSYS KERNEL API (Version 0.5)<br>
+</b></font>(version 0.4 is <a href="kernel_API_0.4.html">here</a>)</p>
 <p><font size="4">All of the kernel's functions are defined in the file 
 /system/headers/sys/api.h. In future, this file may be split into smaller 
 chunks, by functional area. Data structures referred to in these function 
@@ -335,10 +334,9 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <p><font face="Courier New">void textInputSetEcho(int onOff)
 </font></p>
 <blockquote>
-  <p>Set echo on (1) or off (0) for the default input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.
-</p></blockquote>
-  <p>&nbsp;
-</p>
+  <p>Set echo on (1) or off (0) for the default input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="disk"></a>Disk functions</font></b></p>
 <p><font face="Courier New">int diskReadPartitions(void)
 </font></p>
@@ -354,11 +352,6 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 </font></p>
 <blockquote>
   <p>Get the disk name of the boot device.  Normally this will contain the root filesystem.
-</p></blockquote>
-<p><font face="Courier New">int diskGetReadOnly(const char *name)
-</font></p>
-<blockquote>
-  <p>Returns 1 if the supplied disk name is a read-only device, media, or filesystem
 </p></blockquote>
 <p><font face="Courier New">int diskGetCount(void)
 </font></p>
@@ -390,10 +383,15 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <blockquote>
   <p>Like diskGetPartType(), but returns a pointer to a list of all known types.
 </p></blockquote>
-<p><font face="Courier New">int diskSetDoorState(const char *name, int state)
+<p><font face="Courier New">int diskSetLockState(const char *name, int state)
 </font></p>
 <blockquote>
   <p>Set the locked state of the disk 'name' to either unlocked (0) or locked (1)
+</p></blockquote>
+<p><font face="Courier New">int diskSetDoorState(const char *name, int state)
+</font></p>
+<blockquote>
+  <p>Open (1) or close (0) the disk 'name'.  May require a unlocking the door first, see diskSetLockState().
 </p></blockquote>
 <p><font face="Courier New">int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
 </font></p>
@@ -414,11 +412,11 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 </font></p>
 <blockquote>
   <p>Write 'count' sectors to disk 'name', starting at (zero-based) absolute sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege and is used to write outside the logical confines of a volume, such as a hard disk partition.  Don't use this unless you know what you're doing.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="filesystem"></a>Filesystem functions</font></b></p>
-<p><font face="Courier New">int filesystemFormat(const char *disk, const char *type, const char *label, int
-longFormat)
+<p><font face="Courier New">int filesystemFormat(const char *disk, const char *type, const char *label, int longFormat)
 </font></p>
 <blockquote>
   <p>Format the logical volume 'disk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
@@ -443,11 +441,6 @@ longFormat)
 <blockquote>
   <p>Unmount the filesystem mounted represented by the mount point 'fs'.
 </p></blockquote>
-<p><font face="Courier New">int filesystemNumberMounted(void)
-</font></p>
-<blockquote>
-  <p>Returns the number of filesystems currently mounted.
-</p></blockquote>
 <p><font face="Courier New">int filesystemGetFree(const char *fs)
 </font></p>
 <blockquote>
@@ -457,8 +450,8 @@ longFormat)
 </font></p>
 <blockquote>
   <p>Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
 <p><b><font size="4"><a name="file"></a>File functions</font></b></p>
 <p><font size="4">Note that in all of the functions of this section, any 
 reference to pathnames means absolute pathnames, from root. E.g. '/files/myfile', 
@@ -468,6 +461,16 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Take the absolute pathname in 'orig' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
+</p></blockquote>
+<p><font face="Courier New">int fileSeparateLast(const char *origPath, char *pathName, char *fileName)
+</font></p>
+<blockquote>
+  <p>This function will take a combined pathname/filename string and separate the two.  The user will pass in the "combined" string along with two pre-allocated char arrays to hold the resulting separated elements.
+</p></blockquote>
+<p><font face="Courier New">int fileGetDisk(const char *path, disk *d)
+</font></p>
+<blockquote>
+  <p>Given the file name 'path', return the user space structure for the logical disk that the file resides on.
 </p></blockquote>
 <p><font face="Courier New">int fileFirst(const char *path, file *f)
 </font></p>
@@ -544,6 +547,11 @@ ambiguous.</font></p>
 <blockquote>
   <p>Update the time stamp on the file referenced by the pathname 'name'
 </p></blockquote>
+<p><font face="Courier New">int fileGetTemp(file *f)
+</font></p>
+<blockquote>
+  <p>Create and open a temporary file in write mode.
+</p></blockquote>
 <p><font face="Courier New">int fileStreamOpen(const char *name, int mode, fileStream *f)
 </font></p>
 <blockquote>
@@ -588,8 +596,9 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>[Flush and] close the filestream 'f'.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="memory"></a>Memory functions</font></b></p>
 <p><font face="Courier New">void memoryPrintUsage(int kernel)
 </font></p>
@@ -620,9 +629,10 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Change the ownership of an allocated block of memory beginning at address 'addr'.  'opid' is the process ID of the currently owning process, and 'npid' is the process ID of the intended new owner.  'naddr' is filled with the new address of the memory (since it changes address spaces in the process).  Note that only a privileged process can change memory ownership.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
 <p><b><font size="4"><a name="multitasker"></a>Multitasker functions</font></b></p>
+
 <p><font face="Courier New">int multitaskerCreateProcess(void *addr, unsigned int size, const char *name, int numargs, void *args)
 </font></p>
 <blockquote>
@@ -638,30 +648,25 @@ ambiguous.</font></p>
 <blockquote>
   <p>Returns the process ID of the calling program.
 </p></blockquote>
-<p><font face="Courier New">int multitaskerGetProcessOwner(int pid)
+<p><font face="Courier New">int multitaskerGetProcess(int pid, process *proc)
 </font></p>
 <blockquote>
-  <p>Returns the user ID of the user that owns the process referenced by process ID 'pid'.
+  <p>Returns the process structure for the supplied process ID.
 </p></blockquote>
-<p><font face="Courier New">const char *multitaskerGetProcessName(int pid)
+<p><font face="Courier New">int multitaskerGetProcessByName(const char *name, process *proc)
 </font></p>
 <blockquote>
-  <p>Returns the process name of the process referenced by process ID 'pid'.
+  <p>Returns the process structure for the supplied process name
 </p></blockquote>
-<p><font face="Courier New">int multitaskerGetProcessState(int pid, int *statep)
+<p><font face="Courier New">int multitaskerGetProcesses(void *buffer, unsigned buffSize)
 </font></p>
 <blockquote>
-  <p>Gets the state of the process referenced by process ID 'pid'.  Puts the result in 'statep'.
+  <p>Fills 'buffer' with up to 'buffSize' bytes' worth of process structures, and returns the number of structures copied.
 </p></blockquote>
 <p><font face="Courier New">int multitaskerSetProcessState(int pid, int state)
 </font></p>
 <blockquote>
   <p>Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
-</p></blockquote>
-<p><font face="Courier New">int multitaskerGetProcessPriority(int pid)
-</font></p>
-<blockquote>
-  <p>Gets the priority of the process referenced by process ID 'pid'.
 </p></blockquote>
 <p><font face="Courier New">int multitaskerSetProcessPriority(int pid, int priority)
 </font></p>
@@ -738,18 +743,20 @@ ambiguous.</font></p>
 <blockquote>
   <p>Terminate the process referenced by process ID 'pid'.  If 'force' is non-zero, the multitasker will attempt to ignore any errors and dismantle the process with extreme prejudice.  The 'force' flag also has the necessary side effect of killing any child threads spawned by process 'pid'.  (Otherwise, 'pid' is left in a stopped state until its threads have terminated normally).
 </p></blockquote>
+<p><font face="Courier New">int multitaskerKillByName(const char *name, int force)
+</font></p>
+<blockquote>
+  <p>Like multitaskerKillProcess, except that it attempts to kill all instances of processes whose names match 'name'
+</p></blockquote>
 <p><font face="Courier New">int multitaskerTerminate(int code)
 </font></p>
 <blockquote>
   <p>Terminate the calling process, returning the exit code 'code'
-</p></blockquote>
-<p><font face="Courier New">void multitaskerDumpProcessList(void)
-</font></p>
-<blockquote>
-  <p>Print a listing of all current processes to the current text output stream.  Might not be the current output stream of the calling process, but rather the console output stream.  This could be considered a bug, but is more of a "currently necessary peculiarity".
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="loader"></a>Loader functions</font></b></p>
+
 <p><font face="Courier New">void *loaderLoad(const char *filename, file *theFile)
 </font></p>
 <blockquote>
@@ -769,9 +776,11 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="rtc"></a>Real-time clock functions</font></b></p>
+
 <p><font face="Courier New">int rtcReadSeconds(void)
 </font></p>
 <blockquote>
@@ -816,9 +825,11 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Get the current data and time as a tm data structure in 'time'.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="random"></a>Random number functions</font></b></p>
+
 <p><font face="Courier New">unsigned int randomUnformatted(void)
 </font></p>
 <blockquote>
@@ -838,9 +849,11 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="environment"></a>Environment functions</font></b></p>
+
 <p><font face="Courier New">int environmentGet(const char *var, char *buf, unsigned int bufsz)
 </font></p>
 <blockquote>
@@ -860,15 +873,16 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Print a listing of all the currently set environment variables in the calling process' environment space to the current text output stream.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="graphics"></a>Raw graphics functions</font></b></p>
 <p><font face="Courier New">int graphicsAreEnabled(void)
 </font></p>
 <blockquote>
   <p>Returns 1 if the kernel is operating in graphics mode.
 </p></blockquote>
-<p><font face="Courier New">int graphicGetModes(videoMode *buffer, unsigned size)
+<p><font face="Courier New">int graphicGetModes(videoMode *buffer, int size)
 </font></p>
 <blockquote>
   <p>Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware.
@@ -883,17 +897,17 @@ ambiguous.</font></p>
 <blockquote>
   <p>Set the video mode in 'mode'.  Generally this will require a reboot in order to take effect.
 </p></blockquote>
-<p><font face="Courier New">unsigned graphicGetScreenWidth(void)
+<p><font face="Courier New">int graphicGetScreenWidth(void)
 </font></p>
 <blockquote>
   <p>Returns the width of the graphics screen.
 </p></blockquote>
-<p><font face="Courier New">unsigned graphicGetScreenHeight(void)
+<p><font face="Courier New">int graphicGetScreenHeight(void)
 </font></p>
 <blockquote>
   <p>Returns the height of the graphics screen.
 </p></blockquote>
-<p><font face="Courier New">unsigned graphicCalculateAreaBytes(unsigned width, unsigned height)
+<p><font face="Courier New">int graphicCalculateAreaBytes(int width, int height)
 </font></p>
 <blockquote>
   <p>Returns the number of bytes required to allocate a graphic buffer of width 'width' and height 'height'.  This is a function of the screen resolution, etc.
@@ -902,6 +916,16 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Clear the screen to the background color 'background'.
+</p></blockquote>
+<p><font face="Courier New">int graphicGetColor(const char *colorName, color *getColor)
+</font></p>
+<blockquote>
+  <p>Get the system color 'colorName' and place its values in the color structure 'getColor'.  Examples of system color names include 'foreground', 'background', and 'desktop'.
+</p></blockquote>
+<p><font face="Courier New">int graphicSetColor(const char *colorName, color *setColor)
+</font></p>
+<blockquote>
+  <p>Set the system color 'colorName' to the values in the color structure 'getColor'.  Examples of system color names include 'foreground', 'background', and 'desktop'.
 </p></blockquote>
 <p><font face="Courier New">int graphicDrawPixel(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord)
 </font></p>
@@ -913,22 +937,22 @@ ambiguous.</font></p>
 <blockquote>
   <p>Draw a line into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'startX', the starting Y coordinate 'startY', the ending X coordinate 'endX' and the ending Y coordinate 'endY'.  At the time of writing, only horizontal and vertical lines are supported by the linear framebuffer graphic driver.  If 'buffer' is NULL, draw directly onto the screen.
 </p></blockquote>
-<p><font face="Courier New">int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill)
+<p><font face="Courier New">int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, int width, int height, int thickness, int fill)
 </font></p>
 <blockquote>
   <p>Draw a rectangle into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the rectangle.   If 'buffer' is NULL, draw directly onto the screen.
 </p></blockquote>
-<p><font face="Courier New">int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill)
+<p><font face="Courier New">int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, int width, int height, int thickness, int fill)
 </font></p>
 <blockquote>
   <p>Draw an oval (circle, whatever) into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the oval.   If 'buffer' is NULL, draw directly onto the screen.  Currently not supported by the linear framebuffer graphic driver.
 </p></blockquote>
-<p><font face="Courier New">int graphicDrawImage(objectKey buffer, image *drawImage, drawMode mode, int xCoord, int yCoord, unsigned xOffset, unsigned yOffset, unsigned width, unsigned height)
+<p><font face="Courier New">int graphicDrawImage(objectKey buffer, image *drawImage, drawMode mode, int xCoord, int yCoord, int xOffset, int yOffset, int width, int height)
 </font></p>
 <blockquote>
   <p>Draw the image 'drawImage' into the graphic buffer 'buffer', using the drawing mode 'mode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord' and the starting Y coordinate 'yCoord'.   The 'xOffset' and 'yOffset' parameters specify an offset into the image to start the drawing (0, 0 to draw the whole image).  Similarly the 'width' and 'height' parameters allow you to specify a portion of the image (0, 0 to draw the whole image -- minus any X or Y offsets from the previous parameters).  So, for example, to draw only the middle pixel of a 3x3 image, you would specify xOffset=1, yOffset=1, width=1, height=1.  If 'buffer' is NULL, draw directly onto the screen.
 </p></blockquote>
-<p><font face="Courier New">int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, unsigned width, unsigned height)
+<p><font face="Courier New">int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, int width, int height)
 </font></p>
 <blockquote>
   <p>Grab a new image 'getImage' from the graphic buffer 'buffer', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.   If 'buffer' is NULL, grab the image directly from the screen.
@@ -938,22 +962,23 @@ ambiguous.</font></p>
 <blockquote>
   <p>Draw the text string 'text' into the graphic buffer 'buffer', using the colors 'foreground' and 'background', the font 'font', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'.   If 'buffer' is NULL, draw directly onto the screen.  If 'font' is NULL, use the default font.
 </p></blockquote>
-<p><font face="Courier New">int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, unsigned width, unsigned height, int xCoord2, int yCoord2)
+<p><font face="Courier New">int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, int width, int height, int xCoord2, int yCoord2)
 </font></p>
 <blockquote>
   <p>Within the graphic buffer 'buffer', copy the area bounded by ('xCoord1', 'yCoord1'), width 'width' and height 'height' to the starting X coordinate 'xCoord2' and the starting Y coordinate 'yCoord2'.  If 'buffer' is NULL, copy directly to and from the screen.
 </p></blockquote>
-<p><font face="Courier New">int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, unsigned width, unsigned height)
+<p><font face="Courier New">int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, int width, int height)
 </font></p>
 <blockquote>
   <p>Clear the area of the graphic buffer 'buffer' using the background color 'background', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.  If 'buffer' is NULL, clear the area directly on the screen.
 </p></blockquote>
-<p><font face="Courier New">int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, unsigned clipWidth, unsigned clipHeight)
+<p><font face="Courier New">int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, int clipWidth, int clipHeight)
 </font></p>
 <blockquote>
   <p>Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="window"></a>Windowing system functions</font></b></p>
 <p><font face="Courier New">int windowLogin(const char *userName, const char *passwd)
 </font></p>
@@ -980,7 +1005,7 @@ ambiguous.</font></p>
 <blockquote>
   <p>Destroy the window referenced by the object key 'wndow'
 </p></blockquote>
-<p><font face="Courier New">int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, unsigned width, unsigned height)
+<p><font face="Courier New">int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, int width, int height)
 </font></p>
 <blockquote>
   <p>Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
@@ -990,12 +1015,12 @@ ambiguous.</font></p>
 <blockquote>
   <p>Set the new title of window 'window' to be 'title'.
 </p></blockquote>
-<p><font face="Courier New">int windowGetSize(objectKey window, unsigned *width, unsigned *height)
+<p><font face="Courier New">int windowGetSize(objectKey window, int *width, int *height)
 </font></p>
 <blockquote>
   <p>Get the size of the window 'window', and put the results in 'width' and 'height'.
 </p></blockquote>
-<p><font face="Courier New">int windowSetSize(objectKey window, unsigned width, unsigned height)
+<p><font face="Courier New">int windowSetSize(objectKey window, int width, int height)
 </font></p>
 <blockquote>
   <p>Resize the window 'window' to the width 'width' and the height 'height'.
@@ -1019,6 +1044,11 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Center 'window' on the screen.
+</p></blockquote>
+<p><font face="Courier New">void windowSnapIcons(objectKey window)
+</font></p>
+<blockquote>
+  <p>If 'window' has icon components inside it, this will snap them to a grid so that they fit inside the window.
 </p></blockquote>
 <p><font face="Courier New">int windowSetHasBorder(objectKey window, int trueFalse)
 </font></p>
@@ -1045,22 +1075,37 @@ ambiguous.</font></p>
 <blockquote>
   <p>Calling this function with 'trueFalse' set to 1 will set 'window's packed attribute.  Packed windows will automatically resize to the smallest appropriate size based on the sizes and parameters of the components it contains.
 </p></blockquote>
+<p><font face="Courier New">int windowSetHasMinimizeButton(objectKey window,
+</font></p>
+<blockquote>
+  <p>Tells the windowing system whether to draw a minimize button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a minimize button.  Windows have minimize buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
+</p></blockquote>
 <p><font face="Courier New">int windowSetHasCloseButton(objectKey window, int trueFalse)
 </font></p>
 <blockquote>
   <p>Tells the windowing system whether to draw a close button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a close button.  Windows have close buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
 </p></blockquote>
+<p><font face="Courier New">int windowSetColors(objectKey window, color *background)
+</font></p>
+<blockquote>
+  <p>Set the background color of 'window'.  If 'color' is NULL, use the default.
+</p></blockquote>
 <p><font face="Courier New">int windowSetVisible(objectKey window, int visible)
 </font></p>
 <blockquote>
-  <p>Tell the windowing system whether to make the window 'window' visible or not.  Non-zero 'visible' means make the window visible.  When windows are created, they are not visible by default so you can add components, do layout, set the size, etc.
+  <p>Tell the windowing system whether to make 'window' visible or not.  Non-zero 'visible' means make the window visible.  When windows are created, they are not visible by default so you can add components, do layout, set the size, etc.
+</p></blockquote>
+<p><font face="Courier New">void windowSetMinimized(objectKey window, int minimized)
+</font></p>
+<blockquote>
+  <p>Tell the windowing system whether to make 'window' minimized or not.  Non-zero 'minimized' means make the window non-visible, but accessible via the task bar.  Zero 'minimized' means restore a minimized window to its normal, visible size.
 </p></blockquote>
 <p><font face="Courier New">int windowAddConsoleTextArea(objectKey window, componentParameters *params)
 </font></p>
 <blockquote>
   <p>Add a console text area component to 'window' using the supplied componentParameters.  The console text area is where most kernel logging and error messages are sent, particularly at boot time.  Note that there is only one instance of the console text area, and thus it can only exist in one window at a time.  Destroying the window is one way to free the console area to be used in another window.
 </p></blockquote>
-<p><font face="Courier New">void windowRedrawArea(int xCoord, int yCoord, unsigned width, unsigned height)
+<p><font face="Courier New">void windowRedrawArea(int xCoord, int yCoord, int width, int height)
 </font></p>
 <blockquote>
   <p>Tells the windowing system to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates.  This might be useful if you were drawing non-window-based things (i.e., things without their own independent graphics buffer) directly onto the screen and you wanted to restore an area to its original contents.  For example, the mouse driver uses this method to erase the pointer from its previous position.
@@ -1110,22 +1155,22 @@ ambiguous.</font></p>
 <blockquote>
   <p>Set 'component' enabled or non-enabled; non-enabled components appear greyed-out.
 </p></blockquote>
-<p><font face="Courier New">unsigned windowComponentGetWidth(objectKey component)
+<p><font face="Courier New">int windowComponentGetWidth(objectKey component)
 </font></p>
 <blockquote>
   <p>Get the pixel width of the window component 'component'.
 </p></blockquote>
-<p><font face="Courier New">int windowComponentSetWidth(objectKey component, unsigned width)
+<p><font face="Courier New">int windowComponentSetWidth(objectKey component, int width)
 </font></p>
 <blockquote>
   <p>Set the pixel width of the window component 'component'
 </p></blockquote>
-<p><font face="Courier New">unsigned windowComponentGetHeight(objectKey component)
+<p><font face="Courier New">int windowComponentGetHeight(objectKey component)
 </font></p>
 <blockquote>
   <p>Get the pixel height of the window component 'component'.
 </p></blockquote>
-<p><font face="Courier New">int windowComponentSetHeight(objectKey component, unsigned height)
+<p><font face="Courier New">int windowComponentSetHeight(objectKey component, int height)
 </font></p>
 <blockquote>
   <p>Set the pixel height of the window component 'component'.
@@ -1140,12 +1185,12 @@ ambiguous.</font></p>
 <blockquote>
   <p>Calls the window component 'component' to redraw itself.
 </p></blockquote>
-<p><font face="Courier New">int windowComponentGetData(objectKey component, void *buffer, unsigned size)
+<p><font face="Courier New">int windowComponentGetData(objectKey component, void *buffer, int size)
 </font></p>
 <blockquote>
   <p>This is a generic call to get data from the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will return is totally dependent upon the type and implementation of the component.
 </p></blockquote>
-<p><font face="Courier New">int windowComponentSetData(objectKey component, void *buffer, unsigned size)
+<p><font face="Courier New">int windowComponentSetData(objectKey component, void *buffer, int size)
 </font></p>
 <blockquote>
   <p>This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
@@ -1165,40 +1210,40 @@ ambiguous.</font></p>
 <blockquote>
   <p>Get a new button component to be placed inside the parent object 'parent', with the given component parameters, and with the (optional) label 'label', or the (optional) image 'buttonImage'.  Either 'label' or 'buttonImage' can be used, but not both.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewCanvas(objectKey parent, unsigned width, unsigned height, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewCanvas(objectKey parent, int width, int height, componentParameters *params)
 </font></p>
 <blockquote>
   <p>Get a new canvas component, to be placed inside the parent object 'parent', using the supplied width and height, with the given component parameters.  Canvas components are areas which will allow drawing operations, for example to show line drawings or unique graphical elements.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewCheckbox(objectKey parent, objectKey font, const char *text, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewCheckbox(objectKey parent, const char *text, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new checkbox component, to be placed inside the parent object 'parent', using the font 'cont', the accompanying text 'text', and with the given component parameters.
+  <p>Get a new checkbox component, to be placed inside the parent object 'parent', using the accompanying text 'text', and with the given component parameters.
 </p></blockquote>
 <p><font face="Courier New">objectKey windowNewContainer(objectKey parent, const char *name, componentParameters *params)
 </font></p>
 <blockquote>
   <p>Get a new container component, to be placed inside the parent object 'parent', using the name 'name', and with the given component parameters.  Containers are useful for layout when a simple grid is not sufficient.  Each container has its own internal grid layout (for components it contains) and external grid parameters for placing it inside a window or another container.  Containers can be nested arbitrarily.  This allows limitless control over a complex window layout.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, const char *command, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'.  If you want the icon to execute a command when clicked, you should specify it in 'command'.
+  <p>Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'.
 </p></blockquote>
 <p><font face="Courier New">objectKey windowNewImage(objectKey parent, image *baseImage, drawMode mode, componentParameters *params)
 </font></p>
 <blockquote>
   <p>Get a new image component to be placed inside the parent object 'parent', using the image data structure 'baseImage', and with the given component parameters 'params'.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewList(objectKey parent, objectKey font, unsigned rows, unsigned columns, int multiple, char *items[], int numItems, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewList(objectKey parent, int rows, int columns, int multiple, char *items[], int numItems, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new window list component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
+  <p>Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewListItem(objectKey parent, objectKey font, const char *text, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewListItem(objectKey parent, const char *text, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new list item component to be placed inside the parent object 'parent', using the font 'font', the string 'text', and the component parameters 'params'.
+  <p>Get a new list item component to be placed inside the parent object 'parent', using the string 'text', and the component parameters 'params'.
 </p></blockquote>
 <p><font face="Courier New">objectKey windowNewMenu(objectKey parent, const char *name, componentParameters *params)
 </font></p>
@@ -1215,37 +1260,43 @@ ambiguous.</font></p>
 <blockquote>
   <p>Get a new menu item component to be placed inside the parent object 'parent', using the string 'text' and the component parameters 'params'.  A menu item  component is typically added to menu components, which are in turn added to menu bar components.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewPasswordField(objectKey parent, int columns, objectKey font, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewPasswordField(objectKey parent, int columns, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns, the font 'font' and the component parameters 'params'.  A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*).
+  <p>Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns and the component parameters 'params'.  A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*).
 </p></blockquote>
 <p><font face="Courier New">objectKey windowNewProgressBar(objectKey parent, componentParameters *params)
 </font></p>
 <blockquote>
   <p>Get a new progress bar component to be placed inside the parent object 'parent', using the component parameters 'params'.  Use the windowComponentSetData() function to set the percentage of progress.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewRadioButton(objectKey parent, objectKey font, unsigned rows, unsigned columns, char *items[], int numItems, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewRadioButton(objectKey parent, int rows, int columns, char *items[], int numItems, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new radio button component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'.  'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices.  The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items').
+  <p>Get a new radio button component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices.  The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items').
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewTextArea(objectKey parent, int columns, int rows, objectKey font, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewScrollBar(objectKey parent, scrollBarType type, int width, int height, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params', and using the number of columns 'columns', the number of rows 'rows', and the font 'font'.  If 'font' is NULL, the default font will be used.
+  <p>Get a new scroll bar component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewTextField(objectKey parent, int columns, objectKey font, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewTextArea(objectKey parent, int columns, int rows, int bufferLines, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and the font 'font', and with the given component parameters 'params'.  Text field components are essentially 1-line 'text area' components.  If 'font' is NULL, the default font will be used.
+  <p>Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params'.  The 'columns' and 'rows' are the visible portion, and 'bufferLines' is the number of extra lines of scrollback memory.  If 'font' is NULL, the default font will be used.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewTextLabel(objectKey parent, objectKey font, const char *text, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewTextField(objectKey parent, int columns, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text' and the font 'font'.  If 'font' is NULL, the default font will be used.
+  <p>Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and with the given component parameters 'params'.  Text field components are essentially 1-line 'text area' components.  If the params 'font' is NULL, the default font will be used.
 </p></blockquote>
-<p>&nbsp;</p>
+<p><font face="Courier New">objectKey windowNewTextLabel(objectKey parent, const char *text, componentParameters *params)
+</font></p>
+<blockquote>
+  <p>Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="user"></a>User functions</font></b></p>
 <p><font face="Courier New">int userAuthenticate(const char *name, const char *password)
 </font></p>
@@ -1296,11 +1347,12 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Set the login PID of user 'name' to 'pid'.  This is the process that gets killed when the user indicates that they want to logout.  In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell.
-</p></blockquote>
-<p>&nbsp;</p>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <p><b><font size="4"><a name="miscellaneous"></a>Miscellaneous functions</font></b></p>
 
-<p><font face="Courier New">int fontGetDefault(objectKey *pointer)
+  <p><font face="Courier New">int fontGetDefault(objectKey *pointer)
 </font></p>
 <blockquote>
   <p>Get an object key in 'pointer' to refer to the current default font.
@@ -1310,10 +1362,10 @@ ambiguous.</font></p>
 <blockquote>
   <p>Set the default font for the system to the font with the name 'name'.  The font must previously have been loaded by the system, for example using the fontLoad()  function.
 </p></blockquote>
-<p><font face="Courier New">int fontLoad(const char* filename, const char *fontname, objectKey *pointer)
+<p><font face="Courier New">int fontLoad(const char* filename, const char *fontname, objectKey *pointer, int fixedWidth)
 </font></p>
 <blockquote>
-  <p>Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.
+  <p>Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
 </p></blockquote>
 <p><font face="Courier New">unsigned fontGetPrintedWidth(objectKey font, const char *string)
 </font></p>
@@ -1388,13 +1440,19 @@ ambiguous.</font></p>
 <p><font face="Courier New">int configurationWriter(const char *fileName, variableList *list)
 </font></p>
 <blockquote>
-  <p>Write the contents of the variable list 'list' to the configuration file 'fileName'.  Configuration files are simple properties files, consisting of lines of the format "variable=value".  If the configuration file already exists, the configuration writer will attempt to preserve comment lines (beginning with '#') and formatting
-  whitespace.
-</p>
-  <p>&nbsp;
+  <p>Write the contents of the variable list 'list' to the configuration file 'fileName'.  Configuration files are simple properties files, consisting of lines of the format "variable=value".  If the configuration file already exists, the configuration writer will attempt to preserve comment lines (beginning with '#') and formatting whitespace.
+</p></blockquote>
+<p><font face="Courier New">int keyboardGetMaps(char *buffer, unsigned size)
+</font></p>
+<blockquote>
+  <p>Get a listing of the names of all available keyboard mappings.  The buffer is filled up to 'size' bytes with descriptive names, such as "English (UK)".  Each string is NULL-terminated, and the return value of the call is the number of strings copied.  The first string returned is the current map.
+</p></blockquote>
+<p><font face="Courier New">int keyboardSetMap(const char *name)
+</font></p>
+<blockquote>
+  <p>Set the keyboard mapping to the supplied 'name'.  The normal procedure would be to first call the keyboardGetMaps() function, get the list of supported mappings, and then call this function with one of those names.  Only a name returned by the keyboardGetMaps function is valid in this scenario.
 </p></blockquote>
 
-<p align="left"></p>
 
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 

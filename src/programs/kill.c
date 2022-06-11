@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/api.h>
 
 
@@ -83,7 +84,6 @@ int main(int argc, char *argv[])
 
       // Kill a process
       status = multitaskerKillProcess(processId, force);
-
       if (status < 0)
 	{
 	  errno = status;

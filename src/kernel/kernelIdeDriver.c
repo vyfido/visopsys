@@ -31,7 +31,6 @@
 #include "kernelError.h"
 #include <sys/errors.h>
 
-
 // List of IDE ports, per device number
 static idePorts ports[] = {
   { 0x01F0, 0x01F1, 0x01F2, 0x01F3, 0x01F4, 0x01F5, 0x01F6, 0x01F7, 0x03F6 },
@@ -68,10 +67,10 @@ static kernelDiskDriver defaultIdeDriver = {
   kernelIdeDriverRegisterDevice,
   kernelIdeDriverReset,
   kernelIdeDriverRecalibrate,
-  NULL,
+  NULL, // driverSetMotorState
   kernelIdeDriverSetLockState,
   kernelIdeDriverSetDoorState,
-  NULL,
+  NULL, // driverDiskChanged
   kernelIdeDriverReadSectors,
   kernelIdeDriverWriteSectors,
 };
@@ -258,7 +257,8 @@ static int pollStatus(int driveNum, unsigned char mask, int onOff)
       // selected drive.
       kernelProcessorInPort8(ports[driveNum].altComStat, data);
 
-      if ((onOff && (data & mask)) || (!onOff && !(data & mask)))
+      if ((onOff && ((data & mask) == mask)) ||
+	  (!onOff && ((data & mask) == 0)))
 	return (0);
     }
 
@@ -273,19 +273,17 @@ static int sendAtapiPacket(int driveNum, unsigned byteCount,
   int status = 0;
   unsigned char data = 0;
 
-  kernelProcessorOutPort8(ports[driveNum].featErr, 0);
-  //kernelProcessorOutPort8(ports[driveNum].sectorCount, 0);
-  //kernelProcessorOutPort8(ports[driveNum].sectorNumber, 0);
-  data = (unsigned char) (byteCount & 0x000000FF);
-  kernelProcessorOutPort8(ports[driveNum].cylinderLow, data);
-  data = (unsigned char) ((byteCount & 0x0000FF00) >> 8);
-  kernelProcessorOutPort8(ports[driveNum].cylinderHigh, data);
-
   // Wait for the controller to be ready, and data request not active
   status = pollStatus(driveNum, (IDE_CTRL_BSY | IDE_DRV_DRQ), 0);
   if (status < 0)
     return (status);
   
+  kernelProcessorOutPort8(ports[driveNum].featErr, 0);
+  data = (unsigned char) (byteCount & 0x000000FF);
+  kernelProcessorOutPort8(ports[driveNum].cylinderLow, data);
+  data = (unsigned char) ((byteCount & 0x0000FF00) >> 8);
+  kernelProcessorOutPort8(ports[driveNum].cylinderHigh, data);
+
   // Send the "ATAPI packet" command
   kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
 			  ATA_ATAPIPACKET);
@@ -300,6 +298,7 @@ static int sendAtapiPacket(int driveNum, unsigned byteCount,
   if (status < 0)
     return (status);
 
+  // Send the 12 bytes of packet data.
   kernelProcessorRepOutPort16(ports[driveNum].data, packet, 6);
 
   return (status = 0);
@@ -315,6 +314,13 @@ static int atapiStartStop(int driveNum, int state)
 
   if (state)
     {
+      // If we know the drive door is open, try to close it
+      if (disks[driveNum]->doorState)
+	sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
+
+      // Well, okay, assume this.
+      disks[driveNum]->doorState = 0;
+
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_START);
       if (status < 0)
 	return (status);
@@ -399,7 +405,6 @@ static int atapiStartStop(int driveNum, int state)
   else
     {
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_STOP);
-
       disks[driveNum]->motorState = 0;
     }
 
@@ -577,7 +582,9 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	  status = waitOperationComplete(driveNum);
 	  if (status < 0)
 	    {
-	      kernelError(kernel_error,
+	      kernelError(kernel_error, "Disk %s, %s %u at %u: %s",
+			  disks[driveNum]->name, (read? "read" : "write"),
+			  numSectors, logicalSector,
 			  errorMessages[evaluateError(driveNum)]);
 	      kernelLockRelease((void *) &controllerLock);
 	      return (status);
@@ -753,6 +760,37 @@ static int atapiSetLockState(int driveNum, int lock)
 }
 
 
+static int atapiSetDoorState(int driveNum, int open)
+{
+  // Open or close the door of an ATAPI device
+
+  int status = 0;
+
+  if (open)
+    {
+      // If the disk is started, stop it
+      if (disks[driveNum]->motorState)
+	{
+	  status = atapiStartStop(driveNum, 0);
+	  if (status < 0)
+	    {
+	      kernelLockRelease((void *) &controllerLock);
+	      return (status);
+	    }
+	}
+
+      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_EJECT);
+    }
+
+  else
+    status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
+
+  disks[driveNum]->doorState = open;
+
+  return (status);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -807,15 +845,11 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
       kernelLockRelease((void *) &controllerLock);
       return (status);
     }
-  
-  // Wait for the selected drive to be ready
-  status = pollStatus(driveNum, IDE_DRV_RDY, 1);
-  if (status < 0)
-    {
-      kernelLockRelease((void *) &controllerLock);
-      return (status);
-    }
-  
+
+  // Try to wait for the selected drive to be ready, but don't quit if not
+  // since CD-ROMs don't seem to respond to this when they're masters.
+  pollStatus(driveNum, IDE_DRV_RDY, 1);
+
   // Seems to be an IDE device of one kind or another.
   disks[driveNum] = (kernelPhysicalDisk *) diskPointer;
   disks[driveNum]->description = "Unknown IDE disk";
@@ -857,7 +891,7 @@ int kernelIdeDriverDetect(int driveNum, void *diskPointer)
   else
     {
       // Possibly ATAPI?
-      
+
       // Read the cylinder low + high registers
       kernelProcessorInPort8(ports[driveNum].cylinderLow, cylinderLow);
       kernelProcessorInPort8(ports[driveNum].cylinderHigh, cylinderHigh);
@@ -1061,6 +1095,13 @@ int kernelIdeDriverSetLockState(int driveNum, int lock)
       return (status = ERR_NOSUCHENTRY);
     }
 
+  if (lock && disks[driveNum]->doorState)
+    {
+      // Don't to lock the door if it is open
+      kernelError(kernel_error, "Drive door is open");
+      return (status = ERR_PERMISSION);
+    }
+
   // Wait for a lock on the controller
   status = kernelLockGet((void *) &controllerLock);
   if (status < 0)
@@ -1092,7 +1133,7 @@ int kernelIdeDriverSetDoorState(int driveNum, int open)
 
   if (open && disks[driveNum]->lockState)
     {
-      // Don't try this if the door is locked
+      // Don't try to open the door if it is locked
       kernelError(kernel_error, "Drive door is locked");
       return (status = ERR_PERMISSION);
     }
@@ -1105,24 +1146,7 @@ int kernelIdeDriverSetDoorState(int driveNum, int open)
   // Select the drive
   selectDrive(driveNum);
 
-  if (open)
-    {
-      // If the disk is started, stop it
-      if (disks[driveNum]->motorState)
-	{
-	  status = atapiStartStop(driveNum, 0);
-	  if (status < 0)
-	    {
-	      kernelLockRelease((void *) &controllerLock);
-	      return (status);
-	    }
-	}
-
-      status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_EJECT);
-    }
-
-  else
-    status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
+  status = atapiSetDoorState(driveNum, open);
 
   // Unlock the controller
   kernelLockRelease((void *) &controllerLock);

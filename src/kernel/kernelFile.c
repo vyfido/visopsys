@@ -27,13 +27,12 @@
 #include "kernelLock.h"
 #include "kernelSysTimer.h"
 #include "kernelRtc.h"
+#include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
+#include <stdio.h>
 #include <string.h>
-
-#include "kernelText.h"
-
 
 // The root directory
 static kernelFileEntry *rootDirectory = NULL;
@@ -1111,8 +1110,8 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
   if (combinedLength <= 0)
     return (status = ERR_NOSUCHFILE);
 
-  // Make sure we're not exceeding the MicrosoftTM(C) defined limit
-  // for the combined path and filename
+  // Make sure we're not exceeding the limit for the combined path and
+  // filename
   if (combinedLength >= MAX_PATH_NAME_LENGTH)
     return (status = ERR_INVALID);
 
@@ -1524,7 +1523,7 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
       if (!(openMode & OPENMODE_CREATE))
 	{
 	  // We aren't supposed to create the file, so return an error
-	  kernelError(kernel_error, "File to open does not exist");
+	  kernelError(kernel_error, "File %s does not exist", fileName);
 	  return (status = ERR_NOSUCHFILE);
 	}
 
@@ -1876,7 +1875,7 @@ int kernelFileDelete(const char *path)
   if (theFile == NULL)
     {
       // The directory does not exist
-      kernelError(kernel_error, "File to delete does not exist");
+      kernelError(kernel_error, "File %s to delete does not exist", fileName);
       return (status = ERR_NOSUCHFILE);
     }
 
@@ -2829,6 +2828,48 @@ int kernelFileTimestamp(const char *path)
     }
 
   return (status = 0);
+}
+
+
+int kernelFileGetTemp(file *tmpFile)
+{
+  // This will create and open a temporary file in write mode.
+
+  int status = 0;
+  char fileName[MAX_PATH_NAME_LENGTH];
+
+  // Not until we have been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+  
+  // Check params
+  if (tmpFile == NULL)
+    {
+      kernelError(kernel_error, "file parameter pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (!rootDirectory ||
+      ((kernelFilesystem *) rootDirectory->filesystem)->readOnly)
+    {
+      kernelError(kernel_error, "Filesystem is read-only");
+      return (status = ERR_NOWRITE);
+    }
+
+ pickName:
+  // Construct the file name
+  sprintf(fileName, "/temp/%03d-%08x.tmp", kernelCurrentProcess->processId,
+	  kernelSysTimerRead());
+
+  // Make sure it doesn't already exist
+  if (!kernelFileFind(fileName, tmpFile))
+    // Eek.
+    goto pickName;
+
+  // Open it.
+  status = kernelFileOpen(fileName, (OPENMODE_CREATE | OPENMODE_TRUNCATE |
+				     OPENMODE_WRITE), tmpFile);
+  return (status);
 }
 
 

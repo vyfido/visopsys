@@ -34,13 +34,16 @@
 
 // The privilege levels
 #define PRIVILEGE_SUPERVISOR 0
-#define PRIVILEGE_USER 3
+#define PRIVILEGE_USER       3
 
 // The kernel's process Id
 #define KERNELPROCID 1
 
 // The kernel's settings file
 #define DEFAULT_KERNEL_CONFIG "/system/kernel.conf"
+
+// Default PATH
+#define DEFAULT_PATH "/programs"
 
 // Default start executable
 #define DEFAULT_KERNEL_STARTPROGRAM "/programs/login"
@@ -49,9 +52,8 @@
 #define KERNEL_SYMBOLS_FILE "/system/kernelSymbols.txt"
 
 // Disks
-#define MAXFLOPPIES 4
-#define MAXPARTITIONS 4
-#define MAXHARDDISKS 4
+#define MAXFLOPPIES   4
+#define MAXHARDDISKS  4
 
 // Other
 #define MAX_SERIAL_PORTS 4

@@ -23,7 +23,7 @@
 // These are just textareas that appear inside windows and buttons, etc
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include <sys/errors.h>
@@ -255,7 +255,7 @@ static int destroy(void *componentData)
 	  if (kernelTextGetCurrentOutput() == textArea->area->outputStream)
 	    kernelTextSetCurrentOutput(NULL);
 
-	  kernelTextAreaDelete(textArea->area);
+	  kernelTextAreaDestroy(textArea->area);
 	  textArea->area = NULL;
 	}
 
@@ -367,7 +367,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
 				 component->height, params);
       if (textArea->scrollBar == NULL)
 	{
-	  kernelTextAreaDelete(textArea->area);
+	  kernelTextAreaDestroy(textArea->area);
 	  textArea->area = NULL;
 	  kernelFree((void *) textArea);
 	  kernelFree((void *) component);

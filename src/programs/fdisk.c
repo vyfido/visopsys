@@ -19,8 +19,8 @@
 //  fdisk.c
 //
 
-// This is a program for modifying the master boot record (MBR) and doing
-// other disk management tasks.
+// This is a program for modifying partition tables and doing other disk
+// management tasks.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,89 +28,66 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/api.h>
-
-#define DISKMANAGER "Visopsys Disk Manager"
-#define PARTLOGIC   "Partition Logic"
-#define BACKUP_MBR  "/system/boot/backup-%s.mbr"
-#define PERM        "You must be a privileged user to use this command."
-#define PARTTYPES   "Supported partition types"
-
-#define ENTRYOFFSET_DRV_ACTIVE    0
-#define ENTRYOFFSET_START_HEAD    1
-#define ENTRYOFFSET_START_CYLSECT 2
-#define ENTRYOFFSET_START_CYL     3
-#define ENTRYOFFSET_TYPE          4
-#define ENTRYOFFSET_END_HEAD      5
-#define ENTRYOFFSET_END_CYLSECT   6
-#define ENTRYOFFSET_END_CYL       7
-#define ENTRYOFFSET_START_LBA     8
-#define ENTRYOFFSET_SIZE_LBA      12
-#define COPYBUFFER_SIZE           1048576 // 1 Meg
-
-typedef struct {
-  int partition;
-  int active;
-  int drive;
-  unsigned startCylinder;
-  unsigned startHead;
-  unsigned startSector;
-  int type;
-  unsigned endCylinder;
-  unsigned endHead;
-  unsigned endSector;
-  unsigned startLogical;
-  unsigned sizeLogical;
-  char string[128];
-  int pixelX;
-  int pixelWidth;
-} slice;
+#include <sys/vsh.h>
+#include "fdisk.h"
 
 static const char *programName = NULL;
 static int processId = 0;
+static int readOnly = 1;
 static int numberDisks = 0;
-static disk diskInfo[DISK_MAXDEVICES];
+static disk *diskInfo = NULL;
+static char *diskStringData = NULL;
 static char *diskStrings[DISK_MAXDEVICES];
+static int selectedDiskNumber = 0;
 static disk *selectedDisk = NULL;
-static unsigned char diskMBR[512];
-static unsigned char originalMBR[512];
-static int numberSlices;
-static slice slices[9];
-static int selectedSlice = 0;
+static unsigned cylinderSectors = 0;
+static partitionTable *mainTable = NULL;
 static int numberPartitions = 0;
+static int numberDataPartitions = 0;
+static int extendedStartSector = 0;
+static slice *slices = NULL;
+static int numberSlices;
+static int selectedSlice = 0;
 static int changesPending = 0;
+static char *tmpBackupName = NULL;
 static int backupAvailable = 0;
-static unsigned canvasWidth = 500;
-static unsigned canvasHeight = 50;
+static unsigned canvasWidth = 600;
+static unsigned canvasHeight = 60;
 
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
-static objectKey menuSetActive = NULL;
-static objectKey menuCopyDisk = NULL;
-static objectKey menuDelete = NULL;
-static objectKey menuListTypes = NULL;
-static objectKey menuUndo = NULL;
-static objectKey menuNew = NULL;
-static objectKey menuDeleteAll = NULL;
-static objectKey menuMove = NULL;
-static objectKey menuSetType = NULL;
-static objectKey menuFormat = NULL;
 static objectKey menuWrite = NULL;
+static objectKey menuUndo = NULL;
 static objectKey menuRestoreBackup = NULL;
 static objectKey menuQuit = NULL;
+static objectKey menuCopyDisk = NULL;
+static objectKey menuSetActive = NULL;
+static objectKey menuDelete = NULL;
+static objectKey menuFormat = NULL;
+static objectKey menuHide = NULL;
+static objectKey menuInfo = NULL;
+static objectKey menuListTypes = NULL;
+static objectKey menuMove = NULL;
+static objectKey menuNew = NULL;
+static objectKey menuDeleteAll = NULL;
+static objectKey menuSetType = NULL;
 static objectKey diskList = NULL;
 static objectKey canvas = NULL;
 static objectKey sliceList = NULL;
-static objectKey setActiveButton = NULL;
-static objectKey copyDiskButton = NULL;
-static objectKey deleteButton = NULL;
-static objectKey moveButton = NULL;
-static objectKey undoButton = NULL;
-static objectKey newButton = NULL;
-static objectKey deleteAllButton = NULL;
-static objectKey setTypeButton = NULL;
 static objectKey writeButton = NULL;
+static objectKey undoButton = NULL;
+static objectKey copyDiskButton = NULL;
+static objectKey setActiveButton = NULL;
+static objectKey deleteButton = NULL;
+static objectKey deleteAllButton = NULL;
 static objectKey formatButton = NULL;
+static objectKey hideButton = NULL;
+static objectKey infoButton = NULL;
+static objectKey moveButton = NULL;
+static objectKey newButton = NULL;
+static objectKey setTypeButton = NULL;
+
 
 
 static int yesOrNo(char *question)
@@ -132,12 +109,6 @@ static int yesOrNo(char *question)
       while(1)
 	{
 	  character = getchar();
-	  if (errno)
-	    {
-	      // Eek.  We can't get input.  Quit.
-	      textInputSetEcho(1);
-	      return (0);
-	    }
       
 	  if ((character == 'y') || (character == 'Y'))
 	    {
@@ -153,6 +124,36 @@ static int yesOrNo(char *question)
 	    }
 	}
     }
+}
+
+
+static int quit(int force)
+{
+  // Shut everything down
+
+  if (!force && changesPending && !yesOrNo("Quit without writing changes?"))
+    return (0);
+
+  errno = 0;
+
+  if (graphics)
+    {
+      windowGuiStop();
+      windowDestroy(window);
+    }
+  else
+    {
+      printf("\nQuitting.\n");
+      //textScreenRestore();
+    }
+
+  if (tmpBackupName != NULL)
+    {
+      fileDelete(tmpBackupName);
+      tmpBackupName = NULL;
+    }
+
+  return (1);
 }
 
 
@@ -266,6 +267,14 @@ static int readLine(const char *choices, char *buffer, int length)
 }
 
 
+static void pause(void)
+{
+  printf("\nPress any key to continue. ");
+  getchar();
+  printf("\n");
+}
+
+
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -281,8 +290,8 @@ static void error(const char *format, ...)
     windowNewErrorDialog(window, "Error", output);
   else
     {
-      printf("\n\n%s\n\nPress any key to continue.", output);
-      getchar();
+      printf("\n\n%s\n", output);
+      pause();
     }
 }
 
@@ -302,130 +311,146 @@ static void warning(const char *format, ...)
     windowNewErrorDialog(window, "Warning", output);
   else
     {
-      printf("\n\nWARNING: %s\n\nPress any key to continue.", output);
-      getchar();
+      printf("\n\nWARNING: %s\n", output);
+      pause();
     }
 }
 
 
-static void getPartitionEntry(int partition, slice *entry)
+static partitionTable *getPartitionTable(partitionTable *table,
+                                         int entryNumber)
 {
-  unsigned char *partRecord = 0;
+  // Look for the table that the partition belongs to, starting with the
+  // supplied table.  If necessary we recurse into extended partitions.
 
-  bzero(entry, sizeof(slice));
+  partitionTable *returnTable = NULL;
+  int count;
 
-  if ((partition < 0) || (partition > 3))
+  for (count = 0; count < table->numberEntries; count ++)
     {
-      error("No such partition entry %d", partition);
-      return;
+      if (table->entries[count].partition == entryNumber)
+        return (returnTable = table);
+
+      else if (table->entries[count].entryType == partition_extended)
+        {
+          returnTable = getPartitionTable(table->entries[count].extendedTable,
+                                          entryNumber);
+          if (returnTable != NULL)
+            return (returnTable);
+        }
     }
 
-  // Set this pointer to the partition record in the master boot record
-  partRecord = ((diskMBR + 0x01BE) + (partition * 16));
-
-  entry->partition = partition;
-  entry->active = (partRecord[ENTRYOFFSET_DRV_ACTIVE] >> 7);
-  entry->drive = (partRecord[ENTRYOFFSET_DRV_ACTIVE] & 0x7F);
-  entry->startHead = (unsigned) partRecord[ENTRYOFFSET_START_HEAD];
-  entry->startCylinder = (unsigned) partRecord[ENTRYOFFSET_START_CYL];
-  entry->startCylinder |=
-    (((unsigned) partRecord[ENTRYOFFSET_START_CYLSECT] & 0xC0) << 2);
-  entry->startSector = (unsigned)
-    (partRecord[ENTRYOFFSET_START_CYLSECT] & 0x3F);
-  entry->type = partRecord[ENTRYOFFSET_TYPE];
-  entry->endHead = (unsigned) partRecord[ENTRYOFFSET_END_HEAD];
-  entry->endCylinder = (unsigned) partRecord[ENTRYOFFSET_END_CYL];
-  entry->endCylinder |=
-    (((unsigned) partRecord[ENTRYOFFSET_END_CYLSECT] & 0xC0) << 2);
-  entry->endSector = (unsigned) (partRecord[ENTRYOFFSET_END_CYLSECT] & 0x3F);
-  entry->startLogical = (unsigned) ((unsigned *) partRecord)[2];
-  entry->sizeLogical = (unsigned) ((unsigned *) partRecord)[3];
-
-  // Now, check whether the start and end CHS values seem correct.
-  // If they are 'maxed out' and don't correspond with the LBA values,
-  // recalculate them.
-  if ((entry->startCylinder == 1023) || (entry->endCylinder == 1023))
-    {
-      unsigned cylinderSectors =
-	(selectedDisk->heads * selectedDisk->sectorsPerCylinder);
-      unsigned endLogical =
-	(entry->startLogical + (entry->sizeLogical - 1));
-
-      if (entry->startCylinder == 1023)
-	{
-	  entry->startCylinder = (entry->startLogical / cylinderSectors);
-	  entry->startHead = ((entry->startLogical % cylinderSectors) /
-			      selectedDisk->sectorsPerCylinder);
-	  entry->startSector = (((entry->startLogical % cylinderSectors) %
-				 selectedDisk->sectorsPerCylinder) + 1);
-	}
-
-      if (entry->endCylinder == 1023)
-	{
-	  entry->endCylinder = (endLogical / cylinderSectors);
-	  entry->endHead = ((endLogical % cylinderSectors) /
-			    selectedDisk->sectorsPerCylinder);
-	  entry->endSector = (((endLogical % cylinderSectors) %
-			       selectedDisk->sectorsPerCylinder) + 1); 
-	}
-    }
+  // If we fall through, not found.
+  return (returnTable = NULL);
 }
 
 
-static void setPartitionEntry(int partition, slice *entry)
+static partitionTable *findLastTable(partitionTable *table)
 {
-  unsigned char *partRecord = 0;
-  unsigned startCyl, startHead, startSector, endCyl, endHead, endSector;
+  // Look for the last table that has an extended partition and create
+  // another extended partition (and table) inside it.
 
-  if ((partition < 0) || (partition > 3))
+  int count;
+
+  for (count = 0; count < table->numberEntries; count ++)
     {
-      error("No such partition entry %d", partition);
-      return;
+      if (table->entries[count].entryType == partition_extended)
+	return (findLastTable(table->entries[count].extendedTable));
     }
 
-  startCyl = entry->startCylinder;
-  startHead = entry->startHead;
-  startSector = entry->startSector;
+  return (table);
+}
 
-  endCyl = entry->endCylinder;
-  endHead = entry->endHead;
-  endSector = entry->endSector;
 
-  // Check whether our start or end cylinder values exceed the legal
-  // maximum of 1023.  If so, max out all the CHS values
-  if (startCyl > 1023)
+static int getPartitionEntry(int entryNumber, slice *entry)
+{
+  // Loop, scanning for an entry with the matching partition number.
+
+  int status = 0;
+  partitionTable *table = NULL;
+  int count;
+
+  // Get the table of the entry
+  table = getPartitionTable(mainTable, entryNumber);
+  if (table == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  for (count = 0; count < table->numberEntries; count ++)
     {
-      startCyl = 1023;
-      startHead = (selectedDisk->heads - 1);
-      startSector = (selectedDisk->sectorsPerCylinder - 1);
+      if (table->entries[count].partition == entryNumber)
+	{
+	  memcpy(entry, &(table->entries[count]), sizeof(slice));
+	  return (status = 0);
+	}
     }
 
-  if (endCyl > 1023)
+  // If we fall through, not found.
+  return (status = ERR_NOSUCHENTRY);
+}
+
+
+static int setPartitionEntry(int entryNumber, slice *entry)
+{
+  // Loop, scanning for an entry with the matching partition number.
+
+  int status = 0;
+  partitionTable *table = NULL;
+  int count;
+
+  // Get the table of the entry
+  table = getPartitionTable(mainTable, entryNumber);
+  if (table == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  for (count = 0; count < table->numberEntries; count ++)
     {
-      endCyl = 1023;
-      endHead = (selectedDisk->heads - 1);
-      endSector = (selectedDisk->sectorsPerCylinder - 1);
+      if (table->entries[count].partition == entryNumber)
+	{
+	  memcpy(&(table->entries[count]), entry, sizeof(slice));
+	  return (status = 0);
+	}
     }
 
-  // Set this pointer to the partition record in the master boot record
-  partRecord = ((diskMBR + 0x01BE) + (partition * 16));
+  // If we fall through, not found.
+  return (status = ERR_NOSUCHENTRY);
+}
 
-  // Clear it
-  bzero(partRecord, 16);
 
-  partRecord[ENTRYOFFSET_DRV_ACTIVE] =
-    (unsigned char) ((entry->active << 7) | (entry->drive & 0x7F));
-  partRecord[ENTRYOFFSET_START_HEAD] = (unsigned char) startHead;
-  partRecord[ENTRYOFFSET_START_CYLSECT] = (unsigned char)
-    (((startCyl & 0x300) >> 2) | (startSector & 0x3F));
-  partRecord[ENTRYOFFSET_START_CYL] = (unsigned char) (startCyl & 0x0FF);
-  partRecord[ENTRYOFFSET_TYPE] = entry->type;
-  partRecord[ENTRYOFFSET_END_HEAD] = (unsigned char) endHead;
-  partRecord[ENTRYOFFSET_END_CYLSECT] = (unsigned char)
-    (((endCyl & 0x300) >> 2) | (endSector & 0x3F));
-  partRecord[ENTRYOFFSET_END_CYL] = (unsigned char) (endCyl & 0x0FF);
-  ((unsigned *) partRecord)[2] = entry->startLogical;
-  ((unsigned *) partRecord)[3] = entry->sizeLogical;
+static void renumberPartitionEntries(partitionTable *table, int reset)
+{
+  // Recurse down through this table and number the partitions
+
+  int count;
+  slice *extendedEntry = NULL;
+
+  if (reset)
+    {
+      numberPartitions = 0;
+      numberDataPartitions = 0;
+    }
+
+  for (count = 0; count < table->numberEntries; count ++)
+    {
+      table->entries[count].partition = numberPartitions++;
+
+      if ((table->entries[count].entryType == partition_primary) ||
+	  (table->entries[count].entryType == partition_logical))
+	sprintf(table->entries[count].name, "%s%c", selectedDisk->name,
+		('a' + numberDataPartitions++));
+
+      if (table->entries[count].entryType == partition_extended)
+	{
+	  extendedEntry = &(table->entries[count]);
+	  continue;
+	}
+    }
+
+  if (extendedEntry)
+    {
+      ((partitionTable *) extendedEntry->extendedTable)
+	->parentPartition = extendedEntry->partition;
+      renumberPartitionEntries(extendedEntry->extendedTable, 0);
+    }
 }
 
 
@@ -446,26 +471,72 @@ static void makeSliceString(slice *slc)
   partitionType sliceType;
   int count;
 
-  for (count = 0; count < 128; count ++)
+  for (count = 0; count < MAX_DESCSTRING_LENGTH; count ++)
     slc->string[count] = ' ';
+  slc->string[MAX_DESCSTRING_LENGTH - 1] = '\0';
 
-  if (slc->type == 0)
+  if (slc->typeId == 0)
     strcpy(slc->string, "  Empty space");
   else
     {
-      diskGetPartType(slc->type, &sliceType);
+      diskGetPartType(slc->typeId, &sliceType);
       strcpy(slc->string, sliceType.description);
     }
 
   slc->string[strlen(slc->string)] = ' ';
-  if (slc->active)
-    sprintf((slc->string + 24), " (active)");
+  sprintf((slc->string + 25), " %u-%u", slc->startCylinder, slc->endCylinder);
+
   slc->string[strlen(slc->string)] = ' ';
-  sprintf((slc->string + 33), " %u-%u", slc->startCylinder, slc->endCylinder);
-  slc->string[strlen(slc->string)] = ' ';
-  sprintf((slc->string + 45), " %u",
+  sprintf((slc->string + 37), " %u",
 	  cylsToMb(selectedDisk,
-		   (slc->endCylinder - slc->startCylinder) + 1));
+		   ((slc->endCylinder - slc->startCylinder) + 1)));
+
+  if (slc->typeId)
+    {
+      slc->string[strlen(slc->string)] = ' ';
+
+      if (slc->entryType == partition_primary)
+	sprintf((slc->string + 49), "primary");
+      else if (slc->entryType == partition_extended)
+	sprintf((slc->string + 49), "extended");
+      else if (slc->entryType == partition_logical)
+	sprintf((slc->string + 49), "logical");
+
+      if (slc->active)
+	strcat(slc->string, "/active");
+      else
+	strcat(slc->string, "       ");
+    }
+}
+
+
+static void makeEmptySlice(slice *emptySlice, unsigned startCylinder,
+			   unsigned endCylinder)
+{
+  // Given a slice entry and a geometry, make a slice for it.
+
+  bzero(emptySlice, sizeof(slice));
+
+  emptySlice->startLogical = (startCylinder * cylinderSectors);
+  emptySlice->startCylinder = startCylinder;
+  emptySlice->startHead = ((emptySlice->startLogical % cylinderSectors) /
+			   selectedDisk->sectorsPerCylinder);
+  emptySlice->startSector = (((emptySlice->startLogical % cylinderSectors) %
+			      selectedDisk->sectorsPerCylinder) + 1);
+
+  emptySlice->sizeLogical =
+    (((endCylinder - startCylinder) + 1) * cylinderSectors);
+
+  unsigned endLogical =
+    (emptySlice->startLogical + (emptySlice->sizeLogical - 1));
+
+  emptySlice->endCylinder = endCylinder;
+  emptySlice->endHead =
+    ((endLogical % cylinderSectors) / selectedDisk->sectorsPerCylinder);
+  emptySlice->endSector =
+    (((endLogical % cylinderSectors) % selectedDisk->sectorsPerCylinder) + 1);
+
+  makeSliceString(emptySlice);
 }
 
 
@@ -474,36 +545,48 @@ static void makeSliceList(void)
   // This function populates the list of slices
 
   slice partition;
-  int firstPartition = 0;
-  unsigned firstCylinder;
+  int firstPartition = -1;
+  unsigned firstSector = -1;
   int count1, count2;
 
-  numberSlices = 0;
-
   // Loop through all the partitions and put them in our list
+  numberSlices = 0;
   for (count1 = 0; count1 < numberPartitions; count1 ++)
     {
-      firstCylinder = 0xFFFFFFFF;
+      firstPartition = -1;
+      firstSector = 0xFFFFFFFF;
 
       for (count2 = 0; count2 < numberPartitions; count2 ++)
 	{
-	  getPartitionEntry(count2, &partition);
-      
-	  // If we have already processed this one, continue
-	  if ((numberSlices > 0) &&
-	      (partition.startCylinder <=
-	       slices[numberSlices - 1].endCylinder))
+	  if (getPartitionEntry(count2, &partition) < 0)
+	    break;
+
+	  // If this is an extended partition, skip it
+	  if (partition.entryType == partition_extended)
 	    continue;
-	  
-	  if (partition.startCylinder < firstCylinder)
+
+	  // If we have already processed this one, continue
+	  if (numberSlices && (partition.startLogical <=
+			       slices[numberSlices - 1].startLogical))
+	    continue;
+
+	  if (partition.startLogical < firstSector)
 	    {
+	      firstSector = partition.startLogical;
 	      firstPartition = count2;
-	      firstCylinder = partition.startCylinder;
 	    }
 	}
 
-      // Get the first partition
-      getPartitionEntry(firstPartition, &partition);
+      if (firstPartition < 0)
+	break;
+
+      // Get the partition
+      if (getPartitionEntry(firstPartition, &partition) < 0)
+	break;
+
+      // If this is an extended partition, skip it
+      if (partition.entryType == partition_extended)
+	continue;
 
       // Is there empty space between this partition and the previous slice?
       // If so, insert another slice to represent the empty space
@@ -512,259 +595,716 @@ static void makeSliceList(void)
 	   (partition.startCylinder >
 	    (slices[numberSlices - 1].endCylinder + 1))))
 	{
-	  bzero(&slices[numberSlices], sizeof(slice));
-	  slices[numberSlices].partition = -1;
-	  if (numberSlices > 0)
-	    slices[numberSlices].startCylinder =
-	      (slices[numberSlices - 1].endCylinder + 1);
-	  else
-	    slices[numberSlices].startCylinder = 0;
-	  slices[numberSlices].endCylinder = (partition.startCylinder - 1);
-	  makeSliceString(&slices[numberSlices]);
+	  makeEmptySlice(&slices[numberSlices],
+			 ((numberSlices > 0)?
+			  (slices[numberSlices - 1].endCylinder + 1) : 0),
+			 (partition.startCylinder - 1));
 	  numberSlices += 1;
 	}
 
       // Now add a slice for the current partition
-      bzero(&slices[numberSlices], sizeof(slice));
-      slices[numberSlices].active = partition.active;
-      slices[numberSlices].type = partition.type;
-      slices[numberSlices].partition = partition.partition;
-      slices[numberSlices].startCylinder = partition.startCylinder;
-      slices[numberSlices].endCylinder = partition.endCylinder;
-      slices[numberSlices].startLogical = partition.startLogical;
-      slices[numberSlices].sizeLogical = partition.sizeLogical;
+      memcpy(&slices[numberSlices], &partition, sizeof(slice));
       makeSliceString(&slices[numberSlices]);
       numberSlices += 1;
     }
 
   // Is there empty space at the end of the disk?
-  if ((numberPartitions == 0) ||
-      (slices[numberSlices - 1].endCylinder <
-       (selectedDisk->cylinders - 1)))
+  if ((numberPartitions == 0) || (slices[numberSlices - 1].endCylinder <
+				  (selectedDisk->cylinders - 1)))
     {
-      bzero(&slices[numberSlices], sizeof(slice));
-      slices[numberSlices].partition = -1;
-      if (numberPartitions == 0)
-	slices[numberSlices].startCylinder = 0;
-      else
-	slices[numberSlices].startCylinder =
-	  (slices[numberSlices - 1].endCylinder + 1);
-      slices[numberSlices].endCylinder = (selectedDisk->cylinders - 1);
-      makeSliceString(&slices[numberSlices]);
+      makeEmptySlice(&slices[numberSlices],
+		     ((numberPartitions == 0)? 0 :
+		      (slices[numberSlices - 1].endCylinder + 1)),
+		     (selectedDisk->cylinders - 1));
       numberSlices += 1;
     }
 }
 
 
-static void scanPartitions(void)
+static void pruneExtendedPartition(void)
 {
-  slice entry;
+  // Prune the primary extended partitions so that the 'startCylinder' and
+  // 'endCylinder' values reflect the start and end of the first and last
+  // logical partitions, respectively.
+  
+  slice *primaryExtendedEntry = NULL;
+  partitionTable *table = NULL;
+  slice *extendedEntry = NULL;
+  unsigned startCylinder = 0xFFFFFFFF;
+  unsigned endCylinder = 0;
   int count;
 
-  // Figure out how many partitions are present.  Loop through the partition
-  // records, looking for non-zero entries
-  numberPartitions = 0;
-  for (count = 0; count < 4; count ++)
+  extendedStartSector = 0;
+
+  for (count = 0; count < mainTable->numberEntries; count ++)
+    if (mainTable->entries[count].entryType == partition_extended)
+      {
+	primaryExtendedEntry = &(mainTable->entries[count]);
+	break;
+      }
+
+  if (primaryExtendedEntry == NULL)
+    return;
+
+  table = primaryExtendedEntry->extendedTable;
+
+  // Iterate through the chain of tables, collecting the start and end values
+  while (table)
     {
-      getPartitionEntry(count, &entry);
-      
-      if (entry.type == 0)
-	// The "rules" say we're supposed to be finished with this physical
-	// device, but that's not absolutely always the case.  We'll still
-	// probably be screwed, but not as screwed as if we were to quit here.
-	continue;
-      
-      numberPartitions++;
+      extendedEntry = NULL;
+      for (count = 0; count < table->numberEntries; count ++)
+	{
+	  if (table->entries[count].entryType == partition_extended)
+	    extendedEntry = &(table->entries[count]);
+	  else
+	    {
+	      if (table->entries[count].startCylinder < startCylinder)
+		startCylinder = table->entries[count].startCylinder;
+	      if (table->entries[count].endCylinder > endCylinder)
+		endCylinder = table->entries[count].endCylinder;
+	    }
+	}
+
+      if (extendedEntry == NULL)
+	break;
+
+      table = extendedEntry->extendedTable;
     }
+
+  primaryExtendedEntry->startLogical = (startCylinder * cylinderSectors);
+  primaryExtendedEntry->sizeLogical =
+    (((endCylinder - startCylinder) + 1) * cylinderSectors);  
+  primaryExtendedEntry->startCylinder = startCylinder;
+  primaryExtendedEntry->endCylinder = endCylinder;
+  extendedStartSector = primaryExtendedEntry->startLogical;
 }
 
 
-static void checkTable(void)
+static int addPartitionEntry(partitionTable *table, slice *newEntry)
+{
+  // Add a new entry to the supplied table, update the slice list, and return
+  // the slice number of the new entry, if applicable
+
+  int newSliceNumber = ERR_INVALID;
+  int count;
+
+  memcpy(&(table->entries[table->numberEntries]), newEntry, sizeof(slice));
+  table->numberEntries += 1;
+
+  renumberPartitionEntries(mainTable, 1);
+  if (table->extended)
+    pruneExtendedPartition();
+  makeSliceList();
+
+  // Copy it back to the caller's structure.
+  memcpy(newEntry, &(table->entries[table->numberEntries - 1]), sizeof(slice));
+  
+  // Find our new slice, if possible
+  for (count = 0; count < numberSlices; count ++)
+    if (slices[count].startLogical == newEntry->startLogical)
+      {
+	newSliceNumber = count;
+	break;
+      }
+
+  return (newSliceNumber);
+}
+
+
+static int deletePartitionEntry(int entryNumber)
+{
+  // Given a partition number, find its partition table and remove the entry
+  // from the table
+
+  int status = 0;
+  partitionTable *table = NULL;
+  slice deleteEntry;
+  slice parentEntry;
+  int count1, count2;
+
+  // Get the table of the entry
+  table = getPartitionTable(mainTable, entryNumber);
+  if (table == NULL)
+    return (status = ERR_NOSUCHENTRY);
+  
+  // Loop through the table and move the entry to the end, setting its type
+  // to zero
+  count2 = 0;
+  for (count1 = 0; count1 < table->numberEntries; count1 ++)
+    {
+      if (table->entries[count1].partition == entryNumber)
+	memcpy(&deleteEntry, &(table->entries[count1]), sizeof(slice));
+      
+      else
+	memcpy(&(table->entries[count2++]), &(table->entries[count1]),
+	       sizeof(slice));
+    }
+
+  deleteEntry.typeId = 0;
+  table->numberEntries -= 1;
+  memcpy(&(table->entries[table->numberEntries]), &deleteEntry, sizeof(slice));
+
+  // If this is an extended partition table, and there are no more entries
+  // in it, we need to delete/shrink the extended partition(s) too.
+  if (table->extended)
+    {
+      if ((table->numberEntries == 1) &&
+	  (table->entries[0].entryType == partition_extended))
+	{
+	  // This table only contains a further extended partition.  We need
+	  // to collapse the lower table into this one.
+	  memcpy(&parentEntry, &(table->entries[0]), sizeof(slice));
+	  parentEntry.partition = table->parentPartition;
+	  if (parentEntry.extendedTable)
+	    ((partitionTable *) parentEntry.extendedTable)->parentPartition =
+	      table->parentPartition;
+	  setPartitionEntry(table->parentPartition, &parentEntry);
+	}
+
+      else if (table->numberEntries <= 0)
+	{
+	  // Nothing left in this table.  Delete the parent partition entry
+	  status = deletePartitionEntry(table->parentPartition);
+	  if (status < 0)
+	    return (status);
+	}
+      
+      pruneExtendedPartition();
+    }
+
+  if (deleteEntry.entryType == partition_extended)
+    {
+      // Free the memory of the table attached to this partition.
+      if (deleteEntry.extendedTable)
+	free(deleteEntry.extendedTable);
+      deleteEntry.extendedTable = NULL;
+    }
+
+  // Renumber the partitions
+  renumberPartitionEntries(mainTable, 1);
+
+  return (status = 0);
+}
+
+
+static int readEntry(partitionTable *table, int entryNumber, slice *entry)
+{
+  int status = 0;
+  unsigned char *sectorData = table->sectorData;
+  unsigned char *partRecord = 0;
+
+  bzero(entry, sizeof(slice));
+
+  if ((entryNumber < 0) || (entryNumber > (DISK_MAX_PRIMARY_PARTITIONS - 1)))
+    {
+      error("No such partition entry %d", entryNumber);
+      return (status = ERR_NOSUCHENTRY);
+    }
+
+  // Set this pointer to the partition record in the partition table
+  partRecord = ((sectorData + 0x01BE) + (entryNumber * 16));
+
+  entry->active = (partRecord[ENTRYOFFSET_DRV_ACTIVE] >> 7);
+  entry->startHead = (unsigned) partRecord[ENTRYOFFSET_START_HEAD];
+  entry->startCylinder = (unsigned) partRecord[ENTRYOFFSET_START_CYL];
+  entry->startCylinder |=
+    (((unsigned) partRecord[ENTRYOFFSET_START_CYLSECT] & 0xC0) << 2);
+  entry->startSector = (unsigned)
+    (partRecord[ENTRYOFFSET_START_CYLSECT] & 0x3F);
+  entry->typeId = partRecord[ENTRYOFFSET_TYPE];
+  entry->endHead = (unsigned) partRecord[ENTRYOFFSET_END_HEAD];
+  entry->endCylinder = (unsigned) partRecord[ENTRYOFFSET_END_CYL];
+  entry->endCylinder |=
+    (((unsigned) partRecord[ENTRYOFFSET_END_CYLSECT] & 0xC0) << 2);
+  entry->endSector = (unsigned) (partRecord[ENTRYOFFSET_END_CYLSECT] & 0x3F);
+  entry->startLogical = (unsigned) ((unsigned *) partRecord)[2];
+  entry->sizeLogical = (unsigned) ((unsigned *) partRecord)[3];
+
+  if (PARTITION_TYPEID_IS_EXTENDED(entry->typeId))
+    entry->entryType = partition_extended;
+  else
+    entry->entryType = partition_primary;
+
+  // Now, check whether the start and end CHS values seem correct.
+  // If they are 'maxed out' and don't correspond with the LBA values,
+  // recalculate them.
+  if ((entry->startCylinder == 1023) || (entry->endCylinder == 1023))
+    {
+      unsigned endLogical =
+	(entry->startLogical + (entry->sizeLogical - 1));
+
+      if (entry->startCylinder == 1023)
+	{
+	  entry->startCylinder = (entry->startLogical / cylinderSectors);
+
+	  // If it's an extended table, adjust the cylinder value
+	  if (table->extended)
+	    {
+	      if (entry->entryType == partition_extended)
+		entry->startCylinder +=
+		  (extendedStartSector / cylinderSectors);
+	      else
+		entry->startCylinder += (table->startSector / cylinderSectors);
+	    }
+	}
+
+      if (entry->endCylinder == 1023)
+	{
+	  entry->endCylinder = (endLogical / cylinderSectors);
+
+	  // If it's an extended table, adjust the cylinder value
+	  if (table->extended)
+	    {
+	      if (entry->entryType == partition_extended)
+		entry->endCylinder += (extendedStartSector / cylinderSectors);
+	      else
+		entry->endCylinder += (table->startSector / cylinderSectors);
+	    }
+	}
+    }
+
+  return (status = 0);
+}
+
+
+static int writeEntry(partitionTable *table, int entryNumber, slice *entry)
+{
+  int status = 0;
+  unsigned char *sectorData = table->sectorData;
+  unsigned char *partRecord = 0;
+  unsigned startCyl, endCyl;
+
+  if ((entryNumber < 0) || (entryNumber > (DISK_MAX_PRIMARY_PARTITIONS - 1)))
+    {
+      error("No such partition entry %d", entryNumber);
+      return (status = ERR_NOSUCHENTRY);
+    }
+
+  // We might change these
+  startCyl = entry->startCylinder;
+  endCyl = entry->endCylinder;
+
+  // Check whether our start or end cylinder values exceed the legal
+  // maximum of 1023.  If so, set them to 1023.
+  if (startCyl > 1023)
+    startCyl = 1023;
+  if (endCyl > 1023)
+    endCyl = 1023;
+
+  // Set this pointer to the partition record in the partition table
+  partRecord = ((sectorData + 0x01BE) + (entryNumber * 16));
+
+  // Clear it
+  bzero(partRecord, 16);
+
+  if (entry->active)
+    partRecord[ENTRYOFFSET_DRV_ACTIVE] = 0x80;
+  partRecord[ENTRYOFFSET_START_HEAD] = (unsigned char) entry->startHead;
+  partRecord[ENTRYOFFSET_START_CYLSECT] = (unsigned char)
+    (((startCyl & 0x300) >> 2) | (entry->startSector & 0x3F));
+  partRecord[ENTRYOFFSET_START_CYL] = (unsigned char) (startCyl & 0x0FF);
+  partRecord[ENTRYOFFSET_TYPE] = entry->typeId;
+  partRecord[ENTRYOFFSET_END_HEAD] = (unsigned char) entry->endHead;
+  partRecord[ENTRYOFFSET_END_CYLSECT] = (unsigned char)
+    (((endCyl & 0x300) >> 2) | (entry->endSector & 0x3F));
+  partRecord[ENTRYOFFSET_END_CYL] = (unsigned char) (endCyl & 0x0FF);
+  ((unsigned *) partRecord)[2] = entry->startLogical;
+  ((unsigned *) partRecord)[3] = entry->sizeLogical;
+
+  return (status = 0);
+}
+
+
+static int checkTable(partitionTable *table)
 {
   // Does a series of correctness checks on the table that's currently in
   // memory, and outputs warnings for any problems it finds
 
-  slice entries[4];
+  slice *entry = NULL;
   unsigned expectCylinder = 0;
   unsigned expectHead = 0;
   unsigned expectSector = 0;
-  char tmpChar[80];
   char output[MAXSTRINGLENGTH];
   int count;
 
-  output[0] = '\0';
+  bzero(output, MAXSTRINGLENGTH);
 
-  // Get all the partition entries
-  for (count = 0; count < 4; count ++)
-    getPartitionEntry(count, &entries[count]);
+  if (table->extended && (table->numberEntries > table->maxEntries))
+    sprintf((output + strlen(output)), "Table has %d entries; max is %d",
+	    table->numberEntries, table->maxEntries);
 
   // For each partition entry, check that its starting/ending
   // cylinder/head/sector values match with its starting logical value
   // and logical size.  In general we expect the logical values are correct.
-  for (count = 0; count < 4; count ++)
+  for (count = 0; count < table->numberEntries; count ++)
     {
-      if (!(entries[count].type))
+      entry = &table->entries[count];
+
+      if (!entry->typeId)
 	continue;
 
-      unsigned cylinderSectors =
-	(selectedDisk->heads * selectedDisk->sectorsPerCylinder);
-      unsigned endLogical =
-	(entries[count].startLogical + (entries[count].sizeLogical - 1));
+      unsigned endLogical = (entry->startLogical + (entry->sizeLogical - 1));
 
-      expectCylinder = (entries[count].startLogical / cylinderSectors);
-      if (expectCylinder != entries[count].startCylinder)
-	{
-	  sprintf(tmpChar, "Partition %d starting cylinder is %u, should "
-		"be %u\n", count, entries[count].startCylinder, expectCylinder);
-	  strcat(output, tmpChar);
-	}
+      expectCylinder = (entry->startLogical / cylinderSectors);
+      if (expectCylinder != entry->startCylinder)
+	sprintf((output + strlen(output)), "Partition %d starting cylinder "
+		"is %u, should be %u\n", entry->partition,
+		entry->startCylinder, expectCylinder);
+
       expectCylinder = (endLogical / cylinderSectors);
-      if (expectCylinder != entries[count].endCylinder)
-	{
-	  sprintf(tmpChar, "Partition %d ending cylinder is %u, should "
-		"be %u\n", count, entries[count].endCylinder, expectCylinder);
-	  strcat(output, tmpChar);
-	}
+      if (expectCylinder != entry->endCylinder)
+	sprintf((output + strlen(output)), "Partition %d ending cylinder "
+		"is %u, should be %u\n", entry->partition, entry->endCylinder,
+		expectCylinder);
 
-      expectHead = ((entries[count].startLogical % cylinderSectors) /
-				selectedDisk->sectorsPerCylinder);
-      if (expectHead != entries[count].startHead)
-	{
-	  sprintf(tmpChar, "Partition %d starting head is %u, should be %u\n",
-	  	count, entries[count].startHead, expectHead);
-	  strcat(output, tmpChar);
-	}
-      expectHead = ((endLogical % cylinderSectors) /
-				selectedDisk->sectorsPerCylinder);
-      if (expectHead != entries[count].endHead)
-	{
-	  sprintf(tmpChar, "Partition %d ending head is %u, should be %u\n",
-		count, entries[count].endHead, expectHead);
-	  strcat(output, tmpChar);
-	}
+      expectHead = ((entry->startLogical % cylinderSectors) /
+		    selectedDisk->sectorsPerCylinder);
+      if (expectHead != entry->startHead)
+	sprintf((output + strlen(output)), "Partition %d starting head is "
+		"%u, should be %u\n", entry->partition, entry->startHead,
+		expectHead);
 
-      expectSector = (((entries[count].startLogical % cylinderSectors) %
-				selectedDisk->sectorsPerCylinder) + 1);
-      if (expectSector != entries[count].startSector)
-	{
-	  sprintf(tmpChar, "Partition %d starting CHS sector is %u, should "
-		"be %u\n", count, entries[count].startSector, expectSector);
-	  strcat(output, tmpChar);
-	}
+      expectHead =
+	((endLogical % cylinderSectors) / selectedDisk->sectorsPerCylinder);
+      if (expectHead != entry->endHead)
+	sprintf((output + strlen(output)), "Partition %d ending head is %u, "
+		"should be %u\n", entry->partition, entry->endHead,
+		expectHead);
+
+      expectSector = (((entry->startLogical % cylinderSectors) %
+		       selectedDisk->sectorsPerCylinder) + 1);
+      if (expectSector != entry->startSector)
+	sprintf((output + strlen(output)), "Partition %d starting CHS sector "
+		"is %u, should be %u\n", entry->partition, entry->startSector,
+		expectSector);
+
       expectSector = (((endLogical % cylinderSectors) %
-				selectedDisk->sectorsPerCylinder) + 1);
-      if (expectSector != entries[count].endSector)
-	{
-	  sprintf(tmpChar, "Partition %d ending CHS sector is %u, should "
-		"be %u\n", count, entries[count].endSector, expectSector);
-	  strcat(output, tmpChar);
-	}
+		       selectedDisk->sectorsPerCylinder) + 1);
+      if (expectSector != entry->endSector)
+	sprintf((output + strlen(output)), "Partition %d ending CHS sector "
+		"is %u, should be %u\n", entry->partition, entry->endSector,
+		expectSector);
     }
-
+  
   if (output[0] != '\0')
-    warning(output);
-
-  return;
+    {
+      warning(output);
+      return (ERR_INVALID);
+    }
+  else
+    return (0);
 }
 
 
-static int readMBR(const char *diskName)
+static void scanPartitionTable(const char *diskName, partitionTable *table,
+			       unsigned char *buffer)
 {
-  // Read the MBR from the physical disk
+  // Read the partition entries from the buffer and fill out the partition
+  // table structure.
+
+  unsigned char *sectorData = NULL;
+  slice *entry = NULL;
+  slice *extendedEntry = NULL;
+  partitionTable *extendedTable = NULL;
+  int count;
+
+  if (buffer)
+    memcpy(table->sectorData, buffer, 512);
+
+  sectorData = table->sectorData;
+
+  // Clear the table entries
+  bzero(table->entries, (sizeof(slice) * DISK_MAX_PRIMARY_PARTITIONS));
+  table->numberEntries = 0;
+
+  if (table == mainTable)
+    {
+      numberPartitions = 0;
+      numberDataPartitions = 0;
+      extendedStartSector = 0;
+    }
+
+  if (table->extended)
+    // Extended partitions are only supposed to have 2 entries
+    table->maxEntries = 2;
+  else
+    table->maxEntries = DISK_MAX_PRIMARY_PARTITIONS;
+
+  // Is this a valid partition table?  Make sure the signature is at the end.
+  if ((sectorData[510] != (unsigned char) 0x55) ||
+      (sectorData[511] != (unsigned char) 0xAA))
+    {
+      // This does not appear to be a valid master partition table.
+      warning("Invalid signature in partition table %d on disk %s.\n"
+	      "Writing changes will create one.", table->extended, diskName);
+      // Don't do the change now, record that a change will happen
+      changesPending += 1;
+
+      // For now, don't trust any data in this table.
+      return;
+    }
+
+  // Loop through the partition entries and create slices for them.
+  for (count = 0; count < DISK_MAX_PRIMARY_PARTITIONS; count ++)
+    {
+      entry = &(table->entries[count]);
+      readEntry(table, count, entry);
+      
+      if (entry->typeId == 0)
+	// The "rules" say we're supposed to be finished with this 
+	// table, but that's not absolutely always the case.  We'll still
+	// probably be somewhat screwed, but not as screwed as if we were
+	// to quit here.
+	continue;
+
+      table->numberEntries += 1;
+
+      if (entry->entryType == partition_extended)
+	{
+	  if (table->extended)
+	    entry->startLogical += extendedStartSector;
+	  else
+	    extendedStartSector = entry->startLogical;
+	  
+	  // We add extended partitions after all the others
+	  extendedEntry = entry;
+	  continue;
+	}
+      else if (table->extended)
+	{
+	  entry->entryType = partition_logical;
+	  entry->startLogical += table->startSector;
+	}
+
+      entry->partition = numberPartitions++;
+      sprintf(entry->name, "%s%c", selectedDisk->name,
+	      ('a' + numberDataPartitions++));
+    }
+
+  if (extendedEntry)
+    extendedEntry->partition = numberPartitions++;
+
+  // Do a check on the table
+  checkTable(table);
+
+  // If we have an extended partition, we need to delve into the chain of
+  // partition tables.
+  if (extendedEntry)
+    {
+      // Allocate a partition table for it
+      extendedTable = malloc(sizeof(partitionTable));
+      if (extendedTable == NULL)
+	{
+	  error("Unable to allocate memory for extended table");
+	  return;
+	}
+
+      extendedTable->parentPartition = extendedEntry->partition;
+      extendedTable->startSector = extendedEntry->startLogical;
+      extendedTable->extended = (table->extended + 1);
+      extendedEntry->extendedTable = extendedTable;
+
+      if (buffer)
+	scanPartitionTable(diskName, extendedTable, (buffer + 512));
+
+      else
+	{
+	  // Read the partition table sector data into the table structure.
+	  if (diskReadAbsoluteSectors(diskName, extendedTable->startSector, 1,
+				      extendedTable->sectorData) < 0)
+	    {
+	      error("Unable to read extended table");
+	      return;
+	    }
+	  scanPartitionTable(diskName, extendedTable, NULL);
+	}
+    }
+}
+
+
+static int makeBackup(partitionTable *table, fileStream *backupFile)
+{
+  // Given a partition table and an open file, append the partition table.
+  
+  int status = 0;
+  int count;
+
+  if (table->extended)
+    {
+      status = fileStreamSeek(backupFile, (table->extended * 512));
+      if (status < 0)
+	warning("Error seeking extended backup partition table file");
+    }
+
+  status = fileStreamWrite(backupFile, 512, table->sectorData);
+  if (status < 0)
+    warning("Error writing backup partition table file");
+
+  // Look for an extended partition
+  for (count = 0; count < table->maxEntries; count ++)
+    {
+      if (table->entries[count].typeId == 0)
+	continue;
+
+      // We add extended partitions after all the others
+      if (table->entries[count].entryType == partition_extended)
+	makeBackup(table->entries[count].extendedTable, backupFile);
+    }
+
+  return (status = 0);
+}
+
+
+static int readPartitionTable(const char *diskName, unsigned sector)
+{
+  // Read the partition table from the physical disk
 
   int status = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
+  static char tmpBackupFileName[MAX_PATH_NAME_LENGTH];
   file backupFile;
+  fileStream tmpBackupFile;
 
   // Clear stack data
   bzero(&backupFile, sizeof(file));
+  bzero(&tmpBackupFile, sizeof(fileStream));
 
   // Read the first sector of the device
-  status = diskReadAbsoluteSectors(diskName, 0, 1, diskMBR);
+  status = diskReadAbsoluteSectors(diskName, sector, 1, mainTable->sectorData);
   if (status < 0)
     return (status);
+  
+  scanPartitionTable(diskName, mainTable, NULL);
 
-  // Is this a valid MBR?
-  if ((diskMBR[511] != (unsigned char) 0xAA) ||
-      (diskMBR[510] != (unsigned char) 0x55))
-    {
-      // This is not a valid master boot record.
-      warning("Invalid MBR on hard disk %s.\nWrite changes to create one",
-	      diskName);
-      changesPending = 1;
-    }
-  else
-    {
-      // Do a check on the table
-      checkTable();
-
-      changesPending = 0;
-    }
-
-  // Save a copy of the original
-  memcpy(originalMBR, diskMBR, 512);
-
-  scanPartitions();
-  makeSliceList();
-  selectedSlice = 0;
-
-  // Any backup MBR saved?  Construct the file name
+  // Any backup partition table saved?  Construct the file name
   sprintf(fileName, BACKUP_MBR, diskName);
   if (!fileFind(fileName, &backupFile))
     backupAvailable = 1;
   else
     backupAvailable = 0;
 
+  if (!readOnly)
+    {
+      // We are not read-only, create a new temporary backup
+      if (tmpBackupName != NULL)
+	{
+	  fileDelete(tmpBackupName);
+	  tmpBackupName = NULL;
+	}
+
+      status = fileGetTemp(&backupFile);
+      if (status < 0)
+	{
+	  warning("Can't create backup file");
+	  return (status);
+	}
+
+      sprintf(tmpBackupFileName, TEMP_DIR"/%s", backupFile.name);
+      fileClose(&backupFile);
+
+      status = fileStreamOpen(tmpBackupFileName, OPENMODE_WRITE,
+			      &tmpBackupFile);
+      if (status < 0)
+	{
+	  warning("Can't open backup file %s", backupFile.name);
+	  return (status);
+	}
+
+      status = makeBackup(mainTable, &tmpBackupFile);
+      if (status < 0)
+	return (status);
+
+      fileStreamClose(&tmpBackupFile);
+      tmpBackupName = tmpBackupFileName;
+    }
+
   return (status = 0);
 }
 
 
-static int writeMBR(const char *diskName)
+static int writePartitionTable(const char *diskName, partitionTable *table)
 {
-  // Write the MBR to the physical disk
+  // Write the partition table to the physical disk
 
   int status = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
   fileStream backupFile;
-
-  // Do a check on the table
-  checkTable();
-
-  // Make sure the signature is at the end
-  diskMBR[510] = (unsigned char) 0x55;
-  diskMBR[511] = (unsigned char) 0xAA;
+  slice entry;
+  int count;
 
   // Clear stack data
   bzero(&backupFile, sizeof(fileStream));
 
-  // Construct the file name
-  sprintf(fileName, BACKUP_MBR, diskName);
-
-  // Write a backup copy of the original MBR
-  status = fileStreamOpen(fileName, (OPENMODE_WRITE | OPENMODE_CREATE |
-				     OPENMODE_TRUNCATE), &backupFile);
-  if (status >= 0)
+  if (table == mainTable)
     {
-      status = fileStreamWrite(&backupFile, 512, originalMBR);
-      if (status < 0)
-	warning("Error writing backup MBR file");
-      else
-	backupAvailable = 1;
-      fileStreamClose(&backupFile);
+      if (readOnly && !yesOrNo("Can't create a partition table backup in\n"
+			       "read-only mode.  Proceed anyway?"))
+	return (status = 0);
+
+      if (tmpBackupName != NULL)
+	{
+	  // Construct the backup file name
+	  sprintf(fileName, BACKUP_MBR, diskName);
+  
+	  // Copy the temporary backup file to the backup
+	  fileMove(tmpBackupName, fileName);
+	  tmpBackupName = NULL;
+	  
+	  // We now have a proper backup
+	  backupAvailable = 1;
+	}
     }
-  else
-    warning("Error opening backup MBR file");
+
+  // Do a check on the table
+  status = checkTable(table);
+  if ((status < 0) && !yesOrNo("The consistency check failed.  Write anyway?"))
+    return (status);
+
+  // Loop through the slice entries write them into the partition table
+  for (count = 0; count < DISK_MAX_PRIMARY_PARTITIONS; count ++)
+    {
+      memcpy(&entry, &table->entries[count], sizeof(slice));
+
+      // If this is an extended table, re-adjust the starting logical
+      // starting sector value to reflect a position relative to the start
+      // of the extended partition.
+      if (table->extended)
+	{
+	  if (entry.entryType == partition_extended)
+	    entry.startLogical -= extendedStartSector;
+	  else
+	    entry.startLogical -= table->startSector;
+	}
+
+      writeEntry(table, count, &entry);
+
+      // If this is an extended partition, descend down and write its
+      // table(s) as well.
+      if (entry.typeId && (entry.entryType == partition_extended))
+	{
+	  status = writePartitionTable(diskName, entry.extendedTable);
+	  if (status < 0)
+	    // Don't want to fail here (thus making it impossible to write
+	    // any other table data).  Just make an error.
+	    error("Unable to write extended partition table");
+	}
+    }
+
+  // Make sure it has a valid signature
+  table->sectorData[510] = (unsigned char) 0x55;
+  table->sectorData[511] = (unsigned char) 0xAA;
 
   // Write the first sector of the device
-  status = diskWriteAbsoluteSectors(diskName, 0, 1, diskMBR);
+  status = diskWriteAbsoluteSectors(diskName, table->startSector, 1,
+				    table->sectorData);
   if (status < 0)
     return (status);
 
-  // Tell the kernel to reexamine the partition tables
-  status = diskReadPartitions();
-
+  diskSync();
   changesPending = 0;
-  return (status = 0);
+
+  // Tell the kernel to reexamine the partition tables
+  return (status = diskReadPartitions());
 }
 
 
@@ -814,15 +1354,13 @@ static int scanDisks(void)
 
 static inline unsigned mbToCyls(disk *theDisk, unsigned megabytes)
 {
-  unsigned long tmpDiskSize = 0;
+  unsigned long sectors = ((megabytes * 1048576) / theDisk->sectorSize);
+  unsigned long cylinders =
+    (sectors / (theDisk->heads * theDisk->sectorsPerCylinder));
+  if (sectors % (theDisk->heads * theDisk->sectorsPerCylinder))
+    cylinders += 1;
 
-  tmpDiskSize = (((megabytes * 1048576) / theDisk->sectorSize) /
-		 (theDisk->heads * theDisk->sectorsPerCylinder));
-
-  if (tmpDiskSize < 1)
-    return (1);
-  else
-    return ((unsigned) tmpDiskSize);
+  return ((unsigned) cylinders);
 }
 
 
@@ -844,13 +1382,12 @@ static int selectDisk(int diskNumber)
 
   if (changesPending)
     {
-      sprintf(tmpChar, "Discard changes to disk %d?",
-	      selectedDisk->deviceNumber);
+      sprintf(tmpChar, "Discard changes to disk %s?", selectedDisk->name);
       if (!yesOrNo(tmpChar))
 	{
 	  if (graphics)
 	    {
-	      // Re-select the old disk
+	      // Re-select the old disk in the list
 	      for (count = 0; count < numberDisks; count ++)
 		if (&diskInfo[count] == selectedDisk)
 		  {
@@ -861,24 +1398,31 @@ static int selectDisk(int diskNumber)
 	  return (status = 0);
 	}
     }
-
+  
   selectedDisk = NULL;
 
   for (count = 0; count < numberDisks; count ++)
     if (diskInfo[count].deviceNumber == diskNumber)
       {
+	selectedDiskNumber = count;
 	selectedDisk = &diskInfo[count];
-	windowComponentSetSelected(diskList, count);
+	if (graphics)
+	  windowComponentSetSelected(diskList, count);
 	break;
       }
 
   if (selectedDisk == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  status = readMBR(selectedDisk->name);
+  cylinderSectors = (selectedDisk->heads * selectedDisk->sectorsPerCylinder);
+
+  changesPending = 0;
+
+  status = readPartitionTable(selectedDisk->name, 0);
   if (status < 0)
     return (status);
 
+  makeSliceList();
   selectedSlice = 0;
 
   return (status = 0);
@@ -887,32 +1431,17 @@ static int selectDisk(int diskNumber)
 
 static int queryDisk(void)
 {
-  int diskNumber = 0;
-  char character[2];
+  int status;
 
-  printf("\n");
-  printDisks();
+  status = vshCursorMenu("Please choose the disk on which to operate:",
+			 numberDisks, diskStrings, selectedDiskNumber);
+  if (status < 0)
+    return (status);
 
-  while(1)
-    {
-      printf("Please choose the disk on which to operate ('Q' to quit):\n-> ");
-      
-      character[0] = readKey("0123456789Qq", 0);
-      if ((character[0] == 0) ||
-	  (character[0] == 'Q') || (character[0] == 'q'))
-	return (ERR_INVALID);
-      character[1] = '\0';
-	
-      diskNumber = atoi(character);
-      
-      selectDisk(diskNumber);
-      if (selectedDisk != NULL)
-	break;
-      
-      printf("%d is not a valid disk number.\n", diskNumber);
-    }
-
-  return (0);
+  status = selectDisk(diskInfo[status].deviceNumber);
+  if (selectedDisk == NULL)
+    status = ERR_INVALID;
+  return (status);
 }
 
 
@@ -923,18 +1452,35 @@ static void drawDiagram(void)
   int needPixels = 0;
   int xCoord = 0;
   windowDrawParameters params;
-  color colors[] = {
-    { 0, 255, 255 }, // Yellow
-    { 255, 0, 0 },   // Blue
-    { 0, 255, 0 },   // Green
-    { 0, 0, 255 }    // Red
+  static color colors[DISK_MAX_PARTITIONS + 1] = {
+    { 0, 255, 255 }, // 0  = Yellow
+    { 255, 0, 0 },   // 1  = Blue
+    { 0, 255, 0 },   // 2  = Green
+    { 0, 0, 255 },   // 3  = Red
+    { 255, 0, 255 }, // 4  = Purple
+    { 0, 196, 255 }, // 5  = Orange
+    // Need some more colors here
+    { 0, 255, 255 }, // 6  = Yellow
+    { 255, 0, 0 },   // 7  = Blue
+    { 0, 255, 0 },   // 8  = Green
+    { 0, 0, 255 },   // 9  = Red
+    { 255, 0, 255 }, // 10 = Purple
+    { 0, 196, 255 }, // 11  = Orange
+    { 0, 255, 255 }, // 12 = Yellow
+    { 255, 0, 0 },   // 13 = Blue
+    { 0, 255, 0 },   // 14 = Green
+    { 0, 0, 255 },   // 15 = Red
+    // This one is for extended partitions
+    { 255, 196, 178 }
   };
+  color *extendedColor = NULL;
+  int colorCounter = 0;
   int count1, count2;
 
   // Clear our drawing parameters
   bzero(&params, sizeof(windowDrawParameters));
   
-  // Some basic drawing values which are the same for all partition rectangles
+  // Some basic drawing values for partition rectangles
   params.operation = draw_rect;
   params.mode = draw_normal;
   params.xCoord1 = 0;
@@ -959,7 +1505,7 @@ static void drawDiagram(void)
   // Now, we want to make sure each partition slice has a width of at least
   // MIN_WIDTH, so that it is visible.  If we need to, we steal the pixels
   // from any adjacent slices.
-  #define MIN_WIDTH 10
+  #define MIN_WIDTH 15
   for (count1 = 0; count1 < numberSlices; count1 ++)
     if (slices[count1].pixelWidth < MIN_WIDTH)
       {
@@ -981,21 +1527,50 @@ static void drawDiagram(void)
     {
       slices[count1].pixelX = xCoord;
 
+      params.mode = draw_normal;
+      params.xCoord1 = slices[count1].pixelX;
+      params.yCoord1 = 0;
+      params.width = slices[count1].pixelWidth;
+      params.height = canvasHeight;
+      params.fill = 1;
+
+      if (slices[count1].typeId)
+	{
+	  if (slices[count1].entryType == partition_logical)
+	    extendedColor = &colors[DISK_MAX_PARTITIONS];
+	  else
+	    extendedColor = NULL;
+	}
+      
+      if (extendedColor != NULL)
+	{
+	  if ((slices[count1].typeId) ||
+	      ((count1 < (numberSlices - 1)) &&
+	       (slices[count1 + 1].entryType == partition_logical)))
+	    {
+	      params.foreground.red = extendedColor->red;
+	      params.foreground.green = extendedColor->green;
+	      params.foreground.blue = extendedColor->blue;
+	      windowComponentSetData(canvas, &params, 1);
+	    }
+	}
+
       // If it is a used slice, we draw a filled rectangle on the canvas to
       // represent the partition.
-      if (slices[count1].type)
+      if (slices[count1].typeId)
 	{
-	  // Draw the rectangle to represent this partition.
-	  params.mode = draw_normal;
-	  params.foreground.red = colors[slices[count1].partition].red;
-	  params.foreground.green = colors[slices[count1].partition].green;
-	  params.foreground.blue = colors[slices[count1].partition].blue;
-	  params.xCoord1 = slices[count1].pixelX;
-	  params.yCoord1 = 0;
-	  params.width = slices[count1].pixelWidth;
-	  params.height = canvasHeight;
-	  params.fill = 1;
+	  params.foreground.red = colors[colorCounter].red;
+	  params.foreground.green = colors[colorCounter].green;
+	  params.foreground.blue = colors[colorCounter].blue;
+	  if (slices[count1].entryType == partition_logical)
+	    {
+	      params.xCoord1 += 3;
+	      params.yCoord1 += 3;
+	      params.width -= 6;
+	      params.height -= 6;
+	    }
 	  windowComponentSetData(canvas, &params, 1);
+	  colorCounter += 1;
 	}
 
       // If this is the selected slice, draw a border inside it
@@ -1005,10 +1580,10 @@ static void drawDiagram(void)
 	  params.foreground.red = 200;
 	  params.foreground.green = 200;
 	  params.foreground.blue = 200;
-	  params.xCoord1 = (slices[count1].pixelX + 2);
-	  params.yCoord1 = 2;
-	  params.width = (slices[count1].pixelWidth - 4);
-	  params.height = (canvasHeight - 4);
+	  params.xCoord1 += 2;
+	  params.yCoord1 += 2;
+	  params.width -= 4;
+	  params.height -= 4;
 	  params.fill = 0;
 	  windowComponentSetData(canvas, &params, 1);
 	}
@@ -1020,7 +1595,6 @@ static void drawDiagram(void)
 
 static void printBanner(void)
 {
-  // Print a message
   textScreenClear();
   printf("%s\nCopyright (C) 1998-2004 J. Andrew McLaughlin\n", programName);
 }
@@ -1028,21 +1602,24 @@ static void printBanner(void)
 
 static void display(void)
 {
-  char *sliceStrings[9];
+  int stringLength = 0;
+  char *sliceStrings[MAX_SLICES];
   int slc = 0;
   int foregroundColor = textGetForeground();
   int backgroundColor = textGetBackground();
+  int isHide = 0;
+  int isMove = 0;
   int count;
 
-  if (!graphics)
-    {
-      printBanner();
-      printf("\nPartitions on disk %d:              cylinders   size (Mb) \n",
-	     selectedDisk->deviceNumber);
-    }
-
   for (count = 0; count < numberSlices; count ++)
-    sliceStrings[count] = slices[count].string;
+    {
+      if ((strlen(slices[count].string) + 1) > stringLength)
+	stringLength = (strlen(slices[count].string) + 1);
+
+      // We need to pass a char *[] to the slice list component in graphics
+      // mode.
+      sliceStrings[count] = slices[count].string;
+    }
 
   if (graphics)
     {
@@ -1054,37 +1631,49 @@ static void display(void)
 
       // Depending on which type slice was selected (i.e. partition vs.
       // empty space) we enable/disable button choices
-      if (slices[selectedSlice].type)
+      if (slices[selectedSlice].typeId)
 	{
 	  // It's a partition
-	  windowComponentSetEnabled(newButton, 0);
-	  windowComponentSetEnabled(menuNew, 0);
+
+	  if (PARTITION_TYPEID_IS_HIDEABLE(slices[selectedSlice].typeId) ||
+	      PARTITION_TYPEID_IS_HIDDEN(slices[selectedSlice].typeId))
+	    isHide = 1;
+
+	  if (!ISLOGICAL(&slices[selectedSlice]))
+	    isMove = 1;
+
 	  windowComponentSetEnabled(setActiveButton, 1);
 	  windowComponentSetEnabled(menuSetActive, 1);
-	  windowComponentSetEnabled(moveButton, 1);
-	  windowComponentSetEnabled(menuMove, 1);
-	  windowComponentSetEnabled(setTypeButton, 1);
-	  windowComponentSetEnabled(menuSetType, 1);
 	  windowComponentSetEnabled(deleteButton, 1);
 	  windowComponentSetEnabled(menuDelete, 1);
 	  windowComponentSetEnabled(formatButton, 1);
 	  windowComponentSetEnabled(menuFormat, 1);
+	  windowComponentSetEnabled(hideButton, isHide);
+	  windowComponentSetEnabled(menuHide, isHide);
+	  windowComponentSetEnabled(moveButton, isMove);
+	  windowComponentSetEnabled(menuMove,isMove);
+	  windowComponentSetEnabled(newButton, 0);
+	  windowComponentSetEnabled(menuNew, 0);
+	  windowComponentSetEnabled(setTypeButton, 1);
+	  windowComponentSetEnabled(menuSetType, 1);
 	}
       else
 	{
 	  // It's empty space
-	  windowComponentSetEnabled(newButton, 1);
-	  windowComponentSetEnabled(menuNew, 1);
 	  windowComponentSetEnabled(setActiveButton, 0);
 	  windowComponentSetEnabled(menuSetActive, 0);
-	  windowComponentSetEnabled(moveButton, 0);
-	  windowComponentSetEnabled(menuMove, 0);
-	  windowComponentSetEnabled(setTypeButton, 0);
-	  windowComponentSetEnabled(menuSetType, 0);
 	  windowComponentSetEnabled(deleteButton, 0);
 	  windowComponentSetEnabled(menuDelete, 0);
 	  windowComponentSetEnabled(formatButton, 0);
 	  windowComponentSetEnabled(menuFormat, 0);
+	  windowComponentSetEnabled(hideButton, 0);
+	  windowComponentSetEnabled(menuHide, 0);
+	  windowComponentSetEnabled(moveButton, 0);
+	  windowComponentSetEnabled(menuMove, 0);
+	  windowComponentSetEnabled(newButton, 1);
+	  windowComponentSetEnabled(menuNew, 1);
+	  windowComponentSetEnabled(setTypeButton, 0);
+	  windowComponentSetEnabled(menuSetType, 0);
 	}
 
       // Other buttons enabled/disabled...
@@ -1098,9 +1687,17 @@ static void display(void)
     }
   else
     {
+      printBanner();
+
+      printf("\n%s\n", diskStrings[selectedDiskNumber]);
+      printf("\nPartitions on disk %s:     cylinders   size (Mb)  "
+	     "attributes\n", selectedDisk->name);
+
       // Print info about the partitions
       for (slc = 0; slc < numberSlices; slc ++)
 	{
+	  printf(" ");
+	  
 	  if (slc == selectedSlice)
 	    {
 	      // Reverse the colors
@@ -1108,14 +1705,19 @@ static void display(void)
 	      textSetBackground(foregroundColor);
 	    }
 	  
-	  printf(" %s\n", sliceStrings[slc]);
-	  
+	  printf(" %s", slices[slc].string);
+	  for (count = strlen(slices[slc].string); count < stringLength;
+	       count ++)
+	    printf(" ");
+
 	  if (slc == selectedSlice)
 	    {
 	      // Restore the colors
 	      textSetForeground(foregroundColor);
 	      textSetBackground(backgroundColor);
 	    }
+
+	  printf("\n");
 	}
     }
 }
@@ -1124,34 +1726,37 @@ static void display(void)
 static void setActive(int newActive)
 {
   slice entry;
-  int partition = 0;
+  int count;
 
-  if (newActive < 0)
+  if (getPartitionEntry(newActive, &entry) < 0)
+    return;
+
+  // Don't set any extended partitions
+  if (entry.entryType == partition_extended)
     return;
 
   // Loop through the partition records
-  for (partition = 0; partition < numberPartitions; partition ++)
+  for (count = 0; count < numberPartitions; count ++)
     {
-      getPartitionEntry(partition, &entry);
-
-      if (entry.type == 0)
-	// The "rules" say we must be finished with this physical device.
+      if (getPartitionEntry(count, &entry) < 0)
 	break;
 
-      if (partition == newActive)
+      if (entry.partition == newActive)
 	{
-	  if (!(entry.active))
-	    {
-	      // Set active flag
-	      entry.active = 1;
-	      changesPending++;
-	    }
+	  if (entry.active)
+	    // Clear the active flag
+	    entry.active = 0;
+	  else if (!entry.active)
+	    // Set the active flag
+	    entry.active = 1;
+
+	  changesPending += 1;
 	}
       else
 	// Unset active flag
 	entry.active = 0;
 
-      setPartitionEntry(partition, &entry);
+      setPartitionEntry(count, &entry);
     }
 
   // Regenerate the slice list
@@ -1161,39 +1766,28 @@ static void setActive(int newActive)
 
 static void delete(int partition)
 {
-  slice entries[4];
-  int count1, count2;
+  slice deleteEntry;
 
-  if (partition < 0)
+  if (getPartitionEntry(partition, &deleteEntry) < 0)
     return;
 
-  // Get all the entries
-  for (count1 = 0; count1 < numberPartitions; count1 ++)
-    getPartitionEntry(count1, &entries[count1]);
+  // Don't delete extended partitions this way
+  if (deleteEntry.entryType == partition_extended)
+    return;
 
-  if (entries[partition].active)
+  if (deleteEntry.active)
     warning("Deleting active partition.  You should set another partition "
 	    "active.");
 
-  // Shift the remaining ones forward
-  count2 = 0;
-  for (count1 = 0; count1 < numberPartitions; count1 ++)
-    if (count1 != partition)
-      setPartitionEntry(count2++, &entries[count1]);
-  numberPartitions -= 1;
-
-  // For the deleted one, set the type to 0 and put it at the end
-  entries[partition].type = 0;
-  entries[partition].active = 0;
-  setPartitionEntry(numberPartitions, &entries[partition]);
+  deletePartitionEntry(partition);
 
   // Regenerate the slice list
   makeSliceList();
 
-  if (selectedSlice > (numberSlices - 1))
+  if (selectedSlice >= numberSlices)
     selectedSlice = (numberSlices - 1);    
 
-  changesPending++;
+  changesPending += 1;
 }
 
 
@@ -1202,7 +1796,8 @@ static void format(int partition)
   // Prompt, and format partition
 
   int status = 0;
-  objectKey formatWindow = NULL;
+  objectKey formatDialog = NULL;
+  objectKey bannerDialog = NULL;
   componentParameters params;
   objectKey fsTypeRadio = NULL;
   objectKey okButton = NULL;
@@ -1221,7 +1816,8 @@ static void format(int partition)
 
   if (graphics)
     {
-      formatWindow = windowNewDialog(window, "Format partition");
+      sprintf(tmpChar, "Format partition %s", slices[selectedSlice].name);
+      formatDialog = windowNewDialog(window, tmpChar);
 
       bzero(&params, sizeof(componentParameters));
       params.gridWidth = 2;
@@ -1234,11 +1830,11 @@ static void format(int partition)
       params.useDefaultForeground = 1;
       params.useDefaultBackground = 1;
       
-      windowNewTextLabel(formatWindow, "Choose the filesystem type:", &params);
+      windowNewTextLabel(formatDialog, "Choose the filesystem type:", &params);
 
       // A radio button for the filesystem type
       params.gridY = 1;
-      fsTypeRadio = windowNewRadioButton(formatWindow, 2, 1, fsTypes, 2 ,
+      fsTypeRadio = windowNewRadioButton(formatDialog, 2, 1, fsTypes, 2 ,
 					 &params);
       windowComponentSetEnabled(fsTypeRadio, 0);
       
@@ -1247,16 +1843,16 @@ static void format(int partition)
       params.gridWidth = 1;
       params.orientationX = orient_right;
       params.padBottom = 5;
-      okButton = windowNewButton(formatWindow, "OK", NULL, &params);
+      okButton = windowNewButton(formatDialog, "OK", NULL, &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
-      cancelButton = windowNewButton(formatWindow, "Cancel", NULL, &params);
+      cancelButton = windowNewButton(formatDialog, "Cancel", NULL, &params);
       
       // Make the window visible
-      windowSetResizable(formatWindow, 0);
-      windowCenterDialog(window, formatWindow);
-      windowSetVisible(formatWindow, 1);
+      windowSetResizable(formatDialog, 0);
+      windowCenterDialog(window, formatDialog);
+      windowSetVisible(formatDialog, 1);
 
       while(1)
 	{
@@ -1265,17 +1861,17 @@ static void format(int partition)
 	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	    {
 	      selectedType = windowComponentGetSelected(fsTypeRadio);
-	      windowDestroy(formatWindow);
+	      windowDestroy(formatDialog);
 	      break;
 	    }
 
 	  // Check for window close, or our Cancel button
-	  if (((windowComponentEventGet(formatWindow, &event) > 0) &&
+	  if (((windowComponentEventGet(formatDialog, &event) > 0) &&
 	       (event.type == EVENT_WINDOW_CLOSE)) ||
 	      ((windowComponentEventGet(cancelButton, &event) > 0) &&
 	       (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
-	      windowDestroy(formatWindow);
+	      windowDestroy(formatDialog);
 	      return;
 	    }
 	  
@@ -1290,17 +1886,90 @@ static void format(int partition)
       // eye candy for the moment.
     }
 
-  sprintf(tmpChar, "Format partition %d as %s?\n(This change cannot be "
-	  "undone)", partition, fsTypes[selectedType]);
+  sprintf(tmpChar, "Format partition %s as %s?\n(This change cannot be "
+	  "undone)", slices[selectedSlice].name, fsTypes[selectedType]);
   if (yesOrNo(tmpChar))
     {
+      if (graphics)
+	bannerDialog =
+	  windowNewBannerDialog(window, "Formatting", "Format in progress, "
+				"please wait...");
+
       // Do the format
-      sprintf(tmpChar, "/programs/format -t %s %s%c", fsTypes[selectedType],
-	      selectedDisk->name, ('a' + partition));
-      system(tmpChar);
+      sprintf(tmpChar, "/programs/format -s -t %s %s", fsTypes[selectedType],
+	      slices[selectedSlice].name);
+      status = system(tmpChar);
+
+      if (bannerDialog)
+	windowDestroy(bannerDialog);
+
+      if (status < 0)
+	error("Error during format");
+      else
+	{
+	  sprintf(tmpChar, "Format complete");
+	  if (graphics)
+	    windowNewInfoDialog(window, "Success", tmpChar);
+	  else
+	    {
+	      printf("%s\n", tmpChar);
+	      pause();
+	    }
+	}
     }
 
   return;
+}
+
+
+static void hide(int partition)
+{
+  slice entry;
+
+  if (getPartitionEntry(partition, &entry) < 0)
+    return;
+
+  if (PARTITION_TYPEID_IS_HIDDEN(entry.typeId))
+    entry.typeId -= 0x10;
+  else if (PARTITION_TYPEID_IS_HIDEABLE(entry.typeId))
+    entry.typeId += 0x10;
+  else
+    return;
+
+  changesPending += 1;
+  setPartitionEntry(partition, &entry);
+
+  // Regenerate the slice list
+  makeSliceList();
+}
+
+
+static void info(int sliceNumber)
+{
+  // Print info about a slice
+  
+  slice *slc = &slices[sliceNumber];
+  char info[1024];
+
+  if (slc->typeId)
+    sprintf(info, "PARTITION %s INFO:\n\nActive : %s\nType ID : %02x\n",
+	    slc->name, (slc->active? "yes" : "no"), slc->typeId);
+  else
+    sprintf(info, "EMPTY SPACE INFO:\n\n");
+
+  sprintf((info + strlen(info)), "Starting Cyl/Hd/Sect: %u/%u/%u\nEnding "
+	  "Cyl/Hd/Sect  : %u/%u/%u\nLogical start sector: %u\nLogical size: "
+	  "%u", slc->startCylinder, slc->startHead, slc->startSector,
+	  slc->endCylinder, slc->endHead, slc->endSector, slc->startLogical,
+	  slc->sizeLogical);
+
+  if (graphics)
+    windowNewInfoDialog(window, "Info", info);
+  else
+    {
+      printf("\n%s\n", info);
+      pause();
+    }
 }
 
 
@@ -1395,10 +2064,7 @@ static void listTypes(void)
     }
 
   else
-    {
-      printf("\nPress any key to continue. ");
-      getchar();
-    }
+    pause();
 }
 
 
@@ -1412,7 +2078,13 @@ static int setType(int partition)
   partitionType *types;
   int count;
 
-  if (partition < 0)
+  // Load the partition
+  status = getPartitionEntry(partition, &entry);
+  if (status < 0)
+    return (status);
+
+  // Don't set the type on extended partitions
+  if (entry.entryType == partition_extended)
     return (status = ERR_INVALID);
 
   while(1)
@@ -1431,6 +2103,7 @@ static int setType(int partition)
 	{
 	  printf("\n%s ('L' to list, 'Q' to quit):\n-> ", tmpChar);
 	  status = readLine("0123456789AaBbCcDdEeFfLlQq", code, 8);
+	  printf("\n");
 	}
 
       if (status < 0)
@@ -1443,8 +2116,6 @@ static int setType(int partition)
 	}
       if ((code[0] == '\0') || (code[0] == 'Q') || (code[0] == 'q'))
 	return (status = ERR_NODATA);
-
-      printf("\n");
 
       if (strlen(code) != 2)
 	continue;
@@ -1464,11 +2135,8 @@ static int setType(int partition)
 	  return (status = ERR_INVALID);
 	}
 
-      // Load the partition
-      getPartitionEntry(partition, &entry);
-
       // Change the value
-      entry.type = newCode;
+      entry.typeId = newCode;
 
       // Set the partition
       setPartitionEntry(partition, &entry);
@@ -1476,7 +2144,7 @@ static int setType(int partition)
       // Redo the slice strings
       makeSliceList();
 
-      changesPending++;
+      changesPending += 1;
       return (status = 0);
     }
 }
@@ -1487,16 +2155,14 @@ static void undo(void)
   // Undo changes
   if (changesPending)
     {
-      memcpy(diskMBR, originalMBR, 512);
+      changesPending = 0;
 
-      selectedSlice = 0;
-
-      scanPartitions();
-
+      scanPartitionTable(selectedDisk->name, mainTable, NULL);
+      
       // Regenerate the slice list
       makeSliceList();
 
-      changesPending = 0;
+      selectedSlice = 0;
     }
 }
 
@@ -1510,13 +2176,11 @@ static void write(int confirm)
       if (confirm && !yesOrNo("Committing changes to disk.  Are you SURE?"))
 	return;
 
-      // Write out the MBR
-      status = writeMBR(selectedDisk->name);
-
-      diskSync();
-
+      // Write out the partition table
+      status = writePartitionTable(selectedDisk->name, mainTable);
       if (status < 0)
-	error("Unable to write the MBR sector of the device.");
+	error("Unable to write the partition table of %s.",
+	      selectedDisk->name);
     }
 }
 
@@ -1532,7 +2196,6 @@ static int move(int partition)
   unsigned newStartLogical = 0;
   int moveLeft = 0;
   unsigned char *buffer = NULL;
-  unsigned cylinderSectors = 0;
   unsigned endLogical = 0;
   unsigned srcSector = 0;
   unsigned destSector = 0;
@@ -1549,6 +2212,10 @@ static int move(int partition)
   if (partition < 0)
     return (status = ERR_INVALID);
 
+  status = getPartitionEntry(partition, &entry);
+  if (status < 0)
+    return (status);
+
   if (changesPending)
     {
       error("A partition move cannot be undone, and must be committed\n"
@@ -1556,8 +2223,6 @@ static int move(int partition)
 	    "to disk before continuing.");
       return (status = 0);
     }
-
-  getPartitionEntry(partition, &entry);
 
   // Find out which slice it is in our list
   for (count = 0; count < numberSlices; count ++)
@@ -1571,20 +2236,20 @@ static int move(int partition)
     return (status = sliceNumber);
 
   // If there are no empty spaces on either side, error
-  if (((sliceNumber == 0) || slices[sliceNumber - 1].type) &&
-      ((sliceNumber == (numberSlices - 1)) || slices[sliceNumber + 1].type))
+  if (((sliceNumber == 0) || slices[sliceNumber - 1].typeId) &&
+      ((sliceNumber == (numberSlices - 1)) || slices[sliceNumber + 1].typeId))
     {
       error("No empty space on either side!");
       return (status = ERR_INVALID);
     }
 
   // Figure out the ranges of cylinders we can move to in both directions
-  if ((sliceNumber > 0) && !(slices[sliceNumber - 1].type))
+  if ((sliceNumber > 0) && !(slices[sliceNumber - 1].typeId))
     {
       moveRange[0] = slices[sliceNumber - 1].startCylinder;
       moveRange[1] = slices[sliceNumber - 1].endCylinder;
     }
-  if ((sliceNumber < (numberSlices - 1)) && !(slices[sliceNumber + 1].type))
+  if ((sliceNumber < (numberSlices - 1)) && !(slices[sliceNumber + 1].typeId))
     {
       if (moveRange[0] == -1)
 	moveRange[0] = (entry.startCylinder + 1) ;
@@ -1631,9 +2296,6 @@ static int move(int partition)
   // If it's not moving, quit of course
   if (newStartCylinder == entry.startCylinder)
     return (status = 0);
-
-  // We have to calculate this a lot, so do it once here.
-  cylinderSectors = (selectedDisk->sectorsPerCylinder * selectedDisk->heads);
 
   // The new starting logical sector
   newStartLogical = (newStartCylinder * cylinderSectors);
@@ -1826,120 +2488,335 @@ static int move(int partition)
 }
 
 
-static void create(void)
+static partEntryType canCreate(int sliceNumber)
+{
+  // This will return an entryType enumeration if, given a slice number
+  // representing free space, a partition can be created there.  If not, it
+  // returns error.  Otherwise it returns the enumeration representing the
+  // type that can be created: primary or logical.  Primary implies that
+  // a logical one can be created if preferred.
+
+  partEntryType returnType = partition_any;
+  int extended = 0;
+  int count;
+
+  if (slices[sliceNumber].typeId)
+    // Not empty space
+    return (returnType = ERR_INVALID);
+
+  // Determine whether there is an extended partition in the main table
+  for (count = 0; count < numberSlices; count ++)
+    if (slices[count].typeId && ISLOGICAL(&slices[count]))
+      {
+	extended = 1;
+	break;
+      }
+
+  if (extended)
+    {
+      // Does part of the extended partition precede or follow our empty
+      // space?
+
+      if ((sliceNumber == 0) && !ISLOGICAL(&slices[sliceNumber + 1]))
+	returnType = partition_primary;
+
+      if ((sliceNumber == (numberSlices - 1)) &&
+	  !ISLOGICAL(&slices[sliceNumber - 1]))
+	returnType = partition_primary;
+
+      if (((sliceNumber < (numberSlices - 1)) &&
+	   !ISLOGICAL(&slices[sliceNumber + 1])) &&
+	  ((sliceNumber > 0) && !ISLOGICAL(&slices[sliceNumber - 1])))
+	returnType = partition_primary;
+
+      // For the moment, we don't allow creation of a logical partition
+      // at the front of the extended partition.
+      if ((sliceNumber < (numberSlices - 1)) &&
+	  ISLOGICAL(&slices[sliceNumber + 1]))
+	returnType = partition_primary;
+
+      // If the preceding space is extended, is the following space as well?
+      if (((sliceNumber < (numberSlices - 1)) &&
+	   ISLOGICAL(&slices[sliceNumber + 1])) &&
+	  ((sliceNumber > 0) && ISLOGICAL(&slices[sliceNumber - 1])))
+	// We can only do logical here
+	returnType = partition_logical;
+    }
+
+  // If we don't have to do logical, check whether the main table is full
+  if ((returnType != partition_logical) &&
+      (mainTable->numberEntries >= DISK_MAX_PRIMARY_PARTITIONS))
+    {
+      // If logical is possible, then logical it will be
+      if (extended && (returnType == partition_any))
+	returnType = partition_logical;
+      else	  
+	// Can't do logical, and the main table is full of entries
+	returnType = ERR_NOFREE;
+    }
+
+  // Can't create a logical partition solely on cylinder 0
+  if ((slices[sliceNumber].startCylinder == 0) &&
+      (slices[sliceNumber].endCylinder == 0))
+    {
+      if ((returnType == partition_any) || (returnType == partition_primary))
+	returnType = partition_primary;
+      else
+	returnType = ERR_NOFREE;
+    }
+
+  return (returnType);
+}
+
+
+static void create(int sliceNumber)
 {
   enum { units_normal, units_mb, units_cylsize } units = units_normal;
 
-  int status = 0;
-  char tmpChar[256];
-  char number[10];
-  slice newEntry;
-  int count;
+  #define STARTCYL_MESSAGE "Enter starting cylinder (%u-%u)"
+  #define ENDCYL_MESSAGE "Enter ending cylinder (%u-%u)\nor size in " \
+   "megabytes with 'm' (1m-%um),\nor size in cylinders with 'c' (1c-%uc)"
 
-  if (numberPartitions >= 4)
-    {
-      error("The partition table is full");
-      return;
-    }
+  int status = 0;
+  char startCyl[10];
+  char endCyl[10];
+  slice extendedEntry;
+  slice newEntry;
+  unsigned startCylinder, endCylinder;
+  partitionTable *extendedTable = NULL;
+  partitionTable *table = NULL;
+  int newSliceNumber = -1;
+  objectKey createDialog = NULL;
+  objectKey primLogRadio = NULL;
+  objectKey startCylField = NULL;
+  objectKey endCylField = NULL;
+  objectKey okButton = NULL;
+  objectKey cancelButton = NULL;
+  componentParameters params;
+  windowEvent event;
+  char tmpChar[256];
+  int count;
 
   bzero(&newEntry, sizeof(slice));
   newEntry.drive = selectedDisk->deviceNumber;
-  newEntry.type = 0x01;
+  newEntry.typeId = 0x01;
+  startCylinder = slices[sliceNumber].startCylinder;
+  endCylinder = slices[sliceNumber].endCylinder;
+
+  // See if we can create a slice here, and if so, what type?
+  newEntry.entryType = canCreate(sliceNumber);
+  if ((int) newEntry.entryType < 0)
+    {
+      // The partition table is full of entries, in its current configuration.
+      error("The partition table is full of primary partitions.  Use more\n"
+	    "logical partitions in order to create more.");
+      return;
+    }
 
   while (1)
     {
-      sprintf(tmpChar, "Enter starting cylinder:\n(%u-%u)",
-	      slices[selectedSlice].startCylinder,
-	      slices[selectedSlice].endCylinder);
-
       if (graphics)
 	{
-	  newEntry.startCylinder =
-	    getNumberDialog("Starting cylinder", tmpChar);
-	  if ((int) newEntry.startCylinder < 0)
-	    return;
+	  createDialog = windowNewDialog(window, "Create partition");
+
+	  bzero(&params, sizeof(componentParameters));
+	  params.gridWidth = 1;
+	  params.gridHeight = 1;
+	  params.padTop = 5;
+	  params.padLeft = 5;
+	  params.padRight = 5;
+	  params.orientationX = orient_right;
+	  params.orientationY = orient_middle;
+	  params.useDefaultForeground = 1;
+	  params.useDefaultBackground = 1;
+      
+	  windowNewTextLabel(createDialog, "Partition\ntype:", &params);
+
+	  // A radio to select 'primary' or 'logical'
+	  params.gridX = 1;
+	  params.orientationX = orient_left;
+	  primLogRadio = windowNewRadioButton(createDialog, 2, 1, (char *[])
+	      { "Primary", "Logical" }, 2 , &params);
+	  if (newEntry.entryType != partition_any)
+	    {
+	      windowComponentSetSelected(primLogRadio,
+					 (int) newEntry.entryType);
+	      windowComponentSetEnabled(primLogRadio, 0);
+	    }
+
+	  // A label and field for the starting cylinder
+	  sprintf(tmpChar, STARTCYL_MESSAGE, startCylinder, endCylinder);
+	  params.gridX = 0;
+	  params.gridY = 1;
+	  params.gridWidth = 2;
+	  windowNewTextLabel(createDialog, tmpChar, &params);
+
+	  params.gridY = 2;
+	  params.hasBorder = 1;
+	  startCylField = windowNewTextField(createDialog, 10, &params);
+
+	  // A label and field for the ending cylinder
+	  sprintf(tmpChar, ENDCYL_MESSAGE, startCylinder, endCylinder,
+		  cylsToMb(selectedDisk, (endCylinder - startCylinder + 1)),
+		  (endCylinder - startCylinder + 1));
+	  params.gridY = 3;
+	  params.hasBorder = 0;
+	  windowNewTextLabel(createDialog, tmpChar, &params);
+
+	  params.gridY = 4;
+	  params.hasBorder = 1;
+	  endCylField = windowNewTextField(createDialog, 10, &params);
+
+	  // Make 'OK' and 'cancel' buttons
+	  params.gridY = 5;
+	  params.gridWidth = 1;
+	  params.padBottom = 5;
+	  params.orientationX = orient_right;
+	  params.hasBorder = 0;
+	  okButton = windowNewButton(createDialog, "OK", NULL, &params);
+
+	  params.gridX = 1;
+	  params.orientationX = orient_left;
+	  cancelButton =
+	    windowNewButton(createDialog, "Cancel", NULL, &params);
+      
+	  // Make the window visible
+	  windowSetResizable(createDialog, 0);
+	  windowCenterDialog(window, createDialog);
+	  windowSetVisible(createDialog, 1);
+
+	  while(1)
+	    {
+	      // Check for the OK button
+	      if ((windowComponentEventGet(okButton, &event) > 0) &&
+		  (event.type == EVENT_MOUSE_LEFTUP))
+		break;
+
+	      // Check for the Cancel button
+	      if ((windowComponentEventGet(cancelButton, &event) > 0) &&
+		  (event.type == EVENT_MOUSE_LEFTUP))
+		{
+		  windowDestroy(createDialog);
+		  return;
+		}
+
+	      // Check for window close events
+	      if ((windowComponentEventGet(createDialog, &event) > 0) &&
+		  (event.type == EVENT_WINDOW_CLOSE))
+		{
+		  windowDestroy(createDialog);
+		  return;
+		}
+
+	      // Check for keyboard events
+	      if ((windowComponentEventGet(startCylField, &event) > 0) &&
+		  (event.type == EVENT_KEY_DOWN) &&
+		  (event.key == (unsigned char) 10))
+		break;
+
+	      if ((windowComponentEventGet(endCylField, &event) > 0) &&
+		  (event.type == EVENT_KEY_DOWN) &&
+		  (event.key == (unsigned char) 10))
+		break;
+
+	      // Done
+	      multitaskerYield();
+	    }
+
+	  newEntry.entryType =
+	    (partEntryType) windowComponentGetSelected(primLogRadio);
+
+	  windowComponentGetData(startCylField, startCyl, 10);
+	  windowComponentGetData(endCylField, endCyl, 10);
+	  windowDestroy(createDialog);
 	}
+
       else
 	{
-	  printf("\n%s or 'Q' to quit\n-> ", tmpChar);
+	  if (newEntry.entryType == partition_any)
+	    {
+	      // Does the user prefer primary or logical?
+	      newEntry.entryType =
+		vshCursorMenu("Choose the partition type:", 2,
+			      (char *[]){ "primary", "logical" }, 0);
+	      if ((int) newEntry.entryType < 0)
+		return;
+	    }
+	  else
+	    printf("\nCreating %s partition\n",
+		   ((newEntry.entryType == partition_primary)? "primary" :
+		    "logical"));
+
+	  // Don't create an extended partition on the first cylinder
+	  if ((newEntry.entryType == partition_logical) &&
+	      (startCylinder == 0))
+	    startCylinder = 1;
+
+	  printf("\n"STARTCYL_MESSAGE", or 'Q' to quit:\n-> ", startCylinder,
+		 endCylinder);
 	  
-	  status = readLine("0123456789Qq", number, 10);
+	  status = readLine("0123456789Qq", startCyl, 10);
 	  if (status < 0)
 	    continue;
 	  
-	  if ((number[0] == 'Q') || (number[0] == 'q'))
+	  if ((startCyl[0] == 'Q') || (startCyl[0] == 'q'))
 	    return;
-	  
-	  newEntry.startCylinder = atoi(number);
+
+	  printf("\n"ENDCYL_MESSAGE", or 'Q' to quit:\n-> ",
+		 atoi(startCyl), endCylinder,
+		 cylsToMb(selectedDisk, (endCylinder - startCylinder + 1)),
+		 (endCylinder - startCylinder + 1));
+      
+	  status = readLine("0123456789CcMmQq", endCyl, 10);
+	  if (status < 0)
+	    return;
+
+	  if ((endCyl[0] == 'Q') || (endCyl[0] == 'q'))
+	    return;
+	}
+
+      newEntry.startCylinder = atoi(startCyl);
+      newEntry.startHead = 0;
+      newEntry.startSector = 1;
+
+      if (newEntry.startCylinder == 0)
+	{
+	  if (newEntry.entryType == partition_logical)
+	    // Don't write a logical partition on the first cylinder of the
+	    // disk
+	    newEntry.startCylinder = 1;
+	  else
+	    // Don't write the first track
+	    newEntry.startHead = 1;
 	}
 
       // Make sure the start cylinder is legit
-      if ((newEntry.startCylinder < slices[selectedSlice].startCylinder) ||
-	  (newEntry.startCylinder > slices[selectedSlice].endCylinder))
+      if ((newEntry.startCylinder < startCylinder) ||
+	  (newEntry.startCylinder > endCylinder))
 	{
-	  error("Starting cylinder is not in unallocated space");
+	  error("Invalid starting cylinder number");
 	  continue;
 	}
-
-      // Don't write cylinder 0, track 0
-      if (newEntry.startCylinder == 0)
-	newEntry.startHead = 1;
-      else
-	newEntry.startHead = 0;
-	  
-      newEntry.startSector = 1;
+      
       newEntry.startLogical =
 	((newEntry.startCylinder * selectedDisk->heads *
 	  selectedDisk->sectorsPerCylinder) +
 	 (newEntry.startHead * selectedDisk->sectorsPerCylinder));
-      break;
-    }
 
-  while (1)
-    {
-      sprintf(tmpChar, "Enter ending cylinder:\n(%u-%u), or size in "
-	      "megabytes with 'm' (1m-%um),\nor size in cylinders with 'c' "
-	      "(1c-%uc)", newEntry.startCylinder,
-	      slices[selectedSlice].endCylinder,
-	      cylsToMb(selectedDisk,
-		       (slices[selectedSlice].endCylinder -
-			newEntry.startCylinder + 1)),
-	      (slices[selectedSlice].endCylinder -
-	       newEntry.startCylinder + 1));
+      count = (strlen(endCyl) - 1);
 
-      if (graphics)
-	{
-	  status = windowNewPromptDialog(window, "Ending cylinder", tmpChar,
-					 1, 10, number);
-	  if ((status < 0) || (number[0] == '\0'))
-	    return;
-	}
-      else
-	{
-	  printf("\n%s, or 'Q' to quit:\n-> ", tmpChar);
-      
-	  status = readLine("0123456789CcMmQq", number, 10);
-	  if (status < 0)
-	    return;
-	}
-
-      if ((number[0] == 'Q') || (number[0] == 'q'))
-	return;
-
-      count = (strlen(number) - 1);
-
-      if ((number[count] == 'M') || (number[count] == 'm'))
+      if ((endCyl[count] == 'M') || (endCyl[count] == 'm'))
 	{
 	  units = units_mb;
-	  number[count] = '\0';
+	  endCyl[count] = '\0';
 	}
-      else if ((number[count] == 'C') || (number[count] == 'c'))
+      else if ((endCyl[count] == 'C') || (endCyl[count] == 'c'))
 	{
 	  units = units_cylsize;
-	  number[count] = '\0';
+	  endCyl[count] = '\0';
 	}
-
-      count = atoi(number);
+	  
+      count = atoi(endCyl);
 
       switch (units)
 	{
@@ -1955,47 +2832,74 @@ static void create(void)
 	  break;
 	}
 
-      if ((newEntry.endCylinder < newEntry.startCylinder) ||
-	  (newEntry.endCylinder > slices[selectedSlice].endCylinder))
+      if ((newEntry.endCylinder < startCylinder) ||
+	  (newEntry.endCylinder > endCylinder))
 	{
-	  error("Invalid cylinder number");
+	  error("Invalid ending cylinder number");
 	  continue;
 	}
-
+      
       newEntry.endHead = (selectedDisk->heads - 1);
       newEntry.endSector = selectedDisk->sectorsPerCylinder;
       newEntry.sizeLogical =   
 	((((newEntry.endCylinder - newEntry.startCylinder) + 1) *
 	  (selectedDisk->heads * selectedDisk->sectorsPerCylinder)) -
 	 (newEntry.startHead * selectedDisk->sectorsPerCylinder));
+
       break;
     }
 
-  // Set the new entry before calling setType, since it needs the entry
-  // to be in the table.
-  setPartitionEntry(numberPartitions, &newEntry);
-
-  status = setType(numberPartitions);
-  if (status >= 0)
+  if (newEntry.entryType == partition_logical)
     {
-      numberPartitions++;
+      // Create the extended partition.
 
-      // Regenerate the slice list
-      makeSliceList();
+      table = findLastTable(mainTable);
+      if (table == NULL)
+	return;
 
-      // Select our new slice
-      for (count = 0; count < numberSlices; count ++)
-	if (slices[count].startLogical == newEntry.startLogical)
-	  {
-	    selectedSlice = count;
-	    break;
-	  }
+      // Create an extended partition entry in this table with the same
+      // (current) parameters as the new partition.
+
+      memcpy(&extendedEntry, &newEntry, sizeof(slice));
+      extendedEntry.typeId = 0x0F;
+      extendedEntry.entryType = partition_extended;
+      
+      extendedTable = malloc(sizeof(partitionTable));
+      if (extendedTable == NULL)
+	{
+	  error("Unable to allocate a new extended table");
+	  return;
+	}
+      extendedTable->startSector = extendedEntry.startLogical;
+      extendedTable->maxEntries = 2;
+      extendedTable->extended = (table->extended + 1);
+      extendedEntry.extendedTable = extendedTable;
+
+      addPartitionEntry(table, &extendedEntry);
+
+      // Now we are working within our extended table
+      table = extendedTable;
+
+      // Adjust some values for the logical entry
+
+      // Don't write the first track of the extended partition
+      newEntry.startHead = 1;
+      newEntry.startLogical += selectedDisk->sectorsPerCylinder;
+      newEntry.sizeLogical -= selectedDisk->sectorsPerCylinder;
     }
   else
+    table = mainTable;
+
+  // Set the new entry before calling setType, since it needs the entry
+  // to be in the table.
+  newSliceNumber = addPartitionEntry(table, &newEntry);
+  if (newSliceNumber < 0)
     {
-      newEntry.type = 0;
-      setPartitionEntry(numberPartitions, &newEntry);
+      error("Unable to add new partition entry");
+      return;
     }
+
+  setType(slices[newSliceNumber].partition);
 
   return;
 }
@@ -2003,15 +2907,11 @@ static void create(void)
 
 static void deleteAll(void)
 {
-  slice delEntry;
-  int count;
+  // This function completely nukes the partition entries (as opposed to
+  // merely clearing type IDs, which is theoretically 'un-deletable').
 
-  bzero(&delEntry, sizeof(slice));
-
-  // Clear them all completely
-  for (count = 0; count < 4; count ++)
-    setPartitionEntry(count, &delEntry);
-
+  bzero(mainTable->entries, (DISK_MAX_PRIMARY_PARTITIONS * sizeof(slice)));
+  mainTable->numberEntries = 0;
   numberPartitions = 0;
 
   // Regenerate the slice list
@@ -2019,7 +2919,7 @@ static void deleteAll(void)
 
   selectedSlice = 0;
 
-  changesPending++;
+  changesPending += 1;
 }
 
 
@@ -2065,6 +2965,7 @@ static disk *chooseDiskDialog(void)
   cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
 
   // Make the window visible
+  windowSetHasMinimizeButton(chooseWindow, 0);
   windowSetHasCloseButton(chooseWindow, 0);
   windowSetResizable(chooseWindow, 0);
   windowSetVisible(chooseWindow, 1);
@@ -2198,7 +3099,8 @@ static int copyDisk(void)
   // the logical sector number of the end of the last partition.
   for (count1 = 0; count1 < numberPartitions; count1 ++)
     {
-      getPartitionEntry(count1, &entry);
+      if (getPartitionEntry(count1, &entry) < 0)
+	break;
 
       if ((entry.startLogical + entry.sizeLogical - 1) > lastUsedSector)
 	lastUsedSector = (entry.startLogical + entry.sizeLogical - 1);
@@ -2354,11 +3256,14 @@ static int copyDisk(void)
     {
       if (&diskInfo[count1] == destDisk)
 	{
-	  selectDisk(diskInfo[count1].deviceNumber);
+	  status = selectDisk(diskInfo[count1].deviceNumber);
+	  if (status < 0)
+	    return (status);
 
-	  for (count2 = 0; count2 < numberPartitions; count2 ++)
+	  for (count2 = 0; count2 < mainTable->numberEntries; count2 ++)
 	    {
-	      getPartitionEntry(count2, &entry);
+	      if (getPartitionEntry(count2, &entry) < 0)
+		break;
 		  
 	      // Starts past the end of the disk
 	      if (cancelled || (entry.startCylinder >= destDisk->cylinders))
@@ -2384,11 +3289,11 @@ static int copyDisk(void)
 		}
 	    }
 	
-	  // Write out the MBR
-	  status = writeMBR(destDisk->name);
-	  diskSync();
+	  // Write out the partition tables
+	  status = writePartitionTable(destDisk->name, mainTable);
 	  if (status < 0)
-	    error("Unable to write the MBR sector of the device.");
+	    error("Unable to write the partition table of %s.",
+		  destDisk->name);
 	  display();
 
 	  break;
@@ -2399,68 +3304,60 @@ static int copyDisk(void)
 }
 
 
-static void restoreBackup(const char *diskName)
+static void restoreBackup(void)
 {
-  // Restore the backed-up MBR from a file
+  // Restore the backed-up partition table from a file
 
   int status = 0;
-  fileStream backupFile;
+  file backupFile;
   char fileName[MAX_PATH_NAME_LENGTH];
+  unsigned char *buffer = NULL;
 
-  if (!yesOrNo("Restore old MBR from backup?"))
+  if (!yesOrNo("Restore old partition table from backup?"))
     return;
 
   // Clear stack data
-  bzero(&backupFile, sizeof(fileStream));
+  bzero(&backupFile, sizeof(file));
 
   // Construct the file name
-  sprintf(fileName, BACKUP_MBR, diskName);
+  sprintf(fileName, BACKUP_MBR, selectedDisk->name);
 
-  // Read a backup copy of the MBR
-  status = fileStreamOpen(fileName, OPENMODE_READ, &backupFile);
-  if (status >= 0)
+  // Read a backup copy of the partition tables
+  status = fileOpen(fileName, OPENMODE_READ, &backupFile);
+  if (status < 0)
     {
-      status = fileStreamRead(&backupFile, 512, diskMBR);
-      if (status < 0)
-	warning("Error reading backup MBR file");
-
-      fileStreamClose(&backupFile);
+      error("Error opening backup partition table file %s");
+      return;
     }
-  else
-    warning("Error opening backup MBR file");
+
+  buffer = malloc(backupFile.blocks * backupFile.blockSize);
+  if (buffer == NULL)
+    {
+      error("Error allocating backup partition table file memory");
+      return;
+    }
+
+  status = fileRead(&backupFile, 0, backupFile.blocks, buffer);
+  if (status < 0)
+    {
+      error("Error reading backup partition table file");
+      free(buffer);
+      return;
+    }
+  fileClose(&backupFile);
+
+  // Scan the backup buffer into the partition table
+  scanPartitionTable(selectedDisk->name, mainTable, buffer);
+
+  free(buffer);
 
   // Regenerate the slice list
-  scanPartitions();
   makeSliceList();
 
   // Don't write it.  The user has to do that explicitly.
-  changesPending++;
+  changesPending += 1;
 
   return;
-}
-
-
-static void quit(void)
-{
-  // Shut everything down
-
-  if (changesPending && !yesOrNo("Quit without writing changes?"))
-    return;
-
-  errno = 0;
-
-  if (graphics)
-    {
-      windowGuiStop();
-      windowDestroy(window);
-    }
-  else
-    {
-      printf("\nQuitting.\n");
-      //textScreenRestore();
-    }
-
-  exit(0);
 }
 
 
@@ -2473,7 +3370,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
       ((key == menuQuit) && (event->type == EVENT_MOUSE_LEFTUP)))
     {
-      quit();
+      quit(0);
       return;
     }
 
@@ -2482,8 +3379,9 @@ static void eventHandler(objectKey key, windowEvent *event)
 				 (event->type == EVENT_KEY_DOWN)))
     {
       int newSelected = windowComponentGetSelected(diskList);
-      if ((newSelected >= 0) && (&diskInfo[newSelected] != selectedDisk))
-	selectDisk(diskInfo[newSelected].deviceNumber);
+      if ((newSelected >= 0) && (newSelected != selectedDiskNumber))
+	if (selectDisk(diskInfo[newSelected].deviceNumber) < 0)
+	  windowComponentSetSelected(diskList, selectedDiskNumber);
     }
 
   // Check for clicks on our canvas diagram
@@ -2509,13 +3407,17 @@ static void eventHandler(objectKey key, windowEvent *event)
       if (selected >= 0)
 	selectedSlice = selected;
     }
-  
-  else if (((key == setActiveButton) || (key == menuSetActive)) &&
+
+  else if (((key == writeButton) || (key == menuWrite)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      if (slices[selectedSlice].type)
-	setActive(slices[selectedSlice].partition);
-    }
+    write(1);
+
+  else if (((key == undoButton) || (key == menuUndo)) && 
+	   (event->type == EVENT_MOUSE_LEFTUP))
+    undo();
+
+  else if ((key == menuRestoreBackup) && (event->type == EVENT_MOUSE_LEFTUP))
+    restoreBackup();
 
   else if (((key == copyDiskButton) || (key == menuCopyDisk)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
@@ -2524,23 +3426,48 @@ static void eventHandler(objectKey key, windowEvent *event)
 	error("Disk copy failed.");
     }
 
+  else if (((key == setActiveButton) || (key == menuSetActive)) &&
+	   (event->type == EVENT_MOUSE_LEFTUP))
+    {
+      if (slices[selectedSlice].typeId)
+	setActive(slices[selectedSlice].partition);
+    }
+
   else if (((key == deleteButton) || (key == menuDelete)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
-      if (slices[selectedSlice].type)
+      if (slices[selectedSlice].typeId)
 	delete(slices[selectedSlice].partition);
     }
+
+  else if (((key == formatButton) || (key == menuFormat)) &&
+	   (event->type == EVENT_MOUSE_LEFTUP))
+    format(slices[selectedSlice].partition);
+
+  else if (((key == hideButton) || (key == menuHide)) &&
+	   (event->type == EVENT_MOUSE_LEFTUP))
+    {
+      if (slices[selectedSlice].typeId)
+	hide(slices[selectedSlice].partition);
+    }
+
+  else if (((key == infoButton) || (key == menuInfo)) &&
+	   (event->type == EVENT_MOUSE_LEFTUP))
+    info(selectedSlice);
 
   else if ((key == menuListTypes) && (event->type == EVENT_MOUSE_LEFTUP))
     listTypes();
 
-  else if (((key == undoButton) || (key == menuUndo)) && 
+  else if (((key == moveButton) || (key == menuMove)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
-    undo();
+    {
+      if (slices[selectedSlice].typeId)
+	move(slices[selectedSlice].partition);
+    }
 
   else if (((key == newButton) || (key == menuNew)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
-    create();
+    create(selectedSlice);
 
   else if (((key == deleteAllButton) || (key == menuDeleteAll)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
@@ -2549,27 +3476,9 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if (((key == setTypeButton) || (key == menuSetType)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
     {
-      if (slices[selectedSlice].type)
+      if (slices[selectedSlice].typeId)
 	setType(slices[selectedSlice].partition);
     }
-
-  else if (((key == moveButton) || (key == menuMove)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      if (slices[selectedSlice].type)
-	move(slices[selectedSlice].partition);
-    }
-
-  else if (((key == writeButton) || (key == menuWrite)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
-    write(1);
-
-  else if ((key == menuRestoreBackup) && (event->type == EVENT_MOUSE_LEFTUP))
-    restoreBackup(selectedDisk->name);
-
-  else if (((key == formatButton) || (key == menuFormat)) &&
-	   (event->type == EVENT_MOUSE_LEFTUP))
-    format(slices[selectedSlice].partition);
 
   else
     return;
@@ -2586,7 +3495,7 @@ static void constructWindow(void)
   int status = 0;
   componentParameters params;
   static image iconImage;
-  objectKey titleContainer = NULL;
+  objectKey container = NULL;
   objectKey imageComponent = NULL;
   objectKey textLabel = NULL;
   objectKey systemFont = NULL;
@@ -2626,28 +3535,31 @@ static void constructWindow(void)
 
   // Create the top 'partition' menu
   objectKey menu3 = windowNewMenu(menuBar, "Partition", &params);
-  menuNew = windowNewMenuItem(menu3, "New", &params);
-  windowRegisterEventHandler(menuNew, &eventHandler);
   menuSetActive = windowNewMenuItem(menu3, "Set active", &params);
   windowRegisterEventHandler(menuSetActive, &eventHandler);
-  menuMove = windowNewMenuItem(menu3, "Move", &params);
-  windowRegisterEventHandler(menuMove, &eventHandler);
-  menuSetType = windowNewMenuItem(menu3, "Set type", &params);
-  windowRegisterEventHandler(menuSetType, &eventHandler);
-  menuListTypes = windowNewMenuItem(menu3, "List types", &params);
-  windowRegisterEventHandler(menuListTypes, &eventHandler);
   menuDelete = windowNewMenuItem(menu3, "Delete", &params);
   windowRegisterEventHandler(menuDelete, &eventHandler);
-  menuDeleteAll = windowNewMenuItem(menu3, "Delete all", &params);
-  windowRegisterEventHandler(menuDeleteAll, &eventHandler);
   menuFormat = windowNewMenuItem(menu3, "Format", &params);
   windowRegisterEventHandler(menuFormat, &eventHandler);
+  menuHide = windowNewMenuItem(menu3, "Hide/Unhide", &params);
+  windowRegisterEventHandler(menuHide, &eventHandler);
+  menuInfo = windowNewMenuItem(menu3, "Info", &params);
+  windowRegisterEventHandler(menuInfo, &eventHandler);
+  menuListTypes = windowNewMenuItem(menu3, "List types", &params);
+  windowRegisterEventHandler(menuListTypes, &eventHandler);
+  menuMove = windowNewMenuItem(menu3, "Move", &params);
+  windowRegisterEventHandler(menuMove, &eventHandler);
+  menuNew = windowNewMenuItem(menu3, "New", &params);
+  windowRegisterEventHandler(menuNew, &eventHandler);
+  menuDeleteAll = windowNewMenuItem(menu3, "Delete all", &params);
+  windowRegisterEventHandler(menuDeleteAll, &eventHandler);
+  menuSetType = windowNewMenuItem(menu3, "Set type", &params);
+  windowRegisterEventHandler(menuSetType, &eventHandler);
 
   // Create a container for the disk icon image and the title label
   params.gridY = 1;
-  params.gridWidth = 5;
-  titleContainer = windowNewContainer(window, "titleContainer", &params);
-  if (titleContainer != NULL)
+  container = windowNewContainer(window, "titleContainer", &params);
+  if (container != NULL)
     {
       if (iconImage.data == NULL)
 	// Try to load an icon image to go at the top of the window
@@ -2658,20 +3570,18 @@ static void constructWindow(void)
 	  iconImage.translucentColor.red = 0;
 	  iconImage.translucentColor.green = 255;
 	  iconImage.translucentColor.blue = 0;
-	  params.gridWidth = 1;
-	  imageComponent = windowNewImage(titleContainer, &iconImage,
+	  imageComponent = windowNewImage(container, &iconImage,
 					  draw_translucent, &params);
 	}
 
       // Put a title text label in the container
       params.gridX = 1;
-      textLabel = windowNewTextLabel(titleContainer, programName, &params);
+      textLabel = windowNewTextLabel(container, programName, &params);
     }
 
   // Make a list for the disks
   params.gridX = 0;
   params.gridY = 2;
-  params.gridWidth = 5;
   diskList = windowNewList(window, numberDisks, 1, 0, diskStrings,
 			   numberDisks, &params);
   windowRegisterEventHandler(diskList, &eventHandler);
@@ -2688,9 +3598,9 @@ static void constructWindow(void)
   params.gridY = 4;
   params.hasBorder = 0;
   params.font = systemFont;
-  textLabel = windowNewTextLabel(window, "Partitions           "
-				 "             cylinders   size (Mb)",
-				 &params);
+  textLabel =
+    windowNewTextLabel(window, "Partitions                cylinders   "
+		       "size (Mb)  attributes", &params);
 
   // Make a list for the partitions
   params.gridY = 5;
@@ -2700,53 +3610,68 @@ static void constructWindow(void)
 			    1, &params);
   windowRegisterEventHandler(sliceList, &eventHandler);
 
+  // A container for the buttons
   params.gridX = 0;
   params.gridY = 6;
-  params.gridWidth = 1;
   params.padTop = 10;
-  params.padBottom = 0;
-  params.font = NULL;
-  newButton = windowNewButton(window, "New", NULL, &params);
-  windowRegisterEventHandler(newButton, &eventHandler);
-
-  params.gridX = 1;
-  moveButton = windowNewButton(window, "Move", NULL, &params);
-  windowRegisterEventHandler(moveButton, &eventHandler);
-
-  params.gridX = 2;
-  copyDiskButton = windowNewButton(window, "Copy disk", NULL, &params);
-  windowRegisterEventHandler(copyDiskButton, &eventHandler);
-
-  params.gridX = 3;
-  deleteAllButton = windowNewButton(window, "Delete all", NULL, &params);
-  windowRegisterEventHandler(deleteAllButton, &eventHandler);
-
-  params.gridX = 4;
-  formatButton = windowNewButton(window, "Format", NULL, &params);
-  windowRegisterEventHandler(formatButton, &eventHandler);
-
-  params.gridX = 0;
-  params.gridY = 7;
-  params.padTop = 0;
   params.padBottom = 5;
-  setActiveButton = windowNewButton(window, "Set active", NULL, &params);
-  windowRegisterEventHandler(setActiveButton, &eventHandler);
+  container = windowNewContainer(window, "buttonContainer", &params);
+  if (container != NULL)
+    {
+      params.gridY = 0;
+      params.padBottom = 0;
+      params.font = NULL;
+      newButton = windowNewButton(container, "New", NULL, &params);
+      windowRegisterEventHandler(newButton, &eventHandler);
 
-  params.gridX = 1;
-  setTypeButton = windowNewButton(window, "Set type", NULL, &params);
-  windowRegisterEventHandler(setTypeButton, &eventHandler);
+      params.gridX = 1;
+      setActiveButton =
+	windowNewButton(container, "Set active", NULL, &params);
+      windowRegisterEventHandler(setActiveButton, &eventHandler);
 
-  params.gridX = 2;
-  deleteButton = windowNewButton(window, "Delete", NULL, &params);
-  windowRegisterEventHandler(deleteButton, &eventHandler);
+      params.gridX = 2;
+      moveButton = windowNewButton(container, "Move", NULL, &params);
+      windowRegisterEventHandler(moveButton, &eventHandler);
 
-  params.gridX = 3;
-  undoButton = windowNewButton(window, "Undo", NULL, &params);
-  windowRegisterEventHandler(undoButton, &eventHandler);
+      params.gridX = 3;
+      copyDiskButton = windowNewButton(container, "Copy disk", NULL, &params);
+      windowRegisterEventHandler(copyDiskButton, &eventHandler);
 
-  params.gridX = 4;
-  writeButton = windowNewButton(window, "Write changes", NULL, &params);
-  windowRegisterEventHandler(writeButton, &eventHandler);
+      params.gridX = 4;
+      formatButton = windowNewButton(container, "Format", NULL, &params);
+      windowRegisterEventHandler(formatButton, &eventHandler);
+
+      params.gridX = 5;
+      deleteAllButton =
+	windowNewButton(container, "Delete all", NULL, &params);
+      windowRegisterEventHandler(deleteAllButton, &eventHandler);
+
+      params.gridX = 0;
+      params.gridY = 1;
+      params.padTop = 0;
+      deleteButton = windowNewButton(container, "Delete", NULL, &params);
+      windowRegisterEventHandler(deleteButton, &eventHandler);
+
+      params.gridX = 1;
+      hideButton = windowNewButton(container, "Hide/unhide", NULL, &params);
+      windowRegisterEventHandler(hideButton, &eventHandler);
+
+      params.gridX = 2;
+      infoButton = windowNewButton(container, "Info", NULL, &params);
+      windowRegisterEventHandler(infoButton, &eventHandler);
+
+      params.gridX = 3;
+      setTypeButton = windowNewButton(container, "Set type", NULL, &params);
+      windowRegisterEventHandler(setTypeButton, &eventHandler);
+
+      params.gridX = 4;
+      undoButton = windowNewButton(container, "Undo", NULL, &params);
+      windowRegisterEventHandler(undoButton, &eventHandler);
+
+      params.gridX = 5;
+      writeButton = windowNewButton(container, "Write changes", NULL, &params);
+      windowRegisterEventHandler(writeButton, &eventHandler);
+    }
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
@@ -2763,6 +3688,9 @@ static int textMenu(void)
   int status = 0;
   char optionString[80];
   char character;
+  int isPartition = 0;
+  int isHide = 0;
+  int isMove = 0;
 
   // This is the main menu bit
   while (1)
@@ -2770,23 +3698,40 @@ static int textMenu(void)
       // Print out the partitions
       display();
 
+      isPartition = 0;
+      isHide = 0;
+      isMove = 0;
+
+      if (slices[selectedSlice].typeId)
+	{
+	  isPartition = 1;
+
+	  if (PARTITION_TYPEID_IS_HIDEABLE(slices[selectedSlice].typeId) ||
+	      PARTITION_TYPEID_IS_HIDDEN(slices[selectedSlice].typeId))
+	    isHide = 1;
+
+	  if (!ISLOGICAL(&slices[selectedSlice]))
+	    isMove = 1;
+	}
+
       // Print out the menu choices
-      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-	     ((slices[selectedSlice].type && !slices[selectedSlice].active)?
-	      "[A] Set active\n" : ""),
+      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	     (isPartition? "[A] Set active\n" : ""),
 	     "[C] Copy disk\n",
-	     (slices[selectedSlice].type? "[D] Delete\n" : ""),
-	     (slices[selectedSlice].type? "[F] Format\n" : ""),
-	     (slices[selectedSlice].type? "[M] Move\n" : ""),
+	     (isPartition? "[D] Delete\n" : ""),
+	     (isPartition? "[F] Format\n" : ""),
+	     (isHide? "[H] Hide/Unhide\n" : ""),
+	     "[I] Info\n",
 	     "[L] List types\n",
-	     (!slices[selectedSlice].type? "[N] New\n" : ""),
+	     (isMove? "[M] Move\n" : ""),
+	     (!isPartition? "[N] New\n" : ""),
 	     (numberPartitions? "[O] Delete all\n" : ""),
 	     "[Q] Quit\n",
+	     (backupAvailable? "[R] Restore backup\n" : ""),
 	     "[S] Select disk\n",
-	     (slices[selectedSlice].type? "[T] Set type\n" : ""),
+	     (isPartition? "[T] Set type\n" : ""),
 	     (changesPending? "[U] Undo\n" : ""),
-	     (changesPending? "[W] Write changes\n" : ""),
-	     (backupAvailable? "[R] Restore backup\n" : ""));
+	     (changesPending? "[W] Write changes\n" : ""));
 
       if (changesPending)
 	printf("  -== %d changes pending ==-\n", changesPending);
@@ -2794,16 +3739,16 @@ static int textMenu(void)
 
       // Construct the string of allowable options, corresponding to what is
       // shown above.
-      sprintf(optionString, "%sCc%s%sLl%s%s%s%sSsQq%s%s%s",
-	      ((slices[selectedSlice].type && !slices[selectedSlice].active)?
-	      "Aa" : ""),
-	      (slices[selectedSlice].type? "Dd" : ""),
-	      (slices[selectedSlice].type? "Ff" : ""),
-	      (slices[selectedSlice].type? "Mm" : ""),
-	      (!slices[selectedSlice].type? "Nn" : ""),
+      sprintf(optionString, "%sCc%s%s%sIiLl%s%s%sQq%sSs%s%s%s",
+	      (isPartition? "Aa" : ""),
+	      (isPartition? "Dd" : ""),
+	      (isPartition? "Ff" : ""),
+	      (isPartition? "Hh" : ""),
+	      (isMove? "Mm" : ""),
+	      (!isPartition? "Nn" : ""),
 	      (numberPartitions? "Oo" : ""),
 	      (backupAvailable? "Rr" : ""),
-	      (slices[selectedSlice].type? "Tt" : ""),
+	      (isPartition? "Tt" : ""),
 	      (changesPending? "Uu" : ""),
 	      (changesPending? "Ww" : ""));
 
@@ -2847,6 +3792,16 @@ static int textMenu(void)
 	  format(slices[selectedSlice].partition);
 	  continue;
 
+	case 'h':
+	case 'H':
+	  hide(slices[selectedSlice].partition);
+	  continue;
+
+	case 'i':
+	case 'I':
+	  info(selectedSlice);
+	  continue;
+
 	case 'l':
 	case 'L':
 	  listTypes();
@@ -2859,7 +3814,7 @@ static int textMenu(void)
 
 	case 'n':
 	case 'N':
-	  create();
+	  create(selectedSlice);
 	  continue;
 
 	case 'o':
@@ -2869,12 +3824,13 @@ static int textMenu(void)
 
 	case 'q':
 	case 'Q':
-	  quit();
+	  if (quit(0))
+	    return (status = 0);
 	  continue;
 	      
 	case 'r':
 	case 'R':
-	  restoreBackup(selectedDisk->name);
+	  restoreBackup();
 	  continue;
 	      
 	case 's':
@@ -2883,7 +3839,8 @@ static int textMenu(void)
 	  if (status < 0)
 	    {
 	      error("No disk selected.  Quitting.");
-	      quit();
+	      quit(1);
+	      return (status = ERR_CANCELLED);
 	    }
 	  continue;
 
@@ -2909,23 +3866,57 @@ static int textMenu(void)
 }
 
 
+static void freeMemory(void)
+{
+  // Free any malloc'ed global memory
+
+  if (diskInfo)
+    free(diskInfo);
+
+  if (diskStringData)
+    free(diskStringData);
+
+  if (mainTable)
+    {
+      // This will free anything allocated for extended partition tables, etc.
+      //deleteAll();
+
+      free(mainTable);
+    }
+
+  if (slices)
+    free(slices);
+}
+
+
 int main(int argc, char *argv[])
 {
   int status = 0;
   char opt;
+  int clearLabel = 0;
+  char tmpChar[80];
   int count;
+
+  // Are graphics enabled?
+  graphics = graphicsAreEnabled();
 
   // Check for -partlogic option.  If set, we call ourselves something
   // different
   programName = DISKMANAGER;
-  while ((opt = getopt(argc, argv, "p:")) != -1)
+  while ((opt = getopt(argc, argv, "p:To")) != -1)
     {
+      // Run as Partition Logic?
       if ((opt != ':') && !strcmp(optarg, "artlogic"))
 	programName = PARTLOGIC;
-    }
 
-  // Are graphics enabled?
-  graphics = graphicsAreEnabled();
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+
+      // Clear the partition table?
+      if (opt == 'o')
+	clearLabel = 1;
+    }
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -2938,10 +3929,30 @@ int main(int argc, char *argv[])
       return (errno = ERR_PERMISSION);
     }
 
-  // Get memory for strings about disks and partitions
-  char *tmp = malloc(DISK_MAXDEVICES * 128);
+  // Get memory for various things
+
+  diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
+  diskStringData = malloc(DISK_MAXDEVICES * MAX_DESCSTRING_LENGTH);
+  mainTable = malloc(sizeof(partitionTable));
+  slices = malloc(MAX_SLICES * sizeof(slice));
+  if ((diskInfo == NULL) || (diskStringData == NULL) || (mainTable == NULL) ||
+      (slices == NULL))
+    {
+      freeMemory();
+      return (status = errno = ERR_MEMORY);
+    }
   for (count = 0; count < DISK_MAXDEVICES; count ++)
-    diskStrings[count] = (tmp + (count * 128));
+    diskStrings[count] = (diskStringData + (count * MAX_DESCSTRING_LENGTH));
+
+  // Find out whether our temp or backup directories are on a read-only
+  // filesystem
+  bzero(diskInfo, sizeof(disk));
+  if (!fileGetDisk(TEMP_DIR, diskInfo) && !diskInfo->readOnly)
+    {
+      if (!fileGetDisk(BACKUP_DIR, diskInfo) && !diskInfo->readOnly)
+	readOnly = 0;
+    }
+  bzero(diskInfo, sizeof(disk));
 
   // Gather the disk info
   status = scanDisks();
@@ -2951,6 +3962,7 @@ int main(int argc, char *argv[])
 	error("No hard disks registered");
       else
 	error("Problem getting hard disk info");
+      freeMemory();
       return (errno = status);
     }
 
@@ -2958,36 +3970,79 @@ int main(int argc, char *argv[])
     {
       // There are no fixed disks
       error("No fixed disks to manage.  Quitting.");
-      errno = status;
-      return (status);
+      freeMemory();
+      return (errno = status);
     }
 
-  if (!graphics)
+  if (graphics)
+    {
+      constructWindow();
+    }
+  else
     {
       //textScreenSave();
       printBanner();
     }
 
-  // If we're in text mode, the user must first select a disk
-  if (!graphics && (numberDisks > 1))
+  // The user can specify the disk name as an argument.  Try to see
+  // whether they did so.
+  if (argc > 1)
     {
-      status = queryDisk();
-      if (status < 0)
+      for (count = 0; count < numberDisks; count ++)
+	if (!strcmp(diskInfo[count].name, argv[argc - 1]))
+	  {
+	    if (clearLabel)
+	      {
+		// If the disk is specified, we can clear the label
+		selectedDiskNumber = count;
+		selectedDisk = &diskInfo[count];
+		sprintf(tmpChar, "Clear the partition table of disk %s?",
+			selectedDisk->name);
+		if (yesOrNo(tmpChar))
+		  {
+		    changesPending = 1;
+		    write(0);
+		  }
+	      }
+	    
+	    selectDisk(diskInfo[count].deviceNumber);
+	    break;
+	  }
+    }
+
+  if (selectedDisk == NULL)
+    {
+      // If we're in text mode, the user must first select a disk
+      if (!graphics && (numberDisks > 1))
 	{
-	  printf("\n\nNo disk selected.  Quitting.\n\n");
-	  return (errno = status);
+	  status = queryDisk();
+	  if (status < 0)
+	    {
+	      printf("\n\nNo disk selected.  Quitting.\n\n");
+	      freeMemory();
+	      return (errno = status);
+	    }
+	}
+      else
+	{
+	  status = selectDisk(diskInfo[0].deviceNumber);
+	  if (status < 0)
+	    {
+	      freeMemory();
+	      return (errno = status);
+	    }
 	}
     }
-  else
-    selectDisk(diskInfo[0].deviceNumber);
 
   if (graphics)
     {
-      constructWindow();
       display();
       windowGuiRun();
-      return (status = 0);
+      status = 0;
     }
   else
-    return (status = textMenu());
+    status = textMenu();
+
+  freeMemory();
+  return (status);
 }

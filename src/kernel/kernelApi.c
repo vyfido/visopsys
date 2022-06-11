@@ -33,7 +33,7 @@
 #include "kernelRtc.h"
 #include "kernelShutdown.h"
 #include "kernelMiscFunctions.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelRandom.h"
 #include "kernelUser.h"
 #include "kernelEncrypt.h"
@@ -134,6 +134,7 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskGetPhysicalInfo, kernelDiskGetPhysicalInfo, 1, PRIVILEGE_USER },
   { _fnum_diskGetPartType, kernelDiskGetPartType, 2, PRIVILEGE_USER },
   { _fnum_diskGetPartTypes, kernelDiskGetPartTypes, 0, PRIVILEGE_USER },
+  { _fnum_diskSetLockState, kernelDiskSetLockState, 2, PRIVILEGE_USER },
   { _fnum_diskSetDoorState, kernelDiskSetDoorState, 2, PRIVILEGE_USER },
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
   { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
@@ -163,6 +164,7 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   // File functions (4000-4999 range)
 
   { _fnum_fileFixupPath, kernelFileFixupPath, 2, PRIVILEGE_USER },
+  { _fnum_fileSeparateLast, kernelFileSeparateLast, 3, PRIVILEGE_USER },
   { _fnum_fileGetDisk, kernelFileGetDisk, 2, PRIVILEGE_USER },
   { _fnum_fileFirst, kernelFileFirst, 2, PRIVILEGE_USER },
   { _fnum_fileNext, kernelFileNext, 2, PRIVILEGE_USER },
@@ -179,6 +181,7 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileCopyRecursive, kernelFileCopyRecursive, 2, PRIVILEGE_USER },
   { _fnum_fileMove, kernelFileMove, 2, PRIVILEGE_USER },
   { _fnum_fileTimestamp, kernelFileTimestamp, 1, PRIVILEGE_USER },
+  { _fnum_fileGetTemp, kernelFileGetTemp, 1, PRIVILEGE_USER },
   { _fnum_fileStreamOpen, kernelFileStreamOpen, 3, PRIVILEGE_USER },
   { _fnum_fileStreamSeek, kernelFileStreamSeek, 2, PRIVILEGE_USER },
   { _fnum_fileStreamRead, kernelFileStreamRead, 3, PRIVILEGE_USER },
@@ -213,16 +216,14 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
   { _fnum_multitaskerSpawn, kernelMultitaskerSpawn, 4, PRIVILEGE_USER },
   { _fnum_multitaskerGetCurrentProcessId, kernelMultitaskerGetCurrentProcessId,
     0, PRIVILEGE_USER },
-  { _fnum_multitaskerGetProcessOwner, kernelMultitaskerGetProcessOwner,
-    1, PRIVILEGE_USER },
-  { _fnum_multitaskerGetProcessName, kernelMultitaskerGetProcessName,
-    1, PRIVILEGE_USER },
-  { _fnum_multitaskerGetProcessState, kernelMultitaskerGetProcessState,
+  { _fnum_multitaskerGetProcess, kernelMultitaskerGetProcess,
+    2, PRIVILEGE_USER },
+  { _fnum_multitaskerGetProcessByName, kernelMultitaskerGetProcessByName,
+    2, PRIVILEGE_USER },
+  { _fnum_multitaskerGetProcesses, kernelMultitaskerGetProcesses,
     2, PRIVILEGE_USER },
   { _fnum_multitaskerSetProcessState, kernelMultitaskerSetProcessState,
     2, PRIVILEGE_USER },
-  { _fnum_multitaskerGetProcessPriority, kernelMultitaskerGetProcessPriority,
-    1, PRIVILEGE_USER },
   { _fnum_multitaskerSetProcessPriority, kernelMultitaskerSetProcessPriority,
     2, PRIVILEGE_USER },
   { _fnum_multitaskerGetProcessPrivilege, kernelMultitaskerGetProcessPrivilege,
@@ -252,9 +253,7 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
   { _fnum_multitaskerKillByName, kernelMultitaskerKillByName, 2,
     PRIVILEGE_USER },
   { _fnum_multitaskerTerminate, kernelMultitaskerTerminate,
-    1, PRIVILEGE_USER },
-  { _fnum_multitaskerDumpProcessList, kernelMultitaskerDumpProcessList,
-    0, PRIVILEGE_USER }
+    1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex loaderFunctionIndex[] = {
@@ -350,16 +349,20 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowSetLocation, kernelWindowSetLocation, 3, PRIVILEGE_USER },
   { _fnum_windowPack, kernelWindowPack, 1, PRIVILEGE_USER },
   { _fnum_windowCenter, kernelWindowCenter, 1, PRIVILEGE_USER },
+  { _fnum_windowSnapIcons, kernelWindowSnapIcons, 1, PRIVILEGE_USER },
   { _fnum_windowSetHasBorder, kernelWindowSetHasBorder, 2, PRIVILEGE_USER },
   { _fnum_windowSetHasTitleBar, kernelWindowSetHasTitleBar,
     2, PRIVILEGE_USER },
   { _fnum_windowSetMovable, kernelWindowSetMovable, 2, PRIVILEGE_USER },
   { _fnum_windowSetResizable, kernelWindowSetResizable, 2, PRIVILEGE_USER },
   { _fnum_windowSetPacked, kernelWindowSetPacked, 2, PRIVILEGE_USER },
+  { _fnum_windowSetHasMinimizeButton, kernelWindowSetHasMinimizeButton,
+    2, PRIVILEGE_USER },
   { _fnum_windowSetHasCloseButton, kernelWindowSetHasCloseButton,
     2, PRIVILEGE_USER },
   { _fnum_windowSetColors, kernelWindowSetColors, 2, PRIVILEGE_USER },
   { _fnum_windowSetVisible, kernelWindowSetVisible, 2, PRIVILEGE_USER },
+  { _fnum_windowSetMinimized, kernelWindowSetMinimized, 2, PRIVILEGE_USER },
   { _fnum_windowAddConsoleTextArea, kernelWindowAddConsoleTextArea,
     2, PRIVILEGE_USER },
   { _fnum_windowRedrawArea, kernelWindowRedrawArea, 4, PRIVILEGE_USER },
@@ -401,7 +404,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowNewCanvas, kernelWindowNewCanvas, 4, PRIVILEGE_USER },
   { _fnum_windowNewCheckbox, kernelWindowNewCheckbox, 3, PRIVILEGE_USER },
   { _fnum_windowNewContainer, kernelWindowNewContainer, 3, PRIVILEGE_USER },
-  { _fnum_windowNewIcon, kernelWindowNewIcon, 5, PRIVILEGE_USER },
+  { _fnum_windowNewIcon, kernelWindowNewIcon, 4, PRIVILEGE_USER },
   { _fnum_windowNewImage, kernelWindowNewImage, 4, PRIVILEGE_USER },
   { _fnum_windowNewList, kernelWindowNewList, 7, PRIVILEGE_USER },
   { _fnum_windowNewListItem, kernelWindowNewListItem, 3, PRIVILEGE_USER },

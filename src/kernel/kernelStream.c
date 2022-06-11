@@ -26,8 +26,9 @@
 #include "kernelStream.h"
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
-#include <sys/errors.h>
 #include <string.h>
+#include <stdlib.h>
+#include <sys/errors.h>
 
 
 static int clear(stream *theStream)
@@ -45,7 +46,7 @@ static int clear(stream *theStream)
   kernelMemClear(theStream->buffer, theStream->buffSize);
 
   theStream->first = 0;
-  theStream->next = 0;
+  theStream->last = 0;
   theStream->count = 0;
 
   // Return success
@@ -65,14 +66,14 @@ static int appendByte(stream *theStream, unsigned char byte)
     return (status = ERR_NULLPARAMETER);
 
   // Add the character
-  theStream->buffer[theStream->next++] = byte;
+  theStream->buffer[theStream->last++] = byte;
 
   // Increase the count
   theStream->count++;
 
   // Watch for buffer-wrap
-  if (theStream->next >= theStream->size)
-    theStream->next = 0;
+  if (theStream->last >= theStream->size)
+    theStream->last = 0;
 
   // Return success
   return (status = 0);
@@ -91,16 +92,14 @@ static int appendDword(stream *theStream, unsigned dword)
     return (status = ERR_NULLPARAMETER);
 
   // Add the dword
-  *((unsigned *)(theStream->buffer + (theStream->next * sizeof(unsigned)))) =
-    dword;
+  ((unsigned *) theStream->buffer)[theStream->last++] = dword;
 
   // Increase the count
-  theStream->next++;
   theStream->count++;
 
   // Watch for buffer-wrap
-  if (theStream->next >= theStream->size)
-    theStream->next = 0;
+  if (theStream->last >= theStream->size)
+    theStream->last = 0;
 
   // Return success
   return (status = 0);
@@ -124,15 +123,15 @@ static int appendBytes(stream *theStream, unsigned number,
   while (added < number)
     {
       // Add 1 character
-      theStream->buffer[theStream->next++] = buffer[added++];
-
+      theStream->buffer[theStream->last++] = buffer[added++];
+      
       // Watch for buffer-wrap
-      if (theStream->next >= theStream->size)
-	theStream->next = 0;
+      if (theStream->last >= theStream->size)
+	theStream->last = 0;
     }
 
   // Increase the count
-  theStream->count += number;
+  theStream->count = min((theStream->count + number), theStream->size);
 
   // Return success
   return (status = 0);
@@ -155,19 +154,15 @@ static int appendDwords(stream *theStream, unsigned number, unsigned *buffer)
   while (added < number)
     {
       // Add 1 dword
-      *((unsigned *)
-	(theStream->buffer + (theStream->next * sizeof(unsigned)))) =
-	buffer[added++];
-
-      theStream->next++;      
+      ((unsigned *) theStream->buffer)[theStream->last++] = buffer[added++];
 
       // Watch for buffer-wrap
-      if (theStream->next >= theStream->size)
-	theStream->next = 0;
+      if (theStream->last >= theStream->size)
+	theStream->last = 0;
     }
 
   // Increase the count
-  theStream->count += number;
+  theStream->count = min((theStream->count + number), theStream->size);
 
   // Return success
   return (status = 0);
@@ -222,8 +217,7 @@ static int pushDword(stream *theStream, unsigned dword)
     theStream->first = (theStream->size - 1);
   
   // Add the byte to the head of the buffer
-  *((unsigned *)(theStream->buffer + (theStream->first * sizeof(unsigned)))) =
-    dword;
+  ((unsigned *) theStream->buffer)[theStream->first] = dword;
 
   // Increase the count
   theStream->count++;
@@ -300,9 +294,7 @@ static int pushDwords(stream *theStream, unsigned number, unsigned *buffer)
 	theStream->first = (theStream->size - 1);
   
       // Add the byte to the head of the buffer
-      *((unsigned *)
-	(theStream->buffer + (theStream->first * sizeof(unsigned)))) =
-	buffer[--number];
+      ((unsigned *) theStream->buffer)[theStream->first] = buffer[--number];
 
       added++;
     }
@@ -364,15 +356,10 @@ static int popDword(stream *theStream, unsigned *dword)
     return (status = ERR_NODATA);
 
   // Get the byte at the head of the buffer
-  *dword = *((unsigned *)
-	     (theStream->buffer + (theStream->first * sizeof(unsigned))));
+  *dword = ((unsigned *) theStream->buffer)[theStream->first];
 
-  // Put a new NULL at the head of the buffer
-  *((unsigned *)
-    (theStream->buffer + (theStream->first * sizeof(unsigned)))) = NULL;
-
-  // Increment the head
-  theStream->first++;
+  // Put a new NULL at the head of the buffer and increment the head
+  ((unsigned *) theStream->buffer)[theStream->first++] = NULL;
 
   // Watch out for wrap-around
   if (theStream->first >= theStream->size)
@@ -452,16 +439,11 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
 	break;
 
       // Get the dword at the head of the buffer
-      buffer[removed++] =
-	*((unsigned *)(theStream->buffer +
-		       (theStream->first * sizeof(unsigned))));
+      buffer[removed++] = ((unsigned *) theStream->buffer)[theStream->first];
 
       // Put a new NULL at this spot in the stream's buffer
-      *((unsigned *)
-	(theStream->buffer + (theStream->first * sizeof(unsigned)))) = NULL;
+      ((unsigned *) theStream->buffer)[theStream->first++] = NULL;
       
-      theStream->first++;
-
       // Watch out for wrap-around
       if (theStream->first >= theStream->size)
 	theStream->first = 0;
@@ -486,8 +468,7 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
 
 int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 {
-  // Gets memory, initializes, clears out, and prepares the new stream.
-  // Returns a pointer to the stream if successful, NULL otherwise
+  // Gets memory, initializes, clears out, and prepares the new stream
 
   int status = 0;
 
@@ -545,6 +526,27 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
       theStream->popN = (int(*)(void *, unsigned, ...)) &popDwords;
       break;
     }
+
+  // Cool.
+  return (status = 0);
+}
+
+
+int kernelStreamDestroy(stream *theStream)
+{
+  // Frees memory and clears out the stream.
+
+  int status = 0;
+
+  // Check parameters
+  if (theStream == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // Free memory
+  kernelFree(theStream->buffer);
+
+  // Clear it
+  kernelMemClear(theStream, sizeof(stream));
 
   // Cool.
   return (status = 0);

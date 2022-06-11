@@ -1,0 +1,8 @@
+
+ -- uname --
+
+Prints the Visopsys version.
+
+Usage:
+  uname
+

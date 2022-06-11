@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowMenuItem objects.  These are
 // selectable items that occur inside of kernelWindowMenu components.
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMiscFunctions.h"
 #include <string.h>
 

@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  api2html.sh
+##
 
 # This is used against the kernel API header file, as well as the VSH
 # and window library header files, to generate a simple formatted HTML

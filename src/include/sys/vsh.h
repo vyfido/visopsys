@@ -30,10 +30,12 @@
 // Functions
 void vshCompleteFilename(char *);
 int vshCopyFile(const char *, const char *);
+int vshCursorMenu(const char *, int, char *[], int);
 int vshDeleteFile(const char *);
 int vshDumpFile(const char *);
 int vshFileList(const char *);
 void vshMakeAbsolutePath(const char *, char *);
+int vshParseCommand(char *, char *, int *, char *[]);
 void vshPasswordPrompt(const char *, char *);
 void vshPrintDate(unsigned);
 void vshPrintTime(unsigned);

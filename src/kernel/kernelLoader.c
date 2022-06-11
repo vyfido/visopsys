@@ -331,7 +331,6 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   newProcId = kernelMultitaskerCreateProcess(loadAddress, theFile.size,
 					     procName, privilege,
 					     2, &argStruct);
-
   if (newProcId < 0)
     {
       // Release the memory we allocated for the program
@@ -365,7 +364,7 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
 	    {
 	      // Leave space for pointers to the strings
 	      argSpace = (argStruct.argv + ((argc + 2) * sizeof(char *)));
-	  
+
 	      // Copy the executable name into argv[0]
 	      length = strlen(procName);
 	      strcpy(argSpace, procName);
@@ -429,8 +428,7 @@ int kernelLoaderExecProgram(int processId, int block)
   int status = 0;
   
   // Start user program's process
-  status = kernelMultitaskerSetProcessState(processId, ready);
-
+  status = kernelMultitaskerSetProcessState(processId, proc_ready);
   if (status < 0)
     {
       kernelError(kernel_error, "The loader could not execute this program");

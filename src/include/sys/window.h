@@ -44,8 +44,9 @@
 #define EVENT_KEY_DOWN           0x0100
 #define EVENT_KEY_UP             0x0200
 #define EVENT_MASK_KEY           0x0F00
-#define EVENT_WINDOW_CLOSE       0x1000
-#define EVENT_WINDOW_RESIZE      0x2000
+#define EVENT_WINDOW_MINIMIZE    0x1000
+#define EVENT_WINDOW_CLOSE       0x2000
+#define EVENT_WINDOW_RESIZE      0x4000
 #define EVENT_MASK_WINDOW        0xF000
 
 // The maximum numbers of window things
@@ -155,10 +156,11 @@ typedef struct {
 
 void windowCenterDialog(objectKey, objectKey);
 int windowClearEventHandlers(void);
-int windowNewColorDialog(objectKey, color *);
 void windowGuiRun(void);
 void windowGuiStop(void);
 void windowGuiThread(void);
+objectKey windowNewBannerDialog(objectKey, const char *, const char *);
+int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, char *,
 			unsigned);

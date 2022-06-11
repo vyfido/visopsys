@@ -22,7 +22,9 @@
 // This command will display an image file in a new window.
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
 #include <sys/api.h>
@@ -42,18 +44,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char tmpFilename[MAX_PATH_NAME_LENGTH];
-  char filename[MAX_PATH_NAME_LENGTH];
   int processId = 0;
+  char *tmpFilename = NULL;
+  char *filename = NULL;
   componentParameters params;
   image showImage;
   objectKey imageComponent = NULL;
-  int count;
-
-  // Make sure none of our arguments are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
+  char *tmpChar = NULL;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -63,27 +60,34 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  // We need our process ID to create the window
   processId = multitaskerGetCurrentProcessId();
+
+  tmpFilename = malloc(MAX_PATH_NAME_LENGTH);
+  filename = malloc(MAX_PATH_NAME_LENGTH);
+  tmpChar = malloc(MAX_PATH_NAME_LENGTH + 8);
+
+  if ((tmpFilename == NULL) || (filename == NULL) || (tmpChar == NULL))
+    {
+      status = ERR_MEMORY;
+      perror(argv[0]);
+      goto deallocate;
+    }
 
   if (argc < 2)
     {
-      status = windowNewFileDialog(window, "Enter filename", "Please enter an "
-				   "image file to view:", tmpFilename, 128);
+      status = windowNewFileDialog(NULL, "Enter filename", "Please enter "
+				   "an image file to view:", tmpFilename,
+				   MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{
-	  if (status == 0)
-	    return (status);
-
-	  printf("No filename specified\n");
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
+	  if (status != 0)
+	    perror(argv[0]);
+	  
+	  goto deallocate;
 	}
     }
-  
   else
-    strcpy(tmpFilename, argv[1]);
+    strcpy(tmpFilename, argv[argc - 1]);
 
   // Turn it into an absolute pathname
   vshMakeAbsolutePath(tmpFilename, filename);
@@ -93,13 +97,13 @@ int main(int argc, char *argv[])
   if (status < 0)
     {
       printf("Unable to load image \"%s\"\n", filename);
-      errno = status;
       perror(argv[0]);
-      return (status);
+      goto deallocate;
     }
   
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, tmpFilename);
+  sprintf(tmpChar, "View \"%s\"", tmpFilename);
+  window = windowNew(processId, tmpChar);
 
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
@@ -122,7 +126,16 @@ int main(int argc, char *argv[])
   // Destroy the window
   windowDestroy(window);
 
-  // Return success
-  errno = 0;
-  return (status = 0);
+  status = 0;
+
+ deallocate:
+  if (tmpFilename)
+    free(tmpFilename);
+  if (filename)
+    free(filename);
+  if (tmpChar)
+    free(tmpChar);
+
+  errno = status;
+  return (status);
 }

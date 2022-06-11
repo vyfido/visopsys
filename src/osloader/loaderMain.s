@@ -154,7 +154,7 @@ loaderMain:
 	jne .noPrint1
 	call printBootDevice
 	.noPrint1:	
-	
+
 	;; Set up the GDT (Global Descriptor Table) for "big real mode"
 	;; and protected mode
 	call gdtSetup
@@ -169,7 +169,7 @@ loaderMain:
 
 	;; Call the routine to do the hardware detection
 	call loaderDetectHardware
-	
+
 	;; Do a fatal error check before loading
 	call fatalErrorCheck
 
@@ -1058,7 +1058,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.42' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.5' , 0
 LOADMSG2	db 'Copyright (C) 1998-2004 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0

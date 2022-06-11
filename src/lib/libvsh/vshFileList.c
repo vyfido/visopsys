@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 

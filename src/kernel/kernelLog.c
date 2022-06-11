@@ -30,6 +30,7 @@
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/errors.h>
 
 
 static volatile int logToConsole = 0;
@@ -51,7 +52,7 @@ static int flushLogStream(void)
   char buffer[512];
 
   // Take the contents of the log stream...
-  while (logStream.popN(&logStream, 511, buffer) > 0)
+  while (logStream.popN(&logStream, 512, buffer) > 0)
     {
       // ...and write them to the log file
       status = kernelFileStreamWriteStr(logFileStream, buffer);
@@ -287,10 +288,7 @@ int kernelLogShutdown(void)
       // Close the log file
       status = kernelFileStreamClose(logFileStream);
       if (status < 0)
-	{
-	  kernelError(kernel_error, "Unable to close the kernel log file");
-	  return (status);
-	}
+	kernelError(kernel_warn, "Unable to close the kernel log file");
       
       logToFile = 0;
     }

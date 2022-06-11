@@ -35,7 +35,6 @@
 #define DEFAULT_DESKTOP_RED       40
 #define DEFAULT_DESKTOP_GREEN     93
 #define DEFAULT_DESKTOP_BLUE      171
-#define DEFAULT_SPLASH            "/system/visopsys.bmp"
 
 // Structure to represent a drawing area
 typedef volatile struct

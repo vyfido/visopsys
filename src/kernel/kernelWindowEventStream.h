@@ -25,10 +25,11 @@
 
 #if !defined(_KERNELWINDOWEVENTSTREAM_H)
 
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 
 // Functions exported by kernelWindowEventStream.c
 int kernelWindowEventStreamNew(volatile windowEventStream *);
+int kernelWindowEventStreamPeek(volatile windowEventStream *);
 int kernelWindowEventStreamRead(volatile windowEventStream *, windowEvent *);
 int kernelWindowEventStreamWrite(volatile windowEventStream *, windowEvent *);
 

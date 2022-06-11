@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/api.h>
 
 
@@ -37,8 +38,8 @@ static void usage(char *name)
 
 int main(int argc, char *argv[])
 {
-  // This command will prompt the multitasker to kill the process with
-  // the supplied process id
+  // This command will prompt the multitasker to set the priority of the
+  // process with the supplied process id
   
   int status = 0;
   int processId = 0;
@@ -74,10 +75,9 @@ int main(int argc, char *argv[])
 	  usage(argv[0]);
 	  return (status = errno);
 	}
-
-      // Kill a process
+      
+      // Set the process
       status = multitaskerSetProcessPriority(processId, newPriority);
-
       if (status < 0)
 	{
 	  errno = status;

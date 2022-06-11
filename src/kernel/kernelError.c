@@ -22,10 +22,11 @@
 #include "kernelError.h"
 #include "kernelLog.h"
 #include "kernelMiscFunctions.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelMultitasker.h"
 #include <string.h>
 #include <stdio.h>
+#include <sys/errors.h>
 
 
 static void errorDialogThread(int numberArgs, void *args[])

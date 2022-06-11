@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowCheckbox objects.
 
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>
@@ -57,22 +57,21 @@ static int draw(void *componentData)
 
   if (checkbox->selected)
     {
-      kernelGraphicDrawLine(buffer,
-			    (color *) &(component->parameters.foreground),
-			    draw_normal, component->xCoord, yCoord,
-			    (component->xCoord + (CHECKBOX_SIZE - 1)),
-			    (yCoord + (CHECKBOX_SIZE - 1)));
-      kernelGraphicDrawLine(buffer,
-			    (color *) &(component->parameters.foreground),
-			    draw_normal, component->xCoord,
-			    (yCoord + (CHECKBOX_SIZE - 1)),
-			    (component->xCoord + (CHECKBOX_SIZE - 1)), yCoord);
+      kernelGraphicDrawLine(buffer, &((color){0, 0, 0}), draw_normal,
+			    (component->xCoord + 2), (yCoord + 2),
+			    (component->xCoord + (CHECKBOX_SIZE - 3)),
+			    (yCoord + (CHECKBOX_SIZE - 3)));
+      kernelGraphicDrawLine(buffer, &((color){0, 0, 0}), draw_normal,
+			    (component->xCoord + 2),
+			    (yCoord + (CHECKBOX_SIZE - 3)),
+			    (component->xCoord + (CHECKBOX_SIZE - 3)),
+			    (yCoord + 2));
     }
 
   kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
 			(color *) &(component->parameters.background),
-			component->parameters.font, checkbox->text, draw_normal,
-			(component->xCoord + CHECKBOX_SIZE + 3),
+			component->parameters.font, checkbox->text,
+			draw_normal, (component->xCoord + CHECKBOX_SIZE + 3),
 			(component->yCoord));
 
   if (component->parameters.hasBorder)
@@ -145,18 +144,19 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
 static int keyEvent(void *componentData, windowEvent *event)
 {
-  // We allow the user to control the list widget with key presses, such
-  // as cursor movements.
+  // We allow the user to control the checkbox widget with 'space bar' key
+  // presses, to select or deselect the item.
 
   int status = 0;
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
 
-  if ((event->type == EVENT_KEY_DOWN) && (event->key == 32))
+  // Translate this into a mouse down event.
+  if ((event->type & EVENT_MASK_KEY) && (event->key == 32))
     {
-      if (((kernelWindowCheckbox *) component->data)->selected)
-	setSelected(componentData, 0);
-      else
-	setSelected(componentData, 1);
+      if (event->type == EVENT_KEY_DOWN)
+	event->type = EVENT_MOUSE_LEFTDOWN;
+      if (event->type == EVENT_KEY_UP)
+	event->type = EVENT_MOUSE_LEFTUP;
+      status = mouseEvent(componentData, event);
     }
 
   return (status);

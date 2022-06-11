@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
 
@@ -39,8 +40,11 @@ static void makeTime(void)
 {
   struct tm time;
 
+  bzero(&time, sizeof(struct tm));
+
   // Get the current date and time structure
-  rtcDateTime(&time);
+  if (rtcDateTime(&time) < 0)
+    return;
 
   // Turn it into a string
   sprintf(timeString, "%s %s %d - %02d:%02d", weekDay[time.tm_wday],
@@ -53,6 +57,7 @@ static void makeTime(void)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  int processId = 0;
   objectKey window = NULL;
   objectKey label = NULL;
   componentParameters params;
@@ -66,8 +71,10 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
+  processId = multitaskerGetCurrentProcessId();
+
   // Create a new window, with small, arbitrary size and location
-  window = windowNew(multitaskerGetCurrentProcessId(), "Clock");
+  window = windowNew(processId, "Clock");
   if (window == NULL)
     return (status = ERR_NOTINITIALIZED);
 
@@ -88,16 +95,12 @@ int main(int argc, char *argv[])
   label = windowNewTextLabel(window, timeString, &params);
   
   // No title bar
-  params.font = NULL;
   windowSetHasTitleBar(window, 0);
-
-  // Do the layout
-  windowPack(window);
 
   // Put it in the bottom right corner
   windowGetSize(window, &width, &height);
   windowSetLocation(window, (graphicGetScreenWidth() - width),
-		    (graphicGetScreenHeight() - height));
+   		    (graphicGetScreenHeight() - height));
   
   // Make it visible
   windowSetVisible(window, 1);
@@ -108,7 +111,4 @@ int main(int argc, char *argv[])
       windowComponentSetData(label, timeString, (strlen(timeString) + 1));
       multitaskerWait(20);
     }
-
-  // Done
-  return (0);
 }

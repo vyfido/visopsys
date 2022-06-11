@@ -23,8 +23,10 @@
 // in both text and graphics modes.
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/api.h>
 
 static int graphics = 0;
@@ -157,12 +159,26 @@ static void constructWindow(void)
 
 int main(int argc, char *argv[])
 {
+  char opt;
   char *buffPtr = NULL;
   int names = 0;
   int count;
   
+  if ((argc > 1) && (argv[argc - 1][0] != '-'))
+    {
+      // The user wants to set the keyboard map
+      return (setMap(argv[argc - 1]));
+    }
+
   // Graphics enabled?
   graphics = graphicsAreEnabled();
+
+  while ((opt = getopt(argc, argv, "T")) != -1)
+    {
+      // Force text mode?
+      if (opt == 'T')
+	graphics = 0;
+    }
 
   errno = getMapNames();
   if (errno)
@@ -182,14 +198,6 @@ int main(int argc, char *argv[])
   else
     {
       printf("\n");
-
-      if (argc > 1)
-	{
-	  // The user wants to set the keyboard map
-	  errno = setMap(argv[1]);
-	  if (errno)
-	    return (errno);
-	}
 
       // Print the list of keyboard maps
       names = keyboardGetMaps(mapBuffer, 1024);

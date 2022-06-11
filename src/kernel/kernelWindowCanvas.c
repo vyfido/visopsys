@@ -22,7 +22,7 @@
 // This code is for managing kernelWindowCanvas objects.
 // These are just kernelWindowImage components that can be drawn upon.
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMemoryManager.h"
 #include "kernelMiscFunctions.h"
@@ -162,9 +162,9 @@ kernelWindowComponent *kernelWindowNewCanvas(volatile void *parent,
 
   // Get the kernelWindowImage that underlies this canvas
   component = kernelWindowNewImage(parent, &tmpImage, draw_normal, params);
-      
+
   // Free our temporary image data
-  kernelMemoryRelease(tmpImage.data);
+  kernelFree(tmpImage.data);
       
   if (component == NULL)
     return (component);

@@ -22,7 +22,8 @@
 // This code is for managing kernelWindowMenuBar objects.
 // These are just images that appear inside windows and buttons, etc
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindowEventStream.h"
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>
@@ -31,7 +32,8 @@
 static kernelAsciiFont *menuBarFont = NULL;
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;
-static int (*saveDraw) (void *) = NULL;
+static int (*saveMenuMouseEvent) (void *, windowEvent *) = NULL;
+static int (*saveContainerDraw) (void *) = NULL;
 
 
 static void menuSetVisible(kernelWindowComponent *menuBarComponent,
@@ -58,9 +60,10 @@ static void menuSetVisible(kernelWindowComponent *menuBarComponent,
     {
       kernelGraphicDrawGradientBorder(&(window->buffer),
 	      menuComponent->xCoord, menuBarComponent->yCoord,
-	      (kernelFontGetPrintedWidth(menuBarFont,
-			 (const char *) menu->name) + (borderThickness * 2)),
-	      (menuBarFont->charHeight + (borderThickness * 2)),
+	      (kernelFontGetPrintedWidth(menuBarComponent->parameters.font,
+		 (const char *) menu->name) + (borderThickness * 2)),
+	      (((kernelAsciiFont *) menuBarComponent->parameters.font)
+	       ->charHeight + (borderThickness * 2)),
 	      borderThickness,
 	      (color *) &(menuComponent->parameters.background),
 	      borderShadingIncrement, draw_normal);
@@ -68,20 +71,15 @@ static void menuSetVisible(kernelWindowComponent *menuBarComponent,
 			       menuBarComponent->yCoord,
 			       menuBarComponent->width,
 			       menuBarComponent->height);
-
-      menuBarComponent->height =
-	((menuBarFont->charHeight + (borderThickness * 2)) +
-	 menuComponent->height);
     }
   else
     {
       // Not normally focusable
       menuBarComponent->flags &= ~WINFLAG_CANFOCUS;
-      menuBarComponent->height =
-	(menuBarFont->charHeight + (borderThickness * 2));
+
       window->drawClip((void *) window, menuBarComponent->xCoord,
 		       menuBarComponent->yCoord, menuBarComponent->width,
-		       (menuBarComponent->height + menuComponent->height));
+		       menuBarComponent->height);
       kernelMouseDraw();
     }
 }
@@ -113,15 +111,15 @@ static int draw(void *componentData)
       kernelGraphicDrawText(buffer,
 			    (color *) &(component->parameters.foreground),
 			    (color *) &(component->parameters.background),
-			    menuBarFont, (const char *) menu->name,
-			    draw_normal,
+			    component->parameters.font,
+			    (const char *) menu->name, draw_normal,
 			    (menuComponent->xCoord + borderThickness),
 			    (component->yCoord + borderThickness));
     }
 
   // Call the container's 'draw' routine
-  if (saveDraw)
-    status = saveDraw(componentData);
+  if (saveContainerDraw)
+    status = saveContainerDraw(componentData);
 
   return (status);
 }
@@ -141,11 +139,25 @@ static int focus(void *componentData, int focus)
       // The first thing is to determine whether any menu is visible
       for (count = 0; count < menuBar->numComponents; count ++)
 	if (menuBar->components[count]->flags & WINFLAG_VISIBLE)
-	  {
-	    menuSetVisible(componentData, menuBar->components[count], 0);
-	    break;
-	  }
+	  menuSetVisible(componentData, menuBar->components[count], 0);
     }
+
+  return (0);
+}
+
+
+static int menuMouseEvent(void *componentData, windowEvent *event)
+{
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+
+  if (saveMenuMouseEvent)
+    // Pass the event on.
+    saveMenuMouseEvent(componentData, event);
+
+  // Now determine whether the menu goes away
+  if (event->type == EVENT_MOUSE_LEFTUP)
+    // No longer visible
+    menuSetVisible(component->container, component, 0);
 
   return (0);
 }
@@ -156,7 +168,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowMenuBar *menuBar = (kernelWindowMenuBar *) component->data;
   kernelWindowComponent *menuComponent = NULL;
-  kernelWindowMenuBar *menu = NULL;
+  kernelWindowMenu *menu = NULL;
   kernelWindow *window = (kernelWindow *) component->window;
   int visibleMenu = -1;
   int count;
@@ -167,35 +179,18 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
   // The first thing is to determine whether any menu is visible
   for (count = 0; count < menuBar->numComponents; count ++)
-    if (menuBar->components[count]->flags & WINFLAG_VISIBLE)
-      {
-	visibleMenu = count;
-	break;
-      }
-
-  // Is there a visible menu?
-  if (visibleMenu >= 0)
     {
-      menuComponent = menuBar->components[visibleMenu];
-      
-      // Is this event inside it?
-      int inside = isPointInside(event->xPosition, event->yPosition,
-				 makeComponentScreenArea(menuComponent));
-      
-      if (inside && menuComponent->mouseEvent)
-	// The click is inside the visible menu.  Pass the event on.
-	menuComponent->mouseEvent((void *) menuComponent, event);
+      menuComponent = menuBar->components[count];
 
-      if ((!inside && (event->type == EVENT_MOUSE_LEFTDOWN)) ||
-	  (inside && (event->type == EVENT_MOUSE_LEFTUP)))
+      if (menuComponent->flags & WINFLAG_VISIBLE)
 	{
-	  // No longer visible
-	  menuSetVisible(component, menuComponent, 0);
-	}
+	  if (event->type == EVENT_MOUSE_LEFTDOWN)
+	    // No longer visible
+	    menuSetVisible(component, menuComponent, 0);
 
-      // If it was inside the menu, quit here
-      if (inside)
-	return (0);
+	  visibleMenu = count;
+	  break;
+	}
     }
 
   // Beyond this point, events other than mouse down are not interesting
@@ -213,8 +208,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
       menuComponent = menuBar->components[count];
       menu = (kernelWindowMenu *) menuComponent->data;
 	      
-      unsigned tmpWidth =
-	kernelFontGetPrintedWidth(menuBarFont, (const char *) menu->name);
+      unsigned tmpWidth = kernelFontGetPrintedWidth(component->parameters.font,
+						    (const char *) menu->name);
       
       if ((event->yPosition < (window->yCoord + menuComponent->yCoord)) &&
 	  (event->xPosition >= (window->xCoord + menuComponent->xCoord)) &&
@@ -262,11 +257,21 @@ static int containerLayout(kernelWindowComponent *menuBarComponent)
 
       menu = (kernelWindowMenu *) menuComponent->data;
 
-      if (menu->containerLayout)
+      // If we don't have the menu component's mouseEvent function pointer
+      // saved, save it now
+      if ((saveMenuMouseEvent == NULL) && (menuComponent->mouseEvent != NULL))
+	saveMenuMouseEvent = menuComponent->mouseEvent;
+
+      // See if we need to wrap this menu's mouseEvent function
+      if (menuComponent->mouseEvent != menuMouseEvent)
+	menuComponent->mouseEvent = menuMouseEvent;
+
+      if (!menu->doneLayout && menu->containerLayout)
       	menu->containerLayout(menuComponent);
 
       int tmpWidth =
-	(kernelFontGetPrintedWidth(menuBarFont, (const char *) menu->name) +
+	(kernelFontGetPrintedWidth(menuBarComponent->parameters.font,
+				   (const char *) menu->name) +
 	 (borderThickness * 2));
       xCoord +=	tmpWidth;
 
@@ -301,6 +306,7 @@ kernelWindowComponent *kernelWindowNewMenuBar(volatile void *parent,
   // Formats a kernelWindowComponent as a kernelWindowMenuBar
 
   kernelWindowComponent *component = NULL;
+  kernelWindowMenuBar *menuBar = NULL;
 
   // Check parameters
   if ((parent == NULL) || (params == NULL))
@@ -320,17 +326,23 @@ kernelWindowComponent *kernelWindowNewMenuBar(volatile void *parent,
   if (component == NULL)
     return (component);
 
-  component->height = (menuBarFont->charHeight + (borderThickness * 2));
+  if (component->parameters.font == NULL)
+    component->parameters.font = menuBarFont;
+
+  component->width = (getWindow(parent))->buffer.width;
+  component->height = (((kernelAsciiFont *) component->parameters.font)
+		       ->charHeight + (borderThickness * 2));
 
   // Save the old draw function, and superimpose our own
-  saveDraw = component->draw;
+  saveContainerDraw = component->draw;
   component->draw = &draw;
   component->focus = &focus;
   component->mouseEvent = &mouseEvent;
 
+  menuBar = (kernelWindowMenuBar *) component->data;
+
   // Override the layout function
-  ((kernelWindowContainer *) component->data)->containerLayout =
-    &containerLayout;
+  menuBar->containerLayout = &containerLayout;
 
   return (component);
 }

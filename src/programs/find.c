@@ -24,18 +24,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/api.h>
 #include <sys/vsh.h>
-
-
-/*
-static void usage(char *name)
-{
-  printf("usage:\n");
-  printf("%s <start_location> [options]\n", name);
-  return;
-}
-*/
 
 
 static void recurseDirectory(const char *dirPath, file *directory)

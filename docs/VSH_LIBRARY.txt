@@ -1,4 +1,4 @@
-THE VISOPSYS SHELL LIBRARY  (Version 0.4)
+THE VISOPSYS SHELL LIBRARY (Version 0.5)
 
 
 The shell library is a small set of functions created for the Visopsys shell, /programs/vsh, and provided as a library for other programs to use. 
@@ -6,59 +6,66 @@ The shell library is a small set of functions created for the Visopsys shell, /p
 The functions are defined in the header file <sys/vsh.h> and the code is contained in libvsh.a (link with '-lvsh'). This code also requires a C library to link correctly (link with '-lc').
 
 
---------------------------------------
+void vshCompleteFilename(char *buffer)
+
+	Attempts to complete a portion of a filename, 'buffer'.  The function will append either the remainder of the complete filename, or if possible, some portion thereof.  The result simply depends on whether a good completion or partial completion exists.  'buffer' must of course be large enough to contain any potential filename completion.
 
 
-void vshCompleteFilename(char *buffer) 
+int vshCopyFile(const char *srcFile, const char *destFile)
 
-	Attempts to complete a portion of a filename, 'buffer'. The function will append either the remainder of the complete filename, or if possible, some portion thereof. The result simply depends on whether a good completion or partial completion exists. 'buffer' must of course be large enough to contain any potential filename completion. 
-
-
-int vshCopyFile(const char *srcFile, const char *destFile) 
-
-	Copy the file specified by the name 'srcFile' to the filename 'destFile'. Both filenames must be absolute pathnames, beginning with '/'. 
+	Copy the file specified by the name 'srcFile' to the filename 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
 
 
-int vshDeleteFile(const char *deleteFile) 
+int vshCursorMenu(const char *prompt, int numItems, char *items[],
 
-	Delete the file specified by the name 'deleteFile'. 'deleteFile' must be an absolute pathname, beginning with '/'. 
-
-
-int vshDumpFile(const char *fileName) 
-
-	Print the contents of the file, specified by 'fileName', to standard output. 'fileName' must be an absolute pathname, beginning with '/'. 
+	This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 
 
-int vshFileList(const char *itemName) 
+int vshDeleteFile(const char *deleteFile)
 
-	Print a listing of a file or directory named 'itemName'. 'itemName' must be an absolute pathname, beginning with '/'. 
-
-
-void vshMakeAbsolutePath(const char *orig, char *new) 
-
-	Turns a filename, specified by 'orig', into an absolute pathname 'new'. This basically just amounts to prepending the name of the current directory (plus a '/') to the supplied name. 'new' must be a buffer large enough to hold the entire filename. 
+	Delete the file specified by the name 'deleteFile'.  'deleteFile' must be an absolute pathname, beginning with '/'.
 
 
-void vshPasswordPrompt(const char *prompt, char *buffer) 
+int vshDumpFile(const char *fileName)
 
-	Produces a text-mode prompt for the user to enter a password. The prompt message is the first parameter, and a buffer to contain the result is the second parameter. 
-
-
-void vshPrintDate(unsigned unformattedDate) 
-
-	Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- in a (for now, arbitrary) human-readable format. 
+	Print the contents of the file, specified by 'fileName', to standard output.  'fileName' must be an absolute pathname, beginning with '/'.
 
 
-void vshPrintTime(unsigned unformattedTime) 
+int vshFileList(const char *itemName)
 
-	Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- in a (for now, arbitrary) human-readable format to standard output. 
-
-
-int vshRenameFile(const char *srcFile, const char *destFile) 
-
-	Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'. Both filenames must be absolute pathnames, beginning with '/'. 
+	Print a listing of a file or directory named 'itemName'.  'itemName' must be an absolute pathname, beginning with '/'.
 
 
-int vshSearchPath(const char *orig, char *new) 
+void vshMakeAbsolutePath(const char *orig, char *new)
 
-	Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in 'orig', and place the complete, absolete pathname result in 'new'. If a match is found, the function returns zero. Otherwise, it returns a negative error code. 'new' must be large enough to hold the complete absolute filename of any match found. 
+	Turns a filename, specified by 'orig', into an absolute pathname 'new'.  This basically just amounts to prepending the name of the current directory (plus a '/') to the supplied name.  'new' must be a buffer large enough to hold the entire filename.
+
+
+int vshParseCommand(char *commandLine, char *command, int *argc,
+
+	Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argc' will receive the number of argument pointers placed in the 'argv' array.  Returns 0 on success, negative otherwise.
+
+
+void vshPasswordPrompt(const char *prompt, char *buffer)
+
+	Produces a text-mode prompt for the user to enter a password.  The prompt message is the first parameter, and a buffer to contain the result is the second parameter.
+
+
+void vshPrintDate(unsigned unformattedDate)
+
+	Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- in a (for now, arbitrary) human-readable format.
+
+
+void vshPrintTime(unsigned unformattedTime)
+
+	Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- in a (for now, arbitrary) human-readable format to standard output.
+
+
+int vshRenameFile(const char *srcFile, const char *destFile)
+
+	Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
+
+
+int vshSearchPath(const char *orig, char *new)
+
+	Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in 'orig', and place the complete, absolete pathname result in 'new'.  If a match is found, the function returns zero.  Otherwise, it returns a negative error code.  'new' must be large enough to hold the complete absolute filename of any match found.

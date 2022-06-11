@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  check-tree.sh
+##
 
 # Check the files in the build tree and make sure they are all listed in
 # one of the install files.
@@ -8,7 +14,7 @@
 
 BUILD_DIR=../build/
 BUILD_FILES=buildfiles.$$
-INST_FILES="dist/system/install-files.basic dist/system/install-files.full"
+INST_FILES="../dist/system/install-files.basic ../dist/system/install-files.full"
 
 # Get the list of all files in the build directory
 (cd $BUILD_DIR; find *) > $BUILD_FILES
@@ -30,7 +36,7 @@ done
 
 # Make sure each item listed in the install files is in the build tree
 for INSTFILE in $INST_FILES ; do
-	for FILE in `cat $INSTFILE` ; do
+	for FILE in `cat $INSTFILE | grep -v ^#` ; do
 		(cd $BUILD_DIR ; ls .$FILE) >& /dev/null
 		if [ $? -ne 0 ] ; then
 			echo WARNING: File $FILE not in the build tree

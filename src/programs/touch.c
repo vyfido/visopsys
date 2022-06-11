@@ -22,6 +22,7 @@
 // This is the UNIX-style command for touching files
 
 #include <stdio.h>
+#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 

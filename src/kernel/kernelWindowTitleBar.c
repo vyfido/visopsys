@@ -21,14 +21,16 @@
 
 // This code is for managing kernelWindowTitleBar objects.
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelWindowEventStream.h"
 #include "kernelMalloc.h"
 #include "kernelMemoryManager.h"
+#include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
 #include <string.h>
 
 static kernelAsciiFont *titleBarFont = NULL;
+static image minimizeImage;
 static image closeImage;
 static int imagesCreated = 0;
 
@@ -52,7 +54,7 @@ static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
 }
 
 
-static void createImages(void)
+static void createImages(int width, int height)
 {
   // Create some standard, shared images for close buttons, etc.
   
@@ -62,13 +64,24 @@ static void createImages(void)
   kernelMemClear((void *) &graphicBuffer, sizeof(kernelGraphicBuffer));
 
   // Get a buffer to draw our close button graphic
-  graphicBuffer.width = (DEFAULT_TITLEBAR_HEIGHT - 2);
-  graphicBuffer.height = (DEFAULT_TITLEBAR_HEIGHT - 2);
+  graphicBuffer.width = width;
+  graphicBuffer.height = height;
   graphicBuffer.data =
     kernelMalloc(kernelGraphicCalculateAreaBytes(graphicBuffer.width,
 						 graphicBuffer.height));
   if (graphicBuffer.data == NULL)
     return;
+
+  // Do the minimize button
+  kernelMemClear(&minimizeImage, sizeof(image));
+  kernelGraphicClearArea(&graphicBuffer, &kernelDefaultBackground,
+			 0, 0, graphicBuffer.width,
+			 graphicBuffer.height);
+  kernelGraphicDrawRect(&graphicBuffer, &((color){0,0,0}), draw_normal,
+			((graphicBuffer.width - 4) / 2),
+			((graphicBuffer.height - 4) / 2), 4, 4, 1, 0);
+  kernelGraphicGetKernelImage(&graphicBuffer, &minimizeImage, 0, 0,
+			      graphicBuffer.width, graphicBuffer.height);
 
   // Do the close button
   kernelMemClear(&closeImage, sizeof(image));
@@ -100,6 +113,26 @@ static void createImages(void)
   graphicBuffer.data = NULL;
 
   imagesCreated = 1;
+}
+
+
+static void minimizeWindow(objectKey componentData, windowEvent *event)
+{
+  // This function gets called when the minimize button gets pushed
+
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindow *window = (kernelWindow *) component->window;
+
+  if (event->type == EVENT_MOUSE_LEFTUP)
+    {
+      kernelWindowSetMinimized(window, 1);
+      
+      // Transfer this event into the window's event stream
+      event->type = EVENT_WINDOW_MINIMIZE;
+      kernelWindowEventStreamWrite(&(window->events), event);
+    }
+  
+  return;
 }
 
 
@@ -197,6 +230,9 @@ static int draw(void *componentData)
 
   strncpy(title, (char *) window->title, 128);
   titleWidth = (component->width - 1);
+  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) &&
+      titleBarComponent->minimizeButton)
+    titleWidth -= titleBarComponent->minimizeButton->width;
   if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
       titleBarComponent->closeButton)
     titleWidth -= titleBarComponent->closeButton->width;
@@ -208,6 +244,12 @@ static int draw(void *componentData)
 			titleBarFont, title, draw_translucent,
 			(component->xCoord + 5), (component->yCoord +
 		  ((component->height - titleBarFont->charHeight) / 2)));
+
+  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) &&
+      titleBarComponent->minimizeButton &&
+      titleBarComponent->minimizeButton->draw)
+    titleBarComponent->minimizeButton
+      ->draw((void *) titleBarComponent->minimizeButton);
 
   if ((window->flags & WINFLAG_HASCLOSEBUTTON) &&
       titleBarComponent->closeButton && titleBarComponent->closeButton->draw)
@@ -223,14 +265,14 @@ static int move(void *componentData, int xCoord, int yCoord)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
-  int buttonX, buttonY;
+  int buttonX, buttonY = (yCoord + 2);
 
   // Move our buttons
+
   if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
     {
       buttonX =
-	(xCoord + component->width - (titleBar->closeButton->width + 1));
-      buttonY = (yCoord + 1);
+	(xCoord + (component->width - (titleBar->closeButton->width + 2)));
 
       if (titleBar->closeButton->move)
 	titleBar->closeButton
@@ -238,6 +280,22 @@ static int move(void *componentData, int xCoord, int yCoord)
 
       titleBar->closeButton->xCoord = buttonX;
       titleBar->closeButton->yCoord = buttonY;
+    }
+
+  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) && titleBar->minimizeButton)
+    {
+      buttonX =
+	(xCoord + (component->width - (titleBar->minimizeButton->width + 2)));
+
+      if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
+	buttonX -= (titleBar->closeButton->width + 2);
+
+      if (titleBar->minimizeButton->move)
+	titleBar->minimizeButton
+	  ->move((void *) titleBar->minimizeButton, buttonX, buttonY);
+
+      titleBar->minimizeButton->xCoord = buttonX;
+      titleBar->minimizeButton->yCoord = buttonY;
     }
 
   return (0);
@@ -249,23 +307,41 @@ static int resize(void *componentData, int width, int height)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowTitleBar *titleBar = (kernelWindowTitleBar *) component->data;
-  int buttonX, buttonY;
+  int buttonX, buttonY = (component->yCoord + 2);
 
   // Move our buttons
+
   if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
     {
       buttonX =
-	(component->xCoord + (width - (titleBar->closeButton->width + 1)));
-      buttonY = (component->yCoord + 1);
+	(component->xCoord + (width - (titleBar->closeButton->width + 2)));
 
       if (titleBar->closeButton->move)
 	titleBar->closeButton
 	  ->move((void *) titleBar->closeButton, buttonX, buttonY);
 
-      titleBar->closeButton->width = (height - 2);
-      titleBar->closeButton->height = (height - 2);
+      titleBar->closeButton->width = (height - 4);
+      titleBar->closeButton->height = (height - 4);
       titleBar->closeButton->xCoord = buttonX;
       titleBar->closeButton->yCoord = buttonY;
+    }
+
+  if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) && titleBar->minimizeButton)
+    {
+      buttonX =
+	(component->xCoord + (width - (titleBar->minimizeButton->width + 2)));
+
+      if ((window->flags & WINFLAG_HASCLOSEBUTTON) && titleBar->closeButton)
+	buttonX -= (titleBar->closeButton->width + 2);
+
+      if (titleBar->minimizeButton->move)
+	titleBar->minimizeButton
+	  ->move((void *) titleBar->minimizeButton, buttonX, buttonY);
+
+      titleBar->minimizeButton->width = (height - 4);
+      titleBar->minimizeButton->height = (height - 4);
+      titleBar->minimizeButton->xCoord = buttonX;
+      titleBar->minimizeButton->yCoord = buttonY;
     }
 
   return (0);
@@ -306,7 +382,6 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	      
 	  // Set the new position
 	  window->xCoord += (event->xPosition - dragEvent.xPosition);
-	  
 	  window->yCoord += (event->yPosition - dragEvent.yPosition);
 
 	  // Draw an xor'ed outline
@@ -362,6 +437,21 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status);
     }
   
+  else if ((window->flags & WINFLAG_HASMINIMIZEBUTTON) &&
+	   titleBar->minimizeButton &&
+	   isMouseInButton(event, titleBar->minimizeButton))
+    {
+      // Call the 'event' function for buttons
+      if (titleBar->minimizeButton->mouseEvent)
+	status = titleBar->minimizeButton
+	  ->mouseEvent((void *) titleBar->minimizeButton, event);
+
+      // Put this mouse event into the button's windowEventStream
+      kernelWindowEventStreamWrite(&(titleBar->minimizeButton->events), event);
+	  
+      return (status);
+    }
+  
   else if (event->type == EVENT_MOUSE_DRAG)
     {
       if (window->flags & WINFLAG_MOVABLE)
@@ -401,7 +491,7 @@ static int destroy(void *componentData)
   if (component->data)
     {
       // Release the title bar itself
-      // TEMP TEMP TEMP - This is causing crashes.  Not yet sure why.
+      // NO, THIS IS CRASHY.  TMP TMP TMP
       // kernelFree(component->data);
       // component->data = NULL;
     }
@@ -446,7 +536,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
     }
 
   if (!imagesCreated)
-    createImages();
+    createImages((DEFAULT_TITLEBAR_HEIGHT - 4), (DEFAULT_TITLEBAR_HEIGHT - 4));
 
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
@@ -482,12 +572,12 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 
   titleBar->closeButton =
     kernelWindowNewButton(parent, NULL, ((closeImage.data == NULL)?
-					 NULL : &closeImage), &buttonParams);
+			   NULL : &closeImage), &buttonParams);
 
   if (titleBar->closeButton)
     {
-      titleBar->closeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 2);
-      titleBar->closeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 2);
+      titleBar->closeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 4);
+      titleBar->closeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 4);
 
       // We don't want close buttons to get the focus
       titleBar->closeButton->flags &= ~WINFLAG_CANFOCUS;
@@ -496,6 +586,24 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 				       &closeWindow);
 
       getWindow(parent)->flags |= WINFLAG_HASCLOSEBUTTON;
+    }
+
+  titleBar->minimizeButton =
+    kernelWindowNewButton(parent, NULL, ((minimizeImage.data == NULL)?
+			   NULL : &minimizeImage), &buttonParams);
+
+  if (titleBar->minimizeButton)
+    {
+      titleBar->minimizeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 4);
+      titleBar->minimizeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 4);
+
+      // We don't want close buttons to get the focus
+      titleBar->minimizeButton->flags &= ~WINFLAG_CANFOCUS;
+
+      kernelWindowRegisterEventHandler((objectKey) titleBar->minimizeButton,
+				       &minimizeWindow);
+
+      getWindow(parent)->flags |= WINFLAG_HASMINIMIZEBUTTON;
     }
 
   component->data = (void *) titleBar;

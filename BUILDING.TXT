@@ -1,42 +1,45 @@
 BUILDING VISOPSYS
 
-Visopsys is developed on Red Hat Linux 9.  To build Visopsys you will need
-the following toolsi (all of which are available on the Red Hat CDs):
+Visopsys is developed on Red Hat Linux 9.  To build Visopsys you will
+need the following tools (all of which are available on the Red Hat CDs):
 
 - The GNU C Compiler (gcc).  The most recent version tested with Visopsys
   is 3.2.2.
 - The Netwide Assembler (NASM).  The most recent version tested with Visopsys
   is 0.98.35.
-- A "make" utility of some kind.  I use GNU Make version 3.79.1.
+- A "make" utility of some kind.  I use GNU Make version 3.79.1
 
 You might be able to get away with using something other than gcc without
 modifications (doubtful), but you will need NASM-compatible assembler to
 build this code.
 
 Once you have all the requisite tools as listed above, you build by simply
-executing a 'make' command in the top-level directory directory, like so:
-
-	make
+executing a 'make' command in the top-level directory.
 
 After you've built the system, you might want to use it.  If this is the case,
 you can install it using the install.sh script in the utils directory.
 The script takes the name of a device or partition as its argument.  For
 example, change to the utils directory and do:
 
-	./install.sh /dev/fd0
+	./install.sh -basic /dev/fd0
 
-to install on the first floppy disk, or
+to install a basic system on the first floppy disk, or
 
 	./install.sh /dev/hda2
 
-to install on the second partition of the first IDE hard disk.
+to install a full system on the second partition of the first IDE hard disk.
 
-If you want to create a source distribution like the ones on the Visopsys
-web site, change to the utils directory and do:
+If you want to create an ISO distribution, change to the utils directory,
+become the 'root' user, and do:
+
+	./image-cd.sh
+
+If you want to create a source distribution, change to the utils directory
+and do:
 
 	./archive-source.sh
 
 Good luck, and let me know if there's any help I can offer.
 
 Andy McLaughlin <andy@visopsys.org>
-19/12/2003
+04/12/2004

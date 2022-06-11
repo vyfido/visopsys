@@ -1045,8 +1045,8 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
 }
 
 
-static int getImage(kernelGraphicBuffer *buffer, image *getImage, int xCoord,
-		    int yCoord, int width, int height)
+static int getImage(kernelGraphicBuffer *buffer, image *theImage,
+		    int xCoord, int yCoord, int width, int height)
 {
   // Draws the supplied image on the screen at the requested coordinates
 
@@ -1087,14 +1087,14 @@ static int getImage(kernelGraphicBuffer *buffer, image *getImage, int xCoord,
   
   // How many pixels will there be?
   numberPixels = lineLength * numberLines;
-  getImage->dataLength = (numberPixels * sizeof(pixel));
+  theImage->dataLength = (numberPixels * sizeof(pixel));
 
   // If the image was previously holding data, release it
-  if (getImage->data == NULL)
+  if (theImage->data == NULL)
     {
       // Allocate enough memory to hold the image data
-      getImage->data = kernelMemoryGet(getImage->dataLength, "image data");
-      if (getImage->data == NULL)
+      theImage->data = kernelMemoryGet(theImage->dataLength, "image data");
+      if (theImage->data == NULL)
 	// Eek, no memory
 	return (status = ERR_MEMORY);
     }
@@ -1106,7 +1106,7 @@ static int getImage(kernelGraphicBuffer *buffer, image *getImage, int xCoord,
   framebufferPointer = buffer->data +
     (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
 
-  imageData = (pixel *) getImage->data;
+  imageData = (pixel *) theImage->data;
 
   // Now loop through each line of the buffer, filling the image data from
   // the screen
@@ -1156,10 +1156,10 @@ static int getImage(kernelGraphicBuffer *buffer, image *getImage, int xCoord,
     }
 
   // Fill in the image's vitals
-  getImage->type = IMAGETYPE_COLOR;
-  getImage->pixels = numberPixels;
-  getImage->width = lineLength;
-  getImage->height = numberLines;
+  theImage->type = IMAGETYPE_COLOR;
+  theImage->pixels = numberPixels;
+  theImage->width = lineLength;
+  theImage->height = numberLines;
 
   return (status = 0);
 }

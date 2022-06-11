@@ -25,7 +25,7 @@
 #include "kernelKeyboard.h"
 #include "kernelMultitasker.h"
 #include "kernelText.h"
-#include "kernelWindowManager.h"
+#include "kernelWindow.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <string.h>

@@ -2,20 +2,6 @@
 ##  Visopsys
 ##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
-##  This program is free software; you can redistribute it and/or modify it
-##  under the terms of the GNU General Public License as published by the Free
-##  Software Foundation; either version 2 of the License, or (at your option)
-##  any later version.
-## 
-##  This program is distributed in the hope that it will be useful, but
-##  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-##  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-##  for more details.
-##  
-##  You should have received a copy of the GNU General Public License along
-##  with this program; if not, write to the Free Software Foundation, Inc.,
-##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-##
 ##  Makefile
 ##
 
@@ -63,6 +49,7 @@ OBJS	= ${BUILDDIR}/adduser \
 	${BUILDDIR}/move \
 	${BUILDDIR}/mv \
 	${BUILDDIR}/passwd \
+	${BUILDDIR}/progman \
 	${BUILDDIR}/ps \
 	${BUILDDIR}/reboot \
 	${BUILDDIR}/renice \
@@ -120,20 +107,20 @@ ${BUILDDIR}/disks: disks.c ${STDDEPS}
 ${BUILDDIR}/disprops: disprops.c ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} disprops.c -lwindow -lc -o $@
 
-${BUILDDIR}/fdisk: fdisk.c ${STDDEPS}
+${BUILDDIR}/fdisk: fdisk.c fdisk.h ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} fdisk.c -lwindow -lvsh -lc -o $@
 
 ${BUILDDIR}/find: find.c ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} find.c -lvsh -lc -o $@
 
 ${BUILDDIR}/format: format.c ${STDDEPS}
-	${CC} ${INCLUDES} ${CFLAGS} format.c -lc -o $@
+	${CC} ${INCLUDES} ${CFLAGS} format.c -lwindow -lvsh -lc -o $@
 
 ${BUILDDIR}/help: help.c ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} help.c -lc -o $@
 
 ${BUILDDIR}/imgboot: imgboot.c ${STDDEPS}
-	${CC} ${INCLUDES} ${CFLAGS} imgboot.c -lwindow -lc -o $@
+	${CC} ${INCLUDES} ${CFLAGS} imgboot.c -lwindow -lvsh -lc -o $@
 
 ${BUILDDIR}/install: install.c ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} install.c -lwindow -lvsh -lc -o $@
@@ -182,6 +169,9 @@ ${BUILDDIR}/mv: mv.c ${STDDEPS}
 
 ${BUILDDIR}/passwd: passwd.c ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} passwd.c -lvsh -lc -o $@
+
+${BUILDDIR}/progman: progman.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} progman.c -lwindow -lvsh -lc -o $@
 
 ${BUILDDIR}/ps: ps.c ${STDDEPS}
 	${CC} ${INCLUDES} ${CFLAGS} ps.c -lc -o $@

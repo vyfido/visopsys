@@ -23,7 +23,7 @@
 // These are just kernelWindowTextFields that echo '*' instead of the
 // typed text.
 
-#include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
 #include <string.h>

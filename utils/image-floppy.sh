@@ -1,4 +1,10 @@
 #!/bin/sh
+##
+##  Visopsys
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
+## 
+##  image-floppy.sh
+##
 
 # Installs the Visopsys system into a zipped floppy image file
 
