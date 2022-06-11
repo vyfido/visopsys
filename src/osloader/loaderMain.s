@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2019 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 	EXTERN loaderCalcVolInfo
 	EXTERN loaderFindFile
 	EXTERN loaderDetectHardware
+	EXTERN loaderLoadSectorsHi
 	EXTERN loaderLoadKernel
 	EXTERN loaderEnableA20
 	EXTERN loaderQueryGraphicMode
@@ -30,6 +31,8 @@
 	EXTERN loaderPrint
 	EXTERN loaderPrintNumber
 	EXTERN loaderPrintNewline
+	EXTERN RAMDISKMEM
+	EXTERN RAMDISKSIZE
 	EXTERN BOOTSECTSIG
 	EXTERN PARTENTRY
 	EXTERN HARDWAREINFO
@@ -173,11 +176,14 @@ loaderMain:
 	;; entire extended memory space.
 	call loaderEnableA20
 
-	;; Check for fatal errors before attempting to start the kernel
-	call fatalErrorCheck
-
 	;; Check for user requesting a boot menu
 	call bootMenu
+
+	;; Have we been asked to load the entire boot media into a RAM disk?
+	call loadRamDisk
+
+	;; Check for fatal errors before attempting to start the kernel
+	call fatalErrorCheck
 
 	;; Did we find a good graphics mode?
 	cmp word [KERNELGMODE], 0
@@ -254,7 +260,7 @@ loaderMain:
 	push EAX
 
 	;; Next the amount of used kernel memory.  We need to add the
-	;; size of the stack we allocated to the kernel image size
+	;; size of the stack we allocated to the kernel image size.
 	mov EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
 	add EAX, KERNELSTACKSIZE
 	push EAX
@@ -346,7 +352,7 @@ bootDevice:
 
 	;; sectors
 	xor EAX, EAX
-	mov AL, CL		; Bits 0-5
+	mov AL, CL			; Bits 0-5
 	and AL, 00111111b	; Mask it
 	mov dword [SECPERTRACK], EAX
 
@@ -360,12 +366,21 @@ bootDevice:
 	int 13h
 
 	;; Function call successful?
-	jc .done
+	jc .calcNumSectors
 
 	;; Save the number of sectors
 	mov EAX, dword [HDDINFO + 10h]
 	mov dword [TOTALSECS], EAX
+	jmp .recalcNumCylinders
 
+	.calcNumSectors:
+	mov EAX, dword [HEADS]
+	mul dword [CYLINDERS]
+	mul dword [SECPERTRACK]
+	mov dword [TOTALSECS], EAX
+	jmp .done
+
+	.recalcNumCylinders:
 	;; Recalculate the number of cylinders
 	mov EAX, dword [HEADS]			; heads
 	mul dword [SECPERTRACK]			; sectors per cyl
@@ -519,6 +534,77 @@ printBootDevice:
 	call loaderPrintNewline
 
 	.done:
+	popa
+	ret
+
+
+loadRamDisk:
+	;; This gets called to check whether we are supposed to load the entire
+	;; boot medium into a RAM disk.
+
+	pusha
+
+	;; Look for the '/ramdisk' file
+	push word RAMDISK
+	call loaderFindFile
+	add SP, 2
+
+	;; Does the file exist?
+	cmp AX, 1
+	jne near .out
+
+	call loaderPrintNewline
+	mov SI, RAMDISKMSG
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
+	call loaderPrintNewline
+
+	push word 1		; show progress
+
+	;; Number of sectors to load
+	mov EAX, dword [TOTALSECS]
+	push dword EAX
+
+	;; Note how big that is, in bytes
+	xor EBX, EBX
+	mov BX, word [BYTESPERSECT]
+	mul EBX
+	mov dword [RAMDISKSIZE], EAX
+
+	;; Memory address to load it
+	mov EAX, (KERNELLOADADDRESS + KERNELSTACKSIZE)
+	add EAX, dword [KERNELSIZE]
+	push dword EAX
+
+	;; Note where we put it
+	mov dword [RAMDISKMEM], EAX
+
+	push dword 0	; starting sector
+
+	call loaderLoadSectorsHi
+	add SP, 14
+
+	cmp AX, 0
+	je .addKernelSize
+
+	;; Change to the error color
+	mov DL, BADCOLOR
+
+	mov SI, SAD
+	call loaderPrint
+	mov SI, RAMDISKERR
+	call loaderPrint
+	call loaderPrintNewline
+
+	;; We won't have a boot device, so we can't continue.
+	add  byte [FATALERROR], 1
+	jmp .out
+
+	.addKernelSize:
+	mov EAX, dword [RAMDISKSIZE]
+	add dword [KERNELSIZE], EAX
+
+	.out:
 	popa
 	ret
 
@@ -743,12 +829,7 @@ pagingSetup:
 	;; Supposed to do a near jump after all that
 	jmp near .pagingOn
 	nop
-
 	.pagingOn:
-	;; Enable 'global' pages for processors that support it
-	mov EAX, CR4
-	or EAX, 00000080h
-	mov CR4, EAX
 
 	.done:
 	;; Done
@@ -991,8 +1072,8 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys BIOS OS Loader v0.84', 0
-LOADMSG2	db 'Copyright (C) 1998-2019 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys BIOS OS Loader v0.85', 0
+LOADMSG2	db 'Copyright (C) 1998-2020 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
 BOOTHDD		db 'hd', 0
@@ -1009,6 +1090,8 @@ PRESSREBOOT	db 'Press any key to reboot.', 0
 REBOOTING	db '  ...Rebooting', 0
 BOOTINFO	db 'BOOTINFO   ', 0
 MENUMSG		db 'Boot Menu', 0
+RAMDISK		db 'RAMDISK    ', 0
+RAMDISKMSG	db 'Loading RAM disk', 0
 
 ;;
 ;; The error messages
@@ -1018,6 +1101,7 @@ SAD			db 'x ', 0
 BIOSERR		db 'The computer', 27h, 's BIOS was unable to provide information '
 			db 'about', 0
 BIOSERR2	db 'the boot device.  Please check the BIOS for errors.', 0
+RAMDISKERR	db 'Loading the RAM disk failed.', 0
 FATALERROR1	db ' unrecoverable error(s) were recorded, and the boot process '
 			db 'cannot continue.', 0
 FATALERROR2	db 'Any applicable error information is noted above.  Please '

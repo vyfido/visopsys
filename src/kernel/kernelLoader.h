@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -74,7 +74,6 @@
 #define FILECLASS_NAME_MESSAGE	"message"
 #define FILECLASS_NAME_CONFIG	"configuration"
 #define FILECLASS_NAME_HTML		"HTML"
-#define LOADER_NUM_FILECLASSES	28
 
 // A generic structure to represent a relocation entry
 typedef struct {

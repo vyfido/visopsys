@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2019 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -298,7 +298,7 @@ scrollLine:
 	cld
 	rep stosw
 
-	;; Reenable interrupts
+	;; Re-enable interrupts
 	sti
 
 	;; Make the cursor maintain its position in relation to the

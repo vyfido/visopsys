@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -128,7 +128,6 @@ typedef struct {
 static void usage(char *name)
 {
 	printf(_("usage:\n%s <boot image> <output file|device>\n"), name);
-	return;
 }
 
 
@@ -145,8 +144,10 @@ static int readSector(const char *inputName, unsigned sector,
 		status = diskReadSectors(inputName, sector, 1, buffer);
 		if (status < 0)
 		{
+			errno = status;
+			perror("diskReadSectors");
 			printf(_("Error reading disk %s\n"), inputName);
-			return (errno = status);
+			return (status);
 		}
 	}
 	else
@@ -155,16 +156,20 @@ static int readSector(const char *inputName, unsigned sector,
 		fd = open(inputName, O_RDONLY);
 		if (fd < 0)
 		{
+			status = errno;
+			perror("open");
 			printf(_("Can't open device %s\n"), inputName);
-			return (errno = fd);
+			return (status);
 		}
 
 		status = lseek(fd, (sector * bytesPerSector), SEEK_SET);
 		if (status < 0)
 		{
+			status = errno;
+			perror("lseek");
 			printf(_("Can't seek device to sector %u\n"), sector);
 			close(fd);
-			return (errno = status);
+			return (status);
 		}
 
 		status = read(fd, buffer, bytesPerSector);
@@ -173,8 +178,9 @@ static int readSector(const char *inputName, unsigned sector,
 
 		if ((status < 0) || (status < bytesPerSector))
 		{
+			perror("read");
 			printf("%s", _("Can't read sector\n"));
-			return (errno = status = EIO);
+			return (status);
 		}
 	}
 
@@ -196,8 +202,10 @@ static int writeSector(const char *outputName, unsigned sector,
 		status = diskWriteSectors(outputName, sector, 1, buffer);
 		if (status < 0)
 		{
+			errno = status;
+			perror("diskWriteSectors");
 			printf(_("Error writing disk %s\n"), outputName);
-			return (errno = status);
+			return (status);
 		}
 	}
 	else
@@ -206,16 +214,20 @@ static int writeSector(const char *outputName, unsigned sector,
 		fd = open(outputName, (O_WRONLY | O_SYNC));
 		if (fd < 0)
 		{
+			status = errno;
+			perror("open");
 			printf(_("Can't open device %s\n"), outputName);
-			return (errno = fd);
+			return (status);
 		}
 
 		status = lseek(fd, (sector * bytesPerSector), SEEK_SET);
 		if (status < 0)
 		{
+			status = errno;
+			perror("lseek");
 			printf(_("Can't seek device to sector %u\n"), sector);
 			close(fd);
-			return (errno = status);
+			return (status);
 		}
 
 		status = write(fd, buffer, bytesPerSector);
@@ -224,8 +236,9 @@ static int writeSector(const char *outputName, unsigned sector,
 
 		if ((status < 0) || (status < bytesPerSector))
 		{
+			perror("write");
 			printf("%s", _("Can't write sector\n"));
-			return (errno = status = EIO);
+			return (status);
 		}
 	}
 
@@ -243,17 +256,16 @@ static int readBootsect(const char *inputName, unsigned char *bootSect)
 	if (status < 0)
 	{
 		DEBUGMSG(_("Couldn't read boot sector from %s\n"), inputName);
-		return (errno = status);
+		return (status);
 	}
 
 	if ((bootSect[510] != 0x55) || (bootSect[511] != 0xAA))
 	{
 		DEBUGMSG(_("%s is not a valid boot sector\n"), inputName);
-		errno = EINVAL;
-		return (-1);
+		return (status = EINVAL);
 	}
 
-	return (errno = status = 0);
+	return (status = 0);
 }
 
 
@@ -268,7 +280,7 @@ static int writeBootsect(const char *outputName, unsigned char *bootSect)
 	if (status < 0)
 	{
 		DEBUGMSG(_("Couldn't write boot sector to %s\n"), outputName);
-		return (errno = status);
+		return (status);
 	}
 
 	// If we think this is a FAT32 boot sector, we need to write the backup
@@ -281,11 +293,11 @@ static int writeBootsect(const char *outputName, unsigned char *bootSect)
 		{
 			DEBUGMSG(_("Couldn't write backup boot sector to %s\n"),
 				outputName);
-			return (errno = status);
+			return (status);
 		}
 	}
 
-	return (errno = status = 0);
+	return (status = 0);
 }
 
 
@@ -311,11 +323,10 @@ static int merge(unsigned char *oldBootsect, unsigned char *newBootsect)
 	else
 	{
 		printf("%s", _("File system type is not supported\n"));
-		errno = EINVAL;
-		return (-1);
+		return (EINVAL);
 	}
 
-	return (errno = 0);
+	return (0);
 }
 
 
@@ -337,6 +348,8 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 	buffer = malloc(bsHeader->bytesPerSector);
 	if (!buffer)
 	{
+		status = errno;
+		perror("malloc");
 		DEBUGMSG(_("Can't alloc %u bytes to find an unused cluster\n"),
 			bsHeader->bytesPerSector);
 		goto out;
@@ -418,9 +431,9 @@ static int setOsLoaderParams(const char *outputName,
 	unsigned char *newBootsect, const char *osLoader)
 {
 	// Our new, generic boot sector keeps the logical sector and length of the
-	// OS loader in the 3rd and 2nd last dwords, respectively.  This allows the
-	// boot sector code to be simpler and requires little-to-no understanding
-	// of the filesystem, which is good.
+	// OS loader in the 3rd and 2nd last dwords, respectively.  This allows
+	// the boot sector code to be simpler and requires little-to-no
+	// understanding of the filesystem, which is good.
 	//
 	// So, given a pointer to the OS loader program and the contents of the
 	// new boot sector, calculate the starting logical sector the boot sector
@@ -489,7 +502,11 @@ static int setOsLoaderParams(const char *outputName,
 	memset(&statBuff, 0, sizeof(struct stat));
 	status = stat(osLoader, &statBuff);
 	if (status < 0)
+	{
+		status = errno;
+		perror("stat");
 		return (status);
+	}
 
 	*osLoaderSectors = (((unsigned) statBuff.st_size +
 		(fatHeader->common1.bytesPerSector - 1)) /
@@ -497,7 +514,7 @@ static int setOsLoaderParams(const char *outputName,
 
 	DEBUGMSG(_("OS loader sectors are %u\n"), *osLoaderSectors);
 
-	return (errno = status = 0);
+	return (status = 0);
 }
 
 
@@ -533,29 +550,25 @@ int main(int argc, char *argv[])
 	{
 		printf(_("fatBSHeader size is 0x%02x instead of 0x3E\n"),
 			(unsigned char) sizeof(fatBSHeader));
-		errno = EINVAL;
-		return (-1);
+		return (status = EINVAL);
 	}
 	if (sizeof(fat32BSHeader) != 0x5A)
 	{
 		printf(_("fat32BSHeader size is 0x%02x instead of 0x5A\n"),
 			(unsigned char) sizeof(fat32BSHeader));
-		errno = EINVAL;
-		return (-1);
+		return (status = EINVAL);
 	}
 	if (sizeof(fat32FsInfo) != 512)
 	{
 		printf(_("fat32FsInfo size is %d instead of 512\n"),
 			(int) sizeof(fat32FsInfo));
-		errno = EINVAL;
-		return (-1);
+		return (status = EINVAL);
 	}
 
 	if (argc != 3)
 	{
 		usage(argv[0]);
-		errno = EINVAL;
-		return (status = -1);
+		return (status = EINVAL);
 	}
 
 	sourceName = argv[1];
@@ -564,44 +577,29 @@ int main(int argc, char *argv[])
 	// Read the new boot sector from the source file
 	status = readBootsect(sourceName, newBootsect);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	// Read the old boot sector from the target device
 	status = readBootsect(destName, oldBootsect);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	status = merge(oldBootsect, newBootsect);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	status = setOsLoaderParams(destName, newBootsect, OSLOADER);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	addBootSignature(newBootsect);
 
 	// Write the new boot sector
 	status = writeBootsect(destName, newBootsect);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	// Return success
-	return (errno = status = 0);
+	return (status = 0);
 }
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,6 +59,7 @@ Options:
 #include <sys/paths.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/window.h>
 
 #define _(string) gettext(string)
 
@@ -104,8 +105,7 @@ static void error(const char *format, ...)
 
 static void usage(char *name)
 {
-	error(_("usage:\n%s [-T] <address | hostname>\n"), name);
-	return;
+	error(_("usage:\n%s [-T] <address | hostname>"), name);
 }
 
 
@@ -157,10 +157,7 @@ static void responseThread(void)
 
 	buffer = malloc(NETWORK_PACKET_MAX_LENGTH);
 	if (!buffer)
-	{
-		errno = ERR_MEMORY;
-		multitaskerTerminate(errno);
-	}
+		multitaskerTerminate(ERR_MEMORY);
 
 	ip4Header = (networkIp4Header *) buffer;
 	srcAddress = (networkAddress *) &ip4Header->srcAddress;
@@ -276,7 +273,8 @@ static void constructWindow(void)
 
 	// Create a text area to show our ping activity
 	params.gridY = 1;
-	textArea = windowNewTextArea(window, 60, 5, 50, &params);
+	textArea = windowNewTextArea(window, 60 /* columns */, 5 /* rows */,
+		50 /* bufferLines */, &params);
 	windowSetTextOutput(textArea);
 	textSetCursor(0);
 	textInputSetEcho(0);
@@ -295,8 +293,6 @@ static void constructWindow(void)
 	windowRegisterEventHandler(window, &eventHandler);
 
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 
@@ -323,6 +319,7 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	char opt;
+	const char *remoteHost = NULL;
 	char addressBuffer[18];
 	networkAddress address = { { 0, 0, 0, 0, 0, 0 } };
 	networkFilter filter;
@@ -362,17 +359,14 @@ int main(int argc, char *argv[])
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	if ((argc < 2) && !graphics)
-	{
-		usage(argv[0]);
-		return (status = ERR_ARGUMENTCOUNT);
-	}
+	if (argc >= 2)
+		remoteHost = argv[argc - 1];
 
 	// If we are in graphics mode, and no destination has been specified, we
 	// will create an interactive window which prompts for it.
 	if (graphics)
 	{
-		if (argc < 2)
+		if (!remoteHost)
 		{
 			status = windowNewPromptDialog(window, _("Enter Address"),
 				_("Enter the network address to ping:"), 1,
@@ -380,12 +374,20 @@ int main(int argc, char *argv[])
 			if (status <= 0)
 				quit(status);
 
-			argv[argc - 1] = addressBuffer;
+			remoteHost = addressBuffer;
+		}
+	}
+	else
+	{
+		if (!remoteHost)
+		{
+			usage(argv[0]);
+			return (status = ERR_ARGUMENTCOUNT);
 		}
 	}
 
 	// Parse the supplied arguments to get the destination address.
-	status = getAddress(argv[argc - 1], &address);
+	status = getAddress(remoteHost, &address);
 	if (status < 0)
 	{
 		error("%s", _("Couldn't determine destination address"));
@@ -405,7 +407,7 @@ int main(int argc, char *argv[])
 	if (!connection)
 	{
 		error("%s", _("Error opening network connection"));
-		quit(errno = ERR_IO);
+		quit(status = ERR_IO);
 	}
 
 	sprintf(pingWhom, _("Ping %d.%d.%d.%d %d(%d) bytes of data"),
@@ -423,7 +425,7 @@ int main(int argc, char *argv[])
 		if (signal(SIGINT, &interrupt) == SIG_ERR)
 		{
 			error("%s", _("Error setting signal handler"));
-			quit(errno = ERR_NOTINITIALIZED);
+			quit(status = ERR_NOTINITIALIZED);
 		}
 
 		printf("%s\n", pingWhom);
@@ -436,7 +438,7 @@ int main(int argc, char *argv[])
 	if (threadPid < 0)
 	{
 		error("%s", _("Error starting response thread"));
-		quit(errno = threadPid);
+		quit(status = threadPid);
 	}
 
 	// Get memory for our ping data buffer
@@ -444,7 +446,7 @@ int main(int argc, char *argv[])
 	if (!pingData)
 	{
 		error("%s", _("Memory allocation error"));
-		quit(errno = ERR_MEMORY);
+		quit(status = ERR_MEMORY);
 	}
 
 	// Fill out our ping data.  56 ASCII characters: 'A' through 'x'
@@ -456,7 +458,7 @@ int main(int argc, char *argv[])
 	if (!sendTime)
 	{
 		error("%s", _("Memory allocation error"));
-		quit(errno = ERR_MEMORY);
+		quit(status = ERR_MEMORY);
 	}
 
 	startMs = cpuGetMs();
@@ -470,7 +472,7 @@ int main(int argc, char *argv[])
 		if (status < 0)
 		{
 			error("%s", _("Error pinging host"));
-			quit(errno = status);
+			quit(status);
 		}
 
 		packetsSent += 1;
@@ -498,8 +500,5 @@ int main(int argc, char *argv[])
 		packetsReceived) : 0), maxRtTime);
 
 	quit(0);
-
-	// Compiler happy
-	return (0);
 }
 

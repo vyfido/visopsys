@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -65,7 +65,6 @@ static void usage(char *name)
 	fprintf(stderr, "%s", _("usage:\n"));
 	fprintf(stderr, _("%s [-R] <source1> [source2] ... <destination>\n"),
 		name);
-	return;
 }
 
 
@@ -113,9 +112,9 @@ int main(int argc, char *argv[])
 
 		if (status < 0)
 		{
-			fprintf(stderr, "%s: ", argv[count]);
+			fprintf(stderr, "%s: ", argv[0]);
 			errno = status;
-			perror(argv[0]);
+			perror(argv[count]);
 		}
 	}
 

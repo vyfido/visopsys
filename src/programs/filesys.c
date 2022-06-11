@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -324,9 +324,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 		// Check for the window being closed
 		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
-			if (changesPending &&
-				windowNewChoiceDialog(window, UNSAVED_CHANGES,
-					QUIT_WITHOUT_WRITE, (char *[]){ QUIT, CANCEL }, 2, 0))
+			if (changesPending && windowNewChoiceDialog(window,
+				UNSAVED_CHANGES, QUIT_WITHOUT_WRITE,
+				(char *[]){ QUIT, CANCEL }, 2 /* numChoices */,
+				0 /* defaultChoice */))
 			{
 				return;
 			}
@@ -379,7 +380,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		if (changesPending && windowNewChoiceDialog(window, UNSAVED_CHANGES,
-			QUIT_WITHOUT_WRITE, (char *[]){ QUIT, CANCEL }, 2, 0))
+			QUIT_WITHOUT_WRITE, (char *[]){ QUIT, CANCEL },
+			2 /* numChoices */, 0 /* defaultChoice */))
 		{
 			return;
 		}

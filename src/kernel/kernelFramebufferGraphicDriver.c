@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -1610,6 +1610,15 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		{
 			kernelError(kernel_error, "Unable to map linear framebuffer");
 			return (status);
+		}
+
+		// Specify the page caching attributes as write-combining
+		status = kernelPageSetAttrs(KERNELPROCID, pageattr_writecombine,
+			adapter->framebuffer, (adapter->yRes * adapter->scanLineBytes));
+		if (status < 0)
+		{
+			kernelError(kernel_warn, "Error %d setting linear framebuffer "
+				"page attrs", status);
 		}
 
 		status = kernelGraphicInitialize(dev);

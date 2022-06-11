@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,12 +34,13 @@ Usage:
 </help>
 */
 
+#include <errno.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/api.h>
 
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	int status = 0;
 	struct tm theTime;
@@ -48,8 +49,8 @@ int main(int argc, char *argv[])
 	status = rtcDateTime(&theTime);
 	if (status < 0)
 	{
-		if (argc)
-			perror(argv[0]);
+		errno = status;
+		perror("rtcDateTime");
 		return (status);
 	}
 

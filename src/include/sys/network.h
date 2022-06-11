@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -140,6 +140,10 @@
 #define NETWORK_PORTNAME_TELNETS			"telnets"
 #define NETWORK_PORTNAME_IMAPS				"imaps"
 #define NETWORK_PORTNAME_POP3S				"pop3s"
+
+// IANA ephemeral (temporary, private) ports
+#define NETWORK_PORT_EPHEMERAL_START		0xC000
+#define NETWORK_PORT_EPHEMERAL_END			0xFFFF
 
 // Types of network connections, in order of ascending abstraction
 #define NETWORK_HEADERS_NONE				0
@@ -303,6 +307,24 @@ typedef struct {
 
 } networkFilter;
 
+typedef enum {
+	tcp_closed = 0, tcp_listen = 1, tcp_syn_sent = 2, tcp_syn_received = 3,
+	tcp_established = 4, tcp_close_wait = 5, tcp_last_ack = 6,
+	tcp_fin_wait1 = 7, tcp_closing = 8, tcp_fin_wait2 = 9, tcp_time_wait = 10
+
+} networkTcpState;
+
+// A userspace representation of a network connection
+typedef struct {
+	int processId;
+	int mode;
+	networkAddress address;
+	networkFilter filter;
+	char netDev[NETWORK_DEVICE_MAX_NAMELENGTH + 1];
+	networkTcpState tcpState;
+
+} networkConnection;
+
 // Protocol things
 
 typedef struct {
@@ -370,13 +392,6 @@ typedef struct {
 	unsigned short checksum;
 
 } __attribute__((packed)) networkIcmpHeader;
-
-typedef enum {
-	tcp_closed = 0, tcp_listen = 1, tcp_syn_sent = 2, tcp_syn_received = 3,
-	tcp_established = 4, tcp_close_wait = 5, tcp_last_ack = 6,
-	tcp_fin_wait1 = 7, tcp_closing = 8, tcp_fin_wait2 = 9, tcp_time_wait = 10
-
-} networkTcpState;
 
 typedef struct {
 	unsigned short srcPort;

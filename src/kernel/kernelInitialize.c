@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,6 +40,7 @@
 #include "kernelNetwork.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
+#include "kernelRamDiskDriver.h"
 #include "kernelRandom.h"
 #include "kernelText.h"
 #include "kernelTouch.h"
@@ -157,6 +158,12 @@ static void logLoaderInfo(void)
 		}
 	}
 
+	if (kernelOsLoaderInfo->ramDiskMemory && kernelOsLoaderInfo->ramDiskSize)
+	{
+		kernelLog("OS Loader: RAM disk location=0x%08x size=%u",
+			kernelOsLoaderInfo->ramDiskMemory,
+			kernelOsLoaderInfo->ramDiskSize);
+	}
 	kernelLog("OS Loader: boot signature=0x%08x",
 		kernelOsLoaderInfo->bootSectorSig);
 	kernelLog("OS Loader: boot from CD: %s",
@@ -173,6 +180,67 @@ static void logLoaderInfo(void)
 	}
 
 	return;
+}
+
+
+static void makeTempRamDisk(variableList *kernelVariables)
+{
+	int status = 0;
+	const char *value = NULL;
+	unsigned diskSize = 0;
+	char diskName[DISK_MAX_NAMELENGTH + 1];
+	kernelFileEntry *temp = NULL;
+
+	// Should we create it?
+	value = variableListGet(kernelVariables, KERNELVAR_RAMDISK_RO_TMP);
+	if (!value)
+		return;
+
+	diskSize = atoi(value);
+
+	if (!diskSize)
+		return;
+
+	status = kernelDiskRamDiskCreate(diskSize, diskName);
+	if (status < 0)
+	{
+		kernelError(kernel_warn, "Couldn't create RAM disk for %s",
+			PATH_TEMP);
+		return;
+	}
+
+	status = kernelFilesystemFormat(diskName, FSNAME_FAT, "temp",
+		0 /* longFormat */, NULL /* prog */);
+	if (status < 0)
+	{
+		kernelError(kernel_warn, "Couldn't format RAM disk for %s",
+			PATH_TEMP);
+		kernelDiskRamDiskDestroy(diskName);
+		return;
+	}
+
+	// We may need to work around the normal rule that the mount point is not
+	// allowed to already exist
+	temp = kernelFileLookup(PATH_TEMP);
+	if (temp)
+	{
+		status = kernelFileRemoveEntry(temp);
+		if (status < 0)
+		{
+			kernelError(kernel_warn, "Couldn't remove read-only %s",
+				PATH_TEMP);
+			kernelDiskRamDiskDestroy(diskName);
+			return;
+		}
+	}
+
+	status = kernelFilesystemMount(diskName, PATH_TEMP);
+	if (status < 0)
+	{
+		kernelError(kernel_warn, "Couldn't mount RAM disk for %s", PATH_TEMP);
+		kernelDiskRamDiskDestroy(diskName);
+		return;
+	}
 }
 
 
@@ -304,7 +372,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2019 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2020 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
@@ -507,6 +575,11 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		if (value && !strcmp(value, "yes"))
 			networking = 1;
 	}
+
+	// If the filesystem is read-only, should we create a RAM disk for the
+	// temporary directory?
+	if (rootDisk->filesystem.readOnly)
+		makeTempRamDisk(kernelVariables);
 
 	if (graphics)
 	{

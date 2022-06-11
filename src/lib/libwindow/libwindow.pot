@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: windowArchiveList.c:55 windowFileList.c:199 windowProgressDialog.c:127
+#: windowArchiveList.c:55 windowFileList.c:200 windowProgressDialog.c:127
 msgid "Error"
 msgstr ""
 
-#: windowArchiveList.c:78 windowFileList.c:502
+#: windowArchiveList.c:78 windowFileList.c:503
 msgid "Memory allocation error creating icon parameters"
 msgstr ""
 
@@ -42,46 +42,46 @@ msgid "Blue"
 msgstr ""
 
 #: windowColorDialog.c:271 windowFileDialog.c:249 windowLanguageDialog.c:200
-#: windowNumberDialog.c:169 windowOkDialog.c:127 windowPromptDialog.c:136
+#: windowNumberDialog.c:169 windowOkDialog.c:127 windowPromptDialog.c:141
 #: windowQueryDialog.c:57 windowRadioDialog.c:154
 msgid "OK"
 msgstr ""
 
 #: windowColorDialog.c:281 windowFileDialog.c:259 windowLanguageDialog.c:210
-#: windowNumberDialog.c:174 windowProgressDialog.c:260 windowPromptDialog.c:146
+#: windowNumberDialog.c:174 windowProgressDialog.c:260 windowPromptDialog.c:151
 #: windowQueryDialog.c:57 windowRadioDialog.c:166
 msgid "Cancel"
 msgstr ""
 
-#: windowFileList.c:218
+#: windowFileList.c:219
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr ""
 
-#: windowFileList.c:343 windowFileList.c:376
+#: windowFileList.c:344 windowFileList.c:377
 msgid "(up)"
 msgstr ""
 
-#: windowFileList.c:433
+#: windowFileList.c:434
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr ""
 
-#: windowFileList.c:444
+#: windowFileList.c:445
 msgid "Memory allocation error"
 msgstr ""
 
-#: windowFileList.c:457
+#: windowFileList.c:458
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr ""
 
-#: windowFileList.c:836
+#: windowFileList.c:837
 #, c-format
 msgid "Can't change to directory %s"
 msgstr ""
 
-#: windowFileList.c:864
+#: windowFileList.c:865
 #, c-format
 msgid "Error deleting file %s"
 msgstr ""

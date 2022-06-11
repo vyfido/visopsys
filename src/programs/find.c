@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,7 +63,11 @@ static void recurseDirectory(const char *dirPath)
 	// Get the first item in the directory
 	status = fileFirst(dirPath, &theFile);
 	if (status < 0)
+	{
+		errno = status;
+		perror("fileFirst");
 		return;
+	}
 
 	// Loop through the contents of the directory
 	while (1)
@@ -86,10 +90,14 @@ static void recurseDirectory(const char *dirPath)
 
 					free(newDirPath);
 				}
+				else
+				{
+					perror("malloc");
+				}
 			}
 		}
 
-		// Move to the next item
+		// Move to the next item, if it exists
 		status = fileNext(dirPath, &theFile);
 		if (status < 0)
 			break;
@@ -110,13 +118,13 @@ int main(int argc, char *argv[])
 	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 	{
-		errno = ERR_MEMORY;
-		perror(argv[0]);
+		status = errno;
+		perror("malloc");
 		return (status);
 	}
 
 	if (argc == 1)
-		// No args.  Assume current directory
+		// No args.  Assume current directory.
 		strcpy(fileName, ".");
 	else
 		strcpy(fileName, argv[1]);
@@ -142,8 +150,11 @@ int main(int argc, char *argv[])
 	printf("%s\n", fileName);
 
 	if (theFile.type == dirT)
-		// If it's a directory, we start our recursion.  Otherwise just print it
+	{
+		// If it's a directory, we start our recursion.  Otherwise just print
+		// it.
 		recurseDirectory(fileName);
+	}
 
 	free(fileName);
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,12 +40,12 @@ in other windows.
 </help>
 */
 
+#include <errno.h>
 #include <libintl.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
 #include <sys/env.h>
@@ -106,8 +106,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		errno = ERR_NOTINITIALIZED;
-		return (status = errno);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	// Create a new window, with small, arbitrary size and location

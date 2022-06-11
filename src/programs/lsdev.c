@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  lsdev.c
 //
 
-// Displays a tree of the system's hardware devices.
+// Displays a tree of the system's hardware devices
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -98,7 +98,7 @@ static void refreshWindow(void)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
@@ -140,8 +140,6 @@ static void constructWindow(void)
 
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
-
-	return;
 }
 
 
@@ -158,6 +156,7 @@ static int makeItemsRecursive(device *dev, windowTreeItem *item)
 
 	// Construct the main item string for this device
 
+	memset(&child, 0, sizeof(device));
 	item->text[0] = '\0';
 
 	vendor = variableListGet(&dev->attrs, DEVICEATTRNAME_VENDOR);
@@ -209,6 +208,9 @@ static int makeItemsRecursive(device *dev, windowTreeItem *item)
 		}
 	}
 
+	// Destroy the device's attributes list when we're finished with it
+	variableListDestroy(&dev->attrs);
+
 	if (deviceTreeGetChild(dev, &child) >= 0)
 	{
 		if (childItem)
@@ -255,8 +257,6 @@ static void printTreeRecursive(windowTreeItem *item, int level)
 
 	if (item->next)
 		printTreeRecursive(item->next, level);
-
-	return;
 }
 
 

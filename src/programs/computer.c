@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -226,7 +226,6 @@ static void setMountPoint(const char *diskName, char *mountPoint)
 
 	configWrite(DISK_MOUNT_CONFIG, &mountConfig);
 	variableListDestroy(&mountConfig);
-	return;
 }
 
 
@@ -844,7 +843,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		return (errno = ERR_NOTINITIALIZED);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	// What is my process id?

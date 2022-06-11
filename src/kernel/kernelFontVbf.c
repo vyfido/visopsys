@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,22 +19,21 @@
 //  kernelFontVbf.c
 //
 
-// This file contains code for loading, saving, and converting fonts
-// in the Visopsys Bitmap Font (.vbf) format.  VBF is a very simple,
-// proprietary format that allows for simple bitmapped fonts in a 'sparse'
-// list (i.e. the list of glyph codes can contain as many or as few entries
-// as desired, in any order, etc.).  Existing popular bitmap formats are much
-// more rigid and complicated, don't allow for sparseness, and thus aren't
-// amenable to our usual disk-space stinginess.
+// This file contains code for loading, saving, and converting fonts in the
+// Visopsys Bitmap Font (.vbf) format.  VBF is a very simple, proprietary
+// format that allows for simple bitmapped fonts in a 'sparse' list (i.e. the
+// list of glyph codes can contain as many or as few entries as desired, in
+// any order, etc.).  Existing popular bitmap formats are much more rigid and
+// complicated, don't allow for sparseness, and thus aren't amenable to our
+// usual disk-space stinginess.
 
 #include "kernelFontVbf.h"
 #include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelFont.h"
-#include "kernelError.h"
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
-#include "kernelMemory.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/vis.h>
@@ -112,7 +111,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	loaderFileClass *class)
 {
 	// This function returns 1 and fills the fileClass structure if the data
-	// points to a VBF file.
+	// points to a VBF file
 
 	vbfMultiVerHeader *vbfHeader = dataPtr;
 
@@ -124,10 +123,10 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	if ((size < sizeof(vbfFileHeaderV1)) && (size < sizeof(vbfFileHeader)))
 		return (0);
 
-	// See whether this file claims to be a VBF file.
+	// See whether this file claims to be a VBF file
 	if (!strncmp(vbfHeader->common.magic, VBF_MAGIC, VBF_MAGIC_LEN))
 	{
-		// We'll accept that.
+		// We'll accept that
 		sprintf(class->name, "%s %s", FILECLASS_NAME_VBF,
 			FILECLASS_NAME_FONT);
 		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_FONT);
@@ -197,7 +196,7 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 
 	strcpy(charSet, vbfHeader->charSet);
 
-	status = linkedListAdd(&font->charSet, charSet);
+	status = linkedListAddBack(&font->charSet, charSet);
 	if (status < 0)
 		goto out;
 
@@ -211,9 +210,9 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 		"glyphWidth=%d glyphHeight=%d", font->info.family, font->info.flags,
 		font->info.points, charSet, font->glyphWidth, font->glyphHeight);
 
-	// Get memory for the font structure and the images data.
-	font->glyphs = kernelRealloc(font->glyphs,
-		((font->numGlyphs + vbfHeader->numGlyphs) * sizeof(kernelGlyph)));
+	// Get memory for the font structure and the images data
+	font->glyphs = kernelRealloc(font->glyphs, ((font->numGlyphs +
+		vbfHeader->numGlyphs) * sizeof(kernelGlyph)));
 	fontData = kernelMalloc(glyphBytes * vbfHeader->numGlyphs);
 
 	if (!font->glyphs || !fontData)
@@ -223,8 +222,8 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 	}
 
 	// Copy the bitmap data directory from the file into the font memory
-	memcpy(fontData, &vbfHeader->codes[vbfHeader->numGlyphs],
-		(glyphBytes * vbfHeader->numGlyphs));
+	memcpy(fontData, &vbfHeader->codes[vbfHeader->numGlyphs], (glyphBytes *
+		vbfHeader->numGlyphs));
 
 	// Loop through the all the images
 	for (count1 = 0; count1 < vbfHeader->numGlyphs; count1 ++)
@@ -244,14 +243,14 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 
 		// If a variable-width font has been requested, then we need to do
 		// some bit-bashing to remove surplus space on either side of each
-		// character.
+		// character
 		if (!fixedWidth)
 		{
 			glyphData = glyph->img.data;
 
 			// These allow us to keep track of the leftmost and rightmost 'on'
 			// pixels for this character.  We can use these for narrowing the
-			// image if we want a variable-width font
+			// image if we want a variable-width font.
 			firstOnPixel = (font->glyphWidth - 1);
 			lastOnPixel = 0;
 
@@ -291,7 +290,7 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 				if (firstOnPixel > lastOnPixel)
 				{
 					// This has no pixels.  Probably a space character.  Give
-					// it a width of approximately 1/5th the char width
+					// it a width of approximately 1/5th the char width.
 					firstOnPixel = 0;
 					lastOnPixel = ((font->glyphWidth / 5) - 1);
 				}
@@ -301,14 +300,15 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 				// counts through all of the bits.  The count3 one only counts
 				// bits that aren't being skipped, and sets/clears them.
 
-				for (count2 = 0, count3 = 0;
-					count2 < (font->glyphWidth * font->glyphHeight); count2 ++)
+				for (count2 = 0, count3 = 0; count2 < (font->glyphWidth *
+					font->glyphHeight); count2 ++)
 				{
 					currentPixel = (count2 % font->glyphWidth);
 					if ((currentPixel < firstOnPixel) ||
 						(currentPixel > (lastOnPixel + 1)))
 					{
-						// Skip this pixel.  It's from a column we're deleting.
+						// Skip this pixel.  It's from a column we're
+						// deleting.
 						continue;
 					}
 

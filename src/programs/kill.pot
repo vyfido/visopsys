@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,21 +17,16 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: kill.c:62
+#: kill.c:55
 msgid "usage:\n"
 msgstr ""
 
-#: kill.c:63
+#: kill.c:56
 #, c-format
-msgid "%s [-f] <process1> [process2] [...]\n"
+msgid "%s <process1> [process2] [...]\n"
 msgstr ""
 
-#: kill.c:105
-#, c-format
-msgid "Unknown option '%c'\n"
-msgstr ""
-
-#: kill.c:129
+#: kill.c:106
 #, c-format
 msgid "%d killed\n"
 msgstr ""

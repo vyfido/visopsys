@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +20,7 @@
 //
 
 // This file contains definitions and structures for general library
-// functionality shared between the kernel and userspace in Visopsys.
+// functionality shared between the kernel and userspace in Visopsys
 
 #ifndef _VIS_H
 #define _VIS_H
@@ -91,7 +91,8 @@ extern kernelLibOps kernLibOps;
 // Functions
 
 // Linked lists
-int linkedListAdd(linkedList *, void *);
+int linkedListAddFront(linkedList *, void *);
+int linkedListAddBack(linkedList *, void *);
 int linkedListRemove(linkedList *, void *);
 int linkedListClear(linkedList *);
 void *linkedListIterStart(linkedList *, linkedListItem **);

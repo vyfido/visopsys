@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -97,7 +97,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 			// The window is being closed by a GUI event.  Just kill our shell
 			// process -- the main process will stop blocking and do the rest
 			// of the shutdown.
-			multitaskerKillProcess(shellProcessId, 0 /* no force */);
+			multitaskerKillProcess(shellProcessId);
 		}
 	}
 }
@@ -108,9 +108,9 @@ int main(int argc, char *argv[])
 	int status = 0;
 	int myProcessId = 0;
 	int myPrivilege = 0;
-	componentParameters params;
 	int rows = 25;
 	objectKey textArea = NULL;
+	componentParameters params;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cmdwin");
@@ -120,8 +120,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		errno = ERR_NOTINITIALIZED;
-		return (status = errno);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	myProcessId = multitaskerGetCurrentProcessId();
@@ -132,7 +131,6 @@ int main(int argc, char *argv[])
 	if (shellProcessId < 0)
 	{
 		printf("%s", _("Unable to load shell\n"));
-		errno = shellProcessId;
 		return (status = shellProcessId);
 	}
 
@@ -155,7 +153,8 @@ int main(int argc, char *argv[])
 		// The default/system fonts can comfortably show more rows
 		rows = 40;
 
-	textArea = windowNewTextArea(window, 80, rows, 200, &params);
+	textArea = windowNewTextArea(window, 80 /* columns */, rows,
+		200 /* bufferLines */, &params);
 	windowComponentFocus(textArea);
 
 	// Use the text area for all our input and output
@@ -164,7 +163,7 @@ int main(int argc, char *argv[])
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
 
-	// Go live.
+	// Go live
 	windowSetVisible(window, 1);
 
 	// Run the GUI as a thread

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -79,6 +79,8 @@ typedef struct {
 	unsigned extendedMemory;
 	memoryInfoBlock memoryMap[50];
 	graphicsInfoBlock graphicsInfo;
+	unsigned ramDiskMemory;
+	unsigned ramDiskSize;
 	unsigned bootSectorSig;
 	int bootCd;
 	int floppyDisks;

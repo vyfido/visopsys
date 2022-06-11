@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -227,6 +227,7 @@ typedef volatile struct _kernelWindowComponent {
 	int (*focus)(volatile struct _kernelWindowComponent *, int);
 	int (*getData)(volatile struct _kernelWindowComponent *, void *, int);
 	int (*setData)(volatile struct _kernelWindowComponent *, void *, int);
+	int (*appendData)(volatile struct _kernelWindowComponent *, void *, int);
 	int (*getSelected)(volatile struct _kernelWindowComponent *, int *);
 	int (*setSelected)(volatile struct _kernelWindowComponent *, int);
 	int (*mouseEvent)(volatile struct _kernelWindowComponent *,
@@ -664,6 +665,8 @@ int kernelWindowComponentLayout(kernelWindowComponent *);
 int kernelWindowComponentDraw(kernelWindowComponent *);
 int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
 int kernelWindowComponentSetData(kernelWindowComponent *, void *, int, int);
+int kernelWindowComponentAppendData(kernelWindowComponent *, void *, int,
+	int);
 int kernelWindowComponentGetSelected(kernelWindowComponent *, int *);
 int kernelWindowComponentSetSelected(kernelWindowComponent *, int);
 

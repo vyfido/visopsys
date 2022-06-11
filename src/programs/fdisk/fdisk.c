@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -272,7 +272,7 @@ static void quit(int status, int force)
 	if (table)
 		free(table);
 
-	exit(errno = status);
+	exit(status);
 }
 
 
@@ -793,8 +793,6 @@ static void getFsInfo(partitionTable *t, int sliceNumber)
 
 	if (strcmp(tmpDisk.fsType, _("unknown")))
 		strncpy(slc->fsType, tmpDisk.fsType, FSTYPE_MAX_NAMELENGTH);
-
-	return;
 }
 
 
@@ -1388,7 +1386,7 @@ static int haveUsedSlices(void)
 static void printBanner(void)
 {
 	textScreenClear();
-	printf(_("%s\nCopyright (C) 1998-2019 J. Andrew McLaughlin\n"),
+	printf(_("%s\nCopyright (C) 1998-2020 J. Andrew McLaughlin\n"),
 		programName);
 }
 
@@ -1725,8 +1723,6 @@ static void listTypes(void)
 
 	if (typeListParams)
 		free(typeListParams);
-
-	return;
 }
 
 
@@ -1826,7 +1822,7 @@ static int mountedCheckSlice(slice *entry)
 		{
 			choice = windowNewChoiceDialog(window, _("Partition Is Mounted"),
 				tmpChar, (char *[]){ _("Ignore"), _("Unmount"),
-				_("Cancel") }, 3, 1);
+				_("Cancel") }, 3 /* numChoices */, 1 /* defaultChoice */);
 		}
 		else
 		{
@@ -1839,19 +1835,19 @@ static int mountedCheckSlice(slice *entry)
 
 				if ((character == 'i') || (character == 'I'))
 				{
-					printf("%s", _("Ignore\n"));
+					printf("%s\n", _("Ignore"));
 					choice = 0;
 					break;
 				}
 				else if ((character == 'u') || (character == 'U'))
 				{
-					printf("%s", _("Unmount\n"));
+					printf("%s\n", _("Unmount"));
 					choice = 1;
 					break;
 				}
 				else if ((character == 'c') || (character == 'C'))
 				{
-					printf("%s", _("Cancel\n"));
+					printf("%s\n", _("Cancel"));
 					choice = 2;
 					break;
 				}
@@ -2495,8 +2491,6 @@ static void create(int sliceNumber)
 		// so we don't do it here.
 		table->selectedSlice = newSliceNumber;
 	}
-
-	return;
 }
 
 
@@ -2622,8 +2616,6 @@ static void format(int sliceNumber)
 
 	// Make the slice list
 	makeSliceList(table);
-
-	return;
 }
 
 
@@ -2705,8 +2697,6 @@ static void defragment(int sliceNumber)
 			pause();
 		}
 	}
-
-	return;
 }
 
 
@@ -4473,8 +4463,6 @@ static void copyDisk(void)
 			setFatGeometry(table, count);
 		}
 	}
-
-	return;
 }
 
 
@@ -4951,7 +4939,6 @@ commit:
 
 	updateSliceList(table);
 	table->changesPending += 1;
-	return;
 }
 
 
@@ -5113,8 +5100,6 @@ static void restoreBackup(void)
 
 	// Don't write it.  The user has to do that explicitly.
 	table->changesPending += 1;
-
-	return;
 }
 
 
@@ -5435,8 +5420,6 @@ static void erase(int wholeDisk)
 	table->changesPending = 0;
 
 	selectDisk(table->disk);
-
-	return;
 }
 
 
@@ -5493,8 +5476,6 @@ static void newLabel(void)
 	table->changesPending = 0;
 
 	selectDisk(table->disk);
-
-	return;
 }
 
 
@@ -5529,7 +5510,6 @@ static void makeSliceListHeader(void)
 	count += SLICESTRING_SIZEFIELD_WIDTH;
 	string = _("Attributes");
 	strncpy((sliceListHeader + count), string, strlen(string));
-	return;
 }
 
 
@@ -6224,8 +6204,6 @@ static void constructWindow(void)
 
 	// Go
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 

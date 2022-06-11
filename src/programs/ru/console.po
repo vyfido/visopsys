@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: console\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 01:15+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -31,14 +31,14 @@ msgstr ""
 "\n"
 "Команда  \"%s\" работает только в графическом режиме\n"
 
-#: console.c:123 console.c:128
+#: console.c:122 console.c:127
 msgid "Error"
 msgstr "Ошибка"
 
-#: console.c:123
+#: console.c:122
 msgid "Cannot open more than one console window!"
 msgstr "Не могу открыть больше одного окна терминала!"
 
-#: console.c:128
+#: console.c:127
 msgid "Error opening the console window!"
 msgstr "Ошибка открытия окна терминала!"

@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -108,27 +108,27 @@ msgstr "Aktualisieren der Informationen zum Dateisystem"
 msgid "Error updating filesystem info"
 msgstr "Fehler beim aktualisieren der Informationen zum Dateisystem"
 
-#: kernelShutdown.c:45
+#: kernelShutdown.c:47
 msgid "Shutting down Visopsys, please wait..."
 msgstr "Visopsys wird heruntergefahren, bitte warten Sie..."
 
-#: kernelShutdown.c:46
+#: kernelShutdown.c:48
 msgid "[ Wait for \"OK to power off\" message ]"
 msgstr "[ Es wird auf die Nachricht \"OK zum herunterfahren\" gewartet ]"
 
-#: kernelShutdown.c:47
+#: kernelShutdown.c:49
 msgid "Rebooting."
 msgstr "Es wird neu gestartet."
 
-#: kernelShutdown.c:48
+#: kernelShutdown.c:50
 msgid "OK to power off now."
 msgstr "OK jetzt herunterzufahren"
 
-#: kernelShutdown.c:165
+#: kernelShutdown.c:181
 msgid "Shutting down"
 msgstr "Herunterfahren"
 
-#: kernelShutdown.c:333
+#: kernelShutdown.c:338
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
 msgstr "SYSTEM WURDE ANGEHALTEN: Fehler bei %s:%s(%d)"

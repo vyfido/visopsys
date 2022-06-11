@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@
 
 #include <sys/socket.h>
 #include <errno.h>
+#include <sched.h>
 #include <sys/api.h>
 #include <sys/cdefs.h>
 
@@ -49,7 +50,7 @@ ssize_t recv(int fd, void *buf, size_t count, int flags)
 		return (status = -1);
 	}
 
-	do
+	while (1)
 	{
 		switch (type)
 		{
@@ -62,6 +63,9 @@ ssize_t recv(int fd, void *buf, size_t count, int flags)
 				break;
 		}
 
+		if (!status && (flags & MSG_DONTWAIT))
+			status = EWOULDBLOCK;
+
 		if (status < 0)
 		{
 			errno = status;
@@ -72,7 +76,8 @@ ssize_t recv(int fd, void *buf, size_t count, int flags)
 		if (status > 0)
 			return (status);
 
-	} while (!(flags & MSG_DONTWAIT));
+		sched_yield();
+	}
 
 	return (status);
 }

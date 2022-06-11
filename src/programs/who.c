@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,7 +50,7 @@ Usage:
 #define gettext_noop(string) (string)
 
 
-int main(int argc __attribute__((unused)), char *argv[])
+int main(void)
 {
 	int status = 0;
 	userSession *sessions = NULL;
@@ -64,21 +64,26 @@ int main(int argc __attribute__((unused)), char *argv[])
 	if (!sessions)
 	{
 		status = errno;
+		perror("calloc");
 		goto out;
 	}
 
 	// Get the list of user sessions
 	status = userGetSessions(sessions, MAX_SESSIONS);
 	if (status <= 0)
+	{
+		errno = status;
+		perror("userGetSessions");
 		goto out;
+	}
 
 	for (count = 0; count < status; count ++)
 	{
 		printf("%s\t\t", sessions[count].name);
 		if (sessions[count].type == session_local)
-			printf("local\t\t");
+			printf("%s\t\t", _("local"));
 		else
-			printf("network\t\t"); // implement later
+			printf("%s\t\t", _("network")); // implement later
 		printf("pid=%d", sessions[count].loginPid);
 		printf("\n");
 	}
@@ -86,12 +91,6 @@ int main(int argc __attribute__((unused)), char *argv[])
 	status = 0;
 
 out:
-	if (status < 0)
-	{
-		errno = status;
-		perror(argv[0]);
-	}
-
 	if (sessions)
 		free(sessions);
 

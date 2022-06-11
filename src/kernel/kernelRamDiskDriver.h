@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,6 +37,10 @@ typedef struct {
 	void *data;
 
 } kernelRamDisk;
+
+int kernelDiskRamDiskRegister(void *, unsigned, char *);
+int kernelDiskRamDiskCreate(unsigned, char *);
+int kernelDiskRamDiskDestroy(const char *);
 
 #endif
 

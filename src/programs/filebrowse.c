@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -482,7 +482,7 @@ int main(int argc, char *argv[])
 	// What is my privilege level?
 	privilege = multitaskerGetProcessPrivilege(processId);
 
-	dirStack = malloc((MAX_PATH_LENGTH + 1) * sizeof(dirRecord));
+	dirStack = calloc((MAX_PATH_LENGTH + 1), sizeof(dirRecord));
 	if (!dirStack)
 	{
 		error("%s", _("Memory allocation error"));
@@ -512,7 +512,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	// Record the new modification times and file sizes
+	// Record the initial modification times and file sizes
 	scanDir(&dirStack[dirStackCurr], dirStack[dirStackCurr].name);
 
 	status = constructWindow(dirStack[dirStackCurr].name);

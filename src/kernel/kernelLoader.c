@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,10 +35,8 @@
 #include <string.h>
 #include <sys/paths.h>
 
-// This is the static list of file class registration functions.  If you
-// add any to this, remember to update the LOADER_NUM_FILECLASSES value
-// in the header file.
-static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES])(void) = {
+// This is the static list of file class registration functions
+static kernelFileClass *(*classRegFns[])(void) = {
 	// Binary formats with magic numbers
 	kernelFileClassBmp,
 	kernelFileClassIco,
@@ -72,9 +70,11 @@ static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES])(void) = {
 	kernelFileClassBinary
 };
 
+#define NUM_FILECLASS_REGS	(sizeof(classRegFns) / sizeof(kernelFileClass *))
+
 kernelFileClass dirFileClass = { FILECLASS_NAME_DIR, NULL, { } };
 kernelFileClass emptyFileClass = { FILECLASS_NAME_EMPTY, NULL, { } };
-static kernelFileClass *fileClassList[LOADER_NUM_FILECLASSES];
+static kernelFileClass *fileClassList[NUM_FILECLASS_REGS];
 static int numFileClasses = 0;
 static kernelDynamicLibrary *libraryList = NULL;
 
@@ -267,11 +267,11 @@ static void populateFileClassList(void)
 {
 	// Populate our list of file classes
 
-	int count;
+	unsigned count;
 
 	kernelDebug(debug_loader, "Populating file class list");
 
-	for (count = 0; count < LOADER_NUM_FILECLASSES; count ++)
+	for (count = 0; count < NUM_FILECLASS_REGS; count ++)
 		fileClassList[numFileClasses++] = classRegFns[count]();
 }
 
@@ -613,7 +613,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	if (!(fileClass.type & LOADERFILECLASS_EXEC))
 	{
 		kernelError(kernel_error, "File \"%s\" is not an executable program",
-			command);
+			execImage.argv[0]);
 		kernelMemoryRelease(loadAddress);
 		return (status = ERR_PERMISSION);
 	}

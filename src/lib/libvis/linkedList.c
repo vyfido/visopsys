@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -20,12 +20,73 @@
 //
 
 // This file contains linked list code for general library functionality
-// shared between the kernel and userspace in Visopsys.
+// shared between the kernel and userspace in Visopsys
 
-// Library debugging messages are off by default even in a debug build.
+// Library debugging messages are off by default even in a debug build
 #undef DEBUG
 
 #include "libvis.h"
+
+
+static int add(linkedList *list, void *data, int back)
+{
+	int status = 0;
+	linkedListItem *new = NULL;
+
+	if (!list || !data)
+	{
+		error("NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	new = memory_malloc(sizeof(linkedListItem));
+	if (!new)
+	{
+		error("Memory allocation failure");
+		return (status = ERR_MEMORY);
+	}
+
+	new->data = data;
+
+	status = lock_get(&list->lock);
+	if (status < 0)
+	{
+		error("Couldn't get lock");
+		memory_free(new);
+		return (status);
+	}
+
+	if (back)
+	{
+		if (list->last)
+			list->last->next = new;
+
+		new->prev = list->last;
+
+		if (!list->first)
+			list->first = new;
+
+		list->last = new;
+	}
+	else
+	{
+		if (list->first)
+			list->first->prev = new;
+
+		new->next = list->first;
+
+		if (!list->last)
+			list->last = new;
+
+		list->first = new;
+	}
+
+	list->numItems += 1;
+
+	lock_release(&list->lock);
+
+	return (status = 0);
+}
 
 
 static inline int inList(linkedList *list, linkedListItem *item)
@@ -54,51 +115,21 @@ static inline int inList(linkedList *list, linkedListItem *item)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-_X_ int linkedListAdd(linkedList *list, void *data)
+_X_ int linkedListAddFront(linkedList *list, void *data)
 {
-	// Desc : Add the specified value 'data' to the linked list 'list'.
+	// Desc : Add the specified value 'data' to the front of linked list 'list'.
 
-	int status = 0;
-	linkedListItem *new = NULL;
+	// This will check parameters
+	return (add(list, data, 0 /* front */));
+}
 
-	if (!list || !data)
-	{
-		error("NULL parameter");
-		return (status = ERR_NULLPARAMETER);
-	}
 
-	new = memory_malloc(sizeof(linkedListItem));
-	if (!new)
-	{
-		error("Memory allocation failure");
-		return (status = ERR_MEMORY);
-	}
+_X_ int linkedListAddBack(linkedList *list, void *data)
+{
+	// Desc : Add the specified value 'data' to the back of linked list 'list'.
 
-	new->data = data;
-
-	status = lock_get(&list->lock);
-	if (status < 0)
-	{
-		error("Couldn't get lock");
-		memory_free(new);
-		return (status);
-	}
-
-	if (list->last)
-		list->last->next = new;
-
-	new->prev = list->last;
-
-	if (!list->first)
-		list->first = new;
-
-	list->last = new;
-
-	list->numItems += 1;
-
-	lock_release(&list->lock);
-
-	return (status = 0);
+	// This will check parameters
+	return (add(list, data, 1 /* back */));
 }
 
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,7 +51,7 @@ privilege level, priority level, CPU utilization and other statistics.
 #define SHOW_MAX_PROCESSES	100
 
 
-int main(int argc __attribute__((unused)), char *argv[])
+int main(void)
 {
 	// This command will query the kernel for a list of all active processes,
 	// and print information about them on the screen.
@@ -71,7 +71,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	processes = malloc(bufferSize);
 	if (!processes)
 	{
-		perror(argv[0]);
+		perror("malloc");
 		return (ERR_MEMORY);
 	}
 
@@ -79,7 +79,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	if (numProcesses < 0)
 	{
 		errno = numProcesses;
-		perror(argv[0]);
+		perror("multitaskerGetProcesses");
 		free(processes);
 		return (numProcesses);
 	}

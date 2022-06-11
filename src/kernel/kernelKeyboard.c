@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,7 +53,8 @@ static keyMap defMap = {
 		// 5th row
 		0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm',				// 0E-16
 		',', '.', '/', 0,										// 17-1A
-		ASCII_CRSRUP, 0, ASCII_CRSRDOWN, ASCII_PAGEDOWN,		// 1B-1E
+		ASCII_CRSRUP, ASCII_END, ASCII_CRSRDOWN,				// 1B-1D
+		ASCII_PAGEDOWN,											// 1E
 
 		// 4th row
 		0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',	// 1F-29
@@ -61,8 +62,8 @@ static keyMap defMap = {
 
 		// 3rd row
 		ASCII_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',		// 30-38
-		'o', 'p', '[', ']', '\\', ASCII_DEL, 0, ASCII_PAGEDOWN,	// 39-40
-		ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,					// 41-43
+		'o', 'p', '[', ']', '\\', ASCII_DEL, ASCII_END,			// 39-3F
+		ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
 
 		// 2nd row
 		'`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',	// 44-4E
@@ -81,7 +82,8 @@ static keyMap defMap = {
 		// 5th row
 		0, '|', 'Z', 'X', 'C', 'V', 'B', 'N', 'M',				// 0E-16
 		'<', '>', '?', 0,										// 17-1A
-		ASCII_CRSRUP, 0, ASCII_CRSRDOWN, ASCII_PAGEDOWN,		// 1B-1E
+		ASCII_CRSRUP, ASCII_END, ASCII_CRSRDOWN,				// 1B-1D
+		ASCII_PAGEDOWN,											// 1E
 
 		// 4th row
 		0, 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',	// 1F-29
@@ -89,8 +91,8 @@ static keyMap defMap = {
 
 		// 3rd row
 		ASCII_TAB, 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',		// 30-38
-		'O', 'P', '{', '}', '|', ASCII_DEL, 0, ASCII_PAGEDOWN,	// 39-40
-		ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,					// 41-43
+		'O', 'P', '{', '}', '|', ASCII_DEL, ASCII_END,			// 39-3F
+		ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
 
 		// 2nd row
 		'~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',	// 44-4E
@@ -110,7 +112,7 @@ static keyMap defMap = {
 		// 5th row
 		0, ASCII_FS, ASCII_SUB, ASCII_CAN, ASCII_ETX,			// 0E-12
 		ASCII_SYN, ASCII_STX, ASCII_SO, ASCII_CR, ',', '.',		// 13-18
-		'/', 0, ASCII_CRSRUP, 0, ASCII_CRSRDOWN,				// 19-1D
+		'/', 0, ASCII_CRSRUP, ASCII_END, ASCII_CRSRDOWN,		// 19-1D
 		ASCII_PAGEDOWN,											// 1E
 
 		// 4th row
@@ -121,8 +123,9 @@ static keyMap defMap = {
 		// 3rd row
 		ASCII_TAB, ASCII_DC1, ASCII_ETB, ASCII_ENQ, ASCII_DC2,	// 30-34
 		ASCII_DC4, ASCII_EM, ASCII_NAK, ASCII_HT, ASCII_SI,		// 35-39
-		ASCII_DLE, ASCII_ESC, ASCII_GS, ASCII_FS, ASCII_DEL, 0,	// 3A-3F
-		ASCII_PAGEDOWN,	ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
+		ASCII_DLE, ASCII_ESC, ASCII_GS, ASCII_FS, ASCII_DEL,	// 3A-3E
+		ASCII_END, ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP,	// 3F-42
+		ASCII_PAGEUP,											// 43
 
 		// 2nd row
 		'`', '1', ASCII_NULL, '3', '4', '5', ASCII_RS, '7',		// 44-4B
@@ -142,7 +145,8 @@ static keyMap defMap = {
 		// 5th row
 		0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm',				// 0E-16
 		',', '.', '/', 0,										// 17-1A
-		ASCII_CRSRUP, 0, ASCII_CRSRDOWN, ASCII_PAGEDOWN,		// 1B-1E
+		ASCII_CRSRUP, ASCII_END, ASCII_CRSRDOWN,				// 1B-1D
+		ASCII_PAGEDOWN,											// 1E
 
 		// 4th row
 		0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',	// 1F-29
@@ -150,8 +154,8 @@ static keyMap defMap = {
 
 		// 3rd row
 		ASCII_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',		// 30-38
-		'o', 'p', '[', ']', '\\', ASCII_DEL, 0, ASCII_PAGEDOWN,	// 39-40
-		ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,					// 41-43
+		'o', 'p', '[', ']', '\\', ASCII_DEL, ASCII_END,			// 39-3F
+		ASCII_PAGEDOWN, ASCII_HOME, ASCII_CRSRUP, ASCII_PAGEUP,	// 40-43
 
 		// 2nd row
 		'`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',	// 44-4E
@@ -170,7 +174,8 @@ static keyMap defMap = {
 		// 5th row
 		0, '|', 'Z', 'X', 'C', 'V', 'B', 'N', 'M',				// 0E-16
 		'<', '>', '?', 0,										// 17-1A
-		ASCII_CRSRUP, 0, ASCII_CRSRDOWN, ASCII_PAGEDOWN,		// 1B-1E
+		ASCII_CRSRUP, ASCII_END, ASCII_CRSRDOWN,				// 1B-1D
+		ASCII_PAGEDOWN,											// 1E
 
 		// 4th row
 		0, 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',	// 1F-29

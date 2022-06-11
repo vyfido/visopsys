@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -70,9 +70,9 @@ int main(int argc, char *argv[])
 		output = malloc(outputSize);
 		if (!output)
 		{
-			errno = ERR_MEMORY;
-			perror(argv[0]);
-			return (status = errno);
+			status = errno;
+			perror("malloc");
+			return (status);
 		}
 
 		status = cryptHashMd5((unsigned char *) argv[count1],
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 		if (status < 0)
 		{
 			errno = status;
-			perror(argv[0]);
+			perror("cryptHashMd5");
 			free(output);
 			return (status);
 		}

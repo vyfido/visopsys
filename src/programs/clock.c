@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -103,8 +103,6 @@ static void makeTime(void)
 	sprintf(timeString, "%s %s %d - %02d:%02d", _(weekDay[theTime.tm_wday]),
 		_(month[theTime.tm_mon]), (theTime.tm_mday + 1), theTime.tm_hour,
 		theTime.tm_min);
-
-	return;
 }
 
 
@@ -121,8 +119,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		errno = ERR_NOTINITIALIZED;
-		return (status = errno);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	makeTime();

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelPs2MouseDriver.c
 //
 
-// Driver for PS2 meeses.
+// Driver for PS2 meeses
 
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelCpu.h"
@@ -70,7 +70,7 @@ static int inPort60(unsigned char *data, inputType type, unsigned timeout)
 {
 	// Input a value from the keyboard controller's data port, after checking
 	// to make sure that there's some data of the correct type waiting for us
-	// (port 0x60).
+	// (port 0x60)
 
 	unsigned char status = 0;
 	uquad_t endTime = (kernelCpuGetMs() + timeout);
@@ -88,7 +88,8 @@ static int inPort60(unsigned char *data, inputType type, unsigned timeout)
 	}
 
 	processorInPort8(0x64, status);
-	kernelError(kernel_error, "Timeout reading port 60, port 64=%02x", status);
+	kernelError(kernel_error, "Timeout reading port 60, port 64=%02x",
+		status);
 	return (ERR_TIMEOUT);
 }
 
@@ -142,7 +143,7 @@ static int waitCommandReceived(unsigned timeout)
 static int outPort60(unsigned char data)
 {
 	// Output a value to the keyboard controller's data port, after checking
-	// that it's able to receive data (port 0x60).
+	// that it's able to receive data (port 0x60)
 
 	int status = 0;
 
@@ -158,8 +159,8 @@ static int outPort60(unsigned char data)
 
 static int outPort64(unsigned char data, unsigned timeout)
 {
-	// Output a value to the keyboard controller's command port, after checking
-	// that it's able to receive data (port 0x64).
+	// Output a value to the keyboard controller's command port, after
+	// checking that it's able to receive data (port 0x64)
 
 	int status = 0;
 
@@ -169,7 +170,7 @@ static int outPort64(unsigned char data, unsigned timeout)
 
 	processorOutPort8(0x64, data);
 
-	// Wait until the controller believes it has received it.
+	// Wait until the controller believes it has received it
 	status = waitCommandReceived(timeout);
 	if (status < 0)
 		return (status);
@@ -188,7 +189,7 @@ static void ackInterrupt(void)
 
 static void readData(void)
 {
-	// Read a standard 3- or 4-byte PS/2 mouse packet.
+	// Read a standard 3- or 4-byte PS/2 mouse packet
 
 	uquad_t endTime = (kernelCpuGetMs() + MOUSE_SHORT_TIMEOUT);
 	int xChange = 0, yChange = 0, zChange = 0;
@@ -229,7 +230,8 @@ resync:
 		// Byte 0, bit 3 is always supposed to be on.  Wait until that's true.
 		if (!count && (!(packet[0] & 0x08) || (packet[0] >= 0x40)))
 		{
-			kernelDebug(debug_io, "Ps2Mouse out-of-sync byte %02x", packet[0]);
+			kernelDebug(debug_io, "Ps2Mouse out-of-sync byte %02x",
+				packet[0]);
 			goto resync;
 		}
 	}
@@ -289,8 +291,8 @@ out:
 
 static void mouseInterrupt(void)
 {
-	// This is the mouse interrupt handler.  It calls the mouse driver
-	// to actually read data from the device.
+	// This is the mouse interrupt handler.  It calls the mouse driver to
+	// actually read data from the device.
 
 	void *address = NULL;
 
@@ -301,8 +303,10 @@ static void mouseInterrupt(void)
 	kernelDebug(debug_io, "Ps2Mouse mouse interrupt");
 
 	if (enabled)
+	{
 		// Call the function to read the data
 		readData();
+	}
 
 	kernelInterruptClearCurrent();
 	processorIsrExit(address);
@@ -390,8 +394,8 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 
 			if (status < 0)
 			{
-				kernelError(kernel_error, "Error reading command parameter %d",
-					count);
+				kernelError(kernel_error, "Error reading command parameter "
+					"%d", count);
 				goto out;
 			}
 
@@ -420,6 +424,7 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 						count);
 					goto out;
 				}
+
 				kernelDebug(debug_io, "Ps2Mouse out p%d=%02x (%d)", count,
 					outParams[count], outParams[count]);
 
@@ -472,16 +477,16 @@ static int detect(void)
 		if (command(0xFF, 2, data, NULL) < 0)
 			break;
 
-		// Should be 'self test passed' 0xAA and device ID 0 for normal
-		// PS/2 mouse
+		// Should be 'self test passed' 0xAA and device ID 0 for normal PS/2
+		// mouse
 		if ((data[0] != 0xAA) || data[1])
 			break;
 
-		// Read device type.
+		// Read device type
 		if (command(0xF2, 1, data, NULL) < 0)
 			break;
 
-		// Should be type 0.
+		// Should be type 0
 		if (data[0])
 			break;
 
@@ -503,12 +508,12 @@ static int initialize(void)
 	memset(packet, 0, sizeof(packet));
 
 	do {
-		// Set defaults.  Sample rate 100, Scaling 1:1, resolution 4 counts/mm,
-		// disable data reporting.
+		// Set defaults.  Sample rate 100, Scaling 1:1, resolution 4
+		// counts/mm, disable data reporting.
 		if (command(0xF6, 0, NULL, NULL) < 0)
 			break;
 
-		// Set stream mode.
+		// Set stream mode
 		if (command(0xEA, 0, NULL, NULL) < 0)
 			break;
 
@@ -523,7 +528,7 @@ static int initialize(void)
 
 		// Try to determine whether this is a scroll-wheel mouse.  It involves
 		// doing a little magic sequence of setting different sample rates and
-		// then asking for the device type again
+		// then asking for the device type again.
 		do {
 			data[0] = 200;
 			if (command(0xF3, 1, NULL, data) < 0)
@@ -540,7 +545,7 @@ static int initialize(void)
 			if (command(0xF2, 1, data, NULL) < 0)
 				break;
 
-			// Should be type 3 now.
+			// Should be type 3 now
 			if (data[0] == 3)
 			{
 				bytesPerPacket = 4;
@@ -549,7 +554,7 @@ static int initialize(void)
 
 		} while (0);
 
-		// Enable data reporting.
+		// Enable data reporting
 		if (command(0xF4, 0, NULL, NULL) < 0)
 			break;
 
@@ -565,7 +570,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 {
 	// This function is used to detect and initialize each device, as well as
 	// registering each one with any higher-level interfaces.  Also talks to
-	// the keyboard controller a little bit to initialize the mouse
+	// the keyboard controller a little bit to initialize the mouse.
 
 	int status = 0;
 	int interrupts = 0;
@@ -601,15 +606,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	processorRestoreInts(interrupts);
 
-	// Don't save any old handler for the dedicated mouse interrupt, but if
-	// there is one, we want to know about it.
-	if (kernelInterruptGetHandler(INTERRUPT_NUM_MOUSE))
-		kernelError(kernel_warn, "Not chaining unexpected existing handler "
-			"for mouse int %d", INTERRUPT_NUM_MOUSE);
-
 	// Register our interrupt handler
 	kernelDebug(debug_io, "Ps2Mouse hook interrupt");
-	status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt, NULL);
+	status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt,
+		NULL /* handlerTask */);
 	if (status < 0)
 		goto exit;
 
@@ -642,7 +642,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	if (kernelGraphicsAreEnabled())
 	{
-		// Do the hardware initialization.
+		// Do the hardware initialization
 		status = initialize();
 		if (status < 0)
 		{
@@ -695,10 +695,8 @@ exit:
 
 void kernelPs2MouseDriverRegister(kernelDriver *driver)
 {
-	 // Device driver registration.
+	 // Device driver registration
 
 	driver->driverDetect = driverDetect;
-
-	return;
 }
 

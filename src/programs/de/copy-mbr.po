@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2013-11-02 13:05-0400\n"
 "Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,45 +26,45 @@ msgstr ""
 "Benutzung:\n"
 "%s <MBR image> <ausgangs-gerät>\n"
 
-#: copy-mbr.c:79
+#: copy-mbr.c:78
 #, c-format
 msgid "Read MBR sector from %s\n"
 msgstr "Lese MBR Sektor von %s\n"
 
-#: copy-mbr.c:87
+#: copy-mbr.c:88
 #, c-format
 msgid "Error reading disk %s\n"
 msgstr "Fehler beim Lesen de Disk %s\n"
 
-#: copy-mbr.c:97
+#: copy-mbr.c:100
 #, c-format
 msgid "Error opening file %s\n"
 msgstr "Fehler beim öffnen der Datei %s\n"
 
-#: copy-mbr.c:108
+#: copy-mbr.c:112
 #, c-format
 msgid "Error reading file %s\n"
 msgstr "Fehler beim Lesen der Datei %s\n"
 
-#: copy-mbr.c:114
+#: copy-mbr.c:118
 #, c-format
 msgid "Could only read %d bytes from %s\n"
 msgstr "Es können nur %d Bytes von %s gelesen werden\n"
 
-#: copy-mbr.c:170
+#: copy-mbr.c:166
 msgid "Add disk signature to new MBR\n"
 msgstr "Füge Disksignatur zur neuen MBR hinzu\n"
 
-#: copy-mbr.c:175
+#: copy-mbr.c:171
 msgid "Copy partition table to new MBR\n"
 msgstr "Kopiere Partitionstabelle zur neuen MBR\n"
 
-#: copy-mbr.c:179
+#: copy-mbr.c:175
 #, c-format
 msgid "Write MBR sector to %s\n"
 msgstr "Schreibe MBR Sektor nach %s\n"
 
-#: copy-mbr.c:183
+#: copy-mbr.c:181
 #, c-format
 msgid "Error writing disk %s\n"
 msgstr "Fehler beim Schreiben der Disk %s\n"

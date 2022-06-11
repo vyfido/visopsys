@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -67,7 +67,6 @@ Example:
 static void usage(char *name)
 {
 	printf(_("usage:\n%s <MBR image> <output device>\n"), name);
-	return;
 }
 
 
@@ -84,8 +83,10 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 		status = diskReadSectors(inputName, 0, 1, mbr);
 		if (status < 0)
 		{
+			errno = status;
+			perror("diskReadSectors");
 			DEBUGMSG(_("Error reading disk %s\n"), inputName);
-			return (errno = status);
+			return (status);
 		}
 	}
 	else
@@ -94,8 +95,10 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 		fd = open(inputName, O_RDONLY);
 		if (fd < 0)
 		{
+			status = errno;
+			perror("open");
 			DEBUGMSG(_("Error opening file %s\n"), inputName);
-			return (fd);
+			return (status);
 		}
 
 		// Read 512 bytes of it
@@ -105,6 +108,7 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 
 		if (status < 0)
 		{
+			perror("read");
 			DEBUGMSG(_("Error reading file %s\n"), inputName);
 			return (status);
 		}
@@ -113,12 +117,11 @@ static int readMbrSect(const char *inputName, msdosMbr *mbr)
 		{
 			DEBUGMSG(_("Could only read %d bytes from %s\n"), status,
 				inputName);
-			errno = EIO;
-			return (-1);
+			return (status = ERR_IO);
 		}
 	}
 
-	return (errno = status = 0);
+	return (status = 0);
 }
 
 
@@ -137,8 +140,7 @@ int main(int argc, char *argv[])
 	if (argc != 3)
 	{
 		usage(argv[0]);
-		errno = EINVAL;
-		return (status = -1);
+		return (status = EINVAL);
 	}
 
 	sourceName = argv[1];
@@ -147,18 +149,12 @@ int main(int argc, char *argv[])
 	// Read the new MBR sector from the source file
 	status = readMbrSect(sourceName, &newMbr);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	// Read the old MBR sector from the target device
 	status = readMbrSect(destName, &oldMbr);
 	if (status < 0)
-	{
-		perror(argv[0]);
 		return (status);
-	}
 
 	if (oldMbr.diskSig)
 	{
@@ -180,12 +176,13 @@ int main(int argc, char *argv[])
 	status = diskWriteSectors(destName, 0, 1, &newMbr);
 	if (status < 0)
 	{
+		errno = status;
+		perror("diskWriteSectors");
 		DEBUGMSG(_("Error writing disk %s\n"), destName);
-		perror(argv[0]);
 		return (status);
 	}
 
 	// Return success
-	return (errno = status = 0);
+	return (status = 0);
 }
 

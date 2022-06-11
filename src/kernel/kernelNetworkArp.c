@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,10 +59,10 @@ static void addr2String(networkAddress *address, char *dest, int addrSize,
 
 static void debugArp(networkArpHeader *arp)
 {
-	char srcHardwareAddress[18];
-	char srcLogicalAddress[16];
-	char destHardwareAddress[18];
-	char destLogicalAddress[16];
+	char srcHardwareAddress[NETWORK_ADDRLENGTH_ETHERNET * 3];
+	char srcLogicalAddress[NETWORK_ADDRLENGTH_IP4 * 4];
+	char destHardwareAddress[NETWORK_ADDRLENGTH_ETHERNET * 3];
+	char destLogicalAddress[NETWORK_ADDRLENGTH_IP4 * 4];
 
 	addr2String((networkAddress *) &arp->srcHardwareAddress,
 		srcHardwareAddress, NETWORK_ADDRLENGTH_ETHERNET, 1);
@@ -122,8 +122,8 @@ int kernelNetworkArpSearchCache(kernelNetworkDevice *netDev,
 	networkAddress *logicalAddress)
 {
 	// Search the device's ARP cache for an entry corresponding to the
-	// supplied logical address, and if found, copy the physical address into
-	// the supplied pointer.
+	// supplied logical address, and if found, return the position of the
+	// cached entry
 
 	int status = 0;
 	int count;

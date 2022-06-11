@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 #include "kernelInterrupt.h"
 #include "kernelMalloc.h"
 #include "kernelPic.h"
+#include "kernelSystemDriver.h"
 #include <string.h>
 #include <sys/processor.h>
 
@@ -151,10 +152,33 @@ static int driverDisable(kernelPic *pic)
 	// Disable the PICs by masking everything off.  This gets called when we
 	// are using I/O APICs instead.
 
+	kernelDevice *mpDevice = NULL;
+	kernelMultiProcOps *mpOps = NULL;
+	unsigned long long mpFeatures = 0;
+
 	kernelDebug(debug_io, "PIC disabling 8259s");
 
 	processorOutPort8(0xA1, 0xFF);
 	processorOutPort8(0x21, 0xFF);
+
+	// See whether we have a multiprocessor table
+	if (kernelDeviceFindType(
+		kernelDeviceGetClass(DEVICESUBCLASS_SYSTEM_MULTIPROC), NULL,
+		&mpDevice, 1) >= 0)
+	{
+		mpOps = (kernelMultiProcOps *) mpDevice->driver->ops;
+
+		if (mpOps->driverGetFeatures)
+			mpFeatures = mpOps->driverGetFeatures(mpDevice);
+
+		// See whether we have an IMCR
+		if (mpFeatures & 0x8000)
+		{
+			// Disable IMCR
+			processorOutPort8(0x22, 0x70);
+			processorOutPort8(0x23, 0x01);
+		}
+	}
 
 	pic->enabled = 0;
 

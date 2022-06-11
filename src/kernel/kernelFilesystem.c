@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -344,7 +344,7 @@ int kernelFilesystemScan(const char *diskName)
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	memset((void *) &theDisk->filesystem, 0, sizeof(theDisk->filesystem));
@@ -388,7 +388,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	// Get a temporary filesystem driver to use for formatting
@@ -441,7 +441,7 @@ int kernelFilesystemClobber(const char *diskName)
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	if (!driverCounter)
@@ -484,7 +484,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
@@ -533,7 +533,7 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
@@ -582,7 +582,7 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
@@ -632,7 +632,7 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
@@ -683,7 +683,7 @@ int kernelFilesystemResize(const char *diskName, uquad_t blocks,
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
@@ -737,7 +737,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
-		return (status = ERR_NULLPARAMETER);
+		return (status = ERR_NOSUCHENTRY);
 	}
 
 	// Make sure that the disk hasn't already been mounted

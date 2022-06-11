@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CHKDISK\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 00:55+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -27,19 +27,19 @@ msgstr "использование:\n"
 msgid "%s <disk_name>\n"
 msgstr "%s <имя_диска>\n"
 
-#: chkdisk.c:91
+#: chkdisk.c:89
 msgid ""
 "\n"
 "Visopsys CHKDISK Utility\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 "\n"
 msgstr ""
 "\n"
 "Visopsys CHKDISK Utility\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 "\n"
 
-#: chkdisk.c:103
+#: chkdisk.c:101
 msgid ""
 "\n"
 "The filesystem may contain errors.\n"
@@ -49,6 +49,6 @@ msgstr ""
 "Файловая система содержит ошибки.\n"
 "Попробуем починить? (y/n): "
 
-#: chkdisk.c:116
+#: chkdisk.c:114
 msgid "Filesystem consistency check failed.\n"
 msgstr "Проверка целостности ФС не удалась.\n"

@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2019 J. Andrew McLaughlin
+##  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -25,7 +25,8 @@ else
 	STRIP = strip -s ${FDISK}
 endif
 
-NAMES = fdisk \
+NAMES = \
+	fdisk \
 	gpt \
 	msdos
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -187,7 +187,8 @@ static inline void debugTransDesc(ohciTransDesc *transDesc)
 		((transDesc->flags & OHCI_TDFLAGS_DELAYINT) >> 21),
 		((transDesc->flags & OHCI_TDFLAGS_DIRPID) >> 19),
 		((transDesc->flags & OHCI_TDFLAGS_ROUNDING) >> 18),
-		transDesc->currBuffPtr, transDesc->nextPhysical, transDesc->bufferEnd);
+		transDesc->currBuffPtr, transDesc->nextPhysical,
+		transDesc->bufferEnd);
 }
 #else
 	#define debugOpRegs(ohci) do { } while (0)
@@ -203,7 +204,7 @@ static int removeFromDoneQueue(usbController *controller,
 	ohciTransDesc *transDescs, int numDescs)
 {
 	// If any part of a transaction is at the head of the done queue, this
-	// will remove it.
+	// will remove it
 
 	int status = 0;
 	ohciData *ohci = controller->data;
@@ -218,7 +219,7 @@ static int removeFromDoneQueue(usbController *controller,
 		return (status = ERR_NODATA);
 	}
 
-	// Lock the controller.
+	// Lock the controller
 	status = kernelLockGet(&controller->lock);
 	if (status < 0)
 	{
@@ -273,7 +274,7 @@ static int linkTransaction(usbController *controller, ohciEndpDesc *endpDesc,
 	// Wait for the frame number to change
 	while (ohci->opRegs->hcFmNumber == hcFmNumber);
 
-	// Lock the controller.
+	// Lock the controller
 	status = kernelLockGet(&controller->lock);
 	if (status < 0)
 	{
@@ -330,7 +331,7 @@ static int unlinkTransaction(usbController *controller,
 	// Wait for the frame number to change
 	while (ohci->opRegs->hcFmNumber == hcFmNumber);
 
-	// Lock the controller.
+	// Lock the controller
 	status = kernelLockGet(&controller->lock);
 	if (status < 0)
 	{
@@ -413,7 +414,9 @@ static ohciEndpDesc *findEndpDesc(ohciData *ohci, usbDevice *usbDev,
 			kernelDebug(debug_usb, "OHCI ED not found");
 	}
 	else
+	{
 		kernelDebug(debug_usb, "OHCI no items in ED list");
+	}
 
 	return (endpDesc);
 }
@@ -422,7 +425,7 @@ static ohciEndpDesc *findEndpDesc(ohciData *ohci, usbDevice *usbDev,
 static int releaseEndpDesc(ohciData *ohci, ohciEndpDesc *endpDesc)
 {
 	// Remove the ED from the list of 'used' ones, and add it back into the
-	// list of 'free' ones.
+	// list of 'free' ones
 
 	int status = 0;
 	linkedList *usedList = &ohci->usedEndpDescs;
@@ -432,7 +435,7 @@ static int releaseEndpDesc(ohciData *ohci, ohciEndpDesc *endpDesc)
 	if (linkedListRemove(usedList, (void *) endpDesc) >= 0)
 	{
 		// Add it to the free list
-		if (linkedListAdd(freeList, (void *) endpDesc) < 0)
+		if (linkedListAddFront(freeList, (void *) endpDesc) < 0)
 			kernelError(kernel_warn, "Couldn't add item to ED free list");
 	}
 	else
@@ -472,7 +475,7 @@ static int allocEndpDescs(linkedList *freeList)
 	// Loop through all of them, and add them to the supplied free list
 	for (count = 0; count < numEndpDescs; count ++)
 	{
-		status = linkedListAdd(freeList, (void *) &endpDescs[count]);
+		status = linkedListAddBack(freeList, (void *) &endpDescs[count]);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Couldn't add new EDs to free list");
@@ -546,7 +549,7 @@ static ohciEndpDesc *allocEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	}
 
 	// Add it to the used list
-	if (linkedListAdd(usedList, (void *) endpDesc) < 0)
+	if (linkedListAddBack(usedList, (void *) endpDesc) < 0)
 	{
 		kernelError(kernel_error, "Couldn't add ED to used list");
 		goto err_out;
@@ -572,7 +575,7 @@ static int linkEndpDescToQueue(usbController *controller,
 
 	kernelDebug(debug_usb, "OHCI link ED to queue");
 
-	// Lock the controller.
+	// Lock the controller
 	status = kernelLockGet(&controller->lock);
 	if (status < 0)
 	{
@@ -582,14 +585,20 @@ static int linkEndpDescToQueue(usbController *controller,
 
 	// Disable processing of the queue whilst we change the pointers
 	if (queueEndpDesc == ohci->queueEndpDescs[OHCI_ED_CONTROL])
+	{
 		// Disable control processing
 		ohci->opRegs->hcControl &= ~OHCI_HCCTRL_CLE;
+	}
 	else if (queueEndpDesc == ohci->queueEndpDescs[OHCI_ED_BULK])
+	{
 		// Disable bulk processing
 		ohci->opRegs->hcControl &= ~OHCI_HCCTRL_BLE;
+	}
 	else
+	{
 		// Disable interrupt processing
 		ohci->opRegs->hcControl &= ~OHCI_HCCTRL_PLE;
+	}
 
 	// Wait for the frame number to change
 	while (ohci->opRegs->hcFmNumber == hcFmNumber);
@@ -647,7 +656,7 @@ static void updateEndpDescFlags(ohciEndpDesc *endpDesc)
 
 static ohciTransDesc *allocTransDescs(int numDescs)
 {
-	// Allocate an array of OHCI transfer descriptors, 16-byte-aligned.
+	// Allocate an array of OHCI transfer descriptors, 16-byte-aligned
 
 	ohciTransDesc *transDescs = NULL;
 	unsigned memSize = 0;
@@ -670,8 +679,8 @@ static ohciTransDesc *allocTransDescs(int numDescs)
 	// Connect the descriptors and set their physical addresses
 	for (count = 0; count < numDescs; count ++)
 	{
-		transDescs[count].physical = (ioMem.physical +
-			(count * sizeof(ohciTransDesc)));
+		transDescs[count].physical = (ioMem.physical + (count *
+			sizeof(ohciTransDesc)));
 
 		if (count)
 		{
@@ -696,7 +705,7 @@ static int setTransDescBuffer(ohciTransDesc *transDesc)
 	if (!transDesc->buffer)
 	{
 		// Get the memory from kernelMalloc(), so that the caller can easily
-		// kernelFree() it when finished.
+		// kernelFree() it when finished
 		kernelDebug(debug_usb, "OHCI allocate TD buffer of %u",
 			transDesc->buffSize);
 		transDesc->buffer = kernelMalloc(transDesc->buffSize);
@@ -727,7 +736,7 @@ static int waitTransactionComplete(ohciData *ohci, ohciTransDesc *lastDesc,
 	unsigned timeout)
 {
 	// Loop until the last descriptor of a transaction appers in the HCCA
-	// done queue.
+	// done queue
 
 	uquad_t currTime = kernelCpuGetMs();
 	uquad_t endTime = (currTime + timeout);
@@ -771,14 +780,16 @@ static ohciEndpDesc *findIntEndpDesc(ohciData *ohci, int interval)
 {
 	// Figure out which interrupt queue head to use, given an interval which
 	// is a maximum frequency -- so we locate the first one which is less than
-	// or equal to the specified interval.
+	// or equal to the specified interval
 
 	int queues[6] = { 32, 16, 8, 4, 2, 1 };
 	int count;
 
 	for (count = 0; count < 6; count ++)
+	{
 		if (queues[count] <= interval)
 			return (ohci->queueEndpDescs[count]);
+	}
 
 	// Should never fall through
 	return (NULL);
@@ -825,14 +836,20 @@ static int unlinkEndpDescFromQueue(usbController *controller,
 
 	// Disable processing of the queue whilst we change the pointers
 	if (queueEndpDesc == ohci->queueEndpDescs[OHCI_ED_CONTROL])
+	{
 		// Disable control processing
 		ohci->opRegs->hcControl &= ~OHCI_HCCTRL_CLE;
+	}
 	else if (queueEndpDesc == ohci->queueEndpDescs[OHCI_ED_BULK])
+	{
 		// Disable bulk processing
 		ohci->opRegs->hcControl &= ~OHCI_HCCTRL_BLE;
+	}
 	else
+	{
 		// Disable interrupt processing
 		ohci->opRegs->hcControl &= ~OHCI_HCCTRL_PLE;
+	}
 
 	// Wait for the frame number to change
 	while (ohci->opRegs->hcFmNumber == hcFmNumber);
@@ -886,6 +903,8 @@ static int unlinkEndpDescFromAll(usbController *controller,
 
 static void portReset(ohciData *ohci, int portNum)
 {
+	// Reset a port
+
 	int count;
 
 	// All of the bits in the port status register are write-to-set or
@@ -983,7 +1002,7 @@ static void doDetectDevices(usbHub *hub, int hotplug)
 			{
 				// Tell the USB functions that the device disconnected.  This
 				// will call us back to tell us about all affected devices -
-				// there might be lots if this was a hub
+				// there might be lots if this was a hub.
 				kernelUsbDevDisconnect(controller, hub, count);
 
 				kernelDebug(debug_usb, "OHCI port %d is disconnected",
@@ -1018,7 +1037,7 @@ static int takeOwnership(ohciData *ohci)
 	{
 		// An SMM driver has control
 
-		// Set the ownership request bit.
+		// Set the ownership request bit
 		ohci->opRegs->hcCommandStatus |= OHCI_HCCMDSTAT_OCR;
 
 		// Wait for the interrupt routing bit to clear
@@ -1046,7 +1065,7 @@ static int takeOwnership(ohciData *ohci)
 			OHCI_HCCTRL_HCFS_RESET)
 		{
 			// If the state is 'reset', then no driver has control, and
-			// we make sure that the minimum reset time has elapsed.
+			// we make sure that the minimum reset time has elapsed
 
 			// Delay 50ms (minimum is 10ms for reset, but 50 is recommended
 			// for downstream signaling)
@@ -1055,16 +1074,15 @@ static int takeOwnership(ohciData *ohci)
 		}
 		else
 		{
-			// If the state is not 'reset', then a BIOS driver has control.
+			// If the state is not 'reset', then a BIOS driver has control
 
 			// If the state is already 'operational', then do nothing.
-			// Otherwise, we need to send the 'resume' signal
+			// Otherwise, we need to send the 'resume' signal.
 			if ((ohci->opRegs->hcControl & OHCI_HCCTRL_HCFS) !=
 				OHCI_HCCTRL_HCFS_OPERATE)
 			{
-				ohci->opRegs->hcControl =
-					((ohci->opRegs->hcControl & ~OHCI_HCCTRL_HCFS) |
-						OHCI_HCCTRL_HCFS_RESUME);
+				ohci->opRegs->hcControl = ((ohci->opRegs->hcControl &
+					~OHCI_HCCTRL_HCFS) | OHCI_HCCTRL_HCFS_RESUME);
 
 				// Delay 20ms (minimum for resume)
 				kernelDebug(debug_usb, "OHCI delay for resume");
@@ -1083,7 +1101,7 @@ static int takeOwnership(ohciData *ohci)
 
 static void powerOnPorts(ohciData *ohci)
 {
-	// Power on all the ports, if possible.
+	// Power on all the ports, if possible
 
 	int count;
 
@@ -1118,8 +1136,8 @@ static int setup(usbController *controller)
 	ohciEndpDesc *intQueueEndpDesc = NULL;
 	int count;
 
-	// Allocate our 'queue' of EDs.  These aren't for specific devices, and
-	// we don't queue TDs on them directly.
+	// Allocate our 'queue' of EDs.  These aren't for specific devices, and we
+	// don't queue TDs on them directly.
 	for (count = 0; count < OHCI_NUM_QUEUEDESCS; count ++)
 	{
 		ohci->queueEndpDescs[count] = allocEndpDesc(ohci, NULL, 0);
@@ -1130,8 +1148,7 @@ static int setup(usbController *controller)
 	// Link the periodic queue EDs together
 	for (count = OHCI_ED_INT32; count < OHCI_ED_INT1; count ++)
 	{
-		ohci->queueEndpDescs[count]->next =
-			ohci->queueEndpDescs[count + 1];
+		ohci->queueEndpDescs[count]->next = ohci->queueEndpDescs[count + 1];
 		ohci->queueEndpDescs[count]->nextPhysical =
 			kernelPageGetPhysical(KERNELPROCID, (void *)
 				ohci->queueEndpDescs[count]->next);
@@ -1150,22 +1167,34 @@ static int setup(usbController *controller)
 	for (count = 0; count < OHCI_NUM_FRAMES; count ++)
 	{
 		if (!(count % 32))
+		{
 			intQueueEndpDesc = ohci->queueEndpDescs[OHCI_ED_INT32];
+		}
 		else if (!(count % 16))
+		{
 			intQueueEndpDesc = ohci->queueEndpDescs[OHCI_ED_INT16];
+		}
 		else if (!(count % 8))
+		{
 			intQueueEndpDesc = ohci->queueEndpDescs[OHCI_ED_INT8];
+		}
 		else if (!(count % 4))
+		{
 			intQueueEndpDesc = ohci->queueEndpDescs[OHCI_ED_INT4];
+		}
 		else if (!(count % 2))
+		{
 			intQueueEndpDesc = ohci->queueEndpDescs[OHCI_ED_INT2];
+		}
 		else
+		{
 			// By default, use the 'int 1' queue head which gets run every
 			// frame
 			intQueueEndpDesc = ohci->queueEndpDescs[OHCI_ED_INT1];
+		}
 
-		ohci->hcca->intTable[count] =
-			kernelPageGetPhysical(KERNELPROCID, (void *) intQueueEndpDesc);
+		ohci->hcca->intTable[count] = kernelPageGetPhysical(KERNELPROCID,
+			(void *) intQueueEndpDesc);
 	}
 
 	// Reset the controller
@@ -1177,20 +1206,19 @@ static int setup(usbController *controller)
 	ohci->opRegs->hcHcca = ioMem.physical;
 
 	// Set the physical control queue head ED in the controller
-	ohci->opRegs->hcControlHeadEd =
-		kernelPageGetPhysical(KERNELPROCID,
-			(void *) ohci->queueEndpDescs[OHCI_ED_CONTROL]);
+	ohci->opRegs->hcControlHeadEd = kernelPageGetPhysical(KERNELPROCID,
+		(void *) ohci->queueEndpDescs[OHCI_ED_CONTROL]);
 
 	// Set the physical bulk queue head ED in the controller
-	ohci->opRegs->hcBulkHeadEd =
-		kernelPageGetPhysical(KERNELPROCID,
-			(void *) ohci->queueEndpDescs[OHCI_ED_BULK]);
+	ohci->opRegs->hcBulkHeadEd = kernelPageGetPhysical(KERNELPROCID,
+		(void *) ohci->queueEndpDescs[OHCI_ED_BULK]);
 
 	// Enable interrupts
+	ohci->opRegs->hcInterruptDisable = 0xFFFFFFFF;
 	ohci->opRegs->hcInterruptEnable = (OHCI_HCINT_MIE | OHCI_HCINT_UE |
 		OHCI_HCINT_WDH | OHCI_HCINT_SO);
 
-	// Set up the frame interval register, if the values aren't already set.
+	// Set up the frame interval register, if the values aren't already set
 	if (!(ohci->opRegs->hcFmInterval & OHCI_HCFMINT_FI))
 		ohci->opRegs->hcFmInterval |= OHCI_DEFAULT_FRAMEINT;
 	if (!(ohci->opRegs->hcFmInterval & OHCI_HCFMINT_FSMPS))
@@ -1208,9 +1236,8 @@ static int setup(usbController *controller)
 	ohci->opRegs->hcRhStatus = OHCI_RHSTAT_LPSC;
 
 	// Set the controller to the operational state
-	ohci->opRegs->hcControl =
-		((ohci->opRegs->hcControl & ~OHCI_HCCTRL_HCFS) |
-			OHCI_HCCTRL_HCFS_OPERATE);
+	ohci->opRegs->hcControl = ((ohci->opRegs->hcControl & ~OHCI_HCCTRL_HCFS) |
+		OHCI_HCCTRL_HCFS_OPERATE);
 
 	// Wait a short time for the controller to indicate it's operational
 	for (count = 0; count < 10; count ++)
@@ -1232,8 +1259,8 @@ static int setup(usbController *controller)
 	if ((ohci->opRegs->hcControl & OHCI_HCCTRL_HCFS) !=
 		OHCI_HCCTRL_HCFS_OPERATE)
 	{
-		kernelError(kernel_error, "Controller did not move to the operational "
-			"state");
+		kernelError(kernel_error, "Controller did not move to the "
+			"operational state");
 		return (status = ERR_NOTINITIALIZED);
 	}
 
@@ -1242,7 +1269,7 @@ static int setup(usbController *controller)
 		OHCI_HCCTRL_PLE);
 
 	// Delay an extra 10ms for resume recovery time, in case we signaled
-	// resume during the ownership transfer operation.
+	// resume during the ownership transfer operation
 	kernelCpuSpinMs(10);
 
 	// Turn on ports power, if necessary
@@ -1287,7 +1314,7 @@ static int reset(usbController *controller)
 	// Initiate the reset.  This register is write-to-set.
 	ohci->opRegs->hcCommandStatus = OHCI_HCCMDSTAT_HCR;
 
-	// Wait for the reset to clear.  Maximum of 10ms
+	// Wait for the reset to clear.  Maximum of 10ms.
 	for (count = 0; count < 10; count ++)
 	{
 		if (!(ohci->opRegs->hcCommandStatus & OHCI_HCCMDSTAT_HCR))
@@ -1315,7 +1342,7 @@ static int reset(usbController *controller)
 
 static int interrupt(usbController *controller)
 {
-	// This function gets called when the controller issues an interrupt.
+	// This function gets called when the controller issues an interrupt
 
 	int status = 0;
 	ohciData *ohci = NULL;
@@ -1349,8 +1376,8 @@ static int interrupt(usbController *controller)
 
 	if (ohci->opRegs->hcInterruptStatus & OHCI_HCINT_WDH)
 	{
-		// We need to check whether the done queue head points to one
-		// of our interrupt registrations
+		// We need to check whether the done queue head points to one of our
+		// interrupt registrations
 		intrReg = linkedListIterStart(&ohci->intrRegs, &iter);
 		while (intrReg)
 		{
@@ -1436,8 +1463,8 @@ static int interrupt(usbController *controller)
 	}
 
 	// Clear interrupt status bits, but not the 'write back done queue' one
-	ohci->opRegs->hcInterruptStatus =
-		(ohci->opRegs->hcInterruptStatus & ~OHCI_HCINT_WDH);
+	ohci->opRegs->hcInterruptStatus = (ohci->opRegs->hcInterruptStatus &
+		~OHCI_HCINT_WDH);
 
 	return (status = 0);
 }
@@ -1495,8 +1522,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		}
 		else
 		{
-			// We don't yet have an ED for this endpoint.  Try to allocate one.
-			endpDesc = allocEndpDesc(ohci, usbDev, trans[transCount].endpoint);
+			// We don't yet have an ED for this endpoint.  Try to allocate
+			// one.
+			endpDesc = allocEndpDesc(ohci, usbDev,
+				trans[transCount].endpoint);
 			if (!endpDesc)
 			{
 				status = ERR_NOSUCHENTRY;
@@ -1505,22 +1534,26 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 			// Add the ED to the appropriate queue
 			if (trans[transCount].type == usbxfer_control)
+			{
 				// Control queue
 				queueEndpDesc = ohci->queueEndpDescs[OHCI_ED_CONTROL];
+			}
 			else
+			{
 				// Bulk queue
 				queueEndpDesc = ohci->queueEndpDescs[OHCI_ED_BULK];
+			}
 
 			status = linkEndpDescToQueue(controller, queueEndpDesc, endpDesc);
 			if (status < 0)
 				goto out;
 		}
 
-		// Make sure the flags are up to date.
+		// Make sure the flags are up to date
 		updateEndpDescFlags(endpDesc);
 
 		// We can get the maximum packet size from the ED flags (it will have
-		// been updated with the current device info upon retrieval, above).
+		// been updated with the current device info upon retrieval, above)
 		packetSize = ((endpDesc->flags & OHCI_EDFLAGS_MAXPACKET) >> 16);
 
 		// Figure out how many TDs we're going to need for this transaction
@@ -1529,8 +1562,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 		// Setup/status descriptors?
 		if (trans[transCount].type == usbxfer_control)
+		{
 			// At least one each for setup and status
 			numDescs += 2;
+		}
 
 		// Data descriptors?
 		if (trans[transCount].length)
@@ -1606,8 +1641,8 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 			// Set up the rest of the TD
 			setupDesc->flags = (OHCI_TDFLAGS_CONDCODE |
-				((2 << 24) & OHCI_TDFLAGS_DATATOGGLE) | OHCI_TDFLAGS_DELAYINT |
-				OHCI_TDFLAGS_ROUNDING);
+				((2 << 24) & OHCI_TDFLAGS_DATATOGGLE) |
+				OHCI_TDFLAGS_DELAYINT | OHCI_TDFLAGS_ROUNDING);
 
 			// Data toggle
 			*dataToggle ^= 1;
@@ -1634,8 +1669,8 @@ static int queue(usbController *controller, usbDevice *usbDev,
 				kernelDebug(debug_usb, "OHCI bytesToTransfer=%u, doBytes=%u",
 					bytesToTransfer, doBytes);
 
-				// Set the TD's buffer pointer to the relevant portion of
-				// the transaction buffer.
+				// Set the TD's buffer pointer to the relevant portion of the
+				// transaction buffer
 				dataDescs[descCount].buffer = buffPtr;
 				dataDescs[descCount].buffSize = doBytes;
 
@@ -1660,7 +1695,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 				}
 
 				// If the TD generated an odd number of packets, toggle the
-				// data toggle.
+				// data toggle
 				if (((doBytes + (packetSize - 1)) / packetSize) % 2)
 					*dataToggle ^= 1;
 
@@ -1689,8 +1724,8 @@ static int queue(usbController *controller, usbDevice *usbDev,
 				statusDesc->flags |= ((2 << 19) & OHCI_TDFLAGS_DIRPID);
 		}
 
-		// Get the controller to write the transaction to the done queue
-		// when finished, with a delay limit of 1 frame.
+		// Get the controller to write the transaction to the done queue when
+		// finished, with a delay limit of 1 frame
 		transDescs[numDescs - 1].flags &= ~OHCI_TDFLAGS_DELAYINT;
 		transDescs[numDescs - 1].flags |= ((1 << 21) & OHCI_TDFLAGS_DELAYINT);
 
@@ -1765,7 +1800,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	int interface, unsigned char endpoint, int interval, unsigned maxLen,
 	void (*callback)(usbDevice *, int, void *, unsigned))
 {
-	// This function is used to schedule an interrupt.
+	// This function is used to schedule an interrupt
 
 	int status = 0;
 	ohciData *ohci = NULL;
@@ -1833,7 +1868,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 			goto out;
 	}
 
-	// Make sure the flags are up to date.
+	// Make sure the flags are up to date
 	updateEndpDescFlags(intrReg->endpDesc);
 
 	// Get the data toggle for the endpoint
@@ -1872,11 +1907,9 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 		((1 << 21) & OHCI_TDFLAGS_DELAYINT) | OHCI_TDFLAGS_ROUNDING);
 
 	if (endpoint & 0x80)
-		intrReg->transDesc->flags |=
-			((2 << 19) & OHCI_TDFLAGS_DIRPID); // in
+		intrReg->transDesc->flags |= ((2 << 19) & OHCI_TDFLAGS_DIRPID); // in
 	else
-		intrReg->transDesc->flags |=
-			((1 << 19) & OHCI_TDFLAGS_DIRPID); // out
+		intrReg->transDesc->flags |= ((1 << 19) & OHCI_TDFLAGS_DIRPID); // out
 
 	// Link the TD to the queue head
 	status = linkTransaction(controller, intrReg->endpDesc,
@@ -1884,8 +1917,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	if (status < 0)
 		goto out;
 
-	// Add the interrupt registration to the controller's list.
-	status = linkedListAdd(&ohci->intrRegs, intrReg);
+	// Add the interrupt registration to the controller's list
+	status = linkedListAddBack(&ohci->intrRegs, intrReg);
 	if (status < 0)
 		goto out;
 
@@ -1971,7 +2004,7 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 static void detectDevices(usbHub *hub, int hotplug)
 {
 	// This function gets called once at startup to detect 'cold-plugged'
-	// devices.
+	// devices
 
 	kernelDebug(debug_usb, "OHCI initial device detection, hotplug=%d",
 		hotplug);
@@ -1995,7 +2028,7 @@ static void threadCall(usbHub *hub)
 {
 	// This function gets called periodically by the USB thread, to give us
 	// an opportunity to detect connections/disconnections, or whatever else
-	// we want.
+	// we want
 
 	// Check params
 	if (!hub)
@@ -2025,7 +2058,7 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	kernelDriver *driver)
 {
 	// This function is used to detect OHCI USB controllers, as well as
-	// registering it with the higher-level interfaces.
+	// registering it with the higher-level interfaces
 
 	int status = 0;
 	pciDeviceInfo pciDevInfo;
@@ -2058,7 +2091,25 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	if (pciDevInfo.device.progIF != OHCI_PCI_PROGIF)
 		goto err_out;
 
-	// After this point, we believe we have a supported device.
+	// After this point, we believe we have a supported device
+
+	// Try to enable bus mastering
+	if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE))
+	{
+		kernelBusSetMaster(busTarget, 1);
+
+		// Re-read target info
+		kernelBusGetTargetInfo(busTarget, &pciDevInfo);
+
+		if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE))
+			kernelDebugError("Couldn't enable PCI bus mastering");
+		else
+			kernelDebug(debug_usb, "OHCI bus mastering enabled");
+	}
+	else
+	{
+		kernelDebug(debug_usb, "OHCI bus mastering already enabled");
+	}
 
 	// Allocate memory for the controller
 	controller = kernelMalloc(sizeof(usbController));
@@ -2068,7 +2119,7 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	// Set the controller type
 	controller->type = usb_ohci;
 
-	// Get the interrupt number.
+	// Get the interrupt number
 	controller->interruptNum = pciDevInfo.device.nonBridge.interruptLine;
 
 	// Allocate our private driver data
@@ -2092,14 +2143,14 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 
 	kernelDebug(debug_usb, "OHCI memSpaceSize=0x%08x", memSpaceSize);
 
-	// Restore the register we clobbered.
+	// Restore the register we clobbered
 	kernelBusWriteRegister(busTarget, PCI_CONFREG_BASEADDRESS0_32, 32,
 		pciDevInfo.device.nonBridge.baseAddress[0]);
 
 	// Map the physical memory address of the controller's registers into
-	// our virtual address space.
+	// our virtual address space
 
-	// Map the physical memory space pointed to by the decoder.
+	// Map the physical memory space pointed to by the decoder
 	status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
 		(void **) &ohci->opRegs, memSpaceSize);
 	if (status < 0)
@@ -2109,37 +2160,28 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	}
 
 	// Make it non-cacheable, since this memory represents memory-mapped
-	// hardware registers.
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, (void *) ohci->opRegs, memSpaceSize);
+	// hardware registers
+	status = kernelPageSetAttrs(KERNELPROCID, pageattr_uncacheable,
+		(void *) ohci->opRegs, memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("Error setting page attrs");
 		goto err_out;
 	}
 
-	// Enable memory mapping access
+	// Enable memory mapping access and interrupts
+	kernelBusDeviceEnable(busTarget, PCI_COMMAND_MEMORYENABLE);
+
+	// Re-read target info
+	kernelBusGetTargetInfo(busTarget, &pciDevInfo);
+
 	if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
 	{
-		kernelBusDeviceEnable(busTarget, PCI_COMMAND_MEMORYENABLE);
-
-		// Re-read target info
-		kernelBusGetTargetInfo(busTarget, &pciDevInfo);
-
-		if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
-		{
-			kernelDebugError("Couldn't enable memory access");
-			goto err_out;
-		}
-
-		kernelDebug(debug_usb, "OHCI memory access enabled in PCI");
-	}
-	else
-	{
-		kernelDebug(debug_usb, "OHCI memory access already enabled");
+		kernelDebugError("Couldn't enable memory access");
+		goto err_out;
 	}
 
-	// The USB version number.
+	// The USB version number
 	controller->usbVersion = ohci->opRegs->hcRevision;
 
 	kernelLog("USB: OHCI controller USB %d.%d interrupt %d",
@@ -2149,12 +2191,12 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	ohci->numPorts = (ohci->opRegs->hcRhDescriptorA & OHCI_ROOTDESCA_NDP);
 	kernelDebug(debug_usb, "OHCI number of ports=%d", ohci->numPorts);
 
-	// Take ownership of the controller.
+	// Take ownership of the controller
 	status = takeOwnership(ohci);
 	if (status < 0)
 		goto err_out;
 
-	// Set up the registers and data structures, and make it operational.
+	// Set up the registers and data structures, and make it operational
 	status = setup(controller);
 	if (status < 0)
 		goto err_out;
@@ -2183,7 +2225,8 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	dev->driver = driver;
 	dev->data = (void *) controller;
 
-	// Initialize the variable list for attributes of the controller
+	// Initialize the variable list for attributes of the controller, and set
+	// any OHCI-specific ones
 	status = variableListCreateSystem(&dev->device.attrs);
 	if (status >= 0)
 	{
@@ -2192,7 +2235,7 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 		variableListSet(&dev->device.attrs, "controller.numPorts", value);
 	}
 
-	// Claim the controller device in the list of PCI targets.
+	// Claim the controller device in the list of PCI targets
 	kernelBusDeviceClaim(busTarget, driver);
 
 	// Add the kernel device

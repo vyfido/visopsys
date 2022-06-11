@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2014-01-22 05:05-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,7 +26,7 @@ msgstr "Uso:\n"
 msgid "%s <directory1> [directory2] [...]\n"
 msgstr "%s <Directorio1> [Directorio2] [...]\n"
 
-#: mkdir.c:93
+#: mkdir.c:92
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""

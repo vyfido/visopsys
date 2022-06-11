@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -64,7 +64,7 @@ choices for the first hard disk, hd0.
 #define VBM_MAGIC			"VBM2"
 #define SLICESTRING_LENGTH	60
 #define TITLE				_("Visopsys Boot Menu Installer\n" \
-	"Copyright (C) 1998-2019 J. Andrew McLaughlin")
+	"Copyright (C) 1998-2020 J. Andrew McLaughlin")
 #define PERM				_("You must be a privileged user to use this " \
 	"command.\n(Try logging in as user \"admin\")")
 #define PARTITIONS			_("Partitions on the disk:")
@@ -118,7 +118,6 @@ static objectKey cancelButton = NULL;
 static void usage(char *name)
 {
 	printf(_("usage:\n%s <disk name>\n"), name);
-	return;
 }
 
 
@@ -145,8 +144,6 @@ static void quit(void)
 {
 	// Shut everything down
 
-	errno = 0;
-
 	if (graphics && window)
 	{
 		windowGuiStop();
@@ -160,8 +157,6 @@ static void quit(void)
 		free(logicalDisks);
 	if (buffer)
 		free(buffer);
-
-	return;
 }
 
 
@@ -334,8 +329,6 @@ static void editEntryLabel(int entryNumber)
 	setEntryString(entryNumber, string);
 
 	refreshList();
-
-	return;
 }
 
 
@@ -459,7 +452,6 @@ static void getOldEntries(disk *physicalDisk, entryStructArray *oldEntries)
 		memcpy(oldEntries, tmpEntries, sizeof(entryStructArray));
 
 	free(buf);
-	return;
 }
 
 
@@ -583,7 +575,8 @@ static void constructWindow(void)
 
 	params.gridY = 1;
 	params.padTop = 5;
-	textArea = windowNewTextArea(window, 45, 20, 200, &params);
+	textArea = windowNewTextArea(window, 45 /* columns */, 20 /* rows */,
+		200 /* bufferLines */, &params);
 
 	// Use the text area for all our input and output
 	windowSetTextOutput(textArea);
@@ -665,8 +658,6 @@ static void constructWindow(void)
 
 	// Go
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 
@@ -741,8 +732,7 @@ int main(int argc, char *argv[])
 	if (argc != 2)
 	{
 		usage(argv[0]);
-		errno = EINVAL;
-		return (status = -1);
+		return (status = EINVAL);
 	}
 
 	memset(&attrs, 0, sizeof(textAttrs));
@@ -759,7 +749,7 @@ int main(int argc, char *argv[])
 			windowNewErrorDialog(NULL, _("Permission Denied"), PERM);
 		else
 			printf("\n%s\n\n", PERM);
-		return (errno = ERR_PERMISSION);
+		return (status = ERR_PERMISSION);
 	}
 
 	// Get the disk specified by the name
@@ -768,7 +758,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		error(_("Can't get disk %s"), argv[1]);
-		return (errno = status);
+		return (status);
 	}
 
 	// Make sure it's a physical hard disk device, and not a logical disk,
@@ -777,7 +767,7 @@ int main(int argc, char *argv[])
 		!(theDisk.type & DISKTYPE_HARDDISK))
 	{
 		error(_("Disk %s is not a physical hard disk device"), theDisk.name);
-		return (errno = ERR_INVALID);
+		return (status = ERR_INVALID);
 	}
 
 	// Get all of the logical disks
@@ -785,7 +775,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		error("%s", _("Can't get the list of logical disks"));
-		return (errno = status);
+		return (status);
 	}
 
 	// Read the boot menu file into memory
@@ -794,7 +784,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		quit();
-		return (errno = status);
+		return (status);
 	}
 
 	// The entries come at this offset
@@ -867,7 +857,7 @@ int main(int argc, char *argv[])
 		error("%s", _("There are no chain-loadable operating systems on "
 			"this disk."));
 		quit();
-		return (errno = ERR_NODATA);
+		return (status = ERR_NODATA);
 	}
 
 	if (graphics)
@@ -962,7 +952,7 @@ int main(int argc, char *argv[])
 					textSetCursor(1);
 					printf("\n\n");
 					quit();
-					return (errno = 0);
+					return (status = 0);
 
 				default:
 					continue;
@@ -977,7 +967,7 @@ int main(int argc, char *argv[])
 	{
 		error("%s", _("Can't write boot menu or MBR"));
 		quit();
-		return (errno = status);
+		return (status);
 	}
 
 	if (graphics)
@@ -986,7 +976,9 @@ int main(int argc, char *argv[])
 		windowNewInfoDialog(NULL, _("Done"), WRITTEN);
 	}
 	else
+	{
 		printf("%s\n\n", WRITTEN);
+	}
 
 	quit();
 

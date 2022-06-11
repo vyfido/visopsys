@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -782,8 +782,8 @@ int kernelMemoryGetIo(unsigned size, unsigned alignment, int lowMem,
 		goto err_out;
 
 	// Make it non-cacheable
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, ioMem->virtual, ioMem->size);
+	status = kernelPageSetAttrs(KERNELPROCID, pageattr_uncacheable,
+		ioMem->virtual, ioMem->size);
 	if (status < 0)
 		goto err_out;
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -69,8 +69,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		errno = ERR_NOTINITIALIZED;
-		return (status = errno);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	// Did the user supply a file name?
@@ -84,23 +83,19 @@ int main(int argc, char *argv[])
 			_("Please enter the file name to use:"), NULL, fileName,
 			MAX_PATH_NAME_LENGTH, fileT, 1 /* show thumbnails */);
 		if (status != 1)
-		{
-			errno = status;
-			if (errno)
-				perror(argv[0]);
-			return (errno);
-		}
+			return (status);
 	}
+
 	fileName[MAX_PATH_NAME_LENGTH] = '\0';
 
 	status = windowSaveScreenShot(fileName);
 	if (status < 0)
 	{
+		errno = status;
+		perror(argv[0]);
 		windowNewErrorDialog(NULL, _("Error"),
 			_("Couldn't save the screenshot.\n"
 			"I'm sure it would have been nice."));
-		errno = status;
-		perror(argv[0]);
 	}
 
 	return (status);

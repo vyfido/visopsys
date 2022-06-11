@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -69,7 +69,6 @@ static void usage(char *name)
 {
 	fprintf(stderr, "%s", _("usage:\n"));
 	fprintf(stderr, _("%s <disk> [mount point]\n"), name);
-	return;
 }
 
 
@@ -138,7 +137,6 @@ static void setMountPoint(const char *diskName, char *mountPoint)
 
 	configWrite(DISK_MOUNT_CONFIG, &mountConfig);
 	variableListDestroy(&mountConfig);
-	return;
 }
 
 
@@ -190,8 +188,8 @@ int main(int argc, char *argv[])
 	theDisk = calloc(1, sizeof(disk));
 	if (!theDisk)
 	{
-		perror(argv[0]);
-		status = ERR_MEMORY;
+		status = errno;
+		perror("calloc");
 		goto out;
 	}
 
@@ -213,6 +211,7 @@ int main(int argc, char *argv[])
 	status = filesystemMount(diskName, mountPoint);
 	if (status < 0)
 	{
+		errno = status;
 		perror(argv[0]);
 		goto out;
 	}

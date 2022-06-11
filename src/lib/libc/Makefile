@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2019 J. Andrew McLaughlin
+##  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -50,7 +50,8 @@ CTYPENAMES = \
 	tolower \
 	toupper
 
-DIRENTNAMES = closedir \
+DIRENTNAMES = \
+	closedir \
 	opendir \
 	readdir \
 	readdir_r \
@@ -107,6 +108,7 @@ STATNAMES = \
 STDIONAMES = \
 	fclose \
 	fdopen \
+	feof \
 	fflush \
 	fgetpos \
 	fgets \

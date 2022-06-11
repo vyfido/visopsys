@@ -1,4 +1,127 @@
 --------------
+ Version 0.85   21/01/2020
+--------------
+
+  Overview: This maintenance release adds RAM disk boot support, RAM disk
+  backing for temporary files in read-only mode, improved interrupt
+  infrastructure, more sophisticated management of CPU features and memory
+  caching, various refinements of the core networking subsystem, and
+  improvements and bug fixes for a number of other programs, libraries, and
+  drivers.
+
+- Added RAM disk booting for coreboot/SeaBIOS support in Qemu, and potentially
+PXE booting in the future.  Create an empty file named 'ramdisk' in the root
+directory of the boot floppy image to trigger this feature.
+- When the root filesystem is read-only (e.g. an ISO image), a RAM disk is
+created and mounted on /temp, for programs that need to be able to create
+temporary files to work properly.  This depends on the 'kernel.conf' file
+specifying a variable 'ramdisk.readonly.temp' with a non-zero size (currently
+10MB by default).
+- Did a refresh of the kernel's APIC driver in response to bug reports.  Made
+a number of improvements to get it closer to the specification and to real-
+world systems.
+- Centralized the interrupt system's sharing and chaining mechanism in
+kernelInterrupt.c and removed the need for individual device drivers to manage
+these.  Removed the kernelInterruptGetHandler() function and added the
+kernelInterruptNextHandler() function for chaining.  Added the
+kernelSysTimerHook() function for hooking or restoring the system timer
+interrupt at kernel startup or shutdown time.
+- Added support for the X86 Page Attribute Table feature, and changed the
+kernelPageSetAttrs() function to allow for more abstract, but enhanced memory
+page caching options.  Various drivers now use it to designate memory-mapped
+register space as "strong uncacheable", and the framebuffer graphic driver to
+request "write-combining" for better performance.
+- Added the equivalent of 'loopback' functionality for real network devices so
+that it's possible to, for example, ping our own IP address.
+- Changed the Visopsys library's linkedList functionality so that the
+linkedListAdd() function has been replaced by linkedListAddFront() and
+linkedListAddBack().  Thus the caller must specify whether a new item gets
+added to the front or the back of the list.
+- Significantly re-engineered the 'Edit' text editor program.  It's much more
+realistically usable now: it mostly works, supports the Home, End, and PgUp,
+and PgDown keys, and no longer does automatic line-wrapping, although it
+doesn't yet support horizontal scrolling.
+- Changed the 'import' (-i) and 'export' (-e) operations in the command-line
+version of the font editor (fontutil) so that they work with directories of
+individual glyph image files, rather than a single image file with a grid of
+glyphs.
+- Because of their propensity for sharing interrupt pins, PCI devices now have
+their interrupt generating capability disabled by default, and drivers must
+enable it by calling kernelBusDeviceEnable().
+- Improved error handling and messages for command-line and text mode
+operation (perror and errno).
+- Added proper keyboard support for the 'Home' and 'End' keys, for
+applications that want to use them.
+- The networking IPv4 code has been changed to use the IANA-specified range of
+numbers (49152 to 65535) for 'ephemeral' (temporary, private, 'dynamic')
+ports.
+- Added a driverGetFeatures() function to the multiprocessor driver, and when
+disabling the PIC in favour of APICs, the PIC driver now checks for the
+presence of an IMCR in the multiprocessor features, and disables it.
+- Added a generic kernelCpuGetFeatures() to the CPU driver interface, for
+returning a structure of model-specific features.  Only for X86 (32/64)
+processors at the moment, and intended to reduce the need for calling the X86
+'cpuid' instruction directly in other places.
+- Added a kernelWindowComponentAppendData() function
+(windowComponentAppendData() in user space) that allows the caller to append
+rather than completely replace the data in a supported component.  Currently
+implemented only in the windowList component.
+- Added the new kernel networking functions kernelNetworkConnectionGetCount()
+and kernelNetworkConnectionGetAll() (networkConnectionGetCount() and
+networkConnectionGetAll() in user space, respectively) to return information
+about current network connections.
+- Added the feof() function to the standard C library.
+- Moved the <sys/sched.h> header file to <sched.h> where it should have been
+in the first place.
+- Removed the kernel multitasker's kernelMultitaskerSetProcessParent()
+function.  The surviving children of a process that's being killed are re-
+parented to their grandparents.  There should be no more orphan processes, and
+it should always be possible to trace the lineage of processes back to their
+oldest living ancestor, making the kernelMultitaskerPropagateEnvironment()
+function work as intended, and making it unnecessary for the window shell to
+re-parent processes.
+- Removed the unused kernel text input functions kernelTextInputStreamPeek(),
+kernelTextInputPeek(), kernelTextInputStreamRemove(), kernelTextInputRemove(),
+kernelTextInputStreamRemoveN(), and kernelTextInputRemoveN()
+(textInputStreamRemove(), textInputRemove(), textInputStreamRemoveN(),
+and textInputRemoveN(), respectively, in user space).
+- Fixed: When using the 'view' program to look at little mouse pointer images,
+the window - specifically the title bar - was too small for the buttons and
+whatnot.  The autoSizeWindow() function now respects the minimum width of any
+title bar.
+- Fixed: Doing a 'set data' on a disabled text field could cause the new text
+to be drawn as if the component were enabled.
+- Fixed: Attempting to use the 'shutdown' program as a non-privileged user was
+crashy.
+- Fixed: Clicking on a keymap file that wasn't in the system keymap folder
+would launch the Keyboard Map program, but it wouldn't open the clicked file,
+but rather attempt to match a map in the system keymap folder.
+- Fixed: Paging-related error messages when running the 'Devices' (lsdev)
+program from the command line.  Also fixed a separate-but-related memory leak
+by destroying the attributes variable list of each device as we finish with
+it, when recursively walking the device tree.
+- Fixed: In the file browser, empty files had directory icons.
+- Fixed: The error recovery if device detection and setup fails in the generic
+network device layer, or in the PcNet ethernet driver.  Also fixed the Network
+Devices (ifconfig) program to better handle the case where there are no
+network devices.
+- Fixed: The kernelNetworkRead() function (networkRead() in user space) so
+that it is possible to read remaining buffered data from a connection that has
+been closed (e.g. by the other host).
+- Fixed: Corrected the non-blocking behaviour of the C library networking
+function recv().
+- Fixed: Some minor off-by-one errors in the C library's strlen() and
+strnlen() functions, related to the MAXSTRINGLENGTH limit.
+- Fixed: A spurious memory deallocation error message that occurred when the
+only floppy drive was of an unsupported type (e.g. ATAPI).
+- Fixed: An unlikely crash that could happen when the login program was unable
+to log in to the window system, despite having successfully authenticated with
+valid credentials.
+- Fixed: Errors in the assert() macro in <assert.h>.
+- Fixed: Several of the programs didn't have .pot translation files.
+- Fixed: the kernel's static library dependencies in the build.
+
+--------------
  Version 0.84   15/05/2019
 --------------
 

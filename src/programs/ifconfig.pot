@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -157,53 +157,53 @@ msgstr ""
 msgid "Interrupt"
 msgstr ""
 
-#: ifconfig.c:265 ifconfig.c:738
+#: ifconfig.c:265 ifconfig.c:746
 #, c-format
 msgid "Can't get info for device %s"
 msgstr ""
 
-#: ifconfig.c:397
+#: ifconfig.c:400
 #, c-format
 msgid "Networking is %s"
 msgstr ""
 
-#: ifconfig.c:397
+#: ifconfig.c:400
 msgid "enabled"
 msgstr ""
 
-#: ifconfig.c:398
+#: ifconfig.c:401
 msgid "disabled"
 msgstr ""
 
-#: ifconfig.c:520
+#: ifconfig.c:526
 msgid "Disabling device"
 msgstr ""
 
-#: ifconfig.c:520
+#: ifconfig.c:526
 msgid "Enabling device"
 msgstr ""
 
-#: ifconfig.c:521 ifconfig.c:564
+#: ifconfig.c:527 ifconfig.c:572
 msgid "One moment please..."
 msgstr ""
 
-#: ifconfig.c:563
+#: ifconfig.c:571
 msgid "Shutting down networking"
 msgstr ""
 
-#: ifconfig.c:563
+#: ifconfig.c:571
 msgid "Initializing networking"
 msgstr ""
 
-#: ifconfig.c:663
+#: ifconfig.c:671
 msgid "Networking is disabled"
 msgstr ""
 
-#: ifconfig.c:869
+#: ifconfig.c:878
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:877
+#: ifconfig.c:886
 msgid "Can't get the count of network devices"
 msgstr ""

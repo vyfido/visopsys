@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,7 @@
 #include "kernelLoader.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ascii.h>
 #include <sys/gzip.h>
 #include <sys/keyboard.h>
 #include <sys/msdos.h>
@@ -47,12 +48,12 @@ static int textDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (0);
 
 	// Loop through the supplied data.  If it's at least 95% (this is an
-	// arbitrary number) printable ascii, etc, say yes
+	// arbitrary number) printable ASCII, say yes
 	for (count = 0; count < size; count ++)
 	{
-		if ((data[count] == 0x0a) || (data[count] == 0x0d) ||
-			(data[count] == 0x09) ||
-			((data[count] >= 0x20) && (data[count] <= 0x7e)))
+		if ((data[count] == ASCII_LF) || (data[count] == ASCII_CR) ||
+			(data[count] == ASCII_TAB) ||
+			((data[count] >= ASCII_SPACE) && (data[count] < ASCII_DEL)))
 		{
 			textChars += 1;
 		}

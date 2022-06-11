@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,8 +33,8 @@
 
 static inline void updateComponent(kernelTextArea *area)
 {
-	kernelWindowComponent *component =
-		(kernelWindowComponent *) area->windowComponent;
+	kernelWindowComponent *component = (kernelWindowComponent *)
+		area->windowComponent;
 
 	if (component && component->update)
 		component->update(area->windowComponent);
@@ -45,21 +45,21 @@ static void scrollBuffer(kernelTextArea *area, int lines)
 {
 	// Scrolls back everything in the area's buffer
 
-	int dataLength = (lines * area->columns);
+	int dataLength = (lines * area->columns * area->bytesPerChar);
 
 	// Increasing the stored scrollback lines?
 	if ((area->rows + area->scrollBackLines) < area->maxBufferLines)
 	{
-		area->scrollBackLines +=
-			min(lines, (area->maxBufferLines -
-				(area->rows + area->scrollBackLines)));
+		area->scrollBackLines += min(lines, (area->maxBufferLines -
+			(area->rows + area->scrollBackLines)));
 
 		updateComponent(area);
 	}
 
 	memcpy(TEXTAREA_FIRSTSCROLLBACK(area),
 		(TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
-		((area->rows + area->scrollBackLines) * area->columns));
+		((area->rows + area->scrollBackLines) * (area->columns *
+		area->bytesPerChar)));
 }
 
 
@@ -77,8 +77,8 @@ static void setCursor(kernelTextArea *area, int onOff)
 
 	if (onOff)
 	{
-		kernelGraphicDrawRect(buffer,
-			(color *) &area->foreground, draw_normal,
+		kernelGraphicDrawRect(buffer, (color *) &area->foreground,
+			draw_normal,
 			(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
 			(area->yCoord + (area->cursorRow * area->font->glyphHeight)),
 			area->font->glyphWidth, area->font->glyphHeight, 1, 1);
@@ -116,7 +116,7 @@ static void setCursor(kernelTextArea *area, int onOff)
 
 static int scrollLine(kernelTextArea *area)
 {
-	// Scrolls the text by 1 line in the text area provided.
+	// Scrolls the text by 1 line in the text area provided
 
 	kernelWindowComponent *component = area->windowComponent;
 	kernelWindowTextArea *windowTextArea = component->data;
@@ -171,13 +171,14 @@ static int scrollLine(kernelTextArea *area)
 	scrollBuffer(area, 1);
 
 	// Clear out the bottom row
-	memset(TEXTAREA_LASTVISIBLE(area), 0, area->columns);
+	memset(TEXTAREA_LASTVISIBLE(area), 0, (area->columns *
+		area->bytesPerChar));
 
 	// Copy our buffer data to the visible area
 	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area),
-		(area->rows * area->columns));
+		(area->rows * area->columns * area->bytesPerChar));
 
-	// The cursor position is now 1 row up from where it was.
+	// The cursor position is now 1 row up from where it was
 	area->cursorRow -= 1;
 
 	return (0);
@@ -193,15 +194,15 @@ static int getCursorAddress(kernelTextArea *area)
 
 static int screenDraw(kernelTextArea *area)
 {
-	// Yup, draws the text area as currently specified
+	// Draws the text area as currently specified
 
-	graphicBuffer *buffer =
-		((kernelWindowComponent *) area->windowComponent)->buffer;
+	graphicBuffer *buffer = ((kernelWindowComponent *)
+		area->windowComponent)->buffer;
 	unsigned char *bufferAddress = NULL;
 	char *lineBuffer = NULL;
 	int count;
 
-	lineBuffer = kernelMalloc(area->columns + 1);
+	lineBuffer = kernelMalloc((area->columns * area->bytesPerChar) + 1);
 	if (!lineBuffer)
 		return (ERR_MEMORY);
 
@@ -279,10 +280,10 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 
 static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 {
-	// Prints text to the text area.
+	// Prints input to the text area
 
-	graphicBuffer *buffer =
-		((kernelWindowComponent *) area->windowComponent)->buffer;
+	graphicBuffer *buffer = ((kernelWindowComponent *)
+		area->windowComponent)->buffer;
 	int cursorState = area->cursorState;
 	int length = 0;
 	color *foreground = (color *) &area->foreground;
@@ -293,7 +294,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 	unsigned tabChars = 0;
 	unsigned count;
 
-	lineBuffer = kernelMalloc(area->columns + 1);
+	lineBuffer = kernelMalloc((area->columns * area->bytesPerChar) + 1);
 	if (!lineBuffer)
 		return (ERR_MEMORY);
 
@@ -420,8 +421,8 @@ static int delete(kernelTextArea *area)
 {
 	// Erase the character at the current position
 
-	graphicBuffer *buffer =
-		((kernelWindowComponent *) area->windowComponent)->buffer;
+	graphicBuffer *buffer = ((kernelWindowComponent *)
+		area->windowComponent)->buffer;
 	int cursorState = area->cursorState;
 	int position = TEXTAREA_CURSORPOS(area);
 
@@ -442,10 +443,10 @@ static int delete(kernelTextArea *area)
 	*(TEXTAREA_FIRSTVISIBLE(area) + position) = '\0';
 	*(area->visibleData + position) = '\0';
 
-	kernelWindowUpdateBuffer(buffer,
-		(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
-		(area->yCoord + (area->cursorRow * area->font->glyphHeight)),
-		area->font->glyphWidth, area->font->glyphHeight);
+	kernelWindowUpdateBuffer(buffer, (area->xCoord + (area->cursorColumn *
+		area->font->glyphWidth)), (area->yCoord + (area->cursorRow *
+		area->font->glyphHeight)), area->font->glyphWidth,
+		area->font->glyphHeight);
 
 	if (cursorState)
 		// Turn on the cursor
@@ -457,10 +458,10 @@ static int delete(kernelTextArea *area)
 
 static int screenClear(kernelTextArea *area)
 {
-	// Yup, clears the text area
+	// Clears the text area
 
-	graphicBuffer *buffer =
-		((kernelWindowComponent *) area->windowComponent)->buffer;
+	graphicBuffer *buffer = ((kernelWindowComponent *)
+		area->windowComponent)->buffer;
 
 	// Clear the area
 	kernelGraphicClearArea(buffer, (color *) &area->background,
@@ -473,11 +474,12 @@ static int screenClear(kernelTextArea *area)
 		(area->rows * area->font->glyphHeight));
 
 	// Empty all the data
-	memset(TEXTAREA_FIRSTVISIBLE(area), 0, (area->columns * area->rows));
+	memset(TEXTAREA_FIRSTVISIBLE(area), 0, (area->columns * area->rows *
+		area->bytesPerChar));
 
 	// Copy to the visible area
 	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area),
-		(area->rows * area->columns));
+		(area->rows * area->columns * area->bytesPerChar));
 
 	// Cursor to the top right
 	area->cursorColumn = 0;
@@ -498,13 +500,13 @@ static int screenSave(kernelTextArea *area, textScreen *screen)
 	// This function saves the current contents of the screen
 
 	// Get memory for a new save area
-	screen->data = kernelMemoryGet(area->columns * area->rows,
-		"text screen data");
+	screen->data = kernelMemoryGet((area->columns * area->rows *
+		area->bytesPerChar), "text screen data");
 	if (!screen->data)
 		return (ERR_MEMORY);
 
-	memcpy(screen->data, TEXTAREA_FIRSTVISIBLE(area),
-		(area->rows * area->columns));
+	memcpy(screen->data, TEXTAREA_FIRSTVISIBLE(area), (area->rows *
+		area->columns * area->bytesPerChar));
 
 	screen->column = area->cursorColumn;
 	screen->row = area->cursorRow;
@@ -519,11 +521,12 @@ static int screenRestore(kernelTextArea *area, textScreen *screen)
 
 	if (screen->data)
 	{
-		memcpy(TEXTAREA_FIRSTVISIBLE(area), screen->data,
-			(area->rows * area->columns));
+		memcpy(TEXTAREA_FIRSTVISIBLE(area), screen->data, (area->rows *
+			area->columns * area->bytesPerChar));
 
 		// Copy to the visible area
-		memcpy(area->visibleData, screen->data, (area->rows * area->columns));
+		memcpy(area->visibleData, screen->data, (area->rows * area->columns *
+			area->bytesPerChar));
 	}
 
 	area->cursorColumn = screen->column;
@@ -562,7 +565,7 @@ static kernelTextOutputDriver graphicModeDriver = {
 
 int kernelGraphicConsoleInitialize(void)
 {
-	// Called before the first use of the text console.
+	// Called before the first use of the text console
 
 	// Register our driver
 	return (kernelSoftwareDriverRegister(graphicConsoleDriver,

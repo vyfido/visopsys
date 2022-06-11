@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -80,15 +80,16 @@ extern int errno;
 #define EUNATCH ERR_NOSUCHDRIVER   // Protocol driver not attached
 #define ENOCSI  ERR_ERROR          // No CSI structure available
 #define EL2HLT  ERR_ERROR          // Level 2 halted
-#define EDEADLK ERR_DEADLOCK       // Deadlock condition.
-#define ENOLCK  ERR_NOLOCK         // No record locks available.
+#define EDEADLK ERR_DEADLOCK       // Deadlock condition
+#define ENOLCK  ERR_NOLOCK         // No record locks available
 #define ECANCELED ERR_CANCELLED    // Operation canceled
 #define ENOTSUP ERR_NOTIMPLEMENTED // Operation not supported
 #define ENAMETOOLONG ERR_BOUNDS    // Name too long
-#define EILSEQ  ERR_INVALID        // Illegal byte sequence.
+#define EILSEQ  ERR_INVALID        // Illegal byte sequence
 #define EOVERFLOW ERR_BOUNDS       // Value too large for defined data type
 #define EBADRQC ERR_NOSUCHFUNCTION // No such function
 #define ENOTEMPTY ERR_NOTEMPTY     // Not empty
+#define EWOULDBLOCK EAGAIN         // Operation would block
 
 // Synonyms -- compatibility
 #define EOPNOTSUPP ENOTSUP

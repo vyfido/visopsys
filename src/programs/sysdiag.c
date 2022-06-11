@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -166,7 +166,7 @@ static void error(const char *format, ...)
 static void printBanner(void)
 {
 	textScreenClear();
-	printf(_("%s\nCopyright (C) 1998-2019 J. Andrew McLaughlin\n"), PROGNAME);
+	printf(_("%s\nCopyright (C) 1998-2020 J. Andrew McLaughlin\n"), PROGNAME);
 }
 
 
@@ -232,8 +232,8 @@ static void showResults(int status, testError *testErrors, int numErrors)
 {
 	int choice = 0;
 	char *choiceStrings[] = {
-	_("View results"),
-	_("Quit")
+		_("View results"),
+		_("Quit")
 	};
 	objectKey resultsWindow = NULL;
 	objectKey textArea = NULL;
@@ -262,7 +262,8 @@ static void showResults(int status, testError *testErrors, int numErrors)
 			{
 				choice = windowNewChoiceDialog(window,
 					((status == ERR_CANCELLED)? TESTCANCELLED :
-						TESTCOMPLETED), tmp, choiceStrings, 2, 0);
+						TESTCOMPLETED), tmp, choiceStrings,
+					2 /* numChoices */, 0 /* defaultChoice */);
 			}
 			else
 			{
@@ -306,8 +307,8 @@ static void showResults(int status, testError *testErrors, int numErrors)
 				params.font = fontGet(FONT_FAMILY_LIBMONO,
 					FONT_STYLEFLAG_FIXED, 10, NULL);
 
-				textArea = windowNewTextArea(resultsWindow, 60, 15, 200,
-					&params);
+				textArea = windowNewTextArea(resultsWindow, 60 /* columns */,
+					15 /* rows */, 200 /* bufferLines */, &params);
 				// Use the text area for the following output
 				windowSetTextOutput(textArea);
 				windowCenterDialog(window, resultsWindow);

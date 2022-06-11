@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2019 J. Andrew McLaughlin
+##  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -16,7 +16,8 @@ LIBDIR = ${BUILDDIR}/system/libraries
 include ${ROOT}/Makefile.include
 
 STDDEPS = ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
-	${INCDIR}/*.h ${LIBDIR}/libc.a
+	${INCDIR}/*.h
+STATLIBS = ${LIBDIR}/libvis.a ${LIBDIR}/libc.a
 INCLUDE = -nostdinc -I. -I${INCDIR}
 CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL ${DEBUG}
 LFLAGS = -L${LIBDIR} -nostdlib -static \
@@ -30,7 +31,8 @@ else
 endif
 
 # kernelMain needs to go first
-NAMES = kernelMain \
+NAMES = \
+	kernelMain \
 	kernelApi \
 	kernelBus \
 	kernelCharset \
@@ -126,7 +128,8 @@ NAMES = kernelMain \
 	kernelWindowTitleBar \
 	kernelWindowTree
 
-DRIVERNAMES = kernelAcpiDriver \
+DRIVERNAMES = \
+	kernelAcpiDriver \
 	kernelApicDriver \
 	kernelAtaDriver \
 	kernelDmaDriver \
@@ -175,7 +178,7 @@ target-dirs:
 	mkdir -p obj
 	mkdir -p ${BUILDDIR}
 
-${KERNEL}: ${OBJS}
+${KERNEL}: ${OBJS} ${STATLIBS}
 	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lvis -lc -lgcc -o $@
 
 strip: ${KERNEL}

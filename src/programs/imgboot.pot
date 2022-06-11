@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,7 +23,7 @@ msgid "Welcome to %s"
 msgstr ""
 
 #: imgboot.c:65
-msgid "Copyright (C) 1998-2019 J. Andrew McLaughlin"
+msgid "Copyright (C) 1998-2020 J. Andrew McLaughlin"
 msgstr ""
 
 #: imgboot.c:67
@@ -49,7 +49,7 @@ msgstr ""
 msgid "Install"
 msgstr ""
 
-#: imgboot.c:78 imgboot.c:212
+#: imgboot.c:78 imgboot.c:210
 msgid "Continue"
 msgstr ""
 
@@ -89,46 +89,46 @@ msgstr ""
 msgid "%s  Quitting."
 msgstr ""
 
-#: imgboot.c:211
+#: imgboot.c:209
 msgid "Reboot?"
 msgstr ""
 
-#: imgboot.c:212
+#: imgboot.c:210
 msgid "Reboot"
 msgstr ""
 
-#: imgboot.c:221
+#: imgboot.c:219
 #, c-format
 msgid ""
 "\n"
 "%s (y/n): "
 msgstr ""
 
-#: imgboot.c:230
-msgid "Yes\n"
+#: imgboot.c:228
+msgid "Yes"
 msgstr ""
 
-#: imgboot.c:236
-msgid "No\n"
+#: imgboot.c:234
+msgid "No"
 msgstr ""
 
-#: imgboot.c:452
+#: imgboot.c:450
 msgid "Can't create window!"
 msgstr ""
 
-#: imgboot.c:579
+#: imgboot.c:577
 msgid "o Install                    "
 msgstr ""
 
-#: imgboot.c:580
+#: imgboot.c:578
 msgid "o Continue                   "
 msgstr ""
 
-#: imgboot.c:581
+#: imgboot.c:579
 msgid "o Always continue (never ask)"
 msgstr ""
 
-#: imgboot.c:595
+#: imgboot.c:594
 msgid ""
 "This program can only be run as a privileged user.\n"
 "(Try logging in as user \"admin\")."

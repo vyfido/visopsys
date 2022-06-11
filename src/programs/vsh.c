@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -90,8 +90,6 @@ static void showPrompt(void)
 	printf("%s%s", dirName, SIMPLESHELLPROMPT);
 
 	free(dirName);
-
-	return;
 }
 
 
@@ -114,9 +112,8 @@ static void interpretCommand(char *commandLine)
 	fullCommand = malloc(MAXSTRINGLENGTH + 1);
 	if (!commandName || !fullCommand)
 	{
-		errno = ERR_MEMORY;
-		perror("vsh");
-		return;
+		perror("malloc");
+		goto out;
 	}
 
 	// We have to separate the command and arguments into an array of
@@ -124,7 +121,7 @@ static void interpretCommand(char *commandLine)
 	status = vshParseCommand(commandLine, commandName, &numArgs, args);
 	if (status < 0)
 	{
-		perror("vsh");
+		perror("vshParseCommand");
 		goto out;
 	}
 
@@ -154,7 +151,7 @@ static void interpretCommand(char *commandLine)
 		if (temp < 0)
 		{
 			errno = temp;
-			perror("cd");
+			perror(args[0]);
 		}
 
 		multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
@@ -194,8 +191,6 @@ static void interpretCommand(char *commandLine)
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
 			printf(_("Usage: %s <file1> [file2] [...]\n"), args[0]);
 		}
 	}
@@ -206,25 +201,16 @@ static void interpretCommand(char *commandLine)
 		{
 			for (count = 1; count < numArgs; count ++)
 			{
-				if (args[count])
-				{
-					status = fileDelete(args[count]);
-					if (status < 0)
-						errno = status;
-				}
-				else
-				{
-					status = errno = ERR_NULLPARAMETER;
-				}
-
+				status = fileDelete(args[count]);
 				if (status < 0)
+				{
+					errno = status;
 					perror(args[0]);
+				}
 			}
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
 			printf(_("Usage: %s <file1> [file2] [...]\n"), args[0]);
 		}
 	}
@@ -235,13 +221,15 @@ static void interpretCommand(char *commandLine)
 		{
 			status = fileCopy(args[1], args[2]);
 			if (status < 0)
+			{
+				errno = status;
 				perror(args[0]);
+			}
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
-			printf(_("Usage: %s <source file> <destination file>\n"), args[0]);
+			printf(_("Usage: %s <source file> <destination file>\n"),
+				args[0]);
 		}
 	}
 
@@ -250,25 +238,17 @@ static void interpretCommand(char *commandLine)
 	{
 		if (numArgs > 2)
 		{
-			if (args[1] && args[2])
-			{
-				status = fileMove(args[1], args[2]);
-				if (status < 0)
-					errno = status;
-			}
-			else
-			{
-				status = errno = ERR_NULLPARAMETER;
-			}
-
+			status = fileMove(args[1], args[2]);
 			if (status < 0)
+			{
+				errno = status;
 				perror(args[0]);
+			}
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
-			printf(_("Usage: %s <source file> <destination file>\n"), args[0]);
+			printf(_("Usage: %s <source file> <destination file>\n"),
+				args[0]);
 		}
 	}
 
@@ -295,14 +275,11 @@ static void interpretCommand(char *commandLine)
 			}
 			else
 			{
-				errno = ERR_MEMORY;
-				perror(args[0]);
+				perror("malloc");
 			}
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
 			printf(_("Usage: %s <variable_name>\n"), args[0]);
 		}
 	}
@@ -323,9 +300,8 @@ static void interpretCommand(char *commandLine)
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
-			printf(_("Usage: %s <variable_name> <variable_value>\n"), args[0]);
+			printf(_("Usage: %s <variable_name> <variable_value>\n"),
+				args[0]);
 		}
 	}
 
@@ -342,8 +318,6 @@ static void interpretCommand(char *commandLine)
 		}
 		else
 		{
-			errno = ERR_ARGUMENTCOUNT;
-			perror(args[0]);
 			printf(_("Usage: %s <variable_name>\n"), args[0]);
 		}
 	}
@@ -388,8 +362,6 @@ out:
 		free(commandName);
 	if (fullCommand)
 		free(fullCommand);
-
-	return;
 }
 
 
@@ -403,14 +375,14 @@ static void simpleShell(void)
 	int selectedCommand = 0;
 	unsigned char bufferCharacter;
 	static int currentCharacter = 0;
+	char *tmp;
 	int count;
 
 	commandBuffer = malloc(MAXSTRINGLENGTH + 1);
-	char *tmp = malloc(COMMANDHISTORY * (MAXSTRINGLENGTH + 1));
+	tmp = malloc(COMMANDHISTORY * (MAXSTRINGLENGTH + 1));
 	if (!commandBuffer || !tmp)
 	{
-		errno = ERR_MEMORY;
-		perror("vsh");
+		perror("malloc");
 		return;
 	}
 
@@ -431,7 +403,7 @@ static void simpleShell(void)
 		// codes that make use of 'unused' spots.  Specifically the DC1-DC4
 		// codes are used for cursor control
 
-		if (bufferCharacter == (unsigned char) ASCII_CRSRUP)
+		if (bufferCharacter == ASCII_CRSRUP)
 		{
 			// This is the UP cursor key, G's addition - bash style press up +
 			// repeat the last command.  It allows users to cycle backwards
@@ -472,7 +444,7 @@ static void simpleShell(void)
 			currentCharacter = strlen(commandBuffer);
 		}
 
-		else if (bufferCharacter == (unsigned char) ASCII_CRSRDOWN)
+		else if (bufferCharacter == ASCII_CRSRDOWN)
 		{
 			// This is the DOWN cursor key, which allows users to cycle
 			// forwards through their command history
@@ -532,16 +504,16 @@ static void simpleShell(void)
 
 		/*
 		// This is not useful without line editing, and can confuse people
-		else if (bufferCharacter == (unsigned char) ASCII_CRSRLEFT)
+		else if (bufferCharacter == ASCII_CRSRLEFT)
 			// This is the LEFT cursor key
 			textCursorLeft();
 
-		else if (bufferCharacter == (unsigned char) ASCII_CRSRRIGHT)
+		else if (bufferCharacter == ASCII_CRSRRIGHT)
 			// This is the RIGHT cursor key
 			textCursorRight();
 		*/
 
-		else if (bufferCharacter == (unsigned char) ASCII_HOME)
+		else if (bufferCharacter == ASCII_HOME)
 		{
 			// This is the HOME key, which normally puts the cursor at
 			// the beginning of the line, but we use it to clear the screen
@@ -551,7 +523,7 @@ static void simpleShell(void)
 			showPrompt();
 		}
 
-		else if (bufferCharacter == (unsigned char) ASCII_BACKSPACE)
+		else if (bufferCharacter == ASCII_BACKSPACE)
 		{
 			// This is the BACKSPACE key
 			if (currentCharacter > 0)
@@ -570,9 +542,9 @@ static void simpleShell(void)
 			}
 		}
 
-		else if (bufferCharacter == (unsigned char) ASCII_TAB)
+		else if (bufferCharacter == ASCII_TAB)
 		{
-			// This is the TAB key.  Attempt to complete a filename.
+			// This is the TAB key.  Attempt to complete a filename
 
 			// Get rid of any tab characters printed on the screen
 			textSetColumn(currentCharacter);
@@ -614,7 +586,7 @@ static void simpleShell(void)
 			currentCharacter = strlen(commandBuffer);
 		}
 
-		else if (bufferCharacter == (unsigned char) ASCII_ENTER)
+		else if (bufferCharacter == ASCII_ENTER)
 		{
 			// This is the ENTER key
 
@@ -681,21 +653,21 @@ static void simpleShell(void)
 			showPrompt();
 		}
 
-		else if (bufferCharacter == (unsigned char) ASCII_ENDOFFILE)
+		else if (bufferCharacter == ASCII_ENDOFFILE)
 		{
 			// CTRL-D.  Logout
 			printf("%s", _("logout\n"));
 			goto logout;
 		}
 
-		else if (bufferCharacter == (unsigned char) ASCII_DEL)
+		else if (bufferCharacter == ASCII_DEL)
 		{
 			// Do nothing.  Don't print.
 		}
 
 		else if (bufferCharacter)
 		{
-			// Something with no special meaning.
+			// Something with no special meaning
 
 			// Don't go beyond the maximum line length
 			if (currentCharacter >= (MAXSTRINGLENGTH - 2))
@@ -735,8 +707,6 @@ static void simpleShell(void)
 logout:
 	free(commandBuffer);
 	free(commandHistory[0]);
-
-	return;
 }
 
 
@@ -779,7 +749,7 @@ int main(int argc, char *argv[])
 			{
 				// Not found
 				errno = status;
-				perror(argv[0]);
+				perror("vshSearchPath");
 				return (status);
 			}
 		}
@@ -787,9 +757,9 @@ int main(int argc, char *argv[])
 		fullCommand = malloc(MAXSTRINGLENGTH + 1);
 		if (!fullCommand)
 		{
-			errno = ERR_MEMORY;
-			perror("vsh");
-			return (status = errno);
+			status = errno;
+			perror("malloc");
+			return (status);
 		}
 
 		strcpy(fullCommand, fileName);
@@ -817,9 +787,9 @@ int main(int argc, char *argv[])
 	cwd = malloc(MAX_PATH_LENGTH + 1);
 	if (!cwd)
 	{
-		errno = ERR_MEMORY;
-		perror(argv[0]);
-		return (errno);
+		status = errno;
+		perror("malloc");
+		return (status);
 	}
 
 	status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
@@ -827,7 +797,7 @@ int main(int argc, char *argv[])
 	{
 		printf("%s", _("Can't determine current directory\n"));
 		free(cwd);
-		return (errno = status);
+		return (status);
 	}
 
 	// Show a prompt

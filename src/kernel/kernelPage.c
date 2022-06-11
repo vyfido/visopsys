@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,16 +19,15 @@
 //  kernelPage.c
 //
 
-// This file contains the C functions belonging to the kernel's
-// paging manager.  It keeps lists of page directories and page tables,
-// and performs all the work of mapping and unmapping pages in the tables.
+// This file contains the C functions belonging to the kernel's paging
+// manager.  It keeps lists of page directories and page tables, and performs
+// all the work of mapping and unmapping pages in the tables.
 
 #include "kernelPage.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
 #include "kernelLock.h"
-#include "kernelLog.h"
 #include "kernelMemory.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
@@ -50,6 +49,8 @@ static volatile int numberPageTables = 0;
 // The physical memory location where we'll store the kernel's paging data.
 static unsigned long kernelPagingData = 0;
 
+static int haveGlobalPages = 0;
+static int havePageAttributeTable = 0;
 static volatile int initialized = 0;
 
 // Macros used internally
@@ -94,7 +95,7 @@ static unsigned countFreePages(kernelPageDirectory *directory)
 	if (directory == kernelPageDir)
 	{
 		tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-		maxTables = PAGE_TABLES_PER_DIR;
+		maxTables = X86_PAGE_TABLES_PER_DIR;
 	}
 	else
 	{
@@ -125,7 +126,7 @@ static int findFreeTableNumber(kernelPageDirectory *directory)
 	if (directory == kernelPageDir)
 	{
 		tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-		maxTables = PAGE_TABLES_PER_DIR;
+		maxTables = X86_PAGE_TABLES_PER_DIR;
 	}
 	else
 	{
@@ -162,7 +163,7 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
 	if (directory == kernelPageDir)
 	{
 		tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-		maxTables = PAGE_TABLES_PER_DIR;
+		maxTables = X86_PAGE_TABLES_PER_DIR;
 	}
 	else
 	{
@@ -188,7 +189,7 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
 		// freeStart to NULL.  If the table number is zero, skip the first
 		// page.
 		for (pageNumber = (tableNumber == 0);
-			(pageNumber < PAGE_PAGES_PER_TABLE); pageNumber++)
+			(pageNumber < X86_PAGES_PER_TABLE); pageNumber++)
 		{
 			if (!table->virtual->page[pageNumber])
 			{
@@ -279,8 +280,10 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// Put the real address into the page table entry.  Set the global bit,
 	// the writable bit, and the page present bit.
 	kernelTable->virtual->page[kernelPageNumber] = (unsigned) physicalAddr;
-	kernelTable->virtual->page[kernelPageNumber] |= (PAGEFLAG_GLOBAL |
-		PAGEFLAG_WRITABLE | PAGEFLAG_PRESENT);
+	kernelTable->virtual->page[kernelPageNumber] |= (X86_PAGEFLAG_WRITABLE |
+		X86_PAGEFLAG_PRESENT);
+	if (haveGlobalPages)
+		kernelTable->virtual->page[kernelPageNumber] |= X86_PAGEFLAG_GLOBAL;
 	kernelTable->freePages--;
 
 	// Clear this memory block, since kernelMemoryGetPhysical can't do it for
@@ -295,7 +298,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// Fill in this page table
 	newTable->directory = directory;
 	newTable->tableNumber = number;
-	newTable->freePages = PAGE_PAGES_PER_TABLE;
+	newTable->freePages = X86_PAGES_PER_TABLE;
 	newTable->physical = physicalAddr;
 	newTable->virtual = virtualAddr;
 
@@ -303,12 +306,12 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// real page table to the requested slot number.  Always enable
 	// read/write and page-present
 	directory->virtual->table[number] = (unsigned) newTable->physical;
-	directory->virtual->table[number] |= (PAGEFLAG_WRITABLE |
-		PAGEFLAG_PRESENT);
+	directory->virtual->table[number] |= (X86_PAGEFLAG_WRITABLE |
+		X86_PAGEFLAG_PRESENT);
 
 	// Set the 'user' bit, if this page table is not privileged
 	if (directory->privilege != PRIVILEGE_SUPERVISOR)
-		directory->virtual->table[number] |= PAGEFLAG_USER;
+		directory->virtual->table[number] |= X86_PAGEFLAG_USER;
 
 	// A couple of extra things we do if this new page table belongs to the
 	// kernel or one of its threads
@@ -317,7 +320,8 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 		// Set the 'global' bit, so that if this is a Pentium Pro or better
 		// processor, the page table won't be invalidated during a context
 		// switch
-		directory->virtual->table[number] |= PAGEFLAG_GLOBAL;
+		if (haveGlobalPages)
+			directory->virtual->table[number] |= X86_PAGEFLAG_GLOBAL;
 
 		// It needs to be 'shared' with all of the other real page
 		// directories.
@@ -376,8 +380,8 @@ static int deletePageTable(kernelPageDirectory *directory,
 	kernelTable->virtual->page[kernelPageNumber] = NULL;
 	kernelTable->freePages++;
 
-	// Clear the TLB entry for the table's virtual memory
-	processorClearAddressCache(table->virtual);
+	// Clear the TLB entry for this page
+	processorAddressCacheInvalidatePage(table->virtual);
 
 	// Release the physical memory used by the table
 	status = kernelMemoryReleasePhysical((unsigned) table->physical);
@@ -477,7 +481,7 @@ static int arePagesAt(kernelPageDirectory *directory, int numPages,
 	int pageNumber = 0;
 
 	if (directory == kernelPageDir)
-		maxTables = PAGE_TABLES_PER_DIR;
+		maxTables = X86_PAGE_TABLES_PER_DIR;
 	else
 		maxTables = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
 
@@ -499,7 +503,7 @@ static int arePagesAt(kernelPageDirectory *directory, int numPages,
 
 		// Loop through the pages in this page table.  If we find a used
 		// page before 'numberOk' equals 'numPages', return 0
-		for ( ; pageNumber < PAGE_PAGES_PER_TABLE; pageNumber++)
+		for ( ; pageNumber < X86_PAGES_PER_TABLE; pageNumber++)
 		{
 			if ((!used && table->virtual->page[pageNumber]) ||
 				(used && !table->virtual->page[pageNumber]))
@@ -518,6 +522,61 @@ static int arePagesAt(kernelPageDirectory *directory, int numPages,
 
 	// If we fall through, we're out of range
 	return (0);
+}
+
+
+static void detectCpuPagingFeatures(void)
+{
+	// Detect paging-related features supported by the CPU, and set things
+	// appropriately.  For example, if the CPU supports the Page Attribute
+	// Table (PAT), make sure that the table contains the expected default
+	// values.
+
+	unsigned rega = 0, regb = 0, regc = 0, regd = 0;
+
+	// Ideally we would call kernelCpuGetFeatures() here, but paging needs to
+	// be initialized before most other things, including the CPU driver. Also
+	// note that no debugging or logging is enabled at this point, so we can't
+	// output any helpful info about the things we discover below.
+
+	// Get the first batch of CPUID regs
+	processorId(0, rega, regb, regc, regd);
+
+	// Second batch supported?
+	if ((rega & 0x7FFFFFFF) < 1)
+		return;
+
+	// Get the second batch of CPUID regs
+	processorId(1, rega, regb, regc, regd);
+
+	// Does the processor support 'global' pages?
+	if ((regd >> 13) & 1)
+	{
+		processorGetCR4(rega);
+		rega |= 0x00000080;
+		processorSetCR4(rega);
+
+		haveGlobalPages = 1;
+	}
+
+	// Is there a PAT?
+	if ((regd >> 16) & 1)
+	{
+		// Does the CPU have model-specific registers?
+		if ((regd >> 5) & 1)
+		{
+			rega = X86_PATMSR_LO;
+			regd = X86_PATMSR_HI;
+
+			// Write the PAT MSR
+			processorWriteMsr(X86_MSR_PAT, rega, regd);
+
+			// Clear the whole TLB
+			processorAddressCacheInvalidate();
+
+			havePageAttributeTable = 1;
+		}
+	}
 }
 
 
@@ -620,20 +679,21 @@ static int map(kernelPageDirectory *directory, unsigned physicalAddress,
 		// Put the real address into the page table entry.  Set the
 		// writable bit and the page present bit.
 		pageTable->virtual->page[pageNumber] = currentPhysicalAddress;
-		pageTable->virtual->page[pageNumber] |= (PAGEFLAG_WRITABLE |
-			PAGEFLAG_PRESENT);
+		pageTable->virtual->page[pageNumber] |= (X86_PAGEFLAG_WRITABLE |
+			X86_PAGEFLAG_PRESENT);
 
 		if (directory == kernelPageDir)
 		{
 			// Set the 'global' bit, so that if this is a Pentium Pro or
 			// better processor, the page table won't be invalidated during a
 			// context switch
-			pageTable->virtual->page[pageNumber] |= PAGEFLAG_GLOBAL;
+			if (haveGlobalPages)
+				pageTable->virtual->page[pageNumber] |= X86_PAGEFLAG_GLOBAL;
 		}
 
 		// Set the 'user' bit, if this page is not privileged
 		if (directory->privilege != PRIVILEGE_SUPERVISOR)
-			pageTable->virtual->page[pageNumber] |= PAGEFLAG_USER;
+			pageTable->virtual->page[pageNumber] |= X86_PAGEFLAG_USER;
 
 		// Decrease the count of free pages
 		pageTable->freePages--;
@@ -705,13 +765,13 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
 		pageTable->virtual->page[pageNumber] = NULL;
 
 		// Clear the TLB entry for this page
-		processorClearAddressCache(virtualAddress);
+		processorAddressCacheInvalidatePage(virtualAddress);
 
 		// Increase the count of free pages
 		pageTable->freePages++;
 
 		// Is the table now unused?
-		if (pageTable->freePages == PAGE_PAGES_PER_TABLE)
+		if (pageTable->freePages == X86_PAGES_PER_TABLE)
 			// Try to deallocate it
 			deletePageTable(directory, pageTable);
 
@@ -917,7 +977,7 @@ static int firstPageTable(void)
 
 	table->directory = kernelPageDir;
 	table->tableNumber = tableNumber;
-	table->freePages = PAGE_PAGES_PER_TABLE;
+	table->freePages = X86_PAGES_PER_TABLE;
 
 	table->physical = (kernelPageTablePhysicalMem *)(kernelPagingData +
 		sizeof(kernelPageDirPhysicalMem));
@@ -934,8 +994,8 @@ static int firstPageTable(void)
 	// Write the page table entry into the kernel's page directory.  Enable
 	// read/write and page-present
 	kernelPageDir->physical->table[tableNumber] = (unsigned) table->physical;
-	kernelPageDir->physical->table[tableNumber] |= (PAGEFLAG_WRITABLE |
-		PAGEFLAG_PRESENT);
+	kernelPageDir->physical->table[tableNumber] |= (X86_PAGEFLAG_WRITABLE |
+		X86_PAGEFLAG_PRESENT);
 
 	return (status = 0);
 }
@@ -1059,7 +1119,8 @@ static void shareKernelPages(kernelPageDirectory *directory)
 
 	// We will do a loop, copying the table entries from the kernel's page
 	// directory to the target page directory.
-	for (count = kernelStartingTable; count < PAGE_TABLES_PER_DIR; count ++)
+	for (count = kernelStartingTable; count < X86_PAGE_TABLES_PER_DIR;
+		count ++)
 	{
 		directory->virtual->table[count] =
 			kernelPageDir->virtual->table[count];
@@ -1067,8 +1128,8 @@ static void shareKernelPages(kernelPageDirectory *directory)
 }
 
 
-static int setPageAttrs(kernelPageDirectory *directory, int set,
-	unsigned char flags, void *virtualAddress, int pages)
+static int setPageAttrs(kernelPageDirectory *directory,
+	kernelPageAttribute attr, void *virtualAddress, int pages)
 {
 	// This allows the setting/clearing of page attributes
 
@@ -1088,7 +1149,7 @@ static int setPageAttrs(kernelPageDirectory *directory, int set,
 
 		pageNumber = getPageNumber(virtualAddress);
 
-		for ( ; (pages > 0) && (pageNumber < PAGE_PAGES_PER_TABLE);
+		for ( ; (pages > 0) && (pageNumber < X86_PAGES_PER_TABLE);
 			pageNumber ++)
 		{
 			if (!pageTable->virtual->page[pageNumber])
@@ -1098,10 +1159,46 @@ static int setPageAttrs(kernelPageDirectory *directory, int set,
 				return (status = ERR_NODATA);
 			}
 
-			if (set)
-				pageTable->virtual->page[pageNumber] |= (flags & 0x0FFF);
-			else
-				pageTable->virtual->page[pageNumber] &= ~(flags & 0x0FFF);
+			switch (attr)
+			{
+				case pageattr_readonly:
+					pageTable->virtual->page[pageNumber] &=
+						~X86_PAGEFLAG_WRITABLE;
+					break;
+
+				case pageattr_privileged:
+					pageTable->virtual->page[pageNumber] &=
+						~X86_PAGEFLAG_USER;
+					break;
+
+				case pageattr_writecombine:
+					if (havePageAttributeTable)
+					{
+						X86_PATSELECTOR(pageTable->virtual->page[pageNumber],
+							X86_PAT_WC);
+					}
+					break;
+
+				case pageattr_uncacheable:
+					if (havePageAttributeTable)
+					{
+						X86_PATSELECTOR(pageTable->virtual->page[pageNumber],
+							X86_PAT_UC);
+					}
+					else
+					{
+						pageTable->virtual->page[pageNumber] |=
+							(X86_PAGEFLAG_CACHEDISABLE |
+							X86_PAGEFLAG_WRITETHROUGH);
+					}
+					break;
+
+				default:
+					break;
+			}
+
+			// Clear the TLB entry for this page
+			processorAddressCacheInvalidatePage(virtualAddress);
 
 			virtualAddress += MEMORY_PAGE_SIZE;
 			pages -= 1;
@@ -1149,6 +1246,9 @@ int kernelPageInitialize(unsigned kernelMemory)
 
 	numberPageDirectories = 0;
 	numberPageTables = 0;
+
+	// Detect paging-related CPU features
+	detectCpuPagingFeatures();
 
 	// Calculate the physical memory location where we'll store the kernel's
 	// paging data.
@@ -1309,8 +1409,8 @@ int kernelPageDeleteDirectory(int processId)
 	}
 
 	// We need to walk through all of its page tables, deallocating them as we
-	// go.
-	for (count = 0; count < PAGE_PAGES_PER_TABLE; count ++)
+	// go
+	for (count = 0; count < X86_PAGES_PER_TABLE; count ++)
 	{
 		table = findPageTable(directory, count);
 
@@ -1615,11 +1715,11 @@ void *kernelPageFindFree(int processId, unsigned size)
 }
 
 
-int kernelPageSetAttrs(int processId, int set, unsigned char flags,
+int kernelPageSetAttrs(int processId, kernelPageAttribute attr,
 	void *virtualAddress, unsigned size)
 {
-	// This is a wrapper for setPageAttrs() which allows the setting/clearing
-	// of page attributes
+	// This is a wrapper for setPageAttrs() which allows the setting of page
+	// attributes
 
 	int status = 0;
 	kernelPageDirectory *directory = NULL;
@@ -1657,7 +1757,7 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
 		return (status);
 	}
 
-	status = setPageAttrs(directory, set, flags, virtualAddress, numPages);
+	status = setPageAttrs(directory, attr, virtualAddress, numPages);
 
 	kernelLockRelease(&directory->lock);
 	return (status);

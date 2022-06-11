@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -356,7 +356,6 @@ static void setVariableDialog(char *variable)
 	}
 
 	windowDestroy(dialogWindow);
-	return;
 }
 
 
@@ -368,7 +367,8 @@ static void quit(void)
 	{
 		selected = windowNewChoiceDialog(window, _("Unsaved changes"),
 			_("Quit without saving changes?"),
-			(char *[]){ _("Save"), _("Quit"), _("Cancel") }, 3, 0);
+			(char *[]){ _("Save"), _("Quit"), _("Cancel") },
+			3 /* numChoices */, 0 /* defaultChoice */);
 
 		if ((selected < 0) || (selected == 2))
 			return;
@@ -622,12 +622,7 @@ int main(int argc, char *argv[])
 			PATH_SYSTEM_CONFIG, fileName, MAX_PATH_NAME_LENGTH, fileT,
 			0 /* no thumbnails */);
 		if (status != 1)
-		{
-			if (status)
-				perror(argv[0]);
-
 			return (status);
-		}
 	}
 	else
 	{

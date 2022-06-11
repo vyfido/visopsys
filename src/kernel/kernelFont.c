@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,22 +19,22 @@
 //  kernelFont.c
 //
 
-// This contains utility functions for managing fonts.
+// This contains utility functions for managing fonts
 
 #include "kernelFont.h"
 #include "kernelCharset.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelFile.h"
-#include "kernelImage.h"
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMultitasker.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/env.h>
+#include <sys/ascii.h>
+#include <sys/file.h>
+#include <sys/image.h>
 #include <sys/paths.h>
 #include <sys/vis.h>
 
@@ -233,7 +233,8 @@ static int search(const char *family, unsigned flags, int points,
 }
 
 
-static kernelFont *load(kernelFont *font, const char *fileName, int fixedWidth)
+static kernelFont *load(kernelFont *font, const char *fileName,
+	int fixedWidth)
 {
 	int status = 0;
 	int allocated = 0;
@@ -261,7 +262,7 @@ static kernelFont *load(kernelFont *font, const char *fileName, int fixedWidth)
 		goto out;
 	}
 
-	// Get the file class of the file.
+	// Get the file class of the file
 	fileClassDriver = kernelLoaderClassify(fileName, fileData, fontFile.size,
 		&loaderClass);
 	if (!fileClassDriver)
@@ -287,7 +288,7 @@ static kernelFont *load(kernelFont *font, const char *fileName, int fixedWidth)
 
 		if (allocated)
 		{
-			status = linkedListAdd(&fontList, font);
+			status = linkedListAddBack(&fontList, font);
 			if (status < 0)
 				goto out;
 		}
@@ -352,7 +353,8 @@ int kernelFontInitialize(void)
 	systemFont->info.points = 8;
 
 	strcpy(systemFont->info.charSet, CHARSET_NAME_ASCII);
-	status = linkedListAdd(&systemFont->charSet, systemFont->info.charSet);
+	status = linkedListAddBack(&systemFont->charSet,
+		systemFont->info.charSet);
 	if (status < 0)
 		goto out;
 
@@ -384,7 +386,7 @@ out:
 			if (systemFont->glyphs)
 				kernelFree(systemFont->glyphs);
 
-			free (systemFont);
+			kernelFree(systemFont);
 		}
 	}
 
@@ -445,8 +447,8 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 	// Takes the name of a desired font family name, style flags, size in
 	// points, and an optional character set.  The function will check whether
 	// the required information is already in memory, and if not, search the
-	// system fonts directory for the appropriate font file.  If found, it will
-	// call the driver to load it into memory.
+	// system fonts directory for the appropriate font file.  If found, it
+	// will call the driver to load it into memory.
 
 	int status = 0;
 	linkedListItem *iter = NULL;
@@ -474,7 +476,7 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 	if (!fileName)
 		return (font = NULL);
 
-	// Check to see if it's been loaded already.
+	// Check to see if it's been loaded already
 
 	font = linkedListIterStart(&fontList, &iter);
 
@@ -486,7 +488,7 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 		if (!strcmp(font->info.family, family) &&
 			(font->info.flags == flags) && (font->info.points == points))
 		{
-			// The font is already loaded.
+			// The font is already loaded
 			kernelDebug(debug_font, "Font already loaded, checking charset");
 
 			// Do we already have the required character set?
@@ -497,10 +499,10 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 				goto out;
 			}
 
-			// We don't have this charset yet.
+			// We don't have this charset yet
 			kernelDebug(debug_font, "Charset not yet loaded");
 
-			// Try to load it.
+			// Try to load it
 
 			// The basic ASCII version should already be present
 			status = search(family, flags, points, charSet, fileName);
@@ -511,6 +513,7 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 				goto out;
 			}
 
+			// Try to load it
 			font = load(font, fileName, (flags & FONT_STYLEFLAG_FIXED));
 			goto out;
 		}
@@ -520,7 +523,7 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 
 	if (!font)
 	{
-		// We don't have this font yet.
+		// We don't have this font yet
 		kernelDebug(debug_font, "Font not yet loaded");
 
 		// Search for the basic ASCII version first.
@@ -557,8 +560,8 @@ int kernelFontGetPrintedWidth(kernelFont *font, const char *charSet,
 	const char *string)
 {
 	// This function takes a font pointer and a pointer to a string, and
-	// calculates/returns the width of screen real-estate that the string
-	// will consume if printed.  Use with variable-width fonts, of course, or
+	// calculates/returns the width of screen real-estate that the string will
+	// consume if printed.  Use with variable-width fonts, of course, or
 	// you're wasting your time.
 
 	int printedWidth = 0;
@@ -585,10 +588,14 @@ int kernelFontGetPrintedWidth(kernelFont *font, const char *charSet,
 	for (count1 = 0; count1 < length; count1 ++)
 	{
 		if ((unsigned char) string[count1] < CHARSET_IDENT_CODES)
+		{
 			unicode = string[count1];
+		}
 		else
-			unicode = kernelCharsetToUnicode(charSet,
-				(unsigned char) string[count1]);
+		{
+			unicode = kernelCharsetToUnicode(charSet, (unsigned char)
+				string[count1]);
+		}
 
 		for (count2 = 0; count2 < font->numGlyphs; count2 ++)
 		{
@@ -622,7 +629,7 @@ int kernelFontGetWidth(kernelFont *font)
 
 int kernelFontGetHeight(kernelFont *font)
 {
-	// Returns the character height of the supplied font.
+	// Returns the character height of the supplied font
 
 	if (!initialized)
 		return (-1);

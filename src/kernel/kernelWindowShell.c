@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -324,7 +324,7 @@ static int makeMenuBar(variableList *settings)
 
 			// Add it to our list
 
-			status = linkedListAdd((linkedList *) &shellData.menusList,
+			status = linkedListAddBack((linkedList *) &shellData.menusList,
 				(void *) menu);
 			if (status < 0)
 			{
@@ -371,7 +371,7 @@ static int makeMenuBar(variableList *settings)
 					strncpy(itemData->command, value, MAX_PATH_NAME_LENGTH);
 
 					// Add it to our list
-					status = linkedListAdd((linkedList *)
+					status = linkedListAddBack((linkedList *)
 						&shellData.menuItemsList, itemData);
 					if (status < 0)
 					{
@@ -772,36 +772,11 @@ static void refresh(void)
 
 	kernelWindow *listWindow = NULL;
 	linkedListItem *iter = NULL;
-	process windowProcess;
 	char charSet[CHARSET_NAME_LEN + 1];
 	variableList settings;
 	windowEvent event;
 
 	kernelDebug(debug_gui, "WindowShell refresh");
-
-	// This is a dodgy hack: If any windows' parent processes are no longer
-	// alive, make the window shell process be their parents.  This is so that
-	// the environment propagation, below, reaches all the windows' processes.
-	// Ideally the multitasker would implement a way of tracking the lineage
-	// of these processes back to their shell ancestor.
-	listWindow = linkedListIterStart(shellData.windowList, &iter);
-	while (listWindow)
-	{
-		if ((listWindow != shellData.rootWindow) &&
-			(kernelMultitaskerGetProcess(listWindow->processId,
-				&windowProcess) >= 0))
-		{
-			if ((windowProcess.type != proc_thread) &&
-				!kernelMultitaskerProcessIsAlive(windowProcess.
-					parentProcessId))
-			{
-				kernelMultitaskerSetProcessParent(listWindow->processId,
-					shellData.processId);
-			}
-		}
-
-		listWindow = linkedListIterNext(shellData.windowList, &iter);
-	}
 
 	// Reload the user environment
 	if (kernelEnvironmentLoad((char *) shellData.userName,
@@ -1001,7 +976,7 @@ static int addMenuBarComponent(kernelWindowComponent *component)
 	menuBarComp->processId = kernelMultitaskerGetCurrentProcessId();
 	menuBarComp->component = component;
 
-	status = linkedListAdd((linkedList *) &shellData.menuBarCompsList,
+	status = linkedListAddBack((linkedList *) &shellData.menuBarCompsList,
 		menuBarComp);
 	if (status < 0)
 	{
@@ -1125,7 +1100,7 @@ void kernelWindowShellUpdateList(linkedList *list)
 					(char *) listWindow->title, &params);
 			itemData->window = listWindow;
 
-			linkedListAdd((linkedList *) &shellData.winMenuItemsList,
+			linkedListAddBack((linkedList *) &shellData.winMenuItemsList,
 				itemData);
 
 			kernelWindowRegisterEventHandler(itemData->itemComponent,

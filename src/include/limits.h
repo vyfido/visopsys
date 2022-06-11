@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -49,7 +49,7 @@
 #define LONG_MIN     (-LONG_MAX - 1L)       // Min value of a long int
 #define ULONG_MAX    4294967295UL           // Max value of an unsigned long
 
-// We don't support multibyte characters right now
+// Maximum multibyte characters length
 #define MB_LEN_MAX   4
 
 #endif

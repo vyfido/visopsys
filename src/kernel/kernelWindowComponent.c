@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -659,6 +659,29 @@ int kernelWindowComponentSetData(kernelWindowComponent *component,
 		return (status = ERR_NOTIMPLEMENTED);
 
 	status = component->setData(component, buffer, size);
+
+	if (render)
+		renderComponent(component);
+
+	return (status);
+}
+
+
+int kernelWindowComponentAppendData(kernelWindowComponent *component,
+	void *buffer, int size, int render)
+{
+	// Add (generic) data to a component
+
+	int status = 0;
+
+	// Check params.  buffer can only be NULL if size is NULL
+	if (!component || (!buffer && size))
+		return (status = ERR_NULLPARAMETER);
+
+	if (!component->appendData)
+		return (status = ERR_NOTIMPLEMENTED);
+
+	status = component->appendData(component, buffer, size);
 
 	if (render)
 		renderComponent(component);

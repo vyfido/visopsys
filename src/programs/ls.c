@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@ files are displayed.
 </help>
 */
 
+#include <errno.h>
 #include <stdio.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
@@ -65,6 +66,7 @@ int main(int argc, char *argv[])
 		status = vshFileList(fileName);
 		if (status < 0)
 		{
+			errno = status;
 			perror(argv[0]);
 			return (status);
 		}
@@ -75,7 +77,11 @@ int main(int argc, char *argv[])
 		{
 			status = vshFileList(argv[count]);
 			if (status < 0)
-				perror(argv[0]);
+			{
+				fprintf(stderr, "%s: ", argv[0]);
+				errno = status;
+				perror(argv[count]);
+			}
 		}
 	}
 

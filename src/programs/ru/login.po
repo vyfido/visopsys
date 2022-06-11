@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 00:05+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -80,25 +80,25 @@ msgstr ""
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: login.c:519 login.c:549
+#: login.c:522 login.c:552
 msgid "Login Failed"
 msgstr "Вход не удался"
 
-#: login.c:520
+#: login.c:523
 #, fuzzy
 msgid "Unable to log in to the Window Manager!"
 msgstr "Невозможно войти в менеджер окон!"
 
-#: login.c:525
+#: login.c:528
 msgid "Read Only"
 msgstr "Только чтение"
 
-#: login.c:541
+#: login.c:544
 #, fuzzy, c-format
 msgid "Couldn't load login shell %s!"
 msgstr "Не могу загрузить оболочку входа %s!"
 
-#: login.c:553
+#: login.c:556
 #, fuzzy, c-format
 msgid ""
 "\n"

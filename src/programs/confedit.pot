@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,11 +25,11 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: confedit.c:67 confedit.c:371
+#: confedit.c:67 confedit.c:370
 msgid "Save"
 msgstr ""
 
-#: confedit.c:68 confedit.c:371
+#: confedit.c:68 confedit.c:370
 msgid "Quit"
 msgstr ""
 
@@ -79,15 +79,15 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: confedit.c:280 confedit.c:371
+#: confedit.c:280 confedit.c:370
 msgid "Cancel"
 msgstr ""
 
-#: confedit.c:369
+#: confedit.c:368
 msgid "Unsaved changes"
 msgstr ""
 
-#: confedit.c:370
+#: confedit.c:369
 msgid "Quit without saving changes?"
 msgstr ""
 
@@ -106,7 +106,7 @@ msgstr ""
 msgid "Please enter a configuration file to edit:"
 msgstr ""
 
-#: confedit.c:644
+#: confedit.c:639
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr ""

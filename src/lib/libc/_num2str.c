@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -65,7 +65,6 @@ void _num2str(unsigned num, char *string, int base, int sign)
 
 	string[charCount] = '\0';
 
-	// Done
-	return;
+	errno = 0;
 }
 

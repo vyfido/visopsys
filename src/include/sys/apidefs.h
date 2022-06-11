@@ -1,6 +1,6 @@
 //
 //	Visopsys
-//	Copyright (C) 1998-2019 J. Andrew McLaughlin
+//	Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -79,14 +79,10 @@ typedef volatile void * objectKey;
 #define _fnum_textInputAppend					0x102C
 #define _fnum_textInputStreamAppendN			0x102D
 #define _fnum_textInputAppendN					0x102E
-#define _fnum_textInputStreamRemove				0x102F
-#define _fnum_textInputRemove					0x1030
-#define _fnum_textInputStreamRemoveN			0x1031
-#define _fnum_textInputRemoveN					0x1032
-#define _fnum_textInputStreamRemoveAll			0x1033
-#define _fnum_textInputRemoveAll				0x1034
-#define _fnum_textInputStreamSetEcho			0x1035
-#define _fnum_textInputSetEcho					0x1036
+#define _fnum_textInputStreamRemoveAll			0x102F
+#define _fnum_textInputRemoveAll				0x1030
+#define _fnum_textInputStreamSetEcho			0x1031
+#define _fnum_textInputSetEcho					0x1032
 
 // Disk functions.  All are in the 0x2000-0x2FFF range.
 #define _fnum_diskReadPartitions				0x2000
@@ -340,32 +336,33 @@ typedef volatile void * objectKey;
 #define _fnum_windowComponentDraw				0xF038
 #define _fnum_windowComponentGetData			0xF039
 #define _fnum_windowComponentSetData			0xF03A
-#define _fnum_windowComponentGetSelected		0xF03B
-#define _fnum_windowComponentSetSelected		0xF03C
-#define _fnum_windowNewButton					0xF03D
-#define _fnum_windowNewCanvas					0xF03E
-#define _fnum_windowNewCheckbox					0xF03F
-#define _fnum_windowNewContainer				0xF040
-#define _fnum_windowNewDivider					0xF041
-#define _fnum_windowNewIcon						0xF042
-#define _fnum_windowNewImage					0xF043
-#define _fnum_windowNewList						0xF044
-#define _fnum_windowNewListItem					0xF045
-#define _fnum_windowNewMenu						0xF046
-#define _fnum_windowNewMenuBar					0xF047
-#define _fnum_windowNewMenuBarIcon				0xF048
-#define _fnum_windowNewMenuItem					0xF049
-#define _fnum_windowNewPasswordField			0xF04A
-#define _fnum_windowNewProgressBar				0xF04B
-#define _fnum_windowNewRadioButton				0xF04C
-#define _fnum_windowNewScrollBar				0xF04D
-#define _fnum_windowNewSlider					0xF04E
-#define _fnum_windowNewTextArea					0xF04F
-#define _fnum_windowNewTextField				0xF050
-#define _fnum_windowNewTextLabel				0xF051
-#define _fnum_windowNewTree						0xF052
-#define _fnum_windowMenuUpdate					0xF053
-#define _fnum_windowMenuDestroy					0xF054
+#define _fnum_windowComponentAppendData			0xF03B
+#define _fnum_windowComponentGetSelected		0xF03C
+#define _fnum_windowComponentSetSelected		0xF03D
+#define _fnum_windowNewButton					0xF03E
+#define _fnum_windowNewCanvas					0xF03F
+#define _fnum_windowNewCheckbox					0xF040
+#define _fnum_windowNewContainer				0xF041
+#define _fnum_windowNewDivider					0xF042
+#define _fnum_windowNewIcon						0xF043
+#define _fnum_windowNewImage					0xF044
+#define _fnum_windowNewList						0xF045
+#define _fnum_windowNewListItem					0xF046
+#define _fnum_windowNewMenu						0xF047
+#define _fnum_windowNewMenuBar					0xF048
+#define _fnum_windowNewMenuBarIcon				0xF049
+#define _fnum_windowNewMenuItem					0xF04A
+#define _fnum_windowNewPasswordField			0xF04B
+#define _fnum_windowNewProgressBar				0xF04C
+#define _fnum_windowNewRadioButton				0xF04D
+#define _fnum_windowNewScrollBar				0xF04E
+#define _fnum_windowNewSlider					0xF04F
+#define _fnum_windowNewTextArea					0xF050
+#define _fnum_windowNewTextField				0xF051
+#define _fnum_windowNewTextLabel				0xF052
+#define _fnum_windowNewTree						0xF053
+#define _fnum_windowMenuUpdate					0xF054
+#define _fnum_windowMenuDestroy					0xF055
 
 // User functions.  All are in the 0x10000-0x10FFF range.
 #define _fnum_userAuthenticate					0x10000
@@ -389,21 +386,23 @@ typedef volatile void * objectKey;
 #define _fnum_networkDisable					0x11002
 #define _fnum_networkOpen						0x11003
 #define _fnum_networkClose						0x11004
-#define _fnum_networkCount						0x11005
-#define _fnum_networkRead						0x11006
-#define _fnum_networkWrite						0x11007
-#define _fnum_networkPing						0x11008
-#define _fnum_networkGetHostName				0x11009
-#define _fnum_networkSetHostName				0x1100A
-#define _fnum_networkGetDomainName				0x1100B
-#define _fnum_networkSetDomainName				0x1100C
-#define _fnum_networkDeviceEnable				0x1100D
-#define _fnum_networkDeviceDisable				0x1100E
-#define _fnum_networkDeviceGetCount				0x1100F
-#define _fnum_networkDeviceGet					0x11010
-#define _fnum_networkDeviceHook					0x11011
-#define _fnum_networkDeviceUnhook				0x11012
-#define _fnum_networkDeviceSniff				0x11013
+#define _fnum_networkConnectionGetCount			0x11005
+#define _fnum_networkConnectionGetAll			0x11006
+#define _fnum_networkCount						0x11007
+#define _fnum_networkRead						0x11008
+#define _fnum_networkWrite						0x11009
+#define _fnum_networkPing						0x1100A
+#define _fnum_networkGetHostName				0x1100B
+#define _fnum_networkSetHostName				0x1100C
+#define _fnum_networkGetDomainName				0x1100D
+#define _fnum_networkSetDomainName				0x1100E
+#define _fnum_networkDeviceEnable				0x1100F
+#define _fnum_networkDeviceDisable				0x11010
+#define _fnum_networkDeviceGetCount				0x11011
+#define _fnum_networkDeviceGet					0x11012
+#define _fnum_networkDeviceHook					0x11013
+#define _fnum_networkDeviceUnhook				0x11014
+#define _fnum_networkDeviceSniff				0x11015
 
 // Miscellaneous functions.  All are in the 0xFF000-0xFFFFF range.
 #define _fnum_systemShutdown					0xFF000

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -509,14 +509,17 @@ skipOpts:
 		if (graphics)
 		{
 			if (window)
+			{
 				// Get rid of the login window
 				windowDestroy(window);
+				window = NULL;
+			}
 
 			// Log the user into the window manager
 			shellPid = windowLogin(login, password);
 			if (shellPid < 0)
 			{
-				windowNewErrorDialog(window, _("Login Failed"),
+				windowNewErrorDialog(NULL, _("Login Failed"),
 					_("Unable to log in to the Window Manager!"));
 				continue;
 			}
@@ -545,7 +548,7 @@ skipOpts:
 			status = userLogin(login, password, shellPid);
 			if (status < 0)
 			{
-				multitaskerKillProcess(shellPid, 1 /* force */);
+				multitaskerKillProcess(shellPid);
 				printf("%s", _("Login Failed"));
 				continue;
 			}

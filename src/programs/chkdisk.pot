@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,21 +26,21 @@ msgstr ""
 msgid "%s <disk_name>\n"
 msgstr ""
 
-#: chkdisk.c:91
+#: chkdisk.c:89
 msgid ""
 "\n"
 "Visopsys CHKDISK Utility\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 "\n"
 msgstr ""
 
-#: chkdisk.c:103
+#: chkdisk.c:101
 msgid ""
 "\n"
 "The filesystem may contain errors.\n"
 "Do you want to try to repair it? (y/n): "
 msgstr ""
 
-#: chkdisk.c:116
+#: chkdisk.c:114
 msgid "Filesystem consistency check failed.\n"
 msgstr ""

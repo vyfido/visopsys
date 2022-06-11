@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -86,7 +86,7 @@ static void writeCSR(pcNetDevice *pcNet, int idx, unsigned data)
 static void modifyCSR(pcNetDevice *pcNet, int idx, unsigned data, opType op)
 {
 	// Read the indexed 16-bit control status register (CSR), then do logical
-	// AND or OR with the supplied data, and write it back.
+	// AND or OR with the supplied data, and write it back
 
 	unsigned contents = 0;
 
@@ -108,7 +108,7 @@ static void modifyCSR(pcNetDevice *pcNet, int idx, unsigned data, opType op)
 static int driverInterruptHandler(kernelNetworkDevice *netDev)
 {
 	// This is the 'body' of the interrupt handler for pcNet devices.  Called
-	// from the networkInterrupt() function in kernelNetworkDevice.c
+	// from the networkInterrupt() function in kernelNetworkDevice.c.
 
 	unsigned csr0 = 0, csr4 = 0;
 	pcNetDevice *pcNet = NULL;
@@ -412,7 +412,7 @@ static int driverWriteData(kernelNetworkDevice *netDev, unsigned char *buffer,
 	if (bufferPhysical > 0x00FFFFFF)
 	{
 		// The physical adress of the send buffer is too high, so we need to
-		// need to allocate (and free) our own I/O memory.
+		// need to allocate (and free) our own I/O memory
 
 		status = kernelMemoryGetIo(bufferSize, 0 /* no alignment */,
 			1 /* low memory */, "pcnet sendbuff", &sendBuff);
@@ -444,7 +444,7 @@ static int driverWriteData(kernelNetworkDevice *netDev, unsigned char *buffer,
 	netDev->device.transQueued += 1;
 
 	// Set the start packet and end packet bits, and give the descriptor to
-	// the controller for transmitting.
+	// the controller for transmitting
 	trans->flags = (PCNET_DESCFLAG_OWN | PCNET_DESCFLAG_STP |
 		PCNET_DESCFLAG_ENP);
 
@@ -472,11 +472,11 @@ static void reset(pcNetDevice *pcNet)
 
 	kernelDebug(debug_net, "PcNet reset");
 
-	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port.
+	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port
 	processorInPort32((pcNet->ioAddress + PCNET_PORTOFFSET32_RESET), tmp);
 
 	// Then 16-bit reset, by doing a 16-bit read from the 16-bit reset port,
-	// so the chip is reset and in 16-bit mode.
+	// so the chip is reset and in 16-bit mode
 	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RESET), tmp);
 
 	// The NE2100 PCNET card needs an extra write access to follow
@@ -568,10 +568,11 @@ static int driverDetect(void *parent __attribute__((unused)),
 		if (pciDevInfo.device.headerType != PCI_HEADERTYPE_NORMAL)
 			continue;
 
-		// After this point, we know we have a supported device.
+		// After this point, we know we have a supported device
 		kernelDebug(debug_net, "PcNet device detected");
 
-		// Enable the device on the PCI bus as a bus master
+		// Enable the device and its interrupts on the PCI bus, as a bus
+		// master
 		if ((kernelBusDeviceEnable(&busTargets[deviceCount],
 				PCI_COMMAND_IOENABLE) < 0) ||
 			(kernelBusSetMaster(&busTargets[deviceCount], 1) < 0))
@@ -631,7 +632,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		while (!((ioSpaceSize >> shift++) & 1))
 			pcNet->ioSpaceSize *= 2;
 
-		// Restore the register we clobbered.
+		// Restore the register we clobbered
 		kernelBusWriteRegister(&busTargets[deviceCount],
 			PCI_CONFREG_BASEADDRESS0_32, 32,
 			pciDevInfo.device.nonBridge.baseAddress[0]);
@@ -704,7 +705,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 			PCNET_RINGBUFFER_SIZE), 0 /* no alignment */, 1 /* low memory */,
 			"pcnet recvbuff", &recvBuff);
 		if (status < 0)
+		{
+			kernelFree(pcNet);
+			kernelFree((void *) netDev);
+			kernelFree(dev);
 			continue;
+		}
 
 		if (recvBuff.physical > 0x00FFFFFF)
 			kernelError(kernel_error, "Receive buffer address is too high");
@@ -722,6 +728,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 		if (status < 0)
 		{
 			kernelMemoryReleaseIo(&recvBuff);
+			kernelFree(pcNet);
+			kernelFree((void *) netDev);
+			kernelFree(dev);
 			continue;
 		}
 
@@ -756,6 +765,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 		{
 			kernelMemoryReleaseIo(&recvRing);
 			kernelMemoryReleaseIo(&recvBuff);
+			kernelFree(pcNet);
+			kernelFree((void *) netDev);
+			kernelFree(dev);
 			continue;
 		}
 
@@ -764,7 +776,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		pcNet->transRing.desc.trans = transRing.virtual;
 
-		// Set up the initialization registers.
+		// Set up the initialization registers
 
 		// Set the software style as 0 == 16-bit PCNET
 		writeCSR(pcNet, PCNET_CSR_STYLE, 0);
@@ -779,6 +791,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 			kernelMemoryReleaseIo(&transRing);
 			kernelMemoryReleaseIo(&recvRing);
 			kernelMemoryReleaseIo(&recvBuff);
+			kernelFree(pcNet);
+			kernelFree((void *) netDev);
+			kernelFree(dev);
 			continue;
 		}
 
@@ -796,7 +811,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 				netDev->device.hardwareAddress.byte[count];
 		}
 
-		// Accept all multicast packets for now.
+		// Accept all multicast packets for now
 		for (count = 0; count < 4; count ++)
 			initBlock->addressFilter[count] = 0xFFFF;
 
@@ -813,7 +828,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		writeCSR(pcNet, PCNET_CSR_IMASK, PCNET_CSR_IMASK_IDONM);
 
 		// Test and features control register.  Turn on 'DMA plus', auto
-		// transmit padding, and auto receive stripping
+		// transmit padding, and auto receive stripping.
 		modifyCSR(pcNet, PCNET_CSR_FEAT, (PCNET_CSR_FEAT_DMAPLUS |
 			PCNET_CSR_FEAT_APADXMT | PCNET_CSR_FEAT_ASTRPRCV), op_or);
 
@@ -847,22 +862,27 @@ static int driverDetect(void *parent __attribute__((unused)),
 		dev->driver = driver;
 		dev->data = (void *) netDev;
 
-		// Claim the controller device in the list of PCI targets.
+		// Claim the controller device in the list of PCI targets
 		kernelBusDeviceClaim(&busTargets[deviceCount], driver);
 
 		// Register the network device
 		status = kernelNetworkDeviceRegister(dev);
 		if (status < 0)
 		{
-			kernelFree(busTargets);
+			// Don't release the I/O memory because we already started the
+			// device with it
+			kernelFree(pcNet);
+			kernelFree((void *) netDev);
 			kernelFree(dev);
-			return (status);
+			continue;
 		}
 
 		// Add the kernel device
 		status = kernelDeviceAdd(busTargets[deviceCount].bus->dev, dev);
 		if (status < 0)
 		{
+			// Don't free the network device memory since we already
+			// registered it
 			kernelFree(busTargets);
 			kernelFree(dev);
 			return (status);
@@ -896,7 +916,5 @@ void kernelPcNetDriverRegister(kernelDriver *driver)
 
 	driver->driverDetect = driverDetect;
 	driver->ops = &networkOps;
-
-	return;
 }
 

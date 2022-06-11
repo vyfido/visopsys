@@ -133,8 +133,6 @@ static void clickEmpties(int x, int y)
 				clickEmpties((x - 1), y);
 		}
 	}
-
-	return;
 }
 
 
@@ -144,8 +142,6 @@ static void gameOver(int winner)
 
 	windowNewInfoDialog(window, _("Game over"), (winner? _("You win!") :
 		_("You lose.")));
-
-	return;
 }
 
 
@@ -353,7 +349,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		return (errno = ERR_NOTINITIALIZED);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	// Load our images
@@ -361,7 +357,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		printf(_("\nCan't load %s\n"), MINE_IMAGE);
-		return (errno = status);
+		return (status = status);
 	}
 	mineImage.transColor.green = 255;
 

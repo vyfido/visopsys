@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -3374,6 +3374,7 @@ int kernelFileGetTemp(file *tmpFile)
 	// This will create and open a temporary file in write mode.
 
 	int status = 0;
+	kernelFileEntry *tempDir = NULL;
 	char *fileName = NULL;
 
 	if (!initialized)
@@ -3386,7 +3387,10 @@ int kernelFileGetTemp(file *tmpFile)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if (!rootEntry || ((kernelDisk *) rootEntry->disk)->filesystem.readOnly)
+	// Get the entry for the temporary directory
+	tempDir = fileLookup(PATH_TEMP);
+
+	if (!tempDir || ((kernelDisk *) tempDir->disk)->filesystem.readOnly)
 	{
 		kernelError(kernel_error, "Filesystem is read-only");
 		return (status = ERR_NOWRITE);

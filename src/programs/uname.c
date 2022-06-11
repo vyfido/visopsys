@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -106,9 +106,7 @@ int main(int argc, char *argv[])
 
 				default:
 					fprintf(stderr, _("Unknown option '%c'\n"), optopt);
-					status = errno = ERR_INVALID;
-					perror(argv[0]);
-					return (status);
+					return (status = ERR_INVALID);
 			}
 		}
 	}

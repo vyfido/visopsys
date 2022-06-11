@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -313,7 +313,6 @@ static void readConfig8(int bus, int dev, int function, int reg,
 	unsigned address = headerAddress(bus, dev, function, (reg / 4));
 	processorOutPort32(PCI_CONFIG_PORT, address);
 	processorInPort8((PCI_DATA_PORT + (reg % 4)), *data);
-	return;
 }
 
 
@@ -324,7 +323,6 @@ static void writeConfig8(int bus, int dev, int function, int reg,
 	unsigned address = headerAddress(bus, dev, function, (reg / 4));
 	processorOutPort32(PCI_CONFIG_PORT, address);
 	processorOutPort8((PCI_DATA_PORT + (reg % 4)), data);
-	return;
 }
 
 
@@ -335,7 +333,6 @@ static void readConfig16(int bus, int dev, int function, int reg,
 	unsigned address = headerAddress(bus, dev, function, (reg / 2));
 	processorOutPort32(PCI_CONFIG_PORT, address);
 	processorInPort16((PCI_DATA_PORT + (reg % 2)), *data);
-	return;
 }
 
 
@@ -346,7 +343,6 @@ static void writeConfig16(int bus, int dev, int function, int reg,
 	unsigned address = headerAddress(bus, dev, function, (reg / 2));
 	processorOutPort32(PCI_CONFIG_PORT, address);
 	processorOutPort16((PCI_DATA_PORT + (reg % 2)), data);
-	return;
 }
 
 
@@ -357,7 +353,6 @@ static void readConfig32(int bus, int dev, int function, int reg,
 	unsigned address = headerAddress(bus, dev, function, reg);
 	processorOutPort32(PCI_CONFIG_PORT, address);
 	processorInPort32(PCI_DATA_PORT, *data);
-	return;
 }
 
 
@@ -368,7 +363,6 @@ static void writeConfig32(int bus, int dev, int function, int reg,
 	unsigned address = headerAddress(bus, dev, function, reg);
 	processorOutPort32(PCI_CONFIG_PORT, address);
 	processorOutPort32(PCI_DATA_PORT, data);
-	return;
 }
 
 
@@ -443,8 +437,7 @@ static void getSubClass(pciClass *class, int subClassCode,
 static int getClassName(int classCode, int subClassCode, char **className,
 	char **subClassName)
 {
-	// Returns name of the class and the subclass in human readable format.
-	// Buffers classname and subclassname have to provide
+	// Returns name of the class and the subclass in human readable format
 
 	int status = 0;
 	pciClass *class = NULL;
@@ -512,7 +505,7 @@ static void deviceInfo2BusTarget(kernelBus *bus, int busNum, int dev,
 
 static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 {
-	// Generate the list of targets that reside on the given bus (controller).
+	// Generate the list of targets that reside on the given bus (controller)
 
 	int status = 0;
 	int targetCount = 0;
@@ -550,8 +543,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 
 static int driverGetTargetInfo(kernelBusTarget *target, void *pointer)
 {
-	// Read the device's PCI header and copy it to the supplied memory
-	// pointer
+	// Read the device's PCI header and copy it to the supplied memory pointer
 
 	int status = 0;
 	int bus, dev, function;
@@ -641,8 +633,6 @@ static void driverDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 			targets[count].claimed = driver;
 		}
 	}
-
-  return;
 }
 
 
@@ -666,11 +656,15 @@ static int driverDeviceEnable(kernelBusTarget *target, int enable)
 		if (enable & PCI_COMMAND_MEMORYENABLE)
 			// Turn on memory access
 			commandReg |= PCI_COMMAND_MEMORYENABLE;
+
+		// Enable interrupts
+		commandReg &= ~PCI_COMMAND_INTERRUPTDISABLE;
 	}
 	else
 	{
-		// Turn off I/O access and memory access
+		// Turn off I/O access, memory access, and interrupts
 		commandReg &= ~(PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
+		commandReg |= PCI_COMMAND_INTERRUPTDISABLE;
 	}
 
 	// Write back command register
@@ -719,7 +713,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 {
 	// This function is used to detect and initialize each PCI controller
 	// device, as well as registering each one with any higher-level
-	// interfaces.
+	// interfaces
 
 	int status = 0;
 	unsigned reply = 0;
@@ -732,8 +726,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	pciDeviceInfo pciDevice;
 	kernelDevice *dev = NULL;
 	kernelBus *bus = NULL;
+	unsigned short commandReg = 0;
 
-	// Check for a configuration mechanism #1 able PCI controller.
+
+	// Check for a configuration mechanism #1 able PCI controller
 	processorOutPort32(PCI_CONFIG_PORT, 0x80000000L);
 	processorInPort32(PCI_CONFIG_PORT, reply);
 
@@ -758,7 +754,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 					&pciDevice.header[0]);
 
 				// See if this is really a device, or if this device header is
-				// unoccupied.
+				// unoccupied
 				if (!pciDevice.device.vendorID ||
 					(pciDevice.device.vendorID == 0xFFFF) ||
 					(pciDevice.device.deviceID == 0xFFFF))
@@ -871,6 +867,14 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 				deviceInfo2BusTarget(bus, busCount, deviceCount, functionCount,
 					&pciDevice, &targets[numTargets]);
+
+				// Set the interrupt disable bit by default
+				readConfig16(busCount, deviceCount, functionCount,
+					PCI_CONFREG_COMMAND_16, &commandReg);
+				commandReg |= PCI_COMMAND_INTERRUPTDISABLE;
+				writeConfig16(busCount, deviceCount, functionCount,
+					PCI_CONFREG_COMMAND_16, commandReg);
+
 				numTargets += 1;
 			}
 		}
@@ -898,7 +902,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 }
 
 
-// Our driver operations structure.
+// Our driver operations structure
 static kernelBusOps pciOps = {
 	driverGetTargets,
 	driverGetTargetInfo,
@@ -922,12 +926,10 @@ static kernelBusOps pciOps = {
 
 void kernelPciDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 
 	driver->driverDetect = driverDetect;
 	driver->ops = &pciOps;
-
-	return;
 }
 
 
@@ -999,8 +1001,6 @@ void kernelPciPrintHeader(pciDeviceInfo *devInfo)
 	kernelDebug(debug_pci, "PCI --- end device header ---");
 
 #endif // DEBUG
-
-	return;
 }
 
 
@@ -1109,7 +1109,5 @@ void kernelPciPrintCapabilities(pciDeviceInfo *devInfo)
 	}
 
 #endif // DEBUG
-
-	return;
 }
 

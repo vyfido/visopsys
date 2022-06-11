@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,14 +57,10 @@ Text mode options:
 -c <charset>    : Set the character set.  Also updates the code values.
 -d [code]       : Dump (print) the font data, or else a representation of
                 : the glyph with the supplied code number
--e <img_file>   : Export the font to the specified image file, which will
-                : consist of a 16x6 grid of glyphs, representing either ASCII
-                : codes 32-127, or charset codes 160-255, organized
-                : left-to-right and top-to-bottom.
--i <img_file>   : Import a new font from the specified image file, which will
-                : represent a table of glyphs representing either ASCII codes
-                : 32-127, or charset codes 160-255, arranged in a 16x6 grid
-                : read left-to-right and top-to-bottom.
+-e <dir>        : Export the font to the specified directory as a collection
+                : of images, with each image named for its code number.
+-i <dir>        : Import a new font from the specified directory, containing
+                : equal-sized image files named with their code values.
 -f <file_name>  : Used for supplying an extra file name to commands that
                 : require one
 -n <family>     : Set the font family name
@@ -86,6 +82,7 @@ Text mode options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/charset.h>
 #include <sys/env.h>
 #include <sys/image.h>
 #include <sys/vbf.h>
@@ -110,7 +107,6 @@ typedef struct {
 static int graphics = 0;
 static int processId = 0;
 static int privilege = 0;
-static const char *cmdName = NULL;
 static vbf *selectedFont = NULL;
 static int verbose = 0;
 static char *fontDir = PATH_SYSTEM_FONTS;
@@ -125,12 +121,11 @@ static objectKey glyphList = NULL;
 static objectKey saveButton = NULL;
 
 
-static void usage(void)
+static void usage(char *name)
 {
 	fprintf(stderr, "%s", _("usage:\n"));
-	fprintf(stderr, _("  %s [options] [VBF_file]\n"), cmdName);
-	fprintf(stderr, _("  (type 'help %s' for options help)\n"), cmdName);
-	return;
+	fprintf(stderr, _("  %s [options] [VBF_file]\n"), name);
+	fprintf(stderr, _("  (type 'help %s' for options help)\n"), name);
 }
 
 
@@ -182,9 +177,10 @@ static int readHeader(FILE *vbfFile, vbfMultiVerHeader *vbfHeader)
 	status = fseek(vbfFile, 0, SEEK_SET);
 	if (status < 0)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fseek");
 		error(_("Can't seek %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	// Just read the first common bytes to determine that it's a VBF file, and
@@ -192,9 +188,10 @@ static int readHeader(FILE *vbfFile, vbfMultiVerHeader *vbfHeader)
 	status = fread(vbfHeader, 1, sizeof(vbfHeader->common), vbfFile);
 	if (status != sizeof(vbfHeader->common))
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fread");
 		error(_("Can't read %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	if (strncmp(vbfHeader->common.magic, VBF_MAGIC, VBF_MAGIC_LEN))
@@ -223,18 +220,20 @@ static int readHeader(FILE *vbfFile, vbfMultiVerHeader *vbfHeader)
 	status = fseek(vbfFile, 0, SEEK_SET);
 	if (status < 0)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fseek");
 		error(_("Can't seek %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	// Read the whole header
 	status = fread(vbfHeader, size, 1, vbfFile);
 	if (status != 1)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fread");
 		error(_("Can't read %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	return (status = 0);
@@ -250,17 +249,19 @@ static int writeHeader(FILE *vbfFile, vbfFileHeader *vbfHeader)
 	status = fseek(vbfFile, 0, SEEK_SET);
 	if (status < 0)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fseek");
 		error(_("Can't seek %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	status = fwrite(vbfHeader, sizeof(vbfFileHeader), 1, vbfFile);
 	if (status != 1)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fwrite");
 		error(_("Can't write %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	return (status = 0);
@@ -282,9 +283,10 @@ static int updateHeader(const char *vbfFileName)
 	vbfFile = fopen(vbfFileName, "r+");
 	if (!vbfFile)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fopen");
 		error(_("Can't open %s for reading/writing"), vbfFileName);
-		return (status = errno);
+		return (status);
 	}
 
 	status = readHeader(vbfFile, &vbfHeader);
@@ -336,9 +338,9 @@ static int updateHeader(const char *vbfFileName)
 		codes = calloc(vbfHeader.v2.numGlyphs, sizeof(unsigned));
 		if (!codes)
 		{
-			perror(cmdName);
-			error("%s", _("Memory error"));
 			status = errno;
+			perror("calloc");
+			error("%s", _("Memory error"));
 			goto out;
 		}
 
@@ -347,14 +349,14 @@ static int updateHeader(const char *vbfFileName)
 			vbfFile);
 		if (status < vbfHeader.v2.numGlyphs)
 		{
-			perror(cmdName);
-			error(_("Couldn't read character codes of %s"), vbfFile->f.name);
 			status = errno;
+			perror("fread");
+			error(_("Couldn't read character codes of %s"), vbfFile->f.name);
 			goto out;
 		}
 
 		// Loop through and put in the codes.
-		for (count = 0; count < ASCII_PRINTABLES; count ++)
+		for (count = 0; count < vbfHeader.v2.numGlyphs; count ++)
 		{
 			if (!strcmp(vbfHeader.v2.charSet, CHARSET_NAME_ASCII))
 			{
@@ -377,9 +379,10 @@ static int updateHeader(const char *vbfFileName)
 			vbfFile);
 		if (status < vbfHeader.v2.numGlyphs)
 		{
-			perror(cmdName);
+			status = errno;
+			perror("fwrite");
 			error(_("Couldn't write character codes for %s"), vbfFile->f.name);
-			return (status = errno);
+			return (status);
 		}
 	}
 
@@ -419,9 +422,9 @@ static int readFontV1(FILE *vbfFile, vbfFileHeaderV1 *vbfHeader, int **codes,
 	*data = malloc(vbfHeader->numGlyphs * glyphBytes);
 	if (!(*codes) || !(*data))
 	{
-		perror(cmdName);
-		error("%s", _("Couldn't get memory for character codes or data"));
 		status = errno;
+		perror("malloc");
+		error("%s", _("Couldn't get memory for character codes or data"));
 		goto out;
 	}
 
@@ -429,9 +432,9 @@ static int readFontV1(FILE *vbfFile, vbfFileHeaderV1 *vbfHeader, int **codes,
 	status = fread(*codes, sizeof(int), vbfHeader->numGlyphs, vbfFile);
 	if (status < vbfHeader->numGlyphs)
 	{
-		perror(cmdName);
-		error(_("Couldn't read character codes of %s"), vbfFile->f.name);
 		status = errno;
+		perror("fread");
+		error(_("Couldn't read character codes of %s"), vbfFile->f.name);
 		goto out;
 	}
 
@@ -439,9 +442,9 @@ static int readFontV1(FILE *vbfFile, vbfFileHeaderV1 *vbfHeader, int **codes,
 	status = fread(*data, glyphBytes, vbfHeader->numGlyphs, vbfFile);
 	if (status < vbfHeader->numGlyphs)
 	{
-		perror(cmdName);
-		error(_("Couldn't read glyph data of %s"), vbfFile->f.name);
 		status = errno;
+		perror("fread");
+		error(_("Couldn't read glyph data of %s"), vbfFile->f.name);
 		goto out;
 	}
 
@@ -494,9 +497,9 @@ static int readFont(FILE *vbfFile, vbfFileHeader *vbfHeader,
 	*data = malloc(vbfHeader->numGlyphs * glyphBytes);
 	if (!(*codes) || !(*data))
 	{
-		perror(cmdName);
-		error("%s", _("Couldn't get memory for character codes or data"));
 		status = errno;
+		perror("malloc");
+		error("%s", _("Couldn't get memory for character codes or data"));
 		goto out;
 	}
 
@@ -504,9 +507,9 @@ static int readFont(FILE *vbfFile, vbfFileHeader *vbfHeader,
 	status = fread(*codes, sizeof(unsigned), vbfHeader->numGlyphs, vbfFile);
 	if (status < vbfHeader->numGlyphs)
 	{
-		perror(cmdName);
-		error(_("Couldn't read character codes of %s"), vbfFile->f.name);
 		status = errno;
+		perror("fread");
+		error(_("Couldn't read character codes of %s"), vbfFile->f.name);
 		goto out;
 	}
 
@@ -514,9 +517,9 @@ static int readFont(FILE *vbfFile, vbfFileHeader *vbfHeader,
 	status = fread(*data, glyphBytes, vbfHeader->numGlyphs, vbfFile);
 	if (status < vbfHeader->numGlyphs)
 	{
-		perror(cmdName);
-		error(_("Couldn't read character data of %s"), vbfFile->f.name);
 		status = errno;
+		perror("fread");
+		error(_("Couldn't read character data of %s"), vbfFile->f.name);
 		goto out;
 	}
 
@@ -560,18 +563,20 @@ static int writeFont(FILE *vbfFile, vbfFileHeader *vbfHeader,
 	status = fwrite(codes, sizeof(unsigned), vbfHeader->numGlyphs, vbfFile);
 	if (status < vbfHeader->numGlyphs)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fwrite");
 		error(_("Couldn't write character codes for %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	// Write the glyph data
 	status = fwrite(data, glyphBytes, vbfHeader->numGlyphs, vbfFile);
 	if (status < vbfHeader->numGlyphs)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fwrite");
 		error(_("Couldn't write glyph data for %s"), vbfFile->f.name);
-		return (status = errno);
+		return (status);
 	}
 
 	// Return success
@@ -654,9 +659,10 @@ static int dump(const char *vbfFileName, unsigned code)
 	vbfFile = fopen(vbfFileName, "r");
 	if (!vbfFile)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fopen");
 		error(_("Can't open %s for reading"), vbfFileName);
-		return (status = errno);
+		return (status);
 	}
 
 	status = readFont(vbfFile, &vbfHeader, &codes, &data);
@@ -723,60 +729,43 @@ static void image2Bitmap(pixel *srcPix, int imageWidth, int glyphWidth,
 }
 
 
-static int import(const char *imageFileName, const char *vbfFileName)
+static int import(const char *dirName, const char *vbfFileName)
 {
 	int status = 0;
-	image importImage;
+	file srcDir;
 	FILE *vbfFile = NULL;
 	vbfFileHeader vbfHeader;
-	static int glyphColumns = 16;
-	static int glyphRows = 6;
+	file imageFile;
+	char imageFileName[MAX_PATH_NAME_LENGTH + 1];
+	image importImage;
 	int glyphBytes = 0;
 	unsigned *codes = NULL;
 	unsigned char *data = NULL;
-	int startPixel = 0;
-	int startByte = 0;
-	int count, colCount, rowCount;
+	int readGlyphs = 0;
+	int count;
 
-	printf(_("Import font from %s to VBF file %s\n"), imageFileName,
-		vbfFileName);
+	printf(_("Import font from %s to VBF file %s\n"), dirName, vbfFileName);
 
-	memset(&importImage, 0, sizeof(image));
+	memset(&srcDir, 0, sizeof(file));
 	memset(&vbfHeader, 0, sizeof(vbfHeader));
+	memset(&imageFile, 0, sizeof(file));
+	memset(&importImage, 0, sizeof(image));
 
-	// Try to get the kernel to load the image
-	status = imageLoad(imageFileName, 0, 0, &importImage);
-	if (status < 0)
+	// Make sure our source exists, and is a directory
+	if ((fileFind(dirName, &srcDir) < 0) || (srcDir.type != dirT))
 	{
-		errno = status;
-		perror(cmdName);
-		error(_("Couldn't load font image file %s"), imageFileName);
-		goto out;
-	}
-
-	if (importImage.width % glyphColumns)
-	{
-		error(_("Image width (%d) of %s is not a multiple of %d"),
-			importImage.width, imageFileName, glyphColumns);
-		status = ERR_INVALID;
-		goto out;
-	}
-
-	if (importImage.height % glyphRows)
-	{
-		error(_("Image height (%d) of %s is not a multiple of %d"),
-			importImage.height, imageFileName, glyphRows);
-		status = ERR_INVALID;
-		goto out;
+		error(_("Import source %s doesn't exist or isn't a directory"),
+			dirName);
+		return (status = ERR_NOSUCHDIR);
 	}
 
 	// Open our output file
 	vbfFile = fopen(vbfFileName, "w");
 	if (!vbfFile)
 	{
-		perror(cmdName);
-		error(_("Can't open font file %s for writing"), vbfFileName);
 		status = errno;
+		perror("fopen");
+		error(_("Can't open font file %s for writing"), vbfFileName);
 		goto out;
 	}
 
@@ -795,18 +784,81 @@ static int import(const char *imageFileName, const char *vbfFileName)
 		vbfHeader.points = selectedFont->header.points;
 
 	if (selectedFont->header.charSet[0])
+	{
 		strncpy(vbfHeader.charSet, selectedFont->header.charSet,
 			VBF_CHARSET_LEN);
+	}
 	else
-		strcpy(vbfHeader.charSet, CHARSET_NAME_ASCII);
+	{
+		strncpy(vbfHeader.charSet, CHARSET_NAME_ASCII, VBF_CHARSET_LEN);
+	}
 
-	vbfHeader.numGlyphs = (glyphColumns * glyphRows);
-	vbfHeader.glyphWidth = (importImage.width / glyphColumns);
-	vbfHeader.glyphHeight = (importImage.height / glyphRows);
+	// Loop through all of the files in the directory, trying to load them as
+	// images.  Count the number of successes, and make sure they're all the
+	// same size.
+	for (count = 0; ; count ++)
+	{
+		if (!count)
+			status = fileFirst(dirName, &imageFile);
+		else
+			status = fileNext(dirName, &imageFile);
+
+		if (status < 0)
+			break;
+
+		if (imageFile.type != fileT)
+			continue;
+
+		// Construct the name
+		snprintf(imageFileName, MAX_PATH_NAME_LENGTH, "%s/%s", dirName,
+			imageFile.name);
+
+		// Try to get the kernel to load the image
+		status = imageLoad(imageFileName, 0, 0, &importImage);
+		if (status < 0)
+			continue;
+
+		if (vbfHeader.glyphWidth)
+		{
+			if ((int) importImage.width != vbfHeader.glyphWidth)
+			{
+				error(_("%s size does not match"), imageFile.name);
+				status = ERR_RANGE;
+				goto out;
+			}
+		}
+		else
+		{
+			vbfHeader.glyphWidth = importImage.width;
+		}
+
+		if (vbfHeader.glyphHeight)
+		{
+			if ((int) importImage.height != vbfHeader.glyphHeight)
+			{
+				error(_("%s size does not match"), imageFile.name);
+				status = ERR_RANGE;
+				goto out;
+			}
+		}
+		else
+		{
+			vbfHeader.glyphHeight = importImage.height;
+		}
+
+		imageFree(&importImage);
+		vbfHeader.numGlyphs += 1;
+	}
+
+	if (!vbfHeader.numGlyphs)
+		// Empty, we guess
+		goto out;
 
 	if (verbose)
+	{
 		printf(_("%d glyphs size %dx%d\n"), vbfHeader.numGlyphs,
 			vbfHeader.glyphWidth, vbfHeader.glyphHeight);
+	}
 
 	glyphBytes = (((vbfHeader.glyphWidth * vbfHeader.glyphHeight) + 7) / 8);
 
@@ -815,45 +867,43 @@ static int import(const char *imageFileName, const char *vbfFileName)
 	data = malloc(vbfHeader.numGlyphs * glyphBytes);
 	if (!codes || !data)
 	{
-		perror(cmdName);
-		error("%s", _("Couldn't allocate memory"));
 		status = errno;
+		perror("malloc");
+		error("%s", _("Couldn't allocate memory"));
 		goto out;
 	}
 
-	// Loop through and put in the codes.  We assume ASCII until the user
-	// updates the font with the -c operation.
-	for (count = 0; count < ASCII_PRINTABLES; count ++)
+	// Loop through the files in the directory again, and put in the glyphs
+	for (count = 0; readGlyphs < vbfHeader.numGlyphs; count ++)
 	{
-		if (!strcmp(vbfHeader.charSet, CHARSET_NAME_ASCII))
-		{
-			codes[count] = (CHARSET_CTRL_CODES + count);
-		}
+		if (!count)
+			status = fileFirst(dirName, &imageFile);
 		else
-		{
-			codes[count] = charsetToUnicode(vbfHeader.charSet,
-				(CHARSET_NUM_CODES + CHARSET_CTRL_CODES + count));
-		}
-	}
+			status = fileNext(dirName, &imageFile);
 
-	// Loop through the characters in the image and add them
-	for (rowCount = 0; rowCount < glyphRows; rowCount ++)
-	{
-		for (colCount = 0; colCount < glyphColumns; colCount ++)
-		{
-			// Calculate the starting pixel number of the image we're working
-			// from
-			startPixel = ((rowCount * glyphColumns * vbfHeader.glyphWidth *
-				vbfHeader.glyphHeight) + (colCount * vbfHeader.glyphWidth));
+		if (status < 0)
+			break;
 
-			startByte = (((rowCount * glyphColumns) + colCount) *
-				glyphBytes);
+		if (imageFile.type != fileT)
+			continue;
 
-			// Convert it to bitmap data
-			image2Bitmap((importImage.data + (startPixel * sizeof(pixel))),
-				importImage.width, vbfHeader.glyphWidth,
-				vbfHeader.glyphHeight, (data + startByte));
-		}
+		// Construct the name
+		snprintf(imageFileName, MAX_PATH_NAME_LENGTH, "%s/%s", dirName,
+			imageFile.name);
+
+		// Try to get the kernel to load the image
+		status = imageLoad(imageFileName, 0, 0, &importImage);
+		if (status < 0)
+			continue;
+
+		codes[readGlyphs] = xtoi(imageFile.name);
+
+		// Convert it to bitmap data
+		image2Bitmap(importImage.data, importImage.width,
+			vbfHeader.glyphWidth, vbfHeader.glyphHeight, (data + (readGlyphs *
+			glyphBytes)));
+
+		readGlyphs += 1;
 	}
 
 	// Write out the font
@@ -903,33 +953,40 @@ static int bitmap2Image(int index, vbfFileHeader *vbfHeader,
 }
 
 
-static int export(const char *imageFileName, const char *vbfFileName)
+static int export(const char *dirName, const char *vbfFileName)
 {
 	int status = 0;
+	file destDir;
 	FILE *vbfFile = NULL;
 	vbfFileHeader vbfHeader;
 	unsigned *codes = NULL;
 	unsigned char *data = NULL;
-	image exportImage;
-	static int glyphColumns = 16;
-	static int glyphRows = 6;
 	image glyphImage;
-	int colCount, rowCount;
+	char imageFileName[MAX_PATH_NAME_LENGTH + 1];
+	int count;
 
-	printf(_("Export font from VBF file %s to %s\n"), vbfFileName,
-		imageFileName);
+	printf(_("Export font from VBF file %s to %s\n"), vbfFileName, dirName);
 
+	memset(&destDir, 0, sizeof(file));
 	memset(&vbfHeader, 0, sizeof(vbfHeader));
-	memset(&exportImage, 0, sizeof(image));
 	memset(&glyphImage, 0, sizeof(image));
+
+	// Make sure our destination exists, and is a directory
+	if ((fileFind(dirName, &destDir) < 0) || (destDir.type != dirT))
+	{
+		error(_("Export destination %s doesn't exist or isn't a directory"),
+			dirName);
+		return (status = ERR_NOSUCHDIR);
+	}
 
 	// Open our font file
 	vbfFile = fopen(vbfFileName, "r");
 	if (!vbfFile)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fopen");
 		error(_("Can't open font file %s for reading"), vbfFileName);
-		return (status = errno);
+		return (status);
 	}
 
 	// Read in the font
@@ -940,58 +997,43 @@ static int export(const char *imageFileName, const char *vbfFileName)
 	if (status < 0)
 		goto out;
 
-	// Create a new image
-	status = imageNew(&exportImage, (vbfHeader.glyphWidth * 16),
-		(vbfHeader.glyphHeight * 6));
-	if (status < 0)
-	{
-		errno = status;
-		perror(cmdName);
-		error("%s", _("Couldn't get a new image"));
-		goto out;
-	}
-
 	if (verbose)
+	{
 		printf(_("%d glyphs size %dx%d\n"), vbfHeader.numGlyphs,
 			vbfHeader.glyphWidth, vbfHeader.glyphHeight);
+	}
 
 	// Loop through the glyphs in the font and add them
-	for (rowCount = 0; rowCount < glyphRows; rowCount ++)
+	for (count = 0; count < vbfHeader.numGlyphs; count ++)
 	{
-		for (colCount = 0; colCount < glyphColumns; colCount ++)
+		// Create an image from the glyph bitmap
+		status = bitmap2Image(count, &vbfHeader, data, &glyphImage);
+		if (status >= 0)
 		{
-			// Create an image from the glyph bitmap
-			status = bitmap2Image(((rowCount * glyphColumns) + colCount),
-				&vbfHeader, data, &glyphImage);
-			if (status >= 0)
-			{
-				// Paste it into our main image
-				status = imagePaste(&glyphImage, &exportImage, (colCount *
-					vbfHeader.glyphWidth), (rowCount * vbfHeader.glyphHeight));
+			// Construct the name from the unicode value
+			snprintf(imageFileName, MAX_PATH_NAME_LENGTH, "%s/%04x.bmp",
+				dirName, codes[count]);
 
-				imageFree(&glyphImage);
+			// Try to get the kernel to save the image
+			status = imageSave(imageFileName, IMAGEFORMAT_BMP, &glyphImage);
+			if (status < 0)
+			{
+				errno = status;
+				perror("imageSave");
+				error(_("Couldn't save font image file %s"), imageFileName);
+				goto out;
 			}
+
+			imageFree(&glyphImage);
 		}
 	}
 
-	// Try to get the kernel to save the image
-	status = imageSave(imageFileName, IMAGEFORMAT_BMP, &exportImage);
-	if (status < 0)
-	{
-		errno = status;
-		perror(cmdName);
-		error(_("Couldn't save font image file %s"), imageFileName);
-		goto out;
-	}
-
 out:
-	imageFree(&exportImage);
+	if (data)
+		free(data);
 
 	if (codes)
 		free(codes);
-
-	if (data)
-		free(data);
 
 	return (status);
 }
@@ -1024,7 +1066,7 @@ static int addGlyph(unsigned code, const char *addFileName,
 	if (status < 0)
 	{
 		errno = status;
-		perror(cmdName);
+		perror("imageLoad");
 		error(_("Couldn't load glyph image file %s"), addFileName);
 		return (status);
 	}
@@ -1033,9 +1075,10 @@ static int addGlyph(unsigned code, const char *addFileName,
 	destFile = fopen(vbfFileName, "r+");
 	if (!destFile)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fopen");
 		error(_("Can't open destination file %s for writing"), vbfFileName);
-		return (status = errno);
+		return (status);
 	}
 
 	// Read in the font
@@ -1061,9 +1104,9 @@ static int addGlyph(unsigned code, const char *addFileName,
 		newData = malloc(newNumGlyphs * glyphBytes);
 		if (!newCodes || !newData)
 		{
-			perror(cmdName);
-			error("%s", _("Couldn't get memory for character codes or data"));
 			status = errno;
+			perror("malloc");
+			error("%s", _("Couldn't get memory for character codes or data"));
 			goto out;
 		}
 
@@ -1145,9 +1188,10 @@ static int removeGlyph(unsigned code, const char *vbfFileName)
 	destFile = fopen(vbfFileName, "r+");
 	if (!destFile)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fopen");
 		error(_("Can't open destination file %s for writing"), vbfFileName);
-		return (status = errno);
+		return (status);
 	}
 
 	// Read in the font
@@ -1232,9 +1276,10 @@ static int convert(const char *v1FileName, const char *v2FileName)
 	v1File = fopen(v1FileName, "r");
 	if (!v1File)
 	{
-		perror(cmdName);
+		status = errno;
+		perror("fopen");
 		error(_("Can't open source file %s for reading"), v1FileName);
-		return (status = errno);
+		return (status);
 	}
 
 	// Read the V1 font
@@ -1280,9 +1325,9 @@ static int convert(const char *v1FileName, const char *v2FileName)
 	v2CharSetHeader = calloc(1, v2CharSetFileSize);
 	if (!v2AsciiHeader || !v2CharSetHeader)
 	{
-		perror(cmdName);
-		error("%s", _("Can't get memory for output files"));
 		status = errno;
+		perror("calloc");
+		error("%s", _("Can't get memory for output files"));
 		goto out;
 	}
 
@@ -1309,9 +1354,9 @@ static int convert(const char *v1FileName, const char *v2FileName)
 	v2CharSetFile = fopen(v2CharSetFileName, "w+");
 	if (!v2AsciiFile || !v2CharSetFile)
 	{
-		perror(cmdName);
-		error("%s", _("Can't open destination file(s) for writing"));
 		status = errno;
+		perror("fopen");
+		error("%s", _("Can't open destination file(s) for writing"));
 		goto out;
 	}
 
@@ -1372,9 +1417,9 @@ static int convert(const char *v1FileName, const char *v2FileName)
 			(v2AsciiFileSize - written), v2AsciiFile);
 		if (status <= 0)
 		{
-			perror(cmdName);
-			error(_("Can't write destination file %s"), v2AsciiFileName);
 			status = errno;
+			perror("fwrite");
+			error(_("Can't write destination file %s"), v2AsciiFileName);
 			goto out;
 		}
 
@@ -1389,9 +1434,9 @@ static int convert(const char *v1FileName, const char *v2FileName)
 			(v2CharSetFileSize - written), v2CharSetFile);
 		if (status <= 0)
 		{
-			perror(cmdName);
-			error(_("Can't write destination file %s"), v2CharSetFileName);
 			status = errno;
+			perror("fwrite");
+			error(_("Can't write destination file %s"), v2CharSetFileName);
 			goto out;
 		}
 
@@ -1653,8 +1698,8 @@ static int selectListFont(int selected)
 	fontFile = fopen(fileName, "r");
 	if (!fontFile)
 	{
-		error(_("Can't open %s for reading"), fileName);
 		status = errno;
+		error(_("Can't open %s for reading"), fileName);
 		goto out;
 	}
 
@@ -1774,8 +1819,8 @@ static int save(int selected)
 	fontFile = fopen(fileName, "w");
 	if (!fontFile)
 	{
-		error(_("Can't open %s for writing"), fileName);
 		status = errno;
+		error(_("Can't open %s for writing"), fileName);
 		goto out;
 	}
 
@@ -1986,8 +2031,6 @@ int main(int argc, char *argv[])
 	// What is my privilege level?
 	privilege = multitaskerGetProcessPrivilege(processId);
 
-	cmdName = argv[0];
-
 	selectedFont = calloc(1, sizeof(vbf));
 	if (!selectedFont)
 	{
@@ -2012,12 +2055,12 @@ int main(int argc, char *argv[])
 				case ':':
 					error(_("Missing parameter for %s option"),
 						argv[optind - 1]);
-					usage();
+					usage(argv[0]);
 					return (status = ERR_NULLPARAMETER);
 
 				case '?':
 					error(_("Unknown option '%c'"), optopt);
-					usage();
+					usage(argv[0]);
 					return (status = ERR_INVALID);
 			}
 		}
@@ -2030,9 +2073,8 @@ int main(int argc, char *argv[])
 	{
 		if (argc < 2)
 		{
-			usage();
-			errno = ERR_ARGUMENTCOUNT;
-			return (status = errno);
+			usage(argv[0]);
+			return (status = ERR_ARGUMENTCOUNT);
 		}
 
 		vbfFileName = argv[argc - 1];
@@ -2048,7 +2090,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing code argument for '-a' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					code = atoi(optarg);
@@ -2061,7 +2103,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing charset argument for '-c' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					strncpy(selectedFont->header.charSet, optarg,
@@ -2083,7 +2125,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing image filename argument for "
 							"'-e' option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					otherFileName = optarg;
@@ -2096,7 +2138,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing filename argument for '-f' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					otherFileName = optarg;
@@ -2108,7 +2150,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing image filename argument for "
 							"'-i' option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					otherFileName = optarg;
@@ -2121,7 +2163,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing family name argument for '-n' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					strncpy(selectedFont->header.family, optarg,
@@ -2136,7 +2178,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing points argument for '-p' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					selectedFont->header.points = atoi(optarg);
@@ -2150,7 +2192,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing code argument for '-r' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					code = atoi(optarg);
@@ -2163,7 +2205,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing style argument for '-s' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					if (!strcasecmp(optarg, "bold"))
@@ -2181,7 +2223,7 @@ int main(int argc, char *argv[])
 					else
 					{
 						error(_("Unknown style argument %s"), optarg);
-						usage();
+						usage(argv[0]);
 						return (status = ERR_INVALID);
 					}
 					if (operation == operation_none)
@@ -2201,7 +2243,7 @@ int main(int argc, char *argv[])
 					{
 						error("%s", _("Missing filename argument for '-x' "
 							"option"));
-						usage();
+						usage(argv[0]);
 						return (status = ERR_NULLPARAMETER);
 					}
 					operation = operation_convert;
@@ -2211,12 +2253,12 @@ int main(int argc, char *argv[])
 				case ':':
 					error(_("Missing parameter for %s option"),
 						argv[optind - 1]);
-					usage();
+					usage(argv[0]);
 					return (status = ERR_NULLPARAMETER);
 
 				default:
 					error(_("Unknown option '%c'"), optopt);
-					usage();
+					usage(argv[0]);
 					return (status = ERR_INVALID);
 			}
 		}
@@ -2248,7 +2290,7 @@ int main(int argc, char *argv[])
 				{
 					error("%s", _("Missing image file (-f) argument to add "
 						"(-a) operation"));
-					usage();
+					usage(argv[0]);
 					return (status = ERR_NULLPARAMETER);
 				}
 				status = addGlyph(code, otherFileName, vbfFileName);

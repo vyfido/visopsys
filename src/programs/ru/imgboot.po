@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imgboot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 02:09+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -24,8 +24,8 @@ msgid "Welcome to %s"
 msgstr "Добро пожаловать в %s"
 
 #: imgboot.c:65
-msgid "Copyright (C) 1998-2019 J. Andrew McLaughlin"
-msgstr "Copyright (C) 1998-2019 J. Andrew McLaughlin"
+msgid "Copyright (C) 1998-2020 J. Andrew McLaughlin"
+msgstr "Copyright (C) 1998-2020 J. Andrew McLaughlin"
 
 #: imgboot.c:67
 #, fuzzy
@@ -62,7 +62,7 @@ msgstr ""
 msgid "Install"
 msgstr "Установка"
 
-#: imgboot.c:78 imgboot.c:212
+#: imgboot.c:78 imgboot.c:210
 msgid "Continue"
 msgstr "Продолжить"
 
@@ -108,15 +108,15 @@ msgstr ""
 msgid "%s  Quitting."
 msgstr "%s  Выходим."
 
-#: imgboot.c:211
+#: imgboot.c:209
 msgid "Reboot?"
 msgstr "Перезагрузить?"
 
-#: imgboot.c:212
+#: imgboot.c:210
 msgid "Reboot"
 msgstr "Перезагрузка"
 
-#: imgboot.c:221
+#: imgboot.c:219
 #, c-format
 msgid ""
 "\n"
@@ -125,31 +125,31 @@ msgstr ""
 "\n"
 "%s (y/n): "
 
-#: imgboot.c:230
-msgid "Yes\n"
-msgstr "Да\n"
+#: imgboot.c:228
+msgid "Yes"
+msgstr "Да"
 
-#: imgboot.c:236
-msgid "No\n"
-msgstr "Нет\n"
+#: imgboot.c:234
+msgid "No"
+msgstr "Нет"
 
-#: imgboot.c:452
+#: imgboot.c:450
 msgid "Can't create window!"
 msgstr "Не могу создать окно!"
 
-#: imgboot.c:579
+#: imgboot.c:577
 msgid "o Install                    "
 msgstr "o Установка                    "
 
-#: imgboot.c:580
+#: imgboot.c:578
 msgid "o Continue                   "
 msgstr "o Продолжить                    "
 
-#: imgboot.c:581
+#: imgboot.c:579
 msgid "o Always continue (never ask)"
 msgstr "o Всегда продолжать (не спрашивать)"
 
-#: imgboot.c:595
+#: imgboot.c:594
 msgid ""
 "This program can only be run as a privileged user.\n"
 "(Try logging in as user \"admin\")."

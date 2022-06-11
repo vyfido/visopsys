@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,10 +39,10 @@
 #define FONT_STYLEFLAG_NORMAL		0x00000000
 
 typedef struct {
-	char family[FONT_FAMILY_LEN + 1];	// Font family (e.g. arial, xterm, ...)
-	unsigned flags;						// See FONT_STYLEFLAG_* in <sys/font.h>
-	int points;							// Size in points (e.g. 10, 12, 20)
-	char charSet[FONT_CHARSET_LEN + 1];	// e.g. ASCII, ISO-8859-15, etc.
+	char family[FONT_FAMILY_LEN + 1];	// Font family (arial, xterm, ...)
+	unsigned flags;						// See FONT_STYLEFLAG_*
+	int points;							// Size in points (10, 12, 20, ...)
+	char charSet[FONT_CHARSET_LEN + 1];	// ASCII, ISO-8859-15, UTF-8, ...
 
 } fontInfo;
 

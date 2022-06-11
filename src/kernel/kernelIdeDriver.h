@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,15 +53,15 @@ typedef struct {
 } ideDisk;
 
 typedef struct {
-	unsigned data;
-	unsigned featErr;
-	unsigned sectorCount;
-	unsigned lbaLow;
-	unsigned lbaMid;
-	unsigned lbaHigh;
-	unsigned device;
-	unsigned comStat;
-	unsigned altComStat;
+	unsigned short data;
+	unsigned short featErr;
+	unsigned short sectorCount;
+	unsigned short lbaLow;
+	unsigned short lbaMid;
+	unsigned short lbaHigh;
+	unsigned short device;
+	unsigned short comStat;
+	unsigned short altComStat;
 
 } idePorts;
 

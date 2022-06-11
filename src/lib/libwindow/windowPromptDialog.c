@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -112,9 +112,14 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 	else
 	{
 		if (rows <= 1)
+		{
 			field = windowNewTextField(container, columns, &params);
+		}
 		else
-			field = windowNewTextArea(container, columns, rows, 0, &params);
+		{
+			field = windowNewTextArea(container, columns, rows,
+				0 /* bufferLines */, &params);
+		}
 	}
 
 	if (!field)

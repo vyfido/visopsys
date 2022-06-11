@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2019 J. Andrew McLaughlin
+##  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ##
 ##  install.sh
 ##
@@ -179,6 +179,8 @@ echo Done
 # touch $MOUNTDIR/bootinfo
 # Uncomment to disable graphics mode
 # touch $MOUNTDIR/nograph
+# Uncomment to load the boot medium as a RAM disk
+# touch $MOUNTDIR/ramdisk
 
 # Unmount the filesystem
 echo -n "Unmounting...  "

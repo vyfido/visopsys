@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -55,7 +55,7 @@ msgstr "Mostrar subprocesos"
 msgid "Run program"
 msgstr "Ejecutar Programa"
 
-#: progman.c:69 progman.c:420
+#: progman.c:69 progman.c:421
 msgid "Set priority"
 msgstr "Configurar prioridad"
 
@@ -67,68 +67,68 @@ msgstr "Matar proceso"
 msgid "Error"
 msgstr "Error"
 
-#: progman.c:245
+#: progman.c:246
 msgid "Can't get temporary memory for processes"
 msgstr "No se pudo obtener memoria temporal para procesos"
 
-#: progman.c:310
+#: progman.c:311
 msgid "running "
 msgstr "ejecutando "
 
-#: progman.c:314
+#: progman.c:315
 msgid "ready "
 msgstr "listo "
 
-#: progman.c:317
+#: progman.c:318
 msgid "waiting "
 msgstr "esperando "
 
-#: progman.c:320
+#: progman.c:321
 msgid "sleeping "
 msgstr "en espera "
 
-#: progman.c:323
+#: progman.c:324
 msgid "stopped "
 msgstr "detenido"
 
-#: progman.c:326
+#: progman.c:327
 msgid "finished "
 msgstr "finalizado "
 
-#: progman.c:329
+#: progman.c:330
 msgid "zombie "
 msgstr "zombie "
 
-#: progman.c:332
+#: progman.c:333
 msgid "unknown "
 msgstr "desconocido "
 
-#: progman.c:353
+#: progman.c:354
 msgid "Enter command"
 msgstr "Ingrese el comando"
 
-#: progman.c:354
+#: progman.c:355
 msgid "Please enter a command to run:"
 msgstr "Por favor ingrese un comando para ejecutar:"
 
-#: progman.c:383
+#: progman.c:384
 msgid "Unable to execute program"
 msgstr "No se puede ejecutar"
 
-#: progman.c:421
+#: progman.c:422
 msgid "Please enter the desired priority"
 msgstr "Ingrese la prioridad deseada"
 
-#: progman.c:540
+#: progman.c:541
 msgid "Unable to launch file dialog"
 msgstr "No se puede abrir dialogo de archivos"
 
-#: progman.c:622
+#: progman.c:623
 #, fuzzy, c-format
 msgid "Process                   PID PPID UID      Pri Priv CPU% STATE   "
 msgstr "Proceso                   PID PPID UID Pri Priv CPU% STATUS   "
 
-#: progman.c:693
+#: progman.c:695
 #, c-format
 msgid ""
 "\n"
@@ -137,6 +137,6 @@ msgstr ""
 "\n"
 "El comando \"%s\" solo funciona en modo grafico\n"
 
-#: progman.c:712
+#: progman.c:715
 msgid "Error getting memory"
 msgstr "Error al obtener memoria"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -102,27 +102,27 @@ msgstr ""
 msgid "Error updating filesystem info"
 msgstr ""
 
-#: kernelShutdown.c:45
+#: kernelShutdown.c:47
 msgid "Shutting down Visopsys, please wait..."
 msgstr ""
 
-#: kernelShutdown.c:46
+#: kernelShutdown.c:48
 msgid "[ Wait for \"OK to power off\" message ]"
 msgstr ""
 
-#: kernelShutdown.c:47
+#: kernelShutdown.c:49
 msgid "Rebooting."
 msgstr ""
 
-#: kernelShutdown.c:48
+#: kernelShutdown.c:50
 msgid "OK to power off now."
 msgstr ""
 
-#: kernelShutdown.c:165
+#: kernelShutdown.c:181
 msgid "Shutting down"
 msgstr ""
 
-#: kernelShutdown.c:333
+#: kernelShutdown.c:338
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
 msgstr ""

@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -57,7 +57,7 @@ msgstr "Alle Unter-Prozesse anzeigen"
 msgid "Run program"
 msgstr "Programm ausführen"
 
-#: progman.c:69 progman.c:420
+#: progman.c:69 progman.c:421
 msgid "Set priority"
 msgstr "Priorität festlegen"
 
@@ -69,68 +69,68 @@ msgstr "Prozess beenden"
 msgid "Error"
 msgstr "Fehler"
 
-#: progman.c:245
+#: progman.c:246
 msgid "Can't get temporary memory for processes"
 msgstr "Es existiert kein temporärer Speicher für die Prozesse"
 
-#: progman.c:310
+#: progman.c:311
 msgid "running "
 msgstr "läuft "
 
-#: progman.c:314
+#: progman.c:315
 msgid "ready "
 msgstr "bereit "
 
-#: progman.c:317
+#: progman.c:318
 msgid "waiting "
 msgstr "warte "
 
-#: progman.c:320
+#: progman.c:321
 msgid "sleeping "
 msgstr "im stand-by "
 
-#: progman.c:323
+#: progman.c:324
 msgid "stopped "
 msgstr "angehalten "
 
-#: progman.c:326
+#: progman.c:327
 msgid "finished "
 msgstr "abgeschlossen "
 
-#: progman.c:329
+#: progman.c:330
 msgid "zombie "
 msgstr "zombie "
 
-#: progman.c:332
+#: progman.c:333
 msgid "unknown "
 msgstr "unbekannt "
 
-#: progman.c:353
+#: progman.c:354
 msgid "Enter command"
 msgstr "Befehl eingeben"
 
-#: progman.c:354
+#: progman.c:355
 msgid "Please enter a command to run:"
 msgstr "Bitte geben Sie einen Befehl an der ausgeführt werden soll:"
 
-#: progman.c:383
+#: progman.c:384
 msgid "Unable to execute program"
 msgstr "Programm kann nicht gestartet werden"
 
-#: progman.c:421
+#: progman.c:422
 msgid "Please enter the desired priority"
 msgstr "Bitte geben Sie die gewünschte Priorität an"
 
-#: progman.c:540
+#: progman.c:541
 msgid "Unable to launch file dialog"
 msgstr "Datei-Fenster kann nicht angezeigt werden"
 
-#: progman.c:622
+#: progman.c:623
 #, fuzzy, c-format
 msgid "Process                   PID PPID UID      Pri Priv CPU% STATE   "
 msgstr "Prozess                   PID PPID UID Pri Priv CPU% STATUS   "
 
-#: progman.c:693
+#: progman.c:695
 #, c-format
 msgid ""
 "\n"
@@ -139,6 +139,6 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: progman.c:712
+#: progman.c:715
 msgid "Error getting memory"
 msgstr "Fehler beim beziehen von Speicher"

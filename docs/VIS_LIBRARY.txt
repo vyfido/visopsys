@@ -1,0 +1,81 @@
+THE VISOPSYS LIBRARY (Version 0.85)
+
+The Visopsys library is a small set of general utility functions, often
+written to serve the needs of the Visopsys kernel, but which can also be used
+by user space programs and libraries.
+
+The functions are defined in the header file <sys/vis.h> and the code is
+contained in libvis.a or libvis.so (link with ‘-lvis’). This code also
+requires a C library to link correctly (link with ‘-lc’).
+
+
+int linkedListAddFront(linkedList *list, void *data)
+	
+	Add the specified value 'data' to the front of linked list 'list'.
+
+
+int linkedListAddBack(linkedList *list, void *data)
+	
+	Add the specified value 'data' to the back of linked list 'list'.
+
+
+int linkedListRemove(linkedList *list, void *data)
+	
+	Remove the item with the specified value 'data' from the linked list 'list'.
+
+
+int linkedListClear(linkedList *list)
+	
+	Remove everything from the linked list 'list'.
+
+
+void *linkedListIterStart(linkedList *list, linkedListItem **iter)
+	
+	Starts an iteration through the linked list 'list', using the supplied iterator pointer 'iter'.  Returns the data value from the first item, if applicable.
+
+
+void *linkedListIterNext(linkedList *list, linkedListItem **iter)
+	
+	Returns the data value from the next item in the linked list 'list', if applicable.  Uses the iterator pointer 'iter' previously initialized via a call to linkedListIterStart().
+
+
+int variableListCreate(variableList *list)
+	
+	Set up a new variable list structure.
+
+
+int variableListCreateSystem(variableList *list)
+	
+	Set up a new variable list structure, with memory owned by the kernel, rather than the calling process.  Only useful for kernel code.
+
+
+int variableListDestroy(variableList *list)
+	
+	Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
+
+
+const char *variableListGetVariable(variableList *list, int num)
+	
+	Return a pointer to the name of the 'num'th variable from the variable list 'list'.
+
+
+const char *variableListGet(variableList *list, const char *var)
+	
+	Return a pointer to the value of the variable 'var' from the variable list 'list'.
+
+
+int variableListSet(variableList *list, const char *var, const char *value)
+	
+	Set the value of the variable 'var' to the value 'value'.
+
+
+int variableListUnset(variableList *list, const char *var)
+	
+	Remove the variable 'var' from the variable list 'list'.
+
+
+int variableListClear(variableList *list)
+	
+	Remove all the variables from the variable list 'list'.
+
+

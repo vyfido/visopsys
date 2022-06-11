@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,14 +55,13 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s <file1> [file2] [...]\n"), name);
-	return;
 }
 
 
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	int argNumber = 0;
+	int count = 0;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("more");
@@ -74,18 +73,19 @@ int main(int argc, char *argv[])
 	}
 
 	// Loop through all of our file name arguments
-	for (argNumber = 1; argNumber < argc; argNumber ++)
+	for (count = 1; count < argc; count ++)
 	{
 		// Make sure the name isn't NULL
-		if (!argv[argNumber])
+		if (!argv[count])
 			return (status = ERR_NULLPARAMETER);
 
-		status = vshPageFile(argv[argNumber], _("--More--(%d%%)"));
+		status = vshPageFile(argv[count], _("--More--(%d%%)"));
 		if (status < 0)
 		{
+			fprintf(stderr, "%s: ", argv[0]);
 			errno = status;
-			perror(argv[0]);
-			if (argNumber < (argc - 1))
+			perror(argv[count]);
+			if (count < (argc - 1))
 				continue;
 			else
 				return (status);

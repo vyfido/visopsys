@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -1045,7 +1045,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 		library->data);
 
 	// Code should be read-only
-	kernelPageSetAttrs(processId, 0, PAGEFLAG_WRITABLE, library->codeVirtual,
+	kernelPageSetAttrs(processId, pageattr_readonly, library->codeVirtual,
 			 kernelPageRoundUp(library->codeSize));
 	if (status < 0)
 	{

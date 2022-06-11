@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -32,14 +32,14 @@ msgstr ""
 "\n"
 "\"%s\" komut sadece grafik modda çalisabilir\n"
 
-#: console.c:123 console.c:128
+#: console.c:122 console.c:127
 msgid "Error"
 msgstr "Hata"
 
-#: console.c:123
+#: console.c:122
 msgid "Cannot open more than one console window!"
 msgstr "Birden fazla konsol penceresi açilamiyor!"
 
-#: console.c:128
+#: console.c:127
 msgid "Error opening the console window!"
 msgstr "Konsol penceresi açilirken hata olustu!"

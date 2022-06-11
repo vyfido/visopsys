@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -285,7 +285,8 @@ static int mountedCheck(disk *theDisk)
 	if (graphics)
 	{
 		choice = windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
-			(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
+			(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") },
+			3 /* numChoices */, 1 /* defaultChoice */);
 	}
 	else
 	{
@@ -298,19 +299,19 @@ static int mountedCheck(disk *theDisk)
 
 			if ((character == 'i') || (character == 'I'))
 			{
-				printf("%s", _("Ignore\n"));
+				printf("%s\n", _("Ignore"));
 				choice = 0;
 				break;
 			}
 			else if ((character == 'u') || (character == 'U'))
 			{
-				printf("%s", _("Unmount\n"));
+				printf("%s\n", _("Unmount"));
 				choice = 1;
 				break;
 			}
 			else if ((character == 'c') || (character == 'C'))
 			{
-				printf("%s", _("Cancel\n"));
+				printf("%s\n", _("Cancel"));
 				choice = 2;
 				break;
 			}
@@ -320,9 +321,10 @@ static int mountedCheck(disk *theDisk)
 	}
 
 	if ((choice < 0) || (choice == 2))
+	{
 		// Cancelled
 		return (status = ERR_CANCELLED);
-
+	}
 	else if (choice == 1)
 	{
 		// Try to unmount the filesystem
@@ -496,7 +498,7 @@ int main(int argc, char *argv[])
 	if (!graphics && !silentMode)
 	{
 		// Print a message
-		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2019 J. "
+		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2020 J. "
 			"Andrew McLaughlin\n"));
 	}
 

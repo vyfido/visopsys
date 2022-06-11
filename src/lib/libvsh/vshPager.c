@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
 #include <sys/text.h>
 #include <sys/vsh.h>
 
@@ -66,6 +67,7 @@ _X_ int vshPageBuffer(const char *buffer, unsigned len, const char *prompt)
 		// Are we at the end of a screenful of data?
 		if (charsSoFar >= (screenColumns * (screenRows - 1)))
 		{
+			// Print the prompt
 			snprintf(more, 32, prompt, ((count1 * 100) / len));
 			textPrintAttrs(&attrs, more);
 
@@ -74,7 +76,7 @@ _X_ int vshPageBuffer(const char *buffer, unsigned len, const char *prompt)
 			charEntered = getchar();
 			textInputSetEcho(1);
 
-			// Erase the "more" thing
+			// Erase the prompt
 			cursorPos1 = textGetColumn();
 			for (count2 = 0; count2 < cursorPos1; count2++)
 				textBackSpace();
@@ -95,35 +97,40 @@ _X_ int vshPageBuffer(const char *buffer, unsigned len, const char *prompt)
 		}
 
 		// Look out for tab characters
-		if (buffer[count1] == (char) 9)
+		if (buffer[count1] == ASCII_TAB)
 		{
-			// We need to keep track of how many characters get printed
+			// We need to keep track of how many whitespace characters get
+			// 'printed'
 			cursorPos1 = textGetColumn();
 
 			textTab();
 
 			cursorPos2 = textGetColumn();
 
+			// Did we wrap to the next line?
 			if (cursorPos2 >= cursorPos1)
 			{
+				// No wrap
 				charsSoFar += (cursorPos2 - cursorPos1);
 			}
 			else
 			{
+				// We wrapped
 				charsSoFar += (screenColumns - (cursorPos1 + 1)) +
 					(cursorPos2 + 1);
 			}
 		}
 
 		// Look out for newline characters
-		else if (buffer[count1] == (char) 10)
+		else if (buffer[count1] == ASCII_LF)
 		{
-			// We need to keep track of how many characters get printed
+			// We need to keep track of how many whitespace characters get
+			// 'printed'
 			cursorPos1 = textGetColumn();
 
-			textPutc('\n');
+			textNewline();
 
-			charsSoFar += screenColumns - cursorPos1;
+			charsSoFar += (screenColumns - cursorPos1);
 		}
 
 		else

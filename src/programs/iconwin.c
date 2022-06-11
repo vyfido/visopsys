@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -466,7 +466,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		return (errno = ERR_NOTINITIALIZED);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	// What is my process id?
@@ -479,7 +479,7 @@ int main(int argc, char *argv[])
 	if (argc != 2)
 	{
 		printf(_("usage:\n%s <config_file>\n"), (argc? argv[0] : ""));
-		return (errno = ERR_INVALID);
+		return (status = ERR_INVALID);
 	}
 
 	configFile = argv[argc - 1];
@@ -492,7 +492,7 @@ int main(int argc, char *argv[])
 	{
 		variableListDestroy(&config);
 		deallocateMemory();
-		return (errno = status);
+		return (status);
 	}
 
 	// Process the configuration
@@ -503,21 +503,21 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		deallocateMemory();
-		return (errno = status);
+		return (status);
 	}
 
 	// Make sure there were some icons successfully specified.
 	if (numIcons <= 0)
 	{
 		error(_("Config file %s specifies no valid icons"), argv[argc - 1]);
-		return (errno = ERR_INVALID);
+		return (status = ERR_INVALID);
 	}
 
 	status = constructWindow();
 	if (status < 0)
 	{
 		deallocateMemory();
-		return (errno = status);
+		return (status);
 	}
 
 	// Run the GUI

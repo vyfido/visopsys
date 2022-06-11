@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,15 +41,20 @@ Options:
 
 #include <libintl.h>
 #include <locale.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/ascii.h>
+#include <sys/disk.h>
 #include <sys/env.h>
+#include <sys/errors.h>
+#include <sys/file.h>
 #include <sys/font.h>
-#include <sys/paths.h>
 #include <sys/text.h>
+#include <sys/window.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
@@ -60,39 +65,54 @@ Options:
 #define SAVE				gettext_noop("Save")
 #define QUIT				gettext_noop("Quit")
 #define UNTITLED_FILENAME	_("Untitled")
-#define DISCARDQUESTION		_("File has been modified.  Discard changes?")
 #define FILENAMEQUESTION	_("Please enter the name of the file to edit:")
+#define DISCARDQUESTION		_("File has been modified.  Discard changes?")
 
+#define TAB_CHARS(column)	(TEXT_DEFAULT_TAB - (column % TEXT_DEFAULT_TAB))
+
+// Information about a line of text on the screen
 typedef struct {
 	unsigned filePos;
 	int length;
-	int screenStartRow;
-	int screenEndRow;
 	int screenLength;
-	int screenRows;
 
 } screenLineInfo;
 
+// Information about the screen and what's being shown
+static struct {
+	int columns;
+	int rows;
+	screenLineInfo *lines;
+	int numLines;
+
+} screen;
+
+// Information about the file
+static struct {
+	char *tempName;
+	char *name;
+	fileStream strm;
+	unsigned size;
+	char *buffer;
+	unsigned bufferSize;
+	unsigned numLines;
+	int readOnly;
+	int modified;
+
+} editFile;
+
+// Editing state
+static struct {
+	int screenLine;
+	int screenColumn;
+	unsigned fileLine;
+	unsigned firstLineFilePos;
+	unsigned lastLineFilePos;
+	unsigned cursorFilePos;
+
+} state;
+
 static int processId = 0;
-static int screenColumns = 0;
-static int screenRows = 0;
-static char *tempFileName = NULL;
-static char *editFileName = NULL;
-static fileStream editFileStream;
-static unsigned fileSize = 0;
-static char *buffer = NULL;
-static unsigned bufferSize = 0;
-static screenLineInfo *screenLines = NULL;
-static int numScreenLines = 0;
-static unsigned firstLineFilePos = 0;
-static unsigned lastLineFilePos = 0;
-static unsigned cursorLineFilePos = 0;
-static int cursorColumn = 0;
-static unsigned line = 0;
-static unsigned screenLine = 0;
-static unsigned numLines = 0;
-static int readOnly = 0;
-static int modified = 0;
 static int stop = 0;
 
 // GUI stuff
@@ -138,6 +158,195 @@ static void error(const char *format, ...)
 }
 
 
+static void initMenuContents(void)
+{
+	strncpy(fileMenuContents.items[FILEMENU_OPEN].text, gettext(OPEN),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(fileMenuContents.items[FILEMENU_SAVE].text, gettext(SAVE),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(fileMenuContents.items[FILEMENU_QUIT].text, gettext(QUIT),
+		WINDOW_MAX_LABEL_LENGTH);
+}
+
+
+static void processLine(unsigned filePos, screenLineInfo *line)
+{
+	// Given a file position and a screen line structure, scan the buffer and
+	// fill in the length fields
+
+	char *character = NULL;
+	int charBytes = 0;
+
+	memset(line, 0, sizeof(screenLineInfo));
+
+	line->filePos = filePos;
+
+	for (line->length = 0; ((line->filePos + line->length) < editFile.size);
+		line->length ++)
+	{
+		character = (editFile.buffer + line->filePos + line->length);
+
+		// Look out for tab characters
+		if (*character == ASCII_TAB)
+		{
+			line->screenLength += TAB_CHARS(line->screenLength);
+		}
+		else
+		{
+			if (*character == ASCII_LF)
+			{
+				line->length += 1;
+				break;
+			}
+			else
+			{
+				charBytes = 1;
+
+				line->screenLength += 1;
+
+				if (charBytes > 1)
+					line->length += (charBytes - 1);
+			}
+		}
+	}
+}
+
+
+static void printLine(screenLineInfo *line)
+{
+	// Given a screen line, print it on the screen at the current cursor
+	// position
+
+	int screenLength = 0;
+	int screenPos = 0;
+	char character = '\0';
+	int charBytes = 0;
+	int count;
+
+	processLine(line->filePos, line);
+
+	textSetColumn(0);
+
+	// This, until we have horizontal scrolling and things get more
+	// complicated
+	screenLength = min(line->screenLength, screen.columns);
+
+	for (count = 0; screenPos < screenLength; count ++)
+	{
+		character = *(editFile.buffer + line->filePos + count);
+
+		// Look out for tab characters
+		if (character == ASCII_TAB)
+		{
+			textTab();
+
+			screenPos += TAB_CHARS(screenPos);
+		}
+		else
+		{
+			charBytes = textPutc(character);
+
+			screenPos += 1;
+
+			if (charBytes > 1)
+				count += (charBytes - 1);
+		}
+	}
+
+	// Clear out the remainder of the line on screen
+	while (screenPos++ < screen.columns)
+		textPutc(' ');
+}
+
+
+static void showScreen(unsigned filePos)
+{
+	// Show the screen at the requested file position
+
+	int row = 0, column = 0;
+	screenLineInfo *line = NULL;
+
+	row = textGetRow();
+	column = textGetColumn();
+
+	textSetRow(0);
+
+	memset(screen.lines, 0, (screen.rows * sizeof(screenLineInfo)));
+
+	// First screen line file position starts at filePos
+	screen.lines[0].filePos = state.firstLineFilePos = filePos;
+
+	for (screen.numLines = 0; screen.numLines < screen.rows; )
+	{
+		line = &screen.lines[screen.numLines];
+
+		// In case this is the last line
+		state.lastLineFilePos = line->filePos;
+
+		printLine(line);
+
+		// If we're doing more lines, record the next file position
+		if (screen.numLines < (screen.rows - 1))
+		{
+			screen.lines[screen.numLines + 1].filePos = (line->filePos +
+				line->length);
+		}
+
+		screen.numLines += 1;
+
+		if (!editFile.size || (line->filePos >= (editFile.size - 1)))
+			break;
+	}
+
+	textSetRow(row);
+	textSetColumn(column);
+}
+
+
+static unsigned columnBufferOffset(screenLineInfo *line, int column,
+	int *midTab)
+{
+	// Return the buffer offset of the on-screen column of the supplied line
+
+	char *buffPtr = (editFile.buffer + line->filePos);
+	int charBytes = 0;
+	int count;
+
+	if (column > line->screenLength)
+		column = line->screenLength;
+
+	*midTab = 0;
+
+	// Find the buffer position that corresponds to the screen column
+	for (count = 0; count < column; )
+	{
+		if (*buffPtr == ASCII_TAB)
+		{
+			count += TAB_CHARS(count);
+
+			// If the requested column is inside a TAB character
+			if (count > column)
+			{
+				*midTab = 1;
+				break;
+			}
+		}
+		else
+		{
+			count += 1;
+
+			charBytes = 1;
+			if (charBytes > 1)
+				buffPtr += (charBytes - 1);
+		}
+
+		buffPtr += 1;
+	}
+
+	return (buffPtr - editFile.buffer);
+}
+
+
 static void updateStatus(void)
 {
 	// Update the status line
@@ -150,15 +359,17 @@ static void updateStatus(void)
 	memset(&attrs, 0, sizeof(textAttrs));
 	attrs.flags = TEXT_ATTRS_REVERSE;
 
-	if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
+	if (!strncmp(editFile.name, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
 	{
 		sprintf(statusMessage, "%s%s  %u/%u", UNTITLED_FILENAME,
-			(modified? _(" (modified)") : ""), line, numLines);
+			(editFile.modified? _(" (modified)") : ""), (state.fileLine + 1),
+			editFile.numLines);
 	}
 	else
 	{
-		sprintf(statusMessage, "%s%s  %u/%u", editFileStream.f.name,
-			(modified? _(" (modified)") : ""), line, numLines);
+		sprintf(statusMessage, "%s%s  %u/%u", editFile.strm.f.name,
+			(editFile.modified? _(" (modified)") : ""), (state.fileLine + 1),
+			editFile.numLines);
 	}
 
 	if (graphics)
@@ -169,12 +380,12 @@ static void updateStatus(void)
 	else
 	{
 		// Extend to the end of the line
-		while (textGetColumn() < (screenColumns - 1))
+		while (textGetColumn() < (screen.columns - 1))
 			strcat(statusMessage, " ");
 
 		// Put the cursor on the last line
 		textSetColumn(0);
-		textSetRow(screenRows);
+		textSetRow(screen.rows - 1);
 
 		textPrintAttrs(&attrs, statusMessage);
 
@@ -185,879 +396,50 @@ static void updateStatus(void)
 }
 
 
-static void countLines(void)
+static void setCursorPosition(int row, int column, int tabForward)
 {
-	// Sets the 'numLines' variable to the number of lines in the file
+	// Set the on-screen cursor position.  'tabForward' means if the column is
+	// in a TAB character, go forward to the column of the next character.
 
-	unsigned count;
+	screenLineInfo *line = NULL;
+	char *buffPtr = NULL;
+	int midTab = 0;
 
-	numLines = 0;
-	for (count = 0; count < fileSize; count ++)
+	if (row >= screen.numLines)
+		row = (screen.numLines - 1);
+
+	line = &screen.lines[row];
+
+	if (column > line->screenLength)
+		column = line->screenLength;
+
+	// Until we have horizontal scrolling
+	if (column >= screen.columns)
+		column = (screen.columns - 1);
+
+	buffPtr = (editFile.buffer + columnBufferOffset(line, column, &midTab));
+
+	while (midTab)
 	{
-		if (buffer[count] == '\n')
-			numLines += 1;
+		column += (tabForward? 1 : -1);
+		buffPtr = (editFile.buffer + columnBufferOffset(line, column,
+			&midTab));
 	}
 
-	if (!numLines)
-		numLines = 1;
-}
+	// (Again) until we have horizontal scrolling
+	if (column >= screen.columns)
+		column = (screen.columns - 1);
 
+	textSetRow(row);
+	state.fileLine += (row - state.screenLine);
+	state.screenLine = row;
 
-static void printLine(int lineNum)
-{
-	// Given a screen line number, print it on the screen at the current cursor
-	// position and update its length fields in the array
+	textSetColumn(column);
+	state.screenColumn = column;
 
-	char character;
-	int maxScreenLength = 0;
-	int count1, count2;
-
-	screenLines[lineNum].length = 0;
-	screenLines[lineNum].screenLength = 0;
-
-	maxScreenLength =
-		((screenRows - screenLines[lineNum].screenStartRow) * screenColumns);
-
-	for (count1 = 0; (screenLines[lineNum].screenLength < maxScreenLength);
-		count1 ++)
-	{
-		character = buffer[screenLines[lineNum].filePos + count1];
-
-		// Look out for tab characters
-		if (character == (char) 9)
-		{
-			textTab();
-
-			screenLines[lineNum].screenLength +=
-			(TEXT_DEFAULT_TAB - (screenLines[lineNum].screenLength %
-				TEXT_DEFAULT_TAB));
-		}
-		else
-		{
-			if (character == (char) 10)
-			{
-				for (count2 = 0; count2 < (screenColumns -
-					(screenLines[lineNum].screenLength %
-						screenColumns)); count2 ++)
-				{
-					textPutc(' ');
-				}
-
-				screenLines[lineNum].screenLength += 1;
-				break;
-			}
-			else
-			{
-				textPutc(character);
-				screenLines[lineNum].screenLength += 1;
-			}
-		}
-
-		screenLines[lineNum].length += 1;
-	}
-
-	screenLines[lineNum].screenEndRow = (textGetRow() - 1);
-
-	screenLines[lineNum].screenRows =
-		((screenLines[lineNum].screenEndRow -
-			screenLines[lineNum].screenStartRow) + 1);
-}
-
-
-static void showScreen(void)
-{
-	// Show the screen at the current file position
-
-	textScreenClear();
-	memset(screenLines, 0, (screenRows * sizeof(screenLineInfo)));
-
-	screenLines[0].filePos = firstLineFilePos;
-
-	for (numScreenLines = 0; numScreenLines < screenRows; )
-	{
-		lastLineFilePos = screenLines[numScreenLines].filePos;
-
-		screenLines[numScreenLines].screenStartRow = textGetRow();
-
-		printLine(numScreenLines);
-
-		if (screenLines[numScreenLines].screenEndRow >= (screenRows - 1))
-			break;
-
-		if (numScreenLines < (screenRows - 1))
-		{
-			screenLines[numScreenLines + 1].filePos =
-				(screenLines[numScreenLines].filePos +
-					screenLines[numScreenLines].length + 1);
-		}
-
-		if (screenLines[numScreenLines].filePos >= fileSize)
-			break;
-
-		numScreenLines += 1;
-	}
+	state.cursorFilePos = (buffPtr - editFile.buffer);
 
 	updateStatus();
-}
-
-
-static void setCursorColumn(int column)
-{
-	int screenColumn = 0;
-	int count;
-
-	if (column > screenLines[screenLine].length)
-		column = screenLines[screenLine].length;
-
-	for (count = 0; count < column; count ++)
-	{
-		if (buffer[screenLines[screenLine].filePos + count] == '\t')
-		{
-			screenColumn += (TEXT_DEFAULT_TAB - (screenColumn %
-				TEXT_DEFAULT_TAB));
-		}
-		else
-		{
-			screenColumn += 1;
-		}
-	}
-
-	textSetRow(screenLines[screenLine].screenStartRow +
-		(screenColumn / screenColumns));
-	textSetColumn(screenColumn % screenColumns);
-
-	cursorColumn = column;
-}
-
-
-static int doLoadFile(const char *fileName)
-{
-	int status = 0;
-	disk theDisk;
-	file tmpFile;
-	int openFlags = OPENMODE_READWRITE;
-
-	// Initialize the file structure
-	memset(&tmpFile, 0, sizeof(file));
-	memset(&editFileStream, 0, sizeof(fileStream));
-
-	if (buffer)
-		free(buffer);
-
-	// Find out whether the file is on a read-only filesystem
-	if (!fileGetDisk(fileName, &theDisk))
-		readOnly = theDisk.readOnly;
-
-	// Call the "find file" function to see if we can get the file.
-	status = fileFind(fileName, &tmpFile);
-
-	if (status >= 0)
-	{
-		if (readOnly)
-			openFlags = OPENMODE_READ;
-	}
-
-	if ((status < 0) || !tmpFile.size)
-	{
-		// The file either doesn't exist or is zero-length.
-
-		// If the file doesn't exist, and the filesystem is read-only, quit
-		// here
-		if ((status < 0) && readOnly)
-			return (status = ERR_NOWRITE);
-
-		if (status < 0)
-			// The file doesn't exist; try to create one
-			openFlags |= OPENMODE_CREATE;
-
-		status = fileStreamOpen(fileName, openFlags, &editFileStream);
-		if (status < 0)
-			return (status);
-
-		// Use a default initial buffer size of one file block
-		bufferSize = editFileStream.f.blockSize;
-		buffer = malloc(bufferSize);
-		if (!buffer)
-			return (status = ERR_MEMORY);
-	}
-	else
-	{
-		// The file exists and has data in it
-
-		status = fileStreamOpen(fileName, openFlags, &editFileStream);
-		if (status < 0)
-			return (status);
-
-		// Allocate a buffer to store the file contents in
-		bufferSize = (editFileStream.f.blocks * editFileStream.f.blockSize);
-		buffer = malloc(bufferSize);
-		if (!buffer)
-			return (status = ERR_MEMORY);
-
-		status = fileStreamRead(&editFileStream, editFileStream.f.size,
-			buffer);
-		if (status < 0)
-			return (status);
-	}
-
-	strncpy(editFileName, fileName, MAX_PATH_NAME_LENGTH);
-	return (status = 0);
-}
-
-
-static int askFileName(char *fileName)
-{
-	int status = 0;
-	char pwd[MAX_PATH_NAME_LENGTH + 1];
-
-	multitaskerGetCurrentDirectory(pwd, MAX_PATH_NAME_LENGTH);
-
-	if (graphics)
-	{
-		// Prompt for a file name
-		status = windowNewFileDialog(window, _("Enter filename"),
-			FILENAMEQUESTION, pwd, fileName, MAX_PATH_NAME_LENGTH, fileT,
-			0 /* no thumbnails */);
-		return (status);
-	}
-	else
-	{
-		return (status = 0);
-	}
-}
-
-
-static int loadFile(const char *fileName)
-{
-	int status = 0;
-	disk rootDisk;
-
-	// Did the user specify a file name?
-	if (fileName)
-	{
-		// Yes.  Do the load.
-		status = doLoadFile(fileName);
-		if (status < 0)
-			return (status);
-	}
-	else
-	{
-		// No.  Try to open a new temporary file to use as an 'untitled' file
-		// that we will prompt for a file name later when it gets saved.
-
-		if (!fileGetDisk("/", &rootDisk) && !rootDisk.readOnly &&
-			(fileStreamGetTemp(&editFileStream) >= 0))
-		{
-			// Use a default initial buffer size of one file block.
-			bufferSize = editFileStream.f.blockSize;
-			buffer = malloc(bufferSize);
-			if (!buffer)
-				return (status = ERR_MEMORY);
-
-			strncpy(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH);
-
-			// Try to remember the name of the temp file, so we can delete it
-			// later if it doesn't get saved.
-
-			tempFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
-			if (!tempFileName)
-				return (status = ERR_MEMORY);
-
-			if (fileGetFullPath(&editFileStream.f, tempFileName,
-				MAX_PATH_NAME_LENGTH) < 0)
-			{
-				free(tempFileName);
-				tempFileName = NULL;
-			}
-		}
-		else
-		{
-			// Couldn't open a temporary file.  We might be running from a
-			// read-only filesystem, for example.  Prompt for some file to
-			// open, otherwise there's no point really.
-			status = askFileName(editFileName);
-			if (status != 1)
-			{
-				if (status < 0)
-					return (status);
-				else
-					return (status = ERR_CANCELLED);
-			}
-
-			fileName = editFileName;
-
-			// Do the load.
-			status = doLoadFile(fileName);
-			if (status < 0)
-				return (status);
-		}
-	}
-
-	fileSize = editFileStream.f.size;
-	firstLineFilePos = 0;
-	lastLineFilePos = 0;
-	cursorLineFilePos = 0;
-	cursorColumn = 0;
-	line = 0;
-	screenLine = 0;
-	numLines = 0;
-	modified = 0;
-
-	countLines();
-	showScreen();
-	setCursorColumn(0);
-
-	if (graphics)
-	{
-		if (readOnly)
-		{
-			windowComponentSetEnabled(
-				fileMenuContents.items[FILEMENU_SAVE].key, 0);
-		}
-		windowComponentFocus(textArea);
-	}
-
-	return (status = 0);
-}
-
-
-static int saveFile(void)
-{
-	int status = 0;
-	fileStream tmpFileStream;
-
-	if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
-	{
-		if (graphics)
-		{
-			// Prompt for a file name
-			status = askFileName(editFileName);
-			if (status != 1)
-			{
-				if (status < 0)
-					return (status);
-				else
-					return (status = ERR_CANCELLED);
-			}
-		}
-
-		// Open the file (truncate if necessary)
-		status = fileStreamOpen(editFileName, (OPENMODE_CREATE |
-			OPENMODE_TRUNCATE | OPENMODE_READWRITE), &tmpFileStream);
-		if (status < 0)
-			return (status);
-
-		// Close the temp file and swap the info.
-		fileStreamClose(&editFileStream);
-		if (tempFileName)
-		{
-			fileDelete(tempFileName);
-			free(tempFileName);
-			tempFileName = NULL;
-		}
-
-		memcpy(&editFileStream, &tmpFileStream, sizeof(fileStream));
-	}
-
-	status = fileStreamSeek(&editFileStream, 0);
-	if (status < 0)
-		return (status);
-
-	status = fileStreamWrite(&editFileStream, fileSize, buffer);
-	if (status < 0)
-		return (status);
-
-	status = fileStreamFlush(&editFileStream);
-	if (status < 0)
-		return (status);
-
-	modified = 0;
-	updateStatus();
-
-	if (graphics)
-		windowComponentFocus(textArea);
-
-	return (status = 0);
-}
-
-
-static unsigned previousLineStart(unsigned filePos)
-{
-	unsigned lineStart = 0;
-
-	if (!filePos)
-		return (lineStart = 0);
-
-	lineStart = (filePos - 1);
-
-	// Watch for the start of the buffer
-	if (!lineStart)
-		return (lineStart);
-
-	// Lines that end with a newline (most)
-	if (buffer[lineStart] == '\n')
-		lineStart -= 1;
-
-	// Watch for the start of the buffer
-	if (!lineStart)
-		return (lineStart);
-
-	for ( ; buffer[lineStart] != '\n'; lineStart --)
-	{
-		// Watch for the start of the buffer
-		if (!lineStart)
-			return (lineStart);
-	}
-
-	lineStart += 1;
-
-	return (lineStart);
-}
-
-
-static unsigned nextLineStart(unsigned filePos)
-{
-	unsigned lineStart = 0;
-
-	if (filePos >= fileSize)
-		return (lineStart = (fileSize - 1));
-
-	lineStart = filePos;
-
-	// Determine where the current line ends
-	while (lineStart < (fileSize - 1))
-	{
-		if (buffer[lineStart] == '\n')
-		{
-			lineStart += 1;
-			break;
-		}
-		else
-			lineStart += 1;
-	}
-
-	return (lineStart);
-}
-
-
-static void cursorUp(void)
-{
-	if (!line)
-		return;
-
-	cursorLineFilePos = previousLineStart(cursorLineFilePos);
-
-	// Do we need to scroll the screen up?
-	if (cursorLineFilePos < firstLineFilePos)
-	{
-		firstLineFilePos = cursorLineFilePos;
-		showScreen();
-	}
-	else
-		textSetRow(screenLines[--screenLine].screenStartRow);
-
-	setCursorColumn(cursorColumn);
-
-	line -= 1;
-	return;
-}
-
-
-static void cursorDown(void)
-{
-	if (line >= numLines)
-		return;
-
-	cursorLineFilePos = nextLineStart(cursorLineFilePos);
-
-	if (cursorLineFilePos > lastLineFilePos)
-	{
-		// Do we need to scroll the screen down?
-		firstLineFilePos = nextLineStart(firstLineFilePos);
-		showScreen();
-	}
-	else
-		textSetRow(screenLines[++screenLine].screenStartRow);
-
-	setCursorColumn(cursorColumn);
-
-	line += 1;
-	return;
-}
-
-
-static void cursorLeft(void)
-{
-	if (cursorColumn)
-		setCursorColumn(cursorColumn - 1);
-	else
-	{
-		cursorUp();
-		setCursorColumn(screenLines[screenLine].length);
-	}
-
-	return;
-}
-
-
-static void cursorRight(void)
-{
-	if (cursorColumn < screenLines[screenLine].length)
-		setCursorColumn(cursorColumn + 1);
-	else
-	{
-		cursorDown();
-		setCursorColumn(0);
-	}
-
-	return;
-}
-
-
-static int expandBuffer(unsigned length)
-{
-	// Expand the buffer by at least 'length' characters
-
-	int status = 0;
-	unsigned tmpBufferSize = 0;
-	char *tmpBuffer = NULL;
-
-	// Allocate more buffer, rounded up to the nearest block size of the file
-	tmpBufferSize = (bufferSize + (((length / editFileStream.f.blockSize) +
-		((length % editFileStream.f.blockSize)? 1 : 0)) *
-			editFileStream.f.blockSize));
-
-	tmpBuffer = realloc(buffer, tmpBufferSize);
-	if (!tmpBuffer)
-		return (status = ERR_MEMORY);
-
-	buffer = tmpBuffer;
-	bufferSize = tmpBufferSize;
-
-	return (status = 0);
-}
-
-
-static void shiftBuffer(unsigned filePos, int shiftBy)
-{
-	// Shift the contents of the buffer at 'filePos' by 'shiftBy' characters
-	// (positive or negative)
-
-	unsigned shiftChars = 0;
-	unsigned count;
-
-	shiftChars = (fileSize - filePos);
-
-	if (shiftChars)
-	{
-		if (shiftBy > 0)
-		{
-			for (count = 1; count <= shiftChars; count ++)
-				buffer[fileSize + (shiftBy - count)] =
-					buffer[filePos + (shiftChars - count)];
-		}
-		else if (shiftBy < 0)
-		{
-			filePos -= 1;
-			shiftBy *= -1;
-			for (count = 0; count < shiftChars; count ++)
-				buffer[filePos + count] = buffer[filePos + shiftBy + count];
-		}
-	}
-}
-
-
-static int insertChars(char *string, unsigned length)
-{
-	// Insert characters at the current position.
-
-	int status = 0;
-	int oldRows = 0;
-	int count;
-
-	// Do we need a bigger buffer?
-	if ((fileSize + length) >= bufferSize)
-	{
-		status = expandBuffer(length);
-		if (status < 0)
-			return (status);
-	}
-
-	if ((screenLines[screenLine].filePos + cursorColumn) < (fileSize - 1))
-		// Shift data that occurs later in the buffer.
-		shiftBuffer((screenLines[screenLine].filePos + cursorColumn), length);
-
-	// Copy the data
-	strncpy((buffer + screenLines[screenLine].filePos + cursorColumn), string,
-		length);
-
-	// We need to adjust the recorded file positions of all lines that follow
-	// on the screen
-	for (count = (screenLine + 1); count < numScreenLines; count ++)
-		screenLines[count].filePos += length;
-
-	fileSize += length;
-	modified = 1;
-
-	textSetRow(screenLines[screenLine].screenStartRow);
-	textSetColumn(0);
-	oldRows = screenLines[screenLine].screenRows;
-	printLine(screenLine);
-
-	// If the line now occupies more screen lines, redraw the lines below it.
-	if (screenLines[screenLine].screenRows != oldRows)
-	{
-		for (count = (screenLine + 1); count < numScreenLines; count ++)
-		{
-			screenLines[count].screenStartRow = textGetRow();
-			printLine(count);
-		}
-	}
-
-	return (status = 0);
-}
-
-
-static void deleteChars(unsigned length)
-{
-	// Delete characters at the current position.
-
-	int oldRows = 0;
-	int count;
-
-	if ((screenLines[screenLine].filePos + cursorColumn) < (fileSize - 1))
-	{
-		// Shift data that occurs later in the buffer.
-		shiftBuffer((screenLines[screenLine].filePos + cursorColumn + 1),
-			-length);
-	}
-
-	// Clear data
-	memset((buffer + (fileSize - length)), 0, length);
-
-	// We need to adjust the recorded file positions of all lines that follow
-	// on the screen
-	for (count = (screenLine + 1); count < numScreenLines; count ++)
-		screenLines[count].filePos -= length;
-
-	fileSize -= length;
-	modified = 1;
-
-	textSetRow(screenLines[screenLine].screenStartRow);
-	textSetColumn(0);
-	oldRows = screenLines[screenLine].screenRows;
-	printLine(screenLine);
-
-	// If the line now occupies fewer screen lines, redraw the lines below it.
-	if (screenLines[screenLine].screenRows != oldRows)
-	{
-		for (count = (screenLine + 1); count < numScreenLines; count ++)
-		{
-			screenLines[count].screenStartRow = textGetRow();
-			printLine(count);
-		}
-	}
-
-	return;
-}
-
-
-static int edit(void)
-{
-	// This function is the base from which we do all the editing.
-
-	int status = 0;
-	char character = '\0';
-	int oldRow = 0;
-	int endLine = 0;
-
-	while (!stop)
-	{
-		if (!textInputCount())
-		{
-			multitaskerYield();
-			continue;
-		}
-		textInputGetc(&character);
-
-		switch (character)
-		{
-			case (char) ASCII_CRSRUP:
-				// UP cursor key
-				cursorUp();
-				break;
-
-			case (char) ASCII_CRSRDOWN:
-				// DOWN cursor key
-				cursorDown();
-				break;
-
-			case (char) ASCII_CRSRLEFT:
-				// LEFT cursor key
-				cursorLeft();
-				break;
-
-			case (char) ASCII_CRSRRIGHT:
-				// RIGHT cursor key
-				cursorRight();
-				break;
-
-			case (char) ASCII_BACKSPACE:
-				// BACKSPACE key
-				oldRow = screenLines[screenLine].screenStartRow;
-				if (oldRow || cursorColumn)
-				{
-					cursorLeft();
-					deleteChars(1);
-					// If we were at the beginning of a line...
-					if (screenLines[screenLine].screenStartRow != oldRow)
-					{
-						numLines -= 1;
-						showScreen();
-					}
-					setCursorColumn(cursorColumn);
-				}
-				break;
-
-			case (char) ASCII_DEL:
-				// DEL key
-				endLine = (cursorColumn >= screenLines[screenLine].length);
-				deleteChars(1);
-				// If we were at the end of a line...
-				if (endLine)
-				{
-				numLines -= 1;
-				showScreen();
-				}
-				setCursorColumn(cursorColumn);
-				break;
-
-			case (char) ASCII_ENTER:
-				// ENTER key
-				status = insertChars(&character, 1);
-				if (status < 0)
-				break;
-				numLines += 1;
-				showScreen();
-				setCursorColumn(0);
-				cursorDown();
-				break;
-
-			default:
-				// Typing anything else.  Is it printable?
-				status = insertChars(&character, 1);
-				if (status < 0)
-					break;
-				setCursorColumn(cursorColumn + 1);
-				break;
-		}
-
-		updateStatus();
-	}
-
-	status = fileStreamClose(&editFileStream);
-
-	if (tempFileName)
-	{
-		fileDelete(tempFileName);
-		free(tempFileName);
-		tempFileName = NULL;
-	}
-
-	return (status);
-}
-
-
-static int askDiscardChanges(void)
-{
-	int response = 0;
-
-	if (graphics)
-	{
-		response = windowNewChoiceDialog(window, _("Discard changes?"),
-			DISCARDQUESTION, (char *[]){ _("Discard"), _("Cancel") }, 2, 1);
-
-		if (!response)
-			return (1);
-		else
-			return (0);
-	}
-	else
-	{
-		return (0);
-	}
-}
-
-
-static void openFileThread(void)
-{
-	int status = 0;
-	char *fileName = NULL;
-
-	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
-	if (!fileName)
-		goto out;
-
-	status = askFileName(fileName);
-	if (status != 1)
-	{
-		if (status >= 0)
-			status = ERR_CANCELLED;
-		goto out;
-	}
-
-	status = loadFile(fileName);
-	if (status < 0)
-	{
-		if (status == ERR_NOWRITE)
-			error("%s", _("Couldn't create file in a read-only filesystem"));
-		else if (status != ERR_CANCELLED)
-			error(_("Error %d loading file"), status);
-	}
-
-	 out:
-	if (fileName)
-		free(fileName);
-
-	multitaskerTerminate(status);
-}
-
-
-static int calcCursorColumn(int screenColumn)
-{
-	// Given an on-screen column, calculate the real character column i.e. as
-	// we would pass to setCursorColumn(), above.
-
-	int column = 0;
-	int count;
-
-	for (count = 0; column < screenColumn; count ++)
-	{
-		if (buffer[screenLines[screenLine].filePos + count] == '\t')
-			column += (TEXT_DEFAULT_TAB - (column % TEXT_DEFAULT_TAB));
-		else
-			column += 1;
-	}
-
-	return (count);
-}
-
-
-static void quit(void)
-{
-	if (!modified || askDiscardChanges())
-		stop = 1;
-}
-
-
-static void initMenuContents(void)
-{
-	strncpy(fileMenuContents.items[FILEMENU_OPEN].text, gettext(OPEN),
-		WINDOW_MAX_LABEL_LENGTH);
-	strncpy(fileMenuContents.items[FILEMENU_SAVE].text, gettext(SAVE),
-		WINDOW_MAX_LABEL_LENGTH);
-	strncpy(fileMenuContents.items[FILEMENU_QUIT].text, gettext(QUIT),
-		WINDOW_MAX_LABEL_LENGTH);
 }
 
 
@@ -1093,15 +475,345 @@ static void refreshWindow(void)
 }
 
 
+static int askDiscardChanges(void)
+{
+	int response = 0;
+
+	if (graphics)
+	{
+		response = windowNewChoiceDialog(window, _("Discard changes?"),
+			DISCARDQUESTION, (char *[]){ _("Discard"), _("Cancel") },
+			2 /* numChoices */, 1 /* defaultChoice */);
+
+		if (!response)
+			return (1);
+		else
+			return (0);
+	}
+	else
+	{
+		return (0);
+	}
+}
+
+
+static void quit(void)
+{
+	if (!editFile.modified || askDiscardChanges())
+		stop = 1;
+}
+
+
+static int askFileName(char *fileName)
+{
+	int status = 0;
+	char pwd[MAX_PATH_NAME_LENGTH + 1];
+
+	multitaskerGetCurrentDirectory(pwd, MAX_PATH_NAME_LENGTH);
+
+	if (graphics)
+	{
+		// Prompt for a file name
+		status = windowNewFileDialog(window, _("Enter filename"),
+			FILENAMEQUESTION, pwd, fileName, MAX_PATH_NAME_LENGTH, fileT,
+			0 /* no thumbnails */);
+		return (status);
+	}
+	else
+	{
+		return (status = 0);
+	}
+}
+
+
+static int doLoadFile(const char *fileName)
+{
+	// This is the 'inner' load file function, where a name must be supplied.
+	// If the file doesn't exist, the function will try to create it.
+
+	int status = 0;
+	disk theDisk;
+	file tmpFile;
+	int openFlags = OPENMODE_READWRITE;
+
+	memset(&tmpFile, 0, sizeof(file));
+
+	// Find out whether the file is on a read-only filesystem
+	if (!fileGetDisk(fileName, &theDisk))
+		editFile.readOnly = theDisk.readOnly;
+
+	// Call the "find file" function to see if we can get the file
+	status = fileFind(fileName, &tmpFile);
+
+	if (status >= 0)
+	{
+		if (editFile.readOnly)
+			openFlags = OPENMODE_READ;
+	}
+
+	if ((status < 0) || !tmpFile.size)
+	{
+		// The file either doesn't exist or is zero-length
+
+		// If the file doesn't exist, and the filesystem is read-only, quit
+		// here
+		if ((status < 0) && editFile.readOnly)
+			return (status = ERR_NOWRITE);
+
+		if (status < 0)
+			// The file doesn't exist; try to create one
+			openFlags |= OPENMODE_CREATE;
+
+		status = fileStreamOpen(fileName, openFlags, &editFile.strm);
+		if (status < 0)
+			return (status);
+
+		// Use a default initial buffer size of one file block
+		editFile.bufferSize = editFile.strm.f.blockSize;
+		editFile.buffer = malloc(editFile.bufferSize);
+		if (!editFile.buffer)
+			return (status = ERR_MEMORY);
+	}
+	else
+	{
+		// The file exists and has data in it
+
+		status = fileStreamOpen(fileName, openFlags, &editFile.strm);
+		if (status < 0)
+			return (status);
+
+		// Allocate a buffer to store the file contents in
+		editFile.bufferSize = (editFile.strm.f.blocks *
+			editFile.strm.f.blockSize);
+		editFile.buffer = malloc(editFile.bufferSize);
+		if (!editFile.buffer)
+			return (status = ERR_MEMORY);
+
+		status = fileStreamRead(&editFile.strm, editFile.strm.f.size,
+			editFile.buffer);
+		if (status < 0)
+			return (status);
+	}
+
+	strncpy(editFile.name, fileName, MAX_PATH_NAME_LENGTH);
+	return (status = 0);
+}
+
+
+static void countLines(void)
+{
+	// Sets the 'numLines' variable to the number of lines (of unlimited
+	// length) in the file
+
+	unsigned count;
+
+	editFile.numLines = 0;
+	for (count = 0; count < editFile.size; count ++)
+	{
+		if (editFile.buffer[count] == '\n')
+			editFile.numLines += 1;
+	}
+
+	if (!editFile.numLines)
+		editFile.numLines = 1;
+}
+
+
+static int loadFile(const char *fileName)
+{
+	// This is the 'outer' load file function, where a name need not be
+	// supplied.  If not, the function will try to open a temporary 'untitled'
+	// file, or if that fails, query the user for a name.
+
+	int status = 0;
+	disk rootDisk;
+
+	if (editFile.buffer)
+		free(editFile.buffer);
+
+	memset(&editFile, 0, sizeof(editFile));
+
+	// Did the user specify a file name?
+	if (fileName)
+	{
+		// Yes.  Do the load.
+		status = doLoadFile(fileName);
+		if (status < 0)
+			return (status);
+	}
+	else
+	{
+		// No.  Try to open a new temporary file to use as an 'untitled' file
+		// that we will prompt for a file name later when it gets saved.
+
+		if (!fileGetDisk("/", &rootDisk) && !rootDisk.readOnly &&
+			(fileStreamGetTemp(&editFile.strm) >= 0))
+		{
+			// Use a default initial buffer size of one file block
+			editFile.bufferSize = editFile.strm.f.blockSize;
+			editFile.buffer = malloc(editFile.bufferSize);
+			if (!editFile.buffer)
+				return (status = ERR_MEMORY);
+
+			strncpy(editFile.name, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH);
+
+			// Try to remember the name of the temp file, so we can delete it
+			// later if it doesn't get saved
+
+			editFile.tempName = malloc(MAX_PATH_NAME_LENGTH + 1);
+			if (!editFile.tempName)
+				return (status = ERR_MEMORY);
+
+			if (fileGetFullPath(&editFile.strm.f, editFile.tempName,
+				MAX_PATH_NAME_LENGTH) < 0)
+			{
+				free(editFile.tempName);
+				editFile.tempName = NULL;
+			}
+		}
+		else
+		{
+			// Couldn't open a temporary file.  We might be running from a
+			// read-only filesystem, for example.  Prompt for some file to
+			// open, otherwise there's no point really.
+			status = askFileName(editFile.name);
+			if (status != 1)
+			{
+				if (status < 0)
+					return (status);
+				else
+					return (status = ERR_CANCELLED);
+			}
+
+			// Do the load
+			status = doLoadFile(editFile.name);
+			if (status < 0)
+				return (status);
+		}
+	}
+
+	editFile.size = editFile.strm.f.size;
+	memset(&state, 0, sizeof(state));
+	countLines();
+	textScreenClear();
+	showScreen(0 /* File position */);
+	setCursorPosition(0, 0, 0 /* TAB backwards */);
+
+	if (graphics)
+	{
+		if (editFile.readOnly)
+		{
+			windowComponentSetEnabled(
+				fileMenuContents.items[FILEMENU_SAVE].key, 0);
+		}
+
+		windowComponentFocus(textArea);
+	}
+
+	return (status = 0);
+}
+
+
+static void openFileThread(void)
+{
+	int status = 0;
+	char *fileName = NULL;
+
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
+	if (!fileName)
+		goto out;
+
+	status = askFileName(fileName);
+	if (status != 1)
+	{
+		if (status >= 0)
+			status = ERR_CANCELLED;
+		goto out;
+	}
+
+	status = loadFile(fileName);
+	if (status < 0)
+	{
+		if (status == ERR_NOWRITE)
+			error("%s", _("Couldn't create file in a read-only filesystem"));
+		else if (status != ERR_CANCELLED)
+			error(_("Error %d loading file"), status);
+	}
+
+out:
+	if (fileName)
+		free(fileName);
+
+	multitaskerTerminate(status);
+}
+
+
+static int saveFile(void)
+{
+	int status = 0;
+	fileStream tmpFileStream;
+
+	if (!strncmp(editFile.name, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
+	{
+		if (graphics)
+		{
+			// Prompt for a file name
+			status = askFileName(editFile.name);
+			if (status != 1)
+			{
+				if (status < 0)
+					return (status);
+				else
+					return (status = ERR_CANCELLED);
+			}
+		}
+
+		// Open the file (truncate if necessary)
+		status = fileStreamOpen(editFile.name, (OPENMODE_CREATE |
+			OPENMODE_TRUNCATE | OPENMODE_READWRITE), &tmpFileStream);
+		if (status < 0)
+			return (status);
+
+		// Close the temp file and swap the info
+		fileStreamClose(&editFile.strm);
+		if (editFile.tempName)
+		{
+			fileDelete(editFile.tempName);
+			free(editFile.tempName);
+			editFile.tempName = NULL;
+		}
+
+		memcpy(&editFile.strm, &tmpFileStream, sizeof(fileStream));
+	}
+
+	status = fileStreamSeek(&editFile.strm, 0);
+	if (status < 0)
+		return (status);
+
+	status = fileStreamWrite(&editFile.strm, editFile.size, editFile.buffer);
+	if (status < 0)
+		return (status);
+
+	status = fileStreamFlush(&editFile.strm);
+	if (status < 0)
+		return (status);
+
+	editFile.modified = 0;
+	updateStatus();
+
+	if (graphics)
+		windowComponentFocus(textArea);
+
+	return (status = 0);
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
 	int status = 0;
-	int oldScreenLine = 0;
-	int newColumn = 0;
-	int newRow = 0;
-	int count;
+	screenLineInfo *newScreenLines = NULL;
 
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
@@ -1111,9 +823,17 @@ static void eventHandler(objectKey key, windowEvent *event)
 		// Check for window resize
 		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
 		{
-			screenColumns = textGetNumColumns();
-			screenRows = textGetNumRows();
-			showScreen();
+			newScreenLines = realloc(screen.lines, (textGetNumRows() *
+				sizeof(screenLineInfo)));
+
+			if (newScreenLines)
+			{
+				screen.columns = textGetNumColumns();
+				screen.rows = textGetNumRows();
+				screen.lines = newScreenLines;
+				textScreenClear();
+				showScreen(state.firstLineFilePos);
+			}
 		}
 
 		// Check for the window being closed
@@ -1127,7 +847,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		if (event->type & WINDOW_EVENT_SELECTION)
 		{
-			if (!modified || askDiscardChanges())
+			if (!editFile.modified || askDiscardChanges())
 			{
 				if (multitaskerSpawn(&openFileThread, "open file",
 					0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
@@ -1144,7 +864,17 @@ static void eventHandler(objectKey key, windowEvent *event)
 		{
 			status = saveFile();
 			if (status < 0)
-				error(_("Error %d saving file"), status);
+			{
+				if (status == ERR_NOWRITE)
+				{
+					error("%s", _("Couldn't save file in a read-only "
+						"filesystem"));
+				}
+				else if (status != ERR_CANCELLED)
+				{
+					error(_("Error %d saving file"), status);
+				}
+			}
 		}
 	}
 
@@ -1160,27 +890,9 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 	 	if (event->type & WINDOW_EVENT_CURSOR_MOVE)
 		{
-			// The user clicked to move the cursor, which is a pain.  We need
-			// to try to figure out the new screen line.
-
-			oldScreenLine = screenLine;
-			newRow = textGetRow();
-
-			for (count = 0; count < numScreenLines; count ++)
-			{
-				if ((newRow >= screenLines[count].screenStartRow) &&
-					(newRow <= screenLines[count].screenEndRow))
-				{
-					screenLine = count;
-					cursorLineFilePos = screenLines[count].filePos;
-					line += (screenLine - oldScreenLine);
-					newColumn = (((newRow - screenLines[count].screenStartRow) *
-						screenColumns) + textGetColumn());
-					setCursorColumn(calcCursorColumn(newColumn));
-					updateStatus();
-					break;
-				}
-			}
+			// The user clicked to move the cursor.
+			setCursorPosition(textGetRow(), textGetColumn(),
+				0 /* TAB backwards */);
 		}
 	}
 }
@@ -1227,14 +939,15 @@ static void constructWindow(void)
 	font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 10, NULL);
 	if (!font)
 		// We'll be using the system font we guess.  The system font can
-		// comfortably show more rows
+		// comfortably show more rows.
 		rows = 40;
 
 	// Put a text area in the window
 	params.flags |= (COMP_PARAMS_FLAG_STICKYFOCUS |
 		COMP_PARAMS_FLAG_CLICKABLECURSOR);
 	params.font = font;
-	textArea = windowNewTextArea(window, 80, rows, 0, &params);
+	textArea = windowNewTextArea(window, 80 /* columns */, rows,
+		0 /* bufferLines */, &params);
 	windowRegisterEventHandler(textArea, &eventHandler);
 	windowComponentFocus(textArea);
 
@@ -1249,7 +962,7 @@ static void constructWindow(void)
 	statusLabel = windowNewTextLabel(window, "", &params);
 	windowComponentSetWidth(statusLabel, windowComponentGetWidth(textArea));
 
-	// Go live.
+	// Go live
 	windowSetVisible(window, 1);
 
 	// Register an event handler to catch window close events
@@ -1260,12 +973,580 @@ static void constructWindow(void)
 }
 
 
+static unsigned previousLineStart(unsigned filePos)
+{
+	unsigned lineStart = 0;
+
+	if (!filePos)
+		return (lineStart = 0);
+
+	lineStart = (filePos - 1);
+
+	// Watch for the start of the buffer
+	if (!lineStart)
+		return (lineStart);
+
+	// Lines that end with a newline (most)
+	if (editFile.buffer[lineStart] == '\n')
+		lineStart -= 1;
+
+	// Watch for the start of the buffer
+	if (!lineStart)
+		return (lineStart);
+
+	for ( ; editFile.buffer[lineStart] != '\n'; lineStart --)
+	{
+		// Watch for the start of the buffer
+		if (!lineStart)
+			return (lineStart);
+	}
+
+	lineStart += 1;
+
+	return (lineStart);
+}
+
+
+static unsigned nextLineStart(unsigned filePos)
+{
+	unsigned lineStart = 0;
+
+	if (filePos >= editFile.size)
+		return (lineStart = (editFile.size - 1));
+
+	lineStart = filePos;
+
+	// Determine where the current line ends
+	while (lineStart < (editFile.size - 1))
+	{
+		if (editFile.buffer[lineStart++] == '\n')
+			break;
+	}
+
+	return (lineStart);
+}
+
+
+static unsigned lineNumStart(unsigned lineNum)
+{
+	unsigned lineStart = screen.lines[state.screenLine].filePos;
+	int lines = 0;
+
+	if (lineNum >= editFile.numLines)
+		lineNum = (editFile.numLines - 1);
+
+	lines = (lineNum - state.fileLine);
+
+	while (lines)
+	{
+		if (lines > 0)
+		{
+			lineStart = nextLineStart(lineStart);
+			lines -= 1;
+		}
+		else
+		{
+			lineStart = previousLineStart(lineStart);
+			lines += 1;
+		}
+	}
+
+	return (lineStart);
+}
+
+
+static void pageUp(void)
+{
+	int scrollLines = 0;
+	unsigned cursorLineFilePos = 0;
+
+	// Are we already on the first line?
+	if (!state.fileLine)
+		return;
+
+	// How many lines to scroll?
+
+	// Maximum possible
+	scrollLines = (state.fileLine - state.screenLine);
+
+	// Constrain to one screenfull
+	scrollLines = min(scrollLines, screen.rows);
+
+	if (scrollLines)
+	{
+		// Scroll the screen
+		cursorLineFilePos = lineNumStart((state.fileLine - state.screenLine) -
+			scrollLines);
+
+		showScreen(cursorLineFilePos);
+
+		state.fileLine -= scrollLines;
+
+		setCursorPosition(state.screenLine, state.screenColumn,
+			0 /* TAB backwards */);
+	}
+
+	if (scrollLines < screen.rows)
+	{
+		// Move the cursor to the first line
+		setCursorPosition(0, state.screenColumn, 0 /* TAB backwards */);
+	}
+}
+
+
+static void pageDown(void)
+{
+	int scrollLines = 0;
+	unsigned cursorLineFilePos = 0;
+
+	// Are we already on the last line?
+	if (state.fileLine >= (editFile.numLines - 1))
+		return;
+
+	// How many lines to scroll?
+
+	// Maximum possible
+	scrollLines = ((editFile.numLines - state.fileLine) -
+		(screen.numLines - state.screenLine));
+
+	// Constrain to one screenfull
+	scrollLines = min(scrollLines, screen.rows);
+
+	if (scrollLines)
+	{
+		// Scroll the screen
+		cursorLineFilePos = lineNumStart((state.fileLine - state.screenLine) +
+			scrollLines);
+
+		showScreen(cursorLineFilePos);
+
+		state.fileLine += scrollLines;
+
+		setCursorPosition(state.screenLine, state.screenColumn,
+			0 /* TAB backwards */);
+	}
+
+	if (scrollLines < screen.rows)
+	{
+		// Move the cursor to the last line
+		setCursorPosition((screen.numLines - 1), state.screenColumn,
+			0 /* TAB backwards */);
+	}
+}
+
+
+static void cursorUp(void)
+{
+	unsigned cursorLineFilePos = 0;
+
+	if (!state.fileLine)
+		return;
+
+	cursorLineFilePos =
+		previousLineStart(screen.lines[state.screenLine].filePos);
+
+	// Do we need to scroll the screen up?
+	if (cursorLineFilePos < state.firstLineFilePos)
+	{
+		showScreen(cursorLineFilePos);
+
+		state.fileLine -= 1;
+
+		setCursorPosition(state.screenLine, state.screenColumn,
+			0 /* TAB backwards */);
+	}
+	else
+	{
+		setCursorPosition((state.screenLine - 1), state.screenColumn,
+			0 /* TAB backwards */);
+	}
+}
+
+
+static void cursorDown(void)
+{
+	unsigned cursorLineFilePos = 0;
+
+	if (state.fileLine >= (editFile.numLines - 1))
+		return;
+
+	cursorLineFilePos = nextLineStart(screen.lines[state.screenLine].filePos);
+
+	// Do we need to scroll the screen down?
+	if (cursorLineFilePos > state.lastLineFilePos)
+	{
+		showScreen(screen.lines[1].filePos);
+
+		state.fileLine += 1;
+
+		setCursorPosition(state.screenLine, state.screenColumn,
+			0 /* TAB backwards */);
+	}
+	else
+	{
+		setCursorPosition((state.screenLine + 1), state.screenColumn,
+			0 /* TAB backwards */);
+	}
+}
+
+
+static void cursorLeft(void)
+{
+	if (state.screenColumn)
+	{
+		setCursorPosition(state.screenLine, (state.screenColumn - 1),
+			0 /* TAB backwards */);
+	}
+	else if (state.screenLine)
+	{
+		cursorUp();
+		setCursorPosition(state.screenLine,
+			screen.lines[state.screenLine].screenLength,
+			0 /* TAB backwards */);
+	}
+}
+
+
+static void cursorRight(void)
+{
+	if (state.screenColumn < screen.lines[state.screenLine].screenLength)
+	{
+		setCursorPosition(state.screenLine, (state.screenColumn + 1),
+			1 /* TAB forwards */);
+	}
+	else if (state.screenLine < (screen.numLines - 1))
+	{
+		cursorDown();
+		setCursorPosition(state.screenLine, 0, 0 /* TAB backwards */);
+	}
+}
+
+
+static int expandBuffer(unsigned length)
+{
+	// Expand the buffer by at least 'length' characters
+
+	int status = 0;
+	unsigned tmpBufferSize = 0;
+	char *tmpBuffer = NULL;
+
+	// Allocate more buffer, rounded up to the nearest block size of the file
+	tmpBufferSize = (editFile.bufferSize + (((length +
+		(editFile.strm.f.blockSize - 1)) / editFile.strm.f.blockSize) *
+		editFile.strm.f.blockSize));
+
+	tmpBuffer = realloc(editFile.buffer, tmpBufferSize);
+	if (!tmpBuffer)
+		return (status = ERR_MEMORY);
+
+	editFile.buffer = tmpBuffer;
+	editFile.bufferSize = tmpBufferSize;
+
+	return (status = 0);
+}
+
+
+static void shiftBuffer(unsigned filePos, int shiftBy)
+{
+	// Shift the contents of the buffer at 'filePos' by 'shiftBy' bytes
+	// (positive or negative)
+
+	unsigned shiftBytes = 0;
+
+	shiftBytes = (editFile.size - filePos);
+
+	if (shiftBy && shiftBytes)
+	{
+		memmove(((editFile.buffer + filePos) + shiftBy), (editFile.buffer +
+			filePos), shiftBytes);
+	}
+}
+
+
+static int insertChars(char *string, int length)
+{
+	// Insert characters at the current position
+
+	int status = 0;
+	screenLineInfo *line = &screen.lines[state.screenLine];
+	int row = 0, column = 0;
+	int count;
+
+	// Do we need a bigger buffer?
+	if ((editFile.size + length) >= editFile.bufferSize)
+	{
+		status = expandBuffer(length);
+		if (status < 0)
+			return (status);
+	}
+
+	row = textGetRow();
+	column = textGetColumn();
+
+	if (state.cursorFilePos < editFile.size)
+	{
+		// Shift data that occurs later in the buffer
+		shiftBuffer(state.cursorFilePos, length);
+	}
+
+	editFile.size += length;
+	editFile.modified = 1;
+
+	// Copy the data
+	memcpy((editFile.buffer + state.cursorFilePos), string, length);
+
+	printLine(line);
+
+	// We need to adjust the recorded file positions of all lines that follow
+	// on the screen
+	for (count = (state.screenLine + 1); count < screen.numLines; count ++)
+		screen.lines[count].filePos += length;
+
+	textSetRow(row);
+	textSetColumn(column);
+
+	return (status = 0);
+}
+
+
+static void deleteChars(int length)
+{
+	// Delete characters at the current position
+
+	screenLineInfo *line = &screen.lines[state.screenLine];
+	int row = 0, column = 0;
+	int count;
+
+	row = textGetRow();
+	column = textGetColumn();
+
+	if (state.cursorFilePos < (editFile.size - 1))
+	{
+		// Shift data that occurs later in the buffer
+		shiftBuffer((state.cursorFilePos + length), -length);
+	}
+
+	editFile.size -= length;
+	editFile.modified = 1;
+
+	// Clear trailing data
+	memset((editFile.buffer + (editFile.size - length)), 0, length);
+
+	printLine(line);
+
+	// We need to adjust the recorded file positions of all lines that follow
+	// on the screen
+	for (count = (state.screenLine + 1); count < screen.numLines; count ++)
+		screen.lines[count].filePos -= length;
+
+	textSetRow(row);
+	textSetColumn(column);
+}
+
+
+static void backspace(void)
+{
+	int oldRow = state.screenLine;
+
+	if (oldRow || state.screenColumn)
+	{
+		cursorLeft();
+		deleteChars(1);
+
+		// Were we at the beginning of a line?
+		if (state.screenLine != oldRow)
+		{
+			editFile.numLines -= 1;
+			showScreen(state.firstLineFilePos);
+			updateStatus();
+		}
+	}
+}
+
+
+static void end(void)
+{
+	setCursorPosition(state.screenLine,
+		screen.lines[state.screenLine].screenLength, 1 /* TAB forwards */);
+}
+
+
+static void home(void)
+{
+	setCursorPosition(state.screenLine, 0, 0 /* TAB backwards */);
+}
+
+
+static void delete(void)
+{
+	int endLine = (state.screenColumn >=
+		(screen.lines[state.screenLine].screenLength - 1));
+
+	deleteChars(1);
+
+	// Were we at the end of a line?
+	if (endLine)
+	{
+		editFile.numLines -= 1;
+		showScreen(state.firstLineFilePos);
+		updateStatus();
+	}
+}
+
+
+static void enter(void)
+{
+	if (insertChars("\n", 1 /* length */) < 0)
+		return;
+
+	editFile.numLines += 1;
+
+	if (editFile.numLines < (unsigned) screen.numLines)
+		state.firstLineFilePos = previousLineStart(state.firstLineFilePos);
+
+	showScreen(state.firstLineFilePos);
+
+	cursorDown();
+
+	setCursorPosition(state.screenLine, 0, 0 /* TAB backwards */);
+}
+
+
+static int edit(void)
+{
+	// This function is the base from which we do all the editing
+
+	int status = 0;
+	char character = '\0';
+	int mbLen = 0;
+
+	while (!stop)
+	{
+		if (!textInputCount())
+		{
+			multitaskerYield();
+			continue;
+		}
+
+		textInputGetc(&character);
+
+		switch (character)
+		{
+			case ASCII_PAGEUP:
+			{
+				// PAGE UP key
+				pageUp();
+				break;
+			}
+
+			case ASCII_PAGEDOWN:
+			{
+				// PAGE DOWN key
+				pageDown();
+				break;
+			}
+
+			case ASCII_CRSRUP:
+			{
+				// UP cursor key
+				cursorUp();
+				break;
+			}
+
+			case ASCII_CRSRDOWN:
+			{
+				// DOWN cursor key
+				cursorDown();
+				break;
+			}
+
+			case ASCII_CRSRLEFT:
+			{
+				// LEFT cursor key
+				cursorLeft();
+				break;
+			}
+
+			case ASCII_CRSRRIGHT:
+			{
+				// RIGHT cursor key
+				cursorRight();
+				break;
+			}
+
+			case ASCII_BACKSPACE:
+			{
+				// BACKSPACE key
+				backspace();
+				break;
+			}
+
+			case ASCII_END:
+			{
+				// END key
+				end();
+				break;
+			}
+
+			case ASCII_HOME:
+			{
+				// HOME key
+				home();
+				break;
+			}
+
+			case ASCII_DEL:
+			{
+				// DEL key
+				delete();
+				break;
+			}
+
+			case ASCII_ENTER:
+			{
+				// ENTER key
+				enter();
+				break;
+			}
+
+			default:
+			{
+				// Typing anything else
+				mbLen = 1;
+				if (mbLen > 0)
+				{
+					status = insertChars(&character, mbLen);
+					if (status < 0)
+						break;
+				}
+
+				setCursorPosition(state.screenLine, (state.screenColumn + 1),
+					(character == ASCII_TAB) /* TAB direction */);
+
+				break;
+			}
+		}
+	}
+
+	status = fileStreamClose(&editFile.strm);
+
+	if (editFile.tempName)
+	{
+		fileDelete(editFile.tempName);
+		free(editFile.tempName);
+		editFile.tempName = NULL;
+	}
+
+	return (status);
+}
+
+
 int main(int argc, char *argv[])
 {
 	int status = 0;
 	char opt;
 	char *fileName = NULL;
-	textScreen screen;
+	textScreen saveScreen;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("edit");
@@ -1306,22 +1587,26 @@ int main(int argc, char *argv[])
 		constructWindow();
 	else
 		// Save the current screen
-		textScreenSave(&screen);
+		textScreenSave(&saveScreen);
+
+	// Clear global data
+	memset(&screen, 0, sizeof(screen));
+	memset(&editFile, 0, sizeof(editFile));
+	memset(&state, 0, sizeof(state));
 
 	// Get screen parameters
-	screenColumns = textGetNumColumns();
-	screenRows = textGetNumRows();
+	screen.columns = textGetNumColumns();
+	screen.rows = textGetNumRows();
 	if (!graphics)
 		// Save one for the status line
-		screenRows -= 1;
+		screen.rows -= 1;
 
-	// Clear it
-	textScreenClear();
 	textEnableScroll(0);
+	textInputSetEcho(0);
 
-	screenLines = malloc(screenRows * sizeof(screenLineInfo));
-	editFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
-	if (!screenLines || !editFileName)
+	screen.lines = malloc(screen.rows * sizeof(screenLineInfo));
+	editFile.name = malloc(MAX_PATH_NAME_LENGTH + 1);
+	if (!screen.lines || !editFile.name)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -1341,6 +1626,7 @@ int main(int argc, char *argv[])
 	status = edit();
 
 out:
+	textInputSetEcho(1);
 	textEnableScroll(1);
 
 	if (graphics)
@@ -1353,18 +1639,18 @@ out:
 	}
 	else
 	{
-		textScreenRestore(&screen);
+		textScreenRestore(&saveScreen);
 
-		if (screen.data)
-			memoryRelease(screen.data);
+		if (saveScreen.data)
+			memoryRelease(saveScreen.data);
 	}
 
-	if (screenLines)
-		free(screenLines);
-	if (editFileName)
-		free (editFileName);
-	if (buffer)
-		free(buffer);
+	if (editFile.buffer)
+		free(editFile.buffer);
+	if (editFile.name)
+		free (editFile.name);
+	if (screen.lines)
+		free(screen.lines);
 
 	// Return success
 	return (status);

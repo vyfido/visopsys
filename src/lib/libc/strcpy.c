@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,23 +21,22 @@
 
 // This is the standard "strcpy" function, as found in standard C libraries
 
-// The description from the GNU man page reads as follows:
-// The  strcpy() function copies the string pointed to be src (including
-// the terminating `\0' character)  to  the  array pointed  to by dest.  The
-// strings may not overlap, and the destination string dest must be large
-// enough  to  receive the copy.
-
 #include <string.h>
 #include <errno.h>
 
 
 char *strcpy(char *destString, const char *sourceString)
 {
+	// The description from the GNU man page reads as follows:
+	// The  strcpy() function copies the string pointed to be src (including
+	// the terminating `\0' character)  to  the  array pointed  to by dest.
+	// The strings may not overlap, and the destination string dest must be
+	// large enough to receive the copy.
+
 	int count;
 
 	// Make sure neither of the pointers are NULL
-	if ((destString == (char *) NULL) ||
-		(sourceString == (char *) NULL))
+	if (!destString || !sourceString)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (destString = NULL);
@@ -47,11 +46,8 @@ char *strcpy(char *destString, const char *sourceString)
 	{
 		destString[count] = sourceString[count];
 
-		if ((sourceString[count] == (char) NULL) ||
-			(count >= MAXSTRINGLENGTH))
-		{
+		if (!sourceString[count] || (count >= MAXSTRINGLENGTH))
 			break;
-		}
 	}
 
 	// If this is true, then we probably have an unterminated string

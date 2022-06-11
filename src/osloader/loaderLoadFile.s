@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2019 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -25,20 +25,19 @@
 	GLOBAL PARTENTRY
 	GLOBAL FILEDATABUFFER
 
-	EXTERN loaderMemCopy
 	EXTERN loaderPrint
-	EXTERN loaderPrintNewline
 	EXTERN loaderDiskError
-	EXTERN loaderGetCursorAddress
-	EXTERN loaderSetCursorAddress
+	EXTERN loaderLoadSectors
+	EXTERN loaderLoadSectorsHi
+	EXTERN loaderMakeProgress
+	EXTERN loaderUpdateProgress
+	EXTERN loaderKillProgress
 
 	EXTERN BYTESPERSECT
 	EXTERN ROOTDIRCLUST
 	EXTERN ROOTDIRENTS
 	EXTERN RESSECS
 	EXTERN FATSECS
-	EXTERN SECPERTRACK
-	EXTERN HEADS
 	EXTERN SECPERCLUST
 	EXTERN FATS
 	EXTERN DRIVENUMBER
@@ -49,125 +48,6 @@
 	ALIGN 4
 
 	%include "loader.h"
-
-
-headTrackSector:
-	;; Takes the logical sector number in EAX.  From this it calculates the
-	;; head, track and sector number on disk.
-
-	;; We destroy a bunch of registers, so save them
-	pushad
-
-	;; First the sector
-	xor EDX, EDX
-	xor EBX, EBX
-	mov BX, word [SECPERTRACK]
-	div EBX
-	mov byte [SECTOR], DL			; The remainder
-	add byte [SECTOR], 1			; Sectors start at 1
-
-	;; Now the head and track
-	xor EDX, EDX					; Don't need the remainder anymore
-	xor EBX, EBX
-	mov BX, word [HEADS]
-	div EBX
-	mov byte [HEAD], DL				; The remainder
-	mov word [CYLINDER], AX
-
-	popad
-	ret
-
-
-read:
-	;; Proto: int read(dword logical, word seg, word offset, dword count);
-
-	;; Save a word on the stack for our return value
-	push word 0
-
-	;; Save regs
-	pusha
-
-	;; Save the stack pointer
-	mov BP, SP
-
-	push word 0						; To keep track of read attempts
-
-	.readAttempt:
-	;; Determine whether int13 extensions are available
-	cmp word [DRIVENUMBER], 80h
-	jb .noExtended
-
-	mov AX, 4100h
-	mov BX, 55AAh
-	mov DX, word [DRIVENUMBER]
-	int 13h
-	jc .noExtended
-
-	;; We have a nice extended read function which will allow us to
-	;; just use the logical sector number for the read
-
-	mov word [DISKPACKET], 0010h	; Packet size
- 	mov EAX, dword [SS:(BP + 28)]
-	mov word [DISKPACKET + 2], AX	; Sector count
-	mov AX, word [SS:(BP + 26)]
-	mov word [DISKPACKET + 4], AX	; Offset
-	mov AX, word [SS:(BP + 24)]
-	mov word [DISKPACKET + 6], AX	; Segment
-	mov EAX, dword [SS:(BP + 20)]
-	mov dword [DISKPACKET + 8], EAX	; Logical sector
-	mov dword [DISKPACKET + 12], 0	;
-	mov AX, 4200h
-	mov DX, word [DRIVENUMBER]
-	mov SI, DISKPACKET
-	int 13h
-	jc .IOError
-	jmp .done
-
-	.noExtended:
-	;; Calculate the CHS
-	mov EAX, dword [SS:(BP + 20)]
-	call headTrackSector
-
-	mov EAX, dword [SS:(BP + 28)]	; Number to read
-	mov AH, 02h						; Subfunction 2
-	mov CX, word [CYLINDER]			; >
-	rol CX, 8						; > Cylinder
-	shl CL, 6						; >
-	or CL, byte [SECTOR]			; Sector
-	mov DX, word [DRIVENUMBER]		; Drive
-	mov DH, byte [HEAD]				; Head
-	mov BX, word [SS:(BP + 26)]		; Offset
-	push ES							; Save ES
-	push word [SS:(BP + 24)]		; Use user-supplied segment
-	pop ES
-	int 13h
-	pop ES							; Restore ES
-	jc .IOError
-	jmp .done
-
-	.IOError:
-	;; We'll reset the disk and retry up to 4 more times
-
-	;; Reset the disk controller
-	xor AX, AX
-	mov DX, word [DRIVENUMBER]
-	int 13h
-
-	;; Increment the counter
-	pop AX
-	inc AX
-	push AX
-	cmp AX, 05h
-	jnae .readAttempt
-
-	mov word [SS:(BP + 16)], -1
-
-	.done:
-	pop AX							; Counter
-	popa
-	xor EAX, EAX
-	pop AX							; Status
-	ret
 
 
 loadFAT:
@@ -194,7 +74,7 @@ loadFAT:
 	push word 0						; Offset (beginning of buffer)
 	push word [FATSEGMENT]			; Segment of data buffer
 	push dword EAX
-	call read
+	call loaderLoadSectors
 	add SP, 12
 
 	;; Check status
@@ -255,7 +135,7 @@ loadDirectory:
 	push word 0						; Load at offset 0 of the data buffer
 	push word [FATSEGMENT]			; Segment of the data buffer
 	push dword EAX
-	call read
+	call loaderLoadSectors
 	add SP, 12
 
 	;; Check status
@@ -381,82 +261,6 @@ searchFile:
 	ret
 
 
-makeProgress:
-	;; Sets up a little progress indicator.
-
-	pusha
-
-	cmp byte [SHOWPROGRESS], 0
-	je .done
-
-	;; Disable the cursor
-	mov CX, 2000h
-	mov AH, 01h
-	int 10h
-
-	mov DL, FOREGROUNDCOLOR
-	mov SI, PROGRESSTOP
-	call loaderPrint
-	call loaderPrintNewline
-	call loaderGetCursorAddress
-	add AX, 1
-	push AX
-	mov SI, PROGRESSMIDDLE
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, PROGRESSBOTTOM
-	call loaderPrint
-	pop AX
-	call loaderSetCursorAddress
-
-	;; To keep track of how many characters we've printed in the
-	;; progress indicator
-	mov word [PROGRESSCHARS], 0
-
-	.done:
-	popa
-
-
-updateProgress:
-	pusha
-
-	cmp byte [SHOWPROGRESS], 0
-	je .done
-
-	;; Make sure we're not already at the end
-	mov AX, word [PROGRESSCHARS]
-	cmp AX, PROGRESSLENGTH
-	jae .done
-	inc AX
-	mov word [PROGRESSCHARS], AX
-
-	;; Print the character on the screen
-	mov DL, GOODCOLOR
-	mov CX, 1
-	mov SI, PROGRESSCHAR
-	call loaderPrint
-
-	.done:
-	popa
-	ret
-
-
-killProgress:
-	;; Get rid of the progress indicator
-
-	pusha
-
-	cmp byte [SHOWPROGRESS], 0
-	je .done
-
-	call loaderPrintNewline
-	call loaderPrintNewline
-
-	.done:
-	popa
-	ret
-
-
 clusterToLogical:
 	;; This takes the cluster number in EAX and returns the logical sector
 	;; number in EAX
@@ -527,12 +331,13 @@ loadFile:
 	;; location where we should load the file.
 
 	mov dword [BYTESREAD], 0
-	mov dword [OLDPROGRESS], 0
 
-	;; Make a little progress indicator so the user gets transfixed,
-	;; and suddenly doesn't mind the time it takes to load the file.
-	call makeProgress
+	cmp byte [SHOWPROGRESS], 0
+	je .noProgress1
+	;; Make a progress indicator
+	call loaderMakeProgress
 
+	.noProgress1:
 	;; Put the starting cluster number in NEXTCLUSTER
 	mov EAX, dword [SS:(BP + 36)]
 	mov dword [NEXTCLUSTER], EAX
@@ -552,20 +357,23 @@ loadFile:
 	;; Use the portion of loader's data buffer that comes AFTER the
 	;; FAT data.  This is where we will initially load each cluster's
 	;; contents.
+	push word 0					; We have our own progress indicator
 	xor EBX, EBX
-	mov BX, word [SECPERCLUST]		; Read 1 cluster's worth of sectors
+	mov BX, word [SECPERCLUST]	; Read 1 cluster's worth of sectors
 	push dword EBX
-	push word 0						; >
-	push word [CLUSTERSEGMENT]		; > Real-mode buffer for data
+	push dword [MEMORYMARKER]
 	push dword EAX
-	call read
-	add SP, 12
+	call loaderLoadSectorsHi
+	add SP, 14
 
 	cmp AX, 0
 	je .gotCluster
 
 	;; Make an error message
-	call killProgress
+	cmp byte [SHOWPROGRESS], 0
+	je .noProgress2
+	call loaderKillProgress
+	.noProgress2:
 	call loaderDiskError
 
 	;; Return -1 as our error code
@@ -578,43 +386,19 @@ loadFile:
 	add EAX, dword [BYTESPERCLUST]
 	mov dword [BYTESREAD], EAX
 
-	;; Determine whether we should update the progress indicator
+	cmp byte [SHOWPROGRESS], 0
+	je .noProgress3
+	;; Update the progress indicator
 	mov EAX, dword [BYTESREAD]
 	mov EBX, 100
 	mul EBX
 	xor EDX, EDX
 	div dword [FILESIZE]
-	mov EBX, EAX
-	sub EBX, dword [OLDPROGRESS]
-	cmp EBX, (100 / PROGRESSLENGTH)
-	jb .noProgress
-	mov dword [OLDPROGRESS], EAX
-	call updateProgress
-	.noProgress:
+	push word AX
+	call loaderUpdateProgress
+	add SP, 2
 
-	mov EAX, dword [BYTESPERCLUST]
-	push dword EAX
-	push dword [MEMORYMARKER]
-	push dword [CLUSTERBUFFER]		; 32-bit source address
-	call loaderMemCopy
-	add SP, 12
-
-	cmp AX, 0
-	je .copiedData
-
-	;; Couldn't copy the data into high memory
-	call killProgress
-	call loaderPrintNewline
-	mov DL, BADCOLOR
-	mov SI, INT15ERR
-	call loaderPrint
-	call loaderPrintNewline
-
-	;; Return -2 as our error code
-	mov word [SS:(BP + 32)], -2
-	jmp .done
-
-	.copiedData:
+	.noProgress3:
 	;; Increment the buffer pointer
 	mov EAX, dword [BYTESPERCLUST]
 	add dword [MEMORYMARKER], EAX
@@ -683,7 +467,11 @@ loadFile:
 	.success:
 	;; Return 0 for success
 	mov word [SS:(BP + 32)], 0
-	call killProgress
+
+	cmp byte [SHOWPROGRESS], 0
+	je .noProgress5
+	call loaderKillProgress
+	.noProgress5:
 
 	.done:
 	;; Restore ES
@@ -742,19 +530,11 @@ loaderCalcVolInfo:
 	.noShrink:
 	mov dword [FATSECSLOADED], EAX
 
-	;; Calculate a buffer where we will load cluster data.  It comes after the
-	;; FAT data in the LDRDATABUFFER.
+	;; Calculate a buffer for general file data.  It comes after the FAT data
+	;; in the LDRDATABUFFER.
 	mov EAX, dword [FATSECSLOADED]
 	mul word [BYTESPERSECT]
 	add EAX, LDRDATABUFFER
-	mov dword [CLUSTERBUFFER], EAX
-	shr EAX, 4
-	mov word [CLUSTERSEGMENT], AX
-
-	;; Calculate a buffer for general file data.  It comes after the
-	;; buffer for cluster data
-	mov EAX, dword [BYTESPERCLUST]
-	add EAX, dword [CLUSTERBUFFER]
 	mov dword [FILEDATABUFFER], EAX
 
 	popa
@@ -823,7 +603,7 @@ loaderLoadFile:
 	;;
 	;; Proto:
 	;;   dword loaderLoadFile(char *filename, dword loadOffset,
-	;;			  word showProgress)
+	;;		word showProgress)
 
 	;; Save a dword for our return code
 	push dword 0
@@ -927,8 +707,6 @@ loaderLoadFile:
 MEMORYMARKER	dd 0		;; Offset to load next data cluster
 FATSEGMENT		dw 0		;; The segment for FAT and directory data
 FATSECSLOADED	dd 0		;; The number of FAT sectors we loaded
-CLUSTERBUFFER	dd 0		;; The buffer for cluster data
-CLUSTERSEGMENT	dw 0		;; The segment of the buffer for cluster data
 FILEDATABUFFER	dd 0		;; The buffer for general file data
 DIRSECTORS		dw 0		;; The size of the root directory, in sectors
 BYTESPERCLUST	dd 0		;; Bytes per cluster
@@ -937,31 +715,7 @@ FILESIZE		dd 0		;; Size of the file we're loading
 BYTESREAD		dd 0		;; Number of bytes read so far
 NEXTCLUSTER		dd 0		;; Next cluster to load
 
-;; For int13 disk ops
-CYLINDER		dw 0
-HEAD			db 0
-SECTOR			db 0
+PARTENTRY		times 16 db 0	;; Partition table entry of bootable partition
 
-;; Disk cmd packet for ext. int13
-DISKPACKET		dd 0, 0, 0, 0
-
-PARTENTRY		times 16 db 0 ;; Partition table entry of bootable partition
-
-;; Stuff for the progress indicator
-PROGRESSCHARS	dw 0		;; Number of progress indicator chars showing
-OLDPROGRESS		dd 0		;; Percentage of file load completed
-SHOWPROGRESS	db 0		;; Whether or not to show a progress bar
-PROGRESSTOP		db 218
-				times PROGRESSLENGTH db 196
-				db 191, 0
-PROGRESSMIDDLE	db 179
-				times PROGRESSLENGTH db ' '
-				db 179, 0
-PROGRESSBOTTOM	db 192
-				times PROGRESSLENGTH db 196
-				db 217, 0
-PROGRESSCHAR	db 177, 0
-
-INT15ERR		db 'The computer', 27h, 's BIOS was unable to move data into '
-				db 'high memory.', 0
+SHOWPROGRESS	db 0            ;; Whether or not to show a progress bar
 

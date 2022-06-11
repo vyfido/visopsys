@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -630,6 +630,42 @@ static int getSelected(kernelWindowComponent *component, int *itemNumber)
 }
 
 
+static kernelWindowComponent *addComponent(
+	kernelWindowComponent *listComponent, listItemParameters *item)
+{
+	kernelWindowComponent *listItemComponent = NULL;
+	kernelWindowList *list = listComponent->data;
+	componentParameters params;
+
+	// Standard parameters for the list items
+	memcpy(&params, (componentParameters *) &listComponent->params,
+		sizeof(componentParameters));
+	params.gridWidth = 1;
+	params.gridHeight = 1;
+	params.orientationX = orient_top;
+	params.orientationY = orient_left;
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
+
+	kernelDebug(debug_gui, "WindowList create %s", item->text);
+	listItemComponent = kernelWindowNewListItem(list->container, list->type,
+		item, &params);
+	if (!listItemComponent)
+		return (listItemComponent);
+
+	// The component should adopt and keep the color of the list component
+	listItemComponent->params.flags |= COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
+
+	if (listItemComponent->width > list->itemWidth)
+		list->itemWidth = listItemComponent->width;
+
+	if (listItemComponent->height > list->itemHeight)
+		list->itemHeight = listItemComponent->height;
+
+	return (listItemComponent);
+}
+
+
 static void populateList(kernelWindowComponent *listComponent,
 	listItemParameters *items, int numItems)
 {
@@ -638,7 +674,6 @@ static void populateList(kernelWindowComponent *listComponent,
 	kernelWindowList *list = listComponent->data;
 	kernelWindowContainer *container = list->container->data;
 	kernelWindowComponent *listItemComponent = NULL;
-	componentParameters params;
 	int count;
 
 	kernelDebug(debug_gui, "WindowList populate list (%d items)", numItems);
@@ -655,22 +690,6 @@ static void populateList(kernelWindowComponent *listComponent,
 	if (list->selectedItem >= numItems)
 		list->selectedItem = (numItems - 1);
 
-	// Standard parameters for the list items
-	memcpy(&params, (componentParameters *) &listComponent->params,
-		sizeof(componentParameters));
-	params.gridX = 0;
-	params.gridY = 0;
-	params.gridWidth = 1;
-	params.gridHeight = 1;
-	params.padTop = 0;
-	params.padBottom = 0;
-	params.padLeft = 0;
-	params.padRight = 0;
-	params.orientationX = orient_top;
-	params.orientationY = orient_left;
-	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
-		COMP_PARAMS_FLAG_FIXEDHEIGHT);
-
 	list->itemWidth = 0;
 	list->itemHeight = 0;
 
@@ -678,23 +697,12 @@ static void populateList(kernelWindowComponent *listComponent,
 	// kernelWindowListItem components and adding them to this component
 	for (count = 0; count < numItems; count ++)
 	{
-		kernelDebug(debug_gui, "WindowList create %s", items[count].text);
-		listItemComponent = kernelWindowNewListItem(list->container,
-			list->type, &items[count], &params);
+		listItemComponent = addComponent(listComponent, &items[count]);
 		if (!listItemComponent)
 			continue;
 
 		// Make it not visible for now.
 		kernelWindowComponentSetVisible(listItemComponent, 0);
-
-		// The component should adopt and keep the color of the list component
-		listItemComponent->params.flags |= COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
-
-		if (listItemComponent->width > list->itemWidth)
-			list->itemWidth = listItemComponent->width;
-
-		if (listItemComponent->height > list->itemHeight)
-			list->itemHeight = listItemComponent->height;
 
 		if (listItemComponent->setSelected)
 		{
@@ -718,8 +726,38 @@ static void populateList(kernelWindowComponent *listComponent,
 
 	// Update the scroll bar position percent
 	setScrollBar(list);
+}
 
-	return;
+
+static void appendList(kernelWindowComponent *listComponent,
+	listItemParameters *item)
+{
+	// Add a new kernelWindowListItem subcomponents to the list
+
+	kernelWindowList *list = listComponent->data;
+	kernelWindowComponent *listItemComponent = NULL;
+
+	kernelDebug(debug_gui, "WindowList append to list");
+
+	listItemComponent = addComponent(listComponent, item);
+	if (!listItemComponent)
+		return;
+
+	// Set the sizes of all the items
+	setItemSizes(list);
+
+	if (listComponent->doneLayout)
+	{
+		// We're re-populating the list, so re-calculate the number of rows
+		// and columns
+		setRowsAndColumns(listComponent);
+	}
+
+	// Do layout
+	layout(listComponent);
+
+	// Update the scroll bar position percent
+	setScrollBar(list);
 }
 
 
@@ -750,6 +788,27 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 
 	// Re-populate the list
 	populateList(component, buffer, size);
+
+	// Re-draw the list
+	if (component->draw)
+		component->draw(component);
+
+	component->window->update(component->window, component->xCoord,
+		component->yCoord, component->width, component->height);
+
+	return (0);
+}
+
+
+static int appendData(kernelWindowComponent *component, void *buffer,
+	int size __attribute__((unused)))
+{
+	// Adds a new subcomponent
+
+	kernelDebug(debug_gui, "WindowList append data");
+
+	// Add to the list
+	appendList(component, buffer);
 
 	// Re-draw the list
 	if (component->draw)
@@ -1093,14 +1152,15 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 	component->setSelected = &setSelected;
 	component->getData = &getData;
 	component->setData = &setData;
+	component->appendData = &appendData;
 	component->move = &move;
 	component->resize = &resize;
 	component->mouseEvent = &mouseEvent;
 	component->keyEvent = &keyEvent;
 	component->destroy = &destroy;
 
-	// If default colors were requested, override the standard background color
-	// with the one we prefer (white)
+	// If default colors were requested, override the standard background
+	// color with the one we prefer (white)
 	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,

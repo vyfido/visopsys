@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -43,7 +43,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: defrag.c:192 defrag.c:260
+#: defrag.c:192 defrag.c:261 defrag.c:287
 msgid "Cancel"
 msgstr ""
 
@@ -54,98 +54,86 @@ msgid ""
 "that you unmount before continuing"
 msgstr ""
 
-#: defrag.c:259
+#: defrag.c:260
 msgid "Disk is mounted"
 msgstr ""
 
-#: defrag.c:260
+#: defrag.c:261 defrag.c:275
 msgid "Ignore"
 msgstr ""
 
-#: defrag.c:260
+#: defrag.c:261 defrag.c:281
 msgid "Unmount"
 msgstr ""
 
-#: defrag.c:263
+#: defrag.c:266
 #, c-format
 msgid ""
 "\n"
 "%s (I)gnore/(U)nmount/(C)ancel?: "
 msgstr ""
 
-#: defrag.c:272
-msgid "Ignore\n"
-msgstr ""
-
-#: defrag.c:278
-msgid "Unmount\n"
-msgstr ""
-
-#: defrag.c:284
-msgid "Cancel\n"
-msgstr ""
-
-#: defrag.c:303
+#: defrag.c:307
 #, c-format
 msgid "Unable to unmount %s"
 msgstr ""
 
-#: defrag.c:344
+#: defrag.c:348
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: defrag.c:356
+#: defrag.c:360
 msgid "Error getting disks info"
 msgstr ""
 
-#: defrag.c:362
+#: defrag.c:366
 msgid ""
 "\n"
 "Visopsys DEFRAG Utility\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 msgstr ""
 
-#: defrag.c:384
+#: defrag.c:388
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
 
-#: defrag.c:411
+#: defrag.c:415
 #, c-format
 msgid "Unknown filesystem type on disk \"%s\""
 msgstr ""
 
-#: defrag.c:421
+#: defrag.c:425
 #, c-format
 msgid "Error getting info for disk \"%s\""
 msgstr ""
 
-#: defrag.c:430
+#: defrag.c:434
 #, c-format
 msgid "Defragmenting the filesystem type \"%s\" is not supported"
 msgstr ""
 
-#: defrag.c:437
+#: defrag.c:441
 #, c-format
 msgid "Defragmenting disk %s.  Are you sure?"
 msgstr ""
 
-#: defrag.c:441
+#: defrag.c:445
 msgid ""
 "\n"
 "Quitting.\n"
 msgstr ""
 
-#: defrag.c:453
+#: defrag.c:457
 msgid "Defragmenting..."
 msgstr ""
 
-#: defrag.c:465
+#: defrag.c:469
 msgid "Defragmentation complete"
 msgstr ""
 
-#: defrag.c:467
+#: defrag.c:471
 msgid "Success"
 msgstr ""

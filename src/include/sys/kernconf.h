@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -80,6 +80,13 @@
 #define KERNELVAR_START				"start"
 #define KERNELVAR_PROGRAM			"program"
 #define KERNELVAR_START_PROGRAM		KERNELVAR_START "." KERNELVAR_PROGRAM
+
+// RAM disks
+#define KERNELVAR_RAMDISK			"ramdisk"
+#define KERNELVAR_READONLY			"readonly"
+#define KERNELVAR_TEMP				"temp"
+#define KERNELVAR_RAMDISK_RO_TMP	KERNELVAR_RAMDISK "." KERNELVAR_READONLY \
+	"." KERNELVAR_TEMP
 
 // Network
 #define KERNELVAR_NETWORK			"network"

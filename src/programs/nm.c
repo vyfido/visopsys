@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -72,12 +72,12 @@ char *types[] = {
 static void usage(char *name)
 {
 	printf(_("usage:\n%s <file1> [file2] [...]\n"), name);
-	return;
 }
 
 
 int main(int argc, char *argv[])
 {
+	int status = 0;
 	void *fileData = NULL;
 	file theFile;
 	loaderFileClass class;
@@ -91,10 +91,8 @@ int main(int argc, char *argv[])
 	if (argc < 2)
 	{
 		usage(argv[0]);
-		return (errno = ERR_ARGUMENTCOUNT);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
-
-	errno = 0;
 
 	for (count1 = 1; count1 < argc; count1 ++)
 	{
@@ -106,7 +104,7 @@ int main(int argc, char *argv[])
 		fileData = loaderLoad(argv[count1], &theFile);
 		if (!fileData)
 		{
-			errno = ERR_NODATA;
+			status = ERR_NODATA;
 			printf(_("Can't load file \"%s\"\n"), argv[count1]);
 			continue;
 		}
@@ -122,7 +120,7 @@ int main(int argc, char *argv[])
 			!((class.type & LOADERFILECLASS_LIB) &&
 				(class.subType & LOADERFILESUBCLASS_DYNAMIC)))
 		{
-			errno = ERR_INVALID;
+			status = ERR_INVALID;
 			printf(_("\"%s\" is not an executable or dynamic library\n"),
 				argv[count1]);
 			continue;
@@ -154,6 +152,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	return (errno);
+	return (status);
 }
 

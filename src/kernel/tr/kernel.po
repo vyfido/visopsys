@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -106,27 +106,27 @@ msgstr "Dosya sistemi bilgisi güncelleniyor"
 msgid "Error updating filesystem info"
 msgstr "Dosya sistemi bilgisi güncellenirken hata olustu"
 
-#: kernelShutdown.c:45
+#: kernelShutdown.c:47
 msgid "Shutting down Visopsys, please wait..."
 msgstr "Visopsys kapatiliyor, lütfen bekleyiniz..."
 
-#: kernelShutdown.c:46
+#: kernelShutdown.c:48
 msgid "[ Wait for \"OK to power off\" message ]"
 msgstr "[ \"Simdi kapatabilirsiniz\" mesaji için bekleyiniz ]"
 
-#: kernelShutdown.c:47
+#: kernelShutdown.c:49
 msgid "Rebooting."
 msgstr "Yeniden baslatiliyor."
 
-#: kernelShutdown.c:48
+#: kernelShutdown.c:50
 msgid "OK to power off now."
 msgstr "Simdi kapatabilirsiniz"
 
-#: kernelShutdown.c:165
+#: kernelShutdown.c:181
 msgid "Shutting down"
 msgstr "Kapatiliyor"
 
-#: kernelShutdown.c:333
+#: kernelShutdown.c:338
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
 msgstr "SISTEM ÇÖKTÜ: Panigin olustugu yer %s:%s(%d)"

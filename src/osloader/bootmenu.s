@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2019 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -563,7 +563,7 @@ IOError:
 	ALIGN 4
 
 LOADMSG			db 0Dh, 0Ah, ' Visopsys Boot Menu' , 0Dh, 0Ah
-				db ' Copyright (C) 1998-2019 J. Andrew McLaughlin', 0Dh, 0Ah
+				db ' Copyright (C) 1998-2020 J. Andrew McLaughlin', 0Dh, 0Ah
 				db 0Dh, 0Ah, 0
 NOTARGETS		db ' No targets to boot!  Did you run the installer program?'
 				db 0Dh, 0Ah, 0

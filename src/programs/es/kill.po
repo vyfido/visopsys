@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2014-01-22 05:11-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,21 +17,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: kill.c:62
+#: kill.c:55
 msgid "usage:\n"
 msgstr "Uso:\n"
 
-#: kill.c:63
+#: kill.c:56
 #, c-format
-msgid "%s [-f] <process1> [process2] [...]\n"
-msgstr "%s [-f] <proceso1> [proceso2] [...]\n"
+msgid "%s <process1> [process2] [...]\n"
+msgstr "%s <proceso1> [proceso2] [...]\n"
 
-#: kill.c:105
-#, c-format
-msgid "Unknown option '%c'\n"
-msgstr ""
-
-#: kill.c:129
+#: kill.c:106
 #, c-format
 msgid "%d killed\n"
 msgstr "%d terminado\n"

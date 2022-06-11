@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,22 +57,23 @@
 #define ASCII_US			31	// Ctrl-_
 
 // Aliases
-#define ASCII_ENDOFFILE		ASCII_EOT
-#define ASCII_BACKSPACE		ASCII_BS
-#define ASCII_TAB			ASCII_HT
-#define ASCII_ENTER			ASCII_LF
+#define ASCII_ENDOFFILE		ASCII_EOT	// Ctrl-D
+#define ASCII_BACKSPACE		ASCII_BS	// Ctrl-H
+#define ASCII_TAB			ASCII_HT	// Ctrl-I
+#define ASCII_ENTER			ASCII_LF	// Ctrl-J
 #define ASCII_SPACE			32
 #define ASCII_DEL			127
 
 // These are unoffical overrides of certain codes that we use for things
 // that don't have ASCII codes
-#define ASCII_PAGEUP		ASCII_VT
-#define ASCII_PAGEDOWN		ASCII_FF
-#define ASCII_HOME			ASCII_CR
-#define ASCII_CRSRUP		ASCII_DC1
-#define ASCII_CRSRLEFT		ASCII_DC2
-#define ASCII_CRSRRIGHT		ASCII_DC3
-#define ASCII_CRSRDOWN		ASCII_DC4
+#define ASCII_PAGEUP		ASCII_VT	// Ctrl-K
+#define ASCII_PAGEDOWN		ASCII_FF	// Ctrl-L
+#define ASCII_CRSRUP		ASCII_DC1	// Ctrl-Q
+#define ASCII_CRSRDOWN		ASCII_DC2	// Ctrl-R
+#define ASCII_CRSRLEFT		ASCII_DC3	// Ctrl-S
+#define ASCII_CRSRRIGHT		ASCII_DC4	// Ctrl-T
+#define ASCII_END			ASCII_NAK	// Ctrl-U
+#define ASCII_HOME			ASCII_ETB	// Ctrl-W
 
 #define ASCII_CHARS			255
 #define ASCII_PRINTABLES	((ASCII_DEL - ASCII_SPACE) + 1)	// 96

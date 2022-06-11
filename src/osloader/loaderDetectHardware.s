@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2019 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,8 @@
 
 	GLOBAL loaderDetectHardware
 	GLOBAL HARDWAREINFO
+	GLOBAL RAMDISKMEM
+	GLOBAL RAMDISKSIZE
 	GLOBAL BOOTSECTSIG
 
 	EXTERN loaderFindFile
@@ -463,6 +465,10 @@ HARDWAREINFO:
 	VIDEO: ISTRUC graphicsInfoBlock
 		times graphicsInfoBlock_size db 0
 	IEND
+
+	;; If we've created a RAM disk as the boot device
+	RAMDISKMEM		dd 0			;; RAM disk memory
+	RAMDISKSIZE		dd 0			;; RAM disk size (bytes)
 
 	;; This is the info about the boot device and booted sector
 	BOOTSECTSIG		dd 0			;; Boot sector signature

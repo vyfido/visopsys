@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: computer\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 01:07+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -34,7 +34,7 @@ msgstr "Подключить как..."
 msgid "Unmount"
 msgstr "Отключить"
 
-#: computer.c:64 computer.c:503
+#: computer.c:64 computer.c:502
 msgid "Properties"
 msgstr "Свойства"
 
@@ -46,131 +46,131 @@ msgstr "Ошибка"
 msgid "Error re-reading disk info"
 msgstr "Error re-reading disk info"
 
-#: computer.c:241
+#: computer.c:240
 #, c-format
 msgid "Filesystem on %s is not supported for browsing"
 msgstr "Файловая система на %s не поддерживается для обзора"
 
-#: computer.c:244
+#: computer.c:243
 #, c-format
 msgid "Can't mount %s on %s"
 msgstr "Не могу подключить %s на %s"
 
-#: computer.c:287 computer.c:367
+#: computer.c:286 computer.c:366
 #, c-format
 msgid "No media in disk %s"
 msgstr "Нет носителя в %s"
 
-#: computer.c:318 computer.c:408
+#: computer.c:317 computer.c:407
 msgid "Error launching file browser"
 msgstr "Ошибка запуска файлового менеджера"
 
-#: computer.c:357
+#: computer.c:356
 #, c-format
 msgid "Disk is already mounted as %s"
 msgstr "Диск уже подключен как %s"
 
-#: computer.c:379
+#: computer.c:378
 msgid "Mount point"
 msgstr "Точка подключения"
 
-#: computer.c:380
+#: computer.c:379
 msgid "Please enter the mount point"
 msgstr "Введите точку подключения"
 
-#: computer.c:436
+#: computer.c:435
 #, c-format
 msgid "Disk %s is not mounted"
 msgstr "Диск %s не подключен"
 
-#: computer.c:445
+#: computer.c:444
 #, c-format
 msgid "Error unmounting %s"
 msgstr "Ошибка отключения %s"
 
-#: computer.c:471
+#: computer.c:470
 msgid "Fixed "
 msgstr "Исправлено"
 
-#: computer.c:473
+#: computer.c:472
 msgid "Removable "
 msgstr "Съемный"
 
-#: computer.c:476
+#: computer.c:475
 msgid "floppy\n"
 msgstr "НГМД\n"
 
-#: computer.c:478
+#: computer.c:477
 msgid "CD-ROM\n"
 msgstr "CD-ROM\n"
 
-#: computer.c:480
+#: computer.c:479
 #, fuzzy
 msgid "flash disk\n"
 msgstr "жесткий диск\n"
 
-#: computer.c:482
+#: computer.c:481
 msgid "hard disk\n"
 msgstr "жесткий диск\n"
 
-#: computer.c:484
+#: computer.c:483
 #, c-format
 msgid "%u cylinders, %u heads, %u sectors\n"
 msgstr "%u cylinders, %u heads, %u sectors\n"
 
-#: computer.c:488
+#: computer.c:487
 #, c-format
 msgid "Size: %llu MB\n"
 msgstr "Размер: %llu MB\n"
 
-#: computer.c:492
+#: computer.c:491
 #, c-format
 msgid "Partition type: %s\n"
 msgstr "Тип раздела: %s\n"
 
-#: computer.c:495
+#: computer.c:494
 #, c-format
 msgid "Filesystem type: %s\n"
 msgstr "Тип ФС: %s\n"
 
-#: computer.c:499
+#: computer.c:498
 #, c-format
 msgid "Mounted as %s%s\n"
 msgstr "Подключено как %s%s\n"
 
-#: computer.c:501
+#: computer.c:500
 msgid " (read only)"
 msgstr "(только чтение)"
 
-#: computer.c:582 computer.c:641
+#: computer.c:581 computer.c:640
 #, fuzzy
 msgid "Error spawning browser thread"
 msgstr "Error spawning browser thread"
 
-#: computer.c:595
+#: computer.c:594
 #, fuzzy
 msgid "Error spawning mount as thread"
 msgstr "Error spawning mount as thread"
 
-#: computer.c:608
+#: computer.c:607
 #, fuzzy
 msgid "Error spawning unmount thread"
 msgstr "Error spawning unmount thread"
 
-#: computer.c:621
+#: computer.c:620
 #, fuzzy
 msgid "Error spawning properties thread"
 msgstr "Error spawning properties thread"
 
-#: computer.c:708
+#: computer.c:707
 msgid "Memory allocation error"
 msgstr "Ошибка распределения памяти."
 
-#: computer.c:803
+#: computer.c:802
 msgid "Disk"
 msgstr "Диск"
 
-#: computer.c:845
+#: computer.c:844
 #, c-format
 msgid ""
 "\n"
@@ -179,7 +179,7 @@ msgstr ""
 "\n"
 "Команда  \"%s\" работает только в графическом режиме\n"
 
-#: computer.c:870
+#: computer.c:869
 #, c-format
 msgid "Can't load icon image %s"
 msgstr "Не могу загрузить значок%s"

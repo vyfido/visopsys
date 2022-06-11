@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 #include "kernelSysTimer.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/processor.h>
@@ -54,6 +55,7 @@ static struct {
 	{ NULL, NULL }
 };
 
+static x86CpuFeatures features;
 static uquad_t timestampFreq = 0;
 
 
@@ -69,6 +71,8 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	int longMode = 0;
 	int whitespace = 1;
 	unsigned count1, count2;
+
+	memset(&features, 0, sizeof(x86CpuFeatures));
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
@@ -117,6 +121,10 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	{
 		processorId(1, rega, regb, regc, regd);
 
+		features.cpuid1 = 1;
+		features.cpuid1Ecx = regc;
+		features.cpuid1Edx = regd;
+
 		// CPU type
 		sprintf(variable, "%s.%s", "cpu", "type");
 		sprintf(value, "%02x", ((rega & 0xF000) >> 12));
@@ -139,7 +147,19 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 
 		// CPU features
 		sprintf(variable, "%s.%s", "cpu", "features");
-		sprintf(value, "%08x", regd);
+		sprintf(value, "%08x:%08x", regc, regd);
+		variableListSet(&dev->device.attrs, variable, value);
+
+		sprintf(variable, "%s.%s.%s", "cpu", "features", "msr");
+		sprintf(value, "%d", ((regd >> 5) & 1));
+		variableListSet(&dev->device.attrs, variable, value);
+
+		sprintf(variable, "%s.%s.%s", "cpu", "features", "pge");
+		sprintf(value, "%d", ((regd >> 13) & 1));
+		variableListSet(&dev->device.attrs, variable, value);
+
+		sprintf(variable, "%s.%s.%s", "cpu", "features", "pat");
+		sprintf(value, "%d", ((regd >> 16) & 1));
 		variableListSet(&dev->device.attrs, variable, value);
 	}
 
@@ -150,6 +170,14 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	if (cpuIdLimit >= 0x80000001)
 	{
 		processorId(0x80000001, rega, regb, regc, regd);
+
+		features.cpuid8_1 = 1;
+		features.cpuid8_1Ecx = regc;
+		features.cpuid8_1Edx = regd;
+
+		sprintf(variable, "%s.%s", "cpu", "exfeatures");
+		sprintf(value, "%08x:%08x", regc, regd);
+		variableListSet(&dev->device.attrs, variable, value);
 
 		// Is it an x86-64 processor?
 		longMode = ((regd >> 29) & 1);
@@ -195,9 +223,14 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_CPU);
 
 	if (longMode)
-		dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_CPU_X86_64);
+	{
+		dev->device.subClass =
+			kernelDeviceGetClass(DEVICESUBCLASS_CPU_X86_64);
+	}
 	else
+	{
 		dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_CPU_X86);
+	}
 
 	dev->driver = driver;
 
@@ -224,9 +257,18 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 
 void kernelCpuDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 	driver->driverDetect = driverDetectCpu;
-	return;
+}
+
+
+void kernelCpuGetFeatures(void *buffer, unsigned bufferSize)
+{
+	// Check params
+	if (!buffer)
+		return;
+
+	memcpy(buffer, &features, min(bufferSize, sizeof(x86CpuFeatures)));
 }
 
 
@@ -286,7 +328,7 @@ uquad_t kernelCpuTimestampFreq(void)
 
 uquad_t kernelCpuTimestamp(void)
 {
-	// Convenience function to return a the CPU timestamp as a quad value.
+	// Convenience function to return a the CPU timestamp as a quad value
 
 	unsigned hi, lo;
 	uquad_t timestamp = 0;
@@ -300,7 +342,7 @@ uquad_t kernelCpuTimestamp(void)
 
 uquad_t kernelCpuGetMs(void)
 {
-	// Returns a value representing the current CPU timestamp in milliseconds.
+	// Returns a value representing the current CPU timestamp in milliseconds
 
 	// Make sure the timestamp frequency has been determined
 	if (!timestampFreq)
@@ -313,7 +355,7 @@ uquad_t kernelCpuGetMs(void)
 void kernelCpuSpinMs(unsigned millisecs)
 {
 	// This will use the CPU timestamp counter to spin for (at least) the
-	// specified number of milliseconds.
+	// specified number of milliseconds
 
 	uquad_t endtime = (kernelCpuGetMs() + millisecs);
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@
 #include "kernelNetworkDevice.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
+#include "kernelRamDiskDriver.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
 #include "kernelShutdown.h"
@@ -128,13 +129,6 @@ static kernelArgInfo args_textInputStreamAppendN[] =
 static kernelArgInfo args_textInputAppendN[] =
 	{ { 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_textInputStreamRemove[] =
-	{ { 1, type_ptr, API_ARG_KERNPTR } };
-static kernelArgInfo args_textInputStreamRemoveN[] =
-	{ { 1, type_ptr, API_ARG_KERNPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
-static kernelArgInfo args_textInputRemoveN[] =
-	{ { 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_textInputStreamRemoveAll[] =
 	{ { 1, type_ptr, API_ARG_KERNPTR } };
 static kernelArgInfo args_textInputStreamSetEcho[] =
@@ -238,14 +232,6 @@ static kernelFunctionIndex textFunctionIndex[] = {
 		PRIVILEGE_USER, 3, args_textInputStreamAppendN, type_val },
 	{ _fnum_textInputAppendN, kernelTextInputAppendN,
 		PRIVILEGE_USER, 2, args_textInputAppendN, type_val },
-	{ _fnum_textInputStreamRemove, kernelTextInputStreamRemove,
-		PRIVILEGE_USER, 1, args_textInputStreamRemove, type_val },
-	{ _fnum_textInputRemove, kernelTextInputRemove,
-		PRIVILEGE_USER, 0, NULL, type_val },
-	{ _fnum_textInputStreamRemoveN, kernelTextInputStreamRemoveN,
-		PRIVILEGE_USER, 2, args_textInputStreamRemoveN, type_val },
-	{ _fnum_textInputRemoveN, kernelTextInputRemoveN,
-		PRIVILEGE_USER, 1, args_textInputRemoveN, type_val },
 	{ _fnum_textInputStreamRemoveAll, kernelTextInputStreamRemoveAll,
 		PRIVILEGE_USER, 1, args_textInputStreamRemoveAll, type_val },
 	{ _fnum_textInputRemoveAll, kernelTextInputRemoveAll,
@@ -269,7 +255,7 @@ static kernelArgInfo args_diskGet[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_diskGetAll[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
+		{ 1, type_val, API_ARG_NONZEROVAL } };
 static kernelArgInfo args_diskGetAllPhysical[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
@@ -689,11 +675,9 @@ static kernelArgInfo args_multitaskerWait[] =
 static kernelArgInfo args_multitaskerBlock[] =
 	{ { 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_multitaskerKillProcess[] =
-	{ { 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL } };
+	{ { 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_multitaskerKillByName[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_multitaskerTerminate[] =
 	{ { 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_multitaskerSignalSet[] =
@@ -761,9 +745,9 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
 	{ _fnum_multitaskerDetach, kernelMultitaskerDetach,
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_multitaskerKillProcess, kernelMultitaskerKillProcess,
-		PRIVILEGE_USER, 2, args_multitaskerKillProcess, type_val },
+		PRIVILEGE_USER, 1, args_multitaskerKillProcess, type_val },
 	{ _fnum_multitaskerKillByName, kernelMultitaskerKillByName,
-		PRIVILEGE_USER, 2, args_multitaskerKillByName, type_val },
+		PRIVILEGE_USER, 1, args_multitaskerKillByName, type_val },
 	{ _fnum_multitaskerTerminate, kernelMultitaskerTerminate,
 		PRIVILEGE_USER, 1, args_multitaskerTerminate, type_val },
 	{ _fnum_multitaskerSignalSet, kernelMultitaskerSignalSet,
@@ -1296,6 +1280,10 @@ static kernelArgInfo args_windowComponentGetData[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_windowComponentAppendData[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_windowComponentSetData[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_USERPTR },
@@ -1545,6 +1533,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 3, args_windowComponentGetData, type_val },
 	{ _fnum_windowComponentSetData, kernelWindowComponentSetData,
 		PRIVILEGE_USER, 4, args_windowComponentSetData, type_val },
+	{ _fnum_windowComponentAppendData, kernelWindowComponentAppendData,
+		PRIVILEGE_USER, 4, args_windowComponentAppendData, type_val },
 	{ _fnum_windowComponentGetSelected, kernelWindowComponentGetSelected,
 		PRIVILEGE_USER, 2, args_windowComponentGetSelected, type_val },
 	{ _fnum_windowComponentSetSelected, kernelWindowComponentSetSelected,
@@ -1684,6 +1674,9 @@ static kernelArgInfo args_networkOpen[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_networkClose[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
+static kernelArgInfo args_networkConnectionGetAll[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_NONZEROVAL } };
 static kernelArgInfo args_networkCount[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_networkRead[] =
@@ -1742,6 +1735,10 @@ static kernelFunctionIndex networkFunctionIndex[] = {
 		PRIVILEGE_USER, 3, args_networkOpen, type_ptr },
 	{ _fnum_networkClose, kernelNetworkClose,
 		PRIVILEGE_USER, 1, args_networkClose, type_val },
+	{ _fnum_networkConnectionGetCount, kernelNetworkConnectionGetCount,
+		PRIVILEGE_USER, 0, NULL, type_val },
+	{ _fnum_networkConnectionGetAll, kernelNetworkConnectionGetAll,
+		PRIVILEGE_USER, 2, args_networkConnectionGetAll, type_val },
 	{ _fnum_networkCount, kernelNetworkCount,
 		PRIVILEGE_USER, 1, args_networkCount, type_val },
 	{ _fnum_networkRead, kernelNetworkRead,

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -137,6 +137,7 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(kernelNetworkDevice *,
 	int, networkAddress *, networkFilter *, int);
 int kernelNetworkConnectionClose(kernelNetworkConnection *, int);
 kernelNetworkPacket *kernelNetworkPacketGet(void);
+kernelNetworkPacket *kernelNetworkPacketCopy(kernelNetworkPacket *);
 void kernelNetworkPacketHold(kernelNetworkPacket *);
 void kernelNetworkPacketRelease(kernelNetworkPacket *);
 int kernelNetworkSetupReceivedPacket(kernelNetworkPacket *);
@@ -159,6 +160,8 @@ kernelNetworkConnection *kernelNetworkOpen(int, networkAddress *,
 int kernelNetworkAlive(kernelNetworkConnection *);
 int kernelNetworkClose(kernelNetworkConnection *);
 int kernelNetworkCloseAll(int);
+int kernelNetworkConnectionGetCount(void);
+int kernelNetworkConnectionGetAll(networkConnection *, unsigned);
 int kernelNetworkCount(kernelNetworkConnection *);
 int kernelNetworkRead(kernelNetworkConnection *, unsigned char *, unsigned);
 int kernelNetworkWrite(kernelNetworkConnection *, unsigned char *, unsigned);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -163,9 +163,10 @@ static typeIcon iconList[] = {
 	TEXT_ICON,
 	BIN_ICON,
 	// This one goes last, because the flags match every file class.
-	FILE_ICON,
-	{ NULL, NULL, NULL, NULL, NULL }
+	FILE_ICON
 };
+
+#define FILE_ICON_ENTRIES	(sizeof(iconList) / sizeof(typeIcon))
 
 typedef struct {
 	variableList config;
@@ -268,13 +269,13 @@ static void getFileIcon(fileListData *data, fileEntry *entry)
 	// Choose the appropriate icon for the class of file, and load it if
 	// necessary.
 
-	int count;
+	unsigned count;
 
 	entry->icon = &data->fileIcon;
 
 	// Try to find an exact match.  If there isn't one, this should default
 	// to the 'file' type at the end of the list.
-	for (count = 0; count < maxImageIndex ; count ++)
+	for (count = 0; count < FILE_ICON_ENTRIES; count ++)
 	{
 		if (((iconList[count].fileClass == LOADERFILECLASS_NONE) ||
 				(entry->class.type & iconList[count].fileClass)) &&
@@ -438,7 +439,7 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 	if (totalFiles)
 	{
 		// Get memory for the new entries
-		tmpFileEntries = malloc(totalFiles * sizeof(fileEntry));
+		tmpFileEntries = calloc(totalFiles, sizeof(fileEntry));
 		if (!tmpFileEntries)
 		{
 			error("%s", _("Memory allocation error"));
@@ -495,7 +496,7 @@ static listItemParameters *allocateIconParameters(windowFileList *fileList)
 
 	if (fileList->numFileEntries)
 	{
-		newIconParams = malloc(fileList->numFileEntries *
+		newIconParams = calloc(fileList->numFileEntries,
 			sizeof(listItemParameters));
 		if (!newIconParams)
 		{
@@ -707,7 +708,7 @@ static void killIconThread(windowFileList *fileList)
 	{
 		if (multitaskerProcessIsAlive(fileList->iconThreadPid))
 		{
-			multitaskerKillProcess(fileList->iconThreadPid, 1 /* force */);
+			multitaskerKillProcess(fileList->iconThreadPid);
 
 			while (multitaskerProcessIsAlive(fileList->iconThreadPid))
 				multitaskerYield();

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,34 +28,35 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 {
 	// Here's how the Linux man page describes this function:
 	//
-	// The main case for this function is when bytes is not NULL and pwc is not
-	// NULL.  In this case, the mbtowc function inspects at most n bytes of the
-	// multibyte string starting at bytes, extracts the next complete multibyte
-	// character, converts it to a wide character and stores it at *pwc.  It
-	// updates an internal shift state only known to the mbtowc function. If
-	// bytes does not point to a '\0' byte, it returns the number of bytes
-	// that were consumed from bytes, otherwise it returns 0.
+	// The main case for this function is when bytes is not NULL and wc is not
+	// NULL.  In this case, the mbtowc function inspects at most n bytes of
+	// the multibyte string starting at bytes, extracts the next complete
+	// multibyte character, converts it to a wide character and stores it at
+	// *wc.  It updates an internal shift state only known to the mbtowc
+	// function. If bytes does not point to a '\0' byte, it returns the number
+	// of bytes that were consumed from bytes, otherwise it returns 0.
 	//
 	// If the n bytes starting at bytes do not contain a complete multibyte
 	// character, or if they contain an invalid multibyte sequence, mbtowc
 	// returns -1.  This can happen even if n >= MB_CUR_MAX, if the multibyte
 	// string contains redundant shift sequences.
 	//
-	// A different case is when bytes is not NULL but pwc is NULL.  In this
-	// case the mbtowc function behaves as above, excepts that it does not store
-	// the converted wide character in memory.
+	// A different case is when bytes is not NULL but wc is NULL.  In this
+	// case the mbtowc function behaves as above, excepts that it does not
+	// store the converted wide character in memory.
 	//
-	// A third case is when bytes is NULL.  In this case, pwc and n are ignored.
-	// The mbtowc function resets the shift state, only known to this func’¡¾
-	// tion, to the initial state, and returns non-zero if the encoding has
-	// non-trivial shift state, or zero if the encoding is stateless.
+	// A third case is when bytes is NULL.  In this case, wc and n are
+	// ignored.  The mbtowc function resets the shift state, only known to
+	// this function, to the initial state, and returns non-zero if the
+	// encoding has non-trivial shift state, or zero if the encoding is
+	// stateless.
 	//
 	// We're going to attempt to support UTF-8 as our multibyte standard.
 
 	int numBytes = 0;
 
 	if (!bytes)
-		// Stateless.
+		// Stateless
 		return (0);
 
 	if (n < 1)

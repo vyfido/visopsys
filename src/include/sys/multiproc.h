@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,7 +20,7 @@
 //
 
 // This file contains definitions and structures defined by the Intel
-// multiprocessor standard.
+// multiprocessor standard
 
 #ifndef _MULTIPROC_H
 #define _MULTIPROC_H
@@ -34,6 +34,10 @@
 #define MULTIPROC_ENTRY_IOAPIC			2
 #define MULTIPROC_ENTRY_IOINTASSMT		3
 #define MULTIPROC_ENTRY_LOCINTASSMT		4
+
+// CPU flags
+#define MULTIPROC_CPUFLAG_ENABLED		0x01
+#define MULTIPROC_CPUFLAG_BOOT			0x02
 
 // Bus type strings
 #define MULTIPROC_BUSTYPE_CBUS			"CBUS  " // Corollary CBus
@@ -54,6 +58,9 @@
 #define MULTIPROC_BUSTYPE_VL			"VL    " // VESA Local Bus
 #define MULTIPROC_BUSTYPE_VME			"VME   " // VMEbus
 #define MULTIPROC_BUSTYPE_XPRESS		"XPRESS" // Express System Bus
+
+// I/O APIC flags
+#define MULTIPROC_IOAPICFLAG_ENABLED	0x01
 
 // Interrupt types
 #define MULTIPROC_INTTYPE_INT			0

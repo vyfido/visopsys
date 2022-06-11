@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -47,7 +47,7 @@ static volatile int guiThreadPid = 0;
 static void guiRun(void)
 {
 	// This is the thread that runs for each user GUI program polling
-	// components' event queues for events.
+	// components' event queues for events
 
 	callBack *cb = NULL;
 	linkedListItem *iter = NULL;
@@ -143,7 +143,7 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
 	cb->key = key;
 	cb->function = function;
 
-	status = linkedListAdd(&callBackList, cb);
+	status = linkedListAddBack(&callBackList, cb);
 	if (status < 0)
 	{
 		free(cb);
@@ -221,7 +221,7 @@ _X_ void windowGuiStop(void)
 	run = 0;
 
 	if (guiThreadPid && (multitaskerGetCurrentProcessId() != guiThreadPid))
-		multitaskerKillProcess(guiThreadPid, 0);
+		multitaskerKillProcess(guiThreadPid);
 
 	multitaskerYield();
 

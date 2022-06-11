@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -186,7 +186,8 @@ static int getUpdate(void)
 		// Assign the strings to our labels
 		if (memoryBlocksLabel)
 		{
-			sprintf(labelChar, "%s%d", USEDBLOCKS_STRING, memStats.usedBlocks);
+			sprintf(labelChar, "%s%d", USEDBLOCKS_STRING,
+				memStats.usedBlocks);
 			windowComponentSetData(memoryBlocksLabel, labelChar,
 				strlen(labelChar), 1 /* redraw */);
 		}
@@ -257,8 +258,8 @@ static int getUpdate(void)
 	numProcesses = 0;
 
 	// Sort the processes from our temporary array into our regular array
-	// so that we are skipping threads, if applicable, and so that all children
-	// follow their parents
+	// so that we are skipping threads, if applicable, and so that all
+	// children follow their parents
 
 	for (count = 0; count < tmpNumProcesses; count ++)
 	{
@@ -444,7 +445,7 @@ static int killProcess(int whichProcess)
 	// Get the process to kill
 	theProcess = &processes[whichProcess];
 
-	status = multitaskerKillProcess(theProcess->processId, 0);
+	status = multitaskerKillProcess(theProcess->processId);
 
 	// Refresh our list of processes
 	getUpdate();
@@ -631,8 +632,9 @@ static void constructWindow(void)
 	// Create the list of processes
 	params.gridY = 0;
 	params.padLeft = params.padTop = params.padBottom = 0;
-	processList = windowNewList(container, windowlist_textonly, 20, 1, 0,
-		processListParams, numProcesses, &params);
+	processList = windowNewList(container, windowlist_textonly, 20 /* rows */,
+		1 /* columns */, 0 /* selectMultiple */, processListParams,
+		numProcesses, &params);
 	windowComponentFocus(processList);
 
 	// Create a 'show threads' checkbox
@@ -701,7 +703,8 @@ int main(int argc, char *argv[])
 	// Get a buffer for process structures
 	processes = malloc(SHOW_MAX_PROCESSES * sizeof(process));
 	// Get an array of list parameters structures for process strings
-	processListParams = malloc(SHOW_MAX_PROCESSES * sizeof(listItemParameters));
+	processListParams = malloc(SHOW_MAX_PROCESSES *
+		sizeof(listItemParameters));
 
 	if (!processes || !processListParams)
 	{
@@ -719,9 +722,6 @@ int main(int argc, char *argv[])
 	{
 		free(processes);
 		free(processListParams);
-		errno = status;
-		if (argc)
-			perror(argv[0]);
 		return (status);
 	}
 
@@ -735,8 +735,10 @@ int main(int argc, char *argv[])
 	{
 		if (getUpdate() < 0)
 			break;
+
 		windowComponentSetData(processList, processListParams, numProcesses,
 			1 /* redraw */);
+
 		sleep(1);
 	}
 

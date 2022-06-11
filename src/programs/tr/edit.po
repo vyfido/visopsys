@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -19,81 +19,86 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-9\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: edit.c:57
+#: edit.c:62
 msgid "Edit"
 msgstr "Düzenle"
 
-#: edit.c:58
+#: edit.c:63
 msgid "File"
 msgstr "Dosya"
 
-#: edit.c:59
+#: edit.c:64
 msgid "Open"
 msgstr "Aç"
 
-#: edit.c:60
+#: edit.c:65
 msgid "Save"
 msgstr "Kaydet"
 
-#: edit.c:61
+#: edit.c:66
 msgid "Quit"
 msgstr "Çik"
 
-#: edit.c:62
+#: edit.c:67
 msgid "Untitled"
 msgstr "Adsiz"
 
-#: edit.c:63
-msgid "File has been modified.  Discard changes?"
-msgstr "Dosya degistirildi. Degisiklikleri kaydetmek istemiyor musunuz?"
-
-#: edit.c:64
+#: edit.c:68
 msgid "Please enter the name of the file to edit:"
 msgstr "Düzenlemek istediginiz dosyanin ismini girin:"
 
-#: edit.c:133
+#: edit.c:69
+msgid "File has been modified.  Discard changes?"
+msgstr "Dosya degistirildi. Degisiklikleri kaydetmek istemiyor musunuz?"
+
+#: edit.c:153
 msgid "Error"
 msgstr "Hata"
 
-#: edit.c:156 edit.c:161
+#: edit.c:365 edit.c:371
 msgid " (modified)"
 msgstr " (degistirildi)"
 
-#: edit.c:418
-msgid "Enter filename"
-msgstr "Dosya ismi girin"
-
-#: edit.c:977
+#: edit.c:484
 msgid "Discard changes?"
 msgstr "Degisiklikleri iptal etmek istiyor musunuz?"
 
-#: edit.c:978
+#: edit.c:485
 msgid "Discard"
 msgstr "Vazgeç"
 
-#: edit.c:978
+#: edit.c:485
 msgid "Cancel"
 msgstr "Iptal"
 
-#: edit.c:1013 edit.c:1334
+#: edit.c:517
+msgid "Enter filename"
+msgstr "Dosya ismi girin"
+
+#: edit.c:738 edit.c:1619
 msgid "Couldn't create file in a read-only filesystem"
 msgstr "Sadece okunabilir dosya sisteminde dosya olusturulamiyor"
 
-#: edit.c:1015 edit.c:1336
+#: edit.c:740 edit.c:1621
 #, c-format
 msgid "Error %d loading file"
 msgstr "%d dosyasi yüklenirken hata olustu"
 
-#: edit.c:1135
+#: edit.c:855
 msgid "Unable to launch file dialog"
 msgstr "Dosya diyalogu olusturulamadi"
 
-#: edit.c:1147
+#: edit.c:870
+#, fuzzy
+msgid "Couldn't save file in a read-only filesystem"
+msgstr "Sadece okunabilir dosya sisteminde dosya olusturulamiyor"
+
+#: edit.c:875
 #, c-format
 msgid "Error %d saving file"
 msgstr "%d dosyasi kaydedilirken hata olustu"
 
-#: edit.c:1281
+#: edit.c:1562
 #, c-format
 msgid ""
 "\n"
@@ -102,7 +107,7 @@ msgstr ""
 "\n"
 "\"%s\" komutu sadece grafik modda çalisabilir \n"
 
-#: edit.c:1297
+#: edit.c:1578
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""

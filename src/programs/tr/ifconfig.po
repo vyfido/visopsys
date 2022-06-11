@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -160,54 +160,54 @@ msgstr "txqueuelen"
 msgid "Interrupt"
 msgstr "Interrupt"
 
-#: ifconfig.c:265 ifconfig.c:738
+#: ifconfig.c:265 ifconfig.c:746
 #, c-format
 msgid "Can't get info for device %s"
 msgstr "%s aygiti için bilgi alinamiyor"
 
-#: ifconfig.c:397
+#: ifconfig.c:400
 #, c-format
 msgid "Networking is %s"
 msgstr "Ag %s"
 
-#: ifconfig.c:397
+#: ifconfig.c:400
 msgid "enabled"
 msgstr "etkin"
 
-#: ifconfig.c:398
+#: ifconfig.c:401
 msgid "disabled"
 msgstr "devre disi"
 
-#: ifconfig.c:520
+#: ifconfig.c:526
 #, fuzzy
 msgid "Disabling device"
 msgstr "Devre disi birak"
 
-#: ifconfig.c:520
+#: ifconfig.c:526
 msgid "Enabling device"
 msgstr ""
 
-#: ifconfig.c:521 ifconfig.c:564
+#: ifconfig.c:527 ifconfig.c:572
 msgid "One moment please..."
 msgstr "Bir saniye lütfen..."
 
-#: ifconfig.c:563
+#: ifconfig.c:571
 msgid "Shutting down networking"
 msgstr "Ag kapatiliyor"
 
-#: ifconfig.c:563
+#: ifconfig.c:571
 msgid "Initializing networking"
 msgstr "Ag etkinlestiriliyor"
 
-#: ifconfig.c:663
+#: ifconfig.c:671
 msgid "Networking is disabled"
 msgstr "Ag devre disi birakildi"
 
-#: ifconfig.c:869
+#: ifconfig.c:878
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:877
+#: ifconfig.c:886
 msgid "Can't get the count of network devices"
 msgstr "Ag aygitlarinin sayisi alinamiyor"

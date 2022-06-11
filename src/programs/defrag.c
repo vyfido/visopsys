@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -256,8 +256,11 @@ static int mountedCheck(disk *theDisk)
 		theDisk->mountPoint);
 
 	if (graphics)
+	{
 		choice = windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
-			(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
+			(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") },
+			3 /* numChoices */, 1 /* defaultChoice */);
+	}
 	else
 	{
 		printf(_("\n%s (I)gnore/(U)nmount/(C)ancel?: "), tmpChar);
@@ -269,19 +272,19 @@ static int mountedCheck(disk *theDisk)
 
 			if ((character == 'i') || (character == 'I'))
 			{
-				printf("%s", _("Ignore\n"));
+				printf("%s\n", _("Ignore"));
 				choice = 0;
 				break;
 			}
 			else if ((character == 'u') || (character == 'U'))
 			{
-				printf("%s", _("Unmount\n"));
+				printf("%s\n", _("Unmount"));
 				choice = 1;
 				break;
 			}
 			else if ((character == 'c') || (character == 'C'))
 			{
-				printf("%s", _("Cancel\n"));
+				printf("%s\n", _("Cancel"));
 				choice = 2;
 				break;
 			}
@@ -291,9 +294,10 @@ static int mountedCheck(disk *theDisk)
 	}
 
 	if ((choice < 0) || (choice == 2))
+	{
 		// Cancelled
 		return (status = ERR_CANCELLED);
-
+	}
 	else if (choice == 1)
 	{
 		// Try to unmount the filesystem
@@ -354,12 +358,12 @@ int main(int argc, char *argv[])
 	{
 		// Eek.  Problem getting disk info
 		error("%s", _("Error getting disks info"));
-		return (errno = status);
+		return (status);
 	}
 
 	if (!graphics && !silentMode)
 		// Print a message
-		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2019 J. "
+		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2020 J. "
 			"Andrew McLaughlin\n"));
 
 	if (argc > 1)
@@ -383,14 +387,14 @@ int main(int argc, char *argv[])
 	{
 		error("%s", _("You must be a privileged user to use this command.\n"
 			"(Try logging in as user \"admin\")"));
-		return (errno = ERR_PERMISSION);
+		return (status = ERR_PERMISSION);
 	}
 
 	if (diskNumber == -1)
 	{
 		if (silentMode)
 			// Can't prompt for a disk in silent mode
-			return (errno = ERR_INVALID);
+			return (status = ERR_INVALID);
 
 		// The user has not specified a disk name.  We need to display the
 		// list of available disks and prompt them.
@@ -410,7 +414,7 @@ int main(int argc, char *argv[])
 		{
 			error(_("Unknown filesystem type on disk \"%s\""),
 				diskInfo[diskNumber].name);
-			return (errno = ERR_NOTIMPLEMENTED);
+			return (status = ERR_NOTIMPLEMENTED);
 		}
 	}
 
@@ -420,7 +424,7 @@ int main(int argc, char *argv[])
 	{
 		error(_("Error getting info for disk \"%s\""),
 			diskInfo[diskNumber].name);
-		return (errno = status);
+		return (status);
 	}
 
 	// Make sure that the defragment operation is supported for the selected
@@ -429,7 +433,7 @@ int main(int argc, char *argv[])
 	{
 		error(_("Defragmenting the filesystem type \"%s\" is not supported"),
 			diskInfo[diskNumber].fsType);
-		return (errno = ERR_NOTIMPLEMENTED);
+		return (status = ERR_NOTIMPLEMENTED);
 	}
 
 	if (!silentMode)
@@ -446,7 +450,7 @@ int main(int argc, char *argv[])
 	// Make sure it's not mounted
 	status = mountedCheck(&diskInfo[diskNumber]);
 	if (status < 0)
-		return (errno = status);
+		return (status);
 
 	memset((void *) &prog, 0, sizeof(progress));
 	if (graphics)
@@ -472,6 +476,6 @@ int main(int argc, char *argv[])
 	if (graphics)
 		windowProgressDialogDestroy(progressDialog);
 
-	return (errno = status);
+	return (status);
 }
 

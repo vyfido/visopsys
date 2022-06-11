@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,7 @@
 
 #include "kernelBus.h"
 #include "kernelDebug.h"
+#include "kernelDriver.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include <string.h>
@@ -76,7 +77,7 @@ int kernelBusRegister(kernelBus *bus)
 	}
 
 	// Add the supplied device to our list of buses
-	status = linkedListAdd(&buses, (void *) bus);
+	status = linkedListAddBack(&buses, (void *) bus);
 	if (status < 0)
 		return (status);
 
@@ -87,7 +88,7 @@ int kernelBusRegister(kernelBus *bus)
 int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 {
 	// This is a wrapper for the bus-specific driver functions, but it will
-	// aggregate a list of targets from all buses of the requested type.
+	// aggregate a list of targets from all buses of the requested type
 
 	int status = 0;
 	linkedListItem *iter = NULL;
@@ -112,8 +113,8 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 
 	*pointer = NULL;
 
-	// Loop through all our buses and collect all the targets for buses
-	// of the requested type
+	// Loop through all our buses and collect all the targets for buses of the
+	// requested type
 	bus = linkedListIterStart(&buses, &iter);
 	while (bus)
 	{
@@ -140,8 +141,8 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 				if (!(*pointer))
 					return (status = ERR_MEMORY);
 
-				memcpy(&((*pointer)[numTargets]), tmpTargets,
-					(status * sizeof(kernelBusTarget)));
+				memcpy(&((*pointer)[numTargets]), tmpTargets, (status *
+					sizeof(kernelBusTarget)));
 
 				numTargets += status;
 				kernelFree(tmpTargets);
@@ -170,8 +171,8 @@ kernelBusTarget *kernelBusGetTarget(kernelBusType type, int id)
 		return (target = NULL);
 	}
 
-	kernelDebug(debug_io, "BUS get %s target, id=0x%08x", busType2String(type),
-		id);
+	kernelDebug(debug_io, "BUS get %s target, id=0x%08x",
+		busType2String(type), id);
 
 	numTargets = kernelBusGetTargets(type, &targets);
 	if (numTargets <= 0)
@@ -225,8 +226,8 @@ int kernelBusGetTargetInfo(kernelBusTarget *target, void *pointer)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (status = ERR_NODATA);
 	}
 
@@ -264,8 +265,8 @@ unsigned kernelBusReadRegister(kernelBusTarget *target, int reg, int bitWidth)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (contents = 0);
 	}
 
@@ -304,8 +305,8 @@ int kernelBusWriteRegister(kernelBusTarget *target, int reg, int bitWidth,
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (status = ERR_NODATA);
 	}
 
@@ -344,8 +345,8 @@ void kernelBusDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return;
 	}
 
@@ -358,7 +359,6 @@ void kernelBusDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 	}
 
 	target->bus->ops->driverDeviceClaim(target, driver);
-	return;
 }
 
 
@@ -383,8 +383,8 @@ int kernelBusDeviceEnable(kernelBusTarget *target, int enable)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (status = ERR_NODATA);
 	}
 
@@ -422,8 +422,8 @@ int kernelBusSetMaster(kernelBusTarget *target, int master)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (status = ERR_NODATA);
 	}
 
@@ -461,8 +461,8 @@ int kernelBusRead(kernelBusTarget *target, unsigned size, void *buffer)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (status = ERR_NODATA);
 	}
 
@@ -499,8 +499,8 @@ int kernelBusWrite(kernelBusTarget *target, unsigned size, void *buffer)
 
 	if (!target->bus || !target->bus->ops)
 	{
-		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is NULL",
-			target->bus, (target->bus? target->bus->ops : NULL));
+		kernelError(kernel_error, "Target bus pointer (%p) or ops (%p) is "
+			"NULL", target->bus, (target->bus? target->bus->ops : NULL));
 		return (status = ERR_NODATA);
 	}
 

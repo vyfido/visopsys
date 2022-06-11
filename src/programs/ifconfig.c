@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -145,7 +145,7 @@ static void error(const char *format, ...)
 	if (graphics)
 		windowNewErrorDialog(NULL, _("Error"), output);
 	else
-		printf("\n%s\n", output);
+		fprintf(stderr, "\n%s\n", output);
 }
 
 
@@ -349,8 +349,11 @@ static void updateSelectedDevice(void)
 	networkDevice dev;
 	char *buffer = NULL;
 
-	if (windowComponentGetSelected(deviceList, &selected) < 0)
+	if ((numDevices <= 0) || (windowComponentGetSelected(deviceList,
+		&selected) < 0))
+	{
 		return;
+	}
 
 	// Get the device information
 	if (networkDeviceGet(deviceListParams[selected].text, &dev) < 0)
@@ -400,7 +403,7 @@ static void updateEnabled(void)
 	windowComponentSetData(enableButton, (enabled? DISABLE : ENABLE), 8,
 		1 /* redraw */);
 
-	// Update the device bits as well.
+	// Update the device bits as well
 	updateSelectedDevice();
 }
 
@@ -506,8 +509,11 @@ static void toggleDeviceEnable(void)
 	int disable = 0;
 	objectKey enableDialog = NULL;
 
-	if (windowComponentGetSelected(deviceList, &selected) < 0)
+	if ((numDevices <= 0) || (windowComponentGetSelected(deviceList,
+		&selected) < 0))
+	{
 		return;
+	}
 
 	// Get the device information
 	if (networkDeviceGet(deviceListParams[selected].text, &dev) < 0)
@@ -537,12 +543,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 	char hostName[NETWORK_MAX_HOSTNAMELENGTH + 1];
 	char domainName[NETWORK_MAX_DOMAINNAMELENGTH + 1];
 
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
 		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+		{
 			refreshWindow();
+		}
 
 		// Check for the window being closed
 		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
@@ -558,7 +566,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		// The user wants to enable or disable networking.  Make a little
 		// dialog while we're doing this because enabling can take a few
-		// seconds
+		// seconds.
 		enableDialog = windowNewBannerDialog(window, (enabled?
 			_("Shutting down networking") : _("Initializing networking")),
 			_("One moment please..."));
@@ -686,7 +694,7 @@ static int constructWindow(char *devName)
 		windowComponentSetEnabled(enableCheckbox, 0);
 
 	// We used to call updateEnabled() here, but that also tries to update
-	// other things we haven't created yet.
+	// other things we haven't created yet
 
 	// A container for the host and domain name stuff
 	params.gridX = 0;
@@ -725,7 +733,7 @@ static int constructWindow(char *devName)
 
 	// A list for the network devices
 
-	deviceListParams = calloc(numDevices, sizeof(listItemParameters));
+	deviceListParams = calloc(max(numDevices, 1), sizeof(listItemParameters));
 	if (!deviceListParams)
 		return (status = ERR_MEMORY);
 
@@ -767,6 +775,7 @@ static int constructWindow(char *devName)
 	params.orientationY = orient_top;
 	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	deviceEnableButton = windowNewButton(container, DISABLE, NULL, &params);
+	windowComponentSetEnabled(deviceEnableButton, 0);
 	windowRegisterEventHandler(deviceEnableButton, &eventHandler);
 
 	// Did the user specify a device name?

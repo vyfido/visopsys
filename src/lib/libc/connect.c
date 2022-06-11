@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -60,7 +60,8 @@ int connect(int fd, const struct sockaddr *addr, socklen_t addrLen)
 		return (status = -1);
 	}
 
-	// Look up the file descriptor
+	// Look up the file descriptor.  The socket() function will have set the
+	// networkFilter as the socket data.
 	status = _fdget(fd, &type, (void **) &filter);
 	if (status < 0)
 	{

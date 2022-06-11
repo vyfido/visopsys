@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -90,13 +90,14 @@ int kernelNetworkIcmpSetupReceivedPacket(kernelNetworkPacket *packet)
 void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *netDev,
 	kernelNetworkPacket *packet)
 {
-	// Take the appropriate action for whatever ICMP message we received.
+	// Take the appropriate action for whatever ICMP message we received
 
 	networkFilter filter;
 	kernelNetworkConnection *connection = NULL;
 	networkIp4Header *ip4Header = NULL;
 	networkIcmpHeader *icmpHeader = NULL;
 	int icmpLen = 0;
+	networkAddress destAddress;
 	void *icmpReply = NULL;
 	unsigned short checksum = 0;
 
@@ -106,6 +107,8 @@ void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *netDev,
 		packet->transHeaderOffset);
 
 	icmpLen = (ntohs(ip4Header->totalLength) - sizeof(networkIp4Header));
+
+	memset(&destAddress, 0, sizeof(networkAddress));
 
 	switch (icmpHeader->type)
 	{
@@ -122,9 +125,13 @@ void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *netDev,
 			filter.netProtocol = NETWORK_NETPROTOCOL_IP4;
 			filter.transProtocol = NETWORK_TRANSPROTOCOL_ICMP;
 
+			// IPv4-specific
+			memcpy(&destAddress, &ip4Header->srcAddress,
+				NETWORK_ADDRLENGTH_IP4);
+
 			connection = kernelNetworkConnectionOpen(netDev,
-				NETWORK_MODE_WRITE, (networkAddress *) &ip4Header->srcAddress,
-				&filter, 0 /* no input stream */);
+				NETWORK_MODE_WRITE, &destAddress, &filter,
+				0 /* no input stream */);
 			if (!connection)
 				return;
 
@@ -185,7 +192,7 @@ int kernelNetworkIcmpPing(kernelNetworkConnection *connection,
 	pingPacket.icmpHeader.type = NETWORK_ICMP_ECHO;
 	pingPacket.sequenceNum = htons(sequenceNum);
 
-	// Fill out our data.
+	// Fill out our data
 	memcpy(pingPacket.data, buffer, bufferSize);
 
 	// Do the checksum after everything else is set

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,23 +21,35 @@
 
 // This is the standard "strnlen" function, as found in standard C libraries
 
-#include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 
 size_t strnlen(const char *string, size_t maxlen)
 {
 	size_t count = 0;
 
-	while ((string[count] != '\0') && (count < MAXSTRINGLENGTH) &&
+	if (!string)
+	{
+		errno = ERR_NULLPARAMETER;
+		return (count = 0);
+	}
+
+	while ((string[count] != '\0') && (count <= MAXSTRINGLENGTH) &&
 		 (count < maxlen))
 	{
 		count ++;
 	}
 
-	if ((count >= MAXSTRINGLENGTH) || (count >= maxlen))
-		return (min(MAXSTRINGLENGTH, maxlen));
-	else
-		return (count);
+	// If this is true, then we probably have an unterminated string
+	// constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
+	// help to prevent the function from running off too far into memory.
+	if (count > MAXSTRINGLENGTH)
+	{
+		errno = ERR_BOUNDS;
+		return (count = 0);
+	}
+
+	return (count);
 }
 

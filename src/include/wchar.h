@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +24,9 @@
 #ifndef _WCHAR_H
 #define _WCHAR_H
 
-#define WCHAR_MAX  UINT_MAX
-#define WCHAR_MIN  0
+#define WCHAR_MAX	UINT_MAX
+#define WCHAR_MIN	0
+#define WEOF		0xFFFFFFFFU
 
 #endif
 

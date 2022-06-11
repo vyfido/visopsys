@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,9 +33,11 @@ void perror(const char *prefix)
 	// number that we were passed.  Saves application programs from having
 	// to necessarily know what all these numbers mean.
 
-	printf("%s: %s\n", (prefix? prefix : "(NULL)"), strerror(errno));
+	if (prefix)
+		fprintf(stderr, "%s: %s\n", prefix, strerror(errno));
+	else
+		fprintf(stderr, "%s\n", strerror(errno));
 
 	// Don't change errno.
-	return;
 }
 

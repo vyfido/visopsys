@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -97,7 +97,7 @@ static int readRegister(int regNum)
 	// Now read the data
 	processorInPort8(0x71, data);
 
-	// Reenable NMI
+	// Re-enable NMI
 	processorOutPort8(0x70, 0x00);
 
 	// Restore interrupts

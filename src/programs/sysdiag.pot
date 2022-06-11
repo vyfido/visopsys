@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,19 +21,19 @@ msgstr ""
 msgid "System Diagnostics"
 msgstr ""
 
-#: sysdiag.c:56 sysdiag.c:1031
+#: sysdiag.c:56 sysdiag.c:1032
 msgid "Disk test"
 msgstr ""
 
-#: sysdiag.c:57 sysdiag.c:1032
+#: sysdiag.c:57 sysdiag.c:1033
 msgid "Memory test"
 msgstr ""
 
-#: sysdiag.c:58 sysdiag.c:1036
+#: sysdiag.c:58 sysdiag.c:1037
 msgid "Read-only"
 msgstr ""
 
-#: sysdiag.c:59 sysdiag.c:1037
+#: sysdiag.c:59 sysdiag.c:1038
 msgid "Read-write"
 msgstr ""
 
@@ -106,7 +106,7 @@ msgstr ""
 #, c-format
 msgid ""
 "%s\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 msgstr ""
 
 #: sysdiag.c:224
@@ -117,53 +117,53 @@ msgstr ""
 msgid "View results"
 msgstr ""
 
-#: sysdiag.c:279
+#: sysdiag.c:280
 msgid "Do you want to view the results?\n"
 msgstr ""
 
-#: sysdiag.c:294
+#: sysdiag.c:295
 msgid "Test results"
 msgstr ""
 
-#: sysdiag.c:326
+#: sysdiag.c:327
 #, c-format
 msgid "Disk read error at sector %llu\n"
 msgstr ""
 
-#: sysdiag.c:330
+#: sysdiag.c:331
 #, c-format
 msgid "Disk write error at sector %llu\n"
 msgstr ""
 
-#: sysdiag.c:334
+#: sysdiag.c:335
 #, c-format
 msgid "Memory error at %llu\n"
 msgstr ""
 
-#: sysdiag.c:429 sysdiag.c:440
+#: sysdiag.c:430 sysdiag.c:441
 msgid "read-write"
 msgstr ""
 
-#: sysdiag.c:429 sysdiag.c:440
+#: sysdiag.c:430 sysdiag.c:441
 msgid "read-only"
 msgstr ""
 
-#: sysdiag.c:431 sysdiag.c:679
+#: sysdiag.c:432 sysdiag.c:680
 msgid ""
 "\n"
 "[ Press 'Q' to cancel ]\n"
 msgstr ""
 
-#: sysdiag.c:550
+#: sysdiag.c:551
 #, c-format
 msgid "Testing disk sectors %llu/%llu"
 msgstr ""
 
-#: sysdiag.c:767
+#: sysdiag.c:768
 #, c-format
 msgid "Testing memory MB %llu/%llu"
 msgstr ""
 
-#: sysdiag.c:1082
+#: sysdiag.c:1083
 msgid "Do you want to do a disk test, or a memory test?\n"
 msgstr ""

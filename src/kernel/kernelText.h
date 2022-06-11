@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -177,8 +177,6 @@ int kernelTextInputStreamCount(kernelTextInputStream *);
 int kernelTextInputCount(void);
 int kernelTextInputStreamGetc(kernelTextInputStream *, char *);
 int kernelTextInputGetc(char *);
-int kernelTextInputStreamPeek(kernelTextInputStream *, char *);
-int kernelTextInputPeek(char *);
 int kernelTextInputStreamReadN(kernelTextInputStream *, int, char *);
 int kernelTextInputReadN(int, char *);
 int kernelTextInputStreamReadAll(kernelTextInputStream *, char *);
@@ -187,10 +185,6 @@ int kernelTextInputStreamAppend(kernelTextInputStream *, int);
 int kernelTextInputAppend(int);
 int kernelTextInputStreamAppendN(kernelTextInputStream *, int, char *);
 int kernelTextInputAppendN(int, char *);
-int kernelTextInputStreamRemove(kernelTextInputStream *);
-int kernelTextInputRemove(void);
-int kernelTextInputStreamRemoveN(kernelTextInputStream *, int);
-int kernelTextInputRemoveN(int);
 int kernelTextInputStreamRemoveAll(kernelTextInputStream *);
 int kernelTextInputRemoveAll(void);
 void kernelTextInputStreamSetEcho(kernelTextInputStream *, int);

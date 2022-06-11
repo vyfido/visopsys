@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -61,7 +61,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s [username]\n"), name);
-	return;
 }
 
 
@@ -92,14 +91,14 @@ int main(int argc, char *argv[])
 	else
 	{
 		usage(argv[0]);
-		return (ERR_ARGUMENTCOUNT);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
 
 	// Make sure the user exists
 	if (!userExists(userName))
 	{
 		fprintf(stderr, _("User %s does not exist.\n"), userName);
-		return (errno = ERR_NOSUCHUSER);
+		return (status = ERR_NOSUCHUSER);
 	}
 
 	// With the user name, we try to authenticate with no password
@@ -113,7 +112,7 @@ int main(int argc, char *argv[])
 		else
 		{
 			errno = status;
-			perror(argv[0]);
+			perror("userAuthenticate");
 			return (status);
 		}
 	}
@@ -121,12 +120,15 @@ int main(int argc, char *argv[])
 	status = userAuthenticate(userName, oldPassword);
 	if (status < 0)
 	{
-		errno = status;
-
 		if (status == ERR_PERMISSION)
+		{
 			fprintf(stderr, "%s", _("Password incorrect\n"));
+		}
 		else
-			perror(argv[0]);
+		{
+			errno = status;
+			perror("userAuthenticate");
+		}
 
 		return (status);
 	}
@@ -148,13 +150,13 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		errno = status;
-		perror(argv[0]);
+		perror("userSetPassword");
 		return (status);
 	}
 
 	printf("%s", _("Password changed.\n"));
 
 	// Done
-	return (errno = status = 0);
+	return (status = 0);
 }
 

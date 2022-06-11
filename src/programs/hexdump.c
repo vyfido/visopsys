@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,7 +54,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s <file_name>\n"), name);
-	return;
 }
 
 
@@ -74,15 +73,15 @@ int main(int argc, char *argv[])
 	if (argc < 2)
 	{
 		usage(argv[0]);
-		errno = ERR_ARGUMENTCOUNT;
-		return (status = errno);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
 
 	dumpFile = fopen(argv[argc - 1], "r");
 	if (!dumpFile)
 	{
+		status = errno;
 		perror(argv[0]);
-		return (status = errno);
+		return (status);
 	}
 
 	while ((read = fread(fileBuff, 1, 16, dumpFile)))
@@ -114,7 +113,9 @@ int main(int argc, char *argv[])
 				sprintf((lineBuff + strlen(lineBuff)), "%c", fileBuff[count]);
 			}
 			else
+			{
 				strcat(lineBuff, ".");
+			}
 		}
 		strcat(lineBuff, "|");
 

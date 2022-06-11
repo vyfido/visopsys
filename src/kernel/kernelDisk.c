@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,6 +35,7 @@
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
+#include "kernelRamDiskDriver.h"
 #include "kernelRandom.h"
 #include "kernelSysTimer.h"
 #include <stdio.h>
@@ -1857,13 +1858,25 @@ static int getUnusedDiskNumber(unsigned type)
 	int count;
 
 	if (type & DISKTYPE_FLOPPY)
+	{
 		prefix = DISK_NAME_PREFIX_FLOPPY;
+	}
 	else if (type & DISKTYPE_CDROM)
+	{
 		prefix = DISK_NAME_PREFIX_CDROM;
+	}
 	else if (type & DISKTYPE_SCSIDISK)
+	{
 		prefix = DISK_NAME_PREFIX_SCSIDISK;
+	}
 	else if (type & DISKTYPE_HARDDISK)
+	{
 		prefix = DISK_NAME_PREFIX_HARDDISK;
+	}
+	else if (type & DISKTYPE_RAMDISK)
+	{
+		prefix = DISK_NAME_PREFIX_RAMDISK;
+	}
 	else
 	{
 		kernelError(kernel_error, "Disk type %x is unknown", type);
@@ -1979,7 +1992,8 @@ static int identifyBootCd(void)
 		}
 
 		// Does the boot sector signature match?
-		if (*((unsigned *)(buffer + 498)) == kernelOsLoaderInfo->bootSectorSig)
+		if (*((unsigned *)(buffer + 498)) ==
+			kernelOsLoaderInfo->bootSectorSig)
 		{
 			// We found the logical disk we booted from
 			kernelDebug(debug_io, "Disk %s boot sector signature matches",
@@ -2144,12 +2158,17 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
 	}
 	else if (physicalDisk->type & DISKTYPE_SCSIDISK)
 	{
-		sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_SCSIDISK,
-			status);
+		sprintf((char *) physicalDisk->name, "%s%d",
+			DISK_NAME_PREFIX_SCSIDISK, status);
 	}
 	else if (physicalDisk->type & DISKTYPE_HARDDISK)
 	{
-		sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_HARDDISK,
+		sprintf((char *) physicalDisk->name, "%s%d",
+			DISK_NAME_PREFIX_HARDDISK, status);
+	}
+	else if (physicalDisk->type & DISKTYPE_RAMDISK)
+	{
+		sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_RAMDISK,
 			status);
 	}
 
@@ -2260,6 +2279,23 @@ int kernelDiskInitialize(void)
 	// thread and attempts to identify the boot disk.
 
 	int status = 0;
+	void *ramDiskVirtual = NULL;
+
+	// If we booted with a RAM disk specified, register it
+	if (kernelOsLoaderInfo->ramDiskMemory && kernelOsLoaderInfo->ramDiskSize)
+	{
+		// Need to map it into the kernel's address space
+		status = kernelPageMapToFree(KERNELPROCID,
+			kernelOsLoaderInfo->ramDiskMemory, &ramDiskVirtual,
+			kernelOsLoaderInfo->ramDiskSize);
+		if (status < 0)
+			return (status);
+
+		status = kernelDiskRamDiskRegister(ramDiskVirtual,
+			kernelOsLoaderInfo->ramDiskSize, NULL /* name buffer */);
+		if (status < 0)
+			return (status);
+	}
 
 	// Check whether any disks have been registered.  If not, that's
 	// an indication that the hardware enumeration has not been done

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,19 +42,15 @@
 #include <sys/processor.h>
 #include <sys/vis.h>
 
-// An array of pointers to all network devices.
+// An array of pointers to all network devices
 static kernelDevice *devices[NETWORK_MAX_DEVICES];
 static int numDevices = 0;
-
-// Saved old interrupt handlers
-static void **oldIntHandlers = NULL;
-static int numOldHandlers = 0;
 
 
 static void poolPacketRelease(kernelNetworkPacket *packet)
 {
 	// This is called by kernelNetworkPacketRelease to release packets
-	// allocated from the device's packet pool.
+	// allocated from the device's packet pool
 
 	kernelNetworkDevice *netDev = NULL;
 
@@ -140,6 +136,45 @@ static void processHooks(kernelNetworkDevice *netDev,
 }
 
 
+static kernelNetworkPacket *readDevice(kernelDevice *dev)
+{
+	kernelNetworkDevice *netDev = NULL;
+	kernelNetworkDeviceOps *ops = dev->driver->ops;
+	unsigned char buffer[NETWORK_PACKET_MAX_LENGTH];
+	kernelNetworkPacket *packet = NULL;
+
+	netDev = dev->data;
+
+	kernelDebug(debug_net, "NETDEV read device %s", netDev->device.name);
+
+	if (!(netDev->device.flags & NETWORK_DEVICEFLAG_INITIALIZED))
+	{
+		// We can't process this data, but we can service the device
+		if (ops->driverReadData)
+			ops->driverReadData(netDev, buffer);
+
+		return (packet = NULL);
+	}
+
+	packet = poolPacketGet(netDev);
+	if (!packet)
+		return (packet);
+
+	if (ops->driverReadData)
+		packet->length = ops->driverReadData(netDev, packet->memory);
+
+	// If there's no data, we are finished
+	if (!packet->length)
+	{
+		kernelError(kernel_error, "Packet has no data");
+		poolPacketRelease(packet);
+		return (packet = NULL);
+	}
+
+	return (packet);
+}
+
+
 static int processLoop(kernelNetworkDevice *netDev __attribute__((unused)),
 	kernelNetworkPacket *packet)
 {
@@ -191,43 +226,16 @@ static int processEthernet(kernelNetworkDevice *netDev
 }
 
 
-static int readData(kernelDevice *dev)
+static int processPacket(kernelDevice *dev, kernelNetworkPacket *packet)
 {
 	int status = 0;
 	kernelNetworkDevice *netDev = NULL;
-	kernelNetworkDeviceOps *ops = dev->driver->ops;
-	unsigned char buffer[NETWORK_PACKET_MAX_LENGTH];
-	kernelNetworkPacket *packet = NULL;
-
 	netDev = dev->data;
 
-	kernelDebug(debug_net, "NETDEV read data from %s", netDev->device.name);
-
-	if (!(netDev->device.flags & NETWORK_DEVICEFLAG_INITIALIZED))
-	{
-		// We can't process this data, but we can service the device
-		if (ops->driverReadData)
-			ops->driverReadData(netDev, buffer);
-
-		return (status = 0);
-	}
+	kernelDebug(debug_net, "NETDEV process packet from %s",
+		netDev->device.name);
 
 	netDev->device.recvPackets += 1;
-
-	packet = poolPacketGet(netDev);
-	if (!packet)
-		return (status = ERR_MEMORY);
-
-	if (ops->driverReadData)
-		packet->length = ops->driverReadData(netDev, packet->memory);
-
-	// If there's no data, we are finished
-	if (!packet->length)
-	{
-		kernelError(kernel_error, "Packet has no data");
-		poolPacketRelease(packet);
-		return (status = 0);
-	}
 
 	// If there are input hooks on this device, emit the raw packet data
 	processHooks(netDev, packet, 1 /* input */);
@@ -285,13 +293,14 @@ static int readData(kernelDevice *dev)
 static void networkInterrupt(void)
 {
 	// This is the network interrupt handler.  It calls the network driver
-	// for the device in order to actually service the interrupt
+	// for the device in order to actually service the interrupt.
 
 	void *address = NULL;
 	int interruptNum = 0;
 	kernelDevice *dev = NULL;
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkDeviceOps *ops = NULL;
+	kernelNetworkPacket *packet = NULL;
 	int serviced = 0;
 	int count;
 
@@ -316,13 +325,17 @@ static void networkInterrupt(void)
 
 			if (ops->driverInterruptHandler)
 			{
-				// Call the driver function.
+				// Call the driver function
 				if (ops->driverInterruptHandler(netDev) >= 0)
 				{
 					// Read the data from all queued packets
 					while (netDev->device.recvQueued)
 					{
-						if (readData(dev) < 0)
+						packet = readDevice(dev);
+						if (!packet)
+							break;
+
+						if (processPacket(dev, packet) < 0)
 							break;
 					}
 
@@ -339,22 +352,10 @@ static void networkInterrupt(void)
 
 	if (!serviced)
 	{
-		if (oldIntHandlers[interruptNum])
-		{
-			// We didn't service this interrupt, and we're sharing this PCI
-			// interrupt with another device whose handler we saved.  Call it.
-			kernelDebug(debug_net, "NETDEV interrupt not serviced - "
-				"chaining");
-			processorIsrCall(oldIntHandlers[interruptNum]);
-		}
-		else
-		{
-			// We'd better acknowledge the interrupt, or else it wouldn't be
-			// cleared, and our controllers using this vector wouldn't receive
-			// any more.
-			kernelDebugError("Interrupt not serviced and no saved ISR");
-			kernelPicEndOfInterrupt(interruptNum);
-		}
+		// We didn't service this interrupt, so try to pass it on to the next
+		// handler in the chain,  if any
+		kernelDebug(debug_io, "NETDEV interrupt not serviced - chaining");
+		kernelInterruptNextHandler(interruptNum, &networkInterrupt);
 	}
 
 out:
@@ -392,7 +393,7 @@ static kernelDevice *findDeviceByName(const char *deviceName)
 int kernelNetworkDeviceRegister(kernelDevice *dev)
 {
 	// This function is called by the network drivers' detection functions
-	// to tell us about a new device.
+	// to tell us about a new device
 
 	int status = 0;
 	kernelNetworkDevice *netDev = NULL;
@@ -413,37 +414,12 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 
 	if (netDev->device.interruptNum >= 0)
 	{
-		// Save any existing handler for the interrupt we're hooking
-
-		if (numOldHandlers <= netDev->device.interruptNum)
-		{
-			numOldHandlers = (netDev->device.interruptNum + 1);
-
-			oldIntHandlers = kernelRealloc(oldIntHandlers,
-				(numOldHandlers * sizeof(void *)));
-			if (!oldIntHandlers)
-				return (status = ERR_MEMORY);
-		}
-
-		if (!oldIntHandlers[netDev->device.interruptNum] &&
-			(kernelInterruptGetHandler(netDev->device.interruptNum) !=
-				networkInterrupt))
-		{
-			oldIntHandlers[netDev->device.interruptNum] =
-				kernelInterruptGetHandler(netDev->device.interruptNum);
-		}
-
 		// Register our interrupt handler for this device
 		status = kernelInterruptHook(netDev->device.interruptNum,
-			&networkInterrupt, NULL);
+			&networkInterrupt, NULL /* handlerTask */);
 		if (status < 0)
 			return (status);
-	}
 
-	devices[numDevices++] = dev;
-
-	if (netDev->device.interruptNum >= 0)
-	{
 		// Turn on the interrupt
 		status = kernelPicMask(netDev->device.interruptNum, 1);
 		if (status < 0)
@@ -454,6 +430,8 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 	status = kernelNetworkRegister(netDev);
 	if (status < 0)
 		return (status);
+
+	devices[numDevices++] = dev;
 
 	kernelLog("Added network device %s, link=%s", netDev->device.name,
 		((netDev->device.flags & NETWORK_DEVICEFLAG_LINK)? "UP" : "DOWN"));
@@ -490,12 +468,16 @@ int kernelNetworkDeviceStart(const char *name, int reconfigure)
 	kernelDebug(debug_net, "NETDEV start device %s", netDev->device.name);
 
 	if ((netDev->device.flags & NETWORK_DEVICEFLAG_RUNNING) && !reconfigure)
+	{
 		// Nothing to do
 		return (status = 0);
+	}
 
 	if (!(netDev->device.flags & NETWORK_DEVICEFLAG_LINK))
+	{
 		// No network link
 		return (status = ERR_IO);
+	}
 
 	// If the device is disabled, don't start it
 	if (netDev->device.flags & NETWORK_DEVICEFLAG_DISABLED)
@@ -571,7 +553,7 @@ int kernelNetworkDeviceStop(const char *name)
 		(netDev->device.flags & NETWORK_DEVICEFLAG_RUNNING))
 	{
 		// If the device was configured with DHCP, tell the server we're
-		// relinquishing the address.
+		// relinquishing the address
 		if (netDev->device.flags & NETWORK_DEVICEFLAG_AUTOCONF)
 		{
 			kernelNetworkDhcpRelease(netDev);
@@ -701,8 +683,10 @@ int kernelNetworkDeviceSetFlags(const char *name, unsigned flags, int onOff)
 		return (status);
 
 	if (ops->driverSetFlags)
-		// Call the driver flag-setting function.
+	{
+		// Call the driver flag-setting function
 		status = ops->driverSetFlags(netDev, flags, onOff);
+	}
 
 	// Release the lock
 	kernelLockRelease(&netDev->lock);
@@ -714,9 +698,9 @@ int kernelNetworkDeviceSetFlags(const char *name, unsigned flags, int onOff)
 int kernelNetworkDeviceGetAddress(const char *name,
 	networkAddress *logicalAddress, networkAddress *physicalAddress)
 {
-	// This function attempts to use the named network device to determine
-	// the physical address of the host with the supplied logical address.
-	// The Address Resolution Protocol (ARP) is used for this.
+	// This function attempts to use the named network device to determine the
+	// physical address of the host with the supplied logical address.  The
+	// Address Resolution Protocol (ARP) is used for this.
 
 	int status = 0;
 	kernelDevice *dev = NULL;
@@ -770,13 +754,15 @@ int kernelNetworkDeviceGetAddress(const char *name,
 		arpPosition = kernelNetworkArpSearchCache(netDev, logicalAddress);
 		if (arpPosition >= 0)
 		{
-			// Found it.
+			// Found it
 			kernelDebug(debug_net, "NETDEV found ARP cache request");
 			networkAddressCopy(physicalAddress,
 				&netDev->arpCache[arpPosition].physicalAddress,
 				sizeof(networkAddress));
 			return (status = 0);
 		}
+
+		kernelDebug(debug_net, "NETDEV address not found in ARP cache");
 
 		// Construct and send our ethernet packet with the ARP request
 		// (not queued; immediately)
@@ -787,13 +773,17 @@ int kernelNetworkDeviceGetAddress(const char *name,
 
 		// Expect a quick reply the first time
 		if (!count)
+		{
 			kernelMultitaskerYield();
+		}
 		else
+		{
 			// Delay for 1/2 second
 			kernelMultitaskerWait(500);
+		}
 	}
 
-	// If we fall through, we didn't find it.
+	// If we fall through, we didn't find it
 	return (status = ERR_NOSUCHENTRY);
 }
 
@@ -806,6 +796,7 @@ int kernelNetworkDeviceSend(const char *name, kernelNetworkPacket *packet)
 	kernelDevice *dev = NULL;
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkDeviceOps *ops = NULL;
+	kernelNetworkPacket *selfPacket = NULL;
 
 	// Check params
 	if (!name || !packet)
@@ -825,8 +816,10 @@ int kernelNetworkDeviceSend(const char *name, kernelNetworkPacket *packet)
 	}
 
 	if (!packet->length)
-		// Nothing to do?  Hum.
+	{
+		// Nothing to do?  Hm.
 		return (status = 0);
+	}
 
 	netDev = dev->data;
 	ops = dev->driver->ops;
@@ -834,25 +827,38 @@ int kernelNetworkDeviceSend(const char *name, kernelNetworkPacket *packet)
 	// If there are output hooks on this device, emit the raw packet data
 	processHooks(netDev, packet, 0 /* output */);
 
-	// Lock the device
-	status = kernelLockGet(&netDev->lock);
-	if (status < 0)
-		return (status);
-
-	if (ops->driverWriteData)
+	// If the device is not loopback, and ostensibly sending to itself, don't
+	// physically send it
+	if ((netDev->device.linkProtocol != NETWORK_LINKPROTOCOL_LOOP) &&
+		networkAddressesEqual(&netDev->device.hostAddress,
+			&packet->destAddress, sizeof(networkAddress)))
 	{
-		// Call the driver transmit function.
-		status = ops->driverWriteData(netDev, packet->memory,
-			packet->length);
+		selfPacket = kernelNetworkPacketCopy(packet);
+		if (selfPacket)
+			status = processPacket(dev, selfPacket);
 	}
+	else
+	{
+		// Lock the device
+		status = kernelLockGet(&netDev->lock);
+		if (status < 0)
+			return (status);
 
-	// Release the lock
-	kernelLockRelease(&netDev->lock);
+		if (ops->driverWriteData)
+		{
+			// Call the driver transmit function
+			status = ops->driverWriteData(netDev, packet->memory,
+				packet->length);
+		}
 
-	// Wait until all packets are transmitted before returning, since the
-	// memory is needed by the device
-	while (netDev->device.transQueued)
-		kernelMultitaskerYield();
+		// Release the lock
+		kernelLockRelease(&netDev->lock);
+
+		// Wait until all packets are transmitted before returning, since the
+		// memory is needed by the device
+		while (netDev->device.transQueued)
+			kernelMultitaskerYield();
+	}
 
 	if (status >= 0)
 	{
@@ -890,7 +896,11 @@ int kernelNetworkDeviceSend(const char *name, kernelNetworkPacket *packet)
 
 	// If the device is a loop device, attempt to process the input now
 	if (netDev->device.linkProtocol == NETWORK_LINKPROTOCOL_LOOP)
-		readData(dev);
+	{
+		packet = readDevice(dev);
+		if (packet)
+			processPacket(dev, packet);
+	}
 
 	return (status);
 }
@@ -919,7 +929,7 @@ int kernelNetworkDeviceGetCount(void)
 int kernelNetworkDeviceGet(const char *name, networkDevice *dev)
 {
 	// Returns the user-space portion of the requested (by name) network
-	// device.
+	// device
 
 	int status = 0;
 	kernelDevice *kernelDev = NULL;
@@ -950,9 +960,9 @@ int kernelNetworkDeviceGet(const char *name, networkDevice *dev)
 
 int kernelNetworkDeviceHook(const char *name, void **streamPtr, int input)
 {
-	// Allocates a new network packet stream and associates it with the
-	// named device, 'hooking' either the input or output, and returning a
-	// pointer to the stream.
+	// Allocates a new network packet stream and associates it with the named
+	// device, 'hooking' either the input or output, and returning a pointer
+	// to the stream
 
 	int status = 0;
 	kernelDevice *kernelDev = NULL;
@@ -992,6 +1002,7 @@ int kernelNetworkDeviceHook(const char *name, void **streamPtr, int input)
 	{
 		kernelError(kernel_error, "Couldn't allocate network packet stream");
 		kernelFree(*streamPtr);
+		*streamPtr = NULL;
 		return (status);
 	}
 
@@ -1002,12 +1013,13 @@ int kernelNetworkDeviceHook(const char *name, void **streamPtr, int input)
 		list = (linkedList *) &netDev->outputHooks;
 
 	// Add it to the list
-	status = linkedListAdd(list, *streamPtr);
+	status = linkedListAddBack(list, *streamPtr);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Couldn't link network packet stream");
 		kernelNetworkPacketStreamDestroy(theStream);
 		kernelFree(*streamPtr);
+		*streamPtr = NULL;
 		return (status);
 	}
 
@@ -1018,7 +1030,7 @@ int kernelNetworkDeviceHook(const char *name, void **streamPtr, int input)
 int kernelNetworkDeviceUnhook(const char *name, void *streamPtr, int input)
 {
 	// 'Unhooks' the supplied network packet stream from the input or output
-	// of the named device and deallocates the stream.
+	// of the named device and deallocates the stream
 
 	int status = 0;
 	kernelDevice *kernelDev = NULL;
@@ -1069,7 +1081,7 @@ unsigned kernelNetworkDeviceSniff(void *streamPtr, unsigned char *buffer,
 {
 	// Given a pointer to a network packet stream 'hooked' to the input or
 	// output of a device, attempt to retrieve a packet, and copy at most the
-	// requested number of bytes to the buffer.
+	// requested number of bytes to the buffer
 
 	unsigned bytes = 0;
 	kernelNetworkPacketStream *theStream = streamPtr;

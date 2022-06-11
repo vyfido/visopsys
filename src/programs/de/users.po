@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2013-11-09 23:51-0400\n"
 "Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -124,7 +124,7 @@ msgstr "Der letzte Benutzer kann nicht gelöscht werden"
 msgid "Couldn't save the language choice"
 msgstr ""
 
-#: users.c:846
+#: users.c:844
 #, c-format
 msgid ""
 "\n"
@@ -133,25 +133,25 @@ msgstr ""
 "\n"
 "Das Kommando \"%s\" funktioniert nur im Grafikmodus\n"
 
-#: users.c:863
+#: users.c:860
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: users.c:880
+#: users.c:876
 #, fuzzy
 msgid "Couldn't determine the current user"
 msgstr "Der letzte Benutzer kann nicht gelöscht werden"
 
-#: users.c:908
+#: users.c:904
 #, c-format
 msgid "No such user \"%s\""
 msgstr "Kein Benutzer Namens \"%s\""
 
-#: users.c:913
+#: users.c:909
 msgid "Done"
 msgstr "Fertig"
 
-#: users.c:913
+#: users.c:909
 msgid "Password set"
 msgstr "Passwort konfiguriert"

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -57,6 +57,7 @@ typedef unsigned fpos_t;
 // Available functions
 int fclose(FILE *);
 FILE *fdopen(int, const char *);
+int feof(FILE *);
 int fflush(FILE *);
 int fgetpos(FILE *, fpos_t *);
 char *fgets(char *, int, FILE *);

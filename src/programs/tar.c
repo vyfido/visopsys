@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -71,7 +71,6 @@ static void usage(char *name)
 		"%s [-p] -d <archive> <member1> [member2] [...]\n"
 		"%s [-p] -i <archive>\n"
 		"%s [-p] -x <archive1> [archive2] [...]\n"), name, name, name, name);
-	return;
 }
 
 

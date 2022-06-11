@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ramdisk\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2014-08-13 22:22+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -36,21 +36,21 @@ msgstr ""
 msgid "%s <destroy> <name>\n"
 msgstr "%s <destroy> <имя>\n"
 
-#: ramdisk.c:161
+#: ramdisk.c:169
 msgid "Error creating RAM disk\n"
 msgstr "Ошибка создания RAM диска\n"
 
-#: ramdisk.c:165
+#: ramdisk.c:174
 #, c-format
 msgid "Created RAM disk %s size %u\n"
 msgstr "Создан RAM диск %s объемом %u\n"
 
-#: ramdisk.c:174
+#: ramdisk.c:184
 #, c-format
 msgid "Error destroying RAM disk %s\n"
 msgstr "Ошибка уничтожения RAM диска %s\n"
 
-#: ramdisk.c:178
+#: ramdisk.c:189
 #, c-format
 msgid "Destroyed RAM disk %s\n"
 msgstr "Уничтоден RAM диск %s\n"

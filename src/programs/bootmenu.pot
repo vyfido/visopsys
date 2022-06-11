@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,7 +24,7 @@ msgstr ""
 #: bootmenu.c:66
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin"
 msgstr ""
 
 #: bootmenu.c:68
@@ -76,15 +76,15 @@ msgid ""
 "%s <disk name>\n"
 msgstr ""
 
-#: bootmenu.c:138
+#: bootmenu.c:137
 msgid "Error"
 msgstr ""
 
-#: bootmenu.c:217
+#: bootmenu.c:212
 msgid "Edit entry label"
 msgstr ""
 
-#: bootmenu.c:289
+#: bootmenu.c:284
 #, c-format
 msgid ""
 "Enter new label (%d characters max.):\n"
@@ -92,29 +92,29 @@ msgid ""
 " ["
 msgstr ""
 
-#: bootmenu.c:370
+#: bootmenu.c:363
 msgid "Can't get memory for the logical disk list"
 msgstr ""
 
-#: bootmenu.c:377
+#: bootmenu.c:370
 msgid "Can't get the logical disk list"
 msgstr ""
 
-#: bootmenu.c:408
+#: bootmenu.c:401
 #, c-format
 msgid "Can't open %s file"
 msgstr ""
 
-#: bootmenu.c:415
+#: bootmenu.c:408
 msgid "Can't get buffer memory"
 msgstr ""
 
-#: bootmenu.c:422
+#: bootmenu.c:415
 #, c-format
 msgid "Can't read %s file"
 msgstr ""
 
-#: bootmenu.c:492
+#: bootmenu.c:484
 #, c-format
 msgid ""
 "Disk %s\n"
@@ -124,61 +124,61 @@ msgid ""
 "\n"
 msgstr ""
 
-#: bootmenu.c:495
+#: bootmenu.c:487
 msgid "yes"
 msgstr ""
 
-#: bootmenu.c:495
+#: bootmenu.c:487
 msgid "no"
 msgstr ""
 
-#: bootmenu.c:706
+#: bootmenu.c:697
 msgid "Can't write boot menu"
 msgstr ""
 
-#: bootmenu.c:718
+#: bootmenu.c:709
 #, c-format
 msgid "Can't write MBR %s to %s"
 msgstr ""
 
-#: bootmenu.c:759
+#: bootmenu.c:749
 msgid "Permission Denied"
 msgstr ""
 
-#: bootmenu.c:770
+#: bootmenu.c:760
 #, c-format
 msgid "Can't get disk %s"
 msgstr ""
 
-#: bootmenu.c:779
+#: bootmenu.c:769
 #, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr ""
 
-#: bootmenu.c:787
+#: bootmenu.c:777
 msgid "Can't get the list of logical disks"
 msgstr ""
 
-#: bootmenu.c:842
+#: bootmenu.c:832
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr ""
 
-#: bootmenu.c:867
+#: bootmenu.c:857
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr ""
 
-#: bootmenu.c:911
+#: bootmenu.c:901
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
 "   'd' delete, Enter to accept, 'Q' to quit]"
 msgstr ""
 
-#: bootmenu.c:978
+#: bootmenu.c:968
 msgid "Can't write boot menu or MBR"
 msgstr ""
 
-#: bootmenu.c:986
+#: bootmenu.c:976
 msgid "Done"
 msgstr ""

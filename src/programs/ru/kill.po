@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 00:08+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,21 +18,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: kill.c:62
+#: kill.c:55
 msgid "usage:\n"
 msgstr "использование:\n"
 
-#: kill.c:63
+#: kill.c:56
 #, c-format
-msgid "%s [-f] <process1> [process2] [...]\n"
-msgstr "%s [-f] <процесс1> [процесс2] [...]\n"
+msgid "%s <process1> [process2] [...]\n"
+msgstr "%s <процесс1> [процесс2] [...]\n"
 
-#: kill.c:105
-#, c-format
-msgid "Unknown option '%c'\n"
-msgstr ""
-
-#: kill.c:129
+#: kill.c:106
 #, c-format
 msgid "%d killed\n"
 msgstr "%d убит\n"

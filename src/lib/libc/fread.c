@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,7 +43,7 @@ size_t fread(void *buf, size_t size, size_t number, FILE *theStream)
 		return (bytes = 0);
 
 	if (theStream == stdin)
-		status = textInputStreamReadN(multitaskerGetTextInput(), bytes, buf);
+		status = textInputReadN(bytes, buf);
 	else
 		status = fileStreamRead(theStream, bytes, buf);
 

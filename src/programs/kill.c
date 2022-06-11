@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,18 +29,12 @@
 Kill (stop) programs or processes.
 
 Usage:
-  kill [-f] <process1> [process2] [...]
+  kill <process1> [process2] [...]
 
 The 'kill' command can be used to stop and eliminate one or more programs or
-processes.  The '-f' option means 'force' (i.e., stop the program even if it
-is not responding, or if there are errors of various types).  If no -f option
-is specified, the kill operation will tend to quit if errors are encountered
-while dismantling a process.  The only mandatory parameter is a process ID
-number (and, optionally, any number of additional process ID numbers).  To
-see a list of running processes, use the 'ps' command.
-
-Options:
--f  : Force kill -- ignore errors.
+processes.  The only mandatory parameter is a process ID number (and,
+optionally, any number of additional process ID numbers).  To see a list of
+running processes, use the 'ps' command.
 
 </help>
 */
@@ -50,7 +44,6 @@ Options:
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
 
@@ -60,8 +53,7 @@ Options:
 static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
-	printf(_("%s [-f] <process1> [process2] [...]\n"), name);
-	return;
+	printf(_("%s <process1> [process2] [...]\n"), name);
 }
 
 
@@ -71,9 +63,7 @@ int main(int argc, char *argv[])
 	// the supplied process id
 
 	int status = 0;
-	char opt;
 	int processId = 0;
-	int force = 0;
 	int count = 1;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
@@ -85,31 +75,8 @@ int main(int argc, char *argv[])
 		return (status = ERR_ARGUMENTCOUNT);
 	}
 
-	// Check options
-	while (strchr("f?", (opt = getopt(argc, argv, "f"))))
-	{
-		switch (opt)
-		{
-			case 'f':
-				// 'force' option
-				if (argc < 3)
-				{
-					usage(argv[0]);
-					return (status = ERR_ARGUMENTCOUNT);
-				}
-				force = 1;
-				count++;
-				break;
-
-			default:
-				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
-				usage(argv[0]);
-				return (status = ERR_ARGUMENTCOUNT);
-		}
-	}
-
 	// Loop through all of our process ID arguments
-	for ( ; count < argc; count ++)
+	for (count = 1; count < argc; count ++)
 	{
 		// Make sure our argument isn't NULL
 		if (!argv[count])
@@ -117,12 +84,22 @@ int main(int argc, char *argv[])
 
 		processId = atoi(argv[count]);
 
+		// OK?
+		if (errno)
+		{
+			status = errno;
+			perror("atoi");
+			usage(argv[0]);
+			return (status);
+		}
+
 		// Kill a process
-		status = multitaskerKillProcess(processId, force);
+		status = multitaskerKillProcess(processId);
 		if (status < 0)
 		{
+			fprintf(stderr, "%s: ", argv[0]);
 			errno = status;
-			perror(argv[0]);
+			perror(argv[count]);
 		}
 		else
 		{

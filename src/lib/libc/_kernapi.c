@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -394,34 +394,6 @@ _X_ int textInputAppendN(int num, char *str _U_)
 	// Proto: int kernelTextInputAppendN(int, char *);
 	// Desc : Append 'num' characters to the end of the default input stream from 'str'
 	return (_syscall(_fnum_textInputAppendN, &num));
-}
-
-_X_ int textInputStreamRemove(objectKey strm)
-{
-	// Proto: int kernelTextInputStreamRemove(kernelTextInputStream *);
-	// Desc : Remove one character from the start of the specified input stream.
-	return (_syscall(_fnum_textInputStreamRemove, &strm));
-}
-
-_X_ int textInputRemove(void)
-{
-	// Proto: int kernelTextInputRemove(void);
-	// Desc : Remove one character from the start of the default input stream.
-	return (_syscall(_fnum_textInputRemove, NULL));
-}
-
-_X_ int textInputStreamRemoveN(objectKey strm, int num _U_)
-{
-	// Proto: int kernelTextInputStreamRemoveN(kernelTextInputStream *, int);
-	// Desc : Remove 'num' characters from the start of the specified input stream.
-	return (_syscall(_fnum_textInputStreamRemoveN, &strm));
-}
-
-_X_ int textInputRemoveN(int num)
-{
-	// Proto: int kernelTextInputRemoveN(int);
-	// Desc : Remove 'num' characters from the start of the default input stream.
-	return (_syscall(_fnum_textInputRemoveN, &num));
 }
 
 _X_ int textInputStreamRemoveAll(objectKey strm)
@@ -1151,16 +1123,16 @@ _X_ int multitaskerDetach(void)
 	return (_syscall(_fnum_multitaskerDetach, NULL));
 }
 
-_X_ int multitaskerKillProcess(int pid, int force _U_)
+_X_ int multitaskerKillProcess(int pid)
 {
 	// Proto: int kernelMultitaskerKillProcess(int);
-	// Desc : Terminate the process referenced by process ID 'pid'.  If 'force' is non-zero, the multitasker will attempt to ignore any errors and dismantle the process with extreme prejudice.  The 'force' flag also has the necessary side effect of killing any child threads spawned by process 'pid'.  (Otherwise, 'pid' is left in a stopped state until its threads have terminated normally).
+	// Desc : Terminate the process referenced by process ID 'pid'.
 	return (_syscall(_fnum_multitaskerKillProcess, &pid));
 }
 
-_X_ int multitaskerKillByName(const char *name, int force _U_)
+_X_ int multitaskerKillByName(const char *name)
 {
-	// Proto: int kernelMultitaskerKillByName(const char *name, int force)
+	// Proto: int kernelMultitaskerKillByName(const char *)
 	// Desc : Like multitaskerKillProcess, except that it attempts to kill all instances of processes whose names match 'name'
 	return (_syscall(_fnum_multitaskerKillByName, &name));
 }
@@ -2096,6 +2068,13 @@ _X_ int windowComponentSetData(objectKey component, void *buffer _U_, int size _
 	return (_syscall(_fnum_windowComponentSetData, &component));
 }
 
+_X_ int windowComponentAppendData(objectKey component, void *buffer _U_, int size _U_, int render _U_)
+{
+	// Proto: int kernelWindowComponentAppendData(kernelWindowComponent *, void *, int, int);
+	// Desc : This is a generic call to append data to the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  Non-zero 'render' flag causes the component to be redrawn on the screen.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
+	return (_syscall(_fnum_windowComponentAppendData, &component));
+}
+
 _X_ int windowComponentGetSelected(objectKey component, int *selection _U_)
 {
 	// Proto: int kernelWindowComponentGetSelected(kernelWindowComponent *);
@@ -2421,6 +2400,20 @@ _X_ int networkClose(objectKey connection)
 	return (_syscall(_fnum_networkClose, &connection));
 }
 
+_X_ int networkConnectionGetCount(void)
+{
+	// Proto: int kernelNetworkConnectionGetCount(void);
+	// Desc: Returns the count of network connections.
+	return (_syscall(_fnum_networkConnectionGetCount, NULL));
+}
+
+_X_ int networkConnectionGetAll(networkConnection *userConnArray, unsigned buffSize _U_)
+{
+	// Proto: int kernelNetworkConnectionGetAll(networkConnection *, unsigned);
+	// Desc: Return user space network connection structures in 'userConnArray' for each connection, up to 'buffSize' bytes.
+	return (_syscall(_fnum_networkConnectionGetAll, &userConnArray));
+}
+
 _X_ int networkCount(objectKey connection)
 {
 	// Proto: int kernelNetworkCount(kernelNetworkConnection *connection);
@@ -2494,7 +2487,7 @@ _X_ int networkDeviceDisable(const char *name)
 _X_ int networkDeviceGetCount(void)
 {
 	// Proto: int kernelNetworkDeviceGetCount(void);
-	// Desc: Returns the count of network devices
+	// Desc: Returns the count of network devices.
 	return (_syscall(_fnum_networkDeviceGetCount, NULL));
 }
 

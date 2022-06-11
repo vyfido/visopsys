@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,7 +54,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s <username>\n"), name);
-	return;
 }
 
 
@@ -81,10 +80,7 @@ int main(int argc, char *argv[])
 
 	status = userAdd(argv[1], "");
 	if (status < 0)
-	{
-		errno = status;
 		return (status);
-	}
 
 	// Try to create the user directory
 	snprintf(userDir, MAX_PATH_NAME_LENGTH, PATH_USERS "/%s", argv[1]);

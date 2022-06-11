@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,9 +19,9 @@
 //  kernelSystemDriver.c
 //
 
-// This is a place for putting basic, generic driver initializations, including
-// the one for the 'system device' itself, and any other abstract things that
-// have no real hardware driver, per se.
+// This is a place for putting basic, generic driver initializations,
+// including the one for the 'system device' itself, and any other abstract
+// things that have no real hardware driver, per se
 
 #include "kernelSystemDriver.h"
 #include "kernelBus.h"
@@ -105,7 +105,7 @@ static int driverDetectBios32(void *parent, kernelDriver *driver)
 	kernelDevice *dev = NULL;
 	int count;
 
-	// Map the designated area for the BIOS into memory so we can scan it.
+	// Map the designated area for the BIOS into memory so we can scan it
 	status = kernelPageMapToFree(KERNELPROCID, BIOSROM_START, &rom,
 		BIOSROM_SIZE);
 	if (status < 0)
@@ -123,8 +123,10 @@ static int driverDetectBios32(void *parent, kernelDriver *driver)
 	}
 
 	if (!dataStruct)
+	{
 		// Not found
 		goto out;
+	}
 
 	// Check the checksum (signed chars, should sum to zero)
 	for (count = 0; count < (int) sizeof(kernelBios32Header); count ++)
@@ -136,8 +138,8 @@ static int driverDetectBios32(void *parent, kernelDriver *driver)
 		goto out;
 	}
 
-	kernelLog("32-bit BIOS found at %p, entry point %p",
-		(void *)(BIOSROM_START + ((void *) dataStruct - rom)),
+	kernelLog("32-bit BIOS found at %p, entry point %p", (void *)
+		(BIOSROM_START + ((void *) dataStruct - rom)),
 		dataStruct->entryPoint);
 
 	// Register the device
@@ -189,7 +191,7 @@ static int driverDetectBiosPnP(void *parent, kernelDriver *driver)
 	char value[80];
 	int count;
 
-	// Map the designated area for the BIOS into memory so we can scan it.
+	// Map the designated area for the BIOS into memory so we can scan it
 	status = kernelPageMapToFree(KERNELPROCID, BIOSROM_START, &rom,
 		BIOSROM_SIZE);
 	if (status < 0)
@@ -207,8 +209,10 @@ static int driverDetectBiosPnP(void *parent, kernelDriver *driver)
 	}
 
 	if (!dataStruct)
+	{
 		// Not found
 		goto out;
+	}
 
 	// Check the checksum (signed chars, should sum to zero)
 	for (count = 0; count < (int) sizeof(kernelBiosPnpHeader); count ++)
@@ -220,8 +224,8 @@ static int driverDetectBiosPnP(void *parent, kernelDriver *driver)
 		goto out;
 	}
 
-	kernelLog("Plug and Play BIOS found at %p",
-		(void *)(BIOSROM_START + ((void *) dataStruct - rom)));
+	kernelLog("Plug and Play BIOS found at %p", (void *)(BIOSROM_START +
+		((void *) dataStruct - rom)));
 
 	// Register the device
 	dev = regDevice(parent, driver,
@@ -270,6 +274,25 @@ out:
 		kernelPageUnmap(KERNELPROCID, rom, BIOSROM_SIZE);
 
 	return (status);
+}
+
+
+static unsigned long long driverMultiProcGetFeatures(kernelDevice *dev)
+{
+	unsigned long long features = 0;
+	multiProcConfigHeader *config = NULL;
+	multiProcFloatingPointer *floater = NULL;
+
+	// Check Params
+	if (!dev)
+		return (NULL);
+
+	config = dev->data;
+
+	memcpy(&features, (dev->data + config->length),
+		sizeof(floater->features));
+
+	return (features);
 }
 
 
@@ -325,7 +348,7 @@ static void *driverMultiProcGetEntry(kernelDevice *dev, unsigned char type,
 			default:
 				kernelDebugError("Multiproc config table unknown entry type "
 					"(%d)", ptr[0]);
-					return (NULL);
+				return (NULL);
 		}
 	}
 
@@ -348,6 +371,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 	char checkSum = 0;
 	kernelDevice *dev = NULL;
 	multiProcConfigHeader *config = NULL;
+	unsigned short configLength = 0;
 	int processors = 0, buses = 0, ioapics = 0, ioints = 0, locints = 0;
 	char value[80];
 	int count;
@@ -397,7 +421,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 			BIOSROM_START, BIOSROM_END);
 
 		// Map the designated area for the BIOS ROM into memory so we can
-		// scan it.
+		// scan it
 		status = kernelPageMapToFree(KERNELPROCID, BIOSROM_START, &rom,
 			BIOSROM_SIZE);
 		if (status < 0)
@@ -451,7 +475,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		kernelDebug(debug_device, "Multiproc config table is at %08x",
 			floater->tablePhysical);
 
-		// Map the first page of the configuration table.
+		// Map the first page of the configuration table
 		status = kernelPageMapToFree(KERNELPROCID, floater->tablePhysical,
 			(void **) &config, MEMORY_PAGE_SIZE);
 		if (status < 0)
@@ -466,9 +490,19 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 			goto out;
 		}
 
+		configLength = config->length;
+
+		// Remap the actual size of the table
+		kernelPageUnmap(KERNELPROCID, config, MEMORY_PAGE_SIZE);
+		config = NULL;
+		status = kernelPageMapToFree(KERNELPROCID, floater->tablePhysical,
+			(void **) &config, configLength);
+		if (status < 0)
+			goto out;
+
 		// Check the checksum (signed chars, should sum to zero)
-		for (count = 0, ptr = (char *) config, checkSum = 0;
-			count < config->length; count ++)
+		for (count = 0, ptr = (char *) config, checkSum = 0; count < (int)
+			configLength; count ++)
 		{
 			checkSum += ptr[count];
 		}
@@ -482,7 +516,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		}
 
 		// Allocate memory for driver data
-		dev->data = kernelMalloc(min(config->length, MEMORY_PAGE_SIZE));
+		dev->data = kernelMalloc(configLength + sizeof(floater->features));
 		if (!dev->data)
 		{
 			status = ERR_MEMORY;
@@ -490,13 +524,14 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		}
 
 		// Copy the data we found into the driver's data structure
-		memcpy(dev->data, config, min(config->length, MEMORY_PAGE_SIZE));
+		memcpy(dev->data, config, configLength);
+		memcpy((dev->data + configLength), floater->features,
+			sizeof(floater->features));
 
 		// Find processors
 		for (count = 0; ; count ++)
 		{
 			ptr = driverMultiProcGetEntry(dev, MULTIPROC_ENTRY_CPU, count);
-
 			if (!ptr)
 				break;
 
@@ -514,7 +549,6 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		for (count = 0; ; count ++)
 		{
 			ptr = driverMultiProcGetEntry(dev, MULTIPROC_ENTRY_BUS, count);
-
 			if (!ptr)
 				break;
 
@@ -528,7 +562,6 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		for (count = 0; ; count ++)
 		{
 			ptr = driverMultiProcGetEntry(dev, MULTIPROC_ENTRY_IOAPIC, count);
-
 			if (!ptr)
 				break;
 
@@ -546,7 +579,6 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		{
 			ptr = driverMultiProcGetEntry(dev, MULTIPROC_ENTRY_IOINTASSMT,
 				count);
-
 			if (!ptr)
 				break;
 
@@ -566,7 +598,6 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		{
 			ptr = driverMultiProcGetEntry(dev, MULTIPROC_ENTRY_LOCINTASSMT,
 				count);
-
 			if (!ptr)
 				break;
 
@@ -591,16 +622,20 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		// Vendor string
 		strncpy(value, config->oemId, 8);
 		for (count = 7; count; count --)
+		{
 			if (value[count] == ' ')
 				value[count] = '\0';
+		}
 		variableListSet((variableList *) &dev->device.attrs,
 			DEVICEATTRNAME_VENDOR, value);
 
 		// Product name
 		strncpy(value, config->productId, 12);
 		for (count = 11; count; count --)
+		{
 			if (value[count] == ' ')
 				value[count] = '\0';
+		}
 		variableListSet((variableList *) &dev->device.attrs,
 			DEVICEATTRNAME_MODEL, value);
 
@@ -636,7 +671,10 @@ out:
 	}
 
 	if (config)
-		kernelPageUnmap(KERNELPROCID, config, MEMORY_PAGE_SIZE);
+	{
+		kernelPageUnmap(KERNELPROCID, config, (configLength? configLength :
+			MEMORY_PAGE_SIZE));
+	}
 
 	if (rom)
 		kernelPageUnmap(KERNELPROCID, rom, BIOSROM_SIZE);
@@ -667,7 +705,7 @@ static int driverDetectIsaBridge(void *parent __attribute__((unused)),
 	if (numBusTargets <= 0)
 		return (status = ERR_NODATA);
 
-	// Search the bus targets for an PCI-to-ISA bridge device.
+	// Search the bus targets for an PCI-to-ISA bridge device
 	for (deviceCount = 0; deviceCount < numBusTargets; deviceCount ++)
 	{
 		// If it's not a PCI-to-ISA bridge device, skip it
@@ -682,7 +720,7 @@ static int driverDetectIsaBridge(void *parent __attribute__((unused)),
 
 		kernelLog("Found PCI/ISA bridge");
 
-		// After this point, we know we have a supported device.
+		// After this point, we know we have a supported device
 
 		dev = regDevice(busTargets[deviceCount].bus->dev, driver,
 			kernelDeviceGetClass(DEVICECLASS_BRIDGE),
@@ -696,6 +734,7 @@ static int driverDetectIsaBridge(void *parent __attribute__((unused)),
 
 
 static kernelMultiProcOps multiProcOps = {
+	driverMultiProcGetFeatures,
 	driverMultiProcGetEntry
 };
 
@@ -710,41 +749,36 @@ static kernelMultiProcOps multiProcOps = {
 
 void kernelMemoryDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 	driver->driverDetect = driverDetectMemory;
-	return;
 }
 
 
 void kernelBios32DriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 	driver->driverDetect = driverDetectBios32;
-	return;
 }
 
 
 void kernelBiosPnpDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 	driver->driverDetect = driverDetectBiosPnP;
-	return;
 }
 
 
 void kernelMultiProcDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 	driver->driverDetect = driverDetectMultiProc;
 	driver->ops = &multiProcOps;
-	return;
 }
 
 
 void kernelIsaBridgeDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 	driver->driverDetect = driverDetectIsaBridge;
-	return;
 }
 

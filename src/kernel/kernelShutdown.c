@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,6 +33,7 @@
 #include "kernelLog.h"
 #include "kernelMultitasker.h"
 #include "kernelNetwork.h"
+#include "kernelParameters.h"
 #include "kernelPower.h"
 #include "kernelUsbDriver.h"
 #include "kernelWindow.h"
@@ -40,6 +41,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/processor.h>
+#include <sys/user.h>
 
 #define _(string) kernelGetText(string)
 #define SHUTDOWN_MSG1			_("Shutting down Visopsys, please wait...")
@@ -122,8 +124,9 @@ int kernelSystemShutdown(int reboot, int force)
 	// and/or require it.
 
 	int status = 0;
-	int graphics = 0;
 	static int shutdownInProgress = 0;
+	int graphics = 0;
+	int oldPrivilege = PRIVILEGE_USER;
 	char *finalMessage = NULL;
 
 	// We only use these if grapics are enabled
@@ -134,6 +137,19 @@ int kernelSystemShutdown(int reboot, int force)
 	unsigned screenHeight = 0;
 	windowInfo info;
 
+	// Only a privileged process, or one from a local session, is allowed to
+	// shut down the system
+	if (!kernelCurrentProcess->session ||
+		(kernelCurrentProcess->session->type != session_local))
+	{
+		if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+		{
+			kernelError(kernel_error, "Unprivileged processes may not shut "
+				"down the system remotely");
+			return (status = ERR_PERMISSION);
+		}
+	}
+
 	if (shutdownInProgress && !force)
 	{
 		kernelError(kernel_error, "The system is already shutting down");
@@ -143,7 +159,7 @@ int kernelSystemShutdown(int reboot, int force)
 	shutdownInProgress = 1;
 
 	// Are grapics enabled?  If so, we will try to output our initial message
-	// to a window
+	// to a window.
 	graphics = kernelGraphicsAreEnabled();
 
 	if (graphics)
@@ -199,89 +215,78 @@ int kernelSystemShutdown(int reboot, int force)
 		kernelTextPrintLine("%s", SHUTDOWN_MSG2);
 
 	// Stop networking
+	kernelLog("Stopping networking");
 	status = kernelNetworkDisable();
 	if (status < 0)
+		// Not a fatal error
 		kernelError(kernel_error, "Network shutdown failed");
 
 	// Shut down kernel logging
 	kernelLog("Stopping kernel logging");
 	status = kernelLogShutdown();
 	if (status < 0)
-		kernelError(kernel_error, "The kernel logger could not be stopped.");
+		// Not a fatal error
+		kernelError(kernel_error, "The kernel logger could not be stopped");
 
 	// Detach from our parent process, if applicable, so we won't get killed
 	// when our parent gets killed
 	kernelMultitaskerDetach();
 
-	// Kill all the processes, except this one and the kernel.
+	oldPrivilege = kernelCurrentProcess->privilege;
+	if (oldPrivilege != PRIVILEGE_SUPERVISOR)
+	{
+		// Temporarily upgrade the privilege level, so we can do things like
+		// killing privileged processes, and processes from other sessions
+		kernelCurrentProcess->privilege = PRIVILEGE_SUPERVISOR;
+	}
+
+	// Try killing processes
 	kernelLog("Stopping all processes");
 	status = kernelMultitaskerKillAll();
-
-	if ((status < 0) && (!force))
-	{
-		// Eek.  We couldn't kill the processes nicely
-		kernelError(kernel_error, "Unable to stop processes nicely.  "
-			"Shutdown aborted.");
-		shutdownInProgress = 0;
-		return (status);
-	}
+	if (status < 0)
+		// Not a fatal error
+		kernelError(kernel_error, "Couldn't stop processes");
 
 	// Unmount all filesystems and synchronize/shut down the disks
 	kernelLog("Unmounting filesystems, synchronizing disks");
 	status = kernelDiskShutdown();
 	if (status < 0)
 	{
-		// Eek.  We couldn't synchronize the filesystems.  We should
-		// stop and allow the user to try to save their data
+		// We couldn't synchronize the filesystems.  We should stop and allow
+		// the user to try to save their data somehow.
 		kernelError(kernel_error, "Unable to syncronize disks.  Shutdown "
 			"aborted.");
+		kernelCurrentProcess->privilege = oldPrivilege;
 		shutdownInProgress = 0;
 		return (status);
 	}
 
 	// After this point, don't abort.  We're running the show.
 
-	// Shut down the multitasker
-	status = kernelMultitaskerShutdown(1 /* nice shutdown */);
+	// Shut down the multitasker.  Not 'nice' since we already tried
+	// kernelMultitaskerKillAll() above.
+	kernelMultitaskerShutdown(0 /* not nice shutdown */);
 
-	if (status < 0)
-	{
-		if (!force)
-		{
-			// Abort the shutdown
-			kernelError(kernel_error, "Unable to stop multitasker.  Shutdown "
-				"aborted.");
-			shutdownInProgress = 0;
-			return (status);
-		}
-		else
-		{
-			// Attempt to shutdown the multitasker without the 'nice' flag.
-			// We won't bother to check whether this was successful
-			kernelMultitaskerShutdown(0 /* NOT nice shutdown */);
-		}
-	}
-
-	// Only shut down USB if we're rebooting ('cause it takes the time to reset
-	// the controller(s), etc.)
+	// Only shut down USB if we're rebooting (because it takes the time to
+	// reset the controller(s), etc.)
 	if (reboot)
 	{
 		status = kernelUsbShutdown();
 		if (status < 0)
 			// Not a fatal error
-			kernelError(kernel_error, "The USB system could not be stopped.");
+			kernelError(kernel_error, "The USB system could not be stopped");
 	}
 
-	// Don't want the user moving the mousie over our message stuff.
+	// Don't want the user moving the mouse over our message stuff
 	kernelMouseShutdown();
 
-	// What final message will we be displaying today?
+	// What final message will we be displaying?
 	if (reboot)
 		finalMessage = SHUTDOWN_MSG_REBOOT;
 	else
 		finalMessage = SHUTDOWN_MSG_POWER;
 
-	// Last words.
+	// Last words
 	kernelTextPrintLine("\n%s", finalMessage);
 
 	if (graphics)
@@ -305,10 +310,10 @@ int kernelSystemShutdown(int reboot, int force)
 	else
 	{
 		// Try to power off, if the appropriate power management functions are
-		// installed
+		// available
 		kernelPowerOff();
 
-		// Default to processor stop.
+		// Default to processor stop
 		processorStop();
 	}
 

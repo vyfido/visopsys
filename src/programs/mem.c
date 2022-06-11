@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -83,9 +83,7 @@ int main(int argc, char *argv[])
 
 			default:
 				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
-				errno = status = ERR_INVALID;
-				perror(argv[0]);
-				return (status);
+				return (status = ERR_INVALID);
 		}
 	}
 
@@ -96,7 +94,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		errno = status;
-		perror(argv[0]);
+		perror("memoryGetStats");
 		return (status);
 	}
 
@@ -104,9 +102,9 @@ int main(int argc, char *argv[])
 	blocksArray = malloc(stats.usedBlocks * sizeof(memoryBlock));
 	if (!blocksArray)
 	{
-		errno = ERR_MEMORY;
-		perror(argv[0]);
-		return (errno);
+		status = errno;
+		perror("malloc");
+		return (status);
 	}
 
 	// Get memory blocks information

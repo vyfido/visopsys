@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,84 +17,84 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: view.c:64
+#: view.c:65
 #, c-format
 msgid "View \"%s\""
 msgstr ""
 
-#: view.c:65
+#: view.c:66
 msgid "Zoom in"
 msgstr ""
 
-#: view.c:66
+#: view.c:67
 msgid "Zoom out"
 msgstr ""
 
-#: view.c:67
+#: view.c:68
 msgid "Actual size"
 msgstr ""
 
-#: view.c:104
+#: view.c:105
 msgid "Error"
 msgstr ""
 
-#: view.c:220
+#: view.c:221
 msgid "Failed to resize image"
 msgstr ""
 
-#: view.c:322
+#: view.c:323
 msgid "Loading"
 msgstr ""
 
-#: view.c:323
+#: view.c:324
 msgid "Loading image..."
 msgstr ""
 
-#: view.c:335
+#: view.c:336
 #, c-format
 msgid "Error loading the image \"%s\"\n"
 msgstr ""
 
-#: view.c:340
+#: view.c:341
 #, c-format
 msgid "Unable to load the image \"%s\"\n"
 msgstr ""
 
-#: view.c:359
+#: view.c:360
 msgid "Image"
 msgstr ""
 
-#: view.c:408
+#: view.c:409
 #, c-format
 msgid "Unable to load the file \"%s\"\n"
 msgstr ""
 
-#: view.c:454
+#: view.c:455
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: view.c:470
+#: view.c:471
 msgid "Enter filename"
 msgstr ""
 
-#: view.c:471
+#: view.c:472
 msgid "Please choose the file to view:"
 msgstr ""
 
-#: view.c:489
+#: view.c:485
 #, c-format
 msgid "The file \"%s\" was not found"
 msgstr ""
 
-#: view.c:498
+#: view.c:494
 #, c-format
 msgid "Unable to classify the file \"%s\""
 msgstr ""
 
-#: view.c:505
+#: view.c:501
 #, c-format
 msgid "Can't display the file type of \"%s\" (%s)"
 msgstr ""

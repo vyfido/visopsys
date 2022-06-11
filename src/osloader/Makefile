@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2019 J. Andrew McLaughlin
+##  Copyright (C) 1998-2020 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -19,7 +19,8 @@ LOADOPTS = -f elf32 ${WARN}
 LINKOPTS = -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
 STDDEPS = loader.h Makefile
 
-BOOTNAMES = mbr.simple \
+BOOTNAMES = \
+	mbr.simple \
 	mbr.bootmenu \
 	bootmenu \
 	bootsect.fat \
@@ -29,14 +30,17 @@ BOOTNAMES = mbr.simple \
 
 BOOTSECTS = $(addprefix ${BOOTBUILDDIR}/, ${BOOTNAMES})
 
-LOADNAMES = loaderMain \
+LOADNAMES = \
+	loaderMain \
 	loaderA20 \
-	loaderVideo \
 	loaderDetectHardware \
+	loaderDiskError \
+	loaderLoad \
 	loaderLoadFile \
 	loaderLoadKernel \
-	loaderDiskError \
-	loaderPrintRoutines
+	loaderPrintRoutines \
+	loaderProgress \
+	loaderVideo
 
 LOADOBJS = $(addprefix obj/, $(addsuffix .o, ${LOADNAMES}))
 

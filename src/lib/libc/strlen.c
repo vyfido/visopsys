@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +27,7 @@
 
 size_t strlen(const char *string)
 {
-	int count = 0;
+	size_t count = 0;
 
 	if (!string)
 	{
@@ -35,13 +35,13 @@ size_t strlen(const char *string)
 		return (count = 0);
 	}
 
-	while ((string[count] != '\0') && (count < MAXSTRINGLENGTH))
+	while ((string[count] != '\0') && (count <= MAXSTRINGLENGTH))
 		count ++;
 
 	// If this is true, then we probably have an unterminated string
 	// constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
 	// help to prevent the function from running off too far into memory.
-	if (count >= MAXSTRINGLENGTH)
+	if (count > MAXSTRINGLENGTH)
 	{
 		errno = ERR_BOUNDS;
 		return (count = 0);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -147,7 +147,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s [-T] [-p] [-s file_name] [map_name]\n"), name);
-	return;
 }
 
 
@@ -1022,7 +1021,7 @@ static int changeKeyDialog(keyScan scanCode)
 	params.gridX += 1;
 	windowNewTextLabel(dialogWindow, _("Ctrl"), &params);
 
-	// Labels to show the current ASCII value for each map type
+	// Labels to show the current unicode value for each map type
 
 	params.gridX = 0;
 	params.gridY += 1;
@@ -1307,6 +1306,7 @@ static void constructWindow(void)
 
 	objectKey rightContainer = NULL;
 	objectKey nameContainer = NULL;
+	char charsetName[CHARSET_NAME_LEN + 1];
 	objectKey bottomContainer = NULL;
 	componentParameters params;
 
@@ -1380,6 +1380,17 @@ static void constructWindow(void)
 	keyboard = windowNewKeyboard(window, 0 /* min width */,
 		0 /* min height */, &keyCallback, &params);
 
+	keyboard->setMap(keyboard, selectedMap);
+
+	// Try to get the character set for the keymap language
+	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
+		selectedMap->language, charsetName, CHARSET_NAME_LEN) < 0)
+	{
+		strncpy(charsetName, CHARSET_NAME_ISO_8859_15, CHARSET_NAME_LEN);
+	}
+
+	keyboard->setCharset(keyboard, charsetName);
+
 	// Register an event handler to catch keyboard events
 	windowRegisterEventHandler(keyboard->canvas, &eventHandler);
 
@@ -1420,8 +1431,6 @@ static void constructWindow(void)
 	windowRegisterEventHandler(window, &eventHandler);
 
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 

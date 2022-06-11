@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -731,7 +731,8 @@ static unsigned getKeyChar(windowKeyboard *keyboard, keyScan scan)
 }
 
 
-static void drawKeyMapping(windowKeyboard *keyboard, windowKey *key, int clear)
+static void drawKeyMapping(windowKeyboard *keyboard, windowKey *key,
+	int clear)
 {
 	char keyChar[2];
 	windowDrawParameters params;
@@ -999,8 +1000,6 @@ static void processModifier(windowKeyboard *keyboard, keyScan scan)
 
 	// Redraw just the key mappings
 	redrawKeyMappings(keyboard);
-
-	return;
 }
 
 
@@ -1219,8 +1218,7 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 	if (!keyboard->font)
 		goto out;
 
-	keyboard->fontWidth = fontGetPrintedWidth(keyboard->font, NULL, "@");
-
+	keyboard->fontWidth = fontGetWidth(keyboard->font);
 	keyboard->fontHeight = fontGetHeight(keyboard->font);
 
 	// Pick a small font for key strings

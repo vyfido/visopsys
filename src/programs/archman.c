@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -560,7 +560,8 @@ static int querySaveModified(void)
 
 	if (windowNewChoiceDialog(window, _("Save changes?"),
 		_("Archive has been modified.  Save changes?"),
-		(char *[]){ _("Save"), _("Discard") }, 2, 1) == 1)
+		(char *[]){ _("Save"), _("Discard") }, 2 /* numChoices */,
+		1 /* defaultChoice */) == 1)
 	{
 		return (status = 0);
 	}

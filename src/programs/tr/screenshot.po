@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -28,19 +28,19 @@ msgstr ""
 "\n"
 "\"%s\" komutu sadece grafik modda çalýþabilir\n"
 
-#: screenshot.c:83
+#: screenshot.c:82
 msgid "Enter file name"
 msgstr "Dosya ismi girin"
 
-#: screenshot.c:84
+#: screenshot.c:83
 msgid "Please enter the file name to use:"
 msgstr "Kullanmak istediðiniz dosya ismini girin:"
 
-#: screenshot.c:99
+#: screenshot.c:96
 msgid "Error"
 msgstr "Hata"
 
-#: screenshot.c:100
+#: screenshot.c:97
 msgid ""
 "Couldn't save the screenshot.\n"
 "I'm sure it would have been nice."

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelInterrupt.c
 //
 
-// Interrupt handling routines for basic exceptions and hardware interfaces.
+// Interrupt handling routines for basic exceptions and hardware interfaces
 
 #include "kernelInterrupt.h"
 #include "kernelError.h"
@@ -28,10 +28,9 @@
 #include "kernelMultitasker.h"
 #include "kernelPic.h"
 #include <sys/processor.h>
+#include <sys/vis.h>
 
-// Hooked interrupt vectors
-static void **vectorList = NULL;
-static int numVectors = 0;
+static linkedList hookList;
 static volatile int processingInterrupt = 0;
 static int initialized = 0;
 
@@ -63,13 +62,36 @@ static void exHandler16(void) EXHANDLERX(EXCEPTION_FLOAT)
 static void exHandler17(void) EXHANDLERX(EXCEPTION_ALIGNCHECK)
 static void exHandler18(void) EXHANDLERX(EXCEPTION_MACHCHECK)
 
+typedef struct {
+	int intNumber;
+	void *handler;
+
+} interruptHook;
+
+
 static void intHandlerUnimp(void)
 {
 	// This is the "unimplemented interrupt" handler
 
 	void *address = NULL;
+	int intNumber = 0;
 
 	processorIsrEnter(address);
+
+	kernelError(kernel_warn, "Unimplemented interrupt handler called");
+
+	// Which interrupt number is active?
+	intNumber = kernelPicGetActive();
+	if (intNumber >= 0)
+	{
+		kernelInterruptSetCurrent(intNumber);
+
+		// We need to do an end-of-interrupt here, to clear the PIC
+		kernelPicEndOfInterrupt(intNumber);
+
+		kernelInterruptClearCurrent();
+	}
+
 	processorIsrExit(address);
 }
 
@@ -84,9 +106,9 @@ static void intHandlerUnimp(void)
 
 int kernelInterruptInitialize(void)
 {
-	// This function is called once at startup time to install all
-	// of the appropriate interrupt vectors into the Interrupt Descriptor
-	// Table.  Returns 0 on success, negative otherwise.
+	// This function is called once at startup time to install all of the
+	// appropriate interrupt vectors into the Interrupt Descriptor Table.
+	// Returns 0 on success, negative otherwise.
 
 	int status = 0;
 	int count;
@@ -117,6 +139,10 @@ int kernelInterruptInitialize(void)
 	for (count = 19; count < IDT_SIZE; count ++)
 		kernelDescriptorSetIDTInterruptGate(count, intHandlerUnimp);
 
+	// Initialize our empty list of interrupt handlers (to be filled as
+	// interrupts are hooked)
+	memset(&hookList, 0, sizeof(linkedList));
+
 	// Note that we've been called
 	initialized = 1;
 
@@ -125,31 +151,16 @@ int kernelInterruptInitialize(void)
 }
 
 
-void *kernelInterruptGetHandler(int intNumber)
-{
-	// Returns the address of the handler for the requested interrupt.
-
-	if (!initialized)
-		return (NULL);
-
-	if ((intNumber < 0) || (intNumber >= numVectors))
-		return (NULL);
-
-	return (vectorList[intNumber]);
-}
-
-
 int kernelInterruptHook(int intNumber, void *handlerAddress,
 	kernelSelector handlerTask)
 {
 	// This allows the requested interrupt number to be hooked by a new
-	// handler.  At the moment it doesn't chain them, so anyone who calls
-	// this needs to fully implement the handler, or else chain them manually
-	// using the 'get handler' function, above.  If you don't know what this
-	// means, please stay away from hooking interrupts!  ;)
+	// handler, and allows chaining by calling kernelInterruptNextHandler()
 
 	int status = 0;
 	int vector = 0;
+	interruptHook *hook = NULL;
+	linkedListItem *iter = NULL;
 
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
@@ -165,29 +176,91 @@ int kernelInterruptHook(int intNumber, void *handlerAddress,
 
 	vector = kernelPicGetVector(intNumber);
 	if (vector < 0)
-		return (status = vector);
-
-	if (intNumber >= numVectors)
 	{
-		numVectors = (intNumber + 1);
-
-		vectorList = kernelRealloc(vectorList, (numVectors * sizeof(void *)));
-		if (!vectorList)
-			return (status = ERR_MEMORY);
+		kernelError(kernel_error, "No vector for interrupt %d", intNumber);
+		return (status = vector);
 	}
 
 	if (handlerAddress)
-	{
-		vectorList[intNumber] = handlerAddress;
 		status = kernelDescriptorSetIDTInterruptGate(vector, handlerAddress);
-	}
 	else
-	{
-		vectorList[intNumber] = (void *) handlerTask;
 		status = kernelDescriptorSetIDTTaskGate(vector, handlerTask);
+
+	if (status >= 0)
+	{
+		// Search for any existing one that matches, and remove it, for re-
+		// adding to the front of the list
+		hook = linkedListIterStart(&hookList, &iter);
+		while (hook)
+		{
+			if ((hook->intNumber == intNumber) &&
+				((hook->handler == handlerAddress) ||
+				(hook->handler == (void *) handlerTask)))
+			{
+				// Remove it from the list
+				linkedListRemove(&hookList, hook);
+				break;
+			}
+
+			hook = linkedListIterNext(&hookList, &iter);
+		}
+
+		if (!hook)
+		{
+			hook = kernelMalloc(sizeof(interruptHook));
+			if (hook)
+			{
+				hook->intNumber = intNumber;
+				hook->handler = (handlerAddress? handlerAddress : (void *)
+					handlerTask);
+			}
+		}
+
+		if (hook)
+		{
+			// Add it to the list
+			status = linkedListAddFront(&hookList, hook);
+		}
 	}
 
 	return (status);
+}
+
+
+void kernelInterruptNextHandler(int intNumber, void *currHandler)
+{
+	// Calls the next interrupt handler in the chain, if one exists
+
+	interruptHook *hook = NULL;
+	int gotCurrent = 0;
+	linkedListItem *iter = NULL;
+
+	if (!initialized)
+		return;
+
+	hook = linkedListIterStart(&hookList, &iter);
+	while (hook)
+	{
+		if (hook->intNumber == intNumber)
+		{
+			if (gotCurrent)
+			{
+				processorIsrCall(hook->handler);
+				return;
+			}
+
+			if (hook->handler == currHandler)
+				gotCurrent = 1;
+		}
+
+		hook = linkedListIterNext(&hookList, &iter);
+	}
+
+	// If we fall through, we didn't find anything
+	kernelError(kernel_error, "No next handler for interrupt %d", intNumber);
+
+	// We need to do an end-of-interrupt here, to clear the PIC
+	kernelPicEndOfInterrupt(intNumber);
 }
 
 
@@ -205,11 +278,7 @@ int kernelInterruptGetCurrent(void)
 
 void kernelInterruptSetCurrent(int intNumber)
 {
-	if ((intNumber < 0) || (intNumber >= numVectors))
-		kernelError(kernel_error, "Interrupt number %d is out of range",
-			intNumber);
-	else
-		processingInterrupt = ((intNumber << 16) | 1);
+	processingInterrupt = ((intNumber << 16) | 1);
 }
 
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,6 +56,72 @@ static int getNewDiskNumber(void)
 	}
 
 	return (diskNumber);
+}
+
+
+static int create(void *pointer, unsigned size, char *name)
+{
+	// Given a memory area, a size in bytes, and a pointer to a name buffer,
+	// create a RAM disk and place the name of the new disk in the buffer.
+
+	int status = 0;
+	kernelPhysicalDisk *physical = NULL;
+	kernelRamDisk *ramDisk = NULL;
+
+	// Round the size value up to a multiple of RAMDISK_SECTOR_SIZE
+	if (size % RAMDISK_SECTOR_SIZE)
+		size += (RAMDISK_SECTOR_SIZE - (size % RAMDISK_SECTOR_SIZE));
+
+	// Get memory for the physical disk and our private data
+	physical = kernelMalloc(sizeof(kernelPhysicalDisk));
+	ramDisk = kernelMalloc(sizeof(kernelRamDisk));
+	if (!physical || !ramDisk)
+		return (status = ERR_MEMORY);
+
+	physical->deviceNumber = getNewDiskNumber();
+	physical->description = "RAM disk";
+	physical->type = (DISKTYPE_PHYSICAL | DISKTYPE_FIXED | DISKTYPE_RAMDISK);
+	physical->flags = DISKFLAG_NOCACHE;
+
+	physical->heads = 1;
+	physical->cylinders = 1;
+	physical->sectorsPerCylinder = (size / RAMDISK_SECTOR_SIZE);
+	physical->numSectors = physical->sectorsPerCylinder;
+	physical->sectorSize = RAMDISK_SECTOR_SIZE;
+
+	physical->driverData = ramDisk;
+	physical->driver = ramDiskDriver;
+
+	ramDisk->data = pointer;
+
+	disks[numDisks++] = physical;
+
+	// Set up the kernel device
+	ramDisk->dev.device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
+	ramDisk->dev.device.subClass =
+		kernelDeviceGetClass(DEVICESUBCLASS_DISK_RAMDISK);
+	ramDisk->dev.driver = ramDiskDriver;
+	ramDisk->dev.data = (void *) physical;
+
+	// Register the disk
+	status = kernelDiskRegisterDevice(&ramDisk->dev);
+	if (status < 0)
+		goto err_out;
+
+	kernelDiskReadPartitions((char *) physical->name);
+
+	// Success
+	if (name)
+		strncpy(name, (char *) physical->name, DISK_MAX_NAMELENGTH);
+	kernelLog("RAM disk %s created size %u", physical->name, size);
+	return (status = 0);
+
+err_out:
+	if (ramDisk)
+		kernelFree(ramDisk);
+	if (physical)
+		kernelFree((void *) physical);
+	return (status);
 }
 
 
@@ -210,15 +276,12 @@ void kernelRamDiskDriverRegister(kernelDriver *driver)
 }
 
 
-int kernelDiskRamDiskCreate(unsigned size, char *name)
+int kernelDiskRamDiskRegister(void *data, unsigned size, char *name)
 {
-	// Given a size in bytes, and a pointer to a name buffer, create a RAM
-	// disk and place the name of the new disk in the buffer.
+	// Given an existing memory area, a size in bytes, and a pointer to a name
+	// buffer, create a RAM disk.
 
 	int status = 0;
-	kernelPhysicalDisk *physical = NULL;
-	kernelRamDisk *ramDisk = NULL;
-	int diskNum = 0;
 
 	// Check params.  It's okay for 'name' to be NULL.
 	if (!size)
@@ -227,71 +290,42 @@ int kernelDiskRamDiskCreate(unsigned size, char *name)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Round the size value up to a multiple of RAMDISK_SECTOR_SIZE
-	if (size % RAMDISK_SECTOR_SIZE)
-		size += (RAMDISK_SECTOR_SIZE - (size % RAMDISK_SECTOR_SIZE));
+	return (status = create(data, size, name));
+}
 
-	// Get memory for the physical disk and our private data
-	physical = kernelMalloc(sizeof(kernelPhysicalDisk));
-	ramDisk = kernelMalloc(sizeof(kernelRamDisk));
-	if (!physical || !ramDisk)
-		return (status = ERR_MEMORY);
 
-	// Get a new disk number
-	diskNum = getNewDiskNumber();
+int kernelDiskRamDiskCreate(unsigned size, char *name)
+{
+	// Given a size in bytes, and a pointer to a name buffer, allocate memory
+	// and create a RAM disk.
 
-	sprintf((char *) physical->name, "ram%d", diskNum);
-	physical->deviceNumber = diskNum;
-	physical->description = "RAM disk";
-	physical->type = (DISKTYPE_PHYSICAL | DISKTYPE_FIXED | DISKTYPE_RAMDISK);
-	physical->flags = DISKFLAG_NOCACHE;
+	int status = 0;
+	void *data = NULL;
 
-	physical->heads = 1;
-	physical->cylinders = 1;
-	physical->sectorsPerCylinder = (size / RAMDISK_SECTOR_SIZE);
-	physical->numSectors = physical->sectorsPerCylinder;
-	physical->sectorSize = RAMDISK_SECTOR_SIZE;
-
-	physical->driverData = ramDisk;
-	physical->driver = ramDiskDriver;
-
-	// Get memory for the data
-	ramDisk->data = kernelMemoryGetSystem(size, "ramdisk data");
-	if (!ramDisk->data)
+	// Check params.  It's okay for 'name' to be NULL.
+	if (!size)
 	{
-		status = ERR_MEMORY;
-		goto err_out;
+		kernelError(kernel_error, "Disk size is NULL");
+		return (status = ERR_NULLPARAMETER);
 	}
 
-	disks[numDisks++] = physical;
+	// Get memory for the data
+	data = kernelMemoryGetSystem(size, "ramdisk data");
+	if (!data)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
 
-	// Set up the kernel device
-	ramDisk->dev.device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
-	ramDisk->dev.device.subClass =
-		kernelDeviceGetClass(DEVICESUBCLASS_DISK_RAMDISK);
-	ramDisk->dev.driver = ramDiskDriver;
-	ramDisk->dev.data = (void *) physical;
+	status = create(data, size, name);
 
-	// Register the disk
-	status = kernelDiskRegisterDevice(&ramDisk->dev);
+out:
 	if (status < 0)
-		goto err_out;
+	{
+		if (data)
+			kernelMemoryRelease(data);
+	}
 
-	kernelDiskReadPartitions((char *) physical->name);
-
-	// Success
-	if (name)
-		strncpy(name, (char *) physical->name, DISK_MAX_NAMELENGTH);
-	kernelLog("RAM disk %s created size %u", physical->name, size);
-	return (status = 0);
-
-err_out:
-	if (ramDisk->data)
-		kernelMemoryRelease(ramDisk->data);
-	if (ramDisk)
-		kernelFree(ramDisk);
-	if (physical)
-		kernelFree((void *) physical);
 	return (status);
 }
 

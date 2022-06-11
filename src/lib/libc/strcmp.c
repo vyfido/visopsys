@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,28 +27,34 @@
 
 int strcmp(const char *s1, const char *s2)
 {
-	// The strcmp() function compares the two strings s1 and s2.
-	// It returns an integer less than, equal to, or greater than zero
-	// if s1 is found, respectively, to be less than, to match, or be
-	// greater than s2.
+	// The strcmp() function compares the two strings s1 and s2.  It returns
+	// an integer less than, equal to, or greater than zero if s1 is found,
+	// respectively, to be less than, to match, or be greater than s2.
 
 	int count = 0;
 
-	// The spec doesn't really make it clear what to do with NULL parameters here
+	// The spec doesn't really make it clear what to do with NULL parameters
+	// here
 	if (!s1 || !s2)
 	{
 		if (!s1 && s2)
+		{
 			return -1;
+		}
 		if (s1 && !s2)
+		{
 			return (1);
+		}
 		else
+		{
 			// Both NULL.  Fine.
 			return (0);
+		}
 	}
 
 	for (count = 0; count < MAXSTRINGLENGTH; count ++)
 	{
-		if ((s1[count] == '\0') && (s2[count] == '\0'))
+		if (!s1[count] && !s2[count])
 			// The strings are identical
 			return (0);
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2013-11-02 13:16-0400\n"
 "Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,22 +17,22 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: disks.c:93
-msgid ""
-"\n"
-"Disk name"
+#: disks.c:88
+msgid "No disks"
 msgstr ""
-"\n"
-"Diskname"
 
-#: disks.c:95
+#: disks.c:109
+msgid "Disk name"
+msgstr "Diskname"
+
+#: disks.c:111
 msgid "Partition"
 msgstr "Partition"
 
-#: disks.c:97
+#: disks.c:113
 msgid "Filesystem"
 msgstr "Dateisystem"
 
-#: disks.c:99
-msgid "Mount\n"
-msgstr "Verbinden\n"
+#: disks.c:115
+msgid "Mount"
+msgstr "Verbinden"

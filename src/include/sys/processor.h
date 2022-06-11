@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,11 +29,79 @@
 
 // Model-specific registers that we use
 #define X86_MSR_APICBASE				0x1B
+#define X86_MSR_PAT						0x277
 
 // Bitfields for the APICBASE MSR
 #define X86_MSR_APICBASE_BASEADDR		0xFFFFF000
 #define X86_MSR_APICBASE_APICENABLE		0x00000800
 #define X86_MSR_APICBASE_BSP			0x00000100
+
+// Encodings for PAT MSR fields
+#define X86_MSR_PATENC_UC				0x00	// Strong uncacheable
+#define X86_MSR_PATENC_WC				0x01	// Write combining
+#define X86_MSR_PATENC_WT				0x04	// Write through
+#define X86_MSR_PATENC_WP				0x05	// Write protected
+#define X86_MSR_PATENC_WB				0x06	// Write back
+#define X86_MSR_PATENC_UC_				0x07	// Uncacheable
+
+// Our settings for the PAT
+#define X86_PAT7						X86_MSR_PATENC_UC
+#define X86_PAT6						X86_MSR_PATENC_UC_
+#define X86_PAT5						X86_MSR_PATENC_WC	// non-default
+#define X86_PAT4						X86_MSR_PATENC_WB
+#define X86_PAT3						X86_MSR_PATENC_UC
+#define X86_PAT2						X86_MSR_PATENC_UC_
+#define X86_PAT1						X86_MSR_PATENC_WT
+#define X86_PAT0						X86_MSR_PATENC_WB
+
+// Constant indexes for the above
+#define X86_PAT_UC						7
+#define X86_PAT_UC_						6
+#define X86_PAT_WC						5
+#define X86_PAT_WB						4
+#define X86_PAT_WT						1
+
+// Page entry bitfield selector for using the PAT
+#define X86_PATSELECTOR(flags, index) do { \
+	if ((index) & 0x4) (flags) |= X86_PAGEFLAG_PAT; \
+	else (flags) &= ~X86_PAGEFLAG_PAT; \
+	if ((index) & 0x2) (flags) |= X86_PAGEFLAG_CACHEDISABLE; \
+	else (flags) &= ~X86_PAGEFLAG_CACHEDISABLE; \
+	if ((index) & 0x1) (flags) |= X86_PAGEFLAG_WRITETHROUGH; \
+	else (flags) &= ~X86_PAGEFLAG_WRITETHROUGH; \
+} while (0)
+
+// For setting the PAT MSRs
+#define X86_PATMSR_HI	\
+	((X86_PAT7 << 24) | (X86_PAT6 << 16) | (X86_PAT5 << 8) | X86_PAT4)
+#define X86_PATMSR_LO	\
+	((X86_PAT3 << 24) | (X86_PAT2 << 16) | (X86_PAT1 << 8) | X86_PAT0)
+
+// Paging constants
+#define X86_PAGE_TABLES_PER_DIR			1024
+#define X86_PAGES_PER_TABLE				1024
+
+// Page entry bitfield values
+#define X86_PAGEFLAG_PRESENT			0x0001
+#define X86_PAGEFLAG_WRITABLE			0x0002
+#define X86_PAGEFLAG_USER				0x0004
+#define X86_PAGEFLAG_WRITETHROUGH		0x0008
+#define X86_PAGEFLAG_CACHEDISABLE		0x0010
+#define X86_PAGEFLAG_ACCESSED			0x0020
+#define X86_PAGEFLAG_DIRTY				0x0040
+#define X86_PAGEFLAG_PAT				0x0080
+#define X86_PAGEFLAG_GLOBAL				0x0100
+
+// X86-specific CPU features
+typedef struct {
+	int cpuid1;
+	unsigned cpuid1Ecx;
+	unsigned cpuid1Edx;
+	int cpuid8_1;
+	unsigned cpuid8_1Ecx;
+	unsigned cpuid8_1Edx;
+
+} x86CpuFeatures;
 
 //
 // Processor registers
@@ -61,8 +129,11 @@
 #define processorSetCR3(variable) \
 	__asm__ __volatile__ ("movl %0, %%cr3" : : "r" (variable))
 
-#define processorClearAddressCache(addr) \
-	__asm__ __volatile__ ("invlpg %0" : : "m" (*((char *)(addr))))
+#define processorGetCR4(variable) \
+	__asm__ __volatile__ ("movl %%cr4, %0" : "=r" (variable))
+
+#define processorSetCR4(variable) \
+	__asm__ __volatile__ ("movl %0, %%cr4" : : "r" (variable))
 
 #define processorTimestamp(hi, lo) do { \
 	processorId(0, hi, hi, hi, hi); /* serialize */ \
@@ -385,6 +456,17 @@ static inline unsigned processorSwap32(unsigned variable)
 	__asm__ __volatile__ ("bswap %0" : "=r" (tmp) : "r" (tmp));
 	return (tmp);
 }
+
+#define processorCacheInvalidate() __asm__ __volatile__ ("wbinvd")
+
+#define processorAddressCacheInvalidate() do { \
+	unsigned cr3; \
+	processorGetCR3(cr3); \
+	processorSetCR3(cr3); \
+} while (0)
+
+#define processorAddressCacheInvalidatePage(addr) \
+	__asm__ __volatile__ ("invlpg %0" : : "m" (*((char *)(addr))))
 
 #define processorDelay() do { \
 	unsigned char d; \

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,8 +42,8 @@ static inline int isMouseInScrollBar(windowEvent *event,
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	if (scrollBar->dragging ||
-		(event->coord.x >= (component->window->xCoord + component->xCoord)))
+	if (scrollBar->dragging || (event->coord.x >= (component->window->xCoord +
+		component->xCoord)))
 	{
 		return (1);
 	}
@@ -62,14 +62,18 @@ static inline void updateScrollBar(kernelWindowTextArea *textArea)
 	{
 		state.displayPercent = 100;
 		if (textArea->area->rows + textArea->area->scrollBackLines)
-			state.displayPercent =
-				((textArea->area->rows * 100) /
-					(textArea->area->rows + textArea->area->scrollBackLines));
+		{
+			state.displayPercent = ((textArea->area->rows * 100) /
+				(textArea->area->rows + textArea->area->scrollBackLines));
+		}
+
 		state.positionPercent = 100;
 		if (textArea->area->scrollBackLines)
-			state.positionPercent -=
-				((textArea->area->scrolledBackLines * 100) /
-					textArea->area->scrollBackLines);
+		{
+			state.positionPercent -= ((textArea->area->scrolledBackLines *
+				100) / textArea->area->scrollBackLines);
+		}
+
 		textArea->scrollBar->setData(textArea->scrollBar, &state,
 			sizeof(scrollBarState));
 	}
@@ -93,7 +97,8 @@ static int flatten(kernelWindowComponent *component,
 {
 	kernelWindowTextArea *textArea = component->data;
 
-	if (textArea->scrollBar && ((textArea->scrollBar->flags & flags) == flags))
+	if (textArea->scrollBar && ((textArea->scrollBar->flags & flags) ==
+		flags))
 	{
 		// Add our scrollbar
 		array[*numItems] = textArea->scrollBar;
@@ -180,7 +185,10 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 			(windowVariables->border.thickness * 2));
 
 		if (textArea->scrollBar->move)
-			textArea->scrollBar->move(textArea->scrollBar, scrollBarX, yCoord);
+		{
+			textArea->scrollBar->move(textArea->scrollBar, scrollBarX,
+				yCoord);
+		}
 
 		textArea->scrollBar->xCoord = scrollBarX;
 		textArea->scrollBar->yCoord = yCoord;
@@ -225,8 +233,10 @@ static int resize(kernelWindowComponent *component, int width, int height)
 				(windowVariables->border.thickness * 2));
 
 			if (textArea->scrollBar->move)
+			{
 				textArea->scrollBar->move(textArea->scrollBar, scrollBarX,
 					component->yCoord);
+			}
 
 			textArea->scrollBar->xCoord = scrollBarX;
 		}
@@ -234,8 +244,10 @@ static int resize(kernelWindowComponent *component, int width, int height)
 		if (height != component->height)
 		{
 			if (textArea->scrollBar->resize)
+			{
 				textArea->scrollBar->resize(textArea->scrollBar,
 					textArea->scrollBar->width, height);
+			}
 
 			textArea->scrollBar->height = height;
 		}
@@ -267,8 +279,8 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 	kernelWindowTextArea *textArea = component->data;
 	kernelTextArea *area = textArea->area;
 
-	if (size > (area->columns * area->rows))
-		size = (area->columns * area->rows);
+	if (size > (area->columns * area->rows * area->bytesPerChar))
+		size = (area->columns * area->rows * area->bytesPerChar);
 
 	memcpy(buffer, area->visibleData, size);
 
@@ -305,9 +317,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	int cursorColumn = 0, cursorRow = 0;
 
 	// Is the event in one of our scroll bars, or a mouse scroll?
-	if (textArea->scrollBar &&
-		(isMouseInScrollBar(event, textArea->scrollBar) ||
-			(event->type & WINDOW_EVENT_MOUSE_SCROLL)))
+	if (textArea->scrollBar && (isMouseInScrollBar(event,
+		textArea->scrollBar) || (event->type & WINDOW_EVENT_MOUSE_SCROLL)))
 	{
 		scrollBar = textArea->scrollBar->data;
 
@@ -400,8 +411,11 @@ static int destroy(kernelWindowComponent *component)
 			if (kernelTextGetCurrentOutput() == textArea->area->outputStream)
 				kernelTextSetCurrentOutput(NULL);
 
-			if (kernelMultitaskerGetTextInput() == textArea->area->inputStream)
+			if (kernelMultitaskerGetTextInput() ==
+				textArea->area->inputStream)
+			{
 				kernelMultitaskerSetTextInput(processId, NULL);
+			}
 			if (kernelMultitaskerGetTextOutput() ==
 				textArea->area->outputStream)
 			{

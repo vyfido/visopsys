@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,16 +33,19 @@ static void scrollBuffer(kernelTextArea *area, int lines)
 {
 	// Scrolls back everything in the area's buffer
 
-	int dataLength = (lines * area->columns * 2);
+	int dataLength = (lines * area->columns * area->bytesPerChar);
 
 	// Increasing the stored scrollback lines?
 	if ((area->rows + area->scrollBackLines) < area->maxBufferLines)
+	{
 		area->scrollBackLines += min(lines, (area->maxBufferLines -
 			(area->rows + area->scrollBackLines)));
+	}
 
 	memcpy(TEXTAREA_FIRSTSCROLLBACK(area),
 		(TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
-		((area->rows + area->scrollBackLines) * (area->columns * 2)));
+		((area->rows + area->scrollBackLines) * (area->columns *
+		area->bytesPerChar)));
 }
 
 
@@ -95,17 +98,19 @@ static void setCursor(kernelTextArea *area, int onOff)
 {
 	// This sets the cursor on or off at the requested cursor position
 
-	int idx = (TEXTAREA_CURSORPOS(area) * 2);
+	int idx = (TEXTAREA_CURSORPOS(area) * area->bytesPerChar);
 
 	if (onOff)
+	{
 		area->visibleData[idx + 1] = ((area->pcColor & 0x0F) << 4) |
 			((area->pcColor & 0xF0) >> 4);
+	}
 	else
+	{
 		area->visibleData[idx + 1] = area->pcColor;
+	}
 
 	area->cursorState = onOff;
-
-	return;
 }
 
 
@@ -134,8 +139,8 @@ static void scrollLine(kernelTextArea *area)
 	}
 
 	// Copy our buffer data to the visible area
-	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area),
-		(area->rows * lineLength));
+	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area), (area->rows *
+		lineLength));
 
 	// Move the cursor up by one row.
 	area->cursorRow -= 1;
@@ -143,8 +148,6 @@ static void scrollLine(kernelTextArea *area)
 	if (cursorState)
 		// Cursor back on
 		setCursor(area, 1);
-
-	return;
 }
 
 
@@ -163,12 +166,14 @@ static int screenDraw(kernelTextArea *area)
 
 	// Copy from the buffer to the visible area, minus any scrollback lines
 	bufferAddress = TEXTAREA_FIRSTVISIBLE(area);
-	bufferAddress -= (area->scrolledBackLines * area->columns * 2);
+	bufferAddress -= (area->scrolledBackLines * area->columns *
+		area->bytesPerChar);
 
-	memcpy(area->visibleData, bufferAddress, (area->rows * area->columns * 2));
+	memcpy(area->visibleData, bufferAddress, (area->rows * area->columns *
+		area->bytesPerChar));
 
 	// If we aren't scrolled back, show the cursor again
-	if (area->cursorState && !(area->scrolledBackLines))
+	if (area->cursorState && !area->scrolledBackLines)
 		setCursor(area, 1);
 
 	return (0);
@@ -271,8 +276,9 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 		setCursor(area, 0);
 
 	bufferAddress = (TEXTAREA_FIRSTVISIBLE(area) +
-		(TEXTAREA_CURSORPOS(area) * 2));
-	visibleAddress = (area->visibleData + (TEXTAREA_CURSORPOS(area) * 2));
+		(TEXTAREA_CURSORPOS(area) * area->bytesPerChar));
+	visibleAddress = (area->visibleData + (TEXTAREA_CURSORPOS(area) *
+		area->bytesPerChar));
 
 	// How long is the string?
 	length = strlen(string);
@@ -323,9 +329,9 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 
 			area->cursorColumn = 0;
 			bufferAddress = (TEXTAREA_FIRSTVISIBLE(area) +
-				(TEXTAREA_CURSORPOS(area) * 2));
+				(TEXTAREA_CURSORPOS(area) * area->bytesPerChar));
 			visibleAddress = (area->visibleData +
-				(TEXTAREA_CURSORPOS(area) * 2));
+				(TEXTAREA_CURSORPOS(area) * area->bytesPerChar));
 		}
 	}
 
@@ -342,7 +348,7 @@ static int delete(kernelTextArea *area)
 	// Erase the character at the current position
 
 	int cursorState = area->cursorState;
-	int position = (TEXTAREA_CURSORPOS(area) * 2);
+	int position = (TEXTAREA_CURSORPOS(area) * area->bytesPerChar);
 
 	// If we are currently scrolled back, this puts us back to normal
 	if (area->scrolledBackLines)
@@ -352,7 +358,7 @@ static int delete(kernelTextArea *area)
 	}
 
 	if (cursorState)
-		// Turn off da cursor
+		// Turn off the cursor
 		setCursor(area, 0);
 
 	// Delete the character in our buffers
@@ -407,13 +413,13 @@ static int screenSave(kernelTextArea *area, textScreen *screen)
 	// This function saves the current contents of the screen
 
 	// Get memory for a new save area
-	screen->data = kernelMemoryGet((area->columns * area->rows * 2),
-		"text screen data");
+	screen->data = kernelMemoryGet((area->columns * area->rows *
+		area->bytesPerChar), "text screen data");
 	if (!screen->data)
 		return (ERR_MEMORY);
 
 	memcpy(screen->data, TEXTAREA_FIRSTVISIBLE(area),
-		(area->rows * area->columns * 2));
+		(area->rows * area->columns * area->bytesPerChar));
 
 	screen->column = area->cursorColumn;
 	screen->row = area->cursorRow;
@@ -428,12 +434,12 @@ static int screenRestore(kernelTextArea *area, textScreen *screen)
 
 	if (screen->data)
 	{
-		memcpy(TEXTAREA_FIRSTVISIBLE(area), screen->data,
-			(area->rows * area->columns * 2));
+		memcpy(TEXTAREA_FIRSTVISIBLE(area), screen->data, (area->rows *
+			area->columns * area->bytesPerChar));
 
 		// Copy to the visible area
-		memcpy(area->visibleData, screen->data,
-			(area->rows * area->columns * 2));
+		memcpy(area->visibleData, screen->data, (area->rows * area->columns *
+			area->bytesPerChar));
 	}
 
 	area->cursorColumn = screen->column;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -70,6 +70,7 @@
 #define PCI_CONFREG_INTLINE_8			60
 
 // PCI device command bits
+#define PCI_COMMAND_INTERRUPTDISABLE	0x0400
 #define PCI_COMMAND_FASTBACK2BACK		0x0200
 #define PCI_COMMAND_SYSTEMERROR			0x0100
 #define PCI_COMMAND_WAITCYCLE			0x0080
@@ -126,7 +127,7 @@
 
 #define PCI_IRQ_ROUTINGTABLE_SIG		"$PIR"
 
-// This structure is adapted from Ralf Brown's CPI configuration data dumper.
+// This structure is adapted from Ralf Brown's CPI configuration data dumper
 typedef union {
 	struct {
 		unsigned short vendorID;					// 00 - 01

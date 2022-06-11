@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -35,7 +35,7 @@ msgstr "olarak tak..."
 msgid "Unmount"
 msgstr "Çikar"
 
-#: computer.c:64 computer.c:503
+#: computer.c:64 computer.c:502
 msgid "Properties"
 msgstr "Özellikler"
 
@@ -47,127 +47,127 @@ msgstr "Hata"
 msgid "Error re-reading disk info"
 msgstr "Disk bilgisi yeniden okunurken hata olustu"
 
-#: computer.c:241
+#: computer.c:240
 #, c-format
 msgid "Filesystem on %s is not supported for browsing"
 msgstr "%s üzerinde dosya sistemi, gezgin tarafindan desteklenmemektedir"
 
-#: computer.c:244
+#: computer.c:243
 #, c-format
 msgid "Can't mount %s on %s"
 msgstr "%s üzerindeki %s takilamiyor"
 
-#: computer.c:287 computer.c:367
+#: computer.c:286 computer.c:366
 #, c-format
 msgid "No media in disk %s"
 msgstr "%s diskinde medya bulunamadi"
 
-#: computer.c:318 computer.c:408
+#: computer.c:317 computer.c:407
 msgid "Error launching file browser"
 msgstr "Dosya gezgini açilirken hata olustu"
 
-#: computer.c:357
+#: computer.c:356
 #, c-format
 msgid "Disk is already mounted as %s"
 msgstr "Disk %s olarak zaten takili"
 
-#: computer.c:379
+#: computer.c:378
 msgid "Mount point"
 msgstr "Takma noktasi"
 
-#: computer.c:380
+#: computer.c:379
 msgid "Please enter the mount point"
 msgstr "Lütfen takilma noktasini giriniz"
 
-#: computer.c:436
+#: computer.c:435
 #, c-format
 msgid "Disk %s is not mounted"
 msgstr "Disk %s takili degil"
 
-#: computer.c:445
+#: computer.c:444
 #, c-format
 msgid "Error unmounting %s"
 msgstr "%s çikartilirken hata olustu"
 
-#: computer.c:471
+#: computer.c:470
 msgid "Fixed "
 msgstr "Onarildi "
 
-#: computer.c:473
+#: computer.c:472
 msgid "Removable "
 msgstr "Çikarilabilir "
 
-#: computer.c:476
+#: computer.c:475
 msgid "floppy\n"
 msgstr "disket\n"
 
-#: computer.c:478
+#: computer.c:477
 msgid "CD-ROM\n"
 msgstr "CD-ROM\n"
 
-#: computer.c:480
+#: computer.c:479
 #, fuzzy
 msgid "flash disk\n"
 msgstr "sabit disk\n"
 
-#: computer.c:482
+#: computer.c:481
 msgid "hard disk\n"
 msgstr "sabit disk\n"
 
-#: computer.c:484
+#: computer.c:483
 #, c-format
 msgid "%u cylinders, %u heads, %u sectors\n"
 msgstr "%u silindir, %u kafa, %u sektör\n"
 
-#: computer.c:488
+#: computer.c:487
 #, c-format
 msgid "Size: %llu MB\n"
 msgstr "Boyut: %llu MB\n"
 
-#: computer.c:492
+#: computer.c:491
 #, c-format
 msgid "Partition type: %s\n"
 msgstr "Bölümlendirme türü: %s\n"
 
-#: computer.c:495
+#: computer.c:494
 #, c-format
 msgid "Filesystem type: %s\n"
 msgstr "Dosya sistemi türü: %s\n"
 
-#: computer.c:499
+#: computer.c:498
 #, c-format
 msgid "Mounted as %s%s\n"
 msgstr "%s%s olarak takildi\n"
 
-#: computer.c:501
+#: computer.c:500
 msgid " (read only)"
 msgstr " (sadece okunabilir)"
 
-#: computer.c:582 computer.c:641
+#: computer.c:581 computer.c:640
 msgid "Error spawning browser thread"
 msgstr "Gezgin islemi olusturulurken hata olustu"
 
-#: computer.c:595
+#: computer.c:594
 msgid "Error spawning mount as thread"
 msgstr "Takilma islemi olusturulurken hata olustu"
 
-#: computer.c:608
+#: computer.c:607
 msgid "Error spawning unmount thread"
 msgstr "Çikartma islemi olusturulurken hata olustu"
 
-#: computer.c:621
+#: computer.c:620
 msgid "Error spawning properties thread"
 msgstr "Özellikler islemi olusturulurken hata olustu"
 
-#: computer.c:708
+#: computer.c:707
 msgid "Memory allocation error"
 msgstr "Bellek ayirma hatasi"
 
-#: computer.c:803
+#: computer.c:802
 msgid "Disk"
 msgstr "Disk"
 
-#: computer.c:845
+#: computer.c:844
 #, c-format
 msgid ""
 "\n"
@@ -176,7 +176,7 @@ msgstr ""
 "\n"
 "\"%s\" komutu sadece grafik modda çalisabilir\n"
 
-#: computer.c:870
+#: computer.c:869
 #, c-format
 msgid "Can't load icon image %s"
 msgstr "Ikon dosyasi %s yüklenemedi"

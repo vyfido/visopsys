@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -823,8 +823,6 @@ static void constructWindow(void)
 	windowRegisterEventHandler(window, &eventHandler);
 
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 
@@ -845,8 +843,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, _("\nThe \"%s\" command only works in graphics "
 			"mode\n"), (argc? argv[0] : ""));
-		errno = ERR_NOTINITIALIZED;
-		return (status = errno);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
 	// Check options
@@ -861,8 +858,7 @@ int main(int argc, char *argv[])
 
 			default:
 				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
-				errno = status = ERR_INVALID;
-				return (status);
+				return (status = ERR_INVALID);
 		}
 	}
 
@@ -884,7 +880,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		errno = status;
-		perror(argv[0]);
+		perror("getUserNames");
 		return (status);
 	}
 
@@ -928,6 +924,6 @@ int main(int argc, char *argv[])
 	if (userListParams)
 		free(userListParams);
 
-	return (errno = status);
+	return (status);
 }
 

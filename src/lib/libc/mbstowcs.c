@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -40,19 +40,19 @@ size_t mbstowcs(wchar_t *dest, const char *src, size_t n)
 	// the number of wide characters written to dest is returned, but the
 	// shift state at this point is lost.
 	//
-	// 3.  The  multibyte  string has been completely converted, including the
-	// terminating '\0'.  In this case the number of wide characters written to
-	// dest, excluding the terminating L'\0' character, is returned.
+	// 3. The multibyte string has been completely converted, including the
+	// terminating '\0'.  In this case the number of wide characters written
+	// to dest, excluding the terminating L'\0' character, is returned.
 	//
 	// The programmer must ensure that there is room for at least n wide
 	// characters at dest.
 	//
-	// If dest is NULL, n is ignored, and the conversion  proceeds as above,
-	// except that the converted wide characters are not written out to memory,
-	// and that no length limit exists.
+	// If dest is NULL, n is ignored, and the conversion proceeds as above,
+	// except that the converted wide characters are not written out to
+	// memory, and that no length limit exists.
 	//
 	// In order to avoid the case 2 above, the programmer should make sure n
-	// is greater or equal to mbstowcs(NULL,src,0)+1.
+	// is greater or equal to mbstowcs(NULL, src, 0) + 1.
 	//
 	// We're going to attempt to support UTF-8 as our multibyte standard.
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,8 +59,12 @@ hd0.  Logical partitions are specified with letters, in partition table order
 
 #define _(string) gettext(string)
 
+#define COL_PART	11
+#define COL_FS		37
+#define COL_MOUNT	49
 
-int main(int argc __attribute__((unused)), char *argv[])
+
+int main(void)
 {
 	int status = 0;
 	int availableDisks = 0;
@@ -72,57 +76,69 @@ int main(int argc __attribute__((unused)), char *argv[])
 
 	// Call the kernel to give us the number of available disks
 	availableDisks = diskGetCount();
+	if (availableDisks < 0)
+	{
+		errno = availableDisks;
+		perror("diskGetCount");
+		return (status = availableDisks);
+	}
+
+	if (!availableDisks)
+	{
+		printf("\n%s\n", _("No disks"));
+		return (status = 0);
+	}
 
 	diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
 	if (!diskInfo)
 	{
-		perror(argv[0]);
-		return (status = ERR_MEMORY);
+		status = errno;
+		perror("malloc");
+		return (status);
 	}
 
 	status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
 	if (status < 0)
 	{
-		// Eek.  Problem getting disk info
 		errno = status;
-		perror(argv[0]);
+		perror("diskGetAll");
 		free(diskInfo);
 		return (status);
 	}
 
-	printf("%s", _("\nDisk name"));
-	textSetColumn(11);
+	printf("\n%s", _("Disk name"));
+	textSetColumn(COL_PART);
 	printf("%s", _("Partition"));
-	textSetColumn(37);
+	textSetColumn(COL_FS);
 	printf("%s", _("Filesystem"));
-	textSetColumn(49);
-	printf("%s", _("Mount\n"));
+	textSetColumn(COL_MOUNT);
+	printf("%s\n", _("Mount"));
 
 	for (count = 0; count < availableDisks; count ++)
 	{
 		// Print disk info
+
 		printf("%s", diskInfo[count].name);
 
-		textSetColumn(11);
+		textSetColumn(COL_PART);
 		printf("%s", diskInfo[count].partType);
 
 		if (strcmp(diskInfo[count].fsType, "unknown"))
 		{
-			textSetColumn(37);
+			textSetColumn(COL_FS);
 			printf("%s", diskInfo[count].fsType);
 		}
 
 		if (diskInfo[count].mounted)
 		{
-			textSetColumn(49);
+			textSetColumn(COL_MOUNT);
 			printf("%s", diskInfo[count].mountPoint);
 		}
 
 		printf("\n");
 	}
 
-	errno = 0;
 	free(diskInfo);
-	return (status = errno);
+	return (status = 0);
 }
 

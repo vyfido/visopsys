@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -96,7 +96,7 @@ static int inPort60(unsigned char *data)
 {
 	// Input a value from the keyboard controller's data port, after checking
 	// to make sure that there's some data of the correct type waiting for us
-	// (port 0x60).
+	// (port 0x60)
 
 	unsigned char status = 0;
 	uquad_t currTime = kernelCpuGetMs();
@@ -116,7 +116,10 @@ static int inPort60(unsigned char *data)
 	}
 
 	processorInPort8(0x64, status);
-	kernelError(kernel_error, "Timeout reading port 60, port 64=%02x", status);
+
+	kernelError(kernel_error, "Timeout reading port 60, port 64=%02x",
+		status);
+
 	return (ERR_TIMEOUT);
 }
 
@@ -141,6 +144,7 @@ static int waitControllerReady(void)
 
 	kernelError(kernel_error, "Controller not ready timeout, port 64=%02x",
 		status);
+
 	return (ERR_TIMEOUT);
 }
 
@@ -163,6 +167,7 @@ static int waitCommandReceived(void)
 
 	kernelError(kernel_error, "Controller receive command timeout, port "
 		"64=%02x", status);
+
 	return (ERR_TIMEOUT);
 }
 
@@ -170,7 +175,7 @@ static int waitCommandReceived(void)
 static int outPort60(unsigned char data)
 {
 	// Output a value to the keyboard controller's data port, after checking
-	// that it's able to receive data (port 0x60).
+	// that it's able to receive data (port 0x60)
 
 	int status = 0;
 
@@ -186,8 +191,8 @@ static int outPort60(unsigned char data)
 
 static int outPort64(unsigned char data)
 {
-	// Output a value to the keyboard controller's command port, after checking
-	// that it's able to receive data (port 0x64).
+	// Output a value to the keyboard controller's command port, after
+	// checking that it's able to receive data (port 0x64)
 
 	int status = 0;
 
@@ -197,7 +202,7 @@ static int outPort64(unsigned char data)
 
 	processorOutPort8(0x64, data);
 
-	// Wait until the controller believes it has received it.
+	// Wait until the controller believes it has received it
 	status = waitCommandReceived();
 	if (status < 0)
 		return (status);
@@ -225,8 +230,6 @@ static void setLight(int whichLight, int on)
 
 	// Read the ACK
 	inPort60(&data);
-
-	return;
 }
 
 
@@ -253,8 +256,8 @@ static void readData(void)
 	// If an extended scan code is coming next...
 	if (data == EXTENDED)
 	{
-		// The next thing coming is an extended scan code.  Set the flag
-		// so it can be collected next time
+		// The next thing coming is an extended scan code.  Set the flag so it
+		// can be collected next time.
 		extended = 1;
 		return;
 	}
@@ -281,7 +284,9 @@ static void readData(void)
 		release = 1;
 	}
 	else
+	{
 		scan = ps2Scan2Scan[data];
+	}
 
 	// Some special cases of extended scan codes and/or funny PS2 combinations
 	if (extended)
@@ -370,9 +375,10 @@ static void readData(void)
 	else
 	{
  		if (scan == keyDel)
-			// Really numpad .
+		{
+			// Really numpad '.'
 			scan = keyPeriod;
-
+		}
 		else if (extended1 && (scan == keyNLck))
 		{
 			// Really Pause/Break
@@ -385,14 +391,20 @@ static void readData(void)
 	{
 		// Update keyboard lights, if applicable
 		if (scan == keyCapsLock)
-			setLight(CAPSLOCK,
-				!(keyboard.state.toggleState & KEYBOARD_CAPS_LOCK_ACTIVE));
+		{
+			setLight(CAPSLOCK, !(keyboard.state.toggleState &
+				KEYBOARD_CAPS_LOCK_ACTIVE));
+		}
 		else if (scan == keyNLck)
-			setLight(NUMLOCK,
-				!(keyboard.state.toggleState & KEYBOARD_NUM_LOCK_ACTIVE));
+		{
+			setLight(NUMLOCK, !(keyboard.state.toggleState &
+				KEYBOARD_NUM_LOCK_ACTIVE));
+		}
 		else if (scan == keySLck)
-			setLight(SCROLLLOCK,
-				!(keyboard.state.toggleState & KEYBOARD_SCROLL_LOCK_ACTIVE));
+		{
+			setLight(SCROLLLOCK, !(keyboard.state.toggleState &
+				KEYBOARD_SCROLL_LOCK_ACTIVE));
+		}
 	}
 
 	if (release)
@@ -402,13 +414,12 @@ static void readData(void)
 
 	// Clear the extended flag
 	extended = 0;
-	return;
 }
 
 
 static void interrupt(void)
 {
-	// This is the PS/2 interrupt handler.
+	// This is the PS/2 interrupt handler
 
 	void *address = NULL;
 
@@ -426,7 +437,7 @@ static void interrupt(void)
 static int driverDetect(void *parent, kernelDriver *driver)
 {
 	// This function is used to detect a PS/2 keyboard and initialize it, as
-	// well as registering it with the higher-level device functions.
+	// well as registering it with the higher-level device functions
 
 	int status = 0;
 	void *biosData = NULL;
@@ -439,7 +450,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelDebug(debug_io, "Ps2Key get flags data from BIOS");
 
 	// Map the BIOS data area into our memory so we can get hardware
-	// information from it.
+	// information from it
 	status = kernelPageMapToFree(KERNELPROCID, 0, &biosData, 0x1000);
 	if (status < 0)
 		goto out;
@@ -471,16 +482,11 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	if (status < 0)
 		goto out;
 
-	// Don't save any old handler for the dedicated keyboard interrupt, but if
-	// there is one, we want to know about it.
-	if (kernelInterruptGetHandler(INTERRUPT_NUM_KEYBOARD))
-		kernelError(kernel_warn, "Not chaining unexpected existing handler "
-			"for keyboard int %d", INTERRUPT_NUM_KEYBOARD);
-
 	kernelDebug(debug_io, "Ps2Key hook interrupt");
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt, NULL);
+	status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt,
+		NULL /* handlerTask */);
 	if (status < 0)
 		goto out;
 
@@ -535,10 +541,8 @@ out:
 
 void kernelPs2KeyboardDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 
 	driver->driverDetect = driverDetect;
-
-	return;
 }
 

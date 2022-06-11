@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -318,7 +318,7 @@ _X_ int windowProgressDialogDestroy(objectKey window)
 
 	if (threadPid && multitaskerProcessIsAlive(threadPid))
 		// Kill our thread
-		status = multitaskerKillProcess(threadPid, 1);
+		status = multitaskerKillProcess(threadPid);
 
 	// Destroy the window
 	windowDestroy(dialogWindow);

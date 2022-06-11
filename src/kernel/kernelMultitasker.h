@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -168,7 +168,6 @@ int kernelMultitaskerGetProcessPriority(int);
 int kernelMultitaskerSetProcessPriority(int, int);
 int kernelMultitaskerGetProcessPrivilege(int);
 int kernelMultitaskerGetProcessParent(int);
-int kernelMultitaskerSetProcessParent(int, int);
 variableList *kernelMultitaskerGetProcessEnvironment(int);
 int kernelMultitaskerGetCurrentDirectory(char *, int);
 int kernelMultitaskerSetProcessCurrentDirectory(int, const char *);
@@ -183,8 +182,8 @@ void kernelMultitaskerYield(void);
 void kernelMultitaskerWait(unsigned);
 int kernelMultitaskerBlock(int);
 int kernelMultitaskerDetach(void);
-int kernelMultitaskerKillProcess(int, int);
-int kernelMultitaskerKillByName(const char *, int);
+int kernelMultitaskerKillProcess(int);
+int kernelMultitaskerKillByName(const char *);
 int kernelMultitaskerKillAll(void);
 int kernelMultitaskerTerminate(int);
 int kernelMultitaskerSignalSet(int, int, int);

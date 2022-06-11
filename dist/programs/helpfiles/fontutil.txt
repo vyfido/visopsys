@@ -32,14 +32,10 @@ Text mode options:
 -c <charset>    : Set the character set.  Also updates the code values.
 -d [code]       : Dump (print) the font data, or else a representation of
                 : the glyph with the supplied code number
--e <img_file>   : Export the font to the specified image file, which will
-                : consist of a 16x6 grid of glyphs, representing either ASCII
-                : codes 32-127, or charset codes 160-255, organized
-                : left-to-right and top-to-bottom.
--i <img_file>   : Import a new font from the specified image file, which will
-                : represent a table of glyphs representing either ASCII codes
-                : 32-127, or charset codes 160-255, arranged in a 16x6 grid
-                : read left-to-right and top-to-bottom.
+-e <dir>        : Export the font to the specified directory as a collection
+                : of images, with each image named for its code number.
+-i <dir>        : Import a new font from the specified directory, containing
+                : equal-sized image files named with their code values.
 -f <file_name>  : Used for supplying an extra file name to commands that
                 : require one
 -n <family>     : Set the font family name

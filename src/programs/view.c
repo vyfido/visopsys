@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,7 @@ The currently-supported file formats are:
 </help>
 */
 
+#include <errno.h>
 #include <libgen.h>
 #include <libintl.h>
 #include <locale.h>
@@ -423,8 +424,8 @@ static int viewText(void)
 		// Use the system font.  It can comfortably show more rows.
 		rows = 40;
 
-	textAreaComponent = windowNewTextArea(window, 80, rows, textLines,
-		&params);
+	textAreaComponent = windowNewTextArea(window, 80 /* columns */, rows,
+		textLines, &params);
 
 	// Put the data into the component
 	windowSetTextOutput(textAreaComponent);
@@ -460,8 +461,8 @@ int main(int argc, char *argv[])
 	windowTitle = malloc(MAX_PATH_NAME_LENGTH + 9);
 	if (!fileName || !windowTitle)
 	{
-		status = ERR_MEMORY;
-		perror(argv[0]);
+		status = errno;
+		perror("malloc");
 		goto deallocate;
 	}
 
@@ -471,12 +472,7 @@ int main(int argc, char *argv[])
 			_("Please choose the file to view:"), NULL, fileName,
 			MAX_PATH_NAME_LENGTH, fileT, 1 /* show thumbnails */);
 		if (status != 1)
-		{
-			if (status)
-				perror(argv[0]);
-
 			goto deallocate;
-		}
 	}
 	else
 	{

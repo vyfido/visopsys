@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -76,7 +76,6 @@ static void usage(char *name)
 	printf("%s", _("usage:\n"));
 	printf(_("%s <create> <bytes>[unit]\n-or-\n"), name);
 	printf(_("%s <destroy> <name>\n"), name);
-	return;
 }
 
 
@@ -139,6 +138,15 @@ int main(int argc, char *argv[])
 		// Get the size itself
 		size = atoi(sizeArg);
 
+		// OK?
+		if (errno)
+		{
+			status = errno;
+			perror("atoi");
+			usage(argv[0]);
+			return (status);
+		}
+
 		// Enlarge?
 		switch (units)
 		{
@@ -162,7 +170,9 @@ int main(int argc, char *argv[])
 			return (status);
 		}
 		else
+		{
 			printf(_("Created RAM disk %s size %u\n"), name, size);
+		}
 	}
 
 	else if (destroy)
@@ -175,7 +185,9 @@ int main(int argc, char *argv[])
 			return (status);
 		}
 		else
+		{
 			printf(_("Destroyed RAM disk %s\n"), name);
+		}
 	}
 
 	// Return

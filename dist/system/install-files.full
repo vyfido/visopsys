@@ -250,6 +250,7 @@
 /system/headers/arpa/inet.h
 /system/headers/netinet/
 /system/headers/netinet/in.h
+/system/headers/sched.h
 /system/headers/sys/
 /system/headers/sys/acpi.h
 /system/headers/sys/api.h
@@ -300,7 +301,6 @@
 /system/headers/sys/process.h
 /system/headers/sys/processor.h
 /system/headers/sys/progress.h
-/system/headers/sys/sched.h
 /system/headers/sys/socket.h
 /system/headers/sys/stat.h
 /system/headers/sys/stream.h

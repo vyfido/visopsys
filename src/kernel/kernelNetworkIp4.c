@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -98,9 +98,12 @@ int kernelNetworkIp4GetLocalPort(kernelNetworkDevice *netDev, int portNum)
 	}
 	else
 	{
-		// Find a random port > 1024 that is free
+		// Find a random, available, ephemeral port
 		while (!portNum || ipPortInUse(netDev, portNum))
-			portNum = kernelRandomFormatted(1025, 0xFFFF);
+		{
+			portNum = kernelRandomFormatted(NETWORK_PORT_EPHEMERAL_START,
+				NETWORK_PORT_EPHEMERAL_END);
+		}
 	}
 
 	return (portNum);

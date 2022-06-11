@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,88 +17,92 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: edit.c:57
+#: edit.c:62
 msgid "Edit"
 msgstr ""
 
-#: edit.c:58
+#: edit.c:63
 msgid "File"
 msgstr ""
 
-#: edit.c:59
+#: edit.c:64
 msgid "Open"
 msgstr ""
 
-#: edit.c:60
+#: edit.c:65
 msgid "Save"
 msgstr ""
 
-#: edit.c:61
+#: edit.c:66
 msgid "Quit"
 msgstr ""
 
-#: edit.c:62
+#: edit.c:67
 msgid "Untitled"
 msgstr ""
 
-#: edit.c:63
-msgid "File has been modified.  Discard changes?"
-msgstr ""
-
-#: edit.c:64
+#: edit.c:68
 msgid "Please enter the name of the file to edit:"
 msgstr ""
 
-#: edit.c:133
+#: edit.c:69
+msgid "File has been modified.  Discard changes?"
+msgstr ""
+
+#: edit.c:153
 msgid "Error"
 msgstr ""
 
-#: edit.c:156 edit.c:161
+#: edit.c:365 edit.c:371
 msgid " (modified)"
 msgstr ""
 
-#: edit.c:418
-msgid "Enter filename"
-msgstr ""
-
-#: edit.c:977
+#: edit.c:484
 msgid "Discard changes?"
 msgstr ""
 
-#: edit.c:978
+#: edit.c:485
 msgid "Discard"
 msgstr ""
 
-#: edit.c:978
+#: edit.c:485
 msgid "Cancel"
 msgstr ""
 
-#: edit.c:1013 edit.c:1334
+#: edit.c:517
+msgid "Enter filename"
+msgstr ""
+
+#: edit.c:738 edit.c:1619
 msgid "Couldn't create file in a read-only filesystem"
 msgstr ""
 
-#: edit.c:1015 edit.c:1336
+#: edit.c:740 edit.c:1621
 #, c-format
 msgid "Error %d loading file"
 msgstr ""
 
-#: edit.c:1135
+#: edit.c:855
 msgid "Unable to launch file dialog"
 msgstr ""
 
-#: edit.c:1147
+#: edit.c:870
+msgid "Couldn't save file in a read-only filesystem"
+msgstr ""
+
+#: edit.c:875
 #, c-format
 msgid "Error %d saving file"
 msgstr ""
 
-#: edit.c:1281
+#: edit.c:1562
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: edit.c:1297
+#: edit.c:1578
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""

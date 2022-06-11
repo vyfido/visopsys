@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2019 J. Andrew McLaughlin
+#  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,54 +158,54 @@ msgstr "txqueuelen"
 msgid "Interrupt"
 msgstr "Interrupt"
 
-#: ifconfig.c:265 ifconfig.c:738
+#: ifconfig.c:265 ifconfig.c:746
 #, c-format
 msgid "Can't get info for device %s"
 msgstr "Zu dem Gerät %s konnten keine Informationen bekommen werden"
 
-#: ifconfig.c:397
+#: ifconfig.c:400
 #, c-format
 msgid "Networking is %s"
 msgstr "Netzwerk %s"
 
-#: ifconfig.c:397
+#: ifconfig.c:400
 msgid "enabled"
 msgstr "aktiviert"
 
-#: ifconfig.c:398
+#: ifconfig.c:401
 msgid "disabled"
 msgstr "deaktivert"
 
-#: ifconfig.c:520
+#: ifconfig.c:526
 #, fuzzy
 msgid "Disabling device"
 msgstr "Deaktivieren"
 
-#: ifconfig.c:520
+#: ifconfig.c:526
 msgid "Enabling device"
 msgstr ""
 
-#: ifconfig.c:521 ifconfig.c:564
+#: ifconfig.c:527 ifconfig.c:572
 msgid "One moment please..."
 msgstr "Einen Moment bitte..."
 
-#: ifconfig.c:563
+#: ifconfig.c:571
 msgid "Shutting down networking"
 msgstr "Das Netzwerk wird getrennt"
 
-#: ifconfig.c:563
+#: ifconfig.c:571
 msgid "Initializing networking"
 msgstr "Netzwerk wird initialisiert"
 
-#: ifconfig.c:663
+#: ifconfig.c:671
 msgid "Networking is disabled"
 msgstr "Netzwerk deaktiviert"
 
-#: ifconfig.c:869
+#: ifconfig.c:878
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:877
+#: ifconfig.c:886
 msgid "Can't get the count of network devices"
 msgstr "Die Anzahl der Netzlaufwerke konnte nicht ermittelt werden"

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,10 +57,10 @@ static inline void debugCapRegs(xhciData *xhci)
 		"  dboffset=0x%08x\n"
 		"  runtimeoffset=0x%08x",
 		(xhci->capRegs->capslenHciver & 0xFF),
-		(xhci->capRegs->capslenHciver >> 16),
-		xhci->capRegs->hcsparams1, xhci->capRegs->hcsparams2,
-		xhci->capRegs->hcsparams3, xhci->capRegs->hccparams,
-		xhci->capRegs->dboffset, xhci->capRegs->runtimeoffset);
+		(xhci->capRegs->capslenHciver >> 16), xhci->capRegs->hcsparams1,
+		xhci->capRegs->hcsparams2, xhci->capRegs->hcsparams3,
+		xhci->capRegs->hccparams, xhci->capRegs->dboffset,
+		xhci->capRegs->runtimeoffset);
 }
 
 static inline void debugOpRegs(xhciData *xhci)
@@ -373,8 +373,8 @@ static inline void debugTrb(xhciTrb *trb)
 		"  paramHi=0x%08x\n"
 		"  status=0x%08x\n"
 		"  typeFlags=0x%04x (type=%s, flags=0x%03x)\n"
-		"  control=0x%04x", trb->paramLo, trb->paramHi,
-		trb->status, trb->typeFlags, debugTrbType2String(trb),
+		"  control=0x%04x", trb->paramLo, trb->paramHi, trb->status,
+		trb->typeFlags, debugTrbType2String(trb),
 		(trb->typeFlags & ~XHCI_TRBTYPE_MASK), trb->control);
 }
 
@@ -635,8 +635,8 @@ out:
 
 static inline void clearStatusBits(xhciData *xhci, unsigned bits)
 {
-	// Clear the requested write-1-to-clear status bits, without affecting
-	// the others
+	// Clear the requested write-1-to-clear status bits, without affecting the
+	// others
 
 	xhci->opRegs->stat = ((xhci->opRegs->stat &
 		~(XHCI_STAT_ROMASK | XHCI_STAT_RW1CMASK)) | bits);
@@ -645,8 +645,8 @@ static inline void clearStatusBits(xhciData *xhci, unsigned bits)
 
 static inline unsigned trbPhysical(xhciTrbRing *ring, xhciTrb *trb)
 {
-	return (ring->trbsPhysical +
-		(unsigned)((void *) trb - (void *) &ring->trbs[0]));
+	return (ring->trbsPhysical + (unsigned)((void *) trb - (void *)
+		&ring->trbs[0]));
 }
 
 
@@ -665,7 +665,8 @@ static inline int ringNextTrb(xhciTrbRing *transRing)
 }
 
 
-static int getEvent(xhciData *xhci, int intrNum, xhciTrb *destTrb, int consume)
+static int getEvent(xhciData *xhci, int intrNum, xhciTrb *destTrb,
+	int consume)
 {
 	int status = 0;
 	xhciIntrRegSet *regSet = NULL;
@@ -704,9 +705,9 @@ static int getEvent(xhciData *xhci, int intrNum, xhciTrb *destTrb, int consume)
 			// Update the controller's event ring dequeue TRB pointer to point
 			// to the next one we expect to process, and clear the 'handler
 			// busy' flag
-			regSet->evtRngDeqPtrLo =
-				(trbPhysical(eventRing, &eventRing->trbs[eventRing->nextTrb]) |
-					XHCI_ERDP_HANDLERBUSY);
+			regSet->evtRngDeqPtrLo = (trbPhysical(eventRing,
+				&eventRing->trbs[eventRing->nextTrb]) |
+				XHCI_ERDP_HANDLERBUSY);
 			regSet->evtRngDeqPtrHi = 0;
 		}
 
@@ -753,8 +754,8 @@ static int command(xhciData *xhci, xhciTrb *cmdTrb)
 	{
 		memset((void *) &eventTrb, 0, sizeof(xhciTrb));
 
-		if (!getEvent(xhci, 0, &eventTrb, 1) &&
-			((eventTrb.typeFlags & XHCI_TRBTYPE_MASK) == XHCI_TRBTYPE_CMDCOMP))
+		if (!getEvent(xhci, 0, &eventTrb, 1) && ((eventTrb.typeFlags &
+			XHCI_TRBTYPE_MASK) == XHCI_TRBTYPE_CMDCOMP))
 		{
 			kernelDebug(debug_usb, "XHCI got command completion event for "
 				"TRB 0x%08x", (eventTrb.paramLo & ~0xFU));
@@ -787,11 +788,15 @@ static int command(xhciData *xhci, xhciTrb *cmdTrb)
 	{
 		// Update the cycle bit of the link TRB
 		if (xhci->commandRing->cycleState)
+		{
 			xhci->commandRing->trbs[xhci->commandRing->numTrbs - 1]
 				.typeFlags |= XHCI_TRBFLAG_CYCLE;
+		}
 		else
+		{
 			xhci->commandRing->trbs[xhci->commandRing->numTrbs - 1]
 				.typeFlags &= ~XHCI_TRBFLAG_CYCLE;
+		}
 
 		xhci->commandRing->cycleState ^= 1;
 	}
@@ -848,8 +853,10 @@ static int getHighSpeedHubSlotPort(xhciData *xhci, usbDevice *usbDev,
 	}
 
 	if (!hubDev)
+	{
 		// Not found - it's probably on a root port
 		return (ERR_NOSUCHENTRY);
+	}
 
 	// Found the hub, now look for its slot
 	slot = linkedListIterStart(&xhci->slots, &iter);
@@ -871,7 +878,7 @@ static int getHighSpeedHubSlotPort(xhciData *xhci, usbDevice *usbDev,
 
 static void deallocTrbRing(xhciTrbRing *trbRing)
 {
-	// Dellocate a TRB ring.
+	// Dellocate a TRB ring
 
 	kernelIoMemory ioMem;
 
@@ -890,7 +897,7 @@ static void deallocTrbRing(xhciTrbRing *trbRing)
 static xhciTrbRing *allocTrbRing(int numTrbs, int circular)
 {
 	// Allocate and link TRBs into a TRB ring, used for events, transfers, and
-	// commands.
+	// commands
 
 	xhciTrbRing *trbRing = NULL;
 	unsigned memSize = 0;
@@ -945,7 +952,7 @@ err_out:
 static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 	int interval, int maxPacketSize, int maxBurst, int bits64)
 {
-	// Allocate a transfer ring and initialize the endpoint context.
+	// Allocate a transfer ring and initialize the endpoint context
 
 	int status = 0;
 	xhciEndpointCtxt64 *inputEndpointCtxt64 = NULL;
@@ -985,8 +992,8 @@ static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 	// Initialize the input endpoint context
 	if (bits64)
 	{
-		inputEndpointCtxt64->intvlLsaMaxPstrMultEpState =
-			((interval << 16) & XHCI_EPCTXT_INTERVAL);
+		inputEndpointCtxt64->intvlLsaMaxPstrMultEpState = ((interval << 16) &
+			XHCI_EPCTXT_INTERVAL);
 
 		inputEndpointCtxt64->maxPSizeMaxBSizeEpTypeCerr =
 			(((maxPacketSize << 16) & XHCI_EPCTXT_MAXPKTSIZE) |
@@ -1000,8 +1007,8 @@ static int allocEndpoint(xhciSlot *slot, int endpoint, int endpointType,
 	}
 	else
 	{
-		inputEndpointCtxt32->intvlLsaMaxPstrMultEpState =
-			((interval << 16) & XHCI_EPCTXT_INTERVAL);
+		inputEndpointCtxt32->intvlLsaMaxPstrMultEpState = ((interval << 16) &
+			XHCI_EPCTXT_INTERVAL);
 
 		inputEndpointCtxt32->maxPSizeMaxBSizeEpTypeCerr =
 			(((maxPacketSize << 16) & XHCI_EPCTXT_MAXPKTSIZE) |
@@ -1296,7 +1303,7 @@ static xhciSlot *allocSlot(xhciData *xhci, usbDevice *usbDev)
 	xhci->devCtxtPhysPtrs[slot->num] = slot->devCtxtPhysical;
 
 	// Add it to the list
-	if (linkedListAdd(&xhci->slots, slot) < 0)
+	if (linkedListAddBack(&xhci->slots, slot) < 0)
 		goto err_out;
 
 	return (slot);
@@ -1317,8 +1324,8 @@ static int setDevAddress(xhciData *xhci, xhciSlot *slot, usbDevice *usbDev)
 	xhciEndpointCtxt32 *inputEndpointCtxt32 = NULL;
 
 	// If usbDev is NULL, that tells us we're only doing this to enable the
-	// control endpoint on the controller, but that we don't want to send
-	// a USB_SET_ADDRESS to the device.
+	// control endpoint on the controller, but that we don't want to send a
+	// USB_SET_ADDRESS to the device
 
 	// Send an 'address device' command
 	memset((void *) &cmdTrb, 0, sizeof(xhciTrb));
@@ -1448,7 +1455,7 @@ static xhciSlot *getDevSlot(xhciData *xhci, usbDevice *usbDev)
 		return (slot);
 
 	// Do a setDevAddress() for the controller's sake (to enable the control
-	// endpoint) but don't address the device.
+	// endpoint) but don't address the device
 	if (setDevAddress(xhci, slot, NULL) < 0)
 	{
 		deallocSlot(xhci, slot);
@@ -1463,7 +1470,7 @@ static xhciTrb *queueIntrDesc(xhciData *xhci, xhciSlot *slot, int endpoint,
 	xhciTrb *srcTrb)
 {
 	// Enqueue the supplied interrupt on the transfer ring of the requested
-	// endpoint.
+	// endpoint
 
 	xhciTrbRing *transRing = NULL;
 	xhciTrb *destTrb = NULL;
@@ -1499,11 +1506,15 @@ static xhciTrb *queueIntrDesc(xhciData *xhci, xhciSlot *slot, int endpoint,
 	{
 		// Update the cycle bit of the link TRB
 		if (transRing->cycleState)
+		{
 			transRing->trbs[transRing->numTrbs - 1].typeFlags |=
 				XHCI_TRBFLAG_CYCLE;
+		}
 		else
+		{
 			transRing->trbs[transRing->numTrbs - 1].typeFlags &=
 				~XHCI_TRBFLAG_CYCLE;
+		}
 
 		transRing->cycleState ^= 1;
 	}
@@ -1526,21 +1537,22 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 	unsigned bytes = 0;
 
 	slotNum = (eventTrb->control >> 8);
-	endpoint = (((eventTrb->control & 0x0001) << 7) |
-		((eventTrb->control & 0x001F) >> 1));
+	endpoint = (((eventTrb->control & 0x0001) << 7) | ((eventTrb->control &
+		0x001F) >> 1));
 
 	kernelDebug(debug_usb, "XHCI transfer event interrupt, slot %d, endpoint "
 		"0x%02x", slotNum, endpoint);
 
 	// Loop through this controller's interrupt registrations, to find out
-	// whether one of them caused this interrupt.
+	// whether one of them caused this interrupt
 	intrReg = linkedListIterStart(&xhci->intrRegs, &iter);
 	while (intrReg)
 	{
 		kernelDebug(debug_usb, "XHCI examine interrupt reg for slot %d, "
 			"endpoint 0x%02x", intrReg->slot->num, intrReg->endpoint);
 
-		if ((intrReg->slot->num == slotNum) && (intrReg->endpoint == endpoint))
+		if ((intrReg->slot->num == slotNum) && (intrReg->endpoint ==
+			endpoint))
 		{
 			slot = getDevSlot(xhci, intrReg->usbDev);
 			if (slot)
@@ -1549,7 +1561,8 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 					slot->transRings[TRANSRING_INDEX(intrReg->endpoint)],
 						intrReg->queuedTrb))
 				{
-					bytes = (intrReg->dataLen - (eventTrb->status & 0xFFFFFF));
+					bytes = (intrReg->dataLen - (eventTrb->status &
+						0xFFFFFF));
 
 					kernelDebug(debug_usb, "XHCI found, device address %d, "
 						"endpoint 0x%02x, %u bytes", intrReg->usbDev->address,
@@ -1588,7 +1601,7 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 
 static int portEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 {
-	// Port status changed.
+	// Port status changed
 
 	int portNum = ((eventTrb->paramLo >> 24) - 1);
 
@@ -1604,7 +1617,7 @@ static int portEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 static int eventInterrupt(xhciData *xhci)
 {
 	// When an interrupt arrives that indicates an event has occurred, this
-	// function is called to process it.
+	// function is called to process it
 
 	int status = 0;
 	xhciIntrRegSet *regSet = NULL;
@@ -1766,16 +1779,17 @@ static int configDevSlot(xhciData *xhci, xhciSlot *slot, usbDevice *usbDev)
 		}
 		else
 		{
-			// Interval is expressed in microframes as a 1-based
-			// exponent
+			// Interval is expressed in microframes as a 1-based exponent
 			interval = (endpoint->interval - 1);
 		}
 
 		if (interval)
+		{
 			kernelDebug(debug_usb, "XHCI interrupt interval at 2^%d "
 				"microframes", interval);
+		}
 
-		// Allocate things needed for the endpoint.
+		// Allocate things needed for the endpoint
 		status = allocEndpoint(slot, endpoint->number, endpointType, interval,
 			endpoint->maxPacketSize, endpoint->maxBurst, bits64);
 		if (status < 0)
@@ -1848,7 +1862,7 @@ static int transfer(usbController *controller, xhciSlot *slot, int endpoint,
 	unsigned timeout, int numTrbs, xhciTrb *trbs)
 {
 	// Enqueue the supplied transaction on the transfer ring of the requested
-	// endpoint.
+	// endpoint
 
 	int status = 0;
 	xhciData *xhci = controller->data;
@@ -1868,9 +1882,8 @@ static int transfer(usbController *controller, xhciSlot *slot, int endpoint,
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	kernelDebug(debug_usb, "XHCI queue transfer (%d TRBs) slot %d, "
-		"endpoint 0x%02x, pos %d", numTrbs, slot->num, endpoint,
-		transRing->nextTrb);
+	kernelDebug(debug_usb, "XHCI queue transfer (%d TRBs) slot %d, endpoint "
+		"0x%02x, pos %d", numTrbs, slot->num, endpoint, transRing->nextTrb);
 
 	for (trbCount = 0; trbCount < numTrbs; trbCount ++)
 	{
@@ -1901,11 +1914,15 @@ static int transfer(usbController *controller, xhciSlot *slot, int endpoint,
 		{
 			// Update the cycle bit of the link TRB
 			if (transRing->cycleState)
+			{
 				transRing->trbs[transRing->numTrbs - 1].typeFlags |=
 					XHCI_TRBFLAG_CYCLE;
+			}
 			else
+			{
 				transRing->trbs[transRing->numTrbs - 1].typeFlags &=
 					~XHCI_TRBFLAG_CYCLE;
+			}
 
 			transRing->cycleState ^= 1;
 		}
@@ -1989,8 +2006,10 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 	// Figure out how many TRBs we're going to need for this transfer
 
 	if (trans->type == usbxfer_control)
+	{
 		// 2 TRBs for the setup and status phases
 		numTrbs += 2;
+	}
 
 	// Data descriptors?
 	if (trans->length)
@@ -2008,8 +2027,8 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 
 	if (numTrbs > XHCI_TRANSRING_SIZE)
 	{
-		kernelDebugError("Number of TRBs exceeds maximum allowed per transfer "
-			"(%d)", XHCI_TRANSRING_SIZE);
+		kernelDebugError("Number of TRBs exceeds maximum allowed per "
+			"transfer (%d)", XHCI_TRANSRING_SIZE);
 		return (status = ERR_RANGE);
 	}
 
@@ -2018,20 +2037,21 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 	if (trans->type == usbxfer_control)
 	{
 		// Set up the device request.  The setup stage is a single-TRB TD, so
-		// it is not chained to the data or status stages
+		// it is not chained to the data or status stages.
 
 		// Get the TRB for the setup stage
 		setupTrb = (xhciSetupTrb *) &trbs[0];
 
-		// The device request goes straight into the initial part of the
-		// setup TRB as immediate data
+		// The device request goes straight into the initial part of the setup
+		// TRB as immediate data
 		status = kernelUsbSetupDeviceRequest(trans, (usbDeviceRequest *)
 			&setupTrb->request);
 		if (status < 0)
 			return (status);
 
 		setupTrb->intTargetTransLen = sizeof(usbDeviceRequest); // 8!!!
-		setupTrb->typeFlags = (XHCI_TRBTYPE_SETUPSTG | XHCI_TRBFLAG_IMMEDDATA);
+		setupTrb->typeFlags = (XHCI_TRBTYPE_SETUPSTG |
+			XHCI_TRBFLAG_IMMEDDATA);
 
 		// Transfer type depends on data stage and direction
 		if (trans->length)
@@ -2049,9 +2069,10 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 	// TRB is not chained to anything.
 	if (trans->length)
 	{
-		buffPtr = (unsigned) kernelPageGetPhysical((((unsigned) trans->buffer <
-			KERNEL_VIRTUAL_ADDRESS)? kernelCurrentProcess->processId :
-				KERNELPROCID), trans->buffer);
+		buffPtr = (unsigned) kernelPageGetPhysical((((unsigned)
+			trans->buffer < KERNEL_VIRTUAL_ADDRESS)?
+				kernelCurrentProcess->processId : KERNELPROCID),
+			trans->buffer);
 		if (!buffPtr)
 		{
 			kernelDebugError("Can't get physical address for buffer at %p",
@@ -2084,7 +2105,7 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 
 			// Control transfers use 'data stage' TRBs for the first data TRB,
 			// and 'normal' TRBs for the rest.  Bulk transfers use 'normal'
-			// for all
+			// for all.
 			if ((trans->type == usbxfer_control) && !trbCount)
 			{
 				dataTrbs[trbCount].typeFlags = XHCI_TRBTYPE_DATASTG;
@@ -2092,7 +2113,9 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 					((trans->pid == USB_PID_IN)? 1 : 0);
 			}
 			else
+			{
 				dataTrbs[trbCount].typeFlags = XHCI_TRBTYPE_NORMAL;
+			}
 
 			// Chain all but the last TRB
 			if (trbCount < (numDataTrbs - 1))
@@ -2119,8 +2142,10 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 				statusTrb->control = 1; // in
 		}
 		else
+		{
 			// No data, status direction is always in
 			statusTrb->control = 1; // in
+		}
 	}
 
 	// Queue the TRBs in the endpoint's transfer ring
@@ -2129,12 +2154,12 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 	if (status < 0)
 		return (status);
 
-	if ((trbs[numTrbs - 1].status & XHCI_TRBCOMP_MASK) != XHCI_TRBCOMP_SUCCESS)
+	if ((trbs[numTrbs - 1].status & XHCI_TRBCOMP_MASK) !=
+		XHCI_TRBCOMP_SUCCESS)
 	{
 		// If it's bulk, we allow short packet
-		if ((trans->type == usbxfer_bulk) &&
-			(trbs[numTrbs - 1].status & XHCI_TRBCOMP_MASK) ==
-				XHCI_TRBCOMP_SHORTPACKET)
+		if ((trans->type == usbxfer_bulk) && (trbs[numTrbs - 1].status &
+			XHCI_TRBCOMP_MASK) == XHCI_TRBCOMP_SHORTPACKET)
 		{
 			kernelDebug(debug_usb, "XHCI short packet allowed");
 		}
@@ -2149,7 +2174,8 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 	if (trans->length)
 	{
 		// Return the number of bytes transferred
-		trans->bytes = (trans->length - (trbs[numTrbs - 1].status & 0xFFFFFF));
+		trans->bytes = (trans->length - (trbs[numTrbs - 1].status &
+			0xFFFFFF));
 		kernelDebug(debug_usb, "XHCI transferred %u of %u requested bytes",
 			trans->bytes, trans->length);
 	}
@@ -2161,7 +2187,7 @@ static int controlBulkTransfer(usbController *controller, xhciSlot *slot,
 static int recordHubAttrs(xhciData *xhci, xhciSlot *slot, usbHubDesc *hubDesc)
 {
 	// If we have discovered that a device is a hub, we need to tell the
-	// controller about that.
+	// controller about that
 
 	int status = 0;
 	xhciTrb cmdTrb;
@@ -2237,8 +2263,8 @@ static int controlTransfer(usbController *controller, usbDevice *usbDev,
 	int standard = 0;
 	unsigned maxPacketSize = 0;
 
-	kernelDebug(debug_usb, "XHCI control transfer to controller %d, device %d",
-		controller->num, usbDev->address);
+	kernelDebug(debug_usb, "XHCI control transfer to controller %d, device "
+		"%d", controller->num, usbDev->address);
 
 	slot = getDevSlot(xhci, usbDev);
 	if (!slot)
@@ -2351,7 +2377,7 @@ static int interruptTransfer(xhciData *xhci, usbDevice *usbDev, int interface,
 	int endpoint, unsigned dataLen,
 	void (*callback)(usbDevice *, int, void *, unsigned))
 {
-	// This function is used to schedule an interrupt.
+	// This function is used to schedule an interrupt
 
 	int status = 0;
 	xhciIntrReg *intrReg = NULL;
@@ -2360,7 +2386,7 @@ static int interruptTransfer(xhciData *xhci, usbDevice *usbDev, int interface,
 	kernelDebug(debug_usb, "XHCI register interrupt transfer for endpoint "
 		"0x%02x", endpoint);
 
-	// Get memory to store information about the interrupt registration */
+	// Get memory to store information about the interrupt registration
 	intrReg = kernelMalloc(sizeof(xhciIntrReg));
 	if (!intrReg)
 		return (status = ERR_MEMORY);
@@ -2397,8 +2423,8 @@ static int interruptTransfer(xhciData *xhci, usbDevice *usbDev, int interface,
 
 	intrReg->callback = callback;
 
-	// Add the interrupt registration to the controller's list.
-	status = linkedListAdd(&xhci->intrRegs, intrReg);
+	// Add the interrupt registration to the controller's list
+	status = linkedListAddBack(&xhci->intrRegs, intrReg);
 	if (status < 0)
 		goto out;
 
@@ -2428,8 +2454,8 @@ static void unregisterInterrupt(xhciData *xhci, xhciIntrReg *intrReg)
 
 	kernelIoMemory ioMem;
 
-	kernelDebug(debug_usb, "XHCI remove interrupt registration for device %d, "
-		"endpoint 0x%02x", intrReg->usbDev->address, intrReg->endpoint);
+	kernelDebug(debug_usb, "XHCI remove interrupt registration for device "
+		"%d, endpoint 0x%02x", intrReg->usbDev->address, intrReg->endpoint);
 
 	// Remove it from the list
 	linkedListRemove(&xhci->intrRegs, intrReg);
@@ -2444,7 +2470,6 @@ static void unregisterInterrupt(xhciData *xhci, xhciIntrReg *intrReg)
 	}
 
 	kernelFree(intrReg);
-	return;
 }
 
 
@@ -2463,8 +2488,8 @@ static int waitPortChangeEvent(xhciData *xhci, int anyPort, int portNum,
 		{
 			if (xhci->portChangedBitmap)
 			{
-				kernelDebug(debug_usb, "XHCI got any port change event (%dms)",
-					count);
+				kernelDebug(debug_usb, "XHCI got any port change event "
+					"(%dms)", count);
 				return (1);
 			}
 		}
@@ -2491,8 +2516,8 @@ static int waitPortChangeEvent(xhciData *xhci, int anyPort, int portNum,
 static inline void setPortStatusBits(xhciData *xhci, int portNum,
 	unsigned bits)
 {
-	// Set (or clear write-1-to-clear) the requested  port status bits, without
-	// affecting the others
+	// Set (or clear write-1-to-clear) the requested  port status bits,
+	// without affecting the others
 
 	xhci->opRegs->portRegSet[portNum].portsc =
 		((xhci->opRegs->portRegSet[portNum].portsc &
@@ -2502,7 +2527,7 @@ static inline void setPortStatusBits(xhciData *xhci, int portNum,
 
 static int portReset(xhciData *xhci, int portNum)
 {
-	// Reset the port, with the appropriate delays, etc.
+	// Reset the port, with the appropriate delays, etc
 
 	int status = 0;
 	int count;
@@ -2513,7 +2538,7 @@ static int portReset(xhciData *xhci, int portNum)
 	setPortStatusBits(xhci, portNum, XHCI_PORTSC_PORTRESET);
 
 	// Give a little delay for the reset to take effect, before we start
-	// looking for the 'clear'.
+	// looking for the 'clear'
 	kernelCpuSpinMs(1);
 
 	// Wait for it to read as clear
@@ -2542,8 +2567,7 @@ static int portReset(xhciData *xhci, int portNum)
 
 	// Try to wait for a 'port status change' event on the event ring.
 	// Once we get this, we know that the port is enabled.
-	if (!waitPortChangeEvent(xhci, 0, portNum, 200))
-		kernelDebugError("No port change event");
+	waitPortChangeEvent(xhci, 0, portNum, 200);
 
 	// Delay 10ms
 	kernelCpuSpinMs(10);
@@ -2554,8 +2578,8 @@ static int portReset(xhciData *xhci, int portNum)
 	status = 0;
 
 out:
-	kernelDebug(debug_usb, "XHCI port reset %s",
-		(status? "failed" : "success"));
+	kernelDebug(debug_usb, "XHCI port reset %s", (status? "failed" :
+		"success"));
 	return (status);
 }
 
@@ -2563,7 +2587,7 @@ out:
 static int portConnected(usbController *controller, int portNum, int hotPlug)
 {
 	// This function is called whenever we notice that a port has indicated
-	// a new connection.
+	// a new connection
 
 	int status = 0;
 	xhciData *xhci = controller->data;
@@ -2578,10 +2602,11 @@ static int portConnected(usbController *controller, int portNum, int hotPlug)
 
 	// USB3 devices should automatically transition the port to the 'enabled'
 	// state, but older devices will need to go through the port reset
-	// procedure.
+	// procedure
 	for (count = 0; count < 100; count ++)
 	{
-		if (xhci->opRegs->portRegSet[portNum].portsc & XHCI_PORTSC_PORTENABLED)
+		if (xhci->opRegs->portRegSet[portNum].portsc &
+			XHCI_PORTSC_PORTENABLED)
 		{
 			kernelDebug(debug_usb, "XHCI port auto-enable took %dms", count);
 			break;
@@ -2663,7 +2688,7 @@ static int portConnected(usbController *controller, int portNum, int hotPlug)
 static void portDisconnected(usbController *controller, int portNum)
 {
 	// This function is called whenever we notice that a port has indicated
-	// a device disconnection.
+	// a device disconnection
 
 	kernelDebug(debug_usb, "XHCI port %d disconnected", portNum);
 
@@ -2705,7 +2730,7 @@ static void detectPortChanges(usbController *controller, int portNum,
 static void doDetectDevices(usbController *controller, int hotplug)
 {
 	// This function gets called to check for device connections (either cold-
-	// plugged ones at boot time, or hot-plugged ones during operations.
+	// plugged ones at boot time, or hot-plugged ones during operations)
 
 	xhciData *xhci = controller->data;
 	int count;
@@ -2722,7 +2747,7 @@ static void doDetectDevices(usbController *controller, int hotplug)
 	}
 
 	// It can happen that USB3 protocol ports suddenly show connections after
-	// we have attempted to reset a corresponding USB2 protocol port.
+	// we have attempted to reset a corresponding USB2 protocol port
 
 	kernelDebug(debug_usb, "XHCI check USB3 ports");
 
@@ -2736,15 +2761,13 @@ static void doDetectDevices(usbController *controller, int hotplug)
 	}
 
 	xhci->portChangedBitmap = 0;
-
-	return;
 }
 
 
 static int processExtCaps(xhciData *xhci)
 {
-	// If the controller has extended capabilities, such as legacy support that
-	// requires a handover between the BIOS and the OS, we do that here.
+	// If the controller has extended capabilities, such as legacy support
+	// that requires a handover between the BIOS and the OS, we do that here
 
 	int status = 0;
 	xhciExtendedCaps *extCap = NULL;
@@ -2753,8 +2776,8 @@ static int processExtCaps(xhciData *xhci)
 	int count;
 
 	// Examine the extended capabilities
-	extCap = ((void *) xhci->capRegs +
-		((xhci->capRegs->hccparams & XHCI_HCCP_EXTCAPPTR) >> 14));
+	extCap = ((void *) xhci->capRegs + ((xhci->capRegs->hccparams &
+		XHCI_HCCP_EXTCAPPTR) >> 14));
 
 	while (1)
 	{
@@ -2799,7 +2822,9 @@ static int processExtCaps(xhciData *xhci)
 				}
 			}
 			else
+			{
 				kernelDebug(debug_usb, "XHCI BIOS does not claim ownership");
+			}
 
 			// Make sure any SMIs are acknowledged and disabled
 			legSupp->legSuppContStat = 0xE0000000;
@@ -2817,8 +2842,8 @@ static int processExtCaps(xhciData *xhci)
 			name[4] = '\0';
 
 			kernelDebug(debug_usb, "XHCI supported protocol \"%s\" %d.%d "
-				"startPort=%d numPorts=%d",
-				name, (suppProto->suppProtCap >> 24),
+				"startPort=%d numPorts=%d", name,
+				(suppProto->suppProtCap >> 24),
 				((suppProto->suppProtCap >> 16) & 0xFF),
 				((suppProto->suppProtPorts & 0xFF) - 1),
 				((suppProto->suppProtPorts >> 8) & 0xFF));
@@ -2850,7 +2875,8 @@ static int processExtCaps(xhciData *xhci)
 }
 
 
-static int allocScratchPadBuffers(xhciData *xhci, unsigned *scratchPadPhysical)
+static int allocScratchPadBuffers(xhciData *xhci,
+	unsigned *scratchPadPhysical)
 {
 	int status = 0;
 	int numScratchPads = (((xhci->capRegs->hcsparams2 &
@@ -2905,8 +2931,10 @@ out:
 		for (count = 0; count < numScratchPads; count ++)
 		{
 			if (scratchPadBufferArray[count])
+			{
 				kernelMemoryReleasePhysical((unsigned)
 					scratchPadBufferArray[count]);
+			}
 		}
 
 		kernelMemoryReleaseIo(&ioMem);
@@ -2932,8 +2960,8 @@ static int initInterrupter(xhciData *xhci)
 			XHCI_HCSP1_MAXINTRPTRS) >> 8));
 
 	// Expand the array for holding pointers to event rings
-	xhci->eventRings = kernelRealloc(xhci->eventRings,
-		((xhci->numIntrs + 1) * sizeof(xhciTrbRing *)));
+	xhci->eventRings = kernelRealloc(xhci->eventRings, ((xhci->numIntrs + 1) *
+		sizeof(xhciTrbRing *)));
 	if (!xhci->eventRings)
 	{
 		status = ERR_MEMORY;
@@ -2941,8 +2969,8 @@ static int initInterrupter(xhciData *xhci)
 	}
 
 	// Allocate a TRB ring for events
-	xhci->eventRings[xhci->numIntrs] =
-		allocTrbRing(XHCI_EVENTRING_SIZE, 0 /* not circular */);
+	xhci->eventRings[xhci->numIntrs] = allocTrbRing(XHCI_EVENTRING_SIZE,
+		0 /* not circular */);
 	if (!xhci->eventRings[xhci->numIntrs])
 	{
 		status = ERR_MEMORY;
@@ -3177,8 +3205,7 @@ static int setup(xhciData *xhci)
 	xhci->opRegs->dcbaapHi = 0;
 
 	// Allocate the command ring
-	xhci->commandRing = allocTrbRing(XHCI_COMMANDRING_SIZE,
-		1 /* circular */);
+	xhci->commandRing = allocTrbRing(XHCI_COMMANDRING_SIZE, 1 /* circular */);
 	if (!xhci->commandRing)
 	{
 		status = ERR_MEMORY;
@@ -3189,8 +3216,8 @@ static int setup(xhciData *xhci)
 		xhci->commandRing->trbsPhysical);
 
 	// Define the command ring dequeue pointer by programming the command ring
-	// control register with the 64-bit address of the first TRB in the command
-	// ring
+	// control register with the 64-bit address of the first TRB in the
+	// command ring
 	xhci->opRegs->cmdrctrlLo = (xhci->commandRing->trbsPhysical |
 		XHCI_CRCR_RINGCYCSTATE);
 	xhci->opRegs->cmdrctrlHi = 0;
@@ -3338,7 +3365,8 @@ static int interrupt(usbController *controller)
 
 	// See whether the status register indicates any of the interrupts we
 	// enabled
-	if (xhci->opRegs->stat & (XHCI_STAT_HOSTCTRLERR | XHCI_STAT_INTERRUPTMASK))
+	if (xhci->opRegs->stat & (XHCI_STAT_HOSTCTRLERR |
+		XHCI_STAT_INTERRUPTMASK))
 	{
 		kernelDebug(debug_usb, "XHCI controller %d interrupt, status=0x%08x",
 			controller->num, xhci->opRegs->stat);
@@ -3408,7 +3436,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 			timeout = USB_STD_TIMEOUT_MS;
 
 		// Lock the controller.  It's the responsibility of the functions
-		// called below to unlock as appropriate whilst waiting for I/O
+		// called below to unlock as appropriate whilst waiting for I/O.
 		status = kernelLockGet(&controller->lock);
 		if (status < 0)
 		{
@@ -3440,7 +3468,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 	}
 
 	// If the controller is still locked (due to errors or whatever else),
-	// unlock it.
+	// unlock it
 	if (kernelLockVerify(&controller->lock) > 0)
 		kernelLockRelease(&controller->lock);
 
@@ -3453,7 +3481,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	int interval __attribute__((unused)), unsigned maxLen,
 	void (*callback)(usbDevice *, int, void *, unsigned))
 {
-	// This function is used to schedule an interrupt.
+	// This function is used to schedule an interrupt
 
 	int status = 0;
 	xhciData *xhci = NULL;
@@ -3470,7 +3498,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 
 	xhci = controller->data;
 
-	// Lock the controller.
+	// Lock the controller
 	status = kernelLockGet(&controller->lock);
 	if (status < 0)
 	{
@@ -3546,7 +3574,7 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 static void detectDevices(usbHub *hub, int hotplug)
 {
 	// This function gets called once at startup to detect 'cold-plugged'
-	// devices.
+	// devices
 
 	usbController *controller = NULL;
 	xhciData *xhci = NULL;
@@ -3581,9 +3609,8 @@ static void detectDevices(usbHub *hub, int hotplug)
 
 	// Try to wait for a 'port status change' event on the event ring.  Once
 	// we get this, we know that any connected ports should be showing their
-	// connections
-	if (!waitPortChangeEvent(xhci, 1, 0, 150))
-		kernelDebugError("No port change event");
+	// connections.
+	waitPortChangeEvent(xhci, 1, 0, 150);
 
 	doDetectDevices(controller, hotplug);
 
@@ -3595,7 +3622,7 @@ static void threadCall(usbHub *hub)
 {
 	// This function gets called periodically by the USB thread, to give us
 	// an opportunity to detect connections/disconnections, or whatever else
-	// we want.
+	// we want
 
 	usbController *controller = NULL;
 	xhciData *xhci = NULL;
@@ -3638,7 +3665,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	kernelDriver *driver)
 {
 	// This function is used to detect and initialize a potential XHCI USB
-	// controller, as well as registering it with the higher-level interfaces.
+	// controller, as well as registering it with the higher-level interfaces
 
 	int status = 0;
 	pciDeviceInfo pciDevInfo;
@@ -3671,7 +3698,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	if (pciDevInfo.device.progIF != XHCI_PCI_PROGIF)
 		goto err_out;
 
-	// After this point, we believe we have a supported device.
+	// After this point, we believe we have a supported device
 
 	kernelDebug(debug_usb, "XHCI controller found");
 
@@ -3713,7 +3740,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	// Get the USB version number
 	controller->usbVersion = kernelBusReadRegister(busTarget, 0x60, 8);
 
-	// Get the interrupt number.
+	// Get the interrupt number
 	controller->interruptNum = pciDevInfo.device.nonBridge.interruptLine;
 
 	kernelLog("USB: XHCI controller USB %d.%d interrupt %d",
@@ -3732,7 +3759,8 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 
 	kernelDebug(debug_usb, "XHCI physMemSpace=0x%08x", physMemSpace);
 
-	physMemSpaceHi = (pciDevInfo.device.nonBridge.baseAddress[1] & 0xFFFFFFF0);
+	physMemSpaceHi = (pciDevInfo.device.nonBridge.baseAddress[1] &
+		0xFFFFFFF0);
 
 	if (physMemSpaceHi)
 	{
@@ -3751,16 +3779,16 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 
 	kernelDebug(debug_usb, "XHCI memSpaceSize=0x%08x", memSpaceSize);
 
-	// Restore the register we clobbered.
+	// Restore the register we clobbered
 	kernelBusWriteRegister(busTarget, PCI_CONFREG_BASEADDRESS0_32, 32,
 		pciDevInfo.device.nonBridge.baseAddress[0]);
 
 	// Map the physical memory address of the controller's registers into
-	// our virtual address space.
+	// our virtual address space
 
-	// Map the physical memory space pointed to by the decoder.
-	status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
-		(void **) &xhci->capRegs, memSpaceSize);
+	// Map the physical memory space pointed to by the decoder
+	status = kernelPageMapToFree(KERNELPROCID, physMemSpace, (void **)
+		&xhci->capRegs, memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("Error mapping memory");
@@ -3768,34 +3796,25 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	}
 
 	// Make it non-cacheable, since this memory represents memory-mapped
-	// hardware registers.
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, (void *) xhci->capRegs, memSpaceSize);
+	// hardware registers
+	status = kernelPageSetAttrs(KERNELPROCID, pageattr_uncacheable, (void *)
+		xhci->capRegs, memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("Error setting page attrs");
 		goto err_out;
 	}
 
-	// Enable memory mapping access
+	// Enable memory mapping access and interrupts
+	kernelBusDeviceEnable(busTarget, PCI_COMMAND_MEMORYENABLE);
+
+	// Re-read target info
+	kernelBusGetTargetInfo(busTarget, &pciDevInfo);
+
 	if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
 	{
-		kernelBusDeviceEnable(busTarget, PCI_COMMAND_MEMORYENABLE);
-
-		// Re-read target info
-		kernelBusGetTargetInfo(busTarget, &pciDevInfo);
-
-		if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
-		{
-			kernelDebugError("Couldn't enable memory access");
-			goto err_out;
-		}
-
-		kernelDebug(debug_usb, "XHCI memory access enabled in PCI");
-	}
-	else
-	{
-		kernelDebug(debug_usb, "XHCI memory access already enabled");
+		kernelDebugError("Couldn't enable memory access");
+		goto err_out;
 	}
 
 	// Warn if the controller is pre-release
@@ -3812,29 +3831,30 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	//debugHcsParams3(xhci);
 	//debugHccParams(xhci);
 
-	xhci->numPorts = ((xhci->capRegs->hcsparams1 & XHCI_HCSP1_MAXPORTS) >> 24);
+	xhci->numPorts = ((xhci->capRegs->hcsparams1 &
+		XHCI_HCSP1_MAXPORTS) >> 24);
 	kernelDebug(debug_usb, "XHCI number of ports=%d", xhci->numPorts);
 
 	// Record the address of the operational registers
-	xhci->opRegs = ((void *) xhci->capRegs +
-		(xhci->capRegs->capslenHciver & 0xFF));
+	xhci->opRegs = ((void *) xhci->capRegs + (xhci->capRegs->capslenHciver &
+		0xFF));
 
 	//debugOpRegs(xhci);
 
 	// Record the address of the doorbell registers
-	xhci->dbRegs = ((void *) xhci->capRegs +
-		(xhci->capRegs->dboffset & ~0x3UL));
+	xhci->dbRegs = ((void *) xhci->capRegs + (xhci->capRegs->dboffset &
+		~0x3UL));
 
 	// Record the address of the runtime registers
-	xhci->rtRegs = ((void *) xhci->capRegs +
-		(xhci->capRegs->runtimeoffset & ~0x1FUL));
+	xhci->rtRegs = ((void *) xhci->capRegs + (xhci->capRegs->runtimeoffset &
+		~0x1FUL));
 
 	// Record the maximum number of device slots
-	xhci->numDevSlots = min(XHCI_MAX_DEV_SLOTS,
-		(xhci->capRegs->hcsparams1 & XHCI_HCSP1_MAXDEVSLOTS));
+	xhci->numDevSlots = min(XHCI_MAX_DEV_SLOTS, (xhci->capRegs->hcsparams1 &
+		XHCI_HCSP1_MAXDEVSLOTS));
 	kernelDebug(debug_usb, "XHCI number of device slots=%d (max=%d)",
-		xhci->numDevSlots,
-		(xhci->capRegs->hcsparams1 & XHCI_HCSP1_MAXDEVSLOTS));
+		xhci->numDevSlots, (xhci->capRegs->hcsparams1 &
+			XHCI_HCSP1_MAXDEVSLOTS));
 
 	// Calculate and record the controller's notion of a 'page size'
 	xhci->pageSize = (xhci->opRegs->pagesz << 12);
@@ -3859,7 +3879,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	if (status < 0)
 		goto err_out;
 
-	// Set up the controller's registers, data structures, etc.
+	// Set up the controller's registers, data structures, etc
 	status = setup(xhci);
 	if (status < 0)
 		goto err_out;
@@ -3907,7 +3927,8 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	dev->driver = driver;
 	dev->data = (void *) controller;
 
-	// Initialize the variable list for attributes of the controller
+	// Initialize the variable list for attributes of the controller, and set
+	// any XHCI-specific ones
 	status = variableListCreateSystem(&dev->device.attrs);
 	if (status >= 0)
 	{
@@ -3916,7 +3937,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 		variableListSet(&dev->device.attrs, "controller.numPorts", value);
 	}
 
-	// Claim the controller device in the list of PCI targets.
+	// Claim the controller device in the list of PCI targets
 	kernelBusDeviceClaim(busTarget, driver);
 
 	// Add the kernel device
@@ -3929,6 +3950,7 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 err_out:
 	if (dev)
 		kernelFree(dev);
+
 	if (controller)
 	{
 		if (controller->data)

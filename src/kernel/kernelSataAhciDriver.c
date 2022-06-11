@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,10 +49,6 @@
 
 static ahciController *controllers = NULL;
 static int numControllers = 0;
-
-// Saved old interrupt handlers
-static void **oldIntHandlers = NULL;
-static int numOldHandlers = 0;
 
 
 #ifdef DEBUG
@@ -313,7 +309,7 @@ static int detectPciControllers(void)
 		kernelDebug(debug_io, "AHCI PCI memory size %08x (%d)", memSpaceSize,
 			memSpaceSize);
 
-		// Restore the register we clobbered.
+		// Restore the register we clobbered
 		kernelBusWriteRegister(&pciTargets[deviceCount],
 			PCI_CONFREG_BASEADDRESS5_32, 32,
 			pciDevInfo.device.nonBridge.baseAddress[5]);
@@ -323,9 +319,9 @@ static int detectPciControllers(void)
 				PCI_CONFREG_BASEADDRESS5_32, 32));
 
 		// Map the physical memory address of the controller's registers into
-		// our virtual address space.
+		// our virtual address space
 
-		// Map the physical memory space pointed to by the decoder.
+		// Map the physical memory space pointed to by the decoder
 		status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
 			(void **) &controllers[numControllers].regs, memSpaceSize);
 		if (status < 0)
@@ -335,34 +331,23 @@ static int detectPciControllers(void)
 		}
 
 		// Make it non-cacheable, since this memory represents memory-mapped
-		// hardware registers.
-		status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-			PAGEFLAG_CACHEDISABLE, (void *) controllers[numControllers].regs,
-			memSpaceSize);
+		// hardware registers
+		status = kernelPageSetAttrs(KERNELPROCID, pageattr_uncacheable,
+			(void *) controllers[numControllers].regs, memSpaceSize);
 		if (status < 0)
 			kernelDebugError("Error setting page attrs");
 
-		// Enable memory mapping access
+		// Enable memory mapping access and interrupts
+		kernelBusDeviceEnable(&pciTargets[deviceCount],
+			PCI_COMMAND_MEMORYENABLE);
+
+		// Re-read target info
+		kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
+
 		if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
 		{
-			kernelBusDeviceEnable(&pciTargets[deviceCount],
-				PCI_COMMAND_MEMORYENABLE);
-
-			// Re-read target info
-			kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
-
-			if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
-			{
-				kernelError(kernel_error, "Couldn't enable PCI memory "
-					"access");
-				continue;
-			}
-
-			kernelDebug(debug_io, "AHCI PCI memory access enabled");
-		}
-		else
-		{
-			kernelDebug(debug_io, "AHCI PCI memory access already enabled");
+			kernelError(kernel_error, "Couldn't enable PCI memory access");
+			continue;
 		}
 
 		numControllers += 1;
@@ -401,8 +386,6 @@ static void spinUpPorts(ahciController *controller)
 			kernelDebug(debug_io, "AHCI port %d already spinning", count);
 		}
 	}
-
-	return;
 }
 
 
@@ -473,13 +456,13 @@ static int startStopPortCommands(ahciController *controller, int portNum,
 		if ((start && !(portRegs->CMD & AHCI_PXCMD_CR)) ||
 			(!start && (portRegs->CMD & AHCI_PXCMD_CR)))
 		{
-			kernelError(kernel_error, "Could not %s port %d commands",
-				(start? "start" : "stop"), portNum);
+			kernelError(kernel_error, "Could not %s port %d commands", (start?
+				"start" : "stop"), portNum);
 			return (status = ERR_TIMEOUT);
 		}
 
-		kernelDebug(debug_io, "AHCI port %d commands %s", portNum,
-			(start? "started" : "stopped"));
+		kernelDebug(debug_io, "AHCI port %d commands %s", portNum, (start?
+			"started" : "stopped"));
 	}
 
 	return (status = 0);
@@ -533,13 +516,13 @@ static int startStopPortReceives(ahciController *controller, int portNum,
 		if ((start && !(portRegs->CMD & AHCI_PXCMD_FR)) ||
 			(!start && (portRegs->CMD & AHCI_PXCMD_FR)))
 		{
-			kernelError(kernel_error, "Could not %s port %d receives",
-				(start? "start" : "stop"), portNum);
+			kernelError(kernel_error, "Could not %s port %d receives", (start?
+				"start" : "stop"), portNum);
 			return (status = ERR_TIMEOUT);
 		}
 
-		kernelDebug(debug_io, "AHCI port %d receives %s", portNum,
-			(start? "started" : "stopped"));
+		kernelDebug(debug_io, "AHCI port %d receives %s", portNum, (start?
+			"started" : "stopped"));
 	}
 
 	return (status = 0);
@@ -586,7 +569,7 @@ static int allocPortMemory(ahciController *controller, int portNum)
 	portRegs = &controller->regs->port[portNum];
 
 	// Get physical memory for the port's command list.  It is a 1Kb structure
-	// that needs to reside on a 1Kb boundary
+	// that needs to reside on a 1Kb boundary.
 
 	if (sizeof(ahciCommandList) != AHCI_CMDLIST_SIZE)
 	{
@@ -614,7 +597,7 @@ static int allocPortMemory(ahciController *controller, int portNum)
 	controller->port[portNum].commandList = cmdIoMem.virtual;
 
 	// Get physical memory for the port's received FISes.  It is a 256b
-	// structure that needs to reside on a 256b boundary
+	// structure that needs to reside on a 256b boundary.
 
 	if (sizeof(ahciReceivedFises) != AHCI_RECVFIS_SIZE)
 	{
@@ -669,7 +652,7 @@ static int initializePorts(ahciController *controller)
 
 		// The spec says that we first have to ensure that all of the
 		// implemented ports are idle.  If any of the fields ST, CR, FRE, or
-		// FR are non-zero, the port needs to be put into an idle state
+		// FR are non-zero, the port needs to be put into an idle state.
 		if (portRegs->CMD & (AHCI_PXCMD_ST | AHCI_PXCMD_CR | AHCI_PXCMD_FRE |
 			AHCI_PXCMD_FR))
 		{
@@ -730,7 +713,7 @@ static void interruptHandler(void)
 	kernelDebug(debug_io, "AHCI interrupt %d", interruptNum);
 
 	// Loop through the controllers to find the one that uses this interrupt
-	for (controllerCount = 0; controllerCount < numControllers;
+	for (controllerCount = 0; (controllerCount < numControllers) && !serviced;
 		controllerCount ++)
 	{
 		controller = &controllers[controllerCount];
@@ -803,21 +786,10 @@ static void interruptHandler(void)
 
 	if (!serviced)
 	{
-		if (oldIntHandlers[interruptNum])
-		{
-			// We didn't service this interrupt, and we're sharing this PCI
-			// interrupt with another device whose handler we saved.  Call it.
-			kernelDebug(debug_io, "AHCI interrupt not serviced - chaining");
-			processorIsrCall(oldIntHandlers[interruptNum]);
-		}
-		else
-		{
-			// We'd better acknowledge the interrupt, or else it wouldn't be
-			// cleared, and our controllers using this vector wouldn't receive
-			// any more.
-			kernelDebugError("Interrupt not serviced and no saved ISR");
-			kernelPicEndOfInterrupt(interruptNum);
-		}
+		// We didn't service this interrupt, so try to pass it on to the next
+		// handler in the chain,  if any
+		kernelDebug(debug_io, "AHCI interrupt not serviced - chaining");
+		kernelInterruptNextHandler(interruptNum, &interruptHandler);
 	}
 
 out:
@@ -850,7 +822,7 @@ static int setupController(ahciController *controller)
 		// return (status = ERR_NOTINITIALIZED);
 	}
 
-	// Enable AHCI.
+	// Enable AHCI
 	if (controller->regs->GHC & AHCI_GHC_AE)
 		kernelDebug(debug_io, "AHCI native SATA mode already enabled");
 	else
@@ -921,7 +893,7 @@ static int setupController(ahciController *controller)
 		return (status);
 	}
 
-	// Disable controller interrupts.
+	// Disable controller interrupts
 	controller->regs->GHC &= ~AHCI_GHC_IE;
 
 	// Clear any pre-existing interrupt
@@ -934,30 +906,10 @@ static int setupController(ahciController *controller)
 		controller->regs->IS |= 0xFFFFFFFF;
 	}
 
-	// Save any existing handler for the interrupt we're hooking
-
-	if (numOldHandlers <= controller->interrupt)
-	{
-		numOldHandlers = (controller->interrupt + 1);
-
-		oldIntHandlers = kernelRealloc(oldIntHandlers,
-			(numOldHandlers * sizeof(void *)));
-		if (!oldIntHandlers)
-			return (status = ERR_MEMORY);
-	}
-
-	if (!oldIntHandlers[controller->interrupt] &&
-		(kernelInterruptGetHandler(controller->interrupt) !=
-			&interruptHandler))
-	{
-		oldIntHandlers[controller->interrupt] =
-			kernelInterruptGetHandler(controller->interrupt);
-	}
-
 	// Register the interrupt handler and turn on interrupts at the system
-	// level.
+	// level
 	status = kernelInterruptHook(controller->interrupt, &interruptHandler,
-		NULL);
+		NULL /* handlerTask */);
 	if (status < 0)
 		return (status);
 
@@ -1017,7 +969,7 @@ static unsigned detectAndEnableDisk(ahciController *controller, int portNum)
 
 	if ((portRegs->SIG == SATA_SIG_ATA) || (portRegs->SIG == SATA_SIG_ATAPI))
 	{
-		// Clear port interrupt status (IS) register by writing 1 to all
+		// Clear the port interrupt status (IS) register by writing 1 to all
 		// writable bits
 		portRegs->IS |= AHCI_PXIS_RWCBITS;
 
@@ -1048,7 +1000,7 @@ static unsigned detectAndEnableDisk(ahciController *controller, int portNum)
 
 static int findCommandSlot(ahciController *controller, int portNum)
 {
-	// Find a free command slot.
+	// Find a free command slot
 
 	int slotNum = -1;
 	ahciPortRegs *portRegs = NULL;
@@ -1158,9 +1110,9 @@ static int setupPrds(ahciPrd *prd, int numPrds, unsigned char *buffer,
 	int count;
 
 	// Get the physical address of the buffer
-	bufferPhysical = (unsigned) kernelPageGetPhysical(
-		(((unsigned) buffer < KERNEL_VIRTUAL_ADDRESS)?
-			kernelCurrentProcess->processId : KERNELPROCID), buffer);
+	bufferPhysical = (unsigned) kernelPageGetPhysical((((unsigned) buffer <
+		KERNEL_VIRTUAL_ADDRESS)? kernelCurrentProcess->processId :
+			KERNELPROCID), buffer);
 
 	if (!bufferPhysical)
 	{
@@ -1203,8 +1155,8 @@ static int errorRecovery(ahciController *controller, int portNum)
 	char errorString[256];
 
 	// Fatal error?
-	if (interruptStatus &
-		(AHCI_PXIS_TFES | AHCI_PXIS_HBFS | AHCI_PXIS_HBDS | AHCI_PXIS_IFS))
+	if (interruptStatus & (AHCI_PXIS_TFES | AHCI_PXIS_HBFS | AHCI_PXIS_HBDS |
+		AHCI_PXIS_IFS))
 	{
 		// Device error
 		if (interruptStatus & AHCI_PXIS_TFES)
@@ -1300,7 +1252,7 @@ static int issueCommand(ahciController *controller, int portNum,
 	if (!timeout)
 		timeout = MS_PER_SEC;
 
-	// Find a free command slot.
+	// Find a free command slot
 	slotNum = findCommandSlot(controller, portNum);
 	if (slotNum < 0)
 	{
@@ -1314,7 +1266,7 @@ static int issueCommand(ahciController *controller, int portNum,
 
 	// If it's a data command, we need to construct a set of PRDs (Physical
 	// Region Descriptors) to point to the buffer.  Calculate how many we're
-	// going to need
+	// going to need.
 	if (buffer)
 		numPrds = ((bufferLen + (AHCI_PRD_MAXDATA - 1)) / AHCI_PRD_MAXDATA);
 
@@ -1389,7 +1341,7 @@ static int issueCommand(ahciController *controller, int portNum,
 			// interrupt from this port, and go into a waiting state.  When
 			// the interrupt comes, the interrupt handler will change our
 			// state to 'IO ready' which will give us high priority for a
-			// wakeup
+			// wakeup.
 			procId = kernelMultitaskerGetCurrentProcessId();
 			if (procId != KERNELPROCID)
 			{
@@ -1456,8 +1408,10 @@ static int issueCommand(ahciController *controller, int portNum,
 	}
 
 	if (status < 0)
+	{
 		kernelError(kernel_error, "Command failed for disk %d:%d",
 			controller->num, portNum);
+	}
 
 out:
 	if (commandTable)
@@ -1478,7 +1432,7 @@ out:
 static int setTransferMode(ahciController *controller, int portNum,
 	ataDmaMode *mode, ataIdentifyData *identData)
 {
-	// Try to set the transfer mode (e.g. DMA, UDMA).
+	// Try to set the transfer mode (e.g. DMA, UDMA)
 
 	int status = 0;
 
@@ -1495,8 +1449,10 @@ static int setTransferMode(ahciController *controller, int portNum,
 		NULL, (unsigned char *) identData, sizeof(ataIdentifyData),
 		0 /* read */, 0 /* default timeout */);
 	if (status < 0)
-		// Couldn't verify.
+	{
+		// Couldn't verify
 		return (status);
+	}
 
 	// Verify that the requested mode has been set
 	if (identData->word[mode->identWord] & mode->enabledMask)
@@ -1547,8 +1503,10 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 	for (portNum = 0; portNum < AHCI_MAX_PORTS; portNum ++)
 	{
 		if (!sigs[portNum])
+		{
 			// Nothing there
 			continue;
+		}
 
 		if ((sigs[portNum] != SATA_SIG_ATA) &&
 			(sigs[portNum] != SATA_SIG_ATAPI))
@@ -1562,8 +1520,10 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 		memset(&identData, 0, sizeof(ataIdentifyData));
 
 		if (sizeof(ataIdentifyData) != 512)
+		{
 			kernelDebugError("ATA identify structure size is %d, not 512",
 				sizeof(ataIdentifyData));
+		}
 
 		// Issue an 'identify' command
 		if (sigs[portNum] == SATA_SIG_ATAPI)
@@ -1604,13 +1564,13 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 		if (!(identData.field.generalConfig & 0x8000))
 		{
-			// This is an ATA hard disk device
-			kernelLog("AHCI: Disk %d:%d is an ATA hard disk", controller->num,
+			// This is a SATA hard disk device
+			kernelLog("AHCI: Disk %d:%d is a SATA hard disk", controller->num,
 				portNum);
 
 			physicalDisk->description = "SATA hard disk";
-			physicalDisk->type =
-				(DISKTYPE_PHYSICAL | DISKTYPE_FIXED | DISKTYPE_SATADISK);
+			physicalDisk->type = (DISKTYPE_PHYSICAL | DISKTYPE_FIXED |
+				DISKTYPE_SATADISK);
 			physicalDisk->flags = DISKFLAG_MOTORON;
 
 			// Get the geometry
@@ -1681,8 +1641,10 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			// CDROM, but we will just warn if it isn't for now
 			physicalDisk->type |= DISKTYPE_SATACDROM;
 			if (((identData.field.generalConfig & 0x1F00) >> 8) != 0x05)
+			{
 				kernelError(kernel_warn, "ATAPI device type may not be "
 					"supported");
+			}
 
 			if (identData.field.generalConfig & 0x0003)
 				kernelError(kernel_warn, "ATAPI packet size not 12");
@@ -1702,8 +1664,10 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 		}
 
 		if (!physicalDisk->sectorSize)
+		{
 			// Lots of things divide by this
 			physicalDisk->sectorSize = 512;
+		}
 
 		kernelDebug(debug_io, "AHCI disk on port %d cylinders=%u heads=%u "
 			"sectors=%u", portNum, physicalDisk->cylinders,
@@ -1766,8 +1730,8 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			}
 		}
 
-		// Now do some general feature detection (common to hard disks
-		// and CD-ROMs
+		// Now do some general feature detection (common to hard disks and
+		// CD-ROMs
 
 		// Record the current multi-sector transfer mode, if any
 		physicalDisk->multiSectors = 1;
@@ -1821,7 +1785,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 						}
 
 						// If this is not a CD-ROM, and the mode is not
-						// enabled, try to enable it.
+						// enabled, try to enable it
 						if (!(DISK(diskNum)->physical.type &
 							DISKTYPE_SATACDROM))
 						{
@@ -1860,7 +1824,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			if (identData.word[features[count].identWord] &
 				features[count].suppMask)
 			{
-				// Supported.
+				// Supported
 				kernelDebug(debug_io, "AHCI disk on port %d supports %s",
 					portNum, features[count].name);
 
@@ -1882,7 +1846,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			}
 		}
 
-		// Initialize the variable list for attributes of the disk.
+		// Initialize the variable list for attributes of the disk
 		status = variableListCreateSystem(&diskDevice->device.attrs);
 		if (status >= 0)
 		{
@@ -1964,7 +1928,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	// Register each controller device with the kernel
 	for (count = 0; count < numControllers; count ++)
 	{
-		// Create a device for it in the kernel.
+		// Create a device for it in the kernel
 		controllerDevices[count].device.class =
 			kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
 		controllerDevices[count].device.subClass =
@@ -1986,7 +1950,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	}
 
 	// Loop through the detected controllers, and attempt to initialize
-	// them.
+	// them
 	for (count = 0; count < numControllers; count ++)
 	{
 		status = setupController(&controllers[count]);
@@ -1995,15 +1959,17 @@ static int driverDetect(void *parent __attribute__((unused)),
 			kernelDebugError("Controller setup error");
 
 			if (!(controllers[count].regs->CAP & AHCI_CAP_SAM))
+			{
 				// Try to set it back to legacy mode
 				controllers[count].regs->GHC &= ~AHCI_GHC_AE;
+			}
 
 			continue;
 		}
 
 		kernelLog("AHCI: Controller %d enabled in native SATA mode", count);
 
-		// Claim the controller device in the list of PCI targets.
+		// Claim the controller device in the list of PCI targets
 		kernelBusDeviceClaim((kernelBusTarget *)
 			&controllers[count].busTarget, driver);
 
@@ -2063,14 +2029,14 @@ static int atapiStartStop(ahciController *controller, ahciDisk *dsk,
 			sendAtapiPacket(controller, dsk, ATAPI_PACKET_CLOSE, NULL, 0);
 		}
 
-		// Well, okay, assume this.
+		// Well, okay, assume this
 		dsk->physical.flags &= ~DISKFLAG_DOOROPEN;
 
 		kernelDebug(debug_io, "AHCI disk on port %d ATAPI start",
 			dsk->portNum);
 
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_START, NULL, 0);
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_START,
+			NULL, 0);
 		if (status < 0)
 			return (status);
 
@@ -2083,15 +2049,13 @@ static int atapiStartStop(ahciController *controller, ahciDisk *dsk,
 			return (status);
 
 		// The number of sectors
-		dsk->physical.numSectors =
-			processorSwap32(capacityData.blockNumber);
+		dsk->physical.numSectors = processorSwap32(capacityData.blockNumber);
 
 		// The sector size
-		dsk->physical.sectorSize =
-			processorSwap32(capacityData.blockLength);
+		dsk->physical.sectorSize = processorSwap32(capacityData.blockLength);
 
-		// If there's no disk, the number of sectors will be illegal.	Set
-		// to the maximum value and quit
+		// If there's no disk, the number of sectors will be illegal.  Set to
+		// the maximum value and quit.
 		if (!dsk->physical.numSectors ||
 			(dsk->physical.numSectors == 0xFFFFFFFF))
 		{
@@ -2114,8 +2078,7 @@ static int atapiStartStop(ahciController *controller, ahciDisk *dsk,
 			return (status);
 
 		// Read the LBA of the start of the last session
-		dsk->physical.lastSession =
-			processorSwap32(tocData.lastSessionLba);
+		dsk->physical.lastSession = processorSwap32(tocData.lastSessionLba);
 
 		dsk->physical.flags |= DISKFLAG_MOTORON;
 	}
@@ -2124,8 +2087,7 @@ static int atapiStartStop(ahciController *controller, ahciDisk *dsk,
 		kernelDebug(debug_io, "AHCI disk on port %d ATAPI stop",
 			dsk->portNum);
 
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_STOP, NULL, 0);
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_STOP, NULL, 0);
 
 		dsk->physical.flags &= ~DISKFLAG_MOTORON;
 	}
@@ -2218,13 +2180,14 @@ static int readWriteDma(ahciController *controller, ahciDisk *dsk,
 			sectorsPerCommand = 65536;
 	}
 	else if (sectorsPerCommand > 256)
+	{
 		sectorsPerCommand = 256;
+	}
 
-	// This outer loop is done once for each *command* we send.	Actual
-	// data transfers, DMA transfers, etc. may occur more than once per
-	// command and are handled by the inner loop.  The number of times we send
-	// a command depends upon the maximum number of sectors we can specify per
-	// command.
+	// This outer loop is done once for each *command* we send.	 Actual data
+	// transfers, DMA transfers, etc. may occur more than once per command and
+	// are handled by the inner loop.  The number of times we send a command
+	// depends upon the maximum number of sectors we can specify per command.
 	while (numSectors > 0)
 	{
 		sectorsPerCommand = min(sectorsPerCommand, numSectors);
@@ -2246,7 +2209,7 @@ static int readWriteDma(ahciController *controller, ahciDisk *dsk,
 		}
 		else
 		{
-			// Sector count register should be set to 0 if it's 256)
+			// Sector count register should be set to 0 if it's 256
 			status = issueCommand(controller, dsk->portNum, 0,
 				((sectorsPerCommand == 256)? 0 : sectorsPerCommand),
 				(logicalSector & 0xFFFF), ((logicalSector >> 16) & 0xFF),
@@ -2283,11 +2246,14 @@ static int atapiSetLockState(ahciController *controller, ahciDisk *dsk,
 		(locked? "" : "un"));
 
 	if (locked)
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_LOCK, NULL, 0);
+	{
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_LOCK, NULL, 0);
+	}
 	else
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_UNLOCK, NULL, 0);
+	{
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_UNLOCK, NULL,
+			0);
+	}
 
 	if (status < 0)
 		return (status);
@@ -2309,18 +2275,24 @@ static int atapiSetDoorState(ahciController *controller, ahciDisk *dsk,
 	int status = 0;
 
 	if (open && (dsk->physical.flags & DISKFLAG_MOTORON))
+	{
 		// Try to stop it first
 		atapiStartStop(controller, dsk, 0);
+	}
 
 	kernelDebug(debug_io, "AHCI disk on port %d ATAPI %s", dsk->portNum,
 		(open? "open" : "close"));
 
 	if (open)
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_EJECT, NULL, 0);
+	{
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_EJECT, NULL,
+			0);
+	}
 	else
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_CLOSE, NULL, 0);
+	{
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_CLOSE, NULL,
+			0);
+	}
 
 	if (status < 0)
 		return (status);
@@ -2337,7 +2309,7 @@ static int atapiSetDoorState(ahciController *controller, ahciDisk *dsk,
 static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	uquad_t numSectors, void *buffer, int write)
 {
-	// This function reads or writes sectors to/from the disk.
+	// This function reads or writes sectors to/from the disk
 
 	int status = 0;
 	ahciController *controller = DISK_CTRL(diskNum);
@@ -2359,9 +2331,8 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 		((logicalSector + numSectors - 1) > 0x0FFFFFFF))
 	{
 		kernelError(kernel_error, "Can't access sectors %llu->%llu on disk "
-			"%d:%d with 28-bit addressing", logicalSector,
-			(logicalSector + numSectors - 1), (diskNum >> 8),
-			(diskNum & 0xFF));
+			"%d:%d with 28-bit addressing", logicalSector, (logicalSector +
+			numSectors - 1), (diskNum >> 8), (diskNum & 0xFF));
 		return (status = ERR_BOUNDS);
 	}
 
@@ -2390,8 +2361,10 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	}
 
 	if (!status)
+	{
 		// We are finished.  The data should be transferred.
 		kernelDebug(debug_io, "AHCI transfer successful");
+	}
 
 	// Unlock the port
 	kernelLockRelease(&controller->port[dsk->portNum].lock);
@@ -2550,7 +2523,7 @@ static int driverReadSectors(int diskNum, uquad_t logicalSector,
 {
 	// This function is a wrapper for the readWriteSectors function.
 	return (readWriteSectors(diskNum, logicalSector, numSectors, buffer,
-		0 /* read operation */));
+		0 /* read */));
 }
 
 
@@ -2559,7 +2532,7 @@ static int driverWriteSectors(int diskNum, uquad_t logicalSector,
 {
 	// This function is a wrapper for the readWriteSectors function.
 	return (readWriteSectors(diskNum, logicalSector, numSectors,
-		(void *) buffer, 1 /* write operation */));
+		(void *) buffer, 1 /* write */));
 }
 
 
@@ -2629,11 +2602,9 @@ static kernelDiskOps ahciOps = {
 
 void kernelSataAhciDriverRegister(kernelDriver *driver)
 {
-	// Device driver registration.
+	// Device driver registration
 
 	driver->driverDetect = driverDetect;
 	driver->ops = &ahciOps;
-
-	return;
 }
 

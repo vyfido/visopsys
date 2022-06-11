@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -272,7 +272,7 @@ static int exceptions(void)
 		if (graphicsAreEnabled())
 		{
 			// Try to get rid of any exception dialogs we caused
-			multitaskerKillByName("error dialog thread", 0);
+			multitaskerKillByName("error dialog thread");
 		}
 
 		// Now it should be dead

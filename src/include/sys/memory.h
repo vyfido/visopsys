@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,10 +24,6 @@
 
 #ifndef _MEMORY_H
 #define _MEMORY_H
-
-#include <sys/debug.h>
-#include <sys/errors.h>
-#include <sys/lock.h>
 
 // Definitions
 #define MEMORY_PAGE_SIZE				4096

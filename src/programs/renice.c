@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,7 +57,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s <priority> <process1> [process2] [...]\n"), name);
-	return;
 }
 
 
@@ -86,9 +85,10 @@ int main(int argc, char *argv[])
 	// OK?
 	if (errno)
 	{
-		perror(argv[0]);
+		status = errno;
+		perror("atoi");
 		usage(argv[0]);
-		return (status = errno);
+		return (status);
 	}
 
 	// Loop through all of our process ID arguments
@@ -99,20 +99,24 @@ int main(int argc, char *argv[])
 		// OK?
 		if (errno)
 		{
-			perror(argv[0]);
+			status = errno;
+			perror("atoi");
 			usage(argv[0]);
-			return (status = errno);
+			return (status);
 		}
 
 		// Set the process
 		status = multitaskerSetProcessPriority(processId, newPriority);
 		if (status < 0)
 		{
+			fprintf(stderr, "%s: ", argv[0]);
 			errno = status;
-			perror(argv[0]);
+			perror(argv[count]);
 		}
 		else
+		{
 			printf(_("%d changed\n"), processId);
+		}
 	}
 
 	// Return success

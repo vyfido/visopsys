@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2019 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2020 J. Andrew McLaughlin")
 #define GPL				_( \
 	"  This program is free software; you can redistribute it and/or modify it\n" \
 	"  under the terms of the GNU General Public License as published by the\n" \
@@ -195,8 +195,6 @@ static void quit(int status, const char *message, ...)
 	if (graphics && window)
 		windowDestroy(window);
 
-	errno = status;
-
 	exit(status);
 }
 
@@ -210,7 +208,7 @@ static int rebootNow(void)
 	{
 		response = windowNewChoiceDialog(window, _("Reboot?"),
 			_(rebootQuestion), (char *[]){ _("Reboot"), _("Continue") },
-			2, 0);
+			2 /* numChoices */, 0 /* defaultChoice */);
 		if (!response)
 			return (1);
 		else
@@ -227,13 +225,13 @@ static int rebootNow(void)
 
 			if ((character == 'y') || (character == 'Y'))
 			{
-				printf("%s", _("Yes\n"));
+				printf("%s\n", _("Yes"));
 				textInputSetEcho(1);
 				return (1);
 			}
 			else if ((character == 'n') || (character == 'N'))
 			{
-				printf("%s", _("No\n"));
+				printf("%s\n", _("No"));
 				textInputSetEcho(1);
 				return (0);
 			}
@@ -268,7 +266,7 @@ static int runLogin(void)
 	int pid = 0;
 
 	if (!passwordSet)
-		pid = loaderLoadProgram(LOGINPROGRAM " -f admin", 0);
+		pid = loaderLoadProgram(LOGINPROGRAM " -f " USER_ADMIN, 0);
 	else
 		pid = loaderLoadProgram(LOGINPROGRAM, 0);
 
@@ -592,8 +590,10 @@ int main(int argc, char *argv[])
 
 	// Check privilege level
 	if (multitaskerGetProcessPrivilege(processId))
+	{
 		quit(ERR_PERMISSION, "%s", _("This program can only be run as a "
 			"privileged user.\n(Try logging in as user \"admin\")."));
+	}
 
 	// Check options
 	while (strchr("T?", (opt = getopt(argc, argv, "T"))))

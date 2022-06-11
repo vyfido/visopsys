@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,15 +26,15 @@ msgstr ""
 msgid "%s [-R] [-S#] <file1> [file2] [...]\n"
 msgstr ""
 
-#: rm.c:110
+#: rm.c:109
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: rm.c:119
+#: rm.c:118
 msgid "Can't both recursively and securely delete\n"
 msgstr ""
 
-#: rm.c:125
+#: rm.c:124
 msgid "No file names to delete\n"
 msgstr ""

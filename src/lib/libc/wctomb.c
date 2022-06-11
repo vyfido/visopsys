@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,14 +30,14 @@ int wctomb(char *string, wchar_t wc)
 	//
 	// If s is not NULL, the wctomb function converts the wide character wc to
 	// its multibyte representation and stores it at the beginning of the
-	// character array pointed to by string.  It updates the shift state, which
-	// is stored in a static anonymous variable only known to the wctomb func-
-	// tion, and returns the length of said multibyte representation, i.e. the
-	// number of bytes written at string. The programmer must ensure that there
-	// is room for at least MB_CUR_MAX bytes at string.  If string is NULL,
-	// the wctomb function resets the shift state, only known to this function,
-	// to the initial state, and returns non-zero if the encoding has non-
-	// trivial shift state, or zero if the encoding is stateless.
+	// character array pointed to by string.  It updates the shift state,
+	// which is stored in a static anonymous variable only known to the wctomb
+	// function, and returns the length of said multibyte representation, i.e.
+	// the number of bytes written at string. The programmer must ensure that
+	// there is room for at least MB_CUR_MAX bytes at string.  If string is
+	// NULL, the wctomb function resets the shift state, only known to this
+	// function, to the initial state, and returns non-zero if the encoding
+	// has non-trivial shift state, or zero if the encoding is stateless.
 	//
 	// We're going to attempt to support UTF-8 as our multibyte standard.
 

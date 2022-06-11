@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/kernconf.h>
+#include <sys/types.h>
 #include <sys/vis.h>
 
 static char *hostName = NULL;
@@ -53,146 +54,11 @@ static int enabled = 0;
 extern variableList *kernelVariables;
 
 
-static void deviceStartThread(void)
-{
-	// This is the thread that attempts to start network devices at the time
-	// when networking is enabled
-
-	int status = 0;
-	int devicesToStart = 0;
-	uquad_t timeout = (kernelCpuGetMs() + NETWORK_DEVICE_TIMEOUT_MS);
-	kernelNetworkDevice *netDev = NULL;
-	int count;
-
-	kernelDebug(debug_net, "NET device start thread");
-
-	// Count the number of devices we want to start
-	for (count = 0; count < numDevices; count ++)
-	{
-		netDev = devices[count];
-
-		if (!(netDev->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
-			!(netDev->device.flags & NETWORK_DEVICEFLAG_DISABLED))
-		{
-			devicesToStart += 1;
-		}
-	}
-
-	kernelDebug(debug_net, "NET %d devices to start", devicesToStart);
-
-	while (devicesToStart && (kernelCpuGetMs() < timeout))
-	{
-		for (count = 0; count < numDevices; count ++)
-		{
-			netDev = devices[count];
-
-			if (!(netDev->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
-				!(netDev->device.flags & NETWORK_DEVICEFLAG_DISABLED))
-			{
-				status = kernelNetworkDeviceStart((const char *)
-					netDev->device.name, 0 /* not reconfiguring */);
-				if (status >= 0)
-				{
-					kernelDebug(debug_net, "NET device %s started",
-						netDev->device.name);
-					devicesToStart -= 1;
-				}
-			}
-		}
-
-		kernelMultitaskerYield();
-	}
-
-	kernelDebug(debug_net, "NET device start thread exiting");
-
-	// Finished
-	kernelMultitaskerTerminate(0);
-}
-
-
-static kernelNetworkDevice *getDevice(networkAddress *dest)
-{
-	// Given a destination address, determine the best/appropriate network
-	// device to use for the connection.
-
-	kernelNetworkDevice *netDev = NULL;
-	int localNetwork = 0;
-	int count;
-
-	if (!numDevices)
-		return (netDev = NULL);
-
-	// I expect that this will need to become more sophisticated over time.
-
-	// If there's only one device, pick it
-	if (numDevices == 1)
-		return (netDev = devices[0]);
-
-	// First default: the first device
-	netDev = devices[0];
-
-	// Second default: an device that's running and not loopback
-	for (count = 0; count < numDevices; count ++)
-	{
-		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
-			(devices[count]->device.linkProtocol !=
-				NETWORK_LINKPROTOCOL_LOOP))
-		{
-			netDev = devices[count];
-			break;
-		}
-	}
-
-	// If there's no destination address, or an empty address, that'll have to
-	// do
-	if (!dest || networkAddressEmpty(dest, sizeof(networkAddress)))
-		return (netDev);
-
-	// Look for a device that's running, and on the same network as the
-	// destination address (including loopback this time)
-	for (count = 0; count < numDevices; count ++)
-	{
-		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
-			!networkAddressEmpty(&devices[count]->device.netMask,
-				sizeof(networkAddress)) &&
-			networksEqualIp4(dest, &devices[count]->device.netMask,
-				&devices[count]->device.hostAddress))
-		{
-			localNetwork = 1;
-			netDev = devices[count];
-			break;
-		}
-	}
-
-	// If the destination was an address that's local to one of our devices,
-	// choose that one
-	if (localNetwork)
-		return (netDev);
-
-	// It's not on a local network, so try to pick a device that's running,
-	// not loopback, and has a gateway address set
-	for (count = 0; count < numDevices; count ++)
-	{
-		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
-			(devices[count]->device.linkProtocol !=
-				NETWORK_LINKPROTOCOL_LOOP) &&
-			!networkAddressEmpty(&devices[count]->device.gatewayAddress,
-				sizeof(networkAddress)))
-		{
-			netDev = devices[count];
-			break;
-		}
-	}
-
-	return (netDev);
-}
-
-
 static kernelNetworkConnection *findMatchFilter(volatile linkedList *list,
 	linkedListItem **iter, kernelNetworkPacket *packet)
 {
 	// Given a starting connection, loop through them until we find one whose
-	// filter matches the supplied packet.
+	// filter matches the supplied packet
 
 	kernelNetworkConnection *connection = NULL;
 	networkIcmpHeader *icmpHeader = NULL;
@@ -258,11 +124,11 @@ static kernelNetworkConnection *findMatchFilter(volatile linkedList *list,
 			continue;
 		}
 
-		// The packet matches the filter.
+		// The packet matches the filter
 		return (connection);
 	}
 
-	// If we fall through, we found none.
+	// If we fall through, we found none
 	return (connection = NULL);
 }
 
@@ -302,7 +168,7 @@ static void networkThread(void)
 					kernelError(kernel_error, "Attempt to renew DHCP "
 						"configuration of network device %s failed",
 						netDev->device.name);
-					// Turn it off, sorry.
+					// Turn it off, sorry
 					netDev->device.flags &= ~NETWORK_DEVICEFLAG_RUNNING;
 					continue;
 				}
@@ -377,7 +243,7 @@ static void networkThread(void)
 				kernelNetworkPacketRelease(packet);
 			}
 
-			// Process the device's output packet stream.
+			// Process the device's output packet stream
 
 			while (netDev->outputStream.count)
 			{
@@ -387,7 +253,7 @@ static void networkThread(void)
 					// Try the next device
 					break;
 
-				// Send it.
+				// Send it
 
 				kernelDebug(debug_net, "NET thread send queued packet");
 
@@ -422,13 +288,148 @@ static void checkSpawnNetworkThread(void)
 	if (!enabled)
 		return;
 
-	if (!netThreadPid ||
-		(kernelMultitaskerGetProcessState(netThreadPid, &tmpState) < 0))
+	if (!netThreadPid || (kernelMultitaskerGetProcessState(netThreadPid,
+		&tmpState) < 0))
 	{
 		netThreadPid = kernelMultitaskerSpawnKernelThread(networkThread,
 			"network thread", 0 /* no args */, NULL /* no args */,
 			1 /* run */);
 	}
+}
+
+
+static kernelNetworkDevice *getDevice(networkAddress *dest)
+{
+	// Given a destination address, determine the best/appropriate network
+	// device to use for the connection
+
+	kernelNetworkDevice *netDev = NULL;
+	int localNetwork = 0;
+	int count;
+
+	if (!numDevices)
+		return (netDev = NULL);
+
+	// I expect that this will need to become more sophisticated over time
+
+	// If there's only one device, pick it
+	if (numDevices == 1)
+		return (netDev = devices[0]);
+
+	// First default: the first device
+	netDev = devices[0];
+
+	// Second default: an device that's running and not loopback
+	for (count = 0; count < numDevices; count ++)
+	{
+		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+			(devices[count]->device.linkProtocol !=
+				NETWORK_LINKPROTOCOL_LOOP))
+		{
+			netDev = devices[count];
+			break;
+		}
+	}
+
+	// If there's no destination address, or an empty address, that'll have to
+	// do
+	if (!dest || networkAddressEmpty(dest, sizeof(networkAddress)))
+		return (netDev);
+
+	// Look for a device that's running, and on the same network as the
+	// destination address (including loopback this time)
+	for (count = 0; count < numDevices; count ++)
+	{
+		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+			!networkAddressEmpty(&devices[count]->device.netMask,
+				sizeof(networkAddress)) &&
+			networksEqualIp4(dest, &devices[count]->device.netMask,
+				&devices[count]->device.hostAddress))
+		{
+			localNetwork = 1;
+			netDev = devices[count];
+			break;
+		}
+	}
+
+	// If the destination was an address that's local to one of our devices,
+	// choose that one
+	if (localNetwork)
+		return (netDev);
+
+	// It's not on a local network, so try to pick a device that's running,
+	// not loopback, and has a gateway address set
+	for (count = 0; count < numDevices; count ++)
+	{
+		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+			(devices[count]->device.linkProtocol !=
+				NETWORK_LINKPROTOCOL_LOOP) &&
+			!networkAddressEmpty(&devices[count]->device.gatewayAddress,
+				sizeof(networkAddress)))
+		{
+			netDev = devices[count];
+			break;
+		}
+	}
+
+	return (netDev);
+}
+
+
+static void deviceStartThread(void)
+{
+	// This is the thread that attempts to start network devices at the time
+	// when networking is enabled
+
+	int status = 0;
+	int devicesToStart = 0;
+	uquad_t timeout = (kernelCpuGetMs() + NETWORK_DEVICE_TIMEOUT_MS);
+	kernelNetworkDevice *netDev = NULL;
+	int count;
+
+	kernelDebug(debug_net, "NET device start thread");
+
+	// Count the number of devices we want to start
+	for (count = 0; count < numDevices; count ++)
+	{
+		netDev = devices[count];
+
+		if (!(netDev->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+			!(netDev->device.flags & NETWORK_DEVICEFLAG_DISABLED))
+		{
+			devicesToStart += 1;
+		}
+	}
+
+	kernelDebug(debug_net, "NET %d devices to start", devicesToStart);
+
+	while (devicesToStart && (kernelCpuGetMs() < timeout))
+	{
+		for (count = 0; count < numDevices; count ++)
+		{
+			netDev = devices[count];
+
+			if (!(netDev->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+				!(netDev->device.flags & NETWORK_DEVICEFLAG_DISABLED))
+			{
+				status = kernelNetworkDeviceStart((const char *)
+					netDev->device.name, 0 /* not reconfiguring */);
+				if (status >= 0)
+				{
+					kernelDebug(debug_net, "NET device %s started",
+						netDev->device.name);
+					devicesToStart -= 1;
+				}
+			}
+		}
+
+		kernelMultitaskerYield();
+	}
+
+	kernelDebug(debug_net, "NET device start thread exiting");
+
+	// Finished
+	kernelMultitaskerTerminate(0);
 }
 
 
@@ -473,7 +474,7 @@ static int connectionExists(kernelNetworkConnection *connection)
 
 int kernelNetworkRegister(kernelNetworkDevice *netDev)
 {
-	// Called by the kernelNetworkDevice code to register a network device.
+	// Called by the kernelNetworkDevice code to register a network device
 
 	int status = 0;
 
@@ -510,7 +511,7 @@ int kernelNetworkInitialize(void)
 
 	if (kernelVariables)
 	{
-		// Check for a user-specified host name.
+		// Check for a user-specified host name
 		if (variableListGet(kernelVariables, KERNELVAR_NET_HOSTNAME))
 		{
 			strncpy(hostName, variableListGet(kernelVariables,
@@ -529,7 +530,7 @@ int kernelNetworkInitialize(void)
 
 	if (kernelVariables)
 	{
-		// Check for a user-specified domain name.
+		// Check for a user-specified domain name
 		if (variableListGet(kernelVariables, KERNELVAR_NET_DOMAINNAME))
 		{
 			strncpy(domainName, variableListGet(kernelVariables,
@@ -561,7 +562,7 @@ int kernelNetworkInitialize(void)
 			continue;
 
 		// Get a 'pool' of packet memory for use by interrupt handlers, since
-		// they can't allocate memory themselves.
+		// they can't allocate memory themselves
 
 		netDev->packetPool.freePackets = NETWORK_PACKETS_PER_STREAM;
 		netDev->packetPool.data = kernelMalloc(
@@ -626,7 +627,7 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 	connection->processId = kernelMultitaskerGetCurrentProcessId();
 	connection->mode = mode;
 
-	// If the network address was specified, copy it.
+	// If the network address was specified, copy it
 	if (address)
 	{
 		networkAddressCopy(&connection->address, address,
@@ -677,7 +678,8 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 
 	// Add the connection to the device's list
 	connection->netDev = netDev;
-	linkedListAdd((linkedList *) &netDev->connections, (void *) connection);
+	linkedListAddBack((linkedList *) &netDev->connections, (void *)
+		connection);
 
 	return (connection);
 }
@@ -701,7 +703,7 @@ int kernelNetworkConnectionClose(kernelNetworkConnection *connection,
 	if (connection->inputStream.buffer)
 		kernelStreamDestroy(&connection->inputStream);
 
-	// Remove the connection from the device's list.
+	// Remove the connection from the device's list
 	linkedListRemove((linkedList *) &netDev->connections, (void *)
 		connection);
 
@@ -715,7 +717,7 @@ int kernelNetworkConnectionClose(kernelNetworkConnection *connection,
 
 kernelNetworkPacket *kernelNetworkPacketGet(void)
 {
-	// Allocates a packet, and adds an initial reference count.
+	// Allocates a packet, and adds an initial reference count
 
 	kernelNetworkPacket *packet = NULL;
 
@@ -728,6 +730,26 @@ kernelNetworkPacket *kernelNetworkPacketGet(void)
 	packet->refCount = 1;
 
 	return (packet);
+}
+
+
+kernelNetworkPacket *kernelNetworkPacketCopy(kernelNetworkPacket *srcPacket)
+{
+	// Allocates a new copy of a packet
+
+	kernelNetworkPacket *destPacket = NULL;
+
+	destPacket = kernelNetworkPacketGet();
+	if (!destPacket)
+		return (destPacket);
+
+	memcpy(destPacket, srcPacket, sizeof(kernelNetworkPacket));
+
+	destPacket->release = NULL;
+	destPacket->context = NULL;
+	destPacket->refCount = 1;
+
+	return (destPacket);
 }
 
 
@@ -749,7 +771,7 @@ void kernelNetworkPacketHold(kernelNetworkPacket *packet)
 void kernelNetworkPacketRelease(kernelNetworkPacket *packet)
 {
 	// Removes a reference count from a packet, and if there are no more
-	// references, frees the packet.
+	// references, frees the packet
 
 	// Check params
 	if (!packet)
@@ -835,7 +857,7 @@ void kernelNetworkDeliverData(kernelNetworkConnection *connection,
 	void *copyPtr = NULL;
 	unsigned length = 0;
 
-	// If it's not a 'read' connection with an input stream, skip the rest.
+	// If it's not a 'read' connection with an input stream, skip the rest
 	if (!(connection->mode & NETWORK_MODE_READ) ||
 		!connection->inputStream.buffer)
 	{
@@ -843,7 +865,7 @@ void kernelNetworkDeliverData(kernelNetworkConnection *connection,
 		return;
 	}
 
-	// Copy the packet into the input stream.
+	// Copy the packet into the input stream
 
 	// By default, just the data
 	copyPtr = (packet->memory + packet->dataOffset);
@@ -898,7 +920,7 @@ int kernelNetworkSetupSendPacket(kernelNetworkConnection *connection,
 {
 	// This takes an empty packet structure and does initial setup, filling in
 	// addresses, allocating memory, reserving space for headers, and setting
-	// up pointers to everthing depending on the connection protocols.
+	// up pointers to everthing depending on the connection protocols
 
 	int status = 0;
 
@@ -985,7 +1007,7 @@ void kernelNetworkFinalizeSendPacket(kernelNetworkConnection *connection,
 	kernelNetworkPacket *packet)
 {
 	// This does any required finalizing and checksumming of a packet before
-	// it is to be sent.
+	// it is to be sent
 
 	// If the network protocol needs to post-process the packet, do that
 	// now
@@ -1008,12 +1030,12 @@ void kernelNetworkFinalizeSendPacket(kernelNetworkConnection *connection,
 int kernelNetworkSendPacket(kernelNetworkDevice *netDev,
 	kernelNetworkPacket *packet, int immediate)
 {
-	// Do the final step of sending a packet, either by sending it directly
-	// to the device, or queueing it up in the device's output stream
+	// Do the final step of sending a packet, either by sending it directly to
+	// the device, or queueing it up in the device's output stream
 
 	int status = 0;
 
-	// We either send it or queue it.
+	// We either send it or queue it
 	if (immediate)
 	{
 		kernelDebug(debug_net, "NET send packet immediate");
@@ -1081,7 +1103,7 @@ int kernelNetworkSendData(kernelNetworkConnection *connection,
 
 		packet->length = (packet->dataOffset + packet->dataLength);
 
-		// Finalize checksums, etc.
+		// Finalize checksums, etc
 		kernelNetworkFinalizeSendPacket(connection, packet);
 
 		// Make the packet length even
@@ -1144,7 +1166,7 @@ int kernelNetworkEnable(void)
 
 	if (kernelVariables)
 	{
-		// Check for a user-specified host name.
+		// Check for a user-specified host name
 		newHostName = variableListGet(kernelVariables,
 			KERNELVAR_NET_HOSTNAME);
 
@@ -1155,7 +1177,7 @@ int kernelNetworkEnable(void)
 			kernelDebug(debug_net, "NET hostName=%s", hostName);
 		}
 
-		// Check for a user-specified domain name.
+		// Check for a user-specified domain name
 		newDomainName = variableListGet(kernelVariables,
 			KERNELVAR_NET_DOMAINNAME);
 
@@ -1185,7 +1207,7 @@ int kernelNetworkEnable(void)
 
 int kernelNetworkDisable(void)
 {
-	// Perform a nice, orderly network shutdown.
+	// Perform a nice, orderly network shutdown
 
 	int status = 0;
 	kernelNetworkConnection *connection = NULL;
@@ -1236,7 +1258,7 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 	networkFilter *filter)
 {
 	// This function is a wrapper for the kernelNetworkConnectionOpen()
-	// function, above, but also finds the best network device to use.
+	// function, above, but also finds the best network device to use
 
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkConnection *connection = NULL;
@@ -1347,8 +1369,8 @@ int kernelNetworkCloseAll(int processId)
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	// Don't need to make sure the network thread is running; the calls to
-	// kernelNetworkClose() will do it.
+	// Make sure the network thread is running
+	checkSpawnNetworkThread();
 
 	for (count = 0; count < numDevices; count ++)
 	{
@@ -1362,6 +1384,94 @@ int kernelNetworkCloseAll(int processId)
 
 			connection = linkedListIterNext((linkedList *)
 				&devices[count]->connections, &iter);
+		}
+	}
+
+	return (status = 0);
+}
+
+
+int kernelNetworkConnectionGetCount(void)
+{
+	// Returns the current number of network connections
+
+	int numConnections = 0;
+	int count;
+
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
+		return (numConnections = ERR_NOTINITIALIZED);
+	}
+
+	// Make sure the network thread is running
+	checkSpawnNetworkThread();
+
+	for (count = 0; count < numDevices; count ++)
+		numConnections += devices[count]->connections.numItems;
+
+	return (numConnections);
+}
+
+
+int kernelNetworkConnectionGetAll(networkConnection *userConnArray,
+	unsigned buffSize)
+{
+	int status = 0;
+	unsigned doConns = 0;
+	kernelNetworkConnection *connection = NULL;
+	networkConnection *userConn = NULL;
+	linkedListItem *iter = NULL;
+	unsigned connCount = 0;
+	int devCount;
+
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
+		return (status = ERR_NOTINITIALIZED);
+	}
+
+	// Make sure the network thread is running
+	checkSpawnNetworkThread();
+
+	// Check params
+	if (!userConnArray)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	doConns = (buffSize / sizeof(networkConnection));
+
+	// Loop through the devices and connections, filling the array supplied
+	for (devCount = 0; devCount < numDevices; devCount ++)
+	{
+		connection = linkedListIterStart((linkedList *)
+			&devices[devCount]->connections, &iter);
+
+		while (connection)
+		{
+			// Move this to a separate function if we need it elsewhere
+			userConn = &userConnArray[connCount];
+			userConn->processId = connection->processId;
+			userConn->mode = connection->mode;
+			memcpy(&userConn->address, (networkAddress *)
+				&connection->address, sizeof(networkAddress));
+			memcpy(&userConn->filter, (networkFilter *) &connection->filter,
+				sizeof(networkFilter));
+			if (connection->netDev)
+			{
+				strncpy(userConn->netDev, (char *)
+					connection->netDev->device.name,
+					NETWORK_DEVICE_MAX_NAMELENGTH);
+			}
+			userConn->tcpState = tcp_closed;
+
+			if (++connCount >= doConns)
+				return (status = 0);
+
+			connection = linkedListIterNext((linkedList *)
+				&devices[devCount]->connections, &iter);
 		}
 	}
 
@@ -1390,10 +1500,18 @@ int kernelNetworkCount(kernelNetworkConnection *connection)
 	}
 
 	// Make sure the connection exists
-	if (!kernelNetworkAlive(connection))
+	if (!connectionExists(connection))
 	{
-		kernelError(kernel_error, "Connection is not alive");
+		kernelError(kernel_error, "Connection does not exist");
 		return (ERR_IO);
+	}
+
+	// Make sure we're reading
+	if (!(connection->mode & NETWORK_MODE_READ))
+	{
+		kernelError(kernel_error, "Network connection is not open for "
+			"reading");
+		return (ERR_INVALID);
 	}
 
 	return (connection->inputStream.count);
@@ -1404,7 +1522,7 @@ int kernelNetworkRead(kernelNetworkConnection *connection,
 	unsigned char *buffer, unsigned bufferSize)
 {
 	// Given a network connection, read up to 'bufferSize' bytes into the
-	// buffer from the connection's input stream.
+	// buffer from the connection's input stream
 
 	int status = 0;
 
@@ -1424,11 +1542,21 @@ int kernelNetworkRead(kernelNetworkConnection *connection,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Make sure the connection exists
+	// Make sure the connection is alive, or else has some data still to read
 	if (!kernelNetworkAlive(connection))
 	{
-		kernelError(kernel_error, "Connection is not alive");
-		return (status = ERR_IO);
+		// Make sure the connection exists
+		if (!connectionExists(connection))
+		{
+			kernelError(kernel_error, "Connection does not exist");
+			return (status = ERR_IO);
+		}
+
+		if (!connection->inputStream.count)
+		{
+			kernelError(kernel_error, "Connection is not alive");
+			return (status = ERR_IO);
+		}
 	}
 
 	// Make sure we're reading
@@ -1458,7 +1586,7 @@ int kernelNetworkWrite(kernelNetworkConnection *connection,
 	unsigned char *buffer, unsigned bufferSize)
 {
 	// Given a network connection, write up to 'bufferSize' bytes from the
-	// buffer to the connection's output.
+	// buffer to the connection's output
 
 	int status = 0;
 
@@ -1478,7 +1606,7 @@ int kernelNetworkWrite(kernelNetworkConnection *connection,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Make sure the connection exists
+	// Make sure the connection is alive
 	if (!kernelNetworkAlive(connection))
 	{
 		kernelError(kernel_error, "Connection is not alive");
@@ -1501,7 +1629,7 @@ int kernelNetworkWrite(kernelNetworkConnection *connection,
 int kernelNetworkPing(kernelNetworkConnection *connection, int sequenceNum,
 	unsigned char *buffer, unsigned bufferSize)
 {
-	// Send a ping.
+	// Send a ping
 
 	int status = 0;
 
@@ -1521,7 +1649,7 @@ int kernelNetworkPing(kernelNetworkConnection *connection, int sequenceNum,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Make sure the connection exists
+	// Make sure the connection is alive
 	if (!kernelNetworkAlive(connection))
 	{
 		kernelError(kernel_error, "Connection is not alive");
@@ -1593,7 +1721,8 @@ int kernelNetworkGetDomainName(char *buffer, int bufferSize)
 	if (!buffer)
 		return (status = ERR_NULLPARAMETER);
 
-	strncpy(buffer, domainName, min(bufferSize, NETWORK_MAX_DOMAINNAMELENGTH));
+	strncpy(buffer, domainName, min(bufferSize,
+		NETWORK_MAX_DOMAINNAMELENGTH));
 	return (status = 0);
 }
 

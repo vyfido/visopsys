@@ -1,6 +1,6 @@
 //
 //	Visopsys
-//	Copyright (C) 1998-2019 J. Andrew McLaughlin
+//	Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -109,10 +109,6 @@ int textInputStreamAppend(objectKey, int);
 int textInputAppend(int);
 int textInputStreamAppendN(objectKey, int, char *);
 int textInputAppendN(int, char *);
-int textInputStreamRemove(objectKey);
-int textInputRemove(void);
-int textInputStreamRemoveN(objectKey, int);
-int textInputRemoveN(int);
 int textInputStreamRemoveAll(objectKey);
 int textInputRemoveAll(void);
 void textInputStreamSetEcho(objectKey, int);
@@ -235,8 +231,8 @@ void multitaskerYield(void);
 void multitaskerWait(unsigned);
 int multitaskerBlock(int);
 int multitaskerDetach(void);
-int multitaskerKillProcess(int, int);
-int multitaskerKillByName(const char *, int);
+int multitaskerKillProcess(int);
+int multitaskerKillByName(const char *);
 int multitaskerTerminate(int);
 int multitaskerSignalSet(int, int, int);
 int multitaskerSignal(int, int);
@@ -400,6 +396,7 @@ int windowComponentLayout(objectKey);
 int windowComponentDraw(objectKey);
 int windowComponentGetData(objectKey, void *, int);
 int windowComponentSetData(objectKey, void *, int, int);
+int windowComponentAppendData(objectKey, void *, int, int);
 int windowComponentGetSelected(objectKey, int *);
 int windowComponentSetSelected(objectKey, int );
 objectKey windowNewButton(objectKey, const char *, image *,
@@ -463,6 +460,8 @@ int networkEnable(void);
 int networkDisable(void);
 objectKey networkOpen(int, networkAddress *, networkFilter *);
 int networkClose(objectKey);
+int networkConnectionGetCount(void);
+int networkConnectionGetAll(networkConnection *, unsigned);
 int networkCount(objectKey);
 int networkRead(objectKey, unsigned char *, unsigned);
 int networkWrite(objectKey, unsigned char *, unsigned);

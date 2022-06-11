@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,8 +47,8 @@
 #define INTERRUPT_NUM_SECONDARYIDE		15
 
 int kernelInterruptInitialize(void);
-void *kernelInterruptGetHandler(int);
 int kernelInterruptHook(int, void *, kernelSelector);
+void kernelInterruptNextHandler(int, void *);
 int kernelProcessingInterrupt(void);
 int kernelInterruptGetCurrent(void);
 void kernelInterruptSetCurrent(int);

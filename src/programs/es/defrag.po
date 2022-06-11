@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2014-01-22 18:13-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -45,7 +45,7 @@ msgstr "Seleccionar disco"
 msgid "OK"
 msgstr "OK"
 
-#: defrag.c:192 defrag.c:260
+#: defrag.c:192 defrag.c:261 defrag.c:287
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -58,19 +58,19 @@ msgstr ""
 "Disco montado como %s. Es MUY recomendable\n"
 "desmontarlo antes de continuar"
 
-#: defrag.c:259
+#: defrag.c:260
 msgid "Disk is mounted"
 msgstr "Disco montado"
 
-#: defrag.c:260
+#: defrag.c:261 defrag.c:275
 msgid "Ignore"
 msgstr "Ignorar"
 
-#: defrag.c:260
+#: defrag.c:261 defrag.c:281
 msgid "Unmount"
 msgstr "Montar"
 
-#: defrag.c:263
+#: defrag.c:266
 #, c-format
 msgid ""
 "\n"
@@ -79,43 +79,31 @@ msgstr ""
 "\n"
 "%s (I) Ignorar/(U) Desmontar/(C) Cancelar?: "
 
-#: defrag.c:272
-msgid "Ignore\n"
-msgstr "Ignorar\n"
-
-#: defrag.c:278
-msgid "Unmount\n"
-msgstr "Desmontar\n"
-
-#: defrag.c:284
-msgid "Cancel\n"
-msgstr "Cancelar\n"
-
-#: defrag.c:303
+#: defrag.c:307
 #, c-format
 msgid "Unable to unmount %s"
 msgstr "No se puede desmontar %s"
 
-#: defrag.c:344
+#: defrag.c:348
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: defrag.c:356
+#: defrag.c:360
 msgid "Error getting disks info"
 msgstr "Error al determinar la información del disco"
 
-#: defrag.c:362
+#: defrag.c:366
 msgid ""
 "\n"
 "Visopsys DEFRAG Utility\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
 "Herramienta de DEFRAGMENTACIÓN Visopsys\n"
-"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 
-#: defrag.c:384
+#: defrag.c:388
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -123,28 +111,28 @@ msgstr ""
 "Necesita derechos especiales para usar este comando.\n"
 "(Intente ingresar como \"admin\")"
 
-#: defrag.c:411
+#: defrag.c:415
 #, c-format
 msgid "Unknown filesystem type on disk \"%s\""
 msgstr "Sistema de archivos desconocido en el disco \"%s\""
 
-#: defrag.c:421
+#: defrag.c:425
 #, c-format
 msgid "Error getting info for disk \"%s\""
 msgstr "Error al determinar la información para el disco \"%s\""
 
-#: defrag.c:430
+#: defrag.c:434
 #, c-format
 msgid "Defragmenting the filesystem type \"%s\" is not supported"
 msgstr ""
 "Defragmentación no soportada para el tipo de sistema de archivos \"%s\""
 
-#: defrag.c:437
+#: defrag.c:441
 #, c-format
 msgid "Defragmenting disk %s.  Are you sure?"
 msgstr "Defragmentando disco %s. Está seguror?"
 
-#: defrag.c:441
+#: defrag.c:445
 msgid ""
 "\n"
 "Quitting.\n"
@@ -152,14 +140,23 @@ msgstr ""
 "\n"
 "Cancelando...\n"
 
-#: defrag.c:453
+#: defrag.c:457
 msgid "Defragmenting..."
 msgstr "Defragmentando..."
 
-#: defrag.c:465
+#: defrag.c:469
 msgid "Defragmentation complete"
 msgstr "Defragmentación completada"
 
-#: defrag.c:467
+#: defrag.c:471
 msgid "Success"
 msgstr "Éxito"
+
+#~ msgid "Ignore\n"
+#~ msgstr "Ignorar\n"
+
+#~ msgid "Unmount\n"
+#~ msgstr "Desmontar\n"
+
+#~ msgid "Cancel\n"
+#~ msgstr "Cancelar\n"

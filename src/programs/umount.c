@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,7 +57,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s <mount point>\n"), name);
-	return;
 }
 
 
@@ -79,10 +78,10 @@ int main(int argc, char *argv[])
 	status = filesystemUnmount(argv[1]);
 	if (status < 0)
 	{
-		printf(_("Error unmounting %s\n"), argv[1]);
 		errno = status;
 		perror(argv[0]);
-		return (status = errno);
+		printf(_("Error unmounting %s\n"), argv[1]);
+		return (status);
 	}
 
 	// Finished

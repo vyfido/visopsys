@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,78 +27,78 @@ msgid ""
 "%s [-p] -x <archive1> [archive2] [...]\n"
 msgstr ""
 
-#: tar.c:99
+#: tar.c:98
 #, c-format
 msgid "Member name: %s\n"
 msgstr ""
 
-#: tar.c:101
+#: tar.c:100
 #, c-format
 msgid "Comment: %s\n"
 msgstr ""
 
-#: tar.c:103
+#: tar.c:102
 #, c-format
 msgid "Modification time: %s\n"
 msgstr ""
 
-#: tar.c:104
+#: tar.c:103
 #, c-format
 msgid "Offset: %u\n"
 msgstr ""
 
-#: tar.c:105
+#: tar.c:104
 #, c-format
 msgid "Size: %u\n"
 msgstr ""
 
-#: tar.c:106
+#: tar.c:105
 #, c-format
 msgid "Data offset: %u\n"
 msgstr ""
 
-#: tar.c:107
+#: tar.c:106
 #, c-format
 msgid "Compressed size: %u\n"
 msgstr ""
 
-#: tar.c:108
+#: tar.c:107
 #, c-format
 msgid ""
 "Decompressed size: %u\n"
 "\n"
 msgstr ""
 
-#: tar.c:139
+#: tar.c:138
 msgid "Missing archive argument for '-a' option\n"
 msgstr ""
 
-#: tar.c:152
+#: tar.c:151
 msgid "Missing archive argument for '-d' option\n"
 msgstr ""
 
-#: tar.c:165
+#: tar.c:164
 msgid "Missing archive argument for '-i' option\n"
 msgstr ""
 
-#: tar.c:183
+#: tar.c:182
 msgid "Missing archive argument for '-x' option\n"
 msgstr ""
 
-#: tar.c:193
+#: tar.c:192
 #, c-format
 msgid "Missing parameter for %s option\n"
 msgstr ""
 
-#: tar.c:199
+#: tar.c:198
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: tar.c:207
+#: tar.c:206
 msgid "Must specify -a, -d, -i, or -x option\n"
 msgstr ""
 
-#: tar.c:214
+#: tar.c:213
 msgid "The -a, -d, -i, and -x options are mutually exclusive\n"
 msgstr ""

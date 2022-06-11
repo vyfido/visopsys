@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,10 +28,10 @@
 #include <stdlib.h>
 
 #if !defined(NDEBUG)
-	#define assert(expression) { \                                                                  \
-		if (!(expression)) { \                                                              \
+	#define assert(expression) { \
+		if (!(expression)) { \
 			fprintf(stderr, "ASSERT failed: %s line %d: %s\n", __FILE__, \
-				__LINE__, (expression)); \
+				__LINE__, (#expression)); \
 			abort(); } }
 #else
 	#define assert(expression) ((void) 0)

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2019 J. Andrew McLaughlin
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,7 +57,6 @@ static void usage(char *name)
 {
 	printf("%s", _("usage:\n"));
 	printf(_("%s <disk_name>\n"), name);
-	return;
 }
 
 
@@ -81,14 +80,13 @@ int main(int argc, char *argv[])
 		loaderLoadAndExec(PATH_PROGRAMS "/disks", 3 /* user */, 1 /* block */);
 		printf("\n");
 
-		errno = ERR_ARGUMENTCOUNT;
-		return (status = errno);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
 
 	diskName = argv[1];
 
 	// Print a message
-	printf("%s", _("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2019 J. "
+	printf("%s", _("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2020 J. "
 		"Andrew McLaughlin\n\n"));
 
 	status = filesystemCheck(diskName, force, repair, NULL);
@@ -114,12 +112,10 @@ int main(int argc, char *argv[])
 		{
 			// Make the error
 			printf("%s", _("Filesystem consistency check failed.\n"));
-			errno = status;
 			return (status);
 		}
 	}
 
-	errno = 0;
-	return (status = errno);
+	return (status = 0);
 }
 

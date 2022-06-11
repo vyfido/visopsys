@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2019 J. Andrew McLaughlin
+# Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: copy-mbr\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-01-17 00:08+0000\n"
 "PO-Revision-Date: 2015-05-08 01:23+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -27,45 +27,45 @@ msgstr ""
 "использование:\n"
 "%s <образ_MBR> <целевое_устройство>\n"
 
-#: copy-mbr.c:79
+#: copy-mbr.c:78
 #, c-format
 msgid "Read MBR sector from %s\n"
 msgstr "Прочитать сектор MBR из %s\n"
 
-#: copy-mbr.c:87
+#: copy-mbr.c:88
 #, c-format
 msgid "Error reading disk %s\n"
 msgstr "Ошибка чтения диска %s\n"
 
-#: copy-mbr.c:97
+#: copy-mbr.c:100
 #, c-format
 msgid "Error opening file %s\n"
 msgstr "Ошибка открытия файла %s\n"
 
-#: copy-mbr.c:108
+#: copy-mbr.c:112
 #, c-format
 msgid "Error reading file %s\n"
 msgstr "Ошибка чтения файла %s\n"
 
-#: copy-mbr.c:114
+#: copy-mbr.c:118
 #, c-format
 msgid "Could only read %d bytes from %s\n"
 msgstr "Возможно только чтение %d байт из %s\n"
 
-#: copy-mbr.c:170
+#: copy-mbr.c:166
 msgid "Add disk signature to new MBR\n"
 msgstr "Добавить сигнатуру диска в новую MBR\n"
 
-#: copy-mbr.c:175
+#: copy-mbr.c:171
 msgid "Copy partition table to new MBR\n"
 msgstr "Копировать таблицу разделов в новую MBR\n"
 
-#: copy-mbr.c:179
+#: copy-mbr.c:175
 #, c-format
 msgid "Write MBR sector to %s\n"
 msgstr "Записать сектор MBR в %s\n"
 
-#: copy-mbr.c:183
+#: copy-mbr.c:181
 #, c-format
 msgid "Error writing disk %s\n"
 msgstr "Ошибка записи диска %s\n"
