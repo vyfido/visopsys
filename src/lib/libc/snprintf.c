@@ -44,7 +44,7 @@ int snprintf(char *output, size_t size, const char *format, ...)
   va_start(list, format);
 
   // Fill out the output line based on 
-  outputLen = _expandFormatString(tmpOutput, format, list);
+  outputLen = _expandFormatString(tmpOutput, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 

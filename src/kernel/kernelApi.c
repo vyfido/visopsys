@@ -415,6 +415,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowDebugLayout, kernelWindowDebugLayout, 1, PRIVILEGE_USER },
   { _fnum_windowContextAdd, kernelWindowContextAdd, 2, PRIVILEGE_USER },
   { _fnum_windowContextSet, kernelWindowContextSet, 2, PRIVILEGE_USER },
+  { _fnum_windowSwitchPointer, kernelWindowSwitchPointer, 2, PRIVILEGE_USER },
   { _fnum_windowComponentDestroy, kernelWindowComponentDestroy,
     1, PRIVILEGE_USER },
   { _fnum_windowComponentSetVisible, kernelWindowComponentSetVisible,
@@ -541,8 +542,7 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   { _fnum_deviceTreeGetRoot, kernelDeviceTreeGetRoot, 1, PRIVILEGE_USER },
   { _fnum_deviceTreeGetChild, kernelDeviceTreeGetChild, 2, PRIVILEGE_USER },
   { _fnum_deviceTreeGetNext, kernelDeviceTreeGetNext, 1, PRIVILEGE_USER },
-  { _fnum_mouseLoadPointer, kernelMouseLoadPointer, 2, PRIVILEGE_USER },
-  { _fnum_mouseSwitchPointer, kernelMouseSwitchPointer, 1, PRIVILEGE_USER }
+  { _fnum_mouseLoadPointer, kernelMouseLoadPointer, 2, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex *functionIndex[] = {

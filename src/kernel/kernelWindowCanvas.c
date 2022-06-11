@@ -38,7 +38,7 @@ static void drawFocus(kernelWindowComponent *component, int focus)
   color *drawColor = NULL;
 
   if (focus)
-    drawColor = (color *) &(component->parameters.foreground);
+    drawColor = (color *) &(component->params.foreground);
   else
     drawColor = (color *) &(component->window->background);
 
@@ -56,7 +56,7 @@ static int draw(kernelWindowComponent *component)
 
   int status = 0;
 
-  kernelDebug(debug_gui, "canvas draw");
+  kernelDebug(debug_gui, "Canvas draw");
 
   if (saveDraw)
     {
@@ -78,18 +78,20 @@ static int resize(kernelWindowComponent *component, int width, int height)
   kernelWindowCanvas *canvas = component->data;
   void *savePtr = NULL;
 
-  if (canvas->imageData.data)
+  kernelDebug(debug_gui, "Canvas resize to %d, %d", width, height);
+  
+  if (canvas->image.data)
     {
-      savePtr = canvas->imageData.data;
-      canvas->imageData.data = NULL;
+      savePtr = canvas->image.data;
+      canvas->image.data = NULL;
     }
 
   // Get a new image
   status =
-    kernelGraphicNewKernelImage((image *) &(canvas->imageData), width, height);
+    kernelGraphicNewKernelImage((image *) &(canvas->image), width, height);
   if (status < 0)
     {
-      canvas->imageData.data = savePtr;
+      canvas->image.data = savePtr;
       return (status);
     }
   
@@ -103,6 +105,8 @@ static int resize(kernelWindowComponent *component, int width, int height)
 
 static int focus(kernelWindowComponent *component, int yesNo)
 {
+  kernelDebug(debug_gui, "Canvas focus");
+  
   drawFocus(component, yesNo);
   component->window->update(component->window, (component->xCoord - 1),
 			    (component->yCoord - 1), (component->width + 2),
@@ -120,6 +124,8 @@ static int setData(kernelWindowComponent *component, void *data, int size
   int status = 0;
   kernelWindowCanvas *canvas = component->data;
   windowDrawParameters *params = data;
+
+  kernelDebug(debug_gui, "Canvas set data");
 
   int xCoord1 = component->xCoord + params->xCoord1;
   int xCoord2 = component->xCoord + params->xCoord2;
@@ -170,11 +176,9 @@ static int setData(kernelWindowComponent *component, void *data, int size
 
   // Get the component's new image
   status =
-    kernelGraphicGetKernelImage(component->buffer,
-				(image *) &(canvas->imageData),
+    kernelGraphicGetKernelImage(component->buffer, (image *) &(canvas->image),
 				component->xCoord, component->yCoord,
-				canvas->imageData.width,
-				canvas->imageData.height);
+				canvas->image.width, canvas->image.height);
 
   component->window
     ->update(component->window, component->xCoord, component->yCoord,
@@ -226,6 +230,7 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent,
       
   // Now override some bits
   component->subType = canvasComponentType;
+  component->flags |= WINFLAG_RESIZABLE;
 
   // The functions
   saveDraw = component->draw;

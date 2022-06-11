@@ -25,6 +25,7 @@
 #include "kernelImage.h"
 #include "kernelImageJpg.h"
 #include "kernelLoader.h"
+#include "kernelMisc.h"
 #include <stdio.h>
 
 
@@ -42,7 +43,7 @@ static int detect(const char *fileName, void *dataPtr, int dataLength,
     return (0);
 
   // See whether this file claims to be a JPEG file
-  if (!memcmp(dataPtr, jpgStart, 4) &&
+  if (!kernelMemCmp(dataPtr, jpgStart, 4) &&
       !strncmp(header->identifier, JPG_APP0_MARK, 4))
     {
       // We will say this is a JPG file.

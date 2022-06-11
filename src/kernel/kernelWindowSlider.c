@@ -24,8 +24,9 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include <string.h>
 
-static int borderThickness = 3;
 static int (*saveDraw) (kernelWindowComponent *) = NULL;
+
+extern kernelWindowVariables *windowVariables;
 
 
 static int draw(kernelWindowComponent *component)
@@ -42,7 +43,7 @@ static int draw(kernelWindowComponent *component)
 	return (status);
     }
 
-  if ((component->parameters.flags & WINDOW_COMPFLAG_HASBORDER) ||
+  if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) ||
       (component->flags & WINFLAG_HASFOCUS))
     component->drawBorder(component, 1);
 
@@ -76,10 +77,10 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
   // the appropriate kind of mouse event to make the scrollbar do what
   // we want
 
-  event->xPosition =
-    (component->window->xCoord + component->xCoord + borderThickness);
-  event->yPosition =
-    (component->window->yCoord + component->yCoord + borderThickness);
+  event->xPosition = (component->window->xCoord + component->xCoord +
+		      windowVariables->border.thickness);
+  event->yPosition = (component->window->yCoord + component->yCoord +
+		      windowVariables->border.thickness);
 
   switch (event->key)
     {

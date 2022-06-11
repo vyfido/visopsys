@@ -26,31 +26,30 @@
 #include "kernelImage.h"
 #include "kernelDevice.h"
 
+#define MOUSE_MAX_POINTERS             16
+#define MOUSE_POINTER_NAMELEN          64
+#define MOUSE_DEFAULT_POINTER_DEFAULT  "/system/mouse.bmp"
+#define MOUSE_DEFAULT_POINTER_BUSY     "/system/mouse/mousebsy.bmp"
+
 // A structure for holding pointers to the mouse driver functions
 typedef struct {
 } kernelMouseOps;
 
 typedef struct {
-  char name[64];
+  char name[MOUSE_POINTER_NAMELEN];
   image pointerImage;
 
 } kernelMousePointer;
-
-// A structure for holding information about the mouse
-typedef struct {
-  int busy;
-
-} kernelMouse;
 
 // Functions exported by kernelMouse.c
 int kernelMouseInitialize(void);
 int kernelMouseShutdown(void);
 int kernelMouseLoadPointer(const char *, const char *);
-int kernelMouseSwitchPointer(const char *);
+kernelMousePointer *kernelMouseGetPointer(const char *);
+int kernelMouseSetPointer(kernelMousePointer *);
 void kernelMouseDraw(void);
 void kernelMouseMove(int, int);
 void kernelMouseButtonChange(int, int);
-void kernelMouseBusy(int);
 
 #define _KERNELMOUSE_H
 #endif

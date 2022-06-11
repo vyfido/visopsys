@@ -28,7 +28,7 @@
 
 uquad_t __div64(uquad_t, uquad_t, uquad_t *);
 quad_t __divdi3(quad_t, quad_t);
-int _expandFormatString(char *, const char *, va_list);
+int _expandFormatString(char *, int, const char *, va_list);
 int _formatInput(const char *, const char *, va_list);
 quad_t __moddi3(quad_t, quad_t);
 int _sysCall(int, int, ...);

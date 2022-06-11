@@ -315,38 +315,39 @@ extern int visopsys_in_kernel;
 #define _fnum_windowDebugLayout                      12034
 #define _fnum_windowContextAdd                       12035
 #define _fnum_windowContextSet                       12036
-#define _fnum_windowComponentDestroy                 12037
-#define _fnum_windowComponentSetVisible              12038
-#define _fnum_windowComponentSetEnabled              12039
-#define _fnum_windowComponentGetWidth                12040
-#define _fnum_windowComponentSetWidth                12041
-#define _fnum_windowComponentGetHeight               12042
-#define _fnum_windowComponentSetHeight               12043
-#define _fnum_windowComponentFocus                   12044
-#define _fnum_windowComponentDraw                    12045
-#define _fnum_windowComponentGetData                 12046
-#define _fnum_windowComponentSetData                 12047
-#define _fnum_windowComponentGetSelected             12048
-#define _fnum_windowComponentSetSelected             12049
-#define _fnum_windowNewButton                        12050
-#define _fnum_windowNewCanvas                        12051
-#define _fnum_windowNewCheckbox                      12052
-#define _fnum_windowNewContainer                     12053
-#define _fnum_windowNewIcon                          12054
-#define _fnum_windowNewImage                         12055
-#define _fnum_windowNewList                          12056
-#define _fnum_windowNewListItem                      12057
-#define _fnum_windowNewMenu                          12058
-#define _fnum_windowNewMenuBar                       12059
-#define _fnum_windowNewMenuItem                      12060
-#define _fnum_windowNewPasswordField                 12061
-#define _fnum_windowNewProgressBar                   12062
-#define _fnum_windowNewRadioButton                   12063
-#define _fnum_windowNewScrollBar                     12064
-#define _fnum_windowNewSlider                        12065
-#define _fnum_windowNewTextArea                      12066
-#define _fnum_windowNewTextField                     12067
-#define _fnum_windowNewTextLabel                     12068
+#define _fnum_windowSwitchPointer                    12037
+#define _fnum_windowComponentDestroy                 12038
+#define _fnum_windowComponentSetVisible              12039
+#define _fnum_windowComponentSetEnabled              12040
+#define _fnum_windowComponentGetWidth                12041
+#define _fnum_windowComponentSetWidth                12042
+#define _fnum_windowComponentGetHeight               12043
+#define _fnum_windowComponentSetHeight               12044
+#define _fnum_windowComponentFocus                   12045
+#define _fnum_windowComponentDraw                    12046
+#define _fnum_windowComponentGetData                 12047
+#define _fnum_windowComponentSetData                 12048
+#define _fnum_windowComponentGetSelected             12049
+#define _fnum_windowComponentSetSelected             12050
+#define _fnum_windowNewButton                        12051
+#define _fnum_windowNewCanvas                        12052
+#define _fnum_windowNewCheckbox                      12053
+#define _fnum_windowNewContainer                     12054
+#define _fnum_windowNewIcon                          12055
+#define _fnum_windowNewImage                         12056
+#define _fnum_windowNewList                          12057
+#define _fnum_windowNewListItem                      12058
+#define _fnum_windowNewMenu                          12059
+#define _fnum_windowNewMenuBar                       12060
+#define _fnum_windowNewMenuItem                      12061
+#define _fnum_windowNewPasswordField                 12062
+#define _fnum_windowNewProgressBar                   12063
+#define _fnum_windowNewRadioButton                   12064
+#define _fnum_windowNewScrollBar                     12065
+#define _fnum_windowNewSlider                        12066
+#define _fnum_windowNewTextArea                      12067
+#define _fnum_windowNewTextField                     12068
+#define _fnum_windowNewTextLabel                     12069
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -410,7 +411,6 @@ extern int visopsys_in_kernel;
 #define _fnum_deviceTreeGetChild                     99026
 #define _fnum_deviceTreeGetNext                      99027
 #define _fnum_mouseLoadPointer                       99028
-#define _fnum_mouseSwitchPointer                     99029
 
 // For convenience
 #define sysCall_0(fnum, arg...) _sysCall(fnum, 0, ##arg)
@@ -2170,6 +2170,13 @@ _X_ static inline int windowContextSet(objectKey parent, objectKey menu)
   return (sysCall_2(_fnum_windowContextSet, parent, menu));
 }
 
+_X_ static inline int windowSwitchPointer(objectKey parent, const char *pointerName)
+{
+  // Proto: int kernelWinowSwitchPointer(objectKey, const char *)
+  // Desc : Switch the mouse pointer for the parent window or component object 'parent' to the pointer represented by the name 'pointerName'.  Examples of pointer names are "default" and "busy".
+  return (sysCall_2(_fnum_windowSwitchPointer, parent, (char *) pointerName));
+}
+
 _X_ static inline void windowComponentDestroy(objectKey component)
 {
   // Proto: void kernelWindowComponentDestroy(kernelWindowComponent *);
@@ -2850,13 +2857,6 @@ _X_ static inline int mouseLoadPointer(const char *pointerName, const char *file
   // Desc : Tells the mouse driver code to load the mouse pointer 'pointerName' from the file 'fileName'.
   return (sysCall_2(_fnum_mouseLoadPointer, (char *) pointerName,
 		    (char *) fileName));
-}
-
-_X_ static inline int mouseSwitchPointer(const char *pointerName)
-{
-  // Proto: int kernelMouseSwitchPointer(const char *)
-  // Desc : Tells the mouse driver code to switch to the mouse pointer with the given name (as specified by the pointer name argument to mouseLoadPointer).
-  return (sysCall_1(_fnum_mouseSwitchPointer, (char *) pointerName));
 }
 
 #define _API_H

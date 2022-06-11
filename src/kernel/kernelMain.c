@@ -20,16 +20,17 @@
 //
 	
 #include "kernelMain.h"
-#include "kernelParameters.h"
-#include "kernelInitialize.h"
 #include "kernelEnvironment.h"
-#include "kernelMultitasker.h"
-#include "kernelLoader.h"
-#include "kernelSysTimer.h"
-#include "kernelProcessorX86.h"
-#include "kernelMisc.h"
-#include "kernelText.h"
 #include "kernelError.h"
+#include "kernelInitialize.h"
+#include "kernelLoader.h"
+#include "kernelMalloc.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelParameters.h"
+#include "kernelProcessorX86.h"
+#include "kernelSysTimer.h"
+#include "kernelText.h"
 #include <string.h>
 
 // This is the global 'errno' error status variable for the kernel
@@ -42,8 +43,9 @@ int errno = 0;
 // should help to catch mistakes.
 int visopsys_in_kernel = 1;
 
-// A pointer to a copy (on the kernel's stack) of the OS loader info structure
-loaderInfoStruct *kernelOsLoaderInfo = NULL;
+// A copy of the OS loader info structure
+static loaderInfoStruct osLoaderInfo;
+loaderInfoStruct *kernelOsLoaderInfo = &osLoaderInfo;
 
 // General kernel configuration variables
 static variableList variables;
@@ -57,11 +59,9 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 
   int status = 0;
   int pid = -1;
-  loaderInfoStruct _osLoaderInfo;
-  char value[128];
+  char *value = NULL;
 
-  // Copy the loaderHardware structure we were passed into kernel memory
-  kernelOsLoaderInfo = &_osLoaderInfo;
+  // Copy the OS loader info structure into kernel memory
   kernelMemCopy(info, kernelOsLoaderInfo, sizeof(loaderInfoStruct));
 
   // Call the kernel initialization routine
@@ -89,27 +89,32 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 
   if (kernelVariables != NULL)
     {
-      // Find out which initial program to launch
-      kernelVariableListGet(kernelVariables, "start.program", value, 128);
-
-      // If the start program is our standard login program, use a custom
-      // function to launch a login process 
-      if (strncmp(value, DEFAULT_KERNEL_STARTPROGRAM, 128))
+      value = kernelMalloc(128);
+      if (value)
 	{
-	  // Try to load the login process
-	  pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR);
-	  if (pid < 0)
-	    // Don't fail, but make a warning message
-	    kernelError(kernel_warn, "Couldn't load start program \"%s\"",
-			value);
-	  else
+	  // Find out which initial program to launch
+	  kernelVariableListGet(kernelVariables, "start.program", value, 128);
+
+	  // If the start program is our standard login program, use a custom
+	  // function to launch a login process 
+	  if (strncmp(value, DEFAULT_KERNEL_STARTPROGRAM, 128))
 	    {
-	      // Attach the start program to the console text streams
-	      kernelMultitaskerDuplicateIO(KERNELPROCID, pid, 1); // Clear
-	      
-	      // Execute the start program.  Don't block.
-	      kernelLoaderExecProgram(pid, 0);
+	      // Try to load the login process
+	      pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR);
+	      if (pid < 0)
+		// Don't fail, but make a warning message
+		kernelError(kernel_warn, "Couldn't load start program \"%s\"",
+			    value);
+	      else
+		{
+		  // Attach the start program to the console text streams
+		  kernelMultitaskerDuplicateIO(KERNELPROCID, pid, 1); // Clear
+		  
+		  // Execute the start program.  Don't block.
+		  kernelLoaderExecProgram(pid, 0);
+		}
 	    }
+	  kernelFree(value);
 	}
     }
 

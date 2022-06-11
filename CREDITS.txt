@@ -18,6 +18,9 @@ contrib/davide-fpu and contrib/davide-key.
 - Bauer Vladislav <bauer@ccfit.nsu.ru> contributed the original 'cal'
 calendar program.  See the directory contrib/vlad-calendar.
 
+- Grzesiek (Greg) <reqst@o2.pl> contributed an FPU exception handler fix
+to the multitasker.  See the directory contrib/greg-fpu.
+
 - Some icons are adapted from the Noia icons for Windows XP v2.00 Copyright
 (C) 2002 Carles Carbonell Bernadó (Carlitus) <mail@carlitus.net>
 http://www.carlitus.net

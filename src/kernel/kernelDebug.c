@@ -194,7 +194,7 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expandFormatString(debugText, message, list);
+  _expandFormatString(debugText, MAX_DEBUGTEXT_LENGTH, message, list);
 
   va_end(list);
 

@@ -35,12 +35,11 @@ static int draw(kernelWindowComponent *component)
   
   kernelWindowImage *windowImage = component->data;
 
-  kernelGraphicDrawImage(component->buffer,
-			 (image *) &(windowImage->imageData),
+  kernelGraphicDrawImage(component->buffer, (image *) &(windowImage->image),
 			 windowImage->mode, component->xCoord,
 			 component->yCoord, 0, 0, 0, 0);
 
-  if ((component->parameters.flags & WINDOW_COMPFLAG_HASBORDER) ||
+  if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) ||
       (component->flags & WINFLAG_HASFOCUS))
     component->drawBorder(component, 1);
 
@@ -55,10 +54,10 @@ static int destroy(kernelWindowComponent *component)
   // Release all our memory
   if (windowImage)
     {
-      if (windowImage->imageData.data)
+      if (windowImage->image.data)
 	{
-	  kernelFree(windowImage->imageData.data);
-	  windowImage->imageData.data = NULL;
+	  kernelFree(windowImage->image.data);
+	  windowImage->image.data = NULL;
 	}
 
       kernelFree(component->data);
@@ -112,16 +111,15 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
     }
 
   // Copy the image data into it
-  kernelMemCopy(imageCopy, (void *) &(windowImage->imageData), sizeof(image));
-  windowImage->imageData.data =
-    kernelMalloc(windowImage->imageData.dataLength);
-  if (windowImage->imageData.data == NULL)
+  kernelMemCopy(imageCopy, (void *) &(windowImage->image), sizeof(image));
+  windowImage->image.data = kernelMalloc(windowImage->image.dataLength);
+  if (windowImage->image.data == NULL)
     {
       kernelFree((void *) component);
       return (component = NULL);
     }
-  kernelMemCopy(imageCopy->data, windowImage->imageData.data,
-		windowImage->imageData.dataLength);
+  kernelMemCopy(imageCopy->data, windowImage->image.data,
+		windowImage->image.dataLength);
 
   // Set the drawing mode
   windowImage->mode = mode;

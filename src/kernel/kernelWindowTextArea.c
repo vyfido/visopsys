@@ -63,6 +63,51 @@ static inline void updateScrollBar(kernelWindowTextArea *textArea)
 }
 
 
+static int numComps(kernelWindowComponent *component)
+{
+  kernelWindowTextArea *textArea = component->data;
+
+  if (textArea->scrollBar)
+    // Return 1 for our scrollbar, 
+    return (1);
+  else
+    return (0);
+}
+
+
+static int flatten(kernelWindowComponent *component,
+		   kernelWindowComponent **array, int *numItems,
+		   unsigned flags)
+{
+  kernelWindowTextArea *textArea = component->data;
+
+  if (textArea->scrollBar && ((textArea->scrollBar->flags & flags) == flags))
+    // Add our scrollbar
+    array[*numItems++] = textArea->scrollBar;
+
+  return (0);
+}
+
+
+static int setBuffer(kernelWindowComponent *component,
+		     kernelGraphicBuffer *buffer)
+{
+  // Set the graphics buffer for the component's subcomponents.
+
+  int status = 0;
+  kernelWindowTextArea *textArea = component->data;
+
+  if (textArea->scrollBar && textArea->scrollBar->setBuffer)
+    {
+      // Do our scrollbar
+      status = textArea->scrollBar->setBuffer(textArea->scrollBar, buffer);
+      textArea->scrollBar->buffer = buffer;
+    }
+
+  return (status);
+}
+
+
 static int draw(kernelWindowComponent *component)
 {
   // Draw the textArea component
@@ -77,7 +122,7 @@ static int draw(kernelWindowComponent *component)
   if (textArea->scrollBar && textArea->scrollBar->draw)
     textArea->scrollBar->draw(textArea->scrollBar);
 
-  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
+  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder(component, 1);
 
   return (0);
@@ -251,7 +296,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	}
     }
   else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
-	   (component->parameters.flags & WINDOW_COMPFLAG_CLICKABLECURSOR))
+	   (component->params.flags & WINDOW_COMPFLAG_CLICKABLECURSOR))
     {
       // The event was a click in the text area.  Move the cursor to the
       // clicked location.
@@ -274,7 +319,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	  kernelTextStreamSetRow(textArea->area->outputStream, cursorRow);
 
 	  // Write a 'cursor moved' event to the component event stream
-	  bzero(&cursorEvent, sizeof(windowEvent));
+	  kernelMemClear(&cursorEvent, sizeof(windowEvent));
 	  cursorEvent.type = EVENT_CURSOR_MOVE;
 	  kernelWindowEventStreamWrite(&(component->events), &cursorEvent);
 	}
@@ -368,18 +413,18 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 
   // If the user wants the default colors, we change set them to the
   // default for a text area
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
-      component->parameters.background.blue = 0xFF;
-      component->parameters.background.green = 0xFF;
-      component->parameters.background.red = 0xFF;
+      component->params.background.blue = 0xFF;
+      component->params.background.green = 0xFF;
+      component->params.background.red = 0xFF;
     }
 
   // If font is NULL, get the default font
-  if (component->parameters.font == NULL)
+  if (component->params.font == NULL)
     {
       status = kernelFontGetDefault((kernelAsciiFont **)
-				    &(component->parameters.font));
+				    &(component->params.font));
       if (status < 0)
 	return (component = NULL);
     }
@@ -402,22 +447,22 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
     }
 
   // Set some values
-  textArea->area->foreground.red = component->parameters.foreground.red;
-  textArea->area->foreground.green = component->parameters.foreground.green;
-  textArea->area->foreground.blue = component->parameters.foreground.blue;
-  textArea->area->background.red = component->parameters.background.red;
-  textArea->area->background.green = component->parameters.background.green;
-  textArea->area->background.blue = component->parameters.background.blue;
-  textArea->area->font = (kernelAsciiFont *) component->parameters.font;
+  textArea->area->foreground.red = component->params.foreground.red;
+  textArea->area->foreground.green = component->params.foreground.green;
+  textArea->area->foreground.blue = component->params.foreground.blue;
+  textArea->area->background.red = component->params.background.red;
+  textArea->area->background.green = component->params.background.green;
+  textArea->area->background.blue = component->params.background.blue;
+  textArea->area->font = (kernelAsciiFont *) component->params.font;
   textArea->area->windowComponent = (void *) component;
   textArea->areaWidth =
-    (columns * ((kernelAsciiFont *) component->parameters.font)->charWidth);
+    (columns * ((kernelAsciiFont *) component->params.font)->charWidth);
 
   // Populate the rest of the component fields
   component->type = textAreaComponentType;
   component->width = textArea->areaWidth;
   component->height =
-    (rows * ((kernelAsciiFont *) component->parameters.font)->charHeight);
+    (rows * ((kernelAsciiFont *) component->params.font)->charHeight);
   component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
 
   // If there are any buffer lines, we need a scroll bar as well.
@@ -443,14 +488,15 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
       if (((kernelWindow *) parent)->type == windowType)
 	{
 	  kernelWindowContainer *tmpContainer = window->mainContainer->data;
-	  tmpContainer->containerRemove(window->mainContainer,
-					textArea->scrollBar);
+	  if (tmpContainer->remove)
+	    tmpContainer->remove(window->mainContainer, textArea->scrollBar);
 	}
       else
 	{
 	  kernelWindowComponent *tmpComponent = parent;
 	  kernelWindowContainer *tmpContainer = tmpComponent->data;
-	  tmpContainer->containerRemove(tmpComponent, textArea->scrollBar);
+	  if (tmpContainer->remove)
+	    tmpContainer->remove(tmpComponent, textArea->scrollBar);
 	}
 
       textArea->scrollBar->xCoord = component->width;
@@ -462,6 +508,9 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
   component->minHeight = component->height;
 
   // The functions
+  component->numComps = &numComps;
+  component->flatten = &flatten;
+  component->setBuffer = &setBuffer;
   component->draw = &draw;
   component->update = &update;
   component->move = &move;

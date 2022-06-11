@@ -39,6 +39,7 @@
 #include "kernelWindowEventStream.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <values.h>
 
 static void windowThread(void) __attribute__((noreturn));
@@ -47,16 +48,14 @@ static int initialized = 0;
 static int screenWidth = 0;
 static int screenHeight = 0;
 
-static kernelAsciiFont *defaultFont = NULL;
 static kernelWindow *rootWindow = NULL;
-static kernelWindowComponent *consoleTextArea = NULL;
-static kernelWindow *consoleWindow = NULL;
 
 // Keeps the data for all the windows
 static kernelWindow *windowList[WINDOW_MAXWINDOWS];
 static volatile int numberWindows = 0;
 static lock windowListLock;
 
+static kernelWindow *mouseInWindow = NULL;
 static kernelWindow *focusWindow = NULL;
 static int winThreadPid = 0;
 
@@ -64,6 +63,11 @@ static kernelWindowComponent *draggingComponent = NULL;
 static kernelWindowComponent *activeMenu = NULL;
 static windowEventStream mouseEvents;
 static windowEventStream keyEvents;
+
+kernelWindowVariables *windowVariables = NULL;
+
+kernelWindow *consoleWindow = NULL;
+kernelWindowComponent *consoleTextArea = NULL;
 
 extern color kernelDefaultForeground;
 extern color kernelDefaultBackground;
@@ -82,36 +86,6 @@ static inline int isAreaInside(screenArea *firstArea, screenArea *secondArea)
   else
     // Yup, it's covered.
     return (1);
-}
-
-
-static int doAreasIntersect(screenArea *firstArea, screenArea *secondArea)
-{
-  // Return 1 if area 1 and area 2 intersect.
-
-  if (isPointInside(firstArea->leftX, firstArea->topY, secondArea) ||
-      isPointInside(firstArea->rightX, firstArea->topY, secondArea) ||
-      isPointInside(firstArea->leftX, firstArea->bottomY, secondArea) ||
-      isPointInside(firstArea->rightX, firstArea->bottomY, secondArea) ||
-      isPointInside(secondArea->leftX, secondArea->topY, firstArea) ||
-      isPointInside(secondArea->rightX, secondArea->topY, firstArea) ||
-      isPointInside(secondArea->leftX, secondArea->bottomY, firstArea) ||
-      isPointInside(secondArea->rightX, secondArea->bottomY, firstArea))
-    return (1);
-
-  else if (doLinesIntersect(firstArea->leftX, firstArea->topY,
-			    firstArea->rightX,
-			    secondArea->leftX, secondArea->topY,
-			    secondArea->bottomY) ||
-	   doLinesIntersect(secondArea->leftX, secondArea->topY,
-			    secondArea->rightX,
-			    firstArea->leftX, firstArea->topY,
-			    firstArea->bottomY))
-    return (1);
-
-  else
-    // Nope, not intersecting
-    return (0);
 }
 
 
@@ -256,8 +230,7 @@ static int tileBackgroundImage(kernelWindow *window)
   kernelDebug(debug_gui, "Window buffer size=%ux%u mainContainer size=%ux%u "
 	      "(%sdone layout)", window->buffer.width, window->buffer.height,
 	      window->mainContainer->width, window->mainContainer->height,
-	      (((kernelWindowContainer *) window->mainContainer->data)
-	       ->doneLayout? "" : "not "));
+	      (window->mainContainer->doneLayout? "" : "not "));
 
   // The window needs to have been assigned a background image
   if (window->backgroundImage.data == NULL)
@@ -273,8 +246,8 @@ static int tileBackgroundImage(kernelWindow *window)
       // Center the image in the window's client area
       status = kernelGraphicDrawImage(&(window->buffer), (image *)
 	      &(window->backgroundImage), draw_normal,
-	     ((clientAreaWidth - window->backgroundImage.width) / 2),
-	     ((clientAreaHeight - window->backgroundImage.height) / 2),
+	      ((clientAreaWidth - window->backgroundImage.width) / 2),
+	      ((clientAreaHeight - window->backgroundImage.height) / 2),
 	      0, 0, 0, 0);
       window->flags &= ~WINFLAG_BACKGROUNDTILED;
     }
@@ -285,9 +258,10 @@ static int tileBackgroundImage(kernelWindow *window)
 	   count1 += window->backgroundImage.height)
 	for (count2 = clientAreaX; count2 < clientAreaWidth;
 	     count2 += window->backgroundImage.width)
-	  status = kernelGraphicDrawImage(&(window->buffer), (image *)
-				  &(window->backgroundImage), draw_normal,
-				  count2, count1, 0, 0, 0, 0);
+	  status =
+	    kernelGraphicDrawImage(&(window->buffer), (image *)
+				   &(window->backgroundImage), draw_normal,
+				   count2, count1, 0, 0, 0, 0);
       window->flags |= WINFLAG_BACKGROUNDTILED;
     }
 
@@ -537,59 +511,6 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 }
 
 
-static int countComponents(kernelWindowContainer *container)
-{
-  // Recursively count up the number of compontents in a container and any
-  // subcontainers.
-
-  int numComponents = 0;
-  kernelWindowComponent *component = NULL;
-  int count;
-
-  numComponents = container->numComponents;
-
-  for (count = 0; count < container->numComponents; count ++)
-    {
-      component = container->components[count];
-      
-      if (component->type == containerComponentType)
-	numComponents += countComponents(component->data);
-    }
-
-  return (numComponents);
-}
-
-
-static void flattenContainer(kernelWindowContainer *container,
-			     kernelWindowComponent **array, int *numItems,
-			     unsigned flags)
-{
-  // Given a container, recurse through any of its subcontainers (if
-  // applicable) and return a flattened array of components
-
-  kernelWindowComponent *component = NULL;
-  int count;
-
-  for (count = 0; count < container->numComponents; count ++)
-    {
-      component = container->components[count];
-
-      if (((component->flags & flags) == flags) &&
-	  // Don't include pure container components
-	  ((component->type != containerComponentType) ||
-	   (component->subType != genericComponentType)))
-	{
-	  array[*numItems] = component;
-	  *numItems += 1;
-	}
-
-      // If this component is a container, recurse it
-      if (component->type == containerComponentType)
-	flattenContainer(component->data, array, numItems, flags);
-    }
-}
-
-
 static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 			  int width, int height)
 {
@@ -611,7 +532,7 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
   int lowestLevel = 0;
   int count1, count2;
 
-  if (!(window->flags & WINFLAG_VISIBLE))
+  if (!(window->flags & WINFLAG_VISIBLE) || !window->sysContainer->doneLayout)
     return (status = 0);
 
   // Put the clip within the boundaries of the window
@@ -684,46 +605,45 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 
   // Loop through all the regular window components that fall (partially)
   // within this space and draw them
-  array = kernelMalloc((countComponents(window->sysContainer->data) +
-			countComponents(window->mainContainer->data)) *
-		       sizeof(kernelWindowComponent *));
+  array =
+    kernelMalloc((window->sysContainer->numComps(window->sysContainer) +
+		  window->mainContainer->numComps(window->mainContainer)) *
+		 sizeof(kernelWindowComponent *));
   if (array == NULL)
     return (status = ERR_MEMORY);
 
-  flattenContainer(window->sysContainer->data, array, &numComponents,
-		   WINFLAG_VISIBLE);
-  flattenContainer(window->mainContainer->data, array, &numComponents,
-		   WINFLAG_VISIBLE);
+  window->sysContainer->flatten(window->sysContainer, array, &numComponents,
+				WINFLAG_VISIBLE);
+  window->mainContainer->flatten(window->mainContainer, array, &numComponents,
+				 WINFLAG_VISIBLE);
 
   // NULL all components that are *not* at this location
   for (count1 = 0; count1 < numComponents; count1 ++)
     {
       component = array[count1];
 
-      if (!doAreasIntersect(&((screenArea)
-      { xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1)} ),
-			    &((screenArea)
-			    { component->xCoord, component->yCoord,
-			(component->xCoord + component->width - 1),
-			(component->yCoord + component->height - 1) } )))
-	{
-	  array[count1] = NULL;
-	}
-      else
+      if (doAreasIntersect(&((screenArea)
+	{ xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ),
+			   &((screenArea)
+			     { component->xCoord, component->yCoord,
+				 (component->xCoord + component->width - 1),
+				 (component->yCoord + component->height - 1) } )))
 	{
 	  if (component->level > lowestLevel)
 	    lowestLevel = component->level;
 	}
+      else
+	array[count1] = NULL;
     }
   
-  // Draw all the components by level
+  // Draw all the components by level, lowest to highest
 
   for (count1 = lowestLevel; count1 >= 0; count1 --) 
     for (count2 = 0; count2 < numComponents; count2 ++)
       {
         component = array[count2];
 
-	if ((component != NULL) && (component->level >= count1))
+	if (component && (component->level == count1))
 	  {
 	    if (component->draw)
 	      component->draw(component);
@@ -735,11 +655,11 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
   kernelFree(array);
 
   if (window->flags & WINFLAG_DEBUGLAYOUT)
-    mainContainer->containerDrawGrid(window->mainContainer);
+    mainContainer->drawGrid(window->mainContainer);
 
   // Only render the visible portions of the window
   renderVisiblePortions(window, &((screenArea)
-  { xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ));
+    { xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ));
 
   return (status = 0);
 }
@@ -791,7 +711,7 @@ static int windowUpdate(kernelWindow *window, int clipX, int clipY, int width,
 
   // Render the parts of this window's buffer that are currently visible.
   renderVisiblePortions(window, &((screenArea) { clipX, clipY,
-			   (clipX + (width - 1)), (clipY + (height - 1)) } ));
+		      (clipX + (width - 1)), (clipY + (height - 1)) } ));
 
   // Redraw the mouse
   kernelMouseDraw();
@@ -832,10 +752,10 @@ static int setWindowSize(kernelWindow *window, int width, int height)
   void *oldBufferData = NULL;
 
   // Constrain to minimum width and height
-  if (width < WINDOW_MIN_WIDTH)
-    width = WINDOW_MIN_WIDTH;
-  if (height < WINDOW_MIN_HEIGHT)
-    height = WINDOW_MIN_HEIGHT;
+  if (width < windowVariables->window.minWidth)
+    width = windowVariables->window.minWidth;
+  if (height < windowVariables->window.minHeight)
+    height = windowVariables->window.minHeight;
 
   // Save the old graphic buffer data just in case
   oldBufferData = window->buffer.data;
@@ -855,7 +775,7 @@ static int setWindowSize(kernelWindow *window, int width, int height)
   kernelFree(oldBufferData);
 
   // Resize the system container.  This will also cause the main container
-  // to be resized and moved appropriately
+  // to be moved and resized appropriately
   if (window->sysContainer)
     {
       if (window->sysContainer->resize)
@@ -874,6 +794,24 @@ static int setWindowSize(kernelWindow *window, int width, int height)
 }
 
 
+static int layoutWindow(kernelWindow *window)
+{
+  // Repositions all the window's components based on their parameters
+
+  int status = 0;
+
+  status = window->sysContainer->layout(window->sysContainer);
+  if (status < 0)
+    return (status);
+
+  status = window->mainContainer->layout(window->mainContainer);
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
+}
+
+
 static int autoSizeWindow(kernelWindow *window)
 {
   // This will automatically set the size of a window based on the sizes
@@ -888,32 +826,12 @@ static int autoSizeWindow(kernelWindow *window)
   // Adjust for borders
   if (window->flags & WINFLAG_HASBORDER)
     {
-      newWidth += WINDOW_BORDER_THICKNESS;
-      newHeight += WINDOW_BORDER_THICKNESS;
+      newWidth += windowVariables->border.thickness;
+      newHeight += windowVariables->border.thickness;
     }
 
   // Resize it.
   return (setWindowSize(window, newWidth, newHeight));
-}
-
-
-static int layoutWindow(kernelWindow *window)
-{
-  // Repositions all the window's components based on their parameters
-
-  int status = 0;
-  kernelWindowContainer *sysContainer = window->sysContainer->data;
-  kernelWindowContainer *mainContainer = window->mainContainer->data;
-
-  status = sysContainer->containerLayout(window->sysContainer);
-  if (status < 0)
-    return (status);
-
-  status = mainContainer->containerLayout(window->mainContainer);
-  if (status < 0)
-    return (status);
-  
-  return (status = 0);
 }
 
 
@@ -940,7 +858,7 @@ static int makeConsoleWindow(void)
   params.gridHeight = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.font = defaultFont;
+  params.font = windowVariables->font.defaultFont;
 
   consoleTextArea =
     kernelWindowNewTextArea(consoleWindow, 80, 50,
@@ -1014,24 +932,61 @@ static int makeConsoleWindow(void)
 }
 
 
-static void changeComponentFocus(kernelWindow *window,
-				 kernelWindowComponent *component)
+static void componentToTop(kernelWindow *window,
+			   kernelWindowComponent *component)
+{
+  kernelWindowComponent **array = NULL;
+  int numComponents = 0;
+  int count;
+
+  array =
+    kernelMalloc(window->mainContainer->numComps(window->mainContainer) *
+		 sizeof(kernelWindowComponent *));
+  if (array == NULL)
+    return;
+
+  window->mainContainer
+    ->flatten(window->mainContainer, array, &numComponents, 0);
+
+  // Find all the components at this location.  If a component's level is
+  // currently 'higher', lower it.
+  for (count = 0; count < numComponents; count ++)
+    if ((array[count] != component) &&
+	(array[count]->level <= component->level))
+      {
+	if (doAreasIntersect(makeComponentScreenArea(component),
+			     makeComponentScreenArea(array[count])))
+	  array[count]->level++;
+      }
+  
+  kernelFree(array);
+
+  // Insert our component at the top level.
+  component->level = 0;
+}
+
+
+static int changeComponentFocus(kernelWindow *window,
+				kernelWindowComponent *component)
 {
   // Gets called when a component acquires the focus
 
   if (component && !(component->flags & WINFLAG_CANFOCUS))
     {
       kernelError(kernel_error, "Component %p cannot focus", component);
-      return;
+      return (ERR_INVALID);
     }
 
   if (activeMenu && (component != activeMenu))
     {
+      kernelDebug(debug_gui, "Active menu lost focus");
+
       activeMenu->flags &= ~WINFLAG_HASFOCUS;
       if (activeMenu->focus)
 	activeMenu->focus(activeMenu, 0);
       activeMenu = NULL;
     }
+
   else if (window->focusComponent && (component != window->focusComponent))
     {
       window->focusComponent->flags &= ~WINFLAG_HASFOCUS;
@@ -1049,6 +1004,9 @@ static void changeComponentFocus(kernelWindow *window,
 	  (component->flags & WINFLAG_CANFOCUS))
 	{
 	  component->flags |= WINFLAG_HASFOCUS;
+
+	  componentToTop(window, component);
+
 	  if (component->focus)
 	    component->focus(component, 1);
 	}
@@ -1058,7 +1016,7 @@ static void changeComponentFocus(kernelWindow *window,
 	activeMenu = component;
     }
   
-  return;
+  return (0);
 }
 
 
@@ -1071,13 +1029,14 @@ static void focusFirstComponent(kernelWindow *window)
   int count;
   
   // Flatten the window container so we can iterate through it
-  array = kernelMalloc(countComponents(window->mainContainer->data) *
+  array = kernelMalloc(window->mainContainer->numComps(window->mainContainer) *
 		       sizeof(kernelWindowComponent *));
   if (array == NULL)
     return;
 
-  flattenContainer(window->mainContainer->data, array, &numComponents,
-		   (WINFLAG_VISIBLE | WINFLAG_ENABLED | WINFLAG_CANFOCUS));
+  window->mainContainer
+    ->flatten(window->mainContainer, array, &numComponents,
+	      (WINFLAG_VISIBLE | WINFLAG_ENABLED | WINFLAG_CANFOCUS));
   
   if (numComponents)
     {
@@ -1086,23 +1045,24 @@ static void focusFirstComponent(kernelWindow *window)
       for (count = 0; count < numComponents; count ++)
 	if (array[count]->type == textAreaComponentType)
 	  {
-	    changeComponentFocus(window, array[count]);
+	    window->changeComponentFocus(window, array[count]);
 	    break;
 	  }
 
       // Still no focus?  Give it to the first component that can focus
       if (!window->focusComponent)
-	changeComponentFocus(window, array[0]);
+	window->changeComponentFocus(window, array[0]);
     }
 
   kernelFree(array);
 }
 
 
-static void focusNextComponent(kernelWindow *window)
+static int focusNextComponent(kernelWindow *window)
 {
   // Change the focus the next component
-  
+
+  int status = 0;
   kernelWindowComponent **array = NULL;
   int numComponents = 0;
   kernelWindowComponent *nextFocus = NULL;
@@ -1111,17 +1071,18 @@ static void focusNextComponent(kernelWindow *window)
   if (!window->focusComponent)
     {
       focusFirstComponent(window);
-      return;
+      return (status = 0);
     }
 
   // Get all the window components in a flat container
-  array = kernelMalloc(countComponents(window->mainContainer->data) *
+  array = kernelMalloc(window->mainContainer->numComps(window->mainContainer) *
 		       sizeof(kernelWindowComponent *));
   if (array == NULL)
-    return;
+    return (status = ERR_MEMORY);
 
-  flattenContainer(window->mainContainer->data, array, &numComponents,
-		   (WINFLAG_VISIBLE | WINFLAG_ENABLED | WINFLAG_CANFOCUS));
+  window->mainContainer
+    ->flatten(window->mainContainer, array, &numComponents,
+	      (WINFLAG_VISIBLE | WINFLAG_ENABLED | WINFLAG_CANFOCUS));
   
   for (count = 0; count < numComponents; count ++)
     if (array[count] == window->focusComponent)
@@ -1137,11 +1098,11 @@ static void focusNextComponent(kernelWindow *window)
   kernelFree(array);
 
   if (nextFocus)
-    changeComponentFocus(window, nextFocus);
+    window->changeComponentFocus(window, nextFocus);
   else
     focusFirstComponent(window);
 
-  return;
+  return (status = 0);
 }
 
 
@@ -1203,9 +1164,13 @@ static void changeWindowFocus(kernelWindow *window)
     window->titleBar->draw(window->titleBar);
 
   if (window->focusComponent)
-    changeComponentFocus(window, window->focusComponent);
+    window->changeComponentFocus(window, window->focusComponent);
   else
     focusFirstComponent(window);
+
+  if (window->pointer)
+    // Set the mouse pointer to that of the window
+    kernelMouseSetPointer(window->pointer);
 
   // Redraw the whole window, since all of it is now visible (otherwise we
   // would call drawVisiblePortions()).
@@ -1214,91 +1179,71 @@ static void changeWindowFocus(kernelWindow *window)
 }
 
 
-static int componentDrawBorder(kernelWindowComponent *component, int draw)
+static kernelWindow *getEventWindow(int xCoord, int yCoord)
 {
-  // Draw or erase a simple little border around the supplied component
-  
-  if (draw)
-    kernelGraphicDrawRect(component->buffer,
-			  (color *) &(component->parameters.foreground),
-			  draw_normal, (component->xCoord - 2),
-			  (component->yCoord - 2), (component->width + 4),
-			  (component->height + 4), 1, 0);
-  else
-    kernelGraphicDrawRect(component->buffer,
-			  (color *) &(component->window->background),
-			  draw_normal, (component->xCoord - 2),
-			  (component->yCoord - 2), (component->width + 4),
-			  (component->height + 4), 1, 0);
-  return (0);
-}
+  // Find the topmost window that would be the recipient of an event at this
+  // event's location
 
-
-static int componentErase(kernelWindowComponent *component)
-{
-  // Simple erasure of a component, by drawing a filled rectangle of the
-  // window's background color over the component's area
-
-  kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->window->background),
-			draw_normal, component->xCoord, component->yCoord,
-			component->width, component->height, 1, 1);
-  return (0);
-}
-
-
-static int componentGrey(kernelWindowComponent *component)
-{
-  // Filter the component with the default background color
-
-  // If the component has a draw function (stored in its 'grey' pointer)
-  // call it first.
-  if (component->grey)
-    component->grey(component);
-
-  kernelGraphicFilter(component->buffer,
-		      (color *) &(component->parameters.background),
-		      component->xCoord, component->yCoord, component->width,
-		      component->height);
-  return (0);
-}
-
-
-static kernelWindowComponent *findTopmostComponent(kernelWindow *window,
-						   int xCoord, int yCoord)
-{
-  kernelWindowComponent **array = NULL;
-  int numComponents = 0;
-  int topmostLevel = MAXINT;
-  kernelWindowComponent *topmostComponent = NULL;
+  kernelWindow *window = NULL;
   int count;
+      
+  // Lock the window list
+  if (kernelLockGet(&windowListLock) < 0)
+    return (window = NULL);
+	 
+  for (count = 0; count < numberWindows; count ++)
+    if ((windowList[count]->flags & WINFLAG_VISIBLE) &&
+	(isPointInside(xCoord, yCoord,
+		       makeWindowScreenArea(windowList[count]))))
+      {
+	// The event is inside this window's coordinates.  Is it the
+	// topmost such window we've found?
+	if (!window || (windowList[count]->level < window->level))
+	  window = windowList[count];
+      }
 
-  // Make a flat container so we can loop through all the components
-  array = kernelMalloc((countComponents(window->sysContainer->data) +
-			countComponents(window->mainContainer->data)) *
-		       sizeof(kernelWindowComponent *));
-  if (array == NULL)
-    return (NULL);
+  kernelLockRelease(&windowListLock);
 
-  flattenContainer(window->sysContainer->data, array, &numComponents,
-		   (WINFLAG_VISIBLE | WINFLAG_ENABLED));
-  flattenContainer(window->mainContainer->data, array, &numComponents,
-		   (WINFLAG_VISIBLE | WINFLAG_ENABLED));
+  return (window);
+}
 
-  // Find the window's topmost component at this location
-  for (count = 0; count < numComponents; count ++)
+
+static kernelWindowComponent *getEventComponent(kernelWindow *window,
+						int xCoord, int yCoord)
+{
+  kernelWindowComponent *containerComponent = NULL;
+
+  kernelDebug(debug_gui, "Window \"%s\" get event component at %d, %d",
+	      window->title, xCoord, yCoord);
+
+  if (window->mainContainer &&
+      isPointInside(xCoord, yCoord,
+		    makeComponentScreenArea(window->mainContainer)))
+    containerComponent = window->mainContainer;
+
+  else if (window->sysContainer &&
+	   isPointInside(xCoord, yCoord,
+			 makeComponentScreenArea(window->sysContainer)))
+    containerComponent = window->sysContainer;
+
+  if (containerComponent)
     {
-      if ((array[count]->level < topmostLevel) &&
-	  isPointInside(xCoord, yCoord, makeComponentScreenArea(array[count])))
-	{
-	  topmostComponent = array[count];
-	  topmostLevel = array[count]->level;
-	}
+      kernelDebug(debug_gui, "Inside \"%s\"",
+		  ((kernelWindowContainer *) containerComponent->data)->name);
+
+      xCoord -= window->xCoord;
+      yCoord -= window->yCoord;
+
+      // See if the container has a component to receive 
+      if (containerComponent->eventComp)
+	return (containerComponent->eventComp(containerComponent, xCoord,
+					      yCoord));
+      else
+	return (containerComponent);
     }
 
-  kernelFree(array);
-
-  return (topmostComponent);
+  // Nothing found, we guess.  Should never happen.
+  return (NULL);
 }
 
 
@@ -1309,99 +1254,142 @@ static void processEvents(void)
   kernelWindow *window = NULL;
   kernelWindowComponent *targetComponent = NULL;
   kernelWindowComponent *contextMenu = NULL;
-  int count;
 
   while (kernelWindowEventStreamRead(&mouseEvents, &event) > 0)
     {
-      // It was a mouse event
+      // We have a mouse event.
 
-      // Shortcut: If we are dragging a component, give the event right
-      // to the component
-      if (draggingComponent)
+      // If it's just a "mouse move" event, we don't do the normal mouse event
+      // processing but we create "mouse enter" or "mouse exit" events for
+      // the windows as appropriate
+      if (event.type == EVENT_MOUSE_MOVE)
+	{
+	  // If there's another move event pending, skip to it, since we don't
+	  // care about where the mouse *used* to be.  We only care about the
+	  // current state.
+	  if (kernelWindowEventStreamPeek(&mouseEvents) == EVENT_MOUSE_MOVE)
+	    continue;
+
+	  // Figure out in which window the mouse moved, if any
+
+	  window = getEventWindow(event.xPosition, event.yPosition);
+
+	  if (window != mouseInWindow)
+	    {
+	      // The mouse is not in the same window as before.
+
+	      if (mouseInWindow)
+		{
+		  // Send a "mouse exit" event to the window that's been left
+		  event.type |= EVENT_MOUSE_EXIT;
+		  kernelWindowEventStreamWrite(&(mouseInWindow->events),
+		  			       &event);
+		  mouseInWindow = NULL;
+		}
+
+	      if (window)
+		{
+		  // Send a "mouse enter" event to the window that's been
+		  // entered
+		  event.type |= EVENT_MOUSE_ENTER;
+		  kernelWindowEventStreamWrite(&(window->events), &event);
+		  mouseInWindow = window;
+		  if (window->pointer)
+		    kernelMouseSetPointer(window->pointer);
+		}
+	    }
+
+	  continue;
+	}
+
+      // Shortcut: If we are dragging a component, we know the target window
+      // and component already
+      else if (draggingComponent)
 	{
 	  // If there's another dragging event pending, skip to it
 	  if (kernelWindowEventStreamPeek(&mouseEvents) == EVENT_MOUSE_DRAG)
 	    continue;
 
-	  if (draggingComponent->mouseEvent)
-	    draggingComponent->mouseEvent(draggingComponent, &event);
-
-	  // Adjust to the coordinates of the component
-	  event.xPosition -=
-	    (draggingComponent->window->xCoord + draggingComponent->xCoord);
-	  event.yPosition -=
-	    (draggingComponent->window->yCoord + draggingComponent->yCoord);
-	  
-	  // Put this mouse event into the component's windowEventStream
-	  kernelWindowEventStreamWrite(&(draggingComponent->events), &event);
-
-	  if (event.type != EVENT_MOUSE_DRAG)
-	    draggingComponent = NULL;
-
-	  // We can stop here
-	  continue;
+	  window = draggingComponent->window;
+	  targetComponent = draggingComponent;
 	}
 
-      // Figure out which window this is happening to, if any
-      
-      // Lock the window list
-      if (kernelLockGet(&windowListLock) < 0)
-	return;
-	 
-      for (count = 0; count < numberWindows; count ++)
-	if ((windowList[count]->flags & WINFLAG_VISIBLE) &&
-	    (isPointInside(event.xPosition, event.yPosition,
-			   makeWindowScreenArea(windowList[count]))))
-	  {
-	    // The mouse is inside this window's coordinates.  Is it the
-	    // topmost such window we've found?
-	    if ((window == NULL) || (windowList[count]->level < window->level))
-	      window = windowList[count];
-	  }
-	  
-      kernelLockRelease(&windowListLock);
-      
-      // Was it inside a window?
-      if (window == NULL)
-	// This should never happen.  Anyway, ignore.
-	continue;
-      
-      // The event was inside a window
-
-      // If the window has a dialog window, focus the dialog instead and
-      // we're finished
-      if (window->dialogWindow)
+      // Shortcut: If we have an active menu, and the mouse event is inside
+      // the menu, skip looping through the window list
+      else if (activeMenu &&
+	       isPointInside(event.xPosition, event.yPosition,
+			     makeComponentScreenArea(activeMenu)))
 	{
-	  if (window->dialogWindow != focusWindow)
-	    changeWindowFocus(window->dialogWindow);
-	  return;
+	  window = activeMenu->window;
+	  targetComponent = activeMenu;
+	  kernelDebug(debug_gui, "Mouse event in active menu (window %s)",
+		      window->title);
 	}
-  
-      // If it was a click and the window is not in focus, and not
-      // the root window, give it the focus
-      if ((event.type & EVENT_MOUSE_DOWN) && (window != focusWindow) &&
-	  (window != rootWindow))
-	// Give the window the focus
-	changeWindowFocus(window);
 
-      // Find out if it was inside of any of the window's components,
-      // and if so, put a windowEvent into its windowEventStream
-      targetComponent =
-	findTopmostComponent(window, event.xPosition, event.yPosition);
-
-      if ((event.type & EVENT_MOUSE_DOWN) &&
-	  (window->focusComponent != targetComponent))
+      else
 	{
-	  if (targetComponent && (targetComponent->flags & WINFLAG_CANFOCUS))
-	    changeComponentFocus(window, targetComponent);
-	  else if (activeMenu &&
-		   !isPointInside(event.xPosition, event.yPosition,
-				  makeComponentScreenArea(activeMenu)))
+	  // Figure out which window this is happening to, if any
+
+	  if (mouseInWindow)
+	    window = mouseInWindow;
+	  else
+	    window = getEventWindow(event.xPosition, event.yPosition);
+	  if (window == NULL)
+	    // This should never happen.  Anyway, ignore.
+	    continue;
+
+	  // The event was inside a window
+
+	  kernelDebug(debug_gui, "Mouse event in window %s", window->title);
+      
+	  // If the window has a dialog window, focus the dialog instead and
+	  // we're finished
+	  if (window->dialogWindow)
 	    {
-	      if (window->oldFocusComponent)
-		changeComponentFocus(window, window->oldFocusComponent);
-	      else
-		focusFirstComponent(window);
+	      if (window->dialogWindow != focusWindow)
+		changeWindowFocus(window->dialogWindow);
+	      return;
+	    }
+  
+	  // If it was a click and the window is not in focus, and not
+	  // the root window, give it the focus
+	  if ((event.type & EVENT_MOUSE_DOWN) && (window != focusWindow) &&
+	      (window != rootWindow))
+	    // Give the window the focus
+	    changeWindowFocus(window);
+
+	  // Find out if it was inside of any of the window's components,
+	  // and if so, put a windowEvent into its windowEventStream
+	  targetComponent =
+	    getEventComponent(window, event.xPosition, event.yPosition);
+
+	  if (targetComponent)
+	    kernelDebug(debug_gui, "Event component is type %s",
+			componentTypeString(targetComponent->type));
+
+	  if ((event.type & EVENT_MOUSE_DOWN) &&
+	      (window->focusComponent != targetComponent))
+	    {
+	      if (targetComponent &&
+		  (targetComponent->flags & WINFLAG_CANFOCUS))
+		// Focus the new component.
+		window->changeComponentFocus(window, targetComponent);
+
+	      else if (activeMenu &&
+		       !isPointInside(event.xPosition, event.yPosition,
+				      makeComponentScreenArea(activeMenu)))
+		{
+		  // The active menu simply lost the focus (as in, a click in
+		  // empty space.  Try to give the focus back to whatever had
+		  // it previously, or else just focus the first thing.  The
+		  // main idea is that the active menu has to lose it.
+
+		  if (window->oldFocusComponent)
+		    window->changeComponentFocus(window,
+						 window->oldFocusComponent);
+		  else
+		    focusFirstComponent(window);
+		}
 	    }
 	}
 
@@ -1435,6 +1423,7 @@ static void processEvents(void)
 	    {
 	      kernelDebug(debug_gui, "Show context menu");
 
+	      // Adjust to the coordinates of the window
 	      contextMenu->xCoord = (event.xPosition - window->xCoord);
 	      contextMenu->yCoord = (event.yPosition - window->yCoord);
 
@@ -1449,6 +1438,10 @@ static void processEvents(void)
 	      kernelWindowComponentSetVisible(contextMenu, 1);
 	    }
 	}
+
+      // If we were dragging something, have we stopped dragging it?
+      if (draggingComponent && (event.type != EVENT_MOUSE_DRAG))
+	draggingComponent = NULL;
     }
 
   while (kernelWindowEventStreamRead(&keyEvents, &event) > 0)
@@ -1460,7 +1453,7 @@ static void processEvents(void)
 	{
 	  // If it was a [tab] down, focus the next component
 	  if (((focusWindow->focusComponent == NULL) ||
-	       !(focusWindow->focusComponent->parameters.flags &
+	       !(focusWindow->focusComponent->params.flags &
 		 WINDOW_COMPFLAG_STICKYFOCUS)) &&
 	      ((event.type == EVENT_KEY_DOWN) && (event.key == 9)))
 	    focusNextComponent(focusWindow);
@@ -1594,38 +1587,152 @@ static kernelWindow *findTopmostWindow(void)
 }
 
 
+static int setupWindowVariables(void)
+{
+  // This allocates and sets up a global structure for window variables,
+  // used by functions in this file as well as window components, etc.
+  // Called once at startup time by the windowStart() function, below.
+
+  int status = 0;
+  variableList settings;
+  char value[128];
+
+  windowVariables = kernelMalloc(sizeof(kernelWindowVariables));
+  if (windowVariables == NULL)
+    return (status = ERR_MEMORY);
+
+  // Set defaults
+
+  // The default system font
+  status = kernelFontGetDefault(&(windowVariables->font.defaultFont));
+  if (status < 0)
+    // This would be sort of serious
+    return (status);
+
+  // Variables for windows
+  windowVariables->window.minWidth = WINDOW_MIN_WIDTH;
+  windowVariables->window.minHeight = WINDOW_MIN_HEIGHT;
+  windowVariables->window.minRestTracers = WINDOW_MINREST_TRACERS;
+
+  // Variables for title bars
+  windowVariables->titleBar.height = WINDOW_TITLEBAR_HEIGHT;
+  windowVariables->titleBar.minWidth = WINDOW_TITLEBAR_MINWIDTH;
+
+  // Variables for borders
+  windowVariables->border.thickness = WINDOW_BORDER_THICKNESS;
+  windowVariables->border.shadingIncrement = WINDOW_SHADING_INCREMENT;
+
+  // Variables for radio buttons
+  windowVariables->radioButton.size = WINDOW_RADIOBUTTON_SIZE;
+
+  // Variables for checkboxes
+  windowVariables->checkbox.size = WINDOW_CHECKBOX_SIZE;
+
+  // The small variable-width font
+  strcpy(windowVariables->font.varWidth.small.file,
+	 WINDOW_DEFAULT_VARFONT_SMALL_FILE);
+  strcpy(windowVariables->font.varWidth.small.name,
+	 WINDOW_DEFAULT_VARFONT_SMALL_NAME);
+  windowVariables->font.varWidth.small.font =
+    windowVariables->font.defaultFont;
+ 
+  // The medium variable-width font
+  strcpy(windowVariables->font.varWidth.medium.file,
+	 WINDOW_DEFAULT_VARFONT_MEDIUM_FILE);
+  strcpy(windowVariables->font.varWidth.medium.name,
+	 WINDOW_DEFAULT_VARFONT_MEDIUM_NAME);
+  windowVariables->font.varWidth.medium.font =
+    windowVariables->font.defaultFont;
+
+  // Now read the config file to let it overrides our defaults.
+  status = kernelConfigurationReader(WINDOW_DEFAULT_CONFIG, &settings);
+  if (status < 0)
+    // Dont't fail, just skip
+    goto end_config;
+
+  if ((kernelVariableListGet(&settings, "window.minwidth", value,
+			     128) >= 0) && (atoi(value) >= 0))
+    windowVariables->window.minWidth = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "window.minheight", value,
+			     128) >= 0) && (atoi(value) >= 0))
+    windowVariables->window.minHeight = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "window.minrest.tracers", value,
+			     128) >= 0) && (atoi(value) >= 0))
+    windowVariables->window.minRestTracers = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "titlebar.height", value, 
+                             128) >= 0) && (atoi(value) >= 0))
+    windowVariables->titleBar.height = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "titlebar.minwidth", value,
+                             128) >= 0) && (atoi(value) >= 0))
+    windowVariables->titleBar.minWidth = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "border.thickness", value,
+                             128) >= 0) && (atoi(value) >= 0))
+    windowVariables->border.thickness = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "border.shadingincrement", value,
+                             128) >= 0) && (atoi(value) >= 0))
+    windowVariables->border.shadingIncrement = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "radiobutton.size", value,
+                             128) >= 0) && (atoi(value) >= 0))
+    windowVariables->radioButton.size = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "checkbox.size", value,
+                             128) >= 0) && (atoi(value) >= 0))
+    windowVariables->checkbox.size = atoi(value);
+
+  if ((kernelVariableListGet(&settings, "font.varwidth.small.file", value,
+                             128) >= 0))
+    strncpy(windowVariables->font.varWidth.small.file, value, 128);
+
+  if ((kernelVariableListGet(&settings, "font.varwidth.small.name", value,
+                             128) >= 0))
+    strncpy(windowVariables->font.varWidth.small.name, value, 128);
+
+  if ((kernelVariableListGet(&settings, "font.varwidth.medium.file", value,
+                             128) >= 0))
+    strncpy(windowVariables->font.varWidth.medium.file, value, 128);
+
+  if ((kernelVariableListGet(&settings, "font.varwidth.medium.name", value,
+                             128) >= 0))
+    strncpy(windowVariables->font.varWidth.medium.name, value, 128);
+
+  kernelVariableListDestroy(&settings);
+
+ end_config:
+
+  // Load fonts.  Don't fail the whole initialization just because we can't
+  // read one, or anything like that.
+
+  kernelFontLoad(windowVariables->font.varWidth.small.file,
+		 windowVariables->font.varWidth.small.name,
+		 &(windowVariables->font.varWidth.small.font), 0);
+
+  kernelFontLoad(windowVariables->font.varWidth.medium.file,
+		 windowVariables->font.varWidth.medium.name,
+		 &(windowVariables->font.varWidth.medium.font), 0);
+
+  return (status = 0);
+}
+
+
 static int windowStart(void)
 {
   // This does all of the startup stuff.  Gets called once during
   // system initialization.
 
   int status = 0;
-  variableList settings;
   kernelTextOutputStream *output = NULL;
-  char propertyName[128];
-  char propertyValue[128];
-  int count;
-
-  char *mousePointerTypes[][2] = {
-    { "default", WINDOW_DEFAULT_MOUSEPOINTER_DEFAULT },
-    { "busy", WINDOW_DEFAULT_MOUSEPOINTER_BUSY }
-  };
 
   // Make sure we've been initialized
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Read the config file
-  status = kernelConfigurationReader(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
-  if (status < 0)
-    {
-      // Argh.  No file?  Create a reasonable, empty list for us to use
-      status = kernelVariableListCreate(&settings);
-      if (status < 0)
-	return (status);
-    }
-
-  // Variables and whatnot are dealt with elsewhere.
   // Set the temporary text area to the current desktop color, for neatness'
   // sake if there are any error messages before we create the console window
   output = kernelMultitaskerGetTextOutput();
@@ -1633,47 +1740,23 @@ static int windowStart(void)
   output->textArea->background.green = kernelDefaultDesktop.green;
   output->textArea->background.blue = kernelDefaultDesktop.blue;
 
-  // Load the mouse pointers
-  for (count = 0; count < 2; count ++)
-    {
-      strcpy(propertyName, "mouse.pointer.");
-      strcat(propertyName, mousePointerTypes[count][0]);
-
-      if (kernelVariableListGet(&settings, propertyName, propertyValue, 128))
-	{
-	  // Nothing specified.  Use the default.
-	  strcpy(propertyValue, mousePointerTypes[count][1]);
-	  // Save it so it can be written out later to the configuration file
-	  kernelVariableListSet(&settings, propertyName, propertyValue);
-	}
-
-      // When you load a mouse pointer it automatically switches to it,
-      // so load the 'busy' one last
-      status = kernelMouseLoadPointer(mousePointerTypes[count][0],
-				      propertyValue);
-      if (status < 0)
-	kernelError(kernel_warn, "Unable to load mouse pointer %s=\"%s\"",
-		    propertyName, propertyValue);
-    }
-
   // Initialize the event streams
   if ((kernelWindowEventStreamNew(&mouseEvents) < 0) ||
       (kernelWindowEventStreamNew(&keyEvents) < 0))
-    {
-      kernelVariableListDestroy(&settings);
-      return (status = ERR_NOTINITIALIZED);
-    }
+    return (status = ERR_NOTINITIALIZED);
 
   // Spawn the window thread
   spawnWindowThread();
 
+  // Set up window variables
+  status = setupWindowVariables();
+  if (status < 0)
+    return (status);
+
   // Draw the main, root window.
-  rootWindow = kernelWindowMakeRoot(&settings);
+  rootWindow = kernelWindowMakeRoot();
   if (rootWindow == NULL)
-    {
-      kernelVariableListDestroy(&settings);
-      return (status = ERR_NOTINITIALIZED);
-    }
+    return (status = ERR_NOTINITIALIZED);
 
   // Draw the console and root windows, but don't make them visible
   makeConsoleWindow();
@@ -1685,13 +1768,7 @@ static int windowStart(void)
   // Mouse housekeeping.
   kernelMouseDraw();
 
-  // Re-write config file
-  status = kernelConfigurationWriter(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
-  if (status >= 0)
-    kernelLog("Updated window configuration");
-
   // Done
-  kernelVariableListDestroy(&settings);
   return (status = 0);
 }
 
@@ -1747,7 +1824,8 @@ static kernelWindow *createWindow(int processId, const char *title)
   window->flags &= ~(WINFLAG_HASFOCUS | WINFLAG_VISIBLE);
 
   // Get the window's graphic buffer all set up
-  status = getWindowGraphicBuffer(window, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT);
+  status = getWindowGraphicBuffer(window, windowVariables->window.minWidth,
+				  windowVariables->window.minHeight);
   if (status < 0)
     {
       // Eek!  No new window for you!
@@ -1768,6 +1846,8 @@ static kernelWindow *createWindow(int processId, const char *title)
       return (window = NULL);
     }
 
+  window->pointer = kernelMouseGetPointer("default");
+
   // Add top-level containers for other components
   window->sysContainer = kernelWindowNewSysContainer(window, &params);
   window->mainContainer =
@@ -1783,6 +1863,8 @@ static kernelWindow *createWindow(int processId, const char *title)
   window->draw = &drawWindow;
   window->drawClip = &drawWindowClip;
   window->update = &windowUpdate;
+  window->focusNextComponent = &focusNextComponent;
+  window->changeComponentFocus = &changeComponentFocus;
 
   // Add the window to the list
 
@@ -1799,39 +1881,6 @@ static kernelWindow *createWindow(int processId, const char *title)
 
   // Return the window
   return (window);
-}
-
-
-static void moveConsoleTextArea(kernelWindow *oldWindow,
-				kernelWindow *newWindow)
-{
-  // Moves the console text area component from the old window to the new
-  // window
-
-  kernelWindowTextArea *textArea = consoleTextArea->data;
-  kernelWindowContainer *container = NULL;
-
-  if (newWindow == oldWindow)
-    return;
-
-  // Remove it from the old window
-  container = oldWindow->mainContainer->data;
-  if (container->containerRemove)
-    container->containerRemove(oldWindow->mainContainer, consoleTextArea);
-
-  // Add it to the new window
-  container = newWindow->mainContainer->data;
-  if (container->containerAdd)
-    container->containerAdd(newWindow->mainContainer, consoleTextArea);
-
-  consoleTextArea->window = newWindow;
-  consoleTextArea->buffer = &(newWindow->buffer);
-
-  if (textArea->scrollBar)
-    {
-      textArea->scrollBar->window = newWindow;
-      textArea->scrollBar->buffer = &(newWindow->buffer);
-    }
 }
 
 
@@ -1867,12 +1916,6 @@ int kernelWindowInitialize(void)
   screenWidth = kernelGraphicGetScreenWidth();
   screenHeight = kernelGraphicGetScreenHeight();
 
-  // What's the default font?
-  status = kernelFontGetDefault(&defaultFont);
-  if (status < 0)
-    // Couldn't get the default font
-    return (status);
-
   // We're initialized
   initialized = 1;
 
@@ -1881,7 +1924,7 @@ int kernelWindowInitialize(void)
     return (status);
 
   // Switch to the 'default' mouse pointer
-  kernelMouseSwitchPointer("default");
+  kernelWindowSwitchPointer(NULL, "default");
 
   kernelLog("Window system initialization complete");
 
@@ -2218,7 +2261,6 @@ int kernelWindowGetSize(kernelWindow *window, int *width, int *height)
   // Returns the size of the supplied window.
 
   int status = 0;
-  kernelWindowContainer *sysContainer = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2228,10 +2270,8 @@ int kernelWindowGetSize(kernelWindow *window, int *width, int *height)
   if ((window == NULL)  || (width == NULL) || (height == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  sysContainer = window->sysContainer->data;
-
   // If layout has not been done, do it now
-  if (!(sysContainer->doneLayout))
+  if (!(window->sysContainer->doneLayout))
     {
       status = layoutWindow(window);
       if (status < 0)
@@ -2254,7 +2294,6 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
   // Sets the size of a window
 
   int status = 0;
-  kernelWindowContainer *mainContainer = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2264,14 +2303,12 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
   if (window == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  mainContainer = window->mainContainer->data;
-
   status = setWindowSize(window, width, height);
   if (status < 0)
     return (status);
 
   // See if we need to call the 'resize' operation for the main container
-  if (mainContainer->doneLayout)
+  if (window->mainContainer->doneLayout)
     {
       width = (window->buffer.width - window->mainContainer->xCoord);
       height = (window->buffer.height - window->mainContainer->yCoord);
@@ -2279,12 +2316,13 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
       // Adjust for any borders
       if (window->flags & WINFLAG_HASBORDER)
 	{
-	  width -= WINDOW_BORDER_THICKNESS;
-	  height -= WINDOW_BORDER_THICKNESS;
+	  width -= windowVariables->border.thickness;
+	  height -= windowVariables->border.thickness;
 	}
 
-      status = window->mainContainer
-	->resize(window->mainContainer, width, height);
+      status =
+	window->mainContainer->resize(window->mainContainer, width, height);
+
       window->mainContainer->width = width;
       window->mainContainer->height = height;
     }
@@ -2397,7 +2435,7 @@ int kernelWindowSnapIcons(objectKey parent)
       container = containerComponent->data;
 
       // Make sure the window has been laid out
-      if (!container->doneLayout)
+      if (!(window->mainContainer->doneLayout))
 	layoutWindow(window);
     }
   else if (((kernelWindowComponent *) parent)->type == containerComponentType)
@@ -2407,8 +2445,8 @@ int kernelWindowSnapIcons(objectKey parent)
       container = containerComponent->data;
 
       // Make sure the container has been laid out
-      if (!container->doneLayout && container->containerLayout)
-	container->containerLayout(containerComponent);
+      if (!containerComponent->doneLayout && containerComponent->layout)
+	containerComponent->layout(containerComponent);
     }
   else
     {
@@ -2420,9 +2458,9 @@ int kernelWindowSnapIcons(objectKey parent)
     {
       if ((container->components[count1]->type == iconComponentType) &&
 	  ((container->components[count1]->yCoord +
-	    container->components[count1]->parameters.padTop +
+	    container->components[count1]->params.padTop +
 	    container->components[count1]->height +
-	    container->components[count1]->parameters.padBottom) >=
+	    container->components[count1]->params.padBottom) >=
 	   (window->buffer.height)))
 	{
 	  iconRow = 1;
@@ -2431,14 +2469,14 @@ int kernelWindowSnapIcons(objectKey parent)
 	    {
 	      if (container->components[count2]->type == iconComponentType)
 		{
-		  container->components[count2]->parameters.gridX += 1;
-		  container->components[count2]->parameters.gridY = iconRow++;
+		  container->components[count2]->params.gridX += 1;
+		  container->components[count2]->params.gridY = iconRow++;
 		}
 	    }
 
 	  // Set the new coordinates
-	  if (container->containerLayout)
-	    container->containerLayout(containerComponent);
+	  if (containerComponent->layout)
+	    containerComponent->layout(containerComponent);
 	}
     }
 
@@ -2640,7 +2678,6 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
   // Sets a window to visible or not
 
   int status = 0;
-  kernelWindowContainer *sysContainer = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2650,13 +2687,11 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
   if (window == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  sysContainer = window->sysContainer->data;
-
   if (visible)
     {
       // If the window is becoming visible and hasn't yet had its layout done,
       // do that now
-      if (!(sysContainer->doneLayout))
+      if (!(window->sysContainer->doneLayout))
 	{
 	  status = layoutWindow(window);
 	  if (status < 0)
@@ -2694,6 +2729,10 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
     }
   else
     {
+      // Make sure the window is not the 'mouse in' window
+      if (window == mouseInWindow)
+	mouseInWindow = NULL;
+
       // Take away the focus, if applicable
       if (window == focusWindow)
       	changeWindowFocus(findTopmostWindow());
@@ -2721,20 +2760,24 @@ void kernelWindowSetMinimized(kernelWindow *window, int minimize)
       // Show the minimize graphically.  Draw xor'ed outlines
       for (count1 = 0; count1 < 2; count1 ++)
 	{
-	  for (count2 = 0; count2 < WINDOW_MINREST_TRACERS; count2 ++)
+	  for (count2 = 0; count2 < windowVariables->window.minRestTracers;
+	       count2 ++)
 	    {
 	      kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
 		    draw_xor,
 		    (window->xCoord -
-		     (count2 * (window->xCoord / WINDOW_MINREST_TRACERS))),
+		     (count2 * (window->xCoord /
+				windowVariables->window.minRestTracers))),
 		    (window->yCoord -
-		     (count2 * (window->yCoord / WINDOW_MINREST_TRACERS))),
+		     (count2 * (window->yCoord /
+				windowVariables->window.minRestTracers))),
 		    (window->buffer.width -
 		     (count2 * (window->buffer.width /
-				WINDOW_MINREST_TRACERS))),
+				windowVariables->window.minRestTracers))),
 		    (window->buffer.height -
 		     (count2 * (window->buffer.height /
-				WINDOW_MINREST_TRACERS))), 1, 0);
+				windowVariables->window.minRestTracers))),
+				    1, 0);
 	    }
 
 	  if (!count1)
@@ -2770,7 +2813,7 @@ int kernelWindowAddConsoleTextArea(kernelWindow *window)
   if (consoleTextArea->window != consoleWindow)
     return (status = ERR_ALREADY);
 
-  moveConsoleTextArea(consoleWindow, window);
+  kernelWindowMoveConsoleTextArea(consoleWindow, window);
 
   return (status = 0);
 }
@@ -2913,28 +2956,31 @@ void kernelWindowResetColors(void)
 		    sizeof(color));
 
       // Loop through all the regular window components and set the colors
-      array = kernelMalloc((countComponents(window->sysContainer->data) +
-			    countComponents(window->mainContainer->data)) *
-			   sizeof(kernelWindowComponent *));
+      array =
+	kernelMalloc((window->sysContainer->numComps(window->sysContainer) +
+		      window->mainContainer->numComps(window->mainContainer)) *
+		     sizeof(kernelWindowComponent *));
       if (array == NULL)
 	break;
 
       numComponents = 0;
-      flattenContainer(window->sysContainer->data, array, &numComponents, 0);
-      flattenContainer(window->mainContainer->data, array, &numComponents, 0);
+      window->sysContainer->flatten(window->sysContainer, array,
+				    &numComponents, 0);
+      window->mainContainer->flatten(window->mainContainer, array,
+				     &numComponents, 0);
 
       for (count2 = 0; count2 < numComponents; count2 ++)
 	{
-	  if (!(array[count2]->parameters.flags &
+	  if (!(array[count2]->params.flags &
 		WINDOW_COMPFLAG_CUSTOMFOREGROUND))
 	    kernelMemCopy(&kernelDefaultForeground,
-			  (color *) &(array[count2]->parameters.foreground),
+			  (color *) &(array[count2]->params.foreground),
 			  sizeof(color));
 
-	  if (!(array[count2]->parameters.flags &
+	  if (!(array[count2]->params.flags &
 		WINDOW_COMPFLAG_CUSTOMBACKGROUND))
 	    kernelMemCopy(&kernelDefaultBackground,
-			  (color *) &(array[count2]->parameters.background),
+			  (color *) &(array[count2]->params.background),
 			  sizeof(color));
 	}
 
@@ -2962,14 +3008,13 @@ void kernelWindowProcessEvent(windowEvent *event)
     spawnWindowThread();
 
   if (event->type & EVENT_MASK_MOUSE)
-    {
-      // If it was just a move, skip it for now
-      if (event->type == EVENT_MOUSE_MOVE)
-	return;
+    // Write the mouse event into the mouse event stream for later processing
+    // by the processEvents() thread
+    kernelWindowEventStreamWrite(&mouseEvents, event);
 
-      kernelWindowEventStreamWrite(&mouseEvents, event);
-    }
   else if (event->type & EVENT_MASK_KEY)
+    // Write the key event into the mouse event stream for later processing
+    // by the processEvents() thread
     kernelWindowEventStreamWrite(&keyEvents, event);
 
   return;
@@ -3117,11 +3162,11 @@ int kernelWindowTileBackground(const char *filename)
   kernelMouseDraw();
 
   // Save the settings variable
-  status = kernelConfigurationReader(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
+  status = kernelConfigurationReader(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
   if (status >= 0)
     {
       kernelVariableListSet(&settings, "background.image", filename);
-      kernelConfigurationWriter(WINDOW_MANAGER_DEFAULT_CONFIG, &settings);
+      kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
       kernelVariableListDestroy(&settings);
     }
 
@@ -3339,6 +3384,10 @@ int kernelWindowContextAdd(objectKey parent, windowMenuContents *contents)
   componentParameters params;
   int count;
 
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
   // Check params
   if ((parent == NULL) || (contents == NULL))
     {
@@ -3372,19 +3421,17 @@ int kernelWindowContextAdd(objectKey parent, windowMenuContents *contents)
 	  containerComponent = parentComponent->container;
 
 	  // Get any custom colors from the parent
-	  if (parentComponent->parameters.flags &
-	      WINDOW_COMPFLAG_CUSTOMFOREGROUND)
+	  if (parentComponent->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
 	    {
 	      params.flags |= WINDOW_COMPFLAG_CUSTOMFOREGROUND;
-	      kernelMemCopy((void *) &(parentComponent->parameters.foreground),
+	      kernelMemCopy((void *) &(parentComponent->params.foreground),
 			    &(params.foreground), sizeof(color));
 	    }
 
-	  if (parentComponent->parameters.flags &
-	      WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	  if (parentComponent->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
 	    {
 	      params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
-	      kernelMemCopy((void *) &(parentComponent->parameters.background),
+	      kernelMemCopy((void *) &(parentComponent->params.background),
 			    &(params.background), sizeof(color));
 	    }
 	}
@@ -3407,7 +3454,7 @@ int kernelWindowContextAdd(objectKey parent, windowMenuContents *contents)
       // Loop through the contents and add the individual items to the
       // existing context menu
 
-      kernelMemCopy((void *) &(menuComponent->parameters), &params,
+      kernelMemCopy((void *) &(menuComponent->params), &params,
 		    sizeof(componentParameters));
 
       for (count = 0; count < contents->numItems; count ++)
@@ -3439,6 +3486,10 @@ int kernelWindowContextSet(objectKey parent,
   kernelWindow *parentWindow = NULL;
   kernelWindowComponent *parentComponent = NULL;
 
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
   // Check params
   if ((parent == NULL) || (menuComponent == NULL))
     {
@@ -3467,530 +3518,74 @@ int kernelWindowContextSet(objectKey parent,
 }
 
 
-kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
-						componentParameters *params)
+int kernelWindowSwitchPointer(objectKey parent, const char *pointerName)
 {
-  // Creates a new component and adds it to the main container of the
-  // window.
+  // Sets the mouse pointer for the window or component object, by name.
+  // If 'parent' is NULL, just set the mouse pointer without associating
+  // it with any window or component.
 
   int status = 0;
-  kernelWindowComponent *component = NULL;
-  kernelWindowContainer *tmpContainer = NULL;
+  kernelWindow *window = NULL;
+  kernelMousePointer *newPointer = NULL;
 
-  // Check params
-  if ((parent == NULL) || (params == NULL))
-    return (component = NULL);
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
-  // Get memory for the basic component
-  component = kernelMalloc(sizeof(kernelWindowComponent));
-  if (component == NULL)
-    return (component);
+  // Check params.  Parent can be NULL.
+  if (pointerName == NULL)
+    {
+      kernelError(kernel_error, "NULL pointer name");
+      return (status = ERR_NULLPARAMETER);
+    }
 
-  component->type = genericComponentType;
-  component->subType = genericComponentType;
-  component->window = getWindow(parent);
+  newPointer = kernelMouseGetPointer(pointerName);
+  if (newPointer == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  if (parent)
+    window = getWindow(parent);
   
-  // Use the window's buffer by default
-  if (component->window)
-    component->buffer = &(component->window->buffer);
+  if (window)
+    window->pointer = newPointer;
 
-  // Visible and enabled by default
-  component->flags |= (WINFLAG_VISIBLE | WINFLAG_ENABLED);
-
-  // If the parameter flags indicate the component should be focusable,
-  // set the appropriate component flag
-  if (params->flags & WINDOW_COMPFLAG_CANFOCUS)
-    component->flags |= WINFLAG_CANFOCUS;
-
-  // Copy the parameters into the component
-  kernelMemCopy(params, (void *) &(component->parameters),
-		sizeof(componentParameters));
-
-  // If the default colors are requested, copy them into the component
-  // parameters
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
-    {
-      component->parameters.foreground.blue = kernelDefaultForeground.blue;
-      component->parameters.foreground.green = kernelDefaultForeground.green;
-      component->parameters.foreground.red = kernelDefaultForeground.red;
-    }
-
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-    {
-      component->parameters.background.blue = kernelDefaultBackground.blue;
-      component->parameters.background.green = kernelDefaultBackground.green;
-      component->parameters.background.red = kernelDefaultBackground.red;
-    }
-
-  // Initialize the event stream
-  status = kernelWindowEventStreamNew(&(component->events));
-  if (status < 0)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
-
-  // Default functions
-  component->drawBorder = &componentDrawBorder;
-  component->erase = &componentErase;
-  component->grey = &componentGrey;
-
-  // Now we need to add the component somewhere.  If 'parent' is a window,
-  // we will attempt to add it there (a couple of different possibilities).
-  // Otherwise, we assume it is a container of some sort and use the container
-  // add routine.
-  if (((kernelWindow *) parent)->type == windowType)
-    {
-      kernelWindow *tmpWindow = parent;
-      if (tmpWindow->mainContainer)
-	{
-	  tmpContainer = tmpWindow->mainContainer->data;
-	  status =
-	    tmpContainer->containerAdd(tmpWindow->mainContainer, component);
-	}
-    }
-  else if (((kernelWindowComponent *) parent)->type == containerComponentType)
-    {
-      // Not a window
-      kernelWindowComponent *tmpComponent = parent;
-      tmpContainer = tmpComponent->data;
-      status = tmpContainer->containerAdd(tmpComponent, component);
-    }
-  else
-    {
-      kernelError(kernel_error, "Invalid parent object for new component");
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
-
-  if (status < 0)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
-  else
-    return (component);
+  status = kernelMouseSetPointer(newPointer);
+  return (status);
 }
 
 
-void kernelWindowComponentDestroy(kernelWindowComponent *component)
+void kernelWindowMoveConsoleTextArea(kernelWindow *oldWindow,
+				     kernelWindow *newWindow)
 {
-  kernelWindowComponent *containerComponent = NULL;
+  // Moves the console text area component from the old window to the new
+  // window
+
+  kernelWindowTextArea *textArea = consoleTextArea->data;
   kernelWindowContainer *container = NULL;
 
   // Make sure we've been initialized
   if (!initialized)
     return;
 
-  // Check params.  
-  if (component == NULL)
+  if (newWindow == oldWindow)
     return;
 
-  // If the component is a container, recurse for each thing that's in it.
-  if (component->type == containerComponentType)
+  // Remove it from the old window
+  container = oldWindow->mainContainer->data;
+  if (container->remove)
+    container->remove(oldWindow->mainContainer, consoleTextArea);
+
+  // Add it to the new window
+  container = newWindow->mainContainer->data;
+  if (container->add)
+    container->add(newWindow->mainContainer, consoleTextArea);
+
+  consoleTextArea->window = newWindow;
+  consoleTextArea->buffer = &(newWindow->buffer);
+
+  if (textArea->scrollBar)
     {
-      container = component->data;
-
-      while (container->numComponents)
-	kernelWindowComponentDestroy(container->components[0]);
+      textArea->scrollBar->window = newWindow;
+      textArea->scrollBar->buffer = &(newWindow->buffer);
     }
-
-  // Make sure the component is removed from any containers it's in
-  if (component->container != NULL)
-    {
-      containerComponent = component->container;
-
-      if (containerComponent->type == containerComponentType)
-	{
-	  container = containerComponent->data;
-	  if (container == NULL)
-	    {
-	      kernelError(kernel_error, "Container data is null");
-	      return;
-	    }
-
-	  container->containerRemove(containerComponent, component);
-	}
-    }
-
-  // Never destroy the console text area.  If this is the console text area,
-  // move it back to our console window
-  if (component == consoleTextArea)
-    {
-      moveConsoleTextArea(component->window, consoleWindow);
-      return;
-    }
-
-  // Call the component's own destroy function
-  if (component->destroy)
-    component->destroy(component);
-  component->data = NULL;
-
-  // Deallocate generic things
-  if (component->events.s.buffer)
-    {
-      kernelFree((void *)(component->events.s.buffer));
-      component->events.s.buffer = NULL;
-    }
-
-  // Free the component itself
-  kernelFree((void *) component);
-
-  return;
-}
-
-
-int kernelWindowComponentSetVisible(kernelWindowComponent *component,
-				    int visible)
-{
-  // Set a component visible or not visible
-
-  int status = 0;
-  kernelWindowContainer *container = NULL;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  container = component->container->data;
-
-  if (visible)
-    {
-      component->flags |= WINFLAG_VISIBLE;
-      if (component->draw)
-	component->draw(component);
-    }
-  else
-    {
-      if (component->window->focusComponent == component)
-	// Make sure it doesn't have the focus
-	focusNextComponent(component->window);
-
-      component->flags &= ~WINFLAG_VISIBLE;
-      if (component->erase)
-	component->erase(component);
-    }
-
-  // Redraw a clip of that part of the window
-  if (container->doneLayout)
-    drawWindowClip(component->window, component->xCoord, component->yCoord,
-		   component->width, component->height);
-
-  // Redraw the mouse just in case it was within this area
-  kernelMouseDraw();
-
-  return (status = 0);
-}
-
-
-int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
-				    int enabled)
-{
-  // Set a component enabled or not enabled.  What we do is swap the 'draw'
-  // and 'grey' functions of the component.
-
-  int status = 0;
-  kernelWindowContainer *container = NULL;
-  int (*tmpDraw) (kernelWindowComponent *) = NULL;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  container = component->container->data;
-
-  if (enabled && !(component->flags & WINFLAG_ENABLED))
-    {
-      component->flags |= WINFLAG_ENABLED;
-
-      tmpDraw = component->grey;
-      component->grey = component->draw;
-      component->draw = tmpDraw;
-    }
-  else if (!enabled && (component->flags & WINFLAG_ENABLED))
-    {
-      if (component->window->focusComponent == component)
-	// Make sure it doesn't have the focus
-	focusNextComponent(component->window);
-
-      component->flags &= ~WINFLAG_ENABLED;
-
-      tmpDraw = component->grey;
-      component->grey = component->draw;
-      component->draw = tmpDraw;
-    }
-
-  // Redraw a clip of that part of the window
-  if (container->doneLayout)
-    drawWindowClip(component->window, component->xCoord, component->yCoord,
-		   component->width, component->height);
-
-  // Redraw the mouse just in case it was within this area
-  kernelMouseDraw();
-
-  return (status = 0);
-}
-
-
-int kernelWindowComponentGetWidth(kernelWindowComponent *component)
-{
-  // Return the width parameter of the component
-  if (!initialized || (component == NULL))
-    return (0);
-  else
-    return (component->width);
-}
-
-
-int kernelWindowComponentSetWidth(kernelWindowComponent *component, int width)
-{
-  // Set the width parameter of the component
-
-  int status = 0;
-
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-  if (component == NULL)
-    return (ERR_NULLPARAMETER);
-
-  // If the component wants to know about resize events...
-  if (component->resize)
-    status = component->resize(component, component->width, component->height);
-
-  component->width = width;
-
-  return (status);
-}
-
-
-int kernelWindowComponentGetHeight(kernelWindowComponent *component)
-{
-  // Return the height parameter of the component
-  if (!initialized || (component == NULL))
-    return (0);
-  else
-    return (component->height);
-}
-
-
-int kernelWindowComponentSetHeight(kernelWindowComponent *component,
-				   int height)
-{
-  // Set the width parameter of the component
-
-  int status = 0;
-
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-  if (component == NULL)
-    return (ERR_NULLPARAMETER);
-  
-  // Sizes are generally padded by 2 pixels on either side
-  height += 2;
-
-  // If the component wants to know about resize events...
-  if (component->resize)
-    status = component->resize(component, component->width, component->height);
-
-  component->height = height;
-  
-  return (status);
-}
-
-
-int kernelWindowComponentFocus(kernelWindowComponent *component)
-{
-  // Gives the supplied component the focus, puts it on top of any other
-  // components it intersects, etc.
-  
-  int status = 0;
-  kernelWindow *window = NULL;
-  kernelWindowComponent **array = NULL;
-  int numComponents = 0;
-  int count;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Get the window
-  window = component->window;
-  if (window == NULL)
-    {
-      kernelError(kernel_error, "Component to focus has no window");
-      return (status = ERR_NODATA);
-    }
-
-  array = kernelMalloc(countComponents(window->mainContainer->data) *
-		       sizeof(kernelWindowComponent *));
-  if (array == NULL)
-    return (NULL);
-
-  flattenContainer(window->mainContainer->data, array, &numComponents, 0);
-
-  // Find all the window's components at this location 
-  for (count = 0; count < numComponents; count ++)
-    if (array[count]->level <= component->level)
-      {
-	if (doAreasIntersect(makeComponentScreenArea(component),
-			     makeComponentScreenArea(array[count])))
-	  array[count]->level++;
-      }
-  
-  kernelFree(array);
-
-  component->level = 0;
-
-  changeComponentFocus(window, component);
-
-  return (status = 0);
-}
-
-
-int kernelWindowComponentUnfocus(kernelWindowComponent *component)
-{
-  // Removes the focus from the supplied component
-  
-  int status = 0;
-  kernelWindow *window = NULL;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Get the window
-  window = component->window;
-  if (window == NULL)
-    {
-      kernelError(kernel_error, "Component to unfocus has no window");
-      return (status = ERR_NODATA);
-    }
-
-  if (window->oldFocusComponent)
-    changeComponentFocus(window, window->oldFocusComponent);
-  else
-    focusNextComponent(window);
-
-  return (status = 0);
-}
-
-
-int kernelWindowComponentDraw(kernelWindowComponent *component)
-{
-  // Draw  a component
-  
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  if (!component->draw)
-    return (status = ERR_NOTIMPLEMENTED);
-
-  return (component->draw(component));
-}
-
-
-int kernelWindowComponentGetData(kernelWindowComponent *component,
-				 void *buffer, int size)
-{
-  // Get (generic) data from a component
-  
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if ((component == NULL) || (buffer == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  if (!component->getData)
-    return (status = ERR_NOTIMPLEMENTED);
-
-  return (component->getData(component, buffer, size));
-}
-
-
-int kernelWindowComponentSetData(kernelWindowComponent *component,
-				 void *buffer, int size)
-{
-  // Set (generic) data in a component
-  
-  int status = 0;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params.  buffer can only be NULL if size is NULL
-  if ((component == NULL) || ((buffer == NULL) && size))
-    return (status = ERR_NULLPARAMETER);
-
-  if (!component->setData)
-    return (status = ERR_NOTIMPLEMENTED);
-
-  status = component->setData(component, buffer, size);
-
-  return (status);
-}
-
-
-int kernelWindowComponentGetSelected(kernelWindowComponent *component,
-				     int *selection)
-{
-  // Calls the 'get selected' method of the component, if applicable
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
-  // Check parameters
-  if ((component == NULL) || (selection == NULL))
-    return (ERR_NULLPARAMETER);
-
-  if (component->getSelected == NULL)
-    return (ERR_NOSUCHFUNCTION);
-
-  return (component->getSelected(component, selection));
-}
-
-
-int kernelWindowComponentSetSelected(kernelWindowComponent *component,
-				     int selected)
-{
-  // Calls the 'set selected' method of the component, if applicable
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
-  // Check parameters
-  if (component == NULL)
-    return (ERR_NULLPARAMETER);
-
-  if (component->setSelected == NULL)
-    return (ERR_NOSUCHFUNCTION);
-
-  return (component->setSelected(component, selected));
 }

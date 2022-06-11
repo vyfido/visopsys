@@ -77,7 +77,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(window, "Error", output);
@@ -135,13 +135,13 @@ static void eventHandler(objectKey key, windowEvent *event)
       if (clickedIcon < 0)
 	return;
 
-      mouseSwitchPointer("busy");
+      windowSwitchPointer(window, "busy");
 
       // If it's removable, see if there is any media present
       if (disks[clickedIcon].flags & DISKFLAG_REMOVABLE &&
 	  !diskGetMediaState(disks[clickedIcon].name))
 	{
-	  mouseSwitchPointer("default");
+	  windowSwitchPointer(window, "default");
 	  error("No media in disk %s", disks[clickedIcon].name);
 	  return;
 	}
@@ -150,7 +150,7 @@ static void eventHandler(objectKey key, windowEvent *event)
       status = diskGet(disks[clickedIcon].name, &disks[clickedIcon]);
       if (status < 0)
 	{
-	  mouseSwitchPointer("default");
+	  windowSwitchPointer(window, "default");
 	  error("Error re-reading disk info");
 	  return;
 	}
@@ -166,7 +166,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	  status = filesystemMount(disks[clickedIcon].name, mountPoint);
 	  
-	  mouseSwitchPointer("default");
+	  windowSwitchPointer(window, "default");
 	  
 	  if (status < 0)
 	    {
@@ -188,7 +188,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	    }
 	}
       else
-	mouseSwitchPointer("default");
+	windowSwitchPointer(window, "default");
 
       // Launch a file browser
       snprintf(command, MAXSTRINGLENGTH, "%s %s", FILE_BROWSER,
@@ -235,7 +235,7 @@ static int scanComputer(void)
   // Any change?
   if ((disks == NULL) || (newNumDisks != numDisks))
     {
-      mouseSwitchPointer("busy");
+      windowSwitchPointer(window, "busy");
 
       // Get the text, image, and command for each icon
       for (count = 0; count < newNumDisks; count ++)
@@ -259,7 +259,7 @@ static int scanComputer(void)
 	      error("Can't load icon image %s", iconFile);
 	      free(newDisks);
 	      free(newIconParams);
-	      mouseSwitchPointer("default");
+	      windowSwitchPointer(window, "default");
 	      return (status);
 	    }
 	}
@@ -273,7 +273,7 @@ static int scanComputer(void)
       if (iconList)
 	windowComponentSetData(iconList, newIconParams, newNumDisks);
 
-      mouseSwitchPointer("default");
+      windowSwitchPointer(window, "default");
     }
   else
     {

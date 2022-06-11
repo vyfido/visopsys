@@ -29,7 +29,7 @@
 #include <sys/lock.h>
 
 // The maximum length of status messages
-#define PROGRESS_MAX_MESSAGELEN  240
+#define PROGRESS_MAX_MESSAGELEN   240
 
 // These are different kinds of possible responses when the operation
 // needs user feedback

@@ -32,7 +32,7 @@
 // Functions
 void vshCompleteFilename(char *);
 int vshCopyFile(const char *, const char *);
-int vshCursorMenu(const char *, int, char *[], int);
+int vshCursorMenu(const char *, char *[], int, int);
 int vshDeleteFile(const char *);
 int vshDumpFile(const char *);
 int vshFileList(const char *);

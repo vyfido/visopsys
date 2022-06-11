@@ -27,9 +27,7 @@
 #include "kernelError.h"
 #include <stdio.h>
 
-static int borderThickness = 3;
-static int borderShadingIncrement = 15;
-static kernelAsciiFont *defaultFont = NULL;
+extern kernelWindowVariables *windowVariables;
 
 
 static int draw(kernelWindowComponent *component)
@@ -37,53 +35,53 @@ static int draw(kernelWindowComponent *component)
   // Draw the progress bar component
 
   kernelWindowProgressBar *progressBar = component->data;
+  int thickness = windowVariables->border.thickness;
+  int shadingIncrement = windowVariables->border.shadingIncrement;
+  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
   char prog[5];
 
   // Draw the background of the progress bar
   kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->parameters.background),
-			draw_normal, (component->xCoord + borderThickness),
-			(component->yCoord + borderThickness),
-			(component->width - (borderThickness * 2)),
-			(component->height - (borderThickness * 2)),
-			1, 1);
+			(color *) &(component->params.background),
+			draw_normal, (component->xCoord + thickness),
+			(component->yCoord + thickness),
+			(component->width - (thickness * 2)),
+			(component->height - (thickness * 2)), 1, 1);
 
   // Draw the border
   kernelGraphicDrawGradientBorder(component->buffer,
 				  component->xCoord, component->yCoord,
 				  component->width, component->height,
-				  borderThickness, (color *)
-				  &(component->parameters.background),
-				  borderShadingIncrement, draw_reverse,
-				  border_all);
+				  thickness, (color *)
+				  &(component->params.background),
+				  shadingIncrement, draw_reverse, border_all);
 
   // Draw the slider
-  progressBar->sliderWidth = (((component->width - (borderThickness * 2)) *
-			      progressBar->progressPercent) / 100);
-  if (progressBar->sliderWidth < (borderThickness * 2))
-    progressBar->sliderWidth = (borderThickness * 2);
+  progressBar->sliderWidth = (((component->width - (thickness * 2)) *
+			       progressBar->progressPercent) / 100);
+  if (progressBar->sliderWidth < (thickness * 2))
+    progressBar->sliderWidth = (thickness * 2);
   
   kernelGraphicDrawGradientBorder(component->buffer,
-				  (component->xCoord + borderThickness),
-				  (component->yCoord + borderThickness),
+				  (component->xCoord + thickness),
+				  (component->yCoord + thickness),
 				  progressBar->sliderWidth,
-				  (component->height - (borderThickness * 2)),
-				  borderThickness, (color *)
-				  &(component->parameters.background),
-				  borderShadingIncrement, draw_normal,
-				  border_all);
+				  (component->height - (thickness * 2)),
+				  thickness, (color *)
+				  &(component->params.background),
+				  shadingIncrement, draw_normal, border_all);
 
   // Print the progress percent
   sprintf(prog, "%d%%", progressBar->progressPercent);
   kernelGraphicDrawText(component->buffer,
-			(color *) &(component->parameters.foreground),
-			(color *) &(component->parameters.background),
-			defaultFont, prog, draw_translucent,
+			(color *) &(component->params.foreground),
+			(color *) &(component->params.background),
+			font, prog, draw_translucent,
 			(component->xCoord +
 			 ((component->width -
-			   kernelFontGetPrintedWidth(defaultFont, prog)) / 2)),
+			   kernelFontGetPrintedWidth(font, prog)) / 2)),
 			(component->yCoord +
-			 ((component->height - defaultFont->charHeight) / 2)));
+			 ((component->height - font->charHeight) / 2)));
 
   return (0);
 }
@@ -156,20 +154,14 @@ kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
   if (parent == NULL)
     return (component = NULL);
 
-  if (defaultFont == NULL)
-    {
-      // Try to load a nice-looking font
-      if (kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
-			 WINDOW_DEFAULT_VARFONT_SMALL_NAME,
-			 &defaultFont, 0) < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&defaultFont);
-    }
-
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
+
+  // If font is NULL, use the default
+  if (component->params.font == NULL)
+    component->params.font = windowVariables->font.varWidth.small.font;
 
   // Now populate it
   component->type = progressBarComponentType;

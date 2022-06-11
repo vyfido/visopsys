@@ -23,14 +23,13 @@
 // of kernel logging features.
 
 #include "kernelLog.h"
-#include "kernelParameters.h"
+#include "kernelError.h"
 #include "kernelFileStream.h"
 #include "kernelLock.h"
+#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelRtc.h"
-#include "kernelError.h"
 #include <stdio.h>
-#include <string.h>
 #include <sys/cdefs.h>
 
 static void kernelLogUpdater(void) __attribute__((noreturn));
@@ -147,7 +146,7 @@ int kernelLogInitialize(void)
   // Make a note that we've been initialized
   loggingInitialized = 1;
 
-  bzero((void *) &logLock, sizeof(lock));
+  kernelMemClear((void *) &logLock, sizeof(lock));
 
   // Return success
   return (status = 0);
@@ -261,7 +260,7 @@ int kernelLog(const char *format, ...)
   va_start(list, format);
 
   // Expand the format string into an output string
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 

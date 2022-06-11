@@ -32,7 +32,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-static kernelAsciiFont *defaultFont = NULL;
+extern kernelWindowVariables *windowVariables;
 
 
 static int draw(kernelWindowComponent *component)
@@ -40,6 +40,7 @@ static int draw(kernelWindowComponent *component)
   // Draw the image component
 
   kernelWindowIcon *icon = component->data;
+  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
   int count;
 
   int imageX =
@@ -54,26 +55,26 @@ static int draw(kernelWindowComponent *component)
 
   // Clear the text area
   kernelGraphicClearArea(component->buffer,
-			 (color *) &(component->parameters.background),
+			 (color *) &(component->params.background),
 			 labelX, labelY, (icon->labelWidth + 2),
-			 ((icon->labelLines * defaultFont->charHeight) + 2));
+			 ((icon->labelLines * font->charHeight) + 2));
 
   for (count = 0; count < icon->labelLines; count ++)
     {
       labelX = (component->xCoord + ((component->width -
-			      kernelFontGetPrintedWidth(defaultFont, (char *)
+			      kernelFontGetPrintedWidth(font, (char *)
 						icon->label[count])) / 2) + 1);
       labelY = (component->yCoord + icon->iconImage.height + 4 +
-		(defaultFont->charHeight * count));
+		(font->charHeight * count));
       
       kernelGraphicDrawText(component->buffer,
-			    (color *) &(component->parameters.foreground),
-			    (color *) &(component->parameters.background),
-			    defaultFont, (char *) icon->label[count],
+			    (color *) &(component->params.foreground),
+			    (color *) &(component->params.background),
+			    font, (char *) icon->label[count],
 			    draw_normal, labelX, labelY);
     }
 
-  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
+  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder(component, 1);
 
   return (0);
@@ -166,10 +167,11 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		  
       // Don't show it while it's moving
       component->flags &= ~WINFLAG_VISIBLE;
-      
-      component->window
-	->drawClip(component->window, component->xCoord, component->yCoord,
-		   component->width, component->height);
+
+      if (component->window->drawClip)
+	component->window
+	  ->drawClip(component->window, component->xCoord, component->yCoord,
+		     component->width, component->height);
 
       // Draw an xor'ed outline
       kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
@@ -247,7 +249,6 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 {
   // Formats a kernelWindowComponent as a kernelWindowIcon
 
-  int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowIcon *icon = NULL;
   int labelSplit = 0;
@@ -265,18 +266,23 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 
   // If default colors are requested, override the standard component colors
   // with the ones we prefer
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
     {
-      component->parameters.foreground.blue = 255;
-      component->parameters.foreground.green = 255;
-      component->parameters.foreground.red = 255;
+      component->params.foreground.blue = 255;
+      component->params.foreground.green = 255;
+      component->params.foreground.red = 255;
+      component->params.flags |= WINDOW_COMPFLAG_CUSTOMFOREGROUND;
     }
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
-      component->parameters.background.blue = 0xAB;
-      component->parameters.background.green = 0x5D;
-      component->parameters.background.red = 0x28;
+      component->params.background.blue = 0xAB;
+      component->params.background.green = 0x5D;
+      component->params.background.red = 0x28;
+      component->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
     }
+
+  // Always use our font
+  component->params.font = windowVariables->font.varWidth.small.font;
 
   // Copy all the relevant data into our memory
   icon = kernelMalloc(sizeof(kernelWindowIcon));
@@ -296,17 +302,6 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
   strncpy((char *) icon->label[0], label, WINDOW_MAX_LABEL_LENGTH);
   icon->label[0][WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
 
-  if (defaultFont == NULL)
-    {
-      // Try to get our favorite font
-      status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
-			      WINDOW_DEFAULT_VARFONT_SMALL_NAME,
-			      &defaultFont, 0);
-      if (status < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&defaultFont);
-    }
-
   // Copy the image data
   icon->iconImage.data = kernelMalloc(imageCopy->dataLength);
   if (icon->iconImage.data)
@@ -314,7 +309,8 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 		  imageCopy->dataLength);
 
   icon->labelWidth =
-    kernelFontGetPrintedWidth(defaultFont, (char *) icon->label[0]);
+    kernelFontGetPrintedWidth(((kernelAsciiFont *) component->params.font),
+			      (char *) icon->label[0]);
   icon->labelLines = 1;
 
   // Is the label too wide?  If so, we will break it into 2 lines
@@ -358,8 +354,12 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
 
       icon->label[0][labelSplit] = '\0';
 
-      count1 = kernelFontGetPrintedWidth(defaultFont, (char *) icon->label[0]);
-      count2 = kernelFontGetPrintedWidth(defaultFont, (char *) icon->label[1]);
+      count1 = kernelFontGetPrintedWidth(((kernelAsciiFont *)
+					  component->params.font),
+					 (char *) icon->label[0]);
+      count2 = kernelFontGetPrintedWidth(((kernelAsciiFont *)
+					  component->params.font),
+					 (char *) icon->label[1]);
       icon->labelWidth = max(count1, count2);
       icon->labelLines = 2;
     }
@@ -367,8 +367,10 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *imageCopy,
   // Now populate the main component
   component->type = iconComponentType;
   component->width = max(imageCopy->width, ((unsigned)(icon->labelWidth + 3)));
-  component->height = ((imageCopy->height + 5 + (defaultFont->charHeight *
-						 icon->labelLines)));
+  component->height = ((imageCopy->height + 5 +
+			(((kernelAsciiFont *)
+			  component->params.font)->charHeight *
+			  icon->labelLines)));
   
   component->minWidth = component->width;
   component->minHeight = component->height;

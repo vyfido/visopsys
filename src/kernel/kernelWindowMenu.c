@@ -30,8 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int borderThickness = 3;
-static int borderShadingIncrement = 15;
+extern kernelWindowVariables *windowVariables;
 
 
 static int getGraphicBuffer(kernelWindowComponent *component)
@@ -41,7 +40,6 @@ static int getGraphicBuffer(kernelWindowComponent *component)
 
   int status = 0;
   kernelWindowMenu *menu = NULL;
-  kernelWindowContainer *container = NULL;
 
   if (component->type != menuComponentType)
     {
@@ -50,7 +48,6 @@ static int getGraphicBuffer(kernelWindowComponent *component)
     }
 
   menu = component->data;
-  container = menu->container->data;
 
   // Free any existing buffer
   if (menu->buffer.data)
@@ -71,8 +68,9 @@ static int getGraphicBuffer(kernelWindowComponent *component)
 	return (status = ERR_MEMORY);
     }
 
-  if (container->containerSetBuffer)
-    container->containerSetBuffer(menu->container, &(menu->buffer));
+  if (component->setBuffer)
+    component->setBuffer(component, &(menu->buffer));
+  component->buffer = &(menu->buffer);
 
   return (status = 0);
 }
@@ -99,10 +97,126 @@ static int findSelected(kernelWindowMenu *menu)
 }
 
 
+static int numComps(kernelWindowComponent *component)
+{
+  int numItems = 0;
+  kernelWindowMenu *menu = component->data;
+
+  if (menu->container && menu->container->numComps)
+    // Count our container's components
+    numItems = menu->container->numComps(menu->container);
+
+  return (numItems);
+}
+
+
+static int flatten(kernelWindowComponent *component,
+		   kernelWindowComponent **array, int *numItems,
+		   unsigned flags)
+{
+  int status = 0;
+  kernelWindowMenu *menu = component->data;
+
+  if (menu->container && menu->container->flatten)
+    // Flatten our container
+    status = menu->container->flatten(menu->container, array, numItems, flags);
+
+  return (status);
+}
+
+
+static int setBuffer(kernelWindowComponent *component,
+		     kernelGraphicBuffer *buffer)
+{
+  // Set the graphics buffer for the component's subcomponents.
+
+  int status = 0;
+  kernelWindowMenu *menu = component->data;
+
+  if (menu->container && menu->container->setBuffer)
+    {
+      // Do our container
+      status = menu->container->setBuffer(menu->container, buffer);
+      menu->container->buffer = buffer;
+    }
+
+  return (status);
+}
+
+
+static int layout(kernelWindowComponent *component)
+{
+  // Do layout for the menu.
+
+  int status = 0;
+  kernelWindowMenu *menu = component->data;
+  kernelWindowContainer *container = menu->container->data;
+  kernelWindowComponent *itemComponent = NULL;
+  int xCoord = 0;
+  int yCoord = 0;
+  int count;
+
+  kernelDebug(debug_gui, "Menu layout for \"%s\"", container->name);
+
+  component->width = 0;
+  component->height = 0;
+
+  // Set the parameters of all the menu items
+  for (count = 0; count < container->numComponents; count ++)
+    {
+      itemComponent = container->components[count];
+
+      // Make sure it's a menu item
+      if (itemComponent->type != listItemComponentType)
+	{
+	  kernelError(kernel_error, "Menu component is not a menu item!");
+	  return (status = ERR_INVALID);
+	}
+
+      xCoord = windowVariables->border.thickness;
+      if (count == 0)
+	yCoord = windowVariables->border.thickness;
+      else
+	yCoord = (container->components[count - 1]->yCoord +
+		  container->components[count - 1]->height);
+
+      if (itemComponent->move)
+	itemComponent->move(itemComponent, xCoord, yCoord);
+
+      itemComponent->xCoord = xCoord;
+      itemComponent->yCoord = yCoord;
+
+      if (component->width < itemComponent->width)
+	component->width = itemComponent->width;
+      component->height += itemComponent->height;
+    }
+
+  if (container->numComponents)
+    {
+      component->width += (windowVariables->border.thickness * 2);
+      component->height += (windowVariables->border.thickness * 2);
+    }
+
+  component->minWidth = component->width;
+  component->minHeight = component->height;
+
+  // Get a new graphic buffer
+  status = getGraphicBuffer(component);
+  if (status < 0)
+    return (status);
+
+  // Set the flag to indicate layout complete
+  component->doneLayout = 1;
+
+  return (status = 0);
+}
+
+
 static int draw(kernelWindowComponent *component)
 {
   kernelWindowMenu *menu = component->data;
   kernelWindowContainer *container = menu->container->data;
+  int borderThickness = windowVariables->border.thickness;
   int selected = 0;
   int count;
 
@@ -121,7 +235,7 @@ static int draw(kernelWindowComponent *component)
 
       // Draw the background of the menu
       kernelGraphicDrawRect(component->buffer,
-			    (color *) &(component->parameters.background),
+			    (color *) &(component->params.background),
 			    draw_normal, borderThickness, borderThickness,
 			    (component->width - (borderThickness * 2)),
 			    (component->height - (borderThickness * 2)), 1, 1);
@@ -129,8 +243,8 @@ static int draw(kernelWindowComponent *component)
       kernelGraphicDrawGradientBorder(component->buffer, 0, 0,
 				      component->width, component->height,
 				      borderThickness, (color *)
-				      &(component->parameters.background),
-				      borderShadingIncrement,
+				      &(component->params.background),
+				      windowVariables->border.shadingIncrement,
 				      draw_normal, border_all);
 
       // Draw all the menu items
@@ -278,80 +392,6 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 }
 
 
-static int containerLayout(kernelWindowComponent *containerComponent)
-{
-  // Do layout for the menu.
-
-  int status = 0;
-  kernelWindowComponent *menuComponent = containerComponent->container;
-  kernelWindowContainer *container = containerComponent->data;
-  kernelWindowComponent *itemComponent = NULL;
-  int xCoord = 0;
-  int yCoord = 0;
-  int count;
-
-  if (containerComponent->type != containerComponentType)
-    {
-      kernelError(kernel_error, "Component to layout is not a container");
-      return (status = ERR_INVALID);
-    }
-
-  kernelDebug(debug_gui, "menu layout for \"%s\"", container->name);
-
-  menuComponent->width = 0;
-  menuComponent->height = 0;
-
-  // Set the parameters of all the menu items
-  for (count = 0; count < container->numComponents; count ++)
-    {
-      itemComponent = container->components[count];
-
-      // Make sure it's a menu item
-      if (itemComponent->type != listItemComponentType)
-	{
-	  kernelError(kernel_error, "Menu component is not a menu item!");
-	  return (status = ERR_INVALID);
-	}
-
-      xCoord = borderThickness;
-      if (count == 0)
-	yCoord = borderThickness;
-      else
-	yCoord = (container->components[count - 1]->yCoord +
-		  container->components[count - 1]->height);
-
-      if (itemComponent->move)
-	itemComponent->move(itemComponent, xCoord, yCoord);
-
-      itemComponent->xCoord = xCoord;
-      itemComponent->yCoord = yCoord;
-
-      if (menuComponent->width < itemComponent->width)
-	menuComponent->width = itemComponent->width;
-      menuComponent->height += itemComponent->height;
-    }
-
-  if (container->numComponents)
-    {
-      menuComponent->width += (borderThickness * 2);
-      menuComponent->height += (borderThickness * 2);
-    }
-
-  menuComponent->minWidth = menuComponent->width;
-  menuComponent->minHeight = menuComponent->height;
-
-  // Get a new graphic buffer
-  status = getGraphicBuffer(menuComponent);
-  if (status < 0)
-    return (status);
-
-  // Set the flag to indicate layout complete
-  container->doneLayout = 1;
-
-  return (status = 0);
-}
-
-
 static int destroy(kernelWindowComponent *component)
 {
   kernelWindowMenu *menu = component->data;
@@ -391,7 +431,6 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
 
   kernelWindowComponent *component = NULL;
   kernelWindowMenu *menu = NULL;
-  kernelWindowContainer *container = NULL;
   int count;
 
   // Check parameters.  It's okay for 'contents' to be NULL.
@@ -419,6 +458,10 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
   component->buffer = &(menu->buffer);
   component->data = (void *) menu;
 
+  component->numComps = &numComps;
+  component->flatten = &flatten;
+  component->layout = &layout;
+  component->setBuffer = &setBuffer;
   component->draw = &draw;
   component->erase = &erase;
   component->focus = &focus;
@@ -437,27 +480,7 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
     }
 
   // Remove the container from the parent container
-  if (((kernelWindow *) parent)->type == windowType)
-    {
-      kernelWindow *tmpWindow = getWindow(parent);
-      kernelWindowContainer *tmpContainer = tmpWindow->mainContainer->data;
-      tmpContainer->containerRemove(tmpWindow->mainContainer, menu->container);
-    }
-  else
-    {
-      kernelWindowComponent *tmpComponent = parent;
-      kernelWindowContainer *tmpContainer = tmpComponent->data;
-      tmpContainer->containerRemove(tmpComponent, menu->container);
-    }
-
-  // This is a hack, since a menu component is not a container, but we
-  // need the container component to contain a reference to its menu
-  menu->container->container = component;
-
-  container = menu->container->data;
-
-  // Override the container's 'layout' function
-  container->containerLayout = &containerLayout;
+  removeFromContainer(menu->container);
 
   if (contents)
     {
@@ -475,9 +498,6 @@ kernelWindowComponent *kernelWindowNewMenu(objectKey parent, const char *name,
 	      return (component = NULL);
 	    }
 	}
-
-      // Do the layout
-      containerLayout(menu->container);
     }
 
   return (component);

@@ -49,7 +49,7 @@ int fprintf(FILE *theStream, const char *format, ...)
     }
 
   // Fill out the output line
-  outputLen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 

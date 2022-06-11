@@ -44,7 +44,7 @@ int vfprintf(FILE *theStream, const char *format, va_list list)
     }
 
   // Fill out the output line
-  outputLen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   if (outputLen < 0)
     return (0);

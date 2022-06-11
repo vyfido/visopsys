@@ -33,12 +33,100 @@
 #include "kernelPciDriver.h"
 #include "kernelProcessorX86.h"
 #include "kernelSysTimer.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef USBUHCI_DEBUG
+#ifdef DEBUG
 
-static void debugDeviceDesc(usbDeviceDesc *deviceDesc)
+static inline void debugUhciRegs(usbRootHub *usb)
+{
+  unsigned short cmd = 0;
+  unsigned short stat = 0;
+  unsigned short intr = 0;
+  unsigned short frnum = 0;
+  unsigned flbase = 0;
+  unsigned char sof = 0;
+  unsigned short portsc1 = 0;
+  unsigned short portsc2 = 0;
+
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_CMD), cmd);
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_STAT), stat);
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_INTR), intr);
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_FRNUM), frnum);
+  kernelProcessorInPort32((usb->ioAddress + USBUHCI_PORTOFFSET_FLBASE),
+			  flbase);
+  kernelProcessorInPort8((usb->ioAddress + USBUHCI_PORTOFFSET_SOF), sof);
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_PORTSC1),
+			  portsc1);
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_PORTSC2),
+			  portsc2);
+
+  kernelDebug(debug_usb, "Debug UHCI registers:\n"
+	      "    cmd=%04x\n"
+	      "    stat=%04x\n"
+	      "    intr=%04x\n"
+	      "    frnum=%04x\n"
+	      "    flbase=%08x\n"
+	      "    sof=%02x\n"
+	      "    portsc1=%04x\n"
+	      "    portsc2=%04x\n", cmd, stat, intr, frnum, flbase, sof,
+	      portsc1, portsc2);
+}
+
+
+static inline void debugDeviceReq(usbDeviceRequest *req)
+{
+    kernelDebug(debug_usb, "Debug device request:\n"
+		"    requestType=%02x\n"
+		"    request=%02x\n"
+		"    value=%04x\n"
+		"    index=%04x\n"
+		"    length=%04x", req->requestType, req->request, req->value,
+		req->index, req->length);
+}
+
+
+static inline void debugTransDesc(usbUhciTransDesc *desc)
+{
+    kernelDebug(debug_usb, "Debug transfer descriptor:\n"
+		"    linkPointer=%08x\n"
+		"    contStatus=%08x\n"
+		"        spd=%d\n"
+		"        errcount=%d\n"
+		"        lowspeed=%d\n"
+		"        isochronous=%d\n"
+		"        interrupt=%d\n"
+		"        status=%02x\n"
+		"        actlen=%d (%03x)\n"
+		"    tdToken=%08x\n"
+		"        maxlen=%d (%03x)\n"
+		"        datatoggle=%d\n"
+		"        endpoint=%d\n"
+		"        address=%d\n"
+		"        pid=%02x\n"
+		"    buffer=%08x", desc->linkPointer, desc->contStatus,
+		((desc->contStatus & USBUHCI_TDCONTSTAT_SPD) >> 29),
+		((desc->contStatus & USBUHCI_TDCONTSTAT_ERRCNT) >> 27),
+		((desc->contStatus & USBUHCI_TDCONTSTAT_LSPEED) >> 26),
+		((desc->contStatus & USBUHCI_TDCONTSTAT_ISOC) >> 25),
+		((desc->contStatus & USBUHCI_TDCONTSTAT_INTR) >> 24),
+		((desc->contStatus & USBUHCI_TDCONTSTAT_STATUS) >> 16),
+		(desc->contStatus & USBUHCI_TDCONTSTAT_ACTLEN),
+		(desc->contStatus & USBUHCI_TDCONTSTAT_ACTLEN),
+		desc->tdToken,
+		((desc->tdToken & USBUHCI_TDTOKEN_MAXLEN) >> 21),
+		((desc->tdToken & USBUHCI_TDTOKEN_MAXLEN) >> 21),
+		((desc->tdToken & USBUHCI_TDTOKEN_DATATOGGLE) >> 19),
+		((desc->tdToken & USBUHCI_TDTOKEN_ENDPOINT) >> 15),
+		((desc->tdToken & USBUHCI_TDTOKEN_ADDRESS) >> 8),
+		(desc->tdToken & USBUHCI_TDTOKEN_PID),
+		(unsigned) desc->buffer);
+}
+
+
+static inline void debugDeviceDesc(usbDeviceDesc *deviceDesc
+				   __attribute__((unused)))
 {
   kernelDebug(debug_usb, "Debug device descriptor:\n"
 	      "    descLength=%d\n"
@@ -67,7 +155,8 @@ static void debugDeviceDesc(usbDeviceDesc *deviceDesc)
 }
 
 
-static void debugDevQualDesc(usbDevQualDesc *devQualDesc)
+static inline void debugDevQualDesc(usbDevQualDesc *devQualDesc
+				    __attribute__((unused)))
 {
   kernelDebug(debug_usb, "Debug device qualifier descriptor:\n"
 	      "    descLength=%d\n"
@@ -85,7 +174,8 @@ static void debugDevQualDesc(usbDevQualDesc *devQualDesc)
 }
 
 
-static void debugConfigDesc(usbConfigDesc *configDesc)
+static inline void debugConfigDesc(usbConfigDesc *configDesc
+				   __attribute__((unused)))
 {
   kernelDebug(debug_usb, "Debug config descriptor:\n"
 	      "    descLength=%d\n"
@@ -102,7 +192,8 @@ static void debugConfigDesc(usbConfigDesc *configDesc)
 }
 
 
-static void debugInterDesc(usbInterDesc *interDesc)
+static inline void debugInterDesc(usbInterDesc *interDesc
+				  __attribute__((unused)))
 {
   kernelDebug(debug_usb, "Debug inter descriptor:\n"
 	      "    descLength=%d\n"
@@ -121,7 +212,8 @@ static void debugInterDesc(usbInterDesc *interDesc)
 }
 
 
-static void debugEndpointDesc(usbEndpointDesc *endpointDesc)
+static inline void debugEndpointDesc(usbEndpointDesc *endpointDesc
+				     __attribute__((unused)))
 {
   kernelDebug(debug_usb, "Debug endpoint descriptor:\n"
 	      "    descLength=%d\n"
@@ -135,9 +227,14 @@ static void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 	      endpointDesc->interval);
 }
 
+// Since the kernelDebug() API doesn't have debugging levels, this will
+// just output warning messages when DEBUG is defined.
 #define debugError(message, arg...) kernelError(kernel_warn, message, ##arg)
 
 #else
+  #define debugUhciRegs(usb) do { } while (0)
+  #define debugDeviceReq(req) do { } while (0)
+  #define debugTransDesc(desc) do { } while (0)
   #define debugDeviceDesc(desc) do { } while (0)
   #define debugDevQualDesc(desc) do { } while (0)
   #define debugConfigDesc(desc) do { } while (0)
@@ -147,32 +244,37 @@ static void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 #endif
 
 
-static inline unsigned short readCommand(usbRootHub *usb)
+static inline unsigned char readCommand(usbRootHub *usb)
 {
   unsigned short command = 0;
   kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_CMD), command);
-  return (command & 0xFF);
+  return ((unsigned char)(command & 0xFF));
 }
 
 
-static inline void writeCommand(usbRootHub *usb, unsigned short command)
+static inline void writeCommand(usbRootHub *usb, unsigned char command)
 {
-  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_CMD), command);
+  unsigned short tmp = 0;
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_CMD), tmp);
+  tmp = ((tmp & 0xFF00) | command);
+  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_CMD), tmp);
 }
 
 
-static inline unsigned short readStatus(usbRootHub *usb)
+static inline unsigned char readStatus(usbRootHub *usb)
 {
   unsigned short status = 0;
   kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_STAT), status);
-  return (status & 0x3F);
+  return ((unsigned char)(status & 0x3F));
 }
 
 
-static inline void writeStatus(usbRootHub *usb, unsigned short status)
+static inline void writeStatus(usbRootHub *usb, unsigned char status)
 {
-  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_STAT),
-			   (status & 0x1F));
+  unsigned short tmp = 0;
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_STAT), tmp);
+  tmp |= (status & 0x3F);
+  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_STAT), tmp);
 }
 
 
@@ -186,7 +288,10 @@ static inline unsigned short readFrameNum(usbRootHub *usb)
 
 static inline void writeFrameNum(usbRootHub *usb, unsigned short num)
 {
-  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_FRNUM), num);
+  unsigned short tmp = 0;
+  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_FRNUM), tmp);
+  tmp = ((tmp & 0xF800) | (num & 0x7FF));
+  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_FRNUM), tmp);
 }
 
 
@@ -194,8 +299,10 @@ static void startStop(usbRootHub *usb, int start)
 {
   // Start the USB controller
 
-  int status = 0;
-  unsigned short command = 0;
+  unsigned char command = 0;
+  unsigned char status = 0;
+
+  //kernelDebug(debug_usb, "%s controller", (start? "Start" : "Stop"));
 
   command = readCommand(usb);
 
@@ -220,166 +327,222 @@ static void startStop(usbRootHub *usb, int start)
       while (!(status & USBUHCI_STAT_HCHALTED))
 	status = readStatus(usb);
     }
+
+  // Clear the status register
+  writeStatus(usb, status);
 }
 
 
-static void delay(void)
+static void delay(usbRootHub *usb, int delayMs)
 {
-  unsigned tm = 0;
-  tm = kernelSysTimerRead();
-  while (kernelSysTimerRead() < (tm + 2));
+  unsigned timeOut = 0;
+  int elapsedMs = 0;
+  unsigned short frameNum = 0;
+
+  kernelDebug(debug_usb, "Delay %d ms", delayMs);
+
+  // To make sure we delay at *least* the requested time
+  delayMs += 1;
+
+  // To make sure we don't get hung up here.  This ensures sure we don't wait
+  // more than a full second longer than we're supposed to.
+  timeOut = (kernelSysTimerRead() + (((delayMs / 1000) + 1) * 20));
+
+  while (1)
+    {
+      frameNum = readFrameNum(usb);
+      //kernelDebug(debug_usb, "frameNum %d", frameNum);
+      while (readFrameNum(usb) == frameNum)
+	{
+	  // Make sure the controller is running
+	  if (readStatus(usb) & USBUHCI_STAT_HCHALTED)
+	    {
+	      debugError("Can't delay() while controller is halted");
+	      return;
+	    }
+
+	  if (kernelSysTimerRead() >= timeOut)
+	    {
+	      debugError("System timer timeout");
+	      return;
+	    }
+	}
+
+      elapsedMs += 1;
+
+      if (elapsedMs >= delayMs)
+	break;
+    }
 }
 
 
-static int reset(usbRootHub *usb)
+static void reset(usbRootHub *usb)
 {
   // Do complete USB reset
 
-  int status = 0;
-  unsigned short command = 0;
+  unsigned char command = 0;
+
+  // Stop the controller
+  startStop(usb, 0);
 
   // Set global reset
   command = readCommand(usb);
   command |= USBUHCI_CMD_GRESET;
   writeCommand(usb, command);
 
-  // Delay
-  delay();
+  // Delay.  Can't use the delay() function whilst the controller is stopped.
+  kernelDebug(debug_usb, "Delay for global reset");
+  kernelSysTimerWaitTicks(2);
 
   // Clear global reset
   command = readCommand(usb);
   command &= ~USBUHCI_CMD_GRESET;
   writeCommand(usb, command);
 
-  return (status = 0);
+  // Clear the lock
+  kernelMemClear((void *) &(usb->lock), sizeof(lock));
+
+  kernelDebug(debug_usb, "UHCI controller reset");
+  return;
 }
 
 
-static void portReset(usbRootHub *usb, int num)
+static inline unsigned short readPortStatus(usbRootHub *usb, int num)
 {
   unsigned portOffset = 0;
-  unsigned short command = 0;
+  unsigned short status = 0;
 
   if (num == 0)
     portOffset = USBUHCI_PORTOFFSET_PORTSC1;
   else if (num == 1)
     portOffset = USBUHCI_PORTOFFSET_PORTSC2;
   else
-    // Illegal
+    return (status = 0);
+
+  kernelProcessorInPort16((usb->ioAddress + portOffset), status);
+
+  // Mask off meaningless bits
+  status &= 0x137F;
+  return (status);
+}
+
+
+static inline void writePortStatus(usbRootHub *usb, int num,
+				   unsigned short status)
+{
+  unsigned portOffset = 0;
+
+  if (num == 0)
+    portOffset = USBUHCI_PORTOFFSET_PORTSC1;
+  else if (num == 1)
+    portOffset = USBUHCI_PORTOFFSET_PORTSC2;
+  else
     return;
 
-  kernelProcessorInPort16((usb->ioAddress + portOffset), command);
-  command |= USBUHCI_PORT_RESET;
-  kernelProcessorOutPort16((usb->ioAddress + portOffset), command);
-  delay();
-  kernelProcessorInPort16((usb->ioAddress + portOffset), command);
-  command &= ~USBUHCI_PORT_RESET;
-  kernelProcessorOutPort16((usb->ioAddress + portOffset), command);
+  // Mask off meaningless and read-only bits
+  status &= 0x124E;
+
+  kernelProcessorOutPort16((usb->ioAddress + portOffset), status);
+  return;
+}
+
+
+#ifdef DEBUG
+static inline void printPortStatus(usbRootHub *usb)
+{
+  unsigned short port0status = 0;
+  unsigned short port1status = 0;
+  unsigned short frameNum = 0;
+  usbUhciData *uhciData __attribute__((unused)) = usb->data;
+
+  port0status = readPortStatus(usb, 0);
+  port1status = readPortStatus(usb, 1);
+  frameNum = readFrameNum(usb);
+
+  kernelDebug(debug_usb, "Port 0: %04x  port 1: %04x frnum %d=%x",
+	      port0status, port1status, (frameNum & 0x3FF),
+	      uhciData->frameList[frameNum & 0x3FF]);
+}
+#else
+  #define printPortStatus(usb) do { } while (0)
+#endif
+
+
+static void portReset(usbRootHub *usb, int num)
+{
+  unsigned short status = 0;
+
+  // Set the reset bit
+  status = readPortStatus(usb, num);
+  status |= USBUHCI_PORT_RESET;
+  writePortStatus(usb, num, status);
+
+  // Delay for 50ms
+  kernelDebug(debug_usb, "Delay for port reset");
+  delay(usb, 50);
+
+  if (!(readPortStatus(usb, num) & USBUHCI_PORT_RESET))
+    {
+      kernelError(kernel_error, "Couldn't set port reset bit");
+      return;
+    }
+
+  // Clear the reset bit
+  status = readPortStatus(usb, num);
+  status &= ~USBUHCI_PORT_RESET;
+  writePortStatus(usb, num, status);
+
+  // Delay another 10ms
+  kernelDebug(debug_usb, "Delay for port un-reset");
+  delay(usb, 10);
+
+  if (readPortStatus(usb, num) & USBUHCI_PORT_RESET)
+    {
+      kernelError(kernel_error, "Couldn't clear port reset bit");
+      return;
+    }
+
+  return;
 }
 
 
 static void portEnable(usbRootHub *usb, int num, int enable)
 {
-  unsigned portOffset = 0;
-  unsigned short command = 0;
+  unsigned short status = 0;
 
-  if (num == 0)
-    portOffset = USBUHCI_PORTOFFSET_PORTSC1;
-  else if (num == 1)
-    portOffset = USBUHCI_PORTOFFSET_PORTSC2;
-  else
-    // Illegal
-    return;
-
-  kernelProcessorInPort16((usb->ioAddress + portOffset), command);
-
+  // Set or clelear the enabled bit
+  status = readPortStatus(usb, num);
   if (enable)
-    command |= USBUHCI_PORT_ENABLED;
+    status |= USBUHCI_PORT_ENABLED;
   else
-    command &= ~USBUHCI_PORT_ENABLED;
+    status &= ~USBUHCI_PORT_ENABLED;
+  writePortStatus(usb, num, status);
 
-  kernelProcessorOutPort16((usb->ioAddress + portOffset), command);
-}
+  if (enable && !(readPortStatus(usb, num) & USBUHCI_PORT_ENABLED))
+    kernelError(kernel_error, "Couldn't enable port");
+  else if (!enable && (readPortStatus(usb, num) & USBUHCI_PORT_ENABLED))
+    kernelError(kernel_error, "Couldn't disable port");
 
-
-static void readPortStatus(usbRootHub *usb)
-{
-  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_PORTSC1),
-			  usb->portStatus[0]);
-  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_PORTSC2),
-			  usb->portStatus[1]);
   return;
 }
 
 
-static void writePortStatus(usbRootHub *usb, int num)
+static int allocTransDescs(unsigned numDescs, void **physical,
+			   usbUhciTransDesc **descs)
 {
-  unsigned portOffset = 0;
-
-  if (num == 0)
-    portOffset = USBUHCI_PORTOFFSET_PORTSC1;
-  else if (num == 1)
-    portOffset = USBUHCI_PORTOFFSET_PORTSC2;
-  else
-    return;
-
-  kernelProcessorOutPort16((usb->ioAddress + portOffset),
-			   usb->portStatus[num]);
-  return;
-}
-
-
-static int allocFrameList(usbRootHub *usb)
-{
-  // Allocate the USB frame list.  1024 32-bit values, so one page of memory,
-  // page-aligned.  We need to put the physical address into the register.
+  // Allocate an array of USB transfer descriptors, page-aligned.
 
   int status = 0;
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
+  unsigned memSize = 0; 
+  unsigned count;
 
-  uhciData->frameListPhysical =
-    kernelMemoryGetPhysical(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE,
-			    "usb frame list");
-  if ((uhciData->frameListPhysical == NULL) ||
-      ((unsigned) uhciData->frameListPhysical & 0x0FFF))
-    {
-      kernelError(kernel_error, "Unable to get USB frame list memory");
-      return (status = ERR_MEMORY);
-    }
+  memSize = (numDescs * sizeof(usbUhciTransDesc));
 
-  // Map it to a virtual address
-  status =
-    kernelPageMapToFree(KERNELPROCID, uhciData->frameListPhysical,
-			(void **) &(uhciData->frameList), MEMORY_PAGE_SIZE);
-  if (status < 0)
-    {
-      kernelMemoryReleasePhysical(uhciData->frameListPhysical);
-      kernelError(kernel_error, "Unable to map USB frame list memory");
-      return (status);
-    }
+  // Use the 'get physical' call because it allows us to specify alignment.
+  *physical =
+    kernelMemoryGetPhysical(memSize, MEMORY_PAGE_SIZE, "usb xfer descriptors");
 
-  // Fill the list with 32-bit '1' values, indicating that all pointers
-  // are currently invalid
-  kernelProcessorWriteDwords(1, uhciData->frameList,
-			     (MEMORY_PAGE_SIZE / sizeof(unsigned)));
-
-  return (status = 0);
-}
-
-
-static int allocTransDescs(usbRootHub *usb)
-{
-  // Allocate an array of USB transfer descriptors.  One page worth,
-  // page-aligned.
-
-  int status = 0;
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
-
-  uhciData->transDescsPhysical =
-    kernelMemoryGetPhysical(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE,
-			    "usb xfer descriptors");
-  if ((uhciData->transDescsPhysical == NULL) ||
-      ((unsigned) uhciData->transDescsPhysical & 0x0F))
+  if ((*physical == NULL) || ((unsigned) *physical & 0x0F))
     {
       kernelError(kernel_error, "Unable to get USB transfer descriptor "
 		  "memory");
@@ -388,333 +551,364 @@ static int allocTransDescs(usbRootHub *usb)
 
   // Map it to a virtual address
   status =
-    kernelPageMapToFree(KERNELPROCID, uhciData->transDescsPhysical,
-			(void **) &(uhciData->transDescs), MEMORY_PAGE_SIZE);
+    kernelPageMapToFree(KERNELPROCID, *physical, (void **) descs, memSize);
   if (status < 0)
     {
-      kernelMemoryReleasePhysical(uhciData->transDescsPhysical);
       kernelError(kernel_error, "Unable to map USB transfer descriptor "
 		  "memory");
+      kernelMemoryReleasePhysical(*physical);
       return (status);
     }
 
   // Clear the memory, since the 'allocate physical' can't do it for us.
-  kernelMemClear((void *) uhciData->transDescs, MEMORY_PAGE_SIZE);
+  kernelMemClear((void *) *descs, memSize);
 
-  uhciData->numTransDescs = (MEMORY_PAGE_SIZE / sizeof(usbUhciTransDesc));
+  // Set all the link pointers invalid
+  for (count = 0; count < numDescs; count ++)
+    (*descs)[count].linkPointer = USBUHCI_LINKPTR_TERM;
 
   return (status = 0);
 }
 
 
-static int allocQueueHeads(usbRootHub *usb)
+static void deallocTransDescs(usbUhciTransDesc *descs, int numDescs)
 {
-  // Allocate an array of USB queue heads.  One page worth, page-aligned.
+  void *transDescsPhysical = NULL;
+  
+  transDescsPhysical =
+    (void *) kernelPageGetPhysical(KERNELPROCID, (void *) descs);
+  kernelPageUnmap(KERNELPROCID, (void *) descs,
+		  (numDescs * sizeof(usbUhciTransDesc)));
+  if (transDescsPhysical)
+    kernelMemoryReleasePhysical(transDescsPhysical);
+}
+
+
+static void deallocUhciMemory(usbRootHub *usb)
+{
+  usbUhciData *uhciData = usb->data;
+  void *queueHeadsPhysical = NULL;
+
+  if (uhciData)
+    {
+      if (uhciData->frameList)
+	kernelPageUnmap(KERNELPROCID, uhciData->frameList, MEMORY_PAGE_SIZE);
+
+      if (uhciData->frameListPhysical)
+	kernelMemoryReleasePhysical(uhciData->frameListPhysical);
+
+      if (uhciData->intrQueueHead)
+	{
+	  queueHeadsPhysical =
+	    kernelPageGetPhysical(KERNELPROCID,
+				  (void *) uhciData->intrQueueHead);
+	  kernelPageUnmap(KERNELPROCID, (void *) uhciData->intrQueueHead,
+			  USBUHCI_QUEUEHEADS_MEMSIZE);
+	  if (queueHeadsPhysical)
+	    kernelMemoryReleasePhysical(queueHeadsPhysical);
+	}
+
+      if (uhciData->termTransDesc)
+	deallocTransDescs(uhciData->termTransDesc, 1);
+
+      kernelFree(uhciData);
+      usb->data = NULL;
+    }
+}
+
+
+static int allocUhciMemory(usbRootHub *usb)
+{
+  // Allocate all of the memory bits specific to the the UHCI controller.
 
   int status = 0;
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
+  usbUhciData *uhciData = usb->data;
+  void *queueHeadsPhysical = NULL;
+  usbUhciQueueHead *queueHeads = NULL;
+  void *transDescPhysical = NULL;
   int count;
 
-  uhciData->queueHeadsPhysical =
-    kernelMemoryGetPhysical(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE,
-			    "usb queue heads");
-  if ((uhciData->queueHeadsPhysical == NULL) ||
-      ((unsigned) uhciData->queueHeadsPhysical & 0x0F))
+  // Allocate the UHCI hub's private data
+  usb->data = kernelMalloc(sizeof(usbUhciData));
+  if (usb->data == NULL)
+    return (status = ERR_MEMORY);
+
+  uhciData = usb->data;
+
+  // Allocate the USB frame list.  1024 32-bit values, so one page of memory,
+  // page-aligned.  We need to put the physical address into the register.
+
+  uhciData->frameListPhysical =
+    kernelMemoryGetPhysical((1024 * sizeof(unsigned)), MEMORY_PAGE_SIZE,
+			    "usb frame list");
+  if ((uhciData->frameListPhysical == NULL) ||
+      ((unsigned) uhciData->frameListPhysical & 0x0FFF))
     {
-      kernelError(kernel_error, "Unable to get USB queue heads memory");
-      return (status = ERR_MEMORY);
+      kernelError(kernel_error, "Unable to get USB frame list memory");
+      status = ERR_MEMORY;
+      goto err_out;
     }
 
   // Map it to a virtual address
   status =
-    kernelPageMapToFree(KERNELPROCID, uhciData->queueHeadsPhysical,
-			(void **) &(uhciData->queueHeads), MEMORY_PAGE_SIZE);
+    kernelPageMapToFree(KERNELPROCID, uhciData->frameListPhysical,
+			(void **) &(uhciData->frameList), MEMORY_PAGE_SIZE);
   if (status < 0)
     {
-      kernelMemoryReleasePhysical(uhciData->queueHeadsPhysical);
+      kernelError(kernel_error, "Unable to map USB frame list memory");
+      goto err_out;
+    }
+
+  // Fill the list with 32-bit 'term' (1) values, indicating that all pointers
+  // are currently invalid
+  kernelProcessorWriteDwords(USBUHCI_LINKPTR_TERM, uhciData->frameList,
+			     (MEMORY_PAGE_SIZE / sizeof(unsigned)));
+
+  // Allocate an array of USBUHCI_NUM_QUEUEHEADS queue heads, page-aligned.
+
+  queueHeadsPhysical =
+    kernelMemoryGetPhysical(USBUHCI_QUEUEHEADS_MEMSIZE, MEMORY_PAGE_SIZE,
+			    "usb queue heads");
+  if ((queueHeadsPhysical == NULL) || ((unsigned) queueHeadsPhysical & 0x0F))
+    {
+      kernelError(kernel_error, "Unable to get USB queue heads memory");
+      status = ERR_MEMORY;
+      goto err_out;
+    }
+
+  // Map it to a virtual address
+  status =
+    kernelPageMapToFree(KERNELPROCID, queueHeadsPhysical,
+			(void **) &queueHeads, USBUHCI_QUEUEHEADS_MEMSIZE);
+  if (status < 0)
+    {
       kernelError(kernel_error, "Unable to map USB queue heads memory");
-      return (status);
+      goto err_out;
     }
 
-  uhciData->numQueueHeads = (MEMORY_PAGE_SIZE / sizeof(usbUhciQueueHead));
-
-  // Set all the link pointers invalid
-  for (count = 0; count < uhciData->numQueueHeads; count ++)
+  // Set the link pointers invalid
+  for (count = 0; count < USBUHCI_NUM_QUEUEHEADS; count ++)
     {
-      uhciData->queueHeads[count].linkPointer = 1;
-      uhciData->queueHeads[count].element = 1;
+      queueHeads[count].linkPointer = USBUHCI_LINKPTR_TERM;
+      queueHeads[count].element = USBUHCI_LINKPTR_TERM;
     }
 
+  // Assign them
+  uhciData->intrQueueHead = &(queueHeads[0]);
+  uhciData->controlQueueHead = &(queueHeads[1]);
+  uhciData->bulkQueueHead = &(queueHeads[2]);
+  uhciData->termQueueHead = &(queueHeads[3]);
+
+  // Allocate a blank transfer descriptor to attach to the terminating queue
+  // head
+  status = allocTransDescs(1, &transDescPhysical, &(uhciData->termTransDesc));
+  if (status < 0)
+    goto err_out;
+
+  // Success
   return (status = 0);
+
+ err_out:
+  deallocUhciMemory(usb);
+  return (status);
 }
 
 
-static usbUhciTransDesc *getTransDesc(usbRootHub *usb, unsigned buffSize)
+static int runTransaction(usbRootHub *usb, usbUhciQueueHead *queueHead,
+			  usbUhciTransDesc *descs, unsigned numDescs)
 {
-  // Returns the virtual address of a new USB transfer descriptor, with the
-  // requested buffer space allocated.
-  
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
-  usbUhciTransDesc *desc = NULL;
-  int count;
-
-  // Loop through the transfer descriptors, looking for one with a NULL
-  // buffer
-  for (count = 0; count < uhciData->numTransDescs; count ++)
-    if (uhciData->transDescs[count].buffVirtAddr == NULL)
-      {
-	desc = &(uhciData->transDescs[count]);
-	break;
-      }
-
-  if (!desc)
-    return (desc = NULL);
-
-  if (buffSize)
-    {
-      desc->buffVirtAddr = kernelMalloc(buffSize);
-      if (desc->buffVirtAddr == NULL)
-	return (desc = NULL);
-
-      // Get the physical address of this memory
-      desc->buffer = kernelPageGetPhysical(KERNELPROCID, desc->buffVirtAddr);
-      if (desc->buffer == NULL)
-	{
-	  kernelFree(desc->buffVirtAddr);
-	  return (desc = NULL);
-	}
-
-      desc->buffSize = buffSize;
-    }
-
-  return (desc);
-}
-
-
-static void putTransDesc(usbUhciTransDesc *desc, int deallocBuff)
-{
-  // Release a transfer descriptor.
-
-  if (deallocBuff)
-    {
-      // First release the buffer memory
-      if (desc->buffVirtAddr)
-	kernelFree(desc->buffVirtAddr);
-    }
-
-  // Clear it
-  kernelMemClear((void *) desc, sizeof(usbUhciTransDesc));
-}
-
-
-static usbUhciQueueHead *getQueueHead(usbRootHub *usb)
-{
-  // Returns the virtual address of a new USB queue head.
-  
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
-  usbUhciQueueHead *queueHead = NULL;
-  int count;
-
-  // Loop through the queue heads, looking for one with an invalid element
-  // link pointer
-  for (count = 0; count < uhciData->numQueueHeads; count ++)
-    if (uhciData->queueHeads[count].element & 1)
-      {
-	queueHead = &(uhciData->queueHeads[count]);
-	break;
-      }
-
-  return (queueHead);
-}
-
-
-static inline void putQueueHead(usbUhciQueueHead *queueHead)
-{
-  // Release a queue head.
-
-  // Set the link pointers to be invalid
-  queueHead->linkPointer = 1;
-  queueHead->element = 1;
-}
-
-
-static int scheduleTransDesc(usbRootHub *usb, usbUhciTransDesc *desc,
-			     usbxferType type, int address, int endpoint,
-			     unsigned char pid, unsigned *bytes)
-{
-  // Schedule a transfer descriptor of arbitrary type and with arbitrary
-  // data.
+  // Given a list of transfer descriptors associated with a single transaction,
+  // queue them up on the controller.
 
   int status = 0;
   unsigned descPhysical = NULL;
-  usbUhciQueueHead *queueHead = NULL;
-  unsigned queueHeadPhysical = NULL;
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
-  unsigned short currFrameNum = 0;
-  unsigned short currFrameIndex = 0;
+  unsigned firstPhysical = NULL;
+  unsigned prevFirstActive = 0;
+  unsigned firstActive = 0;
   unsigned startTime = 0;
-  int timeOut = 0;
+  int active = 0;
+  int stalled = 0;
+  unsigned count;
 
-  // Get the physical address of the TD
-  descPhysical = (unsigned) kernelPageGetPhysical(KERNELPROCID, (void *) desc);
-  if (descPhysical == NULL)
-    return (status = ERR_MEMORY);
-  if (descPhysical & 0xF)
+  kernelDebug(debug_usb, "Run transaction with %d transfers", numDescs);
+
+  // Lock the controller
+  status = kernelLockGet(&(usb->lock));
+  if (status < 0)
     {
-      kernelError(kernel_error, "Xfer descriptor not 16-byte aligned");
-      return (status = ERR_ALIGN);
+      kernelError(kernel_error, "Can't get controller lock");
+      goto out;
     }
 
-  // Do we need a queue head?
-  if (type != usbxfer_isochronous)
+  // Process the transfer descriptors
+  for (count = 0; count < numDescs; count ++)
     {
-      queueHead = getQueueHead(usb);
-      if (queueHead == NULL)
-	return (status = ERR_NOFREE);
-
-      // Get the physical address of the queue head
-      queueHeadPhysical =
-	(unsigned) kernelPageGetPhysical(KERNELPROCID, (void *) queueHead);
-      if (queueHeadPhysical == NULL)
+      // Isochronous?
+      if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ISOC)
 	{
-	  putQueueHead(queueHead);
-	  return (status = ERR_MEMORY);
+	  kernelError(kernel_error, "Isochronous transfers not yet supported");
+	  status = ERR_NOTIMPLEMENTED;
+	  goto out;
 	}
-      if (queueHeadPhysical & 0xF)
+      else
 	{
-	  kernelError(kernel_error, "Queue head not 16-byte aligned");
-	  putQueueHead(queueHead);
-	  return (status = ERR_ALIGN);
-	}
+	  // Get the physical address of the TD
+	  descPhysical = (unsigned)
+	    kernelPageGetPhysical(KERNELPROCID, (void *) &(descs[count]));
+	  if (descPhysical == NULL)
+	    {
+	      kernelError(kernel_error, "Can't get xfer descriptor physical "
+			  "address");
+	      status = ERR_MEMORY;
+	      goto out;
+	    }
+	  if (descPhysical & 0xF)
+	    {
+	      kernelError(kernel_error, "Xfer descriptor not 16-byte aligned");
+	      status = ERR_ALIGN;
+	      goto out;
+	    }
 
-      // Blank the queue head's link pointer and set the 'terminate' bit
-      queueHead->linkPointer = 1;
-      queueHead->element = descPhysical;
-    }
-
-  // Set up the TD
-
-  // Blank the descriptor's link pointer and set the 'vertical' and
-  // 'terminate' bits
-  desc->linkPointer = 5;
-
-  // Initialize the 'control and status' field.  3 errors, no interrupt on
-  // complete, active
-  desc->contStatus = 0x18800000;
-  if (type == usbxfer_isochronous)
-    desc->contStatus |= 0x02000000;
-
-  // Set up the TD token field
-  if (desc->buffSize)
-    desc->tdToken = (((desc->buffSize - 1) & 0x07FF) << 21);
-  else
-    desc->tdToken = (0x07FF << 21);
-  desc->tdToken |= ((endpoint & 0xF) << 15);
-  desc->tdToken |= ((address & 0x7F) << 8);
-  desc->tdToken |= (pid & 0xFF);
-
-  // Now we look for a place in the schedule.
-
-  // Get the current frame counter value.  Start looking from the next one.
-  currFrameNum = readFrameNum(usb);
-
-  // Start looking in the next one
-  currFrameNum += 1;
-
-  while (1)
-    {
-      if (currFrameNum > 0x7FF)
-	currFrameNum = 0;
-
-      currFrameIndex = (currFrameNum & 0x3FF);
-
-      // Look for an 'invalid' one
-      if (uhciData->frameList[currFrameIndex] == 1)
-	{
-	  // Schedule it here.
-
-	  if (queueHead)
-	    uhciData->frameList[currFrameIndex] = (queueHeadPhysical | 0x02);
+	  if (count)
+	    // Attach this TD to the previous TD.
+	    descs[count - 1].linkPointer =
+	      (descPhysical | USBUHCI_TDLINK_DEPTHFIRST);
 	  else
-	    uhciData->frameList[currFrameIndex] = descPhysical;
+	    // Save the address because we'll attach it to the queue head in
+	    // a minute.
+	    firstPhysical = descPhysical;
 
-	  //kernelDebug(debug_usb, "Schedule TD in frame %d%s (current %d)",
-	  //      currFrameNum, (queueHead? " with queue head" : ""),
-	  //      readFrameNum(usb));
-	  break;
+	  // Blank the descriptor's link pointer and set the 'terminate' bit
+	  descs[count].linkPointer = USBUHCI_LINKPTR_TERM;
 	}
-
-      currFrameNum += 1;
     }
 
+  // Everything's queued up.  Attach the first TD to the queue head
+  queueHead->element = firstPhysical;
+
+  prevFirstActive = 0;
+  firstActive = 0;
   startTime = kernelSysTimerRead();
 
-  // Now wait while the TD is active
-  while (desc->contStatus & 0x00800000)
+  // Now wait while some TD is active, or until we detect an error
+  while (1)
     {
-      // Timeout?
-      if (kernelSysTimerRead() > (startTime + 100))
+      // See if there are still any active TDs, or if any have 'stalled'
+      // error status
+      active = 0;
+      stalled = 0;
+      for (count = 0; count < numDescs; count ++)
 	{
-	  timeOut = 1;
+	  if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ESTALL)
+	    {
+	      debugError("UHCI: transaction stalled");
+	      stalled = 1;
+	      break;
+	    }
+	  if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ACTIVE)
+	    {
+	      firstActive = count;
+	      active = 1;
+	      break;
+	    }
+	}
+
+      // If no more active, or errors, we're finished.
+      if (!active || stalled)
+	{
+	  if (stalled)
+	    status = ERR_IO;
+	  else
+	    status = 0;
 	  break;
 	}
 
-      // Skipped our frame?  If so, it takes way too long for it to come back
-      // around in the queue, so we reset the frame number to where we want
-      // it.
-      if (readFrameNum(usb) > currFrameNum)
+      // If the controller is moving through the queue, reset the timeout
+      if (firstActive > prevFirstActive)
 	{
-	  startStop(usb, 0);
-	  writeFrameNum(usb, currFrameNum);
-	  startStop(usb, 1);
+	  startTime = kernelSysTimerRead();
+	  prevFirstActive = firstActive;
 	}
-
+      else if (kernelSysTimerRead() > (startTime + 100))
+	{
+	  // Software timeout after ~5 seconds
+	  debugError("UHCI: Software timeout on TD %d", firstActive);
+	  status = ERR_NODATA;
+	  break;
+	}
+      
       kernelMultitaskerYield();
     }
 
-  if (bytes)
-    {
-      // Record the number of actual bytes
-      if ((desc->contStatus & 0x7FF) == 0x7FF)
-	*bytes = 0;
-      else
-	*bytes = ((desc->contStatus & 0x3FF) + 1);
-    }
+  // Unschedule by setting the terminate bit on the queue head element pointer
+  queueHead->element = USBUHCI_LINKPTR_TERM;
 
-  // Error conditions?
-  if (timeOut || (desc->contStatus & 0x007E0000))
-    {
-      if (desc->contStatus & 0x00400000)
-	debugError("USB: transaction stalled");
-      if (desc->contStatus & 0x00200000)
-	debugError("USB: transaction data buffer error");
-      if (desc->contStatus & 0x00100000)
-	debugError("USB: transaction babble");
-      if (desc->contStatus & 0x00080000)
-	debugError("USB: transaction NAK");
-      if (desc->contStatus & 0x00040000)
-	debugError("USB: transaction CRC/timeout");
-      if (desc->contStatus & 0x00020000)
-	debugError("USB: transaction bitstuff error");
-      if (bytes && ((((desc->tdToken >> 21) & 0x07FF) + 1) != *bytes))
-	debugError("USB: transaction max=%d != actual=%d)",
-		   (((desc->tdToken >> 21) & 0x07FF) + 1), *bytes);
-      if (desc->contStatus & 0x00800000)
-	debugError("USB: TD is still active");
-      if (timeOut)
-	debugError("USB: Request timed out");
-      status = ERR_IO;
-    }
-  else
-    status = 0;
+ out:
 
-  // Unschedule
-  uhciData->frameList[currFrameIndex] = 1;
+  // Clear the status register
+  writeStatus(usb, readStatus(usb));
 
-  if (queueHead)
-    putQueueHead(queueHead);
-
+  kernelLockRelease(&(usb->lock));
   return (status);
+}
+
+
+static int setupTransDesc(usbUhciTransDesc *desc, usbxferType type,
+			  int address, int endpoint, char dataToggle,
+			  unsigned char pid)
+{
+  // Do the nuts-n-bolts setup for a transfer descriptor
+
+  int status = 0;
+  const char *pidString = NULL;
+
+  // Blank the descriptor's link pointer and set the 'terminate' bit
+  desc->linkPointer = USBUHCI_LINKPTR_TERM;
+
+  // Initialize the 'control and status' field.  Short packet detect, 3 error
+  // retries, active, no interrupt on complete,
+  // active
+  desc->contStatus = (USBUHCI_TDCONTSTAT_SPD | USBUHCI_TDCONTSTAT_ERRCNT |
+		      USBUHCI_TDCONTSTAT_ACTIVE);
+  if (type == usbxfer_isochronous)
+    desc->contStatus |= USBUHCI_TDCONTSTAT_ISOC;
+
+  // Set up the TD token field
+
+  // First the data size
+  if (desc->buffSize)
+    desc->tdToken = (((desc->buffSize - 1) << 21) & USBUHCI_TDTOKEN_MAXLEN);
+  else
+    desc->tdToken = (USBUHCI_TD_NULLDATA << 21);
+
+  if (type != usbxfer_isochronous)
+    // The data toggle
+    desc->tdToken |= ((dataToggle << 19) & USBUHCI_TDTOKEN_DATATOGGLE);
+
+  // The endpoint
+  desc->tdToken |= ((endpoint << 15) & USBUHCI_TDTOKEN_ENDPOINT);
+  // The address
+  desc->tdToken |= ((address << 8) & USBUHCI_TDTOKEN_ADDRESS);
+  // The packet identification
+  desc->tdToken |= (pid & USBUHCI_TDTOKEN_PID);
+
+  if (pid == USB_PID_SETUP)
+    pidString = "SETUP for";
+  else if (pid == USB_PID_IN)
+    pidString = "IN from";
+  else if (pid == USB_PID_OUT)
+    pidString = "OUT to";
+  else
+    {
+      kernelError(kernel_error, "PID type %02x is unknown", pid);
+      return (status = ERR_INVALID);
+    }
+
+  kernelDebug(debug_usb, "Setup transfer %s address %d:%d, %d bytes, "
+   	      "dataToggle %d", pidString, address, endpoint, desc->buffSize,
+   	      dataToggle);
+
+  return (status = 0);
 }
 
 
@@ -737,38 +931,133 @@ static usbEndpointDesc *getEndpointDesc(usbDevice *dev,
 }
 
 
+static int allocTransDescBuffer(usbUhciTransDesc *desc, unsigned buffSize)
+{
+  // Allocate a data buffer for a transfer descriptor.
+
+  int status = 0;
+
+  desc->buffVirtAddr = kernelMalloc(buffSize);
+  if (desc->buffVirtAddr == NULL)
+    {
+      debugError("Can't alloc trans desc buffer size %u", buffSize);
+      return (status = ERR_MEMORY);
+    }
+
+  // Get the physical address of this memory
+  desc->buffer = kernelPageGetPhysical(KERNELPROCID, desc->buffVirtAddr);
+  if (desc->buffer == NULL)
+    {
+      debugError("Can't get buffer physical address");
+      kernelFree(desc->buffVirtAddr);
+      return (status = ERR_MEMORY);
+    }
+
+  desc->buffSize = buffSize;
+  return (status = 0);
+}
+
+
 static int transaction(usbRootHub *usb, usbDevice *dev, usbTransaction *trans)
 {
   // This function contains the intelligence necessary to initiate a
   // transaction (all phases)
 
   int status = 0;
-  usbUhciTransDesc *setupDesc = NULL;
-  usbUhciTransDesc *dataDesc = NULL;
-  usbUhciTransDesc *statusDesc = NULL;
-  usbDeviceRequest *req = NULL;
-  int setupPhase = 0;
-  int setupData = 0;
-  int statusPhase = 0;
-  unsigned short bytesToTransfer = 0;
-  unsigned short bytesPerTransfer = 0;
   usbEndpointDesc *endpoint = NULL;
+  unsigned bytesPerTransfer = 0;
+  unsigned numDescs = 0;
+  void *descsPhysical = NULL;
+  usbUhciTransDesc *descs = NULL;
+  usbUhciData *uhciData = usb->data;
+  usbUhciQueueHead *queueHead = NULL;
+  usbUhciTransDesc *setupDesc = NULL;
+  usbDeviceRequest *req = NULL;
+  const char *opString = NULL;
+  usbUhciTransDesc *dataDesc = NULL;
+  unsigned bytesToTransfer = 0;
+  char dataToggle = 0;
+  usbUhciTransDesc *statusDesc = NULL;
   void *buffer = NULL;
+  const char *transString = NULL;
+  char *errorText = NULL;
+  unsigned count;
+
+  // Figure out how many transfer descriptors we're going to need for the whole
+  // transaction
+
+  if (trans->type == usbxfer_control)
+    // At least one each for setup and status
+    numDescs += 2;
+
+  if (trans->length)
+    {
+      // Figure out the maximum number of bytes per transfer, depending on
+      // the endpoint we're addressing.
+      if (trans->endpoint == 0)
+	bytesPerTransfer = dev->deviceDesc.maxPacketSize0;
+      else
+	{
+	  endpoint = getEndpointDesc(dev, trans->endpoint);
+	  if (endpoint == NULL)
+	    {
+	      kernelError(kernel_error, "No such endpoint %d",
+			  trans->endpoint);
+	      status = ERR_NOSUCHFUNCTION;
+	      goto out;
+	    }
+
+	  bytesPerTransfer = endpoint->maxPacketSize;
+	}
+
+      // If we haven't yet got the descriptors, etc., 8 is the minimum size
+      if (bytesPerTransfer < 8)
+	{
+	  kernelDebug(debug_usb, "Using minium endpoint transfer size 8 "
+		      "instead of %d for endpoint %d", bytesPerTransfer,
+		      trans->endpoint);
+	  bytesPerTransfer = 8;
+	}
+      else
+	kernelDebug(debug_usb, "Max bytes per transfer for endpoint %d: %d",
+		    trans->endpoint, bytesPerTransfer);
+
+      numDescs += ((trans->length / bytesPerTransfer) +
+		   ((trans->length % bytesPerTransfer)? 1 : 0));
+
+      // If this is an outbound interrupt or bulk transfer, and the bytes
+      // to transfer is a multiple of bytesPerTransfer, we need one more.
+      if ((trans->pid == USB_PID_OUT) &&
+	  ((trans->type == usbxfer_interrupt) ||
+	   (trans->type == usbxfer_bulk)) &&
+	  !(trans->length % bytesPerTransfer))
+	numDescs += 1;
+    }
+
+  // Get memory for the transfer descriptors
+  kernelDebug(debug_usb, "Transaction requires %d transfers", numDescs);
+  status = allocTransDescs(numDescs, &descsPhysical, &descs);
+  if (status < 0)
+    goto out;
+  numDescs = 0;
 
   if (trans->type == usbxfer_control)
     {
+      // Use the control queue head
+      queueHead = uhciData->controlQueueHead;
+
       // Get the transfer descriptor for the setup phase
-      setupDesc = getTransDesc(usb, sizeof(usbDeviceRequest));
-      if (setupDesc == NULL)
-	return (status = ERR_NOFREE);
-      setupPhase = 1;
-      setupData = 1;
-      statusPhase = 1;
+      setupDesc = &(descs[numDescs++]);
 
       // By default it's an OUT transaction
       trans->pid = USB_PID_OUT;
 
       // Begin setting up the device request
+
+      // Get a buffer for the device request memory
+      status = allocTransDescBuffer(setupDesc, sizeof(usbDeviceRequest));
+      if (status < 0)
+	goto out;
       req = setupDesc->buffVirtAddr;
 
       req->requestType = trans->control.requestType;
@@ -787,7 +1076,7 @@ static int transaction(usbRootHub *usb, usbDevice *dev, usbTransaction *trans)
 
       if (req->requestType & (USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_VENDOR))
 	// The request is class- or vendor-specific
-	kernelDebug(debug_usb, "Do class/vendor-specific control transfer");
+	opString = "class/vendor-specific control transfer";
 
       else
 	{
@@ -796,181 +1085,254 @@ static int transaction(usbRootHub *usb, usbDevice *dev, usbTransaction *trans)
 	  switch (trans->control.request)
 	    {
 	    case USB_GET_STATUS:
-	      kernelDebug(debug_usb, "Do USB_GET_STATUS");
+	      opString = "USB_GET_STATUS";
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_CLEAR_FEATURE:
-	      kernelDebug(debug_usb, "Do USB_CLEAR_FEATURE");
+	      opString = "USB_CLEAR_FEATURE";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_SET_FEATURE:
-	      kernelDebug(debug_usb, "Do USB_SET_FEATURE");
+	      opString = "USB_SET_FEATURE";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_SET_ADDRESS:
-	      kernelDebug(debug_usb, "Do USB_SET_ADDRESS");
+	      opString = "USB_SET_ADDRESS";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_GET_DESCRIPTOR:
-	      kernelDebug(debug_usb, "Do USB_GET_DESCRIPTOR");
+	      opString = "USB_GET_DESCRIPTOR";
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_SET_DESCRIPTOR:
-	      kernelDebug(debug_usb, "Do USB_SET_DESCRIPTOR");
+	      opString = "USB_SET_DESCRIPTOR";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_GET_CONFIGURATION:
-	      kernelDebug(debug_usb, "Do USB_GET_CONFIGURATION");
+	      opString = "USB_GET_CONFIGURATION";
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_SET_CONFIGURATION:
-	      kernelDebug(debug_usb, "Do USB_SET_CONFIGURATION");
+	      opString = "USB_SET_CONFIGURATION";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_GET_INTERFACE:
-	      kernelDebug(debug_usb, "Do USB_GET_INTERFACE");
+	      opString = "USB_GET_INTERFACE";
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_SET_INTERFACE:
-	      kernelDebug(debug_usb, "Do USB_SET_INTERFACE");
+	      opString = "USB_SET_INTERFACE";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    case USB_SYNCH_FRAME:
-	      kernelDebug(debug_usb, "Do USB_SYNCH_FRAME");
+	      opString = "USB_SYNCH_FRAME";
 	      req->requestType |= USB_DEVREQTYPE_DEV2HOST;
 	      trans->pid = USB_PID_IN;
 	      break;
 	    case USB_MASSSTORAGE_RESET:
-	      kernelDebug(debug_usb, "Do USB_MASSSTORAGE_RESET");
+	      opString = "USB_MASSSTORAGE_RESET";
 	      req->requestType |= USB_DEVREQTYPE_HOST2DEV;
 	      break;
 	    default:
 	      // Perhaps some thing we don't know about.  Try to proceed
 	      // anyway.
-	      kernelDebug(debug_usb, "Do unknown control transfer");
+	      opString = "unknown control transfer";
 	      break;
 	    }
 	}
 
-      kernelDebug(debug_usb, "for address %d", trans->address);
+      kernelDebug(debug_usb, "Do %s for address %d", opString, trans->address);
     }
 
   else if (trans->type == usbxfer_interrupt)
-    ;
+    // Use the interrupt queue head
+    queueHead = uhciData->intrQueueHead;
 
   else if (trans->type == usbxfer_bulk)
-    ;
+    // Use the bulk queue head
+    queueHead = uhciData->bulkQueueHead;
 
   else
     {
       kernelError(kernel_error, "Unsupported transaction type %d",
 		  trans->type);
-      return (status = ERR_NOTIMPLEMENTED);
+      status = ERR_NOTIMPLEMENTED;
+      goto out;
     }
 
-  if (setupPhase)
+  if (trans->type == usbxfer_control)
     {
-      // Schedule the setup packet
-      //kernelDebug(debug_usb, "Schedule setup transfer");
-      status = scheduleTransDesc(usb, setupDesc, trans->type, trans->address,
-				 trans->endpoint, USB_PID_SETUP, NULL);
-      putTransDesc(setupDesc, setupData);
+      // Setup the transfer descriptor for the setup phase
+      status = setupTransDesc(setupDesc, trans->type, trans->address,
+			      trans->endpoint, 0, USB_PID_SETUP);
       if (status < 0)
-	return (status);
+	goto out;
+
+      // Data toggle
+      dataToggle ^= 1;
     }
 
-  // If there is a data phase, schedule the data packet(s)
+  // If there is a data phase, setup the transfer descriptor(s) for the data
+  // phase
   if (trans->length)
     {
-      bytesToTransfer = trans->length;
       buffer = trans->buffer;
+      bytesToTransfer = trans->length;
 
-      // Figure out the maximum number of bytes per transfer, depending on
-      // the endpoint we're addressing.
-      if (trans->endpoint == 0)
-	bytesPerTransfer = dev->deviceDesc.maxPacketSize0;
-      else
-	{
-	  endpoint = getEndpointDesc(dev, trans->endpoint);
-	  if (endpoint == NULL)
-	    {
-	      kernelError(kernel_error, "No such endpoint %d",
-			  trans->endpoint);
-	      return (status = ERR_NOSUCHFUNCTION);
-	    }
-
-	  bytesPerTransfer = endpoint->maxPacketSize;
-	}
-
-      // If we haven't got the descriptors, etc., yet -- 8 is the minimum size
-      if (bytesPerTransfer < 8)
-	bytesPerTransfer = 8;
-
-      //kernelDebug(debug_usb, "Max bytes per transfer: %d", bytesPerTransfer);
+      // If this is an interrupt or bulk transfer, endpoint data toggle
+      // is persistent
+      if ((trans->type == usbxfer_interrupt) || (trans->type == usbxfer_bulk))
+	dataToggle = dev->dataToggle[trans->endpoint];
 
       while (bytesToTransfer)
 	{
-	  unsigned short doBytes = min(bytesToTransfer, bytesPerTransfer);
-	  unsigned bytes = 0;
+	  unsigned doBytes = min(bytesToTransfer, bytesPerTransfer);
 
-	  // Get the transfer descriptors for the data phase
-	  dataDesc = getTransDesc(usb, doBytes);
-	  if (dataDesc == NULL)
-	    return (status = ERR_NOFREE);
+	  dataDesc = &(descs[numDescs++]);
 
-	  if (trans->pid == USB_PID_OUT)
-	    // Copy the data into the descriptor's buffer
-	    kernelMemCopy(buffer, dataDesc->buffVirtAddr, doBytes);
+	  // Point the data descriptor's buffer to the relevent portion of
+	  // the transaction buffer
+	  dataDesc->buffVirtAddr = buffer;
+	  dataDesc->buffer =
+	    kernelPageGetPhysical((((unsigned) dataDesc->buffVirtAddr <
+				    KERNEL_VIRTUAL_ADDRESS)?
+				   kernelCurrentProcess->processId :
+				   KERNELPROCID), dataDesc->buffVirtAddr);
+	  if (dataDesc->buffer == NULL)
+	    {
+	      debugError("Can't get physical address for buffer fragment at "
+			 "%p", dataDesc->buffVirtAddr);
+	      status = ERR_MEMORY;
+	      goto out;
+	    }
+	  dataDesc->buffSize = doBytes;
 
-	  kernelDebug(debug_usb, "Schedule data transfer %s of %d bytes %s "
-		      "address %d:%d",
-		      ((trans->pid == USB_PID_IN)? "IN" : "OUT"),
-		      doBytes, ((trans->pid == USB_PID_IN)? "from" : "to"),
-		      trans->address, trans->endpoint);
-	  status = scheduleTransDesc(usb, dataDesc, trans->type,
-				     trans->address, trans->endpoint,
-				     trans->pid, &bytes);
-
-	  if (trans->pid == USB_PID_IN)
-	    // Copy the data out of the descriptor's buffer
-	    kernelMemCopy(dataDesc->buffVirtAddr, buffer, doBytes);
-
-	  trans->bytes += bytes;
-
-	  putTransDesc(dataDesc, 1);
-
+	  status = setupTransDesc(dataDesc, trans->type, trans->address,
+				  trans->endpoint, dataToggle, trans->pid);
 	  if (status < 0)
-	    return (status);
-
+	    goto out;
+	  
+	  // Data toggle
+	  dataToggle ^= 1;
+	  
 	  bytesToTransfer -= doBytes;
 	  buffer += doBytes;
+
+	  // If this is an outbound interrupt or bulk transfer, and the bytes
+	  // to transfer is a multiple of bytesPerTransfer, set up an
+	  // additional, empty descriptor at the end.
+	  if ((bytesToTransfer <= 0) && (trans->pid == USB_PID_OUT) &&
+	      ((trans->type == usbxfer_interrupt) ||
+	       (trans->type == usbxfer_bulk)) &&
+	      !(trans->length % bytesPerTransfer))
+	    {
+	      dataDesc = &(descs[numDescs++]);
+
+	      status = setupTransDesc(dataDesc, trans->type, trans->address,
+				      trans->endpoint, dataToggle, trans->pid);
+	      if (status < 0)
+		goto out;
+	  
+	      // Data toggle
+	      dataToggle ^= 1;
+	    }
 	}
     }
 
-  if (statusPhase)
+  if (trans->type == usbxfer_control)
     {
-      // Get the transfer descriptor for the status phase
-      statusDesc = getTransDesc(usb, 0);
-      if (statusDesc == NULL)
-	return (status = ERR_NOFREE);
+      // Setup the transfer descriptor for the status phase
 
-      // Schedule the status packet
-      //kernelDebug(debug_usb, "Schedule status transfer");
-      if (trans->pid == USB_PID_OUT)
-	status =
-	  scheduleTransDesc(usb, statusDesc, trans->type, trans->address,
-			    trans->endpoint, USB_PID_IN, NULL);
-      else
-	status =
-	  scheduleTransDesc(usb, statusDesc, trans->type, trans->address,
-			    trans->endpoint, USB_PID_OUT, NULL);
+      statusDesc = &(descs[numDescs++]);
 
-      putTransDesc(statusDesc, 0);
+      // Setup the status packet
+      status = setupTransDesc(statusDesc, trans->type, trans->address,
+			      trans->endpoint, 1,
+			      ((trans->pid == USB_PID_OUT)? USB_PID_IN :
+			       USB_PID_OUT));
+      if (status < 0)
+	goto out;
     }
+
+  // Run the transaction
+  status = runTransaction(usb, queueHead, descs, numDescs);
+  if (status < 0)
+    {
+      // Check for errors
+      for (count = 0; count < numDescs; count ++)
+	if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ERROR)
+	  {
+	    errorText = kernelMalloc(MAXSTRINGLENGTH);
+	    if (errorText)
+	      {
+		switch (descs[count].tdToken & USBUHCI_TDTOKEN_PID)
+		  {
+		  case USB_PID_SETUP:
+		    transString = "SETUP";
+		    break;
+		  case USB_PID_IN:
+		    transString = "IN";
+		    break;
+		  case USB_PID_OUT:
+		    transString = "OUT";
+		    break;
+		  }
+		sprintf(errorText, "UHCI: Transaction %d %s: ", count,
+			transString);
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ESTALL)
+		  strcat(errorText, "stalled, ");
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_EDBUFF)
+		  strcat(errorText, "data buffer error, ");
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_EBABBLE)
+		  strcat(errorText, "babble, ");
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ENAK)
+		  strcat(errorText, "NAK, ");
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ECRCTO)
+		  strcat(errorText, "CRC/timeout, ");
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_EBSTUFF)
+		  strcat(errorText, "bitstuff error, ");
+
+		if (descs[count].contStatus & USBUHCI_TDCONTSTAT_ACTIVE)
+		  strcat(errorText, "TD is still active");
+
+		debugError(errorText);
+		kernelFree(errorText);
+	      }
+
+	    status = ERR_IO;
+	    debugTransDesc(&(descs[count]));
+	    debugUhciRegs(usb);
+	    break;
+	  }
+	else
+	  {
+	    if ((trans->type == usbxfer_interrupt) ||
+		(trans->type == usbxfer_bulk))
+	      // Record the last (highest numbered) successful data toggle
+	      dev->dataToggle[trans->endpoint] =
+		((descs[count].tdToken & USBUHCI_TDTOKEN_DATATOGGLE) >> 19);
+	  }
+    }
+  else
+    {
+      if ((trans->type == usbxfer_interrupt) || (trans->type == usbxfer_bulk))
+	// Endpoint data toggle is persistent
+	dev->dataToggle[trans->endpoint] = dataToggle;
+
+      kernelDebug(debug_usb, "Transaction completed successfully");
+    }
+
+ out:
+  
+  if (setupDesc && setupDesc->buffVirtAddr)
+    kernelFree(setupDesc->buffVirtAddr);
+
+  if (descs)
+    deallocTransDescs(descs, numDescs);
 
   return (status);
 }
@@ -990,7 +1352,7 @@ static int controlTransfer(usbRootHub *usb, usbDevice *dev,
 
   kernelDebug(debug_usb, "Control transfer of %d bytes", length);
 
-  kernelMemClear(&trans, sizeof(usbTransaction));
+  kernelMemClear((void *) &trans, sizeof(usbTransaction));
   trans.type = usbxfer_control;
   trans.address = dev->address;
   trans.endpoint = endpoint;
@@ -1009,7 +1371,7 @@ static int controlTransfer(usbRootHub *usb, usbDevice *dev,
 }
 
 
-static int enumerateNewDevice(usbRootHub *usb)
+static int enumerateNewDevice(usbRootHub *usb, int port)
 {
   // Enumerate a new device in respose to a positive port connection status
   // change by sending out a 'set address' transaction and getting device
@@ -1026,65 +1388,75 @@ static int enumerateNewDevice(usbRootHub *usb)
   void *ptr = NULL;
   int count1, count2;
 
+  // Reset the port and then enable it (resetting clears the enabled bit)
+  portReset(usb, port);
+  printPortStatus(usb);
+  portEnable(usb, port, 1);
+  printPortStatus(usb);
+
   dev = kernelMalloc(sizeof(usbDevice));
   if (dev == NULL)
     return (status = ERR_MEMORY);
-  
+
+  dev->controller = usb->controller;
+  dev->port = port;
+
   // Try to set a device address
+  kernelDebug(debug_usb, "Set address %d for new device",
+	      (usb->addressCounter + 1));
   status = controlTransfer(usb, dev, 0, USB_SET_ADDRESS,
 			   (usb->addressCounter + 1), 0, 0, NULL, NULL);
   if (status < 0)
-    {
-      // No device waiting for an address, we guess
-      kernelFree(dev);
-      return (status = ERR_NOSUCHENTRY);
-    }
-  
-  // We're supposed to allow a delay for the device after the set address
-  // command.
-  delay();
-  
-  dev->controller = usb->controller;
-  dev->address = ++usb->addressCounter;
+    // No device waiting for an address, we guess
+    goto err_out;
 
-  // We've set an address for the device, so from here it "exists", as such,
-  // whether or not the rest of the configuration succeeds
+  // We're supposed to allow a 2ms delay for the device after the set address
+  // command.
+  kernelDebug(debug_usb, "Delay after set_address");
+  delay(usb, 2);
+
+  dev->address = (usb->addressCounter + 1);
 
   // Try getting a device descriptor of only 8 bytes.  Thereafter we will
   // *know* the supported packet size.
+  kernelDebug(debug_usb, "Get short device descriptor for new device %d",
+	      dev->address);
   status = controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
 			   (USB_DESCTYPE_DEVICE << 8), 0, 8,
-			   &(dev->deviceDesc), NULL);
+			   (void *) &(dev->deviceDesc), NULL);
   if (status < 0)
     {
       kernelError(kernel_error, "Error getting device descriptor");
-      kernelFree(dev);
-      return (status);
+      goto err_out;
     }
 
-  // Now Get the whole descriptor
-  status = controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
-			   (USB_DESCTYPE_DEVICE << 8), 0,
-			   sizeof(usbDeviceDesc), &(dev->deviceDesc), NULL);
+  // Now get the whole descriptor
+  kernelDebug(debug_usb, "Get full device descriptor for new device %d",
+	      dev->address);
+  status =
+    controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
+		    (USB_DESCTYPE_DEVICE << 8), 0, sizeof(usbDeviceDesc),
+		    (void *) &(dev->deviceDesc), NULL);
   if (status < 0)
     {
       kernelError(kernel_error, "Error getting device descriptor");
-      kernelFree(dev);
-      return (status);
+      goto err_out;
     }
 
-  debugDeviceDesc(&(dev->deviceDesc));
+  debugDeviceDesc((usbDeviceDesc *) &(dev->deviceDesc));
 
   // If the device is a USB 2.0+ device, see if it's got a 'device qualifier'
   // descriptor
   if (dev->deviceDesc.usbVersion >= 0x0200)
     {
+      kernelDebug(debug_usb, "Get device qualifier for new device %d",
+		  dev->address);
       controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
 		      (USB_DESCTYPE_DEVICEQUAL << 8), 0,
-		      sizeof(usbDevQualDesc), &(dev->devQualDesc), &bytes);
-      
+		      sizeof(usbDevQualDesc), (void *) &(dev->devQualDesc),
+		      &bytes);
       if (bytes)
-	debugDevQualDesc(&(dev->devQualDesc));
+	debugDevQualDesc((usbDevQualDesc *) &(dev->devQualDesc));
     }
 
   dev->usbVersion = dev->deviceDesc.usbVersion;
@@ -1101,65 +1473,60 @@ static int enumerateNewDevice(usbRootHub *usb)
   tmpConfigDesc = kernelMalloc(dev->deviceDesc.maxPacketSize0);
   if (tmpConfigDesc == NULL)
     {
-      kernelFree(dev);
-      return (status = ERR_MEMORY);
+      status = ERR_MEMORY;
+      goto err_out;
     }
 
+  kernelDebug(debug_usb, "Get short first configuration for new device %d",
+	      dev->address);
   status = controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
 			   (USB_DESCTYPE_CONFIG << 8), 0,
-			   dev->deviceDesc.maxPacketSize0, tmpConfigDesc,
-			   &bytes);
+			   min(dev->deviceDesc.maxPacketSize0,
+			       sizeof(usbConfigDesc)), tmpConfigDesc, &bytes);
   if ((status < 0) &&
       (bytes < min(dev->deviceDesc.maxPacketSize0, sizeof(usbConfigDesc))))
-    {
-      kernelFree(tmpConfigDesc);
-      kernelFree(dev);
-      return (status);
-    }
-
-  debugConfigDesc(tmpConfigDesc);
+    goto err_out;
 
   // If the device wants to return more information than will fit in the
   // max packet size for endpoint zero, we need to do a second request that
   // splits the data transfer into parts
 
-  if (tmpConfigDesc->totalLength > dev->deviceDesc.maxPacketSize0)
+  if (tmpConfigDesc->totalLength >
+      min(dev->deviceDesc.maxPacketSize0, sizeof(usbConfigDesc)))
     {
       dev->configDesc = kernelMalloc(tmpConfigDesc->totalLength);
       if (dev->configDesc == NULL)
 	{
-	  kernelFree(tmpConfigDesc);
-	  kernelFree(dev);
-	  return (status = ERR_MEMORY);
+	  status = ERR_MEMORY;
+	  goto err_out;
 	}
 
+      kernelDebug(debug_usb, "Get full first configuration for new device %d",
+		  dev->address);
       status = controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
 			       (USB_DESCTYPE_CONFIG << 8), 0,
 			       tmpConfigDesc->totalLength, dev->configDesc,
 			       &bytes);
       if ((status < 0) && (bytes < tmpConfigDesc->totalLength))
-	{
-	  kernelFree(tmpConfigDesc);
-	  kernelFree(dev);
-	  return (status);
-	}
+	goto err_out;
 
       kernelFree(tmpConfigDesc);
+      tmpConfigDesc = NULL;
     }
   else
-    dev->configDesc = tmpConfigDesc;
+    {
+      dev->configDesc = tmpConfigDesc;
+      tmpConfigDesc = NULL;
+    }
 
   debugConfigDesc(dev->configDesc);
 
   // Set the configuration
+  kernelDebug(debug_usb, "Set configuration for new device %d", dev->address);
   status = controlTransfer(usb, dev, 0, USB_SET_CONFIGURATION,
 			   dev->configDesc->confValue, 0, 0, NULL, NULL);
   if (status < 0)
-    {
-      kernelFree(dev->configDesc);
-      kernelFree(dev);
-      return (status);
-    }
+    goto err_out;
 
   ptr = ((void *) dev->configDesc + sizeof(usbConfigDesc));
   for (count1 = 0; ((count1 < dev->configDesc->numInterfaces) &&
@@ -1197,6 +1564,7 @@ static int enumerateNewDevice(usbRootHub *usb)
 
   // Ok, we will add this device to our list
   usb->devices[usb->numDevices++] = dev;
+  usb->addressCounter += 1;
 
   if (usb->getClassName)
     usb->getClassName(dev->classCode, dev->subClassCode, dev->protocol,
@@ -1233,69 +1601,69 @@ static int enumerateNewDevice(usbRootHub *usb)
     }
 
   return (status = 0);
+
+ err_out:
+
+  if (tmpConfigDesc)
+    kernelFree(tmpConfigDesc);
+
+  if (dev->configDesc)
+    kernelFree(dev->configDesc);
+
+  if (dev)
+    kernelFree((void *) dev);
+
+  return (status);
 }
 
 
-static void enumerateDisconnectedDevice(usbRootHub *usb)
+static void enumerateDisconnectedDevice(usbRootHub *usb, int port)
 {
   // If the port status(es) indicate that a device has disconnected, figure
   // out which one it is and remove it from the root hub's list
 
-  int status = 0;
   usbDevice *dev = NULL;
-  usbDeviceDesc deviceDesc;
   usbClass *class = NULL;
   usbSubClass *subClass = NULL;
   int count1, count2;
 
   // Try a 'get device descriptor' command for each device
   for (count1 = 0; count1 < usb->numDevices; )
-    {
-      dev = usb->devices[count1];
+    if ((usb->devices[count1]->controller == usb->controller) &&
+	(usb->devices[count1]->port == port))
+      {
+	dev = usb->devices[count1];
 
-      status = controlTransfer(usb, dev, 0, USB_GET_DESCRIPTOR,
-			       (USB_DESCTYPE_DEVICE << 8), 0, 8,
-			       &deviceDesc, NULL);
-      if (status < 0)
-	{
-	  // The 'get status' failed so we will consider this device
-	  // disconnected
+	kernelDebug(debug_usb, "Device %d disconnected", dev->address);
 
-	  kernelDebug(debug_usb, "Device %d disconnected", dev->address);
-
-	  if (usb->getClass)
-	    {
-	      usb->getClass(dev->classCode, &class);
-	      if (usb->getSubClass)
-		usb->getSubClass(class, dev->subClassCode, dev->protocol,
-				 &subClass);
+	if (usb->getClass)
+	  {
+	    usb->getClass(dev->classCode, &class);
+	    if (usb->getSubClass)
+	      usb->getSubClass(class, dev->subClassCode, dev->protocol,
+			       &subClass);
 	
-	      if (subClass)
-		// Tell the device hotplug function that the device has
-		// disconnected
-		kernelDeviceHotplug(usb->device, subClass->systemSubClassCode,
-				    bus_usb, usbMakeTargetCode(dev->controller,
-							       dev->address,
-							       0), 0);
-	    }
+	    if (subClass)
+	      // Tell the device hotplug function that the device has
+	      // disconnected
+	      kernelDeviceHotplug(usb->device, subClass->systemSubClassCode,
+				  bus_usb, usbMakeTargetCode(dev->controller,
+							     dev->address,
+							     0), 0);
+	  }
 
-	  // If this was not the only or last device in the list, we need
-	  // to shift the list
-	  if ((usb->numDevices > 1) && (count1 < (usb->numDevices - 1)))
-	    for (count2 = count1; count2 < (usb->numDevices - 1); count2 ++)
-	      usb->devices[count2] = usb->devices[count2 + 1];
-	  usb->numDevices -= 1;
+	// If this was not the only or last device in the list, we need
+	// to shift the list
+	if ((usb->numDevices > 1) && (count1 < (usb->numDevices - 1)))
+	  for (count2 = count1; count2 < (usb->numDevices - 1); count2 ++)
+	    usb->devices[count2] = usb->devices[count2 + 1];
+	usb->numDevices -= 1;
 
-	  // Free the device memory
-	  if (dev->configDesc)
-	    kernelFree(dev->configDesc);
-	  kernelFree(dev);
-
-	  continue;
-	}
-
-      count1++;
-    }
+	// Free the device memory
+	if (dev->configDesc)
+	  kernelFree(dev->configDesc);
+	kernelFree((void *) dev);
+      }
 }
 
 
@@ -1304,104 +1672,90 @@ static int setup(usbRootHub *usb)
   // Do USB setup
 
   int status = 0;
-  unsigned short command = 0;
+  unsigned char command = 0;
   usbUhciData *uhciData = NULL;
+  unsigned intrPhysical = 0;
+  unsigned controlPhysical = 0;
+  unsigned bulkPhysical = 0;
+  unsigned termPhysical = 0;
+  unsigned termTdPhysical = 0;
+  unsigned delayEnd = 0;
+  int count;
 
-  // Enable all interrupts
-  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_INTR), command);
-  command |= 0xF;
-  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_INTR),
-			   command);
+  // Reset the controller
+  reset(usb);
 
-  // Clear the frame number register
-  kernelProcessorInPort16((usb->ioAddress + USBUHCI_PORTOFFSET_FRNUM),
-			  command);
-  command &= 0xF800;
-  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_FRNUM),
-			   command);
+  // Make sure we've waited 1 second between stopped and running
+  delayEnd = (kernelSysTimerRead() + 20);
 
-  // Allocate the UHCI hub's private data
-  uhciData = kernelMalloc(sizeof(usbUhciData));
-  if (uhciData == NULL)
-    return (status = ERR_MEMORY);
-  usb->data = uhciData;
+  // Disable all interrupts
+  kernelProcessorOutPort16((usb->ioAddress + USBUHCI_PORTOFFSET_INTR), 0);
 
-  // Allocate the controller's frame list
-  status = allocFrameList(usb);
+  // Allocate memory
+  status = allocUhciMemory(usb);
   if (status < 0)
-    goto err_out;
+    return (status);
 
-  // Allocate the controller's transfer descriptors
-  status = allocTransDescs(usb);
-  if (status < 0)
-    goto err_out;
+  uhciData = usb->data;
 
-  // Allocate the controller's queue heads
-  status = allocQueueHeads(usb);
-  if (status < 0)
-    goto err_out;
+  // Set up the queues
+
+  intrPhysical = (unsigned)
+    kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->intrQueueHead);
+  controlPhysical = (unsigned)
+    kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->controlQueueHead);
+  bulkPhysical = (unsigned)
+    kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->bulkQueueHead);
+  termPhysical = (unsigned)
+    kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->termQueueHead);
+  termTdPhysical = (unsigned)
+    kernelPageGetPhysical(KERNELPROCID, (void *) uhciData->termTransDesc);
+
+  // Interrupt queue head points to control queue head
+  uhciData->intrQueueHead->linkPointer =
+    (controlPhysical | USBUHCI_LINKPTR_QHEAD);
+  // Control queue head points to bulk queue head
+  uhciData->controlQueueHead->linkPointer =
+    (bulkPhysical | USBUHCI_LINKPTR_QHEAD);
+  // Bulk queue head points to terminating queue head
+  uhciData->bulkQueueHead->linkPointer =
+    (termPhysical | USBUHCI_LINKPTR_QHEAD);
+  // Terminating queue head points back to control queue head for bandwidth
+  // reclamation
+  uhciData->termQueueHead->linkPointer =
+    (controlPhysical | USBUHCI_LINKPTR_QHEAD);
+
+  // Attach the terminating transfer descriptor to the terminating queue head
+  uhciData->termQueueHead->element = termTdPhysical;
+  uhciData->termTransDesc->linkPointer = USBUHCI_LINKPTR_TERM;
+
+  // Point all frame list pointers at the interrupt queue head
+  for (count = 0; count < 1024; count ++)
+    uhciData->frameList[count] = (intrPhysical | USBUHCI_LINKPTR_QHEAD);
 
   // Put the physical address of the frame list into the frame list base
   // address register
   kernelProcessorOutPort32((usb->ioAddress + USBUHCI_PORTOFFSET_FLBASE),
 			   uhciData->frameListPhysical);
 
-  // Clear:
-  // software debug
-  // Set:
-  // max packet size to 64 bytes
-  // configure flag
   command = readCommand(usb);
+  // Clear: software debug
   command &= ~USBUHCI_CMD_SWDBG;
+  // Set: max packet size to 64 bytes, configure flag
   command |= (USBUHCI_CMD_MAXP | USBUHCI_CMD_CF);
   writeCommand(usb, command);
+
+  // Clear the frame number
+  writeFrameNum(usb, 0);
+
+  // Until we've waited 1 second between stopped and running
+  while (kernelSysTimerRead() < delayEnd);
 
   // Start the controller
   startStop(usb, 1);
 
   return (status = 0);
-
- err_out:
-  if (uhciData)
-    {
-      if (uhciData->frameList)
-	{
-	  kernelPageUnmap(KERNELPROCID, uhciData->frameList, MEMORY_PAGE_SIZE);
-	  kernelMemoryReleasePhysical(uhciData->frameListPhysical);
-	}
-      if (uhciData->transDescs)
-	{
-	  kernelPageUnmap(KERNELPROCID, (void *) uhciData->transDescs,
-			  MEMORY_PAGE_SIZE);
-	  kernelMemoryReleasePhysical(uhciData->transDescsPhysical);
-	}
-      if (uhciData->queueHeads)
-	{
-	  kernelPageUnmap(KERNELPROCID, (void *) uhciData->queueHeads,
-			  MEMORY_PAGE_SIZE);
-	  kernelMemoryReleasePhysical(uhciData->queueHeadsPhysical);
-	}
-      kernelFree(uhciData);
-    }
-  return (status);
 }
-
-
-#ifdef USBUHCI_DEBUG
-static void printPortStatus(usbRootHub *usb)
-{
-  unsigned short frameNum = 0;
-  usbUhciData *uhciData = (usbUhciData *) usb->data;
-
-  readPortStatus(usb);
-  frameNum = readFrameNum(usb);
-  kernelDebug(debug_usb, "Port 1: %04x  port 2: %04x frnum %d=%x",
-	      usb->portStatus[0], usb->portStatus[1], (frameNum & 0x3FF),
-	      uhciData->frameList[frameNum & 0x3FF]);
-}
-#else
-  #define printPortStatus(usb) do { } while (0)
-#endif
 
 
 static void threadCall(usbRootHub *usb)
@@ -1409,41 +1763,40 @@ static void threadCall(usbRootHub *usb)
   unsigned short status = 0;
   int count;
 
-  readPortStatus(usb);
-
-  status = readStatus(usb);
-  if (status)
-    // Clear it
-    writeStatus(usb, status);
-
   for (count = 0; count < 2; count ++)
     {
-      if ((usb->portStatus[count] & USBUHCI_PORT_ENABCHG) ||
-	  (usb->portStatus[count] & USBUHCI_PORT_CONNCHG))
+      status = readPortStatus(usb, count);
+
+      if (status & (USBUHCI_PORT_ENABCHG | USBUHCI_PORT_CONNCHG))
 	{
 	  printPortStatus(usb);
 
-	  if (usb->portStatus[count] & USBUHCI_PORT_CONNCHG)
-	    {
-	      if (usb->portStatus[count] & USBUHCI_PORT_CONNSTAT)
-		{
-		  // Something connected, so enable the port.  This resets
-		  // the devices.
-		  portEnable(usb, count, 1);
-		  portReset(usb, count);
+	  // Write the status back to reset the 'changed' bits.
+	  writePortStatus(usb, count, status);
 
-		  while (enumerateNewDevice(usb) != ERR_NOSUCHENTRY);
+	  if (status & USBUHCI_PORT_CONNCHG)
+	    {
+	      if (status & USBUHCI_PORT_CONNSTAT)
+		{
+		  // Something connected, so wait 100ms
+		  kernelDebug(debug_usb, "Delay after port status change");
+		  delay(usb, 100);
+
+		  // If the device is low-speed, we don't support it.
+		  if (status & USBUHCI_PORT_LSDA)
+		    debugError("Low-speed devices not supported");
+		  else
+		    enumerateNewDevice(usb, count);
+
+		  kernelDebug(debug_usb, "Port %d is connected", count);
 		}
 	      else
 		{
-		  //kernelDebug(debug_usb, "Port %d is disconnected", count);
-		  enumerateDisconnectedDevice(usb);
+		  enumerateDisconnectedDevice(usb, count);
+		  kernelDebug(debug_usb, "Port %d is disconnected", count);
 		}
 	    }
 		    
-	  // Write the status back to reset the 'changed' bits.
-	  readPortStatus(usb);
-	  writePortStatus(usb, count);
 	  printPortStatus(usb);
 	}
     }
@@ -1461,66 +1814,66 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
   pciDeviceInfo pciDevInfo;
   kernelDevice *dev = NULL;
   usbRootHub *usb = NULL;
+  const char *headerType = NULL;
 
   // Get the PCI device header
   status = kernelBusGetTargetInfo(bus_pci, busTarget->target, &pciDevInfo);
   if (status < 0)
-    return (dev = NULL);
+    goto err_out;
 
   // Make sure it's a UHCI controller (programming interface is 0 in the
   // PCI header)
   if (pciDevInfo.device.progIF != 0)
-    return (dev = NULL);
+    goto err_out;
 
   // After this point, we believe we have a supported device.
 
   // Enable the device on the PCI bus as a bus master
   if ((kernelBusDeviceEnable(bus_pci, busTarget->target, 1) < 0) ||
       (kernelBusSetMaster(bus_pci, busTarget->target, 1) < 0))
-    return (dev = NULL);
+    goto err_out;
 
   // Allocate memory for the device
   dev = kernelMalloc(sizeof(kernelDevice));
   if (dev == NULL)
-    return (dev);
+    goto err_out;
 
   usb = kernelMalloc(sizeof(usbRootHub));
   if (usb == NULL)
-    {
-      kernelFree(dev);
-      return (dev = NULL);
-    }
+    goto err_out;
 
   // Get the USB version number
   usb->usbVersion = kernelBusReadRegister(bus_pci, busTarget->target, 0x60, 8);
   kernelLog("USB: UHCI bus version %d.%d", ((usb->usbVersion & 0xF0) >> 4),
 	    (usb->usbVersion & 0xF));
 
-  kernelDebug(debug_usb, "UHCI controller PCI type: ");
+  // Don't care about the 'multi-function' bit in the header type
+  if (pciDevInfo.device.headerType & PCI_HEADERTYPE_MULTIFUNC)
+    pciDevInfo.device.headerType &= ~PCI_HEADERTYPE_MULTIFUNC;
+
   // Get the interrupt line
   if (pciDevInfo.device.headerType == PCI_HEADERTYPE_NORMAL)
     {
       usb->interrupt = (int) pciDevInfo.device.nonBridge.interruptLine;
-      kernelDebug(debug_usb, "normal");
+      headerType = "normal";
     }
   else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_BRIDGE)
     {
       usb->interrupt = (int) pciDevInfo.device.bridge.interruptLine;
-      kernelDebug(debug_usb, "bridge");
+      headerType = "bridge";
     }
   else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_CARDBUS)
     {
       usb->interrupt = (int) pciDevInfo.device.cardBus.interruptLine;
-      kernelDebug(debug_usb, "cardbus");
+      headerType = "cardbus";
     }
   else
     {
-      debugError("\nUnsupported USB controller header type %d",
+      debugError("UHCI: Unsupported USB controller header type %d",
 		 pciDevInfo.device.headerType);
-      kernelFree(dev);
-      kernelFree(usb);
-      return (dev = NULL);
+      goto err_out;
     }
+  kernelDebug(debug_usb, "UHCI controller PCI type: %s", headerType);
 
   // Get the I/O space base address.  For USB, it comes in the 5th
   // PCI base address register
@@ -1529,35 +1882,22 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
 
   if (usb->ioAddress == NULL)
     {
-      debugError("Unknown USB controller I/O address");
-      kernelFree(dev);
-      kernelFree(usb);
-      return (dev = NULL);
+      debugError("UHCI: Unknown USB controller I/O address");
+      goto err_out;
     }
 
-  // Stop the controller
-  startStop(usb, 0);
-
-  // Reset it
-  status = reset(usb);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Error resetting USB controller");
-      kernelFree(dev);
-      kernelFree(usb);
-      return (dev = NULL);
-    }
+  // Disable legacy support
+  kernelBusWriteRegister(bus_pci, busTarget->target, 0x60, 16, 0x2000);
 
   // Set up the controller
   status = setup(usb);
   if (status < 0)
     {
       kernelError(kernel_error, "Error setting up USB operation");
-      kernelFree(dev);
-      kernelFree(usb);
-      return (dev = NULL);
+      goto err_out;
     }
 
+  usb->reset = &reset;
   usb->threadCall = &threadCall;
   usb->transaction = &transaction;
 
@@ -1565,15 +1905,25 @@ kernelDevice *kernelUsbUhciDetect(kernelDevice *parent,
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_USB);
   dev->driver = driver;
-  dev->data = usb;
+  dev->data = (void *) usb;
 
   status = kernelDeviceAdd(parent, dev);
   if (status < 0)
+    goto err_out;
+  else 
+    return (dev);
+
+ err_out:
+
+  if (dev)
+    kernelFree(dev);
+
+  if (usb)
     {
-      kernelFree(dev);
-      kernelFree(usb);
-      return (dev = NULL);
+      if (usb->data)
+	deallocUhciMemory(usb);
+      kernelFree((void *) usb);
     }
 
-  return (dev);
+  return (dev = NULL);
 }

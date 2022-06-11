@@ -822,7 +822,7 @@ int kernelTextPrint(const char *format, ...)
   va_start(list, format);
 
   // Expand the format string into an output string
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 
@@ -879,14 +879,14 @@ int kernelTextPrintLine(const char *format, ...)
   va_start(list, format);
 
   // Expand the format string into an output string
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
 
-  return(kernelTextStreamPrintLine(outputStream, output));
+  return (kernelTextStreamPrintLine(outputStream, output));
 }
 
 

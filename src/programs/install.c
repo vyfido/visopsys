@@ -69,16 +69,22 @@ static char *chooseVolumeString = "Please choose the volume on which to "
 static char *setPasswordString = "Please choose a password for the 'admin' "
                                  "account";
 static char *partitionString = "Partition disks...";
+static char *cancelString = "Installation cancelled.";
 static install_type installType;
 static unsigned bytesToCopy = 0;
 static unsigned bytesCopied = 0;
 static progress prog;
+static int doFormat = 1;
+static int chooseFsType = 0;
+static char formatFsType[16];
 static textScreen screen;
 
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
 static objectKey installTypeRadio = NULL;
+static objectKey formatCheckbox = NULL;
+static objectKey fsTypeCheckbox = NULL;
 static objectKey statusLabel = NULL;
 static objectKey progressBar = NULL;
 static objectKey installButton = NULL;
@@ -101,7 +107,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -121,7 +127,7 @@ static void quit(int status, const char *message, ...)
   if (message != NULL)
     {
       va_start(list, message);
-      _expandFormatString(output, message, list);
+      _expandFormatString(output, MAXSTRINGLENGTH, message, list);
       va_end(list);
     }
 
@@ -201,6 +207,17 @@ static void eventHandler(objectKey key, windowEvent *event)
       ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP)))
     quit(0, NULL);
 
+  else if ((key == formatCheckbox) && (event->type & EVENT_SELECTION))
+    {
+      windowComponentGetSelected(formatCheckbox, &doFormat);
+      if (!doFormat)
+	windowComponentSetSelected(fsTypeCheckbox, 0);
+      windowComponentSetEnabled(fsTypeCheckbox, doFormat);
+    }
+
+  else if ((key == fsTypeCheckbox) && (event->type & EVENT_SELECTION))
+    windowComponentGetSelected(fsTypeCheckbox, &chooseFsType);
+
   // Check for the 'Install' button
   else if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
     // Stop the GUI here and the installation will commence
@@ -215,6 +232,7 @@ static void constructWindow(void)
 
   componentParameters params;
   objectKey textLabel = NULL;
+  char tmp[40];
 
   // Create a new window, with small, arbitrary size and location
   window = windowNew(processId, "Install");
@@ -231,25 +249,36 @@ static void constructWindow(void)
   params.orientationY = orient_middle;
   textLabel = windowNewTextLabel(window, titleString, &params);
   
-  params.gridY = 1;
-  char tmp[40];
+  params.gridY++;
   sprintf(tmp, "[ Installing on disk %s ]", diskName);
   windowNewTextLabel(window, tmp, &params);
 
-  params.gridY = 2;
+  params.gridY++;
   installTypeRadio = windowNewRadioButton(window, 2, 1, (char *[])
       { "Basic install", "Full install" }, 2 , &params);
   windowComponentSetEnabled(installTypeRadio, 0);
 
-  params.gridY = 3;
-  params.gridWidth = 2;
+  params.gridY++;
+  sprintf(tmp, "Format %s (erases all data!)", diskName);
+  formatCheckbox = windowNewCheckbox(window, tmp, &params);
+  windowComponentSetSelected(formatCheckbox, 1);
+  windowComponentSetEnabled(formatCheckbox, 0);
+  windowRegisterEventHandler(formatCheckbox, &eventHandler);
+
+  params.gridY++;
+  fsTypeCheckbox =
+    windowNewCheckbox(window, "Choose filesystem type", &params);
+  windowComponentSetEnabled(fsTypeCheckbox, 0);
+  windowRegisterEventHandler(fsTypeCheckbox, &eventHandler);
+
+  params.gridY++;
   statusLabel = windowNewTextLabel(window, "", &params);
   windowComponentSetWidth(statusLabel, windowComponentGetWidth(textLabel));
 
-  params.gridY = 4;
+  params.gridY++;
   progressBar = windowNewProgressBar(window, &params);
 
-  params.gridY = 5;
+  params.gridY++;
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
@@ -258,7 +287,7 @@ static void constructWindow(void)
   windowRegisterEventHandler(installButton, &eventHandler);
   windowComponentSetEnabled(installButton, 0);
 
-  params.gridX = 1;
+  params.gridX++;
   params.orientationX = orient_left;
   quitButton = windowNewButton(window, "Quit", NULL, &params);
   windowRegisterEventHandler(quitButton, &eventHandler);
@@ -435,7 +464,7 @@ static int chooseDisk(void)
 	diskStrings[count] = diskListParams[count].text;
       diskStrings[numberDisks] = partitionString;
       diskNumber =
-	vshCursorMenu(chooseVolumeString, (numberDisks + 1), diskStrings, 0);
+	vshCursorMenu(chooseVolumeString, diskStrings, (numberDisks + 1), 0);
       if (diskNumber == numberDisks)
 	{
 	  // The user wants to repartition the disks.  Run the disk
@@ -533,6 +562,32 @@ static unsigned getInstallSize(const char *installFileName)
 }
 
 
+static int askFsType(void)
+{
+  // Query the user for the FAT filesystem type
+
+  int status = 0;
+  int selectedType = 0;
+  char *fsTypes[] = { "Default", "FAT12", "FAT16", "FAT32" };
+
+  if (graphics)
+    selectedType = windowNewRadioDialog(window, "Choose Filesystem Type",
+					"Supported types:", fsTypes, 4, 0);
+  else
+    selectedType = vshCursorMenu("Choose the filesystem type:", fsTypes, 4, 0);
+
+  if (selectedType < 0)
+    return (status = selectedType);
+
+  if (!strcasecmp(fsTypes[selectedType], "Default"))
+    strcpy(formatFsType, "fat");
+  else
+    strcpy(formatFsType, fsTypes[selectedType]);
+
+  return (status = 0);
+}
+
+
 static void updateStatus(const char *message)
 {
   // Updates progress messages.
@@ -541,14 +596,13 @@ static void updateStatus(const char *message)
 
   if (lockGet(&(prog.lock)) >= 0)
     {
-      if (strlen((char *) prog.statusMessage) &&
-	  (prog.statusMessage[strlen((char *) prog.statusMessage) - 1] !=
-	   '\n'))
-	strcat((char *) prog.statusMessage, message);
+      if (strlen(prog.statusMessage) &&
+	  (prog.statusMessage[strlen(prog.statusMessage) - 1] != '\n'))
+	strcat(prog.statusMessage, message);
       else
-	strcpy((char *) prog.statusMessage, message);
+	strcpy(prog.statusMessage, message);
 
-      statusLength = strlen((char *) prog.statusMessage);
+      statusLength = strlen(prog.statusMessage);
       if (statusLength >= PROGRESS_MAX_MESSAGELEN)
 	{
 	  statusLength = (PROGRESS_MAX_MESSAGELEN - 1);
@@ -558,8 +612,7 @@ static void updateStatus(const char *message)
 	statusLength -= 1;
 
       if (graphics)
-	windowComponentSetData(statusLabel, (char *) prog.statusMessage,
-			       statusLength);
+	windowComponentSetData(statusLabel, prog.statusMessage, statusLength);
 
       lockRelease(&(prog.lock));
     }
@@ -988,7 +1041,6 @@ int main(int argc, char *argv[])
   unsigned diskSize = 0;
   unsigned basicInstallSize = 0xFFFFFFFF;
   unsigned fullInstallSize = 0xFFFFFFFF;
-  int doFormat = 0;
   const char *message = NULL;
   objectKey progressDialog = NULL;
   int selected = 0;
@@ -1052,7 +1104,7 @@ int main(int argc, char *argv[])
   // Make sure the disk isn't mounted
   status = mountedCheck(&diskInfo[diskNumber]);
   if (status < 0)
-    quit(0, "Installation cancelled.");
+    quit(0, cancelString);
 
   // Calculate the number of bytes that will be consumed by the various
   // types of install
@@ -1077,6 +1129,8 @@ int main(int argc, char *argv[])
 	{
 	  windowComponentSetSelected(installTypeRadio, 1);
 	  windowComponentSetEnabled(installTypeRadio, 1);
+	  windowComponentSetEnabled(formatCheckbox, 1);
+	  windowComponentSetEnabled(fsTypeCheckbox, 1);
 	}
     }
 
@@ -1095,6 +1149,8 @@ int main(int argc, char *argv[])
       windowComponentSetEnabled(installButton, 0);
       windowComponentSetEnabled(quitButton, 0);
       windowComponentSetEnabled(installTypeRadio, 0);
+      windowComponentSetEnabled(formatCheckbox, 0);
+      windowComponentSetEnabled(fsTypeCheckbox, 0);
     }
 
   // Find out what type of installation to do
@@ -1108,8 +1164,8 @@ int main(int argc, char *argv[])
   else if (fullInstallSize &&
 	   ((basicInstallSize + fullInstallSize) < diskSize))
     {
-      status = vshCursorMenu("Please choose the install type:", 2,
-			     (char *[]) { "Basic", "Full" }, 1);
+      status = vshCursorMenu("Please choose the install type:",
+			     (char *[]) { "Basic", "Full" }, 2, 1);
       if (status < 0)
 	{
 	  textScreenRestore(&screen);
@@ -1126,12 +1182,24 @@ int main(int argc, char *argv[])
 
   sprintf(tmpChar, "Installing on disk %s.  Are you SURE?", diskName);
   if (!yesOrNo(tmpChar))
-    quit(0, "Installation cancelled.");
+    quit(0, cancelString);
 
-  sprintf(tmpChar, "Format disk %s? (destroys all data!)", diskName);
-  doFormat = yesOrNo(tmpChar);
+  // Default filesystem formatting type is optimal/default FAT.
+  strcpy(formatFsType, "fat");
+
+  // In text mode, ask whether to format
+  if (!graphics)
+    {
+      sprintf(tmpChar, "Format disk %s? (erases all data!)", diskName);
+      doFormat = yesOrNo(tmpChar);
+    }
+
   if (doFormat)
     {
+      if (!graphics || chooseFsType)
+	if (askFsType() < 0)
+	  quit(0, cancelString);
+
       updateStatus("Formatting... ");
 
       if (graphics)
@@ -1142,7 +1210,7 @@ int main(int argc, char *argv[])
 	  vshProgressBar(&prog);
 	}
 
-      status = filesystemFormat(diskName, "fat", "Visopsys", 0, &prog);
+      status = filesystemFormat(diskName, formatFsType, "Visopsys", 0, &prog);
 
       if (graphics)
 	windowProgressDialogDestroy(progressDialog);
@@ -1202,7 +1270,7 @@ int main(int argc, char *argv[])
 	    {
 	      if (filesystemUnmount(MOUNTPOINT) < 0)
 		error("Unable to unmount the target disk.");
-	      quit(0, "Installation cancelled.");
+	      quit(0, cancelString);
 	    }
 	}
     }

@@ -42,6 +42,7 @@
 #define PCI_HEADERTYPE_NORMAL      0
 #define PCI_HEADERTYPE_BRIDGE      1
 #define PCI_HEADERTYPE_CARDBUS     2
+#define PCI_HEADERTYPE_MULTIFUNC   0x80
 
 // PCI configuration register numbers.  Note that the registers are numbered
 // according to their bit widths.  For example, the command register is
@@ -183,7 +184,7 @@ typedef union {
   } device;
   unsigned header[64];
 
-} pciDeviceInfo;
+} __attribute__((packed)) pciDeviceInfo;
 
 typedef volatile struct {
   int subClassCode;

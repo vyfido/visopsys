@@ -22,10 +22,11 @@
 // This contains utility functions for managing mouses.
 
 #include "kernelMouse.h"
-#include "kernelLog.h"
-#include "kernelMisc.h"
-#include "kernelWindow.h"
 #include "kernelError.h"
+#include "kernelLog.h"
+#include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelWindow.h"
 #include <string.h>
 
 // The graphics environment
@@ -34,10 +35,9 @@ static int screenHeight = 0;
 
 // The system mouse pointers
 static kernelMousePointer *currentPointer;
-static kernelMousePointer pointerList[16];
+static kernelMousePointer *pointerList[MOUSE_MAX_POINTERS];
 static int numberPointers = 0;
 
-static kernelMouse mouse;
 static int initialized = 0;
 
 // Keeps mouse pointer size and location data
@@ -76,6 +76,21 @@ static inline void erase(void)
 }
 
 
+static inline int findPointerSlot(const char *pointerName)
+{
+  // Find the named pointer
+
+  int count;
+  
+  // Find the pointer with the name
+  for (count = 0; count < numberPointers; count ++)
+    if (!strncmp(pointerName, pointerList[count]->name, MOUSE_POINTER_NAMELEN))
+      return (count);
+
+  return (ERR_NOSUCHENTRY);
+}
+
+
 static inline void status2event(windowEvent *event)
 {
   event->type = mouseStatus.eventMask;
@@ -99,8 +114,18 @@ int kernelMouseInitialize(void)
   // Initialize the mouse functions
 
   int status = 0;
+  char name[128];
+  char value[128];
+  int count;
 
-  kernelMemClear(&mouse, sizeof(kernelMouse));
+  // When you load a mouse pointer it automatically switches to it, so load
+  // the 'busy' one last
+  char *mousePointerTypes[][2] = {
+    { "default", MOUSE_DEFAULT_POINTER_DEFAULT },
+    { "busy", MOUSE_DEFAULT_POINTER_BUSY }
+  };
+
+  extern variableList *kernelVariables;
 
   screenWidth = kernelGraphicGetScreenWidth();
   screenHeight = kernelGraphicGetScreenHeight();
@@ -112,6 +137,26 @@ int kernelMouseInitialize(void)
 
   initialized = 1;
 
+  // Load the mouse pointers
+  for (count = 0; count < 2; count ++)
+    {
+      strcpy(name, "mouse.pointer.");
+      strcat(name, mousePointerTypes[count][0]);
+
+      if (kernelVariableListGet(kernelVariables, name, value, 128))
+	{
+	  // Nothing specified.  Use the default.
+	  strcpy(value, mousePointerTypes[count][1]);
+	  // Save it
+	  kernelVariableListSet(kernelVariables, name, value);
+	}
+
+      status = kernelMouseLoadPointer(mousePointerTypes[count][0],value);
+      if (status < 0)
+	kernelError(kernel_warn, "Unable to load mouse pointer %s=\"%s\"",
+		    name, value);
+    }
+
   return (status = 0);
 }
 
@@ -119,7 +164,7 @@ int kernelMouseInitialize(void)
 int kernelMouseShutdown(void)
 {
   // Stop processing mouse stuff.
-
+  
   initialized = 0;
   return (0);
 }
@@ -130,6 +175,8 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   // Load a new pointer.
 
   int status = 0;
+  kernelMousePointer *newPointer = NULL;
+  int pointerSlot = -1;
   
   // Make sure we've been initialized
   if (!initialized)
@@ -139,9 +186,11 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   if ((pointerName == NULL) || (fileName == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  currentPointer = &pointerList[numberPointers++];
+  newPointer = kernelMalloc(sizeof(kernelMousePointer));
+  if (newPointer == NULL)
+    return (status = ERR_MEMORY);
 
-  status = kernelImageLoad(fileName, 0, 0, &(currentPointer->pointerImage));
+  status = kernelImageLoad(fileName, 0, 0, &(newPointer->pointerImage));
   if (status < 0)
     {
       kernelError(kernel_error, "Error loading mouse pointer image %s",
@@ -150,51 +199,99 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
     }
 
   // Save the name
-  strcpy(currentPointer->name, pointerName);
+  strncpy(newPointer->name, pointerName, MOUSE_POINTER_NAMELEN);
 
   // Mouse pointers are translucent, and the translucent color is pure green
-  currentPointer->pointerImage.translucentColor.red = 0;
-  currentPointer->pointerImage.translucentColor.green = 255;
-  currentPointer->pointerImage.translucentColor.blue = 0;
+  newPointer->pointerImage.translucentColor.red = 0;
+  newPointer->pointerImage.translucentColor.green = 255;
+  newPointer->pointerImage.translucentColor.blue = 0;
 
-  mouseStatus.width = currentPointer->pointerImage.width;
-  mouseStatus.height = currentPointer->pointerImage.height;
+  // Let's see whether this is a new pointer, or whether this will replace
+  // an existing one
+  pointerSlot = findPointerSlot(pointerName);
 
-  kernelLog("Loaded mouse pointer %s from file %s", pointerName, fileName);
+  if (pointerSlot < 0)
+    {
+      // This is a new pointer, so add it to the list.
+      
+      if (numberPointers >= MOUSE_MAX_POINTERS)
+	{
+	  kernelError(kernel_error, "Can't exceed max number of mouse "
+		      "pointers (%d)", MOUSE_MAX_POINTERS);
+	  kernelMemoryRelease(newPointer->pointerImage.data);
+	  kernelFree(newPointer);
+	  return (status = ERR_BOUNDS);
+	}
+      
+      pointerList[numberPointers++] = newPointer;
+    }
+  else
+    {
+      // Replace the existing pointer with this one
+      kernelMemoryRelease(pointerList[pointerSlot]->pointerImage.data);
+      kernelFree(pointerList[pointerSlot]);
+      pointerList[pointerSlot] = newPointer;
+    }
+
+  kernelLog("Loaded mouse pointer %s from file %s", newPointer->name,
+	    fileName);
 
   return (status = 0);
 }
 
 
-int kernelMouseSwitchPointer(const char *pointerName)
+kernelMousePointer *kernelMouseGetPointer(const char *pointerName)
 {
-  // Show a new named pointer
-  
+  // Returns a pointer to the requested mouse pointer, by name
+
+  kernelMousePointer *pointer = NULL;
+  int pointerSlot = -1;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (pointer = NULL);
+
+  // Check parameters
+  if (pointerName == NULL)
+    {
+      kernelError(kernel_error, "NULL mouse pointer name");
+      return (pointer = NULL);
+    }
+
+  pointerSlot = findPointerSlot(pointerName);
+
+  if (pointerSlot >= 0)
+    pointer = pointerList[pointerSlot];
+  else
+    kernelError(kernel_error, "Mouse pointer \"%s\" not found", pointerName);
+
+  return (pointer);
+}
+
+
+int kernelMouseSetPointer(kernelMousePointer *pointer)
+{
+  // Sets the current mouse pointer
+
   int status = 0;
-  int count;
-  
+
   // Make sure we've been initialized
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
-  if (pointerName == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Find the pointer with the name
-  for (count = 0; count < numberPointers; count ++)
+  if (pointer == NULL)
     {
-      if (!strcmp(pointerName, pointerList[count].name))
-	{
-	  erase();
-	  currentPointer = &pointerList[count];
-	  mouseStatus.width = currentPointer->pointerImage.width;
-	  mouseStatus.height = currentPointer->pointerImage.height;
-	  draw();
-	  break;
-	}
+      kernelError(kernel_error, "NULL mouse pointer");
+      return (status = ERR_NULLPARAMETER);
     }
 
+  erase();
+  currentPointer = pointer;
+  mouseStatus.width = currentPointer->pointerImage.width;
+  mouseStatus.height = currentPointer->pointerImage.height;
+  draw();
+  
   return (status = 0);
 }
 
@@ -292,32 +389,9 @@ void kernelMouseButtonChange(int buttonNumber, int status)
       break;
     }
 
-  // Tell the window manager, if it cares
+  // Tell the window manager
   status2event(&event);
   kernelWindowProcessEvent(&event);
 
   return;
-}
-
-
-void kernelMouseBusy(int busy)
-{
-  // Called to set the mouse busy (1) or not busy (0).  We maintain a counter
-  // of busies.
-  
-  if (busy)
-    {
-      if (!mouse.busy)
-	kernelMouseSwitchPointer("busy");
-
-      mouse.busy += 1;
-    }
-  else
-    {
-      if (mouse.busy)
-	mouse.busy -= 1;
-
-      if (!mouse.busy)
-	kernelMouseSwitchPointer("default");
-    }
 }

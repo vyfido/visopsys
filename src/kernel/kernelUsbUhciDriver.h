@@ -60,14 +60,44 @@
 #define USBUHCI_PORT_CONNCHG        0x0002
 #define USBUHCI_PORT_CONNSTAT       0x0001
 
-//#define USBUHCI_DEBUG
+// Bitfields for link pointers
+#define USBUHCI_LINKPTR_QHEAD       0x00000002
+#define USBUHCI_LINKPTR_TERM        0x00000001
+
+// Bitfields for transfer descriptors
+#define USBUHCI_TDLINK_DEPTHFIRST   0x00000004
+#define USBUHCI_TDCONTSTAT_SPD      0x20000000
+#define USBUHCI_TDCONTSTAT_ERRCNT   0x18000000
+#define USBUHCI_TDCONTSTAT_LSPEED   0x04000000
+#define USBUHCI_TDCONTSTAT_ISOC     0x02000000
+#define USBUHCI_TDCONTSTAT_INTR     0x01000000
+#define USBUHCI_TDCONTSTAT_STATUS   0x00FF0000
+#define USBUHCI_TDCONTSTAT_ACTIVE   0x00800000
+#define USBUHCI_TDCONTSTAT_ERROR    0x007E0000
+#define USBUHCI_TDCONTSTAT_ESTALL   0x00400000
+#define USBUHCI_TDCONTSTAT_EDBUFF   0x00200000
+#define USBUHCI_TDCONTSTAT_EBABBLE  0x00100000
+#define USBUHCI_TDCONTSTAT_ENAK     0x00080000
+#define USBUHCI_TDCONTSTAT_ECRCTO   0x00040000
+#define USBUHCI_TDCONTSTAT_EBSTUFF  0x00020000
+#define USBUHCI_TDCONTSTAT_ACTLEN   0x000007FF
+#define USBUHCI_TDTOKEN_MAXLEN      0xFFE00000
+#define USBUHCI_TDTOKEN_DATATOGGLE  0x00080000
+#define USBUHCI_TDTOKEN_ENDPOINT    0x00078000
+#define USBUHCI_TDTOKEN_ADDRESS     0x00007F00
+#define USBUHCI_TDTOKEN_PID         0x000000FF
+#define USBUHCI_TD_NULLDATA         0x000007FF
 
 typedef volatile struct {
   unsigned linkPointer;
   unsigned element;
-  unsigned pad[2];
 
-} __attribute__((packed)) usbUhciQueueHead;
+} __attribute__((packed)) __attribute((aligned(16))) usbUhciQueueHead;
+
+// One memory page worth of queue heads
+#define USBUHCI_NUM_QUEUEHEADS      4
+#define USBUHCI_QUEUEHEADS_MEMSIZE  (USBUHCI_NUM_QUEUEHEADS * \
+				     sizeof(usbUhciQueueHead))
 
 typedef volatile struct {
   unsigned linkPointer;
@@ -79,19 +109,17 @@ typedef volatile struct {
   // the buffer length
   void *buffVirtAddr;
   unsigned buffSize;
-  unsigned pad[2];
 
-} __attribute__((packed)) usbUhciTransDesc;
+} __attribute__((packed)) __attribute((aligned(16))) usbUhciTransDesc;
 
 typedef struct {
   void *frameListPhysical;
   unsigned *frameList;
-  int numTransDescs;
-  void *transDescsPhysical;
-  usbUhciTransDesc *transDescs;
-  int numQueueHeads;
-  void *queueHeadsPhysical;
-  usbUhciQueueHead *queueHeads;
+  usbUhciQueueHead *intrQueueHead;
+  usbUhciQueueHead *controlQueueHead;
+  usbUhciQueueHead *bulkQueueHead;
+  usbUhciQueueHead *termQueueHead;
+  usbUhciTransDesc *termTransDesc;  
   
 } usbUhciData;
 

@@ -116,7 +116,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -139,10 +139,8 @@ static void updateStatus(void)
 	  (modified? " (modified)" : ""), line, numLines);
 
   if (graphics)
-    {
-      windowComponentSetData(statusLabel, statusMessage,
-			     strlen(statusMessage));
-    }
+    windowComponentSetData(statusLabel, statusMessage, strlen(statusMessage));
+
   else
     {
       // Put the cursor on the last line and switch colors

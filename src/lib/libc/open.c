@@ -39,7 +39,7 @@ int open(const char *fileName, int flags)
   //
   // The parameter flags is one of O_RDONLY, O_WRONLY or O_RDWR which
   // request opening the file read-only, write-only or read/write, respec-
-  // tively, bitwise-or¡Çd with zero or more of the following:
+  // tively, bitwise-or'ed with zero or more of the following:
   //
   // O_CREAT
   //   If the file does not exist it will be created.
@@ -56,7 +56,7 @@ int open(const char *fileName, int flags)
   //   If pathname is not a directory, cause the open to fail.
 
   int status = 0;
-  fileStream *theFile = NULL;
+  fileStream *theStream = NULL;
   int newFlags = 0;
 
   // We have to adapt the UNIX/POSIX flags to our flags
@@ -83,22 +83,38 @@ int open(const char *fileName, int flags)
     newFlags |= ~OPENMODE_TRUNCATE;
 
   // Get memory for the file stream
-  theFile = malloc(sizeof(fileStream));
-  if (theFile == NULL)
+  theStream = malloc(sizeof(fileStream));
+  if (theStream == NULL)
     return (errno = ERR_MEMORY);
 
-  bzero(theFile, sizeof(fileStream));
-  status = fileStreamOpen(fileName, newFlags, theFile);
+  bzero(theStream, sizeof(fileStream));
+  status = fileStreamOpen(fileName, newFlags, theStream);
   if (status < 0)
-    return (errno = status);
+    {
+      free(theStream);
+      return (errno = status);
+    }
 
-  if ((flags & O_DIRECTORY) && (theFile->f.type != dirT))
+  if ((flags & O_DIRECTORY) && (theStream->f.type != dirT))
     {
       // Supposed to fail if not a directory
-      fileStreamClose(theFile);
-      free(theFile);
+      fileStreamClose(theStream);
+      free(theStream);
       return (errno = ERR_NOTADIR);
     }
 
-  return ((int) theFile);
+  // If we're not appending, seek to the beginning of the file, since the
+  // fileStreamOpen() call is automatically in 'append' mode
+  if (!(flags & O_APPEND))
+    {
+      status = fileStreamSeek(theStream, 0);
+      if (status < 0)
+	{
+	  fileStreamClose(theStream);
+	  free(theStream);
+	  return (errno = status);
+	}
+    }
+
+  return ((int) theStream);
 }

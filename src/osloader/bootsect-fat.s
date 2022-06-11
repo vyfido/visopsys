@@ -152,7 +152,6 @@ read:
 	mov BX, 55AAh
 	mov DL, byte [DriveNumber]
 	int 13h
-
 	jc .noExtended
 
 	;; We have a nice extended read function which will allow us to

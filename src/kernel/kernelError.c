@@ -186,7 +186,7 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expandFormatString(errorText, message, list);
+  _expandFormatString(errorText, MAX_ERRORTEXT_LENGTH, message, list);
 
   va_end(list);
 
@@ -220,7 +220,7 @@ void kernelErrorDialog(const char *title, const char *message, ...)
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expandFormatString(errorText, message, list);
+  _expandFormatString(errorText, MAX_ERRORTEXT_LENGTH, message, list);
 
   va_end(list);
 

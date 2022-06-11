@@ -211,12 +211,8 @@ void kernelSysTimerWaitTicks(int waitTicks)
 
   // One more thing: make sure the number to wait is reasonable.
   if (waitTicks < 0)
-    {
-      kernelError(kernel_warn, "Timer ticks to wait is negative.  Not "
-		  "possible in this dimension");
-      // Assume zero
-      waitTicks = 0;
-    }
+    // Not possible in this dimension.  Assume zero.
+    waitTicks = 0;
 
   // Ok, now we can call the timer routine safely.
 

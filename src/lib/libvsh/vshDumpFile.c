@@ -21,10 +21,10 @@
 
 // This contains some useful functions written for the shell
 
-#include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
-#include <sys/vsh.h>
 #include <sys/api.h>
+#include <sys/vsh.h>
 
 
 _X_ int vshDumpFile(const char *fileName)
@@ -59,28 +59,26 @@ _X_ int vshDumpFile(const char *fileName)
   // Read it into memory and print it on the screen.
   
   // Allocate a buffer to store the file contents in
-  fileBuffer = memoryGet(((theFile.blocks * theFile.blockSize) + 1),
-			 "temporary file data");
+  fileBuffer = malloc((theFile.blocks * theFile.blockSize) + 1);
   if (fileBuffer == NULL)
     return (errno = ERR_MEMORY);
 
   status = fileOpen(fileName, OPENMODE_READ, &theFile);
   if (status < 0)
     {
-      memoryRelease(fileBuffer);
+      free(fileBuffer);
       return (errno = status);
     }
 
   status = fileRead(&theFile, 0, theFile.blocks, fileBuffer);
   if (status < 0)
     {
-      memoryRelease(fileBuffer);
+      free(fileBuffer);
       return (errno = status);
     }
 
   // Print the file
-  count = 0;
-  while (count < theFile.size)
+  for (count = 0; count < theFile.size; count ++)
     {
       // Look out for tab characters
       if (fileBuffer[count] == (char) 9)
@@ -88,20 +86,18 @@ _X_ int vshDumpFile(const char *fileName)
 
       // Look out for newline characters
       else if (fileBuffer[count] == (char) 10)
-	printf("\n");
+	textNewline();
 
       else
-	putchar(fileBuffer[count]);
-
-      count += 1;
+	textPutc(fileBuffer[count]);
     }
 
   // If the file did not end with a newline character...
   if (fileBuffer[count - 1] != '\n')
-    printf("\n");
+    textNewline();
 
   // Free the memory
-  memoryRelease(fileBuffer);
+  free(fileBuffer);
 
   return (status = 0);
 }

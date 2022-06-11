@@ -84,7 +84,7 @@ static char *errorMessages[] = {
   "Unknown error"
 };
 
-static kernelPhysicalDisk *floppies[MAXFLOPPIES];
+static kernelPhysicalDisk disks[MAXFLOPPIES];
 static int numberFloppies = 0;
 static lock controllerLock;
 static unsigned currentTrack = 0;
@@ -298,12 +298,10 @@ static void specify(unsigned driveNum)
   // about the specified drive.
 
   unsigned char commandByte;
-  floppyDriveData *floppyData = (floppyDriveData *)
-    floppies[driveNum]->driverData;
+  floppyDriveData *floppyData = (floppyDriveData *) disks[driveNum].driverData;
 
   // Construct the data rate byte
-  commandByte = (unsigned char)
-    ((floppyDriveData *)(floppies[driveNum]->driverData))->dataRate;
+  commandByte = (unsigned char) floppyData->dataRate;
   kernelProcessorOutPort8(0x03F7, commandByte);
   kernelProcessorDelay();
 
@@ -368,7 +366,7 @@ static int setMotorState(int driveNum, int onOff)
       kernelProcessorDelay();
     }
 
-  floppies[driveNum]->motorState = onOff;
+  disks[driveNum].motorState = onOff;
 
   return (0);
 }
@@ -392,7 +390,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
   int count;
 
   // Get a pointer to the requested disk
-  theDisk = floppies[driveNum];
+  theDisk = &(disks[driveNum]);
 
   // Wait for a lock on the controller
   status = kernelLockGet(&controllerLock);
@@ -468,7 +466,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       // complete, we can do some other things.
 
       // How many bytes will we transfer?
-      xFerBytes = (doSectors * floppies[driveNum]->sectorSize);
+      xFerBytes = (doSectors * theDisk->sectorSize);
       
       // If it's a write operation, copy xFerBytes worth of user data
       // into the transfer area
@@ -545,16 +543,16 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       commandWrite(commandByte);
 
       // Construct the sector size code
-      commandByte = (unsigned char) (floppies[driveNum]->sectorSize >> 8);
+      commandByte = (unsigned char) (theDisk->sectorSize >> 8);
       commandWrite(commandByte);
 
       // Construct the end of track byte
-      commandByte = (unsigned char) floppies[driveNum]->sectorsPerCylinder;
+      commandByte = (unsigned char) theDisk->sectorsPerCylinder;
       commandWrite(commandByte);
 
       // Construct the gap length byte
       commandByte = (unsigned char)
-	((floppyDriveData *)(floppies[driveNum]->driverData))->gapLength;
+	((floppyDriveData *)(theDisk->driverData))->gapLength;
       commandWrite(commandByte);
 
       // Construct the custom sector size byte
@@ -854,53 +852,41 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // general driver initialization.
 
   int status = 0;
-  kernelDevice *devices = NULL;
-  kernelPhysicalDisk *floppyPointer = NULL;
   floppyDriveData *floppyData = NULL;
+  kernelDevice *theDevice = NULL;
   int count;
 
-  bzero((void *) &controllerLock, sizeof(lock));
+  kernelMemClear(&disks, (MAXFLOPPIES * sizeof(kernelPhysicalDisk)));
+  kernelMemClear((void *) &controllerLock, sizeof(lock));
 
   // Reset the number of floppy devices 
   numberFloppies = kernelOsLoaderInfo->floppyDisks;
 
-  // Allocate memory for the floppy device(s)
-  devices = kernelMalloc(numberFloppies * (sizeof(kernelDevice) +
-					   sizeof(kernelPhysicalDisk)));
-  if (devices == NULL)
-    return (status = 0);
-
-  floppyPointer = ((void *) devices + (numberFloppies * sizeof(kernelDevice)));
-
   // Loop for each device
   for (count = 0; count < numberFloppies; count ++)
     {
-      floppies[count] = &floppyPointer[count];
-
       // The device name and filesystem type
-      sprintf((char *) floppies[count]->name, "fd%d", count);
+      sprintf(disks[count].name, "fd%d", count);
 
       // The head, track and sector values we got from the loader
-      floppies[count]->heads = kernelOsLoaderInfo->fddInfo[count].heads;
-      floppies[count]->cylinders = kernelOsLoaderInfo->fddInfo[count].tracks;
-      floppies[count]->sectorsPerCylinder =
+      disks[count].heads = kernelOsLoaderInfo->fddInfo[count].heads;
+      disks[count].cylinders = kernelOsLoaderInfo->fddInfo[count].tracks;
+      disks[count].sectorsPerCylinder =
 	kernelOsLoaderInfo->fddInfo[count].sectors;
-      floppies[count]->numSectors =
-	(floppies[count]->heads * floppies[count]->cylinders *
-	 floppies[count]->sectorsPerCylinder);
-      floppies[count]->biosType = kernelOsLoaderInfo->fddInfo[count].type;
+      disks[count].numSectors =	(disks[count].heads * disks[count].cylinders *
+				 disks[count].sectorsPerCylinder);
+      disks[count].biosType = kernelOsLoaderInfo->fddInfo[count].type;
 
       // Some additional universal default values
-      floppies[count]->flags =
+      disks[count].flags =
 	(DISKFLAG_PHYSICAL | DISKFLAG_REMOVABLE | DISKFLAG_FLOPPY);
-      floppies[count]->deviceNumber = count;
-      floppies[count]->sectorSize = 512;
-      floppies[count]->dmaChannel = 2;
+      disks[count].deviceNumber = count;
+      disks[count].sectorSize = 512;
+      disks[count].dmaChannel = 2;
       // Assume motor off for now
 
       // We do division operations with these values
-      if ((floppies[count]->sectorsPerCylinder == 0) ||
-	  (floppies[count]->heads == 0))
+      if ((disks[count].sectorsPerCylinder == 0) || (disks[count].heads == 0))
 	{
 	  // We do division operations with these values
 	  kernelError(kernel_error, "NULL sectors or heads value");
@@ -915,25 +901,25 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  return (status = ERR_MEMORY);
 	}
 
-      switch(floppies[count]->biosType)
+      switch(disks[count].biosType)
 	{
 	case 1:
 	  // This is a 360 KB 5.25" Disk.  Yuck.
-	  floppies[count]->description = "360 Kb 5.25\" floppy"; 
+	  disks[count].description = "360 Kb 5.25\" floppy"; 
 	  floppyData->stepRate = 0x0D;
 	  floppyData->gapLength = 0x2A;
 	  break;
 	
 	case 2:
 	  // This is a 1.2 MB 5.25" Disk.  Yuck.
-	  floppies[count]->description = "1.2 Mb 5.25\" floppy"; 
+	  disks[count].description = "1.2 Mb 5.25\" floppy"; 
 	  floppyData->stepRate = 0x0D;
 	  floppyData->gapLength = 0x2A;
 	  break;
 	
 	case 3:
 	  // This is a 720 KB 3.5" Disk.  Yuck.
-	  floppies[count]->description = "720 Kb 3.5\" floppy"; 
+	  disks[count].description = "720 Kb 3.5\" floppy"; 
 	  floppyData->stepRate = 0x0D;
 	  floppyData->gapLength = 0x1B;
 	  break;
@@ -941,7 +927,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	case 5:
 	case 6:
 	  // This is a 2.88 MB 3.5" Disk.
-	  floppies[count]->description = "2.88 Mb 3.5\" floppy"; 
+	  disks[count].description = "2.88 Mb 3.5\" floppy"; 
 	  floppyData->stepRate = 0x0A;
 	  floppyData->gapLength = 0x1B;
 	  break;
@@ -950,12 +936,12 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  // Oh oh.  This is an unexpected value.  Make a warning and fall
 	  // through to 1.44 MB.
 	  kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
-		      "Assuming 1.44 Mb.", floppies[count]->deviceNumber,
-		      floppies[count]->biosType);
+		      "Assuming 1.44 Mb.", disks[count].deviceNumber,
+		      disks[count].biosType);
 
 	case 4:
 	  // This is a 1.44 MB 3.5" Disk.
-	  floppies[count]->description = "1.44 Mb 3.5\" floppy"; 
+	  disks[count].description = "1.44 Mb 3.5\" floppy"; 
 	  floppyData->stepRate = 0x0A;
 	  floppyData->gapLength = 0x1B;
 	  break;
@@ -967,16 +953,9 @@ static int driverDetect(void *parent, kernelDriver *driver)
       floppyData->dataRate = 0;
 
       // Attach the drive data to the disk
-      floppies[count]->driverData = (void *) floppyData;
+      disks[count].driverData = (void *) floppyData;
 
-      floppies[count]->driver = driver;
-
-      devices[count].device.class =
-	kernelDeviceGetClass(DEVICECLASS_DISK);
-      devices[count].device.subClass =
-	kernelDeviceGetClass(DEVICESUBCLASS_DISK_FLOPPY);
-      devices[count].driver = driver;
-      devices[count].data = (void *) floppies[count];
+      disks[count].driver = driver;
     }
 
   // Get memory for a disk transfer area.
@@ -1015,17 +994,29 @@ static int driverDetect(void *parent, kernelDriver *driver)
   for (count = 0; count < numberFloppies; count ++)
     {
       // Select the drive on the controller
-      selectDrive(floppies[count]->deviceNumber);
+      selectDrive(disks[count].deviceNumber);
 
       // Send the controller info about the drive.
-      specify(floppies[count]->deviceNumber);
+      specify(disks[count].deviceNumber);
+
+      // Get a device
+      theDevice = kernelMalloc(sizeof(kernelDevice));
+      if (theDevice == NULL)
+	// Skip this one, we guess
+	continue;
+
+      theDevice->device.class =	kernelDeviceGetClass(DEVICECLASS_DISK);
+      theDevice->device.subClass =
+	kernelDeviceGetClass(DEVICESUBCLASS_DISK_FLOPPY);
+      theDevice->driver = driver;
+      theDevice->data = (void *) &disks[count];
 
       // Register the floppy disk device
-      status = kernelDiskRegisterDevice(&devices[count]);
+      status = kernelDiskRegisterDevice(theDevice);
       if (status < 0)
 	return (status);
 
-      status = kernelDeviceAdd(parent, &devices[count]);
+      status = kernelDeviceAdd(parent, theDevice);
       if (status < 0)
 	return (status);
     }

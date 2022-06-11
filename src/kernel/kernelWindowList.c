@@ -29,7 +29,107 @@
 #include "kernelMisc.h"
 #include <string.h>
 
-static kernelAsciiFont *labelFont = NULL;
+extern kernelWindowVariables *windowVariables;
+
+
+static void setVisibleItems(kernelWindowComponent *component)
+{
+  // Set the visible/not visible attributes of the components based on the
+  // scroll state
+
+  kernelWindowList *list = component->data;
+  kernelWindowContainer *container = list->container->data;
+  kernelWindowComponent *listItemComponent = NULL;
+  int xCoord = 0, yCoord = 0;
+  int count;
+
+  kernelDebug(debug_gui, "windowList set visible items");
+
+  for (count = 0; count < container->numComponents; count ++)
+    {
+      listItemComponent = container->components[count];
+      listItemComponent->flags &= ~WINFLAG_VISIBLE;
+
+      if ((listItemComponent->params.gridY >= list->firstVisibleRow) &&
+	  (listItemComponent->params.gridY <
+	   (list->rows + list->firstVisibleRow)))
+	{
+	  xCoord = (list->container->xCoord +
+		    (listItemComponent->params.gridX * list->itemWidth));
+	  yCoord = (list->container->yCoord +
+		    ((listItemComponent->params.gridY -
+		      list->firstVisibleRow) * list->itemHeight));
+
+	  if ((xCoord != listItemComponent->xCoord) ||
+	      (yCoord != listItemComponent->yCoord))
+	    {
+	      kernelDebug(debug_gui, "windowList item %d oldX %d, oldY %d, "
+			  "newX %d, newY %d", count, listItemComponent->xCoord,
+			  listItemComponent->yCoord, xCoord, yCoord);
+
+	      if (listItemComponent->move)
+		listItemComponent->move(listItemComponent, xCoord, yCoord);
+
+	      listItemComponent->xCoord = xCoord;
+	      listItemComponent->yCoord = yCoord;
+	    }
+ 
+	  listItemComponent->flags |= WINFLAG_VISIBLE;
+	}
+    }
+}
+
+
+static void drawVisibleItems(kernelWindowComponent *component)
+{
+  kernelWindowList *list = component->data;
+  kernelWindowContainer *container = list->container->data;
+  int count;
+
+  kernelDebug(debug_gui, "windowList draw visible items");
+
+  // Draw the background of the list
+  kernelGraphicDrawRect(component->buffer,
+			(color *) &(component->params.background),
+			draw_normal, list->container->xCoord,
+			list->container->yCoord, list->container->width,
+			list->container->height, 1, 1);
+
+  for (count = 0; count < container->numComponents; count ++)
+    if ((container->components[count]->flags & WINFLAG_VISIBLE) &&
+	(container->components[count]->draw))
+      {
+	kernelDebug(debug_gui, "windowList item %d xCoord %d, yCoord %d",
+		    count, container->components[count]->xCoord,
+		    container->components[count]->yCoord);
+	container->components[count]->draw(container->components[count]);
+      }
+}
+
+
+static void setItemGrid(kernelWindowComponent *component)
+{
+  // Set the grid coordinates of the items
+  
+  kernelWindowList *list = component->data;
+  kernelWindowContainer *container = list->container->data;
+  int column = 0;
+  int row = 0;
+  int count;
+
+  for (count = 0; count < container->numComponents; count ++)
+    {
+      container->components[count]->params.gridX = column;
+      container->components[count]->params.gridY = row;
+
+      column += 1;
+      if (column >= list->columns)
+	{
+	  row += 1;
+	  column = 0;
+	}
+    }
+}
 
 
 static inline int isMouseInScrollBar(windowEvent *event,
@@ -67,11 +167,76 @@ static void setScrollBar(kernelWindowList *list)
 }
 
 
-static void checkScroll(kernelWindowComponent *component)
+static void setItemSizes(kernelWindowList *list)
+{  
+  // Set the sizes of all the items, making them uniform.
+
+  kernelWindowContainer *container = list->container->data;
+  kernelWindowComponent *listItemComponent = NULL;
+  int count;
+
+  kernelDebug(debug_gui, "windowList set item sizes");
+
+  for (count = 0; count < container->numComponents; count ++)
+    {
+      listItemComponent = container->components[count];
+
+      if ((listItemComponent->width != list->itemWidth) ||
+	  (listItemComponent->height != list->itemHeight))
+	{
+	  kernelDebug(debug_gui, "windowList item %d oldWidth %d, oldHeight "
+		      "%d, newWidth %d, newHeight %d", count,
+		      listItemComponent->width, listItemComponent->height,
+		      list->itemWidth, list->itemHeight);
+
+	  if (listItemComponent->resize)
+	    listItemComponent->resize(listItemComponent, list->itemWidth,
+				      list->itemHeight);
+
+	  listItemComponent->width = list->itemWidth;
+	  listItemComponent->height = list->itemHeight;
+	}
+    }
+}
+
+
+static void setRowsAndColumns(kernelWindowComponent *component)
 {
+  kernelWindowList *list = component->data;
+
+  kernelDebug(debug_gui, "windowList set rows and columns");
+
+  if (list->multiColumn)
+    {
+      if (list->itemWidth)
+	list->columns = (list->container->width / list->itemWidth);
+    }
+  else
+    {
+      // Re-set the item width to the container width
+      list->itemWidth = list->container->width;
+      
+      // Set the sizes of our items
+      setItemSizes(list);
+    }
+  
+  if (list->itemHeight)
+    list->rows = (list->container->height / list->itemHeight);
+
+  kernelDebug(debug_gui, "windowList rows %d, columns %d", list->rows,
+	      list->columns);
+}
+
+
+static void selectionScroll(kernelWindowComponent *component)
+{
+  // Looks at the currently selected item and scrolls 
+
   kernelWindowList *list = component->data;
   kernelWindowContainer *container = list->container->data;
   kernelWindowComponent *listItemComponent = NULL;
+
+  kernelDebug(debug_gui, "windowList check scroll");
 
   if (list->selectedItem == -1)
     return;
@@ -79,22 +244,24 @@ static void checkScroll(kernelWindowComponent *component)
   listItemComponent = container->components[list->selectedItem];
 
   // Do we have to scroll the list?
-  if ((listItemComponent->parameters.gridY < list->firstVisibleRow) ||
-      (listItemComponent->parameters.gridY >=
+  if ((listItemComponent->params.gridY < list->firstVisibleRow) ||
+      (listItemComponent->params.gridY >=
        (list->firstVisibleRow + list->rows)))
     {
-      if (listItemComponent->parameters.gridY < list->firstVisibleRow)
-	list->firstVisibleRow = listItemComponent->parameters.gridY;
-      else if (listItemComponent->parameters.gridY >=
-	       (list->firstVisibleRow + list->rows))
+      if (listItemComponent->params.gridY < list->firstVisibleRow)
+	list->firstVisibleRow = listItemComponent->params.gridY;
+
+      else
 	list->firstVisibleRow =
-	  ((listItemComponent->parameters.gridY - list->rows) + 1);
+	  ((listItemComponent->params.gridY - list->rows) + 1);
 
       if (list->scrollBar)
 	// Set the scroll bar display percent
 	setScrollBar(list);
 
-      component->draw(component);
+      setVisibleItems(component);
+      drawVisibleItems(component);
+
       component->window
 	->update(component->window, component->xCoord, component->yCoord,
 		 component->width, component->height);
@@ -102,77 +269,244 @@ static void checkScroll(kernelWindowComponent *component)
 }
 
 
-static void setItemRows(kernelWindowList *list)
+static int numComps(kernelWindowComponent *component)
 {
-  kernelWindowContainer *container = list->container->data;
+  int numItems = 0;
+  kernelWindowList *list = component->data;
 
+  if (list->container && list->container->numComps)
+    // Count our container's components
+    numItems = list->container->numComps(list->container);
+
+  if (list->scrollBar)
+    // Return 1 for our scrollbar, 
+    numItems += 1;
+
+  return (numItems);
+}
+
+
+static int flatten(kernelWindowComponent *component,
+		   kernelWindowComponent **array, int *numItems,
+		   unsigned flags)
+{
+  int status = 0;
+  kernelWindowList *list = component->data;
+
+  if (list->container && list->container->flatten)
+    // Flatten our container
+    status = list->container->flatten(list->container, array, numItems, flags);
+
+  if (list->scrollBar && ((list->scrollBar->flags & flags) == flags))
+    // Add our scrollbar
+    array[*numItems++] = list->scrollBar;
+
+  return (status);
+}
+
+
+static int layout(kernelWindowComponent *component)
+{
+  // Loop through the list items in the container and put them into a grid
+
+  kernelWindowList *list = component->data;
+  kernelWindowContainer *container = list->container->data;
+  int scrollBarX = 0;
+
+  kernelDebug(debug_gui, "windowList layout");
+
+  // If we've not previously done layout, set the container and component
+  // sizes
+  if (!(component->doneLayout))
+    {
+      list->container->width = (list->columns * list->itemWidth);
+      list->container->height = (list->rows * list->itemHeight);
+      component->width = list->container->width;
+      component->height = list->container->height;
+
+      if (list->scrollBar)
+	component->width += list->scrollBar->width;
+
+      kernelDebug(debug_gui, "windowList width %d, height %d",
+		  component->width, component->height);
+    }
+
+  // Calculate the number of total rows needed to accommodate *all* the items
+  // (not just visible ones)
   if (list->columns)
     {
       list->itemRows = (container->numComponents / list->columns);
       if (container->numComponents % list->columns)
 	list->itemRows += 1;
     }
-}
 
+  setItemGrid(component);
+  setVisibleItems(component);
 
-static void layoutItems(kernelWindowList *list)
-{
-  // Loop through the list items in the container and put them into a grid
-
-  kernelWindowContainer *container = list->container->data;
-  kernelWindowComponent *listItemComponent = NULL;
-  int column = 0;
-  int row = 0;
-  int count;
-
-  for (count = 0; (count < container->numComponents); count ++)
+  if (list->scrollBar)
     {
-      listItemComponent = container->components[count];
+      // Set up the scroll bar size and location and adjust the list
+      // component size to account for it
 
-      listItemComponent->parameters.gridX = column;
-      listItemComponent->parameters.gridY = row;
+      scrollBarX = (component->xCoord + list->container->width);
 
-      column += 1;
-      if (column >= list->columns)
+      if ((list->scrollBar->xCoord != scrollBarX) ||
+	  (list->scrollBar->yCoord != component->yCoord))
 	{
-	  row += 1;
-	  column = 0;
+	  if (list->scrollBar->move)
+	    list->scrollBar
+	      ->move(list->scrollBar, scrollBarX, component->yCoord);
+	  list->scrollBar->xCoord = scrollBarX;
+	  list->scrollBar->yCoord = component->yCoord;
 	}
-    }  
+
+      if (list->scrollBar->height != list->container->height)
+	{
+	  if (list->scrollBar->resize)
+	    list->scrollBar->resize(list->scrollBar, list->scrollBar->width,
+				    list->container->height);
+	  list->scrollBar->height = list->container->height;
+	}
+    }
+
+  component->doneLayout = 1;
+  return (0);
 }
 
 
-static void setItemSizes(kernelWindowList *list)
-{  
+static int setBuffer(kernelWindowComponent *component,
+		     kernelGraphicBuffer *buffer)
+{
+  // Set the graphics buffer for the component and its subcomponents.
+
+  int status = 0;
+  kernelWindowList *list = component->data;
+
+  if (list->container && list->container->setBuffer)
+    {
+      // Do our container
+      status = list->container->setBuffer(list->container, buffer);
+      if (status < 0)
+	return (status);
+      list->container->buffer = buffer;
+    }
+
+  if (list->scrollBar && list->scrollBar->setBuffer)
+    {
+      // Also do our scrollbar
+      status = list->scrollBar->setBuffer(list->scrollBar, buffer);
+      if (status < 0)
+	return (status);
+      list->scrollBar->buffer = buffer;
+    }
+
+  return (status = 0);
+}
+
+
+static int draw(kernelWindowComponent *component)
+{
+  // Draw the component, which is really just a collection of other components.
+
+  int status = 0;
+  kernelWindowList *list = component->data;
+
+  kernelDebug(debug_gui, "windowList Draw width %d, height %d",
+	      component->width, component->height);
+
+  drawVisibleItems(component);
+
+  // Draw any scrollbars
+  if (list->scrollBar && list->scrollBar->draw)
+    list->scrollBar->draw(list->scrollBar);
+
+  if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) ||
+      (component->flags & WINFLAG_HASFOCUS))
+    component->drawBorder(component, 1);
+
+  return (status);
+}
+
+
+static int focus(kernelWindowComponent *component, int yesNo)
+{
+  kernelDebug(debug_gui, "windowList focus");
+
+  component->drawBorder(component, yesNo);
+  component->window->update(component->window, (component->xCoord - 2),
+			    (component->yCoord - 2), (component->width + 4),
+			    (component->height + 4));
+  return (0);
+}
+
+
+static int getSelected(kernelWindowComponent *component, int *itemNumber)
+{
+  kernelWindowList *list = component->data;
+
+  kernelDebug(debug_gui, "windowList get selected");
+
+  *itemNumber = list->selectedItem;
+  return (0);
+}
+
+
+static int setSelected(kernelWindowComponent *component, int item)
+{
+  // The selected list item has changed.
+
+  int status = 0;
+  kernelWindowList *list = component->data;
   kernelWindowContainer *container = list->container->data;
   kernelWindowComponent *listItemComponent = NULL;
-  int count;
+  int oldItem = 0;
 
-  // Set the widths of all the items
-  for (count = 0; count < container->numComponents; count ++)
+  kernelDebug(debug_gui, "windowList setSelected(%d)", item);
+
+  if ((item < -1) || (item >= container->numComponents))
     {
-      listItemComponent = container->components[count];
-      if (listItemComponent->resize)
-	listItemComponent->resize(listItemComponent, list->itemWidth,
-				  list->itemHeight);
-      listItemComponent->width = list->itemWidth;
-      listItemComponent->height = list->itemHeight;
+      kernelError(kernel_error, "Illegal component number %d", item);
+      return (status = ERR_BOUNDS);
     }
+
+  oldItem = list->selectedItem;
+
+  if ((oldItem != item) && (oldItem != -1))
+    {
+      // Deselect the old selected item
+      listItemComponent = container->components[oldItem];
+      listItemComponent->setSelected(listItemComponent, 0);
+    }
+
+  list->selectedItem = item;
+
+  // See if we have to scroll
+  selectionScroll(component);
+
+  if ((oldItem != item) && (item != -1))
+    {
+      // Select the selected item
+      listItemComponent = container->components[item];
+      listItemComponent->setSelected(listItemComponent, 1);
+    }
+
+  return (status = 0);
 }
 
 
 static void populateList(kernelWindowComponent *listComponent,
 			 listItemParameters *items, int numItems)
 {
-  // Sets up all the kernelWindowList subcomponents of the list
+  // Sets up all the kernelWindowListItem subcomponents of the list
   
   kernelWindowList *list = listComponent->data;
   kernelWindowContainer *container = list->container->data;
   kernelWindowComponent *listItemComponent = NULL;
   kernelWindowListItem *listItem = NULL;
-  int setSize = 0;
   componentParameters params;
   int count;
+
+  kernelDebug(debug_gui, "windowList populate list");
 
   // If the list already has components, get rid of them
   while (container->numComponents)
@@ -186,16 +520,13 @@ static void populateList(kernelWindowComponent *listComponent,
       return;
     }
 
-  if (!listComponent->width || !listComponent->height)
-    setSize = 1;
-
   // If the selected item is greater than the new number we have, make it the
   // last one
   if (list->selectedItem >= numItems)
     list->selectedItem = (numItems - 1);
 
   // Standard parameters for the list items
-  kernelMemCopy((componentParameters *) &(listComponent->parameters), &params,
+  kernelMemCopy((componentParameters *) &(listComponent->params), &params,
 		sizeof(componentParameters));
   params.gridX = 0;
   params.gridY = 0;
@@ -221,6 +552,9 @@ static void populateList(kernelWindowComponent *listComponent,
       if (listItemComponent == NULL)
 	continue;
 
+      // The component should adopt and keep the color of the list component
+      listItemComponent->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+
       listItem = listItemComponent->data;
 
       if (listItemComponent->width > list->itemWidth)
@@ -233,47 +567,16 @@ static void populateList(kernelWindowComponent *listComponent,
 	listItem->selected = 1;
     }
 
-  if (setSize)
-    {
-      list->container->width = (list->columns * list->itemWidth);
-      list->container->height = (list->rows * list->itemHeight);
-      listComponent->width = list->container->width;
-      listComponent->height = list->container->height;
-
-      if (list->scrollBar)
-	{
-	  // Set up the scroll bar size and location and adjust the list
-	  // component size to account for it
-	  list->scrollBar->xCoord =
-	    (listComponent->xCoord + list->container->width);
-	  list->scrollBar->height = listComponent->height;
-	  listComponent->width += list->scrollBar->width;
-	}
-    }
-
-  else
-    {
-      if (list->itemWidth && list->multiColumn &&
-	  ((list->container->width / list->itemWidth) != list->columns))
-	list->columns = (list->container->width / list->itemWidth);
-
-      if (list->itemHeight && 
-	  ((list->container->height / list->itemHeight) != list->rows))
-	list->rows = (list->container->height / list->itemHeight);
-
-      if (!list->multiColumn)
-	list->itemWidth = list->container->width;
-    }
-
-  // Adjust the number of item rows (not just visible ones)
-  setItemRows(list);
-
-  // Lay out the grid coordinates of the items based on the numbers of
-  // item rows and columns
-  layoutItems(list);
-
-  // Set the widths of all the items
+  // Set the sizes of all the items
   setItemSizes(list);
+
+  if (listComponent->doneLayout)
+    // We're re-populating the list, so re-calculate the number of rows
+    // and columns
+    setRowsAndColumns(listComponent);
+  
+  // Do layout
+  layout(listComponent);
 
   // Update the scroll bar position percent
   setScrollBar(list);
@@ -282,136 +585,16 @@ static void populateList(kernelWindowComponent *listComponent,
 }
 
 
-static int draw(kernelWindowComponent *component)
-{
-  // Draw the component, which is really just a collection of other components.
-
-  int status = 0;
-  kernelWindowList *list = component->data;
-  kernelWindowContainer *container = list->container->data;
-  kernelWindowComponent *listItemComponent = NULL;
-  kernelWindowListItem *listItem = NULL;
-  int xCoord, yCoord;
-  int count;
-
-  // Draw the background of the list
-  kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->parameters.background),
-			draw_normal, component->xCoord,
-			component->yCoord, component->width, component->height,
-			1, 1);
-
-  // Loop through the visible subcomponents, setting visible/not and calling
-  // their draw() routines if applicable.
-  for (count = 0; count < container->numComponents; count ++)
-    {
-      listItemComponent = container->components[count];
-      listItem = listItemComponent->data;
-
-      if ((listItemComponent->parameters.gridY >= list->firstVisibleRow) &&
-	  (listItemComponent->parameters.gridY <
-	   (list->rows + list->firstVisibleRow)))
-	{
-	  xCoord =
-	    (component->xCoord + (listItemComponent->parameters.gridX *
-				  list->itemWidth));
-	  yCoord =
-	    (component->yCoord + ((listItemComponent->parameters.gridY -
-				   list->firstVisibleRow) *
-				  listItemComponent->height));
-
-	  if (listItemComponent->move)
-	    listItemComponent->move(listItemComponent, xCoord, yCoord);
-	  listItemComponent->xCoord = xCoord;
-	  listItemComponent->yCoord = yCoord;
-
-	  listItemComponent->flags |= WINFLAG_VISIBLE;
-
-	  if (listItemComponent->draw)
-	    listItemComponent->draw(listItemComponent);
-	}
-      else
-	listItemComponent->flags &= ~WINFLAG_VISIBLE;
-    }
-
-  // Draw the scroll bar
-  if (list->scrollBar && list->scrollBar->draw)
-    list->scrollBar->draw(list->scrollBar);
-
-  if ((component->parameters.flags & WINDOW_COMPFLAG_HASBORDER) ||
-      (component->flags & WINFLAG_HASFOCUS))
-    component->drawBorder(component, 1);
-
-  return (status);
-}
-
-
-static int focus(kernelWindowComponent *component, int yesNo)
-{
-  component->drawBorder(component, yesNo);
-  component->window->update(component->window, (component->xCoord - 2),
-			    (component->yCoord - 2), (component->width + 4),
-			    (component->height + 4));
-  return (0);
-}
-
-
-static int getSelected(kernelWindowComponent *component, int *itemNumber)
-{
-  kernelWindowList *list = component->data;
-  *itemNumber = list->selectedItem;
-  return (0);
-}
-
-
-static int setSelected(kernelWindowComponent *component, int item)
-{
-  // The selected list item has changed.
-
-  int status = 0;
-  kernelWindowList *list = component->data;
-  kernelWindowContainer *container = list->container->data;
-  kernelWindowComponent *listItemComponent = NULL;
-
-  kernelDebug(debug_gui, "List setSelected(%d)", item);
-
-  if (item >= container->numComponents)
-    {
-      kernelError(kernel_error, "Illegal component number %d", item);
-      return (status = ERR_BOUNDS);
-    }
-
-  if (list->selectedItem != -1)
-    {
-      // Deselect the old selected item
-      listItemComponent = container->components[list->selectedItem];
-      listItemComponent->setSelected(listItemComponent, 0);
-    }
-
-  if (item != -1)
-    {
-      // Select the selected item
-      listItemComponent = container->components[item];
-      listItemComponent->setSelected(listItemComponent, 1);
-    }
-
-  list->selectedItem = item;
-
-  // See if we have to scroll
-  checkScroll(component);
-
-  return (status = 0);
-}
-
-
 static int setData(kernelWindowComponent *component, void *buffer, int size)
 {
   // Resets the subcomponents 
 
+  kernelDebug(debug_gui, "windowList set data");
+
   // Re-populate the list
   populateList(component, buffer, size);
 
-  // Re-draw
+  // Re-draw the list
   if (component->draw)
     component->draw(component);
 
@@ -428,21 +611,32 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
   kernelWindowList *list = component->data;
   int scrollBarX = 0;
 
+  kernelDebug(debug_gui, "windowList move oldX %d, oldY %d, newX %d, newY %d "
+	      "(%s%d, %s%d)", component->xCoord, component->yCoord, xCoord,
+	      yCoord, ((xCoord >= component->xCoord)? "+" : ""),
+	      (xCoord - component->xCoord),
+	      ((yCoord >= component->yCoord)? "+" : ""),
+	      (yCoord - component->yCoord));
+
   // Move our container
   if (list->container->move)
     list->container->move(list->container, xCoord, yCoord);
   list->container->xCoord = xCoord;
   list->container->yCoord = yCoord;
 
-  // Move our scroll bars
+  // Move any scroll bars
   if (list->scrollBar)
     {
       scrollBarX = (xCoord + list->container->width);
 
-      if (list->scrollBar->move)
-	list->scrollBar->move(list->scrollBar, scrollBarX, yCoord);
-      list->scrollBar->xCoord = scrollBarX;
-      list->scrollBar->yCoord = yCoord;
+      if ((list->scrollBar->xCoord != scrollBarX) ||
+	  (list->scrollBar->yCoord != yCoord))
+	{
+	  if (list->scrollBar->move)
+	    list->scrollBar->move(list->scrollBar, scrollBarX, yCoord);
+	  list->scrollBar->xCoord = scrollBarX;
+	  list->scrollBar->yCoord = yCoord;
+	}
     }
 
   return (0);
@@ -452,61 +646,23 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 static int resize(kernelWindowComponent *component, int width, int height)
 {
   kernelWindowList *list = component->data;
-  int containerWidth = 0;
-  int scrollBarX = 0;
 
-  containerWidth = (width - (list->scrollBar? list->scrollBar->width : 0));
+  kernelDebug(debug_gui, "windowList resize oldWidth %d, oldHeight %d, "
+	      "width %d, height %d", component->width, component->height,
+	      width, height);
 
-  if (list->container->resize)
-    list->container->resize(list->container, list->itemWidth, height);
-  list->container->width = containerWidth;
+  list->container->width = width;
   list->container->height = height;
 
-  if (list->multiColumn)
-    {
-      if (list->itemWidth &&
-	  ((containerWidth / list->itemWidth) != list->columns))
-	list->columns = (containerWidth / list->itemWidth);
-    }
-  else
-    {
-      // Re-set the item width to the container width
-      list->itemWidth = containerWidth;
-  
-      // Set the sizes of our items
-      setItemSizes(list);
-    }
-
-  if (list->itemHeight && ((height / list->itemHeight) != list->rows))
-    list->rows = (height / list->itemHeight);
-
-  // Adjust the number of item rows (not just visible ones)
-  setItemRows(list);
-
-  // Re-set the grid parameters for all
-  layoutItems(list);
-
-  // Move and resize our scroll bars
   if (list->scrollBar)
-    {
-      if (width != component->width)
-	{
-	  scrollBarX = (component->xCoord + list->container->width);
-	  
-	  if (list->scrollBar->move)
-	    list->scrollBar->move(list->scrollBar, scrollBarX,
-				  component->yCoord);
-	  list->scrollBar->xCoord = scrollBarX;
-	}
+    list->container->width -= list->scrollBar->width;
 
-      if (height != component->height)
-	{
-	  if (list->scrollBar->resize)
-	    list->scrollBar->resize(list->scrollBar, list->scrollBar->width,
-				    height);
-	  list->scrollBar->height = height;
-	}
-    }
+  if ((width != component->width) || (height != component->height))
+    // Re-calculate the number of rows and columns
+    setRowsAndColumns(component);
+
+  // Redo layout
+  layout(component);
 
   // Update the scroll bar position percent
   setScrollBar(list);
@@ -528,6 +684,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   int firstVisibleRow = 0;
   int count;
   
+  kernelDebug(debug_gui, "windowList mouse event");
+
   // Is the event in one of our scroll bars?
   if (list->scrollBar && isMouseInScrollBar(event, list->scrollBar))
     {
@@ -552,8 +710,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	    {
 	      list->firstVisibleRow = firstVisibleRow;
 
-	      if (component->draw)
-		component->draw(component);
+	      setVisibleItems(component);
+	      drawVisibleItems(component);
 
 	      component->window->update(component->window, component->xCoord,
 					component->yCoord, component->width,
@@ -576,11 +734,11 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	    {
 	      // Don't bother passing the mouse event to the list item
 
-	      if (event->type & EVENT_MOUSE_LEFTDOWN)
+	      if (event->type & EVENT_MOUSE_DOWN)
 		// Tell the list item to show selected
 		setSelected(component, count);
 
-	      else if (event->type & EVENT_MOUSE_LEFTUP)
+	      else if (event->type & EVENT_MOUSE_UP)
 		// Make this also a 'selection' event
 		event->type |= EVENT_SELECTION;
 	    }
@@ -603,6 +761,8 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
   int gridX = 0, gridY = 0;
   int count;
 
+  kernelDebug(debug_gui, "windowList key event");
+
   if (event->type == EVENT_KEY_DOWN)
     {
       if (!container->numComponents)
@@ -610,8 +770,8 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
       // Get the currently selected item
       listItemComponent = container->components[list->selectedItem];
-      gridX = listItemComponent->parameters.gridX;
-      gridY = listItemComponent->parameters.gridY;
+      gridX = listItemComponent->params.gridX;
+      gridY = listItemComponent->params.gridY;
 
       switch (event->key)
 	{
@@ -658,14 +818,14 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	  break;
 	}
 
-      if ((gridX != listItemComponent->parameters.gridX) ||
-	  (gridY != listItemComponent->parameters.gridY))
+      if ((gridX != listItemComponent->params.gridX) ||
+	  (gridY != listItemComponent->params.gridY))
 	{
 	  // Find an item with these coordinates
 	  for (count = 0; count < container->numComponents; count ++)
 	    {
-	      if ((container->components[count]->parameters.gridX == gridX) &&
-		  (container->components[count]->parameters.gridY == gridY))
+	      if ((container->components[count]->params.gridX == gridX) &&
+		  (container->components[count]->params.gridY == gridY))
 		{
 		  setSelected(component, count);
 
@@ -684,6 +844,8 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 static int destroy(kernelWindowComponent *component)
 {
   kernelWindowList *list = component->data;
+
+  kernelDebug(debug_gui, "windowList destroy");
 
   // Release all our memory
   if (list)
@@ -720,7 +882,6 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 {
   // Formats a kernelWindowComponent as a kernelWindowList
 
-  int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowList *list = NULL;
   kernelWindowContainer *container = NULL;
@@ -731,6 +892,10 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
   if ((parent == NULL) || (items == NULL) || (params == NULL))
     return (component = NULL);
 
+  kernelDebug(debug_gui, "windowList new list rows %d, columns %d, "
+	      "selectMultiple %d, numItems %d", rows, columns, selectMultiple,
+	      numItems);
+
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
@@ -738,12 +903,17 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 
   // If default colors were requested, override the standard background color
   // with the one we prefer (white)
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     {
-      component->parameters.background.blue = 0xFF;
-      component->parameters.background.green = 0xFF;
-      component->parameters.background.red = 0xFF;
+      component->params.background.blue = 0xFF;
+      component->params.background.green = 0xFF;
+      component->params.background.red = 0xFF;
+      component->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
     }
+
+  // If font is NULL, use the default
+  if (component->params.font == NULL)
+    component->params.font = windowVariables->font.varWidth.medium.font;
 
   // Get memory for this list component
   list = kernelMalloc(sizeof(kernelWindowList));
@@ -752,21 +922,6 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
       kernelFree((void *) component);
       return (component = NULL);
     }
-
-  if (labelFont == NULL)
-    {
-      // Try to load a nice-looking font
-      status =
-	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &labelFont, 0);
-      if (status < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&labelFont);
-    }
-
-  // If font is NULL, use the default
-  if (component->parameters.font == NULL)
-    component->parameters.font = labelFont;
 
   list->type = type;
   list->columns = columns;
@@ -781,6 +936,10 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
   component->data = (void *) list;
 
   // The functions
+  component->numComps = &numComps;
+  component->flatten = &flatten;
+  component->layout = &layout;
+  component->setBuffer = &setBuffer;
   component->draw = &draw;
   component->focus = &focus;
   component->getSelected = &getSelected;
@@ -802,6 +961,9 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
       return (component = NULL);
     }
 
+  // Remove it from the parent container
+  removeFromContainer(list->container);
+
   container = list->container->data;
 
   // Standard parameters for a scroll bar
@@ -820,21 +982,8 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
       return (component = NULL);
     }
 
-  // Remove the container and scrollbar from the parent container
-  if (((kernelWindow *) parent)->type == windowType)
-    {
-      kernelWindow *tmpWindow = parent;
-      kernelWindowContainer *tmpContainer = tmpWindow->mainContainer->data;
-      tmpContainer->containerRemove(tmpWindow->mainContainer, list->container);
-      tmpContainer->containerRemove(tmpWindow->mainContainer, list->scrollBar);
-    }
-  else
-    {
-      kernelWindowComponent *tmpComponent = parent;
-      kernelWindowContainer *tmpContainer = tmpComponent->data;
-      tmpContainer->containerRemove(tmpComponent, list->container);
-      tmpContainer->containerRemove(tmpComponent, list->scrollBar);
-    }
+  // Remove it from the parent container
+  removeFromContainer(list->scrollBar);
 
   // Fill up
   populateList(component, items, numItems);

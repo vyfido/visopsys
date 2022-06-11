@@ -23,22 +23,23 @@
 // multitasker
 
 #include "kernelMultitasker.h"
-#include "kernelParameters.h"
-#include "kernelMemory.h"
-#include "kernelMalloc.h"
-#include "kernelFile.h"
-#include "kernelMain.h"
-#include "kernelPage.h"
-#include "kernelProcessorX86.h"
-#include "kernelPic.h"
-#include "kernelSysTimer.h"
+#include "kernelDebug.h"
 #include "kernelEnvironment.h"
-#include "kernelShutdown.h"
-#include "kernelMisc.h"
-#include "kernelInterrupt.h"
-#include "kernelNetwork.h"
-#include "kernelLog.h"
 #include "kernelError.h"
+#include "kernelFile.h"
+#include "kernelInterrupt.h"
+#include "kernelLog.h"
+#include "kernelMain.h"
+#include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelNetwork.h"
+#include "kernelPage.h"
+#include "kernelParameters.h"
+#include "kernelPic.h"
+#include "kernelProcessorX86.h"
+#include "kernelShutdown.h"
+#include "kernelSysTimer.h"
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -69,7 +70,7 @@ static int fpuProcess = 0;
 kernelProcess *kernelCurrentProcess = NULL;
 
 // Process queue for CPU execution
-static kernelProcess* processQueue[MAX_PROCESSES];
+static kernelProcess *processQueue[MAX_PROCESSES];
 static volatile int numQueued = 0;
 
 // Things specific to the scheduler.  The scheduler process is just a
@@ -1353,7 +1354,7 @@ static int createKernelProcess(void)
   kernelCurrentProcess = kernelProc;
 
   // Deallocate the stack that was allocated, since the kernel already
-  // has one.
+  // has one set up by the OS loader.
   kernelMemoryRelease(kernelProc->userStack);
 
   // Create the kernel process' environment
@@ -1461,12 +1462,14 @@ static int fpuExceptionHandler(void)
 
   int status = 0;
 
-  if (fpuProcess == kernelCurrentProcess->processId)
-    // This process was the last to use the FPU.  Just clear the task
-    // switched bit
-    kernelProcessorClearTaskSwitched();
+  kernelDebug(debug_multitasker, "FPU exception start");
 
-  else
+  // Clear task switched in each exception call, now there is no need to
+  // call exception handler twice by one instruction, in case FPU wasn't
+  // initialized yet - fixed by Greg (reqst@o2.pl)
+  kernelProcessorClearTaskSwitched();
+
+  if (fpuProcess != kernelCurrentProcess->processId)
     {
       // Some other process has been using the FPU, or it has not been
       // used at all.  Figure out whether we should restore the state
@@ -1487,6 +1490,8 @@ static int fpuExceptionHandler(void)
       fpuProcess = kernelCurrentProcess->processId;
     }
 
+  kernelDebug(debug_multitasker, "FPU exception end");
+
   return (status = 0);
 }
 
@@ -1506,15 +1511,13 @@ int kernelMultitaskerInitialize(void)
 
   int status = 0;
   unsigned cr0 = 0;
-  int count;
   
   // Make sure multitasking is NOT enabled already
   if (multitaskingEnabled)
     return (status = ERR_ALREADY);
 
   // Now we must initialize the process queue
-  for (count = 0; count < MAX_PROCESSES; count ++)
-    processQueue[count] = NULL;
+  kernelMemClear(processQueue, (MAX_PROCESSES * sizeof(kernelProcess *)));
   numQueued = 0;
 
   // Initialize the CPU for floating point operation.  We set
@@ -1610,7 +1613,8 @@ void kernelExceptionHandler(int exceptionNum, unsigned address)
   // If we are already processing one, then it's a double-fault and we are
   // totally finished
   if (kernelProcessingException)
-    kernelPanic("Double-fault while processing %s %s exception",
+    kernelPanic("Double-fault (%s) while processing %s %s exception",
+		exceptionVector[exceptionNum].name,
 		exceptionVector[kernelProcessingException].a,
 		exceptionVector[kernelProcessingException].name);
 
@@ -1619,16 +1623,17 @@ void kernelExceptionHandler(int exceptionNum, unsigned address)
   // If there's a handler for this exception type, call it
   if (exceptionVector[kernelProcessingException].handler &&
       (exceptionVector[kernelProcessingException].handler() >= 0))
-    // The exception was handled.  Return to the task.
-    return;
+    {
+      // The exception was handled.  Return to the task.
+      kernelProcessingException = 0;
+      return;
+    }
 
-  if (kernelCurrentProcess == NULL)
+  if (multitaskingEnabled && (kernelCurrentProcess == NULL))
     // We have to make an error here.  We can't return to the program
     // that caused the exception, and we can't tell the multitasker
     // to kill it.  We'd better make a kernel panic.
     kernelPanic("Exception handler unable to determine current process");
-
-  kernelCurrentProcess->state = proc_stopped;
 
   // If the fault occurred while we were processing an interrupt,
   // we should tell the PIC that the interrupt service routine is
@@ -1650,6 +1655,8 @@ void kernelExceptionHandler(int exceptionNum, unsigned address)
 
   if (multitaskingEnabled)
     {
+      kernelCurrentProcess->state = proc_stopped;
+
       if (address >= KERNEL_VIRTUAL_ADDRESS)
 	{
 	  if (kernelSymbols)

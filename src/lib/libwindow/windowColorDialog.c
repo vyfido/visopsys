@@ -54,8 +54,8 @@ static void drawColor(color *draw)
   params.foreground.blue = draw->blue;
   params.xCoord1 = 0;
   params.yCoord1 = 0;
-  params.width = CANVAS_WIDTH;
-  params.height = CANVAS_HEIGHT;
+  params.width = windowComponentGetWidth(canvas);
+  params.height = windowComponentGetHeight(canvas);
   params.thickness = 1;
   params.fill = 1;
   windowComponentSetData(canvas, &params, sizeof(windowDrawParameters));
@@ -243,13 +243,20 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	  break;
 	}
 
-      // Check for the cancel button or window close events
-      status = windowComponentEventGet(dialogWindow, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
-	break;
+      // Check for the cancel button
       status = windowComponentEventGet(cancelButton, &event);
       if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	break;
+      
+      // Check for window events
+      status = windowComponentEventGet(dialogWindow, &event);
+      if (status > 0)
+	{
+	  if (event.type == EVENT_WINDOW_CLOSE)
+	    break;
+	  else if (event.type == EVENT_WINDOW_RESIZE)
+	    drawColor(&tmpColor);
+	}
 
       // Done
       multitaskerYield();

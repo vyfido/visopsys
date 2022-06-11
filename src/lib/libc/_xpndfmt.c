@@ -42,11 +42,12 @@ static int numDigits(unsigned long long foo, unsigned base)
 }
 
 
-int _expandFormatString(char *output, const char *format, va_list list)
+int _expandFormatString(char *output, int outputLen, const char *format,
+			va_list list)
 {
   int inCount = 0;
   int outCount = 0;
-  int formatlen = 0;
+  int formatLen = 0;
   long long argument = NULL;
   int zeroPad = 0;
   int leftJust = 0;
@@ -55,15 +56,17 @@ int _expandFormatString(char *output, const char *format, va_list list)
   int digits = 0;
 
   // How long is the format string?
-  formatlen = strlen(format);
-  if (formatlen > MAXSTRINGLENGTH)
+  formatLen = strlen(format);
+  if (formatLen < 0)
+    return (errno = formatLen);
+  if ((formatLen > outputLen) || (formatLen > MAXSTRINGLENGTH))
     return (errno = ERR_BOUNDS);
+  formatLen = min(formatLen, MAXSTRINGLENGTH);
 
   // The argument list must already have been initialized using va_start
 
   // Loop through all of the characters in the format string
-  for (inCount = 0; ((inCount < formatlen) &&
-		     (outCount < (MAXSTRINGLENGTH - 1))); )
+  for (inCount = 0; ((inCount < formatLen) && (outCount < (outputLen - 1))); )
     {
       if (format[inCount] != '%')
 	{
@@ -230,8 +233,11 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	case 'X':
 	  if (format[inCount] == 'p')
 	    {
+	      // Bit of special stuff for pointer args
 	      output[outCount++] = '0';
 	      output[outCount++] = 'x';
+	      fieldWidth = (2 * sizeof(void *));
+	      zeroPad = 1;
 	    }
 	  if (fieldWidth)
 	    {

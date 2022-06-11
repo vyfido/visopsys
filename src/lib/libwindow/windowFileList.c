@@ -118,7 +118,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(NULL, "Error", output);
@@ -367,12 +367,12 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
   if (status < 0)
     return (status);
 
-  mouseSwitchPointer("busy");
+  windowSwitchPointer(fileList->key, "busy");
 
   status = changeDirectory(fileList, newDir);
   if (status < 0)
     {
-      mouseSwitchPointer("default");
+      windowSwitchPointer(fileList->key, "default");
       lockRelease(&dataLock);
       return (status);
     }
@@ -380,7 +380,7 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
   iconParams = allocateIconParameters(fileList);
   if (iconParams == NULL)
     {
-      mouseSwitchPointer("default");
+      windowSwitchPointer(fileList->key, "default");
       lockRelease(&dataLock);
       return (status = ERR_MEMORY);
     }
@@ -388,7 +388,7 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
   windowComponentSetSelected(fileList->key, 0);
   windowComponentSetData(fileList->key, iconParams, fileList->numFileEntries);
 
-  mouseSwitchPointer("default");
+  windowSwitchPointer(fileList->key, "default");
 
   free(iconParams);
   lockRelease(&dataLock);
@@ -456,13 +456,13 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
     {
       if (fileList->browseFlags & WINFILEBROWSE_CAN_DEL)
 	{
-	  mouseSwitchPointer("busy");
+	  windowSwitchPointer(fileList->key, "busy");
 
 	  fileDeleteRecursive((char *) fileEntries[clickedIcon].fullName);
 
 	  iconParams = allocateIconParameters(fileList);
 
-	  mouseSwitchPointer("default");
+	  windowSwitchPointer(fileList->key, "default");
 
 	  if (iconParams)
 	    {

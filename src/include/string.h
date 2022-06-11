@@ -48,6 +48,7 @@ char *strdup(const char *);
 char *strerror(int);
 size_t strlen(const char *);
 int strncasecmp(const char *, const char *, size_t);
+char *strcasestr(const char *, const char *);
 char *strncat(char *, const char *, size_t);
 int strncmp(const char *, const char *, size_t);
 char *strncpy(char *, const char *, size_t);

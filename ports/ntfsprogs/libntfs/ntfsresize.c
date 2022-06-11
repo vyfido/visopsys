@@ -202,9 +202,7 @@ static void progress_message(ntfs_resize_t *resize, const char *fmt, ...)
 
 	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
 	  {
-	    strncpy((char *) resize->prog->statusMessage, tmp,
-		    PROGRESS_MAX_MESSAGELEN);
-
+	    strncpy(resize->prog->statusMessage, tmp, PROGRESS_MAX_MESSAGELEN);
 	    lockRelease(&(resize->prog->lock));
 	  }
 
@@ -231,8 +229,7 @@ static void _err_printf(ntfs_resize_t *resize, const char *function,
 
 	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
 	  {
-	    strncpy((char *) resize->prog->statusMessage, tmp,
-		    PROGRESS_MAX_MESSAGELEN);
+	    strncpy(resize->prog->statusMessage, tmp, PROGRESS_MAX_MESSAGELEN);
 	    resize->prog->confirmError = 0;
 	    resize->prog->error = 1;
 
@@ -527,7 +524,7 @@ static int build_lcn_usage_bitmap(ntfs_resize_t *resize, ntfs_volume *vol, ntfsc
 			if (ntfs_bit_get_and_set(lcn_bitmap->bm, k, 1)) {
 				if (++fsck->multi_ref <= 10)
 					progress_message(resize, "Cluster %lld is referenced "
-					       "multiply times!",
+					       "multiple times!",
 					       (long long)k);
 				continue;
 			}

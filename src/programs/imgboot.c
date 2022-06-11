@@ -82,7 +82,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -102,7 +102,7 @@ static void quit(int status, const char *message, ...)
   if (message)
     {
       va_start(list, message);
-      _expandFormatString(output, message, list);
+      _expandFormatString(output, MAXSTRINGLENGTH, message, list);
       va_end(list);
     }
 
@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
 	options -= 1;
 
       selected = vshCursorMenu("\nPlease select from the following "
-			       "options", options, optionStrings, 0);
+			       "options", optionStrings, options, 0);
       if (selected < 0)
 	shutdown(1, 1);
 

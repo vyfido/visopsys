@@ -86,6 +86,7 @@ NAMES =	kernelMain \
 	kernelWindowButton \
 	kernelWindowCanvas \
 	kernelWindowCheckbox \
+	kernelWindowComponent \
 	kernelWindowContainer \
 	kernelWindowEventStream \
 	kernelWindowIcon \

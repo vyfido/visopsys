@@ -28,9 +28,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define CHECKBOX_SIZE 10
-
-static kernelAsciiFont *checkboxFont = NULL;
+extern kernelWindowVariables *windowVariables;
 
 
 static int draw(kernelWindowComponent *component)
@@ -39,19 +37,20 @@ static int draw(kernelWindowComponent *component)
 
   int status = 0;
   kernelWindowCheckbox *checkbox = component->data;
+  int checkboxSize = windowVariables->checkbox.size;
   int yCoord = 0;
 
-  yCoord = (component->yCoord + ((component->height - CHECKBOX_SIZE) / 2));
+  yCoord = (component->yCoord + ((component->height - checkboxSize) / 2));
 
   // Draw the white center of the check box
   kernelGraphicDrawRect(component->buffer, &((color){255, 255, 255}),
 			draw_normal, component->xCoord, yCoord,
-			CHECKBOX_SIZE, CHECKBOX_SIZE, 1, 1);
+			checkboxSize, checkboxSize, 1, 1);
   // Draw a border around it
   kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->parameters.foreground),
-			draw_normal, component->xCoord, yCoord, CHECKBOX_SIZE,
-			CHECKBOX_SIZE, 1, 0);
+			(color *) &(component->params.foreground),
+			draw_normal, component->xCoord, yCoord, checkboxSize,
+			checkboxSize, 1, 0);
 
   if (checkbox->selected)
     {
@@ -59,26 +58,26 @@ static int draw(kernelWindowComponent *component)
       kernelGraphicDrawLine(component->buffer,
 			    &((color){0, 0, 0}), draw_normal,
 			    (component->xCoord + 2), (yCoord + 2),
-			    (component->xCoord + (CHECKBOX_SIZE - 3)),
-			    (yCoord + (CHECKBOX_SIZE - 3)));
+			    (component->xCoord + (checkboxSize - 3)),
+			    (yCoord + (checkboxSize - 3)));
       kernelGraphicDrawLine(component->buffer,
 			    &((color){0, 0, 0}), draw_normal,
 			    (component->xCoord + 2),
-			    (yCoord + (CHECKBOX_SIZE - 3)),
-			    (component->xCoord + (CHECKBOX_SIZE - 3)),
+			    (yCoord + (checkboxSize - 3)),
+			    (component->xCoord + (checkboxSize - 3)),
 			    (yCoord + 2));
     }
 
   // Now draw the text next to the box
   kernelGraphicDrawText(component->buffer,
-			(color *) &(component->parameters.foreground),
-			(color *) &(component->parameters.background),
-			(kernelAsciiFont *) component->parameters.font,
+			(color *) &(component->params.foreground),
+			(color *) &(component->params.background),
+			(kernelAsciiFont *) component->params.font,
 			checkbox->text, draw_normal,
-			(component->xCoord + CHECKBOX_SIZE + 3),
+			(component->xCoord + checkboxSize + 3),
 			(component->yCoord));
 
-  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
+  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder(component, 1);
   
   return (status = 0);
@@ -201,7 +200,6 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 {
   // Formats a kernelWindowComponent as a kernelWindowCheckbox
 
-  int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowCheckbox *checkbox = NULL;
 
@@ -214,20 +212,9 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
   if (component == NULL)
     return (component);
 
-  if (checkboxFont == NULL)
-    {
-      // Try to load a nice-looking font
-      status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
-			      WINDOW_DEFAULT_VARFONT_SMALL_NAME,
-			      &checkboxFont, 0);
-      if (status < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&checkboxFont);
-    }
-
   // If font is NULL, use the default
-  if (component->parameters.font == NULL)
-    component->parameters.font = checkboxFont;
+  if (component->params.font == NULL)
+    component->params.font = windowVariables->font.varWidth.small.font;
 
   // Now populate it
   component->type = checkboxComponentType;
@@ -263,14 +250,14 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
   // The width of the checkbox is the width of the checkbox, plus a bit
   // of padding, plus the printed width of the text
   component->width =
-    (CHECKBOX_SIZE + 3 +
-     kernelFontGetPrintedWidth((kernelAsciiFont *) component->parameters.font,
+    (windowVariables->checkbox.size + 3 +
+     kernelFontGetPrintedWidth((kernelAsciiFont *) component->params.font,
 			       checkbox->text));
 
   // The height of the checkbox is the height of the font, or the height
   // of the checkbox, whichever is greater
-  component->height = max(((kernelAsciiFont *) component->parameters.font)
-			  ->charHeight, CHECKBOX_SIZE);
+  component->height = max(((kernelAsciiFont *) component->params.font)
+			  ->charHeight, windowVariables->checkbox.size);
   
   component->minWidth = component->width;
   component->minHeight = component->height;

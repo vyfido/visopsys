@@ -79,30 +79,6 @@ static int numUsbControllers = 0;
 static int usbProcId = 0;
 
 
-/*
-static void usbInterrupt(void)
-{
-  // This is the USB interrupt handler.
- 
-  void *address = NULL;
-  int interruptNum = 0;
-
-  kernelProcessorIsrEnter(address);
-  kernelProcessingInterrupt = 1;
-
-  // Which interrupt number is active?
-  interruptNum = kernelPicGetActive();
-
-  kernelDebug(debug_usb, "Interrupt %d", interruptNum);
-
-  kernelPicEndOfInterrupt(interruptNum);
-
-  kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit(address);
-}
-*/
-
-
 static void getClass(int classCode, usbClass **class)
 {
   // Return the USB class, given the class code
@@ -221,7 +197,7 @@ static void usbThread(void)
 
   while(1)
     {
-      kernelMultitaskerWait(10);
+      kernelMultitaskerYield();
 
       for (count = 0; count < numUsbControllers; count ++)
 	{
@@ -301,7 +277,7 @@ static int driverGetTargetInfo(int target, void *pointer)
 
 	  if (usbMakeTargetCode(dev->controller, dev->address, 0) == target)
 	    {
-	      kernelMemCopy(usb->devices[deviceCount], pointer,
+	      kernelMemCopy((void *) usb->devices[deviceCount], pointer,
 			    sizeof(usbDevice));
 	      break;
 	    }
@@ -312,7 +288,7 @@ static int driverGetTargetInfo(int target, void *pointer)
 }
 
 
-static void addFuncPointers(usbRootHub *usb)
+static inline void addFuncPointers(usbRootHub *usb)
 {
   usb->getClass = &getClass;
   usb->getSubClass = &getSubClass;
@@ -426,27 +402,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 	// Not a supported USB controller
 	continue;
 
-      // Temporarily disable USB from here on, since it's buggy
-      kernelLog("USB device enumeration disabled");
-      continue;
-
       usb = dev->data;
       usb->device = dev;
       usb->controller = numUsbControllers;
       addFuncPointers(usb);
-
-      /*
-      // Register our interrupt handler
-      status = kernelInterruptHook(usb->interrupt, &usbInterrupt);
-      if (status < 0)
-	{
-	  kernelFree(pciTargets);
-	  return (status);
-	}
-
-      // Turn on the interrupt
-      kernelPicMask(usb->interrupt, 1);
-      */
 
       // Call the thread function once now, so that it can do its device
       // enumeration
@@ -516,6 +475,22 @@ int kernelUsbInitialize(void)
   if (numUsbControllers)
     usbProcId =
       kernelMultitaskerSpawnKernelThread(usbThread, "usb thread", 0, NULL);
+
+  return (0);
+}
+
+
+int kernelUsbShutdown(void)
+{
+  // Called at shutdown.  We do a reset of all registered controllers so there
+  // won't be remnants of transactions on the buses messing things up (for
+  // example if we're doing a soft reboot)
+
+  int count = 0;
+
+  for (count = 0; count < numUsbControllers; count ++)
+    if (usbControllers[count]->reset)
+      usbControllers[count]->reset(usbControllers[count]);
 
   return (0);
 }

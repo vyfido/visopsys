@@ -22,6 +22,7 @@
 // This is the standard "vsprintf" function, as found in standard C libraries
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/cdefs.h>
 
 
@@ -30,7 +31,7 @@ int vsprintf(char *output, const char *format, va_list list)
   int outputLen = 0;
   
   // Fill out the output line
-  outputLen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   if (outputLen < 0)
     return (0);

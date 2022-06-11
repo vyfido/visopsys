@@ -38,12 +38,24 @@ entire data area of the filesystem.  The -s option forces 'silent' mode
 -T option forces format to operate in text-only mode.  
 
 The -t option is the desired filesystem type.  Currently the default type,
-if none is specified, is FAT.  The names of supported filesystem types
-are dependent upon the names allowed by particular filesystem drivers.
-For example, the FAT filesystem driver will accept the type name 'fat' and
-then go ahead and make its own decision about the specific FAT type, or else
-will accept the types 'fat12', 'fat16' or 'fat32'.  Other filesystem types
-can be expected to exhibit the same sorts of behaviour as they are developed.
+if none is specified, is FAT.  The names of supported filesystem types are
+dependent upon the names allowed by particular filesystem drivers.  For
+example, the FAT filesystem driver will accept the generic type name 'fat',
+in which case it will then choose the most appropriate FAT subtype for the
+size of the disk.  Otherwise it will accept the explicit subtypes 'fat12',
+'fat16' or 'fat32'.  Other filesystem types can be expected to exhibit the
+same sorts of behaviour as they are developed.
+
+Some currently-supported arguments to the -t option are:
+
+  none        : Erases all known filesystem types
+  fat         : DOS/Windows FAT
+    fat12     : 12-bit FAT
+    fat16     : 16-bit FAT
+    fat32     : 32-bit FAT, or VFAT
+  ext         : Linux EXT
+    ext2      : Linux EXT2 (EXT3 not yet supported)
+  linux-swap  : Linux swap
 
 The third (optional) parameter is the name of a (logical) disk to format
 (use the 'disks' command to list the disks).  A format can only proceed if
@@ -126,7 +138,7 @@ static void error(const char *format, ...)
     return;
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -231,7 +243,7 @@ static int chooseDisk(void)
       for (count = 0; count < numberDisks; count ++)
 	diskStrings[count] = diskListParams[count].text;
       diskNumber
-	= vshCursorMenu(CHOOSEDISK_STRING, numberDisks, diskStrings, 0);
+	= vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks, 0);
     }
 
   return (diskNumber);
@@ -491,8 +503,14 @@ int main(int argc, char *argv[])
   else
     vshProgressBar(&prog);
 
-  status =
-    filesystemFormat(diskInfo[diskNumber].name, type, "", longFormat, &prog);
+  if (!strcasecmp(type, "none"))
+    {
+      status = filesystemClobber(diskInfo[diskNumber].name);
+      prog.percentFinished = 100;
+    }
+  else
+    status =
+      filesystemFormat(diskInfo[diskNumber].name, type, "", longFormat, &prog);
 
   if (!graphics)
     vshProgressBarDestroy(&prog);

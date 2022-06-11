@@ -65,9 +65,11 @@ MATHNAMES	= ceil \
 
 SIGNALNAMES	= signal
 
-STDIONAMES	= fflush \
+STDIONAMES	= fclose \
+		fflush \
 		fgetpos \
 		fgets \
+		fopen \
 		fprintf \
 		fread \
 		fseek \
@@ -125,6 +127,7 @@ STRINGNAMES	= bcopy \
 		memmove \
 		memset \
 		strcasecmp \
+		strcasestr \
 		strcat \
 		strchr \
 		strcmp \

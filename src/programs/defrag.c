@@ -115,7 +115,7 @@ static void error(const char *format, ...)
     return;
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   if (graphics)
@@ -220,7 +220,7 @@ static int chooseDisk(void)
       for (count = 0; count < numberDisks; count ++)
 	diskStrings[count] = diskListParams[count].text;
       diskNumber
-	= vshCursorMenu(CHOOSEDISK_STRING, numberDisks, diskStrings, 0);
+	= vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks, 0);
     }
 
   return (diskNumber);

@@ -23,16 +23,17 @@
 // the kernel
 
 #include "kernelShutdown.h"
-#include "kernelNetwork.h"
-#include "kernelGraphic.h"
-#include "kernelWindow.h"
-#include "kernelMultitasker.h"
-#include "kernelLog.h"
-#include "kernelFilesystem.h"
-#include "kernelSysTimer.h"
-#include "kernelMisc.h"
-#include "kernelProcessorX86.h"
 #include "kernelError.h"
+#include "kernelFilesystem.h"
+#include "kernelGraphic.h"
+#include "kernelLog.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelNetwork.h"
+#include "kernelProcessorX86.h"
+#include "kernelSysTimer.h"
+#include "kernelUsbDriver.h"
+#include "kernelWindow.h"
 #include <stdio.h>
 #include <sys/cdefs.h>
 
@@ -183,6 +184,12 @@ int kernelShutdown(int reboot, int force)
   if (status < 0)
     kernelError(kernel_error, "Network shutdown failed");
 
+  // Shut down kernel logging
+  kernelLog("Stopping kernel logging");
+  status = kernelLogShutdown();
+  if (status < 0)
+    kernelError(kernel_error, "The kernel logger could not be stopped.");
+
   // Detach from our parent process, if applicable, so we won't get killed
   // when our parent gets killed
   kernelMultitaskerDetach();
@@ -199,6 +206,21 @@ int kernelShutdown(int reboot, int force)
       shutdownInProgress = 0;
       return (status);
     }
+
+  // Unmount all filesystems and synchronize/shut down the disks
+  kernelLog("Unmounting filesystems, synchronizing disks");
+  status = kernelDiskShutdown();
+  if (status < 0)
+    {
+      // Eek.  We couldn't synchronize the filesystems.  We should
+      // stop and allow the user to try to save their data
+      kernelError(kernel_error, "Unable to syncronize disks.  Shutdown "
+		  "aborted.");
+      shutdownInProgress = 0;
+      return (status);
+    }
+
+  // After this point, don't abort.  We're running the show.
 
   // Shut down the multitasker
   status = kernelMultitaskerShutdown(1 /* nice shutdown */);
@@ -221,26 +243,14 @@ int kernelShutdown(int reboot, int force)
 	}
     }
 
-  // After this point, don't abort.  We're running the show.
-
-
-  // Shut down kernel logging
-  kernelLog("Stopping kernel logging");
-  status = kernelLogShutdown();
-  if (status < 0)
-    kernelError(kernel_error, "The kernel logger could not be stopped.");
-
-  // Unmount all filesystems and synchronize/shut down the disks
-  kernelLog("Unmounting filesystems, synchronizing disks");
-  status = kernelDiskShutdown();
-  if (status < 0)
+  // Only shut down USB if we're rebooting ('cause it takes the time to reset
+  // the controller(s), etc.)
+  if (reboot)
     {
-      // Eek.  We couldn't synchronize the filesystems.  We should
-      // stop and allow the user to try to save their data
-      kernelError(kernel_error, "Unable to syncronize disks.  Shutdown "
-		  "aborted.");
-      shutdownInProgress = 0;
-      return (status);
+      status = kernelUsbShutdown();
+      if (status < 0)
+	// Not a fatal error
+	kernelError(kernel_error, "The USB system could not be stopped.");
     }
 
   // Don't want the user moving the mousie over our message stuff.
@@ -297,7 +307,7 @@ void kernelPanicOutput(const char *module, const char *function, int line,
 
   // Expand the message if there were any parameters
   va_start(list, message);
-  _expandFormatString(errorText, message, list);
+  _expandFormatString(errorText, MAX_ERRORTEXT_LENGTH, message, list);
   va_end(list);
 
   graphics = kernelGraphicsAreEnabled();

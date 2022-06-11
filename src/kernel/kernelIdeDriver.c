@@ -1267,9 +1267,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
       
 	  // Check ATAPI packet interface supported
-	  if ((buffer[0] & ((unsigned short) 0xC000)) != 0x8000)
+	  if ((buffer[0] & 0xC000) != 0x8000)
 	    {
-	      kernelError(kernel_warn, "ATAPI packet interface not supported");
+	      kernelError(kernel_warn, "cd%d: ATAPI packet interface not "
+			  "supported", numberCdRoms);
 	      goto nextDisk;
 	    }
       

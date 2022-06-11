@@ -36,29 +36,31 @@
 // Window events/masks.  This first batch are "tier 2" events, produced by
 // windows, widgets, etc. to indicate that some more abstract thing has
 // happened.
-#define EVENT_MASK_WINDOW                 0xF000
-#define EVENT_WINDOW_RESIZE               0x4000
-#define EVENT_WINDOW_CLOSE                0x2000
-#define EVENT_WINDOW_MINIMIZE             0x1000
-#define EVENT_SELECTION                   0x0800
-#define EVENT_CURSOR_MOVE                 0x0400
+#define EVENT_MASK_WINDOW                 0x00F00000
+#define EVENT_WINDOW_RESIZE               0x00400000
+#define EVENT_WINDOW_CLOSE                0x00200000
+#define EVENT_WINDOW_MINIMIZE             0x00100000
+#define EVENT_SELECTION                   0x00020000
+#define EVENT_CURSOR_MOVE                 0x00010000
 // And these are "tier 1" events, produced by direct actions of the user.
-#define EVENT_MASK_KEY                    0x0300
-#define EVENT_KEY_UP                      0x0200
-#define EVENT_KEY_DOWN                    0x0100
-#define EVENT_MASK_MOUSE                  0x00FF
-#define EVENT_MOUSE_DRAG                  0x0080
-#define EVENT_MOUSE_MOVE                  0x0040
-#define EVENT_MOUSE_RIGHTUP               0x0020
-#define EVENT_MOUSE_RIGHTDOWN             0x0010
+#define EVENT_MASK_KEY                    0x0000F000
+#define EVENT_KEY_UP                      0x00002000
+#define EVENT_KEY_DOWN                    0x00001000
+#define EVENT_MASK_MOUSE                  0x00000FFF
+#define EVENT_MOUSE_ENTER                 0x00000200
+#define EVENT_MOUSE_EXIT                  0x00000100
+#define EVENT_MOUSE_DRAG                  0x00000080
+#define EVENT_MOUSE_MOVE                  0x00000040
+#define EVENT_MOUSE_RIGHTUP               0x00000020
+#define EVENT_MOUSE_RIGHTDOWN             0x00000010
 #define EVENT_MOUSE_RIGHT                 (EVENT_MOUSE_RIGHTUP |    \
 					   EVENT_MOUSE_RIGHTDOWN)
-#define EVENT_MOUSE_MIDDLEUP              0x0008
-#define EVENT_MOUSE_MIDDLEDOWN            0x0004
+#define EVENT_MOUSE_MIDDLEUP              0x00000008
+#define EVENT_MOUSE_MIDDLEDOWN            0x00000004
 #define EVENT_MOUSE_MIDDLE                (EVENT_MOUSE_MIDDLEUP |   \
 					   EVENT_MOUSE_MIDDLEDOWN)
-#define EVENT_MOUSE_LEFTUP                0x0002
-#define EVENT_MOUSE_LEFTDOWN              0x0001
+#define EVENT_MOUSE_LEFTUP                0x00000002
+#define EVENT_MOUSE_LEFTDOWN              0x00000001
 #define EVENT_MOUSE_LEFT                  (EVENT_MOUSE_LEFTUP |     \
 					   EVENT_MOUSE_LEFTDOWN)
 #define EVENT_MOUSE_DOWN                  (EVENT_MOUSE_LEFTDOWN |   \

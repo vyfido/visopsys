@@ -45,9 +45,11 @@
 typedef unsigned fpos_t;
 
 // Available functions
+int fclose(FILE *);
 int fflush(FILE *);
 int fgetpos(FILE *, fpos_t *);
 char *fgets(char *, int, FILE *);
+FILE *fopen(const char *, const char *);
 int fprintf(FILE *, const char *, ...) __attribute__((format(printf, 2, 3)));
 size_t fread(void *, size_t, size_t, FILE *);
 int fseek(FILE *, long, int);

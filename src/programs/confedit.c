@@ -118,7 +118,7 @@ static void fillList(void)
 }
 
 
-static void setVariableDialog(const char *variable)
+static void setVariableDialog(char *variable)
 {
   // This will pop up a dialog that prompts the user to set either the
   // variable name and value, or just the value (depending on whether the
@@ -133,8 +133,8 @@ static void setVariableDialog(const char *variable)
   objectKey valueField = NULL;
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
-  char variableBuffer[128];
-  char valueBuffer[128];
+  char variableBuff[128];
+  char value[128];
   int okay = 0;
   windowEvent event;
   int count;
@@ -143,7 +143,8 @@ static void setVariableDialog(const char *variable)
   if (variable)
     {
       dialogWindow = windowNewDialog(window, "Change Variable");
-      strncpy(variableBuffer, variable, 128);
+      strncpy(variableBuff, variable, 128);
+      variable = variableBuff;
     }
   else
     dialogWindow = windowNewDialog(window, "Add Variable");
@@ -164,8 +165,8 @@ static void setVariableDialog(const char *variable)
 
   if (variable)
     {
-      variableListGet(&list, variableBuffer, valueBuffer, 128);
-      fieldWidth = max(strlen(variableBuffer), strlen(valueBuffer)) + 1;
+      variableListGet(&list, variable, value, 128);
+      fieldWidth = max(strlen(variable), strlen(value)) + 1;
       fieldWidth = max(fieldWidth, 30);
     }
 
@@ -173,9 +174,7 @@ static void setVariableDialog(const char *variable)
   params.padRight = 5;
   params.orientationX = orient_left;
   if (variable)
-    {
-      windowNewTextLabel(dialogWindow, variableBuffer, &params);
-    }
+    windowNewTextLabel(dialogWindow, variable, &params);
   else
     {
       params.flags |= WINDOW_COMPFLAG_HASBORDER;
@@ -194,10 +193,7 @@ static void setVariableDialog(const char *variable)
   params.flags |= WINDOW_COMPFLAG_HASBORDER;
   valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
   if (variable)
-    {
-      variableListGet(&list, variableBuffer, valueBuffer, 128);
-      windowComponentSetData(valueField, valueBuffer, 128);
-    }
+    windowComponentSetData(valueField, value, 128);
 
   // Create the OK button
   params.gridX = 0;
@@ -240,35 +236,31 @@ static void setVariableDialog(const char *variable)
 
       if (okay)
 	{
-	  windowComponentGetData(valueField, valueBuffer, 128);
+	  windowComponentGetData(valueField, value, 128);
 
-	  if (variable)
+	  if (!variable)
 	    {
-	      variableListSet(&list, variableBuffer, valueBuffer);
+	      variable = variableBuff;
+	      windowComponentGetData(variableField, variable, 128);
+	    }
+
+	  if (variable[0] != '\0')
+	    {
+	      variableListSet(&list, variable, value);
 	      changesPending += 1;
-	    }
-	  else
-	    {
-	      windowComponentGetData(variableField, variableBuffer, 128);
-	      if (variableBuffer[0] != '\0')
-		{
-		  variableListSet(&list, variableBuffer, valueBuffer);
-		  changesPending += 1;
-		}
-	    }
 
-	  fillList();
-	  windowComponentSetData(listList, listItemParams, list.numVariables);
-	  windowComponentSetSelected(listList, 1);
+	      fillList();
+	      windowComponentSetData(listList, listItemParams,
+				     list.numVariables);
 
-	  // Select the one we just added/changed
-	  for (count = 0; count < list.numVariables; count ++)
-	    if (!strncmp(variableBuffer, listItemParams[count].text,
-			 strlen(variableBuffer)))
-	      {
-		windowComponentSetSelected(listList, count);
-		break;
-	      }
+	      // Select the one we just added/changed
+	      for (count = 0; count < list.numVariables; count ++)
+		if (!strcmp(variable, list.variables[count]))
+		  {
+		    windowComponentSetSelected(listList, count);
+		    break;
+		  }
+	    }
 
 	  break;
 	}

@@ -74,7 +74,6 @@ static objectKey changeColorsButton = NULL;
 static objectKey okButton = NULL;
 static objectKey cancelButton = NULL;
 
-static int canvasWidth = 50;
 static color foreground = { 171, 93, 40 };
 static color background = { 171, 93, 40 };
 static color desktop = { 171, 93, 40 };
@@ -110,6 +109,25 @@ static int getVideoModes(void)
 }
 
 
+static color *getSelectedColor(void)
+{
+  int selected = 0;
+
+  windowComponentGetSelected(colorsRadio, &selected);
+  
+  switch (selected)
+    {
+    case 0:
+    default:
+      return (&foreground);
+    case 1:
+      return(&background);
+    case 2:
+      return(&desktop);
+    }
+}
+
+
 static void drawColor(color *draw)
 {
   // Draw the current color on the canvas
@@ -124,8 +142,8 @@ static void drawColor(color *draw)
   drawParams.foreground.blue = draw->blue;
   drawParams.xCoord1 = 0;
   drawParams.yCoord1 = 0;
-  drawParams.width = canvasWidth;
-  drawParams.height = 50;
+  drawParams.width = windowComponentGetWidth(canvas);
+  drawParams.height = windowComponentGetHeight(canvas);
   drawParams.thickness = 1;
   drawParams.fill = 1;
   windowComponentSetData(canvas, &drawParams, sizeof(windowDrawParameters));
@@ -134,6 +152,7 @@ static void drawColor(color *draw)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
+  color *selectedColor = getSelectedColor();
   int mode = 0;
   int clockSelected = 0;
   variableList list;
@@ -141,10 +160,17 @@ static void eventHandler(objectKey key, windowEvent *event)
   int selected = 0;
   file tmp;
 
-  // Check for the window being closed by a GUI event.
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
-    windowGuiStop();
+  if (key == window)
+    {
+      // Check for the window being closed by a GUI event.
+      if (event->type == EVENT_WINDOW_CLOSE)
+	windowGuiStop();
+
+      // Check for window resize
+      if (event->type == EVENT_WINDOW_RESIZE)
+	// Redraw the canvas
+	drawColor(selectedColor);
+    }
 
   else if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
@@ -154,22 +180,6 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   else if ((key == colorsRadio) || (key == changeColorsButton))
     {
-      color *selectedColor = NULL;
-      windowComponentGetSelected(colorsRadio, &selected);
-
-      switch (selected)
-	{
-	case 0:
-	  selectedColor = &foreground;
-	  break;
-	case 1:
-	  selectedColor = &background;
-	  break;
-	case 2:
-	  selectedColor = &desktop;
-	  break;
-	}
-
       if ((key == changeColorsButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	windowNewColorDialog(window, selectedColor);
  
@@ -251,6 +261,9 @@ static void eventHandler(objectKey key, windowEvent *event)
 
       windowGuiStop();
     }
+
+  else if ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    windowGuiStop();
 
   return;
 }
@@ -361,8 +374,8 @@ static void constructWindow(void)
   params.gridX = 1;
   params.gridHeight = 1;
   params.padLeft = 5;
-  params.flags |= (WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_FIXEDWIDTH);
-  canvas = windowNewCanvas(container, canvasWidth, 50, &params);
+  params.flags |= WINDOW_COMPFLAG_HASBORDER;
+  canvas = windowNewCanvas(container, 50, 50, &params);
 
   // Create the change color button
   params.gridY++;
@@ -371,8 +384,7 @@ static void constructWindow(void)
   windowRegisterEventHandler(changeColorsButton, &eventHandler);
 
   // Adjust the canvas width so that it matches the width of the button.
-  canvasWidth = windowComponentGetWidth(changeColorsButton);
-  windowComponentSetWidth(canvas, canvasWidth);
+  windowComponentSetWidth(canvas, windowComponentGetWidth(changeColorsButton));
 
   // Make a container for the OK/Cancel buttons
   params.gridX = 0;

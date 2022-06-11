@@ -49,8 +49,8 @@ static void progressThread(void)
   memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 
   windowComponentSetData(progressBar, (void *) prog->percentFinished, 1);
-  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
-			 strlen((char *) prog->statusMessage));
+  windowComponentSetData(statusLabel, prog->statusMessage,
+			 strlen(prog->statusMessage));
   windowComponentSetEnabled(cancelButton, prog->canCancel);
 
   while (1)
@@ -66,14 +66,12 @@ static void progressThread(void)
 				       (void *) prog->percentFinished, 1);
 
 	      // Look for status message changes
-	      if (strncmp((char *) prog->statusMessage,
-			  (char *) lastProg.statusMessage,
+	      if (strncmp(prog->statusMessage, lastProg.statusMessage,
 			  PROGRESS_MAX_MESSAGELEN))
-		windowComponentSetData(statusLabel,
-				       (char *) prog->statusMessage,
-				       strlen((char *) prog->statusMessage));
+		windowComponentSetData(statusLabel, prog->statusMessage,
+				       strlen(prog->statusMessage));
 
-	      // Look for 'interruptible operation' flag changes
+	      // Look for 'can cancel' flag changes
 	      if (prog->canCancel != lastProg.canCancel)
 		windowComponentSetEnabled(cancelButton, prog->canCancel);
 
@@ -100,7 +98,7 @@ static void progressThread(void)
 	      if (prog->error)
 		{
 		  windowNewErrorDialog(dialogWindow, "Error",
-				       (char *) prog->statusMessage);
+				       prog->statusMessage);
 		  prog->confirmError = 1;
 		  break;
 		}
@@ -251,8 +249,8 @@ _X_ int windowProgressDialogDestroy(objectKey window)
     return (status = ERR_INVALID);
 
   windowComponentSetData(progressBar, (void *) 100, 1);
-  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
-			 strlen((char *) prog->statusMessage));
+  windowComponentSetData(statusLabel, prog->statusMessage,
+			 strlen(prog->statusMessage));
 
   if (multitaskerProcessIsAlive(threadPid))
     // Kill our thread

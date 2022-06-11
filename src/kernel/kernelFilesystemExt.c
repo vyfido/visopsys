@@ -796,7 +796,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Calculating parameters");
+      strcpy(prog->statusMessage, "Calculating parameters");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -864,7 +864,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Creating group descriptors");
+      strcpy(prog->statusMessage, "Creating group descriptors");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -918,7 +918,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Writing block groups");
+      strcpy(prog->statusMessage, "Writing block groups");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -1028,7 +1028,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Initializing inodes");
+      strcpy(prog->statusMessage, "Initializing inodes");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -1063,7 +1063,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Creating directories");
+      strcpy(prog->statusMessage, "Creating directories");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -1132,7 +1132,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Syncing disk");
+      strcpy(prog->statusMessage, "Syncing disk");
       kernelLockRelease(&(prog->lock));
     }
 

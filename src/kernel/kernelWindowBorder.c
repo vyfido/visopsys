@@ -33,12 +33,12 @@
 #include "kernelWindowEventStream.h"
 #include <string.h>
 
-
-static int borderShadingIncrement = WINDOW_SHADING_INCREMENT;
 static int newWindowX = 0;
 static int newWindowY = 0;
 static int newWindowWidth = 0;
 static int newWindowHeight = 0;
+
+extern kernelWindowVariables *windowVariables;
 
 
 static void resizeWindow(kernelWindowComponent *component, windowEvent *event)
@@ -78,10 +78,10 @@ static int draw(kernelWindowComponent *component)
   kernelGraphicDrawGradientBorder(component->buffer, 0, 0,
 				  component->window->buffer.width,
 				  component->window->buffer.height,
-				  WINDOW_BORDER_THICKNESS,
+				  windowVariables->border.thickness,
 				  (color *) &(component->window->background),
-				  borderShadingIncrement, draw_normal,
-				  border->type);
+				  windowVariables->border.shadingIncrement,
+				  draw_normal, border->type);
   return (0);
 }
 
@@ -144,16 +144,16 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	    }
 
 	  // Don't resize below reasonable minimums
-	  if (tmpWindowWidth < WINDOW_MIN_WIDTH)
-	    newWindowWidth = WINDOW_MIN_WIDTH;
+	  if (tmpWindowWidth < windowVariables->window.minWidth)
+	    newWindowWidth = windowVariables->window.minWidth;
 	  else
 	    {
 	      newWindowX = tmpWindowX;
 	      newWindowWidth = tmpWindowWidth;
 	    }
 
-	  if (tmpWindowHeight < WINDOW_MIN_HEIGHT)
-	    newWindowHeight = WINDOW_MIN_HEIGHT;
+	  if (tmpWindowHeight < windowVariables->window.minHeight)
+	    newWindowHeight = windowVariables->window.minHeight;
 	  else
 	    {
 	      newWindowY = tmpWindowY;
@@ -175,7 +175,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				newWindowWidth, newWindowHeight, 1, 0);
 
 	  // Write a resize event to the component event stream
-	  bzero(&resizeEvent, sizeof(windowEvent));
+	  kernelMemClear(&resizeEvent, sizeof(windowEvent));
 	  resizeEvent.type = EVENT_WINDOW_RESIZE;
 	  kernelWindowEventStreamWrite(&(component->events), &resizeEvent);
 

@@ -752,6 +752,7 @@ static int constructWindow(void)
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
 
+  windowSetResizable(window, 0);
   windowSetVisible(window, 1);
 
   // Clear the background of the canvas

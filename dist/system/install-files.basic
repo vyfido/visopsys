@@ -64,11 +64,12 @@
 /system/boot/mbr.bootmenu
 /system/config/
 /system/config/administration.conf
+/system/config/desktop.conf
 /system/config/filebrowse.conf
 /system/config/kernel.conf
 /system/config/network.conf
 /system/config/programs.conf
-/system/config/windowmanager.conf
+/system/config/window.conf
 /system/fonts/
 /system/fonts/arial-bold-10.bmp
 /system/fonts/arial-bold-12.bmp

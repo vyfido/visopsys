@@ -184,8 +184,9 @@ typedef struct {
 
 } __attribute__((packed)) usbStringDesc;
 
-typedef struct {
+typedef volatile struct {
   unsigned char controller;
+  unsigned char port;
   unsigned char address;
   unsigned short usbVersion;
   unsigned char classCode;
@@ -198,6 +199,7 @@ typedef struct {
   usbConfigDesc *configDesc;
   usbInterDesc *interDesc[USB_MAX_INTERFACES];
   usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
+  char dataToggle[USB_MAX_ENDPOINTS];
 
 } usbDevice;
 
@@ -216,7 +218,7 @@ typedef struct {
 
 } usbClass;
 
-typedef struct {
+typedef volatile struct {
   usbxferType type;
   unsigned char address;
   unsigned char endpoint;
@@ -226,7 +228,7 @@ typedef struct {
     unsigned short value;
     unsigned short index;
   } control;
-  unsigned short length;
+  unsigned length;
   void *buffer;
   unsigned bytes;
   unsigned char pid;
@@ -252,17 +254,17 @@ typedef struct {
   
 } __attribute__((packed)) usbCmdStatusWrapper;
 
-typedef struct _usbRootHub {
+typedef volatile struct _usbRootHub {
   kernelDevice *device;
   unsigned char controller;
   unsigned short usbVersion;
   void *ioAddress;
   int interrupt;
-  unsigned short portStatus[2];
   unsigned char addressCounter;
   usbDevice *devices[USB_MAX_DEVICES];
   unsigned char numDevices;
   int didEnum;
+  lock lock;
   void *data;
 
   // Functions provided by the core USB driver
@@ -271,8 +273,10 @@ typedef struct _usbRootHub {
   int (*getClassName) (int, int, int, char **, char **);
 
   // Functions provided by the specific USB root hub driver
-  void (*threadCall) (struct _usbRootHub *);
-  int (*transaction) (struct _usbRootHub *, usbDevice *, usbTransaction *);
+  void (*reset) (volatile struct _usbRootHub *);
+  void (*threadCall) (volatile struct _usbRootHub *);
+  int (*transaction) (volatile struct _usbRootHub *, usbDevice *,
+		      usbTransaction *);
 
 } usbRootHub;
 
@@ -287,8 +291,9 @@ typedef struct _usbRootHub {
      (address) = (((targetCode) >> 8) & 0xFF);                          \
      (endpoint) = ((targetCode) & 0xFF);  }
 
-// Functions exported by kernelUsbInitialize.c
+// Functions exported by kernelUsbDriver.c
 int kernelUsbInitialize(void);
+int kernelUsbShutdown(void);
 
 // Detection routines for different driver types
 kernelDevice *kernelUsbUhciDetect(kernelDevice *, kernelBusTarget *,

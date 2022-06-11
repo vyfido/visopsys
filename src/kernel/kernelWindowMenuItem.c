@@ -23,11 +23,12 @@
 // selectable items that occur inside of kernelWindowMenu components.
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelMisc.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelMisc.h"
 #include <string.h>
 
-static kernelAsciiFont *menuItemFont = NULL;
+extern kernelWindowVariables *windowVariables;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -63,22 +64,14 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindowComponent
       return (component = NULL);
     }
 
-  if (menuItemFont == NULL)
-    {
-      // Try to load a nice-looking font
-      if (kernelFontLoad(WINDOW_DEFAULT_VARFONT_SMALL_FILE,
-			 WINDOW_DEFAULT_VARFONT_SMALL_NAME,
-			 &menuItemFont, 0) < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&menuItemFont);
-    }
+  kernelDebug(debug_gui, "New menu item %s", text);
 
   if (params->font == NULL)
     {
       componentParameters tmpParams;
       kernelMemCopy(params, &tmpParams, sizeof(componentParameters));
       params = &tmpParams;
-      params->font = menuItemFont;
+      params->font = windowVariables->font.varWidth.small.font;
     }
 
   menu = menuComponent->data;
@@ -91,11 +84,11 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindowComponent
   if (component == NULL)
     return (component);
 
-  if (!(component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
     // We use a different default background color than the window list
     // item component that the menu item is based upon
     kernelMemCopy(&(kernelDefaultBackground), (color *)
-		  &(component->parameters.background), sizeof(color));
+		  &(component->params.background), sizeof(color));
 
   return (component);
 }

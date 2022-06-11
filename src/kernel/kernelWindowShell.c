@@ -54,6 +54,8 @@ static int numWinMenuItems = 0;
 static int privilege = 0;
 static int initialized = 0;
 
+extern kernelWindowVariables *windowVariables;
+
 
 static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 {
@@ -75,13 +77,14 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 
       kernelDebug(debug_gui, "Icon mouse click");
 
-      kernelMouseBusy(1);
+      kernelWindowSwitchPointer(rootWindow, "busy");
 
       // Run the command
       status =
 	kernelLoaderLoadAndExec((const char *) iconComponent->command,
 				privilege, 0 /* no block */);
-      kernelMouseBusy(0);
+
+      kernelWindowSwitchPointer(rootWindow, "default");
       
       if (status < 0)
 	kernelError(kernel_error, "Unable to execute program %s",
@@ -112,13 +115,13 @@ static void menuEvent(kernelWindowComponent *component, windowEvent *event)
 	    {
 	      if (menuItems[count].command[0] != NULL)
 		{
-		  kernelMouseBusy(1);
+		  kernelWindowSwitchPointer(rootWindow, "busy");
 
 		  // Run the command, no block
 		  status = kernelLoaderLoadAndExec(menuItems[count].command,
 						   privilege, 0);
 
-		  kernelMouseBusy(0);
+		  kernelWindowSwitchPointer(rootWindow, "default");
 
 		  if (status < 0)
 		    kernelError(kernel_error, "Unable to execute program %s",
@@ -179,7 +182,7 @@ static void runPrograms(void)
   int count;
 
   // Read the config file
-  if (kernelConfigurationReader(WINDOW_MANAGER_DEFAULT_CONFIG, &settings) < 0)
+  if (kernelConfigurationReader(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings) < 0)
     return;
 
   // Loop for variables with "program.*"
@@ -254,12 +257,13 @@ static void windowShellThread(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindow *kernelWindowMakeRoot(variableList *settings)
+kernelWindow *kernelWindowMakeRoot(void)
 {
   // Make a main root window to serve as the background for the window
   // environment
 
   int status = 0;
+  variableList settings;
   menuItem *tmpMenuItems = NULL;
   char *iconName = NULL;
   char *menuName = NULL;
@@ -277,10 +281,6 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   // We get default colors from here
   extern color kernelDefaultDesktop;
 
-  // Check params
-  if (settings == NULL)
-    return (rootWindow = NULL);
-
   // Get a new window
   rootWindow = kernelWindowNew(KERNELPROCID, WINNAME_ROOTWINDOW);
   if (rootWindow == NULL)
@@ -292,10 +292,12 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   kernelWindowSetHasTitleBar(rootWindow, 0);
   kernelWindowSetHasBorder(rootWindow, 0);
 
+  // Location in the top corner
   status = kernelWindowSetLocation(rootWindow, 0, 0);
   if (status < 0)
     return (rootWindow = NULL);
 
+  // Size is the whole screen
   status = kernelWindowSetSize(rootWindow, kernelGraphicGetScreenWidth(),
 			       kernelGraphicGetScreenHeight());
   if (status < 0)
@@ -309,8 +311,18 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   rootWindow->background.green = kernelDefaultDesktop.green;
   rootWindow->background.blue = kernelDefaultDesktop.blue;
 
+  // Read the config file
+  status = kernelConfigurationReader(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
+  if (status < 0)
+    {
+      // Argh.  No file?  Create a reasonable, empty list for us to use
+      status = kernelVariableListCreate(&settings);
+      if (status < 0)
+	return (rootWindow = NULL);
+    }
+
   // Try to load the background image
-  if (!kernelVariableListGet(settings, "background.image", propertyValue,
+  if (!kernelVariableListGet(&settings, "background.image", propertyValue,
 			     128) && strncmp(propertyValue, "", 128))
     {
       kernelDebug(debug_gui, "Loading background image \"%s\"", propertyValue);
@@ -344,9 +356,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.background.blue = kernelDefaultDesktop.blue;
   params.flags |=
     (WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
-  kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-		 WINDOW_DEFAULT_VARFONT_MEDIUM_NAME,
-		 (kernelAsciiFont **) &(params.font), 0);
+  params.font = windowVariables->font.varWidth.medium.font;
   taskMenuBar = kernelWindowNewMenuBar(rootWindow, &params);
 
   // Try to load taskbar menus and menu items
@@ -354,15 +364,18 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   // Allocate temporary memory for the normal menu items
   tmpMenuItems = kernelMalloc(256 * sizeof(menuItem)); 
   if (tmpMenuItems == NULL)
-    return (rootWindow = NULL);
+    {
+      kernelVariableListDestroy(&settings);
+      return (rootWindow = NULL);
+    }
 
   // Loop for variables with "taskBar.menu.*"
-  for (count1 = 0; count1 < settings->numVariables; count1 ++)
+  for (count1 = 0; count1 < settings.numVariables; count1 ++)
     {
-      if (!strncmp(settings->variables[count1], "taskBar.menu.", 13))
+      if (!strncmp(settings.variables[count1], "taskBar.menu.", 13))
 	{
-	  menuName = (settings->variables[count1] + 13);
-	  kernelVariableListGet(settings, settings->variables[count1],
+	  menuName = (settings.variables[count1] + 13);
+	  kernelVariableListGet(&settings, settings.variables[count1],
 				menuLabel, 128);
 
 	  menuComponent =
@@ -370,17 +383,16 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 	  kernelWindowRegisterEventHandler(menuComponent, &menuEvent);
 
 	  // Now loop and get any components for this menu
-	  for (count2 = 0; count2 < settings->numVariables; count2 ++)
+	  for (count2 = 0; count2 < settings.numVariables; count2 ++)
 	    {
 	      sprintf(propertyName, "taskBar.%s.item.", menuName);
 
-	      if (!strncmp(settings->variables[count2], propertyName,
+	      if (!strncmp(settings.variables[count2], propertyName,
 			   strlen(propertyName)))
 		{
 		  itemName =
-		    (settings->variables[count2] + strlen(propertyName));
-		  kernelVariableListGet(settings,
-					settings->variables[count2],
+		    (settings.variables[count2] + strlen(propertyName));
+		  kernelVariableListGet(&settings, settings.variables[count2],
 					itemLabel, 128);
 
 		  tmpMenuItems[numMenuItems].itemComponent =
@@ -389,7 +401,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 		  // See if there's an associated command
 		  sprintf(propertyName, "taskBar.%s.%s.command", menuName,
 			  itemName);
-		  kernelVariableListGet(settings, propertyName,
+		  kernelVariableListGet(&settings, propertyName,
 					(tmpMenuItems[numMenuItems].command),
 					MAX_PATH_NAME_LENGTH);
 
@@ -411,6 +423,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 		kernelMalloc(WINDOW_MAXWINDOWS * sizeof(menuItem));
 	      if (winMenuItems == NULL)
 		{
+		  kernelVariableListDestroy(&settings);
 		  kernelFree(tmpMenuItems);
 		  return (rootWindow = NULL);
 		}
@@ -422,7 +435,10 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   // actually need.
   menuItems = kernelMalloc(numMenuItems * sizeof(menuItem)); 
   if (menuItems == NULL)
-    return (rootWindow = NULL);
+    {
+      kernelVariableListDestroy(&settings);
+      return (rootWindow = NULL);
+    }
   kernelMemCopy(tmpMenuItems, menuItems, (numMenuItems * sizeof(menuItem)));
   kernelFree(tmpMenuItems);
 
@@ -442,18 +458,17 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.orientationY = orient_middle;
 
   // Loop for variables with "icon.name.*"
-  for (count1 = 0; count1 < settings->numVariables; count1 ++)
+  for (count1 = 0; count1 < settings.numVariables; count1 ++)
     {
-      if (!strncmp(settings->variables[count1], "icon.name.", 10))
+      if (!strncmp(settings.variables[count1], "icon.name.", 10))
 	{
-	  iconName = (settings->variables[count1] + 10);
-	  kernelVariableListGet(settings, settings->variables[count1],
+	  iconName = (settings.variables[count1] + 10);
+	  kernelVariableListGet(&settings, settings.variables[count1],
 				itemLabel, 128);
 
 	  // Get the rest of the recognized properties for this icon.
 	  sprintf(propertyName, "icon.%s.image", iconName);
-	  kernelVariableListGet(settings, propertyName, propertyValue,
-				128);
+	  kernelVariableListGet(&settings, propertyName, propertyValue, 128);
 
 	  status = kernelImageLoad(propertyValue, 0, 0, &tmpImage);
 	  if (status == 0)
@@ -467,7 +482,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 
 	      // See if there's a command associated with this.
 	      sprintf(propertyName, "icon.%s.command", iconName);
-	      kernelVariableListGet(settings, propertyName, (char *)
+	      kernelVariableListGet(&settings, propertyName, (char *)
 				    ((kernelWindowIcon *)
 				     iconComponent->data)->command,
 				    MAX_PATH_NAME_LENGTH);
@@ -486,7 +501,17 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   // Snap the icons to a grid
   kernelWindowSnapIcons((objectKey) rootWindow);
 
+  kernelDebug(debug_gui, "Rootwindow main container size %dx%d",
+	      rootWindow->mainContainer->width,
+	      rootWindow->mainContainer->height);
+
   kernelLog("Desktop icons loaded");
+
+  // Re-write the config file
+  status = kernelConfigurationWriter(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
+  if (status >= 0)
+    kernelLog("Updated desktop configuration");
+  kernelVariableListDestroy(&settings);
 
   initialized = 1;
 
@@ -544,33 +569,30 @@ void kernelWindowShellUpdateList(kernelWindow *windowList[], int numberWindows)
       kernelMemClear(winMenuItems, (WINDOW_MAXWINDOWS * sizeof(menuItem)));
 
       // Copy the parameters from the menu to use 
-      kernelMemCopy((void *) &(windowMenu->parameters), &params,
+      kernelMemCopy((void *) &(windowMenu->params), &params,
 		    sizeof(componentParameters));
 
       for (count = 0; count < numberWindows; count ++)
 	{
 	  // Skip windows we don't want to include
 
-	  if (windowList[count] == rootWindow)
-	    continue;
-
-	  if (!strcmp((char *) windowList[count]->title, WINNAME_TEMPCONSOLE))
+	  if ((windowList[count] == rootWindow) ||
+	      !strcmp((char *) windowList[count]->title, WINNAME_TEMPCONSOLE))
 	    continue;
 
 	  // Skip dialog windows too
 	  if (windowList[count]->parentWindow)
 	    continue;
 
-	  item = kernelWindowNewMenuItem(windowMenu,
-					 (char *) windowList[count]->title,
-					 &params);
+	  item = kernelWindowNewMenuItem(windowMenu, (char *)
+					 windowList[count]->title, &params);
 
 	  winMenuItems[numWinMenuItems].itemComponent = item;
 	  winMenuItems[numWinMenuItems].window = windowList[count];
 	  numWinMenuItems += 1;
 	}
 	  
-      if (container->containerLayout)
-	container->containerLayout(menu->container);
+      if (windowMenu->layout)
+	windowMenu->layout(windowMenu);
     }
 }

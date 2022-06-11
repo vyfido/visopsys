@@ -402,13 +402,16 @@ static int findPageTableEntry(kernelPageDirectory *directory,
 
   int status = 0;
   int tableNumber = 0;
-  kernelPageTable *table = NULL;
   int pageNumber = 0;
+  kernelPageTable *table = NULL;
 
   // virtualAddress is allowed to be NULL.
 
   if ((unsigned) virtualAddress % MEMORY_PAGE_SIZE)
-    return (status = ERR_ALIGN);
+    {
+      kernelError(kernel_error, "Address is not page-aligned");
+      return (status = ERR_ALIGN);
+    }
 
   // Figure out which page table corresponds to this virtual address, and
   // get the page table
@@ -416,8 +419,11 @@ static int findPageTableEntry(kernelPageDirectory *directory,
   pageNumber = getPageNumber(virtualAddress);
   table = findPageTable(directory, tableNumber);
   if (table == NULL)
-    // We're hosed.  This table should already exist.
-    return (status = ERR_NODATA);
+    {
+      // We're hosed.  This table should already exist.
+      kernelError(kernel_error, "No page table %d", tableNumber);
+      return (status = ERR_NODATA);
+    }
 
   // Grab the value from the page table
   *entry = (void *) (table->virtual->page[pageNumber] & 0xFFFFF000);
@@ -1154,8 +1160,11 @@ kernelPageDirectory *kernelPageNewDirectory(int processId)
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (directory = NULL);
-  
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (directory = NULL);
+    }
+
   // Create an initial page table in the page directory, in the first spot
   table = createPageTable(directory, 0); // slot 0
   if (table == NULL)
@@ -1196,8 +1205,11 @@ kernelPageDirectory *kernelPageShareDirectory(int parentId, int childId)
 
   status = kernelLockGet(&(parentDirectory->dirLock));
   if (status < 0)
-    return (parentDirectory = NULL);
-  
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (parentDirectory = NULL);
+    }
+
   // It could happen that the parentId and childId are the same.  (really?)
   if (parentId != childId)
     // Note that the parent directory is referenced and child directory
@@ -1232,7 +1244,10 @@ int kernelPageDeleteDirectory(int processId)
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (status = ERR_NOLOCK);
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (status = ERR_NOLOCK);
+    }
 
   // If there are shares, merely decrement the counter
   if (directory->numberShares)
@@ -1286,8 +1301,11 @@ int kernelPageMap(int processId, void *physicalAddress, void *virtualAddress,
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (status = ERR_NOLOCK);
-  
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (status = ERR_NOLOCK);
+    }
+
   status =
     map(directory, physicalAddress, &virtualAddress, size, PAGE_MAP_EXACT);
 
@@ -1318,8 +1336,11 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (status = ERR_NOLOCK);
-  
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (status = ERR_NOLOCK);
+    }
+
   status = map(directory, physicalAddress, virtualAddress, size, PAGE_MAP_ANY);
 
   kernelLockRelease(&(directory->dirLock));
@@ -1347,7 +1368,10 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (status = ERR_NOLOCK);
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (status = ERR_NOLOCK);
+    }
   
   status = unmap(directory, virtualAddress, size);
 
@@ -1377,7 +1401,10 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (address = NULL);
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (address = NULL);
+    }
   
   status =
     findPageTableEntry(directory, (void *) kernelPageRoundDown(virtualAddress),
@@ -1386,7 +1413,11 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
   kernelLockRelease(&(directory->dirLock));
 
   if (status < 0)
-    return (address = NULL);
+    {
+      kernelError(kernel_error, "No page table entry for address %p",
+		  virtualAddress);
+      return (address = NULL);
+    }
   else
     return (address + ((unsigned) virtualAddress % MEMORY_PAGE_SIZE));
 }
@@ -1416,7 +1447,10 @@ void *kernelPageFindFree(int processId, unsigned size)
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (address = NULL);
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (address = NULL);
+    }
 
   status = findFreePages(directory, pages, &address);
 
@@ -1453,7 +1487,10 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
-    return (status);
+    {
+      kernelError(kernel_error, "Can't get lock on page directory");
+      return (status);
+    }
 
   status = setPageAttrs(directory, set, flags, virtualAddress, pages);
 

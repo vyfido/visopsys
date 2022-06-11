@@ -3267,6 +3267,20 @@ static int detect(kernelDisk *theDisk)
 }
 
 
+static void progressConfirmError(progress *prog, const char *message)
+{
+  if (kernelLockGet(&(prog->lock)) >= 0)
+    {
+      strcpy(prog->statusMessage, message);
+      prog->confirmError = 0;
+      prog->error = 1;
+      kernelLockRelease(&(prog->lock));
+    }
+  while (!(prog->confirmError))
+    kernelMultitaskerYield();
+}
+
+
 static int format(kernelDisk *theDisk, const char *type, const char *label,
 		  int longFormat, progress *prog)
 {
@@ -3324,7 +3338,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Calculating parameters");
+      strcpy(prog->statusMessage, "Calculating parameters");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3376,7 +3390,20 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	  // Calculate the sectors per cluster.
 	  while((theDisk->numSectors / fatData.bpb.sectsPerClust) >= 4085)
-	    fatData.bpb.sectsPerClust *= 2;
+	    {
+	      if (fatData.bpb.sectsPerClust >= 64)
+		{
+		  // We cannot create a volume this size using FAT12
+		  char *tmpMessage =
+		    "Disk is too large for a FAT12 filesystem";
+		  kernelError(kernel_error, tmpMessage);
+		  if (prog)
+		    progressConfirmError(prog, tmpMessage);
+		  return (status = ERR_BOUNDS);
+		}
+
+	      fatData.bpb.sectsPerClust *= 2;
+	    }
 
 	  fatData.terminalClust = 0x0FF8;
 	  strncpy((char *) fatData.bpb.fat.fileSysType, "FAT12   ", 8);
@@ -3485,7 +3512,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Clearing control sectors");
+      strcpy(prog->statusMessage, "Clearing control sectors");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3562,7 +3589,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 80;
-      strcpy((char *) prog->statusMessage, "Writing FATs");
+      strcpy(prog->statusMessage, "Writing FATs");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3582,7 +3609,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 85;
-      strcpy((char *) prog->statusMessage, "Writing volume info");
+      strcpy(prog->statusMessage, "Writing volume info");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3631,7 +3658,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->percentFinished = 95;
-      strcpy((char *) prog->statusMessage, "Syncing disk");
+      strcpy(prog->statusMessage, "Syncing disk");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3702,7 +3729,7 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
 
 	  if (prog && (kernelLockGet(&(prog->lock)) >= 0))
 	    {
-	      snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
+	      snprintf(prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
 		       "Defragmenting %d/%d: %s", (prog->finished + 1),
 		       prog->total, entry->name);
 	      kernelLockRelease(&(prog->lock));
@@ -3830,7 +3857,7 @@ static int defragment(kernelDisk *theDisk, progress *prog)
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Reading filesystem info");
+      strcpy(prog->statusMessage, "Reading filesystem info");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3854,8 +3881,7 @@ static int defragment(kernelDisk *theDisk, progress *prog)
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
-	       "Analyzing");
+      snprintf(prog->statusMessage, PROGRESS_MAX_MESSAGELEN, "Analyzing");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -3868,7 +3894,7 @@ static int defragment(kernelDisk *theDisk, progress *prog)
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
       prog->total = status;
-      snprintf((char *) prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
+      snprintf(prog->statusMessage, PROGRESS_MAX_MESSAGELEN,
 	       "%d files need defragmentation", prog->total);
       kernelLockRelease(&(prog->lock));
 

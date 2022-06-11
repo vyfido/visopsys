@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/cdefs.h>
 
 
@@ -39,7 +40,7 @@ int sprintf(char *output, const char *format, ...)
   va_start(list, format);
 
   // Fill out the output line based on 
-  outputLen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);
 

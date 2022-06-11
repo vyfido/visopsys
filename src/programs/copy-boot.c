@@ -45,6 +45,15 @@ Example:
 </help>
 */
 
+#ifdef VISOPSYS
+#include <sys/api.h>
+#include <sys/vsh.h>
+#define OSLOADER  "/vloader"
+#else
+#define _GNU_SOURCE
+#define OSLOADER  "../build/vloader"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -53,14 +62,6 @@ Example:
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-
-#ifdef VISOPSYS
-#include <sys/api.h>
-#include <sys/vsh.h>
-#define OSLOADER  "/vloader"
-#else
-#define OSLOADER  "../build/vloader"
-#endif
 
 #define FAT12_SIG "FAT12   "
 #define FAT16_SIG "FAT16   "
@@ -438,7 +439,7 @@ static int setOsLoaderParams(const char *outputName,
 #ifndef VISOPSYS
       struct utsname u;
       uname(&u);
-      if (strstr(u.release, "FC"))
+      if (strcasestr(u.release, "fc"))
 	{
 	  firstUnusedCluster += 1;
 	  DEBUG("Using second unused cluster (%u) hack for OS release %s\n",

@@ -23,9 +23,10 @@
 // the Visopsys kernel.
 
 #include "kernelRandom.h"
-#include "kernelSysTimer.h"
-#include "kernelRtc.h"
+#include "kernelError.h"
 #include "kernelLog.h"
+#include "kernelRtc.h"
+#include "kernelSysTimer.h"
 
 
 static volatile unsigned kernelRandomSeed;
@@ -147,8 +148,22 @@ unsigned kernelRandomFormatted(unsigned start, unsigned end)
 {
   // This function will return a random number between "start" and "end"
   // using the kernel's random seed.
+
+  unsigned limit = 0;
+
   kernelRandomSeed = random(kernelRandomSeed);
-  return ((kernelRandomSeed % ((end - start) + 1)) + start);
+
+  if (end <= start)
+    {
+      kernelError(kernel_error, "end <= start");
+      return (start);
+    }
+
+  limit = ((end - start) + 1);
+  if (!limit)
+    limit = ~0U;
+
+  return ((kernelRandomSeed % limit) + start);
 }
 
 
@@ -165,5 +180,18 @@ unsigned kernelRandomSeededFormatted(unsigned seed, unsigned start,
 {
   // This function will return a random number between "start" and "end"
   // using the user's random seed.
-  return ((random(seed) % ((end - start) + 1)) + start);
+
+  unsigned limit = 0;
+
+  if (end <= start)
+    {
+      kernelError(kernel_error, "end <= start");
+      return (start);
+    }
+
+  limit = ((end - start) + 1);
+  if (!limit)
+    limit = ~0U;
+
+  return ((random(seed) % limit) + start);
 }

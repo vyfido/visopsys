@@ -26,8 +26,8 @@
 
 #include <string.h>
 
-#define MAX_PROCNAME_LENGTH 64
-#define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
+#define MAX_PROCNAME_LENGTH  64
+#define MAX_PROCESSES        ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 
 // An enumeration listing possible process states
 typedef enum {

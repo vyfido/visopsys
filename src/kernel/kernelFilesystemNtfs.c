@@ -149,7 +149,7 @@ static int clobber(kernelDisk *theDisk)
   if (status < 0)
     return (status);
 
-  bzero(bootFile.oemName, 8);
+  kernelMemClear(bootFile.oemName, 8);
 
   status = writeBootFile(theDisk, &bootFile);
   return (status);

@@ -30,21 +30,24 @@
 #include <sys/window.h>
 
 // Definitions
+
 #define WINDOW_TITLEBAR_HEIGHT              19
 #define WINDOW_TITLEBAR_MINWIDTH            (WINDOW_TITLEBAR_HEIGHT * 4)
 #define WINDOW_BORDER_THICKNESS             3
 #define WINDOW_SHADING_INCREMENT            15
+#define WINDOW_RADIOBUTTON_SIZE             10
+#define WINDOW_CHECKBOX_SIZE                10
 #define WINDOW_MIN_WIDTH                    (WINDOW_TITLEBAR_MINWIDTH + \
 					     (WINDOW_BORDER_THICKNESS * 2))
 #define WINDOW_MIN_HEIGHT                   (WINDOW_TITLEBAR_HEIGHT + \
                                              (WINDOW_BORDER_THICKNESS * 2))
-#define WINDOW_MANAGER_DEFAULT_CONFIG       "/system/config/windowmanager.conf"
+#define WINDOW_MINREST_TRACERS              20
+#define WINDOW_DEFAULT_CONFIG               "/system/config/window.conf"
+#define WINDOW_DEFAULT_DESKTOP_CONFIG       "/system/config/desktop.conf"
 #define WINDOW_DEFAULT_VARFONT_SMALL_FILE   "/system/fonts/arial-bold-10.bmp"
 #define WINDOW_DEFAULT_VARFONT_SMALL_NAME   "arial-bold-10"
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE  "/system/fonts/arial-bold-12.bmp"
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_NAME  "arial-bold-12"
-#define WINDOW_DEFAULT_MOUSEPOINTER_DEFAULT "/system/mouse.bmp"
-#define WINDOW_DEFAULT_MOUSEPOINTER_BUSY    "/system/mouse/mousebsy.bmp"
 
 #define WINFLAG_VISIBLE                     0x0200
 #define WINFLAG_ENABLED                     0x0100
@@ -61,9 +64,49 @@
 #define WINNAME_TEMPCONSOLE                 "temp console window"
 #define WINNAME_ROOTWINDOW                  "root window"
 
-// How many tracers get displayed when a window is minimized or restored
-#define WINDOW_MINREST_TRACERS              20
-  
+typedef struct {
+  struct {
+    int minWidth;
+    int minHeight;
+    int minRestTracers;
+  } window;
+
+  struct {
+    int height;
+    int minWidth;
+  } titleBar;
+
+  struct {
+    int thickness;
+    int shadingIncrement;
+  } border;
+
+  struct {
+    int size;
+  } radioButton;
+
+  struct {
+    int size;
+  } checkbox;
+
+  struct {
+    kernelAsciiFont *defaultFont;
+    struct {
+      struct {
+	char file[MAX_PATH_NAME_LENGTH];
+	char name[MAX_NAME_LENGTH];
+	kernelAsciiFont *font;
+      } small;
+      struct {
+	char file[MAX_PATH_NAME_LENGTH];
+	char name[MAX_NAME_LENGTH];
+	kernelAsciiFont *font;
+      } medium;
+    } varWidth;
+  } font;
+
+} kernelWindowVariables;
+
 typedef enum {
   genericComponentType,
   borderComponentType,
@@ -108,10 +151,11 @@ typedef volatile struct _kernelWindowComponent {
   int minWidth;
   int minHeight;
   unsigned flags;
-  componentParameters parameters;
+  componentParameters params;
   windowEventStream events;
   void (*eventHandler)(volatile struct _kernelWindowComponent *,
 		       windowEvent *);
+  int doneLayout;
   void *data;
 
   // Routines for managing this component.  These are set by the
@@ -120,6 +164,17 @@ typedef volatile struct _kernelWindowComponent {
   int (*drawBorder) (volatile struct _kernelWindowComponent *, int);
   int (*erase) (volatile struct _kernelWindowComponent *);
   int (*grey) (volatile struct _kernelWindowComponent *);
+
+  // Routines that should be implemented by components that 'contain'
+  // or instantiate other components
+  int (*numComps) (volatile struct _kernelWindowComponent *);
+  int (*flatten) (volatile struct _kernelWindowComponent *,
+		  volatile struct _kernelWindowComponent **, int *, unsigned);
+  int (*layout) (volatile struct _kernelWindowComponent *);
+  volatile struct _kernelWindowComponent *
+  (*eventComp) (volatile struct _kernelWindowComponent *, int, int);
+  int (*setBuffer) (volatile struct _kernelWindowComponent *,
+		    kernelGraphicBuffer *);
 
   // More routines for managing this component.  These are set by the
   // code which builds the instance of the particular component type
@@ -163,14 +218,11 @@ typedef volatile struct {
   int numComponents;
   int numColumns;
   int numRows;
-  int doneLayout;
 
   // Functions
-  int (*containerAdd) (kernelWindowComponent *, kernelWindowComponent *);
-  int (*containerRemove) (kernelWindowComponent *, kernelWindowComponent *);
-  int (*containerLayout) (kernelWindowComponent *);
-  int (*containerSetBuffer) (kernelWindowComponent *, kernelGraphicBuffer *);
-  void (*containerDrawGrid) (kernelWindowComponent *);
+  int (*add) (kernelWindowComponent *, kernelWindowComponent *);
+  int (*remove) (kernelWindowComponent *, kernelWindowComponent *);
+  void (*drawGrid) (kernelWindowComponent *);
 
 } kernelWindowContainer;
 
@@ -187,7 +239,7 @@ typedef volatile struct {
 
 // An image as a window component
 typedef volatile struct {
-  image imageData;
+  image image;
   drawMode mode;
 
 } kernelWindowImage;
@@ -297,6 +349,7 @@ typedef volatile struct _kernelWindow {
   kernelWindowComponent *mainContainer;
   kernelWindowComponent *focusComponent;
   kernelWindowComponent *oldFocusComponent;
+  kernelMousePointer *pointer;
 
   volatile struct _kernelWindow *parentWindow;
   volatile struct _kernelWindow *dialogWindow;
@@ -305,6 +358,9 @@ typedef volatile struct _kernelWindow {
   int (*draw) (volatile struct _kernelWindow *);
   int (*drawClip) (volatile struct _kernelWindow *, int, int, int, int);
   int (*update) (volatile struct _kernelWindow *, int, int, int, int);
+  int (*focusNextComponent) (volatile struct _kernelWindow *);
+  int (*changeComponentFocus) (volatile struct _kernelWindow *,
+			       kernelWindowComponent *);
 
 } kernelWindow;
 
@@ -366,27 +422,106 @@ static inline int doLinesIntersect(int horizX1, int horizY, int horizX2,
     return (1);
 }
 
-static inline int isComponentVisible(kernelWindowComponent *component)
+static inline int doAreasIntersect(screenArea *firstArea,
+				   screenArea *secondArea)
 {
-  // True if the component and all its upstream containers are visible
-  
-  kernelWindowComponent *container = component->container;
+  // Return 1 if area 1 and area 2 intersect.
 
-  while (container)
-    {
-      if (!(container->flags & WINFLAG_VISIBLE))
-	return (0);
-      else
-	container = container->container;
-    }
+  if (isPointInside(firstArea->leftX, firstArea->topY, secondArea) ||
+      isPointInside(firstArea->rightX, firstArea->topY, secondArea) ||
+      isPointInside(firstArea->leftX, firstArea->bottomY, secondArea) ||
+      isPointInside(firstArea->rightX, firstArea->bottomY, secondArea) ||
+      isPointInside(secondArea->leftX, secondArea->topY, firstArea) ||
+      isPointInside(secondArea->rightX, secondArea->topY, firstArea) ||
+      isPointInside(secondArea->leftX, secondArea->bottomY, firstArea) ||
+      isPointInside(secondArea->rightX, secondArea->bottomY, firstArea))
+    return (1);
 
-  return (1);
+  else if (doLinesIntersect(firstArea->leftX, firstArea->topY,
+			    firstArea->rightX,
+			    secondArea->leftX, secondArea->topY,
+			    secondArea->bottomY) ||
+	   doLinesIntersect(secondArea->leftX, secondArea->topY,
+			    secondArea->rightX,
+			    firstArea->leftX, firstArea->topY,
+			    firstArea->bottomY))
+    return (1);
+
+  else
+    // Nope, not intersecting
+    return (0);
 }
+
+static inline void removeFromContainer(kernelWindowComponent *component)
+{
+  // Remove the component from its parent container
+  
+  if (component->container)
+    {
+      kernelWindowContainer *tmpContainer = component->container->data;
+      if (tmpContainer->remove)
+	tmpContainer->remove(component->container, component);
+    }
+}
+
+#ifdef DEBUG
+static inline const char *componentTypeString(kernelWindowObjectType type)
+{
+  // Return a string representation of a window object type.
+ switch (type)
+   {
+   case genericComponentType:
+     return ("genericComponentType");
+   case borderComponentType:
+     return ("borderComponentType");
+   case buttonComponentType:
+     return ("buttonComponentType");
+   case canvasComponentType:
+     return ("canvasComponentType");
+   case checkboxComponentType:
+     return ("checkboxComponentType");
+   case containerComponentType:
+     return ("containerComponentType");
+   case iconComponentType:
+     return ("iconComponentType");
+   case imageComponentType:
+     return ("imageComponentType");
+   case listComponentType:
+     return ("listComponentType");
+   case listItemComponentType:
+     return ("listItemComponentType");
+   case menuComponentType:
+     return ("menuComponentType");
+   case menuBarComponentType:
+     return ("menuBarComponentType");
+   case progressBarComponentType:
+     return ("progressBarComponentType");
+   case radioButtonComponentType:
+     return ("radioButtonComponentType");
+   case scrollBarComponentType:
+     return ("scrollBarComponentType");
+   case sliderComponentType:
+     return ("sliderComponentType");
+   case sysContainerComponentType:
+     return ("sysContainerComponentType");
+   case textAreaComponentType:
+     return ("textAreaComponentType");
+   case textLabelComponentType:
+     return ("textLabelComponentType");
+   case titleBarComponentType:
+     return ("titleBarComponentType");
+   case windowType:
+     return ("windowType");
+   default:
+     return ("unknown");
+   }
+}
+#endif
 
 // Functions exported by kernelWindow*.c functions
 int kernelWindowInitialize(void);
 int kernelWindowStart(void);
-kernelWindow *kernelWindowMakeRoot(variableList *);
+kernelWindow *kernelWindowMakeRoot(void);
 int kernelWindowShell(int, int);
 void kernelWindowShellUpdateList(kernelWindow *[], int);
 int kernelWindowLogin(const char *);
@@ -431,8 +566,11 @@ int kernelWindowLayout(kernelWindow *);
 void kernelWindowDebugLayout(kernelWindow *);
 int kernelWindowContextAdd(objectKey, windowMenuContents *);
 int kernelWindowContextSet(objectKey, kernelWindowComponent *);
+int kernelWindowSwitchPointer(objectKey, const char *);
+void kernelWindowMoveConsoleTextArea(kernelWindow *, kernelWindow *);
 
-// Functions for managing components
+// Functions for managing components.  This first batch is from
+// kernelWindowComponent.c
 kernelWindowComponent *kernelWindowComponentNew(objectKey,
 						componentParameters *);
 void kernelWindowComponentDestroy(kernelWindowComponent *);

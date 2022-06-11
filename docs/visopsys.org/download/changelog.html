@@ -46,6 +46,82 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.65<br>
+</font><font size="2">17/12/2006</font></p>
+
+<p><font size="4">Overview: This is a maintenance release, with particular focus 
+on the Disk Manager program, the USB subsystem, and the GUI. The Disk Manager 
+can now copy and paste partitions, cancel partition move operations, format 
+user-specified FAT subtypes, and has more user-friendly partition type 
+selection.</font></p>
+<ul>
+  <li><font size="4">Re-engineered the kernel's USB subsystem and UHCI host 
+  controller driver and re-enabled basic USB support by default.</font></li>
+  <li><font size="4">Implemented per-window mouse pointers, so that applications 
+  can set them appropriately according to whatever they're doing without 
+  affecting anything else.</font></li>
+  <li><font size="4">The Disk Manager can now copy and paste partitions, on the 
+  same disk or disk-to-disk.</font></li>
+  <li><font size="4">The Disk Manager's &quot;move partition&quot; operation now allows 
+  the user to press the 'Cancel' button as long as no data from the original 
+  partition location has (yet) been overwritten.</font></li>
+  <li><font size="4">Formatting FAT filesystems using the Install or Disk 
+  Manager programs now allows the user to specify a FAT filesystem subtype 
+  (default, FAT12, FAT16, FAT32).</font></li>
+  <li><font size="4">The Disk Manager's &quot;list types&quot; and &quot;set type&quot; dialogs now 
+  display the partition types in a clickable list box selection; The user no 
+  longer has to type a hex code to set the type.</font></li>
+  <li><font size="4">Added the ability to do FPU state saves and restores (with 
+  help from Davide Airaghi &lt;davide.airaghi@gmail.com&gt; and Greg &lt;reqst@o2.pl&gt;).</font></li>
+  <li><font size="4">Added a global window manager variable list.</font></li>
+  <li><font size="4">Added &quot;mouse enter&quot; and &quot;mouse exit&quot; events for windows.</font></li>
+  <li><font size="4">Added fopen(), fclose(), and strcasestr() C library 
+  functions.</font></li>
+  <li><font size="4">Created a proper test suite harness program. Initial tests 
+  implemented are for text output, port I/O protection, floating-point, and some 
+  GUI operations.</font></li>
+  <li><font size="4">Code improvements to the implementation of window component 
+  levels.</font></li>
+  <li><font size="4">The generic window component now has some container 
+  functions built in, such as layout(), numComps(), flatten(), and setBuffer(), 
+  so that all 'composite' components that contain others can have their 
+  sub-components participate in various actions.</font></li>
+  <li><font size="4">The processing of window events no longer tries to 
+  determine the precise component the event happened to -- instead events are 
+  now cascaded down through any/all applicable containers, components, 
+  subcomponents, etc. Added an eventComp() function to window components so that 
+  they can specify whether they want some sub-component to receive a particular 
+  event, otherwise it goes to the component itself by default.</font></li>
+  <li><font size="4">Added a little removeFromContainer() inline function for 
+  removing components from their parent container.</font></li>
+  <li><font size="4">The floppy disk driver now does better memory management of 
+  its list of disks, devices, driver data, etc.</font></li>
+  <li><font size="4">Fixed: Divide-by-zero fault in the kernel's random number 
+  code, caused by any call to the rand() C library function.</font></li>
+  <li><font size="4">Fixed: The 'cat' and 'more' commands were crashy.</font></li>
+  <li><font size="4">Fixed: Closing the Command Window program could 
+  occasionally cause system crashes.</font></li>
+  <li><font size="4">Fixed: Booting could fail (system crash) when the (FAT) 
+  root filesystem was nearly full.</font></li>
+  <li><font size="4">Fixed: A bug in the Disk Manager's format() function was 
+  preventing it from offering the choice 'none' (clobber).</font></li>
+  <li><font size="4">Fixed: Creating logical partitions in the Disk Manager 
+  could cause page fault exceptions when writing the changes.</font></li>
+  <li><font size="4">Fixed: Formatting a too-large disk as FAT12 caused a 
+  divide-by-zero fault.</font></li>
+  <li><font size="4">Fixed: Clicking on a context menu item that didn't fall 
+  within the bounds of its parent window had no effect.</font></li>
+  <li><font size="4">Fixed: When resizing the Disk Manager window, the partition 
+  diagram didn't completely redraw its entire width.</font></li>
+  <li><font size="4">Fixed: When the Display Settings program was used to set 
+  the global colors, there were some window components whose colors were 
+  changing incorrectly including icons, lists, and menu items/list items.</font></li>
+  <li><font size="4">Fixed: When changing a variable in the Configuration 
+  Editor, clicking OK caused remnants of the selected item to be erroneously 
+  drawn at the top of the window.</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.64<br>
 </font><font size="2">25/10/2006</font></p>
 

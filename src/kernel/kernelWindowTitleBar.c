@@ -31,10 +31,11 @@
 #include "kernelWindowEventStream.h"
 #include <string.h>
 
-static kernelAsciiFont *titleBarFont = NULL;
 static image minimizeImage;
 static image closeImage;
 static int imagesCreated = 0;
+
+extern kernelWindowVariables *windowVariables;
 
 
 static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
@@ -116,34 +117,30 @@ static void createImages(int width, int height)
 }
 
 
-static void minimizeWindow(kernelWindowComponent *component,
-			   windowEvent *event)
+static void minimizeWindow(kernelWindow *window, windowEvent *event)
 {
   // This function gets called when the minimize button gets pushed
 
-  if (event->type == EVENT_MOUSE_LEFTUP)
-    {
-      kernelWindowSetMinimized(component->window, 1);
+  // Minimize the window
+  kernelWindowSetMinimized(window, 1);
       
-      // Transfer this event into the window's event stream
-      event->type = EVENT_WINDOW_MINIMIZE;
-      kernelWindowEventStreamWrite(&(component->window->events), event);
-    }
+  // Transfer this event into the window's event stream, so the application
+  // can find out about it.
+  event->type = EVENT_WINDOW_MINIMIZE;
+  kernelWindowEventStreamWrite(&(window->events), event);
   
   return;
 }
 
 
-static void closeWindow(kernelWindowComponent *component, windowEvent *event)
+static void closeWindow(kernelWindow *window, windowEvent *event)
 {
   // This function gets called when the close button gets pushed
 
-  if (event->type == EVENT_MOUSE_LEFTUP)
-    {
-      // Transfer this event into the window's event stream
-      event->type = EVENT_WINDOW_CLOSE;
-      kernelWindowEventStreamWrite(&(component->window->events), event);
-    }
+  // Transfer this event into the window's event stream, so the application
+  // can find out about it.
+  event->type = EVENT_WINDOW_CLOSE;
+  kernelWindowEventStreamWrite(&(window->events), event);
 
   return;
 }
@@ -154,6 +151,7 @@ static int draw(kernelWindowComponent *component)
   // Draw the title bar component atop the window
 
   kernelWindowTitleBar *titleBar = component->data;
+  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
   int titleWidth = 0;
   char title[128];
   color foregroundColor;
@@ -164,12 +162,12 @@ static int draw(kernelWindowComponent *component)
   // the focus
   if (component->window->flags & WINFLAG_HASFOCUS)
     {
-      if (component->parameters.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+      if (component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
 	{
 	  // Use user-supplied colors
-	  backgroundColor.red = component->parameters.background.red;
-	  backgroundColor.green = component->parameters.background.green;
-	  backgroundColor.blue = component->parameters.background.blue;
+	  backgroundColor.red = component->params.background.red;
+	  backgroundColor.green = component->params.background.green;
+	  backgroundColor.blue = component->params.background.blue;
 	}
       else
 	{
@@ -204,12 +202,12 @@ static int draw(kernelWindowComponent *component)
 
   // Put the title on the title bar
   
-  if (component->parameters.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
+  if (component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
     {
       // Use user-supplied colors
-      foregroundColor.red = component->parameters.foreground.red;
-      foregroundColor.green = component->parameters.foreground.green;
-      foregroundColor.blue = component->parameters.foreground.blue;
+      foregroundColor.red = component->params.foreground.red;
+      foregroundColor.green = component->params.foreground.green;
+      foregroundColor.blue = component->params.foreground.blue;
     }
   else
     {
@@ -226,13 +224,13 @@ static int draw(kernelWindowComponent *component)
   if (titleBar->closeButton)
     titleWidth -= titleBar->closeButton->width;
 
-  while (kernelFontGetPrintedWidth(titleBarFont, title) > titleWidth)
+  while (kernelFontGetPrintedWidth(font, title) > titleWidth)
     title[strlen(title) - 2] = '\0';
 
   kernelGraphicDrawText(component->buffer, &foregroundColor, &backgroundColor,
-			titleBarFont, title, draw_translucent,
-			(component->xCoord + 5), (component->yCoord +
-		  ((component->height - titleBarFont->charHeight) / 2)));
+			font, title, draw_translucent, (component->xCoord + 5),
+			(component->yCoord +
+			 ((component->height - font->charHeight) / 2)));
 
   if (titleBar->minimizeButton && titleBar->minimizeButton->draw)
     titleBar->minimizeButton->draw(titleBar->minimizeButton);
@@ -412,34 +410,34 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
       return (status = 0);
     }
 
-  else if (titleBar->closeButton &&
-	   isMouseInButton(event, titleBar->closeButton))
-    {
-      // Call the 'event' function for buttons
-      if (titleBar->closeButton->mouseEvent)
-	status = titleBar->closeButton
-	  ->mouseEvent(titleBar->closeButton, event);
-
-      // Put this mouse event into the button's windowEventStream
-      kernelWindowEventStreamWrite(&(titleBar->closeButton->events), event);
-	
-      return (status);
-    }
-  
   else if (titleBar->minimizeButton &&
 	   isMouseInButton(event, titleBar->minimizeButton))
     {
-      // Call the 'event' function for buttons
+      // Pass the event to the button
       if (titleBar->minimizeButton->mouseEvent)
-	status = titleBar->minimizeButton
-	  ->mouseEvent(titleBar->minimizeButton, event);
+	titleBar->minimizeButton->mouseEvent(titleBar->minimizeButton, event);
 
-      // Put this mouse event into the button's windowEventStream
-      kernelWindowEventStreamWrite(&(titleBar->minimizeButton->events), event);
-	  
-      return (status);
+      // Minimize the window
+      if (event->type == EVENT_MOUSE_LEFTUP)
+	minimizeWindow(component->window, event);
+	
+      return (status = 0);
     }
 
+  else if (titleBar->closeButton &&
+	   isMouseInButton(event, titleBar->closeButton))
+    {
+      // Pass the event to the button
+      if (titleBar->closeButton->mouseEvent)
+	titleBar->closeButton->mouseEvent(titleBar->closeButton, event);
+
+      // Close the window
+      if (event->type == EVENT_MOUSE_LEFTUP)
+	closeWindow(component->window, event);
+	
+      return (status = 0);
+    }
+  
   else if (event->type == EVENT_MOUSE_DRAG)
     {
       if (component->window->flags & WINFLAG_MOVABLE)
@@ -477,15 +475,18 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 static int destroy(kernelWindowComponent *component)
 {
+  kernelWindowTitleBar *titleBar = component->data;
 
   kernelDebug(debug_gui, "Destroying \"%s\" title bar",
 	      component->window->title);
 
-  if (component->data)
+  if (titleBar)
     {
-      // Don't destroy the minimize/close buttons here, since they live
-      // in the same parent container as us and may have already been
-      // destroyed.
+      // Destroy minimize and close buttons, if applicable
+      if (titleBar->minimizeButton && titleBar->minimizeButton->destroy)
+	titleBar->minimizeButton->destroy(titleBar->minimizeButton);
+      if (titleBar->closeButton && titleBar->closeButton->destroy)
+	titleBar->closeButton->destroy(titleBar->closeButton);
 
       component->window->titleBar = NULL;
 
@@ -512,9 +513,9 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 {
   // Formats a kernelWindowComponent as a kernelWindowTitleBar
 
-  int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowTitleBar *titleBar = NULL;
+  int titleBarHeight = windowVariables->titleBar.height;
   componentParameters buttonParams;
   
   // Check parameters
@@ -527,30 +528,23 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
       return (component = NULL);
     }
 
-  if (titleBarFont == NULL)
-    {
-      // Try to load a nice-looking font
-      status =
-	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &titleBarFont, 0);
-      if (status < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&titleBarFont);
-    }
-
   if (!imagesCreated)
-    createImages((WINDOW_TITLEBAR_HEIGHT - 4), (WINDOW_TITLEBAR_HEIGHT - 4));
+    createImages((titleBarHeight - 4), (titleBarHeight - 4));
 
   // Get the basic component structure
   component = kernelWindowComponentNew(window->sysContainer, params);
   if (component == NULL)
     return (component);
 
+  // If font is NULL, use the default
+  if (component->params.font == NULL)
+    component->params.font = windowVariables->font.varWidth.medium.font;
+
   // Now populate the main component
   component->type = titleBarComponentType;
   component->flags &= ~WINFLAG_CANFOCUS;
-  component->width = WINDOW_TITLEBAR_MINWIDTH;
-  component->height = WINDOW_TITLEBAR_HEIGHT;
+  component->width = windowVariables->titleBar.minWidth;
+  component->height = titleBarHeight;
   component->minWidth = component->width;
   component->minHeight = component->height;
 
@@ -574,25 +568,6 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
   // Standard parameters for the buttons
   kernelMemClear(&buttonParams, sizeof(componentParameters));
 
-  titleBar->closeButton =
-    kernelWindowNewButton(window->sysContainer, NULL,
-			  ((closeImage.data == NULL)? NULL : &closeImage),
-			  &buttonParams);
-
-  if (titleBar->closeButton)
-    {
-      titleBar->closeButton->width = (WINDOW_TITLEBAR_HEIGHT - 4);
-      titleBar->closeButton->height = (WINDOW_TITLEBAR_HEIGHT - 4);
-      titleBar->closeButton->minWidth = titleBar->closeButton->width;
-      titleBar->closeButton->minHeight = titleBar->closeButton->height;
-
-      // We don't want close buttons to get the focus
-      titleBar->closeButton->flags &= ~WINFLAG_CANFOCUS;
-
-      kernelWindowRegisterEventHandler((objectKey) titleBar->closeButton,
-				       &closeWindow);
-    }
-
   titleBar->minimizeButton =
     kernelWindowNewButton(window->sysContainer, NULL,
 			  ((minimizeImage.data == NULL)?
@@ -600,16 +575,35 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 
   if (titleBar->minimizeButton)
     {
-      titleBar->minimizeButton->width = (WINDOW_TITLEBAR_HEIGHT - 4);
-      titleBar->minimizeButton->height = (WINDOW_TITLEBAR_HEIGHT - 4);
+      titleBar->minimizeButton->width = (titleBarHeight - 4);
+      titleBar->minimizeButton->height = (titleBarHeight - 4);
       titleBar->minimizeButton->minWidth = titleBar->minimizeButton->width;
       titleBar->minimizeButton->minHeight = titleBar->minimizeButton->height;
 
-      // We don't want close buttons to get the focus
+      // We don't want minimize buttons to get the focus
       titleBar->minimizeButton->flags &= ~WINFLAG_CANFOCUS;
 
-      kernelWindowRegisterEventHandler((objectKey) titleBar->minimizeButton,
-				       &minimizeWindow);
+      // Remove it from the system container
+      removeFromContainer(titleBar->minimizeButton);
+    }
+
+  titleBar->closeButton =
+    kernelWindowNewButton(window->sysContainer, NULL,
+			  ((closeImage.data == NULL)? NULL : &closeImage),
+			  &buttonParams);
+
+  if (titleBar->closeButton)
+    {
+      titleBar->closeButton->width = (titleBarHeight - 4);
+      titleBar->closeButton->height = (titleBarHeight - 4);
+      titleBar->closeButton->minWidth = titleBar->closeButton->width;
+      titleBar->closeButton->minHeight = titleBar->closeButton->height;
+
+      // We don't want close buttons to get the focus
+      titleBar->closeButton->flags &= ~WINFLAG_CANFOCUS;
+
+      // Remove it from the system container
+      removeFromContainer(titleBar->closeButton);
     }
 
   component->data = (void *) titleBar;

@@ -40,7 +40,7 @@ int vsnprintf(char *output, size_t size, const char *format, va_list list)
   bzero(tmpOutput, MAXSTRINGLENGTH);
 
   // Fill out the output line based on 
-  outputLen = _expandFormatString(tmpOutput, format, list);
+  outputLen = _expandFormatString(tmpOutput, MAXSTRINGLENGTH, format, list);
 
   strncpy(output, tmpOutput, size);
 

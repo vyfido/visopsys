@@ -88,7 +88,7 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
     {
       kernelError(kernel_error, "Unknown USB controller I/O address");
       kernelFree(dev);
-      kernelFree(usb);
+      kernelFree((void *) usb);
       return (dev = NULL);
     }
 
@@ -102,13 +102,13 @@ kernelDevice *kernelUsbEhciDetect(kernelDevice *parent,
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
   dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_USB);
   dev->driver = driver;
-  dev->data = usb;
+  dev->data = (void *) usb;
 
   status = kernelDeviceAdd(parent, dev);
   if (status < 0)
     {
       kernelFree(dev);
-      kernelFree(usb);
+      kernelFree((void *) usb);
       return (dev = NULL);
     }
 

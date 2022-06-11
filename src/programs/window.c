@@ -45,7 +45,7 @@ This command will open a new text window running a new instance of the
 #include <sys/window.h>
 #include <sys/api.h>
 
-static int processId = 0;
+static int shellProcessId = 0;
 objectKey window = NULL;
 
 
@@ -57,13 +57,14 @@ static void eventHandler(objectKey key, windowEvent *event)
     // The window is being closed by a GUI event.  Just kill our shell
     // process -- the main process will stop blocking and do the rest of the
     // shutdown.
-    multitaskerKillProcess(processId, 0 /* no force */);
+    multitaskerKillProcess(shellProcessId, 0 /* no force */);
 }
 
 
 int main(int argc, char *argv[])
 {
   int status = 0;
+  int myProcessId = 0;
   int myPrivilege = 0;
   componentParameters params;
   int rows = 25;
@@ -78,20 +79,20 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  processId = multitaskerGetCurrentProcessId();
-  myPrivilege = multitaskerGetProcessPrivilege(processId);
+  myProcessId = multitaskerGetCurrentProcessId();
+  myPrivilege = multitaskerGetProcessPrivilege(myProcessId);
 
   // Load a shell process
-  processId = loaderLoadProgram("/programs/vsh", myPrivilege);
-  if (processId < 0)
+  shellProcessId = loaderLoadProgram("/programs/vsh", myPrivilege);
+  if (shellProcessId < 0)
     {
       printf("Unable to load shell\n");
-      errno = processId;
-      return (status = processId);
+      errno = shellProcessId;
+      return (status = shellProcessId);
     }
 
   // Create a new window
-  window = windowNew(processId, "Command Window");
+  window = windowNew(myProcessId, "Command Window");
 
   // Put a text area in the window
   bzero(&params, sizeof(componentParameters));
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
   windowGuiThread();
 
   // Execute the shell
-  status = loaderExecProgram(processId, 1 /* block */);
+  status = loaderExecProgram(shellProcessId, 1 /* block */);
 
   // If we get to here, the shell has exited.
 

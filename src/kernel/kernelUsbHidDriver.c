@@ -138,7 +138,7 @@ static int getHidDescriptor(hidDevice *hidDev)
 	      hidDev->target, hidDev->usbDev.interDesc[0]->interNum);
 
   // Set up the USB transaction to send the 'get descriptor' command
-  kernelMemClear(&usbTrans, sizeof(usbTrans));
+  kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
   usbTrans.type = usbxfer_control;
   usbTrans.address = hidDev->usbDev.address;
   usbTrans.control.requestType = USB_DEVREQTYPE_INTERFACE;
@@ -149,7 +149,7 @@ static int getHidDescriptor(hidDevice *hidDev)
   usbTrans.buffer = &(hidDev->hidDesc);
 
   // Write the command
-  status = kernelBusWrite(bus_usb, hidDev->target, &usbTrans);
+  status = kernelBusWrite(bus_usb, hidDev->target, (void *) &usbTrans);
   if (status < 0)
     return (status);
 
@@ -212,7 +212,7 @@ static int mouseDetectTarget(void *parent, int target, void *driver)
   hidDev->dev.driver = driver;
 
   // Try to get the USB information about the target
-  status = kernelBusGetTargetInfo(bus_usb, target, &(hidDev->usbDev));
+  status = kernelBusGetTargetInfo(bus_usb, target, (void *) &(hidDev->usbDev));
   if (status < 0)
     {
       removeHid(target);

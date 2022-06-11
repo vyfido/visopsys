@@ -211,17 +211,13 @@ int kernelInitialize(unsigned kernelMemory)
       return (status);
     }
 
-  
-  // Temporarily disable USB from here on, since it's buggy
-  kernelLog("USB initialization disabled");
-  /*
+  // Initialize USB bus functions
   status = kernelUsbInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "USB initialization failed");
       return (status);
     }
-  */
 
   // Initialize the kernel's random number generator.
   // has been initialized.
@@ -390,6 +386,11 @@ int kernelInitialize(unsigned kernelMemory)
 				   ((kernelGraphicGetScreenHeight() -
 				     splashImage.height) / 2), 0, 0, 0, 0);
 	}
+
+      // Initialize mouse operations
+      status = kernelMouseInitialize();
+      if (status < 0)
+	kernelError(kernel_warn, "Mouse initialization failed");
     }
 
   // If the filesystem is not read-only, open a kernel log file
@@ -433,11 +434,6 @@ int kernelInitialize(unsigned kernelMemory)
   // error code.
   if (graphics)
     {
-      // Initialize mouse operations
-      status = kernelMouseInitialize();
-      if (status < 0)
-	kernelError(kernel_warn, "Mouse initialization failed");
-
       status = kernelWindowInitialize();
       if (status < 0)
 	// Make a warning, but don't return error.  This is not fatal.

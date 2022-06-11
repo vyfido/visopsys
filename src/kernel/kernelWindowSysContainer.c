@@ -26,22 +26,27 @@
 #include "kernelDebug.h"
 #include <string.h>
 
+extern kernelWindowVariables *windowVariables;
 
-static int containerLayout(kernelWindowComponent *containerComponent)
+
+static int layout(kernelWindowComponent *containerComponent)
 {
   // Do layout for the system container.  This involves setting the default
   // locations and sizes of the standard system components such as borders,
   // title bars, and menus.
 
   int status = 0;
-  kernelWindowContainer *container = containerComponent->data;
   kernelWindow *window = containerComponent->window;
   kernelWindowComponent *tmpComponent = NULL;
-  kernelWindowContainer *tmpContainer = NULL;
   kernelWindowBorder *border = NULL;
   int clientAreaX = 0;
   int clientAreaY = 0;
+  int clientAreaWidth = 0;
+  int clientAreaHeight = 0;
   int count = 0;
+
+  clientAreaWidth = window->buffer.width;
+  clientAreaHeight = window->buffer.height;
 
   // Does the window have a border?
   if (window->flags & WINFLAG_HASBORDER)
@@ -56,29 +61,29 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 	      tmpComponent->xCoord = 0;
 	      tmpComponent->yCoord = 0;
 	      tmpComponent->width = window->buffer.width;
-	      tmpComponent->height = WINDOW_BORDER_THICKNESS;
+	      tmpComponent->height = windowVariables->border.thickness;
 	    }
 	  else if (border->type == border_bottom)
 	    {
 	      tmpComponent->xCoord = 0;
-	      tmpComponent->yCoord = 
-		(window->buffer.height - WINDOW_BORDER_THICKNESS + 1);
+	      tmpComponent->yCoord = (window->buffer.height -
+				      windowVariables->border.thickness + 1);
 	      tmpComponent->width = window->buffer.width;
-	      tmpComponent->height = WINDOW_BORDER_THICKNESS;
+	      tmpComponent->height = windowVariables->border.thickness;
 	    }
 	  else if (border->type == border_left)
 	    {
 	      tmpComponent->xCoord = 0;
 	      tmpComponent->yCoord = 0;
-	      tmpComponent->width = WINDOW_BORDER_THICKNESS;
+	      tmpComponent->width = windowVariables->border.thickness;
 	      tmpComponent->height = window->buffer.height;
 	    }
 	  else if (border->type == border_right)
 	    {
 	      tmpComponent->xCoord =
-		(window->buffer.width - WINDOW_BORDER_THICKNESS + 1);
+		(window->buffer.width - windowVariables->border.thickness + 1);
 	      tmpComponent->yCoord = 0;
-	      tmpComponent->width = WINDOW_BORDER_THICKNESS;
+	      tmpComponent->width = windowVariables->border.thickness;
 	      tmpComponent->height = window->buffer.height;
 	    }
 
@@ -86,8 +91,10 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 	  tmpComponent->minHeight = tmpComponent->height;
 	}
 
-      clientAreaX += WINDOW_BORDER_THICKNESS;
-      clientAreaY += WINDOW_BORDER_THICKNESS;
+      clientAreaX += windowVariables->border.thickness;
+      clientAreaY += windowVariables->border.thickness;
+      clientAreaWidth -= (windowVariables->border.thickness * 2);
+      clientAreaHeight -= (windowVariables->border.thickness * 2);
     }
 
   // Does the window have a title bar?
@@ -95,11 +102,10 @@ static int containerLayout(kernelWindowComponent *containerComponent)
     {
       // Resize the title bar
       if (window->titleBar->resize)
-	window->titleBar->resize(window->titleBar,
-				 (window->buffer.width - (clientAreaX * 2)),
+	window->titleBar->resize(window->titleBar, clientAreaWidth,
 				 window->titleBar->height);
 
-      window->titleBar->width = (window->buffer.width - (clientAreaX * 2));
+      window->titleBar->width = clientAreaWidth;
 
       // Move the title bar
       if (window->titleBar->move)
@@ -109,6 +115,7 @@ static int containerLayout(kernelWindowComponent *containerComponent)
       window->titleBar->yCoord = clientAreaY;
 
       clientAreaY += window->titleBar->height;
+      clientAreaHeight -= window->titleBar->height;
     }
 
   // Does the window have a menu bar?
@@ -116,21 +123,18 @@ static int containerLayout(kernelWindowComponent *containerComponent)
     {
       kernelDebug(debug_gui, "sysContainer layout: do menu bar");
 
-      tmpContainer = window->menuBar->data;
-
       // Do menu bar layout
-      if (tmpContainer->containerLayout)
-	tmpContainer->containerLayout(window->menuBar);
+      if (window->menuBar->layout)
+	window->menuBar->layout(window->menuBar);
 
       kernelDebug(debug_gui, "sysContainer layout: resize menu bar");
 
       // Resize the menu bar
       if (window->menuBar->resize)
-	window->menuBar->resize(window->menuBar,
-				(window->buffer.width - (clientAreaX * 2)),
+	window->menuBar->resize(window->menuBar, clientAreaWidth,
 				window->menuBar->height);
 
-      window->menuBar->width = (window->buffer.width - (clientAreaX * 2));
+      window->menuBar->width = clientAreaWidth;
 
       kernelDebug(debug_gui, "sysContainer layout: move menu bar");
       // Move the menu bar
@@ -141,6 +145,7 @@ static int containerLayout(kernelWindowComponent *containerComponent)
       window->menuBar->yCoord = clientAreaY;
 
       clientAreaY += window->menuBar->height;
+      clientAreaHeight -= window->menuBar->height;
     }
 
   if (window->mainContainer)
@@ -153,6 +158,10 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 
       window->mainContainer->xCoord = clientAreaX;
       window->mainContainer->yCoord = clientAreaY;
+      // Don't call the resize function because we don't want to redo all the
+      // layout.
+      window->mainContainer->width = clientAreaWidth;
+      window->mainContainer->height = clientAreaHeight;
     }
 
   containerComponent->xCoord = 0;
@@ -161,7 +170,7 @@ static int containerLayout(kernelWindowComponent *containerComponent)
   containerComponent->height = clientAreaY;
 
   // Set the flag to indicate layout complete
-  container->doneLayout = 1;
+  containerComponent->doneLayout = 1;
 
   return (status = 0);
 }
@@ -175,7 +184,7 @@ static int resize(kernelWindowComponent *component, int width, int height)
   component->width = width;
   component->height = height;
 
-  return (containerLayout(component));
+  return (layout(component));
 }
 
 
@@ -194,7 +203,6 @@ kernelWindowComponent *kernelWindowNewSysContainer(kernelWindow *window,
   // Formats a kernelWindowContainer as a kernelWindowSysContainer
 
   kernelWindowComponent *component = NULL;
-  kernelWindowContainer *container = NULL;
 
   // Check parameters.
   if ((window == NULL) || (params == NULL))
@@ -211,12 +219,9 @@ kernelWindowComponent *kernelWindowNewSysContainer(kernelWindow *window,
 
   component->subType = sysContainerComponentType;
 
+  component->layout = &layout;
   component->resize = &resize;
 
-  container = component->data;
-
-  container->containerLayout = &containerLayout;
-  
   return (component);
 }
 

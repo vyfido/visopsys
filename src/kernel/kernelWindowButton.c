@@ -28,14 +28,14 @@
 #include "kernelError.h"
 #include <string.h>
 
-static int borderThickness = 3;
-static int borderShadingIncrement = 15;
-static kernelAsciiFont *labelFont = NULL;
+extern kernelWindowVariables *windowVariables;
 
 
 static void setText(kernelWindowComponent *component, char *label, int length)
 {
   kernelWindowButton *button = (kernelWindowButton *) component->data;
+  kernelAsciiFont *labelFont = (kernelAsciiFont *) component->params.font;
+  int borderThickness = windowVariables->border.thickness;
 
   strncpy((char *) button->label, label, length);
   int tmp =
@@ -53,11 +53,12 @@ static void setText(kernelWindowComponent *component, char *label, int length)
 static void drawFocus(kernelWindowComponent *component, int focus)
 {
   color *drawColor = NULL;
+  int borderThickness = windowVariables->border.thickness;
 
   if (focus)
-    drawColor = (color *) &(component->parameters.foreground);
+    drawColor = (color *) &(component->params.foreground);
   else
-    drawColor = (color *) &(component->parameters.background);
+    drawColor = (color *) &(component->params.background);
 
   kernelGraphicDrawRect(component->buffer, drawColor, draw_normal,
 			(component->xCoord + borderThickness),
@@ -74,10 +75,13 @@ static int draw(kernelWindowComponent *component)
   // Draw the button component
 
   kernelWindowButton *button = (kernelWindowButton *) component->data;
+  kernelAsciiFont *labelFont = (kernelAsciiFont *) component->params.font;
+  int borderThickness = windowVariables->border.thickness;
+  int borderShadingIncrement = windowVariables->border.shadingIncrement;
 
   // Draw the background of the button
   kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->parameters.background),
+			(color *) &(component->params.background),
 			draw_normal, component->xCoord, component->yCoord,
 			component->width, component->height, 1, 1);
 
@@ -85,8 +89,8 @@ static int draw(kernelWindowComponent *component)
   if (button->label)
     {
       kernelGraphicDrawText(component->buffer,
-			    (color *) &(component->parameters.foreground),
-			    (color *) &(component->parameters.background),
+			    (color *) &(component->params.foreground),
+			    (color *) &(component->params.background),
 			    labelFont, (const char *) button->label,
 			    draw_translucent,
 	    (component->xCoord + ((component->width -
@@ -124,7 +128,7 @@ static int draw(kernelWindowComponent *component)
 				  component->xCoord, component->yCoord,
 				  component->width, component->height,
 				  borderThickness, (color *)
-				  &(component->parameters.background),
+				  &(component->params.background),
 				  borderShadingIncrement, draw_normal,
 				  border_all);
   return (0);
@@ -162,6 +166,8 @@ static int setData(kernelWindowComponent *component, void *text, int length)
 static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
   kernelWindowButton *button = (kernelWindowButton *) component->data;
+  int borderThickness = windowVariables->border.thickness;
+  int borderShadingIncrement = windowVariables->border.shadingIncrement;
 
   // Just take care of drawing any changes we need to do
   
@@ -171,7 +177,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				      component->yCoord, component->width,
 				      component->height, borderThickness,
 				      (color *)
-				      &(component->parameters.background),
+				      &(component->params.background),
 				      borderShadingIncrement, draw_normal,
 				      border_all);
       button->state = 0;
@@ -183,7 +189,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				      component->yCoord, component->width,
 				      component->height, borderThickness,
 				      (color *)
-				      &(component->parameters.background),
+				      &(component->params.background),
 				      borderShadingIncrement, draw_reverse,
 				      border_all);
       button->state = 1;
@@ -259,30 +265,21 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 {
   // Formats a kernelWindowComponent as a kernelWindowButton
 
-  int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowButton *button = NULL;
-  //color *background = NULL;
 
   // Check parameters.  It's okay for the image or label to be NULL
   if ((parent == NULL) || (params == NULL))
     return (component = NULL);
 
-  if (labelFont == NULL)
-    {
-      // Try to load a nice-looking font
-      status =
-	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &labelFont, 0);
-      if (status < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&labelFont);
-    }
-
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
+
+  // If font is NULL, use the default
+  if (component->params.font == NULL)
+    component->params.font = windowVariables->font.varWidth.medium.font;
 
   // Now populate it
   component->type = buttonComponentType;
@@ -299,13 +296,15 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
   if (label)
     {
       strncpy((char *) button->label, label, WINDOW_MAX_LABEL_LENGTH);
-      int tmp =
-	(kernelFontGetPrintedWidth(labelFont, (const char *) button->label) +
-	 (borderThickness * 2) + 6);
+      int tmp =	(kernelFontGetPrintedWidth((kernelAsciiFont *)
+					   component->params.font,
+					   (const char *) button->label) +
+		 (windowVariables->border.thickness * 2) + 6);
 
       if (tmp > component->width)
 	component->width = tmp;
-      tmp = (labelFont->charHeight + (borderThickness * 2) + 6);
+      tmp = (((kernelAsciiFont *) component->params.font)->charHeight +
+	     (windowVariables->border.thickness * 2) + 6);
       if (tmp > component->height)
 	component->height = tmp;
     }

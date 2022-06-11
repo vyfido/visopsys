@@ -28,7 +28,7 @@
 #include <sys/api.h>
 
 
-_X_ int vshCursorMenu(const char *prompt, int numItems, char *items[], int defaultSelection)
+_X_ int vshCursorMenu(const char *prompt, char *items[], int numItems, int defaultSelection)
 {
   // Desc: This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 

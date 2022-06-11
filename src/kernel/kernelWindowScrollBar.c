@@ -26,29 +26,29 @@
 #include "kernelMisc.h"
 #include <stdlib.h>
 
-static int borderThickness = 3;
-static int borderShadingIncrement = 15;
+extern kernelWindowVariables *windowVariables;
 
 
 static void calcSliderSizePos(kernelWindowScrollBar *scrollBar, int height)
 {
-  scrollBar->sliderHeight = (((height - (borderThickness * 2)) *
-			      scrollBar->state.displayPercent) / 100);
+  scrollBar->sliderHeight =
+    (((height - (windowVariables->border.thickness * 2)) *
+      scrollBar->state.displayPercent) / 100);
 
   // Need a minimum height
   scrollBar->sliderHeight =
-    max(scrollBar->sliderHeight, (borderThickness * 3));
+    max(scrollBar->sliderHeight, (windowVariables->border.thickness * 3));
 
   scrollBar->sliderY =
-    ((((height - (borderThickness * 2)) - scrollBar->sliderHeight) *
-      scrollBar->state.positionPercent) / 100);
+    ((((height - (windowVariables->border.thickness * 2)) -
+       scrollBar->sliderHeight) * scrollBar->state.positionPercent) / 100);
 }
 
 
 static void calcSliderPosPercent(kernelWindowScrollBar *scrollBar, int height)
 {
-  int extraSpace =
-    ((height - (borderThickness * 2)) - scrollBar->sliderHeight);
+  int extraSpace = ((height - (windowVariables->border.thickness * 2)) -
+		    scrollBar->sliderHeight);
 
   if (extraSpace > 0)
     scrollBar->state.positionPercent =
@@ -66,33 +66,40 @@ static int draw(kernelWindowComponent *component)
 
   // Draw the background of the scroll bar
   kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->parameters.background),
-			draw_normal, (component->xCoord + borderThickness),
-			(component->yCoord + borderThickness),
-			(component->width - (borderThickness * 2)),
-			(component->height - (borderThickness * 2)),
-			1, 1);
+			(color *) &(component->params.background),
+			draw_normal,
+			(component->xCoord +
+			 windowVariables->border.thickness),
+			(component->yCoord +
+			 windowVariables->border.thickness),
+			(component->width -
+			 (windowVariables->border.thickness * 2)),
+			(component->height -
+			 (windowVariables->border.thickness * 2)), 1, 1);
 
   // Draw the border
   kernelGraphicDrawGradientBorder(component->buffer,
 				  component->xCoord, component->yCoord,
 				  component->width, component->height,
-				  borderThickness, (color *)
-				  &(component->parameters.background),
-				  borderShadingIncrement, draw_reverse,
-				  border_all);
+				  windowVariables->border.thickness, (color *)
+				  &(component->params.background),
+				  windowVariables->border.shadingIncrement,
+				  draw_reverse, border_all);
 
   // Draw the slider
   kernelGraphicDrawGradientBorder(component->buffer,
-				  (component->xCoord + borderThickness),
-				  (component->yCoord + borderThickness +
+				  (component->xCoord +
+				   windowVariables->border.thickness),
+				  (component->yCoord +
+				   windowVariables->border.thickness +
 				   scrollBar->sliderY),
-				  (component->width - (borderThickness * 2)),
-				  scrollBar->sliderHeight, borderThickness,
-				  (color *)
-				  &(component->parameters.background),
-				  borderShadingIncrement, draw_normal,
-				  border_all);
+				  (component->width -
+				   (windowVariables->border.thickness * 2)),
+				  scrollBar->sliderHeight,
+				  windowVariables->border.thickness, (color *)
+				  &(component->params.background),
+				  windowVariables->border.shadingIncrement,
+				  draw_normal, border_all);
   return (0);
 }
 
@@ -148,7 +155,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
   // Get X and Y coordinates relative to the component
   eventY = (event->yPosition - (component->window->yCoord + component->yCoord +
-				borderThickness));
+				windowVariables->border.thickness));
 
   // Is the mouse event in the slider?
   if ((eventY >= scrollBar->sliderY) &&
@@ -182,7 +189,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
       
   else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
 	   (eventY > (scrollBar->sliderY +scrollBar->sliderHeight)) &&
-	   (eventY < (component->height - borderThickness)))
+	   (eventY < (component->height - windowVariables->border.thickness)))
     // It's below the slider
     scrollBar->sliderY += scrollBar->sliderHeight;
 
@@ -194,9 +201,10 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
   if (scrollBar->sliderY < 0)
     scrollBar->sliderY = 0;
   else if ((scrollBar->sliderY + scrollBar->sliderHeight) >=
-	   (component->height - (borderThickness * 2)))
-    scrollBar->sliderY = ((component->height - (borderThickness * 2)) -
-			  scrollBar->sliderHeight);
+	   (component->height - (windowVariables->border.thickness * 2)))
+    scrollBar->sliderY =
+      ((component->height - (windowVariables->border.thickness * 2)) -
+       scrollBar->sliderHeight);
 
   // Recalculate the position percentage
   calcSliderPosPercent(scrollBar, component->height);

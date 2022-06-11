@@ -79,7 +79,7 @@ NAMES	= adduser \
 	snake \
 	sync \
 	telnet \
-	testio \
+	test \
 	touch \
 	umount \
 	uname \

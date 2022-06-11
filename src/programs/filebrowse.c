@@ -90,7 +90,7 @@ static void error(const char *format, ...)
   char output[MAXSTRINGLENGTH];
   
   va_start(list, format);
-  _expandFormatString(output, format, list);
+  _expandFormatString(output, MAXSTRINGLENGTH, format, list);
   va_end(list);
 
   windowNewErrorDialog(window, "Error", output);
@@ -117,13 +117,13 @@ static void changeDir(char *fullName)
 
 static void execProgram(int argc, char *argv[])
 {
-  mouseSwitchPointer("busy");
+  windowSwitchPointer(window, "busy");
 
   // Exec the command, no block
   if (argc == 2)
     loaderLoadAndExec(argv[1], privilege, 0);
 
-  mouseSwitchPointer("default");
+  windowSwitchPointer(window, "default");
   multitaskerTerminate(0);
 }
 

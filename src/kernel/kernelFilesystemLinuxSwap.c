@@ -151,7 +151,7 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Formatting");
+      strcpy(prog->statusMessage, "Formatting");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -189,7 +189,7 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy((char *) prog->statusMessage, "Syncing disk");
+      strcpy(prog->statusMessage, "Syncing disk");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -250,7 +250,7 @@ static int clobber(kernelDisk *theDisk)
   if (status < 0)
     return (status);
 
-  bzero(header->magic.magic, 10);
+  kernelMemClear(header->magic.magic, 10);
 
   status = writeSwapHeader(theDisk, header);
   return (status);

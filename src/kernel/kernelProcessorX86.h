@@ -329,21 +329,16 @@
 
 #define kernelProcessorClearTaskSwitched() __asm__ __volatile__ ("clts")
 
-#define kernelProcessorFpuInit()     \
-  __asm__ __volatile__ ("clts \n\t"  \
-			"fninit")    \
+#define kernelProcessorFpuInit() __asm__ __volatile__ ("fninit")
 
 #define kernelProcessorFpuStateSave(addr) \
-  __asm__ __volatile__ ("clts \n\t"       \
-			"fnsave %0" : : "m" (*(addr)))
+  __asm__ __volatile__ ("fnsave %0" : : "m" (*(addr)))
 
 #define kernelProcessorFpuStateRestore(addr) \
-  __asm__ __volatile__ ("clts \n\t"          \
-			"frstor %0" : : "m" (*(addr)))
+  __asm__ __volatile__ ("frstor %0" : : "m" (*(addr)))
 
 #define kernelProcessorGetFpuStatus(code) \
-  __asm__ __volatile__ ("clts \n\t"       \
-			"fnstsw %0" : "=a" (code))
+  __asm__ __volatile__ ("fnstsw %0" : "=a" (code))
 
 static inline unsigned short kernelProcessorSwap16(unsigned short variable)
 {

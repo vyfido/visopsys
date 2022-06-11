@@ -28,7 +28,7 @@
 #include "kernelError.h"
 #include <string.h>
 
-static kernelAsciiFont *labelFont = NULL;
+extern kernelWindowVariables *windowVariables;
 
 
 static int setText(kernelWindowComponent *component, const char *text,
@@ -38,6 +38,7 @@ static int setText(kernelWindowComponent *component, const char *text,
   
   int status = 0;
   kernelWindowTextLabel *label = component->data;
+  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
   int count;
 
   // Set the text
@@ -67,16 +68,14 @@ static int setText(kernelWindowComponent *component, const char *text,
   char *tmp  = label->text;
   for (count = 0; count < label->lines; count ++)
     {
-      int width = kernelFontGetPrintedWidth((kernelAsciiFont *)
-					    component->parameters.font, tmp);
+      int width = kernelFontGetPrintedWidth(font, tmp);
       if (width > component->width)
 	component->width = width;
       
       tmp += (strlen(tmp) + 1);
     }
 
-  component->height = (((kernelAsciiFont *) component->parameters.font)
-			->charHeight * label->lines);
+  component->height = (font->charHeight * label->lines);
   component->minWidth = component->width;
   component->minHeight = component->height;
 
@@ -90,6 +89,7 @@ static int draw(kernelWindowComponent *component)
 
   int status = 0;
   kernelWindowTextLabel *label = component->data;
+  kernelAsciiFont *font = (kernelAsciiFont *) component->params.font;
   int count;
 
   char *tmp = label->text;
@@ -97,20 +97,18 @@ static int draw(kernelWindowComponent *component)
     {
       status =
 	kernelGraphicDrawText(component->buffer,
-			      (color *) &(component->parameters.foreground),
-			      (color *) &(component->parameters.background),
-			      (kernelAsciiFont *) component->parameters.font,
-			      tmp, draw_normal, component->xCoord,
+			      (color *) &(component->params.foreground),
+			      (color *) &(component->params.background),
+			      font,  tmp, draw_normal, component->xCoord,
 			      (component->yCoord +
-			      (((kernelAsciiFont *) component->parameters.font)
-				->charHeight * count)));
+			       (font->charHeight * count)));
       if (status < 0)
 	break;
 
       tmp += (strlen(tmp) + 1);
     }
 
-  if (component->parameters.flags & WINDOW_COMPFLAG_HASBORDER)
+  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
     component->drawBorder(component, 1);
 
   return (status);
@@ -189,20 +187,9 @@ kernelWindowComponent *kernelWindowNewTextLabel(objectKey parent,
   if (component == NULL)
     return (component);
 
-  if (labelFont == NULL)
-    {
-      // Try to load a nice-looking font
-      status =
-	kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
-		       WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &labelFont, 0);
-      if (status < 0)
-	// Font's not there, we suppose.  There's always a default.
-	kernelFontGetDefault(&labelFont);
-    }
-
   // If font is NULL, use the default
-  if (component->parameters.font == NULL)
-    component->parameters.font = labelFont;
+  if (component->params.font == NULL)
+    component->params.font = windowVariables->font.varWidth.medium.font;
 
   // Now populate it
   component->type = textLabelComponentType;
