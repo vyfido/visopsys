@@ -78,8 +78,8 @@ if [ "$SYSLINUX" != "" ] ; then
 	MOUNTDIR=tmp_mnt
 	mkdir -p $MOUNTDIR
 	mount -o loop -t msdos $IMAGEFILE $MOUNTDIR
-	echo "default visopsys" > $SYSLINUXCFG
-	echo "label visopsys" >> $SYSLINUXCFG
+	echo "default Visopsys" > $SYSLINUXCFG
+	echo "label Visopsys" >> $SYSLINUXCFG
 	echo "	kernel $BOOTSECTOR" >> $SYSLINUXCFG
 	cp ./$BOOTSECTOR $SYSLINUXCFG $MOUNTDIR
 	umount $MOUNTDIR

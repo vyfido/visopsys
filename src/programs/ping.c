@@ -64,7 +64,7 @@ static int pingPacketSize = 88;
 static int packetsReceived = 0;
 
 
-static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -90,7 +90,7 @@ static void usage(char *name)
 }
 
 
-static void quit(int) __attribute__((noreturn));
+__attribute__((noreturn))
 static void quit(int status)
 {
   stop = 1;

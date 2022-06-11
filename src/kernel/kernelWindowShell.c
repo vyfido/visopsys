@@ -43,8 +43,6 @@ typedef struct {
 
 } menuItem;
 
-static void windowShellThread(void) __attribute__((noreturn));
-
 static kernelWindow *rootWindow = NULL;
 static kernelWindowComponent *taskMenuBar = NULL;
 static kernelWindowComponent *windowMenu = NULL;
@@ -249,6 +247,7 @@ static void scanContainerEvents(kernelWindowContainer *container)
 }
 
 
+__attribute__((noreturn))
 static void windowShellThread(void)
 {
   // This thread runs as the 'window shell' to watch for window events on
@@ -295,6 +294,7 @@ kernelWindow *kernelWindowMakeRoot(void)
   char propertyValue[128];
   char itemLabel[128];
   char menuLabel[128];
+  file tmpFile;
   image tmpImage;
   kernelWindowComponent *iconComponent = NULL;
   kernelWindowComponent *menuComponent = NULL;
@@ -414,21 +414,30 @@ kernelWindow *kernelWindowMakeRoot(void)
 		{
 		  itemName =
 		    (settings.variables[count2] + strlen(propertyName));
-		  kernelVariableListGet(&settings, settings.variables[count2],
-					itemLabel, 128);
-
-		  tmpMenuItems[numMenuItems].itemComponent =
-		    kernelWindowNewMenuItem(menuComponent, itemLabel, &params);
-
-		  kernelWindowRegisterEventHandler(tmpMenuItems[numMenuItems]
-						   .itemComponent, &menuEvent);
+		  status = kernelVariableListGet(&settings,
+						 settings.variables[count2],
+						 itemLabel, 128);
+		  if (status < 0)
+		    continue;
 
 		  // See if there's an associated command
 		  sprintf(propertyName, "taskBar.%s.%s.command", menuName,
 			  itemName);
-		  kernelVariableListGet(&settings, propertyName,
-					(tmpMenuItems[numMenuItems].command),
-					MAX_PATH_NAME_LENGTH);
+		  status = kernelVariableListGet(&settings, propertyName,
+						 propertyValue, 128);
+		  if ((status < 0) ||
+		      (kernelLoaderCheckCommand(propertyValue) < 0))
+		    // No such command.  Don't show this one.
+		    continue;
+
+		  tmpMenuItems[numMenuItems].itemComponent =
+		    kernelWindowNewMenuItem(menuComponent, itemLabel, &params);
+
+		  strncpy(tmpMenuItems[numMenuItems].command, propertyValue,
+			  MAX_PATH_NAME_LENGTH);
+
+		  kernelWindowRegisterEventHandler(tmpMenuItems[numMenuItems]
+						   .itemComponent, &menuEvent);
 
 		  numMenuItems += 1;
 		}
@@ -491,34 +500,41 @@ kernelWindow *kernelWindowMakeRoot(void)
 				itemLabel, 128);
 
 	  // Get the rest of the recognized properties for this icon.
+
+	  // Get the image name, make sure it exists, and try to load it.
 	  sprintf(propertyName, "icon.%s.image", iconName);
-	  kernelVariableListGet(&settings, propertyName, propertyValue, 128);
+	  status =
+	    kernelVariableListGet(&settings, propertyName, propertyValue, 128);
+	  if ((status < 0) ||
+	      (kernelFileFind(propertyValue, &tmpFile) < 0) ||
+	      (kernelImageLoad(propertyValue, 0, 0, &tmpImage) < 0))
+	    continue;
 
-	  status = kernelImageLoad(propertyValue, 0, 0, &tmpImage);
-	  if (status == 0)
-	    {
-	      params.gridY++;
-
-	      iconComponent =
-		kernelWindowNewIcon(rootWindow, &tmpImage, itemLabel, &params);
-	      if (iconComponent == NULL)
-		continue;
-
-	      // See if there's a command associated with this.
-	      sprintf(propertyName, "icon.%s.command", iconName);
-	      kernelVariableListGet(&settings, propertyName, (char *)
-				    ((kernelWindowIcon *)
-				     iconComponent->data)->command,
-				    MAX_PATH_NAME_LENGTH);
-
-	      // Register the event handler for the icon command execution
-	      kernelWindowRegisterEventHandler((objectKey) iconComponent,
-					       &iconEvent);
+	  // See if there's a command associated with this, and make sure
+	  // the program exists.
+	  sprintf(propertyName, "icon.%s.command", iconName);
+	  status =
+	    kernelVariableListGet(&settings, propertyName, propertyValue, 128);
+	  if ((status < 0) || (kernelLoaderCheckCommand(propertyValue) < 0))
+	    continue;
 	  
-	      // Release the image memory
-	      kernelMemoryRelease(tmpImage.data);
-	      tmpImage.data = NULL;
-	    }
+	  params.gridY++;
+
+	  iconComponent =
+	    kernelWindowNewIcon(rootWindow, &tmpImage, itemLabel, &params);
+	  if (iconComponent == NULL)
+	    continue;
+
+	  strncpy((char *) ((kernelWindowIcon *) iconComponent->data)->command,
+		  propertyValue, MAX_PATH_NAME_LENGTH);
+
+	  // Register the event handler for the icon command execution
+	  kernelWindowRegisterEventHandler((objectKey) iconComponent,
+					   &iconEvent);
+	  
+	  // Release the image memory
+	  kernelMemoryRelease(tmpImage.data);
+	  tmpImage.data = NULL;
 	}
     }
 

@@ -42,8 +42,6 @@
 #include <stdlib.h>
 #include <values.h>
 
-static void windowThread(void) __attribute__((noreturn));
-
 static int initialized = 0;
 static int screenWidth = 0;
 static int screenHeight = 0;
@@ -1254,8 +1252,40 @@ static kernelWindowComponent *getEventComponent(kernelWindow *window,
 }
 
 
+static void mouseEnterExit(kernelWindow *window, int enter)
+{
+  // This takes care of situations where the mouse has entered or left
+  // the window
+
+  windowEvent event;
+
+  kernelMemClear(&event, sizeof(windowEvent));
+
+  if (enter)
+    {
+      // Send a "mouse enter" event to the window
+      event.type = EVENT_MOUSE_ENTER;
+      kernelWindowEventStreamWrite(&(window->events), &event);
+      mouseInWindow = window;
+      if (window->pointer)
+	kernelMouseSetPointer(window->pointer);
+    }
+  else
+    {
+      // Send a "mouse exit" event to the window
+      event.type = EVENT_MOUSE_EXIT;
+      kernelWindowEventStreamWrite(&(mouseInWindow->events), &event);
+      mouseInWindow = NULL;
+    }
+}
+
+
 static void processEvents(void)
 {
+  // This loops through the general mouse/keyboard event streams, and
+  // generally directs events to the appropriate window and/or window
+  // components.
+
   windowEvent event;
   windowEvent tmpEvent;
   kernelWindow *window = NULL;
@@ -1286,24 +1316,10 @@ static void processEvents(void)
 	      // The mouse is not in the same window as before.
 
 	      if (mouseInWindow)
-		{
-		  // Send a "mouse exit" event to the window that's been left
-		  event.type |= EVENT_MOUSE_EXIT;
-		  kernelWindowEventStreamWrite(&(mouseInWindow->events),
-		  			       &event);
-		  mouseInWindow = NULL;
-		}
+		mouseEnterExit(mouseInWindow, 0);
 
 	      if (window)
-		{
-		  // Send a "mouse enter" event to the window that's been
-		  // entered
-		  event.type |= EVENT_MOUSE_ENTER;
-		  kernelWindowEventStreamWrite(&(window->events), &event);
-		  mouseInWindow = window;
-		  if (window->pointer)
-		    kernelMouseSetPointer(window->pointer);
-		}
+		mouseEnterExit(window, 1);
 	    }
 
 	  continue;
@@ -1481,6 +1497,7 @@ static void processEvents(void)
 }
 
 
+__attribute__((noreturn))
 static void windowThread(void)
 {
   // This thread runs as the 'window thread' to watch for window events
@@ -2736,6 +2753,11 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
 
       // Automatically give any newly-visible windows the focus.
       changeWindowFocus(window);
+
+      // Is the mouse in the window?
+      if (isPointInside(kernelMouseGetX(), kernelMouseGetY(),
+			makeWindowScreenArea(window)))
+	mouseInWindow = window;
     }
   else
     {

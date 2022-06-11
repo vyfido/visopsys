@@ -395,3 +395,23 @@ void kernelMouseButtonChange(int buttonNumber, int status)
 
   return;
 }
+
+
+int kernelMouseGetX(void)
+{
+  // Make sure we've been initialized
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  return (mouseStatus.xPosition);
+}
+
+
+int kernelMouseGetY(void)
+{
+  // Make sure we've been initialized
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  return (mouseStatus.yPosition);
+}

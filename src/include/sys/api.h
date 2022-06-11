@@ -227,10 +227,11 @@ extern int visopsys_in_kernel;
 #define _fnum_loaderClassify                         7001
 #define _fnum_loaderClassifyFile                     7002
 #define _fnum_loaderGetSymbols                       7003
-#define _fnum_loaderLoadProgram                      7004
-#define _fnum_loaderLoadLibrary                      7005
-#define _fnum_loaderExecProgram                      7006
-#define _fnum_loaderLoadAndExec                      7007
+#define _fnum_loaderCheckCommand                     7004
+#define _fnum_loaderLoadProgram                      7005
+#define _fnum_loaderLoadLibrary                      7006
+#define _fnum_loaderExecProgram                      7007
+#define _fnum_loaderLoadAndExec                      7008
 
 // Real-time clock functions.  All are in the 8000-8999 range.
 #define _fnum_rtcReadSeconds                         8000
@@ -1564,6 +1565,13 @@ _X_ static inline loaderSymbolTable *loaderGetSymbols(const char *fileName, int 
   // Desc : Given a binary executable, library, or object file 'fileName' and a flag 'dynamic', return a loaderSymbolTable structure filled out with the loader symbols from the file.  If 'dynamic' is non-zero, only symbols used in dynamic linking will be returned (if the file is not a dynamic library or executable, NULL will be returned).  If 'dynamic' is zero, return all symbols found in the file.
   return ((loaderSymbolTable *) syscall_2(_fnum_loaderGetSymbols,
 				  (void *) fileName, (void *) dynamic));
+}
+
+_X_ static inline int loaderCheckCommand(const char *command)
+{
+  // Proto: int kernelLoaderCheckCommand(const char *);
+  // Desc : Takes a command line string 'command' and ensures that the program (the first part of the string) exists.
+  return (syscall_1(_fnum_loaderCheckCommand, (void *) command));
 }
 
 _X_ static inline int loaderLoadProgram(const char *command, int privilege)

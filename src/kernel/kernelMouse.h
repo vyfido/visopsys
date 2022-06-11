@@ -50,6 +50,8 @@ int kernelMouseSetPointer(kernelMousePointer *);
 void kernelMouseDraw(void);
 void kernelMouseMove(int, int);
 void kernelMouseButtonChange(int, int);
+int kernelMouseGetX(void);
+int kernelMouseGetY(void);
 
 #define _KERNELMOUSE_H
 #endif

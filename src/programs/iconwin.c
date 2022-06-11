@@ -70,7 +70,7 @@ static objectKey window = NULL;
 static objectKey iconList = NULL;
 
 
-static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
   // Generic error message code
@@ -93,9 +93,6 @@ static int readConfig(const char *fileName)
   char *name = NULL;
   char variable[128];
   char fullCommand[128];
-  char command[128];
-  int argc = 0;
-  char *argv[64];
   file tmpFile;
   int count;
 
@@ -195,10 +192,8 @@ static int readConfig(const char *fileName)
 	strncpy(fullCommand, icons[numIcons].command, 128);
 
 	// See whether the command exists
-	if ((vshParseCommand(fullCommand, command, &argc, argv) < 0) ||
-	    !command[0] || (fileFind(command, &tmpFile) < 0))
-	  // Command is not there, or we can't parse it.  We won't be showing
-	  // this one.
+	if (loaderCheckCommand(fullCommand) < 0)
+	  // We won't be showing this one.
 	  continue;
 
 	// OK.

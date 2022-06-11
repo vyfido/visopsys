@@ -72,8 +72,6 @@ static usbClass usbClasses[] = {
   { USB_INVALID_CLASSCODE, "", NULL }
 };
 
-static void usbThread(void) __attribute__((noreturn));
-
 static usbRootHub *usbControllers[USB_MAX_CONTROLLERS];
 static int numUsbControllers = 0;
 static int usbProcId = 0;
@@ -190,6 +188,7 @@ static void deviceInfo2BusTarget(usbDevice *dev, kernelBusTarget *target)
 }
 
 
+__attribute__((noreturn))
 static void usbThread(void)
 {
   usbRootHub *usb = NULL;

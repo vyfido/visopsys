@@ -64,10 +64,6 @@ struct hd_geometry {
 
 #if defined(__VISOPSYS__)
 
-#ifdef BLKGETSIZE64
-#undef BLKGETSIZE64
-#endif
-
 #define ntfs_device_default_io_ops ntfs_device_visopsys_io_ops
 
 #else /* __CYGWIN32__ */

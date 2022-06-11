@@ -90,6 +90,7 @@ void kernelDebugInitialize(void)
   // kernelDebugAddCategory(debug_api);
   // kernelDebugAddCategory(debug_fs);
   // kernelDebugAddCategory(debug_gui);
+  // kernelDebugAddCategory(debug_io);
   // kernelDebugAddCategory(debug_misc);
   // kernelDebugAddCategory(debug_scsi);
   // kernelDebugAddCategory(debug_usb);
@@ -194,7 +195,7 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expandFormatString(debugText, MAX_DEBUGTEXT_LENGTH, message, list);
+  _xpndfmt(debugText, MAX_DEBUGTEXT_LENGTH, message, list);
 
   va_end(list);
 

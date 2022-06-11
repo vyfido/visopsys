@@ -68,7 +68,7 @@ static objectKey iconList = NULL;
 static int stop = 0;
 
 
-static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
   // Generic error message code

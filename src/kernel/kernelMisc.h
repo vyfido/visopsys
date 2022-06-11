@@ -68,7 +68,7 @@ void kernelGetVersion(char *, int);
 int kernelSystemInfo(struct utsname *);
 void kernelMemCopy(const void *, void *, unsigned);
 void kernelMemSet(void *, unsigned char, unsigned);
-#define kernelMemClear(ptr, num) kernelMemSet(ptr, 0, num);
+#define kernelMemClear(ptr, num) kernelMemSet(ptr, 0, num)
 int kernelMemCmp(const void *, const void *, unsigned);
 void kernelStackTrace(void *, void *);
 void kernelConsoleLogin(void);

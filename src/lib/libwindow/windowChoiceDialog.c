@@ -101,7 +101,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
   // Create the container for the buttons
   params.gridY = 1;
   params.padBottom = 5;
-  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+  params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   params.orientationX = orient_center;
   buttonContainer =
     windowNewContainer(dialogWindow, "buttonContainer", &params);

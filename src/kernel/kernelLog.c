@@ -31,8 +31,6 @@
 #include "kernelRtc.h"
 #include <stdio.h>
 
-static void kernelLogUpdater(void) __attribute__((noreturn));
-
 static volatile int logToConsole = 0;
 static volatile int logToFile = 0;
 static volatile int loggingInitialized = 0;
@@ -89,6 +87,7 @@ static int flushLogStream(void)
 }
 
 
+__attribute__((noreturn))
 static void kernelLogUpdater(void)
 {
   // This function will be a new thread spawned by the kernel which

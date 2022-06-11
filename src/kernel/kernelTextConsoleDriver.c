@@ -402,12 +402,15 @@ static int restoreScreen(kernelTextArea *area, textScreen *screen)
 {
   // This routine restores the saved contents of the screen
 
-  kernelMemCopy(screen->data, TEXTAREA_FIRSTVISIBLE(area), 
-		(area->rows * area->columns * 2));
+  if (screen->data)
+    {
+      kernelMemCopy(screen->data, TEXTAREA_FIRSTVISIBLE(area), 
+		    (area->rows * area->columns * 2));
 
-  // Copy to the visible area
-  kernelMemCopy(screen->data, area->visibleData, 
-		(area->rows * area->columns * 2));
+      // Copy to the visible area
+      kernelMemCopy(screen->data, area->visibleData, 
+		    (area->rows * area->columns * 2));
+    }
 
   area->cursorColumn = screen->column;
   area->cursorRow = screen->row;

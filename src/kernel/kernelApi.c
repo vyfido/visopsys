@@ -294,6 +294,7 @@ static kernelFunctionIndex loaderFunctionIndex[] = {
   { _fnum_loaderClassify, kernelLoaderClassify, 4, PRIVILEGE_USER },
   { _fnum_loaderClassifyFile, kernelLoaderClassifyFile, 2, PRIVILEGE_USER },
   { _fnum_loaderGetSymbols, kernelLoaderGetSymbols, 2, PRIVILEGE_USER },
+  { _fnum_loaderCheckCommand, kernelLoaderCheckCommand, 1, PRIVILEGE_USER },
   { _fnum_loaderLoadProgram, kernelLoaderLoadProgram, 2, PRIVILEGE_USER },
   { _fnum_loaderLoadLibrary, kernelLoaderLoadLibrary, 1, PRIVILEGE_USER },
   { _fnum_loaderExecProgram, kernelLoaderExecProgram, 2, PRIVILEGE_USER },

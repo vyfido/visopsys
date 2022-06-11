@@ -34,6 +34,10 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 			  int *columnStartX, int *columnWidth, int *rowStartY,
 			  int *rowHeight, int extraWidth, int extraHeight)
 {
+  int *expandableX = NULL;
+  int *expandableY = NULL;
+  int numExpandableX = 0;
+  int numExpandableY = 0;
   kernelWindowContainer *container = NULL;
   kernelWindowComponent *component = NULL;
   int componentSize = 0;
@@ -41,14 +45,16 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 
   container = containerComponent->data;
 
+  expandableX = kernelMalloc(container->maxComponents * sizeof(int));
+  expandableY = kernelMalloc(container->maxComponents * sizeof(int));
+  if (!expandableX || !expandableY)
+    return;
+
   // Clear our arrays
-  for (count1 = 0; count1 < container->maxComponents; count1++)
-    {
-      columnWidth[count1] = 0;
-      columnStartX[count1] = 0;
-      rowHeight[count1] = 0;
-      rowStartY[count1] = 0;
-    }
+  bzero(columnWidth, (container->maxComponents * sizeof(int)));
+  bzero(columnStartX, (container->maxComponents * sizeof(int)));
+  bzero(rowHeight, (container->maxComponents * sizeof(int)));
+  bzero(rowStartY, (container->maxComponents * sizeof(int)));
 
   container->numColumns = 0;
   container->numRows = 0;
@@ -64,11 +70,19 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
       if (component->params.gridWidth > 0)
 	{
 	  componentSize /= component->params.gridWidth;
-	  for (count2 = 0; count2 < component->params.gridWidth;
-	       count2 ++)
-	    if (componentSize >
-		columnWidth[component->params.gridX + count2])
-	      columnWidth[component->params.gridX + count2] = componentSize;
+	  for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
+	    {
+	      if (componentSize >
+		  columnWidth[component->params.gridX + count2])
+		columnWidth[component->params.gridX + count2] = componentSize;
+
+	      if (!(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH) &&
+		  !expandableX[component->params.gridX + count2])
+		{
+		  expandableX[component->params.gridX + count2] = 1;
+		  numExpandableX += 1;
+		}
+	    }
 	}
 
       componentSize = (component->minHeight + component->params.padTop +
@@ -76,12 +90,20 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
       if (component->params.gridHeight != 0)
 	{
 	  componentSize /= component->params.gridHeight;
-	  for (count2 = 0; count2 < component->params.gridHeight;
-	       count2 ++)
-	    if (componentSize > 
-		rowHeight[component->params.gridY + count2])
-	      rowHeight[component->params.gridY + count2] =
-		componentSize;
+	  for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
+	    {
+	      if (componentSize > 
+		  rowHeight[component->params.gridY + count2])
+		rowHeight[component->params.gridY + count2] =
+		  componentSize;
+
+	      if (!(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT) &&
+		  !expandableY[component->params.gridY + count2])
+		{
+		  expandableY[component->params.gridY + count2] = 1;
+		  numExpandableY += 1;
+		}
+	    }
 	}
     }
 
@@ -94,9 +116,9 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
       container->numRows += 1;
 
   // Set the starting X coordinates of the columns, and distribute any extra
-  // width over all the columns that have width
-  if (container->numColumns)
-    extraWidth /= container->numColumns;
+  // width over all the columns that have width and are expandable.
+  if (numExpandableX)
+    extraWidth /= numExpandableX;
   for (count1 = 0; count1 < container->maxComponents; count1 ++)
     {
       if (count1 == 0)
@@ -105,14 +127,14 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 	columnStartX[count1] =
 	  (columnStartX[count1 - 1] + columnWidth[count1 - 1]);
       
-      if (columnWidth[count1])
+      if (columnWidth[count1] && expandableX[count1])
 	columnWidth[count1] += extraWidth;
     }
 
   // Set the starting Y coordinates of the rows, and distribute any extra
-  // height over all the rows that have height
-  if (container->numRows)
-    extraHeight /= container->numRows;
+  // height over all the rows that have height and are expandable.
+  if (numExpandableY)
+    extraHeight /= numExpandableY;
   for (count1 = 0; count1 < container->maxComponents; count1 ++)
     {
       if (count1 == 0)
@@ -120,7 +142,7 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
       else
 	rowStartY[count1] = (rowStartY[count1 - 1] + rowHeight[count1 - 1]);
       
-      if (rowHeight[count1])
+      if (rowHeight[count1] && expandableY[count1])
 	rowHeight[count1] += extraHeight;
     }
 }

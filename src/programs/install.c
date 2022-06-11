@@ -98,7 +98,7 @@ static void pause(void)
 }
 
 
-static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -117,8 +117,7 @@ static void error(const char *format, ...)
 }
 
 
-static void quit(int, const char *, ...) __attribute__((format(printf, 2, 3)))
-  __attribute__((noreturn));
+__attribute__((format(printf, 2, 3))) __attribute__((noreturn))
 static void quit(int status, const char *message, ...)
 {
   // Shut everything down
@@ -523,29 +522,15 @@ static unsigned getInstallSize(const char *installFileName)
     {
       status = fileStreamReadLine(&installFile, BUFFSIZE, buffer);
       if (status < 0)
-	{
-	  error("Error reading from install file \"%s\"", installFileName);
-	  fileStreamClose(&installFile);
-	  return (bytes = 0);
-	}
+	// End of file
+	break;
 
-      else if ((buffer[0] == '\n') || (buffer[0] == '#'))
+      else if (!status || (buffer[0] == '#'))
 	// Ignore blank lines and comments
 	continue;
 
-      else if (status == 0)
-	{
-	  // End of file
-	  fileStreamClose(&installFile);
-	  break;
-	}
-
       else
 	{
-	  // If there's a newline at the end of the line, remove it
-	  if (buffer[strlen(buffer) - 1] == '\n')
-	    buffer[strlen(buffer) - 1] = '\0';
-
 	  // Use the line of data as the name of a file.  We try to find the
 	  // file and add its size to the number of bytes
 	  status = fileFind(buffer, &theFile);
@@ -558,6 +543,8 @@ static unsigned getInstallSize(const char *installFileName)
 	  bytes += theFile.size;
 	}
     }
+
+  fileStreamClose(&installFile);
 
   // Add 1K for a little buffer space
   return (bytes + 1024);
@@ -598,13 +585,14 @@ static void updateStatus(const char *message)
 
   if (lockGet(&(prog.lock)) >= 0)
     {
-      if (strlen(prog.statusMessage) &&
-	  (prog.statusMessage[strlen(prog.statusMessage) - 1] != '\n'))
-	strcat(prog.statusMessage, message);
+      if (strlen((char *) prog.statusMessage) &&
+	  (prog.statusMessage[strlen((char *) prog.statusMessage) - 1] !=
+	   '\n'))
+	strcat((char *) prog.statusMessage, message);
       else
-	strcpy(prog.statusMessage, message);
+	strcpy((char *) prog.statusMessage, message);
 
-      statusLength = strlen(prog.statusMessage);
+      statusLength = strlen((char *) prog.statusMessage);
       if (statusLength >= PROGRESS_MAX_MESSAGELEN)
 	{
 	  statusLength = (PROGRESS_MAX_MESSAGELEN - 1);
@@ -614,7 +602,8 @@ static void updateStatus(const char *message)
 	statusLength -= 1;
 
       if (graphics)
-	windowComponentSetData(statusLabel, prog.statusMessage, statusLength);
+	windowComponentSetData(statusLabel, (char *) prog.statusMessage,
+			       statusLength);
 
       lockRelease(&(prog.lock));
     }
@@ -719,7 +708,7 @@ static int copyFiles(const char *installFileName)
   int status = 0;
   fileStream installFile;
   file theFile;
-  int percent = 0;
+  unsigned percent = 0;
   char buffer[BUFFSIZE];
   char tmpFileName[128];
   file tmpFile;
@@ -748,74 +737,63 @@ static int copyFiles(const char *installFileName)
     {
       status = fileStreamReadLine(&installFile, BUFFSIZE, buffer);
       if (status < 0)
-	{
-	  fileStreamClose(&installFile);
-	  error("Error reading from install file \"%s\"", installFileName);
-	  goto done;
-	}
+	// End of file
+	break;
 
-      else if ((buffer[0] == '\n') || (buffer[0] == '#'))
+      else if (!status || (buffer[0] == '#'))
 	// Ignore blank lines and comments
 	continue;
 
-      else if (status == 0)
+      // Use the line of data as the name of a file.  We try to find the
+      // file and add its size to the number of bytes
+      status = fileFind(buffer, &theFile);
+      if (status < 0)
 	{
-	  // End of file
-	  fileStreamClose(&installFile);
-	  break;
+	  // Later we should do something here to make a message listing
+	  // the names of any missing files
+	  error("Missing file \"%s\"", buffer);
+	  continue;
+	}
+
+      strcpy(tmpFileName, MOUNTPOINT);
+      strcat(tmpFileName, buffer);
+
+      if (theFile.type == dirT)
+	{
+	  // It's a directory, create it in the desination
+	  if (fileFind(tmpFileName, &tmpFile) < 0)
+	    status = fileMakeDir(tmpFileName);
 	}
 
       else
+	// It's a file.  Copy it to the destination.
+	status = fileCopy(buffer, tmpFileName);
+
+      if (status < 0)
+	goto done;
+
+      bytesCopied += theFile.size;
+
+      // Sync periodically
+      if ((((bytesCopied * 100) / bytesToCopy) % 10) > (percent % 10))
+	diskSync();
+
+      percent = ((bytesCopied * 100) / bytesToCopy);
+
+      if (graphics)
+	windowComponentSetData(progressBar, (void *) percent, 1);
+      else if (lockGet(&(prog.lock)) >= 0)
 	{
-	  // Use the line of data as the name of a file.  We try to find the
-	  // file and add its size to the number of bytes
-	  status = fileFind(buffer, &theFile);
-	  if (status < 0)
-	    {
-	      // Later we should do something here to make a message listing
-	      // the names of any missing files
-	      error("Missing file \"%s\"", buffer);
-	      continue;
-	    }
-
-	  strcpy(tmpFileName, MOUNTPOINT);
-	  strcat(tmpFileName, buffer);
-
-	  if (theFile.type == dirT)
-	    {
-	      // It's a directory, create it in the desination
-	      if (fileFind(tmpFileName, &tmpFile) < 0)
-		status = fileMakeDir(tmpFileName);
-	    }
-
-	  else
-	    // It's a file.  Copy it to the destination.
-	    status = fileCopy(buffer, tmpFileName);
-
-	  if (status < 0)
-	    goto done;
-
-	  bytesCopied += theFile.size;
-
-	  percent = ((bytesCopied * 100) / bytesToCopy);
-
-	  // Sync periodially
-	  if (!(percent % 10))
-	    diskSync();
-
-	  if (graphics)
-	    windowComponentSetData(progressBar, (void *) percent, 1);
-	  else if (lockGet(&(prog.lock)) >= 0)
-	    {
-	      prog.percentFinished = percent;
-	      lockRelease(&(prog.lock));
-	    }
+	  prog.percentFinished = percent;
+	  lockRelease(&(prog.lock));
 	}
     }
 
   status = 0;
 
  done:
+  fileStreamClose(&installFile);
+
   diskSync();
 
   updateStatus("Done\n");

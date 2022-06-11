@@ -24,25 +24,25 @@
 
 #if !defined(_KERNELPCIDRIVER_H)
 
-#define PCI_CONFIG_PORT            0x0CF8
-#define PCI_DATA_PORT              0x0CFC
+#define PCI_CONFIG_PORT              0x0CF8
+#define PCI_DATA_PORT                0x0CFC
 
 // The true maximum value is 255, but searching all buses slows the starting
 // process down, and there won't be many people with more than 10 PCI buses
 // (none thatI can think of)
-#define PCI_MAX_BUSES              10
-#define PCI_MAX_DEVICES            32
-#define PCI_MAX_FUNCTIONS          8
-#define PCI_CONFIGHEADER_SIZE      64
+#define PCI_MAX_BUSES                10
+#define PCI_MAX_DEVICES              32
+#define PCI_MAX_FUNCTIONS            8
+#define PCI_CONFIGHEADER_SIZE        64
 
-#define PCI_INVALID_CLASSCODE      -1
-#define PCI_INVALID_SUBCLASSCODE   -2
+#define PCI_INVALID_CLASSCODE        -1
+#define PCI_INVALID_SUBCLASSCODE     -2
 
 // PCI device info header types
-#define PCI_HEADERTYPE_NORMAL      0
-#define PCI_HEADERTYPE_BRIDGE      1
-#define PCI_HEADERTYPE_CARDBUS     2
-#define PCI_HEADERTYPE_MULTIFUNC   0x80
+#define PCI_HEADERTYPE_NORMAL        0
+#define PCI_HEADERTYPE_BRIDGE        1
+#define PCI_HEADERTYPE_CARDBUS       2
+#define PCI_HEADERTYPE_MULTIFUNC     0x80
 
 // PCI configuration register numbers.  Note that the registers are numbered
 // according to their bit widths.  For example, the command register is
@@ -70,30 +70,30 @@
 #define PCI_CONFREG_INTLINE_8        60
 
 // PCI device command bits
-#define PCI_COMMAND_FASTBACK2BACK  0x0200
-#define PCI_COMMAND_SYSTEMERROR    0x0100
-#define PCI_COMMAND_WAITCYCLE      0x0080
-#define PCI_COMMAND_PARITYERROR    0x0040
-#define PCI_COMMAND_VGAPALSNOOP    0x0020
-#define PCI_COMMAND_MEMWRITEINV    0x0010
-#define PCI_COMMAND_SPECIALCYCLE   0x0008
-#define PCI_COMMAND_MASTERENABLE   0x0004
-#define PCI_COMMAND_MEMORYENABLE   0x0002
-#define PCI_COMMAND_IOENABLE       0x0001
+#define PCI_COMMAND_FASTBACK2BACK    0x0200
+#define PCI_COMMAND_SYSTEMERROR      0x0100
+#define PCI_COMMAND_WAITCYCLE        0x0080
+#define PCI_COMMAND_PARITYERROR      0x0040
+#define PCI_COMMAND_VGAPALSNOOP      0x0020
+#define PCI_COMMAND_MEMWRITEINV      0x0010
+#define PCI_COMMAND_SPECIALCYCLE     0x0008
+#define PCI_COMMAND_MASTERENABLE     0x0004
+#define PCI_COMMAND_MEMORYENABLE     0x0002
+#define PCI_COMMAND_IOENABLE         0x0001
 
 // PCI device status bits
-#define PCI_STATUS_DETPARTIYERROR  0x8000
-#define PCI_STATUS_SIGSYSTEMERROR  0x4000
-#define PCI_STATUS_RECVMASTERABRT  0x2000
-#define PCI_STATUS_RECVTARGETABRT  0x1000
-#define PCI_STATUS_SIGTARGETABRT   0x0800
-#define PCI_STATUS_DEVSEL_SLOW     0x0400
-#define PCI_STATUS_DEVSEL_MEDIUM   0x0200
-#define PCI_STATUS_DEVSEL_FAST     0x0000
-#define PCI_STATUS_DATAPARITY      0x0100
-#define PCI_STATUS_FASTBACK2BACK   0x0080
-#define PCI_STATUS_UDF             0x0040
-#define PCI_STATUS_66MHZ           0x0020
+#define PCI_STATUS_DETPARTIYERROR    0x8000
+#define PCI_STATUS_SIGSYSTEMERROR    0x4000
+#define PCI_STATUS_RECVMASTERABRT    0x2000
+#define PCI_STATUS_RECVTARGETABRT    0x1000
+#define PCI_STATUS_SIGTARGETABRT     0x0800
+#define PCI_STATUS_DEVSEL_SLOW       0x0400
+#define PCI_STATUS_DEVSEL_MEDIUM     0x0200
+#define PCI_STATUS_DEVSEL_FAST       0x0000
+#define PCI_STATUS_DATAPARITY        0x0100
+#define PCI_STATUS_FASTBACK2BACK     0x0080
+#define PCI_STATUS_UDF               0x0040
+#define PCI_STATUS_66MHZ             0x0020
 
 // This structure is adapted from Ralf Brown's CPI configuration data dumper.
 typedef union {

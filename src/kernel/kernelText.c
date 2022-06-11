@@ -1588,6 +1588,14 @@ int kernelTextScreenSave(textScreen *screen)
   kernelTextOutputStream *outputStream = NULL;
   kernelTextArea *textArea = NULL;
 
+  // Don't do anything unless we've been initialized
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  // Check params
+  if (screen == NULL)
+    return (ERR_NULLPARAMETER);
+
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
   
@@ -1606,6 +1614,14 @@ int kernelTextScreenRestore(textScreen *screen)
 
   kernelTextOutputStream *outputStream = NULL;
   kernelTextArea *textArea = NULL;
+
+  // Don't do anything unless we've been initialized
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  // Check params
+  if (screen == NULL)
+    return (ERR_NULLPARAMETER);
 
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();

@@ -151,7 +151,7 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy(prog->statusMessage, "Formatting");
+      strcpy((char *) prog->statusMessage, "Formatting");
       kernelLockRelease(&(prog->lock));
     }
 
@@ -189,7 +189,7 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
   if (prog && (kernelLockGet(&(prog->lock)) >= 0))
     {
-      strcpy(prog->statusMessage, "Syncing disk");
+      strcpy((char *) prog->statusMessage, "Syncing disk");
       kernelLockRelease(&(prog->lock));
     }
 

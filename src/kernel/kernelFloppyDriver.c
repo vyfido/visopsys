@@ -57,6 +57,7 @@
 #define FLOPPY_UNKNOWN            15
 
 typedef volatile struct {
+  int dmaChannel;      // DMA channel
   unsigned headLoad;   // Head load timer
   unsigned headUnload; // Head unload timer
   unsigned stepRate;   // Step rate timer
@@ -301,21 +302,21 @@ static void specify(unsigned driveNum)
   floppyDriveData *floppyData = (floppyDriveData *) disks[driveNum].driverData;
 
   // Construct the data rate byte
-  commandByte = (unsigned char) floppyData->dataRate;
+  commandByte = floppyData->dataRate;
   kernelProcessorOutPort8(0x03F7, commandByte);
   kernelProcessorDelay();
 
   // Construct the command byte
-  commandByte = (unsigned char) 0x03;  // Specify command
+  commandByte = 0x03;  // Specify command
   commandWrite(commandByte);
 
   // Construct the step rate/head unload byte
-  commandByte = (unsigned char)
+  commandByte =
     ((floppyData->stepRate << 4) | (floppyData->headUnload & 0x0F));
   commandWrite(commandByte);
 
   // Construct the head load time byte.  Make sure that DMA mode is enabled.
-  commandByte = (unsigned char) ((floppyData->headLoad << 1) & 0xFE);
+  commandByte = ((floppyData->headLoad << 1) & 0xFE);
   commandWrite(commandByte);
   
   // There is no status information or interrupt after this command
@@ -381,6 +382,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 
   int status = 0;
   kernelPhysicalDisk *theDisk = NULL;
+  floppyDriveData *floppyData = NULL;
   int errorCode = 0;
   unsigned head, track, sector;
   unsigned doSectors = 0;
@@ -391,6 +393,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 
   // Get a pointer to the requested disk
   theDisk = &(disks[driveNum]);
+  floppyData = theDisk->driverData;
 
   // Wait for a lock on the controller
   status = kernelLockGet(&controllerLock);
@@ -476,11 +479,11 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       // Set up the DMA controller for the transfer.
       if (read)
 	// Set the DMA channel for writing TO memory, demand mode
-	status = kernelDmaOpenChannel(theDisk->dmaChannel, xFerPhysical,
+	status = kernelDmaOpenChannel(floppyData->dmaChannel, xFerPhysical,
 				      xFerBytes, DMA_WRITEMODE);
       else
 	// Set the DMA channel for reading FROM memory, demand mode
-	status = kernelDmaOpenChannel(theDisk->dmaChannel, xFerPhysical,
+	status = kernelDmaOpenChannel(floppyData->dmaChannel, xFerPhysical,
 				      xFerBytes, DMA_READMODE);
       if (status < 0)
 	{
@@ -495,7 +498,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       if ((status < 0) || ((statusRegister0 & 0xF8) != 0x20) ||
 	  (currentTrack != track))
 	{
-	  kernelDmaCloseChannel(theDisk->dmaChannel);
+	  kernelDmaCloseChannel(floppyData->dmaChannel);
 	  kernelLockRelease(&controllerLock);
 	  kernelError(kernel_error, "Seek error: %s",
 		      errorMessages[evaluateError()]);
@@ -562,7 +565,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       status = waitOperationComplete();
 
       // Close the DMA channel
-      kernelDmaCloseChannel(theDisk->dmaChannel);
+      kernelDmaCloseChannel(floppyData->dmaChannel);
       if (status < 0)
 	{
 	  // The command timed out.  Save the error and return error.
@@ -882,7 +885,6 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	(DISKFLAG_PHYSICAL | DISKFLAG_REMOVABLE | DISKFLAG_FLOPPY);
       disks[count].deviceNumber = count;
       disks[count].sectorSize = 512;
-      disks[count].dmaChannel = 2;
       // Assume motor off for now
 
       // We do division operations with these values
@@ -900,6 +902,12 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  kernelError(kernel_error, "Can't get memory for floppy drive data");
 	  return (status = ERR_MEMORY);
 	}
+
+      // Generic, regardless of type
+      floppyData->dmaChannel = 2;
+      floppyData->headLoad = 0x02;
+      floppyData->headUnload = 0x0F;
+      floppyData->dataRate = 0;
 
       switch(disks[count].biosType)
 	{
@@ -946,11 +954,6 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  floppyData->gapLength = 0x1B;
 	  break;
 	}
-
-      // Generic, regardless of type
-      floppyData->headLoad = 0x02;
-      floppyData->headUnload = 0x0F;
-      floppyData->dataRate = 0;
 
       // Attach the drive data to the disk
       disks[count].driverData = (void *) floppyData;

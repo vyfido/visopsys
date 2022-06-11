@@ -194,19 +194,29 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	  break;
 
 	case 'p':
+	  // Bit of special stuff for pointer args
+	  output[outCount++] = '0';
+	  output[outCount++] = 'x';
+	  fieldWidth = (2 * sizeof(void *));
+	  digits = _numdgts(argument, 16, 0);
+	  if (!leftJust)
+	    while (digits++ < fieldWidth)
+	      output[outCount++] = '0';
+	  if (isLong)
+	    lltoux(argument, (output + outCount));
+	  else
+	    itoux(argument, (output + outCount));
+	  outCount = strlen(output);
+	  if (fieldWidth && leftJust)
+	    while (digits++ < fieldWidth)
+	      output[outCount++] = ' ';
+	  break;
+
 	case 'x':
 	case 'X':
-	  if (format[inCount] == 'p')
-	    {
-	      // Bit of special stuff for pointer args
-	      output[outCount++] = '0';
-	      output[outCount++] = 'x';
-	      fieldWidth = (2 * sizeof(void *));
-	      zeroPad = 1;
-	    }
 	  if (fieldWidth)
 	    {
-	      digits = _numdgts(argument, 16, 0);
+	      digits = _numdgts(argument, 16, 1);
 	      if (!leftJust)
 		while (digits++ < fieldWidth)
 		  output[outCount++] = (zeroPad? '0' : ' ');

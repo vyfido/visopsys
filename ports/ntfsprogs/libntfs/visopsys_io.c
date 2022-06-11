@@ -146,6 +146,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
   fd->partLength = ((s64) fd->disk.numSectors * (s64) fd->disk.sectorSize);
 
   dev->d_private = fd;
+  NDevSetBlock(dev);
   NDevSetOpen(dev);
   NDevClearDirty(dev);
 
@@ -191,6 +192,11 @@ static int ntfs_device_visopsys_close(struct ntfs_device *dev)
 
   fd = (visopsys_fd *) dev->d_private;
 
+  if (NDevDirty(dev))
+    diskSync();
+
+  NDevClearOpen(dev);
+  dev->d_private = NULL;
   free(fd);
 
   return (status = 0);
@@ -237,12 +243,6 @@ static s64 ntfs_device_visopsys_seek(struct ntfs_device *dev, s64 offset,
       break;
 
     case SEEK_END:
-      // End of partition != end of disk.
-      if (fd->partLength == -1) {
-	Vdebug("End of partition != end of disk.\n");
-	errno = ntfs_visopsys_errno(ERR_NOTIMPLEMENTED);
-	return (abs_ofs = -1);
-      }
       abs_ofs = (fd->partLength + offset);
       break;
 
@@ -310,17 +310,17 @@ static s64 ntfs_device_visopsys_read(struct ntfs_device *dev, void *buff,
   startSector = (fd->position / (s64) fd->disk.sectorSize);
   sectorCount = (count / (s64) fd->disk.sectorSize);
 
-  if ((count % (s64) fd->disk.sectorSize) ||
-      (fd->position % (s64) fd->disk.sectorSize))
+  if ((fd->position % (s64) fd->disk.sectorSize) ||
+      (count % (s64) fd->disk.sectorSize))
     {
       Vdebug("Doing off-kilter read");
 
       saveBuff = buff;
 
-      if (count % (s64) fd->disk.sectorSize)
+      if (fd->position % (s64) fd->disk.sectorSize)
 	sectorCount += 1;
 
-      if (fd->position % (s64) fd->disk.sectorSize)
+      if ((fd->position + count) % (s64) fd->disk.sectorSize)
 	sectorCount += 1;
 
       buff = malloc(sectorCount * fd->disk.sectorSize);
@@ -394,17 +394,17 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
   startSector = (fd->position / (s64) fd->disk.sectorSize);
   sectorCount = (count / (s64) fd->disk.sectorSize);
 
-  if ((count % (s64) fd->disk.sectorSize) ||
-      (fd->position % (s64) fd->disk.sectorSize))
+  if ((fd->position % (s64) fd->disk.sectorSize) ||
+      (count % (s64) fd->disk.sectorSize))
     {
       Vdebug("Doing off-kilter write");
 
       saveBuff = (void *) buff;
 
-      if (count % (s64) fd->disk.sectorSize)
+      if (fd->position % (s64) fd->disk.sectorSize)
 	sectorCount += 1;
 
-      if (fd->position % (s64) fd->disk.sectorSize)
+      if ((fd->position + count) % (s64) fd->disk.sectorSize)
 	sectorCount += 1;
 
       buff = malloc(sectorCount * fd->disk.sectorSize);
@@ -430,7 +430,7 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 	    }
 	}
 
-      if (count % (s64) fd->disk.sectorSize)
+      if ((fd->position + count) % (s64) fd->disk.sectorSize)
 	{
 	  // The count is not a multiple of the sector size.  Read the last
 	  // sector into the buffer
@@ -449,12 +449,14 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
 	    }
 	}
 
-      // Copy the user-supplied data into the appropriate place in the buffer
-      memcpy((void *) buff,
-	     (saveBuff + (fd->position % (s64) fd->disk.sectorSize)), count);
+      // Copy the caller-supplied data into the appropriate place in the buffer
+      memcpy((void *) (buff + (fd->position % (s64) fd->disk.sectorSize)),
+	     saveBuff, count);
     }
 
-  // Read sectors
+  NDevSetDirty(dev);
+
+  // Write sectors
   status = diskWriteSectors(fd->disk.name, (unsigned) startSector,
 			    (unsigned) sectorCount, buff);
 
@@ -467,8 +469,6 @@ static s64 ntfs_device_visopsys_write(struct ntfs_device *dev,
       errno = ntfs_visopsys_errno(status);
       return (status = -1);
     }
-  else
-    NDevSetDirty(dev);
 
   br = count;
   fd->position += count;
@@ -488,6 +488,7 @@ static s64 ntfs_device_visopsys_pwrite(struct ntfs_device *dev, const void *b,
 				       s64 count, s64 offset)
 {
   //Vdebug("PWRITE\n");
+  NDevSetDirty(dev);
   return (ntfs_pwrite(dev, offset, count, b));
 }
 
@@ -583,11 +584,23 @@ static int ntfs_device_visopsys_ioctl(struct ntfs_device *dev, int request,
     {
     case BLKGETSIZE:
       // Get the size of the device in sectors
-      if (fd->partLength >= 0)
-	{
-	  *((int *) argp) = (fd->disk.numSectors);
-	  return 0;
-	}
+      *((int *) argp) = fd->disk.numSectors;
+      break;
+
+    case BLKGETSIZE64:
+      // Get the size of the device in bytes
+      *((s64 *) argp) = fd->partLength;
+      break;
+
+    case HDIO_GETGEO:
+      ((struct hd_geometry *) argp)->heads = fd->disk.heads;
+      ((struct hd_geometry *) argp)->sectors = fd->disk.sectorsPerCylinder;
+      ((struct hd_geometry *) argp)->cylinders = fd->disk.cylinders;
+      ((struct hd_geometry *) argp)->start = 0;
+      break;
+
+    case BLKSSZGET:
+      *((int *) argp) = fd->disk.sectorSize;
       break;
 
     case BLKBSZSET:

@@ -26,7 +26,31 @@
 
 #include "kernelLock.h"
 
-#define MAX_IDE_DISKS 4
+#define IDE_MAX_DISKS        4
+
+// IDE feature flags.  These don't represent all possible features; just the
+// ones we [plan to] support.
+#define IDE_FEATURE_48BIT    0x40
+#define IDE_FEATURE_WCACHE   0x20
+#define IDE_FEATURE_RCACHE   0x10
+#define IDE_FEATURE_SMART    0x08
+#define IDE_FEATURE_DMA      (IDE_FEATURE_UDMA | IDE_FEATURE_MWDMA)
+#define IDE_FEATURE_UDMA     0x04
+#define IDE_FEATURE_MWDMA    0x02
+#define IDE_FEATURE_MULTI    0x01
+
+// IDE transfer modes.
+#define IDE_TRANSMODE_UDMA6  0x46
+#define IDE_TRANSMODE_UDMA5  0x45
+#define IDE_TRANSMODE_UDMA4  0x44
+#define IDE_TRANSMODE_UDMA3  0x43
+#define IDE_TRANSMODE_UDMA2  0x42
+#define IDE_TRANSMODE_UDMA1  0x41
+#define IDE_TRANSMODE_UDMA0  0x40
+#define IDE_TRANSMODE_DMA2   0x22
+#define IDE_TRANSMODE_DMA1   0x21
+#define IDE_TRANSMODE_DMA0   0x20
+#define IDE_TRANSMODE_PIO    0x01
 
 // Status register bits
 #define IDE_CTRL_BSY         0x80
@@ -42,16 +66,17 @@
 #define ATA_NOP              0x00
 #define ATA_ATAPIRESET       0x08
 #define ATA_RECALIBRATE      0x10
-#define ATA_READSECTS_RET    0x20
-#define ATA_READSECTS        0x21
-#define ATA_READECC_RET      0x22
-#define ATA_READECC          0x23
-#define ATA_WRITESECTS_RET   0x30
-#define ATA_WRITESECTS       0x31
-#define ATA_WRITEECC_RET     0x32
-#define ATA_WRITEECC         0x33
-#define ATA_VERIFYMULT_RET   0x40
-#define ATA_VERIFYMULT       0x41
+#define ATA_READSECTS        0x20
+#define ATA_READECC          0x22
+#define ATA_READSECTS_EXT    0x24
+#define ATA_READDMA_EXT      0x25
+#define ATA_READMULTI_EXT    0x29
+#define ATA_WRITESECTS       0x30
+#define ATA_WRITEECC         0x32
+#define ATA_WRITESECTS_EXT   0x34
+#define ATA_WRITEDMA_EXT     0x35
+#define ATA_WRITEMULTI_EXT   0x39
+#define ATA_VERIFYMULTI      0x40
 #define ATA_FORMATTRACK      0x50
 #define ATA_SEEK             0x70
 #define ATA_DIAG             0x90
@@ -59,11 +84,13 @@
 #define ATA_ATAPIPACKET      0xA0
 #define ATA_ATAPIIDENTIFY    0xA1
 #define ATA_ATAPISERVICE     0xA2
-#define ATA_READMULTIPLE     0xC4
-#define ATA_WRITEMULTIPLE    0xC5
+#define ATA_READMULTI        0xC4
+#define ATA_WRITEMULTI       0xC5
 #define ATA_SETMULTIMODE     0xC6
-#define ATA_GETDEVINFO       0xEC
-#define ATA_ATAPISETFEAT     0xEF
+#define ATA_READDMA          0xC8
+#define ATA_WRITEDMA         0xCA
+#define ATA_IDENTIFY         0xEC
+#define ATA_SETFEATURES      0xEF
 
 // ATAPI commands
 #define ATAPI_TESTREADY      0x00
@@ -105,41 +132,77 @@
 #define IDE_TIMEOUT          9
 
 typedef struct {
+  char *name;
+  unsigned char val;
+  int identByte;
+  unsigned short supportedMask;
+  unsigned short enabledMask;
+  int feature;
+
+} ideDmaMode;
+
+typedef struct {
+  int featureFlags;
+  char *dmaMode;
+
+} ideDisk;
+
+typedef struct {
   unsigned data;
   unsigned featErr;
   unsigned sectorCount;
-  unsigned sectorNumber;
-  unsigned cylinderLow;
-  unsigned cylinderHigh;
-  unsigned driveHead;
+  unsigned lbaLow;
+  unsigned lbaMid;
+  unsigned lbaHigh;
+  unsigned device;
   unsigned comStat;
   unsigned altComStat;
 
 } idePorts;
 
-typedef struct {
-  lock controllerLock;
-  int interruptReceived;
+typedef volatile struct {
+  void *physicalAddress;
+  unsigned short count;
+  unsigned short EOT;
+
+} __attribute__((packed)) idePrd;
+
+typedef volatile struct {
+  idePorts ports;
+  int interrupt;
+  ideDisk disk[2];
+  idePrd *prd;
+  void *prdPhysical;
+  int prdEntries;
+  int gotInterrupt;
+  lock lock;
+
+} ideChannel;
+
+typedef volatile struct {
+  ideChannel channel[2];
+  int busMaster;
+  unsigned busMasterIo;
 
 } ideController;
 
 // Some predefined ATAPI packets
-#define ATAPI_PACKET_UNLOCK \
- ((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_LOCK \
- ((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_STOP \
- ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_START \
- ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_EJECT \
- ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_CLOSE \
- ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_READCAPACITY \
- ((unsigned char[]) { ATAPI_READCAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
-#define ATAPI_PACKET_READTOC \
- ((unsigned char[]) { ATAPI_READTOC, 0, 1, 0, 0, 0, 0, 0, 12, 0x40, 0, 0 } )
+#define ATAPI_PACKET_UNLOCK						\
+  ((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_LOCK						\
+  ((unsigned char[]) { ATAPI_PERMITREMOVAL, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_STOP						\
+  ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_START						\
+  ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_EJECT						\
+  ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_CLOSE						\
+  ((unsigned char[]) { ATAPI_STARTSTOP, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_READCAPACITY					\
+  ((unsigned char[]) { ATAPI_READCAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } )
+#define ATAPI_PACKET_READTOC						\
+  ((unsigned char[]) { ATAPI_READTOC, 0, 1, 0, 0, 0, 0, 0, 12, 0x40, 0, 0 } )
 
 #define _KERNELIDEDRIVER_
 #endif

@@ -102,7 +102,7 @@ static void usage(char *name)
 }
 
 
-static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes

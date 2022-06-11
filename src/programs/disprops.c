@@ -288,8 +288,6 @@ static void constructWindow(void)
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
-  params.padTop = 5;
-  params.padLeft = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
 
@@ -297,9 +295,9 @@ static void constructWindow(void)
   container = windowNewContainer(window, "leftContainer", &params);
   
   // Make a list with all the available graphics modes
-  params.padTop = 0;
-  params.padLeft = 0;
-  params.orientationX = orient_center;
+  params.padTop = 5;
+  params.padLeft = 5;
+  params.padRight = 5;
   modeList = windowNewList(container, windowlist_textonly, 5, 1, 0,
 			   listItemParams, numberModes, &params);
 
@@ -314,9 +312,8 @@ static void constructWindow(void)
     windowComponentSetEnabled(modeList, 0);
 
   // Make a checkbox for whether to boot in graphics mode
-  params.gridY = 1;
-  params.padTop = 5;
-  params.orientationX = orient_left;
+  params.gridY++;
+  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
   bootGraphicsCheckbox =
     windowNewCheckbox(container, "Boot in graphics mode", &params);
   windowComponentSetSelected(bootGraphicsCheckbox, 1);
@@ -324,7 +321,7 @@ static void constructWindow(void)
     windowComponentSetEnabled(bootGraphicsCheckbox, 0);
 
   // Make a checkbox for whether to show the clock on the desktop
-  params.gridY = 2;
+  params.gridY++;
   showClockCheckbox =
     windowNewCheckbox(container, "Show a clock on the desktop", &params);
 
@@ -342,17 +339,19 @@ static void constructWindow(void)
   // Make a container for the right hand side components
   params.gridX = 1;
   params.gridY = 0;
-  params.padTop = 5;
-  params.padLeft = 5;
-  params.padRight = 5;
+  params.padTop = 0;
+  params.padLeft = 0;
+  params.padRight = 0;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
   container = windowNewContainer(window, "rightContainer", &params);
 
   // Create the background wallpaper button
   params.gridX = 0;
   params.gridWidth = 2;
-  params.padTop = 0;
-  params.padLeft = 0;
-  params.padRight = 0;
+  params.padTop = 5;
+  params.padLeft = 5;
+  params.padRight = 5;
+  params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
   wallpaperButton =
     windowNewButton(container, "Background wallpaper", NULL, &params);
   windowRegisterEventHandler(wallpaperButton, &eventHandler);
@@ -360,20 +359,20 @@ static void constructWindow(void)
   // A label for the colors
   params.gridY++;
   params.gridWidth = 1;
-  params.padTop = 5;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
   windowNewTextLabel(container, "Colors:", &params);
 
   // Create the colors radio button
   params.gridY++;
   params.gridHeight = 2;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
   colorsRadio = windowNewRadioButton(container, 2, 1, (char *[])
       { "Foreground", "Background", "Desktop" }, 3 , &params);
   windowRegisterEventHandler(colorsRadio, &eventHandler);
 
   // The canvas to show the current color
-  params.gridX = 1;
+  params.gridX++;
   params.gridHeight = 1;
-  params.padLeft = 5;
   params.flags |= WINDOW_COMPFLAG_HASBORDER;
   canvas = windowNewCanvas(container, 50, 50, &params);
 
@@ -386,35 +385,19 @@ static void constructWindow(void)
   // Adjust the canvas width so that it matches the width of the button.
   windowComponentSetWidth(canvas, windowComponentGetWidth(changeColorsButton));
 
-  // Make a container for the OK/Cancel buttons
+  // Create the OK button
   params.gridX = 0;
   params.gridY = 1;
-  params.gridWidth = 2;
-  params.padLeft = 5;
-  params.padRight = 5;
-  params.padTop = 5;
   params.padBottom = 5;
-  params.orientationX = orient_center;
-  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
-  container = windowNewContainer(window, "buttonContainer", &params);
-
-  // Create the OK button
-  params.gridY = 0;
-  params.gridWidth = 1;
-  params.padLeft = 0;
-  params.padTop = 0;
-  params.padBottom = 0;
   params.orientationX = orient_right;
-  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-  okButton = windowNewButton(container, "OK", NULL, &params);
+  params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+  okButton = windowNewButton(window, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 
   // Create the Cancel button
-  params.gridX = 1;
-  params.padLeft = 5;
-  params.padRight = 0;
+  params.gridX++;
   params.orientationX = orient_left;
-  cancelButton = windowNewButton(container, "Cancel", NULL, &params);
+  cancelButton = windowNewButton(window, "Cancel", NULL, &params);
   windowRegisterEventHandler(cancelButton, &eventHandler);
 
   // Register an event handler to catch window close events

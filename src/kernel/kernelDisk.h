@@ -117,7 +117,6 @@ typedef volatile struct _kernelPhysicalDisk {
   // Generic disk metadata
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
-  int dmaChannel;
   char *description;
   int flags;
   int readOnly;
@@ -136,15 +135,15 @@ typedef volatile struct _kernelPhysicalDisk {
   // Misc
   unsigned biosType;     // Needed for floppy detection
   unsigned lastSession;  // Needed for multisession CD-ROM
-  void *driverData;
   lock diskLock;
   int motorState;
   int lockState;
   int doorState;
   unsigned idleSince;
-  unsigned multiSectors;
+  int multiSectors;
 
   kernelDriver *driver;
+  void *driverData;
 
 #if (DISK_CACHE)
   kernelDiskCache cache;

@@ -78,7 +78,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.padRight = 5;
   params.padTop = 5;
   params.orientationX = orient_left;
-  params.orientationY = orient_middle;
+  params.orientationY = orient_top;
+  params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
   textLabel = windowNewTextLabel(dialogWindow, message, &params);
   if (textLabel == NULL)
     return (status = ERR_NOCREATE);
@@ -88,17 +89,18 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   else
     multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
 
-  // Put a text field in the window for the user to type
+  // Create the file list widget
   params.gridY = 1;
+  params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
   fileList = windowNewFileList(dialogWindow, windowlist_icononly, 3, 4,
 			       cwd, WINFILEBROWSE_CAN_CD, doFileSelection,
 			       &params);
   if (fileList == NULL)
     return (status = ERR_NOCREATE);
 
-  // Create the text field
+  // Create the text field for the user to type.
   params.gridY = 2;
-  params.flags = WINDOW_COMPFLAG_HASBORDER;
+  params.flags |= (WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_FIXEDHEIGHT);
   textField = windowNewTextField(dialogWindow, 30, &params);
   if (textField == NULL)
     return (status = ERR_NOCREATE);
@@ -111,7 +113,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.padRight = 5;
   params.padBottom = 5;
   params.orientationX = orient_right;
-  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+  params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);

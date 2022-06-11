@@ -37,8 +37,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static void diskd(void) __attribute__((noreturn));
-
 // All the disks
 static kernelPhysicalDisk *physicalDisks[DISK_MAXDEVICES];
 static volatile int physicalDiskCounter = 0;
@@ -712,6 +710,7 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
 }
 
 
+__attribute__((noreturn))
 static void diskd(void)
 {
   // This function will be a thread spawned at inititialization time

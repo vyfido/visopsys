@@ -69,8 +69,6 @@
 #define NUMLOCK_LIGHT    1
 #define CAPSLOCK_LIGHT   2
 
-static void rebootThread(void) __attribute__((noreturn));
-
 static kernelKeyboard *keyboardDevice = NULL;
 
 
@@ -114,6 +112,7 @@ static void setLight(int whichLight, int onOff)
 }
 
 
+__attribute__((noreturn))
 static void rebootThread(void)
 {
   // This gets called when the user presses CTRL-ALT-DEL.

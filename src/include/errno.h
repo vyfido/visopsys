@@ -81,7 +81,7 @@ extern int errno;
 #define EL2HLT  ERR_ERROR          // Level 2 halted
 #define EDEADLK ERR_DEADLOCK       // Deadlock condition.
 #define ENOLCK  ERR_NOLOCK         // No record locks available.
-#define ECANCELED ERR_KILLED       // Operation canceled
+#define ECANCELED ERR_CANCELLED    // Operation canceled
 #define ENOTSUP ERR_NOTIMPLEMENTED // Operation not supported
 #define ENAMETOOLONG ERR_BOUNDS    // Name too long
 #define EILSEQ  ERR_INVALID        // Illegal byte sequence.

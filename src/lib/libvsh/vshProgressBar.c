@@ -193,7 +193,8 @@ static void progressThread(void)
 		setPercent(prog->percentFinished);
 
 	      // Look for status message changes
-	      if (strncmp(prog->statusMessage, lastProg.statusMessage,
+	      if (strncmp((char *) prog->statusMessage,
+			  (char *) lastProg.statusMessage,
 			  PROGRESS_MAX_MESSAGELEN))
 		setMessage(prog->statusMessage, 0);
 

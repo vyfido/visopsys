@@ -73,7 +73,7 @@ static objectKey runButton = NULL;
 static objectKey goAwayCheckbox = NULL;
 
 
-static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
   // Generic error message code for either text or graphics modes
@@ -92,8 +92,7 @@ static void error(const char *format, ...)
 }
 
 
-static void quit(int, const char *, ...) __attribute__((format(printf, 2, 3)))
-  __attribute__((noreturn));
+__attribute__((format(printf, 2, 3))) __attribute__((noreturn))
 static void quit(int status, const char *message, ...)
 {
   // Shut everything down
@@ -282,7 +281,7 @@ static void changeStartProgram(void)
 }
 
 
-int main(int, char *[]) __attribute__((noreturn));
+__attribute__((noreturn))
 int main(int argc, char *argv[])
 {
   disk sysDisk;

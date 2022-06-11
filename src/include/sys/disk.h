@@ -108,5 +108,7 @@ typedef struct {
 
 } disk;
 
+#define CYLSECTS(d) (d->heads * d->sectorsPerCylinder)
+
 #define _DISK_H
 #endif

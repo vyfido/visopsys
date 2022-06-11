@@ -56,9 +56,6 @@ do { bitmap[port / 8] |=  (1 << (port % 8)); } while (0)
 do { bitmap[port / 8] &= ~(1 << (port % 8)); } while (0)
 #define GET_PORT_BIT(bitmap, port) ((bitmap[port / 8] >> (port % 8)) & 0x01)
   
-static void idleThread(void) __attribute__((noreturn));
-static void exceptionHandler(void) __attribute__((noreturn));
-
 // Global multitasker stuff
 static int multitaskingEnabled = 0;
 static volatile int processIdCounter = KERNELPROCID;
@@ -762,6 +759,7 @@ static int deleteProcess(kernelProcess *killProcess)
 }
 
 
+__attribute__((noreturn))
 static void exceptionHandler(void)
 {
   // This code is the general exception handler.  Before multitasking starts,
@@ -854,7 +852,7 @@ static void exceptionHandler(void)
 	  // into an endless loop if the crashed process was an error dialog
 	  // thread itself).
 	  if (kernelGraphicsAreEnabled() &&
-	      strcmp(kernelCurrentProcess->processName,
+	      strcmp((char *) kernelCurrentProcess->processName,
 		     ERRORDIALOG_THREADNAME))
 	    kernelErrorDialog("Application Exception", message);
 	}
@@ -927,6 +925,7 @@ static int spawnExceptionThread(void)
 }
 
 
+__attribute__((noreturn))
 static void idleThread(void)
 {
   // This is the idle task.  It runs in this loop whenever no other 
@@ -2433,7 +2432,8 @@ int kernelMultitaskerSetCurrentDirectory(const char *newDirName)
     return (status = ERR_NOTADIR);
 
   // Okay, copy the full name of the directory into the process
-  kernelFileGetFullName(newDir, kernelCurrentProcess->currentDirectory);
+  kernelFileGetFullName(newDir,
+			(char *) kernelCurrentProcess->currentDirectory);
 
   // Return success
   return (status = 0);
@@ -2906,6 +2906,10 @@ int kernelMultitaskerKillProcess(int processId, int force)
   // threads of its parent
   if (killProcess->type == proc_thread)
     decrementDescendents(killProcess);
+
+  // Restore echo to the input stream, if applicable
+  if (killProcess->textInputStream)
+    killProcess->textInputStream->echo = 1;
 
   // Dismantle the process
   status = deleteProcess(killProcess);

@@ -39,7 +39,6 @@ NAMES	= adduser \
 	disprops \
 	domainname \
 	edit \
-	fdisk \
 	file \
 	filebrowse \
 	find \
@@ -94,6 +93,7 @@ OBJS = $(addprefix ${BUILDDIR}/, ${NAMES})
 # Targets
 
 all: target-dirs ${OBJS}
+	make -C fdisk
 	strip -s ${OBJS}
 
 target-dirs:
@@ -104,11 +104,9 @@ ${BUILDDIR}/%: %.c ${STDDEPS}
 
 clean:
 	rm -Rf *~ *.o core ${OBJS}
+	make -C fdisk clean
 
 # Object files with explicit rules
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lc -o $@
-
-${BUILDDIR}/fdisk: fdisk.c fdisk.h ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} ${PARTLOGIC} $< -lntfs -lwindow -lvsh -lc -o $@

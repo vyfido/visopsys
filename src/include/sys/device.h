@@ -38,13 +38,14 @@
 #define DEVICECLASS_SYSTIMER                0x0600
 #define DEVICECLASS_RTC                     0x0700
 #define DEVICECLASS_DMA                     0x0800
-#define DEVICECLASS_KEYBOARD                0x0900
-#define DEVICECLASS_MOUSE                   0x0A00
-#define DEVICECLASS_DISK                    0x0B00
-#define DEVICECLASS_GRAPHIC                 0x0C00
-#define DEVICECLASS_NETWORK                 0x0D00
-#define DEVICECLASS_HUB                     0x0E00
-#define DEVICECLASS_STORAGE                 0x0F00
+#define DEVICECLASS_DISKCTRL                0x0900
+#define DEVICECLASS_KEYBOARD                0x0A00
+#define DEVICECLASS_MOUSE                   0x0B00
+#define DEVICECLASS_DISK                    0x0C00
+#define DEVICECLASS_GRAPHIC                 0x0D00
+#define DEVICECLASS_NETWORK                 0x0E00
+#define DEVICECLASS_HUB                     0x0F00
+#define DEVICECLASS_STORAGE                 0x1000
 #define DEVICECLASS_UNKNOWN                 0xFFFF
 
 // Device sub-classes
@@ -61,6 +62,9 @@
 // Sub-classes of buses
 #define DEVICESUBCLASS_BUS_PCI              (DEVICECLASS_BUS | 0x01)
 #define DEVICESUBCLASS_BUS_USB              (DEVICECLASS_BUS | 0x02)
+
+// Sub-classes of disk controllers
+#define DEVICESUBCLASS_DISKCTRL_IDE         (DEVICECLASS_DISKCTRL | 0x01)
 
 // Sub-classes of keyboards
 #define DEVICESUBCLASS_KEYBOARD_USB         (DEVICECLASS_KEYBOARD | 0x01)

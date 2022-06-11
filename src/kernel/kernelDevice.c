@@ -38,6 +38,7 @@ static kernelDeviceClass allClasses[] = {
   { DEVICECLASS_SYSTIMER, "system timer"          },
   { DEVICECLASS_RTC,      "real-time clock (RTC)" },
   { DEVICECLASS_DMA,      "DMA controller"        },
+  { DEVICECLASS_DISKCTRL, "disk controller"       },
   { DEVICECLASS_KEYBOARD, "keyboard"              },
   { DEVICECLASS_MOUSE,    "mouse"                 },
   { DEVICECLASS_DISK,     "disk"                  },
@@ -54,6 +55,7 @@ static kernelDeviceClass allSubClasses[] = {
   { DEVICESUBCLASS_CPU_X86,             "x86"         },
   { DEVICESUBCLASS_BUS_PCI,             "PCI"         },
   { DEVICESUBCLASS_BUS_USB,             "USB"         },
+  { DEVICESUBCLASS_DISKCTRL_IDE,        "IDE"         },
   { DEVICESUBCLASS_KEYBOARD_USB,        "USB"         },
   { DEVICESUBCLASS_MOUSE_PS2,           "PS/2"        },
   { DEVICESUBCLASS_MOUSE_SERIAL,        "serial"      },
@@ -461,11 +463,11 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
   if (vendor[0] || model[0])
     {
       if (vendor[0] && model[0])
-	sprintf(driverString, "\"%s %s\"", vendor, model);
+	sprintf(driverString, "\"%s %s\" ", vendor, model);
       else if (vendor[0])
-	sprintf(driverString, "\"%s\"", vendor);
+	sprintf(driverString, "\"%s\" ", vendor);
       else if (model[0])
-	sprintf(driverString, "\"%s\"", model);
+	sprintf(driverString, "\"%s\" ", model);
     }
 
   if (new->device.subClass)

@@ -260,8 +260,7 @@ int kernelConfigurationReader(const char *fileName, variableList *list)
       return (status);
     }
 
-  // Create the list, based on the size of the file, estimating one variable
-  // for each minimum-sized 'line' of the file
+  // Create the list
   status = kernelVariableListCreate(list);
   if (status < 0)
     {
@@ -275,12 +274,12 @@ int kernelConfigurationReader(const char *fileName, variableList *list)
   while(1)
     {
       status = kernelFileStreamReadLine(&configFile, 256, lineBuffer);
-      if (status <= 0)
+      if (status < 0)
 	// End of file?
 	break;
 
-      // Just a newline or comment?
-      if ((lineBuffer[0] == '\n') || (lineBuffer[0] == '#'))
+      // Just a blank line or comment?
+      if (!status || (lineBuffer[0] == '#'))
 	continue;
 
       variable = lineBuffer;
@@ -361,19 +360,20 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
   // Write line by line for each variable
   for (count = 0; count < list->numVariables; count ++)
     {
-      // If we successfully opened an old file, first try to to stuff in sync
+      // If we successfully opened an old file, first try to keep stuff in sync
       // with the line numbers
       if (oldFile)
 	{
 	  strcpy(lineBuffer, "#");
-	  while ((lineBuffer[0] == '#') || (lineBuffer[0] == '\n'))
+	  while (lineBuffer[0] == '#')
 	    {
 	      status =
 		kernelFileStreamReadLine(&oldFileStream, 256, lineBuffer);
 	      if (status < 0)
 		break;
 
-	      if ((lineBuffer[0] == '#') || (lineBuffer[0] == '\n'))
+	      // Just a blank line or comment?
+	      if (!status || (lineBuffer[0] == '#'))
 		{
 		  status =
 		    kernelFileStreamWriteLine(&newFileStream, lineBuffer);
@@ -476,10 +476,11 @@ time_t kernelUnixTime(void)
   struct tm timeStruct;
   int count;
 
-  static int month_days[] =
-  { 31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
+  static int month_days[] = {
+    31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
     31, /* May */ 30, /* Jun */ 31, /* Jul */ 31, /* Aug */
-    30, /* Sep */ 31, /* Aug */ 30 /* Nov */ };
+    30, /* Sep */ 31, /* Aug */ 30  /* Nov */
+  };
 
   // Get the date and time according to the kernel
   status = kernelRtcDateTime(&timeStruct);
@@ -539,7 +540,8 @@ int kernelGuidGenerate(kernelGuid *guid)
   int status = 0;
   unsigned long long longTime = 0;
   static unsigned clockSeq = 0;
-  lock globalLock;
+  static lock globalLock;
+  static int initialized = 0;
 
   // Check params
   if (guid == NULL)
@@ -548,13 +550,17 @@ int kernelGuidGenerate(kernelGuid *guid)
       return (status = ERR_NULLPARAMETER);
     }
 
+  if (!initialized)
+    {
+      clockSeq = kernelRandomUnformatted();
+      kernelMemClear((void *) &globalLock, sizeof(lock));
+      initialized = 1;
+    }
+
   // Get the lock
   status = kernelLockGet(&globalLock);
   if (status < 0)
     return (status);
-
-  if (clockSeq == 0)
-    clockSeq = kernelRandomUnformatted();
 
   // Increment the clock
   clockSeq += 1;
@@ -577,16 +583,6 @@ int kernelGuidGenerate(kernelGuid *guid)
   // Random node ID
   *((unsigned *) guid->fields.node) = kernelRandomUnformatted();
   *((unsigned *) (guid->fields.node + 4)) = (kernelRandomUnformatted() >> 16);
-
-  /* 6ba7b810-9dad-11d1-80b4-00c04fd430c8
-  kernelTextPrintLine("GUID %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-		      guid->fields.timeLow, guid->fields.timeMid,
-		      guid->fields.timeHighVers, guid->fields.clockSeqRes,
-		      guid->fields.clockSeqLow, guid->fields.node[0],
-		      guid->fields.node[1], guid->fields.node[2],
-		      guid->fields.node[3], guid->fields.node[4],
-		      guid->fields.node[5]);
-  */
 
   kernelLockRelease(&globalLock);
 

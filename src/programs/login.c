@@ -65,7 +65,6 @@ Options:
                     "change anything."
 #define MAX_LOGIN_LENGTH 64
 
-int main(int argc, char *argv[]) __attribute__((noreturn));
 
 // The following are only used if we are running a graphics mode login window.
 static int graphics = 0;
@@ -342,6 +341,7 @@ static void getLogin(void)
 }
 
 
+__attribute__((noreturn))
 int main(int argc, char *argv[])
 {
   int status = 0;

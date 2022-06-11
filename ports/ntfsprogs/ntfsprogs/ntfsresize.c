@@ -661,7 +661,8 @@ static void progress_message(ntfs_resize_t *resize, const char *fmt, ...)
 
 	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
 	  {
-	    strncpy(resize->prog->statusMessage, tmp, PROGRESS_MAX_MESSAGELEN);
+	    strncpy((char *) resize->prog->statusMessage, tmp,
+		    PROGRESS_MAX_MESSAGELEN);
 	    lockRelease(&(resize->prog->lock));
 	  }
 
@@ -686,7 +687,8 @@ static void _err_printf(ntfs_resize_t *resize, const char *function,
 
 	if (resize->prog && (lockGet(&(resize->prog->lock)) >= 0))
 	  {
-	    strncpy(resize->prog->statusMessage, tmp, PROGRESS_MAX_MESSAGELEN);
+	    strncpy((char *) resize->prog->statusMessage, tmp,
+		    PROGRESS_MAX_MESSAGELEN);
 	    resize->prog->confirmError = 0;
 	    resize->prog->error = 1;
 

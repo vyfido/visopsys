@@ -87,9 +87,10 @@ static void printTree(device *dev, int level)
       printf("%s\n", dev->class.name);
 
       // Print any additional attributes
-      if (dev->attrs.numVariables > 2)
+      for (count1 = 0; count1 < dev->attrs.numVariables; count1 ++)
 	{
-	  for (count1 = 0; count1 < dev->attrs.numVariables; count1 ++)
+	  if (strcmp(dev->attrs.variables[count1], DEVICEATTRNAME_VENDOR) &&
+	      strcmp(dev->attrs.variables[count1], DEVICEATTRNAME_MODEL))
 	    {
 	      for (count2 = 0; count2 <= level; count2 ++)
 		printf("   ");
@@ -112,7 +113,7 @@ static void printTree(device *dev, int level)
   return;
 }
 
-static void quit(int) __attribute__((noreturn));
+__attribute__((noreturn))
 static void quit(int status)
 {
   if (graphics)
@@ -181,7 +182,7 @@ static void constructWindow(void)
 }
 
 
-int main(int, char *[]) __attribute__((noreturn));
+__attribute__((noreturn))
 int main(int argc, char *argv[])
 {
   int status = 0;

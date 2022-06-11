@@ -109,6 +109,7 @@ kernelFileClass *kernelLoaderClassify(const char *, void *, int,
 				      loaderFileClass *);
 kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
 loaderSymbolTable *kernelLoaderGetSymbols(const char *, int);
+int kernelLoaderCheckCommand(const char *);
 int kernelLoaderLoadProgram(const char *, int);
 int kernelLoaderLoadLibrary(const char *);
 kernelDynamicLibrary *kernelLoaderGetLibrary(const char *);

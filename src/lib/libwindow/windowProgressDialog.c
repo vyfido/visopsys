@@ -49,8 +49,8 @@ static void progressThread(void)
   memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 
   windowComponentSetData(progressBar, (void *) prog->percentFinished, 1);
-  windowComponentSetData(statusLabel, prog->statusMessage,
-			 strlen(prog->statusMessage));
+  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
+			 strlen((char *) prog->statusMessage));
   windowComponentSetEnabled(cancelButton, prog->canCancel);
   if (prog->canCancel)
     windowSwitchPointer(dialogWindow, "default");
@@ -70,10 +70,12 @@ static void progressThread(void)
 				       (void *) prog->percentFinished, 1);
 
 	      // Look for status message changes
-	      if (strncmp(prog->statusMessage, lastProg.statusMessage,
+	      if (strncmp((char *) prog->statusMessage,
+			  (char *) lastProg.statusMessage,
 			  PROGRESS_MAX_MESSAGELEN))
-		windowComponentSetData(statusLabel, prog->statusMessage,
-				       strlen(prog->statusMessage));
+		windowComponentSetData(statusLabel,
+				       (char *) prog->statusMessage,
+				       strlen((char *) prog->statusMessage));
 
 	      // Look for 'can cancel' flag changes
 	      if (prog->canCancel != lastProg.canCancel)
@@ -108,7 +110,7 @@ static void progressThread(void)
 	      if (prog->error)
 		{
 		  windowNewErrorDialog(dialogWindow, "Error",
-				       prog->statusMessage);
+				       (char *) prog->statusMessage);
 		  prog->confirmError = 1;
 		  break;
 		}
@@ -179,19 +181,21 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
   params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
 
   if (waitImage.data == NULL)
-    status = imageLoad(WAITIMAGE_NAME, 0, 0, (image *) &waitImage);
-
-  if (status == 0)
     {
-      waitImage.translucentColor.red = 0;
-      waitImage.translucentColor.green = 255;
-      waitImage.translucentColor.blue = 0;
-      imageComp = windowNewImage(dialogWindow, (image *) &waitImage,
-				 draw_translucent, &params);
+      status = imageLoad(WAITIMAGE_NAME, 0, 0, (image *) &waitImage);
+      if (status >= 0)
+	{
+	  waitImage.translucentColor.red = 0;
+	  waitImage.translucentColor.green = 255;
+	  waitImage.translucentColor.blue = 0;
+	}
     }
+  if (waitImage.data)
+    imageComp = windowNewImage(dialogWindow, (image *) &waitImage,
+			       draw_translucent, &params);
 
   // Create the progress bar
-  params.gridX = 1;
+  params.gridX++;
   params.padRight = 5;
   params.orientationX = orient_center;
   params.flags = 0;
@@ -203,7 +207,8 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
     }
 
   // Create the status label
-  params.gridY = 1;
+  params.gridY++;
+  params.orientationX = orient_left;
   statusLabel =
     windowNewTextLabel(dialogWindow, "                                       "
 		       "                                         ", &params);
@@ -214,9 +219,10 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
     }
 
   // Create the Cancel button
-  params.gridY = 2;
+  params.gridY++;
   params.padBottom = 5;
-  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+  params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+  params.orientationX = orient_center;
   cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
   if (cancelButton == NULL)
     {
@@ -259,8 +265,8 @@ _X_ int windowProgressDialogDestroy(objectKey window)
     return (status = ERR_INVALID);
 
   windowComponentSetData(progressBar, (void *) 100, 1);
-  windowComponentSetData(statusLabel, prog->statusMessage,
-			 strlen(prog->statusMessage));
+  windowComponentSetData(statusLabel, (char *) prog->statusMessage,
+			 strlen((char *) prog->statusMessage));
 
   if (multitaskerProcessIsAlive(threadPid))
     // Kill our thread

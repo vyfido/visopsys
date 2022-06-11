@@ -23,15 +23,16 @@
 // system tree.
 
 #include "kernelFile.h"
-#include "kernelFilesystem.h"
+#include "kernelDebug.h"
 #include "kernelDisk.h"
-#include "kernelMalloc.h"
-#include "kernelLock.h"
-#include "kernelSysTimer.h"
-#include "kernelRtc.h"
-#include "kernelMultitasker.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
+#include "kernelFilesystem.h"
+#include "kernelLock.h"
+#include "kernelMalloc.h"
+#include "kernelMisc.h"
+#include "kernelMultitasker.h"
+#include "kernelRtc.h"
+#include "kernelSysTimer.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -341,7 +342,7 @@ static char *fixupPath(const char *originalPath)
       // try prepending the CWD.
       if (kernelCurrentProcess)
 	{
-	  strcpy(newPath, kernelCurrentProcess->currentDirectory);
+	  strcpy(newPath, (char *) kernelCurrentProcess->currentDirectory);
 	  newLength += strlen(newPath);
 	}
 
@@ -1124,7 +1125,7 @@ static int fileDeleteRecursive(kernelFileEntry *delEntry)
 }
 
 
-static int fileCopy(file *sourceFile,  file *destFile)
+static int fileCopy(file *sourceFile, file *destFile)
 {
   // This function is used to copy the data of one (open) file to another
   // (open for creation/writing) file.  Returns 0 on success, negtive
@@ -1147,6 +1148,9 @@ static int fileCopy(file *sourceFile,  file *destFile)
   srcBlocks = sourceFile->blocks;
   destBlocks = max(1, ((sourceFile->size / destFile->blockSize) +
 		       ((sourceFile->size % destFile->blockSize) != 0)));
+
+  kernelDebug(debug_fs, "Copy %s (%u blocks) to %s (%u blocks)",
+	      sourceFile->name, srcBlocks, destFile->name, destBlocks);
 
   // Try to allocate the largest copy buffer that we can.
 

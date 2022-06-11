@@ -35,8 +35,8 @@
 #define DEBUG_SHOWFUNCTION    0x02
 
 typedef enum {
-  debug_all, debug_api, debug_fs, debug_gui, debug_misc, debug_multitasker,
-  debug_scsi, debug_usb
+  debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_misc,
+  debug_multitasker, debug_scsi, debug_usb
 } kernelDebugCategory;
 
 void kernelDebugInitialize(void);

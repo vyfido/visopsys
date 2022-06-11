@@ -314,8 +314,13 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 	  theStream->block += 1;
 
 	  if (theStream->block >= theStream->f.blocks)
-	    // File finished
-	    break;
+	    {
+	      // File finished
+	      if (doneBytes)
+		break;
+	      else
+		return (status = ERR_NODATA);
+	    }
 
 	  status = readBlock(theStream);
 	  if (status < 0)
@@ -373,8 +378,13 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
 	  theStream->block += 1;
 
 	  if (theStream->block >= theStream->f.blocks)
-	    // File finished
-	    break;
+	    {
+	      // File finished
+	      if (doneBytes)
+		break;
+	      else
+		return (status = ERR_NODATA);
+	    }
 
 	  status = readBlock(theStream);
 	  if (status < 0)

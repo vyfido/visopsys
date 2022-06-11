@@ -376,9 +376,38 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName, int dynamic)
 }
 
 
+int kernelLoaderCheckCommand(const char *command)
+{
+  // This takes the string of a command to run and checks whether the
+  // command portion exists.
+
+  int status = 0;
+  processImage checkImage;
+  file tmpFile;
+  
+  // Check params
+  if (command == NULL)
+    {
+      kernelError(kernel_error, "Command line to check is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Set up argc and argv
+  strncpy(checkImage.commandLine, command, MAXSTRINGLENGTH);
+  parseCommand(checkImage.commandLine, &(checkImage.argc), checkImage.argv);
+
+  if (!checkImage.argc)
+    return (status = ERR_NOSUCHFILE);
+
+  // Does the command portion exist?
+  status = kernelFileFind(checkImage.argv[0], &tmpFile);
+  return (status);
+}
+
+
 int kernelLoaderLoadProgram(const char *command, int privilege)
 {
-  // This takes the name of an executable to load and creates a process
+  // This takes the string of a command to run and creates a process
   // image based on the contents of the file.  The program is not started
   // by this function.
 
@@ -404,6 +433,9 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
   // Set up argc and argv
   strncpy(execImage.commandLine, command, MAXSTRINGLENGTH);
   parseCommand(execImage.commandLine, &(execImage.argc), execImage.argv);
+
+  if (!execImage.argc)
+    return (status = ERR_NOSUCHFILE);
 
   // Load the program code/data into memory
   loadAddress =
