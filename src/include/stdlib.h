@@ -67,6 +67,10 @@ void *realloc(void *, size_t);
 void srand(unsigned int);
 int system(const char *);
 
+// Not sure where else to put these
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 // For dealing with unimplemented functions
 #define not_implemented_void()   \
   {                              \

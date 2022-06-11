@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/vsh.h>
 #include <sys/file.h>
@@ -38,7 +39,6 @@
 static int myProcId, myPrivilege;
 static char cwd[MAX_PATH_LENGTH];
 static int promptCatchup = 0;
-
 
 static void showPrompt(void)
 {
@@ -60,28 +60,22 @@ static void interpretCommand(char *commandLine)
   int status = 0;
   int bufferCounter = 0;
   int argc = 0;
-  char *argv[MAX_ARGS];
   char argv_memory[MAX_ARGS * MAX_STRING_LENGTH];
-  char fileName[MAX_PATH_NAME_LENGTH];
-  char srcName[MAX_PATH_NAME_LENGTH];
-  char destName[MAX_PATH_NAME_LENGTH];
+  char *argv[MAX_ARGS];
+  char name1[MAX_PATH_NAME_LENGTH];
+  char name2[MAX_PATH_NAME_LENGTH];
   char getEnvBuff[MAX_ENVVAR_LENGTH];
   file theFile;
-  int count, count2;
   int temp = 0;
-
+  int block = 1;
+  int count;
 
   // Initialize the strings
-
+  bzero(argv_memory, (MAX_ARGS * MAX_STRING_LENGTH));
   for (count = 0; count < MAX_ARGS; count ++)
     argv[count] = (argv_memory + (count * MAX_STRING_LENGTH));
-  for (count = 0; count < MAX_ARGS; count ++)
-      for (count2 = 0; count2 < MAX_STRING_LENGTH; count2 ++)
-	argv[count][count2] = (char) 0;
-
-  for (count = 0; count < MAX_PATH_NAME_LENGTH; count ++)
-    fileName[count] = (char) 0;
-  
+  name1[0] = '\0';
+  name2[0] = '\0';
 
   // We have to separate the command and arguments into an array of
   // strings
@@ -138,7 +132,7 @@ static void interpretCommand(char *commandLine)
     // Nothing
     return;
 
-  // Try to match the command with the list of known commands
+  // Try to match the command with the list of built-in commands
   
   if (!strcmp(argv[0], "pwd"))
     printf("%s\n", cwd);
@@ -146,14 +140,14 @@ static void interpretCommand(char *commandLine)
   else if (!strcmp(argv[0], "cd"))
     {
       if (argc > 1)
-	vshMakeAbsolutePath(argv[1], fileName);
+	vshMakeAbsolutePath(argv[1], name1);
 
       else
 	// No arg means / for now
-	strncpy(fileName, "/", 2);
+	strncpy(name1, "/", 2);
 
       // Fix up the cwd and make it official
-      fileFixupPath(fileName, cwd);
+      fileFixupPath(name1, cwd);
       temp = multitaskerSetCurrentDirectory(cwd);
 
       // Were we successful?  If not, call back the multitasker to set it
@@ -178,8 +172,8 @@ static void interpretCommand(char *commandLine)
 	    // If any of the arguments are RELATIVE pathnames, we should
 	    // insert the pwd before it
 
-	    vshMakeAbsolutePath(argv[count], fileName);
-	    vshFileList(fileName);
+	    vshMakeAbsolutePath(argv[count], name1);
+	    vshFileList(name1);
 	  }
     }
 
@@ -192,8 +186,8 @@ static void interpretCommand(char *commandLine)
 	    {
 	      // If any of the arguments are RELATIVE pathnames, we should
 	      // insert the pwd before it
-	      vshMakeAbsolutePath(argv[count], fileName);
-	      vshDumpFile(fileName);
+	      vshMakeAbsolutePath(argv[count], name1);
+	      vshDumpFile(name1);
 	    }
 	}
       else
@@ -211,8 +205,8 @@ static void interpretCommand(char *commandLine)
 	  {
 	    // If any of the arguments are RELATIVE pathnames, we should
 	    // insert the pwd before it
-	    vshMakeAbsolutePath(argv[count], fileName);
-	    vshDeleteFile(fileName);
+	    vshMakeAbsolutePath(argv[count], name1);
+	    vshDeleteFile(name1);
 	  }
       
       else
@@ -229,9 +223,9 @@ static void interpretCommand(char *commandLine)
 	{
 	  // If any of the arguments are RELATIVE pathnames, we should
 	  // insert the pwd before it
-	  vshMakeAbsolutePath(argv[1], srcName);
-	  vshMakeAbsolutePath(argv[2], destName);
-	  vshCopyFile(srcName, destName);
+	  vshMakeAbsolutePath(argv[1], name1);
+	  vshMakeAbsolutePath(argv[2], name2);
+	  vshCopyFile(name1, name2);
 	}
       else
 	{
@@ -247,9 +241,9 @@ static void interpretCommand(char *commandLine)
 	{
 	  // If any of the arguments are RELATIVE pathnames, we should
 	  // insert the pwd before it
-	  vshMakeAbsolutePath(argv[1], srcName);
-	  vshMakeAbsolutePath(argv[2], destName);
-	  vshRenameFile(srcName, destName);
+	  vshMakeAbsolutePath(argv[1], name1);
+	  vshMakeAbsolutePath(argv[2], name2);
+	  vshRenameFile(name1, name2);
 	}
       else
 	{
@@ -264,7 +258,6 @@ static void interpretCommand(char *commandLine)
       if (argc == 2)
 	{
 	  status = environmentGet(argv[1], getEnvBuff, MAX_ENVVAR_LENGTH);
-
 	  if (status < 0)
 	    {
 	      errno = status;
@@ -337,20 +330,20 @@ static void interpretCommand(char *commandLine)
   else
     {
       // We want to check for the case that the user has typed the
-      // name of a program he wants to execute
+      // name of a program (s)he wants to execute
 
       // If the command is a RELATIVE pathname, we will try inserting the 
       // pwd before it.  This has the effect of always putting '.' in
       // the PATH
-      vshMakeAbsolutePath(argv[0], fileName);
+      vshMakeAbsolutePath(argv[0], name1);
 
       // Does the file exist?
-      status = fileFind(fileName, &theFile);
+      status = fileFind(name1, &theFile);
       if (status < 0)
 	{
 	  // Not found in the current directory.  Let's try searching the
 	  // PATH for the file instead
-	  status = vshSearchPath(argv[0], fileName);
+	  status = vshSearchPath(argv[0], name1);
 	  if (status < 0)
 	    {
 	      // Not found
@@ -360,10 +353,19 @@ static void interpretCommand(char *commandLine)
 	    }
 	}
 
-      if ((argc > 1) && (argv[argc - 1][0] == '&'))
-	loaderLoadAndExec(fileName, myPrivilege, argc, argv, 0 /* no block */);
-      else
-	loaderLoadAndExec(fileName, myPrivilege, argc, argv, 1 /* block */);
+      if (argv[argc - 1][0] == '&')
+	{
+	  block = 0;
+	  argv[argc - 1][0] = '\0';
+	}
+
+      // Shift the arg list down by one, as the exec function will prepend
+      // it when starting the program
+      for (count = 1; count < argc; count ++)
+	argv[count - 1] = argv[count];
+      argc -= 1;
+
+      loaderLoadAndExec(name1, myPrivilege, argc, argv, block);
     }
 
   return;
@@ -386,7 +388,7 @@ static void simpleShell(void)
 
 
   for (count1 = 0; count1 < COMMANDHISTORY; count1 ++)
-    for (count2 = 0; count2 < 256; count2++)
+    for (count2 = 0; count2 < MAX_LINELENGTH; count2++)
        commandHistory[count1][count2] = '\0';
 
   // Start at the first command buffer
@@ -400,13 +402,6 @@ static void simpleShell(void)
 	promptCatchup = 0;
 
       bufferCharacter = getchar();
-
-      if (errno)
-	{
-	  // Eek.  We can't get input.  Quit.
-	  perror("vsh");
-	  return;
-	}
 
       // These numbers are ASCII codes.  Some are Visopsys specific ASCII
       // codes that make use of 'unused' spots.  Specifically the DC1-DC4
@@ -489,11 +484,13 @@ static void simpleShell(void)
 	  strcpy(commandBuffer, commandHistory[selectedCommand]);
 	  // Print result to the screen
 	  printf(commandBuffer);
-	  // Correct currentCharacter length so that
-	  // it's as if we've typed it ourselves.
+	  // Correct currentCharacter length so that it's as if we've typed
+	  // it ourselves.
 	  currentCharacter = strlen(commandBuffer);
 	}
-	  
+
+      /*
+      // This is not useful without line editing, and can confuse people
       else if (bufferCharacter == (unsigned char) 18)
 	// This is the LEFT cursor key
 	textCursorLeft();
@@ -501,12 +498,13 @@ static void simpleShell(void)
       else if (bufferCharacter == (unsigned char) 19)
 	// This is the RIGHT cursor key
 	textCursorRight();
+      */
 	  
       else if (bufferCharacter == (unsigned char) 13)
 	{
 	  // This is the HOME key, which normally puts the cursor at
 	  // the beginning of the line, but we use it to clear the screen
-	  textClearScreen();
+	  textScreenClear();
 	      
 	  // Show a new prompt
 	  showPrompt();
@@ -580,14 +578,22 @@ static void simpleShell(void)
 	      else
 		interpretCommand(commandBuffer);
 
-	      // We move to the next command buffer
-	      if (currentCommand < (COMMANDHISTORY - 1))
-		currentCommand++;
-	      else
-		currentCommand = 0;
+	      if (((currentCommand > 0) &&
+		   strcmp(commandBuffer,
+			  commandHistory[currentCommand - 1])) ||
+		  ((currentCommand == 0) &&
+		   strcmp(commandBuffer,
+			  commandHistory[COMMANDHISTORY - 1])))
+		{
+		  // We move to the next command buffer
+		  if (currentCommand < (COMMANDHISTORY - 1))
+		    currentCommand++;
+		  else
+		    currentCommand = 0;
+		}
 
 	      selectedCommand = currentCommand;
-
+	      
 	      commandBuffer = commandHistory[currentCommand];
 	      commandBuffer[0] = '\0';
 	    }
@@ -659,7 +665,7 @@ int main(int argc, char *argv[])
   myPrivilege = multitaskerGetProcessPrivilege(myProcId);
 
   // If we have a -c option, we just execute the command
-  if ((argc > 2) && !strncmp(argv[1], "-c", 2))
+  if ((getopt(argc, argv, "c") != -1) && (argc > 2))
     {
       // Operating in non-interactive mode.
 

@@ -22,66 +22,65 @@
 # This makefile builds all the necessary parts of the boot sector and OS
 # loader.
 
+BOOTBUILDDIR=../../build/system/boot
+LOADERBUILDDIR=../../build
+
 AS		= nasm
 CC		= gcc
 OPTS		= -f aout -w+orphan-labels
 LINKOPTS	= -mcpu=pentium -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
 STDDEPEND	= loader.h Makefile
-OBJS		= build/loaderMain.o \
-		build/loaderVideo.o \
-		build/loaderDetectHardware.o \
-		build/loaderLoadFile.o \
-		build/loaderLoadKernel.o \
-		build/loaderDiskError.o \
-		build/loaderPrintRoutines.o
+OBJS		= obj/loaderMain.o \
+		obj/loaderVideo.o \
+		obj/loaderDetectHardware.o \
+		obj/loaderLoadFile.o \
+		obj/loaderLoadKernel.o \
+		obj/loaderDiskError.o \
+		obj/loaderPrintRoutines.o
 
+all: target-dirs bootsectors ${LOADERBUILDDIR}/vloader
 
-all: target-dir bootsectors build/vloader
+target-dirs:
+	mkdir -p obj ${BOOTBUILDDIR} ${LOADERBUILDDIR}
 
-bootsectors: build/bootsect.fatnoboot build/bootsect.fat12
-
-target-dir:
-	#
-	#  Making OS-loader
-	#
-	mkdir -p build
+bootsectors: ${BOOTBUILDDIR}/bootsect.fatnoboot ${BOOTBUILDDIR}/bootsect.fat12
 
 #
 # Boot sector files
 #
 
-build/bootsect.fat12: bootsect-fat12.s ${STDDEPEND}
-	${AS} -f bin -w+orphan-labels bootsect-fat12.s -o $@
-
-build/bootsect.fatnoboot: bootsect-fatnoboot.s ${STDDEPEND}
+${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s ${STDDEPEND}
 	${AS} -f bin -w+orphan-labels bootsect-fatnoboot.s -o $@
+
+${BOOTBUILDDIR}/bootsect.fat12: bootsect-fat12.s ${STDDEPEND}
+	${AS} -f bin -w+orphan-labels bootsect-fat12.s -o $@
 
 #
 # Loader files
 #
 
-build/vloader: ${OBJS} ${STDDEPEND}
+${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPEND}
 	${CC} -nodefaultlibs -nostartfiles -O2 -Wall ${LINKOPTS} ${OBJS} -o $@
 
-build/loaderMain.o: loaderMain.s ${STDDEPEND}
+obj/loaderMain.o: loaderMain.s ${STDDEPEND}
 	${AS} ${OPTS} loaderMain.s -o $@
 
-build/loaderVideo.o: loaderVideo.s ${STDDEPEND}
+obj/loaderVideo.o: loaderVideo.s ${STDDEPEND}
 	${AS} ${OPTS} loaderVideo.s -o $@
 
-build/loaderDetectHardware.o: loaderDetectHardware.s ${STDDEPEND}
+obj/loaderDetectHardware.o: loaderDetectHardware.s ${STDDEPEND}
 	${AS} ${OPTS} loaderDetectHardware.s -o $@
 
-build/loaderDiskError.o: loaderDiskError.s ${STDDEPEND}
+obj/loaderDiskError.o: loaderDiskError.s ${STDDEPEND}
 	${AS} ${OPTS} loaderDiskError.s -o $@
 
-build/loaderLoadFile.o: loaderLoadFile.s ${STDDEPEND}
+obj/loaderLoadFile.o: loaderLoadFile.s ${STDDEPEND}
 	${AS} ${OPTS} loaderLoadFile.s -o $@
 
-build/loaderLoadKernel.o: loaderLoadKernel.s ${STDDEPEND}
+obj/loaderLoadKernel.o: loaderLoadKernel.s ${STDDEPEND}
 	${AS} ${OPTS} loaderLoadKernel.s -o $@
 
-build/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
+obj/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
 	${AS} ${OPTS} loaderPrintRoutines.s -o $@
 
 #
@@ -89,4 +88,5 @@ build/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
 #
 
 clean:
-	rm -Rf *~ *.o core build
+	rm -Rf *~ *.o core obj
+	rm -Rf ${BOOTBUILDDIR} ${LOADERBUILDDIR}/vloader

@@ -1,24 +1,6 @@
 #!/bin/sh
-##
-##  Visopsys
-##  Copyright (C) 1998-2004 J. Andrew McLaughlin
-## 
-##  This program is free software; you can redistribute it and/or modify it
-##  under the terms of the GNU General Public License as published by the Free
-##  Software Foundation; either version 2 of the License, or (at your option)
-##  any later version.
-## 
-##  This program is distributed in the hope that it will be useful, but
-##  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-##  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-##  for more details.
-##  
-##  You should have received a copy of the GNU General Public License along
-##  with this program; if not, write to the Free Software Foundation, Inc.,
-##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-##
-##  image-floppy.sh
-##
+
+# Installs the Visopsys system into a zipped floppy image file
 
 echo ""
 echo "Making Visopsys FLOPPY IMAGE file"
@@ -28,33 +10,36 @@ echo ""
 # the release number in the destination directory name.  Otherwise, we
 # assume an interim package and use the date instead
 if [ "$1" == "-r" ] ; then
-	echo "(doing RELEASE version)"
-	echo ""
-	# What is the current release version?
-	RELEASE=`./release.sh`
+    # What is the current release version?
+    RELEASE=`./release.sh`
+    echo "(doing RELEASE version $RELEASE)"
+    echo ""
 else
-	echo "(doing INTERIM version -- use -r flag for RELEASES)"
-	echo ""
-	# What is the date?
-	RELEASE=`date +%Y-%m-%d`
+    # What is the date?
+    RELEASE=`date +%Y-%m-%d`
+    echo "(doing INTERIM version $RELEASE -- use -r flag for RELEASES)"
+    echo ""
 fi
 
-NAME=visopsys-$RELEASE
-IMAGEFILE=floppy.img #$NAME.img
-ZIPFILE=$NAME-img.zip
+NAME=visopsys-"$RELEASE"
+IMAGEFILE="$NAME".img
+ZIPFILE="$NAME"-img.zip
 
 rm -f $IMAGEFILE
-cp blankfloppy.gz $IMAGEFILE.gz
-gunzip $IMAGEFILE.gz
+cp blankfloppy.gz "$IMAGEFILE".gz
+gunzip "$IMAGEFILE".gz
 
-./install.sh $IMAGEFILE
+./install.sh -basic $IMAGEFILE
+if [ $? -ne 0 ] ; then
+    exit $?
+fi
 
 echo "Visopsys $RELEASE Image Release" > /tmp/comment
 echo "Copyright (C) 1998-2004 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $IMAGEFILE < /tmp/comment >& /dev/null
 
-rm /tmp/comment
+rm -f /tmp/comment $IMAGEFILE
 
 echo ""
 echo "File is: $ZIPFILE"

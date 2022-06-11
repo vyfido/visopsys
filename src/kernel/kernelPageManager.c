@@ -98,7 +98,7 @@ static int countFreePages(kernelPageDirectory *directory)
     {
       table = findPageTable(directory, tableNumber);
 
-      if (table != NULL)
+      if (table)
 	freePages += table->freePages;
     }
 
@@ -1065,7 +1065,6 @@ void *kernelPageGetDirectory(int processId)
 
   // Find the appropriate page directory
   directory = findPageDirectory(processId);
-
   if (directory == NULL)
     return (NULL);
 
@@ -1101,8 +1100,6 @@ void *kernelPageNewDirectory(int processId, int privilege)
 
   // Create a page directory for the process
   directory = createPageDirectory(processId, privilege);
-
-  // Is it OK?
   if (directory == NULL)
     return (physicalAddress = NULL);
 
@@ -1112,8 +1109,6 @@ void *kernelPageNewDirectory(int processId, int privilege)
   
   // Create an initial page table in the page directory, in the first spot
   table = createPageTable(directory, 0); // slot 0
-
-  // Is it OK?
   if (table == NULL)
     {
       // Deallocate the page directory we created.  Don't unlock it since
@@ -1152,7 +1147,6 @@ void *kernelPageShareDirectory(int parentId, int childId)
 
   // Find the page directory belonging to the parent process
   parentDirectory = findPageDirectory(parentId);
-
   if (parentDirectory == NULL)
     return (physicalAddress = NULL);
 
@@ -1228,10 +1222,9 @@ int kernelPageDeleteDirectory(int processId)
     {
       table = findPageTable(directory, count);
 
-      if (table != NULL)
+      if (table)
 	{
 	  status = deletePageTable(directory, table);
-	  
 	  if (status < 0)
 	    {
 	      kernelLockRelease(&(directory->dirLock));
@@ -1257,7 +1250,6 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
-  void *mappedAddress = NULL;
 
   // Have we been initialized?
   if (!initialized)
@@ -1265,7 +1257,6 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
 
   // Find the appropriate page directory
   directory = findPageDirectory(processId);
-
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -1273,17 +1264,11 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
   if (status < 0)
     return (status = ERR_NOLOCK);
   
-  status = map(directory, physicalAddress, &mappedAddress, size);
+  status = map(directory, physicalAddress, virtualAddress, size);
 
   kernelLockRelease(&(directory->dirLock));
 
-  if (status < 0)
-    return (status);
-
-  *virtualAddress = mappedAddress;
-
-  // Return success
-  return (status = 0);
+  return (status);
 }
 
 
@@ -1302,7 +1287,6 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 
   // Find the appropriate page directory
   directory = findPageDirectory(processId);
-
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
@@ -1314,19 +1298,15 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 
   kernelLockRelease(&(directory->dirLock));
 
-  if (status < 0)
-    return (status);
-
-  // Return success
-  return (status = 0);
+  return (status);
 }
 
 
 void *kernelPageGetPhysical(int processId, void *virtualAddress)
 {
   // Let's get physical.  I wanna get physical.  Let me hear your body talk.
-  // This function is mostly a wrapper function for the getPhysical
-  // function defined above.
+  // Return the physical address mapped to this virtual address.  The
+  // virtualAddress parameter is allowed to be NULL.
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
@@ -1338,7 +1318,6 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
   
   // Find the appropriate page directory
   directory = findPageDirectory(processId);
-
   if (directory == NULL)
     return (address = NULL);
 

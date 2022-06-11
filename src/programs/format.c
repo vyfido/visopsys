@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/api.h>
 
@@ -106,6 +107,7 @@ static int copyBootSector(const char *destDisk)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char opt;
   int availableDisks = 0;
   int diskNumber = -1;
   char *diskName = NULL;
@@ -129,35 +131,28 @@ int main(int argc, char *argv[])
   // By default, we do 'generic' (i.e. let the driver make decisions) FAT.
   strcpy(type, "fat");
 
-  if (argc >= 2)
+  // Check for -t ('type') option
+  while ((opt = getopt(argc, argv, "t:")) != -1)
     {
-      for (count1 = 1; count1 < argc; count1 ++)
+      if (opt == ':')
 	{
-	  if (!strncmp(argv[count1], "-t", 2))
-	    {
-	      if (argv[count1][2] == '\0')
-		{
-		  count1++;
-		  strcpy(type, argv[count1]);
-		}
-	      else
-		strcpy(type, (argv[count1] + 2));
-	      continue;
-	    }
-	  else
-	    {
-	      // The user can specify the disk name as an argument.  Try to see
-	      // whether they did so.
-	      for (count2 = 0; count2 < availableDisks; count2 ++)
-		if (!strcmp(diskInfo[count2].name, argv[count1]))
-		  {
-		    diskNumber = count2;
-		    break;
-		  }
-	      if (diskNumber > 0)
-		continue;
-	    }
+	  printf("\nMissing type argument to '-t' option\n\n");
+	  return (errno = ERR_NULLPARAMETER);
 	}
+
+      strcpy(type, optarg);
+    }
+
+  if (argc > 2)
+    {
+      // The user can specify the disk name as an argument.  Try to see
+      // whether they did so.
+      for (count2 = 0; count2 < availableDisks; count2 ++)
+	if (!strcmp(diskInfo[count2].name, argv[argc - 1]))
+	  {
+	    diskNumber = count2;
+	    break;
+	  }
     }
 
   // Print a message
@@ -167,7 +162,7 @@ int main(int argc, char *argv[])
   // Check privilege level
   if (multitaskerGetProcessPrivilege(multitaskerGetCurrentProcessId()) != 0)
     {
-      printf("You must be a privileged user to use this command.\n(Try "
+      printf("\nYou must be a privileged user to use this command.\n(Try "
 	     "logging in as user \"admin\")\n\n");
       return (errno = ERR_PERMISSION);
     }

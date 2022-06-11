@@ -5,7 +5,7 @@
 ;; You're free to use this code in any manner you like, as long as this
 ;; notice is included (and you give credit where it is due), and as long
 ;; as you understand and accept that it comes with NO WARRANTY OF ANY KIND.
-;; Contact me at jamesamc@yahoo.com about any bugs or problems.
+;; Contact me at <andy@visopsys.org> about any bugs or problems.
 ;;
 
 	;; Change this to zero if you don't require Linear Framebuffer

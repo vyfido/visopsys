@@ -21,13 +21,17 @@
 
 # This is the top-level Makefile.
 
+BUILDDIR=build
+
 all:
-	find . -type f -a ! -name \*.sh -exec chmod -x {} \;
-	make -C utils -f Makefile all
-	make -C src -f Makefile all
+	mkdir -p ${BUILDDIR}/system
+	cp COPYING.txt ${BUILDDIR}/system/
+	make -C utils
+	make -C src
 
 clean:
-	find . -type f -a ! -name \*.sh -exec chmod -x {} \;
-	make -C src -f Makefile clean
-	make -C utils -f Makefile clean
 	rm -f *~ core
+	make -C src clean
+	make -C utils clean
+	rm -Rf ${BUILDDIR}
+	find . -type f -a ! -name \*.sh -exec chmod -x {} \;

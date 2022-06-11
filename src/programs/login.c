@@ -20,31 +20,36 @@
 //
 
 // This is the current login process for Visopsys.
-// TEMP TEMP TEMP : At the moment it doesn't really do anything except
-// require the user to pick a login name, and launch the VSH process.
 
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/window.h>
 #include <sys/errors.h>
 #include <sys/api.h>
 
 #define LOGIN_SHELL "/programs/vsh"
-#define LOGINPROMPT1 "Please enter your login name."
-#define LOGINPROMPT2 "[any login name is currently acceptable]"
-#define LOGINPROMPT3 "login: "
-#define MAX_LOGIN_LENGTH 100
+#define AUTHFAILED  "Authentication failed"
+#define LOGINNAME   "Please enter your login name:"
+#define LOGINPASS   "Please enter your password:"
+#define READONLY    "You are running the system from a read-only device.\n" \
+                    "You will not be able to alter settings, or generally\n" \
+                    "change anything."
+#define MAX_LOGIN_LENGTH 64
 
 // The following are only used if we are running a graphics mode login window.
 static int graphics = 0;
+static int readOnly = 1;
 static objectKey window = NULL;
-static objectKey textField = NULL;
+static objectKey textLabel = NULL;
+static objectKey loginField = NULL;
+static objectKey passwordField = NULL;
 static objectKey rebootButton = NULL;
 static objectKey shutdownButton = NULL;
 
 static char login[MAX_LOGIN_LENGTH];
-static int currentCharacter = 0;
+static char password[MAX_LOGIN_LENGTH];
 
 typedef enum 
 {  
@@ -79,20 +84,29 @@ static void showVersion(void)
 static void printPrompt(void)
 {
   // Print the login: prompt
-  printf("%s\n%s", LOGINPROMPT2, LOGINPROMPT3);
+  printf("%s", "login: ");
   return;
 }
 
 
-static void processChar(unsigned char bufferCharacter)
+static void processChar(char *buffer, unsigned char bufferChar, int echo)
 {
-  static char *tooLong = "That login name is too long.";
+  int currentCharacter = 0;
+  char *tooLong = NULL;
+  static char *loginTooLong = "That login name is too long.";
+  static char *passwordTooLong = "That password is too long.";
+
+  if (buffer == login)
+    tooLong = loginTooLong;
+  else if (buffer == password)
+    tooLong = passwordTooLong;
+
+  currentCharacter = strlen(buffer);
 
   // Make sure our buffer isn't full
-  if (currentCharacter >= MAX_LOGIN_LENGTH)
+  if (currentCharacter >= (MAX_LOGIN_LENGTH - 1))
     {
-      currentCharacter = 0;
-      login[currentCharacter] = '\0';
+      buffer[0] = '\0';
       printf("\n");
 
       if (graphics)
@@ -105,33 +119,28 @@ static void processChar(unsigned char bufferCharacter)
       return;
     }
   
-  if (bufferCharacter == (unsigned char) 8)
+  if (bufferChar == (unsigned char) 8)
     {
       if (currentCharacter > 0)
 	{
+	  buffer[currentCharacter - 1] = '\0';
 	  textBackSpace();
-	  
-	  // Move the current character back by 1
-	  currentCharacter--;
 	}
     }
-  
-  else if (bufferCharacter == (unsigned char) 10)
-    {
-      // Put a null in at the end of the login buffer
-      login[currentCharacter] = '\0';
-      
-      // Print the newline
-      printf("\n");
 
-      currentCharacter = 0;
-    }
+  else if (bufferChar == (unsigned char) 10)
+    printf("\n");
   
   else
     {
       // Add the current character to the login buffer
-      login[currentCharacter++] = bufferCharacter;
-      textPutc(bufferCharacter);
+      buffer[currentCharacter] = bufferChar;
+      buffer[currentCharacter + 1] = '\0';
+
+      if (echo)
+	textPutc(bufferChar);
+      else
+	textPutc((int) '*');
     }
 
   return;
@@ -140,6 +149,8 @@ static void processChar(unsigned char bufferCharacter)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
+  static int stage = 0;
+
   if (event->type == EVENT_MOUSE_UP)
     {
       if (key == rebootButton)
@@ -148,15 +159,32 @@ static void eventHandler(objectKey key, windowEvent *event)
 	shutdown(halt, 0);
     }
 
-  else if (event->type == EVENT_KEY_DOWN)
+  else if ((event->type == EVENT_KEY_DOWN) && (event->key == 10))
     {
-      processChar((unsigned char) event->key);
-
-      if (event->key == 10)
+      // Get the data from our field
+      if (stage == 0)
 	{
-	  if (strcmp(login, ""))
-	    // Now we interpret the login
-	    windowGuiStop();
+	  windowComponentGetData(loginField, login, MAX_LOGIN_LENGTH);
+	  windowComponentSetData(loginField, "", 0);
+	  if (!strcmp(login, ""))
+	    return;
+	  windowComponentSetData(textLabel, LOGINPASS, strlen(LOGINPASS));
+	  windowComponentSetVisible(loginField, 0);
+	  windowComponentSetVisible(passwordField, 1);
+	  windowComponentFocus(passwordField);
+	  stage = 1;
+	}
+      else
+	{
+	  windowComponentGetData(passwordField, password, MAX_LOGIN_LENGTH);
+	  windowComponentSetData(passwordField, "", 0);
+	  windowComponentSetData(textLabel, LOGINNAME, strlen(LOGINNAME));
+	  windowComponentSetVisible(passwordField, 0);
+	  windowComponentSetVisible(loginField, 1);
+	  windowComponentFocus(loginField);
+	  stage = 0;
+	  // Now we interpret the login
+	  windowGuiStop();
 	}
     }
 }
@@ -171,11 +199,13 @@ static void constructWindow(int myProcessId)
   componentParameters params;
   static image splashImage;
   objectKey imageComponent = NULL;
-  objectKey textLabel1 = NULL;
-  objectKey textLabel2 = NULL;
+
+  // This function can be called multiple times.  Clear any event handlers
+  // from previous calls
+  windowClearEventHandlers();
 
   // Create a new window, with small, arbitrary size and location
-  window = windowManagerNewWindow(myProcessId, "Login Window", 0, 0, 400, 400);
+  window = windowNew(myProcessId, "Login Window");
   if (window == NULL)
     return;
 
@@ -190,223 +220,223 @@ static void constructWindow(int myProcessId)
   params.orientationX = orient_center;
   params.orientationY = orient_top;
   params.hasBorder = 0;
-  params.useDefaultForeground = 0;
-  params.foreground.red = 40;
-  params.foreground.green = 93;
-  params.foreground.blue = 171;
+  params.stickyFocus = 0;
+  params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
   if (splashImage.data == NULL)
     // Try to load a splash image to go at the top of the window
     status = imageLoadBmp("/system/visopsys.bmp", &splashImage);
-
   if (splashImage.data != NULL)
     {
       // Create an image component from it, and add it to the window
-      imageComponent = windowNewImage(window, &splashImage);
-      if (imageComponent != NULL)
-	{
-	  params.gridY = 0;
-	  windowAddClientComponent(window, imageComponent, &params);
-	}
+      params.gridY = 0;
+      imageComponent = windowNewImage(window, &splashImage, draw_normal,
+				      &params);
     }
 
   // Put text labels in the window to prompt the user
-  textLabel1 = windowNewTextLabel(window, NULL, LOGINPROMPT1);
-  if (textLabel1 != NULL)
-    {
-      // Put it in the client area of the window
-      params.gridY = 1;
-      windowAddClientComponent(window, textLabel1, &params);
-    }
+  params.gridY = 1;
+  textLabel = windowNewTextLabel(window, NULL, LOGINNAME, &params);
 
-  textLabel2 = windowNewTextLabel(window, NULL, LOGINPROMPT2);
-  if (textLabel2 != NULL)
-    {
-      // Put it in the client area of the window
-      params.gridY = 2;
-      params.padTop = 0;
-      windowAddClientComponent(window, textLabel2, &params);
-    }
+  // Add a login field
+  params.gridY = 2;
+  params.hasBorder = 1;
+  loginField = windowNewTextField(window, 30, NULL /* default font*/, &params);
+  windowRegisterEventHandler(loginField, &eventHandler);
 
-  // Put a text field in the window for the user to type
-  textField = windowNewTextField(window, 30, NULL /* default font*/);
-  if (textField != NULL)
-    {
-      // Put it in the client area of the window
-      params.gridY = 3;
-      params.padTop = 5;
-      params.padBottom = 5;
-      params.hasBorder = 1;
-      params.useDefaultBackground = 0;
-      params.background.red = 255;
-      params.background.green = 255;
-      params.background.blue = 255;
-      windowAddClientComponent(window, textField, &params);
-      windowRegisterEventHandler(textField, &eventHandler);
-    }
+  // Add a password field
+  passwordField = windowNewPasswordField(window, 30, NULL /* default font*/,
+					 &params);
+  windowComponentSetVisible(passwordField, 0);
+  windowRegisterEventHandler(passwordField, &eventHandler);
 
   // Create a 'reboot' button
-  rebootButton = windowNewButton(window, 30, 20,
-				 windowNewTextLabel(window, NULL, "Reboot"),
-				 NULL);
-  if (rebootButton != NULL)
-    {
-      // Put it in the client area of the window
-      params.gridX = 0;
-      params.gridY = 4;
-      params.gridWidth = 1;
-      params.padTop = 5;
-      params.padBottom = 5;
-      params.orientationX = orient_right;
-      params.hasBorder = 0;
-      params.useDefaultForeground = 0;
-      params.useDefaultBackground = 1;
-      windowAddClientComponent(window, rebootButton, &params);
-      windowRegisterEventHandler(rebootButton, &eventHandler);
-    }
+  params.gridY = 3;
+  params.gridWidth = 1;
+  params.padBottom = 5;
+  params.orientationX = orient_right;
+  params.hasBorder = 0;
+  rebootButton = windowNewButton(window, "Reboot", NULL, &params);
+  windowRegisterEventHandler(rebootButton, &eventHandler);
 
   // Create a 'shutdown' button
-  shutdownButton = windowNewButton(window, 30, 20, windowNewTextLabel(window,
-					      NULL, "Shut down"), NULL);
-  if (shutdownButton != NULL)
-    {
-      // Put it in the client area of the window
-      params.gridX = 1;
-      params.orientationX = orient_left;
-      windowAddClientComponent(window, shutdownButton, &params);
-      windowRegisterEventHandler(shutdownButton, &eventHandler);
-    }
+  params.gridX = 1;
+  params.orientationX = orient_left;
+  shutdownButton = windowNewButton(window, "Shut down", NULL, &params);
+  windowRegisterEventHandler(shutdownButton, &eventHandler);
 
-  // Don't want the user closing this window.  It will just confuse them later.
+  // Don't want the user closing this window.  It will just confuse them
+  // later because they won't be able to login unless they use the 'F1'
+  // trick.
   windowSetHasCloseButton(window, 0);
-
-  windowLayout(window);
-
-  // Autosize the window to fit our text area
-  windowAutoSize(window);
-
-  windowCenter(window);
 
   return;
 }
 
 
-int main(int argc, char *argv[])
+static void getLogin(void)
 {
   char bufferCharacter = '\0';
+
+  // Clear the login name and password buffers
+  login[0] = '\0';
+  password[0] = '\0';
+      
+  // Turn keyboard echo off
+  textInputSetEcho(0);
+  
+  if (graphics)
+    {
+      windowComponentSetData(loginField, "", 0);
+      windowComponentFocus(loginField);
+      windowGuiRun();
+    }
+  else
+    {
+      printf("\n");
+      printPrompt();
+
+      // This loop grabs characters
+      while(1)
+	{
+	  bufferCharacter = getchar();
+	  processChar(login, bufferCharacter, 1);
+	  
+	  if (bufferCharacter == (unsigned char) 10)
+	    {
+	      if (strcmp(login, ""))
+		// Now we interpret the login
+		break;
+		  
+	      else
+		{
+		  // The user hit 'enter' without typing anything.
+		  // Make a new prompt
+		  if (!graphics)
+		    printPrompt();
+		  continue;
+		}
+	    }
+	}
+	      
+      printf("password: ");
+	  
+      // This loop grabs characters
+      while(1)
+	{
+	  bufferCharacter = getchar();
+	  processChar(password, bufferCharacter, 0);
+	  
+	  if (bufferCharacter == (unsigned char) 10)
+	    break;
+	}
+    }
+  
+  // Turn keyboard echo back on
+  textInputSetEcho(1);
+}
+
+
+int main(int argc, char *argv[])
+{
+  int status = 0;
+  char opt = '\0';
+  int skipLogin = 0;
   int myPid = 0;
   int shellPid = 0;
-  int count;
-
-  // The following are only used if we are running a graphics mode login
-  // window.
-  objectKey oldTextInput = NULL;
-  objectKey oldTextOutput = NULL;
+  char bootDisk[DISK_MAX_NAMELENGTH];
 
   // A lot of what we do is different depending on whether we're in graphics
   // mode or not.
   graphics = graphicsAreEnabled();
 
-  // Asking for version?
-  if (argc && !strcasecmp(argv[1], "-v"))
+  // Check for options
+  while((opt = (char) getopt(argc, argv, "vf:")) != (char) -1)
     {
-      showVersion();
-      return 0;
+      switch(opt)
+	{
+	case 'v':
+	  // Asking for version
+	  showVersion();
+	  return (0);
+	case 'f':
+	  // Login using the supplied user name
+	  strcpy(login, optarg);
+	  skipLogin = 1;
+	  break;
+	}
     }
+
+  // Find out whether we are currently running on a read-only filesystem
+  if (!diskGetBoot(bootDisk))
+    readOnly = diskGetReadOnly(bootDisk);
 
   myPid = multitaskerGetCurrentProcessId();
 
+  // Outer loop, from which we never exit
   while(1)
     {
-      if (graphics)
+      if (graphics && !skipLogin)
 	{
-	  oldTextInput = multitaskerGetTextInput();
-	  oldTextOutput = multitaskerGetTextOutput();
-
 	  constructWindow(myPid);
-
-	  // Use the text field for all our input and output
-	  windowManagerSetTextOutput(textField);
-
 	  windowSetVisible(window, 1);
 	}
-      else
+
+      // Inner loop, which goes until we authenticate successfully
+      while (1)
 	{
-	  printf("\n");
-	  printPrompt();
-	}
-
-      // Clear the login name buffer
-      for (count = 0; count < MAX_LOGIN_LENGTH; count ++)
-	login[count] = '\0';
-
-      // Turn keyboard echo off
-      textInputSetEcho(0);
-
-      // Set the current character to 0
-      currentCharacter = 0;
-
-      if (graphics)
-	windowGuiRun();
-      else
-	{
-	  // This loop grabs characters
-	  while(1)
+	  if (!skipLogin)
+	    getLogin();
+	  skipLogin = 0;
+	  
+	  // We have a login name to process.  Authenticate the user and
+	  // log them into the system
+	  status = userLogin(login, password);
+	  if (status < 0)
 	    {
-	      bufferCharacter = getchar();
-	      processChar(bufferCharacter);
-
-	      if (bufferCharacter == (unsigned char) 10)
-		{
-		  if (strcmp(login, ""))
-		    // Now we interpret the login
-		    break;
-	      
-		  else
-		    {
-		      // The user hit 'enter' without typing anything.  Make
-		      // a new prompt
-		      if (!graphics)
-			printPrompt();
-		      continue;
-		    }
-		}
+	      if (graphics)
+		windowNewErrorDialog(window, "Error", AUTHFAILED);
+	      else
+		printf("\n*** " AUTHFAILED " ***\n\n");
+	      continue;
 	    }
+
+	  break;
 	}
-
-      // Turn keyboard echo back on
-      textInputSetEcho(1);
-
-      // Now we have a login name to process.
-
-      // Here is where we will do authentication, later.
 
       // Set the login name as an environment variable
       environmentSet("USER", login);
-
+      
       if (graphics)
 	{
 	  // Get rid of the login window
-	  multitaskerSetTextInput(myPid, oldTextInput);
-	  multitaskerSetTextOutput(myPid, oldTextOutput);
-	  if (window != NULL)
-	    windowManagerDestroyWindow(window);
-
+	  windowDestroy(window);
+	  
 	  // Log the user into the window manager
-	  shellPid = windowManagerLogin(login, "");
+	  shellPid = windowLogin(login, password);
 	  if (shellPid < 0)
 	    {
-	      windowNewErrorDialog(window, "Login Failed",
-				   "Unable to log in to the Window Manager!");
+	      windowNewErrorDialog(window, "Login Failed", "Unable to log in "
+				   "to the Window Manager!");
 	      continue;
 	    }
-	}
+	  
+	  // Set the PID to the window manager thread
+	  userSetPid(login, shellPid);
 
+	  if (readOnly)
+	    windowNewInfoDialog(window, "Read Only", READONLY);
+	  
+	  // Block on the window manager thread PID we were passed
+	  multitaskerBlock(shellPid);
+
+	  // If we return to here, the login session is over.  Log the user
+	  // out of the window manager
+	  windowLogout();
+	}
       else
 	{
-	  printf("Welcome %s\n", login);
-      
 	  // Load a shell process
 	  shellPid = loaderLoadProgram(LOGIN_SHELL, userGetPrivilege(login),
 				       0, NULL);
@@ -415,25 +445,19 @@ int main(int argc, char *argv[])
 	      printf("Couldn't load login shell %s!", LOGIN_SHELL);
 	      continue;
 	    }
+
+	  // Set the PID to the window manager thread
+	  userSetPid(login, shellPid);
+	  
+	  printf("\nWelcome %s\n%s", login,
+		 (readOnly? "\n" READONLY "\n" : ""));
+
+	  // Run the text shell and block on it
+	  loaderExecProgram(shellPid, 1 /* block */);
+
+	  // If we return to here, the login session is over.
 	}
 
-      // Log the user into the system
-      userLogin(login, shellPid);
-
-      if (graphics)
-	// Block on the window manager thread PID we were passed
-	multitaskerBlock(shellPid);
-
-      else
-	// Run the text shell and block on it
-	loaderExecProgram(shellPid, 1 /* block */);
-
-      // If we return to here, the login session is over.  Start again.
-
-      if (graphics)
-	// Log the user out of the window manager
-	windowManagerLogout();
-      
       // Log the user out of the system
       userLogout(login);
     }

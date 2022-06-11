@@ -764,7 +764,7 @@ int kernelFloppyDriverRegisterDevice(void *diskPointer)
       // Oh oh.  This is an unexpected value.  Make a warning and fall
       // through to 1.44 MB.
       kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
-		  "Asumming 1.44 Mb.", newDisk->deviceNumber,
+		  "Assuming 1.44 Mb.", newDisk->deviceNumber,
 		  newDisk->biosType);
     case 4:
       // This is a 1.44 MB 3.5" Disk.

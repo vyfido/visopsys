@@ -44,9 +44,10 @@ int kernelLFBGraphicDriverDrawOval(kernelGraphicBuffer *, color *, drawMode,
 				   int, int, unsigned, unsigned, unsigned,
 				   int);
 int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *, image *,
-					color *, color *, int, int);
-int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *, image *, int, int,
-				    unsigned, unsigned, unsigned, unsigned);
+					drawMode, color *, color *, int, int);
+int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *, image *, drawMode,
+				    int, int, unsigned, unsigned,
+				    unsigned, unsigned);
 int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *, image *, int, int,
 				   unsigned, unsigned);
 int kernelLFBGraphicDriverCopyArea(kernelGraphicBuffer *, int, int, unsigned,
@@ -164,7 +165,7 @@ int kernelLFBGraphicDriverDrawPixel(kernelGraphicBuffer *buffer,
 
   // Draw the pixel using the supplied color
   framebufferPointer = buffer->data +
-    (((buffer->width * xCoord) + xCoord) * adapter->bytesPerPixel);
+    (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
 	
   if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
     {
@@ -173,16 +174,18 @@ int kernelLFBGraphicDriverDrawPixel(kernelGraphicBuffer *buffer,
 	  framebufferPointer[0] = foreground->blue;
 	  framebufferPointer[1] = foreground->green;
 	  framebufferPointer[2] = foreground->red;
-	  if (adapter->bitsPerPixel == 32)
-	     framebufferPointer[3] = 0;
 	}
-      else
+      else if (mode == draw_or)
+	{
+	  framebufferPointer[0] |= foreground->blue;
+	  framebufferPointer[1] |= foreground->green;
+	  framebufferPointer[2] |= foreground->red;
+	}
+      else if (mode == draw_xor)
 	{
 	  framebufferPointer[0] ^= foreground->blue;
 	  framebufferPointer[1] ^= foreground->green;
 	  framebufferPointer[2] ^= foreground->red;
-	  if (adapter->bitsPerPixel == 32)
-	    framebufferPointer[3] = 0;
 	}
     }
 
@@ -193,7 +196,9 @@ int kernelLFBGraphicDriverDrawPixel(kernelGraphicBuffer *buffer,
 		       (foreground->blue >> 3));
 	if (mode == draw_normal)
 	  *((short *) framebufferPointer) = pixel;
-	else
+	else if (mode == draw_or)
+	  *((short *) framebufferPointer) |= pixel;
+	else if (mode == draw_xor)
 	  *((short *) framebufferPointer) ^= pixel;
     }
 
@@ -213,6 +218,9 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
   unsigned char *framebufferPointer = NULL;
   int count;
 
+  int tmp;
+  #define SWAP(a, b) do { tmp = a; a = b; b = tmp; } while (0)
+
   // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
   // whole screen
   if (buffer == NULL)
@@ -226,6 +234,10 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
       // If the Y location is off the screen, skip it
       if ((startY < 0) || (startY >= buffer->height))
 	return (status = 0);
+
+      // Make sure startX < endX
+      if (startX > endX)
+	SWAP(startX, endX);
 
       // If the line goes off the edge of the screen, only attempt to
       // display what will fit
@@ -242,29 +254,36 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
       framebufferPointer = buffer->data +
 	(((buffer->width * startY) + startX) * adapter->bytesPerPixel);
 
-      // Do a loop through the line, copying the color values
-      // consecutively
+      // Do a loop through the line, copying the color values consecutively
 
       if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 	{
-	  if ((adapter->bitsPerPixel == 24) || (mode == draw_xor))
+	  if ((adapter->bitsPerPixel == 24) || (mode == draw_or) ||
+	      (mode == draw_xor))
 	    for (count = 0; count < lineBytes; )
-	      if (mode == draw_normal)
-		{
-		  framebufferPointer[count++] = foreground->blue;
-		  framebufferPointer[count++] = foreground->green;
-		  framebufferPointer[count++] = foreground->red;
-		  if (adapter->bitsPerPixel == 32)
-		    count++;
-		}
-	      else
-		{
-		  framebufferPointer[count++] ^= foreground->blue;
-		  framebufferPointer[count++] ^= foreground->green;
-		  framebufferPointer[count++] ^= foreground->red;
-		  if (adapter->bitsPerPixel == 32)
-		    count++;
-		}
+	      {
+		if (mode == draw_normal)
+		  {
+		    framebufferPointer[count] = foreground->blue;
+		    framebufferPointer[count + 1] = foreground->green;
+		    framebufferPointer[count + 2] = foreground->red;
+		  }
+		else if (mode == draw_or)
+		  {
+		    framebufferPointer[count] |= foreground->blue;
+		    framebufferPointer[count + 1] |= foreground->green;
+		    framebufferPointer[count + 2] |= foreground->red;
+		  }
+		else if (mode == draw_xor)
+		  {
+		    framebufferPointer[count] ^= foreground->blue;
+		    framebufferPointer[count + 1] ^= foreground->green;
+		    framebufferPointer[count + 2] ^= foreground->red;
+		  }
+		count += 3;
+		if (adapter->bitsPerPixel == 32)
+		  count++;
+	      }
 	  else
 	    {
 	      unsigned tmp = ((foreground->red << 16) |
@@ -281,7 +300,9 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
 			   (foreground->blue >> 3));
 	    if (mode == draw_normal)
 	      ((short *) framebufferPointer)[count] = pixel;
-	    else
+	    else if (mode == draw_or)
+	      ((short *) framebufferPointer)[count] |= pixel;
+	    else if (mode == draw_xor)
 	      ((short *) framebufferPointer)[count] ^= pixel;
 	  }
     }
@@ -294,6 +315,10 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
       // If the X location is off the screen, skip it
       if ((startX < 0) || (startX >= buffer->width))
 	return (status = 0);
+
+      // Make sure startY < endY
+      if (startY > endY)
+	SWAP(startY, endY);
 
       // If the line goes off the bottom edge of the screen, only attempt to
       // display what will fit
@@ -319,7 +344,13 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
 		framebufferPointer[1] = foreground->green;
 		framebufferPointer[2] = foreground->red;
 	      }
-	    else
+	    else if (mode == draw_or)
+	      {
+		framebufferPointer[0] |= foreground->blue;
+		framebufferPointer[1] |= foreground->green;
+		framebufferPointer[2] |= foreground->red;
+	      }
+	    else if (mode == draw_xor)
 	      {
 		framebufferPointer[0] ^= foreground->blue;
 		framebufferPointer[1] ^= foreground->green;
@@ -337,7 +368,9 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
 			   (foreground->blue >> 3));
 	    if (mode == draw_normal)
 	      *((short *) framebufferPointer) = pixel;
-	    else
+	    else if (mode == draw_or)
+	      *((short *) framebufferPointer) |= pixel;
+	    else if (mode == draw_xor)
 	      *((short *) framebufferPointer) ^= pixel;
 
 	    framebufferPointer += (buffer->width * adapter->bytesPerPixel);
@@ -348,8 +381,99 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
   // to make the line
   else
     {
-    }
+      // Since I didn't feel like dragging out my old computer science
+      // textbooks and re-implementing the Bresenham algorithm, this is a
+      // heavily customized version of the code published here:
+      // http://www.funducode.com/freec/graphics/graphics2.htm
+      // The original author of which seems to be Abhijit Roychoudhuri
 
+      int dx, dy, e = 0, e_inc = 0, e_noinc = 0, incdec = 0,
+	start = 0, end = 0, var = 0;
+
+      if (startX > endX)
+	{
+	  SWAP(startX, endX);
+	  SWAP(startY, endY);
+	}
+
+      dx = (endX - startX);
+      dy = (endY - startY);
+      
+      /* 0 < m <= 1 */
+      if ((dy <= dx) && (dy > 0))
+	{
+	  e_noinc = (dy << 1);
+	  e = ((dy << 1) - dx);
+	  e_inc = ((dy - dx) << 1);
+	  start = startX;
+	  end = endX;
+	  var = startY;
+	  incdec = 1;
+	}
+
+      /* 1 < m < infinity */
+      if ((dy > dx) && (dy > 0))
+	{
+	  e_noinc = (dx << 1);
+	  e = ((dx << 1) - dy);
+	  e_inc = ((dx - dy) << 1);
+	  start = startY;
+	  end = endY;
+	  var = startX;
+	  incdec = 1;
+	}
+
+      /* 0 > m > -1, or m = -1 */
+      if (((-dy < dx) && (dy < 0)) ||
+	  ((dy == -dx) && (dy < 0)))
+	{
+	  dy = -dy;
+	  e_noinc = (dy << 1);
+	  if ((-dy < dx) && (dy < 0))
+	    e = ((dy - dx) << 1);
+	  else
+	    e = ((dy << 1) - dx);
+	  e_inc = ((dy - dx) << 1);
+	  start = startX;
+	  end = endX;
+	  var = startY;
+	  incdec = -1;
+	}
+
+      /* -1 > m > 0 */
+      if ((-dy > dx) && (dy < 0))
+	{
+	  dx = -dx;
+	  e_noinc = -(dx << 1);
+	  e = ((dx - dy) << 1);
+	  e_inc = -((dx - dy) << 1);
+	  SWAP(startX, endX);
+	  SWAP(startY, endY);
+	  start = startY;
+	  end = endY;
+	  var = startX;
+	  incdec = -1;
+	}
+  
+      for (count = start; count <= end; count++)
+	{
+	  if (start == startY)
+	    kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode, var,
+					    count);
+	  else
+	    kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode, count,
+					    var);
+
+	  if (e < 0)
+	    e += e_noinc;
+	  else
+	    {
+	      var += incdec;
+	      e += e_inc;
+	    }
+	}
+    }
+  
   return (status = 0);
 }
 
@@ -374,12 +498,35 @@ int kernelLFBGraphicDriverDrawRect(kernelGraphicBuffer *buffer,
   if (buffer == NULL)
     buffer = &wholeScreen;
 
+  // Out of the buffer entirely?
+  if ((startX >= buffer->width) || (startY >= buffer->height))
+    return (status = ERR_BOUNDS);
+
+  // Off the left edge of the buffer?
+  if (startX < 0)
+    {
+      width += startX;
+      startX = 0;
+    }
+  // Off the top of the buffer?
+  if (startY < 0)
+    {
+      height += startY;
+      startY = 0;
+    }
+  // Off the right edge of the buffer?
+  if ((startX + width) >= buffer->width)
+    width = (buffer->width - startX);
+  // Off the bottom of the buffer?
+  if ((startY + height) >= buffer->height)
+    height = (buffer->height - startY);
+	  
   endX = (startX + (width - 1));
   endY = (startY + (height - 1));
 
   if (fill)
     {
-      if (mode == draw_xor)
+      if ((mode == draw_or) || (mode == draw_xor))
 	// Just draw a series of lines, since every pixel needs to be dealt
 	// with individually and we can't really do that better than the
 	// line drawing routine does already.
@@ -389,29 +536,6 @@ int kernelLFBGraphicDriverDrawRect(kernelGraphicBuffer *buffer,
       else
 	{
 	  // Draw the box manually
-	  
-	  // Out of the buffer entirely?
-	  if ((startX >= buffer->width) || (startY >= buffer->height))
-	    return (status = ERR_BOUNDS);
-
-	  // Off the left edge of the buffer?
-	  if (startX < 0)
-	    {
-	      width += startX;
-	      startX = 0;
-	    }
-	  // Off the top of the buffer?
-	  if (startY < 0)
-	    {
-	      height += startY;
-	      startY = 0;
-	    }
-	  // Off the right edge of the buffer?
-	  if ((startX + width) >= buffer->width)
-	    width = (buffer->width - startX);
-	  // Off the bottom of the buffer?
-	  if ((startY + height) >= buffer->height)
-	    height = (buffer->height - startY);
 	  
 	  lineBytes = (width * adapter->bytesPerPixel);
 
@@ -495,21 +619,154 @@ int kernelLFBGraphicDriverDrawOval(kernelGraphicBuffer *buffer,
 				   unsigned height, unsigned thickness,
 				   int fill)
 {
-  // Draws an oval on the screen using the preset foreground color
+  // Draws an oval on the screen using the preset foreground color.  We use
+  // a version of the Bresenham circle algorithm, but in the case of an
+  // (unfilled) oval with (thickness > 1) we calculate inner and outer ovals,
+  // and draw lines between the inner and outer X coordinates of both, for
+  // any given Y coordinate.
 
   int status = 0;
+  int outerRadius = (width >> 1);
+  int outerD = (3 - (outerRadius << 1));
+  int outerX = 0;
+  int outerY = outerRadius;
+  int innerRadius = 0, innerD = 0, innerX = 0, innerY = 0;
+  int *outerBitmap = NULL;
+  int *innerBitmap = NULL;
 
   // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
   // whole screen
   if (buffer == NULL)
     buffer = &wholeScreen;
 
+  // For now, we only support circles
+  if (width != height)
+    {
+      kernelError(kernel_error, "The framebuffer driver only supports "
+		  "circular ovals");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
+
+  outerBitmap = kernelMalloc((outerRadius + 1) * sizeof(int));
+  if (outerBitmap == NULL)
+    return (status = ERR_MEMORY);
+
+  if ((thickness > 1) && !fill)
+    {
+      innerRadius = (outerRadius - thickness + 1);
+      innerD = (3 - (innerRadius << 1));
+      innerY = innerRadius;
+
+      innerBitmap = kernelMalloc((innerRadius + 1) * sizeof(int));
+      if (innerBitmap == NULL)
+	return (status = ERR_MEMORY);
+    }
+
+  while (outerX <= outerY)
+    {
+      if (!fill && (thickness == 1))
+	{
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX + outerX), (centerY + outerY));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX + outerX), (centerY - outerY));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX - outerX), (centerY + outerY));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX - outerX), (centerY - outerY));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX + outerY), (centerY + outerX));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX + outerY), (centerY - outerX));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX - outerY), (centerY + outerX));
+	  kernelLFBGraphicDriverDrawPixel(buffer, foreground, mode,
+				  (centerX - outerY), (centerY - outerX));
+	}
+      
+      if (outerY > outerBitmap[outerX])
+	outerBitmap[outerX] = outerY;
+      if (outerX > outerBitmap[outerY])
+	outerBitmap[outerY] = outerX;
+      
+      if (outerD < 0)
+	outerD += ((outerX << 2) + 6);
+      else
+	{
+	  outerD += (((outerX - outerY) << 2) + 10);
+	  outerY -= 1;
+	}
+      outerX += 1;
+
+      if ((thickness > 1) && !fill)
+	{
+	  if (!innerBitmap[innerX] || (innerY < innerBitmap[innerX]))
+	    innerBitmap[innerX] = innerY;
+	  if (!innerBitmap[innerY] || (innerX < innerBitmap[innerY]))
+	    innerBitmap[innerY] = innerX;
+
+	  if (innerD < 0)
+	    innerD += ((innerX << 2) + 6);
+	  else
+	    {
+	      innerD += (((innerX - innerY) << 2) + 10);
+	      innerY -= 1;
+	    }
+	  innerX += 1;
+	}
+    }
+
+  if ((thickness > 1) || fill)
+    for (outerY = 0; outerY <= outerRadius; outerY ++)
+      {
+	if ((outerY > innerRadius) || fill)
+	  {
+	    kernelLFBGraphicDriverDrawLine(buffer, foreground, mode,
+					   (centerX - outerBitmap[outerY]),
+					   (centerY - outerY),
+					   (centerX + outerBitmap[outerY]),
+					   (centerY - outerY));
+	    kernelLFBGraphicDriverDrawLine(buffer, foreground, mode,
+					   (centerX - outerBitmap[outerY]),
+					   (centerY + outerY),
+					   (centerX + outerBitmap[outerY]),
+					   (centerY + outerY));
+	  }
+	else
+	  {
+	    kernelLFBGraphicDriverDrawLine(buffer, foreground, mode,
+					   (centerX - outerBitmap[outerY]),
+					   (centerY - outerY),
+					   (centerX - innerBitmap[outerY]),
+					   (centerY - outerY));
+	    kernelLFBGraphicDriverDrawLine(buffer, foreground, mode,
+					   (centerX + innerBitmap[outerY]),
+					   (centerY - outerY),
+					   (centerX + outerBitmap[outerY]),
+					   (centerY - outerY));
+	    kernelLFBGraphicDriverDrawLine(buffer, foreground, mode,
+					   (centerX - outerBitmap[outerY]),
+					   (centerY + outerY),
+					   (centerX - innerBitmap[outerY]),
+					   (centerY + outerY));
+	    kernelLFBGraphicDriverDrawLine(buffer, foreground, mode,
+					   (centerX + innerBitmap[outerY]),
+					   (centerY + outerY),
+					   (centerX + outerBitmap[outerY]),
+					   (centerY + outerY));
+	  }
+      }
+
+  kernelFree(outerBitmap);
+  if ((thickness > 1) && !fill)
+    kernelFree(innerBitmap);
+
   return (status = 0);
 }
 
 
 int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *buffer,
-					image *drawImage,
+					image *drawImage, drawMode mode,
 					color *foreground, color *background,
 					int xCoord, int yCoord)
 {
@@ -589,7 +846,7 @@ int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *buffer,
 	      }
 	    else
 	      {
-		if (drawImage->isTranslucent)
+		if (mode == draw_translucent)
 		  count += adapter->bytesPerPixel;
 		else
 		  {
@@ -618,7 +875,7 @@ int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *buffer,
 			       (foreground->blue >> 3));
 		((short *) framebufferPointer)[count] = pixel;
 	      }
-	    else if (!(drawImage->isTranslucent))
+	    else
 	      {
 		// 'off' bit
 		short pixel = (((background->red >> 3) << 11) |
@@ -645,7 +902,8 @@ int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *buffer,
 
 
 int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *buffer,
-				    image *drawImage, int xCoord, int yCoord,
+				    image *drawImage, drawMode mode,
+				    int xCoord, int yCoord,
 				    unsigned xOffset, unsigned yOffset,
 				    unsigned width, unsigned height)
 {
@@ -733,7 +991,7 @@ int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *buffer,
       if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 	for (count = 0; count < lineBytes; )
 	  {
-	    if ((drawImage->isTranslucent) &&
+	    if ((mode == draw_translucent) &&
 		(imageData[pixelCounter].red ==
 		 drawImage->translucentColor.red) &&
 		(imageData[pixelCounter].green ==
@@ -756,7 +1014,7 @@ int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *buffer,
       else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
 	for (count = 0; count < lineLength; count ++)
 	  {
-	    if (!drawImage->isTranslucent ||
+	    if ((mode != draw_translucent) ||
 		((imageData[pixelCounter].red !=
 		  drawImage->translucentColor.red) ||
 		 (imageData[pixelCounter].green !=
@@ -804,7 +1062,7 @@ int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *buffer,
   unsigned pixelCounter = 0;
   int count;
 
-  // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
+  // If the supplied kernelGraphicBuffer is NULL, we read directly from the
   // whole screen
   if (buffer == NULL)
     buffer = &wholeScreen;
@@ -838,12 +1096,8 @@ int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *buffer,
       // Allocate enough memory to hold the image data
       getImage->data = kernelMemoryGet(getImage->dataLength, "image data");
       if (getImage->data == NULL)
-	{
-	  // Eek, no memory
-	  kernelError(kernel_error, "Unable to allocate memory for the "
-		      "image");
-	  return (status = ERR_MEMORY);
-	}
+	// Eek, no memory
+	return (status = ERR_MEMORY);
     }
 
   // How many bytes in a line of data?

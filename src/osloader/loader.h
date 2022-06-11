@@ -96,3 +96,60 @@
 
 ;; Number of elements in our memory map
 %define MEMORYMAPSIZE 50
+
+;; Maximum number of graphics modes we check
+%define MAXVIDEOMODES 20
+
+;; Our data structures that we pass to the kernel, mostly having to do with
+;; hardware
+STRUC graphicsInfoBlock
+ .videoMemory:    resd 1 ;; Video memory in Kbytes
+ .framebuffer:    resd 1 ;; Address of the framebuffer
+ .mode:           resd 1 ;; Current video mode
+ .xRes:           resd 1 ;; Current X resolution
+ .yRes:           resd 1 ;; Current Y resolution
+ .bitsPerPixel:   resd 1 ;; Bits per pixel
+ .numberModes:    resd 1 ;; Number of graphics modes in the following list
+ .supportedModes: resd (MAXVIDEOMODES * 4)
+
+ENDSTRUC
+
+STRUC memoryInfoBlock
+ .start resq 1
+ .size  resq 1
+ .type  resd 1
+ENDSTRUC
+
+;; The data structure created by the loader to describe the particulars
+;; about a floppy disk drive to the kernel
+STRUC fddInfoBlock
+ .type    resd 1
+ .heads   resd 1
+ .tracks  resd 1
+ .sectors resd 1
+ENDSTRUC
+
+;; The data structure created by the loader to describe the particulars
+;; about a hard disk drive to the kernel
+STRUC hddInfoBlock
+ .heads          resd 1
+ .cylinders      resd 1
+ .sectors        resd 1
+ .bytesPerSector resd 1
+ .totalSectors   resd 1
+ENDSTRUC
+
+;; The data structure created by the loader to hold info about the serial
+;; ports
+STRUC serialInfoBlock
+ .port1 resd 1
+ .port2 resd 1
+ .port3 resd 1
+ .port4 resd 1
+ENDSTRUC
+
+;; The data structure created by the loader to hold info about the mouse
+STRUC mouseInfoBlock
+ .port   resd 1
+ .idByte resd 1
+ENDSTRUC

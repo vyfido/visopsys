@@ -23,8 +23,103 @@
 #include "kernelParameters.h"
 #include "kernelText.h"
 #include "kernelLog.h"
+#include "kernelWindowManager.h"
+#include "kernelMultitasker.h"
 #include <string.h>
 #include <stdio.h>
+
+
+static void errorDialogThread(int numberArgs, void *args[])
+{
+  int status = 0;
+  const char *title = NULL;
+  const char *message = NULL;
+  kernelWindow *dialogWindow = NULL;
+  image errorImage;
+  kernelWindowComponent *okButton = NULL;
+  componentParameters params;
+  windowEvent event;
+
+  title = args[0];
+  message = args[1];
+
+  // Check params.  It's okay for parentWindow to be NULL.
+  if ((title == NULL) || (message == NULL))
+    {
+      status = ERR_NULLPARAMETER;
+      goto exit;
+    }
+
+  bzero(&errorImage, sizeof(image));
+  bzero(&params, sizeof(componentParameters));
+
+  // Create the dialog.
+  dialogWindow = kernelWindowNew(kernelCurrentProcess->processId, title);
+  if (dialogWindow == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+
+  status = kernelImageLoadBmp(ERRORIMAGE_NAME, &errorImage);
+  if (status < 0)
+    goto exit;
+
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.padLeft = 5;
+  params.padTop = 5;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+  params.useDefaultForeground = 1;
+  params.useDefaultBackground = 1;
+
+  errorImage.translucentColor.red = 0;
+  errorImage.translucentColor.green = 255;
+  errorImage.translucentColor.blue = 0;
+  kernelWindowNewImage(dialogWindow, &errorImage, draw_translucent, &params);
+
+  // Create the label
+  params.gridX = 1;
+  params.padRight = 5;
+  kernelWindowNewTextLabel(dialogWindow, NULL, message, &params);
+
+  // Create the button
+  params.gridX = 0;
+  params.gridY = 1;
+  params.gridWidth = 2;
+  params.padBottom = 5;
+  okButton = kernelWindowNewButton(dialogWindow, "OK", NULL, &params);
+  if (okButton == NULL)
+    {
+      status = ERR_NOCREATE;
+      goto exit;
+    }
+
+  kernelWindowSetVisible(dialogWindow, 1);
+
+  while(1)
+    {
+      // Check for our OK button
+      status = kernelWindowComponentEventGet((void *) okButton, &event);
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+	break;
+
+      // Check for window close events
+      status = kernelWindowComponentEventGet((void *) dialogWindow, &event);
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+	break;
+
+      // Done
+      kernelMultitaskerYield();
+    }
+      
+  kernelWindowDestroy(dialogWindow);
+  status = 0;
+
+ exit:
+  kernelMultitaskerTerminate(status);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -97,6 +192,20 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   
   // Set the foreground color back to what it was
   //kernelTextSetForeground(regularForeground);
+
+  return;
+}
+
+
+void kernelErrorDialog(const char *title, const char *message)
+{
+  // This will make a simple error dialog message, and wait until the button
+  // has been pressed.
+
+  void *args[] = { (void *) title, (void *) message };
+
+  kernelMultitaskerSpawnKernelThread(&errorDialogThread, "error dialog", 2,
+				     args);
 
   return;
 }

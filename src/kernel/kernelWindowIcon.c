@@ -27,7 +27,6 @@
 #include "kernelParameters.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelLoader.h"
 #include "kernelUser.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
@@ -72,7 +71,8 @@ static int draw(void *componentData)
 
   // Draw the icon image
   kernelGraphicDrawImage(buffer, (image *) &(iconComponent->iconImage),
-			 imageX, component->yCoord, 0, 0, 0, 0);
+			 draw_translucent, imageX, component->yCoord,
+			 0, 0, 0, 0);
 
   // Clear the text area
   kernelGraphicClearArea(buffer, &background, labelX, labelY,
@@ -88,7 +88,7 @@ static int draw(void *componentData)
       labelY = (component->yCoord + iconComponent->iconImage.height + 4 +
 		(defaultFont->charHeight * count));
       
-      kernelGraphicDrawText(buffer, &foreground, defaultFont,
+      kernelGraphicDrawText(buffer, &foreground, &background, defaultFont,
 			    (char *) iconComponent->label[count], draw_normal,
 			    labelX, labelY);
     }
@@ -97,47 +97,6 @@ static int draw(void *componentData)
     component->drawBorder((void *) component);
 
   return (0);
-}
-
-
-static void runCommand(objectKey componentData, windowEvent *event)
-{
-  int status = 0;
-  int procId = 0;
-  const char *userName = NULL;
-  int privilege = 0;
-  static char *argv[1];
-  
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowIcon *iconComponent = (kernelWindowIcon *) component->data;
-
-  if (event->type == EVENT_MOUSE_UP)
-    {
-      userName = kernelWindowManagerGetUser();
-      privilege = kernelUserGetPrivilege(userName);
-
-      argv[0] = (char *) iconComponent->command;
-
-      procId = kernelLoaderLoadProgram((const char *) iconComponent->command,
-				       privilege, 1, argv);
-      if (procId < 0)
-	{
-	  kernelError(kernel_error, "Unable to load program %s",
-		      iconComponent->command);
-	  return;
-	}
-
-      // Send output to the console for now
-      kernelMultitaskerSetTextOutput(procId, kernelTextGetConsoleOutput());
-
-      // Exec, don't block
-      status = kernelLoaderExecProgram(procId, 0);
-      if (status < 0)
-	kernelError(kernel_error, "Unable to execute program %s",
-		    iconComponent->command);
-    }
-
-  return;
 }
 
 
@@ -188,7 +147,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	{
 	  // The move is finished
 
-	  component->visible = 1;
+	  component->flags |= WINFLAG_VISIBLE;
 
 	  // Erase the xor'ed outline
 	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
@@ -197,17 +156,18 @@ static int mouseEvent(void *componentData, windowEvent *event)
 				component->width, component->height, 1, 0);
 
 	  // Re-render it at the new location
-	  draw((void *) component);
-	  kernelWindowManagerUpdateBuffer(&(window->buffer), 
-					  component->xCoord, component->yCoord,
-					  component->width, component->height);
+	  if (component->draw)
+	    component->draw((void *) component);
+	  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
+				   component->yCoord, component->width,
+				   component->height);
 	  
 	  // Redraw the mouse
 	  kernelMouseDraw();
 
 	  // If the new location intersects any other components of the
 	  // window, we need to focus the icon
-	  kernelWindowFocusComponent(window, component);
+	  kernelWindowComponentFocus(component);
 
 	  dragging = 0;
 	}
@@ -220,7 +180,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
       // The icon has started moving
 		  
       // Don't show it while it's moving
-      component->visible = 0;
+      component->flags &= ~WINFLAG_VISIBLE;
       
       window->drawClip((void *) window, component->xCoord, component->yCoord,
 		       component->width, component->height);
@@ -258,17 +218,11 @@ static int mouseEvent(void *componentData, windowEvent *event)
 				iconComponent->iconImage.height, 1, 1);
 	}
 
-      kernelWindowManagerUpdateBuffer(buffer, imageX, component->yCoord,
-				      iconComponent->iconImage.width,
-				      iconComponent->iconImage.height);
+      kernelWindowUpdateBuffer(buffer, imageX, component->yCoord,
+			       iconComponent->iconImage.width,
+			       iconComponent->iconImage.height);
       return (0);
     }
-}
-
-
-static int erase(void *componentData)
-{
-  return (0);
 }
 
 
@@ -278,7 +232,7 @@ static int destroy(void *componentData)
   kernelWindowIcon *iconComponent = (kernelWindowIcon *) component->data;
 
   // Release all our memory
-  if (iconComponent != NULL)
+  if (iconComponent)
     {
       kernelFree(iconComponent->iconImage.data);
       kernelFree((void *) iconComponent);
@@ -297,9 +251,10 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
-				    image *imageCopy, const char *label,
-				    const char *command)
+kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
+					   image *imageCopy, const char *label,
+					   const char *command,
+					   componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowIcon
 
@@ -310,12 +265,12 @@ kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
   int count1, count2;
 
   // Check parameters
-  if ((window == NULL) || (imageCopy == NULL) || (label == NULL) ||
-      (command == NULL))
+  if ((parent == NULL) || (imageCopy == NULL) || (label == NULL) ||
+      (params == NULL))
     return (component = NULL);
 
   // Get the basic component structure
-  component = kernelWindowNewComponent();
+  component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
 
@@ -331,7 +286,6 @@ kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
 		sizeof(image));
 
   // Icons use pure green as the transparency color
-  iconComponent->iconImage.isTranslucent = 1;
   iconComponent->iconImage.translucentColor.blue = 0;
   iconComponent->iconImage.translucentColor.green = 255;
   iconComponent->iconImage.translucentColor.red = 0;
@@ -339,8 +293,11 @@ kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
   strncpy((char *) iconComponent->label[0], label, WINDOW_MAX_LABEL_LENGTH);
   iconComponent->label[0][WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
 
-  strncpy((char *) iconComponent->command, command, 128);
-  iconComponent->command[127] = '\0';
+  if (command)
+    {
+      strncpy((char *) iconComponent->command, command, 128);
+      iconComponent->command[127] = '\0';
+    }
 
   if (defaultFont == NULL)
     {
@@ -358,7 +315,7 @@ kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
 
   // Copy the image data
   iconComponent->iconImage.data = kernelMalloc(imageCopy->dataLength);
-  if (iconComponent->iconImage.data != NULL)
+  if (iconComponent->iconImage.data)
     kernelMemCopy(imageCopy->data, iconComponent->iconImage.data,
 		  imageCopy->dataLength);
 
@@ -419,7 +376,7 @@ kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
     }
 
   // Now populate the main component
-  component->type = windowIconComponent;
+  component->type = iconComponentType;
   if (imageCopy->width > iconComponent->labelWidth)
     component->width = imageCopy->width;
   else
@@ -432,11 +389,7 @@ kernelWindowComponent *kernelWindowNewIcon(kernelWindow *window,
   // The functions
   component->draw = &draw;
   component->mouseEvent = &mouseEvent;
-  component->erase = &erase;
   component->destroy = &destroy;
-
-  // Register the event handler for the icon command execution
-  kernelWindowRegisterEventHandler((objectKey) component, &runCommand);
 
   return (component);
 }

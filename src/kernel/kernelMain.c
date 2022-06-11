@@ -24,12 +24,14 @@
 #include "kernelInitialize.h"
 #include "kernelSysTimer.h"
 #include "kernelMultitasker.h"
+#include "kernelMalloc.h"
+#include "kernelLoader.h"
 #include "kernelMiscFunctions.h"
 #include "kernelProcessorX86.h"
 #include "kernelShutdown.h"
 #include "kernelError.h"
-#include <sys/disk.h>
-#include <stdio.h>
+#include <string.h>
+
 
 // This is a variable that is checked by the standard library before calling
 // any kernel API functions.  This helps to prevent any API functions from
@@ -37,6 +39,9 @@
 // permissable to use sprintf() inside the kernel, but not printf().  This
 // should help to catch mistakes.
 extern int visopsys_in_kernel;
+
+// General kernel configuration variables
+variableList *kernelVariables = NULL;
 
 
 void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
@@ -46,7 +51,9 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
   // which starts the entire show and, of course, never returns.
 
   int status = 0;
+  int pid = -1;
   loaderInfoStruct systemInfo;
+  char startProgram[128];
 
   visopsys_in_kernel = 1;
 
@@ -73,8 +80,41 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
       kernelProcessorReboot();
     }
 
-  // Launch a login process 
-  kernelConsoleLogin();
+  kernelVariables = kernelConfigurationReader(DEFAULT_KERNEL_CONFIG);
+  if (kernelVariables != NULL)
+    {
+      // Find out which initial program to launch
+      kernelVariableListGet(kernelVariables, "start.program", startProgram,
+			    128);
+
+      // If the start program is our standard login program, use a custom
+      // function to launch a login process 
+      if (strncmp(startProgram, DEFAULT_KERNEL_STARTPROGRAM, 128))
+	{
+	  // Try to load the login process
+	  pid = kernelLoaderLoadProgram(startProgram, PRIVILEGE_SUPERVISOR,
+					0,     // no args
+					NULL); // no args
+	  if (pid < 0)
+	    // Don't fail, but make a warning message
+	    kernelError(kernel_warn, "Couldn't load start program \"%s\"",
+			startProgram);
+	  else
+	    {
+	      // Attach the start program to the console text streams
+	      kernelMultitaskerDuplicateIO(KERNELPROCID, pid, 1); // Clear
+	      
+	      // Execute the start program.  Don't block.
+	      kernelLoaderExecProgram(pid, 0);
+	    }
+	}
+    }
+
+  // If the kernel config file wasn't found, or the start program wasn't
+  // specified, or loading the start program failed, assume we're going to
+  // use the standard default login program
+  if (pid < 0)
+    kernelConsoleLogin();
 
   // Finally, we will change the kernel state to 'sleeping'.  This is
   // done because there's nothing that needs to be actively done by

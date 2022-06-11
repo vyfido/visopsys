@@ -152,8 +152,7 @@ typedef volatile struct
   unsigned char *freeClusterBitmap;
   unsigned freeBitmapSize;
   unsigned freeClusters;
-  int buildingFreeBitmap;
-  kernelLock freeBitmapLock;
+  lock freeBitmapLock;
 
   // Miscellany
   const kernelDisk *disk;

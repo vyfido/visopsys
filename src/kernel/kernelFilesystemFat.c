@@ -20,9 +20,10 @@
 //
 
 // This file contains the routines designed to interpret the FAT filesystem
-// (commonly found on DOS (TM) disks)
+// (commonly found on DOS(TM) and Windows(R) disks)
 
 #include "kernelFilesystemFat.h"
+#include "kernelParameters.h"
 #include "kernelFile.h"
 #include "kernelDriverManagement.h"
 #include "kernelMalloc.h"
@@ -85,7 +86,7 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
   status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, buffer);
   if (status < 0)
     {
-      // Couldn't read the boot sector.  Make an error
+      // Couldn't read the boot sector.
       kernelError(kernel_error, "Unable to read the boot block");
       return (status);
     }
@@ -118,7 +119,7 @@ static int readFSInfo(kernelPhysicalDisk *theDisk, unsigned sectorNumber,
   // Make sure that the read was successful
   if (status < 0)
     {
-      // Couldn't read the FSInfo sector.  Make an error
+      // Couldn't read the FSInfo sector.
       kernelError(kernel_error, "Unable to read or write the FAT32 FSInfo "
 		  "structure");
       return (status);
@@ -203,7 +204,7 @@ static int flushFSInfo(fatInternalData *fatData)
   // Make sure that the write was successful
   if (status < 0)
     {
-      // Couldn't read the FSInfo sector.  Make an error
+      // Couldn't read the FSInfo sector.
       kernelError(kernel_error, "Unable to read or write the FAT32 FSInfo "
 		  "structure");
       return (status);
@@ -1161,7 +1162,7 @@ static int getLastCluster(fatInternalData *fatData, unsigned startCluster,
 }
 
 
-static void makeFreeBitmap(fatInternalData *fatData)
+static int makeFreeBitmap(fatInternalData *fatData)
 {
   // This function examines the FAT and fills out the bitmap of free clusters.
   // The function must be spawned as a new thread for itself to run in.  
@@ -1175,18 +1176,6 @@ static void makeFreeBitmap(fatInternalData *fatData)
   unsigned entry = 0;
   unsigned count;
 
-  // This function should never be running more than one at a time for a 
-  // particular filesystem instance.  Thus, if the thread is already
-  // running for this filesystem we simply terminate.
-  if (fatData->buildingFreeBitmap)
-    {
-      kernelError(kernel_error, "Already building filesystem free bitmap");
-      kernelMultitaskerTerminate(status = ERR_ALREADY);
-    }
-
-  // Set the flag "buildingList", for the reason outlined above
-  fatData->buildingFreeBitmap = 1;
-
   // Lock the free list so nobody tries to use it or change it while
   // it's in an inconsistent state
   status = kernelLockGet(&(fatData->freeBitmapLock));
@@ -1194,8 +1183,7 @@ static void makeFreeBitmap(fatInternalData *fatData)
   if (status < 0)
     {
       kernelError(kernel_error, "Couldn't lock the free list");
-      fatData->buildingFreeBitmap = 0;
-      kernelMultitaskerTerminate(status);
+      return (status);
     }
 
   // Ok, we will loop through the entire FAT.  If that sounds like that
@@ -1249,9 +1237,7 @@ static void makeFreeBitmap(fatInternalData *fatData)
   fatData->freeClusters = freeClusters;
 
   // We are finished
-  fatData->buildingFreeBitmap = 0;
-  kernelMultitaskerTerminate(status = 0);
-  while(1);
+  return (status = 0);
 }
 
 
@@ -1479,18 +1465,9 @@ static int getUnusedClusters(fatInternalData *fatData,
 
   // Make sure that overall, there are enough free clusters to satisfy
   // the request
-  while (fatData->freeClusters < requested)
+  if (fatData->freeClusters < requested)
     {
-      // If we are still building the free cluster bitmap, there might
-      // be enough free shortly
-      if (fatData->buildingFreeBitmap)
-	{
-	  kernelMultitaskerYield();
-	  continue;
-	}
-
-      kernelError(kernel_error, 
-		  "Not enough free space to complete operation");
+      kernelError(kernel_error, "Not enough free space to complete operation");
       return (status = ERR_NOFREE);
     }
 
@@ -1672,7 +1649,7 @@ static int dirRequiredEntries(kernelFileEntry *directory)
 
   listItemPointer = directory->contents;
 
-  while (listItemPointer != NULL)
+  while (listItemPointer)
     {
       entries += 1;
 
@@ -1815,7 +1792,7 @@ static int fillDirectory(kernelFileEntry *currentDir,
   dirEntry = dirBuffer;
   listItemPointer = currentDir->contents;
 
-  while(listItemPointer != NULL)
+  while(listItemPointer)
     {
       realEntry = listItemPointer;
       if (listItemPointer->type == linkT)
@@ -2181,17 +2158,9 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
 
   // Make sure there's enough free space on the volume BEFORE beginning the
   // write operation
-  while (writeClusters > fatData->freeClusters)
+  if (writeClusters > fatData->freeClusters)
     {
-      // If we are still building the free cluster bitmap, there might
-      // be enough free shortly
-      if (fatData->buildingFreeBitmap)
-	{
-	  kernelMultitaskerYield();
-	  continue;
-	}
-
-      // Not enough free space on the volume.  Make an error
+      // Not enough free space on the volume.
       kernelError(kernel_error, "There is not enough free space on the "
 		  "volume to complete the operation");
       return (status = ERR_NOFREE);
@@ -2566,7 +2535,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
   listItemPointer = 
     ((kernelFileEntry *) theFile->parentDirectory)->contents;
 
-  while (listItemPointer != NULL)
+  while (listItemPointer)
     {
       if (listItemPointer != theFile)
 	{
@@ -3163,7 +3132,7 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
   fatInternalData *fatData = filesystem->filesystemData;
   
   // Have we already read the parameters for this filesystem?
-  if (fatData != NULL)
+  if (fatData)
     return (fatData);
 
   // We must allocate some new memory to hold information about
@@ -3222,19 +3191,11 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
       return (fatData = NULL);
     }
   
-  // Build the free cluster list.  We need to spawn this function as an
-  // independent, non-blocking thread, which must be a child process of
-  // the kernel.
-  status = kernelMultitaskerSpawnKernelThread(makeFreeBitmap, "building FAT "
-					      "free cluster list", 1,
-					      (void *) &fatData);
+  // Build the free cluster list.
+  status = makeFreeBitmap(fatData);
   if (status < 0)
     {
-      // Oops.  Something went wrong.
-      kernelError(kernel_error, "Unable to make free-cluster bitmap");
-      // Attempt to free all the memory
       kernelFree(fatData->freeClusterBitmap);
-      kernelFree((void *) fatData);
       return (fatData = NULL);
     }
 
@@ -3417,7 +3378,7 @@ static int recursiveClusterChainCheck(kernelFilesystem *filesystem,
 
       subEntry = (kernelFileEntry *) entry->contents;
       
-      while (subEntry != NULL)
+      while (subEntry)
 	{
 	  if (strcmp((char *) subEntry->name, ".") &&
 	      strcmp((char *) subEntry->name, ".."))
@@ -3445,7 +3406,7 @@ static int recursiveClusterChainCheck(kernelFilesystem *filesystem,
       // directory itself, as our caller might not be finished with us
       // yet
       subEntry = (kernelFileEntry *) entry->contents;
-      while (subEntry != NULL)
+      while (subEntry)
 	{
 	  kernelFileReleaseEntry(subEntry);
 	  subEntry = subEntry->nextEntry;
@@ -3952,12 +3913,6 @@ int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
 
   fatData = checkFilesystem->filesystemData;
 
-  // Wait until the free cluster bitmap has been processed.  Normally this is
-  // not done when mounting, in order that the mount operation can terminate
-  // more quickly.
-  while (fatData->buildingFreeBitmap)
-    kernelMultitaskerYield();
-
   // Recurse through all the files, checking the cluster chains
   kernelTextPrintLine("  checking clusters");
   status = checkAllClusters(checkFilesystem, checkFilesystem->filesystemRoot,
@@ -4104,10 +4059,6 @@ int kernelFilesystemFatUnmount(kernelFilesystem *filesystem)
   if (fatData == NULL)
     return (status = ERR_BADDATA);
 
-  // Never unmount while our makeFreeBitmap thread is still processing
-  while (fatData->buildingFreeBitmap)
-    kernelMultitaskerYield();
-
   if (!filesystem->readOnly)
     {
       /*
@@ -4207,7 +4158,7 @@ int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry
-  if (newEntry->driverData != NULL)
+  if (newEntry->driverData)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);

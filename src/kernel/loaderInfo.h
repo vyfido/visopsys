@@ -24,6 +24,8 @@
 
 #if !defined(_LOADERINFO_H)
 
+#include <sys/image.h>
+
 // The data structure created by the loader (actually, by the BIOS) to
 // describe a memory range
 
@@ -46,15 +48,17 @@ typedef struct
 } memoryInfoBlock;
 
 // The data structure created by the loader to describe the particulars
-// about the current graphics mode to the kernel
+// about the current graphics environment to the kernel
 typedef struct
 {
   unsigned videoMemory;
-  int mode;
   void *framebuffer;
+  int mode;
   int xRes;
   int yRes;
   int bitsPerPixel;
+  int numberModes;
+  videoMode supportedModes[MAXVIDEOMODES];
 
 } graphicsInfoBlock;
 

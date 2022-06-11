@@ -40,7 +40,7 @@
 #include "kernelMalloc.h"
 
 static volatile int memoryManagerInitialized = 0;
-static kernelLock memoryManagerLock;
+static lock memoryManagerLock;
 
 static volatile unsigned totalMemory = 0;
 static kernelMemoryBlock usedBlockMemory[MAXMEMORYBLOCKS];
@@ -60,24 +60,24 @@ static kernelMemoryBlock reservedBlocks[] =
 {
   // { processId, description, startlocation, endlocation }
 
-  { 1, "conventional memory", 0, (VIDEO_MEMORY - 1) },
+  { KERNELPROCID, "conventional memory", 0, (VIDEO_MEMORY - 1) },
 
-  { 1, "video memory", VIDEO_MEMORY, 
+  { KERNELPROCID, "video memory", VIDEO_MEMORY, 
     (VIDEO_MEMORY + VIDEO_MEMORY_SIZE - 1) },
 
-  { 1, "conventional memory", (VIDEO_MEMORY + VIDEO_MEMORY_SIZE),
+  { KERNELPROCID, "conventional memory", (VIDEO_MEMORY + VIDEO_MEMORY_SIZE),
     (KERNEL_LOAD_ADDRESS - 1) },
 
   // Ending value is set during initialization, since it is variable
-  { 1, "kernel memory", KERNEL_LOAD_ADDRESS, 0 },
+  { KERNELPROCID, "kernel memory", KERNEL_LOAD_ADDRESS, 0 },
 
   // Starting and ending values are set during initialization, since they
   // are variable
-  { 1, "kernel paging data", 0, 0 },
+  { KERNELPROCID, "kernel paging data", 0, 0 },
 
   // The bitmap for free memory.  This one is also completely variable and
   // dependent upon the previous two
-  { 1, "free memory bitmap", 0, 0 },
+  { KERNELPROCID, "free memory bitmap", 0, 0 },
 
   { 0, "", 0, 0 }
 };
@@ -104,7 +104,7 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
   usedBlockList[usedBlocks]->processId = processId;
   usedBlockList[usedBlocks]->startLocation = start;
   usedBlockList[usedBlocks]->endLocation = end;
-  if (description != NULL)
+  if (description)
     {
       strncpy((char *) usedBlockList[usedBlocks]->description, 
 	      description, MAX_DESC_LENGTH);
@@ -343,7 +343,7 @@ int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
     return (status = ERR_ALREADY);
 
   // Clear the static memory manager lock
-  kernelMemClear((void *) &memoryManagerLock, sizeof(kernelLock));
+  kernelMemClear((void *) &memoryManagerLock, sizeof(lock));
 
   // Calculate the amount of total memory we're managing.  First, count
   // 1024 kilobytes for standard and high memory (first "megabyte")
@@ -671,7 +671,7 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 	break;
       }
 
-  if ((block != NULL) && (block->processId != oldPid))
+  if ((block) && (block->processId != oldPid))
     {
       kernelError(kernel_error, "Attempt to change memory ownership "
 		  "from incorrect owner (%d should be %d)", oldPid,
@@ -686,7 +686,7 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
   // Release the lock on the memory data
   kernelLockRelease(&memoryManagerLock);
 
-  if (block != NULL)
+  if (block)
     {
       if (remap)
 	{
@@ -770,7 +770,7 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
   // Release the lock on the memory data
   kernelLockRelease(&memoryManagerLock);
 
-  if (block != NULL)
+  if (block)
     {
       if (block->processId != sharerPid)
 	{
@@ -855,14 +855,14 @@ int kernelMemoryRelease(void *virtualAddress)
 	break;
       }
 
-  if (block != NULL)
+  if (block)
     // Call the releaseBlock routine with this block's blockId.
     releaseBlock(count);
 
   // Release the lock on the memory data
   kernelLockRelease(&memoryManagerLock);
 
-  if (block != NULL)
+  if (block)
       {
 	//  Now that we know the size of the memory block, we can unmap it
 	// from the virtual address space.
@@ -941,14 +941,14 @@ int kernelMemoryReleaseSystem(void *virtualAddress)
 	break;
       }
 
-  if (block != NULL)
+  if (block)
     // Call the releaseBlock routine with this block's blockId.
     releaseBlock(count);
 
   // Release the lock on the memory data
   kernelLockRelease(&memoryManagerLock);
   
-  if (block != NULL)
+  if (block)
     {
       // Now that we know the size of the memory block, we can unmap it
       // from the virtual address space.
@@ -1001,14 +1001,14 @@ int kernelMemoryReleasePhysical(void *physicalAddress)
 	break;
       }
 
-  if (block != NULL)
+  if (block)
     // Call the releaseBlock routine with this block's blockId.
     status = releaseBlock(count);
   
   // Release the lock on the memory data
   kernelLockRelease(&memoryManagerLock);
 
-  if (block != NULL)
+  if (block)
     return (status);
   else
     return (status = ERR_NOSUCHENTRY);

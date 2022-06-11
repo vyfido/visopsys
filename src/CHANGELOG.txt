@@ -1,5 +1,168 @@
 
 ---------------
+Version 0.4
+---------------
+
+  Overview: This release features a number of graphical interface
+  improvements, including several new GUI widgets and "newbie" usability
+  tweaks.  The 'install' and 'disk manager' programs have been properly
+  GUI-enabled, and this release also adds user authentication with MD5
+  password encryption.
+
+- Implemented the following GUI widgets:
+checkbox, radio button, menu bar (plus menu, and menu item), progress bar,
+canvas, scroll bar, list (plus list item), and password field
+- Implemented 'container' components which can be nested arbitrarily,
+and have their layout done individually.  Added a top level 'container'
+component to the window structure and removed the simple list of components.
+- When running from a CD-ROM or other read-only filesystem, there is now
+an general warning that the user can't modify settings or change anything
+generally.
+- The OS loader now gives the kernel a list of supported graphics
+resolutions/depths that are supported, and there is user preference for
+choosing the mode, which the OS loader now reads from a file.
+- Improved the hardware structure in the OS loader so that it makes use of
+NASM's STRUCT directive
+- Added text-mode password prompting code to the vsh library
+- Exported locking and variable list functionality to user space.
+- The 'configuration reader/writer' code is more sophisticated, so that it
+preserves comment lines (if replacing an existing config file)
+- Updated the install image generation scripts, and fixed the naming of the
+generated images
+- Created a new background image that isn't so 'busy'.  Removed the old ones.
+- The 'start program' loaded by the kernel is now specified dynamically in
+a file, and added an 'image boot' program to be loaded first when booting
+from an ISO or floppy  image distribution that will prompt the user whether
+they want to install, or simply run from that image.
+- In the vsh, you no longer need to put a space between the last command
+argument and any ampersand
+- Implemented Bresenham's lines and circles algorithms in the framebuffer
+graphic driver.
+- Both the native installer and the UNIX installation scripts now use
+file lists and include options to do a 'basic' versus 'full' install.
+- The FAT filesystem driver no longer calculates the filesystem free space
+asynchronously.  Previously, this meant that an application could not know
+how long to wait before it could begin writing to a freshly-mounted
+filesystem.
+- Graphicized both the 'install' and 'disk manager' programs
+- After copying a larger disk to a smaller one in the disk manager, we now
+go through the entries in the partition table and adjust them so that none
+have illegal values.  That means, for example, deleting or truncating
+partitions that don't fit on the smaller disk.
+- Added a 'cursoring' effect to the text mode disk manager, since it
+makes the flow better (not required to type partition numbers, etc.), and
+which means that a partition or empty space is always selected, which fits
+better with the graphics mode use model.
+- The disk manager program now saves disk-specific backup MBRs in the
+/system/boot directory
+- The window manager thread now checks that windows' processes are still
+alive, so that it doesn't require a mouse click to dispose of the window.
+Also, if the window manager thread dies it is now restarted
+- 'Visopsys blue' is now the default foreground color for most GUI
+components (rather than black).
+- Removed the start window and replaced it with a simple splash image
+- Changed remaining 'csh' scripts to 'sh' and removed the unused stuff
+from the /utils/src-mgmt directory
+- Rearranges the source code directory structure and build system a little
+bit, so that there is a top-level 'build' directory which contains all the
+installable stuff in the correct places.  This allowed the installer to be
+a lot simpler and facilitated the implementation of installation file lists.
+- Implemented a 'getopt' library function and converted the contents of
+the 'programs' directory to use it.
+- Added a 'window shell' thread which is the new user login process
+in graphics mode, and which handles events on components in the root window.
+- Added 'delete user' functionality to both the kernelUser code and the
+'user manager' program.
+- Added a 'passwd' command that shows as a 'user manager' in the GUI, that
+can be used to change passwords and create/delete accounts.
+- Separated the source files for the different libraries into
+subdirectories, and broke out the libvsh and libwindow code into separate
+source files to reduce executable sizes.
+- Added a 'file selection' dialog box into the window lib.
+- Font printing by default draws the background color under the character.
+Transparent images are still an option.
+- Added a 'flags' field to the kernelWindow structure, since there were a
+few booleans and it's a waste of space to make them all ints.
+- Vsh file completion now works like bash when there's only one
+'real' item in a directory -- complete it with just a [tab]
+- Made it possible to click between multiple text areas in window
+- Added user authentication to the login program
+- Improved handling of width specifiers for 'printf' number parameters.
+- Added an MD5 encryption implementation
+- A commands is no longer added to the vsh history if it's the same as the
+previous one
+- The keyboard code now reads the lights status at startup so that it
+doesn't reset them improperly.  Also, numlock works.
+- Implemented enable/disable functionality for GUI components.
+- Implemented a 'set visible' function for components
+- Implemented 'set disabled' functionality for window menu items
+- Added 'resizable X' and 'resizable Y' fields in the component parameter
+structure, and only resize components appropriately
+- Simplified the process of adding components to windows, so that you only
+have to call the 'new' function, with the component parameters, and it will
+be added to the window automatically.
+- Removed the 'size' parameters from the 'button' component constructor
+- Implemented the 'get data' and 'set data' methods of text label
+components, so that the label contents can be dynamic.
+- Added a window component flag that will prevent a [tab] from unfocusing
+certain components.
+- Removed the coordinate and size parameters from the "new window"
+function of the window manager.  The window size is determined automatically
+unless the "set size" function is called.
+- Window layout happens automatically.  The programmer no longer has to do
+this explicitly.
+- Added resizing capability to the windows in the window manager.
+- Window buttons are now focusable and can handle various keyboard events
+- Implemented proper 'focussing' of window components
+- Added a function for getting the contents of a text field or text area
+component in the window manager
+- The window close button no longer uses the little 'X' image file,
+but rather draws its own 'X' using the new bresenham line drawing abilities.
+- Changed the 'shutdown' program so that in graphics mode it prompts for
+a reboot or shutdown
+- Added a better 'install' icon.
+- Added a GPL banner to the image boot program
+- Disabled the left-right cursor keys in the vsh, as they tend to make
+people think they can do line editing (which they can't, yet).
+- Fixed: If the screen dimensions are too small to accommodate a window, it
+doesn't appear at all.
+- Fixed: Pressing CTRL-ALT-DELETE in graphics mode produces a panic with
+'can't yield() in interrupt handler'
+- Fixed: The 'screenshot' program was crashing when attempting to write to
+read-only filesystems.
+- Fixed: If the floppy was removed while the boot loader was loading the
+kernel, it was going into long retry loops
+- Fixed: File input streams were horribly broken in the ISO9660 filesystem
+driver.  Before the fix they would only read the first sector.
+- Fixed: argv[0] was not being set by the loader code.  It was only being
+set explicitly by the vsh when programs are executed, which it shouldn't do
+at all.
+- Fixed: The arrangement of icons in the root window so that they wrap
+into the next column when they hit the bottom of the screen
+- Fixed: There was trouble (triple-fault) drawing outline (non-filled)
+rectangles in the framebuffer graphic driver, if they were partially off
+the edges of the screen
+- Fixed: The ELF loader was not allocting enough memory for the uninitialized
+data that executables might require.
+- Fixed: The free spaces calculation in the disk manager was incorrect,
+particularly when there was only one partition that didn't start at zero
+- Fixed: "component cannot focus" error messages when clicking on icon
+components
+- Fixed: When booting from the hard disk , the opening of the kernel log
+file often failed with a "not enough space" message.
+- Fixed: In text mode, the login process was not properly setting supervisor
+privilege for the 'admin' user
+- Fixed: When windows were dragged, the focus was lost from the focused
+component.
+- Fixed: Text fields were coming up with their cursors on by default.
+- Fixed: The kernel.log file was not being updated/written correctly.
+- Fixed: The fileWrite routine was not behaving as expected when writing a
+single-block file.  The file size was zero, even though the file was written
+and closed properly
+- Fixed: When writing a file using the file stream functions, there was
+a newline inserted at the beginning of a file.
+
+---------------
 Version 0.33
 ---------------
 

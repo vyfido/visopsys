@@ -76,7 +76,7 @@ typedef volatile struct
   kernelDiskCacheSector *sectorMemory;
   void *dataMemory;
   int dirty;
-  kernelLock lock;
+  lock cacheLock;
 
 } kernelDiskCache;
 #endif // DISK_CACHE
@@ -124,7 +124,7 @@ typedef volatile struct
   unsigned biosType;     // Needed for floppy detection
   unsigned lastSession;  // Needed for multisession CD-ROM
   void *driverData;
-  kernelLock lock;
+  lock diskLock;
   int motorState;
   int lockState;
   unsigned idleSince;
@@ -151,6 +151,7 @@ int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);
 int kernelDiskShutdown(void);
 int kernelDiskGetBoot(char *);
+int kernelDiskGetReadOnly(const char *);
 int kernelDiskGetCount(void);
 int kernelDiskGetPhysicalCount(void);
 int kernelDiskGetInfo(disk *);

@@ -48,7 +48,7 @@ typedef volatile struct
   void *filesystem;     // parent filesystem
   void *driverData;     // private fs-driver-specific data
   int openCount;
-  kernelLock lock;
+  lock lock;
 
   // Linked-list stuff.
   void *parentDirectory;

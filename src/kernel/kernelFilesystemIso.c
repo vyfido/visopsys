@@ -198,7 +198,7 @@ static isoInternalData *getIsoData(kernelFilesystem *filesystem)
   kernelPhysicalDisk *physicalDisk = NULL;
 
   // Have we already read the parameters for this filesystem?
-  if (isoData != NULL)
+  if (isoData)
     return (isoData);
 
   physicalDisk = filesystem->disk->physical;
@@ -564,7 +564,7 @@ int kernelFilesystemIsoNewEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry, and that there is a filesystem attached
-  if (newEntry->driverData != NULL)
+  if (newEntry->driverData)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);
@@ -710,9 +710,9 @@ int kernelFilesystemIsoReadFile(kernelFileEntry *theFile, unsigned blockNum,
   if (isoData == NULL)
     return (status = ERR_BADDATA);
 
-  status = kernelDiskReadSectors((char *) isoData->disk->name,
-				 dirRec->blockNumber, theFile->blocks,
-				 buffer);
+  status =
+    kernelDiskReadSectors((char *) isoData->disk->name,
+			  (dirRec->blockNumber + blockNum), blocks, buffer);
   return (status);
 }
 

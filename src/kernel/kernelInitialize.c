@@ -33,6 +33,7 @@
 #include "kernelMultitasker.h"
 #include "kernelFilesystem.h"
 #include "kernelGraphic.h"
+#include "kernelUser.h"
 #include "kernelWindowManager.h"
 #include "kernelError.h"
 #include <string.h>
@@ -56,9 +57,11 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // for processing.  Returns 0 if successful, negative on error.
 
   int status;
+  int graphics = 0;
   char welcomeMessage[512];
   static char bootDisk[DISK_MAX_NAMELENGTH];
   kernelFilesystem *rootFilesystem = NULL;
+  image splashImage;
 
   // Initialize the page manager
   status = kernelPageManagerInitialize(kernelMemory);
@@ -190,6 +193,25 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   if (rootFilesystem == NULL)
     return (status = ERR_INVALID);
 
+  // Are we in a graphics mode?
+  graphics = kernelGraphicsAreEnabled();
+
+  if (graphics)
+    {
+      // Try to load the default splash image to use when starting/restarting
+      kernelMemClear(&splashImage, sizeof(image));
+      kernelImageLoadBmp(DEFAULT_SPLASH, &splashImage);
+      if (splashImage.data)
+	{
+	  // Loaded successfully.  Put it in the middle of the screen.
+	  kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
+				 ((kernelGraphicGetScreenWidth() -
+				   splashImage.width) / 2),
+				 ((kernelGraphicGetScreenHeight() -
+				   splashImage.height) / 2), 0, 0, 0, 0);
+	}
+    }    
+
   // If the filesystem is not read-only, open a kernel log file
   if (!(rootFilesystem->readOnly))
     {
@@ -202,16 +224,30 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // Read the kernel's symbols from the kernel symbols file, if possible
   kernelReadSymbols(KERNEL_SYMBOLS_FILE);
 
+  // Initialize user functions
+  status = kernelUserInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "User functions initialization failed");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
   // Start the window management system.  Don't bother checking for an
   // error code.
-  if (kernelGraphicsAreEnabled())
+  if (graphics)
     {
-      status = kernelWindowManagerInitialize();
+      status = kernelWindowInitialize();
       if (status < 0)
 	{
 	  // Make a warning, but don't return error.  This is not fatal.
 	  kernelError(kernel_warn, "Unable to start the window manager");
 	}
+
+      // Clear the screen with our default background color
+      kernelGraphicClearScreen(&((color){ DEFAULT_BLUE, DEFAULT_GREEN,
+					    DEFAULT_RED }));
+      if (splashImage.data)
+	kernelMemoryRelease(splashImage.data);
     }
   else
     kernelTextPrint("\nGraphics are not enabled.  Operating in text mode.\n");

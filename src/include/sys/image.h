@@ -28,9 +28,14 @@
 #define IMAGETYPE_MONO  1
 #define IMAGETYPE_COLOR 2
 
-// Structures for manipulating generic images.
+#define MAXVIDEOMODES   20
 
-typedef enum { draw_normal, draw_xor } drawMode;
+// An enumeration for different drawing modes.
+typedef enum {
+  draw_normal, draw_reverse, draw_or, draw_xor, draw_translucent
+} drawMode;
+
+// Structures for manipulating generic images.
 
 typedef struct
 {
@@ -45,7 +50,6 @@ typedef color pixel;
 typedef struct
 {
   int type;
-  int isTranslucent;
   color translucentColor;
   unsigned pixels;
   unsigned width;
@@ -55,6 +59,15 @@ typedef struct
 
 } image;
 
+// A data structure to describe a graphics mode
+typedef struct
+{
+  int mode;
+  int xRes;
+  int yRes;
+  int bitsPerPixel;
+
+} videoMode;
+
 #define _IMAGE_H
 #endif
-

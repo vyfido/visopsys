@@ -22,24 +22,14 @@
 // This header file contains definitions for the kernel's standard 
 // locking facilities.
 
+#include <sys/lock.h>
+
 #if !defined(_KERNELLOCK_H)
 
-// A lock structure
-typedef volatile struct {
-
-  int processId;
-  char *filename;
-  char *function;
-  int line;
-
-} kernelLock;
-
 // Functions exported by kernelLock.c
-int kernelLockGetComplex(const char *, const char *, int, kernelLock *);
-#define kernelLockGet(lock) \
-  kernelLockGetComplex(__FILE__, __FUNCTION__, __LINE__, lock)
-int kernelLockRelease(kernelLock *);
-int kernelLockVerify(kernelLock *);
+int kernelLockGet(lock *);
+int kernelLockRelease(lock *);
+int kernelLockVerify(lock *);
 
 #define _KERNELLOCK_H
 #endif

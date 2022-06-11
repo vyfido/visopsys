@@ -25,6 +25,8 @@
 #include "kernelParameters.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
+#include "kernelMemoryManager.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <sys/errors.h>
@@ -51,6 +53,7 @@ static kernelTextArea consoleArea =
     50,                           // rows
     0,                            // cursorColumn
     0,                            // cursorRow
+    0,                            // hidden
     { 0, 0, DEFAULTFOREGROUND },  // foreground
     { 0, 0, DEFAULTBACKGROUND },  // background
     NULL,
@@ -158,7 +161,7 @@ int kernelTextInitialize(int columns, int rows)
   consoleArea.outputStream = (void *) consoleOutput;
 
   // Clear the screen
-  consoleOutput->outputDriver->clearScreen(consoleOutput->textArea);
+  consoleOutput->outputDriver->screenClear(consoleOutput->textArea);
  
   // Set up our console input stream
   status = kernelStreamNew((stream *) &(consoleInput->s), TEXTSTREAMSIZE,
@@ -212,7 +215,7 @@ int kernelTextSwitchToGraphics(kernelTextArea *area)
   consoleOutput->outputDriver = kernelDriverGetGraphicConsole();
 
   // Clear the console text area
-  consoleOutput->outputDriver->clearScreen(area);
+  consoleOutput->outputDriver->screenClear(area);
 
   // Done
   return (status = 0);
@@ -695,15 +698,13 @@ void kernelTextStreamBackSpace(kernelTextOutputStream *outputStream)
       cursorColumn = (outputStream->textArea->columns - 1);
     }
 
+  outputStream->outputDriver->setCursor(outputStream->textArea, 0);
   outputStream->outputDriver->setCursorAddress(outputStream->textArea,
 					       cursorRow, cursorColumn);
-
-  // Erase the character that's there, if any
-  outputStream->outputDriver->print(outputStream->textArea, " \0");
-
-  // Move the cursor back again
+  outputStream->outputDriver->print(outputStream->textArea, " ");
   outputStream->outputDriver->setCursorAddress(outputStream->textArea,
 					       cursorRow, cursorColumn);
+  outputStream->outputDriver->setCursor(outputStream->textArea, 1);
 
   return;
 }
@@ -1109,7 +1110,7 @@ void kernelTextSetRow(int newRow)
 }
 
 
-void kernelTextStreamClearScreen(kernelTextOutputStream *outputStream)
+void kernelTextStreamSetCursor(kernelTextOutputStream *outputStream, int on)
 {
   // Don't do anything unless we've been initialized
   if (!initialized)
@@ -1119,11 +1120,39 @@ void kernelTextStreamClearScreen(kernelTextOutputStream *outputStream)
     return;
 
   // Call the text stream output driver routine to clear the screen
-  outputStream->outputDriver->clearScreen(outputStream->textArea);
+  outputStream->outputDriver->setCursor(outputStream->textArea, on);
 }
 
 
-void kernelTextClearScreen(void)
+void kernelTextSetCursor(int on)
+{
+  // This routine sets the cursor on or off
+
+  kernelTextOutputStream *outputStream = NULL;
+
+  // Get the text output stream for the current process
+  outputStream = kernelMultitaskerGetTextOutput();
+
+  kernelTextStreamSetCursor(outputStream, on);
+  return;
+}
+
+
+void kernelTextStreamScreenClear(kernelTextOutputStream *outputStream)
+{
+  // Don't do anything unless we've been initialized
+  if (!initialized)
+    return;
+
+  if (outputStream == NULL)
+    return;
+
+  // Call the text stream output driver routine to clear the screen
+  outputStream->outputDriver->screenClear(outputStream->textArea);
+}
+
+
+void kernelTextScreenClear(void)
 {
   // This routine clears the screen
 
@@ -1132,8 +1161,71 @@ void kernelTextClearScreen(void)
   // Get the text output stream for the current process
   outputStream = kernelMultitaskerGetTextOutput();
 
-  kernelTextStreamClearScreen(outputStream);
+  kernelTextStreamScreenClear(outputStream);
   return;
+}
+
+
+int kernelTextScreenSave(void)
+{
+  // This routine saves the current contents of the screen
+
+  kernelTextOutputStream *outputStream = NULL;
+  kernelTextArea *textArea = NULL;
+
+  // Get the text output stream for the current process
+  outputStream = kernelMultitaskerGetTextOutput();
+  
+  textArea = outputStream->textArea;
+
+  // Check to see whether any saved screen data is already there.
+  if (textArea->savedScreen)
+    {
+      kernelMemoryRelease(textArea->savedScreen);
+      textArea->savedScreen = NULL;
+    }
+
+  // Get memory for a new save area
+  textArea->savedScreen =
+    kernelMemoryGet((textArea->columns * textArea->rows), "save screen data");
+  if (textArea->savedScreen == NULL)
+    return (ERR_MEMORY);
+
+  // Copy the existing screen data into it
+  kernelMemCopy(textArea->data, textArea->savedScreen,
+		(textArea->columns * textArea->rows));
+  textArea->savedCursorColumn = textArea->cursorColumn;
+  textArea->savedCursorRow = textArea->cursorRow;
+
+  return (0);
+}
+
+
+int kernelTextScreenRestore(void)
+{
+  // This routine restores the saved contents of the screen
+
+  kernelTextOutputStream *outputStream = NULL;
+  kernelTextArea *textArea = NULL;
+
+  // Get the text output stream for the current process
+  outputStream = kernelMultitaskerGetTextOutput();
+  
+  textArea = outputStream->textArea;
+
+  // Check to see whether any saved screen data is already there.
+  if (textArea->savedScreen)
+    {
+      // Copy the saved data back into the screen data
+      kernelMemCopy(textArea->savedScreen, textArea->data,
+		    (textArea->columns * textArea->rows));
+      textArea->cursorColumn = textArea->savedCursorColumn;
+      textArea->cursorRow = textArea->savedCursorRow;
+      kernelMemoryRelease(textArea->savedScreen);
+      textArea->savedScreen = NULL;
+    }
+
+  return (0);
 }
 
 

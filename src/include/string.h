@@ -31,14 +31,14 @@
 #define NULL
 #endif
 
-// Argh.  We're supposed to define size_t again here?  No, we're including
-// stddef.h instead, which is the proper place.
-// typedef unsigned int size_t;
-
 // Functions
+void bzero(void *, size_t);
+char *index(const char *, int);
 int memcmp(const void *, const void *, size_t);
 void *memcpy(void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+char *rindex(const char *, int);
 int strcasecmp(const char *, const char *);
 char *strcat(char *, const char *);
 int strcmp(const char *, const char *);
@@ -52,39 +52,6 @@ size_t strspn(const char *, const char *);
 #if !defined(__cplusplus)
 char *strstr(const char *, const char *);
 #endif
-
-// For dealing with unimplemented functions
-#define not_implemented_int()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (ERR_NOTIMPLEMENTED); \
-  }
-#define not_implemented_ptr()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (NULL);               \
-  }
-#define not_implemented_uns()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return 0;                    \
-  }
-
-// These functions are unimplemented
-
-#if !defined(__cplusplus)
-#define memchr(s, c, n) not_implemented_ptr()
-#define strchr(s, c) not_implemented_ptr()
-#define strpbrk(s1, s2) not_implemented_ptr()
-#define strrchr(s, c) not_implemented_ptr()
-#endif
-
-#define memset(s, c, n) not_implemented_ptr()
-#define strcoll(s1, s2) not_implemented_int()
-#define strcspn(s1, s2) not_implemented_uns()
-#define strerror(errcode) not_implemented_ptr()
-#define strtok(s1, s2) not_implemented_ptr()
-#define strxfrm(s1, s2, n) not_implemented_uns()
 
 #define _STRING_H
 #endif

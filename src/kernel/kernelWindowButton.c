@@ -20,8 +20,6 @@
 //
 
 // This code is for managing kernelWindowButton objects.
-// These are just images that appear inside windows and buttons, etc
-
 
 #include "kernelWindowManager.h"     // Our prototypes are here
 #include "kernelMalloc.h"
@@ -30,97 +28,16 @@
 #include "kernelError.h"
 #include <string.h>
 
-
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;
-
-
-static void drawBorder(kernelGraphicBuffer *buffer,
-		       kernelWindowComponent *component, int converse)
-{
-  // Draws the plain border around the window
-  
-  int greyColor = 0;
-  color drawColor;
-  int count;
-
-  // These are the starting points of the 'inner' border lines
-  int leftX = (component->xCoord + borderThickness);
-  int rightX = (component->xCoord + component->width - borderThickness - 1);
-  int topY = (component->yCoord + borderThickness);
-  int bottomY = (component->yCoord + component->height - borderThickness - 1);
-
-  // The top and left
-  for (count = borderThickness; count > 0; count --)
-    {
-      if (converse)
-	{
-	  greyColor = (DEFAULT_GREY + (count * borderShadingIncrement));
-	  if (greyColor > 255)
-	    greyColor = 255;
-	}
-      else
-	{
-	  greyColor = (DEFAULT_GREY - (count * borderShadingIncrement));
-	  if (greyColor < 0)
-	    greyColor = 0;
-	}
-
-      drawColor.red = greyColor;
-      drawColor.green = greyColor;
-      drawColor.blue = greyColor;
-
-      // Top
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal, 
-			    (leftX - count), (topY - count),
-			    (rightX + count), (topY - count));
-      // Left
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
-			    (leftX - count), (topY - count), (leftX - count),
-			    (bottomY + count));
-    }
-
-  // The bottom and right
-  for (count = borderThickness; count > 0; count --)
-    {
-      if (converse)
-	{
-	  greyColor = (DEFAULT_GREY - (count * borderShadingIncrement));
-	  if (greyColor < 0)
-	    greyColor = 0;
-	}
-      else
-	{
-	  greyColor = (DEFAULT_GREY + (count * borderShadingIncrement));
-	  if (greyColor > 255)
-	    greyColor = 255;
-	}
-
-      drawColor.red = greyColor;
-      drawColor.green = greyColor;
-      drawColor.blue = greyColor;
-
-      // Bottom
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
-			    (leftX - count), (bottomY + count),
-			    (rightX + count), (bottomY + count));
-      // Right
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
-			    (rightX + count), (topY - count),
-			    (rightX + count), (bottomY + count));
-
-      greyColor += borderShadingIncrement;
-    }
-
-  return;
-}
+static kernelAsciiFont *labelFont = NULL;
 
 
 static int draw(void *componentData)
 {
   // Draw the button component
 
-  color foreground = { 0, 0, 0 };
+  color foreground = { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED };
   color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowButton *button = (kernelWindowButton *) component->data;
@@ -148,29 +65,76 @@ static int draw(void *componentData)
 			component->width, component->height, 1, 1);
 
   // If there is a label on the button, draw it
-  if (button->label != NULL)
+  if (button->label)
     {
-      kernelWindowTextLabel *tmpLabel =
-	(kernelWindowTextLabel *) button->label->data;
-      
-      kernelGraphicDrawText(buffer, &foreground, tmpLabel->font,
-			    tmpLabel->text, draw_normal,
-			    (component->xCoord + ((component->width - button
-						   ->label->width) / 2)),
-			    (component->yCoord + ((component->height - button
-						   ->label->height) / 2)));
+      kernelGraphicDrawText(buffer, &foreground, &background, labelFont,
+	    (const char *) button->label, draw_translucent,
+	    (component->xCoord + ((component->width -
+		   kernelFontGetPrintedWidth(labelFont,
+			     (const char *) button->label)) / 2)),
+	    (component->yCoord + ((component->height -
+		   labelFont->charHeight) / 2)));
     }
 
   // If there is an image on the button, draw it centered on the button
-  if (button->buttonImage.data != NULL)
-    kernelGraphicDrawImage(buffer, (image *) &(button->buttonImage),
- 			   component->xCoord, component->yCoord, 0, 0, 0, 0);
+  if (button->buttonImage.data)
+    {
+      unsigned tmpX, tmpY, tmpXoff = 0, tmpYoff = 0;
+      tmpX = component->xCoord +
+	((component->width - button->buttonImage.width) / 2);
+      tmpY = component->yCoord +
+	((component->height - button->buttonImage.height) / 2);
+      
+      if (button->buttonImage.width > component->width)
+	tmpXoff = -((button->buttonImage.width - component->width) / 2);
+      if (button->buttonImage.height > component->height)
+	tmpYoff = -((button->buttonImage.height - component->height) / 2);
+
+      kernelGraphicDrawImage(buffer, (image *) &(button->buttonImage),
+			     draw_translucent, tmpX, tmpY, tmpXoff, tmpYoff,
+			     component->width, component->height);
+    }
+
+  if (component->flags & WINFLAG_HASFOCUS)
+    kernelGraphicDrawRect(buffer, &foreground, draw_normal,
+			  (component->xCoord + borderThickness),
+			  (component->yCoord + borderThickness),
+			  (component->width - (borderThickness * 2)),
+			  (component->height - (borderThickness * 2)),
+			  1, 0);
+  else
+    kernelGraphicDrawRect(buffer, &background, draw_normal,
+			  (component->xCoord + borderThickness),
+			  (component->yCoord + borderThickness),
+			  (component->width - (borderThickness * 2)),
+			  (component->height - (borderThickness * 2)),
+			  1, 0);
 
   // Draw the border last, since if there's an image on the button it's
   // normally the size of the whole button
-  drawBorder(buffer, component, 1);
-
+  kernelGraphicDrawGradientBorder(buffer, component->xCoord, component->yCoord,
+				  component->width, component->height,
+				  borderThickness, borderShadingIncrement,
+				  draw_normal);
   return (0);
+}
+
+
+static int focus(void *componentData, int focus)
+{
+  // Just redraw
+
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
+    &(((kernelWindow *) component->window)->buffer);
+
+  if (component->draw)
+    status = component->draw(componentData);
+
+  kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
+			   component->width, component->height);
+  return (status);
 }
 
 
@@ -178,28 +142,57 @@ static int mouseEvent(void *componentData, windowEvent *event)
 {
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowButton *button = (kernelWindowButton *) component->data;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelGraphicBuffer *buffer = &(window->buffer);
 
   // Just take care of drawing any changes we need to do
   
   if ((event->type & EVENT_MOUSE_UP) || (event->type & EVENT_MOUSE_DRAG))
-    drawBorder(buffer, component, 1);
-
+    {
+      kernelGraphicDrawGradientBorder(buffer, component->xCoord,
+				      component->yCoord, component->width,
+				      component->height, borderThickness,
+				      borderShadingIncrement, draw_normal);
+      button->state = 0;
+    }
   else if (event->type & EVENT_MOUSE_DOWN)
-    // Reverse the border (show 'clicked')
-    drawBorder(buffer, component, 0);
+    {
+      // Reverse the border (show 'clicked')
+      kernelGraphicDrawGradientBorder(buffer, component->xCoord,
+				      component->yCoord, component->width,
+				      component->height, borderThickness,
+				      borderShadingIncrement, draw_reverse);
+      button->state = 1;
+    }
 
-  kernelWindowManagerUpdateBuffer(buffer, component->xCoord,
-				  component->yCoord, component->width,
-				  component->height);
+  kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
+			   component->width, component->height);
   return (status);
 }
 
 
-static int erase(void *componentData)
+static int keyEvent(void *componentData, windowEvent *event)
 {
-  return (0);
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowButton *button = (kernelWindowButton *) component->data;
+
+  if ((event->type & EVENT_MASK_KEY) && (event->key == 10))
+    {
+      // If the button is not pushed, ignore this
+      if ((event->type & EVENT_KEY_UP) && !(button->state))
+	return (status = 0);
+
+      if (event->type & EVENT_KEY_DOWN)
+	event->type = EVENT_MOUSE_DOWN;
+      if (event->type & EVENT_KEY_UP)
+	event->type = EVENT_MOUSE_UP;
+
+      status = mouseEvent(componentData, event);
+    }
+
+  return (status);
 }
 
 
@@ -209,14 +202,10 @@ static int destroy(void *componentData)
   kernelWindowButton *button = (kernelWindowButton *) component->data;
 
   // Release all our memory
-  if (button != NULL)
+  if (button)
     {
-      // If we have a label component, destroy it.
-      if (button->label != NULL)
-	kernelWindowDestroyComponent(button->label);
-
       // If we have an image, release the image data
-      if (button->buttonImage.data != NULL)
+      if (button->buttonImage.data)
 	kernelFree(button->buttonImage.data);
 
       // The button itself.
@@ -236,34 +225,39 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewButton(kernelWindow *window,
-				      unsigned width, unsigned height,
-				      kernelWindowComponent *label,
-				      image *buttonImage)
+kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
+					     const char *label,
+					     image *buttonImage,
+					     componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowButton
 
+  int status = 0;
   kernelWindowComponent *component = NULL;
   kernelWindowButton *button = NULL;
-  kernelGraphicBuffer tmpBuffer;
-  void *tmpImageData = NULL;
-  unsigned bufferBytes = 0;
-  int labelOrImageX = 0;
-  int labelOrImageY = 0;
 
   // Check parameters.  It's okay for the image or label to be NULL
-  if (window == NULL)
+  if ((parent == NULL) || (params == NULL))
     return (component = NULL);
 
+  if (labelFont == NULL)
+    {
+      // Try to load a nice-looking font
+      status = kernelFontLoad(DEFAULT_VARIABLEFONT_MEDIUM_FILE,
+			      DEFAULT_VARIABLEFONT_MEDIUM_NAME, &labelFont);
+      if (status < 0)
+	// Font's not there, we suppose.  There's always a default.
+	kernelFontGetDefault(&labelFont);
+    }
+
   // Get the basic component structure
-  component = kernelWindowNewComponent();
+  component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
 
   // Now populate it
-  component->type = windowButtonComponent;
-  component->width = width;
-  component->height = height;
+  component->type = buttonComponentType;
+  component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
 
   button = kernelMalloc(sizeof(kernelWindowButton));
   if (button == NULL)
@@ -273,75 +267,39 @@ kernelWindowComponent *kernelWindowNewButton(kernelWindow *window,
     }
 
   // If the button has a label, copy it
-  if (label != NULL)
+  if (label)
     {
-      button->label = label;
-      unsigned tmp = (button->label->width + (borderThickness * 2));
+      strncpy((char *) button->label, label, WINDOW_MAX_LABEL_LENGTH);
+      unsigned tmp = (kernelFontGetPrintedWidth(labelFont,
+						(const char *) button->label) +
+		      (borderThickness * 2) + 6);
       if (tmp > component->width)
 	component->width = tmp;
-      tmp = (button->label->height + (borderThickness * 2));
+      tmp = (labelFont->charHeight + (borderThickness * 2) + 6);
       if (tmp > component->height)
 	component->height = tmp;
     }
 
   // If the button has an image, copy it
-  if ((buttonImage != NULL) && (buttonImage->data != NULL))
+  if (buttonImage && buttonImage->data)
     {
-      // Get a temporary graphic buffer into which we draw the image
-      tmpBuffer.width = width;
-      tmpBuffer.height = height;
-      bufferBytes = kernelGraphicCalculateAreaBytes(width, height);
-      tmpBuffer.data = kernelMalloc(bufferBytes);
+      kernelMemCopy(buttonImage, (void *) &(button->buttonImage),
+		    sizeof(image));
 
-      if (buttonImage->width > width)
-	labelOrImageX = -((buttonImage->width - width) / 2);
-      else
-	labelOrImageX = ((width - buttonImage->width) / 2);
-      if (buttonImage->height > height)
-	labelOrImageY = -((buttonImage->height - height) / 2);
-      else
-	labelOrImageY = ((height - buttonImage->height) / 2);
-      
       // Button images use pure green as the transparency color
-      buttonImage->isTranslucent = 1;
-      buttonImage->translucentColor.blue = 0;
-      buttonImage->translucentColor.green = 255;
-      buttonImage->translucentColor.red = 0;
+      button->buttonImage.translucentColor.blue = 0;
+      button->buttonImage.translucentColor.green = 255;
+      button->buttonImage.translucentColor.red = 0;
       
-      kernelGraphicDrawRect(&tmpBuffer, &((color)
-      { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY }),
-			    draw_normal, 0, 0, width, height, 1, 1);
-
-      kernelGraphicDrawImage(&tmpBuffer, buttonImage, labelOrImageX,
- 			     labelOrImageY, 0, 0, 0, 0);
-      
-      // Get a new (centered, correctly-sized) image from that
-      kernelGraphicGetImage(&tmpBuffer, (image *) &(button->buttonImage), 0, 0,
-			    width, height);
-
-      // The GetImage routine returns the image data to us as a normal
-      // memory block.  We need to ensure that it's in a system memory
-      // block.
-      tmpImageData = kernelMalloc(button->buttonImage.dataLength);
-      if (tmpImageData != NULL)
+      button->buttonImage.data = kernelMalloc(button->buttonImage.dataLength);
+      if (button->buttonImage.data == NULL)
 	{
-	  kernelMemCopy(button->buttonImage.data, tmpImageData,
-			button->buttonImage.dataLength);
-	  // Free the old image data
-	  kernelMemoryRelease(button->buttonImage.data);
-	  button->buttonImage.data = tmpImageData;
-	}
-      else
-	{
-	  kernelError(kernel_warn, "Unable to get system memory for button "
-		      "image");
-	  // Free the old image data
-	  kernelMemoryRelease(button->buttonImage.data);
-	  button->buttonImage.data = NULL;
+	  kernelFree((void *) component);
+	  return (component = NULL);
 	}
 
-      // Free the temporary buffer
-      kernelFree(tmpBuffer.data);
+      kernelMemCopy(buttonImage->data, button->buttonImage.data,
+		    button->buttonImage.dataLength);
     }
   else
     button->buttonImage.data = NULL;
@@ -350,8 +308,9 @@ kernelWindowComponent *kernelWindowNewButton(kernelWindow *window,
 
   // The functions
   component->draw = &draw;
+  component->focus = &focus;
   component->mouseEvent = &mouseEvent;
-  component->erase = &erase;
+  component->keyEvent = &keyEvent;
   component->destroy = &destroy;
 
   return (component);

@@ -23,6 +23,7 @@
 	GLOBAL loaderLoadFile
 	GLOBAL PARTENTRY
  
+	EXTERN loaderBigRealMode
         EXTERN loaderPrint
         EXTERN loaderPrintNewline
 	EXTERN loaderPrintNumber
@@ -48,6 +49,33 @@
 
 	%define BYTESPERENTRY 32
 	%define NYBBLESPERENTRY 3
+
+
+headTrackSector:
+	;; This routine takes the logical sector number in EAX.  From this it
+	;; calculates the head, track and sector number on disk.
+
+	;; We destroy a bunch of registers, so save them
+	pusha
+
+	;; First the sector
+	xor EDX, EDX
+	xor EBX, EBX
+	mov BX, word [SECPERTRACK]
+	div EBX
+	mov byte [SECTOR], DL		; The remainder
+	add byte [SECTOR], 1		; Sectors start at 1
+	
+	;; Now the head and track
+	xor EDX, EDX			; Don't need the remainder anymore
+	xor EBX, EBX
+	mov BX, word [HEADS]
+	div EBX
+	mov byte [HEAD], DL		; The remainder
+	mov word [CYLINDER], AX
+	
+	popa
+	ret
 
 
 calculateVolInfo:
@@ -90,41 +118,18 @@ calculateVolInfo:
 	ret
 
 
-headTrackSector:
-	;; This routine takes the logical sector number in EAX.  From this it
-	;; calculates the head, track and sector number on disk.
-
-	;; We destroy a bunch of registers, so save them
-	pusha
-
-	;; First the sector
-	xor EDX, EDX
-	xor EBX, EBX
-	mov BX, word [SECPERTRACK]
-	div EBX
-	mov byte [SECTOR], DL		; The remainder
-	add byte [SECTOR], 1		; Sectors start at 1
-	
-	;; Now the head and track
-	xor EDX, EDX			; Don't need the remainder anymore
-	xor EBX, EBX
-	mov BX, word [HEADS]
-	div EBX
-	mov byte [HEAD], DL		; The remainder
-	mov word [CYLINDER], AX
-	
-	popa
-	ret
-
-
-read:
+readSector:
 	;; Takes the logical sector number in EAX, segment in ES, offset in
 	;; BX, count in CX, and does the read.
 
-	;; Save a word for our return code
+	;; Save a word on the stack for our return value
 	push word 0
 
+	;; Save regs
 	pusha
+
+	;; Save the stack register
+	mov BP, SP
 
 	mov dword [LOGICALSECTOR], EAX
 	
@@ -191,7 +196,7 @@ read:
 	jnae .readAttempt
 
 	mov word [SS:(BP + 16)], -1
-
+	
 	.done:
 	pop AX			; Counter
 	popa
@@ -225,7 +230,7 @@ loadFAT:
 	mov ES, word [FATSEGMENT]
 	xor BX, BX			; Put at beginning of buffer
 	mov CX, word [FATSECS]		; Read entire FAT
-	call read
+	call readSector
 	pop ES
 
 	;; Check status
@@ -246,7 +251,6 @@ loadFAT:
 	
 
 loadDirectory:
-
 	;; This subroutine finds the root directory of the boot volume
 	;; and loads it into memory at LDRDATABUFFER
 
@@ -280,7 +284,7 @@ loadDirectory:
 	mov ES, word [FATSEGMENT]
 	xor BX, BX			; Load at offset 0 of the data buffer
 	mov CX, word [DIRSECTORS]	; Number of sectors to read
-	call read
+	call readSector
 	pop ES
 		
 	;; Check status
@@ -301,14 +305,15 @@ loadDirectory:
 
 
 searchFile:
-	
 	;; This routine will search the pre-loaded root directory of the 
 	;; boot volume at LDRDATABUFFER and return the starting cluster of 
 	;; the requested file.
+	;; Proto:
+	;;   int searchFile(char *filename);
 
 	;; Save a word for our return code (the starting cluster of the
 	;; file)
-	sub SP, 2
+	push word 0
 
 	;; Save regs
 	pusha
@@ -329,7 +334,6 @@ searchFile:
 	mov ES, word [FATSEGMENT]
 		
 	.entryLoop:
-
 	;; Determine whether this is a valid, undeleted file.
 	;; E5 means this is a deleted entry
 	mov DI, word [ENTRYSTART]
@@ -414,6 +418,9 @@ makeProgress:
 
 	pusha
 
+	cmp word [SHOWPROGRESS], 0
+	je .done
+	
 	;; Disable the cursor
 	mov CX, 2000h
 	mov AH, 01h
@@ -437,13 +444,17 @@ makeProgress:
 	;; To keep track of how many characters we've printed in the
 	;; progress indicator
 	mov word [PROGRESSCHARS], 0
-	
+
+	.done:
 	popa
 
 	
 updateProgress:
 	pusha
 
+	cmp word [SHOWPROGRESS], 0
+	je .done
+	
 	;; Make sure we're not already at the end
 	mov AX, word [PROGRESSCHARS]
 	cmp AX, PROGRESSLENGTH
@@ -467,6 +478,9 @@ killProgress:
 
 	pusha
 
+	cmp word [SHOWPROGRESS], 0
+	je .done
+	
 	;; Re-enable the cursor
 	;; xor CX, CX
 	;; mov CL, 07h
@@ -476,6 +490,7 @@ killProgress:
 	call loaderPrintNewline
 	call loaderPrintNewline
 	
+	.done:	
 	popa
 	ret
 
@@ -527,6 +542,8 @@ loadFile:
 	;; This routine is responsible for loading the requested file into
 	;; the requested memory location.  The FAT table must have previously
 	;; been loaded at memory location LDRDATABUFFER
+	;; Proto:
+	;;   int loadFile((short) cluster, (dword) memory-address); 
 
 	;; Save a word for our return code
 	push word 0
@@ -559,11 +576,10 @@ loadFile:
 	mov EAX, dword [SS:(BP + 22)]
 	mov dword [MEMORYMARKER], EAX
 	
-	;; Save EX, because we're going to dick with it throughout.
+	;; Save ES, because we're going to dick with it throughout.
 	push ES
 
 	.FATLoop:
-	
 	;; Get the logical sector for this cluster number
 	mov EAX, dword [NEXTCLUSTER]
 	call clusterToLogical
@@ -574,8 +590,8 @@ loadFile:
 	mov ES, word [CLUSTERSEGMENT]
 	xor BX, BX			; ES:BX is real-mode buffer for data
 	mov CX, word [SECPERCLUST] 	; Read 1 cluster's worth of sectors
-	call read
-
+	call readSector
+	
 	cmp AX, 0
 	je .gotCluster
 
@@ -720,14 +736,15 @@ loadFile:
 	ret
 
 
-loaderLoadFile:
-	
-	;; This routine is responsible for loading the requested file into
-	;; the requested memory location.  It is specific to the FAT-12 
-	;; filesystem.
+loaderFindFile:
+	;; This routine is will simply search for the requested file, and
+	;; return the starting cluster number if it is present.  Returns
+	;; negative otherwise.
+	;; Proto:
+	;;   int loaderFindFile(char *filename);
 
 	;; Save a word for our return code
-	sub SP, 2
+	push word 0
 
 	;; Save registers
 	pusha
@@ -735,7 +752,68 @@ loaderLoadFile:
 	;; Save the stack pointer
 	mov BP, SP
 
-	;; The first parameter is a pointer to an 11-character string
+	;; The parameter is a pointer to an 11-character string
+	;; (FAT 8.3 format) containing the name of the file to find.
+
+	;; First we need to calculate a couple of values that will help
+	;; us deal with this filesystem volume correctly
+	call calculateVolInfo
+
+	;; We need to locate the file.  Read the root directory from 
+	;; the disk
+	call loadDirectory
+
+	;; Was that successful?  Do a signed comparison.  Less than 0
+	;; means error.
+	cmp AX, 0
+	jge .search
+	
+	;; Failed to load the directory.  Put a 0 as our return code
+	mov word [SS:(BP + 16)], 0
+	jmp .done
+	
+	.search:
+	;; Now we need to search for the requested file in the root
+	;; directory.
+	push word [SS:(BP + 20)]
+	call searchFile
+	add SP, 2
+	
+	;; If the file was found successfully, put a 1 as our return
+	;; code.  Otherwise, put 0
+	cmp AX, 0
+	jge .success
+	
+	mov word [SS:(BP + 16)], 0
+	jmp .done
+
+	.success:
+	mov word [SS:(BP + 16)], 1
+
+	.done:	
+	popa
+	pop AX			; return code
+	ret
+
+
+loaderLoadFile:
+	;; This routine is responsible for loading the requested file into
+	;; the requested memory location.  It is specific to the FAT-12 
+	;; filesystem.
+	;; Proto:
+	;;   int loaderLoadFile(char *filename, (dword) loadOffset, int
+	;;			spinner)
+
+	;; Save a word for our return code
+	push word 0
+
+	;; Save registers
+	pusha
+	
+	;; Save the stack pointer
+	mov BP, SP
+
+	;; The parameter is a pointer to an 11-character string
 	;; (FAT 8.3 format) containing the name of the file to load.
 
 	;; The second parameter is a DWORD value representing the absolute
@@ -797,6 +875,10 @@ loaderLoadFile:
 	;; to the loadFile function.  The second parameter is the
 	;; load location of the file (which was THIS function's second
 	;; parameter, also)
+
+	mov AX, word [SS:(BP + 26)]
+	mov word [SHOWPROGRESS], AX
+	
 	pop AX
 	push dword [SS:(BP + 22)]
 	push AX
@@ -818,69 +900,11 @@ loaderLoadFile:
 	mov word [SS:(BP + 16)], AX
 	
 	.done:
+	call loaderBigRealMode	; This gets screwed up somewhere here
 	popa
 	;; Pop the return code
 	xor EAX, EAX
 	pop AX
-	ret
-
-
-loaderFindFile:
-	
-	;; This routine is will simply search for the requested file, and
-	;; return the starting cluster number if it is present.  Returns
-	;; negative otherwise.
-
-	;; Save a word for our return code
-	sub SP, 2
-
-	;; Save registers
-	pusha
-	
-	;; Save the stack pointer
-	mov BP, SP
-
-	;; The parameter is a pointer to an 11-character string
-	;; (FAT 8.3 format) containing the name of the file to find.
-
-	;; First we need to calculate a couple of values that will help
-	;; us deal with this filesystem volume correctly
-	call calculateVolInfo
-
-	;; We need to locate the file.  Read the root directory from 
-	;; the disk
-	call loadDirectory
-
-	;; Was that successful?  Do a signed comparison.  Less than 0
-	;; means error.
-	cmp AX, 0
-	jge .search
-	
-	;; Failed to load the directory.  Put a 0 as our return code
-	mov word [SS:(BP + 16)], 0
-	jmp .done
-	
-	.search:
-	;; Now we need to search for the requested file in the root
-	;; directory.
-	push word [SS:(BP + 20)]
-	call searchFile
-	add SP, 2
-	
-	;; If the file was found successfully, put a 1 as our return
-	;; code.  Otherwise, put 0
-	cmp AX, 0
-	jge .success
-	
-	mov word [SS:(BP + 16)], 0
-	jmp .done
-
-	.success:
-	mov word [SS:(BP + 16)], 1
-
-	.done:	
-	popa
-	pop AX			; return code
 	ret
 
 
@@ -912,6 +936,7 @@ PARTENTRY	times 16 db 0	;; Partition table entry of bootable partition
 ;; Stuff for the progress indicator
 PROGRESSCHARS	dw 0	;; Number of progress indicator chars showing
 OLDPROGRESS	dw 0	;; Percentage of file load completed
+SHOWPROGRESS	dw 0	;; Whether or not to show a progress spinner
 PROGRESSTOP	db 218
 		times PROGRESSLENGTH db 196
 		db 191, 0

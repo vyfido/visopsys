@@ -38,6 +38,7 @@ typedef enum
 
 void kernelErrorOutput(const char *, const char *, int, kernelErrorKind, 
 		       const char *, ...);
+void kernelErrorDialog(const char *, const char *);
 
 // This macro should be used to invoke all kernel errors
 #define kernelError(kind, message, arg...) \

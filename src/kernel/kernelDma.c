@@ -109,7 +109,7 @@ int kernelDmaOpenChannel(int channelNumber, void *address, int count, int mode)
   // Make sure the driver's "open channel" routine has been initialized
   if (systemDma->driver->driverOpenChannel == NULL)
     {
-      // Ooops.  Driver function is NULL.  Make an error.
+      // Ooops.  Driver function is NULL.
       kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
@@ -142,7 +142,7 @@ int kernelDmaCloseChannel(int channelNumber)
   // Make sure the driver's "close channel" routine has been initialized
   if (systemDma->driver->driverCloseChannel == NULL)
     {
-      // Ooops.  Driver function is NULL.  Make an error.
+      // Ooops.  Driver function is NULL.
       kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }

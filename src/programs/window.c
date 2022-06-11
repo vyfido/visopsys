@@ -36,12 +36,10 @@ static void eventHandler(objectKey key, windowEvent *event)
   // This is just to handle a window shutdown event.
 
   if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-    {
-      // The window is being closed by a GUI event.  Just kill our shell
-      // process -- the main process will stop blocking and do the rest
-      // of the shutdown.
-      multitaskerKillProcess(processId, 0 /* no force */);
-    }
+    // The window is being closed by a GUI event.  Just kill our shell
+    // process -- the main process will stop blocking and do the rest of the
+    // shutdown.
+    multitaskerKillProcess(processId, 0 /* no force */);
 }
 
 
@@ -78,35 +76,23 @@ int main(int argc, char *argv[])
       return (status = processId);
     }
 
-  // Create a new window, with small, arbitrary size and location
-  window = windowManagerNewWindow(processId, "Command window", 100, 100, 100,
-				  100);
+  // Create a new window
+  window = windowNew(processId, "Command window");
 
   // Put a text area in the window
-  textArea = windowNewTextArea(window, 80, 40, NULL /* (default font) */);
-
-  // Put it in the client area of the window
-  params.gridX = 0;
-  params.gridY = 0;
+  bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
-  params.padLeft = 0;
-  params.padRight = 0;
-  params.padTop = 0;
-  params.padBottom = 0;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
-  params.hasBorder = 0;
+  params.stickyFocus = 1;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  windowAddClientComponent(window, textArea, &params);
-
-  // Autosize the window to fit our text area
-  windowLayout(window);
-  windowAutoSize(window);
+  textArea = windowNewTextArea(window, 80, 40, NULL /* (default font) */,
+			       &params);
 
   // Use the text area for all our input and output
-  windowManagerSetTextOutput(textArea);
+  windowSetTextOutput(textArea);
 
   // Go live.
   windowSetVisible(window, 1);
@@ -126,7 +112,7 @@ int main(int argc, char *argv[])
   windowGuiStop();
 
   // Destroy the window
-  windowManagerDestroyWindow(window);
+  windowDestroy(window);
 
   // Done
   return (status);

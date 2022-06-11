@@ -19,10 +19,14 @@
 ##  Makefile
 ##
 
-##  This is the Makefile controlling the distribution utilities.  
-
+BUILDDIR=../../build/
 
 all:
-
+	mkdir -p ${BUILDDIR}
+	make -C programs
+	make -C system
+	
 clean:
-	rm -Rf *~ core
+	rm -f *~ core
+	make -C programs clean
+	make -C system clean

@@ -21,30 +21,13 @@
 
 #if !defined(_KERNELVARIABLELIST_H)
 
-#include "kernelLock.h"
-
-// Definitions.
-
-typedef struct
-{
-  unsigned numVariables;
-  unsigned maxVariables;
-  unsigned usedData;
-  unsigned maxData;
-  unsigned totalSize;
-  char **variables;
-  char **values;
-  char *data;
-  kernelLock listLock;
-
-} kernelVariableList;
+#include <sys/variable.h>
 
 // Functions exported by kernelVariableList.c
-kernelVariableList *kernelVariableListCreate(unsigned, unsigned, const char *);
-int kernelVariableListGet(kernelVariableList *, const char *, char *,
-			  unsigned);
-int kernelVariableListSet(kernelVariableList *, const char *, const char *);
-int kernelVariableListUnset(kernelVariableList *, const char *);
+variableList *kernelVariableListCreate(unsigned, unsigned, const char *);
+int kernelVariableListGet(variableList *, const char *, char *, unsigned);
+int kernelVariableListSet(variableList *, const char *, const char *);
+int kernelVariableListUnset(variableList *, const char *);
 
 #define _KERNELVARIABLELIST_H
 #endif

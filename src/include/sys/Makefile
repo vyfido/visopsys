@@ -19,8 +19,12 @@
 ##  Makefile
 ##
 
+BUILDDIR=../../../build/system/headers/sys
+
 all:
+	mkdir -p ${BUILDDIR}
+	cp *.h ${BUILDDIR}
 
 clean:
 	rm -f *~
-
+	rm -Rf ${BUILDDIR}

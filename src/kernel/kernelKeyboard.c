@@ -35,6 +35,7 @@
 
 static kernelKeyboard *systemKeyboard = NULL;
 static stream *consoleStream = NULL;
+static int graphics = 0;
 static int initialized = 0;
 
 
@@ -109,6 +110,9 @@ int kernelKeyboardSetStream(stream *newStream)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Are graphics enabled?
+  graphics = kernelGraphicsAreEnabled();
+
   // Save the address of the kernelStream we were passed to use for
   // keyboard data
   consoleStream = newStream;
@@ -147,17 +151,22 @@ int kernelKeyboardInput(int ascii, int eventType)
   // pressed.
   windowEvent event;
 
-  if (consoleStream && (eventType & EVENT_KEY_DOWN))
-    consoleStream->append(consoleStream, (char) ascii);
+  if (graphics)
+    {
+      // Fill out our event
+      event.type = eventType;
+      event.xPosition = 0;
+      event.yPosition = 0;
+      event.key = ascii;
 
-  // Fill out our event
-  event.type = eventType;
-  event.xPosition = 0;
-  event.yPosition = 0;
-  event.key = ascii;
-
-  // Notify the window manager of the event
-  kernelWindowManagerProcessEvent(&event);
+      // Notify the window manager of the event
+      kernelWindowProcessEvent(&event);
+    }
+  else
+    {
+      if (consoleStream && (eventType & EVENT_KEY_DOWN))
+	consoleStream->append(consoleStream, (char) ascii);
+    }
 
   return (0);
 }

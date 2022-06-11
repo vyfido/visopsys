@@ -25,14 +25,14 @@
 
 #include "kernelVariableList.h"
 #include "kernelMemoryManager.h"
-#include "kernelLock.h"
 #include "kernelMiscFunctions.h"
+#include "kernelLock.h"
 #include "kernelError.h"
 #include <string.h>
 #include <sys/errors.h>
 
 
-static int findVariable(kernelVariableList *list, const char *variable)
+static int findVariable(variableList *list, const char *variable)
 {
   // This will attempt to locate a variable in the supplied list.
   // On success, it returns the slot number of the variable.  Otherwise
@@ -54,7 +54,7 @@ static int findVariable(kernelVariableList *list, const char *variable)
 }
 
 
-static int unsetVariable(kernelVariableList *list, const char *variable)
+static int unsetVariable(variableList *list, const char *variable)
 {
   // Unset a variable's value from the supplied list.  This involves shifting
   // the entire contents of the list data starting from where the variable is
@@ -111,7 +111,7 @@ static int unsetVariable(kernelVariableList *list, const char *variable)
 }
 
 
-static int setVariable(kernelVariableList *list, const char *variable,
+static int setVariable(variableList *list, const char *variable,
 		       const char *value)
 {
   // Does the work of setting a variable
@@ -120,7 +120,11 @@ static int setVariable(kernelVariableList *list, const char *variable,
   
   // Make sure we're not exceeding the maximum number of variables
   if (list->numVariables >= list->maxVariables)
-    return (status = ERR_BOUNDS);
+    {
+      kernelError(kernel_error, "Maximum number of variables (%d) reached",
+		  list->maxVariables);
+      return (status = ERR_BOUNDS);
+    }
 
   // Check to see whether the variable currently has a value
   if (findVariable(list, variable) >= 0)
@@ -138,7 +142,11 @@ static int setVariable(kernelVariableList *list, const char *variable,
   // Make sure we now have enough room to store the variable
   if ((list->usedData + (strlen(variable) + 1) + (strlen(value) + 1)) > 
       list->maxData)
-    return (status = ERR_BOUNDS);
+    {
+      kernelError(kernel_error, "Variable list of size %u is full",
+		  list->maxData);
+      return (status = ERR_BOUNDS);
+    }
 
   // Okay, we're setting the variable
 
@@ -175,14 +183,14 @@ static int setVariable(kernelVariableList *list, const char *variable,
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelVariableList *kernelVariableListCreate(unsigned maxVariables,
-					     unsigned dataSize,
-					     const char *description)
+variableList *kernelVariableListCreate(unsigned maxVariables,
+				       unsigned dataSize,
+				       const char *description)
 {
-  // This function will create a new kernelVariableList structure
+  // This function will create a new variableList structure
 
   unsigned structureSize = 0;
-  kernelVariableList *list = NULL;
+  variableList *list = NULL;
   
   // numVariables and size must be non-zero
   if (!maxVariables || !dataSize)
@@ -196,10 +204,10 @@ kernelVariableList *kernelVariableListCreate(unsigned maxVariables,
     description = "variable list";
 
   // The total structure size will be the size of the raw data, plus the size
-  // of kernelVariableList itself, plus maxVariables pointers for both
-  // the variable names and the values, respectively
-  structureSize = (sizeof(kernelVariableList) +
-		   (sizeof(char *) * maxVariables * 2) + dataSize);
+  // of variableList itself, plus maxVariables pointers for both the variable
+  // names and the values, respectively
+  structureSize =
+    (sizeof(variableList) + (sizeof(char *) * maxVariables * 2) + dataSize);
   
   // Get memory for the data structure
   list = kernelMemoryGet(structureSize, description);
@@ -214,7 +222,7 @@ kernelVariableList *kernelVariableListCreate(unsigned maxVariables,
   list->totalSize = structureSize;
 
   // Set the first variable pointer to be at the end of the control data
-  list->variables = ((void *) list + sizeof(kernelVariableList));
+  list->variables = ((void *) list + sizeof(variableList));
   
   // Set the first value pointer to be at the end of the variable pointers
   list->values =
@@ -228,7 +236,7 @@ kernelVariableList *kernelVariableListCreate(unsigned maxVariables,
 }
 
 
-int kernelVariableListGet(kernelVariableList *list, const char *variable,
+int kernelVariableListGet(variableList *list, const char *variable,
 			  char *buffer, unsigned buffSize)
 {
   // Get a variable's value from the variable list
@@ -267,7 +275,7 @@ int kernelVariableListGet(kernelVariableList *list, const char *variable,
 }
 
 
-int kernelVariableListSet(kernelVariableList *list, const char *variable,
+int kernelVariableListSet(variableList *list, const char *variable,
 			  const char *value)
 {
   // A wrapper function for setVariable
@@ -291,7 +299,7 @@ int kernelVariableListSet(kernelVariableList *list, const char *variable,
 }
 
 
-int kernelVariableListUnset(kernelVariableList *list, const char *variable)
+int kernelVariableListUnset(variableList *list, const char *variable)
 {
   // A wrapper function for unsetVariable
 

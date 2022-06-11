@@ -31,8 +31,10 @@
 #include <string.h>
 #include <sys/errors.h>
 
+#include "kernelText.h"
 
-static int readBlock(fileStream *theStream, int blockNumber)
+
+static int readBlock(fileStream *theStream)
 {
   // This function is internal, and is used to read the requested file block
   // into the stream.
@@ -40,7 +42,7 @@ static int readBlock(fileStream *theStream, int blockNumber)
   int status = 0;
 
   // Make sure we're not at the end of the file
-  if (blockNumber >= theStream->f.blocks)
+  if (theStream->block >= theStream->f.blocks)
     return (status = ERR_NODATA);
 
   // Clear the stream
@@ -49,13 +51,12 @@ static int readBlock(fileStream *theStream, int blockNumber)
   // Read the next block of the file, and put it into the stream.  The
   // way we do this is a bit of a cheat as far as streams are concerned, as
   // we are subverting the normal procedure for putting things into it.
-  status = kernelFileRead(&(theStream->f), blockNumber, 1,
-			  theStream->s.buffer);
+  status =
+    kernelFileRead(&(theStream->f), theStream->block, 1, theStream->s.buffer);
   if (status < 0)
     return (status);
 
-  // The current block number has changed, and the stream is clean
-  theStream->block = blockNumber;
+  // The stream is clean
   theStream->dirty = 0;
 
   // Set some values on the stream.
@@ -66,7 +67,7 @@ static int readBlock(fileStream *theStream, int blockNumber)
   // If this is the last block of the file, then we need to set the
   // 'next' position based on the file size mod the block size.
   // Otherwise, we consider the stream full.
-  if (blockNumber == (theStream->f.blocks - 1))
+  if (theStream->block == (theStream->f.blocks - 1))
     {
       // The stream is only partially full.
       theStream->s.next = (theStream->f.size % theStream->f.blockSize);
@@ -90,7 +91,7 @@ static int readBlock(fileStream *theStream, int blockNumber)
 }
 
 
-static int writeBlock(fileStream *theStream, int blockNumber)
+static int writeBlock(fileStream *theStream)
 {
   // This function is internal, and is used to write a file's next block
   // from the supplied stream.
@@ -99,9 +100,8 @@ static int writeBlock(fileStream *theStream, int blockNumber)
   unsigned newSize = 0;
 
   // Write the requested block of the file from the stream.
-  status = kernelFileWrite(&(theStream->f), blockNumber, 1,
-			   theStream->s.buffer);
-
+  status =
+    kernelFileWrite(&(theStream->f), theStream->block, 1, theStream->s.buffer);
   if (status < 0)
     return (status);
 
@@ -109,10 +109,10 @@ static int writeBlock(fileStream *theStream, int blockNumber)
   theStream->dirty = 0;
 
   // If this is the last block of the file, we should update the file size
-  if (blockNumber >= (theStream->f.blocks - 1))
+  if (theStream->block >= (theStream->f.blocks - 1))
     {
       newSize =
-	((blockNumber * theStream->f.blockSize) + theStream->s.count);
+	((theStream->block * theStream->f.blockSize) + theStream->s.count);
       kernelFileSetSize(&(theStream->f), newSize);
     }
 
@@ -137,7 +137,6 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
   // stream.  Returns 0 on success, negative otherwise.
 
   int status = 0;
-  int blockToRead = 0;
 
   // Check arguments
   if ((name == NULL) || (newStream == NULL))
@@ -175,14 +174,14 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
       if (newStream->f.openMode & OPENMODE_WRITE)
 	// Since we are opening in a write mode, we read the last
 	// block of the file into the stream
-	blockToRead = (newStream->f.blocks - 1);
+	newStream->block = (newStream->f.blocks - 1);
 
       else
 	// We are not opening in write mode, so we read the first block
 	// of the file into the stream.
-	blockToRead = 0;
+	newStream->block = 0;
 
-      status = readBlock(newStream, blockToRead);
+      status = readBlock(newStream);
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Error reading file");
@@ -229,8 +228,7 @@ int kernelFileStreamSeek(fileStream *theStream, int offset)
     return (status = ERR_NODATA);
 
   // Read the block from the file, and put it into the stream.
-  status = kernelFileRead(&(theStream->f), newBlock, 1,
-			  theStream->s.buffer);
+  status = kernelFileRead(&(theStream->f), newBlock, 1, theStream->s.buffer);
   if (status < 0)
     return (status);
 
@@ -264,15 +262,9 @@ int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
 
   // Check arguments
   
-  if (theStream == NULL)
+  if ((theStream == NULL) || (buffer == NULL))
     {
-      kernelError(kernel_error, "NULL file stream argument");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "NULL buffer argument");
+      kernelError(kernel_error, "NULL file stream or buffer argument");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -299,7 +291,8 @@ int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
 	{
 	  // Oops, the stream is empty.  We need to read another block
 	  // from the file
-	  status = readBlock(theStream, ++(theStream->block));
+	  theStream->block += 1;
+	  status = readBlock(theStream);
 	  if (status < 0)
 	    return (status);
 	  
@@ -334,15 +327,9 @@ int kernelFileStreamReadLine(fileStream *theStream, int maxBytes, char *buffer)
 
   // Check arguments
   
-  if (theStream == NULL)
+  if ((theStream == NULL) || (buffer == NULL))
     {
-      kernelError(kernel_error, "NULL file stream argument");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "NULL buffer argument");
+      kernelError(kernel_error, "NULL file stream or buffer argument");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -360,25 +347,24 @@ int kernelFileStreamReadLine(fileStream *theStream, int maxBytes, char *buffer)
       
       if (theStream->s.count == 0)
 	{
-	  // Oops, the stream is empty.  We need to read another block
-	  // from the file
-	  status = readBlock(theStream, ++(theStream->block));
+	  // The stream is empty.  We need to read another block from the file
+	  theStream->block += 1;
+	  status = readBlock(theStream);
 	  if (status < 0)
 	    // File finished?
 	    break;
 	}
       
       // Get a byte from the stream, and put it in the buffer
-      status = theStream->s.pop((stream *) &(theStream->s),
-				(buffer + doneBytes));
-      
+      status =
+	theStream->s.pop((stream *) &(theStream->s), (buffer + doneBytes));
       if (status < 0)
 	break;
 
-      doneBytes++;
-
-      if (buffer[doneBytes - 1] == '\n')
+      if (buffer[doneBytes] == '\n')
 	break;
+
+      doneBytes++;
     }
 
   buffer[doneBytes] = '\0';
@@ -397,15 +383,9 @@ int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
 
   // Check arguments
   
-  if (theStream == NULL)
+  if ((theStream == NULL) || (buffer == NULL))
     {
-      kernelError(kernel_error, "NULL file stream argument");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (buffer == NULL)
-    {
-      kernelError(kernel_error, "NULL buffer argument");
+      kernelError(kernel_error, "NULL file stream or buffer argument");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -466,7 +446,7 @@ int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
 	  if (((writeBytes - doneBytes) < theStream->f.blockSize) &&
 	      (theStream->block < theStream->f.blocks))
 	    {
-	      status = readBlock(theStream, theStream->block);
+	      status = readBlock(theStream);
 	      if (status < 0)
 		return (status);
 	    }
@@ -498,10 +478,14 @@ int kernelFileStreamWriteLine(fileStream *theStream, char *buffer)
   // is just like the kernelFileStreamWriteStr function above except that
   // it adds a newline to the stream after the line has been added.
 
-  // Add a newline to the end of the stream
-  theStream->s.append((stream *) &(theStream->s), '\n');
+  int status = 0;
 
-  return (kernelFileStreamWrite(theStream, strlen(buffer), buffer));
+  status = kernelFileStreamWrite(theStream, strlen(buffer), buffer);
+  if (status < 0)
+    return (status);
+
+  // Add a newline to the end of the stream
+  return (theStream->s.append((stream *) &(theStream->s), '\n'));
 }
 
 
@@ -524,8 +508,7 @@ int kernelFileStreamFlush(fileStream *theStream)
   if (theStream->dirty)
     {
       // Write the current block of the stream to the file.
-      status = writeBlock(theStream, theStream->block);
-
+      status = writeBlock(theStream);
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Error %d writing file block", status);
@@ -557,13 +540,11 @@ int kernelFileStreamClose(fileStream *theStream)
 
   // Flush the file stream
   status = kernelFileStreamFlush(theStream);
-
   if (status < 0)
     kernelError(kernel_error, "Error flushing file");
  
   // Close the file
   status = kernelFileClose(&(theStream->f));
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error closing file");

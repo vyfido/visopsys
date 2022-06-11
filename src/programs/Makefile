@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2004 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -19,172 +19,210 @@
 ##  Makefile
 ##
 
-##  This file is the top-level Makefile for the Visopsys Operating System's
-##  built-in user applications.
+BUILDDIR=../../build/programs
 
-
-AS		= nasm
 CC		= gcc
-PLATFORM	= $(shell ../platform.sh)
-OPTS		= -nodefaultlibs -nostartfiles -nostdinc -O2 -Wall -m486 \
-		-malign-functions=2 -fno-strength-reduce -malign-loops=2 \
-		-malign-jumps=2 -Waggregate-return -Wstrict-prototypes \
-		-Wmissing-prototypes -Wmissing-declarations \
-		-Wredundant-decls -Werror
-
-LIBDIR		= -L../lib/${PLATFORM}
-LINKOPTS	= -Wl,-warn-common,-X,-oformat,binary,-Ttext,0x0
-ASMOPTS		= -f elf -w+orphan-labels
-INCLUDES	= -I. -I../include
 RELEASE		= $(shell ../../utils/release.sh)
+STDDEPS		= Makefile*
+INCLUDES	= -I../include
+CFLAGS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
+		-mcpu=pentium -fno-strength-reduce -pipe -Wall \
+		-Wstrict-prototypes -Wmissing-prototypes \
+		-Wmissing-declarations -Wredundant-decls -Werror \
+		-L../../build/system/libraries \
+		-Wl,../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
 
-PROGRAMS	= ${PLATFORM}/login \
-		${PLATFORM}/sish \
-		${PLATFORM}/hello \
-		${PLATFORM}/looper
+OBJS	= ${BUILDDIR}/adduser \
+	${BUILDDIR}/cat \
+	${BUILDDIR}/cdrom \
+	${BUILDDIR}/chkdisk \
+	${BUILDDIR}/console \
+	${BUILDDIR}/cp \
+	${BUILDDIR}/date \
+	${BUILDDIR}/disks \
+	${BUILDDIR}/disprops \
+	${BUILDDIR}/fdisk \
+	${BUILDDIR}/find \
+	${BUILDDIR}/format \
+	${BUILDDIR}/help \
+	${BUILDDIR}/imgboot \
+	${BUILDDIR}/install \
+	${BUILDDIR}/kill \
+	${BUILDDIR}/loadfont \
+	${BUILDDIR}/login \
+	${BUILDDIR}/logout \
+	${BUILDDIR}/ls \
+	${BUILDDIR}/md5 \
+	${BUILDDIR}/mem \
+	${BUILDDIR}/mkdir \
+	${BUILDDIR}/more \
+	${BUILDDIR}/mount \
+	${BUILDDIR}/move \
+	${BUILDDIR}/mv \
+	${BUILDDIR}/passwd \
+	${BUILDDIR}/ps \
+	${BUILDDIR}/reboot \
+	${BUILDDIR}/renice \
+	${BUILDDIR}/rm \
+	${BUILDDIR}/rmdir \
+	${BUILDDIR}/screenshot \
+	${BUILDDIR}/shutdown \
+	${BUILDDIR}/sync \
+	${BUILDDIR}/touch \
+	${BUILDDIR}/umount \
+	${BUILDDIR}/uname \
+	${BUILDDIR}/uptime \
+	${BUILDDIR}/users \
+	${BUILDDIR}/view \
+	${BUILDDIR}/vsh \
+	${BUILDDIR}/wallpaper \
+	${BUILDDIR}/window
 
-COMMANDS	= ${PLATFORM}/cat \
-		${PLATFORM}/cp \
-		${PLATFORM}/date \
-		${PLATFORM}/kill \
-		${PLATFORM}/ls \
-		${PLATFORM}/mem \
-		${PLATFORM}/mkdir \
-		${PLATFORM}/more \
-		${PLATFORM}/mount \
-		${PLATFORM}/move \
-		${PLATFORM}/mv \
-		${PLATFORM}/ps \
-		${PLATFORM}/reboot \
-		${PLATFORM}/renice \
-		${PLATFORM}/rm \
-		${PLATFORM}/rmdir \
-		${PLATFORM}/shutdown \
-		${PLATFORM}/sync \
-		${PLATFORM}/touch \
-		${PLATFORM}/umount \
-		${PLATFORM}/uname \
-		${PLATFORM}/uptime
+all: target-dirs ${OBJS}
 
-all: target-dir ${PROGRAMS} ${COMMANDS}
+target-dirs:
+	mkdir -p ${BUILDDIR}
 
-target-dir:
-	#
-	#  Making executables on ${PLATFORM}
-	#
-	mkdir -p ${PLATFORM}
+${BUILDDIR}/adduser: adduser.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} adduser.c -lvsh -lc -o $@
 
-${PLATFORM}/login: login.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" -c login.c -o ${PLATFORM}/login.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/login.o -lc -o $@
+${BUILDDIR}/cat: cat.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} cat.c -lvsh -lc -o $@
 
-${PLATFORM}/sish: sish.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" -c sish.c -o ${PLATFORM}/sish.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/sish.o -lc -o $@
+${BUILDDIR}/cdrom: cdrom.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} cdrom.c -lc -o $@
 
-${PLATFORM}/looper: looper.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c looper.c -o ${PLATFORM}/looper.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/looper.o -lc -o $@
+${BUILDDIR}/chkdisk: chkdisk.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} chkdisk.c -lc -o $@
 
-${PLATFORM}/hello: hello.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c hello.c -o ${PLATFORM}/hello.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/hello.o -lc -o $@
+${BUILDDIR}/console: console.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} console.c -lwindow -lvsh -lc -o $@
 
+${BUILDDIR}/cp: cp.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} cp.c -lvsh -lc -o $@
 
-#
-# Commands
-#
+${BUILDDIR}/date: date.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} date.c -lc -o $@
 
-${PLATFORM}/cat: cat.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c cat.c -o ${PLATFORM}/cat.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/cat.o -lc -o $@
+${BUILDDIR}/disks: disks.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} disks.c -lc -o $@
 
-${PLATFORM}/cp: cp.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c cp.c -o ${PLATFORM}/cp.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/cp.o -lc -o $@
+${BUILDDIR}/disprops: disprops.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} disprops.c -lwindow -lc -o $@
 
-${PLATFORM}/date: date.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c date.c -o ${PLATFORM}/date.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/date.o -lc -o $@
+${BUILDDIR}/fdisk: fdisk.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} fdisk.c -lwindow -lvsh -lc -o $@
 
-${PLATFORM}/kill: kill.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c kill.c -o ${PLATFORM}/kill.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/kill.o -lc -o $@
+${BUILDDIR}/find: find.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} find.c -lvsh -lc -o $@
 
-${PLATFORM}/ls: ls.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c ls.c -o ${PLATFORM}/ls.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/ls.o -lc -o $@
+${BUILDDIR}/format: format.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} format.c -lc -o $@
 
-${PLATFORM}/mem: mem.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c mem.c -o ${PLATFORM}/mem.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/mem.o -lc -o $@
+${BUILDDIR}/help: help.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} help.c -lc -o $@
 
-${PLATFORM}/mkdir: mkdir.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c mkdir.c -o ${PLATFORM}/mkdir.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/mkdir.o -lc -o $@
+${BUILDDIR}/imgboot: imgboot.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} imgboot.c -lwindow -lc -o $@
 
-${PLATFORM}/more: more.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c more.c -o ${PLATFORM}/more.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/more.o -lc -o $@
+${BUILDDIR}/install: install.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} install.c -lwindow -lvsh -lc -o $@
 
-${PLATFORM}/mount: mount.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c mount.c -o ${PLATFORM}/mount.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/mount.o -lc -o $@
+${BUILDDIR}/kill: kill.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} kill.c -lc -o $@
 
-${PLATFORM}/move: move.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c move.c -o ${PLATFORM}/move.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/move.o -lc -o $@
+${BUILDDIR}/loadfont: loadfont.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} loadfont.c -lvsh -lc -o $@
 
-${PLATFORM}/mv: mv.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c mv.c -o ${PLATFORM}/mv.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/mv.o -lc -o $@
+${BUILDDIR}/login: login.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} -DRELEASE=\"${RELEASE}\" login.c -lwindow -lvsh -lc -o $@
 
-${PLATFORM}/ps: ps.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c ps.c -o ${PLATFORM}/ps.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/ps.o -lc -o $@
+${BUILDDIR}/logout: logout.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} logout.c -lc -o $@
 
-${PLATFORM}/reboot: reboot.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c reboot.c -o ${PLATFORM}/reboot.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/reboot.o -lc -o $@
+${BUILDDIR}/ls: ls.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} ls.c -lvsh -lc -o $@
 
-${PLATFORM}/renice: renice.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c renice.c -o ${PLATFORM}/renice.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/renice.o -lc -o $@
+${BUILDDIR}/md5: md5.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} md5.c -lc -o $@
 
-${PLATFORM}/rm: rm.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c rm.c -o ${PLATFORM}/rm.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/rm.o -lc -o $@
+${BUILDDIR}/mem: mem.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} mem.c -lc -o $@
 
-${PLATFORM}/rmdir: rmdir.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c rmdir.c -o ${PLATFORM}/rmdir.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/rmdir.o -lc -o $@
+${BUILDDIR}/mines: mines.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} mines.c -lc -o $@
 
-${PLATFORM}/shutdown: shutdown.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c shutdown.c -o ${PLATFORM}/shutdown.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/shutdown.o -lc -o $@
+${BUILDDIR}/mkdir: mkdir.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} mkdir.c -lvsh -lc -o $@
 
-${PLATFORM}/sync: sync.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c sync.c -o ${PLATFORM}/sync.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/sync.o -lc -o $@
+${BUILDDIR}/more: more.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} more.c -lvsh -lc -o $@
 
-${PLATFORM}/touch: touch.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c touch.c -o ${PLATFORM}/touch.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/touch.o -lc -o $@
+${BUILDDIR}/mount: mount.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} mount.c -lvsh -lc -o $@
 
-${PLATFORM}/umount: umount.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c umount.c -o ${PLATFORM}/umount.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/umount.o -lc -o $@
+${BUILDDIR}/move: move.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} move.c -lvsh -lc -o $@
 
-${PLATFORM}/uname: uname.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c uname.c -o ${PLATFORM}/uname.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/uname.o -lc -o $@
+${BUILDDIR}/mv: mv.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} mv.c -lvsh -lc -o $@
 
-${PLATFORM}/uptime: uptime.c Makefile
-	${CC} ${INCLUDES} ${OPTS} -c uptime.c -o ${PLATFORM}/uptime.o
-	${CC} ${OPTS} ${LINKOPTS} ${LIBDIR} ../lib/${PLATFORM}/start.o ${PLATFORM}/uptime.o -lc -o $@
+${BUILDDIR}/passwd: passwd.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} passwd.c -lvsh -lc -o $@
 
+${BUILDDIR}/ps: ps.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} ps.c -lc -o $@
+
+${BUILDDIR}/reboot: reboot.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} reboot.c -lc -o $@
+
+${BUILDDIR}/renice: renice.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} renice.c -lc -o $@
+
+${BUILDDIR}/rm: rm.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} rm.c -lvsh -lc -o $@
+
+${BUILDDIR}/rmdir: rmdir.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} rmdir.c -lvsh -lc -o $@
+
+${BUILDDIR}/screenshot: screenshot.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} screenshot.c -lwindow -lvsh -lc -o $@
+
+${BUILDDIR}/shutdown: shutdown.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} shutdown.c -lwindow -lc -o $@
+
+${BUILDDIR}/sync: sync.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} sync.c -lc -o $@
+
+${BUILDDIR}/touch: touch.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} touch.c -lvsh -lc -o $@
+
+${BUILDDIR}/umount: umount.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} umount.c -lvsh -lc -o $@
+
+${BUILDDIR}/uname: uname.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} uname.c -lc -o $@
+
+${BUILDDIR}/uptime: uptime.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} uptime.c -lc -o $@
+
+${BUILDDIR}/users: users.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} users.c -lwindow -lc -o $@
+
+${BUILDDIR}/view: view.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} view.c -lwindow -lvsh -lc -o $@
+
+${BUILDDIR}/vsh: vsh.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} -DRELEASE=\"${RELEASE}\" vsh.c -lvsh -lc -o $@
+
+${BUILDDIR}/wallpaper: wallpaper.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} wallpaper.c -lwindow -lvsh -lc -o $@
+
+${BUILDDIR}/window: window.c ${STDDEPS}
+	${CC} ${INCLUDES} ${CFLAGS} window.c -lwindow -lvsh -lc -o $@
 
 # Miscellany
 
 clean:
-	rm -Rf *~ *.o core ${PLATFORM}
+	rm -f *~ *.o core
+	rm -f ${OBJS}

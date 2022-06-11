@@ -42,7 +42,7 @@ static volatile unsigned totalMemory = 0;
 static volatile unsigned usedMemory = 0;
 
 static char *FUNCTION;
-static kernelLock lock;
+static lock locksLock;
 
 #define blockSize(block) ((block->end - block->start) + 1)
 
@@ -174,8 +174,7 @@ static int growList(void)
   newBlocks = kernelMemoryGetSystem(MEMBLOCKSIZE, "kernel memory data");
   if (newBlocks == NULL)
     {
-      kernelError(kernel_error, "Unable to allocate kernel memory %s",
-		  FUNCTION);
+      kernelError(kernel_error, "Unable to allocate kernel memory");
       return (status = ERR_MEMORY);
     }
 
@@ -348,8 +347,7 @@ static int growHeap(unsigned minSize)
   newHeap = kernelMemoryGetSystem(minSize, "kernel memory");
   if (newHeap == NULL)
     {
-      kernelError(kernel_error, "Unable to allocate kernel memory %s",
-		  FUNCTION);
+      kernelError(kernel_error, "Unable to allocate kernel memory");
       return (ERR_MEMORY);
     }
 
@@ -492,7 +490,7 @@ void *_kernelMalloc(char *function, unsigned size)
   int status = 0;
   void *address = NULL;
 
-  status = kernelLockGet(&lock);
+  status = kernelLockGet(&locksLock);
   if (status < 0)
     return (address = NULL);
 
@@ -516,7 +514,7 @@ void *_kernelMalloc(char *function, unsigned size)
   
   //check();
 
-  kernelLockRelease(&lock);
+  kernelLockRelease(&locksLock);
 
   return (address);
 }
@@ -528,7 +526,7 @@ int _kernelFree(char *function, void *start)
 
   int status = 0;
 
-  status = kernelLockGet(&lock);
+  status = kernelLockGet(&locksLock);
   if (status < 0)
     return (status);
 
@@ -542,7 +540,7 @@ int _kernelFree(char *function, void *start)
   if (start < (void *) KERNEL_VIRTUAL_ADDRESS)
     {
       kernelError(kernel_error, "The kernel memory block to release is not "
-		  "in the kernel's address space %s", FUNCTION);
+		  "in the kernel's address space");
       return (status = ERR_INVALID);
     }
 
@@ -550,7 +548,7 @@ int _kernelFree(char *function, void *start)
 
   //check();
 
-  kernelLockRelease(&lock);
+  kernelLockRelease(&locksLock);
 
   return (status);
 }

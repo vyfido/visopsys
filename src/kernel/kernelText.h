@@ -57,10 +57,11 @@ typedef volatile struct
 {
   int xCoord;
   int yCoord;
-  int columns;
-  int rows;
-  int cursorColumn;
-  int cursorRow;
+  unsigned columns;
+  unsigned rows;
+  unsigned cursorColumn;
+  unsigned cursorRow;
+  int hidden;
   color foreground;
   color background;
   void *inputStream;
@@ -68,6 +69,9 @@ typedef volatile struct
   unsigned char *data;
   kernelAsciiFont *font;
   kernelGraphicBuffer *graphicBuffer;
+  unsigned char *savedScreen;
+  unsigned savedCursorColumn;
+  unsigned savedCursorRow;
 
 } kernelTextArea;
 
@@ -76,6 +80,7 @@ typedef volatile struct
 typedef struct
 {
   int (*driverInitialize) (void);
+  void (*setCursor) (kernelTextArea *, int);
   int (*getCursorAddress) (kernelTextArea *);
   int (*setCursorAddress) (kernelTextArea *, int, int);
   int (*getForeground) (kernelTextArea *);
@@ -83,7 +88,8 @@ typedef struct
   int (*getBackground) (kernelTextArea *);
   int (*setBackground) (kernelTextArea *, int);
   int (*print) (kernelTextArea *, const char *);
-  int (*clearScreen) (kernelTextArea *);
+  int (*screenClear) (kernelTextArea *);
+  int (*screenRefresh) (kernelTextArea *);
 
 } kernelTextOutputDriver;
 
@@ -158,8 +164,12 @@ int kernelTextStreamGetRow(kernelTextOutputStream *);
 int kernelTextGetRow(void);
 void kernelTextStreamSetRow(kernelTextOutputStream *,int);
 void kernelTextSetRow(int);
-void kernelTextStreamClearScreen(kernelTextOutputStream *);
-void kernelTextClearScreen(void);
+void kernelTextStreamSetCursor(kernelTextOutputStream *, int);
+void kernelTextSetCursor(int);
+void kernelTextStreamScreenClear(kernelTextOutputStream *);
+void kernelTextScreenClear(void);
+int kernelTextScreenSave(void);
+int kernelTextScreenRestore(void);
 
 int kernelTextInputStreamCount(kernelTextInputStream *);
 int kernelTextInputCount(void);

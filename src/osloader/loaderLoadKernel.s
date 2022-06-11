@@ -35,127 +35,6 @@
 	%include "loader.h"
 
 
-loaderLoadKernel:
-	;; This function is in charge of loading the kernel file and
-	;; setting it up for execution.  This is designed to load the
-	;; kernel as an ELF binary.  First, it sets up to call the
-	;; loaderLoadFile routine with the correct parameters.  If there
-	;; is an error, it can print an informative error message about
-	;; the problem that was encountered (based on the error code from
-	;; the loaderLoadFile function).  Next, it performs functions
-	;; like that of any other 'loader': it examines the ELF header
-	;; of the file, does any needed memory spacing as specified therein
-	;; (such as moving segments around and creating data segments)
-
-	;; Save a dword on the stack for our return value
-	sub SP, 2
-	
-	;; Save regs
-	pusha
-
-	;; Save the stack register
-	mov BP, SP
-
-	;; Load the kernel file
-	push dword KERNELCODEDATALOCATION
-	push word KERNELNAME
-	call loaderLoadFile
-	add SP, 6
-
-	;; Make sure the load was successful
-	cmp AX, 0
-	jge near .okLoad
-
-	;; We failed to load the kernel.  The following call will determine
-	;; the type of error encountered while loading the kernel, and print
-	;; a helpful error message about the reason.	
-	push AX
-	call evaluateLoadError
-	add SP, 2
-	
-	;; Quit
-	mov word [SS:(BP + 16)], -1
-	jmp .done
-	
-	.okLoad:
-	;; We were successful.  The kernel's size is in AX.  Ignore it.
-
-	;; Save GS, since we will mess with it
-	push GS
-	
-	;; Disable interrupts
-	cli
-
-	;; Switch to protected mode temporarily
-	mov EAX, CR0
-	or AL, 01h
-	mov CR0, EAX
-
-	BITS 32
-	
-	;; Load GS with the global data segment selector
-	mov EAX, PRIV_DATASELECTOR
-	mov GS, AX
-
-	;; Return to real mode
-	mov EAX, CR0
-	and AL, 0FEh
-	mov CR0, EAX
-
-	BITS 16
-
-	;; Reenable interrupts
-	sti
-	
-	;; Now we need to examine the elf header.
-	call getElfHeaderInfo
-
-	;; Make sure the evaluation was successful
-	cmp AX, 0
-	jge near .okEval
-
-	;; The kernel image is not what we expected.  Return the error
-	;; code from the call
-	mov word [SS:(BP + 16)], AX
-	jmp .done_GS
-
-	.okEval:
-	;; OK, call the routine to create the proper layout for the kernel
-	;; based on the ELF information we gathered
-	call layoutKernel
-		
-	;; Make sure the layout was successful
-	cmp AX, 0
-	jge near .success
-
-	;; We failed.  Return the error code.
-	;; code from the call
-	mov word [SS:(BP + 16)], AX
-	jmp .done_GS
-
-	.success:
-	;; Set the size of the kernel image, which is the combined memory
-	;; size of the code and data segments.  Return 0
-	mov EAX, dword [CODE_SIZEINFILE]
-	add EAX, dword [DATA_SIZEINMEM]
-	;; Make it the next multiple of 4K
-	add EAX, 00001000h
-	and EAX, 0FFFFF000h
-	mov dword [KERNELSIZE], EAX
-	mov word [SS:(BP + 16)], 0
-
-	.done_GS:
-	;; Restore GS
-	pop GS
-
-	.done:
-	;; Restore regs
-	popa
-	;; Pop our return code
-	pop AX
-	ret
-
-
 getElfHeaderInfo:
 	;; This function checks the ELF header of the kernel file and
 	;; saves the relevant information about the file.  Assumes that
@@ -576,6 +455,96 @@ evaluateLoadError:
 	ret
 	
 	
+loaderLoadKernel:
+	;; This function is in charge of loading the kernel file and
+	;; setting it up for execution.  This is designed to load the
+	;; kernel as an ELF binary.  First, it sets up to call the
+	;; loaderLoadFile routine with the correct parameters.  If there
+	;; is an error, it can print an informative error message about
+	;; the problem that was encountered (based on the error code from
+	;; the loaderLoadFile function).  Next, it performs functions
+	;; like that of any other 'loader': it examines the ELF header
+	;; of the file, does any needed memory spacing as specified therein
+	;; (such as moving segments around and creating data segments)
+
+	;; Save a word on the stack for our return value
+	push word 0
+	
+	;; Save regs
+	pusha
+
+	;; Save the stack register
+	mov BP, SP
+
+	;; Load the kernel file
+	push word 1		; Yes spinner
+	push dword KERNELCODEDATALOCATION
+	push word KERNELNAME
+	call loaderLoadFile
+	add SP, 8
+
+	;; Make sure the load was successful
+	cmp AX, 0
+	jge near .okLoad
+
+	;; We failed to load the kernel.  The following call will determine
+	;; the type of error encountered while loading the kernel, and print
+	;; a helpful error message about the reason.	
+	push AX
+	call evaluateLoadError
+	add SP, 2
+	
+	;; Quit
+	mov word [SS:(BP + 16)], -1
+	jmp .done
+	
+	.okLoad:
+	;; We were successful.  The kernel's size is in AX.  Ignore it.
+	;; Now we need to examine the elf header.
+	call getElfHeaderInfo
+
+	;; Make sure the evaluation was successful
+	cmp AX, 0
+	jge near .okEval
+
+	;; The kernel image is not what we expected.  Return the error
+	;; code from the call
+	mov word [SS:(BP + 16)], AX
+	jmp .done
+
+	.okEval:
+	;; OK, call the routine to create the proper layout for the kernel
+	;; based on the ELF information we gathered
+	call layoutKernel
+		
+	;; Make sure the layout was successful
+	cmp AX, 0
+	jge near .success
+
+	;; We failed.  Return the error code.
+	;; code from the call
+	mov word [SS:(BP + 16)], AX
+	jmp .done
+
+	.success:
+	;; Set the size of the kernel image, which is the combined memory
+	;; size of the code and data segments.  Return 0
+	mov EAX, dword [CODE_SIZEINFILE]
+	add EAX, dword [DATA_SIZEINMEM]
+	;; Make it the next multiple of 4K
+	add EAX, 00001000h
+	and EAX, 0FFFFF000h
+	mov dword [KERNELSIZE], EAX
+	mov word [SS:(BP + 16)], 0
+
+	.done:
+	;; Restore regs
+	popa
+	;; Pop our return code
+	pop AX
+	ret
+
+
 ;;
 ;; The data segment
 ;;

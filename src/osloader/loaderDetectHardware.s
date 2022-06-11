@@ -72,12 +72,11 @@ loaderDetectHardware:
 
 	;; Detect video.  Push a pointer to the start of the video
 	;; information in the hardware structure
-	push word VIDEOMEMORY
+	push word VIDEO
 	call loaderDetectVideo
 	add SP, 2
-	
-	.skipVideo:
 
+	.skipVideo:
 	;; Save the boot device number
 	xor EAX, EAX
 	mov AX, word [DRIVENUMBER]
@@ -92,10 +91,12 @@ loaderDetectHardware:
 	int 13h
 	jc .notCDROM
 	mov AL, byte [EMUL_SAVE + 1]
-	and AL, 0Fh
+	and AL, 07h
 	cmp AL, 0
 	je .notCDROM
-
+	cmp AL, 04h
+	ja .notCDROM
+	
 	;; Make note that there's emulation
 	mov byte [EMULATION], 1
 
@@ -132,8 +133,8 @@ loaderDetectHardware:
 	jne .noEmul
 
 	;; Put the real information into the disk hardware information
-	mov EAX, [FDD1TYPE]
-	mov dword [FDD0TYPE], EAX
+	mov EAX, [FD1 + fddInfoBlock.type]
+	mov dword [FD0 + fddInfoBlock.type], EAX
 		
 	.noEmul:	
 	
@@ -405,15 +406,15 @@ detectFloppies:
 	;; Put the type/head/track/sector values into the data structures
 	xor EAX, EAX
 	mov AL, BL
-	mov dword [FDD0TYPE], EAX
+	mov dword [FD0 + fddInfoBlock.type], EAX
 	inc DH			; Number is 0-based
 	mov AL, DH
-	mov dword [FDD0HEADS], EAX
+	mov dword [FD0 + fddInfoBlock.heads], EAX
 	inc CH			; Number is 0-based
 	mov AL, CH
-	mov dword [FDD0TRACKS], EAX
+	mov dword [FD0 + fddInfoBlock.tracks], EAX
 	mov AL, CL
-	mov dword [FDD0SECTS], EAX
+	mov dword [FD0 + fddInfoBlock.sectors], EAX
 	
 	;; Test for floppy 1
 
@@ -440,15 +441,15 @@ detectFloppies:
 	;; Put the type/head/track/sector values into the data structures
 	xor EAX, EAX
 	mov AL, BL
-	mov dword [FDD1TYPE], EAX
+	mov dword [FD1 + fddInfoBlock.type], EAX
 	inc DH			; Number is 0-based
 	mov AL, DH
-	mov dword [FDD1HEADS], EAX
+	mov dword [FD1 + fddInfoBlock.heads], EAX
 	inc CH			; Number is 0-based
 	mov AL, CH
-	mov dword [FDD1TRACKS], EAX
+	mov dword [FD1 + fddInfoBlock.tracks], EAX
 	mov AL, CL
-	mov dword [FDD1SECTS], EAX
+	mov dword [FD1 + fddInfoBlock.sectors], EAX
 
 	.print:
 	cmp word [PRINTINFO], 1
@@ -472,13 +473,13 @@ detectFloppies:
 	cmp dword [FLOPPYDISKS], 1
 	jb .done
 	;; Print information about the disk.  EBX contains the pointer...
-	mov EBX, FDD0TYPE
+	mov EBX, FD0
 	call printFddInfo
 	
 	cmp dword [FLOPPYDISKS], 2
 	jb .done
 	;; Print information about the disk.  EBX contains the pointer...
-	mov EBX, FDD1TYPE
+	mov EBX, FD1
 	call printFddInfo
 
 	.done:
@@ -543,7 +544,7 @@ detectHardDisks:
 
 	;; Start with drive 0
 	mov ECX, 0
-	mov EDI, HDD0HEADS
+	mov EDI, HD0
 
 	.driveLoop:
 	
@@ -585,7 +586,7 @@ detectHardDisks:
 	xor EAX, EAX
 	mov AL, DH
 	inc AX			; Number is 0-based
-	mov dword [EDI], EAX
+	mov dword [EDI + hddInfoBlock.heads], EAX
 	;; cylinders
 	xor EAX, EAX
 	mov AL, CL		; Two bits of cylinder number in bits 6&7
@@ -593,13 +594,13 @@ detectHardDisks:
 	shl AX, 2		; Move them to bits 8&9
 	mov AL, CH		; Rest of the cylinder bits
 	add EAX, 2		; Number is 0-based
-	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX
+	mov dword [EDI + hddInfoBlock.cylinders], EAX
 	;; sectors
 	xor EAX, EAX
 	mov AL, CL		; Bits 0-5
 	and AL, 00111111b	; Mask it
-	mov dword [EDI + (HDD0SECPERCYL - HDD0HEADS)], EAX
-	mov dword [EDI + (HDD0SECSIZE - HDD0HEADS)], 512 ; Assume 512 BPS
+	mov dword [EDI + hddInfoBlock.sectors], EAX
+	mov dword [EDI + hddInfoBlock.bytesPerSector], 512 ; Assume 512 BPS
 
 	;; Restore ECX
 	pop ECX
@@ -630,7 +631,7 @@ detectHardDisks:
 	jae .done
 
 	;; Go to the next drive
-	add EDI, (HDD1HEADS - HDD0HEADS)
+	add EDI, hddInfoBlock_size
 	jmp .driveLoop
 
 	.done:
@@ -642,23 +643,23 @@ detectSerial:
 	;; Detects the serial ports
 
 	pusha
-	push GS
+	push ES
 
 	xor EAX, EAX
 
 	push 0040h
-	pop GS
+	pop ES
 	
-	mov AX, word [GS:00h]
-	mov dword [SERIAL1], EAX
-	mov AX, word [GS:02h]
-	mov dword [SERIAL2], EAX
-	mov AX, word [GS:04h]
-	mov dword [SERIAL3], EAX
-	mov AX, word [GS:06h]
-	mov dword [SERIAL4], EAX
+	mov AX, word [ES:00h]
+	mov dword [SERIAL + serialInfoBlock.port1], EAX
+	mov AX, word [ES:02h]
+	mov dword [SERIAL + serialInfoBlock.port2], EAX
+	mov AX, word [ES:04h]
+	mov dword [SERIAL + serialInfoBlock.port3], EAX
+	mov AX, word [ES:06h]
+	mov dword [SERIAL + serialInfoBlock.port4], EAX
 
-	pop GS
+	pop ES
 	popa
 	ret
 
@@ -688,26 +689,26 @@ diskSize:
 	pop EDI
 	;; Save the number of sectors
 	mov EAX, dword [HDDINFO + 10h]
-	mov dword [EDI + (HDD0TOTALSECS - HDD0HEADS)], EAX
+	mov dword [EDI + hddInfoBlock.totalSectors], EAX
 
 	;; Recalculate the number of cylinders
-	mov EAX, dword [EDI]				; heads
-	mul dword [EDI + (HDD0SECPERCYL - HDD0HEADS)]	; sectors per cyl
+	mov EAX, dword [EDI + hddInfoBlock.heads]	; heads
+	mul dword [EDI + hddInfoBlock.sectors]		; sectors per cyl
 	mov ECX, EAX					; total secs per cyl 
 	xor EDX, EDX
-	mov EAX, dword [EDI + (HDD0TOTALSECS - HDD0HEADS)]
+	mov EAX, dword [EDI + hddInfoBlock.totalSectors]
 	div ECX
-	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX	; new cyls value 
+	mov dword [EDI + hddInfoBlock.cylinders], EAX	; new cyls value 
 	
 	jmp .done
 		
 	.noEBIOS:
 	pop EDI
 	mov EAX, dword [EDI]				; heads
-	mul dword [EDI + (HDD0CYLS - HDD0HEADS)]	; cylinders
-	mul dword [EDI + (HDD0SECPERCYL - HDD0HEADS)]	; sectors per cyl
+	mul dword [EDI + hddInfoBlock.cylinders]	; cylinders
+	mul dword [EDI + hddInfoBlock.sectors]		; sectors per cyl
 	
-	mov dword [EDI + (HDD0TOTALSECS - HDD0HEADS)], EAX
+	mov dword [EDI + hddInfoBlock.totalSectors], EAX
 
 	.done:
 	popa
@@ -825,21 +826,21 @@ printFddInfo:
 	mov SI, BLANK
 	call loaderPrint
 	
-	mov EAX, dword [(EBX + 4)]
+	mov EAX, dword [EBX + fddInfoBlock.heads]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, HEADS
 	call loaderPrint
 				
-	mov EAX, dword [(EBX + 8)]
+	mov EAX, dword [EBX + fddInfoBlock.tracks]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, TRACKS
 	call loaderPrint
 				
-	mov EAX, dword [(EBX + 12)]
+	mov EAX, dword [EBX + fddInfoBlock.sectors]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
@@ -865,28 +866,28 @@ printHddInfo:
 	mov SI, BLANK
 	call loaderPrint
 
-	mov EAX, dword [(EBX + 0)]
+	mov EAX, dword [EBX + hddInfoBlock.heads]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, HEADS
 	call loaderPrint
 				
-	mov EAX, dword [(EBX + 4)]
+	mov EAX, dword [EBX + hddInfoBlock.cylinders]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, CYLS
 	call loaderPrint
 				
-	mov EAX, dword [(EBX + 8)]
+	mov EAX, dword [EBX + hddInfoBlock.sectors]
 	call loaderPrintNumber
 
 	mov DL, FOREGROUNDCOLOR
 	mov SI, SECTS
 	call loaderPrint
 
-	mov EAX, dword [(EBX + 16)]
+	mov EAX, dword [EBX + hddInfoBlock.totalSectors]
 	call loaderPrintNumber
 	
 	mov DL, FOREGROUNDCOLOR
@@ -1017,64 +1018,59 @@ HARDWAREINFO:
 	CPUVEND		dd 0, 0, 0 ;; CPU vendor string, if supported
 	MMXEXT		dd 0	;; Boolean; 1 or zero
 	EXTENDEDMEMORY	dd 0	;; In Kbytes
+	
 	;; Info returned by int 15h function E820h
-	MEMORYMAP	times (MEMORYMAPSIZE * 20) db 0
+	MEMORYMAP:
+	times (MEMORYMAPSIZE * memoryInfoBlock_size) db 0
+
 	;; This is all the information about the video capabilities
-	VIDEOMEMORY	dd 0 	;; In Kbytes
-	VIDEOMODE	dd 0 	;; Mode
-	VIDEOLFB	dd 0 	;; Address
-	VIDEOX		dd 0	;; maximum X resolution
-	VIDEOY		dd 0	;; maximum Y resolution
-	VIDEOBPP	dd 0	;; maximum bits per pixel
+	VIDEO: ISTRUC graphicsInfoBlock
+	times graphicsInfoBlock_size db 0
+	IEND
+	
+	;; This is the info about the boot device and booted sector
 	BOOTDEVICE	dd 0	;; BIOS boot device number
 	BOOTSECT	dd 0	;; Booted sector
 	BOOTDISK        db 0, 0, 0, 0  ;; Boot disk string 
 	;; This is an array of info about up to 2 floppy disks in the system
 	FLOPPYDISKS	dd 0	;; Number present
 	;; Floppy 0
-	FDD0TYPE	dd 0	;; Floppy 0 type
-	FDD0HEADS	dd 0	;; Number of heads, floppy 0
-	FDD0TRACKS	dd 0	;; Number of tracks, floppy 0
-	FDD0SECTS	dd 0	;; Number of sectors, floppy 0
+	FD0: ISTRUC fddInfoBlock
+	times fddInfoBlock_size db 0
+	IEND
 	;; Floppy 1
-	FDD1TYPE	dd 0	;; Floppy 1 type
-	FDD1HEADS	dd 0	;; Number of heads, floppy 1
-	FDD1TRACKS	dd 0	;; Number of tracks, floppy 1
-	FDD1SECTS	dd 0	;; Number of sectors, floppy 1
+	FD1: ISTRUC fddInfoBlock
+	times fddInfoBlock_size db 0
+	IEND
+	
 	;; This is an array of info about up to 4 hard disks in the system
 	HARDDISKS	dd 0	;; Number present
 	;; Disk 0
-	HDD0HEADS	dd 0	;; Number of heads, disk 0
-	HDD0CYLS	dd 0	;; Number of cylinders, disk 0
-	HDD0SECPERCYL	dd 0	;; Sectors per cylinder, disk 0
-	HDD0SECSIZE	dd 0	;; Bytes per sector, disk 0
-	HDD0TOTALSECS	dd 0	;; Total sectors, disk 0
+	HD0: ISTRUC hddInfoBlock
+	times hddInfoBlock_size db 0
+	IEND
 	;; Disk 1
-	HDD1HEADS	dd 0	;; Number of heads, disk 1
-	HDD1CYLS	dd 0	;; Number of cylinders, disk 1
-	HDD1SECPERCYL	dd 0	;; Sectors per cylinder, disk 1
-	HDD1SECSIZE	dd 0	;; Bytes per sector, disk 1
-	HDD1TOTALSECS	dd 0	;; Total sectors, disk 1
+	HD1: ISTRUC hddInfoBlock
+	times hddInfoBlock_size db 0
+	IEND
 	;; Disk 2
-	HDD2HEADS	dd 0	;; Number of heads, disk 2
-	HDD2CYLS	dd 0	;; Number of cylinders, disk 2
-	HDD2SECPERCYL	dd 0	;; Sectors per cylinder, disk 2
-	HDD2SECSIZE	dd 0	;; Bytes per sector, disk 2
-	HDD2TOTALSECS	dd 0	;; Total sectors, disk 2
+	HD2: ISTRUC hddInfoBlock
+	times hddInfoBlock_size db 0
+	IEND
 	;; Disk 3
-	HDD3HEADS	dd 0	;; Number of heads, disk 3
-	HDD3CYLS	dd 0	;; Number of cylinders, disk 3
-	HDD3SECPERCYL	dd 0	;; Sectors per cylinder, disk 3
-	HDD3SECSIZE	dd 0	;; Bytes per sector, disk 3
-	HDD3TOTALSECS	dd 0	;; Total sectors, disk 3
+	HD3: ISTRUC hddInfoBlock
+	times hddInfoBlock_size db 0
+	IEND
+	
 	;; Info about the serial ports
-	SERIAL1		dd 0	;; Port address
-	SERIAL2		dd 0	;; Port address
-	SERIAL3		dd 0	;; Port address
-	SERIAL4		dd 0	;; Port address
+	SERIAL: ISTRUC serialInfoBlock
+	times serialInfoBlock_size db 0
+	IEND
+	
 	;; Info about mouses
-	MOUSEPORT	dd 0	;; Port address
-	MOUSETYPE	dd 0	;; ID byte 
+	MOUSE: ISTRUC mouseInfoBlock
+	times mouseInfoBlock_size db 0
+	IEND
 	
 ;; 
 ;; These are general messages related to hardware detection

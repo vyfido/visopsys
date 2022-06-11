@@ -38,39 +38,21 @@ int kernelTextConsoleSetBackground(kernelTextArea *, int);
 int kernelTextConsolePrint(kernelTextArea *, const char *);
 int kernelTextConsoleClearScreen(kernelTextArea *);
 
-// Our kernelTextOutputDriver structure
-static kernelTextOutputDriver textModeDriver = {
-  kernelTextConsoleInitialize,
-  kernelTextConsoleGetCursorAddress,
-  kernelTextConsoleSetCursorAddress,
-  kernelTextConsoleGetForeground,
-  kernelTextConsoleSetForeground,
-  kernelTextConsoleGetBackground,
-  kernelTextConsoleSetBackground,
-  kernelTextConsolePrint,
-  kernelTextConsoleClearScreen
-};
-
 // Macro used strictly within this file
-#define cursorPosition ((area->cursorRow * area->columns) + area->cursorColumn)
+#define cursorPosition(area) ((area->cursorRow * area->columns) + area->cursorColumn)
 
 
-static void toggleCursor(kernelTextArea *area)
+static void setCursor(kernelTextArea *area, int on)
 {
-  // This just reverses the foreground and background colors at the
-  // requested cursor position
+  // This sets the cursor on or off at the requested cursor position
 
-  char foregroundColor;
-  char *cursorAddress = NULL;
+  int index = (cursorPosition(area) * 2);
 
-  cursorAddress = area->data + (((area->cursorRow * area->columns) +
-				 area->cursorColumn) * 2);
-
-  // Reverse foreground and background colors
-  foregroundColor = *(cursorAddress + 1);
-
-  *(cursorAddress + 1) = (((foregroundColor & 0x0F) << 4) |
-			  ((foregroundColor & 0xF0) >> 4));
+  if (on)
+    area->data[index + 1] = ((area->foreground.blue & 0x0F) << 4) |
+			    ((area->foreground.blue & 0xF0) >> 4);
+  else
+    area->data[index + 1] = area->foreground.blue;
 
   return;
 }
@@ -85,7 +67,7 @@ static void scrollLine(kernelTextArea *area)
   char *lastRow = area->data + (area->columns * (area->rows - 1) * 2);
   int count;
 
-  toggleCursor(area);
+  setCursor(area, 0);
 
   // Copy
   kernelMemCopy(newScreenTop, area->data,
@@ -101,9 +83,8 @@ static void scrollLine(kernelTextArea *area)
   // Move the cursor up by one row.  Don't use the SetCursorAddress
   // routine because we don't want to actually move the cursor like
   // normal
-  area->cursorRow--;
-  toggleCursor(area);
-
+  kernelTextConsoleSetCursorAddress(area, (area->cursorRow - 1),
+				    area->cursorColumn);
   return;
 }
 
@@ -118,12 +99,26 @@ static void newline(kernelTextArea *area)
     scrollLine(area);
 
   // Cursor advances one row, goes to column 0
-  area->cursorRow += 1;
-  area->cursorColumn = 0;
+  kernelTextConsoleSetCursorAddress(area, (area->cursorRow + 1), 0);
 
   // Simple
   return;
 }
+
+
+// Our kernelTextOutputDriver structure
+static kernelTextOutputDriver textModeDriver = {
+  kernelTextConsoleInitialize,
+  setCursor,
+  kernelTextConsoleGetCursorAddress,
+  kernelTextConsoleSetCursorAddress,
+  kernelTextConsoleGetForeground,
+  kernelTextConsoleSetForeground,
+  kernelTextConsoleGetBackground,
+  kernelTextConsoleSetBackground,
+  kernelTextConsolePrint,
+  kernelTextConsoleClearScreen
+};
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -155,11 +150,10 @@ int kernelTextConsoleSetCursorAddress(kernelTextArea *area, int row, int col)
 {
   // Moves the cursor
 
-  toggleCursor(area);
+  setCursor(area, 0);
   area->cursorRow = row;
   area->cursorColumn = col;
-  toggleCursor(area);
-
+  setCursor(area, 1);
   return (0);
 }
 
@@ -233,13 +227,14 @@ int kernelTextConsolePrint(kernelTextArea *area, const char *string)
   length = strlen(string);
 
   // Turn off the cursor
-  toggleCursor(area);
+  setCursor(area, 0);
 
   // Will this printing cause our screen to scroll?  If so, do it in advance
   // so we can get on with our business
-  if ((cursorPosition + length) > ((area->columns * area->rows) - 1))
+  if ((cursorPosition(area) + length) > ((area->columns * area->rows) - 1))
     {
-      overFlow = (cursorPosition + length) - (area->columns * area->rows) + 1;
+      overFlow =
+	(cursorPosition(area) + length) - (area->columns * area->rows) + 1;
       scrollLines = overFlow / area->columns;
       if (overFlow % area->columns)
 	scrollLines++;
@@ -249,7 +244,7 @@ int kernelTextConsolePrint(kernelTextArea *area, const char *string)
     }
 
   // Where is the cursor currently?
-  cursorAddress = area->data + (cursorPosition * 2);
+  cursorAddress = area->data + (cursorPosition(area) * 2);
 
   // Loop through the string, putting one byte into every even-numbered
   // screen address.  Put the color byte into every odd address
@@ -259,7 +254,7 @@ int kernelTextConsolePrint(kernelTextArea *area, const char *string)
       if (string[count] == '\n')
 	{
 	  newline(area);
-	  cursorAddress = area->data + (cursorPosition * 2);
+	  cursorAddress = area->data + (cursorPosition(area) * 2);
 	  advanceCursor = 0;
 	}
       else
@@ -271,11 +266,8 @@ int kernelTextConsolePrint(kernelTextArea *area, const char *string)
     }
 
   // Increment the cursor position
-  area->cursorColumn += advanceCursor;
-
-  // Turn on the cursor
-  toggleCursor(area);
-
+  kernelTextConsoleSetCursorAddress(area, area->cursorRow,
+				    (area->cursorColumn + advanceCursor));
   return (0);
 }
 
@@ -301,7 +293,7 @@ int kernelTextConsoleClearScreen(kernelTextArea *area)
   // Make the cursor go to the top left
   area->cursorColumn = 0;
   area->cursorRow = 0;
-  toggleCursor(area);
+  setCursor(area, 1);
 
   return (0);
 }

@@ -19,8 +19,6 @@
 ;;  loaderMain.s
 ;;
 
-	GLOBAL loaderMain
-
 	EXTERN loaderSetTextDisplay
 	EXTERN loaderFindFile
 	EXTERN loaderDetectHardware
@@ -33,6 +31,8 @@
 	EXTERN HARDWAREINFO
 	EXTERN KERNELGMODE
 
+	GLOBAL loaderMain
+	GLOBAL loaderBigRealMode
 	GLOBAL KERNELSIZE
 	GLOBAL BYTESPERSECT
 	GLOBAL ROOTDIRENTS
@@ -83,7 +83,7 @@ loaderMain:
 	mov SP, LDRSTCKBASE
 
 	sti
-	
+
 	;; The boot sector is loaded at location 7C00h and starts with
 	;; some info about the filesystem.  Grab the info we need and store
 	;; it in some more convenient locations
@@ -148,15 +148,12 @@ loaderMain:
         call loaderFindFile
         add SP, 2
 	mov word [PRINTINFO], AX
-	
+
 	;; Print out the boot device information
 	cmp word [PRINTINFO], 1
 	jne .noPrint1
 	call printBootDevice
 	.noPrint1:	
-
-	;; Call the routine to do the hardware detection
-	call loaderDetectHardware
 	
 	;; Set up the GDT (Global Descriptor Table) for "big real mode"
 	;; and protected mode
@@ -166,6 +163,13 @@ loaderMain:
 	;; entire extended memory space
 	call enableA20
 
+	;; Switch to 'big real mode', keeping a 'global' (32-bit) selector
+	;; in GS
+	call loaderBigRealMode
+
+	;; Call the routine to do the hardware detection
+	call loaderDetectHardware
+	
 	;; Do a fatal error check before loading
 	call fatalErrorCheck
 
@@ -191,7 +195,7 @@ loaderMain:
 	;; Did we find a good graphics mode?
 	cmp word [KERNELGMODE], 0
 	je .noGraphics
-	
+
 	;; Get the graphics mode for the kernel and switch to it
 	push word [KERNELGMODE]
 	call loaderSetGraphicDisplay
@@ -800,6 +804,39 @@ gdtSetup:
 	popa
 	ret
 
+
+loaderBigRealMode:
+	;; Sets up GS with a global, 'big real mode', 32-bit selector
+
+	pusha
+	
+	;; Disable interrupts
+	cli
+
+	;; Switch to protected mode temporarily
+	mov EAX, CR0
+	or AL, 01h
+	mov CR0, EAX
+
+	BITS 32
+	
+	;; Load GS with the global data segment selector
+	mov EAX, PRIV_DATASELECTOR
+	mov GS, AX
+
+	;; Return to real mode
+	mov EAX, CR0
+	and AL, 0FEh
+	mov CR0, EAX
+
+	BITS 16
+
+	;; Reenable interrupts
+	sti
+
+	popa
+	ret
+	
 	
 pagingSetup:
 	;; This will setup a simple paging environment for the kernel and
@@ -1021,7 +1058,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.33' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.4' , 0
 LOADMSG2	db 'Copyright (C) 1998-2004 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0

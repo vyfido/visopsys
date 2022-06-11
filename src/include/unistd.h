@@ -23,6 +23,10 @@
 
 #if !defined(_UNISTD_H)
 
+extern char *optarg;
+extern int optind, opterr, optopt;
+
+int getopt(int, char *const[], const char *);
 
 #define _UNISTD_H
 #endif

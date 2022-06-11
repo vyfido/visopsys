@@ -170,7 +170,6 @@ int kernelFontInitialize(void)
   for (count = 0; count < ASCII_PRINTABLES; count ++)
     {
       systemFont.chars[count].type = IMAGETYPE_MONO;
-      systemFont.chars[count].isTranslucent = 1;
       systemFont.chars[count].pixels = 64;
       systemFont.chars[count].width = 8;
       systemFont.chars[count].height = 8;
@@ -331,7 +330,6 @@ int kernelFontLoad(const char* filename, const char *fontname,
       // Stuff that won't change in the rest of the code for this character,
       // below (things like width can change -- see below)
       newFont->chars[count1].type = IMAGETYPE_MONO;
-      newFont->chars[count1].isTranslucent = 1;
       newFont->chars[count1].width = charWidth;
       newFont->chars[count1].height = charHeight;
       newFont->chars[count1].pixels = (charWidth * charHeight);

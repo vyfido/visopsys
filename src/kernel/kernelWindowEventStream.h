@@ -28,9 +28,9 @@
 #include "kernelWindowManager.h"
 
 // Functions exported by kernelWindowEventStream.c
-int kernelWindowEventStreamNew(windowEventStream *);
-int kernelWindowEventStreamRead(windowEventStream *, windowEvent *);
-int kernelWindowEventStreamWrite(windowEventStream *, windowEvent *);
+int kernelWindowEventStreamNew(volatile windowEventStream *);
+int kernelWindowEventStreamRead(volatile windowEventStream *, windowEvent *);
+int kernelWindowEventStreamWrite(volatile windowEventStream *, windowEvent *);
 
 #define _KERNELWINDOWEVENTSTREAM_H
 #endif

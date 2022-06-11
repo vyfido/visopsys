@@ -28,7 +28,8 @@
 
 typedef enum 
 {  
-  halt, reboot
+  halt = 0,
+  reboot = 1
 
 } kernelShutdownType;
 

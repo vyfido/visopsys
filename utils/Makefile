@@ -21,13 +21,9 @@
 
 ##  This is the Makefile for the Visopsys utilities.  
 
-
 all:
-	chmod +x *.sh
-	make -C src-mgmt all
-	make -C dist all
+	make -C dist
 
 clean:
 	rm -f *~ core *.zip *.iso *.img
-	make -C src-mgmt clean
 	make -C dist clean

@@ -52,6 +52,8 @@ static kernelPhysicalDisk cdRomDevices[MAXHARDDISKS];
 static int numberCdRoms = 0;
 static kernelGraphicAdapter graphicAdapterDevice;
 
+static void *biosData = NULL;
+
 
 static int enumeratePicDevice(void)
 {
@@ -158,6 +160,9 @@ static int enumerateKeyboardDevice(void)
   if (status < 0)
     return (status);
 
+  // Get the flags from the BIOS data area
+  keyboardDevice.flags = (unsigned) *((unsigned char *)(biosData + 0x417));
+
   // Initialize the keyboard functions
   status = kernelKeyboardInitialize();
   if (status < 0)
@@ -250,7 +255,7 @@ static int enumerateHardDiskDevices(void)
       kernelInstallIdeDriver(&physicalDisk);
 
       // Call the detect routine
-      if (physicalDisk.driver->driverDetect != NULL)
+      if (physicalDisk.driver->driverDetect)
 	{
 	  status = physicalDisk.driver
 	    ->driverDetect(deviceNumber, (void *) &physicalDisk);
@@ -335,8 +340,8 @@ static int enumerateGraphicDevice(void)
 
   // Set up the device parameters
   graphicAdapterDevice.videoMemory = systemInfo->graphicsInfo.videoMemory;
-  graphicAdapterDevice.mode = systemInfo->graphicsInfo.mode;
   graphicAdapterDevice.framebuffer = systemInfo->graphicsInfo.framebuffer;
+  graphicAdapterDevice.mode = systemInfo->graphicsInfo.mode;
   graphicAdapterDevice.xRes = systemInfo->graphicsInfo.xRes;
   graphicAdapterDevice.yRes = systemInfo->graphicsInfo.yRes;
   graphicAdapterDevice.bitsPerPixel = systemInfo->graphicsInfo.bitsPerPixel;
@@ -345,6 +350,10 @@ static int enumerateGraphicDevice(void)
   else
     graphicAdapterDevice.bytesPerPixel =
       (graphicAdapterDevice.bitsPerPixel / 8);
+  graphicAdapterDevice.numberModes = systemInfo->graphicsInfo.numberModes;
+  kernelMemCopy(&(systemInfo->graphicsInfo.supportedModes),
+		&(graphicAdapterDevice.supportedModes),
+		(sizeof(videoMode) * MAXVIDEOMODES));    
   
   kernelInstallGraphicDriver(&graphicAdapterDevice);
 
@@ -437,6 +446,15 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
 			(sizeof(kernelPhysicalDisk) * MAXHARDDISKS));
   kernelMemClear(&graphicAdapterDevice, sizeof(kernelGraphicAdapter));
 
+  // Map the BIOS data area into our memory so we can get hardware information
+  // from it.
+  status = kernelPageMapToFree(KERNELPROCID, (void *) 0, &biosData, 0x1000);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Error mapping BIOS data area");
+      return (status);
+    }
+
   // Start enumerating devices
 
   // The PIC device
@@ -488,6 +506,9 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
   status = enumerateMouseDevice();
   if (status < 0)
     return (status);
+
+  // Unmap BIOS data
+  kernelPageUnmap(KERNELPROCID, biosData, 0x1000);
 
   // Return success
   return (status = 0);

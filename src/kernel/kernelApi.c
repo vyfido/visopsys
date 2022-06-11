@@ -36,6 +36,7 @@
 #include "kernelWindowManager.h"
 #include "kernelRandom.h"
 #include "kernelUser.h"
+#include "kernelEncrypt.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 
@@ -82,7 +83,10 @@ static kernelFunctionIndex textFunctionIndex[] = {
   { _fnum_textSetColumn, kernelTextSetColumn, 1, PRIVILEGE_USER },
   { _fnum_textGetRow, kernelTextGetRow, 0, PRIVILEGE_USER },
   { _fnum_textSetRow, kernelTextSetRow, 1, PRIVILEGE_USER },
-  { _fnum_textClearScreen, kernelTextClearScreen, 0, PRIVILEGE_USER },
+  { _fnum_textSetCursor, kernelTextSetCursor, 1, PRIVILEGE_USER },
+  { _fnum_textScreenClear, kernelTextScreenClear, 0, PRIVILEGE_USER },
+  { _fnum_textScreenSave, kernelTextScreenSave, 0, PRIVILEGE_USER },
+  { _fnum_textScreenRestore, kernelTextScreenRestore, 0, PRIVILEGE_USER },
   { _fnum_textInputStreamCount, kernelTextInputStreamCount,
     1, PRIVILEGE_USER },
   { _fnum_textInputCount, kernelTextInputCount, 0, PRIVILEGE_USER },
@@ -122,6 +126,7 @@ static kernelFunctionIndex diskFunctionIndex[] = {
     0, PRIVILEGE_SUPERVISOR },
   { _fnum_diskSync, kernelDiskSync, 0, PRIVILEGE_USER },
   { _fnum_diskGetBoot, kernelDiskGetBoot, 1, PRIVILEGE_USER },
+  { _fnum_diskGetReadOnly, kernelDiskGetReadOnly, 1, PRIVILEGE_USER },
   { _fnum_diskGetCount, kernelDiskGetCount, 0, PRIVILEGE_USER },
   { _fnum_diskGetPhysicalCount, kernelDiskGetPhysicalCount,
     0, PRIVILEGE_USER },
@@ -178,7 +183,10 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileStreamOpen, kernelFileStreamOpen, 3, PRIVILEGE_USER },
   { _fnum_fileStreamSeek, kernelFileStreamSeek, 2, PRIVILEGE_USER },
   { _fnum_fileStreamRead, kernelFileStreamRead, 3, PRIVILEGE_USER },
+  { _fnum_fileStreamReadLine, kernelFileStreamReadLine, 3, PRIVILEGE_USER },
   { _fnum_fileStreamWrite, kernelFileStreamWrite, 3, PRIVILEGE_USER },
+  { _fnum_fileStreamWriteStr, kernelFileStreamWriteStr, 2, PRIVILEGE_USER },
+  { _fnum_fileStreamWriteLine, kernelFileStreamWriteLine, 2, PRIVILEGE_USER },
   { _fnum_fileStreamFlush, kernelFileStreamFlush, 1, PRIVILEGE_USER },
   { _fnum_fileStreamClose, kernelFileStreamClose, 1, PRIVILEGE_USER }
 };
@@ -232,6 +240,8 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
     0, PRIVILEGE_USER },
   { _fnum_multitaskerSetTextOutput, kernelMultitaskerSetTextOutput,
     2, PRIVILEGE_USER },
+  { _fnum_multitaskerDuplicateIO, kernelMultitaskerDuplicateIO,
+    3, PRIVILEGE_USER },
   { _fnum_multitaskerGetProcessorTime, kernelMultitaskerGetProcessorTime, 
     1, PRIVILEGE_USER },
   { _fnum_multitaskerYield, kernelMultitaskerYield, 0, PRIVILEGE_USER },
@@ -298,6 +308,9 @@ static kernelFunctionIndex graphicFunctionIndex[] = {
   // Raw graphics functions (11000-11999 range)
 
   { _fnum_graphicsAreEnabled, kernelGraphicsAreEnabled, 0, PRIVILEGE_USER },
+  { _fnum_graphicGetModes, kernelGraphicGetModes, 2, PRIVILEGE_USER },
+  { _fnum_graphicGetMode, kernelGraphicGetMode, 1, PRIVILEGE_USER },
+  { _fnum_graphicSetMode, kernelGraphicSetMode, 1, PRIVILEGE_SUPERVISOR },
   { _fnum_graphicGetScreenWidth, kernelGraphicGetScreenWidth,
     0, PRIVILEGE_USER },
   { _fnum_graphicGetScreenHeight, kernelGraphicGetScreenHeight,
@@ -309,9 +322,9 @@ static kernelFunctionIndex graphicFunctionIndex[] = {
   { _fnum_graphicDrawLine, kernelGraphicDrawLine, 7, PRIVILEGE_USER },
   { _fnum_graphicDrawRect, kernelGraphicDrawRect, 9, PRIVILEGE_USER },
   { _fnum_graphicDrawOval, kernelGraphicDrawOval, 9, PRIVILEGE_USER },
-  { _fnum_graphicDrawImage, kernelGraphicDrawImage, 8, PRIVILEGE_USER },
+  { _fnum_graphicDrawImage, kernelGraphicDrawImage, 9, PRIVILEGE_USER },
   { _fnum_graphicGetImage, kernelGraphicGetImage, 6, PRIVILEGE_USER },
-  { _fnum_graphicDrawText, kernelGraphicDrawText, 7, PRIVILEGE_USER },
+  { _fnum_graphicDrawText, kernelGraphicDrawText, 8, PRIVILEGE_USER },
   { _fnum_graphicCopyArea, kernelGraphicCopyArea, 7, PRIVILEGE_USER },
   { _fnum_graphicClearArea, kernelGraphicClearArea, 6, PRIVILEGE_USER },
   { _fnum_graphicRenderBuffer, kernelGraphicRenderBuffer, 7, PRIVILEGE_USER }
@@ -319,67 +332,103 @@ static kernelFunctionIndex graphicFunctionIndex[] = {
 
 static kernelFunctionIndex windowFunctionIndex[] = {
   
-  // Window manager functions (12000-12999 range)
+  // Windowing system functions (12000-12999 range)
 
-  { _fnum_windowManagerStart, kernelWindowManagerStart, 0, PRIVILEGE_USER },
-  { _fnum_windowManagerLogin, kernelWindowManagerLogin,
-    2, PRIVILEGE_SUPERVISOR },
-  { _fnum_windowManagerLogout, kernelWindowManagerLogout, 0, PRIVILEGE_USER },
-  { _fnum_windowManagerNewWindow, kernelWindowManagerNewWindow,
-    6, PRIVILEGE_USER },
-  { _fnum_windowManagerNewDialog, kernelWindowManagerNewDialog,
-    6, PRIVILEGE_USER },
-  { _fnum_windowManagerDestroyWindow, kernelWindowManagerDestroyWindow,
-    1, PRIVILEGE_USER },
-  { _fnum_windowManagerUpdateBuffer, kernelWindowManagerUpdateBuffer,
-    5, PRIVILEGE_USER },
+  { _fnum_windowLogin, kernelWindowLogin, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_windowLogout, kernelWindowLogout, 0, PRIVILEGE_USER },
+  { _fnum_windowNew, kernelWindowNew, 2, PRIVILEGE_USER },
+  { _fnum_windowNewDialog, kernelWindowNewDialog, 2, PRIVILEGE_USER },
+  { _fnum_windowDestroy, kernelWindowDestroy, 1, PRIVILEGE_USER },
+  { _fnum_windowUpdateBuffer, kernelWindowUpdateBuffer, 5, PRIVILEGE_USER },
   { _fnum_windowSetTitle, kernelWindowSetTitle, 2, PRIVILEGE_USER },
   { _fnum_windowGetSize, kernelWindowGetSize, 3, PRIVILEGE_USER },
   { _fnum_windowSetSize, kernelWindowSetSize, 3, PRIVILEGE_USER },
-  { _fnum_windowAutoSize, kernelWindowAutoSize, 1, PRIVILEGE_USER },
   { _fnum_windowGetLocation, kernelWindowGetLocation, 3, PRIVILEGE_USER },
   { _fnum_windowSetLocation, kernelWindowSetLocation, 3, PRIVILEGE_USER },
+  { _fnum_windowPack, kernelWindowPack, 1, PRIVILEGE_USER },
   { _fnum_windowCenter, kernelWindowCenter, 1, PRIVILEGE_USER },
   { _fnum_windowSetHasBorder, kernelWindowSetHasBorder, 2, PRIVILEGE_USER },
   { _fnum_windowSetHasTitleBar, kernelWindowSetHasTitleBar,
     2, PRIVILEGE_USER },
   { _fnum_windowSetMovable, kernelWindowSetMovable, 2, PRIVILEGE_USER },
+  { _fnum_windowSetResizable, kernelWindowSetResizable, 2, PRIVILEGE_USER },
+  { _fnum_windowSetPacked, kernelWindowSetPacked, 2, PRIVILEGE_USER },
   { _fnum_windowSetHasCloseButton, kernelWindowSetHasCloseButton,
     2, PRIVILEGE_USER },
-  { _fnum_windowLayout, kernelWindowLayout, 1, PRIVILEGE_USER },
   { _fnum_windowSetVisible, kernelWindowSetVisible, 2, PRIVILEGE_USER },
-  { _fnum_windowAddComponent, kernelWindowAddComponent, 3, PRIVILEGE_USER },
-  { _fnum_windowAddClientComponent, kernelWindowAddClientComponent,
-    3, PRIVILEGE_USER },
   { _fnum_windowAddConsoleTextArea, kernelWindowAddConsoleTextArea,
+    2, PRIVILEGE_USER },
+  { _fnum_windowRedrawArea, kernelWindowRedrawArea, 4, PRIVILEGE_USER },
+  { _fnum_windowProcessEvent, kernelWindowProcessEvent, 1, PRIVILEGE_USER },
+  { _fnum_windowComponentEventGet, kernelWindowComponentEventGet,
+    2, PRIVILEGE_USER },
+  { _fnum_windowTileBackground, kernelWindowTileBackground,
+    1, PRIVILEGE_USER },
+  { _fnum_windowCenterBackground, kernelWindowCenterBackground,
+    1, PRIVILEGE_USER },
+  { _fnum_windowScreenShot, kernelWindowScreenShot, 1, PRIVILEGE_USER },
+  { _fnum_windowSaveScreenShot, kernelWindowSaveScreenShot, 
+    1, PRIVILEGE_USER },
+  { _fnum_windowSetTextOutput, kernelWindowSetTextOutput, 1, PRIVILEGE_USER },
+  { _fnum_windowComponentSetVisible, kernelWindowComponentSetVisible,
+    2, PRIVILEGE_USER },
+  { _fnum_windowComponentSetEnabled, kernelWindowComponentSetEnabled,
     2, PRIVILEGE_USER },
   { _fnum_windowComponentGetWidth, kernelWindowComponentGetWidth,
     1, PRIVILEGE_USER },
+  { _fnum_windowComponentSetWidth, kernelWindowComponentSetWidth,
+    2, PRIVILEGE_USER },
   { _fnum_windowComponentGetHeight, kernelWindowComponentGetHeight,
     1, PRIVILEGE_USER },
-  { _fnum_windowManagerRedrawArea, kernelWindowManagerRedrawArea,
-    4, PRIVILEGE_USER },
-  { _fnum_windowManagerProcessEvent, kernelWindowManagerProcessEvent,
-    1, PRIVILEGE_USER },
-  { _fnum_windowComponentEventGet, kernelWindowComponentEventGet,
+  { _fnum_windowComponentSetHeight, kernelWindowComponentSetHeight,
     2, PRIVILEGE_USER },
-  { _fnum_windowManagerTileBackground, kernelWindowManagerTileBackground,
+  { _fnum_windowComponentFocus, kernelWindowComponentFocus,
     1, PRIVILEGE_USER },
-  { _fnum_windowManagerCenterBackground, kernelWindowManagerCenterBackground,
+  { _fnum_windowComponentDraw, kernelWindowComponentDraw, 1, PRIVILEGE_USER },
+  { _fnum_windowComponentGetData, kernelWindowComponentGetData,
+    3, PRIVILEGE_USER },
+  { _fnum_windowComponentSetData, kernelWindowComponentSetData,
+    3, PRIVILEGE_USER },
+  { _fnum_windowComponentGetSelected, kernelWindowComponentGetSelected,
     1, PRIVILEGE_USER },
-  { _fnum_windowManagerScreenShot, kernelWindowManagerScreenShot,
-    1, PRIVILEGE_USER },
-  { _fnum_windowManagerSaveScreenShot, kernelWindowManagerSaveScreenShot, 
-    1, PRIVILEGE_USER },
-  { _fnum_windowManagerSetTextOutput, kernelWindowManagerSetTextOutput, 
-    1, PRIVILEGE_USER },
-  { _fnum_windowNewButton, kernelWindowNewButton, 5, PRIVILEGE_USER },
-  { _fnum_windowNewIcon, kernelWindowNewIcon, 4, PRIVILEGE_USER },
-  { _fnum_windowNewImage, kernelWindowNewImage, 2, PRIVILEGE_USER },
-  { _fnum_windowNewTextArea, kernelWindowNewTextArea, 4, PRIVILEGE_USER },
-  { _fnum_windowNewTextField, kernelWindowNewTextField, 3, PRIVILEGE_USER },
-  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER },
-  { _fnum_windowNewTitleBar, kernelWindowNewTitleBar, 4, PRIVILEGE_USER }
+  { _fnum_windowComponentSetSelected, kernelWindowComponentSetSelected,
+    2, PRIVILEGE_USER },
+  { _fnum_windowNewButton, kernelWindowNewButton, 4, PRIVILEGE_USER },
+  { _fnum_windowNewCanvas, kernelWindowNewCanvas, 4, PRIVILEGE_USER },
+  { _fnum_windowNewCheckbox, kernelWindowNewCheckbox, 4, PRIVILEGE_USER },
+  { _fnum_windowNewContainer, kernelWindowNewContainer, 3, PRIVILEGE_USER },
+  { _fnum_windowNewIcon, kernelWindowNewIcon, 5, PRIVILEGE_USER },
+  { _fnum_windowNewImage, kernelWindowNewImage, 4, PRIVILEGE_USER },
+  { _fnum_windowNewList, kernelWindowNewList, 8, PRIVILEGE_USER },
+  { _fnum_windowNewListItem, kernelWindowNewListItem, 4, PRIVILEGE_USER },
+  { _fnum_windowNewMenu, kernelWindowNewMenu, 3, PRIVILEGE_USER },
+  { _fnum_windowNewMenuBar, kernelWindowNewMenuBar, 2, PRIVILEGE_USER },
+  { _fnum_windowNewMenuItem, kernelWindowNewMenuItem, 3, PRIVILEGE_USER },
+  { _fnum_windowNewPasswordField, kernelWindowNewPasswordField,
+    4, PRIVILEGE_USER },
+  { _fnum_windowNewProgressBar, kernelWindowNewProgressBar,
+    2, PRIVILEGE_USER },
+  { _fnum_windowNewRadioButton, kernelWindowNewRadioButton,
+    7, PRIVILEGE_USER },
+  { _fnum_windowNewTextArea, kernelWindowNewTextArea, 5, PRIVILEGE_USER },
+  { _fnum_windowNewTextField, kernelWindowNewTextField, 4, PRIVILEGE_USER },
+  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 4, PRIVILEGE_USER }
+};
+
+static kernelFunctionIndex userFunctionIndex[] = {
+
+  // User functions (13000-13999 range)
+
+  { _fnum_userAuthenticate, kernelUserAuthenticate, 2, PRIVILEGE_USER },
+  { _fnum_userLogin, kernelUserLogin, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_userLogout, kernelUserLogout, 1, PRIVILEGE_USER },
+  { _fnum_userGetNames, kernelUserGetNames, 2, PRIVILEGE_USER },
+  { _fnum_userAdd, kernelUserAdd, 2, PRIVILEGE_USER },
+  { _fnum_userDelete, kernelUserDelete, 1, PRIVILEGE_SUPERVISOR },
+  { _fnum_userSetPassword, kernelUserSetPassword, 3, PRIVILEGE_USER },
+  { _fnum_userGetPrivilege, kernelUserGetPrivilege, 1, PRIVILEGE_USER },
+  { _fnum_userGetPid, kernelUserGetPid, 0, PRIVILEGE_USER },
+  { _fnum_userSetPid, kernelUserSetPid, 2, PRIVILEGE_SUPERVISOR }
 };
 
 static kernelFunctionIndex miscFunctionIndex[] = {
@@ -392,12 +441,18 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   { _fnum_fontGetPrintedWidth, kernelFontGetPrintedWidth, 2, PRIVILEGE_USER },
   { _fnum_imageLoadBmp, kernelImageLoadBmp, 2, PRIVILEGE_USER },
   { _fnum_imageSaveBmp, kernelImageSaveBmp, 2, PRIVILEGE_USER },
-  { _fnum_userLogin, kernelUserLogin, 2, PRIVILEGE_SUPERVISOR },
-  { _fnum_userLogout, kernelUserLogout, 1,  PRIVILEGE_USER },
-  { _fnum_userGetPrivilege, kernelUserGetPrivilege, 1, PRIVILEGE_USER },
-  { _fnum_userGetPid, kernelUserGetPid, 0, PRIVILEGE_USER },
   { _fnum_shutdown, kernelShutdown, 2, PRIVILEGE_USER },
-  { _fnum_version, kernelVersion, 0, PRIVILEGE_USER }
+  { _fnum_version, kernelVersion, 0, PRIVILEGE_USER },
+  { _fnum_encryptMD5, kernelEncryptMD5, 2, PRIVILEGE_USER },
+  { _fnum_lockGet, kernelLockGet, 1, PRIVILEGE_USER },
+  { _fnum_lockRelease, kernelLockRelease, 1, PRIVILEGE_USER },
+  { _fnum_lockVerify, kernelLockVerify, 1, PRIVILEGE_USER },
+  { _fnum_variableListCreate, kernelVariableListCreate, 3, PRIVILEGE_USER },
+  { _fnum_variableListGet, kernelVariableListGet, 4, PRIVILEGE_USER },
+  { _fnum_variableListSet, kernelVariableListSet, 3, PRIVILEGE_USER },
+  { _fnum_variableListUnset, kernelVariableListUnset, 2, PRIVILEGE_USER },
+  { _fnum_configurationReader, kernelConfigurationReader, 1, PRIVILEGE_USER },
+  { _fnum_configurationWriter, kernelConfigurationWriter, 2, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex *functionIndex[] = {
@@ -413,7 +468,8 @@ static kernelFunctionIndex *functionIndex[] = {
   randomFunctionIndex,
   environmentFunctionIndex,
   graphicFunctionIndex,
-  windowFunctionIndex
+  windowFunctionIndex,
+  userFunctionIndex
 };
 
 

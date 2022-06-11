@@ -25,8 +25,12 @@
 #include "kernelGraphic.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
+#include "kernelFile.h"
+#include "kernelMalloc.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -35,9 +39,11 @@
 static unsigned char tmpConsoleData[80 * 25];
 static kernelGraphicBuffer tmpConsoleBuffer;
 static kernelTextArea tmpGraphicConsole = {
-  0, 0, 80, 25, 0, 0,
+  0, 0, 80, 25, 0, 0, 0,
   (color) { 255, 255, 255 },
-  (color) { 0, 0, 0 },
+  (color) { DEFAULT_BLUE,
+	    DEFAULT_GREEN,
+	    DEFAULT_RED },
   (void *) NULL, /* input stream */
   (void *) NULL, /* output stream */
   tmpConsoleData,
@@ -92,6 +98,10 @@ int kernelGraphicInitialize(void)
   tmpGraphicConsole.graphicBuffer->data = systemAdapter->framebuffer;
   kernelTextSwitchToGraphics(&tmpGraphicConsole);
 
+  // Clear the screen with our default background color
+  systemAdapter->driver->driverClearScreen(&((color)
+  { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED }));
+
   // Return success
   return (status = 0);
 }
@@ -132,6 +142,54 @@ int kernelGraphicsAreEnabled(void)
 {
   // Returns 1 if graphics are enabled, 0 otherwise
   return (initialized);
+}
+
+
+int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
+{
+  // Return the list of graphics modes supported by the adapter
+
+  size = max(size, (sizeof(videoMode) * MAXVIDEOMODES));
+  kernelMemCopy(&(systemAdapter->supportedModes), modeBuffer, size);
+  return (systemAdapter->numberModes);
+}
+
+
+int kernelGraphicGetMode(videoMode *mode)
+{
+  // Get the current graphics mode
+  mode->mode = systemAdapter->mode;
+  mode->xRes = systemAdapter->xRes;
+  mode->yRes = systemAdapter->yRes;
+  mode->bitsPerPixel = systemAdapter->bitsPerPixel;
+  return (0);
+}
+
+
+int kernelGraphicSetMode(videoMode *mode)
+{
+  // Set the preferred graphics mode for the next reboot.  We create a
+  // little binary file that the loader can easily understand
+
+  int status = 0;
+  file modeFile;
+  int buffer[4];
+
+  kernelFileOpen("/grphmode",
+		 (OPENMODE_WRITE | OPENMODE_CREATE | OPENMODE_TRUNCATE),
+		 &modeFile);
+
+  buffer[0] = mode->xRes;
+  buffer[1] = mode->yRes;
+  buffer[2] = mode->bitsPerPixel;
+  buffer[3] = 0;
+
+  status = kernelFileWrite(&modeFile, 0, 1, (unsigned char *) buffer);
+
+  kernelFileSetSize(&modeFile, 16);
+  kernelFileClose(&modeFile);
+
+  return (status);
 }
 
 
@@ -331,9 +389,41 @@ int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 }
 
 
+int kernelGraphicNewImage(image *blankImage, unsigned width, unsigned height)
+{
+  // This allocates a new image of the specified size, with a blank grey
+  // background.
+  
+  int status = 0;
+  kernelGraphicBuffer tmpBuffer;
+  
+  // Get a temporary buffer to clear with our desired color
+  tmpBuffer.data =
+    kernelMalloc(kernelGraphicCalculateAreaBytes(width, height));
+  if (tmpBuffer.data == NULL)
+    return (status = ERR_MEMORY);
+  tmpBuffer.width = width;
+  tmpBuffer.height = height;
+  
+  // Clear our buffer with our grey color
+  kernelGraphicDrawRect(&tmpBuffer,
+  			&((color){ DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY }),
+  			draw_normal, 0, 0, width, height, 1, 1);
+  
+  // Get an image of the correct size
+  status = kernelGraphicGetImage(&tmpBuffer, blankImage, 0, 0, width, height);
+  
+  // Free our buffer data
+  kernelFree(tmpBuffer.data);
+  
+  return (status);
+}
+
+
 int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
-			   int xCoord, int yCoord, unsigned xOffset,
-			   unsigned yOffset, unsigned width, unsigned height)
+			   drawMode mode, int xCoord, int yCoord,
+			   unsigned xOffset, unsigned yOffset,
+			   unsigned width, unsigned height)
 {
   // This is a generic routine for drawing an image
 
@@ -357,8 +447,8 @@ int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
   // Ok, now we can call the routine.
   status = systemAdapter->driver
-    ->driverDrawImage(buffer, drawImage, xCoord, yCoord, xOffset, yOffset,
-		      width, height);
+    ->driverDrawImage(buffer, drawImage, mode, xCoord, yCoord,
+		      xOffset, yOffset, width, height);
   return (status);
 }
 
@@ -396,8 +486,9 @@ int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
 
 
 int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
-			  kernelAsciiFont *font, const char *text,
-			  drawMode mode, int xCoord, int yCoord)
+			  color *background, kernelAsciiFont *font,
+			  const char *text, drawMode mode,
+			  int xCoord, int yCoord)
 {
   // Draws a line of text using the supplied ASCII font at the requested
   // coordinates.  Uses the default foreground and background colors.
@@ -436,8 +527,8 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
       
       // Call the driver routine to draw the character
       status = systemAdapter->driver
-	->driverDrawMonoImage(buffer, &(font->chars[index]), foreground, NULL,
-			      xCoord, yCoord);
+	->driverDrawMonoImage(buffer, &(font->chars[index]), mode,
+			      foreground, background, xCoord, yCoord);
 
       xCoord += font->chars[index].width;
     }
@@ -523,4 +614,87 @@ int kernelGraphicRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
 			 clipHeight);
 
   return (status);
+}
+
+
+void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
+				     int drawY, unsigned width,
+				     unsigned height, int thickness,
+				     int shadingIncrement, drawMode mode)
+{
+  // Draws a gradient border
+
+  int greyColor = 0;
+  color drawColor;
+  int count;
+
+  // These are the starting points of the 'inner' border lines
+  int leftX = (drawX + thickness);
+  int rightX = (drawX + width - thickness - 1);
+  int topY = (drawY + thickness);
+  int bottomY = (drawY + height - thickness - 1);
+
+  // The top and left
+  for (count = thickness; count > 0; count --)
+    {
+      if (mode == draw_normal)
+	{
+	  greyColor = (DEFAULT_GREY + (count * shadingIncrement));
+	  if (greyColor > 255)
+	    greyColor = 255;
+	}
+      else if (mode == draw_reverse)
+	{
+	  greyColor = (DEFAULT_GREY - (count * shadingIncrement));
+	  if (greyColor < 0)
+	    greyColor = 0;
+	}
+
+      drawColor.red = greyColor;
+      drawColor.green = greyColor;
+      drawColor.blue = greyColor;
+
+      // Top
+      kernelGraphicDrawLine(buffer, &drawColor, draw_normal, 
+			    (leftX - count), (topY - count),
+			    (rightX + count), (topY - count));
+      // Left
+      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
+			    (leftX - count), (topY - count), (leftX - count),
+			    (bottomY + count));
+    }
+
+  // The bottom and right
+  for (count = thickness; count > 0; count --)
+    {
+      if (mode == draw_normal)
+	{
+	  greyColor = (DEFAULT_GREY - (count * shadingIncrement));
+	  if (greyColor < 0)
+	    greyColor = 0;
+	}
+      else if (mode == draw_reverse)
+	{
+	  greyColor = (DEFAULT_GREY + (count * shadingIncrement));
+	  if (greyColor > 255)
+	    greyColor = 255;
+	}
+
+      drawColor.red = greyColor;
+      drawColor.green = greyColor;
+      drawColor.blue = greyColor;
+
+      // Bottom
+      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
+			    (leftX - count), (bottomY + count),
+			    (rightX + count), (bottomY + count));
+      // Right
+      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
+			    (rightX + count), (topY - count),
+			    (rightX + count), (bottomY + count));
+
+      greyColor += shadingIncrement;
+    }
+
+  return;
 }

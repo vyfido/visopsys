@@ -23,16 +23,21 @@
 
 #if !defined(_VSH_H)
 
+#ifndef _X_
+#define _X_
+#endif
+
 // Functions
-void vshPrintTime(unsigned);
-void vshPrintDate(unsigned);
-int vshFileList(const char *);
-int vshDumpFile(const char *);
-int vshDeleteFile(const char *);
-int vshCopyFile(const char *, const char *);
-int vshRenameFile(const char *, const char *);
-void vshMakeAbsolutePath(const char *, char *);
 void vshCompleteFilename(char *);
+int vshCopyFile(const char *, const char *);
+int vshDeleteFile(const char *);
+int vshDumpFile(const char *);
+int vshFileList(const char *);
+void vshMakeAbsolutePath(const char *, char *);
+void vshPasswordPrompt(const char *, char *);
+void vshPrintDate(unsigned);
+void vshPrintTime(unsigned);
+int vshRenameFile(const char *, const char *);
 int vshSearchPath(const char *, char *);
 
 #define _VSH_H

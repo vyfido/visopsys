@@ -1,24 +1,6 @@
 #!/bin/sh
-##
-##  Visopsys
-##  Copyright (C) 1998-2004 J. Andrew McLaughlin
-## 
-##  This program is free software; you can redistribute it and/or modify it
-##  under the terms of the GNU General Public License as published by the Free
-##  Software Foundation; either version 2 of the License, or (at your option)
-##  any later version.
-## 
-##  This program is distributed in the hope that it will be useful, but
-##  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-##  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-##  for more details.
-##  
-##  You should have received a copy of the GNU General Public License along
-##  with this program; if not, write to the Free Software Foundation, Inc.,
-##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-##
-##  image-cd.sh
-##
+
+# Installs the Visopsys system into a zipped CD-ROM ISO image file
 
 echo ""
 echo "Making Visopsys CD-ROM IMAGE file"
@@ -28,51 +10,54 @@ echo ""
 # the release number in the destination directory name.  Otherwise, we
 # assume an interim package and use the date instead
 if [ "$1" == "-r" ] ; then
-	echo "(doing RELEASE version)"
-	echo ""
-	# What is the current release version?
-	RELEASE=`./release.sh`
-	RELFLAG=-r
+    # What is the current release version?
+    RELEASE=`./release.sh`
+    echo "(doing RELEASE version $RELEASE)"
+    echo ""
+    RELFLAG=-r
 else
-	echo "(doing INTERIM version -- use -r flag for RELEASES)"
-	echo ""
-	# What is the date?
-	RELEASE=`date +%Y-%m-%d`
+    # What is the date?
+    RELEASE=`date +%Y-%m-%d`
+    echo "(doing INTERIM version $RELEASE -- use -r flag for RELEASES)"
+    echo ""
 	RELFLAG=
 fi
 
+BUILDDIR=../build
 NAME=visopsys-$RELEASE
-FLOPPYIMAGE=floppy.img #$NAME.img
+FLOPPYZIP=$NAME-img.zip
+FLOPPYIMAGE=$NAME.img
 SOURCEDIR=$NAME-src
-ISOIMAGE=visopsys.iso #$NAME.iso
+ISOIMAGE=$NAME.iso
 ZIPFILE=$NAME-iso.zip
+
 TMPDIR=/tmp/iso$$.tmp
-
-echo -n "Making floppy image... "
-./image-floppy.sh $RELFLAG >& /dev/null
-echo Done
-
-# Get the basic files from the floppy image
-echo -n "Copying base files... "
-mount $FLOPPYIMAGE
 rm -Rf $TMPDIR
-mkdir $TMPDIR
-pushd /mnt/floppy >& /dev/null
-tar cf - * | (cd $TMPDIR; tar xf - )
-popd >& /dev/null
-umount /mnt/floppy
-cp $FLOPPYIMAGE $TMPDIR
+mkdir -p $TMPDIR
+
+echo -n "Making/copying floppy image... "
+./image-floppy.sh $RELFLAG >& /dev/null
+if [ $? != 0 ] ; then
+    exit $?
+fi
+unzip $FLOPPYZIP >& /dev/null
+mv $FLOPPYIMAGE $TMPDIR
 echo Done
 
-echo -n "Making source archive... "
+# Copy all of the files from the build directory
+echo -n "Copying build files... "
+(cd $BUILDDIR ; tar cf - * ) | (cd $TMPDIR; tar xf - )
+echo Done
+
+echo -n "Archiving/copying source files... "
 ./archive-source.sh $RELFLAG >& /dev/null
-echo Done
-
-# Copy sources
-echo -n "Copying source files... "
+if [ $? != 0 ] ; then
+    exit $?
+fi
 unzip $SOURCEDIR.zip >& /dev/null
 mkdir -p $TMPDIR/source
 mv $SOURCEDIR $TMPDIR/source/
+mv $TMPDIR/source/$SOURCEDIR/docs $TMPDIR/
 echo Done
 
 rm -f $ISOIMAGE
@@ -84,7 +69,7 @@ rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $ISOIMAGE < /tmp/comment >& /dev/null
 
 rm -f /tmp/comment
-#rm -f $FLOPPYIMAGE $ISOIMAGE
+rm -f $ISOIMAGE
 rm -Rf $TMPDIR
 
 echo ""

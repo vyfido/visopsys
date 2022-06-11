@@ -22,47 +22,128 @@
 // This is the UNIX-style command for shutting down the system
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
+#include <sys/window.h>
 
-typedef enum 
-{  
-  halt, reboot
+static objectKey window = NULL;
+static objectKey rebootIcon = NULL;
+static objectKey shutdownIcon = NULL;
 
-} shutdownType;
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+  // Check for the window being closed by a GUI event.
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+    {
+      windowGuiStop();
+      windowDestroy(window);
+      exit(0);
+    }
+
+  // Check for the reboot icon
+  if ((key == rebootIcon) && (event->type == EVENT_MOUSE_UP))
+    {
+      windowGuiStop();
+      windowDestroy(window);
+      shutdown(1, 0);
+      while(1);
+    }
+
+  // Check for the shutdown icon
+  if ((key == shutdownIcon) && (event->type == EVENT_MOUSE_UP))
+    {
+      windowGuiStop();
+      windowDestroy(window);
+      shutdown(0, 0);
+      while(1);
+    }
+}
+
+
+static void constructWindow(void)
+{
+  // If we are in graphics mode, make a window rather than operating on the
+  // command line.
+
+  componentParameters params;
+  image iconImage;
+
+  // Create a new window, with small, arbitrary size and location
+  window = windowNew(multitaskerGetCurrentProcessId(), "Shut down");
+  if (window == NULL)
+    return;
+
+  bzero(&params, sizeof(componentParameters));
+  params.gridWidth = 1;
+  params.gridHeight = 1;
+  params.padTop = 20;
+  params.padBottom = 20;
+  params.padLeft = 20;
+  params.padRight = 20;
+  params.orientationX = orient_center;
+  params.orientationY = orient_middle;
+  params.useDefaultForeground = 1;
+  params.useDefaultBackground = 1;
+
+  // Create a reboot icon
+  bzero(&iconImage, sizeof(image));
+  imageLoadBmp("/system/rebticon.bmp", &iconImage);
+  rebootIcon = windowNewIcon(window, &iconImage, "Reboot", NULL, &params);
+  windowRegisterEventHandler(rebootIcon, &eventHandler);
+  memoryRelease(iconImage.data);
+
+  // Create a shut down icon
+  bzero(&iconImage, sizeof(image));
+  imageLoadBmp("/system/shuticon.bmp", &iconImage);
+  params.gridX = 1;
+  shutdownIcon = windowNewIcon(window, &iconImage, "Shut down", NULL, &params);
+  windowRegisterEventHandler(shutdownIcon, &eventHandler);
+  memoryRelease(iconImage.data);
+
+  // Register an event handler to catch window close events
+  windowRegisterEventHandler(window, &eventHandler);
+
+  windowSetVisible(window, 1);
+
+  return;
+}
 
 
 int main(int argc, char *argv[])
 {
-  // There's a nice system function for doing this.
-
   int status = 0;
-  int count;
+  int force = 0;
 
-  // Make sure none of our args are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
+  // Shut down forcefully?
+  if (getopt(argc, argv, "f") != -1)
+    force = 1;
 
-  if ((argc > 1) && (strcmp(argv[1], "-f") == 0))
+  // If graphics are enabled, show a query dialog asking whether to shut
+  // down or reboot
+  if (graphicsAreEnabled())
     {
-      // Do a nasty shutdown
-      status = shutdown(halt, 1);
+      constructWindow();
 
-      if (status < 0)
-	return (status);
+      // Run the GUI
+      windowGuiRun();
     }
   else
     {
-      // Try to do a nice shutdown
-      status = shutdown(halt, 0);
-      
+      // There's a nice system function for doing this.
+      status = shutdown(0, force);
       if (status < 0)
 	{
-	  printf("Use \"%s -f\" to force.\n", argv[0]);
+	  if (!force)
+	    printf("Use \"%s -f\" to force.\n", argv[0]);
 	  return (status);
 	}
+
+      // Wait for death
+      while(1);
     }
 
-  while(1);
+  return (status = 0);
 }

@@ -28,6 +28,7 @@
 #include "kernelMemoryManager.h"
 #include "kernelProcessorX86.h"
 #include "kernelLog.h"
+#include "kernelFile.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <stdlib.h>
@@ -210,11 +211,13 @@ void kernelConsoleLogin(void)
 }
 
 
-kernelVariableList *kernelConfigurationReader(const char *fileName)
+variableList *kernelConfigurationReader(const char *fileName)
 {
   int status = 0;
   fileStream configFile;
-  kernelVariableList *list = NULL;
+  unsigned variableListItems = 0;
+  unsigned variableListSize = 0;
+  variableList *list = NULL;
   char lineBuffer[256];
   char *variable = NULL;
   char *value = NULL;
@@ -231,10 +234,22 @@ kernelVariableList *kernelConfigurationReader(const char *fileName)
       return (list = NULL);
     }
 
+  // Check for a zero-length file.
+  if (!configFile.f.size)
+    {
+      variableListItems = 1;
+      variableListSize = 1;
+    }
+  else
+    {
+      variableListItems = (configFile.f.size / 4);
+      variableListSize = configFile.f.size;
+    }
+
   // Create the list, based on the size of the file, estimating one variable
   // for each minimum-sized 'line' of the file
-  list = kernelVariableListCreate((configFile.f.size / 4),
-				  configFile.f.size, "configuration data");
+  list = kernelVariableListCreate(variableListItems, variableListSize,
+				  "configuration data");
   if (list == NULL)
     {
       kernelError(kernel_warn, "Unable to create a variable list for "
@@ -276,35 +291,93 @@ kernelVariableList *kernelConfigurationReader(const char *fileName)
 }
 
 
-int kernelConfigurationWriter(kernelVariableList *list, fileStream *configFile)
+int kernelConfigurationWriter(const char *fileName, variableList *list)
 {
-  // Writes a variable list out to an open file.
+  // Writes a variable list out to a config file, with a little bit of
+  // extra sophistication so that if the file already exists, comments and
+  // blank lines are (hopefully) preserved
 
   int status = 0;
+  fileStream configFile;
+  fileStream oldFile;
+  char oldName[MAX_PATH_NAME_LENGTH];
   char lineBuffer[256];
   char *variable = NULL;
   char *value = NULL;
   int count;
 
-  if ((list == NULL) || (configFile == NULL))
+  if ((fileName == NULL) || (list == NULL))
     return (status = ERR_NULLPARAMETER);
+
+  bzero(&oldFile, sizeof(fileStream));
+  bzero(&configFile, sizeof(fileStream));
+
+  // Is there already an old version of the config file?
+  file tmp;
+  if (kernelFileFind(fileName, &tmp) >= 0)
+    {
+      sprintf(oldName, "%s.TMP", fileName);
+      status = kernelFileMove(fileName, oldName);
+      if (status >= 0)
+	kernelFileStreamOpen(oldName, OPENMODE_READ, &oldFile);
+    }
+
+  // Create the new config file
+  status = kernelFileStreamOpen(fileName, (OPENMODE_CREATE | OPENMODE_WRITE |
+					   OPENMODE_TRUNCATE), &configFile);
+  if (status < 0)
+    {
+      if (oldFile.f.handle)
+	{
+	  // Move the old one back
+	  kernelFileStreamClose(&oldFile);
+	  kernelFileMove(oldName, fileName);
+	}
+      return (status);
+    }
 
   // Write line by line for each variable
   for (count = 0; count < list->numVariables; count ++)
     {
+      // If we successfully opened an old file, first try to to stuff in sync
+      // with the line numbers
+      if (oldFile.f.handle)
+	{
+	  strcpy(lineBuffer, "#");
+	  while ((lineBuffer[0] == '#') || (lineBuffer[0] == '\n'))
+	    {
+	      status = kernelFileStreamReadLine(&oldFile, 256, lineBuffer);
+	      if (status < 0)
+		break;
+	      if ((lineBuffer[0] == '#') || (lineBuffer[0] == '\n'))
+		{
+		  status = kernelFileStreamWriteLine(&configFile, lineBuffer);
+		  if (status < 0)
+		    break;
+		}
+	    }
+	}
+
       variable = list->variables[count];
       value = list->values[count];
 
       sprintf(lineBuffer, "%s=%s", variable, value);
 
-      status = kernelFileStreamWriteLine(configFile, lineBuffer);
-
+      status = kernelFileStreamWriteLine(&configFile, lineBuffer);
       if (status < 0)
 	// Eh?  Disk full?  Something?
 	break;
     }
 
-  kernelFileStreamFlush(configFile);
+  // Close things up
+  kernelFileStreamFlush(&configFile);
+  kernelFileStreamClose(&configFile);
+  if (oldFile.f.handle)
+    {
+      kernelFileStreamClose(&oldFile);
+      kernelFileDelete(oldName);
+    }
+
   return (status);
 }
 
@@ -316,7 +389,7 @@ int kernelReadSymbols(const char *filename)
   // through which we can search for addresses.
   
   int status = 0;
-  kernelVariableList *tmpList = NULL;
+  variableList *tmpList = NULL;
   int count;
 
   // Make a log message

@@ -26,11 +26,13 @@
 #include "kernelMultitasker.h"
 #include "kernelShutdown.h"
 #include "kernelMiscFunctions.h"
+#include "kernelError.h"
 #include <sys/window.h>
 #include <sys/errors.h>
 #include <sys/stream.h>
 
 
+int kernelKeyboardDriverRegisterDevice(void *);
 int kernelKeyboardDriverSetStream(stream *);
 void kernelKeyboardDriverReadData(void);
 
@@ -48,6 +50,14 @@ void kernelKeyboardDriverReadData(void);
 #define NUMLOCK     69
 #define SCROLLLOCK  70
 
+#define INSERT_FLAG     0x80
+#define CAPSLOCK_FLAG   0x40
+#define NUMLOCK_FLAG    0x20
+#define SCROLLLOCK_FLAG 0x10
+#define ALT_FLAG        0x08
+#define CONTROL_FLAG    0x04
+#define SHIFT_FLAG      0x03
+
 #define SCROLLLOCK_LIGHT 0
 #define NUMLOCK_LIGHT    1
 #define CAPSLOCK_LIGHT   2
@@ -55,7 +65,7 @@ void kernelKeyboardDriverReadData(void);
 static kernelKeyboardDriver defaultKeyboardDriver =
 {
   kernelKeyboardDriverInitialize,
-  NULL, // driverRegisterDevice
+  kernelKeyboardDriverRegisterDevice,
   kernelKeyboardDriverReadData
 };
 
@@ -67,13 +77,13 @@ typedef struct {
 } keyMap;
 
 static keyMap EN_US = {
-  "EN_US",
+  "English (US)",
   { 27,'1','2','3','4','5','6','7','8','9','0','-','=',8,9,'q',    // 00-0F
     'w','e','r','t','y','u','i','o','p','[',']',10,0,'a','s','d',  // 10=1F
     'f','g','h','j','k','l',';',39,'`',0,'\\','z','x','c','v','b', // 20-2F
     'n','m',',','.','/',0,'*',0,' ',0,0,0,0,0,0,0,                 // 30-3F
-    0,0,0,0,0,0,13,17,11,'-',18,'5',19,'+','1',20,                 // 40-4F
-    12,'0',127,0,0,0                                               // 50-55
+    0,0,0,0,0,0,13,17,11,'-',18,'5',19,'+',0,20,                   // 40-4F
+    12,0,127,0,0,0                                                 // 50-55
   },
   { 27,'!','@','#','$','%','^','&','*','(',')','_','+',8,9,'Q',	   // 00-0F
     'W','E','R','T','Y','U','I','O','P','{','}',10,0,'A','S','D',  // 10=1F 
@@ -82,7 +92,7 @@ static keyMap EN_US = {
     0,0,0,0,0,0,'7','8','9','-','4','5','6','+','1','2',	   // 40-4F
     '3','0','.',0,0,0                				   // 50-55
   },
-  { 27, '1','2','3','4','5','6','7','8','9','0','-','=',8,9,17,	   // 00-0F
+  { 27, '1','2','3','4','5','6','7','8','9','0','-','=',8,9,17,    // 00-0F
     23,5,18,20,25,21,9,15,16,'[',']',10,0,1,19,4,		   // 10=1F 
     6,7,8,10,11,12,';','"','`',0,0,26,24,3,22,2,    		   // 20-2F
     14,13,',','.','/',0,'*',0,' ',0,0,0,0,0,0,0,		   // 30-3F
@@ -92,7 +102,7 @@ static keyMap EN_US = {
 };
 
 static keyMap EN_UK = {
-  "EN_UK",
+  "English (UK)",
   { 27,'1','2','3','4','5','6','7','8','9','0','-','=',8,9,'q',    // 00-0F
     'w','e','r','t','y','u','i','o','p','[',']',10,0,'a','s','d',  // 10=1F
     'f','g','h','j','k','l',';',39,'`',0,'#','z','x','c','v','b',  // 20-2F
@@ -120,15 +130,9 @@ keyMap *allMaps[2] = {
   &EN_US, &EN_UK
 };
 
-static int initialized = 0;
-static int shiftDown = 0;
-static int controlDown = 0;
-static int altDown = 0;
-static int capsLock = 0;
-static int numLock = 0;
-static int scrollLock = 0;
-static int extended = 0;
+static kernelKeyboard *theKeyboard = NULL;
 static keyMap *currentMap = &EN_US;
+static int initialized = 0;
 
 
 static void setLight(int whichLight, int onOff)
@@ -196,14 +200,24 @@ int kernelKeyboardDriverInitialize(void)
   // Tell the keyboard to enable
   kernelProcessorOutPort8(0x64, 0xAE);
 
-  // By default, numlock on.  We do this here instead of in the initialize
-  // routine since that locks up the input for some reason (maybe because
-  // the mouse still hasn't initialized or something?)
-  //setLight(NUMLOCK_LIGHT, 1);
-  //numLock = 1;
-
   initialized = 1;
   return (kernelDriverRegister(keyboardDriver, &defaultKeyboardDriver));
+}
+
+
+int kernelKeyboardDriverRegisterDevice(void *keyboardPointer)
+{
+  // Just save a pointer to the device structure
+
+  // Check params
+  if (keyboardPointer == NULL)
+    {
+      kernelError(kernel_error, "NULL keyboard pointer");
+      return (ERR_NULLPARAMETER);
+    }
+
+  theKeyboard = (kernelKeyboard *) keyboardPointer;
+  return (0);
 }
 
 
@@ -214,6 +228,8 @@ void kernelKeyboardDriverReadData(void)
 
   unsigned char data = 0;
   unsigned char tmp = 0;
+  int release = 0;
+  static int extended = 0;
 
   if (!initialized)
     return;
@@ -232,140 +248,134 @@ void kernelKeyboardDriverReadData(void)
   tmp &= 0x7F; // Enable (bit 7 off)
   kernelProcessorOutPort8(0x61, tmp);
 
+  // If an extended scan code is coming next...
+  if (data == EXTENDED)
+    {
+      // The next thing coming is an extended scan code.  Set the flag
+      // so it can be collected next time
+      extended = 1;
+      return;
+    }
+
   // Key press or key release?
   if (data >= KEY_RELEASE)
     {
       // This is a key release.  We only care about a couple of cases if
       // it's a key release.
 
-      // If an extended scan code is coming next...
-      if (data == EXTENDED)
-	// The next thing coming is an extended scan code.  Set the flag
-	// so it can be collected next time
-	extended = 1;
-
-      else
+      switch (data)
 	{
-	  // If the last one was an extended, but this is a key release,
-	  // then we have to make sure we clear the extended flag even though
-	  // we're ignoring it
-	  extended = 0;
-
-	  switch (data)
-	    {
-	    case (KEY_RELEASE + LEFT_SHIFT):
-	    case (KEY_RELEASE + RIGHT_SHIFT):
-	      // Left or right shift release.  Reset the value of the
-	      // shiftDown flag
-	      shiftDown = 0;
-	      break;
-	    case (KEY_RELEASE + LEFT_CTRL):
-	      // Left control release.  Reset the value of the controlDown flag
-	      controlDown = 0;
-	      break;
-	    case (KEY_RELEASE + LEFT_ALT):
-	      // Left Alt release.  Reset the value of the altDown flag
-	      altDown = 0;
-	      break;
-	    default:
-	      // Don't care
-	      break;
-	    }
-
-	  // Notify the keyboard function of the event
-	  kernelKeyboardInput((int)(data - KEY_RELEASE), EVENT_KEY_UP);
+	case (KEY_RELEASE + LEFT_SHIFT):
+	case (KEY_RELEASE + RIGHT_SHIFT):
+	  // Left or right shift release.
+	  theKeyboard->flags &= ~SHIFT_FLAG;
+	  return;
+	case (KEY_RELEASE + LEFT_CTRL):
+	  // Left control release.
+	  theKeyboard->flags &= ~CONTROL_FLAG;
+	  return;
+	case (KEY_RELEASE + LEFT_ALT):
+	  // Left Alt release.
+	  theKeyboard->flags &= ~ALT_FLAG;
+	  return;
+	default:
+	  data -= KEY_RELEASE;
+	  release = 1;
+	  break;
 	}
     }
+
   else
     {
-      // This was a key press.  Check whether the last key pressed was
-      // one with an extended scan code.
+      // Regular key.
 
-      if (extended)
-	// The last thing was an extended flag.  Clear the flag
-	extended = 0;
-
-      // Check for a few 'special action' keys
-      
       switch (data)
 	{
 	case LEFT_SHIFT:
 	case RIGHT_SHIFT:
-	  // Left shift or right shift.  Set the shiftDown flag.
-	  shiftDown = 1;
-	  break;
+	  // Left shift or right shift press.
+	  theKeyboard->flags |= SHIFT_FLAG;
+	  return;
 	case LEFT_CTRL:
-	  // Left control.  Set the controlDown flag.
-	  controlDown = 1;
-	  break;
+	  // Left control press.
+	  theKeyboard->flags |= CONTROL_FLAG;
+	  return;
 	case LEFT_ALT:
-	  // Left alt.  Set the altDown flag.
-	  altDown = 1;
-	  break;
+	  // Left alt press.
+	  theKeyboard->flags |= ALT_FLAG;
+	  return;
 	case CAPSLOCK:
-	  if (capsLock)
+	  if (theKeyboard->flags & CAPSLOCK_FLAG)
 	    // Capslock off
-	    capsLock = 0;
+	    theKeyboard->flags ^= CAPSLOCK_FLAG;
 	  else
 	    // Capslock on
-	    capsLock = 1;
-	  setLight(CAPSLOCK_LIGHT, capsLock);
-	  break;
+	    theKeyboard->flags |= CAPSLOCK_FLAG;
+	  setLight(CAPSLOCK_LIGHT, (theKeyboard->flags & CAPSLOCK_FLAG));
+	  return;
 	case NUMLOCK:
-	  if (numLock)
+	  if (theKeyboard->flags & NUMLOCK_FLAG)
 	    // Numlock off
-	    numLock = 0;
+	    theKeyboard->flags ^= NUMLOCK_FLAG;
 	  else
 	    // Numlock on
-	    numLock = 1;
-	  setLight(NUMLOCK_LIGHT, numLock);
-	  break;
+	    theKeyboard->flags |= NUMLOCK_FLAG;
+	  setLight(NUMLOCK_LIGHT, (theKeyboard->flags & NUMLOCK_FLAG));
+	  return;
 	case SCROLLLOCK:
-	  if (scrollLock)
+	  if (theKeyboard->flags & SCROLLLOCK_FLAG)
 	    // Scroll lock off
-	    scrollLock = 0;
+	    theKeyboard->flags ^= SCROLLLOCK_FLAG;
 	  else
 	    // Scroll lock on
-	    scrollLock = 1;
-	  setLight(SCROLLLOCK_LIGHT, scrollLock);
-	  break;
+	    theKeyboard->flags |= SCROLLLOCK_FLAG;
+	  setLight(SCROLLLOCK_LIGHT, (theKeyboard->flags & SCROLLLOCK_FLAG));
+	  return;
 	case F1_KEY:
 	  kernelConsoleLogin();
-	  break;
+	  return;
 	case F2_KEY:
 	  kernelMultitaskerDumpProcessList();
-	  break;
+	  return;
 	default:
-	  // Regular key.
-
-	  // Check whether the control or shift keys are pressed.  Shift
-	  // overrides control.
-	  if (shiftDown)
-	    data = currentMap->shiftMap[data - 1];
-	  else if (controlDown)
-	    {
-	      if (altDown && (data == DEL_KEY)) // DEL key
-		{
-		  // CTRL-ALT-DEL means reboot
-		  kernelShutdown(reboot, 1 /*force*/);
-		  while(1);
-		}
-	      else
-		data = currentMap->controlMap[data - 1];
-	    }
-	  else
-	    data = currentMap->regMap[data - 1];
-
-	  // If capslock is on, uppercase any alphabetic characters
-	  if (capsLock && ((data >= 'a') && (data <= 'z')))
-	    data -= 32;
-
-	  // Notify the keyboard function of the event
-	  kernelKeyboardInput((int) data, EVENT_KEY_DOWN);
-
 	  break;
 	}
     }
-
+      
+  // Check whether the control or shift keys are pressed.  Shift
+  // overrides control.
+  if (!extended && ((theKeyboard->flags & SHIFT_FLAG) ||
+		    ((theKeyboard->flags & NUMLOCK_FLAG) &&
+		     (data >= 0x47) && (data <= 0x53))))
+    data = currentMap->shiftMap[data - 1];
+  
+  else if (theKeyboard->flags & CONTROL_FLAG)
+    {
+      if ((theKeyboard->flags & ALT_FLAG) && (data == DEL_KEY))
+	{
+	  // CTRL-ALT-DEL means reboot
+	  kernelProcessorReboot();
+	  while(1);
+	}
+      else
+	data = currentMap->controlMap[data - 1];
+    }
+  
+  else
+    data = currentMap->regMap[data - 1];
+      
+  // If capslock is on, uppercase any alphabetic characters
+  if ((theKeyboard->flags & CAPSLOCK_FLAG) &&
+      ((data >= 'a') && (data <= 'z')))
+    data -= 32;
+  
+  // Notify the keyboard function of the event
+  if (release)
+    kernelKeyboardInput((int) data, EVENT_KEY_UP);
+  else
+    kernelKeyboardInput((int) data, EVENT_KEY_DOWN);
+  
+  // Clear the extended flag
+  extended = 0;
   return;
 }

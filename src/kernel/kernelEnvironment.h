@@ -21,7 +21,7 @@
 
 #if !defined(_KERNELENVIRONMENT_H)
 
-#include "kernelVariableList.h"
+#include <sys/variable.h>
 
 // Definitions.
 
@@ -30,7 +30,7 @@
 #define MAX_ENVIRONMENT_VARIABLES  127
 #define ENVIRONMENT_BYTES          3044
 
-typedef kernelVariableList kernelEnvironment;
+typedef variableList kernelEnvironment;
 
 // Functions exported by kernelEnvironment.c
 kernelEnvironment *kernelEnvironmentCreate(int, kernelEnvironment *);

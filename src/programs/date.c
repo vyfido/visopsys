@@ -25,7 +25,6 @@
 #include <time.h>
 #include <sys/api.h>
 
-
 int main(int argc, char *argv[])
 {
   int status = 0;

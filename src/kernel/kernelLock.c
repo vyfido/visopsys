@@ -34,23 +34,15 @@
 #include <string.h>
 
 
-static inline void grantLock(kernelLock *lock, int processId,
-			     const char *filename, const char *function,
-			     int line)
+static inline void grantLock(lock *grantLock, int processId)
 {
-  lock->processId = processId;
-  lock->filename = (char *) filename;
-  lock->function = (char *) function;
-  lock->line = line;
+  grantLock->processId = processId;
 }
 
 
-static inline void releaseLock(kernelLock *lock)
+static inline void releaseLock(lock *relLock)
 {
-  lock->processId = 0;
-  lock->filename = NULL;
-  lock->function = NULL;
-  lock->line = NULL;
+  relLock->processId = 0;
 }
 
 
@@ -63,8 +55,7 @@ static inline void releaseLock(kernelLock *lock)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelLockGetComplex(const char *filename, const char *function, int line,
-			 kernelLock *lock)
+int kernelLockGet(lock *getLock)
 {
   // This function is used to obtain a lock for exclusive use by a
   // particular process.  Usually the lock will be part of a data structure
@@ -106,7 +97,7 @@ int kernelLockGetComplex(const char *filename, const char *function, int line,
   extern int kernelProcessingInterrupt;
 
   // Make sure the pointer we were given is not NULL
-  if (lock == NULL)
+  if (getLock == NULL)
     return (status = ERR_NULLPARAMETER);
 
   // Get the process Id of the current process
@@ -118,11 +109,10 @@ int kernelLockGetComplex(const char *filename, const char *function, int line,
 
   // Check whether the process already has the lock.  We'll allow this for
   // now but later we want to make a process wait against even its own locks
-  if (lock->processId == currentProcId)
+  if (getLock->processId == currentProcId)
     {
-      kernelError(kernel_error, "Lock attempt by %s in %s line %d - already "
-		  "held by %s in %s line %d", function, filename, line,
-		  lock->function, lock->filename, lock->line);
+      kernelError(kernel_error, "Lock already held by process %d",
+		  getLock->processId);
       return (status = ERR_ALREADY);
     }
 
@@ -135,10 +125,10 @@ int kernelLockGetComplex(const char *filename, const char *function, int line,
       // or released out from under us.
       kernelProcessorSuspendInts(interrupts);
 
-      if (lock->processId == 0)
+      if (getLock->processId == 0)
 	{
 	  // Give the lock to the requesting process
-	  grantLock(lock, currentProcId, filename, function, line);
+	  grantLock(getLock, currentProcId);
 
 	  /*
 	  // If we inverted the priority of some process to achieve this lock,
@@ -159,10 +149,10 @@ int kernelLockGetComplex(const char *filename, const char *function, int line,
       // is still alive, and that it is not sleeping, and that it has not
       // become stopped or zombie.  If it has, we will remove the lock given
       // to that process.
-      if (!kernelLockVerify(lock))
+      if (!kernelLockVerify(getLock))
 	// We might give the lock to the requesting process at the the start
 	// of the next loop.  Clear the current lock and exit the loop.
-	releaseLock(lock);
+	releaseLock(getLock);
 
       /*
       else if (!inversion)
@@ -215,7 +205,7 @@ int kernelLockGetComplex(const char *filename, const char *function, int line,
 }
 
 
-int kernelLockRelease(kernelLock *lock)
+int kernelLockRelease(lock *relLock)
 {
   // This function corresponds to the lock function.  It enables a 
   // process to release a resource that it had previously locked.
@@ -224,7 +214,7 @@ int kernelLockRelease(kernelLock *lock)
   int currentProcId = 0;
   
   // Make sure the pointer we were given is not NULL
-  if (lock == NULL)
+  if (relLock == NULL)
     return (status = ERR_NULLPARAMETER);
 
   // Get the process Id of the current process
@@ -236,9 +226,9 @@ int kernelLockRelease(kernelLock *lock)
   
   // Make sure that the current lock, if any, really belongs to this process.
 
-  if (lock->processId == currentProcId)
+  if (relLock->processId == currentProcId)
     {
-      releaseLock(lock);
+      releaseLock(relLock);
       return (status = 0);
     }
 
@@ -248,7 +238,7 @@ int kernelLockRelease(kernelLock *lock)
 }
 
 
-int kernelLockVerify(kernelLock *lock)
+int kernelLockVerify(lock *verLock)
 {
   // This function should be used to determine whether a lock is still
   // valid.  This means checking to see whether the locking process still
@@ -260,15 +250,15 @@ int kernelLockVerify(kernelLock *lock)
   kernelProcessState tmpState;
   
   // Make sure the pointer we were given is not NULL
-  if (lock == NULL)
+  if (verLock == NULL)
     return (status = ERR_NULLPARAMETER);
 
   // Make sure there's really a lock here
-  if (lock->processId == 0)
+  if (verLock->processId == 0)
     return (status = 0);
 
   // Get the current state of the owning process
-  status = kernelMultitaskerGetProcessState(lock->processId, &tmpState);
+  status = kernelMultitaskerGetProcessState(verLock->processId, &tmpState);
       
   // Is the process that holds the lock still valid?
   if ((status < 0) || 

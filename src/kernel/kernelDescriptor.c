@@ -354,7 +354,6 @@ int kernelDescriptorSet(volatile kernelSelector selector,
     // We have not been initialized
     return (status = ERR_NOTINITIALIZED);
 
-
   // Convert the requested descriptor into its entry number
   entryNumber = (selector >> 3);
 
@@ -364,7 +363,6 @@ int kernelDescriptorSet(volatile kernelSelector selector,
       kernelError(kernel_error, "Invalid segment size");
       return (status = ERR_INVALID);
     }
-
 
   // The present bit should be either 0 or 1
   if ((present < 0) || (present > 1))
@@ -571,9 +569,9 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
   interruptDescriptorTable[number].segSizeByte1 = (unsigned char) 0;
   interruptDescriptorTable[number].segSizeByte2 = (unsigned char) 0;
   interruptDescriptorTable[number].baseAddress1 = 
-    (unsigned char)(selector & 0x00FF);
+    (unsigned char)(selector & 0x000000FF);
   interruptDescriptorTable[number].baseAddress2 = 
-    (unsigned char)((selector & 0xFF00) >> 8);
+    (unsigned char)((selector & 0x0000FF00) >> 8);
   interruptDescriptorTable[number].baseAddress3 = (unsigned char) 0;
   interruptDescriptorTable[number].attributes1 = (unsigned char) 0x85;
   interruptDescriptorTable[number].attributes2 = (unsigned char) 0;

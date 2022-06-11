@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
 
 
@@ -51,8 +51,15 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  if (strcmp(argv[1], "-f") == 0)
+  // Check for -f ('force') option
+  if (getopt(argc, argv, "f") != -1)
     {
+      if (argc < 3)
+	{
+	  usage((argc > 0)? argv[0] : "kill");
+	  return (status = ERR_ARGUMENTCOUNT);
+	}
+
       force = 1;
       count++;
     }

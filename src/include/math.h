@@ -43,6 +43,7 @@ double floor(double);
 double fmod(double, double);
 double modf(double x, double *);
 double pow(double, double);
+double sqrt(double);
 
 // These functions are unimplemented
 double acos(double);
@@ -58,7 +59,6 @@ double log(double);
 double log10(double);
 double sin(double);
 double sinh(double);
-double sqrt(double);
 double tan(double);
 double tanh(double);
 

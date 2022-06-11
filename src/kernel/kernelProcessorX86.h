@@ -198,16 +198,18 @@
 #define kernelProcessorDisableInts() __asm__ __volatile__ ("cli")
 
 #define kernelProcessorSuspendInts(variable) \
+do                                           \
 {                                            \
   kernelProcessorIntStatus(variable);        \
   kernelProcessorDisableInts();              \
-}
+} while (0)
 
 #define kernelProcessorRestoreInts(variable) \
+do                                           \
 {                                            \
   if (variable)                              \
     kernelProcessorEnableInts();             \
-}
+} while (0)
 
 #define kernelProcessorIsrEnter()              \
   __asm__ __volatile__ ("cli \n\t"             \

@@ -1,4 +1,4 @@
-THE VISOPSYS KERNEL API  (Version 0.3)
+THE VISOPSYS KERNEL API  (Version 0.4)
 
 
 All of the kernel's functions are defined in the file /system/headers/sys/api.h.  In future, this file may be split into smaller chunks, by functional area.  Data structures referred to in these function definitions are found in header files in the /system/headers/sys directory.  For example, a 'disk' object is defined in /system/headers/sys/disk.h.
@@ -20,6 +20,7 @@ Random number functions
 Environment functions
 Raw graphics functions
 Window manager functions
+User functions
 Miscellaneous functions
 
  
@@ -29,1112 +30,1331 @@ Text input/output functions
 
 objectKey textGetConsoleInput(void)
 
-    Returns a reference to the console input stream.  This is where keyboard input goes by default.
+	Returns a reference to the console input stream. This is where keyboard input goes by default.
 
 
 int textSetConsoleInput(objectKey newStream)
+ 
+	Changes the console input stream. GUI programs can use this function to redirect input to a text area or text field, for example. 
 
-    Changes the console input stream.  GUI programs can use this function to redirect input to a text area or text field, for example.
 
+objectKey textGetConsoleOutput(void) 
+	Returns a reference to the console output stream. This is where kernel logging output goes by default. 
 
-objectKey textGetConsoleOutput(void)
 
-    Returns a reference to the console output stream.  This is where kernel logging output goes by default.
+int textSetConsoleOutput(objectKey newStream) 
 
+	Changes the console output stream. GUI programs can use this function to redirect output to a text area or text field, for example. 
 
-int textSetConsoleOutput(objectKey newStream)
 
-    Changes the console output stream.  GUI programs can use this function to redirect output to a text area or text field, for example.
+objectKey textGetCurrentInput(void) 
 
+	Returns a reference to the input stream of the current process. This is where standard input (for example, from a getc() call) is received. 
 
-objectKey textGetCurrentInput(void)
 
-    Returns a reference to the input stream of the current process.  This is where standard input (for example, from a getc() call) is received.
+int textSetCurrentInput(objectKey newStream) 
 
+	Changes the current input stream. GUI programs can use this function to redirect input to a text area or text field, for example. 
 
-int textSetCurrentInput(objectKey newStream)
 
-    Changes the current input stream.  GUI programs can use this function to redirect input to a text area or text field, for example.
+objectKey textGetCurrentOutput(void) 
 
+	Returns a reference to the console output stream. 
 
-objectKey textGetCurrentOutput(void)
 
-    Returns a reference to the console output stream.
+int textSetCurrentOutput(objectKey newStream) 
 
+	Changes the current output stream. This is where standard output (for example, from a putc() call) goes. 
 
-int textSetCurrentOutput(objectKey newStream)
 
-    Changes the current output stream.  This is where standard output (for example, from a putc() call) goes.
+int textGetForeground(void) 
 
+	Get the current foreground color as an int value. Currently this is only applicable in text mode, and the color value should be treated as a PC built-in color value. Here is a listing: 0=Black, 4=Red, 8=Dark gray, 12=Light red, 1=Blue, 5=Magenta, 9=Light blue, 13=Light magenta, 2=Green, 6=Brown, 10=Light green, 14=Yellow, 3=Cyan, 7=Light gray, 11=Light cyan, 15=White 
 
-int textGetForeground(void)
 
-    Get the current foreground color as an int value.  Currently this is only applicable in text mode, and the color value should be treated as a PC built-in color value.  Here is a listing:
-    0 - Black 4 - Red 8 - Dark gray 12 - Light red
-    1 - Blue 5 - Magenta 9 - Light blue 13 - Light magenta
-    2 - Green 6 - Brown 10 - Light green 14 - Yellow
-    3 - Cyan 7 - Light gray 11 - Light cyan 15 - White
+int textSetForeground(int foreground) 
 
+	Set the current foreground color from an int value. Currently this is only applicable in text mode, and the color value should be treated as a PC builtin color value. See chart above. 
 
-int textSetForeground(int foreground)
 
-    Set the current foreground color from an int value.  Currently this is only applicable in text mode, and the color value should be treated as a PC builtin color value.  See chart above.
+int textGetBackground(void) 
 
+	Get the current background color as an int value. Currently this is only applicable in text mode, and the color value should be treated as a PC builtin color value. See chart above. 
 
-int textGetBackground(void)
 
-    Get the current background color as an int value.  Currently this is only applicable in text mode, and the color value should be treated as a PC builtin color value.  See chart above.
+int textSetBackground(int background) 
 
+	Set the current foreground color from an int value. Currently this is only applicable in text mode, and the color value should be treated as a PC builtin color value. See chart above. 
 
-int textSetBackground(int background)
 
-    Set the current foreground color from an int value.  Currently this is only applicable in text mode, and the color value should be treated as a PC builtin color value.  See chart above.
+int textPutc(int ascii) 
 
+	Print a single character 
 
-int textPutc(int ascii)
 
-    Print a single character
+int textPrint(const char *str) 
 
+	Print a string 
 
-int textPrint(const char *str)
 
-    Print a string
+int textPrintLine(const char *str) 
 
+	Print a string with a newline at the end 
 
-int textPrintLine(const char *str)
 
-    Print a string with a newline at the end
+void textNewline(void) 
 
+	Print a newline 
 
-void textNewline(void)
 
-    Print a newline
+int textBackSpace(void) 
 
+	Backspace the cursor, deleting any character there 
 
-int textBackSpace(void)
 
-    Backspace the cursor, deleting any character there
+int textTab(void) 
 
+	Print a tab 
 
-int textTab(void)
 
-    Print a tab
+int textCursorUp(void) 
 
+	Move the cursor up one row. Doesn't affect any characters there. 
 
-int textCursorUp(void)
 
-    Move the cursor up one row.  Doesn't affect any characters there.
+int textCursorDown(void) 
 
+	Move the cursor down one row. Doesn't affect any characters there. 
 
-int textCursorDown(void)
 
-    Move the cursor down one row.  Doesn't affect any characters there.
+int textCursorLeft(void) 
 
+	Move the cursor left one column. Doesn't affect any characters there. 
 
-int textCursorLeft(void)
 
-    Move the cursor left one column.  Doesn't affect any characters there.
+int textCursorRight(void) 
 
+	Move the cursor right one column. Doesn't affect any characters there. 
 
-int textCursorRight(void)
 
-    Move the cursor right one column.  Doesn't affect any characters there.
+int textGetNumColumns(void) 
 
+	Get the total number of columns in the text area. 
 
-int textGetNumColumns(void)
 
-    Get the total number of columns in the text area.
+int textGetNumRows(void) 
 
+	Get the total number of rows in the text area. 
 
-int textGetNumRows(void)
 
-    Get the total number of rows in the text area.
+int textGetColumn(void) 
 
+	Get the number of the current column. Zero-based. 
 
-int textGetColumn(void)
 
-    Get the number of the current column.  Zero-based.
+void textSetColumn(int c) 
 
+	Set the number of the current column. Zero-based. Doesn't affect any characters there. 
 
-void textSetColumn(int c)
 
-    Set the number of the current column.  Zero-based.  Doesn't affect any characters there.
+int textGetRow(void) 
 
+	Get the number of the current row. Zero-based. 
 
-int textGetRow(void)
 
-    Get the number of the current row.  Zero-based.
+void textSetRow(int r) 
 
+	Set the number of the current row. Zero-based. Doesn't affect any characters there. 
 
-void textSetRow(int r)
 
-    Set the number of the current row.  Zero-based.  Doesn't affect any characters there.
+void textSetCursor(int on) 
 
+	Turn the cursor on (1) or off (0) 
 
-int textClearScreen(void)
 
-    Erase all characters in the text area and set the row and column to (0, 0)
+int textScreenClear(void) 
 
+	Erase all characters in the text area and set the row and column to (0, 0) 
 
-int textInputStreamCount(objectKey strm)
 
-    Get the number of characters currently waiting in the specified input stream
+int textScreenSave(void) 
 
+	Save the current screen in an internal buffer. Use with the textScreenRestore function. 
 
-int textInputCount(void)
 
-    Get the number of characters currently waiting in the current input stream
+int textScreenRestore(void) 
 
+	Restore the screen previously saved with the textScreenSave function 
 
-int textInputStreamGetc(objectKey strm, char *cp)
 
-   Get one character from the specified input stream (as an integer value).
+int textInputStreamCount(objectKey strm) 
 
+	Get the number of characters currently waiting in the specified input stream 
 
-int textInputGetc(char *cp)
 
-    Get one character from the default input stream (as an integer value).
+int textInputCount(void) 
 
+	Get the number of characters currently waiting in the current input stream 
 
-int textInputStreamReadN(objectKey strm, int num, char *buff)
 
-    Read up to 'num' characters from the specified input stream into 'buff'
+int textInputStreamGetc(objectKey strm, char *cp) 
 
+	Get one character from the specified input stream (as an integer value). 
 
-int textInputReadN(int num, char *buff)
 
-    Read up to 'num' characters from the default input stream into 'buff'
+int textInputGetc(char *cp) 
 
+	Get one character from the default input stream (as an integer value). 
 
-int textInputStreamReadAll(objectKey strm, char *buff)
 
-    Read all of the characters from the specified input stream into 'buff'
+int textInputStreamReadN(objectKey strm, int num, char *buff) 
 
+	Read up to 'num' characters from the specified input stream into 'buff' 
 
-int textInputReadAll(char *buff)
 
-    Read all of the characters from the default input stream into 'buff'
+int textInputReadN(int num, char *buff) 
 
+	Read up to 'num' characters from the default input stream into 'buff' 
 
-int textInputStreamAppend(objectKey strm, int ascii)
 
-    Append a character (as an integer value) to the end of the specified input stream.
+int textInputStreamReadAll(objectKey strm, char *buff) 
 
+	Read all of the characters from the specified input stream into 'buff' 
 
-int textInputAppend(int ascii)
 
-    Append a character (as an integer value) to the end of the default input stream.
+int textInputReadAll(char *buff) 
 
+	Read all of the characters from the default input stream into 'buff' 
 
-int textInputStreamAppendN(objectKey strm, int num, char *str)
 
-    Append 'num' characters to the end of the specified input stream from 'str'
+int textInputStreamAppend(objectKey strm, int ascii) 
 
+	Append a character (as an integer value) to the end of the specified input stream. 
 
-int textInputAppendN(int num, char *str)
 
-    Append 'num' characters to the end of the default input stream from 'str'
+int textInputAppend(int ascii) 
 
+	Append a character (as an integer value) to the end of the default input stream. 
 
-int textInputStreamRemove(objectKey strm)
 
-    Remove one character from the start of the specified input stream.
+int textInputStreamAppendN(objectKey strm, int num, char *str) 
 
+	Append 'num' characters to the end of the specified input stream from 'str' 
 
-int textInputRemove(void)
 
-    Remove one character from the start of the default input stream.
+int textInputAppendN(int num, char *str) 
 
+	Append 'num' characters to the end of the default input stream from 'str' 
 
-int textInputStreamRemoveN(objectKey strm, int num)
 
-    Remove 'num' characters from the start of the specified input stream.
+int textInputStreamRemove(objectKey strm) 
 
+	Remove one character from the start of the specified input stream. 
 
-int textInputRemoveN(int num)
 
-    Remove 'num' characters from the start of the default input stream.
+int textInputRemove(void) 
 
+	Remove one character from the start of the default input stream. 
 
-int textInputStreamRemoveAll(objectKey strm)
 
-    Empty the specified input stream.
+int textInputStreamRemoveN(objectKey strm, int num) 
 
+	Remove 'num' characters from the start of the specified input stream. 
 
-int textInputRemoveAll(void)
 
-    Empty the default input stream.
+int textInputRemoveN(int num) 
 
+	Remove 'num' characters from the start of the default input stream. 
 
-void textInputStreamSetEcho(objectKey strm, int onOff)
 
-    Set echo on (1) or off (0) for the specified input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.
+int textInputStreamRemoveAll(objectKey strm) 
 
+	Empty the specified input stream. 
 
-void textInputSetEcho(int onOff)
 
-    Set echo on (1) or off (0) for the default input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.
+int textInputRemoveAll(void) 
+
+	Empty the default input stream. 
+
+
+void textInputStreamSetEcho(objectKey strm, int onOff) 
+
+	Set echo on (1) or off (0) for the specified input stream. When on, any characters typed will be automatically printed to the text area. When off, they won't. 
+
+
+void textInputSetEcho(int onOff) 
+
+	Set echo on (1) or off (0) for the default input stream. When on, any characters typed will be automatically printed to the text area. When off, they won't.
 
 
 --------------------------------------
 Disk functions
 --------------------------------------
 
-int diskReadPartitions(void)
+int diskReadPartitions(void) 
 
-    Tells the kernel to (re)read the disk partition tables.
-
-
-int diskSync(void)
-
-    Tells the kernel to synchronize all the disks, flushing any output.
+	Tells the kernel to (re)read the disk partition tables. 
 
 
-int diskGetBoot(char *name)
+int diskSync(void) 
 
-    Get the disk name of the boot device.  Normally this will contain the root filesystem.
-
-
-int diskGetCount(void)
-
-    Get the number of logical disk volumes recognized by the system
+	Tells the kernel to synchronize all the disks, flushing any output. 
 
 
-int diskGetPhysicalCount(void)
+int diskGetBoot(char *name) 
 
-    Get the number of physical disk devices recognized by the system
-
-
-int diskGetInfo(disk *d)
-
-    Get information about the logical disk volume named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
+	Get the disk name of the boot device. Normally this will contain the root filesystem. 
 
 
-int diskGetPhysicalInfo(disk *d)
+int diskGetReadOnly(const char *name) 
 
-    Get information about the physical disk device named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
-
-
-int diskGetPartType(int code, partitionType *p)
-
-    Gets the partition type data for the corresponding code.  This function was added specifically by use by programs such as 'fdisk' to get descriptions of different types known to the kernel.
+	Returns 1 if the supplied disk name is a read-only device, media, or filesystem 
 
 
-partitionType *diskGetPartTypes(void)
+int diskGetCount(void) 
 
-    Like diskGetPartType(), but returns a pointer to a list of all known types.
-
-
-int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
-
-    Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.
+	Get the number of logical disk volumes recognized by the system 
 
 
-int diskWriteSectors(const char *name, unsigned sect, unsigned count, void *buf)
+int diskGetPhysicalCount(void) 
 
-    Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.
-
-
-int diskReadAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-
-    Read 'count' sectors from disk 'name', starting at (zero-based) absolute sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege and is used to read outside the logical confines of a volume, such as a hard disk partition.  Not very useful unless you know what you're doing.
+	Get the number of physical disk devices recognized by the system 
 
 
-int diskWriteAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
+int diskGetInfo(disk *d) 
 
-    Write 'count' sectors to disk 'name', starting at (zero-based) absolute sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege and is used to write outside the logical confines of a volume, such as a hard disk partition.  Don't use this unless you know what you're doing.
+	Get information about the logical disk volume named by the disk structure's 'name' field and fill in the remainder of the disk structure d. 
+
+
+int diskGetPhysicalInfo(disk *d) 
+
+	Get information about the physical disk device named by the disk structure's 'name' field and fill in the remainder of the disk structure d. 
+
+
+int diskGetPartType(int code, partitionType *p) 
+
+	Gets the partition type data for the corresponding code. This function was added specifically by use by programs such as 'fdisk' to get descriptions of different types known to the kernel. 
+
+
+partitionType *diskGetPartTypes(void) 
+
+	Like diskGetPartType(), but returns a pointer to a list of all known types. 
+
+
+int diskSetDoorState(const char *name, int state) 
+
+	Set the locked state of the disk 'name' to either unlocked (0) or locked (1) 
+
+
+int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf) 
+
+	Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'. Put the data in memory area 'buf'. 
+
+
+int diskWriteSectors(const char *name, unsigned sect, unsigned count, void *buf) 
+
+	Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'. Get the data from memory area 'buf'. 
+
+
+int diskReadAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf) 
+
+	Read 'count' sectors from disk 'name', starting at (zero-based) absolute sector number 'sect'. Put the data in memory area 'buf'. This function requires supervisor privilege and is used to read outside the logical confines of a volume, such as a hard disk partition. Not very useful unless you know what you're doing. 
+
+
+int diskWriteAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf) 
+
+	Write 'count' sectors to disk 'name', starting at (zero-based) absolute sector number 'sect'. Get the data from memory area 'buf'. This function requires supervisor privilege and is used to write outside the logical confines of a volume, such as a hard disk partition. Don't use this unless you know what you're doing. 
 
 
 --------------------------------------
 Filesystem functions
 --------------------------------------
 
-int filesystemFormat(const char *disk, const char *type, const char *label, int longFormat)
+int filesystemFormat(const char *disk, const char *type, const char *label, int longFormat) 
 
-    Format the logical volume 'disk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
-
-
-int filesystemCheck(const char *name, int force, int repair)
-
-    Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  It is optional for filesystem drivers to implement this function.
+	Format the logical volume 'disk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc). Label it with 'label'. 'longFormat' will do a sector-by-sector format, if supported. It is optional for filesystem drivers to implement this function. 
 
 
-int filesystemDefragment(const char *name)
+int filesystemCheck(const char *name, int force, int repair) 
 
-    Defragment the filesystem on disk 'name'.  It is optional for filesystem drivers to implement this function.
-
-
-int filesystemMount(const char *name, const char *mp)
-
-    Mount the filesystem on disk 'name', using the mount point specified by the absolute pathname 'mp'.  Note that no file or directory called 'mp' should exist, as the mount function will expect to be able to create it.
+	Check the filesystem on disk 'name'. If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be. If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found. If 'repair' is zero, a non-zero return value may indicate that errors were found. If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed. It is optional for filesystem drivers to implement this function. 
 
 
-int filesystemUnmount(const char *mp)
+int filesystemDefragment(const char *name) 
 
-    Unmount the filesystem mounted represented by the mount point 'fs'.
-
-
-int filesystemNumberMounted(void)
-
-    Returns the number of filesystems currently mounted.
+	Defragment the filesystem on disk 'name'. It is optional for filesystem drivers to implement this function. 
 
 
-void filesystemFirstFilesystem(char *buff)
+int filesystemMount(const char *name, const char *mp) 
 
-    Returns the mount point of the first mounted filesystem in 'buff'.  Normally this will be the root filesystem "/".
-
-
-void filesystemNextFilesystem(char *buff)
-
-    Returns the mount point of the next mounted filesystem as returned by a previous call to either filesystemFirstFilesystem()or filesystemNextFilesystem()
+	Mount the filesystem on disk 'name', using the mount point specified by the absolute pathname 'mp'. Note that no file or directory called 'mp' should exist, as the mount function will expect to be able to create it. 
 
 
-int filesystemGetFree(const char *fs)
+int filesystemUnmount(const char *mp) 
 
-    Returns the amount of free space on the filesystem represented by the mount point 'fs'.
+	Unmount the filesystem mounted represented by the mount point 'fs'. 
 
 
-unsigned int filesystemGetBlockSize(const char *fs)
+int filesystemNumberMounted(void) 
 
-    Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.
+	Returns the number of filesystems currently mounted. 
+
+
+int filesystemGetFree(const char *fs) 
+
+	Returns the amount of free space on the filesystem represented by the mount point 'fs'. 
+
+
+unsigned int filesystemGetBlockSize(const char *fs) 
+
+	Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'. 
 
 
 --------------------------------------
 File functions
 --------------------------------------
 
-Note that in all of the functions of this section, any reference to pathnames means absolute pathnames, from root.  E.g. '/files/myfile', not simply 'myfile'.  From the kernel's point of view, 'myfile' might be ambiguous.
+Note that in all of the functions of this section, any reference to pathnames means absolute pathnames, from root. E.g. '/files/myfile', not simply 'myfile'. From the kernel's point of view, 'myfile' might be ambiguous.
 
-int fileFixupPath(const char *orig, char *new)
+int fileFixupPath(const char *orig, char *new) 
 
-    Take the absolute pathname in 'orig' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
+	Take the absolute pathname in 'orig' and fix it up. This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname. 
 
 
-int fileFirst(const char *path, file *f)
+int fileFirst(const char *path, file *f) 
 
-    Get the first file from the directory referenced by 'path'.  Put the information in the file structure 'f'.
+	Get the first file from the directory referenced by 'path'. Put the information in the file structure 'f'. 
 
 
-int fileNext(const char *path, file *f)
+int fileNext(const char *path, file *f) 
 
-    Get the next file from the directory referenced by 'path'.  'f' should be a file structure previously filled by a call to either fileFirst() or fileNext().
+	Get the next file from the directory referenced by 'path'. 'f' should be a file structure previously filled by a call to either fileFirst() or fileNext(). 
 
 
-int fileFind(const char *name, file *f)
+int fileFind(const char *name, file *f) 
 
-    Find the file referenced by 'name', and fill the file data structure 'f' with the results if successful.
+	Find the file referenced by 'name', and fill the file data structure 'f' with the results if successful. 
 
 
-int fileOpen(const char *name, int mode, file *f)
+int fileOpen(const char *name, int mode, file *f) 
 
-    Open the file referenced by 'name' using the file open mode 'mode' (defined in <sys/file.h>).  Update the file data structure 'f' if successful.
+	Open the file referenced by 'name' using the file open mode 'mode' (defined in ). Update the file data structure 'f' if successful. 
 
 
-int fileClose(file *f)
+int fileClose(file *f) 
 
-    Close the previously opened file 'f'.
+	Close the previously opened file 'f'. 
 
 
-int fileRead(file *f, unsigned int blocknum, unsigned int blocks, unsigned char *buff)
+int fileRead(file *f, unsigned int blocknum, unsigned int blocks, unsigned char *buff) 
 
-    Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
+	Read data from the previously opened file 'f'. 'f' should have been opened in a read or read/write mode. Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'. 
 
 
-int fileWrite(file *f, unsigned int blocknum, unsigned int blocks, unsigned char *buff)
+int fileWrite(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff) 
 
-    Write data to the previously opened file 'f'.  'f' should have been opened in a write or read/write mode.  Write 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) from the buffer 'buff'.
+	Write data to the previously opened file 'f'. 'f' should have been opened in a write or read/write mode. Write 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) from the buffer 'buff'. 
 
 
-int fileDelete(const char *name)
+int fileDelete(const char *name) 
 
-    Delete the file referenced by the pathname 'name'.
+	Delete the file referenced by the pathname 'name'. 
 
 
-int fileDeleteSecure(const char *name)
+int fileDeleteSecure(const char *name) 
 
-    Securely delete the file referenced by the pathname 'name'.  If supported.
+	Securely delete the file referenced by the pathname 'name'. If supported. 
 
 
-int fileMakeDir(const char *name)
+int fileMakeDir(const char *name) 
 
-    Create a directory to be referenced by the pathname 'name'.
+	Create a directory to be referenced by the pathname 'name'. 
 
 
-int fileRemoveDir(const char *name)
+int fileRemoveDir(const char *name) 
 
-    Remove the directory referenced by the pathname 'name'.
+	Remove the directory referenced by the pathname 'name'. 
 
 
-int fileCopy(const char *src, const char *dest)
+int fileCopy(const char *src, const char *dest) 
 
-    Copy the file referenced by the pathname 'src' to the pathname 'dest'.  This will overwrite 'dest' if it already exists.
+	Copy the file referenced by the pathname 'src' to the pathname 'dest'. This will overwrite 'dest' if it already exists. 
 
 
-int fileCopyRecursive(const char *src, const char *dest)
+int fileCopyRecursive(const char *src, const char *dest) 
 
-    Recursively copy the file referenced by the pathname 'src' to the pathname 'dest'.  If 'src' is a regular file, the result will be the same as using the non-recursive call.  However if it is a directory, all contents of the directory and its subdirectories will be copied.  This will overwrite any files in the 'dest' tree if they already exist.
+	Recursively copy the file referenced by the pathname 'src' to the pathname 'dest'. If 'src' is a regular file, the result will be the same as using the non-recursive call. However if it is a directory, all contents of the directory and its subdirectories will be copied. This will overwrite any files in the 'dest' tree if they already exist. 
 
 
-int fileMove(const char *src, const char *dest)
+int fileMove(const char *src, const char *dest) 
 
-    Move (rename) a file referenced by the pathname 'src' to the pathname 'dest'.
+	Move (rename) a file referenced by the pathname 'src' to the pathname 'dest'. 
 
 
-int fileTimestamp(const char *name)
+int fileTimestamp(const char *name) 
 
-    Update the time stamp on the file referenced by the pathname 'name'
+	Update the time stamp on the file referenced by the pathname 'name' 
 
 
-int fileStreamOpen(const char *name, int mode, fileStream *f)
+int fileStreamOpen(const char *name, int mode, fileStream *f) 
 
-    Open the file referenced by the pathname 'name' for streaming operations, using the open mode 'mode' (defined in <sys/file.h>).  Fills the fileStream data structure 'f' with information needed for subsequent file stream operations.
+	Open the file referenced by the pathname 'name' for streaming operations, using the open mode 'mode' (defined in ). Fills the fileStream data structure 'f' with information needed for subsequent filestream operations. 
 
 
-int fileStreamSeek(fileStream *f, int offset)
+int fileStreamSeek(fileStream *f, int offset) 
 
-    Seek the file stream 'f' to the absolute position 'offset'
+	Seek the filestream 'f' to the absolute position 'offset' 
 
 
-int fileStreamRead(fileStream *f, int bytes, char *buff)
+int fileStreamRead(fileStream *f, int bytes, char *buff) 
 
-    Read 'bytes' bytes from the filestream 'f' and put them into 'buff'.
+	Read 'bytes' bytes from the filestream 'f' and put them into 'buff'. 
 
 
-int fileStreamWrite(fileStream *f, int bytes, char *buff)
+int fileStreamReadLine(fileStream *f, int bytes, char *buff) 
 
-    Write 'bytes' bytes from the buffer 'buff' to the file stream 'f'.
+	Read a complete line of text from the filestream 'f', and put up to 'bytes' characters into 'buff' 
 
 
-int fileStreamFlush(fileStream *f)
+int fileStreamWrite(fileStream *f, int bytes, char *buff) 
 
-    Flush file stream 'f'.
+	Write 'bytes' bytes from the buffer 'buff' to the filestream 'f'. 
 
 
-int fileStreamClose(fileStream *f)
+int fileStreamWriteStr(fileStream *f, char *buff) 
 
-    [Flush and] close the file stream 'f'.
+	Write the string in 'buff' to the filestream 'f' 
+
+
+int fileStreamWriteLine(fileStream *f, char *buff) 
+
+	Write the string in 'buff' to the filestream 'f', and add a newline at the end 
+
+
+int fileStreamFlush(fileStream *f) 
+
+	Flush filestream 'f'. 
+
+
+int fileStreamClose(fileStream *f) 
+
+	[Flush and] close the filestream 'f'. 
 
 
 --------------------------------------
 Memory functions
 --------------------------------------
 
-void memoryPrintUsage(int kernel)
+void memoryPrintUsage(int kernel) 
 
-    Prints the current memory usage statistics to the current output stream.  If non-zero, the flag 'kernel' will show usage of kernel dynamic memory as well.
-
-
-void *memoryGet(unsigned int size, unsigned int align, const char *desc)
-
-    Return a pointer to a new block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'.  If no specific alignment is required, use '0'.  Memory allocated using this function is automatically cleared (like 'calloc').
+	Prints the current memory usage statistics to the current output stream. If non-zero, the flag 'kernel' will show usage of kernel dynamic memory as well. 
 
 
-void *memoryGetPhysical(unsigned int size, unsigned int align, const char *desc)
+void *memoryGet(unsigned size, const char *desc) 
 
-    Return a pointer to a new physical block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'.  If no specific alignment is required, use '0'.  Memory allocated using this function is NOT automatically cleared.  'Physical' refers to an actual physical memory address, and is not necessarily useful to external programs.
-
-
-int memoryRelease(void *p)
-
-    Release the memory block starting at the address 'p'.  Must have been previously allocated using the memoryRequestBlock() function.
+	Return a pointer to a new block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'. If no specific alignment is required, use '0'. Memory allocated using this function is automatically cleared (like 'calloc'). 
 
 
-int memoryReleaseAllByProcId(int pid)
+void *memoryGetPhysical(unsigned size, unsigned align, const char *desc) 
 
-    Release all memory allocated to/by the process referenced by process ID 'pid'.  Only privileged functions can release memory owned by other processes.
+	Return a pointer to a new physical block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'. If no specific alignment is required, use '0'. Memory allocated using this function is NOT automatically cleared. 'Physical' refers to an actual physical memory address, and is not necessarily useful to external programs. 
 
 
-int memoryChangeOwner(int opid, int npid, void *addr, void **naddr)
+int memoryRelease(void *p) 
 
-    Change the ownership of an allocated block of memory beginning at address 'addr'.  'opid' is the process ID of the currently owning process, and 'npid' is the process ID of the intended new owner.  'naddr' is filled with the new address of the memory (since it changes address spaces in the process).  Note that only a privileged process can change memory ownership.
+	Release the memory block starting at the address 'p'. Must have been previously allocated using the memoryRequestBlock() function. 
+
+
+int memoryReleaseAllByProcId(int pid) 
+
+	Release all memory allocated to/by the process referenced by process ID 'pid'. Only privileged functions can release memory owned by other processes. 
+
+
+int memoryChangeOwner(int opid, int npid, void *addr, void **naddr) 
+
+	Change the ownership of an allocated block of memory beginning at address 'addr'. 'opid' is the process ID of the currently owning process, and 'npid' is the process ID of the intended new owner. 'naddr' is filled with the new address of the memory (since it changes address spaces in the process). Note that only a privileged process can change memory ownership. 
 
 
 --------------------------------------
 Multitasker functions
 --------------------------------------
 
-int multitaskerCreateProcess(void *addr, unsigned int size, const char *name, int numargs, void *args)
+int multitaskerCreateProcess(void *addr, unsigned int size, const char *name, int numargs, void *args) 
 
-    Create a new process.  The code should have been loaded at the address 'addr' and be of size 'size'.  'name' will be the new process' name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new process.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+	Create a new process. The code should have been loaded at the address 'addr' and be of size 'size'. 'name' will be the new process' name. 'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new process. If there are no arguments, these should be 0 and NULL, respectively. If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID. New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState(). 
 
 
-int multitaskerSpawn(void *addr, const char *name, int numargs, void *args)
+int multitaskerSpawn(void *addr, const char *name, int numargs, void *args) 
 
-    Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+	Spawn a thread from the current process. The starting point of the code (for example, a function address) should be specified as 'addr'. 'name' will be the new thread's name. 'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread. If there are no arguments, these should be 0 and NULL, respectively. If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID. New threads are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState(). 
 
 
-int multitaskerGetCurrentProcessId(void)
+int multitaskerGetCurrentProcessId(void) 
 
-    Returns the process ID of the calling program.
+	Returns the process ID of the calling program. 
 
 
-int multitaskerGetProcessOwner(int pid)
+int multitaskerGetProcessOwner(int pid) 
 
-    Returns the user ID of the user that owns the process referenced by process ID 'pid'.
+	Returns the user ID of the user that owns the process referenced by process ID 'pid'. 
 
 
-const char *multitaskerGetProcessName(int pid)
+const char *multitaskerGetProcessName(int pid) 
 
-    Returns the process name of the process referenced by process ID 'pid'.
+	Returns the process name of the process referenced by process ID 'pid'. 
 
 
-int multitaskerGetProcessState(int pid, int *statep)
+int multitaskerGetProcessState(int pid, int *statep) 
 
-    Gets the state of the process referenced by process ID 'pid'.  Puts the result in 'statep'.
+	Gets the state of the process referenced by process ID 'pid'. Puts the result in 'statep'. 
 
 
-int multitaskerSetProcessState(int pid, int state)
+int multitaskerSetProcessState(int pid, int state) 
 
-    Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
+	Sets the state of the process referenced by process ID 'pid' to the new state 'state'. 
 
 
-int multitaskerGetProcessPriority(int pid)
+int multitaskerGetProcessPriority(int pid) 
 
-    Gets the priority of the process referenced by process ID 'pid'.
+	Gets the priority of the process referenced by process ID 'pid'. 
 
 
-int multitaskerSetProcessPriority(int pid, int priority)
+int multitaskerSetProcessPriority(int pid, int priority) 
 
-    Sets the priority of the process referenced by process ID 'pid' to 'priority'..
+	Sets the priority of the process referenced by process ID 'pid' to 'priority'. 
 
 
-int multitaskerGetProcessPrivilege(int pid)
+int multitaskerGetProcessPrivilege(int pid) 
 
-    Gets the privilege level of the process referenced by process ID 'pid'.
+	Gets the privilege level of the process referenced by process ID 'pid'. 
 
 
-int multitaskerGetCurrentDirectory(char *buff, int buffsz)
+int multitaskerGetCurrentDirectory(char *buff, int buffsz) 
 
-    Returns the absolute pathname of the calling process' current directory.  Puts the value in the buffer 'buff' which is of size 'buffsz'.
+	Returns the absolute pathname of the calling process' current directory. Puts the value in the buffer 'buff' which is of size 'buffsz'. 
 
 
-int multitaskerSetCurrentDirectory(char *buff)
+int multitaskerSetCurrentDirectory(char *buff) 
 
-    Sets the current directory of the calling process to the absolute pathname 'buff'.
+	Sets the current directory of the calling process to the absolute pathname 'buff'. 
 
 
-objectKey multitaskerGetTextInput(void)
+objectKey multitaskerGetTextInput(void) 
 
-    Get an object key to refer to the current text input stream of the calling process.
+	Get an object key to refer to the current text input stream of the calling process. 
 
 
-int multitaskerSetTextInput(int processId, objectKey key)
+int multitaskerSetTextInput(int processId, objectKey key) 
 
-    Set the text input stream of the process referenced by process ID 'processId' to a text stream referenced by the object key 'key'.
+	Set the text input stream of the process referenced by process ID 'processId' to a text stream referenced by the object key 'key'. 
 
 
-objectKey multitaskerGetTextOutput(void)
+objectKey multitaskerGetTextOutput(void) 
 
-    Get an object key to refer to the current text output stream of the calling process.
+	Get an object key to refer to the current text output stream of the calling process. 
 
 
-int multitaskerSetTextOutput(int processId, objectKey key)
+int multitaskerSetTextOutput(int processId, objectKey key) 
 
-    Set the text output stream of the process referenced by process ID 'processId' to a text stream referenced by the object key 'key'.
+	Set the text output stream of the process referenced by process ID 'processId' to a text stream referenced by the object key 'key'. 
 
 
-int multitaskerGetProcessorTime(clock_t *clk)
+int multitaskerDuplicateIO(int pid1, int pid2, int clear) 
 
-    Fill the clock_t structure with the amount of processor time consumed by the calling process.
+	Set 'pid2' to use the same input and output streams as 'pid1', and if 'clear' is non-zero, clear any pending input or output. 
 
 
-void multitaskerYield(void)
+int multitaskerGetProcessorTime(clock_t *clk) 
 
-    Yield the remainder of the current processor timeslice back to the multitasker's scheduler.  It's nice to do this when you are waiting for some event, so that your process is not 'hungry' (i.e. hogging processor cycles unnecessarily).
+	Fill the clock_t structure with the amount of processor time consumed by the calling process. 
 
 
-void multitaskerWait(unsigned int ticks)
+void multitaskerYield(void) 
 
-    Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again.  On the PC, one second is approximately 20 system timer ticks.
+	Yield the remainder of the current processor timeslice back to the multitasker's scheduler. It's nice to do this when you are waiting for some event, so that your process is not 'hungry' (i.e. hogging processor cycles unnecessarily). 
 
 
-int multitaskerBlock(int pid)
+void multitaskerWait(unsigned int ticks) 
 
-    Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and block on the process referenced by process ID 'pid'.  This means that the calling process will not run again until process 'pid' has terminated.  The return value of this function is the return value of process 'pid'.
+	Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again. On the PC, one second is approximately 20 system timer ticks. 
 
 
-int multitaskerDetach(void)
+int multitaskerBlock(int pid) 
 
-    This allows a program to 'daemonize', detaching from the IO streams of its parent and, if applicable, the parent stops blocking.  Useful for a process that want to operate in the background, or that doesn't want to be killed if its parent is killed.
+	Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and block on the process referenced by process ID 'pid'. This means that the calling process will not run again until process 'pid' has terminated. The return value of this function is the return value of process 'pid'. 
 
-int multitaskerKillProcess(int pid, int force)
 
-    Terminate the process referenced by process ID 'pid'.  If 'force' is non-zero, the multitasker will attempt to ignore any errors and dismantle the process with extreme prejudice.  The 'force' flag also has the necessary side effect of killing any child threads spawned by process 'pid'.  (Otherwise, 'pid' is left in a stopped state until its threads have terminated normally).
+int multitaskerDetach(void) 
 
+	This allows a program to 'daemonize', detaching from the IO streams of its parent and, if applicable, the parent stops blocking. Useful for a process that want to operate in the background, or that doesn't want to be killed if its parent is killed. 
 
-int multitaskerTerminate(int code)
 
-    Terminate the calling process, returning the exit code 'code'
+int multitaskerKillProcess(int pid, int force) 
 
+	Terminate the process referenced by process ID 'pid'. If 'force' is non-zero, the multitasker will attempt to ignore any errors and dismantle the process with extreme prejudice. The 'force' flag also has the necessary side effect of killing any child threads spawned by process 'pid'. (Otherwise, 'pid' is left in a stopped state until its threads have terminated normally). 
 
-void multitaskerDumpProcessList(void)
 
-    Print a listing of all current processes to the current text output stream.  Might not be the current output stream of the calling process, but rather the console output stream.  This could be considered a bug, but is more of a "currently necessary peculiarity".
+int multitaskerTerminate(int code) 
+
+	Terminate the calling process, returning the exit code 'code' 
+
+
+void multitaskerDumpProcessList(void) 
+
+	Print a listing of all current processes to the current text output stream. Might not be the current output stream of the calling process, but rather the console output stream. This could be considered a bug, but is more of a "currently necessary peculiarity". 
 
 
 --------------------------------------
 Loader functions
 --------------------------------------
 
-void *loaderLoad(const char *filename, file *theFile)
+void *loaderLoad(const char *filename, file *theFile) 
 
-    Load a file referenced by the pathname 'filename', and fill the file data structure 'theFile' with the details.  The pointer returned points to the resulting file data.
-
-
-int loaderLoadProgram(const char *userProgram, int privilege, int argc, char *argv[])
-
-    Load the file referenced by the pathname 'userProgram' as a process with the privilege level 'privilege'.  Pass the arguments 'argc' and 'argv'.  If there are no arguments, these should be 0 and NULL, respectively.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
+	Load a file referenced by the pathname 'filename', and fill the file data structure 'theFile' with the details. The pointer returned points to the resulting file data. 
 
 
-int loaderExecProgram(int processId, int block)
+int loaderLoadProgram(const char *userProgram, int privilege, int argc, char *argv[]) 
 
-    Execute the process referenced by process ID 'processId'.  If 'block' is non-zero, the calling process will block until process 'pid' has terminated, and the return value of the call is the return value of process 'pid'.
+	Load the file referenced by the pathname 'userProgram' as a process with the privilege level 'privilege'. Pass the arguments 'argc' and 'argv'. If there are no arguments, these should be 0 and NULL, respectively. If successful, the call's return value is the process ID of the new process. The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram(). 
 
 
-int loaderLoadAndExec(const char *name, int privilege, int argc, char *argv[], int block)
+int loaderExecProgram(int processId, int block) 
 
-    This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
+	Execute the process referenced by process ID 'processId'. If 'block' is non-zero, the calling process will block until process 'pid' has terminated, and the return value of the call is the return value of process 'pid'. 
+
+
+int loaderLoadAndExec(const char *name, int privilege, int argc, char *argv[], int block) 
+
+	This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and loaderExecProgram(). 
 
 
 --------------------------------------
 Real-time clock functions
 --------------------------------------
 
-int rtcReadSeconds(void)
-
-    Get the current seconds value.
-
-
-int rtcReadMinutes(void)
-
-    Get the current minutes value.
+int rtcReadSeconds(void) 
+	Get the current seconds value. 
 
 
-int rtcReadHours(void)
+int rtcReadMinutes(void) 
 
-    Get the current hours value.
-
-
-int rtcReadDayOfWeek(void)
-
-    Get the current day of the week value.
+	Get the current minutes value. 
 
 
-int rtcReadDayOfMonth(void)
+int rtcReadHours(void) 
 
-    Get the current day of the month value.
-
-
-int rtcReadMonth(void)
-
-    Get the current month value.
+	Get the current hours value. 
 
 
-int rtcReadYear(void)
+int rtcDayOfWeek(unsigned day, unsigned month, unsigned year) 
 
-    Get the current year value.
-
-
-unsigned int rtcUptimeSeconds(void)
-
-    Get the number of seconds the system has been running.
+	Get the current day of the week value. 
 
 
-int rtcDateTime(struct tm *time)
+int rtcReadDayOfMonth(void) 
 
-    Get the current data and time as a tm data structure in 'time'.
+	Get the current day of the month value. 
+
+
+int rtcReadMonth(void) 
+
+	Get the current month value. 
+
+
+int rtcReadYear(void) 
+
+	Get the current year value. 
+
+
+unsigned int rtcUptimeSeconds(void) 
+
+	Get the number of seconds the system has been running. 
+
+
+int rtcDateTime(struct tm *time) 
+
+	Get the current data and time as a tm data structure in 'time'. 
 
 
 --------------------------------------
 Random number functions
 --------------------------------------
 
-unsigned int randomUnformatted(void)
+unsigned int randomUnformatted(void) 
 
-    Get an unformatted random unsigned number.  Just any unsigned number.
-
-
-unsigned int randomFormatted(unsigned int start, unsigned int end)
-
-    Get a random unsigned number between the start value 'start' and the end value 'end', inclusive.
+	Get an unformatted random unsigned number. Just any unsigned number. 
 
 
-unsigned int randomSeededUnformatted(unsigned int seed)
+unsigned int randomFormatted(unsigned int start, unsigned int end) 
 
-    Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed.
+	Get a random unsigned number between the start value 'start' and the end value 'end', inclusive. 
 
 
-unsigned int randomSeededFormatted(unsigned int seed, unsigned int start, unsigned int end)
+unsigned int randomSeededUnformatted(unsigned int seed) 
 
-    Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
+	Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed. 
+
+
+unsigned int randomSeededFormatted(unsigned int seed, unsigned int start, unsigned int end) 
+
+	Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed. 
 
 
 --------------------------------------
 Environment functions
 --------------------------------------
 
-int environmentGet(const char *var, char *buf, unsigned int bufsz)
+int environmentGet(const char *var, char *buf, unsigned int bufsz) 
 
-    Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful.
-
-
-int environmentSet(const char *var, const char *val)
-
-    Set the environment variable 'var' to the value 'val', overwriting any old value that might have been previously set.
+	Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful. 
 
 
-int environmentUnset(const char *var)
+int environmentSet(const char *var, const char *val) 
 
-    Delete the environment variable 'var'.
+	Set the environment variable 'var' to the value 'val', overwriting any old value that might have been previously set. 
 
 
-void environmentDump(void)
+int environmentUnset(const char *var) 
 
-    Print a listing of all the currently set environment variables in the calling process' environment space to the current text output stream.
+	Delete the environment variable 'var'. 
+
+
+void environmentDump(void) 
+
+	Print a listing of all the currently set environment variables in the calling process' environment space to the current text output stream. 
 
 
 --------------------------------------
 Raw graphics functions
 --------------------------------------
 
-int graphicsAreEnabled(void)
+int graphicsAreEnabled(void) 
 
-    Returns 1 if the kernel is operating in graphics mode.
-
-
-unsigned graphicGetScreenWidth(void)
-
-    Returns the width of the graphics screen.
+	Returns 1 if the kernel is operating in graphics mode. 
 
 
-unsigned graphicGetScreenHeight(void)
+int graphicGetModes(videoMode *buffer, unsigned size) 
 
-    Returns the height of the graphics screen.
-
-
-unsigned graphicCalculateAreaBytes(unsigned width, unsigned height)
-
-    Returns the number of bytes required to allocate a graphic buffer of width 'width' and height 'height'.  This is a function of the screen resolution, etc.
+	Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware. 
 
 
-int graphicClearScreen(color *background)
+int graphicGetMode(videoMode *mode) 
 
-    Clear the screen to the background color 'background'.
-
-
-int graphicDrawPixel(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord)
-
-    Draw a single pixel into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the X coordinate 'xCoord' and the Y coordinate 'yCoord'.  If 'buffer' is NULL, draw directly onto the screen.
+	Get the current video mode in 'mode' 
 
 
-int graphicDrawLine(objectKey buffer, color *foreground, drawMode mode, int startX, int startY, int endX, int endY)
+int graphicSetMode(videoMode *mode) 
 
-    Draw a line into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'startX', the starting Y coordinate 'startY', the ending X coordinate 'endX' and the ending Y coordinate 'endY'.  At the time of writing, only horizontal and vertical lines are supported by the linear framebuffer graphic driver.  If 'buffer' is NULL, draw directly onto the screen.
-
-
-int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill)
-
-    Draw a rectangle into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the rectangle.   If 'buffer' is NULL, draw directly onto the screen.
+	Set the video mode in 'mode'. Generally this will require a reboot in order to take effect. 
 
 
-int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill)
+unsigned graphicGetScreenWidth(void) 
 
-    Draw an oval (circle, whatever) into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the oval.   If 'buffer' is NULL, draw directly onto the screen.  Currently not supported by the linear framebuffer graphic driver.
-
-
-int graphicDrawImage(objectKey buffer, image *drawImage, int xCoord, int yCoord, unsigned xOffset, unsigned yOffset, unsigned width, unsigned height)
-
-    Draw the image 'drawImage' into the graphic buffer 'buffer', using the starting X coordinate 'xCoord' and the starting Y coordinate 'yCoord'.   The 'xOffset' and 'yOffset' parameters specify an offset into the image to start the drawing (0, 0 to draw the whole image).  Similarly the 'width' and 'height' parameters allow you to specify a portion of the image (0, 0 to draw the whole image -- minus any X or Y offsets from the previous parameters).  So, for example, to draw only the middle pixel of a 3x3 image, you would specify xOffset=1, yOffset=1, width=1, height=1.  If 'buffer' is NULL, draw directly onto the screen.
+	Returns the width of the graphics screen. 
 
 
-int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, unsigned width, unsigned height)
+unsigned graphicGetScreenHeight(void) 
 
-    Grab a new image 'getImage' from the graphic buffer 'buffer', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.   If 'buffer' is NULL, grab the image directly from the screen.
-
-
-int graphicDrawText(objectKey buffer, color *foreground, objectKey font, const char *text, drawMode mode, int xCoord, int yCoord)
-
-    Draw the text string 'text' into the graphic buffer 'buffer', using the color 'foreground', the font 'font', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'.   If 'buffer' is NULL, draw directly onto the screen.  If 'font' is NULL, use the default font.
+	Returns the height of the graphics screen. 
 
 
-int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, unsigned width, unsigned height, int xCoord2, int yCoord2)
+unsigned graphicCalculateAreaBytes(unsigned width, unsigned height) 
 
-    Within the graphic buffer 'buffer', copy the area bounded by ('xCoord1', 'yCoord1'), width 'width' and height 'height' to the starting X coordinate 'xCoord2' and the starting Y coordinate 'yCoord2'.  If 'buffer' is NULL, copy directly to and from the screen.
-
-
-int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, unsigned width, unsigned height)
-
-    Clear the area of the graphic buffer 'buffer' using the background color 'background', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.  If 'buffer' is NULL, clear the area directly on the screen.
+	Returns the number of bytes required to allocate a graphic buffer of width 'width' and height 'height'. This is a function of the screen resolution, etc. 
 
 
-int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, unsigned clipWidth, unsigned clipHeight)
+int graphicClearScreen(color *background) 
 
-    Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
+	Clear the screen to the background color 'background'. 
+
+
+int graphicDrawPixel(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord) 
+
+	Draw a single pixel into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the X coordinate 'xCoord' and the Y coordinate 'yCoord'. If 'buffer' is NULL, draw directly onto the screen. 
+
+
+int graphicDrawLine(objectKey buffer, color *foreground, drawMode mode, int startX, int startY, int endX, int endY) 
+
+	Draw a line into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'startX', the starting Y coordinate 'startY', the ending X coordinate 'endX' and the ending Y coordinate 'endY'. At the time of writing, only horizontal and vertical lines are supported by the linear framebuffer graphic driver. If 'buffer' is NULL, draw directly onto the screen. 
+
+
+int graphicDrawRect(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill) 
+
+	Draw a rectangle into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'. Non-zero fill value means fill the rectangle. If 'buffer' is NULL, draw directly onto the screen. 
+
+
+int graphicDrawOval(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord, unsigned width, unsigned height, unsigned thickness, int fill) 
+
+	Draw an oval (circle, whatever) into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'. Non-zero fill value means fill the oval. If 'buffer' is NULL, draw directly onto the screen. Currently not supported by the linear framebuffer graphic driver. 
+
+
+int graphicDrawImage(objectKey buffer, image *drawImage, drawMode mode, int xCoord, int yCoord, unsigned xOffset, unsigned yOffset, unsigned width, unsigned height) 
+
+	Draw the image 'drawImage' into the graphic buffer 'buffer', using the drawing mode 'mode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord' and the starting Y coordinate 'yCoord'. The 'xOffset' and 'yOffset' parameters specify an offset into the image to start the drawing (0, 0 to draw the whole image). Similarly the 'width' and 'height' parameters allow you to specify a portion of the image (0, 0 to draw the whole image -- minus any X or Y offsets from the previous parameters). So, for example, to draw only the middle pixel of a 3x3 image, you would specify xOffset=1, yOffset=1, width=1, height=1. If 'buffer' is NULL, draw directly onto the screen. 
+
+
+int graphicGetImage(objectKey buffer, image *getImage, int xCoord, int yCoord, unsigned width, unsigned height) 
+
+	Grab a new image 'getImage' from the graphic buffer 'buffer', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'. If 'buffer' is NULL, grab the image directly from the screen. 
+
+
+int graphicDrawText(objectKey buffer, color *foreground, color *background, objectKey font, const char *text, drawMode mode, int xCoord, int yCoord) 
+
+	Draw the text string 'text' into the graphic buffer 'buffer', using the colors 'foreground' and 'background', the font 'font', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'. If 'buffer' is NULL, draw directly onto the screen. If 'font' is NULL, use the default font. 
+
+
+int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1, unsigned width, unsigned height, int xCoord2, int yCoord2) 
+
+	Within the graphic buffer 'buffer', copy the area bounded by ('xCoord1', 'yCoord1'), width 'width' and height 'height' to the starting X coordinate 'xCoord2' and the starting Y coordinate 'yCoord2'. If 'buffer' is NULL, copy directly to and from the screen. 
+
+
+int graphicClearArea(objectKey buffer, color *background, int xCoord, int yCoord, unsigned width, unsigned height) 
+
+	Clear the area of the graphic buffer 'buffer' using the background color 'background', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'. If 'buffer' is NULL, clear the area directly on the screen. 
+
+
+int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int clipY, unsigned clipWidth, unsigned clipHeight) 
+
+	Draw the clip of the buffer 'buffer' onto the screen. Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'. The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'. It is not legal for 'buffer' to be NULL in this case. 
 
 
 --------------------------------------
 Window manager functions
 --------------------------------------
 
-int windowManagerStart(void)
+int windowLogin(const char *userName, const char *passwd) 
 
-    Starts the window manager.  Not useful for most external programa.
+	Log the user into the window environment with 'userName' and 'passwd'. The return value is the PID of the window shell for this session. 
 
 
-int windowManagerLogin(const char *userName, const char *passwd)
+int windowLogout(void) 
 
-    Log the user into the window environment with 'userName' and 'passwd'.
+	Log the current user out of the windowing system. This kills the window shell process returned by windowLogin() call. 
 
 
-int windowManagerLogout(void)
+objectKey windowNew(int processId, const char *title) 
 
-    Log the current user out of the window manager.
+	Create a new window, owned by the process 'processId', and with the title 'title'. Returns an object key to reference the window, needed by most other window functions below (such as adding components to the window) 
 
 
-objectKey windowManagerNewWindow(int processId, char *title, int xCoord, int yCoord, int width, int height)
+objectKey windowNewDialog(objectKey parent, const char *title) 
 
-    Create a new window, owned by the process referenced by the process ID 'processId'.  Set the window title to 'title', and place it initially at the specified coordinates with the given width and height.  Returns an object key to referenc the window, needed by most other window manager functions below.
+	Create a dialog window to associate with the parent window 'parent', using the supplied title. In the current implementation, dialog windows are modal, which is the main characteristic distinguishing them from regular windows. 
 
 
-objectKey windowManagerNewDialog(objectKey parent, char *title, int xCoord, int yCoord, int width, int height)
+int windowDestroy(objectKey window) 
 
-    Create a dialog window to associate with the regular window 'parent', using the supplied title and coordinates.
+	Destroy the window referenced by the object key 'wndow' 
 
 
-int windowManagerDestroyWindow(objectKey window)
+int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, unsigned width, unsigned height) 
 
-    Destroy the window referenced by the object key 'wndow'
+	Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size. 
 
 
-int windowManagerUpdateBuffer(void *buffer, int xCoord, int yCoord, unsigned width, unsigned height)
+int windowSetTitle(objectKey window, const char *title) 
 
-    Tells the window manager to redraw the visible portions of the window's graphic buffer 'buffer' and the given clip coordinates/size.
+	Set the new title of window 'window' to be 'title'. 
 
 
-int windowSetTitle(objectKey window, const char *title)
+int windowGetSize(objectKey window, unsigned *width, unsigned *height) 
 
-    Set the new title of window 'window' to be 'title'.
+	Get the size of the window 'window', and put the results in 'width' and 'height'. 
 
 
-int windowGetSize(objectKey window, unsigned *width, unsigned *height)
+int windowSetSize(objectKey window, unsigned width, unsigned height) 
 
-    Get the size of the window 'window', and put the results in 'width' and 'height'.
+	Resize the window 'window' to the width 'width' and the height 'height'. 
 
 
-int windowSetSize(objectKey window, unsigned width, unsigned height)
+int windowGetLocation(objectKey window, int *xCoord, int *yCoord) 
 
-        Resize the window 'window' to the width 'width' and the height 'height'.
+	Get the current screen location of the window 'window' and put it into the coordinate variables 'xCoord' and 'yCoord'. 
 
 
-int windowAutoSize(objectKey window)
+int windowSetLocation(objectKey window, int xCoord, int yCoord) 
 
-    Automatically set the size of window 'window' based on the sizes and locations of the window components it contains.
+	Set the screen location of the window 'window' using the coordinate variables 'xCoord' and 'yCoord'. 
 
 
-int windowGetLocation(objectKey window, int *xCoord, int *yCoord)
+int windowPack(objectKey window) 
 
-    Get the current screen location of the window 'window' and put it into the coordinate variables 'xCoord' and 'yCoord'.
+	Pack and resize 'window' based on the sizes and parameters of the components it contains. 
 
 
-int windowSetLocation(objectKey window, int xCoord, int  yCoord)
+int windowCenter(objectKey window) 
 
-    Set the screen location of the window 'window' using the coordinate variables 'xCoord' and 'yCoord'.
+	Center 'window' on the screen. 
 
 
-int windowCenter(objectKey window)
+int windowSetHasBorder(objectKey window, int trueFalse) 
 
-    Center 'window' on the screen.
+	Tells the windowing system whether to draw a border around the window 'window'. 'trueFalse' being non-zero means draw a border. Windows have borders by default. 
 
 
-int windowSetHasBorder(objectKey window, int trueFalse)
+int windowSetHasTitleBar(objectKey window, int trueFalse) 
 
-    Tells the window manager whether to draw a border around the window 'window'.  'trueFalse' being non-zero means draw a border.  Windows have borders by default.
+	Tells the windowing system whether to draw a title bar on the window 'window'. 'trueFalse' being non-zero means draw a title bar. Windows have title bars by default. 
 
 
-int windowSetHasTitleBar(objectKey window, int trueFalse)
+int windowSetMovable(objectKey window, int trueFalse) 
 
-    Tells the window manager whether to draw a title bar on the window 'window'.  'trueFalse' being non-zero means draw a title bar.  Windows have title bars by default.
+	Tells the windowing system whether the window 'window' should be movable by the user (i.e. clicking and dragging it). 'trueFalse' being non-zero means the window is movable. Windows are movable by default. 
 
 
-int windowSetMovable(objectKey window, int trueFalse)
+int windowSetResizable(objectKey window, int trueFalse) 
 
-    Tells the window manager whether the window 'window' should be movable by the user (i.e. clicking and dragging it).  'trueFalse' being non-zero means the window is movable.  Windows are movable by default.
+	Tells the windowing system whether to allow 'window' to be resized by the user. 
 
 
-int windowSetHasCloseButton(objectKey window, int trueFalse)
+int windowSetPacked(objectKey window, int trueFalse) 
 
-    Tells the window manager whether to draw a close button on the title bar of the window 'window'.  'trueFalse' being non-zero means draw a close button.  Windows have close buttons by default, as long as they have a title bar.  If there is no title bar, then this function has no effect.
+	Calling this function with 'trueFalse' set to 1 will set 'window's packed attribute. Packed windows will automatically resize to the smallest appropriate size based on the sizes and parameters of the components it contains. 
 
 
-int windowLayout(objectKey window)
+int windowSetHasCloseButton(objectKey window, int trueFalse) 
 
-    Do the layout of the window 'window' after all the components have been added.  You really should call this function before displaying a window, or else all the window components will be squished together in the top corner of the window, ignoring any grid coordinates you have set in the 'componentParameters' structure of an windowAdd*Component() call.  If you are going to use windowAutoSize() to size the window, you should do so after this call.
+	Tells the windowing system whether to draw a close button on the title bar of the window 'window'. 'trueFalse' being non-zero means draw a close button. Windows have close buttons by default, as long as they have a title bar. If there is no title bar, then this function has no effect. 
 
 
-int windowSetVisible(objectKey window, int visible)
+int windowSetVisible(objectKey window, int visible) 
 
-    Tell the window manager whether to make the window 'window' visible or not.  Non-zero 'visible' means make the window visible.  When windows are created, they are not visible by default so you can add components, do layout, set the size, etc.
+	Tell the windowing system whether to make the window 'window' visible or not. Non-zero 'visible' means make the window visible. When windows are created, they are not visible by default so you can add components, do layout, set the size, etc. 
 
 
-int windowAddComponent(objectKey window, objectKey component, componentParameters *params)
+int windowAddConsoleTextArea(objectKey window, componentParameters *params) 
 
-    Add a window component 'component' to the window 'window' using the parameters specified in the componentParameters structure 'params'.  You should probably use the windowAddClientComponent() function instead, as this function disregards things like the sizes of window title bars and borders, so your window might look funny unless you know what you're doing.
+	Add a console text area component to 'window' using the supplied componentParameters. The console text area is where most kernel logging and error messages are sent, particularly at boot time. Note that there is only one instance of the console text area, and thus it can only exist in one window at a time. Destroying the window is one way to free the console area to be used in another window. 
 
 
-int windowAddClientComponent(objectKey window, objectKey component, componentParameters *params)
+void windowRedrawArea(int xCoord, int yCoord, unsigned width, unsigned height) 
 
-    Add a window component 'component' to the client area of the window 'window' using the parameters specified in the componentParameters structure 'params'.  This function is the normal way to add any component to a window.
+	Tells the windowing system to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates. This might be useful if you were drawing non-window-based things (i.e., things without their own independent graphics buffer) directly onto the screen and you wanted to restore an area to its original contents. For example, the mouse driver uses this method to erase the pointer from its previous position. 
 
 
-int windowAddConsoleTextArea(objectKey window, componentParameters *params)
+void windowProcessEvent(objectKey event) 
 
-    Add a console text area component to the client area of 'window' using the supplied componentParameters.  The console text area is where most kernel logging and error messages are sent, particularly at boot time.  Note that there is only one console text area, and thus it can only exist in one window at a time.  Destroying the window is one way to free the console area to be used in another window.
+	Creates a window event using the supplied event structure. This function is most often used within the kernel, particularly in the mouse and keyboard functions, to signify clicks or key presses. It can, however, be used by external programs to create 'artificial' events. The windowEvent structure specifies the target component and event type. 
 
 
-unsigned windowComponentGetWidth(objectKey component)
+int windowComponentEventGet(objectKey key, windowEvent *event) 
 
-    Get the pixel width of the window component 'component'.  Useful if you are doing your window layout manually.
+	Gets a pending window event, if any, applicable to component 'key', and puts the data into the windowEvent structure 'event'. If an event was received, the function returns a positive, non-zero value (the actual value reflects the amount of raw data read from the component's event stream -- not particularly useful to an application). If the return value is zero, no event was pending. 
 
 
-unsigned windowComponentGetHeight(objectKey component)
+int windowTileBackground(const char *file) 
 
-    Get the pixel height of the window component 'component'.  Useful if you are doing your window layout manually.
+	Load the image file specified by the pathname 'file', and if successful, tile the image on the background root window. 
 
 
-void windowManagerRedrawArea(int xCoord, int yCoord, unsigned width, unsigned height)
+int windowCenterBackground(const char *file) 
 
-    Tells the window manager to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates.  This might be useful if you were drawing non-window-based things on the screen and you wanted them to go away later.
+	Load the image file specified by the pathname 'file', and if successful, center the image on the background root window. 
 
 
-void windowManagerProcessEvent(windowEvent *event)
+int windowScreenShot(image *saveImage) 
 
-    Creates a window event using the supplied event structure.  This function is most often used within the kernel, particularly in the mouse and keyboard functions, to signify clicks or key presses.  It can, however, be used by external programs to create 'artificial' events.  The windowEvent structure specifies the target component and event type.
+	Get an image representation of the entire screen in the image data structure 'saveImage'. Note that it is not necessary to allocate memory for the data pointer of the image structure beforehand, as this is done automatically. You should, however, deallocate the data field of the image structure when you are finished with it. 
 
 
-int windowComponentEventGet(objectKey key, windowEvent *event)
+int windowSaveScreenShot(const char *filename) 
 
-    Gets a pending window event, if any, applicable to component 'key', and puts the data into the windowEvent structure 'event'.  If an event was received, the function returns a positive, non-zero value (the actual value reflects the amount of raw data read from the component's event stream -- not particularly useful to an application).  If the return value is zero, no event was pending.
+	Save a screenshot of the entire screen to the file specified by the pathname 'filename'. 
 
 
-int windowManagerTileBackground(const char *file)
+int windowSetTextOutput(objectKey key) 
 
-    Load the image file specified by the pathname 'file', and if successful, tile the image on the background root window.
+	Set the text output (and input) of the calling process to the object key of some window component, such as a TextArea or TextField component. You'll need to use this if you want to output text to one of these components or receive input from one. 
 
 
-int windowManagerCenterBackground(const char *file)
+int windowComponentSetVisible(objectKey component, int visible) 
 
-    Load the image file specified by the pathname 'file', and if successful, center the image on the background root window.
+	Set 'component' visible or non-visible. 
 
 
-int windowManagerScreenShot(image *saveImage)
+int windowComponentSetEnabled(objectKey component, int enabled) 
 
-    Get an image representation of the entire screen in the image data structure 'saveImage'.  Note that it is not necessary to allocate memory for the data pointer of the image structure beforehand, as this is done automatically.  You should, however, deallocate the data field of the image structure when you are finished with it.
+	Set 'component' enabled or non-enabled; non-enabled components appear greyed-out. 
 
 
-int windowManagerSaveScreenShot(const char *filename)
+unsigned windowComponentGetWidth(objectKey component) 
 
-    Save a screenshot of the entire screen to the file specified by the pathname 'filename'.
+	Get the pixel width of the window component 'component'. 
 
 
-int windowManagerSetTextOutput(objectKey key)
+int windowComponentSetWidth(objectKey component, unsigned width) 
 
-    Set the text output (and input) of the calling process to the object key of some window component, such as a TextArea or TextField component.  You'll need to use this if you want to output text to one of these components or receive input from one.
+	Set the pixel width of the window component 'component' 
 
 
-objectKey windowNewButton(objectKey window, unsigned width, unsigned height, const char *label, image *buttonImage)
+unsigned windowComponentGetHeight(objectKey component) 
 
-    Get a new button component to be placed in the window 'window', using the supplied width and height, and with the (optional) label 'label', or the (optional) image 'buttonImage'.  Either 'label' or 'buttonImage' can be used, but not both.  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	Get the pixel height of the window component 'component'. 
 
 
-objectKey windowNewIcon(objectKey window, image *iconImage, const char *label, const char *command)
+int windowComponentSetHeight(objectKey component, unsigned height) 
 
-    Get a new icon component to be placed in the window 'window', using the image data structure 'iconImage' and the label 'label'.  If you want the icon to execute a command when clicked, you should specify it in 'command'.  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	Set the pixel height of the window component 'component'. 
 
 
-objectKey windowNewImage(objectKey window, image *baseImage)
+int windowComponentFocus(objectKey component) 
 
-    Get a new image component to be placed in the window 'window', using the image data structure 'baseImage' .  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	Give window component 'component' the focus of its window. 
 
 
-objectKey windowNewTextArea(objectKey window, int columns, int rows, objectKey font)
+int windowComponentDraw(objectKey component) 
 
-    Get a new text area component to be placed in the window 'window', using the number of columns 'columns', the number of rows 'rows', and the font 'font'.  If 'font' is NULL, the default font will be used.  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	Calls the window component 'component' to redraw itself. 
 
 
-objectKey windowNewTextField(objectKey window, int columns, objectKey font)
+int windowComponentGetData(objectKey component, void *buffer, unsigned size) 
 
-    Get a new text field component to be placed in the window 'window', using the number of columns 'columns' and the font 'font'.  Text field components are essentially 1-line 'text area' components.  If 'font' is NULL, the default font will be used.  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	This is a generic call to get data from the window component 'component', up to 'size' bytes, in the buffer 'buffer'. The size and type of data that a given component will return is totally dependent upon the type and implementation of the component. 
 
 
-objectKey windowNewTextLabel(objectKey window, objectKey font, const char *text)
+int windowComponentSetData(objectKey component, void *buffer, unsigned size) 
 
-    Get a new text labelComponent to be placed in the window 'window', using the text string 'text' and the font 'font'.  If 'font' is NULL, the default font will be used.  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'. The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component. 
 
 
-objectKey windowNewTitleBar(objectKey window, unsigned width, unsigned height)
+int windowComponentGetSelected(objectKey component) 
 
-    Get a new title bar component to be placed in the window 'window', using the width 'width' and the height 'height'.  This is not necessarily useful to external programs as window title bars are created automatically if applicable, and using this function has the potential to produce surprising results.  After creating any window component you should add it to the window by calling the windowAddClientComponent() function.
+	This is a call to get the 'selected' value of the window component 'component'. The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number of its selected item. On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected. 
+
+
+int windowComponentSetSelected(objectKey component, int selected) 
+
+	This is a call to set the 'selected' value of the window component 'component'. The type of value accepted depends upon the type of component; a list component, for example, will use the 0-based number to select one of its items. On the other hand, a boolean component such as a checkbox will clear itself if 'selected' is 0, and set itself otherwise. 
+
+
+objectKey windowNewButton(objectKey parent, const char *label, image *buttonImage, componentParameters *params) 
+
+	Get a new button component to be placed inside the parent object 'parent', with the given component parameters, and with the (optional) label 'label', or the (optional) image 'buttonImage'. Either 'label' or 'buttonImage' can be used, but not both. 
+
+
+objectKey windowNewCanvas(objectKey parent, unsigned width, unsigned height, componentParameters *params) 
+
+	Get a new canvas component, to be placed inside the parent object 'parent', using the supplied width and height, with the given component parameters. Canvas components are areas which will allow drawing operations, for example to show line drawings or unique graphical elements. 
+
+
+objectKey windowNewCheckbox(objectKey parent, objectKey font, const char *text, componentParameters *params) 
+
+	Get a new checkbox component, to be placed inside the parent object 'parent', using the font 'cont', the accompanying text 'text', and with the given component parameters. 
+
+
+objectKey windowNewContainer(objectKey parent, const char *name, componentParameters *params) 
+
+	Get a new container component, to be placed inside the parent object 'parent', using the name 'name', and with the given component parameters. Containers are useful for layout when a simple grid is not sufficient. Each container has its own internal grid layout (for components it contains) and external grid parameters for placing it inside a window or another container. Containers can be nested arbitrarily. This allows limitless control over a complex window layout. 
+
+
+objectKey windowNewIcon(objectKey parent, image *iconImage, const char *label, const char *command, componentParameters *params) 
+
+	Get a new icon component to be placed inside the parent object 'parent', using the image data structure 'iconImage' and the label 'label', and with the given component parameters 'params'. If you want the icon to execute a command when clicked, you should specify it in 'command'. 
+
+
+objectKey windowNewImage(objectKey parent, image *baseImage, drawMode mode, componentParameters *params) 
+
+	Get a new image component to be placed inside the parent object 'parent', using the image data structure 'baseImage', and with the given component parameters 'params'. 
+
+
+objectKey windowNewList(objectKey parent, objectKey font, unsigned rows, unsigned columns, int multiple, char *items[], int numItems, componentParameters *params) 
+
+	Get a new window list component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'. 'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items) 
+
+
+objectKey windowNewListItem(objectKey parent, objectKey font, const char *text, componentParameters *params) 
+
+	Get a new list item component to be placed inside the parent object 'parent', using the font 'font', the string 'text', and the component parameters 'params'. 
+
+
+objectKey windowNewMenu(objectKey parent, const char *name, componentParameters *params) 
+
+	Get a new menu component to be placed inside the parent object 'parent', using the name 'name' (which will be the header of the menu) and the component parameters 'params', and with the given component parameters 'params'. A menu component is an instance of a container, typically contains menu item components, and is typically added to a menu bar component. 
+
+
+objectKey windowNewMenuBar(objectKey parent, componentParameters *params) 
+
+	Get a new menu bar component to be placed inside the parent object 'parent', using the component parameters 'params'. A menu bar component is an instance of a container, and typically contains menu components. 
+
+
+objectKey windowNewMenuItem(objectKey parent, const char *text, componentParameters *params) 
+
+	Get a new menu item component to be placed inside the parent object 'parent', using the string 'text' and the component parameters 'params'. A menu item component is typically added to menu components, which are in turn added to menu bar components. 
+
+
+objectKey windowNewPasswordField(objectKey parent, int columns, objectKey font, componentParameters *params) 
+
+	Get a new password field component to be placed inside the parent object 'parent', using 'columns' columns, the font 'font' and the component parameters 'params'. A password field component is a special case of a text field component, and behaves the same way except that typed characters are shown as asterisks (*). 
+
+
+objectKey windowNewProgressBar(objectKey parent, componentParameters *params) 
+
+	Get a new progress bar component to be placed inside the parent object 'parent', using the component parameters 'params'. Use the windowComponentSetData() function to set the percentage of progress. 
+
+
+objectKey windowNewRadioButton(objectKey parent, objectKey font, unsigned rows, unsigned columns, char *items[], int numItems, componentParameters *params) 
+
+	Get a new radio button component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'. 'rows' and 'columns' specify the size and layout of the items, and 'numItems' specifies the number of strings in the array 'items', which specifies the different radio button choices. The windowComponentSetSelected() and windowComponentGetSelected() functions can be used to get and set the selected item (numbered from zero, in the order they were supplied in 'items'). 
+
+
+objectKey windowNewTextArea(objectKey parent, int columns, int rows, objectKey font, componentParameters *params) 
+
+	Get a new text area component to be placed inside the parent object 'parent', with the given component parameters 'params', and using the number of columns 'columns', the number of rows 'rows', and the font 'font'. If 'font' is NULL, the default font will be used. 
+
+
+objectKey windowNewTextField(objectKey parent, int columns, objectKey font, componentParameters *params) 
+
+	Get a new text field component to be placed inside the parent object 'parent', using the number of columns 'columns' and the font 'font', and with the given component parameters 'params'. Text field components are essentially 1-line 'text area' components. If 'font' is NULL, the default font will be used. 
+
+
+objectKey windowNewTextLabel(objectKey parent, objectKey font, const char *text, componentParameters *params) 
+
+	Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text' and the font 'font'. If 'font' is NULL, the default font will be used. 
+
+
+--------------------------------------
+User functions
+--------------------------------------
+
+int userAuthenticate(const char *name, const char *password) 
+
+	Given the user 'name', return 0 if 'password' is the correct password. 
+
+
+int userLogin(const char *name, const char *password) 
+
+	Log the user 'name' into the system, using the password 'password'. Calling this function requires supervisor privilege level. 
+
+
+int userLogout(const char *name) 
+
+	Log the user 'name' out of the system. This can only be called by a process with supervisor privilege, or one running as the same user being logged out. 
+
+
+int userGetNames(char *buffer, unsigned bufferSize) 
+
+	Fill the buffer 'buffer' with the names of all users, up to 'bufferSize' bytes. 
+
+
+int userAdd(const char *name, const char *password) 
+
+	Add the user 'name' with the password 'password' 
+
+
+int userDelete(const char *name) 
+
+	Delete the user 'name' 
+
+
+int userSetPassword(const char *name, const char *oldPass, const char *newPass) 
+
+	Set the password of user 'name'. If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'. The new password is supplied in 'newPass'. 
+
+
+int userGetPrivilege(const char *name) 
+
+	Get the privilege level of the user represented by 'name'. 
+
+
+int userGetPid(void) 
+
+	Get the process ID of the current user's 'login process'. 
+
+
+int userSetPid(const char *name, int pid) 
+
+	Set the login PID of user 'name' to 'pid'. This is the process that gets killed when the user indicates that they want to logout. In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell. 
 
 
 --------------------------------------
 Miscellaneous functions
 --------------------------------------
 
-int fontGetDefault(objectKey *pointer)
+int fontGetDefault(objectKey *pointer) 
 
-    Get an object key in 'pointer' to refer to the current default font.
-
-
-int fontSetDefault(const char *name)
-
-    Set the default font for the system to the font with the name 'name'.  The font must previously have been loaded by the system, for example using the fontLoad()  function.
+	Get an object key in 'pointer' to refer to the current default font. 
 
 
-int fontLoad(const char* filename, const char *fontname, objectKey *pointer)
+int fontSetDefault(const char *name) 
 
-    Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.
-
-
-unsigned fontGetPrintedWidth(objectKey font, const char *string)
-
-    Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
+	Set the default font for the system to the font with the name 'name'. The font must previously have been loaded by the system, for example using the fontLoad() function. 
 
 
-int imageLoadBmp(const char *filename, image *loadImage)
+int fontLoad(const char* filename, const char *fontname, objectKey *pointer) 
 
-    Try to load the bitmap image file 'filename', and if successful, save the data in the image data structure 'loadImage'.
-
-
-int imageSaveBmp(const char *filename, image *saveImage)
-
-    Save the image data structure 'saveImage' as a bitmap, to the file 'fileName'.
+	Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful. 
 
 
-int userLogin(const char *name, int pid)
+unsigned fontGetPrintedWidth(objectKey font, const char *string) 
 
-    Log the user 'name' into the system, using the process ID 'pid' as the 'login process' of the user (this process gets killed if the user is forcefully logged out, for example).  This function requires supervisor privilege level.  The login/logout procedure will likely change in a future release.
-
-
-int userLogout(const char *name)
-
-    Log the user 'name' out of the system.  This can only be called by a process running as the same user being logged out.  The login/logout procedure will likely change in a future release.
+	Given the supplied string, return the screen width that the text will consume given the font 'font'. Useful for placing text when using a variable-width font, but not very useful otherwise. 
 
 
-int userGetPrivilege(const char *name)
+int imageLoadBmp(const char *filename, image *loadImage) 
 
-    Get the privilege level of the user represented by 'name'.
-
-
-int userGetPid(void)
-
-    Get the process ID of the current user's 'login process'.
+	Try to load the bitmap image file 'filename', and if successful, save the data in the image data structure 'loadImage'. 
 
 
-int shutdown(int type, int nice)
+int imageSaveBmp(const char *filename, image *saveImage) 
 
-    Shutdown or reboot the system, according to the value ('shutdown' or 'reboot') 'type'.  If 'nice' is zero, the shutdown will be orderly and will abort if serious errors are detected.  If 'nice' is non-zero, the system will go down like a kamikaze regardless of errors.
+	Save the image data structure 'saveImage' as a bitmap, to the file 'fileName'. 
 
 
-const char *version(void)
+int shutdown(int reboot, int nice) 
 
-    Get the kernel's version string.
+	Shut down the system. If 'reboot' is non-zero, the system will reboot. If 'nice' is zero, the shutdown will be orderly and will abort if serious errors are detected. If 'nice' is non-zero, the system will go down like a kamikaze regardless of errors. 
+
+
+const char *version(void) 
+
+	Get the kernel's version string. 
+
+
+int encryptMD5(const char *in, char *out) 
+
+	Given the input string 'in', return the encrypted numerical message digest in the buffer 'out'. 
+
+
+int lockGet(lock *getLock) 
+
+	Get an exclusive lock based on the lock structure 'getLock'. 
+
+
+int lockRelease(lock *relLock) 
+
+	Release a lock on the lock structure 'lock' previously obtained with a call to the lockGet() function. 
+
+
+int lockVerify(lock *verLock) 
+
+	Verify that a lock on the lock structure 'verLock' is still valid. This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock. 
+
+
+variableList *variableListCreate(unsigned maxVar, unsigned size, const char *desc) 
+
+	Get a new variable list structure with the maximum number of variables 'maxVar', the total data size 'size', and the description 'desc'. 
+
+
+int variableListGet(variableList *list, const char *var, char *buffer, unsigned buffSize) 
+
+	Get the value of the variable 'var' from the variable list 'list' in the buffer 'buffer', up to 'buffSize' bytes. 
+
+
+int variableListSet(variableList *list, const char *var, const char *value) 
+
+	Set the value of the variable 'var' to the value 'value'. 
+
+
+int variableListUnset(variableList *list, const char *var) 
+
+	Remove the variable 'var' from the variable list 'list'. 
+
+
+variableList *configurationReader(const char *fileName) 
+
+	Read the contents of the configuration file 'fileName', and return the data in a variable list structure. Configuration files are simple properties files, consisting of lines of the format "variable=value" 
+
+
+int configurationWriter(const char *fileName, variableList *list) 
+
+	Write the contents of the variable list 'list' to the configuration file 'fileName'. Configuration files are simple properties files, consisting of lines of the format "variable=value". If the configuration file already exists, the configuration writer will attempt to preserve comment lines (beginning with '#') and formatting whitespace.

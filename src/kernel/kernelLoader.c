@@ -34,12 +34,12 @@
 #include <string.h>
 
 
-static int setupElfExecutable(unsigned char *loadAddress)
+static int setupElfExecutable(unsigned char **loadAddress)
 {
   // This function is for preparing an ELF executable image to run.
 
   int status = 0;
-  Elf32Header *header = (Elf32Header *) loadAddress;
+  Elf32Header *header = (Elf32Header *) *loadAddress;
   Elf32ProgramHeader *programHeader = NULL;
   Elf32_Off codeOffset, dataOffset;
   Elf32_Addr codeVirtualAddress, dataVirtualAddress;
@@ -72,7 +72,7 @@ static int setupElfExecutable(unsigned char *loadAddress)
     }
 
   // Get the address of the program header
-  programHeader = (Elf32ProgramHeader *) (loadAddress + header->e_phoff);
+  programHeader = (Elf32ProgramHeader *) (*loadAddress + header->e_phoff);
 
   // Skip the segment type.
 
@@ -102,7 +102,7 @@ static int setupElfExecutable(unsigned char *loadAddress)
     }
 
   // Now we skip to the data segment
-  programHeader = (Elf32ProgramHeader *) (loadAddress + header->e_phoff +
+  programHeader = (Elf32ProgramHeader *) (*loadAddress + header->e_phoff +
 					  header->e_phentsize);
   
   // Skip the segment type.
@@ -125,6 +125,19 @@ static int setupElfExecutable(unsigned char *loadAddress)
       return (status = ERR_INVALID);
     }
 
+  // Make sure we have enough memory for the relocated code and data
+  unsigned imageSize = ((codeOffset + codeSizeInFile) +
+			((dataVirtualAddress - codeVirtualAddress) -
+			 (codeOffset + codeSizeInFile)) + dataSizeInMem);
+
+  void *imageMemory = kernelMemoryGet(imageSize, "elf executable");
+  if (imageMemory == NULL)
+    {
+      kernelError(kernel_error, "Error getting memory for ELF executable "
+		  "image");
+      return (status = ERR_MEMORY);
+    }
+  
   // We will do layout for two segments; the code and data segments
 
   // For the code segment, we simply place it at the entry point.  The
@@ -132,46 +145,33 @@ static int setupElfExecutable(unsigned char *loadAddress)
   // Thus, all we do is move all code forward by codeOffset bytes.
   // This will have the side effect of deleting the ELF header and
   // program headers from memory.
-
-  kernelMemCopy((loadAddress + codeOffset), loadAddress, codeSizeInFile);
+  kernelMemCopy((*loadAddress + codeOffset), imageMemory, codeSizeInFile);
 
   // We do the same operation for the data segment, except we have to
-  // first make sure that the difference between the code and data's
-  // virtual address is the same as the difference between the offsets
-  // in the file.
-  if ((dataVirtualAddress - codeVirtualAddress) != dataOffset)
-    {
-      // The  image doesn't look exactly the way we expected, but that
-      // can happen depending on which linker is used.  We can adjust
-      // it.  Move the initialized data forward from the original offset
-      // so that it matches the difference between the code and data's
-      // virtual addresses.
-      kernelMemCopy((loadAddress + dataOffset),
-		    (loadAddress + (dataVirtualAddress - codeVirtualAddress)),
-		    dataSizeInFile);
-      // The data offset will be different now
-      dataOffset = (dataVirtualAddress - codeVirtualAddress);
-    }
+  // make sure that the difference between the code and data's virtual
+  // address is the same as the difference between the offsets in the file.
+  kernelMemCopy((*loadAddress + dataOffset),
+		(imageMemory + (dataVirtualAddress - codeVirtualAddress)),
+		dataSizeInFile);
 
-  // We need to zero out the memory that makes up the difference
-  // between the data's file size and its size in memory.
-  kernelMemClear((loadAddress + dataOffset + dataSizeInFile),
-		 (dataSizeInMem - dataSizeInFile));
+  // Get rid of the old memory
+  kernelMemoryRelease(*loadAddress);
+  *loadAddress = imageMemory;
 
   // Success
   return (status = 0);
 }
 
 
-static int processExecutableType(unsigned char *loadAddress)
+static int processExecutableType(unsigned char **loadAddress)
 {
   // This function will attempt to determine the program's executable type
   // and do whatever is necessary to make it ready to go
 
   int status = 0;
 
-  if ((loadAddress[0] == 0x7F) &&
-      !strncmp((loadAddress + 1), "ELF", 3))
+  if ((*loadAddress[0] == 0x7F) &&
+      !strncmp((*loadAddress + 1), "ELF", 3))
     {
       // This program is an ELF binary.  Set up for that
       status = setupElfExecutable(loadAddress);
@@ -214,7 +214,6 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
   // Now, we need to ask the filesystem driver to find the appropriate
   // file, and return a little information about it
   status = kernelFileFind(filename, theFile);
-
   if (status < 0)
     {
       // Don't make an official error.  Print a message instead.
@@ -232,11 +231,10 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
     }
 
   // Get some memory into which we can load the program
-  fileData = kernelMemoryGet((theFile->blocks * theFile->blockSize), 
+  fileData = kernelMemoryGet((theFile->blocks * theFile->blockSize),
 			     "file data");
   if (fileData == NULL)
     {
-      // Make an error
       kernelError(kernel_error, "There was not enough memory for the "
 		  "loader to load this file");
       return (fileData = NULL);
@@ -248,7 +246,6 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
     {
       // Release the memory we allocated for the program
       kernelMemoryRelease(fileData);
-      // Make an error
       kernelError(kernel_error, "The loader could not load this file");
       return (fileData = NULL);
     }
@@ -258,7 +255,6 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
     {
       // Release the memory we allocated for the program
       kernelMemoryRelease(fileData);
-      // Make an error
       kernelError(kernel_error, "The loader could not load this file");
       return (fileData = NULL);
     }
@@ -297,7 +293,6 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
 
   if (userProgram == NULL)
     {
-      // Make an error
       kernelError(kernel_error,
 		  "The loader received a NULL function parameter");
       return (status = ERR_NULLPARAMETER);
@@ -305,21 +300,17 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
 
   // Load the program code/data into memory
   loadAddress = (unsigned char *) kernelLoaderLoad(userProgram, &theFile);
-
   if (loadAddress == NULL)
     {
-      // Make an error
       kernelError(kernel_error, "The loader could not load this program");
       return (status = ERR_INVALID);
     }
 
   // Try to determine what kind of executable format we're dealing with.
   // We may need to do some fixup or relocations
-  status = processExecutableType(loadAddress);
-
+  status = processExecutableType(&loadAddress);
   if (status < 0)
     {
-      // Make an error
       kernelError(kernel_error, "The loader could not load this program");
       return (status = ERR_INVALID);
     }
@@ -346,7 +337,6 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
     {
       // Release the memory we allocated for the program
       kernelMemoryRelease(loadAddress);
-      // Make an error
       kernelError(kernel_error, "The loader could not create a process "
 		  "for this program");
       return (newProcId);
@@ -355,71 +345,74 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   // If there were any arguments, we need to pass them on the new
   // process' stack
 
-  if (argc > 0)
+  argSpaceSize = ((argc + 2) * sizeof(char *));
+  argSpaceSize += (strlen(procName) + 1);
+  for (count = 0; count < argc; count ++)
+    argSpaceSize += (strlen(argv[count]) + 1);
+
+  argStruct.argv = kernelMemoryGet(argSpaceSize, "argument space");
+
+  if (argStruct.argv)
     {
-      argSpaceSize = ((argc + 1) * sizeof(char *));
-      for (count = 0; count < argc; count ++)
-	argSpaceSize += (strlen(argv[count]) + 1);
-
-      argStruct.argc = argc;
-      argStruct.argv = kernelMemoryGet(argSpaceSize, "argument space");
-
-      if (argStruct.argv != NULL)
+      // Make the new process own the memory
+      status = kernelMemoryChangeOwner(currentProcId, newProcId,
+				       1, argStruct.argv, &newArgAddress);
+      if (status >= 0)
 	{
-	  // Make the new process own the memory
-	  status =
-	    kernelMemoryChangeOwner(currentProcId, newProcId,
-				    1, argStruct.argv, &newArgAddress);
-
+	  // Share the memory back with this process
+	  status = kernelMemoryShare(newProcId, currentProcId, newArgAddress,
+				     (void *) &(argStruct.argv));
 	  if (status >= 0)
 	    {
-	      // Share the memory back with this process
-	      status =
-		kernelMemoryShare(newProcId, currentProcId,
-				  newArgAddress, (void *) &(argStruct.argv));
+	      // Leave space for pointers to the strings
+	      argSpace = (argStruct.argv + ((argc + 2) * sizeof(char *)));
+	  
+	      // Copy the executable name into argv[0]
+	      length = strlen(procName);
+	      strcpy(argSpace, procName);
+	      // Adjust the pointer in argv so that it refers to the new
+	      // process' address space
+	      argStruct.argv[0] =
+		((argSpace - (void *) argStruct.argv) + newArgAddress);
+	      argSpace += (length + 1);
 
-	      if (status >= 0)
+	      for (count = 0; count < argc; count ++)
 		{
-		  // Leave space for pointers to the strings
-		  argSpace = (argStruct.argv + ((argc + 1) * sizeof(char *)));
-		  
-		  for (count = 0; count < argc; count ++)
-		    {
-		      length = strlen(argv[count]);
-		      strcpy(argSpace, argv[count]);		      
-		      argStruct.argv[count] = argSpace;
-		      argSpace += (length + 1);
-		      // Adjust the pointers in argv so that they refer to the
-		      // new process' address space
-		      argStruct.argv[count] -= (unsigned) argStruct.argv;
-		      argStruct.argv[count] += (unsigned) newArgAddress;
-		    }
-
-		  // argv[argc] is supposed to be a NULL pointer, according
-		  // to the standard
-		  argStruct.argv[argc] = NULL;
-	      
-		  // Adjust argv so that it refers to the new process' address
-		  // space
-		  argStruct.argv = newArgAddress;
-
-		  // Finally, pass argc and argv to the new process
-		  status =
-		    kernelMultitaskerPassArgs(newProcId, 2, &argStruct);
-
-		  if (status < 0)
-		    kernelError(kernel_warn, "Unable to pass arguments");
+		  length = strlen(argv[count]);
+		  strcpy(argSpace, argv[count]);		      
+		  // Adjust the pointer in argv so that it refers to the
+		  // new process' address space
+		  argStruct.argv[count + 1] =
+		    ((argSpace - (void *) argStruct.argv) + newArgAddress);
+		  argSpace += (length + 1);
 		}
-	      else
-		kernelError(kernel_warn, "Unable to share argument space");
+
+	      // We add one for argv[0], the name of the executable
+	      argc += 1;
+
+	      // argv[argc] is supposed to be a NULL pointer, according to
+	      // some standard or other
+	      argStruct.argv[argc] = NULL;
+	      
+	      // Adjust argv so that it refers to the new process' address
+	      // space
+	      argStruct.argc = argc;
+	      argStruct.argv = newArgAddress;
+
+	      // Finally, pass argc and argv to the new process
+	      status = kernelMultitaskerPassArgs(newProcId, 2, &argStruct);
+	      if (status < 0)
+		kernelError(kernel_warn, "Unable to pass arguments");
 	    }
 	  else
-	    kernelError(kernel_warn,
-			"Unable to make new process own argument space");
+	    kernelError(kernel_warn, "Unable to share argument space");
 	}
       else
-	kernelError(kernel_warn, "Unable to allocate argument space");
+	kernelError(kernel_warn, "Unable to make new process own argument "
+		    "space");
     }
+  else
+    kernelError(kernel_warn, "Unable to allocate argument space");
 
   // All set.  Return the process id.
   return (newProcId);

@@ -40,7 +40,7 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelWindowEventStreamNew(windowEventStream *newStream)
+int kernelWindowEventStreamNew(volatile windowEventStream *newStream)
 {
   // This function initializes the new window event stream structure.
   // Returns 0 on success, negative otherwise.
@@ -78,11 +78,13 @@ int kernelWindowEventStreamNew(windowEventStream *newStream)
 }
 
 
-int kernelWindowEventStreamRead(windowEventStream *theStream,
+int kernelWindowEventStreamRead(volatile windowEventStream *theStream,
 				windowEvent *event)
 {
   // This function will read a window event from the window event stream
   // into the supplied windowEvent structure
+
+  int dwords = 0;
 
   // Check arguments
   if ((theStream == NULL) || (event == NULL))
@@ -91,13 +93,17 @@ int kernelWindowEventStreamRead(windowEventStream *theStream,
       return (ERR_NULLPARAMETER);
     }
 
-  // Read the requisite number of unsigneds from the stream
-  return (theStream->s.popN((stream *) &(theStream->s),
-			    (sizeof(windowEvent) / sizeof(unsigned)), event));
+  if (theStream->s.count > 0)
+    dwords = theStream
+      ->s.popN((stream *) &(theStream->s), (sizeof(windowEvent) /
+					    sizeof(unsigned)), event);
+
+  // Read the requisite number of dwords from the stream
+  return (dwords);
 }
 
 
-int kernelWindowEventStreamWrite(windowEventStream *theStream,
+int kernelWindowEventStreamWrite(volatile windowEventStream *theStream,
 				 windowEvent *event)
 {
   // This function will write the data from the supplied windowEvent structure

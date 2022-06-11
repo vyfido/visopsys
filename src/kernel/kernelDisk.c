@@ -198,17 +198,17 @@ static inline int findCachedSector(kernelPhysicalDisk *theDisk,
   int status = 0;
   int count;
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   for (count = 0; (count < theDisk->cache.usedSectors); count ++)
     if (theDisk->cache.sectors[count]->number == sectorNum)
       {
-	kernelLockRelease(&(theDisk->cache.lock));
+	kernelLockRelease(&(theDisk->cache.cacheLock));
 	return (count);
       }
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (status = ERR_NOSUCHENTRY);
 }
 
@@ -224,7 +224,7 @@ static int countUncachedSectors(kernelPhysicalDisk *theDisk,
   int status = 0;
   int index;
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
@@ -233,7 +233,7 @@ static int countUncachedSectors(kernelPhysicalDisk *theDisk,
   for (index = 0; index < theDisk->cache.usedSectors; index++)
     if (theDisk->cache.sectors[index]->number >= startSector)
       {
-	kernelLockRelease(&(theDisk->cache.lock));
+	kernelLockRelease(&(theDisk->cache.cacheLock));
 
 	// The sector number of this sector determines the value we return.
 	if ((theDisk->cache.sectors[index]->number - startSector) >
@@ -244,7 +244,7 @@ static int countUncachedSectors(kernelPhysicalDisk *theDisk,
       }
 
   // There were no sectors with a >= number.  Return sectorCount.
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (sectorCount);
 }
 
@@ -318,7 +318,7 @@ static int cacheSync(kernelPhysicalDisk *theDisk)
   if (!(theDisk->cache.dirty) || theDisk->readOnly)
     return (0);
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
@@ -338,7 +338,7 @@ static int cacheSync(kernelPhysicalDisk *theDisk)
   if (!errors)
     theDisk->cache.dirty = 0;
 
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (errors);
 }
 
@@ -350,7 +350,7 @@ static int cacheInvalidate(kernelPhysicalDisk *theDisk)
   int status = 0;
   int count;
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
@@ -363,7 +363,7 @@ static int cacheInvalidate(kernelPhysicalDisk *theDisk)
   theDisk->cache.usedSectors = 0;
   theDisk->cache.dirty = 0;
 
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (status);
 }
 
@@ -377,14 +377,14 @@ static int uncacheSectors(kernelPhysicalDisk *theDisk, unsigned sectorCount)
   kernelDiskCacheSector *tmpSector = NULL;
   int count1, count2;
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // If we're supposed to uncache everything, that's easy
   if (sectorCount == theDisk->cache.usedSectors)
     {
-      kernelLockRelease(&(theDisk->cache.lock));
+      kernelLockRelease(&(theDisk->cache.cacheLock));
       status = cacheSync(theDisk);
       for (count1 = 0; count1 < theDisk->cache.usedSectors; count1 ++)
 	{
@@ -442,7 +442,7 @@ static int uncacheSectors(kernelPhysicalDisk *theDisk, unsigned sectorCount)
 	  theDisk->cache.sectors[count2] = tmpSector;
 	}
 
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (status = errors);
 }
 
@@ -483,7 +483,7 @@ static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
       return (status = ERR_ALREADY);
     }
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
@@ -541,7 +541,7 @@ static int addCacheSectors(kernelPhysicalDisk *theDisk, unsigned startSector,
   if (dirty)
     theDisk->cache.dirty = 1;
 
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (status = sectorCount);
 }
 
@@ -562,7 +562,7 @@ static int getCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
   if (index < 0)
     return (copied = 0);
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
@@ -586,7 +586,7 @@ static int getCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
       cacheSector->lastAccess = kernelSysTimerRead();
     }
 
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (copied);
 }
 
@@ -607,7 +607,7 @@ static int writeCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
   if (index < 0)
     return (copied = 0);
 
-  status = kernelLockGet(&(theDisk->cache.lock));
+  status = kernelLockGet(&(theDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
@@ -638,7 +638,7 @@ static int writeCachedSectors(kernelPhysicalDisk *theDisk, unsigned sectorNum,
       cacheSector->lastAccess = kernelSysTimerRead();
     }
 
-  kernelLockRelease(&(theDisk->cache.lock));
+  kernelLockRelease(&(theDisk->cache.cacheLock));
   return (copied);
 }
 #endif // DISK_CACHE
@@ -667,7 +667,7 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
     return (status = 0);
 
   // Lock the disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -684,7 +684,7 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Unlock the disk
-  kernelLockRelease(&(physicalDisk->lock));
+  kernelLockRelease(&(physicalDisk->diskLock));
 
   return (status);
 }
@@ -1216,7 +1216,7 @@ int kernelDiskSync(void)
       physicalDisk = physicalDisks[count];
 
       // Lock the physical disk
-      status = kernelLockGet(&(physicalDisk->lock));
+      status = kernelLockGet(&(physicalDisk->diskLock));
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to lock disk \"%s\" for sync",
@@ -1233,7 +1233,7 @@ int kernelDiskSync(void)
 	  errors = status;
 	}
 
-      kernelLockRelease(&(physicalDisk->lock));
+      kernelLockRelease(&(physicalDisk->diskLock));
     }
 #endif // DISK_CACHE
 
@@ -1268,7 +1268,7 @@ int kernelDiskSyncDisk(const char *diskName)
   physicalDisk = theDisk->physical;
 
   // Lock the physical disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to lock disk \"%s\" for sync",
@@ -1278,7 +1278,7 @@ int kernelDiskSyncDisk(const char *diskName)
 
   status = cacheSync(physicalDisk);
   
-  kernelLockRelease(&(physicalDisk->lock));  
+  kernelLockRelease(&(physicalDisk->diskLock));  
   
   if (status < 0)
     kernelError(kernel_warn, "Error synchronizing the disk \"%s\"",
@@ -1313,7 +1313,7 @@ int kernelDiskInvalidateCache(const char *diskName)
     }
 
   // Lock the physical disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to lock disk \"%s\" for cache "
@@ -1326,7 +1326,7 @@ int kernelDiskInvalidateCache(const char *diskName)
 
   status = cacheInvalidate(physicalDisk);
   
-  kernelLockRelease(&(physicalDisk->lock));  
+  kernelLockRelease(&(physicalDisk->diskLock));  
   
   if (status < 0)
     kernelError(kernel_warn, "Error invalidating disk \"%s\" cache",
@@ -1375,13 +1375,33 @@ int kernelDiskGetBoot(char *boot)
 
   // Check params
   if (boot == NULL)
-    {
-      kernelError(kernel_error, "String parameter is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+    return (status = ERR_NULLPARAMETER);
   
   strncpy(boot, bootDisk, DISK_MAX_NAMELENGTH);
   return (status = 0);
+}
+
+
+int kernelDiskGetReadOnly(const char *diskName)
+{
+  int status = 0;
+  kernelDisk *logicalDisk = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (diskName == NULL)
+    return (status = ERR_NULLPARAMETER);
+ 
+  logicalDisk = kernelGetDiskByName(diskName);
+  if (logicalDisk == NULL)
+    {
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NOSUCHENTRY);
+    }
+
+  return (((kernelPhysicalDisk *) logicalDisk->physical)->readOnly);
 }
 
 
@@ -1441,6 +1461,7 @@ int kernelDiskGetInfo(disk *array)
       array[count].deviceNumber = physicalDisk->deviceNumber;
       array[count].type = physicalDisk->type;
       array[count].fixedRemovable = physicalDisk->fixedRemovable;
+      array[count].readOnly = physicalDisk->readOnly;
       array[count].heads = physicalDisk->heads;
       array[count].cylinders = physicalDisk->cylinders;
       array[count].sectorsPerCylinder = physicalDisk->sectorsPerCylinder;
@@ -1479,6 +1500,7 @@ int kernelDiskGetPhysicalInfo(disk *array)
       array[count].deviceNumber = diskStructure->deviceNumber;
       array[count].type = diskStructure->type;
       array[count].fixedRemovable = diskStructure->fixedRemovable;
+      array[count].readOnly = diskStructure->readOnly;
       array[count].heads = diskStructure->heads;
       array[count].cylinders = diskStructure->cylinders;
       array[count].sectorsPerCylinder = diskStructure->sectorsPerCylinder;
@@ -1540,7 +1562,6 @@ kernelDisk *kernelGetDiskByName(const char *name)
   // Check params
   if (name == NULL)
     {
-      // Make an error
       kernelError(kernel_error, "Disk name is NULL");
       return (theDisk = NULL);
     }
@@ -1571,7 +1592,6 @@ kernelPhysicalDisk *kernelGetPhysicalDiskByName(const char *name)
   // Check params
   if (name == NULL)
     {
-      // Make an error
       kernelError(kernel_error, "Disk name is NULL");
       return (physicalDisk = NULL);
     }
@@ -1625,7 +1645,7 @@ int kernelDiskSetDoorState(const char *diskName, int state)
     }
   
   // Lock the disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -1642,7 +1662,7 @@ int kernelDiskSetDoorState(const char *diskName, int state)
   physicalDisk->idleSince = kernelSysTimerRead();
 
   // Unlock the disk
-  kernelLockRelease(&(physicalDisk->lock));
+  kernelLockRelease(&(physicalDisk->diskLock));
 
   return (status);
 }
@@ -1693,7 +1713,7 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Lock the disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -1705,7 +1725,7 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Unlock the disk
-  kernelLockRelease(&(physicalDisk->lock));
+  kernelLockRelease(&(physicalDisk->diskLock));
   
   return (status);
 }
@@ -1755,7 +1775,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Lock the disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -1767,7 +1787,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Unlock the disk
-  kernelLockRelease(&(physicalDisk->lock));
+  kernelLockRelease(&(physicalDisk->diskLock));
 
   return (status);
 }
@@ -1800,7 +1820,7 @@ int kernelDiskReadAbsoluteSectors(const char *diskName,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Lock the disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -1812,7 +1832,7 @@ int kernelDiskReadAbsoluteSectors(const char *diskName,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Unlock the disk
-  kernelLockRelease(&(physicalDisk->lock));
+  kernelLockRelease(&(physicalDisk->diskLock));
 
   return (status);
 }
@@ -1845,7 +1865,7 @@ int kernelDiskWriteAbsoluteSectors(const char *diskName,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Lock the disk
-  status = kernelLockGet(&(physicalDisk->lock));
+  status = kernelLockGet(&(physicalDisk->diskLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -1857,7 +1877,7 @@ int kernelDiskWriteAbsoluteSectors(const char *diskName,
   physicalDisk->idleSince = kernelSysTimerRead();
   
   // Unlock the disk
-  kernelLockRelease(&(physicalDisk->lock));
+  kernelLockRelease(&(physicalDisk->diskLock));
 
   return (status);
 }

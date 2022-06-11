@@ -21,17 +21,21 @@
 
 # This is the top-level source directories Makefile.
 
+BUILDDIR=../build
 
 all:
-	make -C osloader -f Makefile all
-	make -C lib -f Makefile all
-	make -C kernel -f Makefile all
-	make -C programs -f Makefile.visopsys all
+	mkdir -p ${BUILDDIR}
+	make -C osloader
+	make -C include
+	make -C lib
+	make -C kernel
+	make -C programs
 
 clean:
-	make -C osloader -f Makefile clean
-	make -C lib -f Makefile clean
-	make -C include -f Makefile clean
-	make -C kernel -f Makefile clean
-	make -C programs -f Makefile.visopsys clean
-	rm -f *~ core
+	rm -Rf *~ *.o core
+	make -C osloader clean
+	make -C include clean
+	make -C lib clean
+	make -C kernel clean
+	make -C programs clean
+	rm -Rf

@@ -62,8 +62,7 @@ int main(int argc, char *argv[])
   processId = multitaskerGetCurrentProcessId();
 
   // Create a new window, with small, arbitrary size and location
-  window = windowManagerNewWindow(processId, "Console Window", 100, 100, 200,
-				  200);
+  window = windowNew(processId, "Console Window");
 
   // Put it in the client area of the window
   params.gridX = 0;
@@ -93,14 +92,11 @@ int main(int argc, char *argv[])
 	windowNewErrorDialog(NULL, "Error", "Error opening the console "
 			     "window!");
 
-      windowManagerDestroyWindow(window);
+      windowDestroy(window);
       return (status);
     }
 
-  // Lay out and autosize the window, and make it visible
-  windowLayout(window);
-  windowAutoSize(window);
-  windowCenter(window);
+  // Make it visible
   windowSetVisible(window, 1);
 
   // Register an event handler to catch window close events
@@ -110,7 +106,7 @@ int main(int argc, char *argv[])
   windowGuiRun();
 
   // Destroy the window
-  windowManagerDestroyWindow(window);
+  windowDestroy(window);
 
   // Done
   return (status);

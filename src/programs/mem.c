@@ -21,7 +21,7 @@
 
 // This is the DOS-style command for viewing memory usage statistics
 
-#include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
 
 
@@ -34,7 +34,8 @@ int main(int argc, char *argv[])
 
   int kernelMem = 0;
 
-  if ((argc > 1) && !strcmp(argv[1], "-k"))
+  // Want kernel memory stats?
+  if (getopt(argc, argv, "k") != -1)
     kernelMem = 1;
 
   // Print memory usage information

@@ -53,7 +53,7 @@ typedef volatile struct
   int privilege;
   kernelPageDirPhysicalMem *physical;
   kernelPageDirVirtualMem *virtual;
-  kernelLock dirLock;
+  lock dirLock;
 
 } kernelPageDirectory;
 

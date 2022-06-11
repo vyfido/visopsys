@@ -28,6 +28,7 @@
 #include "kernelMemoryManager.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
+#include "kernelVariableList.h"
 #include "kernelMiscFunctions.h"
 #include <string.h>
 #include <sys/errors.h>
@@ -97,7 +98,7 @@ kernelEnvironment *kernelEnvironmentCreate(int processId,
   // using which the target process will refer to it.
   
   // Are we supposed to inherit the environment from another process?
-  if (copy != NULL)
+  if (copy)
     {
       kernelMemCopy((void *) copy, (void *) peekEnvAddr,
 		    peekEnvAddr->totalSize);

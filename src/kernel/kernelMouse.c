@@ -66,16 +66,16 @@ static inline void draw(void)
   
   // Draw the mouse pointer
   kernelGraphicDrawImage(NULL, &(currentPointer->pointerImage),
-			 mouseStatus.xPosition, mouseStatus.yPosition,
-			 0, 0, 0, 0);
+			 draw_translucent, mouseStatus.xPosition,
+			 mouseStatus.yPosition, 0, 0, 0, 0);
 }
 
 
 static inline void erase(void)
 {
   // Redraw whatever the mouse was covering
-  kernelWindowManagerRedrawArea(mouseStatus.xPosition, mouseStatus.yPosition,
-				mouseStatus.width, mouseStatus.height);
+  kernelWindowRedrawArea(mouseStatus.xPosition, mouseStatus.yPosition,
+			 mouseStatus.width, mouseStatus.height);
 }
 
 
@@ -207,7 +207,6 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   strcpy(currentPointer->name, pointerName);
 
   // Mouse pointers are translucent, and the translucent color is pure green
-  currentPointer->pointerImage.isTranslucent = 1;
   currentPointer->pointerImage.translucentColor.red = 0;
   currentPointer->pointerImage.translucentColor.green = 255;
   currentPointer->pointerImage.translucentColor.blue = 0;
@@ -303,7 +302,7 @@ void kernelMouseMove(int xChange, int yChange)
 
   // Tell the window manager, if it cares
   status2event(&event);
-  kernelWindowManagerProcessEvent(&event);
+  kernelWindowProcessEvent(&event);
 
   return;
 }
@@ -339,7 +338,7 @@ void kernelMouseButtonChange(int buttonNumber, int status)
 
   // Tell the window manager, if it cares
   status2event(&event);
-  kernelWindowManagerProcessEvent(&event);
+  kernelWindowProcessEvent(&event);
 
   return;
 }

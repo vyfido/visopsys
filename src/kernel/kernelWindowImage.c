@@ -36,9 +36,10 @@ static int draw(void *componentData)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelGraphicBuffer *buffer =
     &(((kernelWindow *) component->window)->buffer);
-  image *baseImage = (image *) component->data;
+  kernelWindowImage *windowImage = (kernelWindowImage *) component->data;
 
-  kernelGraphicDrawImage(buffer, baseImage, component->xCoord,
+  kernelGraphicDrawImage(buffer, (image *) &(windowImage->imageData),
+			 windowImage->mode, component->xCoord,
 			 component->yCoord, 0, 0, 0, 0);
 
   if (component->parameters.hasBorder)
@@ -48,23 +49,17 @@ static int draw(void *componentData)
 }
 
 
-static int erase(void *componentData)
-{
-  return (0);
-}
-
-
 static int destroy(void *componentData)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  image *baseImage = (image *) component->data;
+  kernelWindowImage *windowImage = (kernelWindowImage *) component->data;
 
   // Release all our memory
-  if (baseImage != NULL)
+  if (windowImage)
     {
-      if (baseImage->data != NULL)
-	kernelFree(baseImage->data);
-      kernelFree((void *) baseImage);
+      if (windowImage->imageData.data)
+	kernelFree(windowImage->imageData.data);
+      kernelFree((void *) windowImage);
     }
 
   return (0);
@@ -80,51 +75,56 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewImage(kernelWindow *window,
-					    image *imageCopy)
+kernelWindowComponent *kernelWindowNewImage(volatile void *parent,
+					    image *imageCopy, drawMode mode,
+					    componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowImage
 
   kernelWindowComponent *component = NULL;
-  image *baseImage = NULL;
+  kernelWindowImage *windowImage = NULL;
 
   // Check parameters
-  if ((window == NULL) || (imageCopy == NULL))
+  if ((parent == NULL) || (imageCopy == NULL) || (params == NULL))
     return (component = NULL);
 
   // Get the basic component structure
-  component = kernelWindowNewComponent();
+  component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
 
   // Now populate it
-  component->type = windowImageComponent;
+  component->type = imageComponentType;
   component->width = imageCopy->width;
   component->height = imageCopy->height;
 
-  // Copy all the relevant data into our memory
-  baseImage = kernelMalloc(sizeof(image));
-  if (baseImage == NULL)
+  // Get the kernelWindowImage component memory
+  windowImage = kernelMalloc(sizeof(kernelWindowImage));
+  if (windowImage == NULL)
     {
       kernelFree((void *) component);
       return (component = NULL);
     }
 
-  kernelMemCopy(imageCopy, baseImage, sizeof(image));
-  baseImage->data = kernelMalloc(baseImage->dataLength);
-  if (baseImage->data == NULL)
+  // Copy the image data into it
+  kernelMemCopy(imageCopy, (void *) &(windowImage->imageData), sizeof(image));
+  windowImage->imageData.data =
+    kernelMalloc(windowImage->imageData.dataLength);
+  if (windowImage->imageData.data == NULL)
     {
       kernelFree((void *) component);
       return (component = NULL);
     }
-  kernelMemCopy(imageCopy->data, baseImage->data, baseImage->dataLength);
+  kernelMemCopy(imageCopy->data, windowImage->imageData.data,
+		windowImage->imageData.dataLength);
 
-  component->data = baseImage;
+  // Set the drawing mode
+  windowImage->mode = mode;
+
+  component->data = (void *) windowImage;
 
   // The functions
   component->draw = &draw;
-  component->mouseEvent = NULL;
-  component->erase = &erase;
   component->destroy = &destroy;
 
   return (component);

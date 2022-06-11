@@ -1,0 +1,639 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>Visopsys Downloads</title>
+<meta name="description"
+content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
+<meta name="keywords"
+content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
+<meta name="Microsoft Border" content="lb">
+</head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00"
+background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><table dir="ltr" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
+    <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <br>
+    <a href="../about/index.html">
+    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a><br>
+    <br>
+    <a href="index.html">
+    <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <br>
+    <a href="../developers/index.html">
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="29"></a><br>
+    <br>
+    <a href="../osdev/index.html">
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <br>
+    <a href="../search.html">
+    <img src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center">
+<img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
+<img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
+
+<p><font size="4">VERSION 0.4<br>
+</font>19/07/2004</p>
+<p><font size="4">Overview: This release features a number of graphical 
+interface improvements, including several new GUI widgets and &quot;newbie&quot; usability 
+tweaks. The 'install' and 'disk manager' programs have been properly 
+GUI-enabled, and this release also adds user authentication with MD5 password 
+encryption.</font></p>
+<ul>
+  <li><font size="4">Implemented the following GUI widgets: checkbox, radio 
+  button, menu bar (plus menu, and menu item), progress bar, canvas, scroll bar, 
+  list (plus list item), and password field</font></li>
+  <li><font size="4">Implemented 'container' components which can be nested 
+  arbitrarily, and have their layout done individually. Added a top level 
+  'container' component to the window structure and removed the simple list of 
+  components.</font></li>
+  <li><font size="4">When running from a CD-ROM or other read-only filesystem, 
+  there is now a general warning that the user can't modify settings or change 
+  anything generally.</font></li>
+  <li><font size="4">The OS loader now gives the kernel a list of supported 
+  graphics resolutions/depths that are supported, and there is user preference 
+  for choosing the mode, which the OS loader now reads from a file.</font></li>
+  <li><font size="4">Improved the hardware structure in the OS loader so that it 
+  makes use of NASM's STRUCT directive</font></li>
+  <li><font size="4">Added text-mode password prompting code to the vsh library</font></li>
+  <li><font size="4">Exported locking and variable list functionality to user 
+  space.</font></li>
+  <li><font size="4">The 'configuration reader/writer' code is more 
+  sophisticated, so that it preserves comment lines (if replacing an existing 
+  config file)</font></li>
+  <li><font size="4">Updated the install image generation scripts, and fixed the 
+  naming of the generated images</font></li>
+  <li><font size="4">Created a new background image that isn't so 'busy'. 
+  Removed the old ones.</font></li>
+  <li><font size="4">The 'start program' loaded by the kernel is now specified 
+  dynamically in a file, and added an 'image boot' program to be loaded first 
+  when booting from an ISO or floppy image distribution that will prompt the 
+  user whether they want to install, or simply run from that image.</font></li>
+  <li><font size="4">In the vsh, you no longer need to put a space between the 
+  last command argument and any ampersand</font></li>
+  <li><font size="4">Implemented Bresenham's lines and circles algorithms in the 
+  framebuffer graphic driver.</font></li>
+  <li><font size="4">Both the native installer and the UNIX installation scripts 
+  now use file lists and include options to do a 'basic' versus 'full' install.</font></li>
+  <li><font size="4">The FAT filesystem driver no longer calculates the 
+  filesystem free space asynchronously. Previously, this meant that an 
+  application could not know</font></li>
+  <li><font size="4">how long to wait before it could begin writing to a 
+  freshly-mounted filesystem.</font></li>
+  <li><font size="4">Graphicized both the 'install' and 'disk manager' programs</font></li>
+  <li><font size="4">After copying a larger disk to a smaller one in the disk 
+  manager, we now go through the entries in the partition table and adjust them 
+  so that none have illegal values. That means, for example, deleting or 
+  truncating partitions that don't fit on the smaller disk.</font></li>
+  <li><font size="4">Added a 'cursoring' effect to the text mode disk manager, 
+  since it makes the flow better (not required to type partition numbers, etc.), 
+  and which means that a partition or empty space is always selected, which fits 
+  better with the graphics mode use model.</font></li>
+  <li><font size="4">The disk manager program now saves disk-specific backup 
+  MBRs in the /system/boot directory</font></li>
+  <li><font size="4">The window manager thread now checks that windows' 
+  processes are still alive, so that it doesn't require a mouse click to dispose 
+  of the window. Also, if the window manager thread dies it is now restarted</font></li>
+  <li><font size="4">'Visopsys blue' is now the default foreground color for 
+  most GUI components (rather than black).</font></li>
+  <li><font size="4">Removed the start window and replaced it with a simple 
+  splash image</font></li>
+  <li><font size="4">Changed remaining 'csh' scripts to 'sh' and removed the 
+  unused stuff from the /utils/src-mgmt directory</font></li>
+  <li><font size="4">Rearranges the source code directory structure and build 
+  system a little bit, so that there is a top-level 'build' directory which 
+  contains all the installable stuff in the correct places. This allowed the 
+  installer to be a lot simpler and facilitated the implementation of 
+  installation file lists.</font></li>
+  <li><font size="4">Implemented a 'getopt' library function and converted the 
+  contents of the 'programs' directory to use it.</font></li>
+  <li><font size="4">Added a 'window shell' thread which is the new user login 
+  process in graphics mode, and which handles events on components in the root 
+  window.</font></li>
+  <li><font size="4">Added 'delete user' functionality to both the kernelUser 
+  code and the 'user manager' program.</font></li>
+  <li><font size="4">Added a 'passwd' command that shows as a 'user manager' in 
+  the GUI, that can be used to change passwords and create/delete accounts.</font></li>
+  <li><font size="4">Separated the source files for the different libraries into 
+  subdirectories, and broke out the libvsh and libwindow code into separate 
+  source files to reduce executable sizes.</font></li>
+  <li><font size="4">Added a 'file selection' dialog box into the window lib.</font></li>
+  <li><font size="4">Font printing by default draws the background color under 
+  the character.&nbsp; Transparent images are still an option.</font></li>
+  <li><font size="4">Added a 'flags' field to the kernelWindow structure, since 
+  there were a few booleans and it's a waste of space to make them all ints.</font></li>
+  <li><font size="4">Vsh file completion now works like bash when there's only 
+  one 'real' item in a directory - complete it with just a [tab]</font></li>
+  <li><font size="4">Made it possible to click between multiple text areas in 
+  window</font></li>
+  <li><font size="4">Added user authentication to the login program</font></li>
+  <li><font size="4">Improved handling of width specifiers for 'printf' number 
+  parameters.</font></li>
+  <li><font size="4">Added an MD5 encryption implementation</font></li>
+  <li><font size="4">A commands is no longer added to the vsh history if it's 
+  the same as the previous one</font></li>
+  <li><font size="4">The keyboard code now reads the lights status at startup so 
+  that it doesn't reset them improperly. Also, numlock works.</font></li>
+  <li><font size="4">Implemented enable/disable functionality for GUI 
+  components.</font></li>
+  <li><font size="4">Implemented a 'set visible' function for components</font></li>
+  <li><font size="4">Implemented 'set disabled' functionality for window menu 
+  items</font></li>
+  <li><font size="4">Added 'resizable X' and 'resizable Y' fields in the 
+  component parameter structure, and only resize components appropriately</font></li>
+  <li><font size="4">Simplified the process of adding components to windows, so 
+  that you only have to call the 'new' function, with the component parameters, 
+  and it will be added to the window automatically.</font></li>
+  <li><font size="4">Removed the 'size' parameters from the 'button' component 
+  constructor</font></li>
+  <li><font size="4">Implemented the 'get data' and 'set data' methods of text 
+  label components, so that the label contents can be dynamic.</font></li>
+  <li><font size="4">Added a window component flag that will prevent a [tab] 
+  from unfocusing certain components.</font></li>
+  <li><font size="4">Removed the coordinate and size parameters from the &quot;new 
+  window&quot; function of the window manager. The window size is determined 
+  automatically unless the &quot;set size&quot; function is called.</font></li>
+  <li><font size="4">Window layout happens automatically. The programmer no 
+  longer has to do this explicitly.</font></li>
+  <li><font size="4">Added resizing capability to the windows in the window 
+  manager.</font></li>
+  <li><font size="4">Window buttons are now focusable and can handle various 
+  keyboard events</font></li>
+  <li><font size="4">Implemented proper 'focussing' of window components</font></li>
+  <li><font size="4">Added a function for getting the contents of a text field 
+  or text area component in the window manager</font></li>
+  <li><font size="4">The window close button no longer uses the little 'X' image 
+  file, but rather draws its own 'X' using the new bresenham line drawing 
+  abilities.</font></li>
+  <li><font size="4">Changed the 'shutdown' program so that in graphics mode it 
+  prompts for a reboot or shutdown</font></li>
+  <li><font size="4">Added a better 'install' icon.</font></li>
+  <li><font size="4">Added a GPL banner to the image boot program</font></li>
+  <li><font size="4">Disabled the left-right cursor keys in the vsh, as they 
+  tend to make people think they can do line editing (which they can't, yet).</font></li>
+  <li><font size="4">Fixed: If the screen dimensions are too small to 
+  accommodate a window, it doesn't appear at all.</font></li>
+  <li><font size="4">Fixed: Pressing CTRL-ALT-DELETE in graphics mode produces a 
+  panic with 'can't yield() in interrupt handler'</font></li>
+  <li><font size="4">Fixed: The 'screenshot' program was crashing when 
+  attempting to write to read-only filesystems.</font></li>
+  <li><font size="4">Fixed: If the floppy was removed while the boot loader was 
+  loading the kernel, it was going into long retry loops</font></li>
+  <li><font size="4">Fixed: File input streams were horribly broken in the 
+  ISO9660 filesystem driver. Before the fix they would only read the first 
+  sector.</font></li>
+  <li><font size="4">Fixed: argv[0] was not being set by the loader code. It was 
+  only being set explicitly by the vsh when programs are executed, which it 
+  shouldn't do at all.</font></li>
+  <li><font size="4">Fixed: The arrangement of icons in the root window so that 
+  they wrap into the next column when they hit the bottom of the screen</font></li>
+  <li><font size="4">Fixed: There was trouble (triple-fault) drawing outline 
+  (non-filled) rectangles in the framebuffer graphic driver, if they were 
+  partially off the edges of the screen</font></li>
+  <li><font size="4">Fixed: The ELF loader was not allocting enough memory for 
+  the uninitialized data that executables might require.</font></li>
+  <li><font size="4">Fixed: The free spaces calculation in the disk manager was 
+  incorrect, particularly when there was only one partition that didn't start at 
+  zero</font></li>
+  <li><font size="4">Fixed: &quot;component cannot focus&quot; error messages when 
+  clicking on icon components</font></li>
+  <li><font size="4">Fixed: When booting from the hard disk , the opening of the 
+  kernel log file often failed with a &quot;not enough space&quot; message.</font></li>
+  <li><font size="4">Fixed: In text mode, the login process was not properly 
+  setting supervisor privilege for the 'admin' user</font></li>
+  <li><font size="4">Fixed: When windows were dragged, the focus was lost from 
+  the focused component.</font></li>
+  <li><font size="4">Fixed: Text fields were coming up with their cursors on by 
+  default.</font></li>
+  <li><font size="4">Fixed: The kernel.log file was not being updated/written 
+  correctly.</font></li>
+  <li><font size="4">Fixed: The fileWrite routine was not behaving as expected 
+  when writing a single-block file. The file size was zero, even though the file 
+  was written and closed properly</font></li>
+  <li><font size="4">Fixed: When writing a file using the file stream functions, 
+  there was a newline inserted at the beginning of a file.</font></li>
+</ul>
+<hr>
+
+<p><font size="4">VERSION 0.33<br>
+</font>11/01/2004</p>
+<p><font size="4">Overview: This is primarily a bugfix release, with bootable 
+CD-ROM support added as a new feature.</font></p>
+<ul>
+  <li><font size="4">Added bootable ISO9660 (el-torito) CD-ROM support.</font></li>
+  <li><font size="4">The 'no boot' boot sector code no longer reboots the 
+  system, but instead properly calls the next boot option</font></li>
+  <li><font size="4">Fixed: Spurious error messages when booting from a 
+  read-only file system.</font></li>
+  <li><font size="4">Fixed the kernel heap allocation code, which was losing and 
+  corrupting blocks of memory, and leaving small, odd-sized gaps of unused 
+  memory.</font></li>
+  <li><font size="4">Polished up the scripts for creating floppy &amp; CD-ROM images</font></li>
+  <li><font size="4">Fixed: No longer attempt to recalibrate ATAPI disks.</font></li>
+  <li><font size="4">If a CD-ROM read fails because there is no disk, the driver 
+  no longer leaves the number of sectors at zero, since that will stop all 
+  subsequent read attempts</font></li>
+  <li><font size="4">The CD-ROM driver code can determine more elegantly whether 
+  there is a data CD in the drive and if not, print a friendly error message.</font></li>
+</ul>
+<hr>
+<p><font size="4">VERSION 0.32<br>
+</font>04/01/2004</p>
+<p><font size="4">Overview: This is primarily a bugfix release, with CD-ROM and 
+ISO9660 filesystem support added as new (alpha) features.</font></p>
+<ul>
+  <li><font size="4">Added (multi-session capable) CD-ROM driver code</font></li>
+  <li><font size="4">Fixed: The 'date' command day of the week was wrong.</font></li>
+  <li><font size="4">Created a set of help text files for all of the commands, in 
+a /programs/helpfiles subdirectory. The 'help' command is now an 
+executable which can provide command-specific help.</font></li>
+  <li><font size="4">The 'vsh' shell now has a '-c' option so that it can be used 
+to execute commands, non-interactively.</font></li>
+  <li><font size="4">Added a 'system' Visopsys C library function</font></li>
+  <li><font size="4">Added a 'driver data' field in the physical disk object, so 
+that the different drivers can store device-specific data there. 
+Implemented the floppy driver's 'detect' and 'register device' routines to 
+remove some of the floppy-specific stuff from the hardware detection code.</font></li>
+  <li><font size="4">The 'mount' and 'umount' commands will now accept relative 
+pathnames</font></li>
+  <li><font size="4">Added an ISO9660 filesystem driver</font></li>
+  <li><font size="4">Eliminated spurious floppy timeout error messages when 
+booting from hard disks.</font></li>
+  <li><font size="4">Fixed: Unknown floppy drive types were causing hardware 
+  detection (and therefore the whole startup) to fail.</font></li>
+</ul>
+<hr>
+<p><font size="4">VERSION 0.31<br>
+</font>12/12/2003</p>
+<p><font size="4">Overview: This is primarily a bugfix release, with EXT2 
+filesystem support added as a new (alpha) feature.</font></p>
+<ul>
+  <li><font size="4">Implemented a preliminary, alpha, read-only EXT2 filesystem 
+  driver</font></li>
+  <li><font size="4">The libraries and (non-kernel) include files have been relicensed under the GNU LGPL to permit use by proprietary programs</font></li>
+  <li><font size="4">The IDE/ATA/ATAPI driver was not responding to disks on the 
+  secondary controller.</font></li>
+  <li><font size="4">Fixed: The 'cat' program wasn't printing tabs properly the 
+  way the 'more' program does.</font></li>
+  <li><font size="4">Fixed: kernelMalloc allocations were not necessarily being 
+done on any boundaries. It is now done on sizeof(unsigned) (dword) 
+boundaries.</font></li>
+  <li><font size="4">Added a *very* basic 'find' program which only traverses 
+  whole directory trees. Initially to aid in development of new filesystems</font></li>
+</ul>
+<hr>
+<p><font size="4">VERSION 0.3<br>
+</font>24/11/2003</p>
+<p><font size="4">Overview: This release is very much an &quot;under the hood&quot; 
+release. The user interaction is similar to that of 0.2, but a great deal 
+of work has gone into improving the structure, performance, and 
+stability of the underlying code -- particularly the disk subsystem. However, 
+some eye candy has been added, and the GUI is more functional and 
+consistent.</font></p>
+<ul>
+  <li><font size="4">A thread of a process can now kill the parent process.</font></li>
+  <li><font size="4">Created a multitasker 'detach' function for daemons or 
+  other programs to use to detach themselves from any programs that might be 
+blocking on them.</font></li>
+  <li><font size="4">Fixed: Windows wasn't entirely happy with our FAT short 
+  filename aliases.&nbsp; Complained about the format of the short name of &quot;/system/boot/bootsect.fatnoboot&quot;</font></li>
+  <li><font size="4">Changed the naming of the kernel window components (removed the'component' bit from the names)</font></li>
+  <li><font size="4">Fixed: File completions were completing things they 
+  shouldn't; i.e. when you &quot;cd system; ls b[tab]&quot; it completed &quot;background&quot; but 
+there's a &quot;boot&quot; directory as well.</font></li>
+  <li><font size="4">The window manager thread is now the login process for a 
+  user when in graphics mode, rather than a text shell running in a console 
+window.</font></li>
+  <li><font size="4">Reduced the stack sizes of processes. They shouldn't need 
+  nearly as much (260K) as they were being given.</font></li>
+  <li><font size="4">Removed all the 'binary distribution' stuff (the Java 
+  installer, shell scripts, readmes, etc). We will only do binary 
+distributions as floppy or ISO images from now on.</font></li>
+  <li><font size="4">The console window is no longer shown by default. Added a 
+  program and icon ('console') to display it and handle the window events, 
+etc. Added external API functions to put a console widget into a user 
+program.</font></li>
+  <li><font size="4">Changed the error reporting interface for the disk drivers. 
+  Removed the 'last error message' and 'last error code' functions -- 
+these were leftovers from the days of ASM drivers that couldn't use the 
+normal error reporting mechanisms.</font></li>
+  <li><font size="4">Fixed: The mouse was not being redrawn when windows close 
+  themselves.</font></li>
+  <li><font size="4">Implemented 'levels' for GUI components within a window, in 
+  the same manner as windows have levels. This way if components overlap, 
+we can only send windowEvents to the uppermost one.</font></li>
+  <li><font size="4">Sped up the scrolling of graphics text areas. Now only 
+  scroll as much of the width of the area as the longest line of contents.</font></li>
+  <li><font size="4">Fixed up the framebuffer graphic driver a little bit more so 
+that it draws most efficiently for the bit depth it's using.</font></li>
+  <li><font size="4">Implemented kernel versions of malloc() and free() so that 
+we're not always wasting whole pages of memory for small things.</font></li>
+  <li><font size="4">Added shutdown and reboot buttons to the login screen in 
+  graphics mode.</font></li>
+  <li><font size="4">Implemented text labels on kernelWindowButton components, 
+with selectable font.</font></li>
+  <li><font size="4">Fixed: Window layout problems. Attempting to add reboot and 
+  shutdown buttons to the login screen, I discovered that setting the 
+component's gridWidth parameters to 2 causes a crash. In addition, when I 
+incorrectly left the gridWidth at 1 and attempted to add the 2 buttons 
+below (using 2 grid places) they were erroneously placed on the line above, 
+and the other widgets got squashed together.</font></li>
+  <li><font size="4">Added an event notification callback mechanism for user 
+programs that use the GUI. When a user performs a GUI action, such as 
+clicking a button, the user application can now read that event from the 
+component.</font></li>
+  <li><font size="4">As a supplement to this, implmented user-mode library code 
+for monitoring window component event queues. It includes a &quot;GUI run&quot; 
+function that signals the application is ready to begin monitoring its 
+widgets for events, after all its setup is done. The rest of the flow can 
+be driven by callbacks from events. All of the included programs have 
+been converted to use these features.</font></li>
+  <li><font size="4">Added a logout procedure for the window manager (rather 
+  than having to log out by hand from the console window)</font></li>
+  <li><font size="4">Implemented a better &quot;kernel panic&quot; routine that displays 
+  something useful in either text or graphics mode and shuts things down 
+quickly.</font></li>
+  <li><font size="4">Interrupt handlers and their actions are no longer allowed 
+  to yield(), wait(), block(), etc.</font></li>
+  <li><font size="4">Fixed: Moving the mouse in text mode is disrupting keyboard 
+  input</font></li>
+  <li><font size="4">The fdisk program will save a backup copy of the MBR before 
+writing changes, and provides an option to restore it.</font></li>
+  <li><font size="4">The graphic/text console drivers, as well as the FAT 
+  filesystem driver, have abstracted driver registration procedures like the 
+hardware drivers do.</font></li>
+  <li><font size="4">The API calls in kernelApi.c are now 'hashed' according to 
+their function number, for faster API throughput.</font></li>
+  <li><font size="4">Added a routine to the generic disk code for reading the 
+  disks' partition tables (instead of in the hardware enumeration 
+code). It is be re-callable anytime so that programs like fdisk can 
+create/delete partitions and have the change be reflected immediately in the 
+list of logical disks.</font></li>
+  <li><font size="4">Cleaned up the management of the kernel's built-in drivers. 
+  The drivers now have an 'init' that registers the driver structure with 
+the kernel, so that the kernelDriverManagement code doesn't have to have all 
+the functions hard-coded in there.</font></li>
+  <li><font size="4">Disk caches are invalidated when removable media is 
+  unmounted.</font></li>
+  <li><font size="4">The boot sector and the OS loader can now boot from a 
+  cylinder &gt; 1024.</font></li>
+  <li><font size="4">Large disk geometries are now correctly evaluated by the 
+  hardware detection code and by the fdisk program.</font></li>
+  <li><font size="4">Created a 'non-bootable' FAT boot sector, that the 
+  formatting code uses to make non-system FAT volumes</font></li>
+  <li><font size="4">When files are copied, the sizes are now being set 
+  correctly.</font></li>
+  <li><font size="4">The new floppy driver C code no longer freezes up the 
+  computer if you remove the media unexpectedly.</font></li>
+  <li><font size="4">Hardware enumeration and fdisk no longer fail when there is 
+no partition table on the hard disk</font></li>
+  <li><font size="4">FAT filesystem root directories now have '.' entries (and 
+  '..' entries when they're not '/')</font></li>
+  <li><font size="4">Removing the last file in a directory (for example, in the 
+  root of a filesystem) no longer produces an error message.</font></li>
+  <li><font size="4">Fixed up the filesystem driver stuff, so that there is only 
+  one instance of each driver of each known type </font></li>
+  <li><font size="4">In the FAT filesystem driver, file names that start with 
+  '.' were listed, but could not be created or accessed. This is fixed.</font></li>
+  <li><font size="4">Implmented FAT filesystem driver formatting functionality</font></li>
+  <li><font size="4">Improved the fdisk program so that it can do most common 
+operations</font></li>
+  <li><font size="4">When there are no files in a directory, 'ls' no longer 
+  prints an error message.</font></li>
+  <li><font size="4">When doing disk reads, we now do read-ahead caching</font></li>
+  <li><font size="4">The kernel is now able to handle operation from a read-only 
+or write-protected media without spewing errors and getting panicky.</font></li>
+  <li><font size="4">kernelLocks are now exclusive even to the same process. i.e. 
+If a process owns a lock, calling kernelLockGet() a second time 
+fails.</font></li>
+  <li><font size="4">Added a UK English keyboard mapping</font></li>
+  <li><font size="4">The disk code should launches a new 'synchronizer' thread 
+  if the existing one dies.</font></li>
+  <li><font size="4">The exception handler tries to do a stack dump when an 
+  exception occurs.</font></li>
+  <li><font size="4">The filesystem code is now correctly updating FAT short 
+  filename aliases when files are moved.</font></li>
+  <li><font size="4">Updated the loader code that searches for a valid video 
+  mode. It now searches for *any* LFB video mode first, and reports an error 
+to that effect if it finds none. That is a different scenario than not 
+finding a 'desired' video mode.</font></li>
+  <li><font size="4">Added LFB graphic driver support for bit depths of 32, 16, 
+and 15 BPP.</font></li>
+  <li><font size="4">Remove the FAT sector caching from the FAT filesystem 
+  driver.</font></li>
+  <li><font size="4">Changed the filesystem synchronizer so that it is now a 
+  *disk* daemon that simply turns removable drives' motors off.</font></li>
+  <li><font size="4">Implemented proper asynchronous disk caching.</font></li>
+  <li><font size="4">Kernel symbols to aid debugging, in the /system/kernelSymbols.txt 
+file, which is read at startup and used for stack traces and 
+whatnot.</font></li>
+  <li><font size="4">Converted all built-in drivers from ASM to C, with inline 
+ASM in a processor-specific header file. This makes it easier for them 
+to use the C data structures, etc., for better integration with the rest of 
+the kernel.</font></li>
+  <li><font size="4">THERE IS NO LONGER ANY NASM ASSEMBLY CODE IN THE KERNEL. Woo!</font></li>
+  <li><font size="4">Changed 'root' user to 'admin' user -- something less geeky/UNIXy.</font></li>
+  <li><font size="4">The kernelDisk structure is broken up into physical objects 
+and logical disks (volumes, i.e. hard disk partitions, but every physical 
+disk has at least one logical disk). The disk cache, 'idle since' value, 
+physical characteristics, etc., are in the physical disk. Things like 
+starting sector, number of sectors, etc., are in the logical disk 
+structure. The physical disk structure contains the logical ones.</font></li>
+  <li><font size="4">Added some memory manager macros so that each memory block 
+  request doesn't require an alignment specification (only where 
+desired)</font></li>
+  <li><font size="4">Fixed: rm system/windowmanager.conf ; sync ...Errors in the 
+filesystem.</font></li>
+  <li><font size="4">The window icon code is better able to deal with long icon 
+  names. Previously it printed the whole name on one long line.</font></li>
+  <li><font size="4">When a user logs out of the window manager, all windows 
+  belonging to that user are destroyed</font></li>
+  <li><font size="4">Fixed: Mouse driver initialization was sometimes causing 
+  the boot sequence to 'hang' a little bit -- wiggling the mouse or pressing keys 
+was required to continue</font></li>
+  <li><font size="4">The kernel log utility was losing some log messages that 
+  come early in the boot process, before the root filesystem is mounted.</font></li>
+  <li><font size="4">Change start.o (.c) to crt0.o for more UNIX C compatibility.</font></li>
+  <li><font size="4">Fixed: When running a command window, all the shell 
+  processes suddenly start hogging CPU. Was a case of 2 'ready' processes 
+constantly yield()ing to one another. Changed the scheduler so that a process will 
+get a low weight if it has yielded that timeslice before (a little 
+different from the previous algorithm)</font></li>
+</ul>
+<hr>
+<p><font size="4">VERSION 0.2<br>
+</font>03/06/2003</p>
+<p><font size="4">Overview: This release was a huge leap ahead from version 0.1 
+(and it took a long time, too). This release added a basic GUI, 
+whereas version 0.1 was text-mode only. Really, the list of changes 
+below is very incomplete -- Especially in listing new features.</font></p>
+<ul>
+  <li><font size="4">Fixed: When rebooting from other operating systems such as 
+  Windows or Linux, Visopsys would triple-fault. Clearing the page cache 
+seems to do the trick. Also changed the way page caching is done. Turned 
+off write-through which improved the performance of the graphics as 
+well.</font></li>
+  <li><font size="4">Updated the shell 'help' text.</font></li>
+  <li><font size="4">Fixed: Can't move/copy a file over top of another by the 
+  same name in a different location unless you specify the destination filename 
+explicitly (i.e. if you just specify the directory, it fails)</font></li>
+  <li><font size="4">When using the 'more' program, pressing [enter] to list a 
+  new line no longer leaves the &quot;--More--(xx%)--&quot; message on the screen</font></li>
+  <li><font size="4">When a process has finished but is waiting for its child 
+  threads to terminate (i.e. mount), any process that is blocking on that 
+process now stops waiting.</font></li>
+  <li><font size="4">Fixed: Crashes when running the 'install' program, and 
+  other types of long disk writes. When this happened under the old exception 
+handler, the handler used to go into an endless loop complaining about an 
+exception in the idle process. This was the fault of the 'timed event 
+scheduler'.&nbsp; Got rid of that.</font></li>
+  <li><font size="4">Fixed: The floppy motor was staying on all the time on many 
+  machines</font></li>
+  <li><font size="4">Fixed: The FAT filesystem code was not properly filling all 
+  long filenames. They were cut off after some number of characters.</font></li>
+  <li><font size="4">Fixed: When in the multitasker the killing of a process is 
+  delayed because of child threads, the process never seems to be killed when 
+the children have all terminated. For example, when you mount a large FAT 
+filesystem (C:), the thread that reads the FAT keeps the &quot;mount&quot; process 
+alive, waiting, forever.</font></li>
+  <li><font size="4">Fixed: When pushing some of the &quot;non-printable&quot; keys such 
+  as 'num lock' and then doing command history, the shell was backing up by 
+one character before completing the filename.</font></li>
+  <li><font size="4">Added support for non-fixed-width fonts in the kernelFont 
+functions.</font></li>
+  <li><font size="4">Added support for loading fonts. The system font looks lame 
+  on titles and whatnot, particularly on the login screen.</font></li>
+  <li><font size="4">The login is now a little more meaningful in graphics mode. 
+  Previously, a console window would open with a login: prompt, but the user 
+could happily start opening other command windows and such, and 
+ignore the login (unless they wanted root permissions).</font></li>
+  <li><font size="4">Added loading support for 24-bit bitmaps. We already saved 
+  in that format.</font></li>
+  <li><font size="4">Fixed: Umounting a filesystem was not properly dereferencing 
+either the filesystem or the disk. Couldn't mount-&gt;unmount-&gt;mount the 
+same disk.</font></li>
+  <li><font size="4">Changed the shell to do filename completions on the same 
+  line as the current line, rather than starting on the next line.</font></li>
+  <li><font size="4">Implemented multiple text output streams, with the text 
+  input stream changing to the active window, so that we can have multiple 
+text windows open at the same time</font></li>
+  <li><font size="4">Implmented the FAT filesystem driver checking functionality 
+[It's very primitive, but it does detect and fix some errors]</font></li>
+  <li><font size="4">Moved the exception handler code into the multitasker. It 
+  really needs to interact with the multitasker quite a bit.</font></li>
+  <li><font size="4">The new exception handler thread was hanging the terminal 
+  (breakable with CTRL-C) when the exception message happened at the bottom of 
+the text area and caused the screen to scroll</font></li>
+  <li><font size="4">The kernel's exception handler is now a spawned thread with 
+  its own stack, etc., so that it doesn't run as part of whatever process 
+caused the exception in the first place. This helps to prevent the 
+exception handler itself from crashing if things have gone seriously wrong with 
+a process.</font></li>
+  <li><font size="4">Adding permission checking to the kernel functions that are 
+  be exported to the rest of the world.</font></li>
+  <li><font size="4">Fixed: The boot progress indicator was progressing beyond 
+  the end of the indicator</font></li>
+  <li><font size="4">The 'getchar' routine now does the work of polling/yielding, 
+rather than the programs that call it.</font></li>
+  <li><font size="4">Added a basic 'fdisk' program that can do things like swap 
+the active partition on hard disks</font></li>
+  <li><font size="4">Fixed: The hard disk enumeration routine was crashing when 
+  there was more than one physical disk</font></li>
+  <li><font size="4">Added the ability to copy directory trees in the filesystem 
+  functions, one level up from the filesystem driver. Could be a library 
+routine instead someday.</font></li>
+  <li><font size="4">Fixed: The 'cp' command was crashing when copying files 
+  involving the hard disk</font></li>
+  <li><font size="4">Implmented the 'write' function in the IDE disk driver. 
+Previously it was left out since the filesystem driver is still imperfect.</font></li>
+  <li><font size="4">Fixed: Mounting hard disk partitions on my 30GB hard disk 
+  was not working.&nbsp; LBA versus CHS issue</font></li>
+  <li><font size="4">Fixed: The mouse driver initialization sometimes hung, 
+  waiting for a response from the mouse to a command</font></li>
+  <li><font size="4">Added ELF executable capability and moved the programs to 
+  ELF format</font></li>
+  <li><font size="4">Fixed: Incomplete filenames were still having an / appended 
+  to them by the shell.</font></li>
+  <li><font size="4">The PS2 mouse driver and the keyboard driver now share a 
+  lock on the device, since they both deal with the same registers, etc.</font></li>
+  <li><font size="4">Fixed: Sometimes an error in another program could cause a 
+  fault in the idle process (?!?), then the exception handler routines would 
+get into an endless loop </font></li>
+  <li><font size="4">Fixed: When a process created a new process, the unmapping 
+of the new process' memory from the parent process space would sometimes 
+cause a page fault.</font></li>
+  <li><font size="4">Fixed: The 'log file updater' thread was been crashing 
+frequently, most often when another process crashed</font></li>
+  <li><font size="4">The scheduler no longer spawns a new idle thread while the 
+  multitasker is in the process of shutting down.</font></li>
+  <li><font size="4">Fixed: The 'date' command was producing wrong results. The 
+year, dotm, hour, minute, etc., were correct, but the month and dotw were 
+wrong. </font></li>
+  <li><font size="4">Fixed: When shortening a filename, one extra character from 
+  the old filename got left on the end of the new name. This was because 
+of strncpy changes.</font></li>
+  <li><font size="4">Fixed: There was a little sequencing error in the kernelMemoryManager's share memory routine -- it was deallocating the memory from 
+the sharer process before allocating it to the sharee.</font></li>
+  <li><font size="4">Simplified the default driver management. It was 
+  ridiculously overcomplicated.</font></li>
+  <li><font size="4">Fixed: The FAT code that lowercases short filenames wasn't 
+  lowercasing the file extensions</font></li>
+  <li><font size="4">Fixed: Most of the device driver initialization routines 
+  were being called twice; once in kernelDriverManagement.c and once in the 
+abstraction layer initialization</font></li>
+</ul>
+<hr>
+<p><font size="4">VERSION 0.1<br>
+</font>02/08/2001</p>
+<p><font size="4">Initial public release.</font></p>
+
+<p align="left">&nbsp;</p>
+
+<p align="left"></p>
+
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../index.html">
+    <img
+    src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
+    align="middle" width="53" height="25"></a> <a href="../about/index.html">
+    <img src="../img/nav_buttons/about.gif"
+    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a> <a href="index.html">
+    <img
+    src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
+    border="0" align="middle" width="95" height="25"></a></font> <a href="../developers/index.html">
+    <img
+    src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
+    border="0" align="middle" width="97" height="29"></a> <a href="../osdev/index.html">
+    <img
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a> <a href="../search.html">
+    <img
+    src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
+    border="0" width="63" height="24"></a><br>
+    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2003, J.
+    Andrew McLaughlin<br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Last updated on
+    July 05, 2004</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+
+</td></tr><!--msnavigation--></table></body>
+</html>

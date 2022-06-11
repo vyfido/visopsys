@@ -60,7 +60,7 @@ static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
 
   // The box
   kernelGraphicDrawRect(NULL, &((color)
-  { DEFAULT_ROOTCOLOR_BLUE, DEFAULT_ROOTCOLOR_GREEN, DEFAULT_ROOTCOLOR_RED }),
+  { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED }),
 			draw_normal, ((screenWidth - boxWidth) / 2),
 			((screenHeight - boxHeight) / 2), boxWidth, boxHeight,
 			1, 1);
@@ -73,12 +73,12 @@ static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
   // The message
   for (count = 0; count < numLines; count ++)
     {
-      kernelGraphicDrawText(NULL, &((color )
-      { 255, 255, 255 }), font, message[count], draw_normal,
-	    ((screenWidth -
-	      kernelFontGetPrintedWidth(font, message[count])) / 2),
-	    (((screenHeight - messageHeight) / 2) +
-	     (font->charHeight * count)));
+      kernelGraphicDrawText(NULL, &((color) { 255, 255, 255 }), &((color)
+      { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED }), font, message[count],
+		    draw_normal, ((screenWidth -
+		   kernelFontGetPrintedWidth(font, message[count])) / 2),
+			    (((screenHeight - messageHeight) / 2) +
+			     (font->charHeight * count)));
     }
 }
 
@@ -139,49 +139,36 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 	  kernelFontGetDefault(&font);
 	}
  
-      window =
-	kernelWindowManagerNewWindow(kernelMultitaskerGetCurrentProcessId(),
-				     "Shutting down", 0, 0, 100, 100);
-      if (window != NULL)
+      window = kernelWindowNew(kernelMultitaskerGetCurrentProcessId(),
+			       "Shutting down");
+      if (window)
 	{
+	  params.gridX = 0;
+	  params.gridY = 0;
+	  params.gridWidth = 1;
+	  params.gridHeight = 1;
+	  params.padLeft = 10;
+	  params.padRight = 10;
+	  params.padTop = 5;
+	  params.padBottom = 5;
+	  params.orientationX = orient_center;
+	  params.orientationY = orient_top;
+	  params.hasBorder = 0;
+	  params.useDefaultForeground = 1;
+	  params.useDefaultBackground = 1;
 	  label1 = kernelWindowNewTextLabel(window, NULL /* default font */,
-					    SHUTDOWN_MSG1);
+					    SHUTDOWN_MSG1, &params);
 
-	  if (label1 != NULL)
+	  if (shutdownType == halt)
 	    {
-	      params.gridX = 0;
-	      params.gridY = 0;
-	      params.gridWidth = 1;
-	      params.gridHeight = 1;
-	      params.padLeft = 10;
-	      params.padRight = 10;
-	      params.padTop = 5;
-	      params.padBottom = 5;
-	      params.orientationX = orient_center;
-	      params.orientationY = orient_top;
-	      params.hasBorder = 0;
-	      params.useDefaultForeground = 1;
-	      params.useDefaultBackground = 1;
-
-	      kernelWindowAddClientComponent(window, label1, &params);
-
-	      if (shutdownType == halt)
-		{
-		  label2 = kernelWindowNewTextLabel(window,
-						    NULL /* default font */,
-						    SHUTDOWN_MSG2);
-		  if (label2 != NULL)
-		    {
-		      params.gridY = 1;
-		      params.padTop = 0;
-		      kernelWindowAddClientComponent(window, label2, &params);
-		    }
-		}
+	      params.gridY = 1;
+	      params.padTop = 0;
+	      label2 = kernelWindowNewTextLabel(window, NULL /* default font*/,
+						SHUTDOWN_MSG2, &params);
 	    }
 
 	  kernelWindowSetHasCloseButton(window, 0);
-	  kernelWindowLayout(window);
-	  kernelWindowAutoSize(window);
+	  kernelWindowPack(window);
 	  kernelWindowGetSize(window, &windowWidth, &windowHeight);
 	  kernelWindowSetLocation(window, ((screenWidth - windowWidth) / 2),
 				  ((screenHeight - windowHeight) / 3));
@@ -198,7 +185,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
     {
       // Shut down the window manager
       kernelLog("Stopping window manager");
-      status = kernelWindowManagerShutdown();
+      status = kernelWindowShutdown();
       if (status < 0)
 	// Not fatal by any means
 	kernelError(kernel_warn, "Unable to shut down the window manager");
@@ -286,7 +273,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
   if (graphics)
     {
       // Get rid of the window we showed.  No need to properly destroy it.
-      if (window != NULL)
+      if (window)
 	kernelWindowSetVisible(window, 0);
 
       // Draw a box with the final message

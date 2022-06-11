@@ -38,5 +38,5 @@ web site, change to the utils directory and do:
 
 Good luck, and let me know if there's any help I can offer.
 
-Andy McLaughlin (jamesamc@yahoo.com)
+Andy McLaughlin <andy@visopsys.org>
 19/12/2003

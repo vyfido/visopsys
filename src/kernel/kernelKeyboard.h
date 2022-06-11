@@ -36,6 +36,7 @@ typedef struct
 // A structure for holding information about the keyboard
 typedef struct
 {
+  unsigned flags;
   kernelKeyboardDriver *driver;
 
 } kernelKeyboard;

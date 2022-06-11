@@ -19,12 +19,56 @@
 //  kernelWindowTextField.c
 //
 
-// This code is for managing kernelWindowTextFieldComponent objects.
-// These are just kernelWindowTextAreaa that consist of a single line
-
+// This code is for managing kernelWindowTextField components.
+// These are just kernelWindowTextArea that consist of a single line
 
 #include "kernelWindowManager.h"     // Our prototypes are here
 #include <string.h>
+
+static int (*saveFocus) (void *, int) = NULL;
+static int (*saveKeyEvent) (void *, windowEvent *) = NULL;
+
+
+static int focus(void *componentData, int focus)
+{
+  // This gets called when a component gets or loses the focus
+
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+
+  // Call the 'focus' routine of the underlying text area
+  status = saveFocus(componentData, focus);
+  if (status < 0)
+    return (status);
+
+  textArea = (kernelWindowTextArea *) component->data;
+  kernelTextStreamSetCursor(((kernelTextOutputStream *)
+			     textArea->outputStream), focus);
+  return (0);
+}
+
+
+static int keyEvent(void *componentData, windowEvent *event)
+{
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+
+  // If it's a printable keystroke, make an asterisk
+  if (event->type & EVENT_KEY_DOWN)
+    {
+      if (event->key == 8)
+	kernelTextStreamBackSpace(textArea->outputStream);
+
+      else if ((event->key >= 32) && (event->key <= 126))
+	kernelTextStreamPutc(textArea->outputStream, event->key);
+    }
+
+  if (saveKeyEvent)
+    return (saveKeyEvent(componentData, event));
+  else
+    return (0);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -36,18 +80,50 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewTextField(kernelWindow *window,
-					 int columns, kernelAsciiFont *font)
+kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
+						int columns,
+						kernelAsciiFont *font,
+						componentParameters *params)
 {
-  // Formats a kernelWindowComponent as a kernelWindowTextFieldComponent.
-  // Really it just returns a kernelWindowTextArea with only one row.
+  // Just returns a kernelWindowTextArea with only one row, but there are
+  // a couple of other things we do as well.
 
-  kernelWindowComponent *textAreaComponent = NULL;
+  kernelWindowComponent *component = NULL;
+  kernelWindowTextArea *textArea = NULL;
 
-  textAreaComponent = kernelWindowNewTextArea(window, columns, 1, font);
+  component = kernelWindowNewTextArea(parent, columns, 1, font, params);
+  if (component == NULL)
+    return (component);
 
-  // Except change the type to a text field
-  textAreaComponent->type = windowTextFieldComponent;
+  // If the user wants the default colors, we change set them to the
+  // default for a text field, since it's different from text areas
+  if (component->parameters.useDefaultForeground)
+    {
+      component->parameters.foreground.red = DEFAULT_RED;
+      component->parameters.foreground.green = DEFAULT_GREEN;
+      component->parameters.foreground.blue = DEFAULT_BLUE;
+      component->parameters.useDefaultForeground = 0;
+    }
+  if (component->parameters.useDefaultBackground)
+    {
+      component->parameters.background.red = 255;
+      component->parameters.background.green = 255;
+      component->parameters.background.blue = 255;
+      component->parameters.useDefaultBackground = 0;
+    }
 
-  return (textAreaComponent);
+  textArea = (kernelWindowTextArea *) component->data;
+
+  // Turn echo off
+  kernelTextInputStreamSetEcho(textArea->inputStream, 0);
+
+  // We want different focus behaviour than a text area
+  saveFocus = component->focus;
+  component->focus = focus;
+
+  // Change the key event handler
+  saveKeyEvent = component->keyEvent;
+  component->keyEvent = keyEvent;
+
+  return (component);
 }

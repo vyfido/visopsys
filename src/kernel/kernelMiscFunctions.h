@@ -21,8 +21,8 @@
 	
 #if !defined(_KERNELMISCFUNCTIONS_H)
 
-#include "kernelVariableList.h"
 #include "kernelFileStream.h"
+#include "kernelVariableList.h"
 
 #define MAX_SYMBOL_LENGTH 80
 typedef struct {
@@ -37,8 +37,8 @@ void kernelMemClear(void *, unsigned);
 int kernelMemCmp(const void *, const void *, unsigned);
 void kernelStackTrace(void *, void *);
 void kernelConsoleLogin(void);
-kernelVariableList *kernelConfigurationReader(const char *);
-int kernelConfigurationWriter(kernelVariableList *, fileStream *);
+variableList *kernelConfigurationReader(const char *);
+int kernelConfigurationWriter(const char *, variableList *);
 int kernelReadSymbols(const char *);
 
 #define _KERNELMISCFUNCTIONS_H

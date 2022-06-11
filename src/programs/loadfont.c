@@ -61,7 +61,6 @@ int main(int argc, char *argv[])
 
   // Call the kernel to load the font
   status = fontLoad(fileName, argv[2], &font);
-
   if (status < 0)
     {
       errno = status;

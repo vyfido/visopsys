@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/window.h>
 
 
 int main(int argc, char *argv[])
@@ -47,23 +48,29 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  // Did the user supply a filename?
+  // Did the user supply a file name?
   if (argc > 1)
-    {
-      strncpy(filename, argv[1], 1024);
-      filename[1023] = '\0';
-    }
+    strncpy(filename, argv[1], 1024);
+
   else
     {
-      multitaskerGetCurrentDirectory(filename, 1024);
-      if (filename[strlen(filename) - 1] != '/')
-	strcat(filename, "/");
-      strcat(filename, "scrnshot.bmp");
+      // Prompt for a file name
+      status = windowNewFileDialog(NULL, "Enter filename", "Please enter "
+				   "the file name to use:", filename, 1024);
+      if (status != 1)
+	{
+	  errno = status;
+	  perror(argv[0]);
+	  return (status);
+	}
+      filename[1023] = '\0';
     }
 
-  status = windowManagerSaveScreenShot(filename);
+  status = windowSaveScreenShot(filename);
   if (status < 0)
     {
+      windowNewErrorDialog(NULL, "Error", "Couldn't save the screenshot.\n"
+			   "I'm sure it would have been nice.");
       errno = status;
       perror(argv[0]);
     }

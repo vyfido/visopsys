@@ -21,8 +21,10 @@
 
 #if !defined(_KERNELUSER_H)
 
-#define USER_MAX_NAMELENGTH 16
-#define USER_MAX_PASSWDLENGTH 16
+#define USER_PASSWORDFILE      "/system/password"
+#define USER_MAXUSERS          64
+#define USER_MAX_NAMELENGTH    16
+#define USER_MAX_PASSWDLENGTH  16
 
 typedef struct
 {
@@ -36,10 +38,16 @@ typedef struct
 
 // Functions exported by kernelUser.c
 int kernelUserInitialize(void);
-int kernelUserLogin(const char *, int);
+int kernelUserAuthenticate(const char *, const char *);
+int kernelUserLogin(const char *, const char *);
 int kernelUserLogout(const char *);
+int kernelUserGetNames(char *, unsigned);
+int kernelUserAdd(const char *, const char *);
+int kernelUserDelete(const char *);
+int kernelUserSetPassword(const char *, const char *, const char *);
 int kernelUserGetPrivilege(const char *);
 int kernelUserGetPid(void);
+int kernelUserSetPid(const char *, int);
 
 #define _KERNELUSER_H
 #endif

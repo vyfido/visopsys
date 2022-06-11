@@ -130,7 +130,7 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
   unsigned groupDescriptorBlocks = 0;
 
   // Have we already read the parameters for this filesystem?
-  if (extData != NULL)
+  if (extData)
     return (extData);
 
   // Get a temporary buffer to read the superblock
@@ -929,7 +929,7 @@ int kernelFilesystemExtNewEntry(kernelFileEntry *newEntry)
 
   // Make sure there isn't already some sort of data attached to this
   // file entry, and that there is a filesystem attached
-  if (newEntry->driverData != NULL)
+  if (newEntry->driverData)
     {
       kernelError(kernel_error, "Entry already has private filesystem data");
       return (status = ERR_ALREADY);

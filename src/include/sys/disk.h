@@ -46,8 +46,9 @@ typedef struct
   int deviceNumber;
   diskType type;
   mediaType fixedRemovable;
+  int readOnly;
   partitionType partType;
-  char fsType [FSTYPE_MAX_NAMELENGTH];
+  char fsType[FSTYPE_MAX_NAMELENGTH];
 
   unsigned heads;
   unsigned cylinders;

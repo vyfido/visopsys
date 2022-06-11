@@ -26,15 +26,18 @@
 #include "kernelFont.h"
 
 // Definitions
-#define MAX_GRAPHICBUFFER_UPDATES 128
+#define MAX_GRAPHICBUFFER_UPDATES         128
+#define DEFAULT_RED                       40
+#define DEFAULT_GREEN                     93
+#define DEFAULT_BLUE                      171
+#define DEFAULT_GREY                      200
+#define DEFAULT_SPLASH                    "/system/visopsys.bmp"
 
 // Structure to represent a drawing area
 typedef volatile struct
 {
   unsigned width;
   unsigned height;
-  int numUpdates;
-  unsigned updates[MAX_GRAPHICBUFFER_UPDATES][4];
   void *data;
 
 } kernelGraphicBuffer;
@@ -53,10 +56,10 @@ typedef struct
 			 unsigned, unsigned, unsigned, int);
   int (*driverDrawOval) (kernelGraphicBuffer *, color *, drawMode,
 			 int, int, unsigned, unsigned, unsigned, int);
-  int (*driverDrawMonoImage) (kernelGraphicBuffer *, image *,
+  int (*driverDrawMonoImage) (kernelGraphicBuffer *, image *, drawMode,
 			      color *, color *, int, int);
-  int (*driverDrawImage) (kernelGraphicBuffer *, image *, int, int, unsigned,
-			  unsigned, unsigned, unsigned);
+  int (*driverDrawImage) (kernelGraphicBuffer *, image *, drawMode, int, int,
+			  unsigned, unsigned, unsigned, unsigned);
   int (*driverGetImage) (kernelGraphicBuffer *, image *, int, int,
 			 unsigned, unsigned);
   int (*driverCopyArea) (kernelGraphicBuffer *, int, int, unsigned, unsigned,
@@ -69,12 +72,14 @@ typedef struct
 typedef struct 
 {
   unsigned videoMemory;
-  int mode;
   void *framebuffer;
+  int mode;
   unsigned xRes;
   unsigned yRes;
   unsigned bitsPerPixel;
   unsigned bytesPerPixel;
+  int numberModes;
+  videoMode supportedModes[MAXVIDEOMODES];
   kernelGraphicDriver *driver;
 
 } kernelGraphicAdapter;
@@ -86,6 +91,9 @@ int kernelLFBGraphicDriverInitialize(void);
 int kernelGraphicRegisterDevice(kernelGraphicAdapter *);
 int kernelGraphicInitialize(void);
 int kernelGraphicsAreEnabled(void);
+int kernelGraphicGetModes(videoMode *, unsigned);
+int kernelGraphicGetMode(videoMode *);
+int kernelGraphicSetMode(videoMode *);
 unsigned kernelGraphicGetScreenWidth(void);
 unsigned kernelGraphicGetScreenHeight(void);
 unsigned kernelGraphicCalculateAreaBytes(unsigned, unsigned);
@@ -97,18 +105,21 @@ int kernelGraphicDrawRect(kernelGraphicBuffer *, color *, drawMode, int, int,
 			  unsigned, unsigned, unsigned, int);
 int kernelGraphicDrawOval(kernelGraphicBuffer *, color *, drawMode, int, int,
 			  unsigned, unsigned, unsigned, int);
-int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, int, int, unsigned,
-			   unsigned, unsigned, unsigned);
+int kernelGraphicNewImage(image *, unsigned, unsigned);
+int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, drawMode, int, int,
+			   unsigned, unsigned, unsigned, unsigned);
 int kernelGraphicGetImage(kernelGraphicBuffer *, image *, int, int,
 			  unsigned, unsigned);
-int kernelGraphicDrawText(kernelGraphicBuffer *, color *, kernelAsciiFont *,
-			  const char *, drawMode, int, int);
+int kernelGraphicDrawText(kernelGraphicBuffer *, color *, color *,
+			  kernelAsciiFont *, const char *, drawMode, int, int);
 int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int, unsigned, unsigned,
 			  int, int);
 int kernelGraphicClearArea(kernelGraphicBuffer *, color *, int, int,
 			   unsigned, unsigned);
 int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int,
-			      unsigned, unsigned); 
+			      unsigned, unsigned);
+void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *, int, int,
+				     unsigned, unsigned, int, int, drawMode);
 
 #define _KERNELGRAPHIC_H
 #endif

@@ -26,6 +26,7 @@
 #include "kernelWindowManager.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
+#include "kernelMiscFunctions.h"
 #include <sys/errors.h>
 #include <string.h>
 
@@ -81,15 +82,12 @@ static int draw(void *componentData)
   // Free our temporary memory
   kernelFree(line);
 
+  kernelTextStreamSetCursor(area->outputStream,
+			    (component->flags & WINFLAG_HASFOCUS));
+
   if (component->parameters.hasBorder)
     component->drawBorder((void *) component);
 
-  return (0);
-}
-
-
-static int erase(void *componentData)
-{
   return (0);
 }
 
@@ -108,6 +106,107 @@ static int move(void *componentData, int xCoord, int yCoord)
 
 static int resize(void *componentData, unsigned width, unsigned height)
 {
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelTextArea *area = (kernelTextArea *) component->data;
+  unsigned oldColumns = 0, oldRows = 0;
+  unsigned char *oldBuffer = NULL;
+  unsigned char *oldLine = NULL;
+  unsigned rowCount;
+
+  oldColumns = area->columns;
+  oldRows = area->rows;
+  oldBuffer = area->data;
+
+  // Set the new columns and rows.
+  area->columns = (width / area->font->charWidth);
+  area->rows = (height / area->font->charHeight);
+  area->cursorColumn = 0;
+  area->cursorRow = 0;
+
+  area->data = kernelMalloc(area->columns * area->rows);
+  if (area->data == NULL)
+    return (status = ERR_MEMORY);
+
+  for (rowCount = 0; ((rowCount < oldRows) &&
+		      (rowCount < area->rows)); rowCount ++)
+    {
+      oldLine = (oldBuffer + (rowCount * oldColumns));
+      kernelTextStreamPrint(area->outputStream, oldLine);
+    }
+
+  // Free the old data buffer and assign the new one
+  kernelFree(oldBuffer);
+
+  return (status = 0);
+}
+
+
+static int focus(void *componentData, int focus)
+{
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelTextArea *area = (kernelTextArea *) component->data;
+
+  if (focus)
+    {
+      kernelTextSetCurrentInput(area->inputStream);
+      kernelTextSetCurrentOutput(area->outputStream);
+    }
+
+  return (0);
+}
+
+
+static int getData(void *componentData, void *buffer, unsigned size)
+{
+  // Copy the text (up to size bytes) from the text area to the supplied
+  // buffer.
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelTextArea *area = (kernelTextArea *) component->data;
+
+  if (size > (area->columns * area->rows))
+    size = (area->columns * area->rows);
+
+  kernelMemCopy(area->data, buffer, size);
+
+  return (0);
+}
+
+
+static int setData(void *componentData, void *buffer, unsigned size)
+{
+  // Copy the text (up to size bytes) from the supplied buffer to the
+  // text area.
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelTextArea *area = (kernelTextArea *) component->data;
+
+  if (size > (area->columns * area->rows))
+    size = (area->columns * area->rows);
+
+  kernelTextStreamScreenClear(area->outputStream);
+
+  kernelMemCopy(buffer, area->data, size);
+
+  if (component->draw)
+    status = component->draw((void *) component);
+
+  return (status);
+}
+
+
+static int keyEvent(void *componentData, windowEvent *event)
+{
+  // Puts window key events into the input stream of the text area
+
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelTextArea *area = (kernelTextArea *) component->data;
+  kernelTextInputStream *inputStream =
+    (kernelTextInputStream *) area->inputStream;
+
+  if ((event->type & EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
+    inputStream->s.append(area->inputStream, (char) event->key);
+
   return (0);
 }
 
@@ -117,7 +216,7 @@ static int destroy(void *componentData)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelTextArea *area = (kernelTextArea *) component->data;
 
-  if (area != NULL)
+  if (area)
     {
       // If the current input/output streams are currently pointing at our
       // input/output streams, set the current ones to NULL
@@ -148,8 +247,10 @@ static int destroy(void *componentData)
 /////////////////////////////////////////////////////////////////////////
 
 
-kernelWindowComponent *kernelWindowNewTextArea(kernelWindow *window,
-			int columns, int rows, kernelAsciiFont *font)
+kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
+					       int columns, int rows,
+					       kernelAsciiFont *font,
+					       componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowTextArea
 
@@ -158,11 +259,11 @@ kernelWindowComponent *kernelWindowNewTextArea(kernelWindow *window,
   kernelTextArea *area = NULL;
 
   // Check parameters.  It's okay for the font to be NULL.
-  if (window == NULL)
+  if ((parent == NULL) || (params == NULL))
     return (component = NULL);
 
   // Get the basic component structure
-  component = kernelWindowNewComponent();
+  component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
 
@@ -176,15 +277,19 @@ kernelWindowComponent *kernelWindowNewTextArea(kernelWindow *window,
     }
 
   // Now populate it
-  component->type = windowTextAreaComponent;
+  component->type = textAreaComponentType;
   component->width = (columns * font->charWidth);
   component->height = (rows * font->charHeight);
+  component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
+
   // The functions
   component->draw = &draw;
-  component->erase = &erase;
   component->move = &move;
   component->resize = &resize;
-  component->mouseEvent = NULL;
+  component->focus = &focus;
+  component->getData = &getData;
+  component->setData = &setData;
+  component->keyEvent = &keyEvent;
   component->destroy = &destroy;
 
   // Create the text area
@@ -212,7 +317,7 @@ kernelWindowComponent *kernelWindowNewTextArea(kernelWindow *window,
   ((kernelTextOutputStream *) area->outputStream)->textArea = area;
   area->data = (unsigned char *) kernelMalloc(columns * rows);
   area->font = font;
-  area->graphicBuffer = &(window->buffer);
+  area->graphicBuffer = &(getWindow(parent)->buffer);
 
   component->data = (void *) area;
 

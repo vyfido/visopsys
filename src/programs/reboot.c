@@ -19,52 +19,31 @@
 //  reboot.c
 //
 
-// This is the UNIX-style command for rebooting the system, no questions
-// asked
+// This is the UNIX-style command for rebooting the system
 
 #include <stdio.h>
-#include <string.h>
+#include <unistd.h>
 #include <sys/api.h>
-
-typedef enum 
-{  
-  halt, reboot
-
-} shutdownType;
-
 
 int main(int argc, char *argv[])
 {
   // There's a nice system function for doing this.
 
   int status = 0;
-  int count;
+  int force = 0;
 
+  // Reboot forcefully?
+  if (getopt(argc, argv, "f") != -1)
+    force = 1;
 
-  // Make sure none of our args are NULL
-  for (count = 0; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
-
-  if ((argc > 1) && (strcmp(argv[1], "-f") == 0))
+  status = shutdown(1, force);
+  if (status < 0)
     {
-      // Do a nasty reboot
-      status = shutdown(reboot, 1);
-      
-      if (status < 0)
-	return (status);
-    }
-  else
-    {
-      // Try to do a nice reboot
-      status = shutdown(reboot, 0);
-      
-      if (status < 0)
-	{
-	  printf("Use \"%s -f\" to force.\n", argv[0]);
-	  return (status);
-	}
+      if (!force)
+	printf("Use \"%s -f\" to force.\n", argv[0]);
+      return (status);
     }
 
+  // Wait for death
   while(1);
 }

@@ -1,6 +1,6 @@
 /* Configuration for an i386 running Visopsys
    Copyright (C) 1994 Free Software Foundation, Inc.
-   Contributed by Andy McLaughlin (jamesamc@yahoo.com).
+   Contributed by Andy McLaughlin <andy@visopsys.org>.
 
 This file is part of GNU CC.
 

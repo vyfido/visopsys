@@ -60,6 +60,7 @@ int putc(int, FILE *);
 int putchar(int);
 int puts(const char *);
 int remove(const char *);
+int rename(const char *, const char *);
 void rewind(FILE *);
 int scanf(const char *, ...);
 int sprintf(char *, const char *, ...);
@@ -68,54 +69,36 @@ int sprintf(char *, const char *, ...);
 int _expandFormatString(char *, const char *, va_list);
 int _formatInput(const char *, const char *, va_list);
 
+/*
+  Unimplemented routines
 
-// For dealing with unimplemented routines
-#define not_implemented_void()   \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return;                      \
-  }
-#define not_implemented_int()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (ERR_NOTIMPLEMENTED); \
-  }
-#define not_implemented_ptr()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return (NULL);               \
-  }
-#define not_implemented_uns()    \
-  {                              \
-    errno = ERR_NOTIMPLEMENTED;  \
-    return 0;                    \
-  }
-
-// Unimplemented routines
-#define clearerr(stream) not_implemented_void()
-#define fclose(stream) not_implemented_int()
-#define feof(stream) not_implemented_int()
-#define ferror(stream) not_implemented_int()
-#define fflush(stream) not_implemented_int()
-#define fgetc(stream) not_implemented_int()
-#define fgets(charptr, int, stream) not_implemented_ptr()
-#define fopen(charptr1, charptr2) not_implemented_ptr()
-#define fprintf(stream, charptr, ...) not_implemented_int()
-#define fputc(int, stream) not_implemented_int()
-#define fputs(charptr, stream) not_implemented_int()
-#define fread(ptr, size, nelem, stream) not_implemented_uns()
-#define freopen(filename, mode, stream) not_implemented_ptr()
-#define fscanf(stream, format, ...) not_implemented_int()
-#define fwrite(ptr, size, nelem, stream) not_implemented_uns()
-#define setbuf(stream, buf) not_implemented_void()
-#define setvbuf(stream, buf, mode, size) not_implemented_int()
-#define sscanf(s, format, ...) not_implemented_int()
-#define tmpfile() not_implemented_ptr()
-#define tmpnam(s) not_implemented_ptr()
-#define ungetc(c, stream) not_implemented_int()
-#define vfprintf(stream, format, ap) not_implemented_int()
-#define vprintf(format, ap) not_implemented_int()
-#define vsprintf(s, format, ap) not_implemented_int()
+  void clearerr(FILE *stream);
+  int fclose(FILE *stream);
+  FILE *fdopen(int fildes, const char *mode);
+  int feof(FILE *stream);
+  int ferror(FILE *stream);
+  int fflush(FILE *stream);
+  int fgetc(FILE *stream);
+  char *fgets(char *s, int size, FILE *stream);
+  int fileno(FILE *stream);
+  FILE *fopen(const char *path, const char *mode);
+  int fprintf(FILE *stream, const char *format, ...);
+  int fputc(int c, FILE *stream);
+  int fputs(const char *s, FILE *stream);
+  size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+  FILE *freopen(const char *path, const char *mode, FILE *stream);
+  int fscanf(FILE *stream, const char *format, ...);
+  size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+  void setbuf(FILE *stream, char *buf);
+  void setbuffer(FILE *stream, char *buf, size_tsize);
+  void setlinebuf(FILE *stream);
+  int snprintf(char *str, size_t size, const char *format, ...);
+  int setvbuf(FILE *stream, char *buf, int mode, size_t size);
+  int sscanf(const char *str, const char *format, ...);
+  FILE *tmpfile(void);
+  char *tmpnam(char *s);
+  int ungetc(int c, FILE *stream);
+*/
 
 #define _STDIO_H
 #endif
